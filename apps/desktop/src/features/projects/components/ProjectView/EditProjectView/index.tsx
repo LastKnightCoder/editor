@@ -1,3 +1,4 @@
+import { projectsTranslator } from "@/features/projects/i18n";
 import { useState, useEffect } from "react";
 import EditProject from "../EditProjectItem";
 
@@ -26,7 +27,7 @@ const EditProjectView = () => {
         .catch(e => {
           if (!active) return;
           console.error(e);
-          toast.error("获取项目内容失败");
+          toast.error(t("read.failed"));
         });
     }
 
@@ -90,3 +91,5 @@ const EditProjectView = () => {
 };
 
 export default EditProjectView;
+
+const t = projectsTranslator.t;

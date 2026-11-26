@@ -1,3 +1,4 @@
+import { useProjectsI18n } from "../i18n";
 import { useMobilePluginActionItems } from "../../../app/plugins/action-menu";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Ellipsis, FilePlus2, FolderKanban, Trash2 } from "lucide-react";
@@ -42,6 +43,7 @@ const projectDocEditorSchema = createPageSchema({
 type ProjectDocEditorParams = typeof projectDocEditorSchema.type;
 
 function ProjectDocEditorScreen() {
+  const { t } = useProjectsI18n();
   const { params } = usePage<ProjectDocEditorParams>();
   const navigator = useNavigator();
   const app = useAppContext();
@@ -71,9 +73,7 @@ function ProjectDocEditorScreen() {
           kind: "card" as const,
           id: String(card.id),
           createTime: card.createTime,
-          title:
-            clampText(richTextPlainText(card.content).split("\n")[0]?.trim() ?? "", 24) ||
-            `卡片 #${card.id}`,
+          title: clampText(richTextPlainText(card.content).split("\n")[0]?.trim() ?? "", 24) || "",
         };
       }
       const article = await tauri.articleGet(refId);
@@ -81,11 +81,14 @@ function ProjectDocEditorScreen() {
         kind: "article" as const,
         id: String(article.id),
         createTime: article.createTime,
-        title: article.title.trim() || `内容 #${article.id}`,
+        title: article.title.trim(),
       };
     },
   });
-  const sourceLabel = source?.title;
+  const sourceLabel = source
+    ? source.title ||
+      t(source.kind === "card" ? "source.card" : "source.content", { id: source.id })
+    : undefined;
   const pluginActionItems = useMobilePluginActionItems(
     refType
       ? (source ?? null)
@@ -113,7 +116,7 @@ function ProjectDocEditorScreen() {
   const handleCreateChild = () => {
     const title = addChildTitle.trim();
     if (!title) {
-      toast({ type: "warning", text: "给文档起个名字" });
+      toast({ type: "warning", text: t("document.nameRequired") });
       return;
     }
     createItem.mutate(
@@ -127,9 +130,9 @@ function ProjectDocEditorScreen() {
         onSuccess: () => {
           setAddChildOpen(false);
           setAddChildTitle("");
-          toast({ type: "success", text: "已添加子文档" });
+          toast({ type: "success", text: t("child.added") });
         },
-        onError: error => app.presentError(error, "添加子文档失败"),
+        onError: error => app.presentError(error, t("child.failed")),
       }
     );
   };
@@ -163,7 +166,7 @@ function ProjectDocEditorScreen() {
           setRefreshRev(value => value + 1);
         }}
         titleEditable
-        contentType="项目文档"
+        contentType={t("document.type")}
         tags={item.tags ?? []}
         onTagsCommit={async tags => {
           await tauri.projectItemUpdate({ id: params.itemId, tags });
@@ -177,7 +180,7 @@ function ProjectDocEditorScreen() {
           item.refType
             ? {
                 label: sourceLabel || "…",
-                typeLabel: item.refType === "card" ? "卡片" : "文章",
+                typeLabel: t(item.refType === "card" ? "type.card" : "type.article"),
                 toneClass: "text-tag-4",
                 onOpen: () => {
                   if (item.refType === "card") {
@@ -193,12 +196,12 @@ function ProjectDocEditorScreen() {
           tauri
             .projectItemUpdate({ id: params.itemId, title })
             .then(() => invalidate())
-            .catch(error => app.presentError(error, "标题保存失败"));
+            .catch(error => app.presentError(error, t("title.failed")));
         }}
         headerRight={
           <PageHeaderButton
             icon={<Ellipsis size={17} />}
-            aria-label="节点操作"
+            aria-label={t("node.actions")}
             onClick={() => setMenuOpen(true)}
           />
         }
@@ -208,13 +211,13 @@ function ProjectDocEditorScreen() {
 
       <BottomSheet
         open={addChildOpen}
-        title={`添加子文档到「${clampText(item.title, 12)}」`}
+        title={t("add.childTitle", { title: clampText(item.title, 12) })}
         onClose={() => setAddChildOpen(false)}
       >
         <input
           value={addChildTitle}
           onChange={event => setAddChildTitle(event.target.value)}
-          placeholder="文档标题…"
+          placeholder={t("document.placeholder")}
           className="input-base mb-3.5 w-full px-4 py-3"
         />
         <button
@@ -224,20 +227,20 @@ function ProjectDocEditorScreen() {
           className="bg-tag-1-soft text-tag-1 flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-[14.5px] font-bold transition-transform active:scale-[0.97] disabled:opacity-60"
         >
           <FilePlus2 size={17} strokeWidth={2.2} />
-          新建子文档
+          {t("create.child")}
         </button>
       </BottomSheet>
 
       <ActionSheet
         open={menuOpen}
         title={item.title}
-        kind="项目节点"
+        kind={t("node.kind")}
         onClose={() => setMenuOpen(false)}
         items={[
           blockSelectionMenuItem(() => detailActionsRef.current?.enterBlockSelection()),
           outlineMenuItem(() => detailActionsRef.current?.openOutline()),
           {
-            label: "添加子文档",
+            label: t("add.child"),
             icon: <FilePlus2 size={18} />,
             tone: "sky",
             onClick: () => setAddChildOpen(true),
@@ -245,7 +248,7 @@ function ProjectDocEditorScreen() {
           ...collab.menuItems,
           ...pluginActionItems,
           {
-            label: "删除节点",
+            label: t("delete.node"),
             danger: true,
             icon: <Trash2 size={18} />,
             onClick: () => {
@@ -260,15 +263,15 @@ function ProjectDocEditorScreen() {
 
       <MobileConfirmDialog
         open={deleteOpen}
-        title="删除节点"
-        description={`「${clampText(item.title, 18)}」及其子节点将被删除。`}
+        title={t("delete.node")}
+        description={t("delete.nodeDescription", { title: clampText(item.title, 18) })}
         danger
         loading={deleteItem.isPending}
         onCancel={() => setDeleteOpen(false)}
         onConfirm={() => {
           setDeleteOpen(false);
           deleteItem.mutate(item.id);
-          toast({ type: "success", text: "已删除节点" });
+          toast({ type: "success", text: t("node.deleted") });
           navigator.goBack("ui");
         }}
       />

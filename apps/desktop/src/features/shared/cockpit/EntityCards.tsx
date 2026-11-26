@@ -8,6 +8,7 @@
  * 操作钮 hover/focus 显现；⋯ 菜单承载编辑/置顶/归档/整体导出/删除。
  */
 
+import { useCockpitI18n } from "./i18n";
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -24,8 +25,10 @@ import {
 import { IconButton, Menu, cn } from "@tau/ui";
 import { SortHeader } from "../list/ListControls";
 import type { CockpitCardHandlers, CockpitCopy, CockpitItem, CockpitVisual } from "./types";
-import { cockpitExcerpt, cockpitRelativeTime } from "./text";
-import { cockpitTimeMeta, formatDate, formatOpenedAt, type CockpitSort } from "./model";
+import { cockpitExcerpt } from "./text";
+import type { CockpitSort } from "./model";
+import { cockpitTimeMeta, formatDate, formatOpenedAt } from "./format";
+import { formatRelativeTime } from "../list/format";
 
 interface ItemProps {
   item: CockpitItem;
@@ -59,6 +62,7 @@ function CardOps({
   handlers: CockpitCardHandlers;
   className?: string;
 }) {
+  const { t } = useCockpitI18n();
   return (
     <div
       className={cn(
@@ -68,7 +72,7 @@ function CardOps({
       onClick={e => e.stopPropagation()}
     >
       <IconButton
-        title={item.pinned ? "取消置顶" : "置顶"}
+        title={t(item.pinned ? "unpin" : "pin")}
         onClick={() => handlers.onTogglePin(item)}
         className={OPS_BTN}
       >
@@ -77,26 +81,26 @@ function CardOps({
       <Menu
         align="end"
         trigger={
-          <IconButton title="更多操作" className={OPS_BTN}>
+          <IconButton title={t("more")} className={OPS_BTN}>
             <MoreHorizontal className="size-[13px]" strokeWidth={1.75} />
           </IconButton>
         }
       >
         <Menu.Item onSelect={() => handlers.onEdit(item)} icon={<MenuIcon icon={Pencil} />}>
-          编辑信息
+          {t("edit")}
         </Menu.Item>
         <Menu.Item
           onSelect={() => handlers.onSetArchived(item, !item.archived)}
           icon={<MenuIcon icon={item.archived ? ArchiveRestore : Archive} />}
         >
-          {item.archived ? "取消归档" : "归档"}
+          {t(item.archived ? "unarchive" : "archive")}
         </Menu.Item>
         {handlers.onExport && (
           <Menu.Item
             onSelect={() => handlers.onExport?.(item)}
             icon={<MenuIcon icon={ArrowRight} />}
           >
-            整体导出
+            {t("export")}
           </Menu.Item>
         )}
         <Menu.Separator />
@@ -105,7 +109,7 @@ function CardOps({
           onSelect={() => handlers.onDelete(item)}
           icon={<MenuIcon icon={Trash2} />}
         >
-          删除
+          {t("delete")}
         </Menu.Item>
       </Menu>
     </div>
@@ -139,25 +143,27 @@ function EntityTitle({
   copy: CockpitCopy;
   className: string;
 }) {
+  const { t } = useCockpitI18n();
   return (
     <h3 className={cn("flex min-w-0 items-center gap-1.5", className)}>
       {item.pinned && (
         <Star
           className="text-accent fill-accent size-[13px] shrink-0"
           strokeWidth={1.75}
-          aria-label="已置顶"
+          aria-label={t("pinned")}
         />
       )}
-      <span className="truncate">{item.title || `${copy.title} #${item.id}`}</span>
+      <span className="truncate">{item.title || copy.itemTitle(item.id)}</span>
     </h3>
   );
 }
 
 function LastItem({ title, className }: { title: string; className?: string }) {
+  const { t } = useCockpitI18n();
   return (
     <p className={cn("text-ink-2 flex min-w-0 items-center gap-1.5 text-[12px]", className)}>
       <FileText className="text-ink-3 size-[13px] shrink-0" strokeWidth={1.75} />
-      <span className="text-ink-3 shrink-0">上次看到</span>
+      <span className="text-ink-3 shrink-0">{t("lastViewed")}</span>
       <span className="truncate">{title}</span>
     </p>
   );
@@ -171,6 +177,7 @@ export function CockpitRecentCard({
   copy,
   onOpen,
 }: ItemProps & { onOpen(item: CockpitItem): void }) {
+  const { t, locale } = useCockpitI18n();
   return (
     <article
       tabIndex={0}
@@ -192,11 +199,13 @@ export function CockpitRecentCard({
         {/* 「继续」与 meta 同行、在文档行之下，不压住上次看到的标题 */}
         <div className="mt-2 flex h-6 items-center gap-3">
           <p className="text-ink-3 min-w-0 flex-1 truncate text-[11.5px] tabular-nums">
-            {item.openedAt !== null && formatOpenedAt(item.openedAt)} ·{" "}
-            {item.metric === null ? (item.metricText ?? "—") : `${item.metric} ${copy.metricUnit}`}
+            {item.openedAt !== null && formatOpenedAt(item.openedAt, { t, locale })} ·{" "}
+            {item.metric === null
+              ? (item.metricText ?? "—")
+              : copy.metricCount(item.metric, item.metric.toLocaleString(locale))}
           </p>
           <span className="bg-accent-soft text-accent-text inline-flex h-6 shrink-0 items-center gap-1 rounded-[7px] px-2.5 text-[12px] font-medium opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100">
-            继续
+            {t("continue")}
             <ArrowRight className="size-[13px]" strokeWidth={1.75} />
           </span>
         </div>
@@ -214,6 +223,7 @@ export function CockpitGridCard({
   sort,
   handlers,
 }: ItemProps & { sort: CockpitSort; handlers: CockpitCardHandlers }) {
+  const { t, locale } = useCockpitI18n();
   const excerpt = cockpitExcerpt(item.desc);
   return (
     <article
@@ -246,10 +256,12 @@ export function CockpitGridCard({
         )}
         <p className="text-ink-3 flex items-center gap-2 text-[11.5px] tabular-nums">
           <span>
-            {item.metric === null ? (item.metricText ?? "—") : `${item.metric} ${copy.metricUnit}`}
+            {item.metric === null
+              ? (item.metricText ?? "—")
+              : copy.metricCount(item.metric, item.metric.toLocaleString(locale))}
           </span>
           <span className="bg-ink-3 size-[2.5px] rounded-full opacity-60" />
-          <span>{cockpitTimeMeta(item, sort)}</span>
+          <span>{cockpitTimeMeta(item, sort, { t, locale })}</span>
         </p>
       </div>
     </article>
@@ -279,6 +291,7 @@ export function CockpitListRows({
   /** 归档段沿用主列表的列宽，不重复列头 */
   showHead?: boolean;
 }) {
+  const { t } = useCockpitI18n();
   const head = (key: CockpitSort, label: string) => (
     <SortHeader
       label={label}
@@ -291,11 +304,11 @@ export function CockpitListRows({
     <div className="-mx-3">
       {showHead && (
         <div className={cn(LIST_COLS, "text-tau-sm text-ink-3 px-3 py-2")}>
-          {head("name", "名称")}
+          {head("name", t("sort.name"))}
           <span className="text-right">{copy.metricLabel}</span>
-          {head("opened", "上次打开")}
-          {head("updated", "更新")}
-          {head("created", "创建")}
+          {head("opened", t("column.opened"))}
+          {head("updated", t("column.updated"))}
+          {head("created", t("column.created"))}
           <span />
         </div>
       )}
@@ -307,6 +320,7 @@ export function CockpitListRows({
 }
 
 function ListRow({ item, visual, copy, handlers }: ItemProps & { handlers: CockpitCardHandlers }) {
+  const { t, locale } = useCockpitI18n();
   const excerpt = cockpitExcerpt(item.desc);
   const cell = (children: ReactNode, className?: string) => (
     <span className={cn("text-tau-sm text-ink-2 truncate tabular-nums", className)}>
@@ -333,21 +347,21 @@ function ListRow({ item, visual, copy, handlers }: ItemProps & { handlers: Cockp
           {excerpt && <p className="text-ink-3 truncate text-[11.5px]">{excerpt}</p>}
         </div>
       </div>
-      {cell(item.metric ?? item.metricText ?? "—", "text-right")}
+      {cell(item.metric?.toLocaleString(locale) ?? item.metricText ?? "—", "text-right")}
       <span className="min-w-0">
         {item.openedAt === null ? (
-          cell("未打开过", "text-ink-3 block")
+          cell(t("neverOpened"), "text-ink-3 block")
         ) : (
           <>
-            {cell(formatOpenedAt(item.openedAt), "block")}
+            {cell(formatOpenedAt(item.openedAt, { t, locale }), "block")}
             {item.lastItemTitle && (
               <span className="text-ink-3 block truncate text-[11.5px]">{item.lastItemTitle}</span>
             )}
           </>
         )}
       </span>
-      {cell(cockpitRelativeTime(item.updateTime))}
-      {cell(formatDate(item.createTime))}
+      {cell(formatRelativeTime(item.updateTime, locale))}
+      {cell(formatDate(item.createTime, locale))}
       <CardOps
         item={item}
         handlers={handlers}

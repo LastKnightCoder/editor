@@ -1,3 +1,5 @@
+import type { Translator } from "@tau/i18n";
+import type { ProjectsMessageKey } from "@/features/projects/i18n";
 import type { MenuEntryList } from "../../shared/menuEntries";
 import {
   BookOpen,
@@ -42,6 +44,7 @@ function menuIcon(Icon: LucideIcon) {
 }
 
 export const getProjectItemMoreMenuItems = (
+  t: Translator<ProjectsMessageKey>["t"],
   projectItem?: ProjectItemMenuSource | null,
   /** 文档已共享：协作项改「协作成员」（打开成员 Popover） */
   shared = false,
@@ -52,55 +55,55 @@ export const getProjectItemMoreMenuItems = (
     return [
       {
         key: "scene",
-        label: "场景",
+        label: t("scene"),
         icon: menuIcon(Presentation),
         children: compactMenuItems([
-          { key: "presentation-mode", label: "演示模式", icon: menuIcon(Play) },
-          { key: "immersive-mode", label: "沉浸模式", icon: menuIcon(Maximize2) },
+          { key: "presentation-mode", label: t("present"), icon: menuIcon(Play) },
+          { key: "immersive-mode", label: t("immersive"), icon: menuIcon(Maximize2) },
           // 独立窗口为 Electron 专属能力，Web 端不展示入口
           isElectron
             ? {
                 key: "open-in-new-window",
-                label: "在新窗口打开",
+                label: t("window"),
                 icon: menuIcon(ExternalLink),
               }
             : undefined,
         ]),
       },
       shared
-        ? { key: "collaboration", label: "协作成员", icon: menuIcon(Users) }
-        : { key: "collaboration", label: "发起协作", icon: menuIcon(Share2) },
+        ? { key: "collaboration", label: t("members"), icon: menuIcon(Users) }
+        : { key: "collaboration", label: t("share"), icon: menuIcon(Share2) },
       {
         key: "copy",
-        label: "复制",
+        label: t("copy"),
         icon: menuIcon(Copy),
         children: [
           {
             key: "copy-markdown",
-            label: "复制 Markdown",
+            label: t("copy.markdown"),
             icon: menuIcon(ClipboardCopy),
           },
           {
             key: "copy-wechat",
-            label: "复制公众号格式",
+            label: t("copy.wechat"),
             icon: menuIcon(MessageSquare),
           },
         ],
       },
       {
         key: "export",
-        label: "导出",
+        label: t("export"),
         icon: menuIcon(Download),
         children: [
-          { key: "export-word", label: "Word 文档（.docx）", icon: menuIcon(FileText) },
+          { key: "export-word", label: t("export.word"), icon: menuIcon(FileText) },
           {
             key: "export-markdown",
-            label: "Markdown 文件",
+            label: t("export.markdown"),
             icon: menuIcon(FileText),
           },
           {
             key: "export-image",
-            label: "图片",
+            label: t("export.image"),
             icon: menuIcon(ImageIcon),
           },
           {
@@ -117,24 +120,24 @@ export const getProjectItemMoreMenuItems = (
       },
       {
         key: "generate",
-        label: "生成",
+        label: t("generate"),
         icon: menuIcon(Wand2),
         children: compactMenuItems([
           projectItem?.refType !== "card"
-            ? { key: "to-card", label: "建立卡片", icon: menuIcon(Layers) }
+            ? { key: "to-card", label: t("generate.card"), icon: menuIcon(Layers) }
             : undefined,
           flashcards
-            ? { key: "ai-flashcard", label: "AI 制卡（闪卡）", icon: menuIcon(Sparkles) }
+            ? { key: "ai-flashcard", label: t("generate.ai"), icon: menuIcon(Sparkles) }
             : undefined,
           flashcards
-            ? { key: "manual-flashcard", label: "手动制卡（闪卡）", icon: menuIcon(CreditCard) }
+            ? { key: "manual-flashcard", label: t("generate.manual"), icon: menuIcon(CreditCard) }
             : undefined,
         ]),
       },
       { key: "remove-divider", label: "", divider: true },
       {
         key: "remove",
-        label: "删除文档",
+        label: t("delete.document"),
         icon: menuIcon(Trash2),
         danger: true,
       },
@@ -146,16 +149,16 @@ export const getProjectItemMoreMenuItems = (
       projectItem?.refType !== "white-board"
         ? {
             key: "to-white-board",
-            label: "建立白板",
+            label: t("generate.board"),
           }
         : undefined,
       {
         key: "remove",
-        label: "删除白板",
+        label: t("delete.board"),
       },
       {
         key: "edit-title",
-        label: "编辑标题",
+        label: t("edit.title"),
       },
     ]);
   }
@@ -164,11 +167,11 @@ export const getProjectItemMoreMenuItems = (
     return [
       {
         key: "remove",
-        label: "删除视频",
+        label: t("delete.video"),
       },
       {
         key: "edit-title",
-        label: "编辑标题",
+        label: t("edit.title"),
       },
     ];
   }
@@ -177,15 +180,15 @@ export const getProjectItemMoreMenuItems = (
     return [
       {
         key: "remove",
-        label: "删除网页",
+        label: t("delete.web"),
       },
       {
         key: "edit-title",
-        label: "编辑标题",
+        label: t("edit.title"),
       },
       {
         key: "open-in-new-tab",
-        label: "在应用内打开",
+        label: t("open.app"),
       },
     ];
   }
@@ -194,7 +197,7 @@ export const getProjectItemMoreMenuItems = (
     return [
       {
         key: "remove",
-        label: "删除表格",
+        label: t("delete.table"),
       },
     ];
   }
@@ -203,11 +206,11 @@ export const getProjectItemMoreMenuItems = (
     return [
       {
         key: "remove",
-        label: "删除 PDF",
+        label: t("delete.pdf"),
       },
       {
         key: "edit-title",
-        label: "编辑标题",
+        label: t("edit.title"),
       },
     ];
   }

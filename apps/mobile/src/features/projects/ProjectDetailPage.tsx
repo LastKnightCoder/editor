@@ -2,6 +2,7 @@
 // 完整结构收进树抽屉；文档节点点击进入编辑器（打开即编辑）。
 // 每一层是一个页面实例（itemId 为空即根层），返回 / 右滑由路由逐层退回。
 
+import { useProjectsI18n } from "./i18n";
 import { useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   ChevronRight,
@@ -18,7 +19,7 @@ import {
 } from "lucide-react";
 import type { ProjectItem } from "../../types";
 import { clampText } from "../../utils/richTextText";
-import { formatTimeDisplay } from "../../utils/formatTime";
+import { formatListTime } from "../../utils/contentTime";
 import { toast } from "../../components/toast";
 import BottomSheet from "../../components/BottomSheet";
 import ActionSheet from "../../components/ActionSheet";
@@ -33,7 +34,7 @@ import {
   useProjectQuery,
   useProjectUpdate,
 } from "./queries";
-import { ADDABLE_ITEM_TYPES, projectItemTypeMeta } from "./itemTypeMeta";
+import { addableItemTypes, projectItemTypeMeta } from "./itemTypeMeta";
 import { projectVisual } from "./ProjectsPage";
 import { useEdgeFade, useEdgeFadeX } from "../../hooks/useScrollState";
 
@@ -78,6 +79,7 @@ type ProjectDetailPageProps = {
 };
 
 export function ProjectDetailPage(props: ProjectDetailPageProps) {
+  const { t, locale } = useProjectsI18n();
   const scrollRef = useRef<HTMLDivElement>(null);
   useEdgeFade(scrollRef, { bottom: false });
   const pathRef = useRef<HTMLDivElement>(null);
@@ -149,7 +151,7 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
   const treeNodes = useMemo(() => {
     const map = new Map<number, StructureTreeNode>();
     for (const item of projectItems) {
-      const meta = projectItemTypeMeta(item);
+      const meta = projectItemTypeMeta(item, t);
       const Icon = meta.icon;
       map.set(item.id, {
         id: item.id,
@@ -171,12 +173,12 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
       });
     }
     return map;
-  }, [projectItems, itemMap]);
+  }, [projectItems, itemMap, t]);
 
   const handleCreateDocument = () => {
     const title = addTitle.trim();
     if (!title) {
-      toast({ type: "warning", text: "给文档起个名字" });
+      toast({ type: "warning", text: t("document.nameRequired") });
       return;
     }
     createItem.mutate(
@@ -191,9 +193,9 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
           setAddOpen(false);
           setAddChildTarget(null);
           setAddTitle("");
-          toast({ type: "success", text: addChildTarget ? "已添加子文档" : "已添加文档" });
+          toast({ type: "success", text: t(addChildTarget ? "child.added" : "document.added") });
         },
-        onError: error => props.onError(error, "添加文档失败"),
+        onError: error => props.onError(error, t("document.failed")),
       }
     );
   };
@@ -211,8 +213,8 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
       props.onOpenDocEditor(item, project?.title ?? "");
       return;
     }
-    const meta = projectItemTypeMeta(item);
-    toast({ type: "info", text: `${meta.label}节点的查看与编辑将在二期提供` });
+    const meta = projectItemTypeMeta(item, t);
+    toast({ type: "info", text: t("type.unavailable", { type: meta.label }) });
   };
 
   if (!project) {
@@ -237,7 +239,7 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
         actions={
           <PageHeaderButton
             icon={<Ellipsis size={17} />}
-            aria-label="项目操作"
+            aria-label={t("actions")}
             onClick={() => setMenuProjectOpen(true)}
           />
         }
@@ -261,7 +263,7 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
               <span
                 className={`rounded-full px-2.5 py-1 text-[11.5px] font-bold ${meta.className}`}
               >
-                {meta.label}项目
+                {t("tree.project")}
               </span>
               {project.pinned ? (
                 <Star size={14} fill="currentColor" className="text-accent-text ml-auto shrink-0" />
@@ -276,11 +278,27 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
               </p>
             ) : null}
             <div className="text-ink-2 mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] font-medium tabular-nums">
-              <span>{stats.nodeCount} 个节点</span>
+              <span>
+                {t("node.count", {
+                  count: stats.nodeCount,
+                  amount: stats.nodeCount.toLocaleString(locale),
+                })}
+              </span>
               <span className="opacity-55">·</span>
-              <span>{stats.words.toLocaleString()} 字</span>
+              <span>
+                {t("word.count", {
+                  count: stats.words,
+                  amount: stats.words.toLocaleString(locale),
+                })}
+              </span>
               <span className="opacity-55">·</span>
-              <span>{formatTimeDisplay(project.updateTime)}更新</span>
+              <span>
+                {t("updated", {
+                  date: formatListTime(project.updateTime, locale, time =>
+                    t("time.yesterday", { time })
+                  ),
+                })}
+              </span>
             </div>
           </div>
         ) : null}
@@ -307,7 +325,7 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
           </div>
           <button
             type="button"
-            aria-label="查看完整结构"
+            aria-label={t("structure.view")}
             onClick={() => setTreeOpen(true)}
             className="bg-page text-ink-2 grid h-[34px] w-[34px] shrink-0 place-items-center rounded-[11px] transition-transform active:scale-90"
           >
@@ -325,8 +343,8 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
           ) : currentChildrenIds.length === 0 ? (
             <div className="py-10 text-center">
               <FilePlus2 size={28} strokeWidth={1.5} className="text-ink-3 mx-auto" />
-              <p className="text-ink-2 mt-2.5 text-[13px]">这里还没有节点</p>
-              <p className="text-ink-3 mt-1 text-[11.5px]">点右下角 + 添加文档</p>
+              <p className="text-ink-2 mt-2.5 text-[13px]">{t("node.empty")}</p>
+              <p className="text-ink-3 mt-1 text-[11.5px]">{t("node.emptyHint")}</p>
             </div>
           ) : (
             currentChildrenIds.map(itemId => {
@@ -334,7 +352,7 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
               if (!item) {
                 return null;
               }
-              const itemMeta = projectItemTypeMeta(item);
+              const itemMeta = projectItemTypeMeta(item, t);
               const Icon = itemMeta.icon;
               const isCardRef = item.refType === "card";
               return (
@@ -353,23 +371,37 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
                       {item.title}
                       {isCardRef ? (
                         <span className="bg-accent-soft text-accent-text rounded-full px-1.5 py-px text-[10px] font-bold">
-                          卡片
+                          {t("type.card")}
                         </span>
                       ) : null}
                     </p>
                     <div className="text-ink-2 mt-0.5 flex items-center gap-1.5 text-[12px] tabular-nums">
                       {item.children.length > 0 ? (
                         <>
-                          <span>{item.children.length} 个子节点</span>
+                          <span>
+                            {t("child.count", {
+                              count: item.children.length,
+                              amount: item.children.length.toLocaleString(locale),
+                            })}
+                          </span>
                           <span className="opacity-55">·</span>
                         </>
                       ) : item.count > 0 ? (
                         <>
-                          <span>{item.count.toLocaleString()} 字</span>
+                          <span>
+                            {t("word.count", {
+                              count: item.count,
+                              amount: item.count.toLocaleString(locale),
+                            })}
+                          </span>
                           <span className="opacity-55">·</span>
                         </>
                       ) : null}
-                      <span>{formatTimeDisplay(item.updateTime)}</span>
+                      <span>
+                        {formatListTime(item.updateTime, locale, time =>
+                          t("time.yesterday", { time })
+                        )}
+                      </span>
                     </div>
                   </div>
                   {item.children.length > 0 ? (
@@ -377,7 +409,7 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
                   ) : (
                     <button
                       type="button"
-                      aria-label="节点操作"
+                      aria-label={t("node.actions")}
                       className="text-ink-3 active:bg-hover -mr-1.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg"
                       onClick={event => {
                         event.stopPropagation();
@@ -397,7 +429,7 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
       {/* 添加节点 FAB */}
       <button
         type="button"
-        aria-label="添加节点"
+        aria-label={t("node.add")}
         onClick={() => setAddOpen(true)}
         className="shadow-lift text-ink-inverse absolute right-[18px] bottom-[calc(20px+var(--mobile-screen-safe-bottom))] grid h-[54px] w-[54px] place-items-center rounded-[19px] transition-transform active:scale-90 active:rotate-90"
         style={{ background: "var(--tau-accent)" }}
@@ -407,8 +439,11 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
 
       <StructureTreeSheet
         open={treeOpen}
-        title="项目结构"
-        hint={`${project.title} · ${stats.nodeCount} 个节点 · 点击行跳转`}
+        title={t("structure.title")}
+        hint={t("structure.hint", {
+          title: project.title,
+          amount: stats.nodeCount.toLocaleString(locale),
+        })}
         nodes={treeNodes}
         rootIds={project.children}
         currentId={currentId}
@@ -432,7 +467,13 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
 
       <BottomSheet
         open={addOpen}
-        title={`添加到「${addChildTarget ? clampText(addChildTarget.title, 12) : path.length > 1 ? path[path.length - 1].title : project.title}」`}
+        title={t("add.to", {
+          title: addChildTarget
+            ? clampText(addChildTarget.title, 12)
+            : path.length > 1
+              ? path[path.length - 1].title
+              : project.title,
+        })}
         onClose={() => {
           setAddOpen(false);
           setAddChildTarget(null);
@@ -441,7 +482,7 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
         <input
           value={addTitle}
           onChange={event => setAddTitle(event.target.value)}
-          placeholder="文档标题…"
+          placeholder={t("document.placeholder")}
           className="input-base mb-3.5 w-full px-4 py-3"
         />
         <button
@@ -451,44 +492,51 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
           className="bg-tag-1-soft text-tag-1 mb-4 flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-[14.5px] font-bold transition-transform active:scale-[0.97] disabled:opacity-60"
         >
           <FilePlus2 size={17} strokeWidth={2.2} />
-          新建文档
-          {!addChildTarget && path.length > 1 ? `（加入当前层级）` : ""}
+          {t("document.create")}
+          {!addChildTarget && path.length > 1 ? t("add.current") : ""}
         </button>
         <div className="grid grid-cols-4 gap-2.5">
-          {ADDABLE_ITEM_TYPES.filter(entry => entry.type !== "document").map(entry => {
-            const Icon = entry.meta.icon;
-            return (
-              <button
-                key={entry.type}
-                type="button"
-                className="relative flex flex-col items-center gap-1.5 py-2 transition-transform active:scale-90"
-                onClick={() => toast({ type: "info", text: `${entry.meta.label}节点将在二期提供` })}
-              >
-                {entry.soon ? (
-                  <span className="bg-tag-4-soft text-tag-4 absolute top-0 right-1 rounded-full px-1.5 py-px text-[8.5px] font-bold tracking-wider">
-                    二期
-                  </span>
-                ) : null}
-                <span
-                  className={`grid h-[46px] w-[46px] place-items-center rounded-2xl ${entry.meta.className}`}
+          {addableItemTypes(t)
+            .filter(entry => entry.type !== "document")
+            .map(entry => {
+              const Icon = entry.meta.icon;
+              return (
+                <button
+                  key={entry.type}
+                  type="button"
+                  className="relative flex flex-col items-center gap-1.5 py-2 transition-transform active:scale-90"
+                  onClick={() =>
+                    toast({
+                      type: "info",
+                      text: t("type.addUnavailable", { type: entry.meta.label }),
+                    })
+                  }
                 >
-                  <Icon size={20} strokeWidth={1.9} />
-                </span>
-                <span className="text-ink-2 text-[11px] font-semibold">{entry.meta.label}</span>
-              </button>
-            );
-          })}
+                  {entry.soon ? (
+                    <span className="bg-tag-4-soft text-tag-4 absolute top-0 right-1 rounded-full px-1.5 py-px text-[8.5px] font-bold tracking-wider">
+                      {t("type.soon")}
+                    </span>
+                  ) : null}
+                  <span
+                    className={`grid h-[46px] w-[46px] place-items-center rounded-2xl ${entry.meta.className}`}
+                  >
+                    <Icon size={20} strokeWidth={1.9} />
+                  </span>
+                  <span className="text-ink-2 text-[11px] font-semibold">{entry.meta.label}</span>
+                </button>
+              );
+            })}
         </div>
       </BottomSheet>
 
       <ActionSheet
         open={menuProjectOpen}
         title={project.title}
-        kind="项目"
+        kind={t("kind")}
         onClose={() => setMenuProjectOpen(false)}
         items={[
           {
-            label: project.pinned ? "取消置顶" : "置顶",
+            label: t(project.pinned ? "unpin" : "pin"),
             icon: <Star size={18} />,
             tone: "butter",
             onClick: () => {
@@ -497,7 +545,7 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
             },
           },
           {
-            label: project.archived ? "恢复为活跃" : "归档项目",
+            label: t(project.archived ? "unarchive" : "archive"),
             icon: <ArchiveRestore size={18} />,
             tone: "sky",
             onClick: () => {
@@ -506,7 +554,7 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
             },
           },
           {
-            label: "删除项目",
+            label: t("delete.project"),
             danger: true,
             icon: <Trash2 size={18} />,
             onClick: () => {
@@ -520,7 +568,7 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
       <ActionSheet
         open={menuItem !== null}
         title={menuItem?.title}
-        kind="项目节点"
+        kind={t("node.kind")}
         onClose={() => setMenuItem(null)}
         items={[
           ...(menuItem &&
@@ -529,7 +577,7 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
           menuItem.contentId
             ? [
                 {
-                  label: "打开编辑",
+                  label: t("open.editor"),
                   icon: <FileText size={18} />,
                   tone: "lilac" as const,
                   onClick: () => {
@@ -542,7 +590,7 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
               ]
             : []),
           {
-            label: "添加子文档",
+            label: t("add.child"),
             icon: <FolderPlus size={18} />,
             tone: "sky" as const,
             onClick: () => {
@@ -552,7 +600,7 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
             },
           },
           {
-            label: "删除节点",
+            label: t("delete.node"),
             danger: true,
             icon: <Trash2 size={18} />,
             onClick: () => {
@@ -565,8 +613,10 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
 
       <MobileConfirmDialog
         open={deleteItemTarget !== null}
-        title="删除节点"
-        description={`「${clampText(deleteItemTarget?.title ?? "", 16)}」及其子节点将被删除，被其他位置引用的节点会自动脱离。`}
+        title={t("delete.node")}
+        description={t("delete.nodeShared", {
+          title: clampText(deleteItemTarget?.title ?? "", 16),
+        })}
         danger
         loading={deleteItem.isPending}
         onCancel={() => setDeleteItemTarget(null)}
@@ -580,8 +630,8 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
 
       <MobileConfirmDialog
         open={deleteProjectOpen}
-        title="删除项目"
-        description={`「${clampText(project.title, 18)}」及其全部节点将被删除。`}
+        title={t("delete.project")}
+        description={t("delete.projectShort", { title: clampText(project.title, 18) })}
         danger
         loading={deleteProject.isPending}
         onCancel={() => setDeleteProjectOpen(false)}

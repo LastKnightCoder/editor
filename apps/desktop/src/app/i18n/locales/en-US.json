@@ -90,5 +90,6 @@
   "shell.maximizeRestore": "Maximize or restore",
   "shell.fullscreen": "Full screen",
   "settings.backHint": "Back (Esc)",
-  "page.articleDetail": "Article details"
+  "page.articleDetail": "Article details",
+  "page.projectDetail": "Project details"
 }

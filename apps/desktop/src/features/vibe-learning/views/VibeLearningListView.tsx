@@ -21,8 +21,9 @@ const VISUAL: CockpitVisual = {
 
 const COPY: CockpitCopy = {
   title: "Notebook",
-  entityUnit: "个 Notebook",
-  metricUnit: "份资料",
+  itemTitle: id => `Notebook #${id}`,
+  entityCount: (_count, amount) => `${amount} 个 Notebook`,
+  metricCount: (_count, amount) => `${amount} 份资料`,
   metricLabel: "资料",
   recentHint: "从上次看到的资料继续",
   createLabel: "新建 Notebook",

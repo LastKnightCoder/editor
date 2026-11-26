@@ -27,5 +27,6 @@
   "common.back": "返回",
   "content.selectBlocks": "选择块",
   "content.outline": "整理结构",
-  "common.closePanel": "关闭面板"
+  "common.closePanel": "关闭面板",
+  "structure.empty": "还没有任何节点"
 }

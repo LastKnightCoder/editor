@@ -2,6 +2,7 @@
  * 驾驶舱工具栏：排序 + 视图（网格 / 列表），两者都是 features/shared/list 的「按钮 + Menu」。
  */
 
+import { useCockpitI18n } from "./i18n";
 import type { LucideIcon } from "lucide-react";
 import { ArrowDownUp, CalendarPlus, History, PencilLine, ALargeSmall } from "lucide-react";
 import { CommandMenu, LayoutMenu } from "../list/ListControls";
@@ -14,12 +15,6 @@ const SORT_ICONS: Record<CockpitSort, LucideIcon> = {
   created: CalendarPlus,
 };
 
-const SORT_OPTIONS = COCKPIT_SORTS.map(({ value, label }) => ({
-  value,
-  label,
-  icon: SORT_ICONS[value],
-}));
-
 export function CockpitToolbar({
   layout,
   sort,
@@ -31,13 +26,19 @@ export function CockpitToolbar({
   onLayoutChange(layout: CockpitLayout): void;
   onSortChange(sort: CockpitSort): void;
 }) {
+  const { t } = useCockpitI18n();
+  const options = COCKPIT_SORTS.map(value => ({
+    value,
+    label: t(`sort.${value}`),
+    icon: SORT_ICONS[value],
+  }));
   return (
     <>
       <CommandMenu
-        options={SORT_OPTIONS}
+        options={options}
         value={sort}
         onChange={onSortChange}
-        title="排序（置顶始终在前）"
+        title={t("sort.title")}
         icon={ArrowDownUp}
         className="w-[168px]"
       />

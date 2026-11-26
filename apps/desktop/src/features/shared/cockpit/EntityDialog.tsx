@@ -6,6 +6,7 @@
  * 模块的 CockpitCopy 字面量。
  */
 
+import { useCockpitI18n } from "./i18n";
 import { useEffect, useRef, useState } from "react";
 import type { Descendant } from "slate";
 import type { EditorRef } from "@tau/editor";
@@ -42,6 +43,7 @@ export function EntityDialog({
   onSaved,
 }: EntityDialogProps) {
   const editing = item !== null;
+  const { t } = useCockpitI18n();
   const [title, setTitle] = useState("");
   const [desc, setDesc] = useState<Descendant[]>(EMPTY_DESC);
   const [saving, setSaving] = useState(false);
@@ -59,23 +61,23 @@ export function EntityDialog({
 
   const handleSave = () => {
     if (!title.trim()) {
-      toast.warning("请输入名称");
+      toast.warning(t("name.required"));
       return;
     }
     setSaving(true);
     const action = editing
       ? mutations.updateInfo(item.id, title.trim(), desc).then(() => {
           onSaved?.();
-          toast.success("已保存");
+          toast.success(t("saved"));
         })
       : mutations.create({ title: title.trim(), desc }).then(created => {
           onCreated?.(created);
-          toast.success("已创建");
+          toast.success(t("created"));
         });
     action
       .then(() => onClose())
       .catch(() => {
-        toast.error(editing ? "保存失败" : "创建失败");
+        toast.error(t(editing ? "save.failed" : "create.failed"));
       })
       .finally(() => {
         setSaving(false);
@@ -94,10 +96,10 @@ export function EntityDialog({
       footer={
         <>
           <Button variant="secondary" size="sm" disabled={saving} onClick={onClose}>
-            取消
+            {t("cancel")}
           </Button>
           <Button variant="primary" size="sm" loading={saving} onClick={handleSave}>
-            {editing ? "保存" : "创建"}
+            {t(editing ? "save" : "create")}
           </Button>
         </>
       }
@@ -105,17 +107,17 @@ export function EntityDialog({
       <DialogBody>
         <div className="flex flex-col gap-3.5">
           <label className="flex flex-col gap-1.5">
-            <span className="text-ink-2 text-[12px]">名称</span>
+            <span className="text-ink-2 text-[12px]">{t("sort.name")}</span>
             <Input
               data-autofocus
               value={title}
               onChange={e => setTitle(e.target.value)}
-              placeholder="名称"
+              placeholder={t("sort.name")}
               clearable
             />
           </label>
           <div className="flex flex-col gap-1.5">
-            <span className="text-ink-2 text-[12px]">描述（可选）</span>
+            <span className="text-ink-2 text-[12px]">{t("desc")}</span>
             {/* 与 Textarea 同形的输入框外观（描边 / 圆角 / 聚焦环）。块拖拽把手绝对定位在正文左侧，
               编辑器 overflow-hidden 把它裁掉（同聊天输入框），描述框里不需要拖拽排序；
               最小高度放外层——写在编辑器类名上会与空态 Slate 的内联 min-height 打架（同聊天输入框注释） */}

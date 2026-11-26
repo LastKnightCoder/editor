@@ -3,6 +3,7 @@
  * ⌘/Ctrl + Enter 确认；空标题禁用确认。API 与旧版一致，调用方无需改动。
  */
 
+import { useTitleEditorI18n } from "./i18n";
 import React, { useEffect, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import { PenLine } from "lucide-react";
@@ -27,10 +28,11 @@ const EditTitleModal: React.FC<EditTitleModalProps> = ({
   onCancel,
   onConfirm,
   initialTitle = "",
-  modalTitle = "编辑标题",
-  modalDescription = "输入新的标题",
-  placeholder = "请输入标题",
+  modalTitle,
+  modalDescription,
+  placeholder,
 }) => {
+  const { t } = useTitleEditorI18n();
   const [title, setTitle] = useState(initialTitle);
 
   useEffect(() => {
@@ -46,17 +48,17 @@ const EditTitleModal: React.FC<EditTitleModalProps> = ({
     <Dialog
       open={open}
       onOpenChange={next => !next && onCancel()}
-      title={modalTitle}
+      title={modalTitle ?? t("title")}
       icon={<PenLine className="size-4" strokeWidth={1.75} />}
-      subtitle={modalDescription}
+      subtitle={modalDescription ?? t("description")}
       size="sm"
       footer={
         <>
           <Button variant="secondary" size="sm" onClick={onCancel}>
-            取消
+            {t("cancel")}
           </Button>
           <Button variant="primary" size="sm" disabled={!title.trim()} onClick={handleSubmit}>
-            确认
+            {t("confirm")}
           </Button>
         </>
       }
@@ -66,7 +68,7 @@ const EditTitleModal: React.FC<EditTitleModalProps> = ({
           data-autofocus
           value={title}
           rows={3}
-          placeholder={placeholder}
+          placeholder={placeholder ?? t("placeholder")}
           onChange={e => setTitle(e.target.value)}
           onFocus={e => e.currentTarget.select()}
           onKeyDown={e => {

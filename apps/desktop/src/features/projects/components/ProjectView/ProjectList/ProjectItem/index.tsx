@@ -1,3 +1,4 @@
+import { useProjectsI18n } from "@/features/projects/i18n";
 import { ProjectReviewSlot } from "../../../../review/ProjectReviewContext";
 import { useState, useEffect, memo, useRef, useMemo } from "react";
 import classnames from "classnames";
@@ -191,6 +192,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   const projectItemEventBus = useCreation(() => defaultProjectItemEventBus.createEditor(), []);
   const uploadResource = useUploadResource();
 
+  const { t } = useProjectsI18n();
   const { projectId, itemId } = useProjectContext();
   const { navigator } = usePage();
   const databaseName = useSettingStore.getState().setting.database.active;
@@ -245,7 +247,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   );
 
   const { providers: videoProviders } = useVideoProviders();
-  const addMenuItems = useMemo(() => buildAddMenuItems(videoProviders), [videoProviders]);
+  const addMenuItems = useMemo(() => buildAddMenuItems(t, videoProviders), [videoProviders, t]);
   const [videoSourceId, setVideoSourceId] = useState<string | null>(null);
   const { handleOnlineVideoConfirm, handleRemoteVideoConfirm } = useVideoHandlers({
     closeModal,
@@ -347,7 +349,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
 
   const handleWebviewConfirm = useMemoizedFn(async (result: WebViewSelectResult) => {
     if (!projectItem || !projectId) {
-      toast.error("项目文档尚未加载完成");
+      toast.error(t("loading.document"));
       return;
     }
 
@@ -373,10 +375,10 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       }
 
       closeModal(ModalKey.Webview);
-      toast.success("网页添加成功");
+      toast.success(t("web.added"));
     } catch (error) {
       console.error("添加网页失败:", error);
-      toast.error("添加网页失败");
+      toast.error(t("web.failed"));
     }
   });
 
@@ -430,7 +432,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         dragPosition,
       });
       if (!result) {
-        toast.warning("移动失败，目标位置可能已变化");
+        toast.warning(t("move.failed"));
         return;
       }
       const needRefreshId = [...result.refreshItemIds];
@@ -596,7 +598,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         filePath: filePath[0],
       });
       if (!item) {
-        toast.error("创建视频失败");
+        toast.error(t("video.failed"));
         return;
       }
       const fileName = await getFileBaseName(filePath[0], true);
@@ -657,10 +659,10 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           category: "",
         });
         await pdfStrategy.addProjectItem(createProjectItemFromPdf(pdf));
-        toast.success("本地 PDF 添加成功");
+        toast.success(t("pdf.localAdded"));
       } catch (error) {
         console.error("添加本地 PDF 失败:", error);
-        toast.error("添加本地 PDF 失败");
+        toast.error(t("pdf.localFailed"));
       }
     } else if (key === "add-remote-pdf-project-item") {
       openModal(ModalKey.RemotePdf);
@@ -804,7 +806,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             {hasChildren ? (
               <button
                 type="button"
-                aria-label={folderOpen ? "收起" : "展开"}
+                aria-label={t(folderOpen ? "node.collapse" : "node.expand")}
                 className="text-ink-1 flex size-4 flex-none items-center justify-center opacity-45 transition-opacity duration-200 hover:opacity-100"
                 onClick={e => {
                   e.preventDefault();
@@ -971,7 +973,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         <ProjectReviewSlot itemId={projectItem.id} />
       </div>
       <ContentSelectorModal
-        title={"选择关联卡片"}
+        title={t("select.card")}
         open={selectCardModalOpen}
         onCancel={onCardCancel}
         onSelect={handleCardSelect}
@@ -982,7 +984,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         extensions={extensions}
       />
       <SelectWhiteboardModal
-        title={"选择关联白板"}
+        title={t("select.board")}
         selectedWhiteboards={selectedWhiteboards}
         onChange={onWhiteboardChange}
         open={selectWhiteboardModalOpen}

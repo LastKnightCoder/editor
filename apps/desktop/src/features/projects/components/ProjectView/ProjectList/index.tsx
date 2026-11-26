@@ -1,3 +1,4 @@
+import { useProjectsI18n } from "@/features/projects/i18n";
 import { useContext, useEffect, useState, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Network, House, ListTree, Plus } from "lucide-react";
@@ -73,6 +74,7 @@ import { importMarkdownFiles } from "@/services/content-transfer";
 
 const Project = () => {
   const uploadResource = useUploadResource();
+  const { t } = useProjectsI18n();
   const { projectId: id, itemId } = useProjectContext();
   const reviewTree = useContext(ProjectReviewContext);
   const { navigator } = usePage();
@@ -221,7 +223,7 @@ const Project = () => {
     () => ({
       addProjectItem: async (createItem: CreateProjectItem) => {
         if (!project) {
-          toast.error("项目尚未加载完成");
+          toast.error(t("loading.project"));
           return;
         }
         const [newProject, projectItem] = await addProjectItemToTarget(
@@ -234,11 +236,11 @@ const Project = () => {
         setAddingParentProjectItemId(undefined);
       },
     }),
-    [addProjectItemToTarget, addingParentProjectItemId, navigator, project]
+    [addProjectItemToTarget, addingParentProjectItemId, navigator, project, t]
   );
 
   const { providers: videoProviders } = useVideoProviders();
-  const addMenuItems = useMemo(() => buildAddMenuItems(videoProviders), [videoProviders]);
+  const addMenuItems = useMemo(() => buildAddMenuItems(t, videoProviders), [videoProviders, t]);
   const [videoSourceId, setVideoSourceId] = useState<string | null>(null);
   const { handleOnlineVideoConfirm, handleRemoteVideoConfirm } = useVideoHandlers({
     closeModal,
@@ -252,7 +254,7 @@ const Project = () => {
 
   const handleWebviewConfirm = useMemoizedFn(async (result: WebViewSelectResult) => {
     if (!project) {
-      toast.error("项目尚未加载完成");
+      toast.error(t("loading.project"));
       return;
     }
 
@@ -279,10 +281,10 @@ const Project = () => {
       }
       setAddingParentProjectItemId(undefined);
       closeModal(ModalKey.Webview);
-      toast.success("网页添加成功");
+      toast.success(t("web.added"));
     } catch (error) {
       console.error("添加网页失败:", error);
-      toast.error("添加网页失败");
+      toast.error(t("web.failed"));
     }
   });
 
@@ -359,7 +361,7 @@ const Project = () => {
       if (!project) return;
       const fullWhiteboard = await getWhiteboardById(whiteboards[0].id);
       if (!fullWhiteboard || fullWhiteboard.whiteboardContentIds.length === 0) {
-        toast.error(`获取白板 ${whiteboards[0].title} 数据失败`);
+        toast.error(t("board.readFailed", { title: whiteboards[0].title }));
         return;
       }
       const [, item] = await addProjectItemToTarget(
@@ -482,7 +484,7 @@ const Project = () => {
         filePath: filePath[0],
       });
       if (!item) {
-        toast.error("创建视频笔记失败");
+        toast.error(t("video.createFailed"));
         return;
       }
       const fileName = await getFileBaseName(filePath[0], true);
@@ -555,10 +557,10 @@ const Project = () => {
         if (item) {
           navigator.push("project-detail", { id: project.id, itemId: item.id });
         }
-        toast.success("本地 PDF 添加成功");
+        toast.success(t("pdf.localAdded"));
       } catch (error) {
         console.error("添加本地 PDF 失败:", error);
-        toast.error("添加本地 PDF 失败");
+        toast.error(t("pdf.localFailed"));
       }
     } else if (key === "add-remote-pdf-project-item") {
       setAddingParentProjectItemId(parentProjectItemId);
@@ -614,7 +616,7 @@ const Project = () => {
             <div className="flex min-w-0 items-center overflow-hidden text-ellipsis whitespace-nowrap">
               <button
                 type="button"
-                aria-label="返回项目列表"
+                aria-label={t("back")}
                 className="hover:bg-hover flex size-[30px] shrink-0 items-center justify-center rounded-full transition-colors"
                 onClick={() => {
                   navigator.push("projects");
@@ -657,7 +659,7 @@ const Project = () => {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <Tooltip content={sidebarView === "tree" ? "切换到思维导图" : "切换到树视图"}>
+              <Tooltip content={t(sidebarView === "tree" ? "tree.toMindMap" : "tree.toTree")}>
                 <div
                   className={"mr-1 cursor-pointer transition-colors"}
                   onClick={() => setSidebarView(sidebarView === "tree" ? "mindmap" : "tree")}
@@ -685,7 +687,7 @@ const Project = () => {
             {sidebarView === "mindmap" ? (
               treeLoading ? (
                 <div className="flex h-full items-center justify-center text-sm opacity-60">
-                  正在加载思维导图...
+                  {t("tree.loadingMap")}
                 </div>
               ) : (
                 <ProjectMindMapView
@@ -708,7 +710,7 @@ const Project = () => {
               <>
                 <If condition={project.children.length === 0}>
                   <div className="text-ink-3 flex h-full items-center justify-center text-[12.5px]">
-                    项目下暂无文档
+                    {t("tree.empty")}
                   </div>
                 </If>
                 <For
@@ -732,7 +734,7 @@ const Project = () => {
             )}
           </div>
           <ContentSelectorModal
-            title={"选择关联卡片"}
+            title={t("select.card")}
             open={selectCardModalOpen}
             onCancel={onCardCancel}
             onSelect={handleCardSelect}
@@ -742,7 +744,7 @@ const Project = () => {
             initialContents={initialCardContents}
           />
           <SelectWhiteboardModal
-            title={"选择关联白板"}
+            title={t("select.board")}
             selectedWhiteboards={selectedWhiteboards}
             onChange={onWhiteboardChange}
             open={selectWhiteboardModalOpen}

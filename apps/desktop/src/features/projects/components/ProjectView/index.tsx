@@ -1,3 +1,4 @@
+import { useProjectsI18n } from "@/features/projects/i18n";
 import ProjectList from "./ProjectList";
 import EditProjectView from "./EditProjectView";
 import { Button } from "@tau/ui";
@@ -20,6 +21,7 @@ interface ProjectViewProps {
 }
 
 const ProjectView = ({ projectId, itemId, openReview = false }: ProjectViewProps) => {
+  const { t } = useProjectsI18n();
   const { navigator } = usePage();
   const [documentAction, setDocumentAction] = useState<ProjectDocumentAction | null>(null);
   const clearDocumentAction = useCallback(() => setDocumentAction(null), []);
@@ -75,9 +77,9 @@ const ProjectView = ({ projectId, itemId, openReview = false }: ProjectViewProps
     return (
       <div className="flex h-full w-full items-center justify-center">
         <div className="bg-surface shadow-card rounded-tau-lg flex flex-col items-center gap-3 px-8 py-7 text-center">
-          <p className="text-ink-1 text-[15px] font-medium">项目不存在或已被删除</p>
+          <p className="text-ink-1 text-[15px] font-medium">{t("missing")}</p>
           <Button variant="secondary" size="sm" onClick={() => navigator.back()}>
-            返回项目列表
+            {t("back")}
           </Button>
         </div>
       </div>
@@ -99,7 +101,7 @@ const ProjectView = ({ projectId, itemId, openReview = false }: ProjectViewProps
         clearDocumentAction,
       }}
     >
-      <div className="h-full px-4 pb-4 pt-1">
+      <div className="h-full px-4 pt-1 pb-4">
         <div
           ref={containerRef}
           className="tau-sheet bg-surface shadow-card rounded-tau-lg relative flex h-full overflow-hidden"

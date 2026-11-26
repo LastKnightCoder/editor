@@ -1,11 +1,10 @@
 /**
  * 项目详情视图（薄壳）：文档树工作台的宿主——判存在 + 面包屑注入后渲染
  * components/ProjectView。
- *
- * ProjectView 系为 legacy 搬迁件（原 src/pages/ProjectView 迁入）：antd 皮 / module.less 等违反随迁保留，
- * 换皮阶段统一处理；此处不做任何样式适配。
+
  */
 
+import { useProjectsI18n } from "@/features/projects/i18n";
 import { useMemo } from "react";
 import { ArrowLeft, PanelLeft } from "lucide-react";
 import { usePage, usePageParams, usePageBreadcrumb } from "@/page/PageProvider";
@@ -15,6 +14,7 @@ import { selectTreeCollapsed, useProjectTreeStore } from "../projectTreeStore";
 import ProjectView from "../components/ProjectView";
 
 export function ProjectDetailView() {
+  const { t } = useProjectsI18n();
   const { id, itemId, review } = usePageParams<{ id: number; itemId?: number; review?: string }>();
   const { project, loading } = useProjectDetail(id);
   useRecordProjectOpen(id, itemId, !!project);
@@ -28,11 +28,11 @@ export function ProjectDetailView() {
     () => (
       <span className="flex min-w-0 items-center gap-1">
         {!!project && (
-          <Tooltip content={treeCollapsed ? "展开侧边栏" : "收起侧边栏"} placement="bottom">
+          <Tooltip content={t(treeCollapsed ? "tree.expand" : "tree.collapse")} placement="bottom">
             <IconButton
               className="shrink-0"
               onClick={toggleTree}
-              aria-label={treeCollapsed ? "展开侧边栏" : "收起侧边栏"}
+              aria-label={t(treeCollapsed ? "tree.expand" : "tree.collapse")}
               aria-expanded={!treeCollapsed}
             >
               <PanelLeft size={17} strokeWidth={1.75} />
@@ -40,11 +40,11 @@ export function ProjectDetailView() {
           </Tooltip>
         )}
         <span className="text-tau-meta text-ink-2 min-w-0 truncate px-1.5 py-0.5">
-          {project?.title || `项目 #${id}`}
+          {project?.title || t("item.fallback", { id })}
         </span>
       </span>
     ),
-    [project, id, treeCollapsed, toggleTree]
+    [project, id, treeCollapsed, toggleTree, t]
   );
   usePageBreadcrumb("project-detail", breadcrumbNode);
 
@@ -54,7 +54,7 @@ export function ProjectDetailView() {
     return (
       <div className="flex h-full items-center justify-center">
         <div className="bg-surface shadow-card mx-auto flex w-[460px] flex-col items-center rounded-[var(--tau-radius-lg)] px-8 py-7 text-center">
-          <p className="text-ink-1 text-[15px] font-medium">项目不存在或已删除</p>
+          <p className="text-ink-1 text-[15px] font-medium">{t("missing")}</p>
           <Button
             variant="secondary"
             size="sm"
@@ -62,7 +62,7 @@ export function ProjectDetailView() {
             className="mt-4"
             onClick={() => navigator.back()}
           >
-            返回项目列表
+            {t("back")}
           </Button>
         </div>
       </div>

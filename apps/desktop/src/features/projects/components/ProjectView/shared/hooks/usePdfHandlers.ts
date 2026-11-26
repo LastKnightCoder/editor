@@ -1,3 +1,4 @@
+import { projectsTranslator } from "@/features/projects/i18n";
 import { useMemoizedFn } from "ahooks";
 
 import { RemotePdfSelectResult } from "@/components/RemotePdfSelectModal";
@@ -47,7 +48,7 @@ export interface ChildPdfStrategyConfig {
 export const createRootPdfStrategy = (config: RootPdfStrategyConfig): PdfAddStrategy => ({
   addProjectItem: async createItem => {
     if (!config.project) {
-      toast.error("项目尚未加载完成");
+      toast.error(t("loading.project"));
       return;
     }
 
@@ -73,7 +74,7 @@ export const createRootPdfStrategy = (config: RootPdfStrategyConfig): PdfAddStra
 export const createChildPdfStrategy = (config: ChildPdfStrategyConfig): PdfAddStrategy => ({
   addProjectItem: async createItem => {
     if (!config.projectItem || !config.projectId) {
-      toast.error("项目文档尚未加载完成");
+      toast.error(t("loading.document"));
       return;
     }
 
@@ -113,10 +114,10 @@ export const usePdfHandlers = ({ closeModal, strategy }: UsePdfHandlersOptions) 
 
       await strategy.addProjectItem(createProjectItemFromPdf(pdf));
       closeModal(ModalKey.RemotePdf);
-      toast.success("远程 PDF 添加成功");
+      toast.success(t("pdf.remoteAdded"));
     } catch (error) {
       console.error("添加远程 PDF 失败:", error);
-      toast.error("添加远程 PDF 失败");
+      toast.error(t("pdf.remoteFailed"));
     }
   });
 
@@ -124,10 +125,10 @@ export const usePdfHandlers = ({ closeModal, strategy }: UsePdfHandlersOptions) 
     try {
       await strategy.addProjectItem(createProjectItemFromPdf(pdf));
       closeModal(ModalKey.SelectPdf);
-      toast.success("PDF 关联成功");
+      toast.success(t("pdf.linked"));
     } catch (error) {
       console.error("关联 PDF 失败:", error);
-      toast.error("关联 PDF 失败");
+      toast.error(t("pdf.linkFailed"));
     }
   });
 
@@ -135,3 +136,5 @@ export const usePdfHandlers = ({ closeModal, strategy }: UsePdfHandlersOptions) 
 };
 
 export type UsePdfHandlersReturn = ReturnType<typeof usePdfHandlers>;
+
+const t = projectsTranslator.t;

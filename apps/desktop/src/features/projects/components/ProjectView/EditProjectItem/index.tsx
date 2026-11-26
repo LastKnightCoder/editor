@@ -1,3 +1,5 @@
+import { formatRecentDateTime } from "@/features/shared/list/format";
+import { useProjectsI18n } from "@/features/projects/i18n";
 import { useCallback, useEffect, useLayoutEffect, useRef, useMemo, useState } from "react";
 import { Descendant, Range, Transforms } from "slate";
 import { ReactEditor } from "slate-react";
@@ -5,7 +7,7 @@ import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
 import { cn, IconButton, useEdgeFade } from "@tau/ui";
 import { useProjectContext } from "../ProjectContext";
 import useEdit from "./useEdit";
-import { formatDate, defaultProjectItemEventBus } from "@/utils";
+import { defaultProjectItemEventBus } from "@/utils";
 import { EditorRef } from "@tau/editor";
 import Editor from "@/components/ContentEditor";
 import { HistoryPanel, composeEditorMarks, useContentHistory } from "@/components/ContentHistory";
@@ -66,6 +68,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
   const composing = locationParams.layout === "compose";
   const editorRef = useRef<EditorRef>(null);
   const collaborationRef = useRef<ContentCollaborationControlHandle>(null);
+  const { t, locale } = useProjectsI18n();
   const { projectId, documentAction, clearDocumentAction } = useProjectContext();
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
   useEdgeFade(scrollEl);
@@ -277,14 +280,29 @@ const EditProjectItem = (props: { projectItemId: number }) => {
                     <div className="mb-6 flex flex-wrap items-center gap-2.5">
                       <div className="basis-min flex min-w-0 grow flex-wrap gap-2.5 text-[0.9em] opacity-80">
                         <div className="whitespace-nowrap">
-                          创建于 {formatDate(projectItem.createTime, true)}
+                          {t("meta.created", {
+                            date: formatRecentDateTime(
+                              projectItem.createTime,
+                              locale,
+                              (day, time) => t("meta.relativeTime", { day, time })
+                            ),
+                          })}
                         </div>
                         <div className="whitespace-nowrap">
-                          最后修改于 {formatDate(projectItem.updateTime, true)}
+                          {t("meta.updated", {
+                            date: formatRecentDateTime(
+                              projectItem.updateTime,
+                              locale,
+                              (day, time) => t("meta.relativeTime", { day, time })
+                            ),
+                          })}
                         </div>
                         {/* 字数属于文档本身，随信息行走（项目详情不设底部状态栏） */}
                         <div className="whitespace-nowrap tabular-nums">
-                          {projectItem.count.toLocaleString("zh-CN")} 字
+                          {t("meta.words", {
+                            count: projectItem.count,
+                            amount: projectItem.count.toLocaleString(locale),
+                          })}
                         </div>
                       </div>
                       <ContextBadge
@@ -308,8 +326,8 @@ const EditProjectItem = (props: { projectItemId: number }) => {
                       {/* 协作：已共享时常驻成员条（点开成员 Popover）；未共享不占位，由列表菜单「发起协作」打开对话框 */}
                       <span className="ml-auto flex max-w-full flex-wrap items-center justify-end gap-1">
                         <IconButton
-                          title="编辑历史"
-                          aria-label="编辑历史"
+                          title={t("history")}
+                          aria-label={t("history")}
                           aria-pressed={history.isOpen}
                           className={cn(
                             "size-[30px]",

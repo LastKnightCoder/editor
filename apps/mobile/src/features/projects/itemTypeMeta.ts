@@ -1,3 +1,5 @@
+import type { Translator } from "@tau/i18n";
+import type { MobileProjectsKey } from "./i18n";
 // 项目节点的八种类型：图标 + 语义色
 import { FileText, Globe, FileDown, Clapperboard, Presentation, Table2 } from "lucide-react";
 import type { ProjectItem } from "../../types";
@@ -8,32 +10,51 @@ export type ProjectItemTypeMeta = {
   className: string;
 };
 
-const TYPE_META: Record<string, ProjectItemTypeMeta> = {
-  document: { label: "文档", icon: FileText, className: "bg-tag-2-soft text-tag-2" },
-  "white-board": { label: "白板", icon: Presentation, className: "bg-tag-5-soft text-tag-5" },
-  "video-note": { label: "视频笔记", icon: Clapperboard, className: "bg-tag-3-soft text-tag-3" },
-  "web-view": { label: "网页", icon: Globe, className: "bg-tag-4-soft text-tag-4" },
-  "table-view": { label: "表格", icon: Table2, className: "bg-tag-2-soft text-tag-2" },
-  pdf: { label: "PDF", icon: FileDown, className: "bg-tag-5-soft text-tag-5" },
+const TYPE_META: Record<
+  string,
+  Omit<ProjectItemTypeMeta, "label"> & { labelKey: MobileProjectsKey }
+> = {
+  document: { labelKey: "type.document", icon: FileText, className: "bg-tag-2-soft text-tag-2" },
+  "white-board": {
+    labelKey: "type.white-board",
+    icon: Presentation,
+    className: "bg-tag-5-soft text-tag-5",
+  },
+  "video-note": {
+    labelKey: "type.video-note",
+    icon: Clapperboard,
+    className: "bg-tag-3-soft text-tag-3",
+  },
+  "web-view": { labelKey: "type.web-view", icon: Globe, className: "bg-tag-4-soft text-tag-4" },
+  "table-view": {
+    labelKey: "type.table-view",
+    icon: Table2,
+    className: "bg-tag-2-soft text-tag-2",
+  },
+  pdf: { labelKey: "type.pdf", icon: FileDown, className: "bg-tag-5-soft text-tag-5" },
 };
 
-export function projectItemTypeMeta(item: ProjectItem): ProjectItemTypeMeta {
+export function projectItemTypeMeta(
+  item: ProjectItem,
+  t: Translator<MobileProjectsKey>["t"]
+): ProjectItemTypeMeta {
   if (item.refType === "card") {
-    return { label: "卡片", icon: FileText, className: "bg-accent-soft text-accent-text" };
+    return { label: t("type.card"), icon: FileText, className: "bg-accent-soft text-accent-text" };
   }
   if (item.refType === "article") {
-    return { label: "文章", icon: FileText, className: "bg-tag-5-soft text-tag-5" };
+    return { label: t("type.article"), icon: FileText, className: "bg-tag-5-soft text-tag-5" };
   }
   const type = item.projectItemType || "document";
-  return TYPE_META[type] ?? TYPE_META.document;
+  const { labelKey, ...meta } = TYPE_META[type] ?? TYPE_META.document;
+  return { ...meta, label: t(labelKey) };
 }
 
-export const ADDABLE_ITEM_TYPES: Array<{ type: string; meta: ProjectItemTypeMeta; soon: boolean }> =
-  [
-    { type: "document", meta: TYPE_META.document, soon: false },
-    { type: "white-board", meta: TYPE_META["white-board"], soon: true },
-    { type: "video-note", meta: TYPE_META["video-note"], soon: true },
-    { type: "web-view", meta: TYPE_META["web-view"], soon: true },
-    { type: "table-view", meta: TYPE_META["table-view"], soon: true },
-    { type: "pdf", meta: TYPE_META.pdf, soon: true },
-  ];
+export function addableItemTypes(
+  t: Translator<MobileProjectsKey>["t"]
+): Array<{ type: string; meta: ProjectItemTypeMeta; soon: boolean }> {
+  return Object.entries(TYPE_META).map(([type, { labelKey, ...meta }]) => ({
+    type,
+    meta: { ...meta, label: t(labelKey) },
+    soon: type !== "document",
+  }));
+}

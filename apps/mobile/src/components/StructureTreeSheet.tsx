@@ -1,6 +1,7 @@
 // 通用结构树抽屉：项目 / 知识库详情共用。
 // 全部节点平铺传入（Map），按 rootIds 递归渲染；可折叠，当前节点高亮。
 
+import { useMobileI18n } from "../services/i18n-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ChevronRight } from "lucide-react";
 import BottomSheet from "./BottomSheet";
@@ -105,6 +106,7 @@ function TreeRow(props: {
 }
 
 export function StructureTreeSheet(props: StructureTreeSheetProps) {
+  const { t } = useMobileI18n();
   const { open, nodes, rootIds, currentId } = props;
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
@@ -151,7 +153,7 @@ export function StructureTreeSheet(props: StructureTreeSheetProps) {
           );
         })}
         {visibleRoots.length === 0 ? (
-          <p className="text-ink-3 py-6 text-center text-xs">还没有任何节点</p>
+          <p className="text-ink-3 py-6 text-center text-xs">{t("structure.empty")}</p>
         ) : null}
       </div>
     </BottomSheet>

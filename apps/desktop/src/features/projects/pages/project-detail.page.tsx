@@ -4,6 +4,7 @@
  * 工作台本体为整体搬迁件（features/projects/components/，换皮与数据收编另立锚点）。
  */
 
+import { appMessages } from "@/app/i18n/messages";
 import {
   createPageSchema,
   paramNumber,
@@ -28,7 +29,7 @@ export default definePage({
   key: "project-detail",
   match: "params",
   getId: params => `project-${params.id}`,
-  label: "项目详情",
+  label: appMessages.ref("page.projectDetail"),
   params: schema.schema,
   component: ProjectDetailView,
 });

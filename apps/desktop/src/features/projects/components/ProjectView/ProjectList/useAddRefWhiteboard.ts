@@ -1,3 +1,4 @@
+import { projectsTranslator } from "@/features/projects/i18n";
 import { useState } from "react";
 import { useMemoizedFn } from "ahooks";
 
@@ -27,7 +28,7 @@ const useAddRefWhiteboard = (
 
   const onOk = useMemoizedFn(async (whiteboards: Whiteboard[]) => {
     if (whiteboards.length === 0) {
-      toast.error("请选择白板");
+      toast.error(t("select.boardRequired"));
       return;
     }
 
@@ -41,7 +42,7 @@ const useAddRefWhiteboard = (
 
       const fullWhiteboard = await getWhiteboardById(whiteboard.id);
       if (!fullWhiteboard || fullWhiteboard.whiteboardContentIds.length === 0) {
-        toast.error(`获取白板 ${whiteboard.title} 数据失败`);
+        toast.error(t("board.readFailed", { title: whiteboard.title }));
         return;
       }
 
@@ -66,7 +67,7 @@ const useAddRefWhiteboard = (
       }
     } catch (e) {
       console.error(e);
-      toast.error("关联白板失败");
+      toast.error(t("board.linkFailed"));
     }
   });
 
@@ -88,3 +89,5 @@ const useAddRefWhiteboard = (
 };
 
 export default useAddRefWhiteboard;
+
+const t = projectsTranslator.t;

@@ -1,12 +1,14 @@
 // 项目列表：活跃（置顶优先）/ 已归档两组；
 // 项目是容器：文档、PDF、网页、音视频等八种节点（移动端一期文档可编辑，其余只读展示）。
 
+import { projectsTranslator } from "./i18n";
+import { useProjectsI18n } from "./i18n";
 import { useMemo, useState } from "react";
 import { VirtualContainerList } from "../../components/VirtualContainerList";
 import { ArchiveRestore, Ellipsis, FolderTree, Plus, Star, Trash2 } from "lucide-react";
 import type { Project } from "../../types";
 import { clampText } from "../../utils/richTextText";
-import { formatTimeDisplay } from "../../utils/formatTime";
+import { formatListTime } from "../../utils/contentTime";
 import { PageHeader, PageHeaderButton } from "../../components/PageHeader";
 import { toast } from "../../components/toast";
 import BottomSheet from "../../components/BottomSheet";
@@ -16,7 +18,9 @@ import { useProjectCreate, useProjectDelete, useProjectUpdate, useProjectsQuery 
 
 /** 项目 = 文档树（数据库与 Vibe Learning 是桌面端的独立模块，移动端不承载） */
 const PROJECT_VISUAL = {
-  label: "文档树",
+  get label() {
+    return projectsTranslator.t("tree");
+  },
   className: "bg-tag-3-soft text-tag-3",
   grad: "linear-gradient(135deg,#e2daf1,#b7a6d8)",
 };
@@ -32,6 +36,7 @@ type ProjectsPageProps = {
 };
 
 export function ProjectsPage(props: ProjectsPageProps) {
+  const { t, locale } = useProjectsI18n();
   const [createOpen, setCreateOpen] = useState(false);
   const [createTitle, setCreateTitle] = useState("");
   const [createDesc, setCreateDesc] = useState("");
@@ -57,7 +62,7 @@ export function ProjectsPage(props: ProjectsPageProps) {
   const handleCreate = () => {
     const title = createTitle.trim();
     if (!title) {
-      toast({ type: "warning", text: "给项目起个名字" });
+      toast({ type: "warning", text: t("name.required") });
       return;
     }
     createProject.mutate(
@@ -69,7 +74,7 @@ export function ProjectsPage(props: ProjectsPageProps) {
           setCreateDesc("");
           props.onOpenProject(project.id);
         },
-        onError: error => props.onError(error, "新建项目失败"),
+        onError: error => props.onError(error, t("create.failed")),
       }
     );
   };
@@ -102,7 +107,7 @@ export function ProjectsPage(props: ProjectsPageProps) {
           ) : null}
           <button
             type="button"
-            aria-label="项目操作"
+            aria-label={t("actions")}
             className="text-ink-3 active:bg-hover -mr-1.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg"
             onClick={event => {
               event.stopPropagation();
@@ -121,9 +126,11 @@ export function ProjectsPage(props: ProjectsPageProps) {
           <span className={`rounded-full px-2 py-0.5 text-[10.5px] font-bold ${meta.className}`}>
             {meta.label}
           </span>
-          <span>{count} 节点</span>
+          <span>{t("nodes", { count, amount: count.toLocaleString(locale) })}</span>
           <span>·</span>
-          <span>{formatTimeDisplay(project.updateTime)}</span>
+          <span>
+            {formatListTime(project.updateTime, locale, time => t("time.yesterday", { time }))}
+          </span>
         </div>
       </article>
     );
@@ -138,7 +145,7 @@ export function ProjectsPage(props: ProjectsPageProps) {
         onClick={() => {
           updateProject.mutate(
             { id: project.id, archived: false },
-            { onSuccess: () => toast({ type: "success", text: "已恢复到活跃项目" }) }
+            { onSuccess: () => toast({ type: "success", text: t("restored") }) }
           );
         }}
       >
@@ -151,7 +158,7 @@ export function ProjectsPage(props: ProjectsPageProps) {
         <span className="text-ink-2 min-w-0 flex-1 truncate text-[13.5px] font-semibold">
           {project.title}
         </span>
-        <span className="text-ink-3 shrink-0 text-[11px]">点击恢复</span>
+        <span className="text-ink-3 shrink-0 text-[11px]">{t("restore")}</span>
       </div>
     );
   };
@@ -159,13 +166,13 @@ export function ProjectsPage(props: ProjectsPageProps) {
   return (
     <div className="mobile-kb-screen bg-page fixed inset-0 z-50 flex flex-col">
       <PageHeader
-        title="项目"
+        title={t("title")}
         onBack={props.onBack}
         actions={
           <PageHeaderButton
             icon={<Plus size={18} strokeWidth={2.6} />}
             variant="brand"
-            aria-label="新建项目"
+            aria-label={t("create")}
             onClick={() => setCreateOpen(true)}
           />
         }
@@ -180,13 +187,16 @@ export function ProjectsPage(props: ProjectsPageProps) {
         ) : active.length === 0 && archived.length === 0 ? (
           <div className="py-16 text-center">
             <FolderTree size={36} strokeWidth={1.4} className="text-ink-3 mx-auto" />
-            <p className="text-ink-2 mt-3 text-sm">还没有项目</p>
-            <p className="text-ink-3 mt-1 text-xs">项目是一个容器，什么都能装</p>
+            <p className="text-ink-2 mt-3 text-sm">{t("empty.title")}</p>
+            <p className="text-ink-3 mt-1 text-xs">{t("empty.hint")}</p>
           </div>
         ) : (
           <>
             <div className="text-ink-3 mt-1 mb-3.5 px-0.5 text-xs">
-              <b className="text-ink-2 font-bold">{active.length}</b> 个活跃项目
+              {t("active.count", {
+                count: active.length,
+                amount: active.length.toLocaleString(locale),
+              })}
             </div>
             <VirtualContainerList
               items={visibleProjects}
@@ -203,17 +213,17 @@ export function ProjectsPage(props: ProjectsPageProps) {
         )}
       </div>
 
-      <BottomSheet open={createOpen} title="新建项目" onClose={() => setCreateOpen(false)}>
+      <BottomSheet open={createOpen} title={t("create")} onClose={() => setCreateOpen(false)}>
         <input
           value={createTitle}
           onChange={event => setCreateTitle(event.target.value)}
-          placeholder="项目名称，如：十月城市漫步计划"
+          placeholder={t("name.placeholder")}
           className="input-base mt-3.5 w-full px-4 py-3"
         />
         <input
           value={createDesc}
           onChange={event => setCreateDesc(event.target.value)}
-          placeholder="一句话描述（可选）"
+          placeholder={t("desc.placeholder")}
           className="input-base mt-2.5 w-full px-4 py-3"
         />
         <button
@@ -223,18 +233,18 @@ export function ProjectsPage(props: ProjectsPageProps) {
           className="shadow-lift text-ink-inverse mt-4 w-full rounded-full py-3.5 text-[15px] font-bold transition-transform active:scale-[0.97] disabled:opacity-60"
           style={{ background: "var(--tau-accent)" }}
         >
-          创建项目
+          {t("create.confirm")}
         </button>
       </BottomSheet>
 
       <ActionSheet
         open={menuProject !== null}
         title={menuProject?.title}
-        kind="项目"
+        kind={t("kind")}
         onClose={() => setMenuProject(null)}
         items={[
           {
-            label: menuProject?.pinned ? "取消置顶" : "置顶",
+            label: t(menuProject?.pinned ? "unpin" : "pin"),
             icon: <Star size={18} />,
             tone: "butter",
             onClick: () => {
@@ -245,7 +255,7 @@ export function ProjectsPage(props: ProjectsPageProps) {
             },
           },
           {
-            label: menuProject?.archived ? "恢复为活跃" : "归档项目",
+            label: t(menuProject?.archived ? "unarchive" : "archive"),
             icon: <ArchiveRestore size={18} />,
             tone: "sky",
             onClick: () => {
@@ -256,7 +266,7 @@ export function ProjectsPage(props: ProjectsPageProps) {
                     onSuccess: () =>
                       toast({
                         type: "success",
-                        text: menuProject.archived ? "已恢复到活跃项目" : "已归档",
+                        text: t(menuProject.archived ? "restored" : "archived"),
                       }),
                   }
                 );
@@ -265,7 +275,7 @@ export function ProjectsPage(props: ProjectsPageProps) {
             },
           },
           {
-            label: "删除项目",
+            label: t("delete.project"),
             danger: true,
             icon: <Trash2 size={18} />,
             onClick: () => {
@@ -278,8 +288,10 @@ export function ProjectsPage(props: ProjectsPageProps) {
 
       <MobileConfirmDialog
         open={deleteTarget !== null}
-        title="删除项目"
-        description={`「${clampText(deleteTarget?.title ?? "", 18)}」及其全部节点将被删除，被其他项目引用的节点会自动脱离。`}
+        title={t("delete.project")}
+        description={t("delete.projectDescription", {
+          title: clampText(deleteTarget?.title ?? "", 18),
+        })}
         danger
         loading={deleteProject.isPending}
         onCancel={() => setDeleteTarget(null)}

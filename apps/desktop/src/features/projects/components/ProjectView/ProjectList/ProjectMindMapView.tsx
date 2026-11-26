@@ -1,3 +1,4 @@
+import { useProjectsI18n } from "@/features/projects/i18n";
 import { memo, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { renderMenuEntries, type MenuEntryList } from "../shared/menuEntries";
 import { Menu, ContextMenu } from "@tau/ui";
@@ -319,6 +320,7 @@ const ProjectMindMapNodeActions = memo(
     addMenuItems: MenuEntryList;
     onAddMenuClick: ProjectMindMapViewProps["onAddMenuClick"];
   }) => {
+    const { t } = useProjectsI18n();
     const meta = node.meta as ProjectMindMapNodeMeta;
     const isProject = meta.nodeKind === "project";
     const [open, setOpen] = useState(false);
@@ -349,8 +351,8 @@ const ProjectMindMapNodeActions = memo(
           <button
             type="button"
             data-mindmap-interactive
-            title={isProject ? "添加根节点" : "添加子节点"}
-            aria-label={isProject ? "添加根节点" : "添加子节点"}
+            title={t(isProject ? "add.root" : "add.child")}
+            aria-label={t(isProject ? "add.root" : "add.child")}
             className={classnames(
               // 按钮落在节点外侧的画布上，配色跟应用主题走（不能用节点文字色，那是相对节点底色算的）
               "bg-surface ring-line-1 text-ink-2 hover:bg-hover hover:text-ink-1 absolute top-1/2 z-10 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full text-[11px] opacity-0 ring-1 transition-opacity group-hover/mindmap-node:opacity-100",

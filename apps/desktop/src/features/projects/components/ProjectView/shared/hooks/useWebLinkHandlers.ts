@@ -1,3 +1,4 @@
+import { projectsTranslator } from "@/features/projects/i18n";
 import { useMemoizedFn } from "ahooks";
 import { createWebLink, getFileBaseName, readTextFile, selectFile } from "@/commands";
 import { WebLinkSourceType } from "@/types";
@@ -56,7 +57,7 @@ export const useWebLinkHandlers = (options: UseWebLinkHandlersOptions) => {
 
     const filePath = filePaths[0];
 
-    const loadingId = toast.loading("正在上传 HTML 文件...");
+    const loadingId = toast.loading(t("html.uploading"));
     try {
       const fileName = await getFileBaseName(filePath);
       const fileTitle = await getFileBaseName(filePath, true);
@@ -68,11 +69,11 @@ export const useWebLinkHandlers = (options: UseWebLinkHandlersOptions) => {
       const uploadedUrl = await uploadResource(htmlFile);
       if (!uploadedUrl) {
         toast.dismiss(loadingId);
-        toast.error("上传 HTML 文件失败");
+        toast.error(t("html.failed"));
         return null;
       }
 
-      toast.resolve(loadingId, "HTML 文件已添加");
+      toast.resolve(loadingId, t("html.added"));
 
       return {
         url: uploadedUrl,
@@ -82,7 +83,7 @@ export const useWebLinkHandlers = (options: UseWebLinkHandlersOptions) => {
     } catch (error) {
       console.error("选择 HTML 文件失败:", error);
       toast.dismiss(loadingId);
-      toast.error("选择 HTML 文件失败");
+      toast.error(t("html.selectFailed"));
       return null;
     }
   });
@@ -92,3 +93,5 @@ export const useWebLinkHandlers = (options: UseWebLinkHandlersOptions) => {
     handleSelectWebviewFile,
   };
 };
+
+const t = projectsTranslator.t;

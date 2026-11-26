@@ -27,5 +27,6 @@
   "common.back": "Back",
   "content.selectBlocks": "Select blocks",
   "content.outline": "Organize structure",
-  "common.closePanel": "Close panel"
+  "common.closePanel": "Close panel",
+  "structure.empty": "No items yet"
 }

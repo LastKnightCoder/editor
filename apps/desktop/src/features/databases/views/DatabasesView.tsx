@@ -22,8 +22,9 @@ const VISUAL: CockpitVisual = {
 
 const COPY: CockpitCopy = {
   title: "数据库",
-  entityUnit: "个数据库",
-  metricUnit: "行",
+  itemTitle: id => `数据库 #${id}`,
+  entityCount: (_count, amount) => `${amount} 个数据库`,
+  metricCount: (_count, amount) => `${amount} 行`,
   metricLabel: "行数",
   recentHint: "最近打开过的数据库",
   createLabel: "新建数据库",

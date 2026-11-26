@@ -4,6 +4,7 @@
  * 项目即文档树。打开项目时，有上次停留的文档就直接定位过去（续读）。
  */
 
+import { useProjectsI18n } from "../i18n";
 import { useMemo } from "react";
 import { FolderTree } from "lucide-react";
 import { usePage } from "@/page/PageProvider";
@@ -21,24 +22,25 @@ const VISUAL: CockpitVisual = {
   barClass: "bg-gradient-to-r from-[#3f857c] to-transparent",
 };
 
-const COPY: CockpitCopy = {
-  title: "项目",
-  entityUnit: "个项目",
-  metricUnit: "个文档",
-  metricLabel: "文档",
-  recentHint: "从上次看到的文档继续",
-  createLabel: "新建项目",
-  createTitle: "新建项目",
-  editTitle: "编辑项目",
-  descPlaceholder: "介绍一下这个项目",
-  emptyTitle: "还没有项目",
-  emptyHint: "从一个文档树开始，把资料组织成可检索的知识结构",
-  deleteTitle: "删除项目",
-  deleteDescription: "项目将被永久删除。",
-  deleteImpact: "仅属于此项目的子项将一并删除；其他项目共用的子项会保留。删除后不可恢复。",
-};
-
 export function ProjectsView() {
+  const { t } = useProjectsI18n();
+  const copy: CockpitCopy = {
+    title: t("title"),
+    itemTitle: id => t("item.fallback", { id }),
+    entityCount: (count, amount) => t("entity.count", { count, amount }),
+    metricCount: (count, amount) => t("metric.count", { count, amount }),
+    metricLabel: t("metric.label"),
+    recentHint: t("recent.hint"),
+    createLabel: t("create"),
+    createTitle: t("create"),
+    editTitle: t("edit"),
+    descPlaceholder: t("desc.placeholder"),
+    emptyTitle: t("empty.title"),
+    emptyHint: t("empty.hint"),
+    deleteTitle: t("delete.title"),
+    deleteDescription: t("delete.description"),
+    deleteImpact: t("delete.impact"),
+  };
   const { navigator } = usePage();
   const snapshot = useProjectsSnapshot();
   const mutations = useProjectMutations();
@@ -64,7 +66,7 @@ export function ProjectsView() {
       items={items}
       loading={snapshot.loading}
       visual={VISUAL}
-      copy={COPY}
+      copy={copy}
       mutations={mutations}
       onOpen={open}
       onCreated={created => navigator.push("project-detail", { id: created.id })}

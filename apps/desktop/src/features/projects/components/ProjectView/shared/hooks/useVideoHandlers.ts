@@ -1,3 +1,4 @@
+import { projectsTranslator } from "@/features/projects/i18n";
 import { useMemoizedFn } from "ahooks";
 import { createEmptyVideoNote } from "@/commands";
 import {
@@ -59,7 +60,7 @@ export interface UseVideoHandlersOptions {
 export const createRootVideoStrategy = (config: RootVideoStrategyConfig): VideoAddStrategy => ({
   addProjectItem: async (createItem: CreateProjectItem) => {
     if (!config.project) {
-      toast.error("项目尚未加载完成");
+      toast.error(t("loading.project"));
       return;
     }
 
@@ -88,7 +89,7 @@ export const createRootVideoStrategy = (config: RootVideoStrategyConfig): VideoA
 export const createChildVideoStrategy = (config: ChildVideoStrategyConfig): VideoAddStrategy => ({
   addProjectItem: async (createItem: CreateProjectItem) => {
     if (!config.projectItem || !config.projectId) {
-      toast.error("项目文档尚未加载完成");
+      toast.error(t("loading.document"));
       return;
     }
 
@@ -117,7 +118,7 @@ export const useVideoHandlers = (options: UseVideoHandlersOptions) => {
         buildOnlineVideoMeta(result.providerId, result.ref, result.title, result.cover)
       );
       if (!item) {
-        toast.error("创建视频笔记失败");
+        toast.error(t("video.createFailed"));
         return;
       }
 
@@ -134,10 +135,10 @@ export const useVideoHandlers = (options: UseVideoHandlersOptions) => {
 
       await strategy.addProjectItem(createProjectItem);
       closeModal(ModalKey.OnlineVideo);
-      toast.success("视频笔记添加成功");
+      toast.success(t("video.added"));
     } catch (error) {
       console.error("添加插件视频失败:", error);
-      toast.error("添加视频失败");
+      toast.error(t("video.addFailed"));
     }
   });
 
@@ -152,7 +153,7 @@ export const useVideoHandlers = (options: UseVideoHandlersOptions) => {
       });
 
       if (!item) {
-        toast.error("创建视频笔记失败");
+        toast.error(t("video.createFailed"));
         return;
       }
 
@@ -169,10 +170,10 @@ export const useVideoHandlers = (options: UseVideoHandlersOptions) => {
 
       await strategy.addProjectItem(createProjectItem);
       closeModal(ModalKey.WebVideo);
-      toast.success("远程视频添加成功");
+      toast.success(t("video.remoteAdded"));
     } catch (error) {
       console.error("添加远程视频失败:", error);
-      toast.error("添加在线视频失败");
+      toast.error(t("video.remoteFailed"));
     }
   });
 
@@ -181,3 +182,5 @@ export const useVideoHandlers = (options: UseVideoHandlersOptions) => {
     handleRemoteVideoConfirm,
   };
 };
+
+const t = projectsTranslator.t;

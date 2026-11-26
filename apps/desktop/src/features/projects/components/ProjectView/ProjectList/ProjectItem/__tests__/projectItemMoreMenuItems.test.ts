@@ -1,3 +1,4 @@
+import { projectsTranslator } from "@/features/projects/i18n";
 import { describe, expect, it, vi } from "vitest";
 
 import { EProjectItemType } from "@/types/project";
@@ -21,7 +22,7 @@ describe("getProjectItemMoreMenuItems", () => {
     (items || []).map(item => item?.key);
 
   it("为普通文档返回完整文档操作", () => {
-    const items = getProjectItemMoreMenuItems({
+    const items = getProjectItemMoreMenuItems(projectsTranslator.t, {
       projectItemType: EProjectItemType.Document,
       refType: "",
     });
@@ -47,7 +48,7 @@ describe("getProjectItemMoreMenuItems", () => {
   });
 
   it("已关联卡片的文档不再显示建立卡片", () => {
-    const items = getProjectItemMoreMenuItems({
+    const items = getProjectItemMoreMenuItems(projectsTranslator.t, {
       projectItemType: EProjectItemType.Document,
       refType: "card",
     });
@@ -60,7 +61,7 @@ describe("getProjectItemMoreMenuItems", () => {
   it("白板根据关联状态返回对应菜单项", () => {
     expect(
       getKeys(
-        getProjectItemMoreMenuItems({
+        getProjectItemMoreMenuItems(projectsTranslator.t, {
           projectItemType: EProjectItemType.Whiteboard,
           refType: "",
         })
@@ -69,7 +70,7 @@ describe("getProjectItemMoreMenuItems", () => {
 
     expect(
       getKeys(
-        getProjectItemMoreMenuItems({
+        getProjectItemMoreMenuItems(projectsTranslator.t, {
           projectItemType: EProjectItemType.Whiteboard,
           refType: "white-board",
         })
@@ -80,7 +81,7 @@ describe("getProjectItemMoreMenuItems", () => {
   it("为视频、网页、表格和 PDF 返回各自菜单项", () => {
     expect(
       getKeys(
-        getProjectItemMoreMenuItems({
+        getProjectItemMoreMenuItems(projectsTranslator.t, {
           projectItemType: EProjectItemType.VideoNote,
         })
       )
@@ -88,7 +89,7 @@ describe("getProjectItemMoreMenuItems", () => {
 
     expect(
       getKeys(
-        getProjectItemMoreMenuItems({
+        getProjectItemMoreMenuItems(projectsTranslator.t, {
           projectItemType: EProjectItemType.WebView,
         })
       )
@@ -96,7 +97,7 @@ describe("getProjectItemMoreMenuItems", () => {
 
     expect(
       getKeys(
-        getProjectItemMoreMenuItems({
+        getProjectItemMoreMenuItems(projectsTranslator.t, {
           projectItemType: EProjectItemType.TableView,
         })
       )
@@ -104,7 +105,7 @@ describe("getProjectItemMoreMenuItems", () => {
 
     expect(
       getKeys(
-        getProjectItemMoreMenuItems({
+        getProjectItemMoreMenuItems(projectsTranslator.t, {
           projectItemType: EProjectItemType.Pdf,
         })
       )
@@ -132,7 +133,7 @@ describe("插件对象动作", () => {
   });
 
   it("排在删除之前，自带分隔线；没有动作时不变", () => {
-    const items = getProjectItemMoreMenuItems({
+    const items = getProjectItemMoreMenuItems(projectsTranslator.t, {
       projectItemType: EProjectItemType.Document,
       refType: "",
     });

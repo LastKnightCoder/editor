@@ -45,12 +45,11 @@ export interface CockpitVisual {
  * 与量词顺序，反而把简单的事搞复杂；写死字面量最直白，也让每个模块能各自措辞。
  */
 export interface CockpitCopy {
-  /** 页面标题，也用作无标题条目的占位（`{title} #12`） */
+  /** 页面标题。 */
   title: string;
-  /** 摘要行的条目单位，渲染为 `3 个 Notebook` */
-  entityUnit: string;
-  /** 大数字单位，渲染为 `12 份资料`（摘要行与卡面共用） */
-  metricUnit: string;
+  itemTitle(id: number): string;
+  entityCount(count: number, amount: string): string;
+  metricCount(count: number, amount: string): string;
   /** 列表排布里大数字那一列的列头 */
   metricLabel: string;
   /** 「最近打开」段头的说明 */

@@ -90,5 +90,6 @@
   "shell.maximizeRestore": "最大化／還原",
   "shell.fullscreen": "全螢幕",
   "settings.backHint": "返回 (Esc)",
-  "page.articleDetail": "文章詳情"
+  "page.articleDetail": "文章詳情",
+  "page.projectDetail": "專案詳情"
 }

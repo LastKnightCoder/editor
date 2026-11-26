@@ -1,12 +1,22 @@
-import { describe, expect, it } from "vitest";
+import { createI18nRuntime, createLocaleStore } from "@tau/i18n";
+import { cockpitMessages } from "../i18n";
 import {
-  formatDate,
-  formatOpenedAt,
-  cockpitTimeMeta,
-  recentCockpitItems,
-  sortCockpitItems,
-} from "../model";
+  formatDate as dateText,
+  formatOpenedAt as openedText,
+  cockpitTimeMeta as timeMeta,
+} from "../format";
+import { describe, expect, it } from "vitest";
+import { recentCockpitItems, sortCockpitItems } from "../model";
 import type { CockpitItem } from "../types";
+
+const language = {
+  locale: "zh-CN",
+  t: createI18nRuntime({ localeSource: createLocaleStore("zh-CN") }).get(cockpitMessages).t,
+};
+const formatDate = (ts: number, now: number) => dateText(ts, language.locale, now);
+const formatOpenedAt = (ts: number, now: number) => openedText(ts, language, now);
+const cockpitTimeMeta = (item: CockpitItem, sort: Parameters<typeof timeMeta>[1], now: number) =>
+  timeMeta(item, sort, language, now);
 
 const NOW = new Date(2026, 9, 1, 18, 0).getTime();
 const DAY = 86_400_000;
@@ -74,7 +84,7 @@ describe("时间展示", () => {
   it("今天 / 昨天带时刻，更早用相对时间", () => {
     expect(formatOpenedAt(new Date(2026, 9, 1, 9, 5).getTime(), NOW)).toBe("今天 09:05");
     expect(formatOpenedAt(new Date(2026, 8, 30, 21, 45).getTime(), NOW)).toBe("昨天 21:45");
-    expect(formatOpenedAt(NOW - 3 * DAY, NOW)).toBe("3 天前");
+    expect(formatOpenedAt(NOW - 3 * DAY, NOW)).toBe("3天前");
   });
 
   it("日期今年省略年份", () => {
@@ -86,8 +96,8 @@ describe("时间展示", () => {
     const opened = item(1, { openedAt: NOW - DAY });
     const never = item(2, { updateTime: NOW - 3 * DAY });
     expect(cockpitTimeMeta(opened, "opened", NOW)).toBe("昨天打开");
-    expect(cockpitTimeMeta(never, "opened", NOW)).toBe("3 天前更新");
-    expect(cockpitTimeMeta(opened, "updated", NOW)).toBe("1 周前更新");
+    expect(cockpitTimeMeta(never, "opened", NOW)).toBe("3天前更新");
+    expect(cockpitTimeMeta(opened, "updated", NOW)).toBe("1周前更新");
     expect(cockpitTimeMeta(opened, "created", NOW)).toBe("创建于 6月23日");
   });
 });

@@ -1,3 +1,4 @@
+import { projectsTranslator } from "@/features/projects/i18n";
 import { useMemo, useState } from "react";
 import { CreateProjectItem, EProjectItemType, ICard, ProjectItem } from "@/types";
 import { useCreation, useMemoizedFn } from "ahooks";
@@ -35,7 +36,7 @@ const useAddRefCard = (cards: ICard[], projectId: number, projectItem?: ProjectI
 
   const onOk = useMemoizedFn(async (selectedCards: ICard[]) => {
     if (selectedCards.length === 0) {
-      toast.warning("请选择卡片");
+      toast.warning(t("select.cardRequired"));
       return;
     }
 
@@ -87,3 +88,5 @@ const useAddRefCard = (cards: ICard[], projectId: number, projectItem?: ProjectI
 };
 
 export default useAddRefCard;
+
+const t = projectsTranslator.t;

@@ -1,3 +1,4 @@
+import { useProjectsI18n } from "@/features/projects/i18n";
 import { ReactNode, useMemo, useState } from "react";
 import { ConfirmDialog } from "@tau/ui";
 import { usePluginMenuEntries, type MenuEntryList } from "../../shared/menuEntries";
@@ -70,6 +71,7 @@ export const useProjectItemMoreActions = (
     getTitleHandle,
     onRequestInlineTitleEdit,
   } = options;
+  const { t } = useProjectsI18n();
   const { requestDocumentAction } = useProjectContext();
 
   const [exportModalOpen, setExportModalOpen] = useState(false);
@@ -91,8 +93,8 @@ export const useProjectItemMoreActions = (
   const shared = useContentShared(projectItem?.contentId);
   const flashcardsEnabled = useFeatureEnabled("review");
   const builtinMenuItems: MenuEntryList = useMemo(
-    () => getProjectItemMoreMenuItems(projectItem, shared, flashcardsEnabled),
-    [projectItem?.projectItemType, projectItem?.refType, shared, flashcardsEnabled]
+    () => getProjectItemMoreMenuItems(t, projectItem, shared, flashcardsEnabled),
+    [projectItem?.projectItemType, projectItem?.refType, shared, flashcardsEnabled, t]
   );
   const pluginEntries = usePluginMenuEntries(projectItemActionTarget(projectItem));
   const moreMenuItems = pluginEntries.insert(builtinMenuItems);
@@ -208,7 +210,7 @@ export const useProjectItemMoreActions = (
       publishProjectItemUpdate(updatedProjectItem);
       const { defaultCardEventBus } = await import("@/utils");
       defaultCardEventBus.createEditor().publishCardEvent("card:created", createdCard);
-      toast.success("成功建立卡片");
+      toast.success(t("card.created"));
     } else if (key === "to-white-board") {
       if (
         projectItem.projectItemType !== EProjectItemType.Whiteboard ||
@@ -230,10 +232,10 @@ export const useProjectItemMoreActions = (
         const updatedProjectItem = await updateProjectItem(nextProjectItem);
         if (!updatedProjectItem) return;
         publishProjectItemUpdate(updatedProjectItem);
-        toast.success("成功创建白板");
+        toast.success(t("board.created"));
       } catch (e) {
         console.error(e);
-        toast.error("创建白板失败");
+        toast.error(t("board.createFailed"));
       }
     } else if (key === "remove") {
       await handleRemoveProjectItem();
@@ -271,7 +273,7 @@ export const useProjectItemMoreActions = (
         if (displayWebviewUrl) {
           navigator.push("webview", { url: displayWebviewUrl });
         } else {
-          toast.error("无法提取 URL");
+          toast.error(t("url.failed"));
         }
       } else {
         navigator.push("project-detail", { id: projectId, itemId: projectItem.id });
@@ -288,10 +290,10 @@ export const useProjectItemMoreActions = (
       <ConfirmDialog
         open={removeConfirmOpen}
         onOpenChange={setRemoveConfirmOpen}
-        title="删除项目文档"
-        description="确定删除该项目文档吗？"
+        title={t("delete.nodeTitle")}
+        description={t("delete.nodeDescription")}
         danger
-        confirmText="确定"
+        confirmText={t("confirm")}
         onConfirm={async () => {
           setRemoveConfirmOpen(false);
           await handleRemoveProjectItemConfirm();
@@ -306,9 +308,9 @@ export const useProjectItemMoreActions = (
             ? projectItemTitle
             : projectItem?.title || ""
         }
-        modalTitle="编辑标题"
-        modalDescription="修改当前项目的显示标题"
-        placeholder="请输入标题"
+        modalTitle={t("edit.title")}
+        modalDescription={t("edit.description")}
+        placeholder={t("edit.placeholder")}
       />
 
       {isPresentation &&

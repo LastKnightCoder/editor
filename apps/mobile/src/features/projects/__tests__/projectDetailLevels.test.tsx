@@ -1,6 +1,7 @@
 // 项目详情按层级分页：当前层由 itemId 决定，面包屑由节点链推出；进入子层 / 跳回祖先经宿主回调交给路由。
 
 import { act } from "react";
+import { mobileLocaleSource } from "../../../services/i18n";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProjectItem } from "../../../types";
@@ -71,6 +72,7 @@ describe("ProjectDetailPage 层级分页", () => {
     const onOpenLevel = vi.fn();
     const onJumpToLevel = vi.fn();
     const onBack = vi.fn();
+    const onOpenDocEditor = vi.fn();
     act(() => {
       root.render(
         <ProjectDetailPage
@@ -79,13 +81,13 @@ describe("ProjectDetailPage 层级分页", () => {
           onBack={onBack}
           onOpenLevel={onOpenLevel}
           onJumpToLevel={onJumpToLevel}
-          onOpenDocEditor={vi.fn()}
+          onOpenDocEditor={onOpenDocEditor}
           onOpenCard={vi.fn()}
           onError={vi.fn()}
         />
       );
     });
-    return { onOpenLevel, onJumpToLevel, onBack };
+    return { onOpenLevel, onJumpToLevel, onBack, onOpenDocEditor };
   }
 
   const clickText = (text: string) => {
@@ -130,5 +132,30 @@ describe("ProjectDetailPage 层级分页", () => {
     const { onBack } = render(3);
     act(() => host.querySelector<HTMLButtonElement>('button[aria-label="返回"]')?.click());
     expect(onBack).toHaveBeenCalledTimes(1);
+  });
+  it("切换语言保留当前层级和文档节点，打开操作仍指向原文档", () => {
+    const originalLocale = mobileLocaleSource.getSnapshot();
+    const { onOpenDocEditor } = render(3);
+    const title = [...host.querySelectorAll("p")].find(node =>
+      node.textContent?.startsWith("正文")
+    );
+    if (!title) throw new Error("文档节点未挂载");
+    try {
+      for (const locale of ["zh-TW", "en-US"]) {
+        act(() => mobileLocaleSource.setLocale(locale));
+        expect(
+          [...host.querySelectorAll("p")].find(node => node.textContent?.startsWith("正文"))
+        ).toBe(title);
+        expect(host.textContent).toContain("章节");
+        expect(host.textContent).toContain("小节");
+      }
+      act(() => title.click());
+      expect(onOpenDocEditor).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ id: 4, title: "正文" }),
+        "项目甲"
+      );
+    } finally {
+      act(() => mobileLocaleSource.setLocale(originalLocale));
+    }
   });
 });

@@ -8,6 +8,8 @@
  * Ctrl+K，空态引导同一入口）。
  */
 
+import { CountText } from "./CountText";
+import { useCockpitI18n } from "./i18n";
 import { useMemo, useState, type HTMLAttributes, type ReactNode } from "react";
 import { ChevronDown, Plus } from "lucide-react";
 import { FadeScroll } from "@tau/ui";
@@ -16,7 +18,6 @@ import { CockpitGridCard, CockpitListRows, CockpitRecentCard } from "./EntityCar
 import { CockpitToolbar } from "./CockpitToolbar";
 import { EntityDialog } from "./EntityDialog";
 import {
-  COCKPIT_SORTS,
   recentCockpitItems,
   sortCockpitItems,
   type CockpitLayout,
@@ -67,6 +68,7 @@ export function EntityCockpit({
   renderExport,
   paperDrop,
 }: EntityCockpitProps) {
+  const { t, locale } = useCockpitI18n();
   const { layout, sort, setLayout, setSort } = useCockpitPrefs(prefsKey);
   const [archivedOpen, setArchivedOpen] = useState(false);
 
@@ -93,7 +95,7 @@ export function EntityCockpit({
 
   const metricTotal = active.reduce((sum, item) => sum + (item.metric ?? 0), 0);
   const metricsComplete = active.every(item => item.metric !== null);
-  const sortLabel = COCKPIT_SORTS.find(s => s.value === sort)?.label ?? "";
+  const sortLabel = t(`sort.${sort}`);
 
   /* ---------- 卡片操作 ---------- */
 
@@ -163,14 +165,15 @@ export function EntityCockpit({
               {copy.title}
             </h1>
             <span className="text-tau-meta text-ink-2 w-0 flex-1 truncate whitespace-nowrap tabular-nums">
-              <b className="text-ink-1 font-semibold">{active.length}</b> {copy.entityUnit}
+              <CountText count={active.length} format={copy.entityCount} />
               {metricsComplete && (
                 <>
                   <span className="text-ink-3 mx-1.5">·</span>
-                  <b className="text-ink-1 font-semibold">{metricTotal}</b> {copy.metricUnit}
+                  <CountText count={metricTotal} format={copy.metricCount} />
                 </>
               )}
-              {archived.length > 0 && ` · 已归档 ${archived.length}`}
+              {archived.length > 0 &&
+                ` · ${t("archived.count", { amount: archived.length.toLocaleString(locale) })}`}
             </span>
             {total > 0 && (
               <CockpitToolbar
@@ -191,7 +194,7 @@ export function EntityCockpit({
           {/* 最近打开：只在网格时出现；列表由「上次打开」列承担 */}
           {layout === "grid" && recent.length > 0 && (
             <section className="mb-[26px]">
-              <CockpitSectionHead label="最近打开" hint={copy.recentHint} />
+              <CockpitSectionHead label={t("recent")} hint={copy.recentHint} />
               <div className="grid grid-cols-3 gap-3">
                 {recent.map(item => (
                   <CockpitRecentCard
@@ -209,8 +212,11 @@ export function EntityCockpit({
           {active.length > 0 && (
             <section className="mb-[26px]">
               <CockpitSectionHead
-                label="全部"
-                hint={`${active.length} ${copy.entityUnit} · 按${sortLabel}`}
+                label={t("all")}
+                hint={t("list.hint", {
+                  amount: copy.entityCount(active.length, active.length.toLocaleString(locale)),
+                  sort: sortLabel,
+                })}
               />
               {collection(active)}
             </section>
@@ -232,9 +238,11 @@ export function EntityCockpit({
                   strokeWidth={1.75}
                 />
                 <span className="group-hover/head:text-accent-text text-[16px] font-semibold tracking-[-0.01em]">
-                  已归档
+                  {t("archived")}
                 </span>
-                <span className="text-ink-3 text-[11.5px] tabular-nums">{archived.length} 个</span>
+                <span className="text-ink-3 text-[11.5px] tabular-nums">
+                  {copy.entityCount(archived.length, archived.length.toLocaleString(locale))}
+                </span>
               </button>
               <div
                 className={cn(
@@ -278,11 +286,11 @@ export function EntityCockpit({
           if (!open) setDeleting(null);
         }}
         title={copy.deleteTitle}
-        context={deleting?.title || `${copy.title} #${deleting?.id}`}
+        context={deleting ? deleting.title || copy.itemTitle(deleting.id) : undefined}
         description={copy.deleteDescription}
         impact={copy.deleteImpact}
         danger
-        confirmText="删除"
+        confirmText={t("delete")}
         loading={deletingBusy}
         onConfirm={async () => {
           if (!deleting) return;
@@ -290,9 +298,9 @@ export function EntityCockpit({
           try {
             await mutations.remove(deleting.id);
             setDeleting(null);
-            toast.success("已删除");
+            toast.success(t("deleted"));
           } catch {
-            toast.error("删除失败");
+            toast.error(t("delete.failed"));
           } finally {
             setDeletingBusy(false);
           }
