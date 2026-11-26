@@ -1,5 +1,7 @@
 // 工具交互宿主：确认卡与提问卡（tools/）经 @tau/chat-ui 的交互宿主从对话状态里读等待项，按 toolCallId 对应到工具行。
 
+import { mobileI18n } from "../../services/i18n";
+import { askMessages } from "./askMessages";
 import {
   configureToolInteractions,
   type PendingToolApproval,
@@ -13,11 +15,11 @@ import {
   useChatStore,
 } from "../../services/aiChat/chatController";
 
-const RISK_LABEL: Record<string, string> = {
-  read: "读取数据",
-  write: "修改你的数据",
-  execute: "执行操作",
-};
+const interactionText = mobileI18n.get(askMessages).t;
+const riskLabel = (risk: string) =>
+  risk === "read" || risk === "write" || risk === "execute"
+    ? interactionText(`risk.${risk}`)
+    : risk;
 
 const WRITE_TOOLS = new Set([
   "create_todo",
@@ -92,7 +94,7 @@ function createChatInteractionHost(): ToolInteractionHost {
           submittedAt: Date.now(),
         });
     },
-    riskLabel: risk => RISK_LABEL[risk] ?? risk,
+    riskLabel,
   };
 }
 

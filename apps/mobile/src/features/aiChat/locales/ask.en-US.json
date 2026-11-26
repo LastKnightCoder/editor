@@ -9,5 +9,8 @@
   "suggestion.tomorrowPlan": "Help me organize tomorrow's plans.",
   "suggestion.tomorrowEvents": "What is on my calendar tomorrow?",
   "suggestion.todayJournal": "Summarize today's journal.",
-  "suggestion.weekJournal": "What is worth remembering from this week's journal?"
+  "suggestion.weekJournal": "What is worth remembering from this week's journal?",
+  "risk.read": "read data",
+  "risk.write": "modify your data",
+  "risk.execute": "perform an operation"
 }

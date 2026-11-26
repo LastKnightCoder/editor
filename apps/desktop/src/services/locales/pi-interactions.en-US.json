@@ -1,0 +1,6 @@
+{
+  "risk.read": "read data",
+  "risk.write": "edit content",
+  "risk.execute": "run code",
+  "approval.hint": "Session permissions are shared by the parent chat and its subagents. Adjust them in Settings › AI services › Tool permissions."
+}

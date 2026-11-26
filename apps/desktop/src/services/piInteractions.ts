@@ -13,7 +13,7 @@ import type {
 import type { AskQuestionAnswerItem } from "@tau/shared/chat-core";
 import type { ToolCallExecutionState } from "@tau/shared/chat-renderers";
 import { configureToolInteractions, type ToolInteractionHost } from "@tau/chat-ui";
-import { RISK_LABEL } from "@/services/tool-permission/mode";
+import { piInteractionRiskText, piInteractionText } from "./piInteractions.i18n";
 import {
   onPiSessionInteractions,
   piSessionAnswerQuestion,
@@ -114,6 +114,8 @@ export const desktopToolInteractionHost: ToolInteractionHost = {
     decideToolApproval(request as PiToolApprovalRequest, choice),
   answerQuestion: (_execution, request, answers) =>
     answerQuestion(request as PiUserQuestionRequest, answers),
-  riskLabel: risk => RISK_LABEL[risk as keyof typeof RISK_LABEL] ?? risk,
-  approvalHint: "本会话授权由父对话及其子 Agent 共享；可在设置「AI 服务 · 工具权限」调整",
+  riskLabel: piInteractionRiskText,
+  get approvalHint() {
+    return piInteractionText("approval.hint");
+  },
 };

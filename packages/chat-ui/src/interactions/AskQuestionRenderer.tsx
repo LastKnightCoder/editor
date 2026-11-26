@@ -3,6 +3,7 @@
  * 作答后等工具结果回流；宿主已没有这条等待（中止/应用重启）时只读显示，不伪造可提交。
  */
 import { useEffect, useId, useMemo, useState } from "react";
+import { useChatUiI18n } from "../i18n";
 import { Check, CircleAlert, MessageCircleQuestion } from "lucide-react";
 import { Button, Checkbox, Input, Radio, cn } from "@tau/ui";
 import type { ToolCallCustomRendererProps } from "../renderers/types";
@@ -44,6 +45,18 @@ const parseOutputResult = (output?: string): AskQuestionToolResult | null => {
   }
 };
 
+class QuestionHostUnavailableError extends Error {
+  constructor() {
+    super("现在不能提交答案");
+    this.name = "QuestionHostUnavailableError";
+  }
+}
+
+type QuestionFailure =
+  | { kind: "required"; question: string }
+  | { kind: "unavailable" | "submitFailed" }
+  | { kind: "diagnostic"; message: string };
+
 const AskQuestionRenderer = ({
   execution,
   isDark,
@@ -51,6 +64,7 @@ const AskQuestionRenderer = ({
   inputParseError,
   renderDefault,
 }: ToolCallCustomRendererProps) => {
+  const { t } = useChatUiI18n();
   const pending = useToolInteraction(execution, (host, item) => host.questionOf(item), undefined);
   const ready = useToolInteraction(execution, (host, item) => host.isReady(item), false);
   const [submitting, setSubmitting] = useState(false);
@@ -95,13 +109,20 @@ const AskQuestionRenderer = ({
   const [otherTextMap, setOtherTextMap] = useState<Record<string, string>>(() =>
     buildInitialOtherMap(submittedAnswers?.answers)
   );
-  const [error, setError] = useState("");
+  const [failure, setFailure] = useState<QuestionFailure | null>(null);
+  const error = !failure
+    ? ""
+    : failure.kind === "diagnostic"
+      ? failure.message
+      : failure.kind === "required"
+        ? t("question.required", { question: failure.question })
+        : t(`question.${failure.kind}`);
   const fieldIdBase = useId();
 
   useEffect(() => {
     setSelectedValuesMap(buildInitialSelectedMap(submittedAnswers?.answers));
     setOtherTextMap(buildInitialOtherMap(submittedAnswers?.answers));
-    setError("");
+    setFailure(null);
   }, [executionIdentity, submittedAnswers]);
 
   useEffect(() => {
@@ -128,20 +149,20 @@ const AskQuestionRenderer = ({
   const live = Boolean(pending) && ready && !answered;
   const isLocked = !live || submitting;
   const statusText = answered
-    ? "答案已提交，等待模型继续响应"
+    ? t("question.sent")
     : live
-      ? "请完成选择后提交答案"
+      ? t("question.waiting")
       : pending
-        ? "正在恢复问题…"
+        ? t("question.restoring")
         : isTransientStreamingState(execution.status) && ready
-          ? "正在准备问题…"
+          ? t("question.preparing")
           : execution.status === "failed"
-            ? "提问已结束，这次没有得到回答"
-            : "等待回答时对话已中断，这次提问没有得到回答";
+            ? t("question.failed")
+            : t("question.interrupted");
 
   const handleSelectOption = (questionId: string, optionValue: string, isMultiple: boolean) => {
     if (isLocked) return;
-    setError("");
+    setFailure(null);
     setSelectedValuesMap(prev => {
       const current = prev[questionId] || [];
       if (!isMultiple) {
@@ -176,19 +197,25 @@ const AskQuestionRenderer = ({
 
     const missingQuestion = findUnansweredQuestion(payload, answers);
     if (missingQuestion) {
-      setError(`请先回答：${missingQuestion.question}`);
+      setFailure({ kind: "required", question: missingQuestion.question });
       return;
     }
 
     setSubmitting(true);
     try {
       const host = getToolInteractionHost();
-      if (!host) throw new Error("现在不能提交答案");
+      if (!host) throw new QuestionHostUnavailableError();
       await host.answerQuestion(execution, pending, answers);
       setSentAnswers({ answers, submittedAt: Date.now() });
-      setError("");
+      setFailure(null);
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "提交答案失败");
+      setFailure(
+        submitError instanceof QuestionHostUnavailableError
+          ? { kind: "unavailable" }
+          : submitError instanceof Error
+            ? { kind: "diagnostic", message: submitError.message }
+            : { kind: "submitFailed" }
+      );
     } finally {
       setSubmitting(false);
     }
@@ -206,7 +233,7 @@ const AskQuestionRenderer = ({
           />
           <div className="min-w-0 flex-1">
             <div className="text-tau-body text-ink-1 truncate font-semibold">
-              {payload.title || "进一步确认需求"}
+              {payload.title || t("question.defaultTitle")}
             </div>
             {payload.description && (
               <div className="text-tau-meta text-ink-3 mt-0.5 break-words">
@@ -235,8 +262,8 @@ const AskQuestionRenderer = ({
                   {question.question}
                 </div>
                 <span className="text-tau-tiny text-ink-3 shrink-0">
-                  {isMultiple ? "多选" : "单选"}
-                  {question.required ? " · 必答" : " · 可选"}
+                  {isMultiple ? t("question.multiple") : t("question.single")}
+                  {question.required ? t("question.requiredSuffix") : t("question.optionalSuffix")}
                 </span>
               </div>
 
@@ -308,16 +335,21 @@ const AskQuestionRenderer = ({
                     [question.id]: event.target.value,
                   }))
                 }
-                placeholder="其他选项（可自定义输入）"
+                placeholder={t("question.otherPlaceholder")}
               />
 
               {isLocked && answerSummary && (
                 <div className="text-tau-sm text-ok flex items-start gap-1.5">
                   <Check aria-hidden size={14} strokeWidth={2} className="mt-px shrink-0" />
                   <span className="min-w-0 break-words">
-                    已提交：
-                    {(answerSummary.selectedValues || []).join("、") || "无"}
-                    {answerSummary.otherText ? `；其他：${answerSummary.otherText}` : ""}
+                    {t("question.summary", {
+                      selected:
+                        (answerSummary.selectedValues || []).join(t("question.separator")) ||
+                        t("question.none"),
+                      other: answerSummary.otherText
+                        ? t("question.otherSuffix", { text: answerSummary.otherText })
+                        : "",
+                    })}
                   </span>
                 </div>
               )}
@@ -340,7 +372,7 @@ const AskQuestionRenderer = ({
             onClick={() => void handleSubmit()}
             disabled={isLocked}
           >
-            {payload.submitLabel || "提交答案"}
+            {payload.submitLabel || t("question.submit")}
           </Button>
         </div>
       </div>

@@ -9,5 +9,8 @@
   "suggestion.tomorrowPlan": "帮我把明天的安排理一理",
   "suggestion.tomorrowEvents": "明天有哪些日程",
   "suggestion.todayJournal": "总结一下今天的日记",
-  "suggestion.weekJournal": "这周日记里有什么值得记下来的"
+  "suggestion.weekJournal": "这周日记里有什么值得记下来的",
+  "risk.read": "读取数据",
+  "risk.write": "修改你的数据",
+  "risk.execute": "执行操作"
 }

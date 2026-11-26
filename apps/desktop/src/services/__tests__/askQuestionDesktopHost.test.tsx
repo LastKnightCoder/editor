@@ -1,8 +1,10 @@
 import { act } from "react";
 import type { ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AskQuestionRenderer, configureToolInteractions } from "@tau/chat-ui";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { AskQuestionRenderer, ToolApprovalBar, configureToolInteractions } from "@tau/chat-ui";
+import { I18nRuntimeProvider } from "@tau/i18n/react";
+import { desktopI18n, desktopLocaleSource } from "@/app/i18n/runtime";
 import type { ToolCallExecutionState } from "@/types";
 import type { PiUserQuestionRequest } from "@/types/pi-session";
 import { buildAskQuestionToolResult, type AskQuestionPayload } from "@tau/shared/chat-core";
@@ -12,7 +14,11 @@ import {
   setInteractionSessionReady,
   usePiInteractionStore,
 } from "@/services/piInteractions";
-import { piSessionAnswerQuestion, piSessionInteractions } from "@/commands/piSession";
+import {
+  piSessionAnswerQuestion,
+  piSessionApproveTool,
+  piSessionInteractions,
+} from "@/commands/piSession";
 
 vi.mock("@/commands/piSession", () => ({
   onPiSessionInteractions: vi.fn(),
@@ -105,6 +111,123 @@ describe("AskQuestionRenderer", () => {
     vi.clearAllMocks();
     usePiInteractionStore.setState({ sessions: {}, readySessions: {} });
     setInteractionSessionReady(SESSION_ID, true);
+  });
+
+  afterEach(async () => {
+    await act(async () => desktopLocaleSource.setLocale("zh-CN"));
+  });
+
+  it("换语保留提问选项与输入选区且不重发在途答案", async () => {
+    const execution = createExecution({ toolCallId: "call-language" });
+    const payload = choicePayload("用户提供的题目");
+    hostQuestions({
+      requestId: "req-language",
+      toolCallId: execution.toolCallId,
+      payload,
+      askedAt: 1,
+    });
+    let finish!: (value: { ok: true }) => void;
+    vi.mocked(piSessionAnswerQuestion).mockImplementation(
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        })
+    );
+    const { root, container } = await mount(
+      <I18nRuntimeProvider runtime={desktopI18n}>
+        <AskQuestionRenderer
+          execution={execution}
+          isDark={false}
+          parsedInput={payload}
+          renderDefault={() => <div />}
+        />
+      </I18nRuntimeProvider>
+    );
+    const selected = findOptionInput(container, "方案 B") as HTMLInputElement;
+    await click(selected);
+    const draft = container.querySelector('input:not([type="radio"])') as HTMLInputElement;
+    const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    if (!setValue) throw new Error("native input setter unavailable");
+    await act(async () => {
+      setValue.call(draft, "用户原文");
+      draft.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    draft.focus();
+    draft.setSelectionRange(1, 3);
+    for (const locale of ["en-US", "zh-TW"] as const) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(container.querySelector('input:not([type="radio"])')).toBe(draft);
+      expect(draft.value).toBe("用户原文");
+      expect(document.activeElement).toBe(draft);
+      expect([draft.selectionStart, draft.selectionEnd]).toEqual([1, 3]);
+      expect(selected.checked).toBe(true);
+      expect(piSessionAnswerQuestion).not.toHaveBeenCalled();
+    }
+    await click(container.querySelector("button"));
+    expect(piSessionAnswerQuestion).toHaveBeenCalledWith(SESSION_ID, "req-language", [
+      { questionId: "q1", selectedValues: ["B"], otherText: "用户原文" },
+    ]);
+    await act(async () => desktopLocaleSource.setLocale("zh-CN"));
+    expect(container.querySelector("button")?.disabled).toBe(true);
+    expect(selected.disabled).toBe(true);
+    expect(piSessionAnswerQuestion).toHaveBeenCalledTimes(1);
+    await act(async () => finish({ ok: true }));
+    expect(container.querySelector("button")?.disabled).toBe(true);
+    await unmount(root, container);
+  });
+
+  it("换语保留审批请求身份与在途授权选择", async () => {
+    const execution = createExecution({
+      toolCallId: "call-approval-language",
+      toolName: "run_skill_script",
+    });
+    const request = {
+      requestId: "approval-language",
+      sessionId: SESSION_ID,
+      toolCallId: execution.toolCallId,
+      toolName: execution.toolName,
+      risk: "execute" as const,
+      input: '{"folderName":"用户技能","script":"run.ts"}',
+      requestedAt: 1,
+    };
+    revision += 1;
+    receiveInteractions({ sessionId: SESSION_ID, revision, approvals: [request], questions: [] });
+    let finish!: (value: { ok: true }) => void;
+    vi.mocked(piSessionApproveTool).mockImplementation(
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        })
+    );
+    const { root, container } = await mount(
+      <I18nRuntimeProvider runtime={desktopI18n}>
+        <ToolApprovalBar execution={execution} />
+      </I18nRuntimeProvider>
+    );
+    const hint = desktopToolInteractionHost.approvalHint;
+    const risk = desktopToolInteractionHost.riskLabel("execute");
+    await act(async () => desktopLocaleSource.setLocale("en-US"));
+    expect(desktopToolInteractionHost.approvalOf(execution)).toBe(request);
+    expect(desktopToolInteractionHost.approvalHint).not.toBe(hint);
+    expect(desktopToolInteractionHost.riskLabel("execute")).not.toBe(risk);
+    expect(piSessionApproveTool).not.toHaveBeenCalled();
+    const sessionChoice = container.querySelectorAll("button")[1];
+    await click(sessionChoice);
+    await act(async () => desktopLocaleSource.setLocale("zh-TW"));
+    expect(container.querySelectorAll("button")[1]).toBe(sessionChoice);
+    expect(Array.from(container.querySelectorAll("button")).every(button => button.disabled)).toBe(
+      true
+    );
+    expect(piSessionApproveTool).toHaveBeenCalledTimes(1);
+    expect(piSessionApproveTool).toHaveBeenCalledWith(
+      SESSION_ID,
+      "approval-language",
+      "allow-session"
+    );
+    expect(desktopToolInteractionHost.approvalOf(execution)).toBe(request);
+    await act(async () => finish({ ok: true }));
+    expect(sessionChoice.disabled).toBe(false);
+    await unmount(root, container);
   });
 
   it("输入无法解析时应回退默认渲染", async () => {

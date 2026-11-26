@@ -1,0 +1,6 @@
+{
+  "risk.read": "只读",
+  "risk.write": "修改内容",
+  "risk.execute": "执行代码",
+  "approval.hint": "本会话授权由父对话及其子 Agent 共享；可在设置「AI 服务 · 工具权限」调整"
+}

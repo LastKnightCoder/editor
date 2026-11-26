@@ -5,6 +5,7 @@
  */
 
 import { memo, useState } from "react";
+import { useChatUiI18n } from "../i18n";
 import { ShieldAlert } from "lucide-react";
 import type { ToolCallExecutionState } from "@tau/shared/chat-renderers";
 import { Button, toast } from "@tau/ui";
@@ -39,6 +40,7 @@ export const ToolApprovalBar = memo(function ToolApprovalBar({
 }: {
   execution: ToolCallExecutionState;
 }) {
+  const { t } = useChatUiI18n();
   const pending = useToolInteraction(execution, (host, item) => host.approvalOf(item), undefined);
   const ready = useToolInteraction(execution, (host, item) => host.isReady(item), false);
   const [submitting, setSubmitting] = useState(false);
@@ -51,7 +53,7 @@ export const ToolApprovalBar = memo(function ToolApprovalBar({
     try {
       await host.decideApproval(execution, pending, choice);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "提交工具审批失败");
+      toast.error(error instanceof Error ? error.message : t("approval.submitFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -64,12 +66,14 @@ export const ToolApprovalBar = memo(function ToolApprovalBar({
         <span className="min-w-0 flex-1">
           {live ? (
             <>
-              AI 想要<b className="font-semibold">{host?.riskLabel(risk) ?? risk}</b>，需要你确认
+              {t("approval.beforeRisk")}
+              <b className="font-semibold">{host?.riskLabel(risk) ?? risk}</b>
+              {t("approval.afterRisk")}
             </>
           ) : pending ? (
-            "正在恢复工具审批…"
+            t("approval.restoring")
           ) : (
-            "等待确认时对话已中断，这次调用没有执行"
+            t("approval.interrupted")
           )}
         </span>
       </div>
@@ -87,7 +91,7 @@ export const ToolApprovalBar = memo(function ToolApprovalBar({
             disabled={submitting}
             onClick={() => void decide("allow")}
           >
-            允许
+            {t("approval.allow")}
           </Button>
           <Button
             size="sm"
@@ -95,7 +99,7 @@ export const ToolApprovalBar = memo(function ToolApprovalBar({
             disabled={submitting}
             onClick={() => void decide("allow-session")}
           >
-            本会话始终允许
+            {t("approval.allowSession")}
           </Button>
           <Button
             size="sm"
@@ -103,7 +107,7 @@ export const ToolApprovalBar = memo(function ToolApprovalBar({
             disabled={submitting}
             onClick={() => void decide("deny")}
           >
-            拒绝
+            {t("approval.deny")}
           </Button>
           {host?.approvalHint && (
             <span className="text-tau-sm text-ink-3 ml-auto">{host.approvalHint}</span>

@@ -236,6 +236,8 @@ P5A Browser宿主：13路径工程完成，直接4文件24例通过，最终Host
 
 P5A 手机外观：27源码加RootOverview双helper联动工程完成；4文件20例及最后字体/runtime13例通过，mobile类型、三语38语义key参数、范围静态/格式通过。字体label/description与旧错误显示函数消费者清零退役；真实控件跨语言保留选择/焦点/下载/查询，不写设置、不重取字体；ID/字节/URL/样本与反馈metadata不变。
 
+P5 Chat交互：17源码工程完成；desktop真实host11、chat-ui22、mobile composer/chat18共51例通过，两端类型、纯renderer入口/无DOM直载、三语参数/复数与范围静态/格式通过。真实host换语保留草稿焦点/选区、原问题ID与审批allow-session身份，不重发或重配置；浏览器扩展宿主及手机自有卡外层另批。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。
