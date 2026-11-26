@@ -93,5 +93,10 @@
   "leave.member.hint": "退出后需重新申请才能加入",
   "runtime.failed": "协作连接失败，请稍后重试",
   "notice.closed": "「{{title}}」的共享已被作者结束",
-  "notice.revoked": "你已失去「{{title}}」的访问权限"
+  "notice.revoked": "你已失去「{{title}}」的访问权限",
+  "document.loadFailed": "协作文档加载失败",
+  "document.unsupported": "正文格式不受支持",
+  "projection.failed": "正文投影失败，原协作缓存已保留",
+  "document.offlineKept": "协作暂时离线，输入沿原会话保留并等待同步。",
+  "document.retryConnection": "重试连接"
 }

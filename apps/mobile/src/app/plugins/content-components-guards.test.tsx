@@ -15,6 +15,10 @@ import useCollaborationDocument from "../../features/collaboration/hooks/useColl
 import { useCollabProjection } from "../../features/collaboration/hooks/useCollabProjection";
 import type { ContentDetailResponse } from "../../types";
 import { PageResourceScope } from "../../router/PageResourceScope";
+import { mobileLocaleSource } from "../../services/i18n";
+import { useRoomI18n, documentIssueText } from "../../features/collaboration/room.i18n";
+import { collaborationManager } from "../../features/collaboration/core/manager";
+import { toast } from "../../components/toast";
 
 const io = vi.hoisted(() => ({
   read: vi.fn(),
@@ -341,5 +345,108 @@ it("共享正文隐藏后重连保留输入和历史，关闭视图不销毁共�
     editor?.disposeNodeTree();
     doc.destroy();
     element.remove();
+  }
+});
+
+it("协作加载错误保留原cause，切语不重开文档；格式不支持仅按稳定code解释", async () => {
+  const original = mobileLocaleSource.getSnapshot();
+  const cause = { trace: "raw-load-cause" };
+  vi.mocked(collaborationManager.openDocument).mockRejectedValueOnce(cause);
+  let result: ReturnType<typeof useCollaborationDocument> | undefined;
+  const close = await mount(function LoadProbe() {
+    const context = useRoomI18n();
+    result = useCollaborationDocument("load-room");
+    if (result.error) documentIssueText(result.error, context);
+  });
+  try {
+    const issue = result?.error;
+    if (!issue) throw new Error("加载错误未返回");
+    expect(issue).toMatchObject({ kind: "failure", cause });
+    expect(issue.cause).toBe(cause);
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => mobileLocaleSource.setLocale(locale));
+      expect(result?.error).toBe(issue);
+      expect(collaborationManager.openDocument).toHaveBeenCalledExactlyOnceWith("load-room");
+    }
+  } finally {
+    await close();
+    mobileLocaleSource.setLocale(original);
+  }
+  const doc = new Y.Doc();
+  io.runtime = {
+    doc,
+    info: { id: "format-room", role: "owner", status: "active", frozen: false },
+    nodeViews: {},
+  };
+  let unsupported: ReturnType<typeof useCollaborationDocument> | undefined;
+  const formatClose = await mount(function FormatProbe() {
+    const context = useRoomI18n();
+    unsupported = useCollaborationDocument("format-room");
+    if (unsupported.error) documentIssueText(unsupported.error, context);
+    expect(documentIssueText({ kind: "failure", cause: "正文格式不受支持" }, context)).toBe(
+      "正文格式不受支持"
+    );
+  });
+  try {
+    const issue = unsupported?.error;
+    if (!issue) throw new Error("格式错误未返回");
+    expect(issue).toMatchObject({
+      kind: "coded",
+      code: "CONTENT_FORMAT_UNSUPPORTED",
+      cause: "CONTENT_FORMAT_UNSUPPORTED: 正文格式不受支持",
+    });
+    const binding = unsupported?.binding;
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => mobileLocaleSource.setLocale(locale));
+      expect(unsupported?.error).toBe(issue);
+      expect(unsupported?.binding).toBe(binding);
+      expect(unsupported?.frozen).toBe(true);
+      expect(collaborationManager.openDocument).toHaveBeenCalledTimes(1);
+    }
+  } finally {
+    await formatClose();
+    doc.destroy();
+    mobileLocaleSource.setLocale(original);
+  }
+});
+
+it("协作投影换语不重启2秒调度或再次警告，清理仍受当前授权约束", async () => {
+  vi.useFakeTimers();
+  const original = mobileLocaleSource.getSnapshot();
+  const doc = new Y.Doc();
+  doc.getMap("meta").set("version", NODE_DOCUMENT_VERSION);
+  const binding = { doc };
+  let writable = true;
+  const failure = new Error("用户原始投影诊断 trace-42");
+  const project = vi.fn(async () => {
+    throw failure;
+  });
+  const close = await mount(function ProjectionProbe() {
+    useRoomI18n();
+    useCollabProjection(binding, 7, { canWrite: () => writable, project });
+  });
+  try {
+    await act(async () => vi.advanceTimersByTimeAsync(2000));
+    expect(project).toHaveBeenCalledTimes(1);
+    expect(toast.warning).toHaveBeenCalledExactlyOnceWith(failure.message);
+    await act(async () => {
+      mobileLocaleSource.setLocale("zh-TW");
+      await vi.advanceTimersByTimeAsync(1000);
+    });
+    expect(project).toHaveBeenCalledTimes(1);
+    expect(toast.warning).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      mobileLocaleSource.setLocale("en-US");
+      await vi.advanceTimersByTimeAsync(1000);
+    });
+    expect(project).toHaveBeenCalledTimes(2);
+    expect(toast.warning).toHaveBeenCalledTimes(1);
+    writable = false;
+    await close();
+    expect(project).toHaveBeenCalledTimes(2);
+  } finally {
+    await close();
+    doc.destroy();
+    mobileLocaleSource.setLocale(original);
   }
 });

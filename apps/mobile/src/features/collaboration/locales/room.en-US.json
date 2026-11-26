@@ -93,5 +93,10 @@
   "leave.member.hint": "You will need to request access to rejoin",
   "runtime.failed": "Could not connect to collaboration. Try again later",
   "notice.closed": "The author ended sharing for “{{title}}”",
-  "notice.revoked": "You no longer have access to “{{title}}”"
+  "notice.revoked": "You no longer have access to “{{title}}”",
+  "document.loadFailed": "Could not load the collaboration document",
+  "document.unsupported": "This document format is not supported",
+  "projection.failed": "Could not update the local document. The collaboration cache has been kept",
+  "document.offlineKept": "Collaboration is temporarily offline. Your input stays in the original session and will sync when reconnected.",
+  "document.retryConnection": "Retry connection"
 }

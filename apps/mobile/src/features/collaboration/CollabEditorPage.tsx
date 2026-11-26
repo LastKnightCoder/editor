@@ -53,7 +53,7 @@ import { useOptionalPageInstanceContext } from "../../router/pageLifecycle";
 import { ContentHistorySheet } from "./ContentHistorySheet";
 import { sharedHistoryApi } from "./core/document-history";
 import { collaborationManager } from "./core/manager";
-import { useRoomI18n, roomFailureText } from "./room.i18n";
+import { useRoomI18n, roomFailureText, documentIssueText } from "./room.i18n";
 
 export function CollabEditorPage(props: {
   documentId: string;
@@ -61,7 +61,8 @@ export function CollabEditorPage(props: {
   onExit: () => void;
 }) {
   const context = useCollaborationStatusI18n();
-  const { t, locale } = useRoomI18n();
+  const roomContext = useRoomI18n();
+  const { t, locale } = roomContext;
   const navigator = useNavigator();
   const [moreOpen, setMoreOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -175,7 +176,7 @@ export function CollabEditorPage(props: {
             center={
               <div className="min-w-0">
                 <div className="text-ink-1 truncate text-[16px] font-extrabold">
-                  {session?.title ?? "协作文档"}
+                  {session?.title ?? t("editor.untitled")}
                 </div>
                 <div className="text-ink-2 mt-px flex items-center justify-center gap-1 text-[10.5px]">
                   <StatusDot tone={status?.tone ?? "idle"} />
@@ -241,7 +242,9 @@ export function CollabEditorPage(props: {
               <div className="flex min-h-[45vh] flex-col items-center justify-center px-8 text-center">
                 <p className="text-ink-1 text-[15px] font-bold">{t("editor.unavailable")}</p>
                 <p className="text-ink-2 mt-2 text-[12.5px] leading-relaxed">
-                  {roomFailureText(error || session?.error, "editor.missing")}
+                  {error
+                    ? documentIssueText(error, roomContext)
+                    : roomFailureText(session?.error, "editor.missing")}
                 </p>
                 <button
                   type="button"
@@ -308,7 +311,9 @@ export function CollabEditorPage(props: {
             ) : null}
 
             {error && binding ? (
-              <p className="text-tag-5 mt-4 text-[12px] leading-relaxed">{error}</p>
+              <p className="text-tag-5 mt-4 text-[12px] leading-relaxed">
+                {documentIssueText(error, roomContext)}
+              </p>
             ) : null}
           </div>
         </div>

@@ -93,5 +93,10 @@
   "leave.member.hint": "退出後需重新申請才能加入",
   "runtime.failed": "協作連線失敗，請稍後重試",
   "notice.closed": "「{{title}}」的共享已被作者結束",
-  "notice.revoked": "你已失去「{{title}}」的存取權限"
+  "notice.revoked": "你已失去「{{title}}」的存取權限",
+  "document.loadFailed": "協作文件載入失敗",
+  "document.unsupported": "正文格式不受支援",
+  "projection.failed": "正文投影失敗，原協作快取已保留",
+  "document.offlineKept": "協作暫時離線，輸入沿原工作階段保留並等待同步。",
+  "document.retryConnection": "重試連線"
 }

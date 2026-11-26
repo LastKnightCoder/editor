@@ -1,4 +1,5 @@
 import { getWhiteboardBodyKit } from "./editorKit";
+import { useWhiteboardChromeI18n } from "../../whiteboards/i18n-chrome";
 import { IEditorSlots } from "@tau/editor/extensions/media/services";
 import { createAssetMedia } from "@/components/CollaborationUI/AssetMedia";
 import type { EditorKit } from "@tau/editor";
@@ -152,6 +153,7 @@ export type DesktopWhiteboardProps = Omit<WhiteboardProps, "extensions" | "servi
   documentResources?: import("@tau/shared/host-services").ResourceService;
 };
 export const DesktopWhiteboard = forwardRef<WhiteboardRef, DesktopWhiteboardProps>((props, ref) => {
+  const { t } = useWhiteboardChromeI18n();
   const [databaseName] = useState(() => useSettingStore.getState().setting.database.active);
   const connectionId = useDatabaseConnectionId(databaseName);
   const [openedConnectionId] = useState(connectionId);
@@ -332,7 +334,7 @@ export const DesktopWhiteboard = forwardRef<WhiteboardRef, DesktopWhiteboardProp
         if (isCurrent()) props.onChange?.(value);
       }}
       statusBarEnd={
-        replaced ? <span role="status">资料库已更新，请重新打开此白板</span> : props.statusBarEnd
+        replaced ? <span role="status">{t("chrome.databaseChanged")}</span> : props.statusBarEnd
       }
       ref={ref}
       extensions={extensions}

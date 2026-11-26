@@ -12,6 +12,7 @@ import useLocalContentDocument, {
 } from "../../hooks/useLocalContentDocument";
 import { useMobileContentKit } from "../../services/editorKit";
 import { useCollabSession } from "../../features/collaboration/hooks/useCollabSession";
+import { useRoomI18n, documentIssueText } from "../../features/collaboration/room.i18n";
 import { useCollaborationRuntime } from "../../features/collaboration/hooks/useCollaborationRuntime";
 import { collaborationManager } from "../../features/collaboration/core/manager";
 import {
@@ -231,6 +232,7 @@ function LocalBody(props: BodyProps) {
 }
 
 function SharedBody(props: BodyProps) {
+  const context = useRoomI18n();
   const { state, contentRef, kit } = props;
   const { guard, canWrite } = useViewGuard(state);
   useCollaborationRuntime();
@@ -258,7 +260,7 @@ function SharedBody(props: BodyProps) {
     <>
       {session.offline && (
         <p role="status" className="text-ink-2 text-tau-meta py-2">
-          协作暂时离线，输入沿原会话保留并等待同步。
+          {context.t("document.offlineKept")}
         </p>
       )}
       <EditorSurface
@@ -267,7 +269,7 @@ function SharedBody(props: BodyProps) {
         canWrite={() => canWrite() && !session.readonly}
         guard={guard}
         flush={flush}
-        error={session.error}
+        error={session.error ? documentIssueText(session.error, context) : undefined}
         loading={session.loading || !session.document}
         onFocus={session.presence.onFocus}
         onBlur={session.presence.onBlur}
@@ -278,7 +280,7 @@ function SharedBody(props: BodyProps) {
           onClick={session.retry}
           className="text-accent-text text-tau-meta py-2"
         >
-          重试连接
+          {context.t("document.retryConnection")}
         </button>
       )}
     </>

@@ -94,5 +94,6 @@
   "chrome.status.rejected": "协作端没有接受部分改动，同步已暂停",
   "chrome.status.failed": "已保存在本机，同步未完成：{{reason}}",
   "chrome.status.retry": "请稍后重试",
-  "chrome.shelf.label": "素材架"
+  "chrome.shelf.label": "素材架",
+  "chrome.databaseChanged": "资料库已更新，请重新打开此白板"
 }

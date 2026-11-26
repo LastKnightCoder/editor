@@ -3,10 +3,11 @@ import type { ContentCollaborationBinding } from "@tau/editor-collab";
 import { NODE_DOCUMENT_VERSION } from "@tau/collaboration";
 import { collaborationManager } from "../core/manager";
 import { toast } from "../../../components/toast";
+import { roomFailureText } from "../room.i18n";
 
 /** 投影由持有缓存及观察修订的会话提交，视图只负责触发。 */
 export function useCollabProjection(
-  binding: ContentCollaborationBinding | undefined,
+  binding: Pick<ContentCollaborationBinding, "doc"> | undefined,
   boundContentId: number | undefined,
   options: { guard?: () => void; canWrite?: () => boolean; project?: () => Promise<void> } = {}
 ) {
@@ -31,9 +32,7 @@ export function useCollabProjection(
         failure => {
           if (!notified) {
             notified = true;
-            toast.warning(
-              failure instanceof Error ? failure.message : "正文投影失败，原协作缓存已保留"
-            );
+            toast.warning(roomFailureText(failure, "projection.failed"));
           }
         }
       );

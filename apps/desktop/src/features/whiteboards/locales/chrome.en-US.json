@@ -98,5 +98,6 @@
   "chrome.status.rejected": "Some changes were not accepted. Syncing is paused.",
   "chrome.status.failed": "Saved locally. Syncing did not finish: {{reason}}",
   "chrome.status.retry": "Please try again later",
-  "chrome.shelf.label": "Material shelf"
+  "chrome.shelf.label": "Material shelf",
+  "chrome.databaseChanged": "The database has changed. Reopen this whiteboard"
 }

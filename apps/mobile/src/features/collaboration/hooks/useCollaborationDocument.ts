@@ -15,11 +15,15 @@ import { usePageResourceEffect } from "../../../router/PageResourceScope";
 
 /** 本地写入与远端更新共用同一个 origin 对象即可，editor 层据此区分投影写入 */
 
-function describe(error: unknown) {
-  if (error instanceof Error && error.message) return error.message;
-  if (typeof error === "string" && error) return error;
-  return "协作文档加载失败";
-}
+export type CollaborationDocumentIssue =
+  | { readonly kind: "failure"; readonly cause: unknown }
+  | { readonly kind: "coded"; readonly code: "CONTENT_FORMAT_UNSUPPORTED"; readonly cause: string };
+
+const unsupportedDocument: CollaborationDocumentIssue = {
+  kind: "coded",
+  code: "CONTENT_FORMAT_UNSUPPORTED",
+  cause: "CONTENT_FORMAT_UNSUPPORTED: 正文格式不受支持",
+};
 
 export type CollaborationDocumentOptions = {
   guard?: () => void;
@@ -47,7 +51,7 @@ export default function useCollaborationDocument(
       return false;
     }
   };
-  const [error, setError] = useState<string | undefined>();
+  const [error, setError] = useState<CollaborationDocumentIssue>();
   const [loading, setLoading] = useState(false);
   const [boundContentId, setBoundContentId] = useState<number>();
   // 重试计数：会话建立失败后由宿主「重试连接」递增，重跑下方补建 effect
@@ -102,7 +106,7 @@ export default function useCollaborationDocument(
       })
       .then(() => assertActive())
       .catch(failure => {
-        if (!disposed) setError(describe(failure));
+        if (!disposed) setError({ kind: "failure", cause: failure });
       })
       .finally(() => {
         if (!disposed) setLoading(false);
@@ -133,7 +137,7 @@ export default function useCollaborationDocument(
             ...draft,
             sequence: ++sequence,
           })
-          .catch(failure => setError(describe(failure)));
+          .catch(failure => setError({ kind: "failure", cause: failure }));
       },
       nodeViews: {
         read: nodeId => {
@@ -239,7 +243,7 @@ export default function useCollaborationDocument(
         });
       })
       .catch(failure => {
-        if (!cancelled) setError(describe(failure));
+        if (!cancelled) setError({ kind: "failure", cause: failure });
       });
     return () => {
       cancelled = true;
@@ -255,7 +259,7 @@ export default function useCollaborationDocument(
     document: editorDocument,
     session,
     loading,
-    error: binding && !tree ? "CONTENT_FORMAT_UNSUPPORTED: 正文格式不受支持" : error,
+    error: binding && !tree ? unsupportedDocument : error,
     /** 该房间对应的本地内容 id（由本机发起时才存在），投影回写的目标 */
     boundContentId,
     frozen:
