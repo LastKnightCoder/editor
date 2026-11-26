@@ -1,3 +1,4 @@
+import { whiteboardAvT } from "../../av.binding";
 import { whiteboardMedia } from "../../media";
 import React, { useRef, useState, useEffect } from "react";
 import { useMemoizedFn } from "ahooks";
@@ -51,7 +52,9 @@ const AudioSelectorModal = ({ open, onClose, board, action }: AudioSelectorModal
   const handleAddAudio = useMemoizedFn(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      const toastId = toast.loading("正在处理音频，请稍候…");
+      const toastId = toast.loading(whiteboardAvT("processing.audio"), {
+        getMessage: () => whiteboardAvT("processing.audio"),
+      });
       try {
         await AudioUtil.insertAudio(file, board, whiteboardMedia(board));
       } finally {
@@ -69,20 +72,22 @@ const AudioSelectorModal = ({ open, onClose, board, action }: AudioSelectorModal
       handleClose();
     } catch (error) {
       console.error("添加远程音频失败:", error);
-      toast.error("添加远程音频失败");
+      toast.error(whiteboardAvT("error.remoteAudio"));
     }
   });
 
   const handleTTSConfirm = useMemoizedFn(async (audioBlob: Blob, text: string) => {
-    const toastId = toast.loading("正在保存音频…");
+    const toastId = toast.loading(whiteboardAvT("saving.audio"), {
+      getMessage: () => whiteboardAvT("saving.audio"),
+    });
     try {
       await AudioUtil.insertAudioFromTTS(audioBlob, text, board, whiteboardMedia(board));
       setTTSModalOpen(false);
       handleClose();
-      toast.success("音频添加成功");
+      toast.success(whiteboardAvT("added.audio"));
     } catch (error) {
       console.error("添加 TTS 音频失败:", error);
-      toast.error("添加音频失败");
+      toast.error(whiteboardAvT("error.audio"));
     } finally {
       toast.dismiss(toastId);
     }

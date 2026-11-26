@@ -1,0 +1,15 @@
+{
+  "processing.audio": "正在處理音訊，請稍候…",
+  "saving.audio": "正在儲存音訊…",
+  "added.audio": "音訊已新增",
+  "error.remoteAudio": "新增遠端音訊失敗",
+  "error.audio": "新增音訊失敗",
+  "processing.video": "正在處理影片，請稍候…",
+  "error.remoteVideo": "新增遠端影片失敗",
+  "error.video": "新增影片失敗",
+  "tool.audio": "音訊",
+  "tool.video": "影片",
+  "tool.local": "本機上傳",
+  "tool.url": "網路位址",
+  "tool.tts": "文字轉語音"
+}

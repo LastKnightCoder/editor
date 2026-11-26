@@ -1,0 +1,15 @@
+{
+  "processing.audio": "Processing audio…",
+  "saving.audio": "Saving audio…",
+  "added.audio": "Audio added",
+  "error.remoteAudio": "Could not add remote audio",
+  "error.audio": "Could not add audio",
+  "processing.video": "Processing video…",
+  "error.remoteVideo": "Could not add remote video",
+  "error.video": "Could not add video",
+  "tool.audio": "Audio",
+  "tool.video": "Video",
+  "tool.local": "Upload file",
+  "tool.url": "Web address",
+  "tool.tts": "Text to speech"
+}

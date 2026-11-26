@@ -1,0 +1,15 @@
+{
+  "processing.audio": "正在处理音频，请稍候…",
+  "saving.audio": "正在保存音频…",
+  "added.audio": "音频添加成功",
+  "error.remoteAudio": "添加远程音频失败",
+  "error.audio": "添加音频失败",
+  "processing.video": "正在处理视频，请稍候…",
+  "error.remoteVideo": "添加远程视频失败",
+  "error.video": "添加视频失败",
+  "tool.audio": "音频",
+  "tool.video": "视频",
+  "tool.local": "本地上传",
+  "tool.url": "网络地址",
+  "tool.tts": "文本转语音"
+}

@@ -1,3 +1,4 @@
+import { whiteboardAvT } from "../../av.binding";
 import { whiteboardMedia } from "../../media";
 import React, { useRef, useState, useEffect } from "react";
 import { useMemoizedFn } from "ahooks";
@@ -55,7 +56,9 @@ const VideoSelectorModal = ({ open, onClose, board, action }: VideoSelectorModal
   const handleAddVideo = useMemoizedFn(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      const toastId = toast.loading("正在处理视频，请稍候…");
+      const toastId = toast.loading(whiteboardAvT("processing.video"), {
+        getMessage: () => whiteboardAvT("processing.video"),
+      });
       try {
         await VideoUtil.insertVideo(file, board, whiteboardMedia(board));
       } finally {
@@ -73,7 +76,7 @@ const VideoSelectorModal = ({ open, onClose, board, action }: VideoSelectorModal
       handleClose();
     } catch (error) {
       console.error("添加远程视频失败:", error);
-      toast.error("添加远程视频失败");
+      toast.error(whiteboardAvT("error.remoteVideo"));
     }
   });
 
@@ -87,7 +90,7 @@ const VideoSelectorModal = ({ open, onClose, board, action }: VideoSelectorModal
       handleClose();
     } catch (error) {
       console.error("添加插件视频失败:", error);
-      toast.error("添加视频失败");
+      toast.error(whiteboardAvT("error.video"));
     }
   });
 
