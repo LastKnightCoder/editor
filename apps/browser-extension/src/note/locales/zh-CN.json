@@ -1,0 +1,15 @@
+{
+  "title": "页面笔记",
+  "placeholder": "写点什么，输入 / 插入",
+  "savedCards": "已保存的卡片",
+  "noText": "（无文字）",
+  "autoSaved": "自动保存在本机",
+  "needsConnection": "连上 Tau 后才能保存",
+  "saveCard": "保存为卡片",
+  "saved": "已保存为 Tau 卡片，附带来源链接",
+  "saveFailed": "保存失败",
+  "opened": "已在 Tau 中打开",
+  "disconnected": "Tau 未连接",
+  "readFailed": "草稿读取失败",
+  "unsupportedDraft": "笔记草稿格式不受支持，原始数据未改动"
+}

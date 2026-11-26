@@ -1,0 +1,15 @@
+{
+  "title": "Page notes",
+  "placeholder": "Write something, type / to insert",
+  "savedCards": "Saved cards",
+  "noText": "(No text)",
+  "autoSaved": "Saved automatically on this device",
+  "needsConnection": "Connect to Tau to save",
+  "saveCard": "Save as card",
+  "saved": "Saved as a Tau card with a source link",
+  "saveFailed": "Could not save",
+  "opened": "Opened in Tau",
+  "disconnected": "Tau is disconnected",
+  "readFailed": "Could not read the draft",
+  "unsupportedDraft": "This note draft format is not supported. The original data has not been changed"
+}

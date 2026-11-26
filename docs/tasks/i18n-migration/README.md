@@ -318,6 +318,8 @@ P6浏览器扩展Phase1：26路径加Root lock/架构2完成；扩展7文件43�
 
 P5 Skills工作台：9路径完成；4文件14例、desktop最终type/静态/三语参数复数与协议AST通过。真实草稿/光标/编辑器/未保存确认、生成流与导入token/勾选跨语保留；S1解冻后rg仅定义再删MODE_OPTIONS，SOURCE_LABEL等旧显示表全消费清零。全12生产模块/120 AST项审计无自产UI或译文标题身份残留，合法模板/AI/默认名/regex/诊断/文件URL示例保留。
 
+P6浏览器Note：7路径完成；note-app3/原模型6共9例、extension type、13key三语参数与范围静态格式通过。真实保存pending跨语同Editor/draft、单save RPC与原URL/pageTitle/节点，完成仅打开原cardID；Header/blockquote与保存结构断言保持，未改kit/URL/保存协议。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

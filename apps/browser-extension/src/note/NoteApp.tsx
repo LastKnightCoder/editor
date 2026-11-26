@@ -20,6 +20,7 @@ import {
 import { callBackground, extensionStorage, useCompanionStatus } from "../shared/extension-page";
 import { EMPTY_NOTE, isEmptyNote, loadDraft, notePreview, takePending } from "./draft";
 import { getNoteKit, markdownToNodes } from "./kit";
+import { useNoteI18n, noteTranslator, noteErrorText } from "./i18n";
 
 const SAVE_DEBOUNCE_MS = 400;
 
@@ -35,7 +36,8 @@ const touchMeta = () =>
   } satisfies NoteMeta);
 
 export function NoteApp() {
-  const [loadError, setLoadError] = useState<string>();
+  const { t } = useNoteI18n();
+  const [loadError, setLoadError] = useState<{ cause: unknown }>();
   const [initial, setInitial] = useState<Descendant[] | null>(null);
   const [empty, setEmpty] = useState(true);
   const status = useCompanionStatus();
@@ -46,6 +48,9 @@ export function NoteApp() {
   const valueRef = useRef<Descendant[]>(EMPTY_NOTE);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const kit = useMemo(() => getNoteKit(), []);
+  useEffect(() => {
+    document.title = t("title");
+  }, [t]);
 
   const persist = useCallback((value: Descendant[]) => {
     clearTimeout(timer.current);
@@ -82,7 +87,7 @@ export function NoteApp() {
       setEmpty(isEmptyNote(value));
       setInitial(value);
       setSaved(savedNotes ?? []);
-    })().catch(error => setLoadError(error instanceof Error ? error.message : "草稿读取失败"));
+    })().catch(cause => setLoadError({ cause }));
     const onChanged = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
       if (area !== "local") return;
       if (changes[notePendingKey(pageUrl)]?.newValue) void drainPending();
@@ -119,9 +124,9 @@ export function NoteApp() {
       setInitial(EMPTY_NOTE);
       editorRef.current = null;
       setEditorKey(key => key + 1);
-      toast.success("已保存为 Tau 卡片，附带来源链接");
+      toast.success(noteTranslator.t("saved"));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "保存失败");
+      toast.error(noteErrorText(error, "saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -129,15 +134,15 @@ export function NoteApp() {
 
   const openCard = (cardId: number) =>
     void callBackground(COMPANION_METHODS.noteOpen, { cardId })
-      .then(() => toast.success("已在 Tau 中打开"))
-      .catch(() => toast.error("Tau 未连接"));
+      .then(() => toast.success(noteTranslator.t("opened")))
+      .catch(() => toast.error(noteTranslator.t("disconnected")));
 
   return (
     <div className="bg-surface text-ink-1 flex h-full flex-col">
       <div className="min-h-0 flex-1 overflow-y-auto">
         {loadError && (
           <p role="alert" className="text-danger p-4">
-            {loadError}
+            {noteErrorText(loadError.cause, "readFailed")}
           </p>
         )}
         {initial && (
@@ -157,14 +162,14 @@ export function NoteApp() {
               setEmpty(isEmptyNote(value));
               persist(value);
             }}
-            placeHolder="写点什么，输入 / 插入"
+            placeHolder={t("placeholder")}
             style={{ minHeight: "100%", padding: "10px 18px 24px", fontSize: "14px" }}
           />
         )}
       </div>
       {saved.length > 0 && (
         <div className="mx-4 pt-2">
-          <p className="text-tau-sm text-ink-3 mb-1">已保存的卡片</p>
+          <p className="text-tau-sm text-ink-3 mb-1">{t("savedCards")}</p>
           <ul className="max-h-[96px] overflow-y-auto">
             {saved.map(item => (
               <li key={item.cardId}>
@@ -173,7 +178,7 @@ export function NoteApp() {
                   onClick={() => openCard(item.cardId)}
                   className="text-tau-meta text-ink-2 hover:bg-hover hover:text-ink-1 rounded-tau-sm flex w-full items-center gap-1.5 px-1.5 py-1 text-left"
                 >
-                  <span className="min-w-0 flex-1 truncate">{item.preview || "（无文字）"}</span>
+                  <span className="min-w-0 flex-1 truncate">{item.preview || t("noText")}</span>
                   <ArrowUpRight size={13} strokeWidth={1.8} className="flex-none" />
                 </button>
               </li>
@@ -182,17 +187,17 @@ export function NoteApp() {
         </div>
       )}
       <div className="text-tau-sm text-ink-3 flex items-center gap-2 px-4 pt-2 pb-3">
-        自动保存在本机
+        {t("autoSaved")}
         <span className="flex-1" />
         <Button
           size="sm"
           variant="primary"
           loading={saving}
           disabled={empty || !ready}
-          title={ready ? undefined : "连上 Tau 后才能保存"}
+          title={ready ? undefined : t("needsConnection")}
           onClick={() => void save()}
         >
-          保存为卡片
+          {t("saveCard")}
         </Button>
       </div>
       <ToastHost />

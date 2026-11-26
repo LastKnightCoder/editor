@@ -31,7 +31,9 @@ export const notePreview = (nodes: readonly Descendant[]) =>
 export async function loadDraft(storage: KeyValueStore, url: string): Promise<Descendant[]> {
   const stored = await storage.get<unknown>(noteDraftKey(url));
   if (stored !== undefined && stored !== null && !Array.isArray(stored))
-    throw new Error("笔记草稿格式不受支持，原始数据未改动");
+    throw Object.assign(new Error("笔记草稿格式不受支持，原始数据未改动"), {
+      code: "NOTE_DRAFT_UNSUPPORTED",
+    });
   return Array.isArray(stored) && stored.length ? (stored as Descendant[]) : EMPTY_NOTE;
 }
 

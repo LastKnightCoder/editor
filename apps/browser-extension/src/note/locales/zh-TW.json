@@ -1,0 +1,15 @@
+{
+  "title": "頁面筆記",
+  "placeholder": "寫點什麼，輸入 / 插入",
+  "savedCards": "已儲存的卡片",
+  "noText": "（無文字）",
+  "autoSaved": "自動儲存在本機",
+  "needsConnection": "連上 Tau 後才能儲存",
+  "saveCard": "儲存為卡片",
+  "saved": "已儲存為 Tau 卡片，附來源連結",
+  "saveFailed": "儲存失敗",
+  "opened": "已在 Tau 中開啟",
+  "disconnected": "Tau 未連線",
+  "readFailed": "草稿讀取失敗",
+  "unsupportedDraft": "筆記草稿格式不受支援，原始資料未變更"
+}
