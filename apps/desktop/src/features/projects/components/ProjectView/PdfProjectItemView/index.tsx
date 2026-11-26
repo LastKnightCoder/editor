@@ -1,3 +1,4 @@
+import { useProjectsI18n } from "../../../i18n";
 import { memo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Loading } from "@tau/ui";
@@ -17,6 +18,7 @@ interface PdfProjectItemViewProps {
  * （在 PDF 列表里改名、上传后这里跟着更新）。独立阅读器没有对话，左面板开关在 HUD。
  */
 const PdfProjectItemView = memo(({ projectItemId }: PdfProjectItemViewProps) => {
+  const { t } = useProjectsI18n();
   const item = useQuery({
     queryKey: ["projects", "pdf-item", projectItemId],
     queryFn: () => getProjectItemById(projectItemId),
@@ -32,8 +34,8 @@ const PdfProjectItemView = memo(({ projectItemId }: PdfProjectItemViewProps) => 
       <ErrorState
         size="page"
         error={item.error ?? undefined}
-        title="PDF 不存在"
-        description="关联的 PDF 可能已在 PDF 页面被删除，可以删除这个条目后重新关联。"
+        title={t("pdf.missing")}
+        description={t("pdf.missingHint")}
       />
     );
   }

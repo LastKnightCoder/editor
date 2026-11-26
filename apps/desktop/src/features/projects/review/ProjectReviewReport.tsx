@@ -1,3 +1,4 @@
+import { useProjectsI18n } from "../i18n";
 /**
  * 项目回顾的报告卡（右侧当前文档上方）：生长回顾 = 长了什么、新连上哪里、哪里还薄；
  * 结项回顾 = 留下的核心观点（点了打开）、可以归入的进行中项目、还没解决的问题。
@@ -22,11 +23,6 @@ export interface ProjectReviewReportProps {
   onReview(): void;
 }
 
-const day = (ts: number) => {
-  const d = new Date(ts);
-  return `${d.getMonth() + 1} 月 ${d.getDate()} 日`;
-};
-
 export function ProjectReviewReport({
   node,
   reading,
@@ -37,11 +33,12 @@ export function ProjectReviewReport({
   onAsk,
   onReview,
 }: ProjectReviewReportProps) {
+  const { t, locale } = useProjectsI18n();
   if (reading) {
     return (
       <div className="text-tau-meta text-ink-3 flex h-[34px] flex-none items-center gap-1.5 px-10 pt-3">
         <Loader2 className="size-[13px] animate-spin" strokeWidth={1.75} />
-        {archived ? "正在写结项回顾…" : "正在读这个项目与项目外的笔记…"}
+        {t(archived ? "review.loadingFinal" : "review.loadingGrowth")}
       </div>
     );
   }
@@ -58,7 +55,10 @@ export function ProjectReviewReport({
       <div className="grid grid-cols-[1fr_168px] gap-[18px] px-[18px] pt-3.5 pb-3">
         <div className="min-w-0">
           <div className="text-ink-3 mb-1 text-[12px]">
-            {final ? "结项回顾" : "生长回顾"} · {day(node.updateTime)}
+            {t(final ? "review.final" : "review.growth")} ·{" "}
+            {new Intl.DateTimeFormat(locale, { month: "long", day: "numeric" }).format(
+              node.updateTime
+            )}
           </div>
           <p className="text-ink-1 text-[14px] leading-[1.8]">{node.result.lead}</p>
           {!final && (pending > 0 || thin > 0) && (
@@ -66,20 +66,23 @@ export function ProjectReviewReport({
               {pending > 0 && (
                 <span className="bg-surface inline-flex h-6 items-center gap-1.5 rounded-full px-2.5">
                   <i className="bg-accent size-[7px] rounded-full" />
-                  可能属于这里 {pending}
+                  {t("review.belongCount", {
+                    count: pending,
+                    number: pending.toLocaleString(locale),
+                  })}
                 </span>
               )}
               {thin > 0 && (
                 <span className="bg-surface inline-flex h-6 items-center gap-1.5 rounded-full px-2.5">
                   <i className="bg-ink-3 size-[7px] rounded-full" />
-                  还薄 {thin}
+                  {t("review.thinCount", { count: thin, number: thin.toLocaleString(locale) })}
                 </span>
               )}
             </div>
           )}
           {final && node.result.refs?.length ? (
             <div className="text-tau-meta mt-2 flex flex-wrap items-center gap-1.5">
-              <span className="text-ink-3 text-[12px]">核心观点</span>
+              <span className="text-ink-3 text-[12px]">{t("review.core")}</span>
               {node.result.refs.map((end, index) => (
                 <button
                   key={index}
@@ -94,7 +97,7 @@ export function ProjectReviewReport({
           ) : null}
           {final && node.result.home && (
             <div className="text-tau-meta mt-1 flex items-center gap-1.5">
-              <span className="text-ink-3 text-[12px]">可以归入</span>
+              <span className="text-ink-3 text-[12px]">{t("review.home")}</span>
               <button
                 type="button"
                 onClick={() => {
@@ -110,7 +113,7 @@ export function ProjectReviewReport({
           {asks.length > 0 && (
             <div className="border-line-2 mt-2.5 border-t pt-2">
               <div className="text-ink-3 mb-0.5 text-[12px]">
-                {final ? "还没解决" : "可以继续想"}
+                {t(final ? "review.unsolved" : "review.moreThought")}
               </div>
               {asks.map(ask => (
                 <div
@@ -131,7 +134,7 @@ export function ProjectReviewReport({
                       onClick={() => onAsk(ask)}
                       className="text-ink-3 hover:text-accent-text shrink-0 text-[12px] opacity-0 group-hover:opacity-100"
                     >
-                      聊一聊
+                      {t("review.discuss")}
                     </button>
                   )}
                 </div>
@@ -140,7 +143,12 @@ export function ProjectReviewReport({
           )}
           <div className="text-ink-3 mt-2 flex items-center gap-3 text-[12px]">
             <span>
-              读了这个项目的文档要点{final ? "" : `、项目外 ${node.result.candidates} 份候选`}
+              {final
+                ? t("review.readFinal")
+                : t("review.readGrowth", {
+                    count: node.result.candidates,
+                    number: node.result.candidates.toLocaleString(locale),
+                  })}
             </span>
             <button
               type="button"
@@ -148,7 +156,7 @@ export function ProjectReviewReport({
               className="hover:text-ink-1 inline-flex items-center gap-1"
             >
               <RefreshCw className="size-3" strokeWidth={1.75} />
-              重新回顾
+              {t("review.again")}
             </button>
           </div>
         </div>

@@ -1,3 +1,4 @@
+import { projectsTranslator, useProjectsI18n } from "../i18n";
 /**
  * 项目回顾（KL-004 / KL-065）：项目名右边「✦ 回顾」（归档的项目叫「结项回顾」）。
  * 点开后右侧当前文档上方展开报告卡；生长回顾里「可能属于这里」的笔记以虚线行长进文档树那一支，
@@ -20,6 +21,8 @@ import { ProjectReviewReport } from "./ProjectReviewReport";
 import type { ProjectReviewTree } from "./ProjectReviewContext";
 import { useProjectReviewData } from "./reviewQueries";
 
+const projectT = projectsTranslator.t;
+
 type ViewState = "off" | "reading" | "on";
 
 export function useProjectReview(options: {
@@ -29,6 +32,7 @@ export function useProjectReview(options: {
   /** 打开时就展开（今日页「打开回顾」） */
   autoOpen: boolean;
 }) {
+  const { t } = useProjectsI18n();
   const { projectId, projectTitle, archived, autoOpen } = options;
   const { enabled, data, review, setStatus, markSeen } = useProjectReviewData(projectId);
   const { navigator } = usePage();
@@ -56,7 +60,7 @@ export function useProjectReview(options: {
       },
       onError: error => {
         setView(data ? "on" : "off");
-        toast.error(error instanceof Error ? error.message : "回顾失败");
+        toast.error(error instanceof Error ? error.message : projectT("review.failed"));
       },
     });
   }, [data, review, seenIfNeeded]);
@@ -100,7 +104,7 @@ export function useProjectReview(options: {
 
   const open = (end: KnowledgeEndpoint) => {
     openEntity(end.ref, { at: { block: end.block } }).catch(error =>
-      toast.error(error instanceof Error ? error.message : "无法打开内容")
+      toast.error(error instanceof Error ? error.message : projectT("review.openFailed"))
     );
   };
 
@@ -126,23 +130,23 @@ export function useProjectReview(options: {
           .publishProjectItemEvent("project-item:updated", parent as ProjectItem);
       }
       setFresh(true);
-      toast.success(`已引用《${end.title}》`);
+      toast.success(projectT("review.referenced", { title: end.title }));
       resolveTo(mark.id, "linked");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "引用失败");
+      toast.error(error instanceof Error ? error.message : projectT("review.referenceFailed"));
     }
   };
 
   /** 还薄：打开那一支的文档接着写，收起回顾 */
   const writeThin = (mark: KnowledgeMark) => {
     if (mark.under === undefined) {
-      toast.warning("找不到这一支，可以重新回顾");
+      toast.warning(projectT("review.branchMissing"));
       return;
     }
     resolveTo(mark.id, "linked");
     exit();
     openEntity({ kind: "project-item", id: mark.under }).catch(error =>
-      toast.error(error instanceof Error ? error.message : "无法打开内容")
+      toast.error(error instanceof Error ? error.message : projectT("review.openFailed"))
     );
   };
 
@@ -177,7 +181,7 @@ export function useProjectReview(options: {
       type="button"
       onClick={() => (view === "off" ? enter() : exit())}
       disabled={view === "reading"}
-      title={view === "off" ? "看看这个项目最近长了什么" : "收起回顾"}
+      title={t(view === "off" ? "review.enterHint" : "review.collapse")}
       className={cn(
         "text-tau-meta text-ink-2 hover:bg-hover hover:text-ink-1 inline-flex h-[24px] shrink-0 items-center gap-[5px] rounded-full px-2 transition-colors",
         view !== "off" &&
@@ -189,7 +193,7 @@ export function useProjectReview(options: {
       ) : (
         <Sparkles className="size-[13px]" strokeWidth={1.75} />
       )}
-      {view === "on" ? "收起回顾" : archived ? "结项回顾" : "回顾"}
+      {t(view === "on" ? "review.collapse" : archived ? "review.final" : "review.action")}
       {view === "off" && unseen && <i className="bg-accent size-[5px] rounded-full opacity-75" />}
     </button>
   ) : null;
@@ -236,11 +240,11 @@ export function useProjectReview(options: {
                 mark.kind === "belong" ? "bg-accent" : "bg-ink-3"
               )}
             />
-            {mark.kind === "belong" ? "可能属于这里" : "还薄"}
+            {t(mark.kind === "belong" ? "review.belong" : "review.thin")}
             <IconButton
               className="ml-auto size-6"
-              title="关闭 (Esc)"
-              aria-label="关闭"
+              title={t("review.closeShortcut")}
+              aria-label={t("review.close")}
               onClick={() => setCurrent(null)}
             >
               <X className="size-3.5" strokeWidth={1.75} />
@@ -270,15 +274,15 @@ export function useProjectReview(options: {
                 icon={CornerDownRight}
                 onClick={() => void reference(mark)}
               >
-                引用到这里
+                {t("review.reference")}
               </Button>
             ) : (
               <Button size="sm" variant="primary" icon={PenLine} onClick={() => writeThin(mark)}>
-                去补写
+                {t("review.write")}
               </Button>
             )}
             <Button size="sm" variant="ghost" onClick={() => resolveTo(mark.id, "dismissed")}>
-              不相关
+              {t("review.irrelevant")}
             </Button>
           </div>
         </div>

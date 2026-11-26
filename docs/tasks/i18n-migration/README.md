@@ -336,6 +336,8 @@ P7 MCP声明：SDK新增PluginMCPDeclaration，默认PluginMCPDefinition<string>
 
 手机Skills7路径完成；原13+真实UI2共15例，mobile type/40key三语/范围检查通过。真实QueryClient/data/偏好store/Router/BottomSheet/Markdown保原metadata与筛选展开，无重读目录/正文或写偏好，用户选择仅按原skill.id写一次。
 
+项目回顾/PDF6路径完成；既有回顾4例、desktop type/三语复数参数/范围检查通过。独立AST证明原讨论prompt、addChild/openEntity payload与全部effect/memo/callback依赖保持，纯UI未补锁文字测试；视频与网页专属大界面另批。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。
