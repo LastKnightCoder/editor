@@ -360,6 +360,8 @@ Markdown F1十二源加Root copy-service1完成；原3文件35至4文件36例、
 
 工具卡R3十四源完成；全renderer13文件53例、desktop type/89key三语/协议AST通过。真实双Editor三语copy全MIME逐值相等，HTML无本域UI/sr-only，真实insertData回原完整fragment/bold；同实例/选区/序列化和反馈pending不重发。31生产模块/74 AST项审计无自产UI或译文身份残留，合法AI hidden context/4模板value/诊断/原合成copy text保留。
 
+影音surface19/selector11共30源完成；surface原4文件10至12/原1skip+实际EditorKit命令1共13pass，selector真实基线1至迁后1pass，desktop types/三语/AST通过。实际命令/插件身份不自动play-pause-capture、原ensure/quote/args保持，getLabel receiver/工具身份不触locale emit；modal/resolver挂起跨语不cancel/analyze/reset，defaultVariant/焦点与原provider/title/cover/url/ref完整。Known native下载失败另DTO闭环，不误归unknown。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

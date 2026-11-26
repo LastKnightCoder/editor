@@ -1,0 +1,16 @@
+{
+  "board.video": "影片筆記",
+  "board.close": "關閉影片筆記",
+  "board.unlinkTitle": "取消關聯筆記？",
+  "board.unlinkHint": "不會刪除筆記內容，之後可以重新關聯。",
+  "board.unlink": "取消關聯",
+  "board.cancel": "再想想",
+  "board.createFailed": "建立影片筆記失敗",
+  "board.openFailed": "開啟影片筆記失敗",
+  "command.timestamp": "插入目前時間戳記",
+  "command.screenshot": "擷取目前畫面",
+  "command.play": "播放影片",
+  "command.pause": "暫停影片",
+  "source.providerMissing": "請在外掛中心安裝並啟用「{{provider}}」外掛",
+  "tools.transcript": "影片筆記轉錄"
+}

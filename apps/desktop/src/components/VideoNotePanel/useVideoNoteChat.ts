@@ -1,3 +1,4 @@
+import { videoSurfaceT } from "@/services/video-surface.binding";
 import { useEffect } from "react";
 import toolRegistry from "@/tools";
 import {
@@ -14,7 +15,9 @@ export const useVideoNoteChat = (videoNoteId: number, mainDbName: string, active
       createVideoNoteSearchTool(videoNoteId, mainDbName),
       createGetVideoNoteTranscriptRangeTool(videoNoteId),
     ];
-    toolRegistry.registerScopedTools(sourceId, "视频笔记转录", tools);
+    toolRegistry.registerScopedTools(sourceId, "视频笔记转录", tools, {
+      getLabel: () => videoSurfaceT("tools.transcript"),
+    });
 
     return () => {
       toolRegistry.unregisterSource(sourceId);

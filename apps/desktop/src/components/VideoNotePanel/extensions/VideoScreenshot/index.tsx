@@ -1,3 +1,4 @@
+import { videoSurfaceT } from "@/services/video-surface.binding";
 import { Editor, Path, Transforms } from "slate";
 import { VideoController } from "../../VideoController";
 import {
@@ -59,7 +60,9 @@ export const insertVideoScreenshot = async (editor: Editor, videoController: Vid
 const videoControlCommands = (videoController: VideoController): EditorCommand[] => [
   {
     id: "host.video-note.screenshot",
-    title: "截取当前帧",
+    get title() {
+      return videoSurfaceT("command.screenshot");
+    },
     run: async editor => {
       if (!editor.selection) return;
       await insertVideoScreenshot(editor, videoController);
@@ -67,14 +70,18 @@ const videoControlCommands = (videoController: VideoController): EditorCommand[]
   },
   {
     id: "host.video-note.play",
-    title: "播放视频",
+    get title() {
+      return videoSurfaceT("command.play");
+    },
     run: () => {
       videoController.play();
     },
   },
   {
     id: "host.video-note.pause",
-    title: "暂停视频",
+    get title() {
+      return videoSurfaceT("command.pause");
+    },
     run: () => {
       videoController.pause();
     },

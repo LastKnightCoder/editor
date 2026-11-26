@@ -1,0 +1,16 @@
+{
+  "title": "添加 {{provider}} 视频",
+  "hint": "粘贴视频链接，解析后选择清晰度",
+  "back": "返回",
+  "confirm": "确认添加",
+  "cancel": "取消",
+  "loading": "正在解析…",
+  "analyze": "解析视频",
+  "quality": "清晰度",
+  "url": "视频链接",
+  "failure.empty": "请输入视频链接",
+  "failure.invalid": "请输入有效的视频链接",
+  "failure.otherProvider": "该链接属于「{{provider}}」，请从对应入口添加",
+  "failure.unsupported": "「{{provider}}」无法识别该链接",
+  "failure.resolve": "解析失败，请稍后重试"
+}

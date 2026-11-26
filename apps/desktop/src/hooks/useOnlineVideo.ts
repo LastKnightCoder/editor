@@ -1,3 +1,6 @@
+import { useVideoSurfaceI18n } from "@/services/video-surface.i18n";
+import { videoSourceFailureText } from "@/services/video-surface.binding";
+import { VideoProviderMissing } from "@/services/video-source-error";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { convertFileSrc } from "@/commands";
 import { ensureOnlineVideo } from "@/commands/online-video-cache";
@@ -18,7 +21,10 @@ export interface UseOnlineVideoResult {
  * meta 不是在线视频（本地 / 远程 / 缺省）时不做任何事。
  */
 export function useOnlineVideo(meta: object | null | undefined): UseOnlineVideoResult {
-  const [state, setState] = useState<Omit<UseOnlineVideoResult, "retry">>({
+  useVideoSurfaceI18n();
+  const [state, setState] = useState<
+    Omit<UseOnlineVideoResult, "retry" | "error"> & { error: unknown | null }
+  >({
     videoUrl: null,
     loading: false,
     error: null,
@@ -40,7 +46,7 @@ export function useOnlineVideo(meta: object | null | undefined): UseOnlineVideoR
       setState({
         videoUrl: null,
         loading: !ready,
-        error: ready ? `需要在插件中心安装并启用「${providerId}」插件` : null,
+        error: ready ? new VideoProviderMissing(providerId) : null,
         streamProgress: ready
           ? null
           : { stage: "preparing", message: "正在准备…", code: "video.source.preparing" },
@@ -84,12 +90,16 @@ export function useOnlineVideo(meta: object | null | undefined): UseOnlineVideoR
         setState({
           videoUrl: null,
           loading: false,
-          error: error instanceof Error ? error.message : String(error),
+          error,
           streamProgress: null,
         });
       });
     return () => controller.abort();
   }, [providerId, available, ready, refKey, title, attempt]);
 
-  return { ...state, retry };
+  return {
+    ...state,
+    error: state.error === null ? null : videoSourceFailureText(state.error),
+    retry,
+  };
 }

@@ -1,0 +1,16 @@
+{
+  "board.video": "Video notes",
+  "board.close": "Close video notes",
+  "board.unlinkTitle": "Unlink note?",
+  "board.unlinkHint": "The note will remain available and can be linked again later.",
+  "board.unlink": "Unlink",
+  "board.cancel": "Cancel",
+  "board.createFailed": "Could not create video note",
+  "board.openFailed": "Could not open video note",
+  "command.timestamp": "Insert current timestamp",
+  "command.screenshot": "Capture current frame",
+  "command.play": "Play video",
+  "command.pause": "Pause video",
+  "source.providerMissing": "Install and enable the “{{provider}}” plugin in Plugin Center",
+  "tools.transcript": "Video note transcript"
+}

@@ -1,3 +1,4 @@
+import { useVideoSurfaceI18n } from "@/services/video-surface.i18n";
 import { IResourceService } from "@tau/shared/host-services";
 import React, { memo, useCallback, useMemo } from "react";
 import { useMemoizedFn } from "ahooks";
@@ -47,6 +48,7 @@ interface VideoElementProps {
 }
 
 const VideoElementComponent = memo((props: VideoElementProps) => {
+  const { t } = useVideoSurfaceI18n();
   const { element, onResize, onResizeStart, onResizeEnd } = props;
 
   const { id, x, y, width, height, src, metaInfo, resizable = true } = element;
@@ -130,7 +132,7 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
           className="group relative box-border h-full w-full p-4"
           data-whiteboard-stop-keyboard="true"
         >
-          <Tooltip content="视频笔记">
+          <Tooltip content={t("board.video")}>
             <button
               type="button"
               className="absolute top-5 right-5 z-10 flex h-8 w-8 items-center justify-center rounded-md border border-black/10 bg-white/90 text-gray-600 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 hover:bg-white hover:text-[var(--tau-accent)] dark:border-white/10 dark:bg-zinc-900/90 dark:text-gray-300 dark:hover:bg-zinc-900"
@@ -205,7 +207,7 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
           height={32}
           className="overflow-visible"
         >
-          <Tooltip content="视频笔记">
+          <Tooltip content={t("board.video")}>
             <button
               type="button"
               className="flex h-8 w-8 items-center justify-center rounded-md border border-black/10 bg-white text-gray-600 shadow-sm transition-colors hover:text-[var(--tau-accent)] dark:border-white/10 dark:bg-zinc-900 dark:text-gray-300"

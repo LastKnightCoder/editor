@@ -1,3 +1,4 @@
+import { videoSurfaceT } from "@/services/video-surface.binding";
 import { Editor, Node, Path, Text, Transforms } from "slate";
 import { VideoController } from "../../VideoController";
 import {
@@ -131,7 +132,9 @@ export const insertTranscriptQuote = (editor: Editor, text: string, timeSec: num
 
 const timestampCommand = (videoController: VideoController): EditorCommand => ({
   id: "host.video-note.timestamp",
-  title: "插入当前时间戳",
+  get title() {
+    return videoSurfaceT("command.timestamp");
+  },
   run: async editor => {
     if (!editor.selection) return;
     await insertVideoTimestamp(editor, videoController);

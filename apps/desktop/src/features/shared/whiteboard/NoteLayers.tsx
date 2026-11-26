@@ -1,3 +1,5 @@
+import { useVideoSurfaceI18n } from "@/services/video-surface.i18n";
+import { videoSurfaceT } from "@/services/video-surface.binding";
 import { IResourceService } from "@tau/shared/host-services";
 import { getWhiteboardDocument } from "@tau/whiteboard/collaboration";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -59,6 +61,7 @@ const getVideoNoteMetaInfo = (element: VideoElement): VideoMetaInfo => {
 };
 
 export function NoteLayers() {
+  const { t } = useVideoSurfaceI18n();
   const board = useBoard();
   const [databaseName] = useState(() => useSettingStore.getState().setting.database.active);
   const [connectionId] = useState(() => getDatabaseConnection(databaseName)?.connectionId);
@@ -215,7 +218,7 @@ export function NoteLayers() {
 
           const createdVideoNoteId = await creating;
           if (!createdVideoNoteId) {
-            toast.error("创建视频笔记失败");
+            toast.error(videoSurfaceT("board.createFailed"));
             return;
           }
           videoNoteId = createdVideoNoteId;
@@ -231,7 +234,7 @@ export function NoteLayers() {
         setActiveVideoElement(videoElementRefs.current.get(element.id) ?? null);
       } catch (error) {
         console.error("Open whiteboard video note failed:", error);
-        toast.error("打开视频笔记失败");
+        toast.error(videoSurfaceT("board.openFailed"));
       }
     };
 
@@ -321,8 +324,8 @@ export function NoteLayers() {
           setActiveVideoNote(null);
           setActiveVideoElement(null);
         }}
-        label="视频笔记"
-        closeLabel="关闭视频笔记"
+        label={t("board.video")}
+        closeLabel={t("board.close")}
         width={videoNotePanelWidth || 420}
         onWidthChange={setVideoNotePanelWidth}
         minWidth={320}
@@ -343,10 +346,10 @@ export function NoteLayers() {
         open={unlinkNodeId !== null}
         onOpenChange={open => !open && setUnlinkNodeId(null)}
         danger
-        title="取消关联笔记？"
-        description="笔记内容不会被删除，之后可以重新关联。"
-        confirmText="取消关联"
-        cancelText="再想想"
+        title={t("board.unlinkTitle")}
+        description={t("board.unlinkHint")}
+        confirmText={t("board.unlink")}
+        cancelText={t("board.cancel")}
         onConfirm={confirmUnlinkNote}
       />
     </>

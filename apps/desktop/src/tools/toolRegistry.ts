@@ -16,6 +16,7 @@ export interface RegisteredTool extends ToolDefinition {
 export interface ScopedToolSource {
   scope: string;
   label: string;
+  getLabel?: () => string;
   tools: Array<{ name: string; description: string; parameters: ToolJsonSchema }>;
 }
 
@@ -32,7 +33,10 @@ export class ToolRegistry {
   /** 逐工具停用（按来源分组），与来源级开关叠加生效；独立于注册，重新注册后仍保留 */
   private disabledTools = new Map<string, Set<string>>();
   /** 作用域工具不进全局表：同名工具可在多个作用域并存（如同时打开两份 PDF） */
-  private scopedTools = new Map<string, { label: string; tools: RegisteredTool[] }>();
+  private scopedTools = new Map<
+    string,
+    { label: string; getLabel?: () => string; tools: RegisteredTool[] }
+  >();
   private scopedSnapshot: ScopedToolSource[] = [];
   private scopedListeners = new Set<() => void>();
 
@@ -72,9 +76,15 @@ export class ToolRegistry {
   }
 
   /** 注册作用域工具：常开，不受 MCP 开关控制；scope 同时是来源，unregisterSource(scope) 移除 */
-  registerScopedTools(scope: string, label: string, definitions: ToolDefinition[]): void {
+  registerScopedTools(
+    scope: string,
+    label: string,
+    definitions: ToolDefinition[],
+    display?: { getLabel?: () => string }
+  ): void {
     this.scopedTools.set(scope, {
       label,
+      getLabel: display?.getLabel ? () => display.getLabel?.() ?? label : undefined,
       tools: definitions.map(definition => ({ ...definition, source: scope, enabled: true })),
     });
     this.emitScopedChange();
@@ -93,9 +103,10 @@ export class ToolRegistry {
   getScopedSources = (): ScopedToolSource[] => this.scopedSnapshot;
 
   private emitScopedChange(): void {
-    this.scopedSnapshot = Array.from(this.scopedTools, ([scope, { label, tools }]) => ({
+    this.scopedSnapshot = Array.from(this.scopedTools, ([scope, { label, getLabel, tools }]) => ({
       scope,
       label,
+      getLabel,
       tools: tools.map(tool => ({
         name: tool.name,
         description: tool.description,

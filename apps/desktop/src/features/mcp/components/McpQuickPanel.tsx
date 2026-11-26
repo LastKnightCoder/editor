@@ -77,7 +77,7 @@ function ScopedRow({ scene }: { scene: ScopedToolSource }) {
       className="text-tau-body flex h-[36px] items-center gap-2.5 rounded-[10px] px-2.5"
     >
       <StatusDot status="ready" />
-      <span className="min-w-0 flex-1 truncate">{scene.label}</span>
+      <span className="min-w-0 flex-1 truncate">{scene.getLabel?.() ?? scene.label}</span>
       <span className="text-tau-sm text-ink-3 shrink-0 tabular-nums">
         {t("quick.tools", {
           count: scene.tools.length,

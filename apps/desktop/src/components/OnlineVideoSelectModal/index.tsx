@@ -1,3 +1,5 @@
+import { useVideoSelectorI18n } from "@/services/video-selector.i18n";
+import { VideoSelectionFailure } from "@/services/video-selector-error";
 import { useEffect, useState } from "react";
 import { MonitorPlay } from "lucide-react";
 import { Button, Dialog, DialogBody, Select } from "@tau/ui";
@@ -29,6 +31,7 @@ export default function OnlineVideoSelectModal({
   onConfirm,
   initialUrl = "",
 }: OnlineVideoSelectModalProps) {
+  const { t } = useVideoSelectorI18n();
   const [url, setUrl] = useState(initialUrl);
   const resolver = useOnlineVideoResolver(providerId);
   const name = useVideoProviderName(providerId);
@@ -42,7 +45,7 @@ export default function OnlineVideoSelectModal({
 
   const analyze = () => {
     if (!url.trim()) {
-      resolver.setError("请输入视频链接");
+      resolver.setError(new VideoSelectionFailure("empty"));
       return;
     }
     void resolver.analyze(url);
@@ -57,34 +60,34 @@ export default function OnlineVideoSelectModal({
     <Dialog
       open={open}
       onOpenChange={next => !next && onCancel()}
-      title={`添加 ${name} 视频`}
-      subtitle={resolved ? undefined : "粘贴视频链接，解析后选择清晰度"}
+      title={t("title", { provider: String(name) })}
+      subtitle={resolved ? undefined : t("hint")}
       icon={<MonitorPlay className="size-4" strokeWidth={1.75} />}
       locked={analyzing}
       footer={
         resolved ? (
           <>
             <Button variant="secondary" size="sm" onClick={reset}>
-              返回
+              {t("back")}
             </Button>
             <Button variant="primary" size="sm" onClick={confirm}>
-              确认添加
+              {t("confirm")}
             </Button>
           </>
         ) : (
           <>
             <Button variant="secondary" size="sm" disabled={analyzing} onClick={onCancel}>
-              取消
+              {t("cancel")}
             </Button>
             <Button
               variant="primary"
               size="sm"
               loading={analyzing}
-              loadingText="正在解析…"
+              loadingText={t("loading")}
               disabled={!url.trim()}
               onClick={analyze}
             >
-              解析视频
+              {t("analyze")}
             </Button>
           </>
         )
@@ -100,9 +103,9 @@ export default function OnlineVideoSelectModal({
                 meta={resolved.providerName}
               />
               {resolved.variants.length > 1 && (
-                <ResourceSelectField label="清晰度">
+                <ResourceSelectField label={t("quality")}>
                   <Select
-                    aria-label="清晰度"
+                    aria-label={t("quality")}
                     value={variant}
                     onValueChange={value => resolver.setVariant(value)}
                     options={resolved.variants.map((item, index) => ({
@@ -114,7 +117,7 @@ export default function OnlineVideoSelectModal({
               )}
             </>
           ) : (
-            <ResourceSelectField label="视频链接">
+            <ResourceSelectField label={t("url")}>
               <ResourceSelectInput
                 data-autofocus
                 type="url"

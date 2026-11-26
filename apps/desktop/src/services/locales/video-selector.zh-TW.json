@@ -1,0 +1,16 @@
+{
+  "title": "新增 {{provider}} 影片",
+  "hint": "貼上影片連結，解析後選擇畫質",
+  "back": "返回",
+  "confirm": "確認新增",
+  "cancel": "取消",
+  "loading": "正在解析…",
+  "analyze": "解析影片",
+  "quality": "畫質",
+  "url": "影片連結",
+  "failure.empty": "請輸入影片連結",
+  "failure.invalid": "請輸入有效的影片連結",
+  "failure.otherProvider": "這個連結屬於「{{provider}}」，請從對應入口新增",
+  "failure.unsupported": "「{{provider}}」無法辨識這個連結",
+  "failure.resolve": "解析失敗，請稍後再試"
+}

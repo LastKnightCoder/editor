@@ -83,3 +83,27 @@ describe("ToolRegistry 作用域工具", () => {
     expect(listener).toHaveBeenCalledTimes(3);
   });
 });
+
+it("显示来源读取器更新不改变注册快照或工具身份，并保留读取器receiver", () => {
+  const registry = new ToolRegistry();
+  const changed = vi.fn();
+  registry.subscribeScopedSources(changed);
+  const display = {
+    name: "first",
+    getLabel() {
+      return this.name;
+    },
+  };
+  registry.registerScopedTools("raw-source", "原来源名", [tool("raw_tool")], display);
+  const snapshot = registry.getScopedSources();
+  const tools = registry.getScopedTools("raw-source");
+  expect(snapshot[0].getLabel?.()).toBe("first");
+  display.name = "second";
+  expect(snapshot[0].getLabel?.()).toBe("second");
+  expect(snapshot[0].label).toBe("原来源名");
+  expect(registry.getScopedSources()).toBe(snapshot);
+  expect(registry.getScopedTools("raw-source")).toBe(tools);
+  expect(changed).toHaveBeenCalledTimes(1);
+  display.name = "";
+  expect(snapshot[0].getLabel?.()).toBe("");
+});

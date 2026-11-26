@@ -1,3 +1,6 @@
+import { useVideoSelectorI18n } from "@/services/video-selector.i18n";
+import { videoSelectionFailureText } from "@/services/video-selector.binding";
+import { VideoSelectionFailure } from "@/services/video-selector-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ResolvedVideo, VideoRef } from "@tau/plugins";
 import { callPluginVideo, getVideoProviders } from "@/commands/plugin-video";
@@ -22,8 +25,9 @@ const providerName = (providerId: string) =>
 
 /** 粘贴视频链接 → 由指定的视频插件解析 → 选择清晰度，供各添加入口共用。 */
 export function useOnlineVideoResolver(providerId: string) {
+  useVideoSelectorI18n();
   const [analyzing, setAnalyzing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown | null>(null);
   const [resolved, setResolved] = useState<Resolved | null>(null);
   const [variant, setVariant] = useState(0);
   const controller = useRef<AbortController | null>(null);
@@ -44,8 +48,8 @@ export function useOnlineVideoResolver(providerId: string) {
       const url = input.trim();
       try {
         new URL(url);
-      } catch {
-        setError("请输入有效的视频链接");
+      } catch (cause) {
+        setError(new VideoSelectionFailure("invalid", {}, { cause }));
         return;
       }
       controller.current?.abort();
@@ -62,9 +66,9 @@ export function useOnlineVideoResolver(providerId: string) {
           // 链接属于另一个已启用的插件时指明正确入口
           const other = await callPluginVideo({ kind: "match", url }, current.signal);
           setError(
-            other
-              ? `该链接属于「${providerName(other)}」，请从对应入口添加`
-              : `「${providerName(providerId)}」无法识别该链接`
+            new VideoSelectionFailure(other ? "otherProvider" : "unsupported", {
+              provider: providerName(other || providerId),
+            })
           );
           return;
         }
@@ -77,7 +81,11 @@ export function useOnlineVideoResolver(providerId: string) {
         setVariant(preferred >= 0 && preferred < info.variants.length ? preferred : 0);
       } catch (caught) {
         if (current.signal.aborted) return;
-        setError(caught instanceof Error ? caught.message : "解析失败，请稍后重试");
+        setError(
+          caught instanceof Error
+            ? caught
+            : new VideoSelectionFailure("resolve", {}, { cause: caught })
+        );
       } finally {
         if (controller.current === current) {
           controller.current = null;
@@ -104,7 +112,7 @@ export function useOnlineVideoResolver(providerId: string) {
 
   return {
     analyzing,
-    error,
+    error: error === null ? null : videoSelectionFailureText(error),
     setError,
     resolved,
     variant,

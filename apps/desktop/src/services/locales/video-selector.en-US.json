@@ -1,0 +1,16 @@
+{
+  "title": "Add {{provider}} video",
+  "hint": "Paste a video link, then choose a quality option",
+  "back": "Back",
+  "confirm": "Add video",
+  "cancel": "Cancel",
+  "loading": "Analyzing…",
+  "analyze": "Analyze video",
+  "quality": "Quality",
+  "url": "Video link",
+  "failure.empty": "Enter a video link",
+  "failure.invalid": "Enter a valid video link",
+  "failure.otherProvider": "This link belongs to “{{provider}}”. Use its video entry to add it",
+  "failure.unsupported": "“{{provider}}” does not recognize this link",
+  "failure.resolve": "Could not analyze this link. Try again later"
+}
