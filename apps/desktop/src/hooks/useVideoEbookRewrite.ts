@@ -1,3 +1,4 @@
+import { ebookTranslator } from "@/components/VideoNotePanel/i18n-ebook";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useMemoizedFn, useThrottleFn } from "ahooks";
 import { Descendant } from "slate";
@@ -64,12 +65,12 @@ export const useVideoEbookRewrite = (
 
   const startRewrite = useMemoizedFn((input: VideoEbookRewriteInput) => {
     if (!provider || !model) {
-      setError(new Error("未配置视频电子书重写模型"));
+      setError(new Error(ebookTranslator.t("rewrite.noModel")));
       return;
     }
 
     if (!input.transcript.trim()) {
-      setError(new Error("没有可用的转录文稿"));
+      setError(new Error(ebookTranslator.t("rewrite.noTranscript")));
       return;
     }
 
@@ -127,7 +128,7 @@ export const useVideoEbookRewrite = (
         flushParse();
 
         if (!result.text.trim()) {
-          setError(new Error("重写结果为空"));
+          setError(new Error(ebookTranslator.t("rewrite.emptyResult")));
           return;
         }
 
@@ -135,7 +136,7 @@ export const useVideoEbookRewrite = (
           const parsed = importFromMarkdown(result.text);
           setEbookContent(parsed);
         } catch (parseError) {
-          setError(new Error("重写完成，但 Markdown 解析失败，请重试"));
+          setError(new Error(ebookTranslator.t("rewrite.parseFailed")));
           console.error("[VideoEbookRewrite] Final markdown parse failed:", parseError);
         }
         return;
@@ -143,7 +144,7 @@ export const useVideoEbookRewrite = (
       if (!result.aborted) {
         setIsRewriting(false);
         setIsPending(false);
-        const streamError = new Error(result.error ?? "模型请求失败");
+        const streamError = new Error(result.error ?? ebookTranslator.t("rewrite.requestFailed"));
         setError(streamError);
         console.error("[VideoEbookRewrite] Error:", streamError);
       }

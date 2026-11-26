@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { useEbookI18n } from "./i18n-ebook";
+import { useState, useRef, useEffect, useMemo, useCallback, type ReactElement } from "react";
 import {
   Pencil,
   FileText,
@@ -50,6 +51,11 @@ import { TRANSCRIPTION_LANGUAGES, VIDEO_NOTE_AUTO_LANGUAGE } from "./transcripti
 import { TranscriptionOptionsDialog } from "./TranscriptionOptionsDialog";
 import { useVideoNoteTranscription } from "./useVideoNoteTranscription";
 import VideoNoteEpubExportModal from "./VideoNoteEpubExportModal";
+
+function EbookExportTooltip({ children }: { children: ReactElement }) {
+  const { t } = useEbookI18n();
+  return <Tooltip content={t("title")}>{children}</Tooltip>;
+}
 
 const DEFAULT_CONTENT: Descendant[] = [
   {
@@ -1088,7 +1094,7 @@ const VideoNotePanel = ({
               </button>
             </Tooltip>
           )}
-          <Tooltip content="AI 导出电子书">
+          <EbookExportTooltip>
             <button
               className={classNames(
                 "flex h-8 w-8 items-center justify-center rounded-lg text-sm transition-all",
@@ -1101,7 +1107,7 @@ const VideoNotePanel = ({
             >
               <BookText size={12} />
             </button>
-          </Tooltip>
+          </EbookExportTooltip>
           {onSubtitleMountedChange && (
             <Tooltip
               content={

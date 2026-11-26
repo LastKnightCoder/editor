@@ -1,3 +1,5 @@
+import { ebookTranslator, useEbookI18n } from "./i18n-ebook";
+import { desktopI18n } from "@/app/i18n/runtime";
 /**
  * 视频笔记 · AI 导出电子书：两步工作台型弹窗。
  * ① 选写作风格 → AI 基于转录流式改写成草稿（可直接编辑）；② 书籍元数据、封面与格式 → 导出。
@@ -80,7 +82,7 @@ interface CoverCandidate {
   id: string;
   source: string;
   dataUri: string;
-  label: string;
+  origin: { kind: "content"; index: number } | { kind: "file"; name: string };
 }
 
 interface VideoNoteEpubExportModalProps {
@@ -96,39 +98,30 @@ interface VideoNoteEpubExportModalProps {
   onOpenLLMSettings: () => void;
 }
 
-const STYLE_OPTIONS: Array<{
-  label: string;
-  value: VideoEbookRewriteStyle;
-  description: string;
-}> = [
-  { label: "杂志长文", value: "magazine", description: "叙事流畅，兼顾信息密度" },
-  { label: "学术总结", value: "academic", description: "结构严谨，论证与结论清晰" },
-  { label: "轻松博客", value: "casual", description: "语气亲切，段落短而轻快" },
-  { label: "技术文档", value: "technical", description: "术语统一，步骤便于检索" },
+const STYLE_OPTIONS: Array<{ value: VideoEbookRewriteStyle }> = [
+  { value: "magazine" },
+  { value: "academic" },
+  { value: "casual" },
+  { value: "technical" },
 ];
 
 const FORMAT_OPTIONS: Array<{
   value: ExportFormat;
   label: string;
   icon: LucideIcon;
-  description: string;
 }> = [
-  { value: "epub", label: "EPUB", icon: BookOpen, description: "电子书格式，带封面与章节导航" },
-  { value: "pdf", label: "PDF", icon: FileText, description: "适合打印与阅读，自适应分页" },
-  { value: "docx", label: "Word", icon: FileType, description: "可在 Word 里继续修改排版" },
+  { value: "epub", label: "EPUB", icon: BookOpen },
+  { value: "pdf", label: "PDF", icon: FileText },
+  { value: "docx", label: "Word", icon: FileType },
 ];
 
 const formatLabel = (format: ExportFormat) =>
   FORMAT_OPTIONS.find(option => option.value === format)?.label ?? format;
 
-const STEPS: Array<{ key: Step; label: string; subtitle: string }> = [
-  {
-    key: "rewrite",
-    label: "生成草稿",
-    subtitle: "选择写作风格，AI 把转录改写成可编辑的电子书草稿",
-  },
-  { key: "export-settings", label: "导出设置", subtitle: "填写书籍信息、挑选封面，选择导出格式" },
-];
+const STEPS: Array<{ key: Step }> = [{ key: "rewrite" }, { key: "export-settings" }];
+type ExportFailureDetail = { kind: "raw"; text: string } | { kind: "format"; format: string };
+const formatNames = (names: readonly string[]) =>
+  new Intl.ListFormat(desktopI18n.getSnapshot()).format(names);
 
 const normalizeText = (value?: string) => (value || "").trim();
 const isHttpUrl = (value: string) => /^https?:\/\//i.test(value);
@@ -167,7 +160,7 @@ const uint8ArrayToBase64 = (bytes: Uint8Array) => {
 const sourceToDataUri = async (source: string) => {
   const normalizedSource = normalizeText(source);
   if (!normalizedSource) {
-    throw new Error("图片地址为空");
+    throw new Error(ebookTranslator.t("cover.emptyAddress"));
   }
 
   if (normalizedSource.startsWith("data:image/")) {
@@ -175,7 +168,7 @@ const sourceToDataUri = async (source: string) => {
   }
 
   if (normalizedSource.startsWith("data:")) {
-    throw new Error("仅支持 image/* 的 data URI");
+    throw new Error(ebookTranslator.t("cover.invalidData"));
   }
 
   const resolvedSource = await resolveLocalMediaPath(normalizedSource);
@@ -228,6 +221,7 @@ function Field({
 
 /** 应答区左侧的步骤进度：当前步 accent 圆点，已完成打勾 */
 function StepIndicator({ current }: { current: Step }) {
+  const { t, locale } = useEbookI18n();
   const currentIndex = STEPS.findIndex(s => s.key === current);
   return (
     <ol className="m-0 mr-auto flex list-none items-center gap-2 p-0">
@@ -255,9 +249,13 @@ function StepIndicator({ current }: { current: Step }) {
                       : "bg-sunken text-ink-3"
                 )}
               >
-                {done ? <Check className="size-[11px]" strokeWidth={2.5} /> : index + 1}
+                {done ? (
+                  <Check className="size-[11px]" strokeWidth={2.5} />
+                ) : (
+                  (index + 1).toLocaleString(locale)
+                )}
               </span>
-              {s.label}
+              {t(`step.${s.key}.label`)}
             </span>
           </li>
         );
@@ -267,6 +265,7 @@ function StepIndicator({ current }: { current: Step }) {
 }
 
 const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
+  const { t, locale } = useEbookI18n();
   const {
     open,
     onClose,
@@ -293,7 +292,10 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
     }
   );
   const [exporting, setExporting] = useState(false);
-  const [exportError, setExportError] = useState<{ formats: string; details: string } | null>(null);
+  const [exportError, setExportError] = useState<{
+    formats: string[];
+    details: ExportFailureDetail[];
+  } | null>(null);
   const [coverCandidates, setCoverCandidates] = useState<CoverCandidate[]>([]);
   const [loadingCoverCandidates, setLoadingCoverCandidates] = useState(false);
   const [metadata, setMetadata] = useState<EpubMetadataInput>({
@@ -310,9 +312,10 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
   );
   const [llmMissingOpen, setLlmMissingOpen] = useState(false);
   // 多格式导出中途取消某一格式时，问是否继续下一个；resolver 只兑现一次（确认后 ConfirmDialog 还会走关闭回调）
-  const [continuePrompt, setContinuePrompt] = useState<{ canceled: string; next: string } | null>(
-    null
-  );
+  const [continuePrompt, setContinuePrompt] = useState<{
+    canceled: ExportFormat;
+    next: ExportFormat;
+  } | null>(null);
   const continueResolverRef = useRef<((value: boolean) => void) | null>(null);
 
   const {
@@ -346,7 +349,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
             id: `candidate-${index + 1}`,
             source,
             dataUri,
-            label: `正文图片 ${index + 1}`,
+            origin: { kind: "content", index: index + 1 },
           });
         } catch (error) {
           const msg = error instanceof Error ? error.message : String(error);
@@ -425,7 +428,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
     if (!open || !rewriteError) {
       return;
     }
-    toast.error(rewriteError.message || "电子书草稿生成失败");
+    toast.error(rewriteError.message || ebookTranslator.t("rewrite.failed"));
   }, [open, rewriteError]);
 
   const onFieldChange = useMemoizedFn((field: keyof EpubMetadataInput, value: string) => {
@@ -447,7 +450,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
       properties: ["openFile"],
       filters: [
         {
-          name: "图片",
+          name: t("cover.fileFilter"),
           extensions: ["png", "jpg", "jpeg", "webp", "gif", "bmp", "svg", "avif"],
         },
       ],
@@ -464,7 +467,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
         id: `upload-${Date.now()}`,
         source: filePath,
         dataUri,
-        label: `本地文件：${getFileNameFromPath(filePath)}`,
+        origin: { kind: "file", name: getFileNameFromPath(filePath) },
       };
 
       setCoverCandidates(prev => {
@@ -478,7 +481,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
       }));
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      toast.error(`读取封面图失败：${msg}`);
+      toast.error(t("cover.readFailed", { error: msg }));
     }
   });
 
@@ -504,11 +507,16 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
   }, [metadata.coverImageSrc, coverCandidates]);
 
   const exportButtonText = useMemo(() => {
-    const formats = FORMAT_OPTIONS.filter(o => selectedFormats.has(o.value));
-    if (formats.length === 0) return "选择导出格式";
-    if (formats.length === 1) return `导出 ${formats[0].label}`;
-    return `导出 ${formats.map(o => o.label).join("、")}`;
-  }, [selectedFormats]);
+    const formats = FORMAT_OPTIONS.filter(option => selectedFormats.has(option.value));
+    return formats.length === 0
+      ? t("export.chooseFormat")
+      : t("export.action", { formats: formatNames(formats.map(option => option.label)) });
+  }, [selectedFormats, t]);
+
+  const coverLabel = (candidate: CoverCandidate) =>
+    candidate.origin.kind === "content"
+      ? t("cover.body", { index: candidate.origin.index.toLocaleString(locale) })
+      : t("cover.file", { name: candidate.origin.name });
 
   const toggleFormat = useMemoizedFn((format: ExportFormat) => {
     setSelectedFormats(prev => {
@@ -521,7 +529,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
 
   const handleStartRewrite = useMemoizedFn(() => {
     if (!normalizeText(transcript)) {
-      toast.warning("缺少转录文稿，请先完成转录");
+      toast.warning(t("rewrite.missingTranscript"));
       return;
     }
     if (!provider || !model) {
@@ -575,7 +583,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
     }
   });
 
-  const askContinueExport = (canceled: string, next: string) =>
+  const askContinueExport = (canceled: ExportFormat, next: ExportFormat) =>
     new Promise<boolean>(resolve => {
       continueResolverRef.current = resolve;
       setContinuePrompt({ canceled, next });
@@ -590,12 +598,12 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
   const handleConfirmExport = useMemoizedFn(async () => {
     const markdown = normalizeText(getMarkdown(draftContent));
     if (!markdown) {
-      toast.error("请先生成或编辑电子书草稿");
+      toast.error(t("export.emptyDraft"));
       return;
     }
 
     if (selectedFormats.size === 0) {
-      toast.error("请至少选择一种导出格式");
+      toast.error(t("export.missingFormat"));
       return;
     }
 
@@ -608,11 +616,11 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
     };
 
     if (!normalizedMetadata.title) {
-      toast.error("书名不能为空");
+      toast.error(t("export.missingTitle"));
       return;
     }
     if (!normalizedMetadata.author) {
-      toast.error("作者不能为空");
+      toast.error(t("export.missingAuthor"));
       return;
     }
 
@@ -641,12 +649,9 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
         if (result.canceled) {
           results.push({ format: label, success: false, canceled: true });
           if (!isLastFormat) {
-            const shouldContinue = await askContinueExport(
-              label,
-              formatLabel(formatsToExport[i + 1])
-            );
+            const shouldContinue = await askContinueExport(format, formatsToExport[i + 1]);
             if (!shouldContinue) {
-              toast.info("已取消导出");
+              toast.info(t("export.canceled"));
               return;
             }
           }
@@ -655,7 +660,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
           results.push({
             format: label,
             success: false,
-            warnings: result.warnings || [`${label} 导出失败`],
+            warnings: result.warnings,
           });
         } else {
           results.push({
@@ -669,8 +674,12 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
 
       const { successResults, failedResults, canceledResults, status } =
         summarizeExportResults(results);
-      const failedFormats = failedResults.map(r => r.format).join("、");
-      const failedDetails = failedResults.flatMap(r => r.warnings || []).join("\n");
+      const failedFormats = failedResults.map(r => r.format);
+      const failedDetails = failedResults.flatMap<ExportFailureDetail>(result =>
+        result.warnings
+          ? result.warnings.map(text => ({ kind: "raw", text }))
+          : [{ kind: "format", format: result.format }]
+      );
 
       if (status === "all-failed") {
         // 全部失败：弹窗不关，失败原因贴在表单顶部
@@ -678,24 +687,33 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
         return;
       }
       if (status === "all-canceled") {
-        toast.info("已取消导出");
+        toast.info(t("export.canceled"));
         return;
       }
       if (status !== "all-success" && status !== "partial-success") {
-        toast.info("未完成任何导出");
+        toast.info(t("export.none"));
         return;
       }
 
-      const successFormats = successResults.map(r => r.format).join("、");
+      const successFormats = successResults.map(result => result.format);
       if (status === "all-success") {
-        toast.success(`已导出 ${successFormats}`);
+        toast.success(t("export.success", { formats: formatNames(successFormats) }));
       } else {
-        const canceledFormats = canceledResults.map(r => r.format).join("、");
-        const parts = [`已导出 ${successFormats}`];
-        if (failedFormats) parts.push(`${failedFormats} 导出失败`);
-        if (canceledFormats) parts.push(`已取消 ${canceledFormats}`);
-        if (failedDetails) console.warn("电子书部分格式导出失败:", failedDetails);
-        toast.warning(parts.join("，"));
+        const canceledFormats = canceledResults.map(result => result.format);
+        const key =
+          failedFormats.length && canceledFormats.length
+            ? "export.partialBoth"
+            : failedFormats.length
+              ? "export.partialFailed"
+              : "export.partialCanceled";
+        if (failedDetails.length) console.warn("电子书部分格式导出失败:", failedDetails);
+        toast.warning(
+          t(key, {
+            success: formatNames(successFormats),
+            failed: formatNames(failedFormats),
+            canceled: formatNames(canceledFormats),
+          })
+        );
       }
 
       if (successResults[0]?.filePath) {
@@ -710,7 +728,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
       onClose();
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      toast.error(`导出失败：${msg}`);
+      toast.error(t("export.failed", { error: msg }));
       // 异常时不关闭弹窗
     } finally {
       setExporting(false);
@@ -726,17 +744,13 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
   });
 
   const statusText = isRewriting
-    ? isPending
-      ? "等待模型响应…"
-      : "正在生成草稿…"
-    : hasDraft
-      ? "草稿已就绪，可直接修改"
-      : "选好风格后生成草稿，也可以直接在这里写";
+    ? t(isPending ? "status.pending" : "status.generating")
+    : t(hasDraft ? "status.ready" : "status.empty");
 
   const renderRewriteStep = () => (
     <div className="flex min-h-0 flex-1 flex-col gap-4 px-6 pt-4 pb-5">
-      <Field label="写作风格">
-        <div role="radiogroup" aria-label="写作风格" className="grid grid-cols-4 gap-2">
+      <Field label={t("field.style")}>
+        <div role="radiogroup" aria-label={t("field.style")} className="grid grid-cols-4 gap-2">
           {STYLE_OPTIONS.map(option => {
             const active = option.value === selectedStyle;
             return (
@@ -759,10 +773,10 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
                     active ? "text-accent-text" : "text-ink-1"
                   )}
                 >
-                  {option.label}
+                  {t(`style.${option.value}.label`)}
                 </span>
                 <span className="text-ink-3 mt-0.5 block text-[11.5px] leading-[1.5]">
-                  {option.description}
+                  {t(`style.${option.value}.description`)}
                 </span>
               </button>
             );
@@ -783,11 +797,11 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
           <span className="text-tau-meta text-ink-3 min-w-0 flex-1 truncate">{statusText}</span>
           {isRewriting ? (
             <Button variant="ghost" size="sm" icon={Square} onClick={stopRewrite}>
-              停止生成
+              {t("action.stop")}
             </Button>
           ) : (
             <Button variant="soft" size="sm" icon={Sparkles} onClick={handleStartRewrite}>
-              {hasDraft ? "重新生成" : "生成草稿"}
+              {t(hasDraft ? "action.regenerate" : "action.generate")}
             </Button>
           )}
         </div>
@@ -798,7 +812,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
               key={`video-note-ebook-${videoNoteId}-${editorSessionId}`}
               document={draftDocument.document}
               readonly={isRewriting}
-              placeHolder="草稿会在这里逐步出现"
+              placeHolder={t("draft.placeholder")}
             />
           </div>
         </FadeScroll>
@@ -809,8 +823,8 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
   const renderCoverColumn = () => (
     <div className="flex min-w-0 flex-col gap-3">
       <Field
-        label="封面"
-        hint="可选"
+        label={t("field.cover")}
+        hint={t("field.optional")}
         action={
           selectedCoverPreview && (
             <button
@@ -819,7 +833,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
               className="text-ink-3 hover:text-ink-1 inline-flex items-center gap-0.5 text-[12px]"
             >
               <X className="size-3" strokeWidth={2} />
-              清除
+              {t("action.clear")}
             </button>
           )
         }
@@ -827,7 +841,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
         <button
           type="button"
           onClick={handleChooseCoverFromFile}
-          aria-label="选择本地图片作为封面"
+          aria-label={t("cover.choose")}
           className={cn(
             "rounded-tau-md group relative aspect-[3/4] w-full overflow-hidden border outline-none focus-visible:shadow-[var(--tau-focus-ring)]",
             selectedCoverPreview
@@ -839,19 +853,19 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
             <>
               <img
                 src={selectedCoverPreview}
-                alt="封面预览"
+                alt={t("cover.preview")}
                 className="h-full w-full object-cover"
               />
               <span className="bg-overlay text-ink-inverse absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 py-1.5 text-[11.5px] opacity-0 transition-opacity duration-150 group-hover:opacity-100">
                 <ImagePlus className="size-3.5" strokeWidth={1.75} />
-                更换
+                {t("action.replace")}
               </span>
             </>
           ) : (
             <span className="text-ink-3 flex h-full flex-col items-center justify-center gap-1.5 px-4 text-center">
               <ImagePlus className="size-5" strokeWidth={1.5} />
-              <span className="text-ink-2 text-[12px]">选择本地图片</span>
-              <span className="text-[11px] leading-[1.5]">不选则使用默认封面</span>
+              <span className="text-ink-2 text-[12px]">{t("cover.local")}</span>
+              <span className="text-[11px] leading-[1.5]">{t("cover.defaultHint")}</span>
             </span>
           )}
         </button>
@@ -860,12 +874,16 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
       {loadingCoverCandidates ? (
         <div className="text-ink-3 flex items-center gap-1.5 text-[11.5px]">
           <Loader2 className="size-3 animate-spin" strokeWidth={2} />
-          正在提取草稿中的图片…
+          {t("cover.extracting")}
         </div>
       ) : coverCandidates.length > 0 ? (
         <div className="flex flex-col gap-1.5">
-          <span className="text-ink-3 text-[11.5px]">草稿中的图片</span>
-          <div role="radiogroup" aria-label="草稿中的图片" className="grid grid-cols-4 gap-1.5">
+          <span className="text-ink-3 text-[11.5px]">{t("cover.fromDraft")}</span>
+          <div
+            role="radiogroup"
+            aria-label={t("cover.fromDraft")}
+            className="grid grid-cols-4 gap-1.5"
+          >
             {coverCandidates.map(candidate => {
               const active = metadata.coverImageSrc === candidate.dataUri;
               return (
@@ -874,7 +892,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
                   type="button"
                   role="radio"
                   aria-checked={active}
-                  title={candidate.label}
+                  title={coverLabel(candidate)}
                   onClick={() => handleSelectCoverCandidate(candidate)}
                   className={cn(
                     "ease-tau-out aspect-square overflow-hidden rounded-[7px] border outline-none transition-[border-color,box-shadow] duration-150 focus-visible:shadow-[var(--tau-focus-ring)]",
@@ -885,7 +903,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
                 >
                   <img
                     src={candidate.dataUri}
-                    alt={candidate.label}
+                    alt={coverLabel(candidate)}
                     className="h-full w-full object-cover"
                   />
                 </button>
@@ -905,30 +923,40 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
         <div className="flex min-w-0 flex-col gap-4">
           {exportError && (
             <div className="bg-danger-soft text-danger rounded-[10px] px-3 py-2.5 text-[12px] leading-[1.6]">
-              <div className="font-medium">{exportError.formats} 导出失败</div>
-              {exportError.details && (
-                <div className="mt-0.5 whitespace-pre-wrap opacity-80">{exportError.details}</div>
+              <div className="font-medium">
+                {t("export.formatFailed", { formats: formatNames(exportError.formats) })}
+              </div>
+              {exportError.details.length > 0 && (
+                <div className="mt-0.5 whitespace-pre-wrap opacity-80">
+                  {exportError.details
+                    .map(detail =>
+                      detail.kind === "raw"
+                        ? detail.text
+                        : t("export.formatFailed", { formats: detail.format })
+                    )
+                    .join("\n")}
+                </div>
               )}
             </div>
           )}
 
-          <Field label="书名" required>
+          <Field label={t("field.title")} required>
             <Input
               value={metadata.title}
-              placeholder="这本书叫什么"
+              placeholder={t("field.titlePlaceholder")}
               onChange={event => onFieldChange("title", event.target.value)}
             />
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="作者" required>
+            <Field label={t("field.author")} required>
               <Input
                 value={metadata.author}
-                placeholder="署名"
+                placeholder={t("field.authorPlaceholder")}
                 onChange={event => onFieldChange("author", event.target.value)}
               />
             </Field>
-            <Field label="语言" hint="如 zh-CN / en">
+            <Field label={t("field.language")} hint={t("field.languageHint")}>
               <Input
                 value={metadata.language}
                 placeholder="zh-CN"
@@ -937,16 +965,16 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
             </Field>
           </div>
 
-          <Field label="简介" hint="可选">
+          <Field label={t("field.description")} hint={t("field.optional")}>
             <Textarea
               value={metadata.description}
               rows={3}
-              placeholder="一两句话介绍这本书"
+              placeholder={t("field.descriptionPlaceholder")}
               onChange={event => onFieldChange("description", event.target.value)}
             />
           </Field>
 
-          <Field label="导出格式" hint="可多选">
+          <Field label={t("field.formats")} hint={t("field.multiple")}>
             <div className="grid grid-cols-3 gap-2">
               {FORMAT_OPTIONS.map(option => {
                 const active = selectedFormats.has(option.value);
@@ -980,7 +1008,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
                         {option.label}
                       </span>
                       <span className="text-ink-3 mt-0.5 block text-[11.5px] leading-[1.5]">
-                        {option.description}
+                        {t(`format.${option.value}.description`)}
                       </span>
                     </span>
                     <span
@@ -1008,9 +1036,9 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
       <Dialog
         open={open}
         onOpenChange={next => !next && handleClose()}
-        title="AI 导出电子书"
+        title={t("title")}
         icon={<BookOpen strokeWidth={1.75} />}
-        subtitle={currentStep.subtitle}
+        subtitle={t(`step.${currentStep.key}.subtitle`)}
         context={videoTitle || undefined}
         width={880}
         height={760}
@@ -1020,7 +1048,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
             <>
               <StepIndicator current={step} />
               <Button variant="secondary" size="sm" onClick={handleClose}>
-                取消
+                {t("common.cancel")}
               </Button>
               <Button
                 variant="primary"
@@ -1028,7 +1056,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
                 disabled={!hasDraft || isRewriting}
                 onClick={handleGoToExportSettings}
               >
-                下一步
+                {t("common.next")}
                 <ArrowRight size={15} strokeWidth={1.75} className="-mr-0.5 shrink-0" />
               </Button>
             </>
@@ -1042,14 +1070,14 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
                 disabled={exporting}
                 onClick={handleBackToRewrite}
               >
-                上一步
+                {t("common.previous")}
               </Button>
               <Button
                 variant="primary"
                 size="sm"
                 icon={Download}
                 loading={exporting}
-                loadingText="导出中…"
+                loadingText={t("export.busy")}
                 disabled={selectedFormats.size === 0}
                 onClick={handleConfirmExport}
               >
@@ -1076,22 +1104,25 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
       <ConfirmDialog
         open={llmMissingOpen}
         onOpenChange={setLlmMissingOpen}
-        title="未配置重写模型"
-        description="请先在设置中为「视频电子书重写」配置 LLM 模型。"
-        confirmText="打开设置"
+        title={t("settings.title")}
+        description={t("settings.description")}
+        confirmText={t("settings.open")}
         onConfirm={onOpenLLMSettings}
       />
 
       <ConfirmDialog
         open={continuePrompt !== null}
         onOpenChange={next => !next && settleContinuePrompt(false)}
-        title="继续导出？"
+        title={t("continue.title")}
         description={
           continuePrompt
-            ? `已跳过 ${continuePrompt.canceled}，是否继续导出 ${continuePrompt.next}？`
+            ? t("continue.description", {
+                canceled: formatLabel(continuePrompt.canceled),
+                next: formatLabel(continuePrompt.next),
+              })
             : undefined
         }
-        confirmText="继续导出"
+        confirmText={t("continue.confirm")}
         onConfirm={() => settleContinuePrompt(true)}
       />
     </>
