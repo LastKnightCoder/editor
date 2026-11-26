@@ -13,13 +13,15 @@
 export interface TodayEvent {
   id: number;
   title: string;
-  timeText: string;
+  allDay: boolean;
+  startTime: number;
+  endTime?: number;
 }
 
 export interface TodoTodayItem {
   id: number;
   title: string;
-  dueText?: string;
+  dueAt?: number;
   overdue: boolean;
 }
 
@@ -30,7 +32,7 @@ export type RecentEdit =
       /** 卡片 / 文章 id，直达详情页 */
       targetId: number;
       title: string;
-      updatedText: string;
+      updatedAt: number;
       wordsCount: number;
     }
   | {
@@ -39,7 +41,7 @@ export type RecentEdit =
       /** 日记日期（YYYY-MM-DD），定位日记流到当天 */
       date: string;
       title: string;
-      updatedText: string;
+      updatedAt: number;
       wordsCount: number;
     }
   | {
@@ -50,7 +52,7 @@ export type RecentEdit =
       /** 项目文档条目 id，进入详情后定位到该文档 */
       itemId: number;
       title: string;
-      updatedText: string;
+      updatedAt: number;
       wordsCount: number;
     };
 

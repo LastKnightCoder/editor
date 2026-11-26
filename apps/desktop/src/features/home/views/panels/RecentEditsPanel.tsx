@@ -1,3 +1,5 @@
+import { useHomeI18n } from "../../i18n";
+import { relativeDays } from "../../format";
 /**
  * 首页「最近编辑」：卡片、文章、日记、项目文档最近改过的条目，点击直达。
  */
@@ -9,10 +11,10 @@ import { useHomeSnapshot } from "../../queries";
 import type { RecentEdit } from "../../types";
 
 const KIND_LABEL = {
-  card: "卡片",
-  article: "文章",
-  diary: "日记",
-  project: "项目",
+  card: "kind.card",
+  article: "kind.article",
+  diary: "kind.diary",
+  project: "kind.project",
 } as const;
 /** 类型色与回顾段「知识构成」一一对应（卡片 accent / 文章 tag-1 / 项目 tag-2 / 日记 tag-4） */
 const KIND_TONE = {
@@ -23,6 +25,7 @@ const KIND_TONE = {
 } as const;
 
 export function RecentEditsPanel() {
+  const { t } = useHomeI18n();
   const { data } = useHomeSnapshot();
   const { navigator } = usePage();
   // 最近编辑直达具体条目：卡片 / 文章进详情，日记定位到当天，项目进详情并定位文档（散页退回项目列表）
@@ -44,16 +47,16 @@ export function RecentEditsPanel() {
   return (
     <Panel variant="outline" pad="compact">
       <PanelTitle className="mb-2.5">
-        最近编辑
-        <PanelNote>卡片 · 文章 · 日记 · 项目</PanelNote>
+        {t("panels.recent")}
+        <PanelNote>{t("recent.scope")}</PanelNote>
       </PanelTitle>
-      <div className="@max-[1180px]:grid-cols-2 @max-[860px]:grid-cols-1 grid grid-cols-3 gap-x-6 gap-y-0">
+      <div className="grid grid-cols-3 gap-x-6 gap-y-0 @max-[1180px]:grid-cols-2 @max-[860px]:grid-cols-1">
         {data.recentEdits.length > 0 ? (
           data.recentEdits.map(item => (
             <RecentRow key={item.id} item={item} onClick={() => openRecentEdit(item)} />
           ))
         ) : (
-          <EmptyNote>还没有编辑记录——从新建一张卡片开始</EmptyNote>
+          <EmptyNote>{t("recent.empty")}</EmptyNote>
         )}
       </div>
     </Panel>
@@ -61,6 +64,8 @@ export function RecentEditsPanel() {
 }
 
 function RecentRow({ item, onClick }: { item: RecentEdit; onClick: () => void }) {
+  const { t, locale } = useHomeI18n();
+  const number = new Intl.NumberFormat(locale);
   return (
     <button
       type="button"
@@ -73,12 +78,25 @@ function RecentRow({ item, onClick }: { item: RecentEdit; onClick: () => void })
           KIND_TONE[item.kind]
         )}
       >
-        {KIND_LABEL[item.kind]}
+        {t(KIND_LABEL[item.kind])}
       </span>
-      <span className="text-tau-meta truncate font-medium">{item.title}</span>
+      <span className="text-tau-meta truncate font-medium">
+        {item.kind === "diary"
+          ? t("recent.diaryTitle", {
+              date: new Intl.DateTimeFormat(locale, {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+              }).format(new Date(`${item.date}T00:00:00`)),
+            })
+          : item.title ||
+            t(item.kind === "project" ? "recent.projectFallback" : KIND_LABEL[item.kind])}
+      </span>
       <span className="text-ink-3 justify-self-end truncate text-[10.5px]">
-        {item.updatedText}
-        {item.wordsCount > 0 ? ` · ${item.wordsCount} 字` : ""}
+        {relativeDays(item.updatedAt)}
+        {item.wordsCount > 0
+          ? t("recent.words", { count: item.wordsCount, value: number.format(item.wordsCount) })
+          : ""}
       </span>
     </button>
   );

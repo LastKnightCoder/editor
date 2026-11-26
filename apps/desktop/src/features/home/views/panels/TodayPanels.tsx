@@ -1,3 +1,5 @@
+import { useHomeI18n } from "../../i18n";
+import { dueDateText, eventTime } from "../../format";
 /**
  * 首页「今天要做的事」三块：复习、待办、日程（compact，宽度足够时并排）。
  */
@@ -13,6 +15,8 @@ const ROW =
   "rounded-tau-sm ease-tau-out hover:bg-hover w-full text-left transition-[background] duration-[160ms]";
 
 export function ReviewPanel() {
+  const { t, locale } = useHomeI18n();
+  const number = new Intl.NumberFormat(locale);
   const { data } = useHomeSnapshot();
   const { navigator } = usePage();
   if (!data) return null;
@@ -20,12 +24,17 @@ export function ReviewPanel() {
   return (
     <Panel variant="outline" pad="compact">
       <PanelTitle className="mb-2.5">
-        复习
+        {t("panels.review")}
         <PanelNote>
-          {dueDecks > 0 ? `${data.reviewDueCount} 张到期 · ${dueDecks} 个卡组` : "今天没有到期"}
+          {dueDecks > 0
+            ? t("review.summary", {
+                cards: number.format(data.reviewDueCount),
+                decks: number.format(dueDecks),
+              })
+            : t("review.noneDue")}
         </PanelNote>
-        <PanelAction onClick={() => navigator.push("review")} title="前往闪卡复习">
-          前往复习
+        <PanelAction onClick={() => navigator.push("review")} title={t("review.openHint")}>
+          {t("review.open")}
           <ChevronRight size={13} strokeWidth={1.75} />
         </PanelAction>
       </PanelTitle>
@@ -38,23 +47,30 @@ export function ReviewPanel() {
           />
         ))
       ) : (
-        <EmptyNote>还没有闪卡卡组</EmptyNote>
+        <EmptyNote>{t("review.empty")}</EmptyNote>
       )}
     </Panel>
   );
 }
 
 export function TodosPanel() {
+  const { t, locale } = useHomeI18n();
+  const number = new Intl.NumberFormat(locale);
   const { data } = useHomeSnapshot();
   const { navigator } = usePage();
   if (!data) return null;
   return (
     <Panel variant="outline" pad="compact">
       <PanelTitle className="mb-2.5">
-        待办
-        <PanelNote>{data.todoRemainingCount} 项未完成</PanelNote>
-        <PanelAction onClick={() => navigator.push("todos")} title="前往待办">
-          前往待办
+        {t("panels.todos")}
+        <PanelNote>
+          {t("todos.remaining", {
+            count: data.todoRemainingCount,
+            value: number.format(data.todoRemainingCount),
+          })}
+        </PanelNote>
+        <PanelAction onClick={() => navigator.push("todos")} title={t("todos.open")}>
+          {t("todos.open")}
           <ChevronRight size={13} strokeWidth={1.75} />
         </PanelAction>
       </PanelTitle>
@@ -72,42 +88,55 @@ export function TodosPanel() {
                 todo.overdue && "border-danger"
               )}
             />
-            <span className="text-tau-meta min-w-0 flex-1 truncate font-medium">{todo.title}</span>
-            {(todo.overdue || todo.dueText) && (
+            <span className="text-tau-meta min-w-0 flex-1 truncate font-medium">
+              {todo.title || t("panels.todos")}
+            </span>
+            {(todo.overdue || todo.dueAt != null) && (
               <small
                 className={clsx(
                   "text-ink-3 shrink-0 whitespace-nowrap text-[10.5px]",
                   todo.overdue && "text-danger"
                 )}
               >
-                {todo.overdue ? `逾期 · ${todo.dueText ?? ""}` : todo.dueText}
+                {todo.overdue
+                  ? t("todos.overdue", { date: todo.dueAt == null ? "" : dueDateText(todo.dueAt) })
+                  : todo.dueAt == null
+                    ? ""
+                    : dueDateText(todo.dueAt)}
               </small>
             )}
           </button>
         ))
       ) : (
-        <EmptyNote>没有待办事项</EmptyNote>
+        <EmptyNote>{t("todos.empty")}</EmptyNote>
       )}
     </Panel>
   );
 }
 
 export function SchedulePanel() {
+  const { t, locale } = useHomeI18n();
+  const number = new Intl.NumberFormat(locale);
   const { data } = useHomeSnapshot();
   const { navigator } = usePage();
   if (!data) return null;
   return (
     <Panel variant="outline" pad="compact">
       <PanelTitle className="mb-2.5">
-        日程
-        <PanelNote>今天 {data.events.length} 项</PanelNote>
-        <PanelAction onClick={() => navigator.push("schedule")} title="前往日程">
-          前往日程
+        {t("panels.schedule")}
+        <PanelNote>
+          {t("calendar.count", {
+            count: data.events.length,
+            value: number.format(data.events.length),
+          })}
+        </PanelNote>
+        <PanelAction onClick={() => navigator.push("schedule")} title={t("calendar.open")}>
+          {t("calendar.open")}
           <ChevronRight size={13} strokeWidth={1.75} />
         </PanelAction>
       </PanelTitle>
       {data.events.length > 0 ? (
-        <div className="before:bg-sunken relative pl-3.5 before:absolute before:bottom-2.5 before:left-[3.5px] before:top-2.5 before:w-[1.5px] before:rounded-[1px] before:content-['']">
+        <div className="before:bg-sunken relative pl-3.5 before:absolute before:top-2.5 before:bottom-2.5 before:left-[3.5px] before:w-[1.5px] before:rounded-[1px] before:content-['']">
           {data.events.map(event => (
             <button
               key={event.id}
@@ -116,14 +145,14 @@ export function SchedulePanel() {
               onClick={() => navigator.push("schedule", { eventId: event.id })}
             >
               <span className="font-tau-mono text-tau-micro text-ink-3 min-w-10 shrink-0">
-                {event.timeText}
+                {eventTime(event)}
               </span>
-              <span className="text-tau-meta truncate">{event.title}</span>
+              <span className="text-tau-meta truncate">{event.title || t("panels.schedule")}</span>
             </button>
           ))}
         </div>
       ) : (
-        <EmptyNote>今天没有日程安排</EmptyNote>
+        <EmptyNote>{t("calendar.empty")}</EmptyNote>
       )}
     </Panel>
   );
@@ -131,6 +160,8 @@ export function SchedulePanel() {
 
 /** 复习卡的卡组行：三段条 = 到期 / 学习中 / 已掌握（其余为新卡），点击进复习页选中该卡组 */
 function DeckRow({ deck, onClick }: { deck: ReviewDeckLite; onClick: () => void }) {
+  const { t, locale } = useHomeI18n();
+  const number = new Intl.NumberFormat(locale);
   const mastered = Math.max(
     0,
     deck.totalCards - deck.dueCount - deck.learningCount - deck.newCount
@@ -140,7 +171,12 @@ function DeckRow({ deck, onClick }: { deck: ReviewDeckLite; onClick: () => void 
       type="button"
       className={clsx(ROW, "flex items-center gap-2.5 px-2 py-[5px]")}
       onClick={onClick}
-      title={`到期 ${deck.dueCount} · 学习中 ${deck.learningCount} · 新卡 ${deck.newCount} · 已掌握 ${mastered}`}
+      title={t("review.breakdown", {
+        due: number.format(deck.dueCount),
+        learning: number.format(deck.learningCount),
+        new: number.format(deck.newCount),
+        mastered: number.format(mastered),
+      })}
     >
       <span className="text-tau-meta w-[108px] truncate font-medium">{deck.name}</span>
       <span className="bg-sunken flex h-[7px] flex-1 overflow-hidden rounded">
@@ -152,8 +188,10 @@ function DeckRow({ deck, onClick }: { deck: ReviewDeckLite; onClick: () => void 
         <i className="bg-ok opacity-55" style={{ width: pct(mastered, deck.totalCards) }} />
       </span>
       <span className="text-tau-tiny text-ink-2 whitespace-nowrap tabular-nums">
-        <b className={deck.dueCount > 0 ? "text-accent-text" : "text-ink-1"}>{deck.dueCount}</b>/
-        {deck.totalCards}
+        <b className={deck.dueCount > 0 ? "text-accent-text" : "text-ink-1"}>
+          {number.format(deck.dueCount)}
+        </b>
+        /{number.format(deck.totalCards)}
       </span>
     </button>
   );

@@ -27,13 +27,7 @@ import type { DiaryEntry } from "@/types/diary";
 import type { StatisticData } from "@/types/statistic";
 import type { CalendarEvent } from "@/types/calendar";
 import { ensureTodoSnapshot } from "@/features/todos/queries";
-import {
-  dateTimeWord,
-  isOverdue,
-  liveEntries,
-  nextOccurrence,
-  openRoots,
-} from "@/features/todos/model";
+import { isOverdue, liveEntries, nextOccurrence, openRoots } from "@/features/todos/model";
 import type { HeatmapStats, HomeSnapshot, RecentEdit, TodoTodayItem, TodayEvent } from "./types";
 
 const DAY_MS = 86_400_000;
@@ -42,21 +36,6 @@ const DAY_MS = 86_400_000;
 
 function todayStr(): string {
   return dateStr(Date.now());
-}
-
-function startOfDay(ts: number): number {
-  const d = new Date(ts);
-  d.setHours(0, 0, 0, 0);
-  return d.getTime();
-}
-
-function relativeDays(ts: number): string {
-  const days = Math.round((startOfDay(Date.now()) - startOfDay(ts)) / DAY_MS);
-  if (days <= 0) return "今天";
-  if (days === 1) return "昨天";
-  if (days < 7) return `${days} 天前`;
-  if (days < 30) return `${Math.floor(days / 7)} 周前`;
-  return `${Math.floor(days / 30)} 个月前`;
 }
 
 function slateToPlain(nodes: unknown): string {
@@ -75,10 +54,6 @@ function slateToPlain(nodes: unknown): string {
 
 function shortTitle(text: string, max = 80): string {
   return text.length > max ? `${text.slice(0, max)}…` : text;
-}
-
-function minutesToClock(min: number): string {
-  return `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
 }
 
 /* ---------- 分项拉取 ---------- */
@@ -115,9 +90,9 @@ async function fetchTodos(): Promise<{ todos: TodoTodayItem[]; remaining: number
           : (t.dueAt ?? t.startAt);
       return {
         id: t.id,
-        title: shortTitle(t.title || "待办", 32),
+        title: shortTitle(t.title || "", 32),
         overdue: isOverdue(t, now),
-        dueText: at == null ? undefined : dateTimeWord(at, now),
+        dueAt: at ?? undefined,
       };
     }),
     remaining: open.length,
@@ -132,10 +107,10 @@ async function fetchEvents(): Promise<TodayEvent[]> {
     .slice(0, 5)
     .map((e: CalendarEvent) => ({
       id: e.id,
-      title: shortTitle(e.title || "日程", 24),
-      timeText: e.allDay
-        ? "全天"
-        : `${minutesToClock(e.startTime ?? 0)}${e.endTime != null ? `-${minutesToClock(e.endTime)}` : ""}`,
+      title: shortTitle(e.title || "", 24),
+      allDay: Boolean(e.allDay),
+      startTime: e.startTime ?? 0,
+      endTime: e.endTime ?? undefined,
     }));
 }
 
@@ -166,8 +141,8 @@ async function fetchRecentEdits(diaries: DiaryEntry[]): Promise<RecentEdit[]> {
       id: `diary-${latestDiary.id}`,
       kind: "diary",
       date: latestDiary.date,
-      title: `日记 · ${latestDiary.date}`,
-      updatedText: relativeDays(latestDiary.updateTime),
+      title: "",
+      updatedAt: latestDiary.updateTime,
       wordsCount: latestDiary.wordCount,
       updateTs: latestDiary.updateTime,
     });
@@ -185,8 +160,8 @@ async function fetchRecentEdits(diaries: DiaryEntry[]): Promise<RecentEdit[]> {
           id: `card-${card.id}`,
           kind: "card",
           targetId: card.id,
-          title: shortTitle(slateToPlain(card.content) || "卡片"),
-          updatedText: relativeDays(card.update_time),
+          title: shortTitle(slateToPlain(card.content)),
+          updatedAt: card.update_time,
           wordsCount: card.count ?? 0,
           updateTs: card.update_time,
         });
@@ -198,8 +173,8 @@ async function fetchRecentEdits(diaries: DiaryEntry[]): Promise<RecentEdit[]> {
           id: `article-${article.id}`,
           kind: "article",
           targetId: article.id,
-          title: shortTitle(article.title || "文章"),
-          updatedText: relativeDays(article.update_time),
+          title: shortTitle(article.title || ""),
+          updatedAt: article.update_time,
           wordsCount: article.count ?? 0,
           updateTs: article.update_time,
         });
@@ -218,8 +193,8 @@ async function fetchRecentEdits(diaries: DiaryEntry[]): Promise<RecentEdit[]> {
         kind: "project",
         projectId: item.projects[0],
         itemId: item.id,
-        title: shortTitle(item.title || "项目文档"),
-        updatedText: relativeDays(item.updateTime),
+        title: shortTitle(item.title || ""),
+        updatedAt: item.updateTime,
         wordsCount: item.count ?? 0,
         updateTs: item.updateTime,
       });
