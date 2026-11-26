@@ -1,6 +1,7 @@
 // Skill 管理：按来源（内置 / 插件提供 / Skill 包）分组，行尾开关管启用与停用，
 // 细分自动与仅手动进详情。新建与编辑留在桌面端。
 
+import { useSkillsI18n } from "./skills.i18n";
 import { useState } from "react";
 import { BookOpen, CircleAlert, Package, Puzzle, WandSparkles } from "lucide-react";
 import { GroupLabel } from "../../components/GroupLabel";
@@ -15,11 +16,7 @@ import { GroupCard, GroupNote, GroupRow, SwitchButton } from "../settings/compon
 import { useSkillCatalog, type SkillItem, type SkillSourceKind } from "./data";
 import { Banner, CapabilityPage, Pill, Tag, Tile, TitleLine } from "./ui";
 
-const SECTIONS: { kind: SkillSourceKind; label: string; hint: string }[] = [
-  { kind: "internal", label: "内置", hint: "随应用更新" },
-  { kind: "plugin", label: "插件提供", hint: "随插件启停" },
-  { kind: "skills", label: "Skill 包", hint: "从插件中心安装" },
-];
+const SECTIONS: SkillSourceKind[] = ["internal", "plugin", "skills"];
 
 type Filter = "all" | "enabled" | "manual";
 
@@ -45,6 +42,7 @@ export function SkillIcon(props: { kind: SkillSourceKind; large?: boolean }) {
 }
 
 export function SkillsPage(props: { sourceId?: string }) {
+  const { t } = useSkillsI18n();
   const navigator = useNavigator();
   const { databaseName, query, items, sourceError, retrySources } = useSkillCatalog();
   const preferences = useLibraryPreferences(databaseName);
@@ -79,19 +77,19 @@ export function SkillsPage(props: { sourceId?: string }) {
           <Pill
             active={filter === "all"}
             onClick={() => setFilter("all")}
-            label="全部"
+            label={t("filter.all")}
             count={scoped.length}
           />
           <Pill
             active={filter === "enabled"}
             onClick={() => setFilter("enabled")}
-            label="已启用"
+            label={t("filter.enabled")}
             count={count(mode => mode !== "off")}
           />
           <Pill
             active={filter === "manual"}
             onClick={() => setFilter("manual")}
-            label="仅手动"
+            label={t("mode.manual.label")}
             count={count(mode => mode === "manual")}
           />
         </div>
@@ -100,31 +98,29 @@ export function SkillsPage(props: { sourceId?: string }) {
         <Banner
           tone="error"
           icon={<CircleAlert size={16} className="mt-0.5 shrink-0" aria-hidden="true" />}
-          title="插件 Skill 读取失败"
-          action={{ label: "重试", onClick: retrySources }}
+          title={t("source.failed")}
+          action={{ label: t("retry"), onClick: retrySources }}
         >
           {sourceError.message}
         </Banner>
       )}
-      {query.isPending && (
-        <p className="text-ink-3 text-tau-sm py-8 text-center">正在读取 Skill…</p>
-      )}
+      {query.isPending && <p className="text-ink-3 text-tau-sm py-8 text-center">{t("loading")}</p>}
       {query.isError && (
         <Banner
           tone="error"
           icon={<CircleAlert size={16} className="mt-0.5 shrink-0" aria-hidden="true" />}
-          title="Skill 读取失败"
-          action={{ label: "重试", onClick: () => void query.refetch() }}
+          title={t("loadFailed")}
+          action={{ label: t("retry"), onClick: () => void query.refetch() }}
         />
       )}
-      {SECTIONS.map(section => {
-        const rows = visible.filter(item => item.kind === section.kind);
+      {SECTIONS.map(kind => {
+        const rows = visible.filter(item => item.kind === kind);
         if (!rows.length) return null;
         return (
-          <div key={section.kind}>
+          <div key={kind}>
             <GroupLabel>
-              {section.label}
-              <span className="text-ink-3 ml-2">{section.hint}</span>
+              {t(`section.${kind}.label`)}
+              <span className="text-ink-3 ml-2">{t(`section.${kind}.hint`)}</span>
             </GroupLabel>
             <GroupCard>
               {rows.map(item => {
@@ -142,11 +138,15 @@ export function SkillsPage(props: { sourceId?: string }) {
                       <span className={mode === "off" ? "opacity-60" : undefined}>
                         <TitleLine
                           title={item.skill.name}
-                          tags={mode === "manual" ? <Tag tone="sky">仅手动</Tag> : null}
+                          tags={
+                            mode === "manual" ? (
+                              <Tag tone="sky">{t("mode.manual.label")}</Tag>
+                            ) : null
+                          }
                         />
                       </span>
                       <span className="text-ink-3 text-tau-sm mt-0.5 line-clamp-2 block">
-                        {mode === "off" ? "已停用 · " : ""}
+                        {mode === "off" ? t("disabledPrefix") : ""}
                         {item.sourceName ? `${item.sourceName} · ` : ""}
                         {item.skill.description}
                       </span>
@@ -166,18 +166,14 @@ export function SkillsPage(props: { sourceId?: string }) {
           <span className="bg-surface text-ink-2 mx-auto mb-3 grid h-11 w-11 place-items-center rounded-[14px]">
             <BookOpen size={20} aria-hidden="true" />
           </span>
-          <b className="text-ink-1 text-tau-body mb-1 block">还没有 Skill</b>
-          插件中心里有现成的 Skill 包，安装后会出现在这里。
+          <b className="text-ink-1 text-tau-body mb-1 block">{t("empty.title")}</b>
+          {t("empty.hint")}
         </div>
       )}
       {query.isSuccess && scoped.length > 0 && !visible.length && (
-        <p className="text-ink-3 text-tau-sm py-8 text-center">没有符合筛选的 Skill</p>
+        <p className="text-ink-3 text-tau-sm py-8 text-center">{t("empty.filtered")}</p>
       )}
-      {scoped.length > 0 && (
-        <GroupNote className="pt-3">
-          关闭后 AI 不会使用它，「选择 Skill」里也不再显示。只在这台手机上生效。
-        </GroupNote>
-      )}
+      {scoped.length > 0 && <GroupNote className="pt-3">{t("list.hint")}</GroupNote>}
     </CapabilityPage>
   );
 }

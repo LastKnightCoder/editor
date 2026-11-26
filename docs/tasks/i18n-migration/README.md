@@ -334,6 +334,8 @@ P7 MCP声明：SDK新增PluginMCPDeclaration，默认PluginMCPDefinition<string>
 
 查询UI9路径完成；原9+新真实参数/AI/写队列3共12例，desktop type/65key三语/范围检查通过。实际QuerySession/Worker/AI在途跨语不重启或取消，原request一次应用、原expectedRevision/definition单保存；12模块AST剩8为AI请求/持久名/带码诊断/运行诊断，无固定中文JSX。
 
+手机Skills7路径完成；原13+真实UI2共15例，mobile type/40key三语/范围检查通过。真实QueryClient/data/偏好store/Router/BottomSheet/Markdown保原metadata与筛选展开，无重读目录/正文或写偏好，用户选择仅按原skill.id写一次。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。
