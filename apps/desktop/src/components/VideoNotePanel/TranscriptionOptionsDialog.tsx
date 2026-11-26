@@ -1,3 +1,11 @@
+import { TranscriptionSettingsError } from "./transcription-settings-error";
+import {
+  transcriptionText,
+  transcriptionValue,
+  useTranscriptionI18n,
+  transcriptionLanguageText,
+  transcriptionErrorText,
+} from "./i18n-transcription";
 import { useEffect, useState } from "react";
 import { Button, Dialog, DialogBody, Select, SettingRow, toast } from "@tau/ui";
 import {
@@ -29,13 +37,17 @@ export function TranscriptionOptionsDialog({
   onClose,
   onStart,
 }: Props) {
+  useTranscriptionI18n();
+
   const [selection, setSelection] = useState(initialSelection);
   const [lang, setLanguage] = useState(language);
   const [models, setModels] = useState<ModelInfo[]>([]);
   const hardware = useQwenHardware(selection.engine, models);
   const [busy, setBusy] = useState(false);
-  const [progress, setProgress] = useState("");
-  const [error, setError] = useState("");
+  const [progress, setProgress] = useState<{ message: string; percent: number } | null>(null);
+  const [error, setError] = useState<string | { code: "modelsLoadFailed" }>("");
+  const errorMessage =
+    typeof error === "string" ? error : transcriptionText("error.modelsLoadFailed");
   const [reload, setReload] = useState(0);
   const llmReady = useSettingStore(s => checkLLMOptimizationConfig(s.setting).isConfigured);
   const source = useSettingStore(s => s.setting.transcription.downloadSource);
@@ -45,7 +57,7 @@ export function TranscriptionOptionsDialog({
       .then(result => {
         if (!active) return;
         if (result.success && result.data) setModels(result.data);
-        else setError(result.error || "无法获取模型列表");
+        else setError(result.error || { code: "modelsLoadFailed" });
       })
       .catch(e => {
         if (active) setError(String(e));
@@ -71,29 +83,30 @@ export function TranscriptionOptionsDialog({
     setBusy(true);
     const unsubscribe = onDownloadProgress(event => {
       if (missing.includes(event.modelName))
-        setProgress(event.message + " " + event.percentage + "%");
+        setProgress({ message: event.message ?? "", percent: event.percentage });
     });
     try {
       for (const id of missing) {
         const result = await downloadModel(id, source);
-        if (!result.success) throw new Error(result.error || "模型下载失败");
+        if (!result.success)
+          throw result.error ? new Error(result.error) : new TranscriptionSettingsError();
         setModels(prev => prev.map(m => (m.name === id ? { ...m, downloaded: true } : m)));
       }
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
+      toast.error(transcriptionErrorText(e));
     } finally {
       unsubscribe();
       setBusy(false);
-      setProgress("");
+      setProgress(null);
     }
   }
   return (
     <Dialog
-      title="本次转录设置"
+      title={transcriptionText("ui.transcriptionOptionsForThisRun")}
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
-            取消
+            {transcriptionText("ui.cancel")}
           </Button>
           <Button
             variant="primary"
@@ -103,7 +116,7 @@ export function TranscriptionOptionsDialog({
               onStart(lang, selection);
             }}
           >
-            开始转录
+            {transcriptionText("ui.startTranscription")}
           </Button>
         </>
       }
@@ -124,18 +137,25 @@ export function TranscriptionOptionsDialog({
           onChange={patch => setSelection(prev => ({ ...prev, ...patch }))}
         />
         <SettingRow
-          title="识别语言"
-          description={alignmentUnsupported ? "此语言可使用纯文字或 Whisper 字幕" : undefined}
+          title={transcriptionText("ui.recognitionLanguage")}
+          description={
+            alignmentUnsupported
+              ? transcriptionText("ui.usePlainTextOrWhisperSubtitlesFor")
+              : undefined
+          }
         >
           <Select
-            aria-label="识别语言"
+            aria-label={transcriptionText("ui.recognitionLanguage")}
             value={lang}
-            options={TRANSCRIPTION_LANGUAGES}
+            options={TRANSCRIPTION_LANGUAGES.map(option => ({
+              ...option,
+              label: transcriptionLanguageText(option.value, option.label),
+            }))}
             onValueChange={setLanguage}
           />
         </SettingRow>
         {error && (
-          <SettingRow title={error}>
+          <SettingRow title={errorMessage}>
             <Button
               size="sm"
               onClick={() => {
@@ -143,22 +163,31 @@ export function TranscriptionOptionsDialog({
                 setReload(n => n + 1);
               }}
             >
-              重试
+              {transcriptionText("ui.retry")}
             </Button>
           </SettingRow>
         )}
         {known && missing.length > 0 && (
           <SettingRow
-            title="需要下载"
-            description={missing.map(id => models.find(m => m.name === id)?.label).join("、")}
+            title={transcriptionText("ui.downloadRequired")}
+            description={missing
+              .map(id => models.find(m => m.name === id)?.label)
+              .join(transcriptionText("format.listSeparator"))}
           >
             <Button
               size="sm"
               loading={busy}
-              loadingText={progress || "准备中…"}
+              loadingText={
+                progress
+                  ? transcriptionText("download.progress", {
+                      message: progress.message,
+                      percent: transcriptionValue(progress.percent),
+                    })
+                  : transcriptionText("download.preparing")
+              }
               onClick={() => void download()}
             >
-              下载所需资源
+              {transcriptionText("ui.downloadRequiredResources")}
             </Button>
           </SettingRow>
         )}

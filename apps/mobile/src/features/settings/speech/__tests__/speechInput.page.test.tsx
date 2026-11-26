@@ -290,3 +290,68 @@ it("从云端服务切换到系统识别时不要求虚构账号配置", async (
   expect(tauriMock.selectPluginProvider).toHaveBeenCalledWith("data.db", "asr", "native", null);
   expect(setting.speechInput?.active).toBe("native");
 });
+
+it("换语保留识别服务切换中的请求、原账号与目标语言，完成反馈不重放", async () => {
+  const { mobileLocaleSource } = await import("../../../../services/i18n");
+  const original = mobileLocaleSource.getSnapshot();
+  const account = {
+    modelId: "seed-asr-2.0",
+    config: { apiKey: "test-key", resourceId: "duration" },
+  };
+  setting = makeSetting({
+    active: "native",
+    language: "en-US",
+    plugin: { id: "", configurations: { "tau.asr-seed": account } },
+  });
+  await act(async () => mount());
+  try {
+    await open("settingsModule", { module: "speech-input" });
+    await act(async () => {
+      await vi.waitFor(() => expect(button("豆包语音")).not.toBeUndefined());
+    });
+    const before = setting.speechInput;
+    if (!before) throw new Error("识别设置未初始化");
+    let finish: ((value: SettingCompat) => void) | undefined;
+    tauriMock.selectPluginProvider.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        })
+    );
+    await act(async () => {
+      button("豆包语音").click();
+      await vi.waitFor(() => expect(tauriMock.selectPluginProvider).toHaveBeenCalledTimes(1));
+    });
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => mobileLocaleSource.setLocale(locale));
+      expect(tauriMock.selectPluginProvider).toHaveBeenCalledExactlyOnceWith(
+        "data.db",
+        "asr",
+        "tau.asr-seed",
+        account
+      );
+      expect(button("豆包语音").getAttribute("aria-disabled")).toBe("true");
+      expect(tauriMock.savePluginProviderConfig).not.toHaveBeenCalled();
+      expect(setting.speechInput).toBe(before);
+      expect(toastSpies.success).not.toHaveBeenCalled();
+    }
+    if (!finish) throw new Error("识别服务切换未进入原生边界");
+    await act(async () =>
+      finish?.({
+        ...setting,
+        speechInput: {
+          ...before,
+          active: "plugin",
+          plugin: { ...before.plugin, id: "tau.asr-seed" },
+        },
+      })
+    );
+    await act(async () => mobileLocaleSource.setLocale("zh-CN"));
+    expect(tauriMock.selectPluginProvider).toHaveBeenCalledTimes(1);
+    expect(setting.speechInput?.language).toBe("en-US");
+    expect(setting.speechInput?.plugin.configurations["tau.asr-seed"]).toEqual(account);
+    expect(toastSpies.success).toHaveBeenCalledTimes(1);
+  } finally {
+    await act(async () => mobileLocaleSource.setLocale(original));
+  }
+});

@@ -1,3 +1,4 @@
+import { speechText, useSpeechSettingsI18n } from "./i18n";
 // 语音输入页的「AI 整理」：分配了「语音输入整理」模型即开启，清除即关闭（与桌面同义）。
 
 import { useState } from "react";
@@ -14,11 +15,29 @@ import { ModelPickerSheet } from "../ai/AiUi";
 import { useAiSettings } from "../ai/useAiSettings";
 
 const STYLES = [
-  { value: "light", label: "轻度整理", desc: "只补标点、去掉口头禅，保留原话" },
-  { value: "paragraphs", label: "整理并分段", desc: "在话题转折处分段，适合长段口述" },
+  {
+    value: "light",
+    get label() {
+      return speechText("ui.lightCleanup");
+    },
+    get desc() {
+      return speechText("ui.addPunctuationAndRemoveFillerWordsWhile");
+    },
+  },
+  {
+    value: "paragraphs",
+    get label() {
+      return speechText("ui.cleanUpAndAddParagraphs");
+    },
+    get desc() {
+      return speechText("ui.addParagraphBreaksAtTopicChangesSuited");
+    },
+  },
 ] as const;
 
 export function SpeechRefinementGroup() {
+  useSpeechSettingsI18n();
+
   const navigator = useNavigator();
   const { setting, providers, usage, mutate } = useAiSettings();
   const [picking, setPicking] = useState(false);
@@ -35,7 +54,7 @@ export function SpeechRefinementGroup() {
       await action();
       return true;
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "保存失败");
+      toast.error(error instanceof Error ? error.message : speechText("ui.couldNotSave"));
       return false;
     } finally {
       setBusy(false);
@@ -48,7 +67,7 @@ export function SpeechRefinementGroup() {
 
   return (
     <>
-      <GroupLabel>AI 整理</GroupLabel>
+      <GroupLabel>{speechText("ui.aiCleanup")}</GroupLabel>
       <GroupCard>
         <GroupRow
           onClick={() =>
@@ -58,36 +77,42 @@ export function SpeechRefinementGroup() {
           }
         >
           <span className="min-w-0 flex-1">
-            <span className="text-ink-1 text-tau-body block font-medium">整理模型</span>
+            <span className="text-ink-1 text-tau-body block font-medium">
+              {speechText("ui.cleanupModel")}
+            </span>
             <span className="text-ink-3 text-tau-sm block truncate">
-              {assigned ? "松手后自动补标点、去口头禅" : "未开启 · 选择模型后生效"}
+              {assigned
+                ? speechText("ui.addPunctuationAndRemoveFillerWordsAfter")
+                : speechText("ui.offChooseAModelToEnable")}
             </span>
           </span>
           <span className="text-ink-3 text-tau-meta max-w-[42%] shrink-0 truncate">
             {assigned
               ? modelLabel(assigned.model)
               : stale
-                ? "模型已不可用"
+                ? speechText("ui.modelUnavailable")
                 : providers.length
-                  ? "未选择"
-                  : "去添加服务商"}
+                  ? speechText("ui.notSelected")
+                  : speechText("ui.addAProvider")}
           </span>
           <ChevronRight size={16} className="text-ink-3 shrink-0" aria-hidden="true" />
         </GroupRow>
         {assigned && (
           <GroupRow disabled={busy} onClick={() => setStylePicking(true)}>
-            <span className="text-ink-1 text-tau-body flex-1 font-medium">整理方式</span>
+            <span className="text-ink-1 text-tau-body flex-1 font-medium">
+              {speechText("ui.cleanupStyle")}
+            </span>
             <span className="text-ink-3 text-tau-meta shrink-0">{styleLabel}</span>
             <ChevronRight size={16} className="text-ink-3 shrink-0" aria-hidden="true" />
           </GroupRow>
         )}
       </GroupCard>
-      <GroupNote>整理会把识别文字发给所选模型；整理失败时保留原文，不会丢字。</GroupNote>
+      <GroupNote>{speechText("ui.cleanupSendsRecognizedTextToTheSelected")}</GroupNote>
 
       <ModelPickerSheet
         open={picking}
-        title="语音输入整理使用的模型"
-        description="建议选响应快、价格低的模型。"
+        title={speechText("ui.modelForVoiceInputCleanup")}
+        description={speechText("ui.aFastInexpensiveModelIsRecommended")}
         providers={providers}
         value={usage.speechInputRefinement}
         busy={busy}
@@ -100,7 +125,7 @@ export function SpeechRefinementGroup() {
       />
       <ActionSheet
         open={stylePicking}
-        title="整理方式"
+        title={speechText("ui.cleanupStyle")}
         items={STYLES.map(item => ({
           label: item.label,
           desc: item.desc,

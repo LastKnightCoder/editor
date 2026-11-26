@@ -115,3 +115,52 @@ it("语音合成：只展示服务选择，凭据与账号管理归插件页", a
   expect(container.querySelector('input[type="password"]')).toBeNull();
   expect(text()).toContain("当前服务");
 });
+
+it("换语保留转录程序下载实例和原始进度，不重新加载列表或修改选择", async () => {
+  const { desktopLocaleSource } = await import("@/app/i18n/runtime");
+  const { voiceText } = await import("../sections/voice.i18n");
+  const commands = await import("@/commands");
+  const original = desktopLocaleSource.getSnapshot();
+  let finish: ((result: { success: boolean }) => void) | undefined;
+  vi.mocked(commands.downloadProgram).mockImplementationOnce(
+    () =>
+      new Promise(resolve => {
+        finish = resolve;
+      })
+  );
+  try {
+    await render();
+    const before = useSettingStore.getState().setting.transcription;
+    const models = vi.mocked(commands.getModels).mock.calls.length;
+    const programs = vi.mocked(commands.getPrograms).mock.calls.length;
+    const subscriptions = vi.mocked(commands.onProgramDownloadProgress).mock.calls.length;
+    await act(async () => button(voiceText("ui.download")).click());
+    const report = vi.mocked(commands.onProgramDownloadProgress).mock.calls.at(-1)?.[0];
+    if (!report || !finish) throw new Error("下载未进入服务边界");
+    const message = "原始程序进度 [asset-17]";
+    await act(async () =>
+      report({
+        programName: "fw-gpu",
+        percentage: 25,
+        message,
+        downloadedBytes: 1024,
+        totalBytes: 4096,
+      })
+    );
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(commands.downloadProgram).toHaveBeenCalledExactlyOnceWith("fw-gpu");
+      expect(commands.downloadModel).not.toHaveBeenCalled();
+      expect(vi.mocked(commands.getModels).mock.calls.length).toBe(models);
+      expect(vi.mocked(commands.getPrograms).mock.calls.length).toBe(programs);
+      expect(vi.mocked(commands.onProgramDownloadProgress).mock.calls.length).toBe(subscriptions);
+      expect(useSettingStore.getState().setting.transcription).toBe(before);
+      expect(text()).toContain(message);
+    }
+    await act(async () => finish?.({ success: true }));
+    expect(commands.downloadProgram).toHaveBeenCalledTimes(1);
+    expect(useSettingStore.getState().setting.transcription).toBe(before);
+  } finally {
+    await act(async () => desktopLocaleSource.setLocale(original));
+  }
+});

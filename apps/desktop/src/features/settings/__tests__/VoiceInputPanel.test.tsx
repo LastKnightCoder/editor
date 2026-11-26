@@ -97,8 +97,10 @@ beforeEach(() => {
   root = createRoot(container);
 });
 afterEach(async () => {
-  await registration?.dispose();
-  act(() => root.unmount());
+  await act(async () => {
+    root.unmount();
+    await registration?.dispose();
+  });
   document.body.innerHTML = "";
 });
 
@@ -154,4 +156,74 @@ it("选用的插件停用后保留选择并提示", async () => {
   await render();
   expect(text()).toContain("已停用或卸载");
   expect(mocks.update).not.toHaveBeenCalled();
+});
+
+it("换语保留整理要求草稿与选区，不重新探测或写入识别语言", async () => {
+  const { desktopLocaleSource } = await import("@/app/i18n/runtime");
+  const { voiceText } = await import("../sections/voice.i18n");
+  const original = desktopLocaleSource.getSnapshot();
+  useSettingStore.setState(state => ({
+    setting: {
+      ...state.setting,
+      speechInput: {
+        active: "native",
+        language: "en-US",
+        plugin: { id: "", configurations: {} },
+        refinement: { style: "light", instructions: "Original instructions" },
+      },
+      llmProviders: [
+        {
+          id: "raw-provider",
+          name: "原始供应方",
+          baseUrl: "https://raw.example/v1",
+          apiKey: "fake-test",
+          api: "openai-completions",
+          models: [{ id: "raw-model", name: "原始模型", reasoning: false, input: ["text"] }],
+        },
+      ],
+      llmUsageSettings: {
+        ...state.setting.llmUsageSettings,
+        speechInputRefinement: { providerId: "raw-provider", modelId: "raw-model" },
+      },
+    },
+  }));
+  try {
+    await render();
+    const field = container.querySelector<HTMLTextAreaElement>(
+      `textarea[aria-label="${voiceText("ui.additionalInstructions")}"]`
+    );
+    if (!field) throw new Error("补充要求字段未挂载");
+    const instructions = "Keep model_id and voice_id unchanged";
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set?.call(
+        field,
+        instructions
+      );
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+      field.focus();
+    });
+    field.setSelectionRange(2, 5);
+    const before = useSettingStore.getState().setting.speechInput;
+    const probes = mocks.probe.mock.calls.length;
+    expect(mocks.probe).toHaveBeenCalledWith("speech-input:probe", "en-US");
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(
+        container.querySelector(`textarea[aria-label="${voiceText("ui.additionalInstructions")}"]`)
+      ).toBe(field);
+      expect(field.value).toBe(instructions);
+      expect(document.activeElement).toBe(field);
+      expect([field.selectionStart, field.selectionEnd]).toEqual([2, 5]);
+      expect(useSettingStore.getState().setting.speechInput).toBe(before);
+      expect(mocks.probe.mock.calls.length).toBe(probes);
+      expect(mocks.update).not.toHaveBeenCalled();
+    }
+    await act(async () => field.blur());
+    expect(mocks.update).toHaveBeenCalledExactlyOnceWith({
+      kind: "refinement",
+      refinement: { style: "light", instructions },
+    });
+  } finally {
+    await act(async () => desktopLocaleSource.setLocale(original));
+  }
 });

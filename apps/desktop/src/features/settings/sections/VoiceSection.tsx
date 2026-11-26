@@ -1,3 +1,4 @@
+import { voiceText, voiceValue, useVoiceSettingsI18n } from "./voice.i18n";
 import {
   transcriptionDefaults,
   qwenAlignerId,
@@ -48,25 +49,52 @@ import { VoiceTtsPanel } from "./VoiceTtsPanel";
 import { useSettingsStore } from "@/app/settingsStore";
 
 const SOURCE_OPTIONS: Array<{ value: DownloadSource; label: string }> = [
-  { value: "modelscope", label: "ModelScope（国内推荐）" },
-  { value: "huggingface", label: "HuggingFace（国际）" },
+  {
+    value: "modelscope",
+    get label() {
+      return voiceText("ui.modelscopeRecommendedInChina");
+    },
+  },
+  {
+    value: "huggingface",
+    get label() {
+      return voiceText("ui.huggingfaceInternational");
+    },
+  },
 ];
 
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 export function VoiceSection() {
+  useVoiceSettingsI18n();
+
   const tab = useSettingsStore(state => state.voiceTab);
   const setTab = useSettingsStore(state => state.setVoiceTab);
   return (
     <>
       <SettingsTabs
-        label="语音视图"
+        label={voiceText("ui.voiceSettingsView")}
         value={tab}
         onChange={setTab}
         items={[
-          { key: "transcription", label: "语音转录" },
-          { key: "tts", label: "语音合成" },
-          { key: "input", label: "语音输入" },
+          {
+            key: "transcription",
+            get label() {
+              return voiceText("ui.transcription");
+            },
+          },
+          {
+            key: "tts",
+            get label() {
+              return voiceText("ui.textToSpeech");
+            },
+          },
+          {
+            key: "input",
+            get label() {
+              return voiceText("ui.voiceInput");
+            },
+          },
         ]}
       />
       {tab === "transcription" ? (
@@ -84,14 +112,14 @@ export function VoiceSection() {
 function useDownloadTracker() {
   const [name, setName] = useState<string | null>(null);
   const [percent, setPercent] = useState(0);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState<string | null>("");
   const nameRef = useRef<string | null>(null);
 
   const start = (target: string) => {
     nameRef.current = target;
     setName(target);
     setPercent(0);
-    setMessage("准备下载…");
+    setMessage(null);
   };
   const finish = () => {
     nameRef.current = null;
@@ -109,6 +137,8 @@ function useDownloadTracker() {
 }
 
 function TranscriptionPanel() {
+  useVoiceSettingsI18n();
+
   const transcription = useSettingStore(s => s.setting.transcription);
   const legacy = useSettingStore(s => s.setting.misc.transcription);
   const selection = transcriptionDefaults(transcription, legacy);
@@ -184,13 +214,13 @@ function TranscriptionPanel() {
     try {
       const result = await downloadModel(model.name, downloadSource);
       if (result.success) {
-        toast.success(`模型 ${model.label} 下载成功`);
+        toast.success(voiceText("message.downloadedModel", { model: voiceValue(model.label) }));
         void loadModels();
       } else {
-        toast.error(`下载失败：${result.error}`);
+        toast.error(voiceText("message.downloadFailed", { error: voiceValue(result.error) }));
       }
     } catch (error) {
-      toast.error(`下载失败：${errorText(error)}`);
+      toast.error(voiceText("message.downloadFailed", { error: voiceValue(errorText(error)) }));
     } finally {
       modelDownload.finish();
     }
@@ -201,13 +231,13 @@ function TranscriptionPanel() {
     try {
       const result = await downloadProgram(program.name);
       if (result.success) {
-        toast.success("转录程序下载成功");
+        toast.success(voiceText("ui.transcriptionProgramDownloaded"));
         void loadPrograms();
       } else {
-        toast.error(`下载失败：${result.error}`);
+        toast.error(voiceText("message.downloadFailed", { error: voiceValue(result.error) }));
       }
     } catch (error) {
-      toast.error(`下载失败：${errorText(error)}`);
+      toast.error(voiceText("message.downloadFailed", { error: voiceValue(errorText(error)) }));
     } finally {
       programDownload.finish();
     }
@@ -219,13 +249,13 @@ function TranscriptionPanel() {
     try {
       const result = kind === "model" ? await deleteModel(name) : await deleteProgram(name);
       if (result.success) {
-        toast.success(`${label} 已删除`);
+        toast.success(voiceText("message.deleted", { name: voiceValue(label) }));
         void (kind === "model" ? loadModels() : loadPrograms());
       } else {
-        toast.error(`删除失败：${result.error}`);
+        toast.error(voiceText("message.couldNotDelete", { error: voiceValue(result.error) }));
       }
     } catch (error) {
-      toast.error(`删除失败：${errorText(error)}`);
+      toast.error(voiceText("message.couldNotDelete", { error: voiceValue(errorText(error)) }));
     }
   };
 
@@ -233,7 +263,7 @@ function TranscriptionPanel() {
     try {
       await openTranscriptionModelsDir();
     } catch (error) {
-      toast.error(`打开目录失败：${errorText(error)}`);
+      toast.error(voiceText("message.couldNotOpenFolder", { error: voiceValue(errorText(error)) }));
     }
   };
 
@@ -253,16 +283,19 @@ function TranscriptionPanel() {
 
   return (
     <>
-      <SettingsGroup title="默认转录设置">
+      <SettingsGroup title={voiceText("ui.defaultTranscriptionSettings")}>
         <TranscriptionFields
           value={selection}
           models={models}
           hardware={hardware}
           onChange={updateTranscription}
         />
-        <SettingRow title="长视频分段转录" description="超过 30 分钟的视频拆分为多段并行转录">
+        <SettingRow
+          title={voiceText("ui.splitLongVideos")}
+          description={voiceText("ui.splitVideosLongerThan30MinutesInto")}
+        >
           <Switch
-            aria-label="长视频分段转录"
+            aria-label={voiceText("ui.splitLongVideos")}
             checked={enableLongVideoSegmentation}
             onCheckedChange={setLongVideoSegmentation}
           />
@@ -270,7 +303,7 @@ function TranscriptionPanel() {
       </SettingsGroup>
 
       {selection.engine === "qwen" && runtimes.length > 0 && (
-        <SettingsGroup title="转录程序">
+        <SettingsGroup title={voiceText("ui.transcriptionPrograms")}>
           {runtimes.map(runtime => (
             <DownloadRow
               key={runtime.name}
@@ -280,13 +313,15 @@ function TranscriptionPanel() {
                 <>
                   {hardware.report &&
                     runtime.name === qwenRuntimeId(recommendedQwenDevice(hardware.report)) && (
-                      <StatusChip>推荐</StatusChip>
+                      <StatusChip>{voiceText("ui.recommended")}</StatusChip>
                     )}
                   {runtime.downloaded && (
                     <StatusChip
                       tone={runtime.name === qwenRuntimeId(selection.qwenDevice) ? "accent" : "ok"}
                     >
-                      {runtime.name === qwenRuntimeId(selection.qwenDevice) ? "当前使用" : "已下载"}
+                      {runtime.name === qwenRuntimeId(selection.qwenDevice)
+                        ? voiceText("ui.inUse")
+                        : voiceText("ui.downloaded")}
                     </StatusChip>
                   )}
                 </>
@@ -305,7 +340,7 @@ function TranscriptionPanel() {
                   disabled={modelDownload.name !== null}
                   onClick={() => void handleDownloadModel(runtime)}
                 >
-                  下载
+                  {voiceText("ui.download")}
                 </Button>
               ) : (
                 runtime.name !== qwenRuntimeId(selection.qwenDevice) && (
@@ -316,7 +351,7 @@ function TranscriptionPanel() {
                       updateTranscription({ qwenDevice: qwenRuntimeDevice(runtime.name) })
                     }
                   >
-                    使用
+                    {voiceText("ui.use")}
                   </Button>
                 )
               )}
@@ -326,15 +361,17 @@ function TranscriptionPanel() {
       )}
       {!isMac && selection.engine === "whisper" && (
         <SettingsGroup
-          title="转录程序"
+          title={voiceText("ui.transcriptionPrograms")}
           description={
             hasProgram
-              ? "预编译的 faster-whisper 程序，无需 Python 环境；GPU 版自带 CUDA 依赖"
-              : "请先下载转录程序，有 NVIDIA 显卡推荐 GPU 版本以获得更快的转录速度"
+              ? voiceText("ui.prebuiltFasterWhisperProgramsNoPythonSetup")
+              : voiceText("ui.downloadATranscriptionProgramFirstTheGPU")
           }
         >
           {programs.length === 0 ? (
-            <div className="text-tau-meta text-ink-2 px-3 py-6 text-center">暂无可用的转录程序</div>
+            <div className="text-tau-meta text-ink-2 px-3 py-6 text-center">
+              {voiceText("ui.noTranscriptionProgramsAvailable")}
+            </div>
           ) : (
             programs.map(program => (
               <DownloadRow
@@ -344,10 +381,12 @@ function TranscriptionPanel() {
                 chips={
                   <>
                     <StatusChip>{program.type}</StatusChip>
-                    {program.downloaded && <StatusChip tone="ok">已下载</StatusChip>}
+                    {program.downloaded && (
+                      <StatusChip tone="ok">{voiceText("ui.downloaded")}</StatusChip>
+                    )}
                   </>
                 }
-                meta={`${program.size}${program.type === "GPU" ? " · 包含 CUDA 依赖" : ""}`}
+                meta={`${program.size}${program.type === "GPU" ? voiceText("ui.includesCUDADependencies") : ""}`}
                 progress={
                   programDownload.name === program.name
                     ? { percent: programDownload.percent, message: programDownload.message }
@@ -366,7 +405,7 @@ function TranscriptionPanel() {
                       })
                     }
                   >
-                    删除
+                    {voiceText("ui.delete")}
                   </Button>
                 ) : (
                   <Button
@@ -374,13 +413,13 @@ function TranscriptionPanel() {
                     size="sm"
                     icon={Download}
                     loading={programDownload.name === program.name}
-                    loadingText="下载中…"
+                    loadingText={voiceText("ui.downloading")}
                     disabled={
                       programDownload.name !== null && programDownload.name !== program.name
                     }
                     onClick={() => void handleDownloadProgram(program)}
                   >
-                    下载
+                    {voiceText("ui.download")}
                   </Button>
                 )}
               </DownloadRow>
@@ -390,16 +429,16 @@ function TranscriptionPanel() {
       )}
 
       <SettingsGroup
-        title="模型下载"
+        title={voiceText("ui.modelDownloads")}
         description={
           selection.engine === "qwen"
-            ? "首次使用会下载适用于本机的 Tau 运行包，无需手动安装 Python"
+            ? voiceText("ui.tauDownloadsTheRuntimeForThisDevice")
             : undefined
         }
       >
-        <SettingRow title="下载源">
+        <SettingRow title={voiceText("ui.downloadSource")}>
           <Select
-            aria-label="模型下载源"
+            aria-label={voiceText("ui.modelDownloadSource")}
             className="w-[240px]"
             value={downloadSource}
             options={SOURCE_OPTIONS}
@@ -407,14 +446,17 @@ function TranscriptionPanel() {
           />
         </SettingRow>
         <SettingRow
-          title="模型目录"
+          title={voiceText("ui.modelFolder")}
           description={<span className="font-tau-mono break-all">{modelsDir || "—"}</span>}
         >
-          <IconButton aria-label="打开模型目录" onClick={() => void handleOpenModelsDir()}>
+          <IconButton
+            aria-label={voiceText("ui.openModelFolder")}
+            onClick={() => void handleOpenModelsDir()}
+          >
             <FolderOpen size={15} strokeWidth={1.75} />
           </IconButton>
           <IconButton
-            aria-label="刷新模型列表"
+            aria-label={voiceText("ui.refreshModels")}
             disabled={modelsLoading}
             onClick={() => void loadModels()}
           >
@@ -427,7 +469,7 @@ function TranscriptionPanel() {
         </SettingRow>
         {visibleModels.length === 0 ? (
           <div className={clsx("text-tau-meta text-ink-2 px-3 py-6 text-center", ROW_DIVIDER)}>
-            {modelsLoading ? "正在加载模型列表…" : "暂无可用模型"}
+            {modelsLoading ? voiceText("ui.loadingModelList") : voiceText("ui.noModelsAvailable")}
           </div>
         ) : (
           visibleModels.map(model => {
@@ -440,11 +482,13 @@ function TranscriptionPanel() {
                 title={model.label}
                 chips={
                   <>
-                    {model.recommended && <StatusChip>推荐</StatusChip>}
+                    {model.recommended && <StatusChip>{voiceText("ui.recommended")}</StatusChip>}
                     {isCurrent && model.downloaded && (
-                      <StatusChip tone="accent">当前使用</StatusChip>
+                      <StatusChip tone="accent">{voiceText("ui.inUse")}</StatusChip>
                     )}
-                    {model.downloaded && !isCurrent && <StatusChip tone="ok">已下载</StatusChip>}
+                    {model.downloaded && !isCurrent && (
+                      <StatusChip tone="ok">{voiceText("ui.downloaded")}</StatusChip>
+                    )}
                   </>
                 }
                 meta={`${model.description} · ${model.size}`}
@@ -468,7 +512,7 @@ function TranscriptionPanel() {
                           )
                         }
                       >
-                        使用
+                        {voiceText("ui.use")}
                       </Button>
                     )}
                     <Button
@@ -479,7 +523,7 @@ function TranscriptionPanel() {
                         setPendingDelete({ kind: "model", name: model.name, label: model.label })
                       }
                     >
-                      删除
+                      {voiceText("ui.delete")}
                     </Button>
                   </>
                 ) : (
@@ -488,11 +532,11 @@ function TranscriptionPanel() {
                     size="sm"
                     icon={Download}
                     loading={isDownloading}
-                    loadingText="下载中…"
+                    loadingText={voiceText("ui.downloading")}
                     disabled={modelDownload.name !== null && !isDownloading}
                     onClick={() => void handleDownloadModel(model)}
                   >
-                    下载
+                    {voiceText("ui.download")}
                   </Button>
                 )}
               </DownloadRow>
@@ -506,11 +550,15 @@ function TranscriptionPanel() {
         onOpenChange={open => {
           if (!open) setPendingDelete(null);
         }}
-        title={pendingDelete?.kind === "program" ? "删除转录程序" : "删除转录模型"}
+        title={
+          pendingDelete?.kind === "program"
+            ? voiceText("ui.deleteTranscriptionProgram")
+            : voiceText("ui.deleteTranscriptionModel")
+        }
         context={pendingDelete?.label}
         danger
-        description="删除后需要重新下载才能使用。"
-        confirmText="删除"
+        description={voiceText("ui.downloadItAgainToUseItAfter")}
+        confirmText={voiceText("ui.delete")}
         onConfirm={handleConfirmDelete}
       />
     </>
@@ -530,7 +578,7 @@ function DownloadRow({
   title: string;
   chips?: ReactNode;
   meta: string;
-  progress?: { percent: number; message: string };
+  progress?: { percent: number; message: string | null };
   children: ReactNode;
 }) {
   return (
@@ -553,7 +601,9 @@ function DownloadRow({
               />
             </div>
             <div className="text-tau-meta text-ink-2 mt-1 flex justify-between tabular-nums">
-              <span className="truncate">{progress.message}</span>
+              <span className="truncate">
+                {progress.message === null ? voiceText("download.preparing") : progress.message}
+              </span>
               <span>{Math.round(progress.percent)}%</span>
             </div>
           </div>

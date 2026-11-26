@@ -4,6 +4,7 @@
  * 插件停用不改写选择，只提示；选用前要求账号已保存。
  */
 
+import { voiceText, useVoiceSettingsI18n, type VoiceSettingsMessageKey } from "./voice.i18n";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Check, Mic, Monitor } from "lucide-react";
 import { SettingRow, Button, Segmented, Textarea, cn, toast } from "@tau/ui";
@@ -97,6 +98,8 @@ function EngineCard({
 }
 
 export function VoiceInputPanel() {
+  useVoiceSettingsI18n();
+
   const runtime = useDesktopPlugins();
   const setting =
     useSettingStore(state => state.setting.speechInput) ?? defaultSpeechInputSetting();
@@ -120,11 +123,11 @@ export function VoiceInputPanel() {
   const missingPlugin =
     !!activePlugin && !sections.some(item => item.context.pluginId === activePlugin);
 
-  const run = async (operation: unknown, success?: string) => {
+  const run = async (operation: unknown, success?: VoiceSettingsMessageKey) => {
     setBusy(true);
     try {
       await updateSpeechInput(operation);
-      if (success) toast.success(success);
+      if (success) toast.success(voiceText(success));
     } catch (error) {
       toast.error(errorText(error));
     } finally {
@@ -133,38 +136,42 @@ export function VoiceInputPanel() {
   };
 
   const select = (pluginId: string) => {
-    if (pluginId === NATIVE) return void run({ kind: "select" }, "已改用系统识别");
+    if (pluginId === NATIVE) return void run({ kind: "select" }, "feedback.nativeSelected");
     const account = setting.plugin.configurations[pluginId];
     const section = sections.find(item => item.context.pluginId === pluginId);
     // 未保存账号时先去插件页填写，保存后回来选用
     if (!account) return section && openProviderSettings(pluginId, section.key, "voice");
-    void run({ kind: "select", pluginId, expected: account }, "已切换识别服务");
+    void run({ kind: "select", pluginId, expected: account }, "feedback.serviceSelected");
   };
 
   const nativeStatus =
     native === null ? (
-      <StatusChip>检测中</StatusChip>
+      <StatusChip>{voiceText("ui.checking")}</StatusChip>
     ) : native.state === "ready" ? (
-      <StatusChip tone="ok">可用</StatusChip>
+      <StatusChip tone="ok">{voiceText("ui.available")}</StatusChip>
     ) : native.state === "unsupported" ? (
-      <StatusChip tone="neutral">此设备不支持</StatusChip>
+      <StatusChip tone="neutral">{voiceText("ui.notSupportedOnThisDevice")}</StatusChip>
     ) : (
-      <StatusChip tone="warn">需要准备</StatusChip>
+      <StatusChip tone="warn">{voiceText("ui.setupRequired")}</StatusChip>
     );
 
   return (
     <>
       <SettingsGroup
-        title="识别服务"
-        description="电脑上没有语音输入入口，这里的选择不会被用到；手机上请在「我的 › 语音输入」里设置"
+        title={voiceText("ui.recognitionService")}
+        description={voiceText("ui.voiceInputIsUnavailableOnDesktopSo")}
         bare
       >
-        <div role="radiogroup" aria-label="识别服务" className="grid grid-cols-3 gap-2">
+        <div
+          role="radiogroup"
+          aria-label={voiceText("ui.recognitionService")}
+          className="grid grid-cols-3 gap-2"
+        >
           <EngineCard
             selected={setting.active === "native"}
             icon={<Monitor size={15} />}
-            title="系统识别"
-            description="使用系统自带的实时识别，录音不离开本机"
+            title={voiceText("ui.systemRecognition")}
+            description={voiceText("ui.useRealTimeSystemRecognitionRecordingsStay")}
             status={nativeStatus}
             disabled={busy}
             onSelect={() => select(NATIVE)}
@@ -178,14 +185,14 @@ export function VoiceInputPanel() {
                 selected={activePlugin === pluginId}
                 icon={<Mic size={15} />}
                 title={section.definition.title}
-                description="云端识别 · 录音会发送到该服务"
+                description={voiceText("ui.cloudRecognitionRecordingsAreSentToThis")}
                 status={
                   !registered.has(pluginId) ? (
-                    <StatusChip tone="warn">插件未就绪</StatusChip>
+                    <StatusChip tone="warn">{voiceText("ui.pluginNotReady")}</StatusChip>
                   ) : configured ? (
-                    <StatusChip tone="ok">已配置</StatusChip>
+                    <StatusChip tone="ok">{voiceText("ui.configured")}</StatusChip>
                   ) : (
-                    <StatusChip>待配置</StatusChip>
+                    <StatusChip>{voiceText("ui.notConfigured")}</StatusChip>
                   )
                 }
                 disabled={busy}
@@ -196,21 +203,19 @@ export function VoiceInputPanel() {
         </div>
       </SettingsGroup>
       {missingPlugin && (
-        <SettingsNote>
-          当前选用的识别插件已停用或卸载，配置仍保留；启用后恢复使用，或改选系统识别。
-        </SettingsNote>
+        <SettingsNote>{voiceText("ui.theSelectedRecognitionPluginIsDisabledOr")}</SettingsNote>
       )}
       {native && native.state !== "ready" && native.reason && setting.active === "native" && (
         <SettingsNote>{native.reason}</SettingsNote>
       )}
       {sections.length === 0 && (
-        <SettingsNote>安装语音识别插件（如豆包语音）后，可在这里配置云端识别账号。</SettingsNote>
+        <SettingsNote>{voiceText("ui.installASpeechRecognitionPluginSuchAs")}</SettingsNote>
       )}
 
       {sections.length > 0 && (
         <SettingsGroup
-          title="识别账号"
-          description="账号与识别模型在插件页填写；保存后回到这里选用"
+          title={voiceText("ui.recognitionAccounts")}
+          description={voiceText("ui.configureTheAccountAndRecognitionModelOn")}
         >
           {sections.map(section => {
             const pluginId = section.context.pluginId;
@@ -219,13 +224,13 @@ export function VoiceInputPanel() {
               <SettingRow
                 key={section.key}
                 title={section.definition.title}
-                description={account?.modelId || "未配置"}
+                description={account?.modelId || voiceText("ui.notConfigured2")}
               >
                 <Button
                   size="sm"
                   onClick={() => openProviderSettings(pluginId, section.key, "voice")}
                 >
-                  {account ? "修改配置" : "去配置"}
+                  {account ? voiceText("ui.editConfiguration") : voiceText("ui.configure")}
                 </Button>
               </SettingRow>
             );
@@ -233,18 +238,18 @@ export function VoiceInputPanel() {
         </SettingsGroup>
       )}
 
-      <SettingsGroup title="识别后">
+      <SettingsGroup title={voiceText("ui.afterRecognition")}>
         <SettingRow
-          title="AI 整理文本"
+          title={voiceText("ui.cleanUpTextWithAI")}
           description={
             refinementModel
-              ? "补标点、去掉口语重复，不改变原意；在功能分配中清除模型即关闭"
-              : "未开启：在「大语言模型 › 功能分配」为「语音输入整理」选择模型后生效"
+              ? voiceText("ui.addPunctuationAndRemoveRepeatedSpeechWhile")
+              : voiceText("ui.offAssignAModelToVoiceInput")
           }
         >
           {refinementModel && (
             <span className="text-tau-meta text-ink-2 max-w-[220px] truncate">
-              {refinementLabel || "模型已不可用"}
+              {refinementLabel || voiceText("ui.modelUnavailable")}
             </span>
           )}
           <Button
@@ -252,14 +257,14 @@ export function VoiceInputPanel() {
             variant="ghost"
             onClick={() => useSettingsStore.setState({ section: "llm", llmTab: "assignment" })}
           >
-            {refinementModel ? "更换模型" : "去设置"}
+            {refinementModel ? voiceText("ui.changeModel") : voiceText("ui.openSettings")}
           </Button>
         </SettingRow>
         {refinementModel && (
           <>
-            <SettingRow title="整理方式">
+            <SettingRow title={voiceText("ui.cleanupStyle")}>
               <Segmented
-                label="整理方式"
+                label={voiceText("ui.cleanupStyle")}
                 size="md"
                 value={refinement.style}
                 disabled={busy}
@@ -267,14 +272,20 @@ export function VoiceInputPanel() {
                   void run({ kind: "refinement", refinement: { ...refinement, style } })
                 }
               >
-                <Segmented.Item value="light" label="轻度整理" />
-                <Segmented.Item value="paragraphs" label="整理并分段" />
+                <Segmented.Item value="light" label={voiceText("ui.lightCleanup")} />
+                <Segmented.Item
+                  value="paragraphs"
+                  label={voiceText("ui.cleanUpAndAddParagraphs")}
+                />
               </Segmented>
             </SettingRow>
-            <SettingRow title="补充要求" description="可选，例如保留英文缩写；最多 1000 字">
+            <SettingRow
+              title={voiceText("ui.additionalInstructions")}
+              description={voiceText("ui.optionalForExampleKeepEnglishAbbreviationsUp")}
+            >
               <Textarea
                 className="w-[300px]"
-                aria-label="补充要求"
+                aria-label={voiceText("ui.additionalInstructions")}
                 rows={2}
                 maxLength={1000}
                 value={instructions}

@@ -1,3 +1,4 @@
+import { transcriptionText, useTranscriptionI18n } from "./i18n-transcription";
 import { RefreshCw } from "lucide-react";
 import type { useQwenHardware } from "./useQwenHardware";
 import { Button, IconButton, Select, SettingRow, Switch } from "@tau/ui";
@@ -27,6 +28,8 @@ export function TranscriptionFields({
   onConfigureLLM = openLLMSettingsSection,
   hardware,
 }: Props) {
+  useTranscriptionI18n();
+
   const llmReady = useSettingStore(s => checkLLMOptimizationConfig(s.setting).isConfigured);
   const { report } = hardware;
   const qwen = value.engine === "qwen";
@@ -38,61 +41,72 @@ export function TranscriptionFields({
   if (hasQwen) engines.push({ value: "qwen", label: "Qwen3-ASR" });
   return (
     <>
-      <SettingRow title="转录引擎">
+      <SettingRow title={transcriptionText("ui.transcriptionEngine")}>
         <Select
-          aria-label="转录引擎"
+          aria-label={transcriptionText("ui.transcriptionEngine")}
           value={value.engine}
-          placeholder="当前设备不支持所选引擎"
+          placeholder={transcriptionText("ui.thisDeviceDoesNotSupportTheSelected")}
           options={engines}
           onValueChange={id => onChange({ engine: id === "qwen" ? "qwen" : "whisper" })}
         />
       </SettingRow>
       {qwen && models.some(item => item.name === qwenRuntimeId("gpu")) && (
         <SettingRow
-          title="运行设备"
+          title={transcriptionText("ui.computeDevice")}
           description={
             <div aria-live="polite">
               {report?.names.length ? (
                 <div>
-                  {report.state === "verified" ? "可用 Vulkan 显卡" : "系统显卡"}：
-                  {report.names.join("、")}
+                  {report.state === "verified"
+                    ? transcriptionText("ui.availableVulkanGPUs")
+                    : transcriptionText("ui.systemGPUs")}
+                  ：{report.names.join(transcriptionText("format.listSeparator"))}
                 </div>
               ) : null}
               {!report
-                ? "正在检测显卡…"
+                ? transcriptionText("ui.checkingGPUs")
                 : report.state === "verified"
                   ? report.names.length > 1
-                    ? "推荐 GPU 运行包，转录优先使用 " + report.names[0]
-                    : "推荐 GPU 运行包，此显卡已通过 Qwen 设备检测。"
+                    ? transcriptionText("hardware.preferredGpu", { name: report.names[0] })
+                    : transcriptionText("ui.gpuRuntimeRecommendedThisGPUPassedThe")
                   : report.state === "candidate"
-                    ? "建议试用 GPU 运行包，安装后自动验证 Vulkan 支持。"
+                    ? transcriptionText("ui.tryTheGPURuntimeVulkanSupportIs")
                     : report.state === "unknown"
-                      ? "未能完成显卡检测，建议先用 CPU 运行包。"
-                      : "推荐 CPU 运行包，当前未确认有可用的 Vulkan 显卡。"}
+                      ? transcriptionText("ui.couldNotFinishGPUDetectionStartWith")
+                      : transcriptionText("ui.cpuRuntimeRecommendedNoAvailableVulkanGPU")}
             </div>
           }
         >
-          <IconButton aria-label="重新检测显卡" disabled={!report} onClick={hardware.refresh}>
+          <IconButton
+            aria-label={transcriptionText("ui.checkGPUsAgain")}
+            disabled={!report}
+            onClick={hardware.refresh}
+          >
             <RefreshCw size={15} strokeWidth={1.75} />
           </IconButton>
           <Select
-            aria-label="运行设备"
+            aria-label={transcriptionText("ui.computeDevice")}
             value={value.qwenDevice}
             options={[
               { value: "cpu", label: "CPU" },
-              { value: "gpu", label: "GPU 加速（Vulkan）" },
+              {
+                value: "gpu",
+                get label() {
+                  return transcriptionText("ui.gpuAccelerationVulkan");
+                },
+              },
             ]}
             onValueChange={id => onChange({ qwenDevice: id === "gpu" ? "gpu" : "cpu" })}
           />
         </SettingRow>
       )}
-      <SettingRow title="识别模型">
+      <SettingRow title={transcriptionText("ui.recognitionModel")}>
         <Select
-          aria-label="识别模型"
+          aria-label={transcriptionText("ui.recognitionModel")}
           value={selectedModelId(value, models)}
           options={choices.map(m => ({
             value: m.name,
-            label: m.label + (m.downloaded ? "" : " · 未下载"),
+            label: m.label + (m.downloaded ? "" : transcriptionText("ui.notDownloaded")),
           }))}
           onValueChange={id =>
             onChange(
@@ -103,13 +117,23 @@ export function TranscriptionFields({
           }
         />
       </SettingRow>
-      <SettingRow title="输出内容">
+      <SettingRow title={transcriptionText("ui.output")}>
         <Select
-          aria-label="输出内容"
+          aria-label={transcriptionText("ui.output")}
           value={value.output}
           options={[
-            { value: "text", label: "纯文字" },
-            { value: "subtitles", label: "带时间轴的字幕" },
+            {
+              value: "text",
+              get label() {
+                return transcriptionText("ui.plainText");
+              },
+            },
+            {
+              value: "subtitles",
+              get label() {
+                return transcriptionText("ui.timedSubtitles");
+              },
+            },
           ]}
           onValueChange={id => onChange({ output: id === "text" ? "text" : "subtitles" })}
         />
@@ -117,29 +141,44 @@ export function TranscriptionFields({
       {value.output === "subtitles" && (
         <>
           <SettingRow
-            title="字幕断句"
-            description={qwen ? "字幕时间由 Qwen 时间对齐模型生成" : undefined}
+            title={transcriptionText("ui.subtitleSentenceBreaks")}
+            description={
+              qwen ? transcriptionText("ui.subtitleTimingIsGeneratedByTheQwen") : undefined
+            }
           >
             <Select
-              aria-label="字幕断句"
+              aria-label={transcriptionText("ui.subtitleSentenceBreaks")}
               value={value.optimize ? "ai" : "auto"}
               options={[
-                { value: "auto", label: "自动断句" },
-                { value: "ai", label: "AI 优化断句" },
+                {
+                  value: "auto",
+                  get label() {
+                    return transcriptionText("ui.automaticSentenceBreaks");
+                  },
+                },
+                {
+                  value: "ai",
+                  get label() {
+                    return transcriptionText("ui.aiSentenceBreaks");
+                  },
+                },
               ]}
               onValueChange={id => onChange({ optimize: id === "ai" })}
             />
           </SettingRow>
           {value.optimize && !llmReady && (
-            <SettingRow title="断句模型">
+            <SettingRow title={transcriptionText("ui.sentenceBreakModel")}>
               <Button size="sm" onClick={onConfigureLLM}>
-                选择断句模型
+                {transcriptionText("ui.chooseASentenceBreakModel")}
               </Button>
             </SettingRow>
           )}
-          <SettingRow title="保留逐词时间" description="保存后可单独重新优化断句">
+          <SettingRow
+            title={transcriptionText("ui.keepWordTimestamps")}
+            description={transcriptionText("ui.optimizeSentenceBreaksAgainSeparatelyAfterSaving")}
+          >
             <Switch
-              aria-label="保留逐词时间"
+              aria-label={transcriptionText("ui.keepWordTimestamps")}
               checked={value.keepWords}
               onCheckedChange={keepWords => onChange({ keepWords })}
             />
