@@ -3,6 +3,7 @@
  * 组合的勾选状态由开关推出：一组功能全开即勾上，没有「自定义」档。
  */
 
+import { useFeatureI18n } from "@/app/features.i18n";
 import { Check } from "lucide-react";
 import clsx from "clsx";
 import { Panel, SettingRow, Switch } from "@tau/ui";
@@ -16,23 +17,19 @@ import {
   togglePreset,
 } from "@/app/features";
 import { NAV_SECTIONS } from "@/app/navigation";
-import { FEATURE_DESCRIPTIONS, PRESET_ICONS } from "@/app/featureCopy";
+import { FEATURE_DESCRIPTION_KEYS, PRESET_ICONS } from "@/app/featureCopy";
 import { SettingsGroup } from "../components/SettingsGroup";
 
-const LABELS = new Map(
-  NAV_SECTIONS.flatMap(section => section.items.map(item => [item.key, item.label] as const))
-);
-
 export function FeaturesSection() {
+  const { t } = useFeatureI18n();
+  const labels = new Map(
+    NAV_SECTIONS.flatMap(section => section.items.map(item => [item.key, item.label] as const))
+  );
   const { disabled, isEnabled, setDisabled } = useFeatures();
 
   return (
     <>
-      <SettingsGroup
-        title="常用组合"
-        description="和首次启动时的选项相同，可以多选；取消一组只关掉其他已选组合用不到的功能"
-        bare
-      >
+      <SettingsGroup title={t("settings.title")} description={t("settings.description")} bare>
         <div className="grid grid-cols-4 gap-2">
           {FEATURE_PRESETS.map(preset => {
             const checked = isPresetChecked(preset, disabled);
@@ -53,7 +50,7 @@ export function FeaturesSection() {
               >
                 <span className="text-tau-body text-ink-1 flex w-full items-center gap-1.5 font-semibold">
                   {Icon && <Icon className="text-ink-2 size-[15px] shrink-0" strokeWidth={1.75} />}
-                  {preset.label}
+                  {t(preset.labelKey)}
                   <span
                     aria-hidden="true"
                     className={clsx(
@@ -65,7 +62,7 @@ export function FeaturesSection() {
                   </span>
                 </span>
                 <span className="text-tau-meta text-ink-3">
-                  {preset.features.map(id => LABELS.get(id) ?? id).join("、")}
+                  {preset.features.map(id => labels.get(id) ?? id).join(t("list.separator"))}
                 </span>
               </button>
             );
@@ -81,14 +78,16 @@ export function FeaturesSection() {
             <Panel pad="none" className="rounded-[14px] p-1.5">
               {items.map(item => {
                 const parent = featureParent(item.key);
-                const parentLabel = parent ? LABELS.get(parent) : undefined;
+                const parentLabel = parent ? labels.get(parent) : undefined;
                 const parentOff = parent ? !isEnabled(parent) : false;
                 const Icon = item.icon;
+                const descriptionKey = FEATURE_DESCRIPTION_KEYS[item.key];
+                const detail = descriptionKey ? t(descriptionKey) : "";
                 const description = parentOff
-                  ? `依附于${parentLabel}，已随它收起`
+                  ? t("settings.parentOff", { parent: parentLabel ?? "" })
                   : parentLabel
-                    ? `依附于${parentLabel} · ${FEATURE_DESCRIPTIONS[item.key] ?? ""}`
-                    : FEATURE_DESCRIPTIONS[item.key];
+                    ? t("settings.parent", { parent: parentLabel, description: detail })
+                    : detail;
                 return (
                   <SettingRow
                     key={item.key}

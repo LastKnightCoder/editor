@@ -3,6 +3,7 @@
  * 没列出的功能都打开，以后新增的功能默认出现。今日与侧栏底部入口不可关。
  */
 
+import type { FeatureCopyKey } from "./features.i18n";
 /** 依附关系：父功能关掉时子功能一起收起，父功能开着时子功能可单独关 */
 const FEATURE_PARENT: Readonly<Record<string, string>> = {
   skills: "chat",
@@ -14,7 +15,7 @@ export const ALWAYS_ON_FEATURES: ReadonlySet<string> = new Set(["home"]);
 
 export interface FeaturePreset {
   id: string;
-  label: string;
+  labelKey: FeatureCopyKey;
   features: readonly string[];
 }
 
@@ -22,20 +23,20 @@ export interface FeaturePreset {
 export const FEATURE_PRESETS: readonly FeaturePreset[] = [
   {
     id: "writing",
-    label: "写作与笔记",
+    labelKey: "preset.writing",
     features: ["diary", "cards", "articles", "projects", "whiteboard", "databases"],
   },
   {
     id: "learning",
-    label: "学习",
+    labelKey: "preset.learning",
     features: ["cards", "pdfs", "vibe-learning", "review", "walk"],
   },
   {
     id: "planning",
-    label: "日程与专注",
+    labelKey: "preset.planning",
     features: ["schedule", "todos", "pomodoro", "diary"],
   },
-  { id: "ai", label: "AI 助手", features: ["chat", "skills", "mcp"] },
+  { id: "ai", labelKey: "preset.ai", features: ["chat", "skills", "mcp"] },
 ];
 
 export function featureParent(id: string): string | undefined {

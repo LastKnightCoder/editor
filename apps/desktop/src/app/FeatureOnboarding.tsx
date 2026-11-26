@@ -3,6 +3,7 @@
  * 一个都不选 = 全部打开。保存失败留在本页可重试。
  */
 
+import { useFeatureI18n } from "@/app/features.i18n";
 import { useState } from "react";
 import { Check } from "lucide-react";
 import clsx from "clsx";
@@ -13,11 +14,11 @@ import { useSaveWorkspacePreferences } from "./featureQueries";
 import { NAV_SECTIONS, TOGGLEABLE_NAV_KEYS } from "./navigation";
 import { MacTrafficLights, WindowControls } from "./WindowControls";
 
-const LABELS = new Map(
-  NAV_SECTIONS.flatMap(section => section.items.map(item => [item.key, item.label] as const))
-);
-
 export function FeatureOnboarding() {
+  const { t, locale } = useFeatureI18n();
+  const labels = new Map(
+    NAV_SECTIONS.flatMap(section => section.items.map(item => [item.key, item.label] as const))
+  );
   const save = useSaveWorkspacePreferences();
   const [selected, setSelected] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
@@ -46,12 +47,12 @@ export function FeatureOnboarding() {
       <div className="flex min-h-0 flex-1 overflow-y-auto">
         <div className="m-auto flex w-[500px] max-w-full flex-col px-6 pb-10">
           <h1 className="text-tau-title-lg text-center font-bold tracking-[-0.01em]">
-            你主要用 Tau 做什么？
+            {t("onboard.title")}
           </h1>
           <p className="text-tau-body text-ink-2 mt-1.5 text-center">
-            可以多选。只打开用得上的功能，侧栏会清爽很多；
+            {t("onboard.description")}
             <br />
-            其他功能随时能在设置 › 功能里打开。
+            {t("onboard.settingsHint")}
           </p>
           <div className="mt-6 flex flex-col gap-2">
             {FEATURE_PRESETS.map(preset => {
@@ -85,9 +86,11 @@ export function FeatureOnboarding() {
                     {Icon && <Icon className="size-[18px]" strokeWidth={1.75} />}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="text-tau-body-lg block font-semibold">{preset.label}</span>
+                    <span className="text-tau-body-lg block font-semibold">
+                      {t(preset.labelKey)}
+                    </span>
                     <span className="text-tau-meta text-ink-3 block">
-                      {preset.features.map(id => LABELS.get(id) ?? id).join("、")}
+                      {preset.features.map(id => labels.get(id) ?? id).join(t("list.separator"))}
                     </span>
                   </span>
                   <span
@@ -109,7 +112,12 @@ export function FeatureOnboarding() {
             onClick={() => finish(selected)}
             className="bg-accent text-ink-inverse rounded-tau-md text-tau-body-lg mt-5 h-[42px] font-semibold disabled:opacity-60"
           >
-            {selected.length ? `进入 Tau · 打开 ${enabledCount} 项功能` : "先全部打开"}
+            {selected.length
+              ? t("onboard.enter", {
+                  count: enabledCount,
+                  amount: enabledCount.toLocaleString(locale),
+                })
+              : t("onboard.all")}
           </button>
           {selected.length ? (
             <button
@@ -118,12 +126,10 @@ export function FeatureOnboarding() {
               onClick={() => finish([])}
               className="text-tau-body text-ink-2 hover:text-ink-1 mt-2.5 self-center"
             >
-              先全部打开
+              {t("onboard.all")}
             </button>
           ) : (
-            <p className="text-tau-body text-ink-3 mt-2.5 text-center">
-              以后可以在设置 › 功能里收起用不上的
-            </p>
+            <p className="text-tau-body text-ink-3 mt-2.5 text-center">{t("onboard.later")}</p>
           )}
         </div>
       </div>

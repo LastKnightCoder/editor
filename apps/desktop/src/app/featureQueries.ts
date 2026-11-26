@@ -3,6 +3,7 @@
  * 读不到时按全部打开处理，不挡住主界面。
  */
 
+import { featureTranslator } from "./features.i18n";
 import { useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@tau/ui";
@@ -36,7 +37,7 @@ export function useSaveWorkspacePreferences() {
       },
       () => {
         queryClient.setQueryData(PREFERENCES_KEY, previous);
-        toast.error("功能设置保存失败");
+        toast.error(featureTranslator.t("error.save"));
         return false;
       }
     );

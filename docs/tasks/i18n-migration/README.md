@@ -230,6 +230,8 @@ P7 提供方声明与官方试点：SDK新增作者Declaration与纯binder，Hos
 
 P6A2 白板外框：19源码加Root远端失败展示4文件工程完成；6文件25例通过，1例原压力测试环境门控skip；desktop类型、chrome三语95语义key参数/复数、范围静态/格式通过。真实SheetBar/文档绑定/异常fallback/续共享操作回归保留草稿选区/历史/原operationId，换语不重绑、不重试renderer或重发。remote.test仅维护3处显式t接口；公共包/性能核心不动。
 
+P5A Features/Onboarding：10源码工程完成；原纯模型5例及真实UI换语/乐观写入2例通过。旧模块级LABELS快照退役，preset显示字段只留labelKey，所有真实消费者同批迁移；IDs、集合/依附算法与数据保持，desktop类型/词典/静态检查通过。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。
