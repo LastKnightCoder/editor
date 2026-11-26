@@ -1,0 +1,15 @@
+{
+  "file.body": "Markdown content",
+  "file.richUnavailable": "Rich text is temporarily unavailable. The original text is preserved; you can continue editing and saving the source: {{reason}}",
+  "file.conversionUnavailable": "Rich-text conversion is temporarily unavailable",
+  "file.sourceMode": "Source mode (⌘/)",
+  "file.exitSourceMode": "Exit source mode (⌘/)",
+  "file.selected": "Selected",
+  "file.linkMissing": "The link target does not exist",
+  "file.linkFailed": "Could not open link",
+  "file.anchorUnsupported": "Anchor links are not supported yet",
+  "file.characters_one": "character",
+  "file.characters_other": "characters",
+  "file.readingTime_one": "About {{count}} minute",
+  "file.readingTime_other": "About {{count}} minutes"
+}

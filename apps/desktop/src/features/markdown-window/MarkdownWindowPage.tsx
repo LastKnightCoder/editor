@@ -14,7 +14,7 @@ import { exportContentAsWord } from "@/services/content-transfer";
  * 以它为基准解析（utils/localMediaPath）。
  */
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   BookOpen,
@@ -443,47 +443,60 @@ export default function MarkdownWindowPage() {
     </Menu>
   );
 
-  let body: ReactNode;
-  if (!rootPath && !activePath) {
-    body = (
-      <WelcomeView
-        actions={{
-          openFolder: () => void openFolder(),
-          openFile: () => void openFileDialog(),
-          newFile,
-          openPath: (path, isDirectory) => void openPath(path, isDirectory),
-        }}
-      />
-    );
-  } else if (!activePath) {
-    body = <NoFileView onNewFile={newFile} />;
-  } else if (category === "markdown") {
-    body = (
-      <MarkdownFileView
-        key={activePath}
-        ref={setViewHandle}
-        path={activePath}
-        outlineColumn={outlineAsColumn}
-        onStatus={setStatus}
-        onOpenMarkdown={path => void openFile(path)}
-        onSaveAs={text => void saveAs(text)}
-      />
-    );
-  } else if (category === "code") {
-    body = (
-      <CodeFileView
-        key={activePath}
-        ref={setViewHandle}
-        path={activePath}
-        onStatus={setStatus}
-        onSaveAs={text => void saveAs(text)}
-      />
-    );
-  } else if (category === "image" || category === "video" || category === "audio") {
-    body = <MediaView key={activePath} path={activePath} type={category} />;
-  } else {
-    body = <ExternalFileView key={activePath} path={activePath} />;
-  }
+  const body = useMemo(() => {
+    if (!rootPath && !activePath) {
+      return (
+        <WelcomeView
+          actions={{
+            openFolder: () => void openFolder(),
+            openFile: () => void openFileDialog(),
+            newFile,
+            openPath: (path, isDirectory) => void openPath(path, isDirectory),
+          }}
+        />
+      );
+    } else if (!activePath) {
+      return <NoFileView onNewFile={newFile} />;
+    } else if (category === "markdown") {
+      return (
+        <MarkdownFileView
+          key={activePath}
+          ref={setViewHandle}
+          path={activePath}
+          outlineColumn={outlineAsColumn}
+          onStatus={setStatus}
+          onOpenMarkdown={path => void openFile(path)}
+          onSaveAs={text => void saveAs(text)}
+        />
+      );
+    } else if (category === "code") {
+      return (
+        <CodeFileView
+          key={activePath}
+          ref={setViewHandle}
+          path={activePath}
+          onStatus={setStatus}
+          onSaveAs={text => void saveAs(text)}
+        />
+      );
+    } else if (category === "image" || category === "video" || category === "audio") {
+      return <MediaView key={activePath} path={activePath} type={category} />;
+    } else {
+      return <ExternalFileView key={activePath} path={activePath} />;
+    }
+  }, [
+    rootPath,
+    activePath,
+    category,
+    outlineAsColumn,
+    openFolder,
+    openFileDialog,
+    newFile,
+    openPath,
+    openFile,
+    saveAs,
+    setViewHandle,
+  ]);
 
   const crumbs =
     rootPath && activePath ? activePath.slice(rootPath.length).split(/[\\/]/).filter(Boolean) : [];

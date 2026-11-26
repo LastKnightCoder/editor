@@ -1,5 +1,5 @@
 import { bindEditorI18n } from "../i18n-runtime";
-import { useEditorI18n, useEditorI18nRuntime } from "../i18n";
+import { EditorText, useEditorI18nRuntime } from "../i18n";
 import { IEditorTextFields } from "../../source-contracts";
 import { createLocalTextFields } from "./kit/localTextFields";
 import { bindElementDefinitions } from "./api/elementVersions";
@@ -13,6 +13,7 @@ import {
   useImperativeHandle,
   useMemo,
   useRef,
+  useId,
   memo,
   CSSProperties,
   type ReactNode,
@@ -102,6 +103,7 @@ export interface IEditorProps {
   /** 是否显示块左侧的拖拽把手及其菜单入口，默认显示。 */
   showDragHandle?: boolean;
   ariaLabel?: string;
+  ariaLabelledBy?: string;
   /** 本编辑器的组成（扩展 + 服务 + 主题）。不传则继承外层编辑器的 kit */
   kit?: EditorKit;
   /**
@@ -198,7 +200,8 @@ const Index = memo(
     useDocumentRevision(documentProp);
 
     const i18nRuntime = useEditorI18nRuntime();
-    const { t } = useEditorI18n();
+    const defaultLabelId = useId();
+    const usesDefaultLabel = props.ariaLabel === undefined && props.ariaLabelledBy === undefined;
     const resolvedKit = useResolvedKit(kitProp);
     // 文档源可以覆盖服务（如共享模式的资源上传），作用域限于本编辑器
     const baseKit = useMemo(
@@ -646,8 +649,16 @@ const Index = memo(
                   } as CSSProperties
                 }
               >
+                {usesDefaultLabel && (
+                  <span id={defaultLabelId} className="sr-only">
+                    <EditorText message="core.editorLabel" />
+                  </span>
+                )}
                 <Editable
-                  aria-label={props.ariaLabel ?? t("core.editorLabel")}
+                  aria-label={props.ariaLabelledBy === undefined ? props.ariaLabel : undefined}
+                  aria-labelledby={
+                    props.ariaLabelledBy ?? (usesDefaultLabel ? defaultLabelId : undefined)
+                  }
                   className={cn(EDITABLE_CLASS, focusMode && FOCUS_MODE_CLASS, props.className)}
                   style={props.style}
                   readOnly={readonly}

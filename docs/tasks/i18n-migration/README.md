@@ -374,6 +374,8 @@ Native通知十四路径完成；真实前端21例、mobile type/lint、48key三
 
 手机外壳与导航二十七路径完成；启动/面板8例、详情选择/协作工具栏15例、mobile type与shell构建通过，三语语义key/插值/复数由真实runtime对账通过。失败页跨语保原始路径诊断/同重试按钮且只点击后单执行；ready AppShell无locale Hook，现有业务effect依赖与存量错误解析保持。范围lint仅原AppShell cards与Pan hooks/FastRefresh三warning，未扩大修复。
 
+Markdown F3十四源加Root Core/README二路径完成；全窗口9文件49例、desktop与editor包type、三语及协议静态对照通过。真实Host下短/长未同步反向原生选区原先回跳，隔离语言订阅与aria标签后保原，既有同Slate/代码控制器/源码/撤销与转换失败不重读契约保持。全35生产文件/64 AST项审计仅合法默认名/复制alt/raw诊断，无固定UI残留。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

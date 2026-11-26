@@ -1,3 +1,5 @@
+import { I18nRuntimeProvider } from "@tau/i18n/react";
+import { desktopI18n, desktopLocaleSource } from "@/app/i18n/runtime";
 import { act, createRef, StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { DndProvider } from "react-dnd";
@@ -192,7 +194,9 @@ import { MarkdownFileView } from "../MarkdownFileView";
 import { CodeMirrorView } from "../CodeMirrorView";
 
 let dispose: (() => Promise<void>) | undefined;
+let originalLocale: string;
 beforeEach(() => {
+  originalLocale = desktopLocaleSource.getSnapshot();
   state.read.mockReset();
   state.write.mockClear();
   state.mounts = 0;
@@ -208,6 +212,7 @@ beforeEach(() => {
 afterEach(async () => {
   await dispose?.();
   dispose = undefined;
+  await act(async () => desktopLocaleSource.setLocale(originalLocale));
   vi.useRealTimers();
 });
 
@@ -218,16 +223,18 @@ async function mount(text: string, strict = false, outlineColumn = false) {
   const root = createRoot(host),
     ref = createRef<MarkdownViewHandle>();
   const render = (column: boolean) => (
-    <DndProvider backend={HTML5Backend}>
-      <MarkdownFileView
-        ref={ref}
-        path="/test/doc.md"
-        outlineColumn={column}
-        onStatus={() => undefined}
-        onOpenMarkdown={() => undefined}
-        onSaveAs={() => undefined}
-      />
-    </DndProvider>
+    <I18nRuntimeProvider runtime={desktopI18n}>
+      <DndProvider backend={HTML5Backend}>
+        <MarkdownFileView
+          ref={ref}
+          path="/test/doc.md"
+          outlineColumn={column}
+          onStatus={() => undefined}
+          onOpenMarkdown={() => undefined}
+          onSaveAs={() => undefined}
+        />
+      </DndProvider>
+    </I18nRuntimeProvider>
   );
   await act(async () =>
     root.render(strict ? <StrictMode>{render(outlineColumn)}</StrictMode> : render(outlineColumn))
@@ -277,6 +284,13 @@ it.each([false, true])("拖选时更新选中字数不折回旧光标（长文�
   expect(selection.toString()).toBe("选这段正");
   expect(selection.anchorOffset).toBe(5);
   expect(selection.focusOffset).toBe(1);
+  for (const locale of ["en-US", "zh-TW"]) {
+    await act(async () => desktopLocaleSource.setLocale(locale));
+    expect(selection.toString()).toBe("选这段正");
+    expect(selection.anchorNode).toBe(text);
+    expect([selection.anchorOffset, selection.focusOffset]).toEqual([5, 1]);
+    expect(state.editor).toBe(editor);
+  }
   await act(async () => view.flush());
   expect(state.write).not.toHaveBeenCalled();
 });
@@ -322,6 +336,24 @@ it("无法投影的原文自动进入源码，修复后继续保存且不丢原�
   expect(host.textContent).toContain("原文已保留");
   expect(source().getValue()).toBe(raw);
   expect(host.querySelector('[aria-pressed="true"]')).not.toBeNull();
+  const sourceInstance = source(),
+    sets = state.sourceSetValues,
+    mounts = state.sourceMounts;
+  const banner = host.querySelector('[role="alert"]');
+  let previous = banner?.textContent;
+  for (const locale of ["en-US", "zh-TW"]) {
+    await act(async () => desktopLocaleSource.setLocale(locale));
+    expect(host.querySelector('[role="alert"]')).toBe(banner);
+    expect(banner?.textContent).not.toBe(previous);
+    previous = banner?.textContent;
+    expect(source()).toBe(sourceInstance);
+    expect(source().getValue()).toBe(raw);
+    expect(state.sourceSetValues).toBe(sets);
+    expect(state.sourceMounts).toBe(mounts);
+    expect(state.read).toHaveBeenCalledExactlyOnceWith("/test/doc.md");
+    expect(state.write).not.toHaveBeenCalled();
+  }
+  await act(async () => desktopLocaleSource.setLocale(originalLocale));
   await act(async () => view.flush());
   expect(state.write).not.toHaveBeenCalled();
   await act(async () => source().edit("已修复正文"));
@@ -340,6 +372,19 @@ it("源码切换常驻同一编辑器，源码与富文本共用撤销", async (
   await act(async () => source().edit("源码修改"));
   expect(state.editor).toBe(editor);
   expect(view.getMarkdown()).toBe("源码修改");
+  const sourceInstance = source(),
+    mounts = state.sourceMounts,
+    sets = state.sourceSetValues;
+  for (const locale of ["en-US", "zh-TW"]) {
+    await act(async () => desktopLocaleSource.setLocale(locale));
+    expect(state.editor).toBe(editor);
+    expect(source()).toBe(sourceInstance);
+    expect(state.sourceMounts).toBe(mounts);
+    expect(state.sourceSetValues).toBe(sets);
+    expect(view.getMarkdown()).toBe("源码修改");
+    expect(state.read).toHaveBeenCalledExactlyOnceWith("/test/doc.md");
+    expect(state.write).not.toHaveBeenCalled();
+  }
   await act(async () => source().undo());
   expect(view.getMarkdown()).toBe(rich);
   await act(async () => source().redo());

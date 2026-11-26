@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import * as markdown from "@/utils/markdown";
 import { createMarkdownDocument } from "../markdownDocument";
 
 describe("Markdown 文件的 Y.Doc 会话", () => {
@@ -97,4 +98,33 @@ describe("Markdown 文件的 Y.Doc 会话", () => {
       vi.useRealTimers();
     }
   });
+});
+
+it("非Error转换失败的语义标记与原诊断/源码一起撤销重做，模型不读取界面语言", () => {
+  const file = createMarkdownDocument();
+  const parse = vi.spyOn(markdown, "importFromMarkdown").mockImplementationOnce(() => {
+    throw { code: "plugin-projection-failure" };
+  });
+  const raw = "原始未投影正文\r\n";
+  try {
+    expect(file.applyMarkdown(raw, "external")).toBe(false);
+    const failure = file.getSnapshot();
+    expect(failure.errorKind).toBe("conversion");
+    expect(failure.error).not.toBeNull();
+    expect(file.getText()).toBe(raw);
+    expect(file.applyMarkdown("修复正文", "user")).toBe(true);
+    expect(file.getSnapshot().error).toBeNull();
+    expect(file.getSnapshot().errorKind).toBeUndefined();
+    file.undo();
+    expect(file.getText()).toBe(raw);
+    expect(file.getSnapshot().error).toBe(failure.error);
+    expect(file.getSnapshot().errorKind).toBe("conversion");
+    file.redo();
+    expect(file.getText()).toBe("修复正文");
+    expect(file.getSnapshot().error).toBeNull();
+    expect(file.getSnapshot().errorKind).toBeUndefined();
+  } finally {
+    parse.mockRestore();
+    file.dispose();
+  }
 });

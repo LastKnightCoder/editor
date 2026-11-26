@@ -1,0 +1,13 @@
+{
+  "file.body": "Markdown 內文",
+  "file.richUnavailable": "暫時無法顯示富文字，原文已保留，可繼續編輯並儲存原始碼：{{reason}}",
+  "file.conversionUnavailable": "暫時無法轉換為富文字",
+  "file.sourceMode": "原始碼模式 (⌘/)",
+  "file.exitSourceMode": "離開原始碼模式 (⌘/)",
+  "file.characters": "字",
+  "file.readingTime": "約 {{count}} 分鐘",
+  "file.selected": "已選取",
+  "file.linkMissing": "連結目標不存在",
+  "file.linkFailed": "開啟連結失敗",
+  "file.anchorUnsupported": "暫不支援錨點跳轉"
+}

@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -31,6 +32,8 @@ import { invoke, isElectron, off, on } from "@/electron";
 import { estimatedBlockHeight, initialBlockCount, type MarkdownViewport } from "./markdownViewport";
 import { createMarkdownClipboard } from "./markdownClipboard";
 import { useMarkdownDragSelection } from "./useMarkdownDragSelection";
+
+import { MarkdownBodyLabel } from "./MarkdownFileChrome";
 
 function ViewportBlock({
   viewport,
@@ -93,6 +96,7 @@ export function MarkdownViewportSurface({
   viewport: MarkdownViewport;
   onReadyChange(ready: boolean): void;
 }) {
+  const bodyLabelId = useId();
   const [firstCount] = useState(() => initialBlockCount(content, scrollEl?.clientHeight ?? 800));
   const [editor, setEditor] = useState<SlateEditor | null>(null);
   const [ready, setReady] = useState(false);
@@ -271,6 +275,7 @@ export function MarkdownViewportSurface({
       aria-busy={!ready && !failed}
       onKeyDownCapture={onKeyDownCapture}
     >
+      <MarkdownBodyLabel id={bodyLabelId} />
       <ErrorBoundary onError={() => setFailed(true)}>
         <div className={cn(!ready && "invisible")} inert={ready ? undefined : true}>
           <Editor
@@ -279,7 +284,7 @@ export function MarkdownViewportSurface({
             ref={editorRef}
             document={document}
             readonly={suspended}
-            ariaLabel="Markdown 正文"
+            ariaLabelledBy={bodyLabelId}
             onInit={setEditor}
             renderTopLevelBlock={renderTopLevelBlock}
             onSelectionChange={() => {

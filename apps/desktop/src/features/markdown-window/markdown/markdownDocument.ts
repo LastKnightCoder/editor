@@ -46,6 +46,10 @@ export function createMarkdownDocument(
       text: current === null || current === normalized.toString() ? raw.toString() : current,
       loaded: state.get("loaded") === true,
       error,
+      errorKind:
+        error !== null && state.get("errorKind") === "conversion"
+          ? ("conversion" as const)
+          : undefined,
     };
   };
   let snapshot = readSnapshot();
@@ -69,9 +73,12 @@ export function createMarkdownDocument(
         local.updateContent(parsed ?? importFromMarkdown(value), source);
         replaceYText(normalized, getMarkdown(local.getContent()));
         state.delete("error");
+        state.delete("errorKind");
       } catch (error) {
         // 转换失败时原文仍是事实源，富文本停止展示，禁止静默丢字段后写回文件。
         state.set("error", error instanceof Error ? error.message : "暂时无法转换为富文本");
+        if (error instanceof Error) state.delete("errorKind");
+        else state.set("errorKind", "conversion");
       }
       state.set("loaded", true);
     });

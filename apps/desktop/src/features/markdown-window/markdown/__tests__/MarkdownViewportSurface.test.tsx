@@ -1,3 +1,4 @@
+import { desktopLocaleSource } from "@/app/i18n/runtime";
 import { act, createRef } from "react";
 import { createRoot } from "react-dom/client";
 import { DndProvider } from "react-dnd";
@@ -12,6 +13,7 @@ import { createMarkdownDocument } from "../markdownDocument";
 import { createMarkdownContentPreparer } from "../prepareMarkdownContent";
 
 it("窗口与全文渲染切换时保留当前代码块控制器，仍可编辑和撤销", async () => {
+  const originalLocale = desktopLocaleSource.getSnapshot();
   const kit = createEditorKit({ extensions: [codeBlockExtension] });
   const file = createMarkdownDocument(undefined, createMarkdownContentPreparer(kit));
   file.applyMarkdown(
@@ -62,6 +64,15 @@ it("窗口与全文渲染切换时保留当前代码块控制器，仍可编辑�
     expect(getCodeBlockController(block.uuid)).toBe(controller);
     const textarea = host.querySelector("[data-markdown-full-editor] textarea");
     if (!textarea) throw new Error("缺少完整代码输入器");
+    const editor = ref.current?.getEditor();
+    const text = file.getText();
+    for (const locale of ["en-US", "zh-TW"]) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(ref.current?.getEditor()).toBe(editor);
+      expect(getCodeBlockController(block.uuid)).toBe(controller);
+      expect(host.querySelector("[data-markdown-full-editor] textarea")).toBe(textarea);
+      expect(file.getText()).toBe(text);
+    }
     await act(async () => {
       const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
       setter?.call(textarea, "const x = 2;");
@@ -79,5 +90,6 @@ it("窗口与全文渲染切换时保留当前代码块控制器，仍可编辑�
     await act(async () => root.unmount());
     host.remove();
     file.dispose();
+    desktopLocaleSource.setLocale(originalLocale);
   }
 });

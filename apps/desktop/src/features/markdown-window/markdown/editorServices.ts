@@ -26,6 +26,14 @@ import { uploadResource } from "@/hooks/useUploadResource";
 import useSettingStore, { EImageBed } from "@/stores/useSettingStore";
 import { joinPath, splitExtension } from "../paths";
 
+import { markdownFileTranslator, markdownFileFeedback } from "../file.i18n";
+
+class UnsupportedAnchorError extends Error {
+  constructor() {
+    super("暂不支持锚点跳转");
+  }
+}
+
 const COMPRESSIBLE_TYPES = ["image/png", "image/jpeg", "image/jpg"];
 
 const copyName = (fileName: string, index: number) => {
@@ -61,13 +69,13 @@ function fileUrlToPath(value: string) {
 }
 
 async function resolveLocalTarget(rawUrl: string, currentFile: string) {
-  if (rawUrl.startsWith("#")) throw new Error("暂不支持锚点跳转");
+  if (rawUrl.startsWith("#")) throw new UnsupportedAnchorError();
   if (/^file:\/\//i.test(rawUrl)) return fileUrlToPath(rawUrl);
   if (isWindowsAbsolute(rawUrl) || rawUrl.startsWith("/") || rawUrl.startsWith("\\\\")) {
     return decodeURIComponent(stripSuffix(rawUrl));
   }
   const relative = decodeURIComponent(stripSuffix(rawUrl));
-  if (!relative) throw new Error("暂不支持锚点跳转");
+  if (!relative) throw new UnsupportedAnchorError();
   return resolvePathFrom(await getDirectoryName(currentFile), relative);
 }
 
@@ -109,7 +117,7 @@ export function useMarkdownEditorServices(
     try {
       const target = await resolveLocalTarget(url, filePath);
       if (!(await pathExists(target))) {
-        toast.error("链接目标不存在");
+        toast.error(...markdownFileFeedback("file.linkMissing"));
         return;
       }
       if (!(await isDirectory(target)) && /\.(md|markdown)$/i.test(target)) {
@@ -118,7 +126,13 @@ export function useMarkdownEditorServices(
       }
       await openWithDefaultApp(target);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "打开链接失败");
+      const getMessage = () =>
+        error instanceof UnsupportedAnchorError
+          ? markdownFileTranslator.t("file.anchorUnsupported")
+          : error instanceof Error
+            ? error.message
+            : markdownFileTranslator.t("file.linkFailed");
+      toast.error(getMessage(), { getMessage });
     }
   });
 

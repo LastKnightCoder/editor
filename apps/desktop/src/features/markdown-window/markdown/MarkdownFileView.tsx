@@ -25,7 +25,6 @@ import "codemirror/mode/gfm/gfm.js";
 import "codemirror/mode/yaml/yaml.js";
 import "codemirror/mode/yaml-frontmatter/yaml-frontmatter.js";
 import { useThrottleFn } from "ahooks";
-import { Code2 } from "lucide-react";
 import { Editor, type EditorRef } from "@tau/editor";
 import { ErrorBoundary, Loading, cn, useEdgeFade, FADE_SCROLL_CLASS } from "@tau/ui";
 import ContentExportModal from "@/components/ContentExportModal";
@@ -39,7 +38,7 @@ import {
 } from "@/components/ContentOutline";
 import { getContentLength, importFromMarkdown } from "@/utils";
 import { SYMMETRIC_PAGE_GRID_STYLE } from "@/utils/pageMargin";
-import { FileBanner, FileStatusBar } from "../FileChrome";
+import { FileStatusBar } from "../FileChrome";
 import { useTextFileSession } from "../useTextFileSession";
 import type { FileViewStatus, MarkdownViewHandle } from "../types";
 import { CodeMirrorView } from "./CodeMirrorView";
@@ -53,6 +52,16 @@ import { MarkdownViewportSurface } from "./MarkdownViewportSurface";
 import { MarkdownSelectionCount } from "./MarkdownSelectionCount";
 import { createMarkdownViewport, needsMarkdownViewport } from "./markdownViewport";
 import { createRichFind, emptyFindResults, findSourceText } from "./markdownFind";
+
+import {
+  MarkdownBodyLabel,
+  MarkdownLoadError,
+  MarkdownProjectionBanner,
+  MarkdownConflictBanner,
+  MarkdownMissingBanner,
+  MarkdownSourceButton,
+  MarkdownTextStats,
+} from "./MarkdownFileChrome";
 
 const WORDS_PER_MINUTE = 400;
 const SOURCE_MODE = { name: "yaml-frontmatter", base: "gfm" };
@@ -87,6 +96,7 @@ export const MarkdownFileView = forwardRef<
   { path, outlineColumn = false, onStatus, onOpenMarkdown, onSaveAs },
   ref
 ) {
+  const bodyLabelId = useId();
   const editorRef = useRef<EditorRef>(null);
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
   useEdgeFade(scrollEl);
@@ -398,13 +408,7 @@ export const MarkdownFileView = forwardRef<
     [sourceEditorRef, fileDocument, snapshot.loaded, sourceWindowed]
   );
 
-  if (session.loadError) {
-    return (
-      <div className="text-tau-meta text-ink-2 grid flex-1 place-items-center px-8 text-center">
-        无法读取文件：{session.loadError}
-      </div>
-    );
-  }
+  if (session.loadError) return <MarkdownLoadError reason={session.loadError} />;
   if (!snapshot.loaded) return <Loading />;
 
   const sourceView = (
@@ -446,13 +450,14 @@ export const MarkdownFileView = forwardRef<
         />
       ) : (
         <div data-markdown-full-editor="ready">
+          <MarkdownBodyLabel id={bodyLabelId} />
           <ErrorBoundary>
             <Editor
               kit={markdownKit}
               ref={editorRef}
               document={fileDocument.document}
               readonly={sourceMode || !!snapshot.error}
-              ariaLabel="Markdown 正文"
+              ariaLabelledBy={bodyLabelId}
             />
           </ErrorBoundary>
         </div>
@@ -471,36 +476,13 @@ export const MarkdownFileView = forwardRef<
         )}
       />
       {snapshot.error && (
-        <FileBanner tone="warn" actions={[]}>
-          暂时无法显示富文本，原文已保留，可继续编辑和保存源码：{snapshot.error}
-        </FileBanner>
+        <MarkdownProjectionBanner error={snapshot.error} kind={snapshot.errorKind} />
       )}
       {session.conflict !== null && (
-        <FileBanner
-          tone="warn"
-          actions={[
-            { id: "load-external", label: "载入外部版本", onClick: session.loadExternal },
-            {
-              id: "keep-mine",
-              label: "保留我的版本",
-              primary: true,
-              onClick: () => void session.keepMine(),
-            },
-          ]}
-        >
-          文件已在外部修改，与你未保存的内容冲突
-        </FileBanner>
+        <MarkdownConflictBanner loadExternal={session.loadExternal} keepMine={session.keepMine} />
       )}
       {session.missing && (
-        <FileBanner
-          tone="danger"
-          actions={[
-            { id: "resave", label: "重新保存", onClick: () => void session.resave() },
-            { id: "save-as", label: "另存为…", onClick: () => onSaveAs(getText()) },
-          ]}
-        >
-          文件已不在磁盘上（被删除或移动），内容仍保留在窗口里
-        </FileBanner>
+        <MarkdownMissingBanner resave={session.resave} saveAs={() => onSaveAs(getText())} />
       )}
       <div ref={setScrollEl} className={cn(FADE_SCROLL_CLASS, "@container min-h-0 flex-1")}>
         <div className="grid min-h-full" style={SYMMETRIC_PAGE_GRID_STYLE}>
@@ -525,27 +507,8 @@ export const MarkdownFileView = forwardRef<
         </div>
       </div>
       <FileStatusBar cursor={sourceMode ? cursor : null} saveState={session.saveState}>
-        <button
-          type="button"
-          onClick={toggle}
-          onMouseDown={event => {
-            if (event.button === 0) event.preventDefault();
-          }}
-          title={sourceMode ? "退出源码模式 (⌘/)" : "源码模式 (⌘/)"}
-          aria-pressed={sourceMode}
-          className={cn(
-            "grid h-5 w-[22px] place-items-center rounded-[6px] transition-colors",
-            sourceMode
-              ? "bg-selected text-accent-text"
-              : "text-ink-3 hover:bg-hover hover:text-ink-1 opacity-70 hover:opacity-100"
-          )}
-        >
-          <Code2 className="size-[13px]" strokeWidth={1.75} />
-        </button>
-        <span>
-          <b className="text-ink-2 font-medium">{words.toLocaleString()}</b> 字
-        </span>
-        {words > 0 && <span>约 {Math.max(1, Math.round(words / WORDS_PER_MINUTE))} 分钟</span>}
+        <MarkdownSourceButton sourceMode={sourceMode} toggle={toggle} />
+        <MarkdownTextStats words={words} wordsPerMinute={WORDS_PER_MINUTE} />
         {!sourceMode && (
           <MarkdownSelectionCount
             editorRef={editorRef}
