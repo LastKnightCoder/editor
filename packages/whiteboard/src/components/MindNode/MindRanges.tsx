@@ -1,3 +1,4 @@
+import { useNodeI18n } from "../../nodes-i18n";
 import { useEffect, useRef, useState } from "react";
 
 import SketchStroke from "../SketchPaths/SketchStroke";
@@ -66,6 +67,7 @@ export function MindRanges({
   dark: boolean;
   sketch: ReturnType<typeof useSketch>;
 }) {
+  const { t } = useNodeI18n();
   const [editing, setEditing] = useState<string | null>(null);
   const cancelled = useRef(false);
   const ids = ranges.boundaries.map(boundary => boundary.id).join(",");
@@ -116,7 +118,7 @@ export function MindRanges({
                 <input
                   autoFocus
                   defaultValue={title ?? ""}
-                  placeholder="外框标题"
+                  placeholder={t("nodes.mind.boundaryTitle")}
                   className="w-full rounded-[4px] border border-[var(--tau-line-1)] bg-[var(--tau-surface-1)] px-1.5 text-[11.5px] font-semibold text-[var(--tau-ink-1)] outline-none"
                   onPointerDown={e => e.stopPropagation()}
                   onKeyDown={e => {

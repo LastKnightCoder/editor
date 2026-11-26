@@ -1,3 +1,5 @@
+import { useNodeI18n } from "../../nodes-i18n";
+import { columnCountLabel } from "../../node-labels";
 import React, { memo, useState, useRef, useEffect, useLayoutEffect } from "react";
 import { useMemoizedFn } from "ahooks";
 import { ChevronDown, Plus } from "lucide-react";
@@ -46,6 +48,7 @@ interface ColumnProps {
 
 const Column = memo(
   ({ element, board, children, onResize, onResizeStart, onResizeEnd }: ColumnProps) => {
+    const { t } = useNodeI18n();
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const titleRef = useRef<EditTextHandle>(null);
     const columnRef = useRef<SVGGElement>(null);
@@ -337,12 +340,12 @@ const Column = memo(
               className="text-tau-micro pointer-events-none leading-4 tabular-nums select-none"
               style={{ color: COLUMN_COLORS.muted }}
             >
-              {ColumnUtil.getCountLabel(element)}
+              {columnCountLabel(element, t)}
             </span>
             {!board.readonly && (
               <button
                 type="button"
-                title={collapsed ? "展开" : "折叠"}
+                title={t(collapsed ? "nodes.column.expand" : "nodes.column.collapse")}
                 className={cn(
                   "text-ink-3 hover:bg-hover hover:text-ink-1 absolute right-2 top-1/2 grid size-[22px] -translate-y-1/2 cursor-pointer place-items-center rounded-[4px] transition-opacity duration-150",
                   collapsed ? "opacity-100" : "opacity-0 group-hover/column-head:opacity-100"
@@ -413,7 +416,7 @@ const Column = memo(
               className="text-tau-meta select-none"
               style={{ fill: COLUMN_COLORS.muted }}
             >
-              拖入内容
+              {t("nodes.column.drop")}
             </text>
           </g>
         </If>
@@ -507,7 +510,7 @@ const Column = memo(
                 }}
               >
                 <Plus size={14} strokeWidth={1.75} />
-                添加文字
+                {t("nodes.column.addText")}
               </button>
             </div>
           </foreignObject>

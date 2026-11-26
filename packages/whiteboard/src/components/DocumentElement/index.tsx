@@ -1,3 +1,4 @@
+import { HostSupportHint } from "../HostSupportHint";
 import { memo, useEffect, useMemo, useRef, type MouseEvent, type PointerEvent } from "react";
 import { useMemoizedFn } from "ahooks";
 import ResizeCircle from "../ResizeCircle";
@@ -145,7 +146,7 @@ const DocumentElementComponent = memo((props: DocumentElementProps) => {
             <Paper element={element} sketch={sketch.enabled} />
           ) : (
             <div className="bg-surface border-line-1 text-ink-3 rounded-tau-sm text-tau-meta flex size-full items-center justify-center border">
-              文档内容需要宿主支持
+              <HostSupportHint kind="document" />
             </div>
           )}
         </div>

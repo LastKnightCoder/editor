@@ -10,16 +10,6 @@ import type { RichTextElement } from "../plugins/RichTextPlugin";
 
 const TITLE_HEIGHT = COLUMN_DEFAULTS.titleHeight;
 
-/** 各类子元素的数量量词 */
-const COLUMN_COUNT_UNITS: Record<string, string> = {
-  richtext: "段文字",
-  image: "张图片",
-  video: "个视频",
-  audio: "段音频",
-  card: "张卡片",
-  whiteboard: "个白板",
-};
-
 // 高度缓存，避免频繁重新计算导致性能问题
 const heightCache = new Map<string, { height: number; timestamp: number }>();
 const CACHE_DURATION = 100; // 100ms 内使用缓存
@@ -316,20 +306,6 @@ export class ColumnUtil {
     const latest = BoardUtil.getElementById(board, column.id) as ColumnElement | null;
     if (latest) this.relayout(board, latest);
     return element.id;
-  }
-
-  /**
-   * 标题下方的数量文案：同类元素用对应量词（「3 张图片」），混合时统称「个元素」
-   */
-  static getCountLabel(column: ColumnElement): string {
-    const { children } = column;
-    if (children.length === 0) return "空";
-    const type = children[0].type;
-    const unit =
-      children.every(child => child.type === type) && COLUMN_COUNT_UNITS[type]
-        ? COLUMN_COUNT_UNITS[type]
-        : "个元素";
-    return `${children.length} ${unit}`;
   }
 
   /**

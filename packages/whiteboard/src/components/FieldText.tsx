@@ -7,7 +7,12 @@ import {
   type ComponentProps,
 } from "react";
 import { EditText, type EditTextHandle } from "@tau/ui";
-import { bindTextFieldTextarea } from "@tau/editor/api";
+import {
+  bindTextFieldTextarea,
+  formatTextFieldInputFailure,
+  type TextFieldInputFailure,
+} from "@tau/editor/text-field-input";
+import { useNodeI18n } from "../nodes-i18n";
 import { useBoard } from "../hooks/useBoard";
 
 type Props = ComponentProps<typeof EditText> & { elementId: string; field: string };
@@ -21,17 +26,21 @@ const BoundFieldText = forwardRef<EditTextHandle, Props>(function BoundFieldText
   { elementId, field, ...props },
   ref
 ) {
+  const { locale, t } = useNodeI18n();
   const board = useBoard(),
     input = useRef<HTMLInputElement>(null);
   const binding = useRef<ReturnType<typeof bindTextFieldTextarea>>(null);
-  const [value, setValue] = useState(props.defaultValue ?? ""),
-    [error, setError] = useState("");
+  const [value, setValue] = useState(props.defaultValue ?? "");
+  const [failure, setFailure] = useState<TextFieldInputFailure>();
+  const error = failure ? formatTextFieldInputFailure(failure, locale) : "";
   useLayoutEffect(() => {
     const doc = board.document;
     const inputElement = input.current;
     if (!doc?.textField || !inputElement) return;
     const handle = doc.textField(elementId, field);
-    const current = bindTextFieldTextarea(inputElement, handle, setValue, setError);
+    const current = bindTextFieldTextarea(inputElement, handle, setValue, (_message, failure) =>
+      setFailure(failure)
+    );
     binding.current = current;
     return () => {
       current.dispose();
@@ -67,7 +76,7 @@ const BoundFieldText = forwardRef<EditTextHandle, Props>(function BoundFieldText
         className={props.className}
         style={props.style}
         size={Math.max(1, value.length)}
-        aria-label={field}
+        aria-label={field === "title" ? t("nodes.field.title") : field}
         aria-invalid={!!error}
         readOnly={!props.contentEditable || board.readonly || !!error}
         onBlur={props.onBlur}

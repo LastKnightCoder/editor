@@ -1,3 +1,4 @@
+import { useNodeI18n } from "../../nodes-i18n";
 import React, { MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import { Editor, EditorRef, EditorThemeOverride } from "@tau/editor";
@@ -74,6 +75,7 @@ const DEFAULT_CONTENT: Descendant[] = [
 ];
 
 const MindNode = (props: MindNodeProps) => {
+  const { t } = useNodeI18n();
   const { element } = props;
 
   const { id, text, defaultFocus, direction } = element;
@@ -675,7 +677,7 @@ const MindNode = (props: MindNodeProps) => {
         onCancel={() => setContentSelectorOpen(false)}
         onSelect={onSelectContent}
         contentType={["article", "card", "project-item", "diary-moment"]}
-        title="选择笔记"
+        title={t("nodes.mind.selectNote")}
       />
     </>
   );

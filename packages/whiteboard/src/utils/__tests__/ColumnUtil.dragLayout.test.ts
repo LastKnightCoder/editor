@@ -160,29 +160,6 @@ describe("ColumnUtil.getPlaceholderHeight", () => {
   });
 });
 
-describe("ColumnUtil.getCountLabel", () => {
-  const typed = (id: string, type: string) => ({ ...card(id, 40), type }) as BoardElement;
-
-  it("空列", () => {
-    expect(ColumnUtil.getCountLabel(createColumn({ children: [] }))).toBe("空");
-  });
-
-  it("同类元素使用对应量词", () => {
-    expect(ColumnUtil.getCountLabel(createColumn())).toBe("3 段文字");
-    expect(
-      ColumnUtil.getCountLabel(
-        createColumn({ children: [typed("i1", "image"), typed("i2", "image")] })
-      )
-    ).toBe("2 张图片");
-  });
-
-  it("混合类型统称元素", () => {
-    expect(
-      ColumnUtil.getCountLabel(createColumn({ children: [typed("i1", "image"), card("t1", 40)] }))
-    ).toBe("2 个元素");
-  });
-});
-
 describe("Column 折叠", () => {
   it("折叠态高度为标题栏 + 纸边，空列无纸边", () => {
     const column = createColumn({ collapsed: true });

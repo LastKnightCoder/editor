@@ -1,3 +1,4 @@
+import { useNodeI18n } from "../../nodes-i18n";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { Descendant } from "slate";
 import { AnchoredPanel, Button } from "@tau/ui";
@@ -36,6 +37,7 @@ export interface NotePeekProps {
 
 /** 节点上的关联笔记图标：悬停浮出标题与开头几行，点击打开笔记 */
 export function NotePeek({ contentId, title, color, style, onOpen, onUnlink }: NotePeekProps) {
+  const { t } = useNodeI18n();
   const { Observer } = useTextExtension();
   const [anchor, setAnchor] = useState<HTMLButtonElement | null>(null);
   const [open, setOpen] = useState(false);
@@ -52,7 +54,7 @@ export function NotePeek({ contentId, title, color, style, onOpen, onUnlink }: N
   const handleContent = useMemoizedFn((value: Descendant[]) => setContent(value));
 
   const firstLine = content ? blockText(content[0]).trim() : "";
-  const heading = title || firstLine || "未命名笔记";
+  const heading = title || firstLine || t("nodes.note.untitled");
   const excerpt = excerptOf(content, heading);
 
   return (
@@ -60,7 +62,7 @@ export function NotePeek({ contentId, title, color, style, onOpen, onUnlink }: N
       <button
         ref={setAnchor}
         type="button"
-        aria-label={`打开笔记：${heading}`}
+        aria-label={t("nodes.note.openLabel", { title: heading })}
         className="rounded-tau-sm absolute grid size-5 place-items-center transition-colors hover:bg-[color-mix(in_srgb,currentColor_16%,transparent)]"
         style={{ ...style, color }}
         onPointerDown={event => event.stopPropagation()}
@@ -97,7 +99,7 @@ export function NotePeek({ contentId, title, color, style, onOpen, onUnlink }: N
               onOpen();
             }}
           >
-            打开
+            {t("nodes.note.open")}
           </Button>
           {onUnlink && (
             <Button
@@ -108,7 +110,7 @@ export function NotePeek({ contentId, title, color, style, onOpen, onUnlink }: N
                 onUnlink();
               }}
             >
-              取消关联
+              {t("nodes.note.unlink")}
             </Button>
           )}
         </div>

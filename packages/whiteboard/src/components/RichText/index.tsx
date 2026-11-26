@@ -1,3 +1,5 @@
+import { nodeMessages } from "../../nodes-i18n";
+import { whiteboardRuntime } from "../../i18n-runtime";
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Descendant } from "slate";
 import { useMemoizedFn } from "ahooks";
@@ -266,7 +268,8 @@ const Richtext = (props: RichTextProps) => {
     setFocus(true);
     void ensureContentId().catch(error => {
       console.error("Failed to ensure content id for rich text:", error);
-      toast.error("初始化富文本内容失败");
+      const { t } = whiteboardRuntime(board).get(nodeMessages);
+      toast.error(t("nodes.richtextFailed"), { getMessage: () => t("nodes.richtextFailed") });
     });
     board.isEditingElements = [
       ...board.isEditingElements.filter(eid => eid !== elementId),

@@ -1,3 +1,4 @@
+import { HostSupportHint } from "../HostSupportHint";
 import { useElementContent } from "../../extensions/elementContent";
 import ElementFrame, { type ElementFrameProps } from "../ElementFrame";
 export default function VideoElement({ element, ...props }: ElementFrameProps) {
@@ -8,7 +9,7 @@ export default function VideoElement({ element, ...props }: ElementFrameProps) {
       {element.metaInfo &&
       element.metaInfo.type !== "local" &&
       element.metaInfo.type !== "remote" ? (
-        "该视频请在桌面端查看"
+        <HostSupportHint kind="video" />
       ) : (
         <video src={element.src} controls className="size-full" />
       )}

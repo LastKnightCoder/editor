@@ -1,6 +1,6 @@
-import coreEnUS from "./locales/core.en-US.json";
-import coreZhTW from "./locales/core.zh-TW.json";
-import coreZhCN from "./locales/core.zh-CN.json";
+import coreEnUS from "./locales/core.en-US.json" with { type: "json" };
+import coreZhTW from "./locales/core.zh-TW.json" with { type: "json" };
+import coreZhCN from "./locales/core.zh-CN.json" with { type: "json" };
 import commonEnUS from "./locales/common.en-US.json";
 import commonZhTW from "./locales/common.zh-TW.json";
 import commonZhCN from "./locales/common.zh-CN.json";

@@ -29,6 +29,8 @@ kit 只决定编辑器组合，不决定环境是否存在。默认与自定义 
 
 核心占位、未知块/失败块、拖放与复制反馈使用 `core.*.json`，错误边界只刷新占位文案，不因语言变化重新调用失败的扩展。源码同步失败保留结构化 `TextFieldInputFailure`，展示方调用 `formatTextFieldInputFailure(failure, locale)`；原始错误与未提交草稿保留，语言变化不重新绑定输入或再次提交。`bindTextFieldTextarea` 的错误回调第一参数仍为默认中文文本，第二参数提供原始失败用于语言投影。
 
+宿主只需要绑定文本框时，可从 `@tau/editor/text-field-input` 导入 `bindTextFieldTextarea`、`formatTextFieldInputFailure` 和 `TextFieldInputFailure`。这个纯入口不加载编辑器组件或 JSX，格式化失败时显式传入宿主的 locale；字段协议类型仍从 `@tau/editor/text-field-contract` 导入。
+
 ## 核心与扩展边界
 
 - 核心只内建 paragraph 与文本：文本节点与最小渲染、空文档补段、通用选区与导航、未知节点的保留降级归核心；领域节点（标题/列表/表格/媒体…）、快捷转换、格式效果、转换菜单归扩展。

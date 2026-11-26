@@ -302,6 +302,8 @@ P6A3-E1导出弹层：6路径工程完成；3文件15例、包type/白板边界�
 
 P5 MCP显示目录：10路径工程完成；真实MCP/配置/表单3文件26例通过，desktop类型/构建、三语参数与范围静态/格式、启动/插件边界通过。新增真实场景验证内置名称/说明/可用性跨语更新，保原检索/焦点/选区与同卡片DOM，不多调用工具factory；原tool数组/声明不变，用户服务器即使与内置ID相同也保原配置。独立AST证明所有启停/保存/导入/删除/重连/log/scoped source函数与memo/effect依赖不变；共享AI定义不翻译，显示key旧字段消费者清零退休。
 
+P6A3-E2节点/字段：20源码加Root editor4路径工程完成；4文件20例、包type/作者边界、nodes24key三语复数参数与范围静态格式通过。真实草稿/revision/单报/选区/订阅、NotePeek observer不重读、外框输入不重建且失焦才提交通过；旧Column显示3例4断言随helper退役，其余16布局算法例保留通过。Root纯公开路径用原生Node实际无DOM导入并格式化EN/TW保原diagnostic，统一core JSON import attributes，原实现不复制。Audio吞掉的reject/RichText readiness异常与默认正文不改。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。
