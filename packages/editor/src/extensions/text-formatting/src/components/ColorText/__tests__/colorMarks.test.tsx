@@ -1,3 +1,6 @@
+import { createI18nRuntime, createLocaleStore } from "@tau/i18n";
+import { I18nRuntimeProvider } from "@tau/i18n/react";
+import { editorMessages } from "../../../../../../i18n";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { createEditor, Editor, Transforms, type Descendant } from "slate";
@@ -89,6 +92,44 @@ describe("ColorPanel", () => {
     act(() => root.unmount());
     container.remove();
     vi.restoreAllMocks();
+  });
+
+  it("切换语言保留色块与当前格式，点击后写入原色相值", async () => {
+    const locale = createLocaleStore("zh-CN");
+    const runtime = createI18nRuntime({ localeSource: locale });
+    const { t } = runtime.get(editorMessages);
+    const editor = makeEditor({ highlight: "green" });
+    const before = JSON.stringify(editor.children);
+    const highlightLabel = () => t("color.highlightLabel", { color: t("palette.yellow") });
+    try {
+      await act(async () =>
+        root.render(
+          <I18nRuntimeProvider runtime={runtime}>
+            <ColorPanel
+              value={readColorValue(editor)}
+              onTextColor={id => setTextColor(editor, id)}
+              onGradient={id => setTextGradient(editor, id)}
+              onHighlight={id => setHighlight(editor, id)}
+              onClear={() => clearColors(editor)}
+            />
+          </I18nRuntimeProvider>
+        )
+      );
+      const choice = container.querySelector<HTMLButtonElement>(
+        `[aria-label="${highlightLabel()}"]`
+      );
+      if (!choice) throw new Error("高亮选项未挂载");
+      for (const next of ["zh-TW", "en-US"]) {
+        await act(async () => locale.setLocale(next));
+        expect(container.querySelector(`[aria-label="${highlightLabel()}"]`)).toBe(choice);
+        expect(JSON.stringify(editor.children)).toBe(before);
+      }
+      await act(async () => choice.click());
+      expect(readColorValue(editor).highlight).toBe("yellow");
+    } finally {
+      await act(async () => root.render(null));
+      runtime.dispose();
+    }
   });
 
   it("文字与高亮两行都覆盖整套色板，当前值标为按下", async () => {

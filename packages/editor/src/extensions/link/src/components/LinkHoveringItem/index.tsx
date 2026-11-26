@@ -1,3 +1,4 @@
+import { useEditorI18n } from "../../../../../i18n";
 import { useMemo, memo } from "react";
 import { useSlateStatic, useSlateSelection } from "slate-react";
 import { EditorTooltip as Tooltip } from "@tau/editor/api";
@@ -11,6 +12,7 @@ const MOD = /Mac|iP/.test(navigator.platform) ? "⌘" : "Ctrl+";
 
 /** 选区不在链接里时新建，在链接里时编辑（取消链接放在编辑浮层里，避免误删） */
 const LinkHoveringItem = memo(() => {
+  const { t } = useEditorI18n();
   const editor = useSlateStatic();
   const selection = useSlateSelection();
 
@@ -23,7 +25,7 @@ const LinkHoveringItem = memo(() => {
     <Tooltip
       content={
         <span className="flex items-center gap-2">
-          {isActive ? "编辑链接" : "链接"}
+          {t(isActive ? "format.editLink" : "format.link")}
           <span className="font-mono text-[11px] opacity-60">{MOD}L</span>
         </span>
       }

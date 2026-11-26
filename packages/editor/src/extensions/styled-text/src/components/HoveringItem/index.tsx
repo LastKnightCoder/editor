@@ -1,3 +1,4 @@
+import { useEditorI18n } from "../../../../../i18n";
 import React, { useMemo } from "react";
 import { useMemoizedFn } from "ahooks";
 import { EditorTooltip as Tooltip } from "@tau/editor/api";
@@ -12,6 +13,7 @@ import { type StyledTextElement } from "../../types.ts";
 import { StyledTextColorStyle } from "../../colors.ts";
 
 const HoveringItem = () => {
+  const { t } = useEditorI18n();
   const editor = useSlate();
   const selection = useSlateSelection();
   const { isDark } = useTheme();
@@ -51,7 +53,7 @@ const HoveringItem = () => {
   });
 
   return (
-    <Tooltip content={"样式文本"}>
+    <Tooltip content={t("format.styled")}>
       <div
         className={classnames(
           "flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg transition-all duration-200",

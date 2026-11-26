@@ -1,3 +1,4 @@
+import { useEditorI18n } from "../../../../../i18n";
 import React, { useState, useEffect, useMemo, memo } from "react";
 import { useSlate } from "slate-react";
 import { useMemoizedFn } from "ahooks";
@@ -6,8 +7,6 @@ import classnames from "classnames";
 
 import { EditorTooltip as Tooltip } from "@tau/editor/api";
 import {
-  TEXT_GRADIENT_PRESETS,
-  getInlinePaletteEntry,
   inlineGradient,
   inlineHighlight,
   inlineInk,
@@ -24,12 +23,16 @@ const GLYPH_MASK = `url("data:image/svg+xml,${encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 16 6-12 6 12"/><path d="M8 12h8"/></svg>'
 )}")`;
 
-const describeColor = (value: ColorValue) => {
+const describeColor = (value: ColorValue, t: ReturnType<typeof useEditorI18n>["t"]) => {
   const parts = [
     value.gradient
-      ? `${TEXT_GRADIENT_PRESETS[value.gradient].label}渐变`
-      : getInlinePaletteEntry(value.text)?.label,
-    value.highlight ? `${getInlinePaletteEntry(value.highlight)?.label}高亮` : undefined,
+      ? t("color.gradientLabel", { name: t(`gradient.${value.gradient}`) })
+      : value.text && value.text !== "custom"
+        ? t(`palette.${value.text}`)
+        : undefined,
+    value.highlight
+      ? t("color.highlightLabel", { color: t(`palette.${value.highlight}`) })
+      : undefined,
   ].filter(Boolean);
   return parts.join(" + ");
 };
@@ -39,6 +42,7 @@ const describeColor = (value: ColorValue) => {
  * 按钮上的 A 与色条显示这个「最近组合」，点下去是什么效果一目了然。
  */
 const ColorText = memo(() => {
+  const { t } = useEditorI18n();
   const editor = useSlate();
   const { isHoveringBarShow, isCompact, submenuTrigger } = useToolbarState();
 
@@ -134,7 +138,10 @@ const ColorText = memo(() => {
           open && "is-open"
         )}
       >
-        <Tooltip content={`套用 ${describeColor(lastColor) || "默认"}`} disabled={open}>
+        <Tooltip
+          content={t("color.apply", { style: describeColor(lastColor, t) || t("color.default") })}
+          disabled={open}
+        >
           <div
             className="flex h-8 w-7 cursor-pointer items-center justify-center rounded-l-lg"
             onClick={handleApplyLast}
@@ -153,7 +160,7 @@ const ColorText = memo(() => {
           </div>
         </Tooltip>
         <div
-          aria-label="颜色选项"
+          aria-label={t("color.options")}
           className="flex h-8 w-4 cursor-pointer items-center justify-center rounded-r-lg pr-0.5 transition-colors duration-150 hover:bg-[var(--ed-bg-press)]"
         >
           <ChevronDown size={11} strokeWidth={3} className="opacity-60" />

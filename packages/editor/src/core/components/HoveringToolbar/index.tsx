@@ -135,7 +135,7 @@ const SelectionToolbar = memo((props: IHoveringToolbarProps) => {
           element: () => (
             <CompactGroupMenu
               id="text-style"
-              title="文本样式"
+              titleMessage="format.textStyles"
               icon={<Type size={16} strokeWidth={2.5} />}
               items={item.items}
             />
@@ -150,7 +150,7 @@ const SelectionToolbar = memo((props: IHoveringToolbarProps) => {
           element: () => (
             <CompactGroupMenu
               id="more"
-              title="更多"
+              titleMessage="format.more"
               icon={<Ellipsis size={16} strokeWidth={2.5} />}
               items={item.items}
             />

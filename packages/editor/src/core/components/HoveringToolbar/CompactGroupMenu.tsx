@@ -1,3 +1,4 @@
+import { useEditorI18n, type EditorMessageKey } from "../../../i18n";
 import React, {
   useCallback,
   useContext,
@@ -16,13 +17,15 @@ import { calculateFloatingPosition } from "./floatingPosition";
 
 type CompactGroupMenuProps = {
   id: string;
-  title: string;
+  titleMessage: EditorMessageKey;
   icon: React.ReactNode;
   items: IConfigItem[];
 };
 
 function CompactGroupMenu(props: CompactGroupMenuProps) {
-  const { title, icon, items, id } = props;
+  const { t } = useEditorI18n();
+  const { titleMessage, icon, items, id } = props;
+  const title = t(titleMessage);
   const { isHoveringBarShow } = useContext(HoveringBarContext);
 
   const triggerRef = useRef<HTMLDivElement | null>(null);

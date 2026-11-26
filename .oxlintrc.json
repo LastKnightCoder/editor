@@ -220,7 +220,13 @@
                   "@tau/editor/*",
                   "!@tau/editor/api",
                   "!@tau/editor/api/services",
-                  "!@tau/editor/api/paragraph"
+                  "!@tau/editor/api/paragraph",
+                  "!@tau/editor/extensions",
+                  "@tau/editor/extensions/*",
+                  "!@tau/editor/extensions/text-formatting",
+                  "@tau/editor/extensions/text-formatting/*",
+                  "!@tau/editor/extensions/text-formatting/palette",
+                  "!@tau/editor/extensions/text-formatting/panels"
                 ],
                 "message": "扩展访问内核只能通过 @tau/editor/api"
               },

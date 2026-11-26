@@ -1,3 +1,4 @@
+import { useEditorI18n } from "../../../../../i18n";
 import React, { useEffect, useRef, useState } from "react";
 import { ArrowUp } from "lucide-react";
 import { cn } from "@tau/ui";
@@ -19,15 +20,16 @@ interface CommentInputProps {
  * 批注输入框：常态 surface 底 + 细线，聚焦只换 accent 线与焦点环；高度随内容增长，⌘/Ctrl+↵ 发送。
  */
 const CommentInput: React.FC<CommentInputProps> = ({
-  placeholder = "写下你的想法…",
+  placeholder,
   initialValue = "",
   onSubmit,
   onCancel,
-  submitText = "保存",
+  submitText,
   autoFocus = false,
   popoverAutoFocus = false,
   className,
 }) => {
+  const { t } = useEditorI18n();
   const [value, setValue] = useState(initialValue);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const inline = Boolean(onCancel);
@@ -85,7 +87,7 @@ const CommentInput: React.FC<CommentInputProps> = ({
         data-autofocus={popoverAutoFocus || undefined}
         onChange={event => setValue(event.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder={placeholder}
+        placeholder={placeholder ?? t("comment.placeholder")}
         className={cn(
           "block max-h-40 min-h-[30px] w-full resize-none border-none bg-transparent px-3 pt-2 text-[13.5px] leading-[1.6] text-[var(--ed-text)] outline-none [field-sizing:content] placeholder:text-[var(--ed-text-tertiary)]",
           inline && "px-2.5 pt-1.5"
@@ -93,13 +95,13 @@ const CommentInput: React.FC<CommentInputProps> = ({
       />
 
       {inline ? (
-        <div className="flex justify-end gap-1.5 px-1.5 pb-1.5 pt-1">
+        <div className="flex justify-end gap-1.5 px-1.5 pt-1 pb-1.5">
           <button
             type="button"
             onClick={onCancel}
             className="h-[26px] cursor-pointer rounded-[7px] border-none bg-transparent px-2.5 text-[12.5px] text-[var(--ed-text-secondary)] transition-colors hover:bg-[var(--ed-bg-hover)] hover:text-[var(--ed-text)]"
           >
-            取消
+            {t("comment.cancel")}
           </button>
           <button
             type="button"
@@ -107,15 +109,17 @@ const CommentInput: React.FC<CommentInputProps> = ({
             disabled={!canSubmit}
             className="h-[26px] cursor-pointer rounded-[7px] border-none bg-[var(--ed-accent)] px-2.5 text-[12.5px] font-medium text-[var(--ed-text-inverse)] transition-colors hover:bg-[var(--ed-accent-hover)] disabled:cursor-default disabled:bg-[var(--ed-bg-press)] disabled:text-[var(--ed-text-tertiary)]"
           >
-            {submitText}
+            {submitText ?? t("comment.save")}
           </button>
         </div>
       ) : (
-        <div className="flex items-center justify-between pb-1.5 pl-3 pr-1.5 pt-1">
-          <span className="text-[11px] text-[var(--ed-text-tertiary)]">⌘ / Ctrl + ↵ 发送</span>
+        <div className="flex items-center justify-between pt-1 pr-1.5 pb-1.5 pl-3">
+          <span className="text-[11px] text-[var(--ed-text-tertiary)]">
+            {t("comment.sendHint")}
+          </span>
           <button
             type="button"
-            aria-label="发送"
+            aria-label={t("comment.send")}
             onClick={handleSubmit}
             disabled={!canSubmit}
             className="flex size-7 cursor-pointer items-center justify-center rounded-[8px] border-none bg-[var(--ed-accent)] text-[var(--ed-text-inverse)] transition-colors hover:bg-[var(--ed-accent-hover)] disabled:cursor-default disabled:bg-[var(--ed-bg-press)] disabled:text-[var(--ed-text-tertiary)]"

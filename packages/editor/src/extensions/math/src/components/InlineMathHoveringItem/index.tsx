@@ -1,3 +1,4 @@
+import { useEditorI18n } from "../../../../../i18n";
 import React, { useMemo } from "react";
 import { Editor, Transforms } from "slate";
 import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
@@ -9,6 +10,7 @@ import classnames from "classnames";
 import { unWrapInlineMath, wrapInlineMath } from "../../insert";
 
 const InlineMathHoveringItem = () => {
+  const { t } = useEditorI18n();
   const editor = useSlate();
   const selection = useSlateSelection();
 
@@ -37,7 +39,7 @@ const InlineMathHoveringItem = () => {
   });
 
   return (
-    <Tooltip content={"行内公式"} className="z-[10200]">
+    <Tooltip content={t("format.inlineMath")} className="z-[10200]">
       <div
         className={classnames(
           "flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg transition-all duration-200",

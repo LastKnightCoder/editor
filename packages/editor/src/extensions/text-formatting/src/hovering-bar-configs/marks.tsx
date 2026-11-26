@@ -6,25 +6,25 @@ const markConfigs = [
   {
     icon: <Bold size={16} strokeWidth={2.5} />,
     mark: "bold",
-    tooltip: "加粗",
+    tooltipMessage: "format.bold",
     order: 1,
   },
   {
     icon: <Italic size={16} strokeWidth={2.5} />,
     mark: "italic",
-    tooltip: "斜体",
+    tooltipMessage: "format.italic",
     order: 2,
   },
   {
     icon: <Strikethrough size={16} strokeWidth={2.5} />,
     mark: "strikethrough",
-    tooltip: "删除线",
+    tooltipMessage: "format.strike",
     order: 4,
   },
   {
     icon: <Code size={16} strokeWidth={2.5} />,
     mark: "code",
-    tooltip: "代码",
+    tooltipMessage: "format.code",
     order: 5,
   },
 ] as const;

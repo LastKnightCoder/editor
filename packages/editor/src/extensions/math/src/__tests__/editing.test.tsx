@@ -1,3 +1,5 @@
+import { createI18nRuntime, createLocaleStore, type I18nRuntime } from "@tau/i18n";
+import { I18nRuntimeProvider } from "@tau/i18n/react";
 import { ReactEditor } from "slate-react";
 import React, { act, createRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -34,7 +36,7 @@ describe("行内公式原位编辑", () => {
     host = null;
   });
 
-  const mount = async (touch = false) => {
+  const mount = async (touch = false, runtime?: I18nRuntime) => {
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);
@@ -49,14 +51,18 @@ describe("行内公式原位编辑", () => {
       ],
     });
     await act(async () => {
-      root!.render(
+      const content = (
         <DndProvider backend={HTML5Backend}>
           <Editor ref={ref} kit={kit} readonly={false} initValue={[paragraphWithMath()]} />
         </DndProvider>
       );
+      root!.render(
+        runtime ? <I18nRuntimeProvider runtime={runtime}>{content}</I18nRuntimeProvider> : content
+      );
       await vi.dynamicImportSettled();
     });
     editor = ref.current!.getEditor();
+    return () => ref.current?.getEditor();
   };
 
   const open = async () => {
@@ -106,6 +112,32 @@ describe("行内公式原位编辑", () => {
     });
     expect(host!.querySelector("input[data-inline-math-input]")).toBeNull();
     expect(editor.selection).toBeTruthy();
+  });
+
+  it("语言切换保留公式编辑、光标和编辑器，不额外写入正文", async () => {
+    const locale = createLocaleStore("zh-CN");
+    const runtime = createI18nRuntime({ localeSource: locale });
+    try {
+      const currentEditor = await mount(false, runtime);
+      const source = await open();
+      await input(source, "z^4");
+      const before = JSON.stringify(editor.children);
+      const selection = structuredClone(editor.selection);
+      source.setSelectionRange(1, 2);
+      for (const next of ["zh-TW", "en-US"]) {
+        await act(async () => locale.setLocale(next));
+        expect(host?.querySelector("input[data-inline-math-input]")).toBe(source);
+        expect(source.value).toBe("z^4");
+        expect([source.selectionStart, source.selectionEnd]).toEqual([1, 2]);
+        expect(currentEditor()).toBe(editor);
+        expect(editor.selection).toEqual(selection);
+        expect(JSON.stringify(editor.children)).toBe(before);
+      }
+    } finally {
+      await act(async () => root?.unmount());
+      root = null;
+      runtime.dispose();
+    }
   });
 
   it("源码边界方向键与点按外部都能退出", async () => {

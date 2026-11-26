@@ -85,8 +85,19 @@ for (const directory of [
   imports(
     "编辑器扩展",
     directory,
-    ["@tau/editor", "@tau/editor/toolbar", "../../editor/src/core/value"],
-    ["@tau/editor/api", "@tau/editor/api/services", "@tau/editor/api/paragraph"]
+    [
+      "@tau/editor",
+      "@tau/editor/toolbar",
+      "../../editor/src/core/value",
+      "@tau/editor/extensions/text-formatting/src/private",
+    ],
+    [
+      "@tau/editor/api",
+      "@tau/editor/api/services",
+      "@tau/editor/api/paragraph",
+      "@tau/editor/extensions/text-formatting/palette",
+      "@tau/editor/extensions/text-formatting/panels",
+    ]
   );
 }
 imports(

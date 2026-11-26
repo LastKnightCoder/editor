@@ -1,3 +1,4 @@
+import { useEditorI18n } from "../../../../../i18n";
 import React, { useMemo } from "react";
 import { OverlayBackDismiss } from "@tau/editor/api";
 import { Trash2, X } from "lucide-react";
@@ -43,6 +44,7 @@ const CommentPopover: React.FC<CommentPopoverProps> = ({
   onRemoveAll,
   readOnly = false,
 }) => {
+  const { t, locale } = useEditorI18n();
   const total = useMemo(() => getTotalCommentCount(comments), [comments]);
   const isEmpty = total === 0;
   const [threadEl, setThreadEl] = React.useState<HTMLDivElement | null>(null);
@@ -60,19 +62,19 @@ const CommentPopover: React.FC<CommentPopoverProps> = ({
       className="w-[360px] max-w-[calc(100vw-24px)] overflow-hidden"
     >
       <OverlayBackDismiss open={open && !!anchorElement} onDismiss={onClose} />
-      <div className="flex items-center gap-1 pl-4 pr-3 pt-3">
+      <div className="flex items-center gap-1 pt-3 pr-3 pl-4">
         <h4 className="m-0 flex flex-1 items-baseline gap-1.5 text-[13.5px] font-semibold text-[var(--ed-text)]">
-          {isEmpty ? "添加批注" : "批注"}
+          {t(isEmpty ? "comment.add" : "comment.title")}
           {!isEmpty && (
             <span className="font-mono text-[12px] font-medium text-[var(--ed-text-tertiary)]">
-              {total}
+              {total.toLocaleString(locale)}
             </span>
           )}
         </h4>
         {!readOnly && !isEmpty && (
           <button
             type="button"
-            aria-label="移除整条批注"
+            aria-label={t("comment.removeAll")}
             className={cn(
               headerButtonClass,
               "hover:bg-[var(--ed-danger-soft)] hover:text-[var(--ed-danger)]"
@@ -82,7 +84,12 @@ const CommentPopover: React.FC<CommentPopoverProps> = ({
             <Trash2 size={14} />
           </button>
         )}
-        <button type="button" aria-label="关闭" className={headerButtonClass} onClick={onClose}>
+        <button
+          type="button"
+          aria-label={t("comment.close")}
+          className={headerButtonClass}
+          onClick={onClose}
+        >
           <X size={15} />
         </button>
       </div>
@@ -111,7 +118,7 @@ const CommentPopover: React.FC<CommentPopoverProps> = ({
       {!readOnly && (
         <CommentInput
           className="m-3"
-          placeholder={isEmpty ? "写下你的想法…" : "继续批注…"}
+          placeholder={t(isEmpty ? "comment.placeholder" : "comment.continue")}
           onSubmit={onAddComment}
           popoverAutoFocus={isEmpty}
           autoFocus={open && isEmpty}

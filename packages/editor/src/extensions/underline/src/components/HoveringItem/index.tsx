@@ -1,3 +1,4 @@
+import { useEditorI18n } from "../../../../../i18n";
 import React, { useMemo, useState, useEffect } from "react";
 import { useMemoizedFn } from "ahooks";
 import { EditorTooltip as Tooltip } from "@tau/editor/api";
@@ -45,6 +46,7 @@ const persistLineType = (lineType: UnderlineLineType) => {
 };
 
 const HoveringItem = () => {
+  const { t } = useEditorI18n();
   const editor = useSlate();
   const selection = useSlateSelection();
   const { isHoveringBarShow, isCompact, submenuTrigger } = useToolbarState();
@@ -162,7 +164,7 @@ const HoveringItem = () => {
         />
       }
     >
-      <Tooltip content={"下划线"} disabled={popoverOpen}>
+      <Tooltip content={t("format.underline")} disabled={popoverOpen}>
         <div
           className={classnames(
             "flex h-8 cursor-pointer items-center justify-center gap-0.5 rounded-lg px-1.5",

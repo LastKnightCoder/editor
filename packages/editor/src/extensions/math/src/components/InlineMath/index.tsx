@@ -1,3 +1,4 @@
+import { useEditorI18n } from "../../../../../i18n";
 import React, { PropsWithChildren, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Editor, Path, Transforms } from "slate";
@@ -26,6 +27,7 @@ interface InlineMathProps {
 }
 
 const InlineMath: React.FC<PropsWithChildren<InlineMathProps>> = props => {
+  const { t } = useEditorI18n();
   const { attributes, element, children } = props;
   const editor = useSlateStatic();
   const bound = Boolean(editor.tryGetService(IEditorTextFields));
@@ -208,11 +210,11 @@ const InlineMath: React.FC<PropsWithChildren<InlineMathProps>> = props => {
             <input
               ref={inputRef}
               data-inline-math-input=""
-              aria-label="行内公式 LaTeX 源码"
+              aria-label={t("math.source")}
               value={bound ? undefined : tex}
               readOnly={readOnly || Boolean(bindingError)}
               size={Math.max(1, tex.length + 1)}
-              placeholder="输入公式"
+              placeholder={t("math.input")}
               spellCheck={false}
               className="ease-tau-out [field-sizing:content] max-w-[min(55vw,20rem)] min-w-3 border-none bg-transparent p-0 text-inherit transition-[width] duration-120 outline-none placeholder:text-[var(--ed-text-tertiary)]"
               onChange={bound ? undefined : event => handleTexChange(event.target.value)}
@@ -255,13 +257,13 @@ const InlineMath: React.FC<PropsWithChildren<InlineMathProps>> = props => {
         ) : tex ? (
           <Katex tex={tex} inline />
         ) : (
-          <span className="px-1 text-[var(--ed-text-tertiary)]">Empty Math</span>
+          <span className="px-1 text-[var(--ed-text-tertiary)]">{t("math.empty")}</span>
         )}
         {isOpen &&
           createPortal(
             <motion.span
               ref={previewRef}
-              aria-label="公式预览"
+              aria-label={t("math.preview")}
               contentEditable={false}
               className="rounded-tau-sm shadow-card pointer-events-none fixed top-0 left-0 z-9999 inline-flex max-w-[calc(100vw-16px)] -translate-x-1/2 items-center overflow-x-auto bg-[var(--ed-bg-surface)] px-[0.6em] py-[0.4em] whitespace-nowrap text-[var(--ed-text)]"
               style={{ visibility: "hidden" }}
@@ -272,7 +274,7 @@ const InlineMath: React.FC<PropsWithChildren<InlineMathProps>> = props => {
               {tex ? (
                 <Katex tex={tex} inline />
               ) : (
-                <span className="text-[var(--ed-text-tertiary)]">公式预览</span>
+                <span className="text-[var(--ed-text-tertiary)]">{t("math.preview")}</span>
               )}
             </motion.span>,
             document.body

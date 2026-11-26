@@ -1,9 +1,9 @@
+import { useEditorI18n } from "../../../../../i18n";
 import { memo } from "react";
 import { Ban, Eraser } from "lucide-react";
 import {
   INLINE_PALETTE,
   TEXT_GRADIENT_PRESETS,
-  getInlinePaletteEntry,
   gradientTextStyle,
   inlineHighlight,
   inlineInk,
@@ -31,19 +31,22 @@ const GRADIENTS = Object.values(TEXT_GRADIENT_PRESETS);
 
 /** 颜色面板：字色 / 高亮两行按统一色板逐列对齐，渐变字另起一行 */
 const ColorPanel = memo((props: ColorPanelProps) => {
+  const { t } = useEditorI18n();
   const { value, onTextColor, onGradient, onHighlight, onClear } = props;
 
   const textLabel = value.gradient
-    ? TEXT_GRADIENT_PRESETS[value.gradient].label
+    ? t(`gradient.${value.gradient}`)
     : value.text === "custom"
-      ? "自定义"
-      : (getInlinePaletteEntry(value.text)?.label ?? "默认");
+      ? t("color.custom")
+      : value.text
+        ? t(`palette.${value.text}`)
+        : t("color.default");
 
   return (
     <div className={inlineStylePanelClass}>
-      <PanelGroup label="文字" value={textLabel}>
+      <PanelGroup label={t("color.text")} value={textLabel}>
         <Swatch
-          label="默认"
+          label={t("color.default")}
           active={!value.text && !value.gradient}
           onPick={() => onTextColor(null)}
         >
@@ -52,7 +55,7 @@ const ColorPanel = memo((props: ColorPanelProps) => {
         {INLINE_PALETTE.map(entry => (
           <Swatch
             key={entry.id}
-            label={entry.label}
+            label={t(`palette.${entry.id}`)}
             active={value.text === entry.id}
             onPick={() => onTextColor(entry.id)}
           >
@@ -61,8 +64,15 @@ const ColorPanel = memo((props: ColorPanelProps) => {
         ))}
       </PanelGroup>
 
-      <PanelGroup label="高亮" value={getInlinePaletteEntry(value.highlight)?.label ?? "无"}>
-        <Swatch label="无高亮" active={!value.highlight} onPick={() => onHighlight(null)}>
+      <PanelGroup
+        label={t("color.highlight")}
+        value={value.highlight ? t(`palette.${value.highlight}`) : t("color.none")}
+      >
+        <Swatch
+          label={t("color.noHighlight")}
+          active={!value.highlight}
+          onPick={() => onHighlight(null)}
+        >
           <Ban size={16} className="text-[var(--ed-text-tertiary)]" />
         </Swatch>
         {INLINE_PALETTE.map(entry => {
@@ -71,7 +81,7 @@ const ColorPanel = memo((props: ColorPanelProps) => {
           return (
             <Swatch
               key={entry.id}
-              label={`${entry.label}高亮`}
+              label={t("color.highlightLabel", { color: t(`palette.${entry.id}`) })}
               active={value.highlight === entry.id}
               onPick={() => onHighlight(entry.id)}
             >
@@ -86,11 +96,11 @@ const ColorPanel = memo((props: ColorPanelProps) => {
         })}
       </PanelGroup>
 
-      <PanelGroup label="渐变字">
+      <PanelGroup label={t("color.gradient")}>
         {GRADIENTS.map(gradient => (
           <Swatch
             key={gradient.id}
-            label={gradient.label}
+            label={t(`gradient.${gradient.id}`)}
             active={value.gradient === gradient.id}
             onPick={() => onGradient(gradient.id)}
           >
@@ -100,7 +110,7 @@ const ColorPanel = memo((props: ColorPanelProps) => {
       </PanelGroup>
 
       <PanelAction icon={<Eraser />} onClick={onClear}>
-        清除颜色
+        {t("color.clear")}
       </PanelAction>
     </div>
   );

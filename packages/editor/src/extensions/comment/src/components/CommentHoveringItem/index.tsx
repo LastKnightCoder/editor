@@ -1,3 +1,4 @@
+import { useEditorI18n } from "../../../../../i18n";
 import React, { useMemo } from "react";
 import { Editor, Transforms } from "slate";
 import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
@@ -9,6 +10,7 @@ import classnames from "classnames";
 import { wrapComment, unwrapComment } from "../../operations.ts";
 
 const CommentHoveringItem = () => {
+  const { t } = useEditorI18n();
   const editor = useSlate();
   const selection = useSlateSelection();
 
@@ -37,7 +39,7 @@ const CommentHoveringItem = () => {
   });
 
   return (
-    <Tooltip content={"批注"}>
+    <Tooltip content={t("format.comment")}>
       <div
         className={classnames(
           "flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg transition-all duration-200",

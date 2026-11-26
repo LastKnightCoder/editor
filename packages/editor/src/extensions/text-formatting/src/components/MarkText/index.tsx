@@ -1,3 +1,4 @@
+import { useEditorI18n, type EditorMessageKey } from "../../../../../i18n";
 import { useMemo, memo } from "react";
 import { useSlate, useSlateSelection } from "slate-react";
 import { EditorTooltip as Tooltip } from "@tau/editor/api";
@@ -10,12 +11,13 @@ import classnames from "classnames";
 
 interface IMarkTextProps {
   mark: Mark;
-  tooltip: string;
+  tooltipMessage: EditorMessageKey;
   icon: React.ReactNode;
 }
 
 const MarkText = memo((props: IMarkTextProps) => {
-  const { mark, tooltip, icon } = props;
+  const { t } = useEditorI18n();
+  const { mark, tooltipMessage, icon } = props;
   const editor = useSlate();
   const selection = useSlateSelection();
 
@@ -29,7 +31,7 @@ const MarkText = memo((props: IMarkTextProps) => {
   });
 
   return (
-    <Tooltip content={tooltip}>
+    <Tooltip content={t(tooltipMessage)}>
       <div
         className={classnames(
           "flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg transition-all duration-200",

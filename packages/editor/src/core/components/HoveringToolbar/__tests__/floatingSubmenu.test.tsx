@@ -1,3 +1,7 @@
+import { createI18nRuntime, createLocaleStore } from "@tau/i18n";
+import { I18nRuntimeProvider } from "@tau/i18n/react";
+import CompactGroupMenu from "../CompactGroupMenu";
+import { HoveringBarContext } from "../context";
 import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -85,6 +89,57 @@ describe("FloatingSubmenu", () => {
     document.body.innerHTML = "";
     vi.restoreAllMocks();
     vi.useRealTimers();
+  });
+
+  it("切换语言保留已打开的紧凑分组及其未提交输入", async () => {
+    const locale = createLocaleStore("zh-CN");
+    const runtime = createI18nRuntime({ localeSource: locale });
+    const Draft = () => {
+      const [value, setValue] = useState("");
+      return <input value={value} onChange={event => setValue(event.target.value)} />;
+    };
+    try {
+      await act(async () =>
+        root.render(
+          <I18nRuntimeProvider runtime={runtime}>
+            <HoveringBarContext.Provider
+              value={{ isHoveringBarShow: true, isCompact: true, submenuTrigger: "click" }}
+            >
+              <CompactGroupMenu
+                id="styles"
+                titleMessage="format.textStyles"
+                icon={<span data-testid="group-icon" />}
+                items={[{ id: "draft", order: 1, element: Draft }]}
+              />
+            </HoveringBarContext.Provider>
+          </I18nRuntimeProvider>
+        )
+      );
+      const trigger = host.querySelector<HTMLElement>('[data-testid="group-icon"]')?.parentElement;
+      if (!trigger) throw new Error("分组入口未挂载");
+      await act(async () => trigger.click());
+      const field = document.querySelector<HTMLInputElement>("input");
+      if (!field) throw new Error("分组未打开");
+      await act(async () => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(
+          field,
+          "pending"
+        );
+        field.dispatchEvent(new Event("input", { bubbles: true }));
+        field.focus();
+      });
+      field.setSelectionRange(1, 4);
+      for (const next of ["zh-TW", "en-US"]) {
+        await act(async () => locale.setLocale(next));
+        expect(document.querySelector("input")).toBe(field);
+        expect(field.value).toBe("pending");
+        expect(document.activeElement).toBe(field);
+        expect([field.selectionStart, field.selectionEnd]).toEqual([1, 4]);
+      }
+    } finally {
+      await act(async () => root.render(null));
+      runtime.dispose();
+    }
   });
 
   it("open 后应在视口内完成定位，并支持 outside click 关闭", () => {

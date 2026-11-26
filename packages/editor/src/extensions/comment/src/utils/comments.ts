@@ -9,13 +9,31 @@ const getTotalCommentCount = (items: CommentType[] = []): number => {
 };
 
 /** 批注时间：今天 / 昨天只写时刻，本年省略年份 */
-const formatCommentTime = (timestamp: number, now: number = Date.now()): string => {
+const formatCommentTime = (
+  timestamp: number,
+  locale: string,
+  relative: (day: "today" | "yesterday", time: string) => string,
+  now: number = Date.now()
+): string => {
   const time = dayjs(timestamp);
   const today = dayjs(now);
-  if (time.isSame(today, "day")) return `今天 ${time.format("HH:mm")}`;
-  if (time.isSame(today.subtract(1, "day"), "day")) return `昨天 ${time.format("HH:mm")}`;
-  if (time.isSame(today, "year")) return time.format("M月D日 HH:mm");
-  return time.format("YYYY年M月D日");
+  const clock = () =>
+    new Intl.DateTimeFormat(locale, {
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).format(timestamp);
+  if (time.isSame(today, "day")) return relative("today", clock());
+  if (time.isSame(today.subtract(1, "day"), "day")) return relative("yesterday", clock());
+  const sameYear = time.isSame(today, "year");
+  return new Intl.DateTimeFormat(locale, {
+    year: sameYear ? undefined : "numeric",
+    month: "long",
+    day: "numeric",
+    hour: sameYear ? "2-digit" : undefined,
+    minute: sameYear ? "2-digit" : undefined,
+    hourCycle: "h23",
+  }).format(timestamp);
 };
 
 /** 更新时间比创建晚过一分钟才算「已编辑」，免得创建时的同帧写入误判 */

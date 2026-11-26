@@ -1,3 +1,4 @@
+import { useEditorI18n } from "../../../../../i18n";
 import React, { useMemo } from "react";
 import { useMemoizedFn } from "ahooks";
 import { EditorTooltip as Tooltip } from "@tau/editor/api";
@@ -9,6 +10,7 @@ import classnames from "classnames";
 import { wrapKbd, unwrapKbd } from "../../operations.ts";
 
 const HoveringItem = () => {
+  const { t } = useEditorI18n();
   const editor = useSlate();
   const selection = useSlateSelection();
 
@@ -35,7 +37,7 @@ const HoveringItem = () => {
   });
 
   return (
-    <Tooltip content={"快捷键"}>
+    <Tooltip content={t("format.kbd")}>
       <div
         className={classnames(
           "flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg transition-all duration-200",

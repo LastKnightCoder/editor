@@ -1,3 +1,4 @@
+import { useEditorI18n } from "../../../../../i18n";
 import React, { useState } from "react";
 import { Pencil, Reply, Trash2 } from "lucide-react";
 import { cn } from "@tau/ui";
@@ -27,6 +28,7 @@ const CommentList: React.FC<CommentListProps> = ({
   onReply,
   readOnly = false,
 }) => {
+  const { t, locale } = useEditorI18n();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [replyingId, setReplyingId] = useState<string | null>(null);
 
@@ -38,8 +40,10 @@ const CommentList: React.FC<CommentListProps> = ({
     return (
       <div key={comment.id} className="group/comment relative">
         <div className="flex h-[22px] items-center text-[11.5px] text-[var(--ed-text-tertiary)]">
-          {formatCommentTime(comment.createTime)}
-          {isCommentEdited(comment) && " · 已编辑"}
+          {formatCommentTime(comment.createTime, locale, (day, time) =>
+            t(`comment.${day}`, { time })
+          )}
+          {isCommentEdited(comment) && ` · ${t("comment.edited")}`}
         </div>
 
         {isEditing ? (
@@ -65,10 +69,10 @@ const CommentList: React.FC<CommentListProps> = ({
         )}
 
         {!readOnly && !isEditing && (
-          <div className="absolute -right-1 -top-0.5 flex rounded-[8px] bg-[var(--ed-bg-surface)] opacity-0 transition-opacity duration-150 focus-within:opacity-100 group-hover/comment:opacity-100">
+          <div className="absolute -top-0.5 -right-1 flex rounded-[8px] bg-[var(--ed-bg-surface)] opacity-0 transition-opacity duration-150 group-hover/comment:opacity-100 focus-within:opacity-100">
             <button
               type="button"
-              aria-label="回复"
+              aria-label={t("comment.reply")}
               className={actionClass}
               onClick={() => setReplyingId(comment.id)}
             >
@@ -76,7 +80,7 @@ const CommentList: React.FC<CommentListProps> = ({
             </button>
             <button
               type="button"
-              aria-label="编辑"
+              aria-label={t("comment.edit")}
               className={actionClass}
               onClick={() => setEditingId(comment.id)}
             >
@@ -84,7 +88,7 @@ const CommentList: React.FC<CommentListProps> = ({
             </button>
             <button
               type="button"
-              aria-label="删除"
+              aria-label={t("comment.delete")}
               className={cn(
                 actionClass,
                 "hover:bg-[var(--ed-danger-soft)] hover:text-[var(--ed-danger)]"
@@ -97,12 +101,12 @@ const CommentList: React.FC<CommentListProps> = ({
         )}
 
         {(replies.length > 0 || isReplying) && (
-          <div className="ml-0.5 mt-2.5 flex flex-col gap-2.5 border-0 border-l-2 border-solid border-[var(--ed-border)] pl-3">
+          <div className="mt-2.5 ml-0.5 flex flex-col gap-2.5 border-0 border-l-2 border-solid border-[var(--ed-border)] pl-3">
             {replies.map(reply => renderComment(reply, level + 1))}
             {isReplying && (
               <CommentInput
-                placeholder="回复…"
-                submitText="回复"
+                placeholder={t("comment.replyPlaceholder")}
+                submitText={t("comment.reply")}
                 onSubmit={content => {
                   onReply(comment.id, content);
                   setReplyingId(null);
