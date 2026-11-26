@@ -1,14 +1,21 @@
+import { createI18nRuntime, createLocaleStore, defineI18n } from "@tau/i18n";
+import { createLlmSettingsFormatting } from "../sections/llm-format";
+import zhCN from "../sections/locales/llm.zh-CN.json";
 import { describe, expect, it } from "vitest";
 import {
   OTHER_KEY,
   bucketStarts,
   buildTrendSeries,
   changeRatio,
-  featureLabel,
-  formatCost,
-  formatTokens,
   resolveRange,
 } from "../sections/modelUsageData";
+
+const { featureLabel, formatCost, formatTokens } = createLlmSettingsFormatting(
+  "zh-CN",
+  createI18nRuntime({ localeSource: createLocaleStore("zh-CN") }).get(
+    defineI18n({ fallbackLocale: "zh-CN", resources: { "zh-CN": zhCN } })
+  ).t
+);
 
 const at = (y: number, m: number, d: number, h = 0) => new Date(y, m - 1, d, h).getTime();
 

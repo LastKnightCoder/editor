@@ -10,6 +10,7 @@
  * SecretInput：密钥的显隐 / 复制收进框内，不挂在框外把右缘顶歪。
  */
 
+import { llmText, llmValue, useLlmSettingsI18n } from "../sections/llm.i18n";
 import { useState, type ReactNode } from "react";
 import clsx from "clsx";
 import { Copy, Eye, EyeOff, Plus } from "lucide-react";
@@ -124,6 +125,8 @@ export function SecretInput({
   label: string;
   onCopy?: () => void;
 }) {
+  useLlmSettingsI18n();
+
   const [visible, setVisible] = useState(false);
   return (
     <div className="relative">
@@ -139,13 +142,21 @@ export function SecretInput({
       <div className="absolute inset-y-0 right-1 flex items-center">
         <IconButton
           className="size-[26px]"
-          aria-label={visible ? `隐藏 ${label}` : `显示 ${label}`}
+          aria-label={
+            visible
+              ? llmText("message.hide", { label: llmValue(label) })
+              : llmText("message.show", { label: llmValue(label) })
+          }
           onClick={() => setVisible(v => !v)}
         >
           {visible ? <EyeOff size={14} strokeWidth={1.75} /> : <Eye size={14} strokeWidth={1.75} />}
         </IconButton>
         {onCopy && (
-          <IconButton className="size-[26px]" aria-label={`复制 ${label}`} onClick={onCopy}>
+          <IconButton
+            className="size-[26px]"
+            aria-label={llmText("message.copy", { label: llmValue(label) })}
+            onClick={onCopy}
+          >
             <Copy size={14} strokeWidth={1.75} />
           </IconButton>
         )}

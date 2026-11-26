@@ -1,3 +1,4 @@
+import { llmText, useLlmSettingsI18n } from "./i18n";
 import { useState } from "react";
 import { ChevronDown, ChevronRight, Server } from "lucide-react";
 import type { PiCatalogProvider } from "@tau/ai/models";
@@ -47,6 +48,8 @@ export function AddProviderSheet(props: {
   onClose: () => void;
   onPick: (draft: { providerId: string; preset: string }) => void;
 }) {
+  useLlmSettingsI18n();
+
   const [expanded, setExpanded] = useState(false);
   const presets = catalogPresets();
   const addPreset = (preset: PiCatalogProvider) =>
@@ -57,8 +60,8 @@ export function AddProviderSheet(props: {
   return (
     <BottomSheet open={props.open} onClose={props.onClose}>
       <SheetHeader
-        title="添加服务商"
-        description="选一个预设，只需要填 API Key；地址和模型清单自动带好。"
+        title={llmText("ui.addProvider")}
+        description={llmText("ui.chooseAPresetAndEnterAnAPI")}
         onClose={props.onClose}
       />
       <div className="mt-3 grid grid-cols-1 gap-2">
@@ -75,7 +78,7 @@ export function AddProviderSheet(props: {
             onClick={() => setExpanded(true)}
             className="text-ink-2 text-tau-meta flex h-10 items-center justify-center gap-1 font-medium"
           >
-            更多服务商 · {presets.others.length}
+            {llmText("ui.moreProviders")} {presets.others.length}
             <ChevronDown size={15} aria-hidden="true" />
           </button>
         )}
@@ -88,9 +91,11 @@ export function AddProviderSheet(props: {
             <Server size={17} strokeWidth={1.9} aria-hidden="true" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="text-ink-1 text-tau-body block font-semibold">自定义</span>
+            <span className="text-ink-1 text-tau-body block font-semibold">
+              {llmText("ui.custom")}
+            </span>
             <span className="text-ink-3 text-tau-sm block">
-              OpenAI / Anthropic 兼容地址、本地网关
+              {llmText("ui.openaiAnthropicCompatibleEndpointsAndLocalGateways")}
             </span>
           </span>
           <ChevronRight size={16} className="text-ink-3 shrink-0" aria-hidden="true" />

@@ -39,9 +39,3 @@ export function providerTone(id: string) {
   for (const char of id) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
   return TILE_TONES[hash % TILE_TONES.length];
 }
-
-export function providerSummary(provider: MobileLlmProvider) {
-  const count = `${provider.models.length} 个模型`;
-  if (!provider.configured) return `${count} · 填写 Key 后可用`;
-  return provider.keyHint ? `${count} · …${provider.keyHint}` : count;
-}

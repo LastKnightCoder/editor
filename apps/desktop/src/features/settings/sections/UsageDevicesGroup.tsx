@@ -3,6 +3,7 @@
  * 每台设备只上传自己的记录；换机 / 重装留下的旧设备可以在这里移除。
  */
 
+import { llmText, llmValue, llmFormat, useLlmSettingsI18n } from "./llm.i18n";
 import { useCallback, useEffect, useState } from "react";
 import { Check, Pencil, RefreshCw, Trash2, X } from "lucide-react";
 import { ROW_DIVIDER, Button, ConfirmDialog, IconButton, Input, toast } from "@tau/ui";
@@ -13,11 +14,12 @@ import { isSyncConfigured } from "@/utils/sync";
 import { removeDeviceFromUsageSync, runUsageSync } from "@/services/usageSyncRunner";
 import { SettingsGroup } from "../components/SettingsGroup";
 import { StatusChip } from "../components/StatusChip";
-import { formatEventTime } from "./modelUsageData";
 
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 export function UsageDevicesGroup({ refreshToken }: { refreshToken: number }) {
+  useLlmSettingsI18n();
+
   const sync = useSettingStore(state => state.setting.sync);
   const configured = isSyncConfigured(sync.active, sync);
   const [status, setStatus] = useState<UsageSyncStatus | null>(null);
@@ -28,7 +30,7 @@ export function UsageDevicesGroup({ refreshToken }: { refreshToken: number }) {
     try {
       setStatus(await getUsageSyncStatus());
     } catch (error) {
-      toast.error(`读取设备列表失败：${errorText(error)}`);
+      toast.error(llmText("message.couldNotLoadDevices", { error: llmValue(errorText(error)) }));
     }
   }, []);
 
@@ -41,14 +43,16 @@ export function UsageDevicesGroup({ refreshToken }: { refreshToken: number }) {
     try {
       const report = await runUsageSync();
       if (!report) {
-        toast.error("同步失败，详情见下方状态");
+        toast.error(llmText("ui.syncFailedSeeTheStatusBelowFor"));
       } else if (report.warnings.length > 0) {
-        toast.warning(`部分设备同步失败：${report.warnings[0]}`);
+        toast.warning(
+          llmText("message.someDevicesFailedToSync", { error: llmValue(report.warnings[0]) })
+        );
       } else {
         toast.success(
           report.downloaded > 0
-            ? `已同步，拉取 ${report.downloaded} 个分段`
-            : "已同步，没有新的记录"
+            ? llmText("message.syncedDownloadedSegments", { count: llmValue(report.downloaded) })
+            : llmText("ui.syncedNoNewRecords")
         );
       }
     } finally {
@@ -61,16 +65,18 @@ export function UsageDevicesGroup({ refreshToken }: { refreshToken: number }) {
   const selfId = self?.deviceId ?? "";
 
   const description = !configured
-    ? "在「同步」中配置同步服务后，多台设备的调用记录会汇总到一起"
+    ? llmText("ui.configureASyncServiceToCombineUsage")
     : status?.lastError
-      ? `上次同步失败：${status.lastError}`
+      ? llmText("message.lastSyncFailed", { error: llmValue(status.lastError) })
       : status?.lastSyncedAt
-        ? `上次同步 ${formatEventTime(status.lastSyncedAt)} · 随数据库同步与启动时自动进行`
-        : "尚未同步 · 随数据库同步与启动时自动进行";
+        ? llmText("message.lastSyncedRunsWithDatabaseSyncAnd", {
+            date: llmValue(llmFormat.formatEventTime(status.lastSyncedAt)),
+          })
+        : llmText("ui.notSyncedYetRunsWithDatabaseSync");
 
   return (
     <SettingsGroup
-      title="设备"
+      title={llmText("ui.devices")}
       description={description}
       action={
         configured ? (
@@ -81,13 +87,13 @@ export function UsageDevicesGroup({ refreshToken }: { refreshToken: number }) {
             loading={syncing}
             onClick={() => void syncNow()}
           >
-            立即同步
+            {llmText("ui.syncNow")}
           </Button>
         ) : undefined
       }
     >
       {!status ? (
-        <p className="text-tau-meta text-ink-3 px-3 py-6 text-center">正在读取…</p>
+        <p className="text-tau-meta text-ink-3 px-3 py-6 text-center">{llmText("ui.loading2")}</p>
       ) : (
         status.devices.map(device => (
           <DeviceRow
@@ -101,24 +107,26 @@ export function UsageDevicesGroup({ refreshToken }: { refreshToken: number }) {
       <ConfirmDialog
         open={removing !== null}
         onOpenChange={open => !open && setRemoving(null)}
-        title="移除设备"
+        title={llmText("ui.removeDevice")}
         context={removing?.name}
         danger
-        description="该设备的调用记录会从所有设备的统计中移除。适用于换机或重装后留下的旧设备。"
+        description={llmText("ui.removeThisDeviceSCallRecordsFrom")}
         impact={
           removing
-            ? `${removing.events.toLocaleString("en-US")} 条调用记录将不再计入统计`
+            ? llmText("message.theseCallRecordsWillNoLongerCount", {
+                count: llmValue(removing.events.toLocaleString("en-US")),
+              })
             : undefined
         }
-        confirmText="移除"
+        confirmText={llmText("ui.remove")}
         onConfirm={async () => {
           if (!removing) return;
           try {
             await removeDeviceFromUsageSync(removing.deviceId, selfId);
-            toast.success(`已移除「${removing.name}」`);
+            toast.success(llmText("message.removed2", { name: llmValue(removing.name) }));
             setRemoving(null);
           } catch (error) {
-            toast.error(`移除失败：${errorText(error)}`);
+            toast.error(llmText("message.couldNotRemove", { error: llmValue(errorText(error)) }));
           } finally {
             void refresh();
           }
@@ -137,13 +145,15 @@ function DeviceRow({
   onRenamed: () => void;
   onRemove?: () => void;
 }) {
+  useLlmSettingsI18n();
+
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(device.name);
 
   const save = async () => {
     const name = draft.trim();
     if (!name) {
-      toast.warning("设备名不能为空");
+      toast.warning(llmText("ui.deviceNameCannotBeEmpty"));
       return;
     }
     try {
@@ -151,7 +161,7 @@ function DeviceRow({
       setEditing(false);
       onRenamed();
     } catch (error) {
-      toast.error(`改名失败：${errorText(error)}`);
+      toast.error(llmText("message.couldNotRename", { error: llmValue(errorText(error)) }));
     }
   };
 
@@ -163,7 +173,7 @@ function DeviceRow({
             <Input
               size="sm"
               className="w-56"
-              aria-label="本机设备名"
+              aria-label={llmText("ui.thisDeviceSName")}
               value={draft}
               maxLength={64}
               autoFocus
@@ -173,27 +183,31 @@ function DeviceRow({
                 if (e.key === "Escape") setEditing(false);
               }}
             />
-            <IconButton aria-label="保存设备名" onClick={() => void save()}>
+            <IconButton aria-label={llmText("ui.saveDeviceName")} onClick={() => void save()}>
               <Check size={14} strokeWidth={1.75} />
             </IconButton>
-            <IconButton aria-label="取消改名" onClick={() => setEditing(false)}>
+            <IconButton aria-label={llmText("ui.cancelRename")} onClick={() => setEditing(false)}>
               <X size={14} strokeWidth={1.75} />
             </IconButton>
           </div>
         ) : (
           <div className="flex items-center gap-2">
             <span className="text-tau-body-lg text-ink-1 truncate font-medium">{device.name}</span>
-            {device.isSelf && <StatusChip tone="accent">本机</StatusChip>}
+            {device.isSelf && <StatusChip tone="accent">{llmText("ui.thisDevice")}</StatusChip>}
           </div>
         )}
         <div className="text-tau-meta text-ink-2 mt-0.5 tabular-nums">
-          {device.events.toLocaleString("en-US")} 次调用
-          {device.lastTs ? ` · 最近 ${formatEventTime(device.lastTs)}` : ""}
+          {device.events.toLocaleString("en-US")} {llmText("ui.calls3")}
+          {device.lastTs
+            ? llmText("message.lastUsed", {
+                date: llmValue(llmFormat.formatEventTime(device.lastTs)),
+              })
+            : ""}
         </div>
       </div>
       {device.isSelf && !editing && (
         <IconButton
-          aria-label="修改本机设备名"
+          aria-label={llmText("ui.renameThisDevice")}
           onClick={() => {
             setDraft(device.name);
             setEditing(true);
@@ -203,7 +217,10 @@ function DeviceRow({
         </IconButton>
       )}
       {onRemove && (
-        <IconButton aria-label={`移除设备 ${device.name}`} onClick={onRemove}>
+        <IconButton
+          aria-label={llmText("message.removeDevice", { name: llmValue(device.name) })}
+          onClick={onRemove}
+        >
           <Trash2 size={14} strokeWidth={1.75} />
         </IconButton>
       )}

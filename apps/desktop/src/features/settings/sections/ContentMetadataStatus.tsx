@@ -2,38 +2,50 @@
  * 「笔记元信息」「AI 洞见」功能槽的说明与进度（KL-055 / KL-063）；进度行与嵌入「索引覆盖」同一行式。
  */
 
+import { llmText, llmValue, useLlmSettingsI18n } from "./llm.i18n";
 import { SettingRow } from "@tau/ui";
 import { StatusChip } from "../components/StatusChip";
 import { useContentAiStatus } from "./useContentAiStatus";
 
 export function ContentMetadataDescription() {
-  return <>为卡片生成精简标题，为卡片、文章、项目文档生成要点与关键概念。</>;
+  useLlmSettingsI18n();
+
+  return <>{llmText("ui.generateConciseCardTitlesPlusKeyPoints")}</>;
 }
 
 export function ContentInsightsDescription() {
-  return (
-    <>
-      在卡片、文章、项目文档里点「AI
-      洞见」时，对照你的其他笔记分析这一篇；创作模式里按写作意图找资料、摆上白板。
-    </>
-  );
+  useLlmSettingsI18n();
+
+  return <>{llmText("ui.chooseAIInsightsInACardArticle")}</>;
 }
 
 export function ContentMetadataProgressRow() {
+  useLlmSettingsI18n();
+
   const { data } = useContentAiStatus();
   if (!data || (!data.configured && data.processed === 0)) return null;
   const pending = Math.max(0, data.total - data.processed);
   const percent = data.total > 0 ? Math.round((data.processed / data.total) * 100) : 100;
-  const suffix = !data.configured ? " · 未配置模型，已停止" : data.running ? " · 处理中" : "";
+  const suffix = !data.configured
+    ? llmText("ui.stoppedNoModelAssigned")
+    : data.running
+      ? llmText("ui.processing")
+      : "";
   return (
     <SettingRow
-      title="元信息进度"
-      description={`已处理 ${data.processed} / ${data.total}${suffix}`}
+      title={llmText("ui.metadataProgress")}
+      description={llmText("message.processed", {
+        processed: llmValue(data.processed),
+        total: llmValue(data.total),
+        status: llmValue(suffix),
+      })}
     >
       {pending === 0 ? (
-        <StatusChip tone="ok">已是最新</StatusChip>
+        <StatusChip tone="ok">{llmText("ui.upToDate")}</StatusChip>
       ) : (
-        <StatusChip tone="warn">{pending} 份待处理</StatusChip>
+        <StatusChip tone="warn">
+          {llmText("metadata.pending", { count: llmValue(pending) })}
+        </StatusChip>
       )}
       <span className="text-tau-meta text-ink-1 w-12 text-right font-semibold tabular-nums">
         {percent}%

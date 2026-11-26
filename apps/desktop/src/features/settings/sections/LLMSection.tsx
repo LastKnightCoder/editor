@@ -10,6 +10,7 @@
  * 模型改名时分配引用跟随——legacy 均会留悬空引用。
  */
 
+import { llmText, llmValue, useLlmSettingsI18n } from "./llm.i18n";
 import { useMemo, useState, type ReactNode } from "react";
 import clsx from "clsx";
 import { produce } from "immer";
@@ -78,77 +79,193 @@ interface FeatureDef {
 
 const ASSIGNMENT_CATEGORIES: Array<{ label: string; features: FeatureDef[] }> = [
   {
-    label: "对话与写作",
+    get label() {
+      return llmText("ui.chatWriting");
+    },
     features: [
-      { key: "chat", label: "对话功能", desc: "聊天与写作助手的主力模型" },
+      {
+        key: "chat",
+        get label() {
+          return llmText("ui.chat");
+        },
+        get desc() {
+          return llmText("ui.mainModelForChatAndWriting");
+        },
+      },
       {
         key: INLINE_SUGGESTION_SLOT,
-        label: "行内建议",
-        desc: "正文与代码块补全。分配模型后，会向该服务发送光标附近的文字。",
+        get label() {
+          return llmText("ui.inlineSuggestions");
+        },
+        get desc() {
+          return llmText("ui.completeTextAndCodeAssigningAModel");
+        },
       },
     ],
   },
   {
-    label: "内容处理",
+    get label() {
+      return llmText("ui.contentProcessing");
+    },
     features: [
-      { key: "titleSummary", label: "标题总结", desc: "笔记与文档的命名摘要" },
-      { key: "webClip", label: "网页剪藏", desc: "剪藏页面的正文抽取与清洗" },
+      {
+        key: "titleSummary",
+        get label() {
+          return llmText("ui.titleSummaries");
+        },
+        get desc() {
+          return llmText("ui.summarizeNotesAndDocumentsForTitles");
+        },
+      },
+      {
+        key: "webClip",
+        get label() {
+          return llmText("ui.webClipping");
+        },
+        get desc() {
+          return llmText("ui.extractAndCleanClippedWebPages");
+        },
+      },
       {
         key: "assistantMemory",
-        label: "个人助手记忆",
-        desc: "根据对话、事项和编辑活动维护近期状态与长期偏好，后台自动整理和复核。",
+        get label() {
+          return llmText("ui.assistantMemory");
+        },
+        get desc() {
+          return llmText("ui.maintainRecentContextAndLastingPreferencesFrom");
+        },
       },
-      { key: "contentMetadata", label: "笔记元信息", desc: <ContentMetadataDescription /> },
-      { key: "contentInsights", label: "AI 洞见", desc: <ContentInsightsDescription /> },
+      {
+        key: "contentMetadata",
+        get label() {
+          return llmText("ui.noteMetadata");
+        },
+        desc: <ContentMetadataDescription />,
+      },
+      {
+        key: "contentInsights",
+        get label() {
+          return llmText("ui.aiInsights");
+        },
+        desc: <ContentInsightsDescription />,
+      },
     ],
   },
   {
-    label: "多媒体",
+    get label() {
+      return llmText("ui.media");
+    },
     features: [
-      { key: "videoSummary", label: "视频总结", desc: "视频笔记的章节划分与每章摘要" },
-      { key: "videoEbookRewrite", label: "视频电子书重写", desc: "视频内容重写为电子书章节" },
-      { key: "transcriptionOptimization", label: "转录断句优化", desc: "语音转录文本的断句与顺滑" },
+      {
+        key: "videoSummary",
+        get label() {
+          return llmText("ui.videoSummaries");
+        },
+        get desc() {
+          return llmText("ui.organizeVideoNotesIntoChaptersAndSummarize");
+        },
+      },
+      {
+        key: "videoEbookRewrite",
+        get label() {
+          return llmText("ui.videoToEbook");
+        },
+        get desc() {
+          return llmText("ui.rewriteVideoContentAsEbookChapters");
+        },
+      },
+      {
+        key: "transcriptionOptimization",
+        get label() {
+          return llmText("ui.transcriptCleanup");
+        },
+        get desc() {
+          return llmText("ui.improveSentenceBreaksAndFlowInTranscripts");
+        },
+      },
       {
         key: "speechInputRefinement",
-        label: "语音输入整理",
-        desc: "语音输入识别后的标点与口语整理",
+        get label() {
+          return llmText("ui.voiceInputCleanup");
+        },
+        get desc() {
+          return llmText("ui.addPunctuationAndCleanUpRecognizedSpeech");
+        },
       },
     ],
   },
   {
-    label: "学习辅助",
+    get label() {
+      return llmText("ui.learning");
+    },
     features: [
-      { key: "flashcardGeneration", label: "闪卡", desc: "制作闪卡与简答题答案评判" },
+      {
+        key: "flashcardGeneration",
+        get label() {
+          return llmText("ui.flashcards");
+        },
+        get desc() {
+          return llmText("ui.createFlashcardsAndEvaluateShortAnswers");
+        },
+      },
       {
         key: "vibeLearningImageDescription",
-        label: "图片理解",
-        desc: "Vibe Learning 的图片描述，需带图片能力的模型",
+        get label() {
+          return llmText("ui.imageUnderstanding");
+        },
+        get desc() {
+          return llmText("ui.describeNotebookImagesUsingAModelThat");
+        },
       },
     ],
   },
 ];
 
-const FEATURE_LABELS = {
-  ...Object.fromEntries(
-    ASSIGNMENT_CATEGORIES.flatMap(category => category.features.map(f => [f.key, f.label]))
-  ),
-} as Record<FeatureKey, string>;
+const assignmentFeatureLabel = (key: FeatureKey) =>
+  ASSIGNMENT_CATEGORIES.flatMap(category => category.features).find(feature => feature.key === key)
+    ?.label ?? key;
 
 /** 推理档位的界面文案：与输入框的档位选择同一套说法，不暴露内部档位名 */
 const THINKING_LEVEL_LABELS: Record<PiThinkingLevel, string> = {
-  off: "不思考",
-  minimal: "极简思考",
-  low: "略作沉吟",
-  medium: "细致推演",
-  high: "穷尽求索",
-  xhigh: "远谋深算",
-  max: "极尽推演",
+  get off() {
+    return llmText("ui.noReasoning");
+  },
+  get minimal() {
+    return llmText("ui.minimalReasoning");
+  },
+  get low() {
+    return llmText("ui.lightReasoning");
+  },
+  get medium() {
+    return llmText("ui.detailedReasoning");
+  },
+  get high() {
+    return llmText("ui.deepReasoning");
+  },
+  get xhigh() {
+    return llmText("ui.extensiveReasoning");
+  },
+  get max() {
+    return llmText("ui.maximumReasoning");
+  },
 };
 
 /** 能力 = 模型支持的推理开关 + 输入模态（图片）；联网/音视频等不再作为模型能力标注 */
 const CAPABILITY_DEFS: Array<{ key: string; label: string; icon: LucideIcon }> = [
-  { key: "reasoning", label: "推理", icon: Sparkle },
-  { key: "image", label: "图片", icon: ImageIcon },
+  {
+    key: "reasoning",
+    get label() {
+      return llmText("ui.reasoning");
+    },
+    icon: Sparkle,
+  },
+  {
+    key: "image",
+    get label() {
+      return llmText("ui.images");
+    },
+    icon: ImageIcon,
+  },
 ];
 
 function hasCapability(model: LLMModelSetting, key: string): boolean {
@@ -193,10 +310,30 @@ interface ModelFormState {
 }
 
 const COST_FIELDS = [
-  { key: "costInput", label: "输入" },
-  { key: "costOutput", label: "输出" },
-  { key: "costCacheRead", label: "缓存读取" },
-  { key: "costCacheWrite", label: "缓存写入" },
+  {
+    key: "costInput",
+    get label() {
+      return llmText("ui.input");
+    },
+  },
+  {
+    key: "costOutput",
+    get label() {
+      return llmText("ui.output");
+    },
+  },
+  {
+    key: "costCacheRead",
+    get label() {
+      return llmText("ui.cacheRead");
+    },
+  },
+  {
+    key: "costCacheWrite",
+    get label() {
+      return llmText("ui.cacheWrite");
+    },
+  },
 ] as const;
 
 const costToText = (value: number | undefined) => (value === undefined ? "" : String(value));
@@ -284,6 +421,8 @@ function ModelRow({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  useLlmSettingsI18n();
+
   const description = model.name && model.name !== model.id ? model.name.trim() : undefined;
   return (
     <div
@@ -301,11 +440,21 @@ function ModelRow({
             <CapChip key={label} label={label} />
           ))}
           {model.contextWindow != null && (
-            <MetaChip>上下文 {Math.round(model.contextWindow / 1024)}k</MetaChip>
+            <MetaChip>
+              {llmText("ui.context")} {Math.round(model.contextWindow / 1024)}k
+            </MetaChip>
           )}
-          {model.maxTokens != null && <MetaChip>输出 {model.maxTokens}</MetaChip>}
-          {model.cost && <MetaChip>{formatCost(model.cost)} /百万</MetaChip>}
-          {model.stripThinkTags && <MetaChip>清除思考内容</MetaChip>}
+          {model.maxTokens != null && (
+            <MetaChip>
+              {llmText("ui.output")} {model.maxTokens}
+            </MetaChip>
+          )}
+          {model.cost && (
+            <MetaChip>
+              {formatCost(model.cost)} {llmText("ui.million")}
+            </MetaChip>
+          )}
+          {model.stripThinkTags && <MetaChip>{llmText("ui.clearReasoningContent")}</MetaChip>}
         </div>
         {description && description !== model.name && (
           <div className="text-tau-meta text-ink-2 mt-0.5 truncate">{description}</div>
@@ -318,13 +467,21 @@ function ModelRow({
         )}
       >
         <Link2 size={12} strokeWidth={1.75} />
-        {usage > 0 ? `${usage} 项功能在用` : "未使用"}
+        {usage > 0
+          ? llmText("message.usedByFeatures", { count: llmValue(usage) })
+          : llmText("ui.notInUse")}
       </span>
       <div className="flex flex-none gap-0.5">
-        <IconButton aria-label={`编辑模型 ${model.name}`} onClick={onEdit}>
+        <IconButton
+          aria-label={llmText("message.editModel", { name: llmValue(model.name) })}
+          onClick={onEdit}
+        >
           <Pencil size={14} strokeWidth={1.75} />
         </IconButton>
-        <IconButton aria-label={`删除模型 ${model.name}`} onClick={onDelete}>
+        <IconButton
+          aria-label={llmText("message.deleteModel", { name: llmValue(model.name) })}
+          onClick={onDelete}
+        >
           <Trash2 size={14} strokeWidth={1.75} />
         </IconButton>
       </div>
@@ -367,6 +524,8 @@ function AssignmentRow({
   }[];
   updateUsage: (feature: FeatureKey, config: LLMUsageConfigV2 | null) => void;
 }) {
+  useLlmSettingsI18n();
+
   const selectedIndex = usage
     ? modelEntries.findIndex(
         entry => entry.provider.id === usage.providerId && entry.model.id === usage.modelId
@@ -383,8 +542,18 @@ function AssignmentRow({
   );
   const thinkingOptions = useMemo(
     () => [
-      { value: "", label: "默认（跟随模型）" },
-      ...thinkingLevels.map(level => ({ value: level, label: THINKING_LEVEL_LABELS[level] })),
+      {
+        value: "",
+        get label() {
+          return llmText("ui.defaultFollowModel");
+        },
+      },
+      ...thinkingLevels.map(level => ({
+        value: level,
+        get label() {
+          return THINKING_LEVEL_LABELS[level];
+        },
+      })),
     ],
     [thinkingLevels]
   );
@@ -393,13 +562,21 @@ function AssignmentRow({
     <SettingRow title={feature.label} description={feature.desc}>
       <div className="flex items-center gap-2">
         <Select
-          aria-label={`${feature.label}的模型`}
+          aria-label={llmText("message.modelFor", { feature: llmValue(feature.label) })}
           className="w-[250px]"
           searchable
-          placeholder="未分配"
-          emptyText="暂无模型——先在上方添加"
+          placeholder={llmText("ui.unassigned")}
+          emptyText={llmText("ui.noModelsAddOneAboveFirst")}
           value={selectedIndex >= 0 ? String(selectedIndex) : null}
-          options={[{ value: "off", label: "取消分配（不使用 AI）" }, ...modelOptions]}
+          options={[
+            {
+              value: "off",
+              get label() {
+                return llmText("ui.clearAssignmentDoNotUseAI");
+              },
+            },
+            ...modelOptions,
+          ]}
           onValueChange={value => {
             const entry =
               value == null || value === "off" ? undefined : modelEntries[Number(value)];
@@ -411,9 +588,9 @@ function AssignmentRow({
         />
         {showThinking && (
           <Select
-            aria-label={`${feature.label}的思考强度`}
+            aria-label={llmText("message.reasoningLevelFor", { feature: llmValue(feature.label) })}
             className="w-[148px]"
-            placeholder="默认（跟随模型）"
+            placeholder={llmText("ui.defaultFollowModel")}
             value={usage?.thinkingLevel ?? ""}
             options={thinkingOptions}
             onValueChange={value => {
@@ -433,6 +610,7 @@ function AssignmentRow({
 
 /** 组合选择器的选项行：模型名 + 能力角标（供应商由分组头承担，行保持短；触发器回填同 label） */
 function ModelOptionLabel({ model }: { model: LLMModelSetting }) {
+  useLlmSettingsI18n();
   const caps = capabilityLabels(model);
   return (
     <span className="flex min-w-0 items-baseline gap-1.5">
@@ -445,6 +623,8 @@ function ModelOptionLabel({ model }: { model: LLMModelSetting }) {
 }
 
 export function LLMSection() {
+  useLlmSettingsI18n();
+
   const llmConfigs = useSettingStore(s => s.setting.llmProviders);
   const llmUsageSettings = useSettingStore(s => s.setting.llmUsageSettings);
   const updateUsage = useSettingStore(s => s.updateLLMUsageSetting);
@@ -492,14 +672,14 @@ export function LLMSection() {
 
   const copyApiKey = async (key: string) => {
     if (!key) {
-      toast.info("API Key 为空");
+      toast.info(llmText("ui.apiKeyIsEmpty"));
       return;
     }
     try {
       await navigator.clipboard.writeText(key);
-      toast.success("API Key 已复制到剪贴板");
+      toast.success(llmText("ui.apiKeyCopiedToClipboard"));
     } catch {
-      toast.error("复制失败，请重试");
+      toast.error(llmText("ui.couldNotCopyPleaseTryAgain"));
     }
   };
 
@@ -533,11 +713,15 @@ export function LLMSection() {
       }
     });
     const summary = [
-      change.add.length > 0 ? `新增 ${change.add.length} 个模型` : "",
-      change.remove.length > 0 ? `移除 ${change.remove.length} 个` : "",
+      change.add.length > 0
+        ? llmText("message.addedModels", { count: llmValue(change.add.length) })
+        : "",
+      change.remove.length > 0
+        ? llmText("message.removed", { count: llmValue(change.remove.length) })
+        : "",
     ]
       .filter(Boolean)
-      .join("，");
+      .join(llmText("format.summarySeparator"));
     if (summary) toast.success(summary);
   };
 
@@ -575,18 +759,28 @@ export function LLMSection() {
   const thinking = useThinkingLevels(editing, modelForm.initialId || modelForm.id);
   const thinkingOptions = useMemo(
     () => [
-      { value: "", label: "自动（跟随模型默认）" },
-      ...thinking.levels.map(level => ({ value: level, label: THINKING_LEVEL_LABELS[level] })),
+      {
+        value: "",
+        get label() {
+          return llmText("ui.automaticModelDefault");
+        },
+      },
+      ...thinking.levels.map(level => ({
+        value: level,
+        get label() {
+          return THINKING_LEVEL_LABELS[level];
+        },
+      })),
     ],
     [thinking.levels]
   );
   const thinkingHint = !modelForm.reasoning
-    ? "（该模型不支持推理）"
+    ? llmText("ui.thisModelDoesNotSupportReasoning")
     : thinking.loading
-      ? "（加载中…）"
+      ? llmText("ui.loading")
       : thinking.fromCatalog
         ? ""
-        : "（未能识别此模型，档位可能不生效）";
+        : llmText("ui.unrecognizedModelReasoningLevelsMayNotTake");
 
   // 目录价格：编辑时作单价默认值与占位提示（目录外服务商为空）
   const { models: catalogModels } = useCatalogModels(editing?.builtin);
@@ -617,7 +811,7 @@ export function LLMSection() {
     if (!editing) return;
     const id = modelForm.id.trim();
     if (!id) {
-      toast.warning("请填写模型 ID");
+      toast.warning(llmText("ui.enterAModelID"));
       return;
     }
     const duplicate =
@@ -625,7 +819,7 @@ export function LLMSection() {
         ? editing.models.some(m => m.id === id)
         : modelForm.initialId !== id && editing.models.some(m => m.id === id);
     if (duplicate) {
-      toast.warning("该服务商下已存在同名模型");
+      toast.warning(llmText("ui.thisProviderAlreadyHasAModelWith"));
       return;
     }
     const parsedMaxTokens = Number.parseInt(modelForm.maxTokens, 10);
@@ -635,7 +829,7 @@ export function LLMSection() {
     const hasCostInput = modelForm.costInput.trim() !== "" || modelForm.costOutput.trim() !== "";
     const cost = parseCostForm(modelForm);
     if (hasCostInput && !cost) {
-      toast.warning("单价需同时填写输入和输出，且为非负数");
+      toast.warning(llmText("ui.enterBothInputAndOutputPricesAs"));
       return;
     }
     // 单价留空时用目录价填入（手填的目录模型也一样），之后可改
@@ -755,40 +949,63 @@ export function LLMSection() {
   return (
     <>
       <SettingsTabs
-        label="大语言模型视图"
+        label={llmText("ui.languageModelSettingsView")}
         value={tab}
         onChange={setTab}
         items={[
-          { key: "providers", label: "服务商与模型" },
-          { key: "assignment", label: "功能分配", badge: unassignedCount || undefined },
-          { key: "permission", label: "工具权限" },
-          { key: "usage", label: "用量统计" },
+          {
+            key: "providers",
+            get label() {
+              return llmText("ui.providersModels");
+            },
+          },
+          {
+            key: "assignment",
+            get label() {
+              return llmText("ui.featureAssignments");
+            },
+            badge: unassignedCount || undefined,
+          },
+          {
+            key: "permission",
+            get label() {
+              return llmText("ui.toolPermissions");
+            },
+          },
+          {
+            key: "usage",
+            get label() {
+              return llmText("ui.usage");
+            },
+          },
         ]}
       />
 
       {tab === "providers" ? (
         <SettingsGroup>
           <ProviderSwitcher
-            label="大语言模型服务商"
+            label={llmText("ui.languageModelProviders")}
             items={llmConfigs.map(provider => ({
               id: provider.id,
-              label: provider.name || "未命名",
+              label: provider.name || llmText("ui.untitled"),
               meta: provider.models.length,
             }))}
             activeId={editing?.id}
             onSelect={setEditingId}
-            addLabel="添加服务商"
+            addLabel={llmText("ui.addProvider")}
             onAdd={() => setProviderCreateOpen(true)}
           />
           {!editing ? (
             <div className="text-tau-meta text-ink-2 px-3 py-8 text-center">
-              还没有服务商——点击「添加服务商」填入凭据，再添加模型
+              {llmText("ui.noProvidersYetChooseAddProviderEnter")}
             </div>
           ) : (
             <>
               <ProviderSection
-                title="连接"
-                description={`${editing.name || "未命名"} 的名称与凭据`}
+                title={llmText("ui.connection")}
+                description={llmText("message.nameAndCredentialsFor", {
+                  name: llmValue(editing.name || llmText("ui.untitled")),
+                })}
                 action={
                   <Button
                     variant="ghost"
@@ -796,15 +1013,15 @@ export function LLMSection() {
                     icon={Trash2}
                     onClick={() => setProviderDeleteOpen(true)}
                   >
-                    删除服务商
+                    {llmText("ui.deleteProvider")}
                   </Button>
                 }
               >
-                <SettingRow title="名称">
+                <SettingRow title={llmText("ui.name")}>
                   <FieldBox>
                     <Input
                       value={editing.name}
-                      placeholder="如 DeepSeek"
+                      placeholder={llmText("ui.forExampleDeepSeek")}
                       onChange={e => updateProviderField("name", e.target.value)}
                     />
                   </FieldBox>
@@ -820,7 +1037,10 @@ export function LLMSection() {
                     />
                   </FieldBox>
                 </SettingRow>
-                <SettingRow title="Base URL" description="服务商提供的接口地址">
+                <SettingRow
+                  title="Base URL"
+                  description={llmText("ui.apiAddressSuppliedByTheProvider")}
+                >
                   <FieldBox>
                     <Input
                       className="font-tau-mono"
@@ -834,8 +1054,10 @@ export function LLMSection() {
               </ProviderSection>
 
               <ProviderSection
-                title="模型"
-                description={`${editing.models.length} 个 · 在「功能分配」中指定给各项功能`}
+                title={llmText("ui.models")}
+                description={llmText("message.modelsAssignThemInFeatureAssignments", {
+                  count: llmValue(editing.models.length),
+                })}
                 action={
                   <>
                     {/* 勾选优先：内置服务商带预设元数据，其他服务商向服务商实时获取 */}
@@ -844,20 +1066,20 @@ export function LLMSection() {
                       size="sm"
                       icon={Sparkles}
                       disabled={!editing.baseUrl.trim()}
-                      title={editing.baseUrl.trim() ? undefined : "请先填写 Base URL"}
+                      title={editing.baseUrl.trim() ? undefined : llmText("ui.enterABaseURLFirst")}
                       onClick={() => setModelPickerOpen(true)}
                     >
-                      选择模型
+                      {llmText("ui.chooseModels")}
                     </Button>
                     <Button variant="ghost" size="sm" icon={Plus} onClick={openModelCreate}>
-                      手动添加
+                      {llmText("ui.addManually")}
                     </Button>
                   </>
                 }
               >
                 {editing.models.length === 0 ? (
                   <div className="text-tau-meta text-ink-2 px-3 py-6 text-center">
-                    暂无模型——点击「选择模型」勾选要使用的模型，列表里没有的可「手动添加」
+                    {llmText("ui.noModelsYetUseChooseModelsOr")}
                   </div>
                 ) : (
                   editing.models.map(model => (
@@ -888,27 +1110,27 @@ export function LLMSection() {
             {cat.features.map(renderAssignmentRow)}
             {cat.features.some(feature => feature.key === "chat") && (
               <SettingRow
-                title="自动压缩阈值"
-                description="对话上下文超过模型窗口的这个百分比时，自动整理较早的消息。留空使用默认规则。"
+                title={llmText("ui.automaticCompactionThreshold")}
+                description={llmText("ui.compactOlderMessagesWhenChatContextExceeds")}
               >
                 <div className="flex items-center gap-2">
                   <Input
                     wrapperClassName="w-24"
                     key={compactionPercent ?? "default"}
-                    aria-label="自动压缩阈值（%）"
+                    aria-label={llmText("ui.automaticCompactionThreshold2")}
                     type="number"
                     min={1}
                     max={99}
                     step={1}
                     defaultValue={compactionPercent ?? ""}
-                    placeholder="默认"
+                    placeholder={llmText("ui.default")}
                     onKeyDown={event => {
                       if (event.key === "Enter") event.currentTarget.blur();
                     }}
                     onBlur={event => {
                       const field = event.currentTarget;
                       if (!field.validity.valid) {
-                        toast.warning("请输入 1 到 99 的整数");
+                        toast.warning(llmText("ui.enterAnIntegerFrom1To99"));
                         field.value = String(compactionPercent ?? "");
                         return;
                       }
@@ -925,11 +1147,11 @@ export function LLMSection() {
             )}
             {cat.features.some(feature => feature.key === INLINE_SUGGESTION_SLOT) && (
               <SettingRow
-                title="协作正文的行内建议"
-                description="允许将共享正文或代码块中光标附近的文字发送给所选模型。"
+                title={llmText("ui.inlineSuggestionsInSharedContent")}
+                description={llmText("ui.allowSendingTextNearTheCursorIn")}
               >
                 <Switch
-                  aria-label="协作正文的行内建议"
+                  aria-label={llmText("ui.inlineSuggestionsInSharedContent")}
                   checked={inlineSuggestionShared}
                   onCheckedChange={value =>
                     useSettingStore.setState(state => ({
@@ -968,9 +1190,9 @@ export function LLMSection() {
         open={modelDialog.open}
         onOpenChange={open => setModelDialog(d => ({ ...d, open }))}
         onAfterClose={() => setModelDialog({ open: false, action: "create" })}
-        title={modelDialog.action === "create" ? "添加模型" : "编辑模型"}
+        title={modelDialog.action === "create" ? llmText("ui.addModel") : llmText("ui.editModel")}
         context={editing?.name}
-        subtitle="挂在当前服务商下 · 能力与高级参数"
+        subtitle={llmText("ui.forTheCurrentProviderCapabilitiesAdvancedParameters")}
         width={470}
         footer={
           <>
@@ -978,10 +1200,10 @@ export function LLMSection() {
               variant="secondary"
               onClick={() => setModelDialog(d => ({ ...d, open: false }))}
             >
-              取消
+              {llmText("ui.cancel")}
             </Button>
             <Button variant="primary" onClick={submitModelForm}>
-              保存
+              {llmText("ui.save")}
             </Button>
           </>
         }
@@ -989,26 +1211,30 @@ export function LLMSection() {
         <DialogBody>
           <div className="grid grid-cols-2 gap-x-3 gap-y-3">
             <label className="flex min-w-0 flex-col gap-1.5">
-              <span className="text-tau-meta text-ink-2 font-medium">模型 ID</span>
+              <span className="text-tau-meta text-ink-2 font-medium">{llmText("ui.modelID")}</span>
               <Input
                 className="font-tau-mono"
                 value={modelForm.id}
-                placeholder="如 deepseek-chat（服务商给出的模型 ID）"
+                placeholder={llmText("ui.forExampleDeepseekChatTheProviderS")}
                 spellCheck={false}
                 onChange={e => setModelForm(f => ({ ...f, id: e.target.value }))}
               />
             </label>
             <label className="flex min-w-0 flex-col gap-1.5">
-              <span className="text-tau-meta text-ink-2 font-medium">展示名（可选）</span>
+              <span className="text-tau-meta text-ink-2 font-medium">
+                {llmText("ui.displayNameOptional")}
+              </span>
               <Input
                 value={modelForm.displayName}
-                placeholder="如 高性价比主力"
+                placeholder={llmText("ui.forExampleEverydayModel")}
                 onChange={e => setModelForm(f => ({ ...f, displayName: e.target.value }))}
               />
             </label>
           </div>
           <div className="pt-3">
-            <div className="text-tau-meta text-ink-2 pb-1.5 font-medium">能力</div>
+            <div className="text-tau-meta text-ink-2 pb-1.5 font-medium">
+              {llmText("ui.capabilities")}
+            </div>
             <div className="flex flex-wrap gap-1.5">
               {CAPABILITY_DEFS.map(def => {
                 const on = def.key === "reasoning" ? modelForm.reasoning : modelForm.image;
@@ -1040,11 +1266,13 @@ export function LLMSection() {
           </div>
           <div className="pt-3">
             <div className="text-tau-meta text-ink-2 pb-1.5 font-medium">
-              单价（美元 / 百万 tokens）
+              {llmText("ui.priceUSDMillionTokens")}
               <span className="text-ink-3 ml-1 font-normal">
                 {formCatalogCost
-                  ? `已按目录价 ${formatCost(formCatalogCost)} 填入，可按实际改`
-                  : "目录未收录价格，填写后用于用量统计估算费用"}
+                  ? llmText("message.catalogPriceAppliedAdjustItToYour", {
+                      price: llmValue(formatCost(formCatalogCost)),
+                    })
+                  : llmText("ui.noCatalogPriceEnterPricesToEstimate")}
               </span>
             </div>
             <div className="grid grid-cols-4 gap-2">
@@ -1065,7 +1293,7 @@ export function LLMSection() {
                     <Input
                       className="font-tau-mono"
                       inputMode="decimal"
-                      aria-label={`${field.label}单价`}
+                      aria-label={llmText("message.price", { field: llmValue(field.label) })}
                       value={modelForm[field.key]}
                       placeholder={catalogValue !== undefined ? String(catalogValue) : "0"}
                       spellCheck={false}
@@ -1084,7 +1312,7 @@ export function LLMSection() {
               className="text-tau-meta text-ink-3 flex w-full items-center gap-1.5 py-1.5 font-semibold"
             >
               <SlidersHorizontal size={13} strokeWidth={1.75} />
-              高级参数
+              {llmText("ui.advancedParameters")}
               <ChevronDown
                 size={13}
                 strokeWidth={1.75}
@@ -1095,13 +1323,13 @@ export function LLMSection() {
               <div className="grid grid-cols-2 gap-x-3 gap-y-3 pb-1">
                 <label className="flex min-w-0 flex-col gap-1.5">
                   <span className="text-tau-meta text-ink-2 font-medium">
-                    推理档位
+                    {llmText("ui.reasoningLevel")}
                     {thinkingHint && (
                       <span className="text-ink-3 ml-1 font-normal">{thinkingHint}</span>
                     )}
                   </span>
                   <Select
-                    aria-label="推理档位"
+                    aria-label={llmText("ui.reasoningLevel")}
                     className="w-full"
                     value={modelForm.thinkingLevel}
                     disabled={!modelForm.reasoning}
@@ -1110,27 +1338,33 @@ export function LLMSection() {
                   />
                 </label>
                 <label className="flex min-w-0 flex-col gap-1.5">
-                  <span className="text-tau-meta text-ink-2 font-medium">上下文窗口 (tokens)</span>
+                  <span className="text-tau-meta text-ink-2 font-medium">
+                    {llmText("ui.contextWindowTokens")}
+                  </span>
                   <Input
                     className="font-tau-mono"
                     value={modelForm.contextWindow}
-                    placeholder="如 65536"
+                    placeholder={llmText("ui.forExample65536")}
                     spellCheck={false}
                     onChange={e => setModelForm(f => ({ ...f, contextWindow: e.target.value }))}
                   />
                 </label>
                 <label className="flex min-w-0 flex-col gap-1.5">
-                  <span className="text-tau-meta text-ink-2 font-medium">最大输出 tokens</span>
+                  <span className="text-tau-meta text-ink-2 font-medium">
+                    {llmText("ui.maximumOutputTokens")}
+                  </span>
                   <Input
                     className="font-tau-mono"
                     value={modelForm.maxTokens}
-                    placeholder="如 8192"
+                    placeholder={llmText("ui.forExample8192")}
                     spellCheck={false}
                     onChange={e => setModelForm(f => ({ ...f, maxTokens: e.target.value }))}
                   />
                 </label>
                 <label className="flex min-w-0 flex-col gap-1.5">
-                  <span className="text-tau-meta text-ink-2 font-medium">采样温度</span>
+                  <span className="text-tau-meta text-ink-2 font-medium">
+                    {llmText("ui.temperature")}
+                  </span>
                   <Input
                     className="font-tau-mono"
                     value={modelForm.temperature}
@@ -1144,13 +1378,15 @@ export function LLMSection() {
                   <Input
                     className="font-tau-mono"
                     value={modelForm.userAgent}
-                    placeholder="可选"
+                    placeholder={llmText("ui.optional")}
                     spellCheck={false}
                     onChange={e => setModelForm(f => ({ ...f, userAgent: e.target.value }))}
                   />
                 </label>
                 <label className="flex min-w-0 flex-col gap-1.5">
-                  <span className="text-tau-meta text-ink-2 font-medium">思考内容处理</span>
+                  <span className="text-tau-meta text-ink-2 font-medium">
+                    {llmText("ui.reasoningContent")}
+                  </span>
                   <button
                     type="button"
                     aria-pressed={modelForm.stripThinkTags}
@@ -1163,7 +1399,7 @@ export function LLMSection() {
                         : "border-line-1 text-ink-2 hover:border-ink-3 hover:text-ink-1"
                     )}
                   >
-                    自动清除回答里的思考内容
+                    {llmText("ui.automaticallyRemoveReasoningContentFromAnswers")}
                   </button>
                 </label>
               </div>
@@ -1176,22 +1412,30 @@ export function LLMSection() {
       <ConfirmDialog
         open={providerDeleteOpen}
         onOpenChange={setProviderDeleteOpen}
-        title="删除服务商"
+        title={llmText("ui.deleteProvider")}
         context={editing?.name}
         danger
         description={
           editing
-            ? `将移除「${editing.name}」及其 ${editing.models.length} 个模型条目。`
+            ? llmText("message.removeAndItsModelEntries", {
+                name: llmValue(editing.name),
+                count: llmValue(editing.models.length),
+              })
             : undefined
         }
         impact={
           affectedByProvider.length > 0
-            ? `${affectedByProvider.length} 项功能分配将一并清空：${affectedByProvider
-                .map(key => FEATURE_LABELS[key])
-                .join("、")}`
+            ? llmText("message.featureAssignmentsWillAlsoBeCleared", {
+                count: llmValue(affectedByProvider.length),
+                features: llmValue(
+                  affectedByProvider
+                    .map(key => assignmentFeatureLabel(key))
+                    .join(llmText("format.listSeparator"))
+                ),
+              })
             : undefined
         }
-        confirmText="删除"
+        confirmText={llmText("ui.delete")}
         onConfirm={confirmProviderDelete}
       />
 
@@ -1201,18 +1445,27 @@ export function LLMSection() {
         onOpenChange={open => {
           if (!open) setModelDelete(null);
         }}
-        title="删除模型"
+        title={llmText("ui.deleteModel")}
         context={modelDelete?.name}
         danger
-        description={modelDelete ? `将从「${editing?.name}」移除该模型条目。` : undefined}
-        impact={
-          affectedByModel.length > 0
-            ? `${affectedByModel.length} 项功能分配将一并清空：${affectedByModel
-                .map(key => FEATURE_LABELS[key])
-                .join("、")}`
+        description={
+          modelDelete
+            ? llmText("message.removeThisModelEntryFrom", { name: llmValue(editing?.name) })
             : undefined
         }
-        confirmText="删除"
+        impact={
+          affectedByModel.length > 0
+            ? llmText("message.featureAssignmentsWillAlsoBeCleared", {
+                count: llmValue(affectedByModel.length),
+                features: llmValue(
+                  affectedByModel
+                    .map(key => assignmentFeatureLabel(key))
+                    .join(llmText("format.listSeparator"))
+                ),
+              })
+            : undefined
+        }
+        confirmText={llmText("ui.delete")}
         onConfirm={confirmModelDelete}
       />
     </>

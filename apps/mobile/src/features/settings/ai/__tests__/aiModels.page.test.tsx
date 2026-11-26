@@ -15,10 +15,13 @@ import "../../../cards/pages/home.page";
 import "../../pages/settingsModule.page";
 import "../../pages/aiProvider.page";
 
-const tauriMock = vi.hoisted(() => ({ mutateAiSettings: vi.fn() }));
+const tauriMock = vi.hoisted(() => ({ mutateAiSettings: vi.fn(), verify: vi.fn() }));
 vi.mock("../../../../services/tauri", async importOriginal => ({
   ...(await importOriginal<object>()),
   mutateAiSettings: tauriMock.mutateAiSettings,
+}));
+vi.mock("../../../../services/ai", () => ({
+  getMobileAiService: () => ({ models: { verify: tauriMock.verify } }),
 }));
 const toastSpies = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), info: vi.fn() }));
 vi.mock("../../../../components/toast", () => ({ toast: toastSpies }));
@@ -268,4 +271,84 @@ it("语音输入页：分配整理模型后出现整理方式，选择后写入�
     kind: "setSpeechRefinement",
     style: "paragraphs",
   });
+});
+
+it("换语保留服务商草稿与模型，保存并测试中的请求不重放且原诊断不翻译", async () => {
+  const { mobileLocaleSource } = await import("../../../../services/i18n");
+  const { llmText } = await import("../i18n");
+  const original = mobileLocaleSource.getSnapshot();
+  const provider = { ...deepseek, id: "raw-provider", builtin: undefined };
+  setting = makeSetting([provider]);
+  await act(async () => mount());
+  try {
+    await open("aiProvider", { providerId: provider.id });
+    await act(async () => {
+      await vi.waitFor(() => expect(input("API Key")).not.toBeNull());
+    });
+    const name = input(llmText("ui.name"));
+    const address = input(llmText("ui.apiAddress"));
+    const key = input("API Key");
+    await act(async () => {
+      type(name, "用户服务商");
+      type(address, "https://raw.example/v1");
+      type(key, "sk-test-draft");
+      name.focus();
+      name.setSelectionRange(1, 3);
+    });
+    const before = setting.llmProviders;
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => mobileLocaleSource.setLocale(locale));
+      expect(input(llmText("ui.name"))).toBe(name);
+      expect(input(llmText("ui.apiAddress"))).toBe(address);
+      expect(name.value).toBe("用户服务商");
+      expect(address.value).toBe("https://raw.example/v1");
+      expect(key.value).toBe("sk-test-draft");
+      expect(document.activeElement).toBe(name);
+      expect([name.selectionStart, name.selectionEnd]).toEqual([1, 3]);
+      expect(setting.llmProviders).toBe(before);
+      expect(tauriMock.mutateAiSettings).not.toHaveBeenCalled();
+      expect(tauriMock.verify).not.toHaveBeenCalled();
+    }
+    let finish: ((result: { ok: false; error: { message: string } }) => void) | undefined;
+    tauriMock.verify.mockImplementation(
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        })
+    );
+    const run = pressable(activePage(), llmText("ui.saveAndTestConnection"));
+    if (!run) throw new Error("测试入口未挂载");
+    await act(async () => {
+      run.click();
+      await vi.waitFor(() => expect(tauriMock.verify).toHaveBeenCalledTimes(1));
+    });
+    expect(tauriMock.mutateAiSettings).toHaveBeenCalledTimes(1);
+    expect(tauriMock.mutateAiSettings.mock.calls[0][0]).toMatchObject({
+      kind: "upsertProvider",
+      apiKey: "sk-test-draft",
+      provider: {
+        id: provider.id,
+        name: "用户服务商",
+        baseUrl: "https://raw.example/v1",
+        models: provider.models,
+      },
+    });
+    for (const locale of ["zh-TW", "zh-CN"]) {
+      await act(async () => mobileLocaleSource.setLocale(locale));
+      expect(tauriMock.verify).toHaveBeenCalledExactlyOnceWith("data.db", {
+        providerId: provider.id,
+        modelId: provider.models[0].id,
+      });
+      expect(tauriMock.mutateAiSettings).toHaveBeenCalledTimes(1);
+    }
+    if (!finish) throw new Error("连接测试未进入服务边界");
+    const diagnostic = "原始服务诊断 [request-17]";
+    await act(async () => finish?.({ ok: false, error: { message: diagnostic } }));
+    await act(async () => mobileLocaleSource.setLocale("en-US"));
+    expect(text()).toContain(diagnostic);
+    expect(tauriMock.verify).toHaveBeenCalledTimes(1);
+    expect(tauriMock.mutateAiSettings).toHaveBeenCalledTimes(1);
+  } finally {
+    await act(async () => mobileLocaleSource.setLocale(original));
+  }
 });

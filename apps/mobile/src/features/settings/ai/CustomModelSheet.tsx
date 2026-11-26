@@ -1,9 +1,10 @@
+import { llmText, useLlmSettingsI18n } from "./i18n";
 import { useEffect, useState } from "react";
 import { BottomSheet } from "../../../components/BottomSheet";
 import { GroupCard, GroupRow, SwitchButton } from "../components/ui";
 import { SheetHeader } from "./AiUi";
 import { TextField } from "./fields";
-import { customModel, type ModelSetting } from "./providerDraft";
+import { customModel, type ModelSetting, type ValidationCode } from "./providerDraft";
 
 const EMPTY = {
   id: "",
@@ -21,8 +22,10 @@ export function CustomModelSheet(props: {
   onClose: () => void;
   onAdd: (model: ModelSetting) => void;
 }) {
+  useLlmSettingsI18n();
+
   const [form, setForm] = useState(EMPTY);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<ValidationCode | "">("");
   useEffect(() => {
     if (props.open) {
       setForm(EMPTY);
@@ -33,34 +36,38 @@ export function CustomModelSheet(props: {
   const submit = () => {
     const result = customModel(form);
     if (typeof result === "string") return setError(result);
-    if (props.existingIds.has(result.id)) return setError("已有同 ID 的模型");
+    if (props.existingIds.has(result.id)) return setError("duplicateModel");
     props.onAdd(result);
   };
 
   return (
     <BottomSheet open={props.open} onClose={props.onClose}>
       <SheetHeader
-        title="添加模型"
-        description="填写服务商文档里的模型 ID 与容量。"
+        title={llmText("ui.addModel")}
+        description={llmText("ui.enterTheModelIDAndCapacitiesFrom")}
         onClose={props.onClose}
       />
       <GroupCard>
         <TextField
-          label="模型 ID"
+          label={llmText("ui.modelID")}
           value={form.id}
-          placeholder="例如 qwen-plus"
-          error={error}
+          placeholder={llmText("ui.forExampleQwenPlus")}
+          error={error ? llmText(`validation.${error}`) : undefined}
           onChange={id => set({ id })}
         />
-        <TextField label="显示名称 · 可选" value={form.name} onChange={name => set({ name })} />
         <TextField
-          label="上下文窗口（token）"
+          label={llmText("ui.displayNameOptional2")}
+          value={form.name}
+          onChange={name => set({ name })}
+        />
+        <TextField
+          label={llmText("ui.contextWindowTokens2")}
           inputMode="numeric"
           value={form.contextWindow}
           onChange={contextWindow => set({ contextWindow })}
         />
         <TextField
-          label="最大输出（token）"
+          label={llmText("ui.maximumOutputTokens2")}
           inputMode="numeric"
           value={form.maxTokens}
           onChange={maxTokens => set({ maxTokens })}
@@ -69,14 +76,18 @@ export function CustomModelSheet(props: {
       <div className="h-3" />
       <GroupCard>
         <GroupRow>
-          <span className="text-ink-1 text-tau-body flex-1 font-medium">支持推理</span>
+          <span className="text-ink-1 text-tau-body flex-1 font-medium">
+            {llmText("ui.supportsReasoning")}
+          </span>
           <SwitchButton
             checked={form.reasoning}
             onChange={() => set({ reasoning: !form.reasoning })}
           />
         </GroupRow>
         <GroupRow>
-          <span className="text-ink-1 text-tau-body flex-1 font-medium">支持图片输入</span>
+          <span className="text-ink-1 text-tau-body flex-1 font-medium">
+            {llmText("ui.supportsImageInput")}
+          </span>
           <SwitchButton checked={form.image} onChange={() => set({ image: !form.image })} />
         </GroupRow>
       </GroupCard>
@@ -85,7 +96,7 @@ export function CustomModelSheet(props: {
         onClick={submit}
         className="bg-accent text-ink-inverse text-tau-body mt-4 h-12 w-full rounded-[14px] font-semibold"
       >
-        添加
+        {llmText("ui.add")}
       </button>
     </BottomSheet>
   );

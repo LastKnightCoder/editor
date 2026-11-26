@@ -6,6 +6,8 @@
  * 获取来的模型目录命中时与目录同等可信；未命中只带服务商自报的字段，缺的留空，之后可在编辑里补。
  * 已添加的模型默认勾选，取消勾选即移除——移除交由调用方处理（要清引用的分配槽位）。
  */
+
+import { llmText, llmValue, useLlmSettingsI18n } from "../sections/llm.i18n";
 import { useEffect, useMemo, useState } from "react";
 import { ImageIcon, RefreshCw, Sparkle } from "lucide-react";
 import { Button, Checkbox, Dialog, DialogBody, Input, cn } from "@tau/ui";
@@ -102,7 +104,7 @@ type DiscoverState =
   | { status: "idle" }
   | { status: "loading" }
   | { status: "done"; models: PiDiscoveredModel[] }
-  | { status: "error"; message: string };
+  | { status: "error"; message?: string };
 
 export function ModelPickerDialog({
   open,
@@ -116,6 +118,8 @@ export function ModelPickerDialog({
   /** 勾选结果：新增哪些（带元数据）、移除哪些 id */
   onConfirm: (change: { add: LLMModelSetting[]; remove: string[] }) => void;
 }) {
+  useLlmSettingsI18n();
+
   const builtin = provider.builtin;
   const existingIds = provider.models.map(model => model.id);
   const { models: catalog, loading: catalogLoading } = useCatalogModels(open ? builtin : undefined);
@@ -130,7 +134,7 @@ export function ModelPickerDialog({
         setDiscover(
           result.ok
             ? { status: "done", models: result.models }
-            : { status: "error", message: result.error ?? "获取失败" }
+            : { status: "error", message: result.error }
         )
       )
       .catch(error =>
@@ -188,12 +192,12 @@ export function ModelPickerDialog({
 
   const emptyText =
     items.length > 0
-      ? "没有匹配的模型"
+      ? llmText("ui.noMatchingModels")
       : discover.status === "error"
-        ? "没有获取到模型，可关闭后「手动添加」"
+        ? llmText("ui.noModelsWereFetchedCloseThisDialog")
         : builtin
-          ? "该服务商暂时没有可用模型"
-          : "服务商没有返回可用模型，可关闭后「手动添加」";
+          ? llmText("ui.thisProviderHasNoAvailableModels")
+          : llmText("ui.theProviderReturnedNoAvailableModelsClose");
 
   return (
     <Dialog
@@ -203,17 +207,26 @@ export function ModelPickerDialog({
         setQuery("");
         setDiscover({ status: "idle" });
       }}
-      title="选择模型"
-      subtitle={`${provider.name || "未命名"} · 勾选要使用的模型`}
+      title={llmText("ui.chooseModels")}
+      subtitle={llmText("message.selectModelsToUse", {
+        name: llmValue(provider.name || llmText("ui.untitled")),
+      })}
       footer={
         <>
           <Button variant="secondary" onClick={() => onOpenChange(false)}>
-            取消
+            {llmText("ui.cancel")}
           </Button>
           <Button variant="primary" onClick={submit} disabled={addCount + removeCount === 0}>
             {addCount + removeCount === 0
-              ? "没有改动"
-              : `保存（新增 ${addCount}${removeCount > 0 ? ` · 移除 ${removeCount}` : ""}）`}
+              ? llmText("ui.noChanges")
+              : llmText("message.saveAdd", {
+                  added: llmValue(addCount),
+                  removed: llmValue(
+                    removeCount > 0
+                      ? llmText("message.remove", { count: llmValue(removeCount) })
+                      : ""
+                  ),
+                })}
           </Button>
         </>
       }
@@ -224,8 +237,8 @@ export function ModelPickerDialog({
             <Input
               className="flex-1"
               value={query}
-              placeholder="搜索模型"
-              aria-label="搜索模型"
+              placeholder={llmText("ui.searchModels")}
+              aria-label={llmText("ui.searchModels")}
               onChange={event => setQuery(event.target.value)}
             />
             <Button
@@ -233,25 +246,30 @@ export function ModelPickerDialog({
               size="sm"
               icon={RefreshCw}
               loading={discover.status === "loading"}
-              loadingText="获取中…"
+              loadingText={llmText("ui.fetching")}
               onClick={runDiscover}
             >
-              {builtin ? "从服务商获取" : "重新获取"}
+              {builtin ? llmText("ui.fetchFromProvider") : llmText("ui.fetchAgain")}
             </Button>
           </div>
           {discover.status === "error" ? (
             <div role="alert" className="text-tau-meta text-warn px-2.5">
-              获取模型列表失败：{discover.message}
+              {llmText("ui.couldNotFetchModels")}
+              {discover.message ?? llmText("picker.fetchFailed")}
             </div>
           ) : discover.status === "done" && builtin ? (
             <div className="text-tau-meta text-ink-3 px-2.5">
               {discoveredOnly > 0
-                ? `服务商另有 ${discoveredOnly} 个模型不在预设列表里，已追加在末尾`
-                : "服务商的模型都已在列表中"}
+                ? llmText("message.additionalProviderModelsHaveBeenAppendedBelow", {
+                    count: llmValue(discoveredOnly),
+                  })
+                : llmText("ui.allProviderModelsAreAlreadyListed")}
             </div>
           ) : null}
           {loading ? (
-            <div className="text-tau-meta text-ink-3 px-2.5 py-3">正在加载模型…</div>
+            <div className="text-tau-meta text-ink-3 px-2.5 py-3">
+              {llmText("ui.loadingModels")}
+            </div>
           ) : filtered.length === 0 ? (
             <div className="text-tau-meta text-ink-3 px-2.5 py-3">{emptyText}</div>
           ) : (
@@ -281,14 +299,14 @@ export function ModelPickerDialog({
                           </span>
                           {item.reasoning && (
                             <Sparkle
-                              aria-label="支持推理"
+                              aria-label={llmText("ui.supportsReasoning")}
                               className="text-accent-text size-3.5 shrink-0"
                               strokeWidth={1.75}
                             />
                           )}
                           {item.input?.includes("image") && (
                             <ImageIcon
-                              aria-label="支持图片输入"
+                              aria-label={llmText("ui.supportsImageInput")}
                               className="text-ink-3 size-3.5 shrink-0"
                               strokeWidth={1.75}
                             />
@@ -298,24 +316,25 @@ export function ModelPickerDialog({
                           <span className="font-tau-mono truncate">{item.id}</span>
                           {item.contextWindow && item.maxTokens ? (
                             <span className="tabular-nums">
-                              {formatTokens(item.contextWindow)} 上下文 ·{" "}
-                              {formatTokens(item.maxTokens)} 输出
+                              {formatTokens(item.contextWindow)} {llmText("ui.context2")}{" "}
+                              {formatTokens(item.maxTokens)} {llmText("ui.output")}
                             </span>
                           ) : item.contextWindow ? (
                             <span className="tabular-nums">
-                              {formatTokens(item.contextWindow)} 上下文
+                              {formatTokens(item.contextWindow)} {llmText("ui.context")}
                             </span>
                           ) : null}
                           {item.cost && (
                             <span className="tabular-nums">
-                              ${item.cost.input}/${item.cost.output} 每百万 tokens
+                              ${item.cost.input}/${item.cost.output}{" "}
+                              {llmText("ui.perMillionTokens")}
                             </span>
                           )}
                           {item.fromServiceOnly &&
                             (item.reasoning === undefined ||
                               item.input === undefined ||
                               item.contextWindow === undefined) && (
-                              <span>部分能力信息未知，添加后可在编辑中补充</span>
+                              <span>{llmText("ui.someCapabilitiesAreUnknownAddThemLater")}</span>
                             )}
                         </span>
                       </label>

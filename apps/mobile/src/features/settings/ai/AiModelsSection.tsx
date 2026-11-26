@@ -1,3 +1,4 @@
+import { providerSummary, llmText, llmValue, useLlmSettingsI18n } from "./i18n";
 // AI 模型（我的 › AI › AI 模型）：上方按功能分配模型，下方管理服务商。
 // API Key 由原生持有，页面只看到 configured 与末 4 位提示。
 
@@ -11,7 +12,7 @@ import type { LLMUsageConfigV2 } from "@tau/ai/models";
 import type { LlmFeatureKey } from "../../../types";
 import { GroupCard, GroupNote, GroupRow } from "../components/ui";
 import { AiBadge, ModelPickerSheet, ProviderTile } from "./AiUi";
-import { providerSummary, useAiSettings } from "./useAiSettings";
+import { useAiSettings } from "./useAiSettings";
 
 // 预设目录含全部内置模型元数据，只在打开「添加服务商」时加载
 const AddProviderSheet = lazy(() =>
@@ -25,6 +26,8 @@ const FEATURE_ICONS: Record<LlmFeatureKey, { icon: typeof AudioLines; tone: stri
 };
 
 export function AiModelsSection() {
+  useLlmSettingsI18n();
+
   const navigator = useNavigator();
   const { setting, providers, usage, mutate } = useAiSettings();
   const [picking, setPicking] = useState<LlmFeatureKey | null>(null);
@@ -39,7 +42,7 @@ export function AiModelsSection() {
       await mutate({ kind: "assign", feature, model });
       setPicking(null);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "保存失败");
+      toast.error(error instanceof Error ? error.message : llmText("ui.couldNotSave"));
     } finally {
       setBusy(false);
     }
@@ -47,7 +50,7 @@ export function AiModelsSection() {
 
   return (
     <div className="page-enter space-y-1">
-      <GroupLabel>功能分配</GroupLabel>
+      <GroupLabel>{llmText("ui.featureAssignments")}</GroupLabel>
       <GroupCard>
         {LLM_FEATURES.map(feature => {
           const assigned = findAssignedModel(setting, feature.key);
@@ -65,20 +68,28 @@ export function AiModelsSection() {
                 <Icon size={17} strokeWidth={1.9} aria-hidden="true" />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="text-ink-1 text-tau-body block font-medium">{feature.label}</span>
-                <span className="text-ink-3 text-tau-sm block truncate">{feature.desc}</span>
+                <span className="text-ink-1 text-tau-body block font-medium">
+                  {llmText(`feature.${feature.key}.label`)}
+                </span>
+                <span className="text-ink-3 text-tau-sm block truncate">
+                  {llmText(`feature.${feature.key}.description`)}
+                </span>
               </span>
               <span className="text-ink-3 text-tau-meta max-w-[42%] shrink-0 truncate">
-                {assigned ? modelLabel(assigned.model) : stale ? "模型已不可用" : "未分配"}
+                {assigned
+                  ? modelLabel(assigned.model)
+                  : stale
+                    ? llmText("ui.modelUnavailable")
+                    : llmText("ui.unassigned")}
               </span>
               <ChevronRight size={16} className="text-ink-3 shrink-0" aria-hidden="true" />
             </GroupRow>
           );
         })}
       </GroupCard>
-      <GroupNote>每个功能单独选模型：对话用能力强的模型，语音整理用便宜快的。</GroupNote>
+      <GroupNote>{llmText("ui.chooseAModelForEachFeatureA")}</GroupNote>
 
-      <GroupLabel>服务商</GroupLabel>
+      <GroupLabel>{llmText("ui.provider")}</GroupLabel>
       <GroupCard>
         {providers.map(provider => (
           <GroupRow key={provider.id} onClick={() => openProvider(provider.id)}>
@@ -87,9 +98,9 @@ export function AiModelsSection() {
               <span className="text-ink-1 text-tau-body flex items-center font-medium">
                 <span className="truncate">{provider.name}</span>
                 {provider.configured ? (
-                  <AiBadge tone="ok">可用</AiBadge>
+                  <AiBadge tone="ok">{llmText("ui.available")}</AiBadge>
                 ) : (
-                  <AiBadge tone="warn">未填 Key</AiBadge>
+                  <AiBadge tone="warn">{llmText("ui.noKey")}</AiBadge>
                 )}
               </span>
               <span className="text-ink-3 text-tau-sm block truncate">
@@ -103,15 +114,19 @@ export function AiModelsSection() {
           <span className="bg-page text-accent-text grid h-[34px] w-[34px] shrink-0 place-items-center rounded-xl">
             <Plus size={18} aria-hidden="true" />
           </span>
-          <span className="text-accent-text text-tau-body flex-1 font-medium">添加服务商</span>
+          <span className="text-accent-text text-tau-body flex-1 font-medium">
+            {llmText("ui.addProvider")}
+          </span>
         </GroupRow>
       </GroupCard>
-      <GroupNote>API Key 只保存在这台手机上，不随数据库同步。</GroupNote>
+      <GroupNote>{llmText("ui.apiKeysStayOnThisPhoneAnd")}</GroupNote>
 
       {pickingFeature && (
         <ModelPickerSheet
           open={!!picking}
-          title={`${pickingFeature.label}使用的模型`}
+          title={llmText("message.modelUsedBy", {
+            feature: llmValue(llmText(`feature.${pickingFeature.key}.label`)),
+          })}
           providers={providers}
           value={usage[pickingFeature.key]}
           busy={busy}

@@ -3,6 +3,7 @@
  * 只统计大语言模型；费用按模型单价估算（自定义单价优先，否则目录价），不存 prompt 与回复原文。
  */
 
+import { llmText, llmValue, llmFormat, useLlmSettingsI18n } from "./llm.i18n";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSettingsStore } from "@/app/settingsStore";
@@ -31,16 +32,10 @@ import { UsageChart, useUsageChartPalette, type UsageChartPalette } from "../com
 import { UsageDevicesGroup } from "./UsageDevicesGroup";
 import {
   OTHER_KEY,
-  RANGE_LABELS,
+  USAGE_RANGES,
   bucketStarts,
   buildTrendSeries,
   changeRatio,
-  featureLabel,
-  formatBucketLabel,
-  formatCost,
-  formatDuration,
-  formatEventTime,
-  formatTokens,
   resolveRange,
   tzOffsetMinutes,
   type TrendMetric,
@@ -49,25 +44,55 @@ import {
 } from "./modelUsageData";
 
 const METRIC_LABELS: Record<TrendMetric, string> = {
-  cost: "费用",
+  get cost() {
+    return llmText("ui.cost");
+  },
   totalTokens: "Token",
-  calls: "调用",
+  get calls() {
+    return llmText("ui.calls");
+  },
 };
 
 /** 界面提供的分组维度；主进程另支持按数据库分组，多数人只有一个库，界面不暴露 */
 type ChartDimension = Exclude<ModelUsageDimension, "library" | "device">;
 
 const DIMENSION_LABELS: Record<ChartDimension, string> = {
-  model: "模型",
-  feature: "功能",
-  provider: "服务商",
+  get model() {
+    return llmText("ui.models");
+  },
+  get feature() {
+    return llmText("ui.feature");
+  },
+  get provider() {
+    return llmText("ui.provider");
+  },
 };
 
 const STATUS_META: Record<ModelUsageStatus, { label: string; tone: "ok" | "danger" | "warn" }> = {
-  running: { label: "运行中", tone: "warn" },
-  ok: { label: "成功", tone: "ok" },
-  error: { label: "失败", tone: "danger" },
-  aborted: { label: "已取消", tone: "warn" },
+  running: {
+    get label() {
+      return llmText("ui.running");
+    },
+    tone: "warn",
+  },
+  ok: {
+    get label() {
+      return llmText("ui.succeeded");
+    },
+    tone: "ok",
+  },
+  error: {
+    get label() {
+      return llmText("ui.failed");
+    },
+    tone: "danger",
+  },
+  aborted: {
+    get label() {
+      return llmText("ui.cancelled");
+    },
+    tone: "warn",
+  },
 };
 
 const PAGE_SIZE = 20;
@@ -76,25 +101,28 @@ const errorText = (error: unknown) => (error instanceof Error ? error.message : 
 
 const formatMetric = (metric: TrendMetric, value: number) =>
   metric === "cost"
-    ? formatCost(value)
+    ? llmFormat.formatCost(value)
     : metric === "totalTokens"
-      ? formatTokens(value)
+      ? llmFormat.formatTokens(value)
       : String(value);
 
 /** 分组键的展示名：功能走中文名，服务商用记录时的服务商名 */
 const dimensionLabel = (
   dimension: ChartDimension,
   key: string,
-  providerNames?: Map<string, string>
+  providerNames?: Map<string, string>,
+  other = llmText("ui.other")
 ) => {
-  if (key === OTHER_KEY) return "其他";
-  if (dimension === "feature") return featureLabel(providerNames?.get(key) ?? key);
+  if (key === OTHER_KEY) return other;
+  if (dimension === "feature") return llmFormat.featureLabel(providerNames?.get(key) ?? key);
   if (dimension === "provider") return providerNames?.get(key) ?? key;
   return key;
 };
 
 /** 「大语言模型」页的「用量统计」tab：页内已有一条 tab 栏，这里用分段控件切概览 / 明细，不再叠第二条 */
 export function ModelUsagePanel() {
+  useLlmSettingsI18n();
+
   const pluginId = useSettingsStore(state => state.usagePluginId) || undefined;
   const plugins = useQuery({
     queryKey: ["model-usage-plugins"],
@@ -115,11 +143,16 @@ export function ModelUsagePanel() {
     <>
       <div className="mb-4 flex items-center gap-3">
         <Select
-          aria-label="按插件筛选用量"
+          aria-label={llmText("ui.filterUsageByPlugin")}
           value={pluginId ?? ""}
           onValueChange={value => useSettingsStore.setState({ usagePluginId: value ?? "" })}
           options={[
-            { value: "", label: "全部调用（含插件）" },
+            {
+              value: "",
+              get label() {
+                return llmText("ui.allCallsIncludingPlugins");
+              },
+            },
             ...(plugins.data ?? []).map(plugin => ({
               value: plugin.id,
               label: plugin.name || plugin.id,
@@ -132,27 +165,27 @@ export function ModelUsagePanel() {
       </div>
       <PluginAIActivity pluginId={pluginId} />
       <p className="text-tau-meta text-ink-2 mb-4">
-        费用为估算值，仅汇总已知用量；未知用量不代表免费。取消不能撤销供应商已产生的消费。
+        {llmText("ui.costsAreEstimatesBasedOnKnownUsage")}
       </p>
       <div className="mb-5 flex items-center gap-2">
         <Segmented
-          label="用量视图"
+          label={llmText("ui.usageView")}
           size="sm"
           value={view}
           onValueChange={v => setView(v as "overview" | "events")}
         >
-          <Segmented.Item value="overview" label="概览" />
-          <Segmented.Item value="events" label="调用明细" />
+          <Segmented.Item value="overview" label={llmText("ui.overview")} />
+          <Segmented.Item value="events" label={llmText("ui.callDetails")} />
         </Segmented>
         <span className="flex-1" />
         <Segmented
-          label="时间范围"
+          label={llmText("ui.timeRange")}
           size="sm"
           value={rangeKey}
           onValueChange={v => setRangeKey(v as UsageRangeKey)}
         >
-          {(Object.keys(RANGE_LABELS) as UsageRangeKey[]).map(key => (
-            <Segmented.Item key={key} value={key} label={RANGE_LABELS[key]} />
+          {USAGE_RANGES.map(key => (
+            <Segmented.Item key={key} value={key} label={llmFormat.rangeLabel(key)} />
           ))}
         </Segmented>
         <Button
@@ -161,7 +194,7 @@ export function ModelUsagePanel() {
           icon={RefreshCw}
           onClick={() => setRefreshToken(n => n + 1)}
         >
-          刷新
+          {llmText("ui.refresh")}
         </Button>
       </div>
       {view === "overview" ? (
@@ -176,6 +209,8 @@ export function ModelUsagePanel() {
 /* ── 概览：KPI + 趋势 + 排行 ── */
 
 function UsageOverview({ range, refreshToken }: { range: UsageRange; refreshToken: number }) {
+  useLlmSettingsI18n();
+
   const [summary, setSummary] = useState<ModelUsageSummary | null>(null);
   const [previous, setPrevious] = useState<ModelUsageSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -201,7 +236,10 @@ function UsageOverview({ range, refreshToken }: { range: UsageRange; refreshToke
   if (error) {
     return (
       <SettingsGroup bare>
-        <p className="text-tau-meta text-danger px-1">读取用量失败：{error}</p>
+        <p className="text-tau-meta text-danger px-1">
+          {llmText("ui.couldNotLoadUsage")}
+          {error}
+        </p>
       </SettingsGroup>
     );
   }
@@ -214,9 +252,9 @@ function UsageOverview({ range, refreshToken }: { range: UsageRange; refreshToke
       {empty ? (
         <SettingsGroup bare>
           <div className="bg-surface text-ink-2 text-tau-body rounded-[14px] px-5 py-10 text-center">
-            这段时间还没有模型调用记录
+            {llmText("ui.noModelCallsInThisPeriod")}
             <div className="text-tau-meta text-ink-3 mt-1">
-              对话、剪藏、生成等功能调用模型后会出现在这里
+              {llmText("ui.modelCallsFromChatClippingGenerationAnd")}
             </div>
           </div>
         </SettingsGroup>
@@ -238,32 +276,49 @@ function KpiRow({
   summary: ModelUsageSummary | null;
   previous: ModelUsageSummary | null;
 }) {
+  useLlmSettingsI18n();
+
   const errorRate = summary && summary.calls > 0 ? (summary.errors / summary.calls) * 100 : null;
   const items: Array<{ label: string; value: string; change: number | null; hint?: string }> = [
     {
-      label: "预估费用",
-      value: summary ? formatCost(summary.cost) : "—",
+      get label() {
+        return llmText("ui.estimatedCost");
+      },
+      value: summary ? llmFormat.formatCost(summary.cost) : "—",
       change: summary && previous ? changeRatio(summary.cost, previous.cost) : null,
     },
     {
       label: "Token",
-      value: summary ? formatTokens(summary.totalTokens) : "—",
+      value: summary ? llmFormat.formatTokens(summary.totalTokens) : "—",
       change: summary && previous ? changeRatio(summary.totalTokens, previous.totalTokens) : null,
       hint: summary
-        ? `输入 ${formatTokens(summary.inputTokens)} · 输出 ${formatTokens(summary.outputTokens)}`
+        ? llmText("message.inputOutput", {
+            input: llmValue(llmFormat.formatTokens(summary.inputTokens)),
+            output: llmValue(llmFormat.formatTokens(summary.outputTokens)),
+          })
         : undefined,
     },
     {
-      label: "调用次数",
+      get label() {
+        return llmText("ui.calls2");
+      },
       value: summary ? summary.calls.toLocaleString("en-US") : "—",
       change: summary && previous ? changeRatio(summary.calls, previous.calls) : null,
-      hint: summary && summary.aborted > 0 ? `其中取消 ${summary.aborted} 次` : undefined,
+      hint:
+        summary && summary.aborted > 0
+          ? llmText("message.cancelled", { count: llmValue(summary.aborted) })
+          : undefined,
     },
     {
-      label: "失败率",
+      get label() {
+        return llmText("ui.failureRate");
+      },
       value: errorRate === null ? "—" : `${errorRate.toFixed(errorRate < 10 ? 1 : 0)}%`,
       change: null,
-      hint: summary && summary.errors > 0 ? `失败 ${summary.errors} 次` : undefined,
+      hint:
+        summary && summary.errors > 0
+          ? llmText("message.failed", { count: llmValue(summary.errors) })
+          : undefined,
     },
   ];
   return (
@@ -282,7 +337,7 @@ function KpiRow({
             <div className="text-tau-tiny text-ink-3 mt-1 h-4 truncate tabular-nums">
               {item.change !== null ? (
                 <>
-                  环比 {item.change >= 0 ? "+" : ""}
+                  {llmText("ui.change")} {item.change >= 0 ? "+" : ""}
                   {(item.change * 100).toFixed(0)}%
                 </>
               ) : (
@@ -297,6 +352,8 @@ function KpiRow({
 }
 
 function TrendGroup({ range, refreshToken }: { range: UsageRange; refreshToken: number }) {
+  const { t } = useLlmSettingsI18n();
+
   const palette = useUsageChartPalette();
   const [metric, setMetric] = useState<TrendMetric>("cost");
   const [groupBy, setGroupBy] = useState<ChartDimension>("model");
@@ -328,7 +385,9 @@ function TrendGroup({ range, refreshToken }: { range: UsageRange; refreshToken: 
         setPoints(next);
         setProviderNames(new Map(providers.map(row => [row.key, row.label])));
       })
-      .catch(e => toast.error(`读取趋势失败：${errorText(e)}`));
+      .catch(e =>
+        toast.error(llmText("message.couldNotLoadTrend", { error: llmValue(errorText(e)) }))
+      );
     return () => {
       alive = false;
     };
@@ -338,24 +397,26 @@ function TrendGroup({ range, refreshToken }: { range: UsageRange; refreshToken: 
     const starts = bucketStarts(range);
     const { keys, values } = buildTrendSeries(points, starts, metric);
     return trendOption(palette, {
-      categories: starts.map(start => formatBucketLabel(start, range.bucket)),
+      categories: starts.map(start => llmFormat.formatBucketLabel(start, range.bucket)),
       series: keys.map(key => ({
-        name: dimensionLabel(groupBy, key, providerNames),
+        name: dimensionLabel(groupBy, key, providerNames, t("ui.other")),
         data: values[key],
       })),
       format: value => formatMetric(metric, value),
     });
-  }, [points, range, metric, groupBy, palette, providerNames]);
+  }, [points, range, metric, groupBy, palette, providerNames, t]);
 
   return (
     <SettingsGroup
-      title="趋势"
-      description={`按${DIMENSION_LABELS[groupBy]}堆叠，最多显示 5 项，其余合并为「其他」`}
+      title={llmText("ui.trend")}
+      description={llmText("message.stackedByShowingUpTo5Groups", {
+        dimension: llmValue(DIMENSION_LABELS[groupBy]),
+      })}
     >
       {/* 控件放面板内的工具行：标题行放不下两组 Segmented（会把标题挤成竖排） */}
       <div className="flex flex-wrap items-center gap-2 px-2 pt-2">
         <Segmented
-          label="趋势指标"
+          label={llmText("ui.trendMetric")}
           size="sm"
           value={metric}
           onValueChange={v => setMetric(v as TrendMetric)}
@@ -366,7 +427,7 @@ function TrendGroup({ range, refreshToken }: { range: UsageRange; refreshToken: 
         </Segmented>
         <span className="flex-1" />
         <Segmented
-          label="分组维度"
+          label={llmText("ui.groupBy")}
           size="sm"
           value={groupBy}
           onValueChange={v => setGroupBy(v as ChartDimension)}
@@ -380,14 +441,25 @@ function TrendGroup({ range, refreshToken }: { range: UsageRange; refreshToken: 
         <UsageChart
           option={option}
           height={260}
-          ariaLabel={`${RANGE_LABELS_BY_BUCKET[range.bucket]}${METRIC_LABELS[metric]}趋势，按${DIMENSION_LABELS[groupBy]}分组`}
+          ariaLabel={llmText("message.trendGroupedBy", {
+            frequency: llmValue(RANGE_LABELS_BY_BUCKET[range.bucket]),
+            metric: llmValue(METRIC_LABELS[metric]),
+            dimension: llmValue(DIMENSION_LABELS[groupBy]),
+          })}
         />
       </div>
     </SettingsGroup>
   );
 }
 
-const RANGE_LABELS_BY_BUCKET = { hour: "每小时", day: "每日" } as const;
+const RANGE_LABELS_BY_BUCKET = {
+  get hour() {
+    return llmText("ui.hourly");
+  },
+  get day() {
+    return llmText("ui.daily");
+  },
+} as const;
 
 function trendOption(
   palette: UsageChartPalette,
@@ -448,6 +520,8 @@ function trendOption(
 }
 
 function BreakdownGroup({ range, refreshToken }: { range: UsageRange; refreshToken: number }) {
+  const { t } = useLlmSettingsI18n();
+
   const palette = useUsageChartPalette();
   const [groupBy, setGroupBy] = useState<ChartDimension>("feature");
   const [rows, setRows] = useState<ModelUsageBreakdownRow[]>([]);
@@ -456,7 +530,9 @@ function BreakdownGroup({ range, refreshToken }: { range: UsageRange; refreshTok
     let alive = true;
     getModelUsageBreakdown({ pluginId: range.pluginId, from: range.from, to: range.to, groupBy })
       .then(next => alive && setRows(next))
-      .catch(e => toast.error(`读取排行失败：${errorText(e)}`));
+      .catch(e =>
+        toast.error(llmText("message.couldNotLoadRanking", { error: llmValue(errorText(e)) }))
+      );
     return () => {
       alive = false;
     };
@@ -474,7 +550,7 @@ function BreakdownGroup({ range, refreshToken }: { range: UsageRange; refreshTok
         value: row[pieMetric],
       })),
       ...(rest.length > 0
-        ? [{ name: "其他", value: rest.reduce((sum, row) => sum + row[pieMetric], 0) }]
+        ? [{ name: t("ui.other"), value: rest.reduce((sum, row) => sum + row[pieMetric], 0) }]
         : []),
     ].filter(item => item.value > 0);
     return {
@@ -502,16 +578,19 @@ function BreakdownGroup({ range, refreshToken }: { range: UsageRange; refreshTok
         },
       ],
     };
-  }, [rows, groupBy, palette, pieMetric]);
+  }, [rows, groupBy, palette, pieMetric, t]);
 
   return (
     <SettingsGroup
-      title="排行"
-      description={`按${DIMENSION_LABELS[groupBy]}汇总，环形图为${pieMetric === "cost" ? "费用" : "Token"}占比`}
+      title={llmText("ui.ranking")}
+      description={llmText("message.groupedByTheDonutChartShowsThe", {
+        dimension: llmValue(DIMENSION_LABELS[groupBy]),
+        metric: llmValue(pieMetric === "cost" ? llmText("ui.cost") : "Token"),
+      })}
     >
       <div className="flex items-center justify-end px-2 pt-2">
         <Segmented
-          label="排行维度"
+          label={llmText("ui.rankBy")}
           size="sm"
           value={groupBy}
           onValueChange={v => setGroupBy(v as ChartDimension)}
@@ -525,7 +604,10 @@ function BreakdownGroup({ range, refreshToken }: { range: UsageRange; refreshTok
         <UsageChart
           option={option}
           height={200}
-          ariaLabel={`按${DIMENSION_LABELS[groupBy]}的${pieMetric === "cost" ? "费用" : "Token"}占比`}
+          ariaLabel={llmText("message.shareBy", {
+            dimension: llmValue(DIMENSION_LABELS[groupBy]),
+            metric: llmValue(pieMetric === "cost" ? llmText("ui.cost") : "Token"),
+          })}
         />
         <BreakdownTable rows={rows} groupBy={groupBy} />
       </div>
@@ -540,31 +622,35 @@ function BreakdownTable({
   rows: ModelUsageBreakdownRow[];
   groupBy: ChartDimension;
 }) {
+  useLlmSettingsI18n();
+
   if (rows.length === 0) {
-    return <p className="text-tau-meta text-ink-3 px-3 py-6">暂无数据</p>;
+    return <p className="text-tau-meta text-ink-3 px-3 py-6">{llmText("ui.noData")}</p>;
   }
   return (
     <table className="text-tau-sm w-full table-fixed border-collapse">
-      <caption className="sr-only">按{DIMENSION_LABELS[groupBy]}的用量排行</caption>
+      <caption className="sr-only">
+        {llmText("usage.rankingCaption", { dimension: DIMENSION_LABELS[groupBy] })}
+      </caption>
       <thead>
         <tr className="text-ink-3 text-tau-tiny text-left">
           <th scope="col" className="w-[34%] px-3 py-1.5 font-medium">
             {DIMENSION_LABELS[groupBy]}
           </th>
           <th scope="col" className="px-2 py-1.5 text-right font-medium">
-            费用
+            {llmText("ui.cost")}
           </th>
           <th scope="col" className="px-2 py-1.5 text-right font-medium">
             Token
           </th>
           <th scope="col" className="px-2 py-1.5 text-right font-medium">
-            调用
+            {llmText("ui.calls")}
           </th>
           <th scope="col" className="px-2 py-1.5 text-right font-medium">
-            失败
+            {llmText("ui.failed")}
           </th>
           <th scope="col" className="px-3 py-1.5 text-right font-medium">
-            平均耗时
+            {llmText("ui.averageDuration")}
           </th>
         </tr>
       </thead>
@@ -575,10 +661,10 @@ function BreakdownTable({
               {dimensionLabel(groupBy, row.key, new Map([[row.key, row.label]]))}
             </td>
             <td className="font-tau-mono text-ink-1 px-2 py-2 text-right tabular-nums">
-              {formatCost(row.cost)}
+              {llmFormat.formatCost(row.cost)}
             </td>
             <td className="font-tau-mono text-ink-2 px-2 py-2 text-right tabular-nums">
-              {formatTokens(row.totalTokens)}
+              {llmFormat.formatTokens(row.totalTokens)}
             </td>
             <td className="font-tau-mono text-ink-2 px-2 py-2 text-right tabular-nums">
               {row.calls}
@@ -593,7 +679,7 @@ function BreakdownTable({
               {row.errors}
             </td>
             <td className="font-tau-mono text-ink-2 px-3 py-2 text-right tabular-nums">
-              {formatDuration(row.avgLatencyMs)}
+              {llmFormat.formatDuration(row.avgLatencyMs)}
             </td>
           </tr>
         ))}
@@ -605,6 +691,8 @@ function BreakdownTable({
 /* ── 调用明细：筛选 + 分页列表 ── */
 
 function UsageEvents({ range, refreshToken }: { range: UsageRange; refreshToken: number }) {
+  useLlmSettingsI18n();
+
   const [feature, setFeature] = useState("");
   const [model, setModel] = useState("");
   const [status, setStatus] = useState<"" | ModelUsageStatus>("");
@@ -668,7 +756,8 @@ function UsageEvents({ range, refreshToken }: { range: UsageRange; refreshToken:
       setItems(result.items);
       setTotal(result.total);
     } catch (e) {
-      if (request === requestRef.current) toast.error(`读取明细失败：${errorText(e)}`);
+      if (request === requestRef.current)
+        toast.error(llmText("message.couldNotLoadCallDetails", { error: llmValue(errorText(e)) }));
     } finally {
       if (request === requestRef.current) setLoading(false);
     }
@@ -682,44 +771,59 @@ function UsageEvents({ range, refreshToken }: { range: UsageRange; refreshToken:
 
   return (
     <SettingsGroup
-      title={`共 ${total.toLocaleString("en-US")} 次调用`}
-      description="点开一行查看完整字段；会话类调用可按会话 ID 在对话记录里回溯"
+      title={llmText("message.calls", { count: llmValue(total.toLocaleString("en-US")) })}
+      description={llmText("ui.openARowForFullDetailsUse")}
       action={
         <>
           <Select
-            aria-label="按功能筛选"
+            aria-label={llmText("ui.filterByFeature")}
             size="sm"
             className="w-36"
             value={feature}
             onValueChange={setFeature}
             options={[
-              { value: "", label: "全部功能" },
+              {
+                value: "",
+                get label() {
+                  return llmText("ui.allFeatures");
+                },
+              },
               ...featureOptions.map(key => ({
                 value: key,
-                label: featureLabel(featureNames.get(key) ?? key),
+                label: llmFormat.featureLabel(featureNames.get(key) ?? key),
               })),
             ]}
           />
           <Select
-            aria-label="按模型筛选"
+            aria-label={llmText("ui.filterByModel")}
             size="sm"
             className="w-40"
             value={model}
             onValueChange={setModel}
             searchable={modelOptions.length > 8}
             options={[
-              { value: "", label: "全部模型" },
+              {
+                value: "",
+                get label() {
+                  return llmText("ui.allModels");
+                },
+              },
               ...modelOptions.map(key => ({ value: key, label: key })),
             ]}
           />
           <Select
-            aria-label="按状态筛选"
+            aria-label={llmText("ui.filterByStatus")}
             size="sm"
             className="w-24"
             value={status}
             onValueChange={v => setStatus(v as "" | ModelUsageStatus)}
             options={[
-              { value: "", label: "全部" },
+              {
+                value: "",
+                get label() {
+                  return llmText("ui.all");
+                },
+              },
               ...(Object.keys(STATUS_META) as ModelUsageStatus[]).map(key => ({
                 value: key,
                 label: STATUS_META[key].label,
@@ -731,7 +835,7 @@ function UsageEvents({ range, refreshToken }: { range: UsageRange; refreshToken:
     >
       {items.length === 0 ? (
         <p className="text-tau-meta text-ink-3 px-3 py-8 text-center">
-          {loading ? "正在读取…" : "没有符合条件的调用"}
+          {loading ? llmText("ui.loading2") : llmText("ui.noMatchingCalls")}
         </p>
       ) : (
         <ul aria-busy={loading}>
@@ -756,7 +860,7 @@ function UsageEvents({ range, refreshToken }: { range: UsageRange; refreshToken:
             disabled={page === 0}
             onClick={() => setPage(p => p - 1)}
           >
-            上一页
+            {llmText("ui.previous")}
           </Button>
           <Button
             size="sm"
@@ -764,7 +868,7 @@ function UsageEvents({ range, refreshToken }: { range: UsageRange; refreshToken:
             disabled={page + 1 >= pageCount}
             onClick={() => setPage(p => p + 1)}
           >
-            下一页
+            {llmText("ui.next")}
           </Button>
         </div>
       )}
@@ -781,6 +885,8 @@ function EventRow({
   open: boolean;
   onToggle: () => void;
 }) {
+  useLlmSettingsI18n();
+
   const meta = STATUS_META[item.status];
   const detailId = `usage-event-${item.eventId}`;
   return (
@@ -793,21 +899,23 @@ function EventRow({
         className="hover:bg-hover rounded-tau-sm flex w-full items-center gap-3 px-3 py-2.5 text-left"
       >
         <span className="font-tau-mono text-ink-3 text-tau-meta w-[118px] flex-none tabular-nums">
-          {formatEventTime(item.ts)}
+          {llmFormat.formatEventTime(item.ts)}
         </span>
         <span className="text-ink-1 text-tau-body w-[120px] flex-none truncate">
           {item.pluginId
             ? `${item.pluginName ?? item.pluginId} / ${item.pluginFeatureName ?? item.feature}`
-            : featureLabel(item.feature)}
+            : llmFormat.featureLabel(item.feature)}
         </span>
         <span className="font-tau-mono text-ink-2 text-tau-meta min-w-0 flex-1 truncate">
           {item.model}
         </span>
         <span className="font-tau-mono text-ink-2 text-tau-meta w-[72px] flex-none text-right tabular-nums">
-          {item.usageKnown === false ? "未知" : formatTokens(item.totalTokens)}
+          {item.usageKnown === false
+            ? llmText("ui.unknown")
+            : llmFormat.formatTokens(item.totalTokens)}
         </span>
         <span className="font-tau-mono text-ink-1 text-tau-meta w-[72px] flex-none text-right tabular-nums">
-          {item.costSource === "none" ? "未知" : formatCost(item.cost)}
+          {item.costSource === "none" ? llmText("ui.unknown") : llmFormat.formatCost(item.cost)}
         </span>
         <span className="w-[64px] flex-none text-right">
           <StatusChip tone={meta.tone}>{meta.label}</StatusChip>
@@ -818,31 +926,43 @@ function EventRow({
           id={detailId}
           className="text-tau-meta grid grid-cols-[88px_minmax(0,1fr)_88px_minmax(0,1fr)] gap-x-3 gap-y-1.5 px-3 pt-1 pb-3"
         >
-          <Detail label="服务商" value={item.providerName ?? item.providerId} />
-          <Detail label="数据库" value={item.library ?? "未知"} />
-          <Detail label="输入" value={formatTokens(item.inputTokens)} />
-          <Detail label="输出" value={formatTokens(item.outputTokens)} />
-          <Detail label="缓存读取" value={formatTokens(item.cacheReadTokens)} />
-          <Detail label="缓存写入" value={formatTokens(item.cacheWriteTokens)} />
-          <Detail label="推理" value={formatTokens(item.reasoningTokens)} />
+          <Detail label={llmText("ui.provider")} value={item.providerName ?? item.providerId} />
+          <Detail label={llmText("ui.database")} value={item.library ?? llmText("ui.unknown")} />
+          <Detail label={llmText("ui.input")} value={llmFormat.formatTokens(item.inputTokens)} />
+          <Detail label={llmText("ui.output")} value={llmFormat.formatTokens(item.outputTokens)} />
           <Detail
-            label="计价"
+            label={llmText("ui.cacheRead")}
+            value={llmFormat.formatTokens(item.cacheReadTokens)}
+          />
+          <Detail
+            label={llmText("ui.cacheWrite")}
+            value={llmFormat.formatTokens(item.cacheWriteTokens)}
+          />
+          <Detail
+            label={llmText("ui.reasoning")}
+            value={llmFormat.formatTokens(item.reasoningTokens)}
+          />
+          <Detail
+            label={llmText("ui.pricing")}
             value={
               item.costSource === "custom"
-                ? "自定义单价"
+                ? llmText("ui.customPrices")
                 : item.costSource === "catalog"
-                  ? "目录单价"
-                  : "无价格信息"
+                  ? llmText("ui.catalogPrices")
+                  : llmText("ui.noPriceInformation")
             }
           />
-          <Detail label="耗时" value={formatDuration(item.latencyMs)} />
-          <Detail label="首字延迟" value={formatDuration(item.ttftMs)} />
-          {item.scope && <Detail label="会话类别" value={item.scope} />}
-          {item.sessionId && <Detail label="会话 ID" value={item.sessionId} mono />}
-          {item.entityId && <Detail label="关联对象" value={item.entityId} mono />}
+          <Detail label={llmText("ui.duration")} value={llmFormat.formatDuration(item.latencyMs)} />
+          <Detail
+            label={llmText("ui.timeToFirstToken")}
+            value={llmFormat.formatDuration(item.ttftMs)}
+          />
+          {item.scope && <Detail label={llmText("ui.sessionType")} value={item.scope} />}
+          {item.sessionId && <Detail label={llmText("ui.sessionID")} value={item.sessionId} mono />}
+          {item.entityId && <Detail label={llmText("ui.relatedItem")} value={item.entityId} mono />}
           {item.errorMessage && (
             <>
-              <dt className="text-ink-3">错误</dt>
+              <dt className="text-ink-3">{llmText("ui.error")}</dt>
               <dd className="text-danger col-span-3 break-words">{item.errorMessage}</dd>
             </>
           )}

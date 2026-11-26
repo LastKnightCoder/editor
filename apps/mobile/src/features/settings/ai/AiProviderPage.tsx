@@ -1,3 +1,4 @@
+import { llmText, llmValue, useLlmSettingsI18n } from "./i18n";
 // AI 服务商详情：账号（Key、地址）、测试连接、模型启用与手填。
 // 新增时是未保存的草稿，点「保存」才写入设置；返回有未保存修改时先确认。
 
@@ -32,13 +33,15 @@ import { useAiSettings } from "./useAiSettings";
 type TestState =
   | { status: "running" }
   | { status: "ok"; ms: number }
-  | { status: "error"; message: string }
+  | { status: "error"; message?: string; code?: "noReply" | "connectionFailed" }
   | null;
 
 const loadMobileAi = () =>
   import("../../../services/ai").then(module => module.getMobileAiService());
 
 export function AiProviderPage(props: { providerId: string; preset?: string }) {
+  useLlmSettingsI18n();
+
   const navigator = useNavigator();
   const { providers, usage, mutate, databaseName } = useAiSettings();
   const saved = providers.find(item => item.id === props.providerId);
@@ -65,9 +68,9 @@ export function AiProviderPage(props: { providerId: string; preset?: string }) {
   if (!draft) {
     return (
       <div className="mobile-kb-screen bg-page fixed inset-0 z-50 flex flex-col">
-        <PageHeader title="服务商" onBack={() => void navigator.goBack("ui")} />
+        <PageHeader title={llmText("ui.provider")} onBack={() => void navigator.goBack("ui")} />
         <p className="text-ink-3 text-tau-meta px-8 py-16 text-center">
-          服务商不存在，可能已被删除。
+          {llmText("ui.thisProviderNoLongerExistsItMay")}
         </p>
       </div>
     );
@@ -118,7 +121,7 @@ export function AiProviderPage(props: { providerId: string; preset?: string }) {
       }
       return true;
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "保存失败");
+      toast.error(error instanceof Error ? error.message : llmText("ui.couldNotSave"));
       return false;
     } finally {
       setSaving(false);
@@ -127,7 +130,7 @@ export function AiProviderPage(props: { providerId: string; preset?: string }) {
 
   const runTest = async () => {
     const model = provider.models[0];
-    if (!model) return setErrors({ models: "至少保留一个模型" });
+    if (!model) return setErrors({ models: "modelsRequired" });
     if (dirty && !(await save())) return;
     setTest({ status: "running" });
     const started = performance.now();
@@ -140,10 +143,14 @@ export function AiProviderPage(props: { providerId: string; preset?: string }) {
       setTest(
         result.ok
           ? { status: "ok", ms: Math.round(performance.now() - started) }
-          : { status: "error", message: result.error?.message ?? "模型没有正常回复" }
+          : { status: "error", message: result.error?.message, code: "noReply" }
       );
     } catch (error) {
-      setTest({ status: "error", message: error instanceof Error ? error.message : "连接失败" });
+      setTest({
+        status: "error",
+        message: error instanceof Error ? error.message : undefined,
+        code: "connectionFailed",
+      });
     }
   };
 
@@ -153,24 +160,24 @@ export function AiProviderPage(props: { providerId: string; preset?: string }) {
       setRemoveOpen(false);
       void navigator.goBackBypassed("ui");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "删除失败");
+      toast.error(error instanceof Error ? error.message : llmText("ui.couldNotDelete"));
     }
   };
 
   const keyPlaceholder = saved?.configured
-    ? `已保存 · …${saved.keyHint || "****"}，留空不修改`
-    : "粘贴 API Key";
+    ? llmText("message.savedLeaveBlankToKeep", { ending: llmValue(saved.keyHint || "****") })
+    : llmText("ui.pasteAPIKey");
   const apiLabel = API_OPTIONS.find(option => option.value === provider.api)?.label ?? provider.api;
 
   return (
     <PortalScope>
       <div className="mobile-kb-screen bg-page fixed inset-0 z-50 flex flex-col">
         <PageHeader
-          title={provider.name || "自定义服务"}
+          title={provider.name || llmText("ui.customService")}
           onBack={guard.request}
           actions={
             <PageHeaderTextButton disabled={!dirty || saving} onClick={() => void save()}>
-              {saving ? "保存中" : "保存"}
+              {saving ? llmText("ui.saving") : llmText("ui.save")}
             </PageHeaderTextButton>
           }
         />
@@ -179,14 +186,14 @@ export function AiProviderPage(props: { providerId: string; preset?: string }) {
           className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto px-4"
         >
           <div className="page-enter space-y-1">
-            <GroupLabel>账号</GroupLabel>
+            <GroupLabel>{llmText("ui.account")}</GroupLabel>
             <GroupCard>
               {!provider.builtin && (
                 <TextField
-                  label="名称"
+                  label={llmText("ui.name")}
                   value={provider.name}
-                  placeholder="例如：公司网关"
-                  error={errors.name}
+                  placeholder={llmText("ui.forExampleCompanyGateway")}
+                  error={errors.name ? llmText(`validation.${errors.name}`) : undefined}
                   onChange={name => patch({ name })}
                 />
               )}
@@ -198,20 +205,22 @@ export function AiProviderPage(props: { providerId: string; preset?: string }) {
                 onChange={apiKey => setDraft({ ...draft, apiKey })}
               />
               <TextField
-                label="接口地址"
+                label={llmText("ui.apiAddress")}
                 inputMode="url"
                 value={provider.baseUrl}
                 placeholder="https://api.example.com/v1"
-                error={errors.baseUrl}
+                error={errors.baseUrl ? llmText(`validation.${errors.baseUrl}`) : undefined}
                 onChange={baseUrl => patch({ baseUrl })}
               />
               {!provider.builtin && (
-                <ChoiceField label="协议" value={apiLabel} onClick={() => setApiPicker(true)} />
+                <ChoiceField
+                  label={llmText("ui.protocol")}
+                  value={apiLabel}
+                  onClick={() => setApiPicker(true)}
+                />
               )}
             </GroupCard>
-            {saved?.configured && (
-              <GroupNote>Key 已保存在本机。要更换时粘贴新 Key 并保存。</GroupNote>
-            )}
+            {saved?.configured && <GroupNote>{llmText("ui.theKeyIsStoredOnThisDevice")}</GroupNote>}
 
             <div className="flex px-1 pt-3">
               <button
@@ -223,7 +232,7 @@ export function AiProviderPage(props: { providerId: string; preset?: string }) {
                 {test?.status === "running" && (
                   <LoaderCircle size={15} className="animate-spin" aria-hidden="true" />
                 )}
-                {dirty ? "保存并测试连接" : "测试连接"}
+                {dirty ? llmText("ui.saveAndTestConnection") : llmText("ui.testConnection")}
               </button>
             </div>
             {test && test.status !== "running" && (
@@ -239,12 +248,16 @@ export function AiProviderPage(props: { providerId: string; preset?: string }) {
                   <CircleAlert size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
                 )}
                 {test.status === "ok"
-                  ? `连接成功 · ${(test.ms / 1000).toFixed(1)} 秒`
-                  : test.message}
+                  ? llmText("message.connectedS", {
+                      seconds: llmValue((test.ms / 1000).toFixed(1)),
+                    })
+                  : (test.message ?? llmText(`test.${test.code ?? "connectionFailed"}`))}
               </p>
             )}
 
-            <GroupLabel tone={errors.models ? "warn" : "ink"}>{errors.models ?? "模型"}</GroupLabel>
+            <GroupLabel tone={errors.models ? "warn" : "ink"}>
+              {errors.models ? llmText(`validation.${errors.models}`) : llmText("field.models")}
+            </GroupLabel>
             <GroupCard>
               {catalog.map(model => (
                 <GroupRow key={model.id}>
@@ -254,12 +267,12 @@ export function AiProviderPage(props: { providerId: string; preset?: string }) {
                       <ModelCapabilities model={model} />
                       {usedBy(model.id).map(feature => (
                         <AiBadge key={feature.key} tone="muted">
-                          {feature.label}
+                          {llmText(`feature.${feature.key}.label`)}
                         </AiBadge>
                       ))}
                     </span>
                     <span className="text-ink-3 text-tau-sm block truncate">
-                      {model.id} · {formatTokens(model.contextWindow)} 上下文
+                      {model.id} · {formatTokens(model.contextWindow)} {llmText("ui.context")}
                     </span>
                   </span>
                   <SwitchButton
@@ -276,18 +289,22 @@ export function AiProviderPage(props: { providerId: string; preset?: string }) {
                       <ModelCapabilities model={model} />
                       {usedBy(model.id).map(feature => (
                         <AiBadge key={feature.key} tone="muted">
-                          {feature.label}
+                          {llmText(`feature.${feature.key}.label`)}
                         </AiBadge>
                       ))}
                     </span>
                     <span className="text-ink-3 text-tau-sm block truncate">
                       {model.id}
-                      {model.contextWindow ? ` · ${formatTokens(model.contextWindow)} 上下文` : ""}
+                      {model.contextWindow
+                        ? llmText("message.context", {
+                            tokens: llmValue(formatTokens(model.contextWindow)),
+                          })
+                        : ""}
                     </span>
                   </span>
                   <button
                     type="button"
-                    aria-label={`移除 ${modelLabel(model)}`}
+                    aria-label={llmText("message.remove2", { name: llmValue(modelLabel(model)) })}
                     className="text-ink-3 -mr-1 grid h-9 w-9 shrink-0 place-items-center"
                     onClick={() => setModels(provider.models.filter(item => item.id !== model.id))}
                   >
@@ -298,18 +315,18 @@ export function AiProviderPage(props: { providerId: string; preset?: string }) {
               <GroupRow onClick={() => setCustomOpen(true)}>
                 <Plus size={18} className="text-accent-text shrink-0" aria-hidden="true" />
                 <span className="text-accent-text text-tau-body flex-1 font-medium">
-                  手动添加模型
+                  {llmText("ui.addModelManually")}
                 </span>
               </GroupRow>
             </GroupCard>
-            <GroupNote>关闭的模型不会出现在功能分配里。</GroupNote>
+            <GroupNote>{llmText("ui.disabledModelsDoNotAppearInFeature")}</GroupNote>
 
             {saved && (
               <div className="pt-5">
                 <GroupCard>
                   <GroupRow onClick={() => setRemoveOpen(true)}>
                     <span className="text-danger text-tau-body flex-1 text-center font-medium">
-                      删除服务商
+                      {llmText("ui.deleteProvider")}
                     </span>
                   </GroupRow>
                 </GroupCard>
@@ -320,7 +337,7 @@ export function AiProviderPage(props: { providerId: string; preset?: string }) {
         {guard.sheet}
         <ActionSheet
           open={apiPicker}
-          title="协议"
+          title={llmText("ui.protocol")}
           items={API_OPTIONS.map(option => ({
             label: option.label,
             selected: option.value === provider.api,
@@ -339,9 +356,9 @@ export function AiProviderPage(props: { providerId: string; preset?: string }) {
         />
         <MobileConfirmDialog
           open={removeOpen}
-          title={`删除「${provider.name}」？`}
-          description="API Key 与模型清单会一起删除，使用它的功能分配会被清空。"
-          confirmText="删除"
+          title={llmText("message.delete", { name: llmValue(provider.name) })}
+          description={llmText("ui.theAPIKeyAndModelListWill")}
+          confirmText={llmText("ui.delete")}
           danger
           onCancel={() => setRemoveOpen(false)}
           onConfirm={() => void remove()}

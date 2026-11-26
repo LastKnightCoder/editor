@@ -1,3 +1,5 @@
+import { desktopLocaleSource } from "@/app/i18n/runtime";
+import { llmText } from "../sections/llm.i18n";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -6,7 +8,9 @@ import useSettingStore, { mergeSettingWithDefaults } from "@/stores/useSettingSt
 import { useSettingsStore } from "@/app/settingsStore";
 import { LLMSection } from "../sections/LLMSection";
 
+const remote = vi.hoisted(() => ({ discover: vi.fn() }));
 vi.mock("@/commands/piAi", () => ({
+  piDiscoverModels: remote.discover,
   piCatalogProviders: async () => ({ ok: true, providers: [] }),
   piCatalogModels: async () => ({ ok: true, models: [] }),
   piThinkingLevels: async () => ({ ok: true, levels: [], fromCatalog: false }),
@@ -15,6 +19,7 @@ vi.mock("@/commands/piAi", () => ({
 let container: HTMLDivElement;
 let root: Root;
 let queryClient: QueryClient;
+const originalLocale = desktopLocaleSource.getSnapshot();
 const originalSetting = structuredClone(useSettingStore.getState().setting);
 
 const loadModels = (models: unknown[]) => {
@@ -57,6 +62,7 @@ const clickButton = async (name: string) => {
 };
 
 beforeEach(() => {
+  remote.discover.mockReset();
   useSettingsStore.setState({ llmTab: "providers" });
   queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   container = document.createElement("div");
@@ -66,6 +72,7 @@ beforeEach(() => {
 
 afterEach(() => {
   act(() => root.unmount());
+  act(() => desktopLocaleSource.setLocale(originalLocale));
   queryClient.clear();
   container.remove();
   useSettingStore.setState({ setting: structuredClone(originalSetting) });
@@ -83,6 +90,23 @@ it("手动添加只填写模型 ID，仍能保存、切换功能分配并再次�
     setInputValue.call(input, "custom-model");
     input.dispatchEvent(new Event("input", { bubbles: true }));
   });
+  const before = useSettingStore.getState().setting.llmProviders;
+  input.focus();
+  input.setSelectionRange(1, 3);
+  for (const locale of ["zh-TW", "en-US"]) {
+    await act(async () => desktopLocaleSource.setLocale(locale));
+    expect(
+      document.querySelector(
+        `input[placeholder="${llmText("ui.forExampleDeepseekChatTheProviderS")}"]`
+      )
+    ).toBe(input);
+    expect(input.value).toBe("custom-model");
+    expect(document.activeElement).toBe(input);
+    expect([input.selectionStart, input.selectionEnd]).toEqual([1, 3]);
+    expect(useSettingStore.getState().setting.llmProviders).toBe(before);
+    expect(remote.discover).not.toHaveBeenCalled();
+  }
+  await act(async () => desktopLocaleSource.setLocale(originalLocale));
   await clickButton("保存");
   expect(useSettingStore.getState().setting.llmProviders[0].models[0]).toEqual({
     id: "custom-model",
@@ -108,4 +132,43 @@ it("加载缺少能力字段的模型后仍能进入设置、编辑并保存", a
     reasoning: false,
     input: ["text"],
   });
+});
+
+it("模型发现在途与勾选草稿跨语言保留，不重复请求或提前写入", async () => {
+  loadModels([{ id: "existing", name: "原始模型", reasoning: false, input: ["text"] }]);
+  let finish:
+    | ((result: { ok: true; models: Array<{ id: string; name: string }> }) => void)
+    | undefined;
+  remote.discover.mockImplementation(
+    () =>
+      new Promise(resolve => {
+        finish = resolve;
+      })
+  );
+  await render();
+  const before = useSettingStore.getState().setting.llmProviders;
+  await clickButton(llmText("ui.chooseModels"));
+  expect(remote.discover).toHaveBeenCalledExactlyOnceWith(before[0]);
+  const search = document.querySelector<HTMLInputElement>(
+    `input[placeholder="${llmText("ui.searchModels")}"]`
+  );
+  if (!search || !finish) throw new Error("模型发现未挂载");
+  await act(async () => desktopLocaleSource.setLocale("en-US"));
+  expect(remote.discover).toHaveBeenCalledTimes(1);
+  await act(async () => finish?.({ ok: true, models: [{ id: "raw-new", name: "原始模型名" }] }));
+  const checkbox = document.querySelector<HTMLInputElement>("#model-pick-raw-new");
+  if (!checkbox) throw new Error("发现的模型未显示");
+  await act(async () => checkbox.click());
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(search, "raw");
+  await act(async () => search.dispatchEvent(new Event("input", { bubbles: true })));
+  search.focus();
+  for (const locale of ["zh-TW", "zh-CN"]) {
+    await act(async () => desktopLocaleSource.setLocale(locale));
+    expect(document.querySelector("#model-pick-raw-new")).toBe(checkbox);
+    expect(checkbox.checked).toBe(true);
+    expect(document.activeElement).toBe(search);
+    expect(search.value).toBe("raw");
+    expect(remote.discover).toHaveBeenCalledTimes(1);
+    expect(useSettingStore.getState().setting.llmProviders).toBe(before);
+  }
 });

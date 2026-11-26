@@ -1,8 +1,11 @@
+import { llmText, useLlmSettingsI18n } from "./llm.i18n";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@tau/ui";
 import { cancelPluginAI, revokePluginAI, runningPluginAI } from "@/commands/plugin-ai";
 
 export function PluginAIActivity({ pluginId }: { pluginId?: string }) {
+  const { locale } = useLlmSettingsI18n();
+
   const client = useQueryClient();
   const running = useQuery({
     queryKey: ["plugin-ai-running"],
@@ -19,36 +22,42 @@ export function PluginAIActivity({ pluginId }: { pluginId?: string }) {
   });
   const items = (running.data ?? []).filter(item => !pluginId || item.pluginId === pluginId);
   return (
-    <section className="mb-5 flex flex-col gap-2" aria-label="插件 AI 调用控制">
+    <section className="mb-5 flex flex-col gap-2" aria-label={llmText("ui.pluginAICallControls")}>
       <div className="flex items-center justify-between gap-2">
-        <span className="text-tau-meta text-ink-2">插件运行中请求：{items.length}</span>
+        <span className="text-tau-meta text-ink-2">
+          {llmText("ui.runningPluginRequests")}
+          {items.length}
+        </span>
         {pluginId && (
           <Button size="sm" disabled={action.isPending} onClick={() => action.mutate({ pluginId })}>
-            停止调用并关闭自定义 AI
+            {llmText("ui.stopCallsAndDisableCustomAI")}
           </Button>
         )}
       </div>
       {items.map(item => (
         <div key={item.requestId} className="text-tau-meta flex items-center gap-3">
           <span className="flex-1">
-            {item.pluginName} / {item.featureName} · {new Date(item.startedAt).toLocaleTimeString()}
+            {item.pluginName} / {item.featureName} ·{" "}
+            {new Date(item.startedAt).toLocaleTimeString(locale)}
           </span>
           <Button
             size="sm"
             disabled={action.isPending}
             onClick={() => action.mutate({ requestId: item.requestId })}
           >
-            取消
+            {llmText("ui.cancel")}
           </Button>
           {item.hostFeature ? (
-            <span className="text-ink-2">宿主 AI 能力授权在插件权限页管理</span>
+            <span className="text-ink-2">
+              {llmText("ui.manageHostAIAccessInPluginPermissions")}
+            </span>
           ) : (
             <Button
               size="sm"
               disabled={action.isPending}
               onClick={() => action.mutate({ pluginId: item.pluginId })}
             >
-              关闭此插件 AI
+              {llmText("ui.disableThisPluginSAI")}
             </Button>
           )}
         </div>

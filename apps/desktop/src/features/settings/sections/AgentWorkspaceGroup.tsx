@@ -4,6 +4,7 @@
  * 学习项目、PDF、视频笔记的对话目录由场景决定，不受这里影响。
  */
 
+import { llmText, llmValue, useLlmSettingsI18n } from "./llm.i18n";
 import { FolderOpen } from "lucide-react";
 import { SettingRow, Button, Input } from "@tau/ui";
 import useSettingStore from "@/stores/useSettingStore";
@@ -13,6 +14,8 @@ import { SettingsGroup } from "../components/SettingsGroup";
 import { FieldBox } from "../components/ProviderLayout";
 
 export function AgentWorkspaceGroup() {
+  useLlmSettingsI18n();
+
   const configured = useSettingStore(s => s.setting.agentWorkspace?.defaultCwd ?? "");
   const setDefaultCwd = useSettingStore(s => s.setAgentDefaultCwd);
   const trimmed = configured.trim();
@@ -24,35 +27,35 @@ export function AgentWorkspaceGroup() {
   };
 
   const description = info?.missing
-    ? "这个目录不存在，新对话暂时仍在应用数据目录里执行"
+    ? llmText("ui.thisFolderDoesNotExistNewChats")
     : trimmed
-      ? "新对话在这里执行命令、读写文件"
+      ? llmText("ui.newChatsRunCommandsAndReadOr")
       : info
-        ? `留空即应用数据目录：${info.path}`
-        : "留空即应用数据目录";
+        ? llmText("message.leaveBlankForTheAppDataFolder", { path: llmValue(info.path) })
+        : llmText("ui.leaveBlankToUseTheAppData");
 
   return (
     <SettingsGroup
-      title="工作目录"
-      description="AI 对话页与停靠栏里，新对话执行命令、读写文件的位置。每个对话还可以在输入框上方单独切换目录。"
+      title={llmText("ui.workingFolder")}
+      description={llmText("ui.whereNewChatsRunCommandsAndRead")}
     >
-      <SettingRow title="默认目录" description={description}>
+      <SettingRow title={llmText("ui.defaultFolder")} description={description}>
         <FieldBox>
           <Input
             className="font-tau-mono"
-            aria-label="默认工作目录"
+            aria-label={llmText("ui.defaultWorkingFolder")}
             value={configured}
-            placeholder={info?.isAppDir ? info.path : "应用数据目录"}
+            placeholder={info?.isAppDir ? info.path : llmText("ui.appDataFolder")}
             spellCheck={false}
             onChange={event => setDefaultCwd(event.target.value)}
           />
         </FieldBox>
         <Button variant="ghost" size="sm" icon={FolderOpen} onClick={() => void pick()}>
-          浏览
+          {llmText("ui.browse")}
         </Button>
         {trimmed && (
           <Button variant="ghost" size="sm" onClick={() => setDefaultCwd("")}>
-            恢复默认
+            {llmText("ui.restoreDefault")}
           </Button>
         )}
       </SettingRow>

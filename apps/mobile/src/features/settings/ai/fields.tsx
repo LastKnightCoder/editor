@@ -1,3 +1,4 @@
+import { llmText, useLlmSettingsI18n } from "./i18n";
 // AI 服务商表单行：与存储服务表单同一形态（行即输入框、上标签下值）。
 
 import { useState, type ReactNode } from "react";
@@ -26,6 +27,8 @@ export function TextField(props: {
   trailing?: ReactNode;
   onChange(value: string): void;
 }) {
+  useLlmSettingsI18n();
+
   const [visible, setVisible] = useState(false);
   return (
     <label className={FIELD_ROW}>
@@ -49,7 +52,7 @@ export function TextField(props: {
         {props.secret && (
           <button
             type="button"
-            aria-label={visible ? "隐藏" : "显示"}
+            aria-label={visible ? llmText("ui.hide") : llmText("ui.show")}
             className="text-ink-3 -mr-1 grid h-8 w-8 place-items-center"
             onClick={event => {
               event.preventDefault();

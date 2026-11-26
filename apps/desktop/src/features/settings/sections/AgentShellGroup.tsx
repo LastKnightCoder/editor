@@ -4,6 +4,7 @@
  * 装在非常规位置的用户在这里手填路径。设置里只存用户填的值，检测结果是本机事实不入设置。
  */
 
+import { llmText, llmValue, useLlmSettingsI18n } from "./llm.i18n";
 import { useEffect, useState } from "react";
 import { FolderOpen } from "lucide-react";
 import { SettingRow, Button, Input } from "@tau/ui";
@@ -14,6 +15,8 @@ import { SettingsGroup } from "../components/SettingsGroup";
 import { FieldBox } from "../components/ProviderLayout";
 
 export function AgentShellGroup() {
+  useLlmSettingsI18n();
+
   const configured = useSettingStore(s => s.setting.agentShell?.path ?? "");
   const setPath = useSettingStore(s => s.setAgentShellPath);
   const [info, setInfo] = useState<PiShellInfo | null>(null);
@@ -35,8 +38,8 @@ export function AgentShellGroup() {
     const picked = await selectFile({
       properties: ["openFile"],
       filters: [
-        { name: "可执行文件", extensions: ["exe", "sh"] },
-        { name: "全部文件", extensions: ["*"] },
+        { name: llmText("ui.executableFiles"), extensions: ["exe", "sh"] },
+        { name: llmText("ui.allFiles"), extensions: ["*"] },
       ],
     });
     if (picked?.[0]) setPath(picked[0]);
@@ -45,35 +48,37 @@ export function AgentShellGroup() {
   const trimmed = configured.trim();
   const missing = trimmed.length > 0 && info?.configuredExists === false;
   const description = missing
-    ? "这个路径不存在，暂时仍按自动检测的结果执行"
+    ? llmText("ui.thisPathDoesNotExistTheDetected")
     : trimmed
-      ? "已指定，AI 执行命令时使用它"
+      ? llmText("ui.aiUsesThisProgramToRunCommands")
       : info?.detected
-        ? `留空即自动检测，当前检测到：${info.detected}`
-        : "留空即使用系统命令环境；Windows 未检测到 Git Bash 时使用 PowerShell";
+        ? llmText("message.leaveBlankForAutomaticDetectionDetected", {
+            path: llmValue(info.detected),
+          })
+        : llmText("ui.leaveBlankToUseTheSystemShell");
 
   return (
     <SettingsGroup
-      title="命令执行环境"
-      description="AI 执行命令时使用的程序。一般不用管，只有装在非常规位置、或想换一个时才需要填。"
+      title={llmText("ui.commandEnvironment")}
+      description={llmText("ui.theProgramAIUsesToRunCommands")}
     >
-      <SettingRow title="程序路径" description={description}>
+      <SettingRow title={llmText("ui.programPath")} description={description}>
         <FieldBox>
           <Input
             className="font-tau-mono"
-            aria-label="命令执行程序路径"
+            aria-label={llmText("ui.commandProgramPath")}
             value={configured}
-            placeholder={info?.detected ?? "自动检测"}
+            placeholder={info?.detected ?? llmText("ui.detectAutomatically")}
             spellCheck={false}
             onChange={event => setPath(event.target.value)}
           />
         </FieldBox>
         <Button variant="ghost" size="sm" icon={FolderOpen} onClick={() => void pick()}>
-          浏览
+          {llmText("ui.browse")}
         </Button>
         {trimmed && (
           <Button variant="ghost" size="sm" onClick={() => setPath("")}>
-            恢复自动
+            {llmText("ui.restoreAutomaticDetection")}
           </Button>
         )}
       </SettingRow>

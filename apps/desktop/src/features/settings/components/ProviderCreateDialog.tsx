@@ -4,6 +4,8 @@
  * 用户通常只需填 API Key；网关类服务商目录里没有 baseUrl，仍需自填。
  * 自定义分支暴露 api 下拉——此前新建恒为 openai-completions，界面根本加不了 Anthropic 服务商。
  */
+
+import { llmText, useLlmSettingsI18n } from "../sections/llm.i18n";
 import { useMemo, useState } from "react";
 import { ArrowLeft, Server, Sparkles } from "lucide-react";
 import { Button, Dialog, DialogBody, Input, Select, cn, toast } from "@tau/ui";
@@ -11,8 +13,18 @@ import type { LLMProviderSetting, PiApiKind, PiCatalogProvider } from "@/types/p
 import { useCatalogProviders } from "@/services/llmCatalog";
 
 export const API_KIND_OPTIONS: Array<{ value: PiApiKind; label: string }> = [
-  { value: "openai-completions", label: "OpenAI 兼容（最常见）" },
-  { value: "openai-responses", label: "OpenAI Responses（新版接口）" },
+  {
+    value: "openai-completions",
+    get label() {
+      return llmText("ui.openaiCompatibleMostCommon");
+    },
+  },
+  {
+    value: "openai-responses",
+    get label() {
+      return llmText("ui.openaiResponsesNewAPI");
+    },
+  },
   { value: "anthropic-messages", label: "Anthropic（Claude）" },
 ];
 
@@ -28,6 +40,8 @@ export function ProviderCreateDialog({
   /** 返回后由调用方补 id/models 并写入设置 */
   onCreate: (draft: NewProviderDraft) => void;
 }) {
+  useLlmSettingsI18n();
+
   const { providers: catalog, loading } = useCatalogProviders();
   const [picked, setPicked] = useState<PiCatalogProvider | "custom" | null>(null);
   const [query, setQuery] = useState("");
@@ -65,7 +79,7 @@ export function ProviderCreateDialog({
     const name = form.name.trim();
     const baseUrl = form.baseUrl.trim();
     if (!name || !baseUrl) {
-      toast.warning("请填写名称与 Base URL");
+      toast.warning(llmText("ui.enterANameAndBaseURL"));
       return;
     }
     onCreate({
@@ -86,29 +100,29 @@ export function ProviderCreateDialog({
       open={open}
       onOpenChange={onOpenChange}
       onAfterClose={reset}
-      title="新建服务商"
+      title={llmText("ui.newProvider")}
       subtitle={
         picked === null
-          ? "选择要接入的服务商"
+          ? llmText("ui.chooseAProvider")
           : isBuiltin
-            ? "填入 API Key 即可使用"
-            : "手动填写服务地址"
+            ? llmText("ui.enterAnAPIKeyToGetStarted")
+            : llmText("ui.enterTheServiceAddressManually")
       }
       footer={
         picked === null ? (
           <Button variant="secondary" onClick={() => onOpenChange(false)}>
-            取消
+            {llmText("ui.cancel")}
           </Button>
         ) : (
           <>
             <Button variant="ghost" icon={ArrowLeft} onClick={() => setPicked(null)}>
-              返回
+              {llmText("ui.back")}
             </Button>
             <Button variant="secondary" onClick={() => onOpenChange(false)}>
-              取消
+              {llmText("ui.cancel")}
             </Button>
             <Button variant="primary" onClick={submit}>
-              创建
+              {llmText("ui.create")}
             </Button>
           </>
         )
@@ -119,8 +133,8 @@ export function ProviderCreateDialog({
           <div className="flex flex-col gap-2">
             <Input
               value={query}
-              placeholder="搜索服务商"
-              aria-label="搜索服务商"
+              placeholder={llmText("ui.searchProviders")}
+              aria-label={llmText("ui.searchProviders")}
               onChange={event => setQuery(event.target.value)}
             />
             <button
@@ -130,20 +144,22 @@ export function ProviderCreateDialog({
             >
               <Server className="text-ink-3 size-4 shrink-0" strokeWidth={1.75} />
               <span className="min-w-0 flex-1">
-                <span className="text-tau-body text-ink-1 block font-medium">其他服务商</span>
+                <span className="text-tau-body text-ink-1 block font-medium">
+                  {llmText("ui.otherProvider")}
+                </span>
                 <span className="text-tau-meta text-ink-3 block">
-                  自己搭建的服务，或上面列表里没有的服务商
+                  {llmText("ui.selfHostedServicesOrProvidersOutsideThis")}
                 </span>
               </span>
             </button>
             <div className="bg-line h-px" role="separator" />
             {loading ? (
-              <div className="text-tau-meta text-ink-3 px-2.5 py-3">正在加载…</div>
+              <div className="text-tau-meta text-ink-3 px-2.5 py-3">{llmText("ui.loading3")}</div>
             ) : filtered.length === 0 ? (
               <div className="text-tau-meta text-ink-3 px-2.5 py-3">
                 {catalog.length === 0
-                  ? "暂时无法加载服务商列表，可选「其他服务商」手动填写"
-                  : "没有匹配的服务商"}
+                  ? llmText("ui.couldNotLoadProvidersChooseOtherProvider")
+                  : llmText("ui.noMatchingProviders")}
               </div>
             ) : (
               <div className="max-h-[320px] overflow-auto">
@@ -160,11 +176,11 @@ export function ProviderCreateDialog({
                         {item.name}
                       </span>
                       <span className="text-tau-meta text-ink-3 block truncate">
-                        {item.baseUrl ?? "需要填写服务地址"}
+                        {item.baseUrl ?? llmText("ui.serviceAddressRequired")}
                       </span>
                     </span>
                     <span className="text-tau-tiny text-ink-3 shrink-0 tabular-nums">
-                      {item.modelCount} 个模型
+                      {item.modelCount} {llmText("ui.models2")}
                     </span>
                   </button>
                 ))}
@@ -174,10 +190,10 @@ export function ProviderCreateDialog({
         ) : (
           <div className="flex flex-col gap-3">
             <label className="flex min-w-0 flex-col gap-1.5">
-              <span className="text-tau-meta text-ink-2 font-medium">名称</span>
+              <span className="text-tau-meta text-ink-2 font-medium">{llmText("ui.name")}</span>
               <Input
                 value={form.name}
-                placeholder="如 DeepSeek"
+                placeholder={llmText("ui.forExampleDeepSeek")}
                 onChange={event => setForm(f => ({ ...f, name: event.target.value }))}
               />
             </label>
@@ -185,7 +201,9 @@ export function ProviderCreateDialog({
               <span className="text-tau-meta text-ink-2 font-medium">
                 Base URL
                 {isBuiltin && !picked.baseUrl && (
-                  <span className="text-warn ml-1">（该服务商需要你填写）</span>
+                  <span className="text-warn ml-1">
+                    {llmText("ui.thisProviderRequiresAnAddress")}
+                  </span>
                 )}
               </span>
               <Input
@@ -198,9 +216,11 @@ export function ProviderCreateDialog({
             </label>
             {!isBuiltin && (
               <label className="flex min-w-0 flex-col gap-1.5">
-                <span className="text-tau-meta text-ink-2 font-medium">接口类型</span>
+                <span className="text-tau-meta text-ink-2 font-medium">
+                  {llmText("ui.apiType")}
+                </span>
                 <Select
-                  aria-label="接口类型"
+                  aria-label={llmText("ui.apiType")}
                   className="w-full"
                   value={form.api}
                   options={API_KIND_OPTIONS}
@@ -209,7 +229,9 @@ export function ProviderCreateDialog({
               </label>
             )}
             <label className={cn("flex min-w-0 flex-col gap-1.5")}>
-              <span className="text-tau-meta text-ink-2 font-medium">API Key（可稍后补填）</span>
+              <span className="text-tau-meta text-ink-2 font-medium">
+                {llmText("ui.apiKeyCanBeAddedLater")}
+              </span>
               <Input
                 className="font-tau-mono"
                 type="password"

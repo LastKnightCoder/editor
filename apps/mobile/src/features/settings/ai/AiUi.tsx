@@ -1,3 +1,4 @@
+import { llmText, useLlmSettingsI18n } from "./i18n";
 import type { ReactNode } from "react";
 import { X } from "lucide-react";
 import { BottomSheet } from "../../../components/BottomSheet";
@@ -33,10 +34,14 @@ export function AiBadge(props: { tone: keyof typeof BADGE_TONES; children: React
 }
 
 export function ModelCapabilities(props: { model: MobileLlmProvider["models"][number] }) {
+  useLlmSettingsI18n();
+
   return (
     <>
-      {props.model.reasoning && <AiBadge tone="reasoning">推理</AiBadge>}
-      {props.model.input.includes("image") && <AiBadge tone="image">图片</AiBadge>}
+      {props.model.reasoning && <AiBadge tone="reasoning">{llmText("ui.reasoning")}</AiBadge>}
+      {props.model.input.includes("image") && (
+        <AiBadge tone="image">{llmText("ui.images")}</AiBadge>
+      )}
     </>
   );
 }
@@ -52,13 +57,15 @@ export function ProviderTile(props: { provider: Pick<MobileLlmProvider, "id" | "
 
 /** 抽屉标题行：标题左对齐，关闭按钮固定 30px 正圆 */
 export function SheetHeader(props: { title: string; description?: string; onClose: () => void }) {
+  useLlmSettingsI18n();
+
   return (
     <div className="-mx-1 mb-2">
       <div className="flex items-center gap-3">
         <h2 className="text-ink-1 min-w-0 flex-1 truncate text-[17px] font-bold">{props.title}</h2>
         <button
           type="button"
-          aria-label="关闭"
+          aria-label={llmText("ui.close")}
           onClick={props.onClose}
           className="bg-page text-ink-2 grid h-[30px] w-[30px] shrink-0 place-items-center rounded-full"
         >
@@ -86,6 +93,8 @@ export function ModelPickerSheet(props: {
   onOpenProvider: (providerId: string) => void;
   onClose: () => void;
 }) {
+  useLlmSettingsI18n();
+
   return (
     <BottomSheet open={props.open} onClose={props.onClose}>
       <SheetHeader title={props.title} description={props.description} onClose={props.onClose} />
@@ -113,7 +122,7 @@ export function ModelPickerSheet(props: {
                       <ModelCapabilities model={model} />
                     </span>
                     <span className="text-ink-3 text-tau-sm block truncate">
-                      {provider.configured ? model.id : "未填 API Key，点按去填写"}
+                      {provider.configured ? model.id : llmText("ui.noAPIKeyTapToAddOne")}
                     </span>
                   </span>
                   {selected ? (
@@ -137,7 +146,7 @@ export function ModelPickerSheet(props: {
           onClick={() => props.onSelect(null)}
           className="text-danger text-tau-body mt-4 h-11 w-full rounded-[14px] font-medium disabled:opacity-50"
         >
-          不使用模型
+          {llmText("ui.doNotUseAModel")}
         </button>
       )}
     </BottomSheet>

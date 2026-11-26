@@ -15,19 +15,27 @@ export interface ProviderDraft {
   apiKey: string;
 }
 
-export type DraftErrors = Partial<Record<"name" | "baseUrl" | "models", string>>;
+export type ValidationCode =
+  | "nameRequired"
+  | "baseUrlInvalid"
+  | "modelsRequired"
+  | "modelIdRequired"
+  | "contextWindowInvalid"
+  | "maxTokensInvalid"
+  | "duplicateModel";
+export type DraftErrors = Partial<Record<"name" | "baseUrl" | "models", ValidationCode>>;
 
 export function validateDraft(draft: ProviderDraft): DraftErrors {
   const errors: DraftErrors = {};
   const { provider } = draft;
-  if (!provider.name.trim()) errors.name = "请填写名称";
+  if (!provider.name.trim()) errors.name = "nameRequired";
   try {
     const url = new URL(provider.baseUrl.trim());
     if (url.protocol !== "https:" && url.protocol !== "http:") throw new Error();
   } catch {
-    errors.baseUrl = "请填写 http(s) 开头的地址";
+    errors.baseUrl = "baseUrlInvalid";
   }
-  if (!provider.models.length) errors.models = "至少保留一个模型";
+  if (!provider.models.length) errors.models = "modelsRequired";
   return errors;
 }
 
@@ -39,13 +47,13 @@ export function customModel(input: {
   maxTokens: string;
   reasoning: boolean;
   image: boolean;
-}): ModelSetting | string {
+}): ModelSetting | ValidationCode {
   const id = input.id.trim();
-  if (!id) return "请填写模型 ID";
+  if (!id) return "modelIdRequired";
   const contextWindow = Number(input.contextWindow);
   const maxTokens = Number(input.maxTokens);
-  if (!Number.isSafeInteger(contextWindow) || contextWindow <= 0) return "上下文窗口须为正整数";
-  if (!Number.isSafeInteger(maxTokens) || maxTokens <= 0) return "最大输出须为正整数";
+  if (!Number.isSafeInteger(contextWindow) || contextWindow <= 0) return "contextWindowInvalid";
+  if (!Number.isSafeInteger(maxTokens) || maxTokens <= 0) return "maxTokensInvalid";
   return {
     id,
     ...(input.name.trim() ? { name: input.name.trim() } : {}),
