@@ -1,3 +1,4 @@
+import { useWhiteboardUiI18n } from "../ui-i18n";
 import { useState } from "react";
 import { Button, Dialog, DialogBody, Input, toast } from "@tau/ui";
 import { useBoard } from "../hooks/useBoard";
@@ -11,6 +12,7 @@ export default function MediaUrlDialog({
   modal: ContextMenuModalPayload;
   onClose(): void;
 }) {
+  const { t } = useWhiteboardUiI18n();
   const board = useBoard();
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
@@ -20,7 +22,7 @@ export default function MediaUrlDialog({
       address = new URL(url);
       if (!["https:", "http:", "data:"].includes(address.protocol)) throw new Error();
     } catch {
-      toast.error("请输入有效的媒体地址");
+      toast.error(t("ui.media.invalid"));
       return;
     }
     setBusy(true);
@@ -30,7 +32,7 @@ export default function MediaUrlDialog({
       else await AudioUtil.insertAudioFromUrl(address.href, board);
       onClose();
     } catch {
-      toast.error("插入媒体失败");
+      toast.error(t("ui.media.failed"));
     } finally {
       setBusy(false);
     }
@@ -39,15 +41,20 @@ export default function MediaUrlDialog({
     <Dialog
       open
       onOpenChange={open => !open && !busy && onClose()}
-      title="插入媒体"
+      title={t("ui.media.title")}
       footer={
         <Button loading={busy} onClick={submit}>
-          插入
+          {t("ui.media.insert")}
         </Button>
       }
     >
       <DialogBody>
-        <Input value={url} onChange={event => setUrl(event.target.value)} placeholder="媒体 URL" />
+        <Input
+          aria-label={t("ui.media.url")}
+          value={url}
+          onChange={event => setUrl(event.target.value)}
+          placeholder={t("ui.media.url")}
+        />
       </DialogBody>
     </Dialog>
   );

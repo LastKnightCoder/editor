@@ -1,3 +1,5 @@
+import { createI18nRuntime, createLocaleStore, type I18nRuntime } from "@tau/i18n";
+import { I18nRuntimeProvider } from "@tau/i18n/react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -13,6 +15,7 @@ const observer = class {
   unobserve() {}
 };
 const roots: Root[] = [];
+const runtimes: I18nRuntime[] = [];
 
 const element = (size: { width: number; height: number }, type = "acme.box"): BoardElement => ({
   id: "u1",
@@ -38,6 +41,7 @@ afterEach(async () => {
   for (const root of roots.splice(0)) {
     await act(async () => root.unmount());
   }
+  for (const runtime of runtimes.splice(0)) runtime.dispose();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   document.body.replaceChildren();
@@ -192,6 +196,10 @@ describe("文档版本过高的只读提示条", () => {
 
 describe("作者 render 抛错的 error 占位", () => {
   it("渲染出错时以 error 原因兜底并显示无法显示", async () => {
+    const source = createLocaleStore("zh-CN");
+    const runtime = createI18nRuntime({ localeSource: source });
+    runtimes.push(runtime);
+    let attempts = 0;
     vi.spyOn(console, "error").mockImplementation(() => {});
     const crashing = defineWhiteboardExtension({
       id: "acme.crash",
@@ -199,6 +207,7 @@ describe("作者 render 抛错的 error 占位", () => {
         {
           type: "acme.crashbox",
           render: () => {
+            attempts++;
             throw new Error("渲染崩溃");
           },
         },
@@ -206,17 +215,28 @@ describe("作者 render 抛错的 error 占位", () => {
       create: () => ({}),
     });
     const container = await mount(
-      <Whiteboard
-        extensions={[crashing]}
-        initData={[element({ width: 260, height: 150 }, "acme.crashbox")]}
-        initViewPort={viewport}
-        showToolbar={false}
-        showAttributeSetter={false}
-        showStatusBar={false}
-      />
+      <I18nRuntimeProvider runtime={runtime}>
+        <Whiteboard
+          extensions={[crashing]}
+          initData={[element({ width: 260, height: 150 }, "acme.crashbox")]}
+          initViewPort={viewport}
+          showToolbar={false}
+          showAttributeSetter={false}
+          showStatusBar={false}
+        />
+      </I18nRuntimeProvider>
     );
     const placeholder = container.querySelector("[data-unknown-element]");
     expect(placeholder?.getAttribute("data-unknown-reason")).toBe("error");
     expect(container.textContent).toContain("无法显示");
+    const failedAttempts = attempts;
+    const original = placeholder?.textContent;
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => source.setLocale(locale));
+      expect(container.querySelector("[data-unknown-element]")).toBe(placeholder);
+      expect(placeholder?.getAttribute("data-unknown-reason")).toBe("error");
+      expect(attempts).toBe(failedAttempts);
+    }
+    expect(placeholder?.textContent).not.toBe(original);
   });
 });

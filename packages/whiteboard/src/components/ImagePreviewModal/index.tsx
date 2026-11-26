@@ -1,3 +1,4 @@
+import { useWhiteboardUiI18n } from "../../ui-i18n";
 import { memo, useEffect } from "react";
 import { useMemoizedFn } from "ahooks";
 import { X } from "lucide-react";
@@ -13,6 +14,7 @@ interface ImagePreviewModalProps {
 }
 
 const ImagePreviewModal = memo((props: ImagePreviewModalProps) => {
+  const { t } = useWhiteboardUiI18n();
   const portalContainer = usePortalContainer();
   const { open, src, alt, onClose } = props;
 
@@ -55,9 +57,12 @@ const ImagePreviewModal = memo((props: ImagePreviewModalProps) => {
         onWheel={handleOverlayWheel}
       >
         <IconButton
-          className="bg-surface enabled:hover:bg-surface-hover shadow-lift absolute right-4 top-4 size-8 rounded-full"
-          aria-label="关闭图片预览"
-          onClick={handleClose}
+          className="bg-surface enabled:hover:bg-surface-hover shadow-lift absolute top-4 right-4 size-8 rounded-full"
+          aria-label={t("ui.preview.close")}
+          onClick={event => {
+            event.stopPropagation();
+            handleClose();
+          }}
         >
           <X className="size-4" strokeWidth={1.75} />
         </IconButton>
@@ -68,7 +73,7 @@ const ImagePreviewModal = memo((props: ImagePreviewModalProps) => {
         >
           <LocalImage
             url={src}
-            alt={alt || "图片"}
+            alt={alt ?? t("ui.image")}
             className="shadow-float rounded-tau-sm max-h-[85vh] max-w-[85vw] object-contain"
           />
         </div>

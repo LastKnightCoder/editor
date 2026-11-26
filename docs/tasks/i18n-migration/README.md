@@ -270,6 +270,8 @@ P6B相对时间联动：16源码/测试加Room单调用联动完成；纯边界1
 
 P6独立编辑窗口：11路径工程完成；desktop类型/构建、三语32语义key参数对账与范围静态/格式通过，相关内容导出/真实往返/日历3文件14例通过。独立AST等价校验确认30组旧标题payload一致，所有JSX动作回调与useEditorDocument加载/保存/bus代码保持，driver仅display label退为数据defaultTitlePrefix；无新增纯展示文案测试。显示title与document.title可换语，export title/正文/默认名不改。
 
+P6A3-D1白板提示/预览：11路径工程完成；4文件26例、包type/白板边界、19key三语runtime/参数和范围格式/静态通过。真实未知元素往返与错误renderer不重试、URL pending任务换语不解码/插入第二次、同图片DOM/src与自定义/显式空alt均保留。发现并修复图片关闭×冒泡导致一次点击onClose两次，真实回归已锁一次关闭；CreationPreview无固定文案未动算法。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

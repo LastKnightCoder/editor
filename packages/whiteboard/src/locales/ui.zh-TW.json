@@ -1,0 +1,21 @@
+{
+  "ui.readonly": "唯讀",
+  "ui.readonlyHint": "此白板由較新版本的應用程式儲存，更新應用程式後即可編輯",
+  "ui.media.invalid": "請輸入有效的媒體位址",
+  "ui.media.failed": "插入媒體失敗",
+  "ui.media.title": "插入媒體",
+  "ui.media.insert": "插入",
+  "ui.media.url": "媒體 URL",
+  "ui.preview.close": "關閉圖片預覽",
+  "ui.image": "圖片",
+  "ui.unknown.missing.title": "缺少擴充功能",
+  "ui.unknown.missing.description": "需要安裝對應的擴充功能才能顯示，資料已完整保留",
+  "ui.unknown.too-new.title": "需要更新擴充功能",
+  "ui.unknown.too-new.description": "此元素由較新版本的擴充功能建立，資料已完整保留",
+  "ui.unknown.unsupported-version.title": "資料版本不相符",
+  "ui.unknown.unsupported-version.description": "目前的擴充功能不支援此資料版本，原始資料已保留",
+  "ui.unknown.disabled.title": "擴充功能已停用",
+  "ui.unknown.disabled.description": "所屬擴充功能與其他擴充功能衝突，資料已完整保留",
+  "ui.unknown.error.title": "無法顯示",
+  "ui.unknown.error.description": "此元素呈現時發生錯誤，資料已完整保留"
+}

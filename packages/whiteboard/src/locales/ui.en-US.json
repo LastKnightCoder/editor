@@ -1,0 +1,21 @@
+{
+  "ui.readonly": "Read-only",
+  "ui.readonlyHint": "This whiteboard was saved by a newer app. Update the app to edit it.",
+  "ui.media.invalid": "Enter a valid media URL",
+  "ui.media.failed": "Could not insert media",
+  "ui.media.title": "Insert media",
+  "ui.media.insert": "Insert",
+  "ui.media.url": "Media URL",
+  "ui.preview.close": "Close image preview",
+  "ui.image": "Image",
+  "ui.unknown.missing.title": "Extension missing",
+  "ui.unknown.missing.description": "Install the matching extension to display this element. All data is preserved.",
+  "ui.unknown.too-new.title": "Extension update needed",
+  "ui.unknown.too-new.description": "This element was created by a newer extension. All data is preserved.",
+  "ui.unknown.unsupported-version.title": "Data version mismatch",
+  "ui.unknown.unsupported-version.description": "This extension does not support the data version. Original data is preserved.",
+  "ui.unknown.disabled.title": "Extension disabled",
+  "ui.unknown.disabled.description": "The extension conflicts with another extension. All data is preserved.",
+  "ui.unknown.error.title": "Cannot display",
+  "ui.unknown.error.description": "This element failed to render. All data is preserved."
+}
