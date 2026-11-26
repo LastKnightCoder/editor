@@ -208,20 +208,22 @@ export function ArticlesView() {
   const handleImport = useCallback(async () => {
     setBusy(true);
     try {
-      const imported = await importMarkdownFiles(({ title, content, contracts }) =>
-        createArticleCommand({
-          title,
-          bannerBg: "",
-          bannerPosition: "center",
-          isTop: false,
-          isDelete: false,
-          author: "",
-          content,
-          contracts,
-          tags: [],
-          links: [],
-          count: getContentLength(content),
-        })
+      const imported = await importMarkdownFiles(
+        ({ title, content, contracts }) =>
+          createArticleCommand({
+            title,
+            bannerBg: "",
+            bannerPosition: "center",
+            isTop: false,
+            isDelete: false,
+            author: "",
+            content,
+            contracts,
+            tags: [],
+            links: [],
+            count: getContentLength(content),
+          }),
+        { target: "article" }
       );
       if (imported > 0) feed.refresh();
     } finally {

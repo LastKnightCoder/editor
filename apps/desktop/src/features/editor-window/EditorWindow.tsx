@@ -1,3 +1,4 @@
+import { useContentTransferI18n } from "@/services/content-transfer.i18n";
 /**
  * 编辑窗口主体：标题栏 + 纸面（头部字段 · 正文 · 大纲 · 状态栏）。
  * 内容类型差异全部收在 DocumentDriver（标题 / 标签有无、读写、扩展）。
@@ -120,6 +121,7 @@ export function EditorWindow({
   const [pinned, setPinned] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   const [selectedWords, setSelectedWords] = useState(0);
+  const { t: transferT } = useContentTransferI18n();
   const [exportKind, setExportKind] = useState<"image" | "epub" | "pdf" | null>(null);
 
   const title = driver.hasTitle
@@ -278,28 +280,34 @@ export function EditorWindow({
         查找
       </Menu.Item>
       <Menu.Separator />
-      <Menu.Submenu label="复制" icon={<Copy className={iconClass} strokeWidth={1.75} />}>
+      <Menu.Submenu
+        label={transferT("menu.copy")}
+        icon={<Copy className={iconClass} strokeWidth={1.75} />}
+      >
         <Menu.Item
           icon={<ClipboardCopy className={iconClass} strokeWidth={1.75} />}
           onSelect={() => void copyMarkdownToClipboard(doc.content, toastAdapter, doc.contentId)}
         >
-          复制 Markdown
+          {transferT("menu.copyMarkdown")}
         </Menu.Item>
         <Menu.Item
           icon={<MessageSquare className={iconClass} strokeWidth={1.75} />}
           onSelect={() => void copyWechatHtmlToClipboard(doc.content, toastAdapter, doc.contentId)}
         >
-          复制公众号格式
+          {transferT("menu.copyWechat")}
         </Menu.Item>
       </Menu.Submenu>
-      <Menu.Submenu label="导出" icon={<Download className={iconClass} strokeWidth={1.75} />}>
+      <Menu.Submenu
+        label={transferT("menu.export")}
+        icon={<Download className={iconClass} strokeWidth={1.75} />}
+      >
         <Menu.Item
           icon={<FileText className={iconClass} strokeWidth={1.75} />}
           onSelect={() =>
             void exportContentAsMarkdown({ title, content: doc.content, contentId: doc.contentId })
           }
         >
-          Markdown 文件
+          {transferT("menu.markdown")}
         </Menu.Item>
         <Menu.Item
           icon={<FileText className={iconClass} strokeWidth={1.75} />}
@@ -307,13 +315,13 @@ export function EditorWindow({
             void exportContentAsWord({ title, content: doc.content, contentId: doc.contentId })
           }
         >
-          Word 文档（.docx）
+          {transferT("menu.word")}
         </Menu.Item>
         <Menu.Item
           icon={<ImageIcon className={iconClass} strokeWidth={1.75} />}
           onSelect={() => setExportKind("image")}
         >
-          图片
+          {transferT("menu.image")}
         </Menu.Item>
         <Menu.Item
           icon={<BookOpen className={iconClass} strokeWidth={1.75} />}

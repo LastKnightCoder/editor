@@ -1,3 +1,4 @@
+import { useContentTransferI18n } from "@/services/content-transfer.i18n";
 /**
  * 级联勾选树：checkedKeys 是被勾选的可选节点 id（父 + 子）。
  * 勾选任意节点都级联到其子树内的可选节点；子树内没有可选节点的分支禁勾。
@@ -50,6 +51,7 @@ export function CheckTree<T extends CheckTreeNode<T>>({
   initiallyCollapsed,
   virtual = false,
 }: CheckTreeProps<T>) {
+  const { t } = useContentTransferI18n();
   const checkedSet = useMemo(() => new Set(checkedKeys), [checkedKeys]);
   const [collapsed, setCollapsed] = useState<Set<number>>(() => new Set(initiallyCollapsed));
 
@@ -108,7 +110,7 @@ export function CheckTree<T extends CheckTreeNode<T>>({
           <button
             type="button"
             tabIndex={-1}
-            aria-label={open ? "折叠" : "展开"}
+            aria-label={t(open ? "tree.collapse" : "tree.expand")}
             className={cn(
               "text-ink-3 hover:text-ink-1 grid size-4 shrink-0 place-items-center",
               !hasChildren && "invisible"

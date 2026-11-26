@@ -1,3 +1,5 @@
+import { contentTransferErrorText } from "@/services/content-transfer.i18n";
+import { useContentExportI18n } from "../ContentExportModal/i18n";
 import { useEffect, useMemo, useState } from "react";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import type { Descendant } from "slate";
@@ -41,12 +43,11 @@ const IMAGE_EXTENSION_TO_MIME: Record<string, string> = {
   avif: "image/avif",
 };
 
-interface CoverCandidate {
+type CoverCandidate = {
   id: string;
   source: string;
   dataUri: string;
-  label: string;
-}
+} & ({ kind: "content"; ordinal: number } | { kind: "file"; name: string });
 
 const getFileNameFromPath = (value: string) => {
   const normalized = value.replace(/\\/g, "/");
@@ -109,6 +110,7 @@ const sourceToDataUri = async (source: string) => {
 };
 
 const EpubExportModal = (props: EpubExportModalProps) => {
+  const { t, locale } = useContentExportI18n();
   const { open, onClose, content, contentId, title } = props;
   const [exporting, setExporting] = useState(false);
   const [coverCandidates, setCoverCandidates] = useState<CoverCandidate[]>([]);
@@ -157,7 +159,8 @@ const EpubExportModal = (props: EpubExportModalProps) => {
             id: `candidate-${index + 1}`,
             source,
             dataUri,
-            label: `正文图片 ${index + 1}`,
+            kind: "content",
+            ordinal: index + 1,
           });
         } catch (error) {
           const msg = error instanceof Error ? error.message : String(error);
@@ -225,7 +228,7 @@ const EpubExportModal = (props: EpubExportModalProps) => {
       properties: ["openFile"],
       filters: [
         {
-          name: "图片",
+          name: t("epub.imageFilter"),
           extensions: ["png", "jpg", "jpeg", "webp", "gif", "bmp", "svg", "avif"],
         },
       ],
@@ -242,7 +245,8 @@ const EpubExportModal = (props: EpubExportModalProps) => {
         id: `upload-${Date.now()}`,
         source: filePath,
         dataUri,
-        label: `本地文件：${getFileNameFromPath(filePath)}`,
+        kind: "file",
+        name: getFileNameFromPath(filePath),
       };
 
       setCoverCandidates(prev => {
@@ -254,10 +258,10 @@ const EpubExportModal = (props: EpubExportModalProps) => {
         ...prev,
         coverImageSrc: dataUri,
       }));
-      toast.success("封面图已更新");
+      toast.success(t("epub.coverUpdated"));
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      toast.error(`读取封面图失败：${msg}`);
+      toast.error(t("epub.coverFailed", { reason: msg }));
     }
   });
 
@@ -292,15 +296,15 @@ const EpubExportModal = (props: EpubExportModalProps) => {
     };
 
     if (!normalizedMetadata.title) {
-      toast.warning("书名不能为空");
+      toast.warning(t("epub.titleRequired"));
       return;
     }
     if (!normalizedMetadata.author) {
-      toast.warning("作者不能为空");
+      toast.warning(t("epub.authorRequired"));
       return;
     }
     if (!normalizedMetadata.language) {
-      toast.warning("语言不能为空");
+      toast.warning(t("epub.languageRequired"));
       return;
     }
 
@@ -319,10 +323,10 @@ const EpubExportModal = (props: EpubExportModalProps) => {
       });
 
       if (result.canceled) {
-        toast.info("已取消 EPUB 导出");
+        toast.info(t("epub.cancelled"));
       } else {
         toast.success(
-          result.filePath ? `EPUB 导出成功，已保存到：${result.filePath}` : "EPUB 导出成功"
+          result.filePath ? t("epub.successPath", { path: result.filePath }) : t("epub.success")
         );
         if (result.filePath) {
           try {
@@ -332,14 +336,19 @@ const EpubExportModal = (props: EpubExportModalProps) => {
           }
         }
         if (result.warnings.length > 0) {
-          toast.warning(`导出完成，但有 ${result.warnings.length} 条警告`);
+          toast.warning(
+            t("epub.warnings", {
+              count: result.warnings.length,
+              amount: result.warnings.length.toLocaleString(locale),
+            })
+          );
           console.warn("EPUB 导出警告:", result.warnings);
         }
       }
       onClose();
     } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      toast.error(`EPUB 导出失败：${msg}`);
+      const msg = contentTransferErrorText(error);
+      toast.error(t("epub.failed", { reason: msg }));
     } finally {
       setExporting(false);
     }
@@ -347,9 +356,9 @@ const EpubExportModal = (props: EpubExportModalProps) => {
 
   return (
     <Dialog
-      title="导出 EPUB"
+      title={t("epub.title")}
       icon={<BookOpen />}
-      subtitle="填写电子书元数据后导出，图片会内嵌，音视频会转换为占位链接。"
+      subtitle={t("epub.subtitle")}
       open={open}
       onOpenChange={next => {
         if (!next) onClose();
@@ -359,15 +368,15 @@ const EpubExportModal = (props: EpubExportModalProps) => {
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={exporting}>
-            取消
+            {t("common.cancel")}
           </Button>
           <Button
             variant="primary"
             onClick={handleConfirm}
             loading={exporting}
-            loadingText="导出中..."
+            loadingText={t("common.exporting")}
           >
-            导出
+            {t("common.export")}
           </Button>
         </>
       }
@@ -375,55 +384,55 @@ const EpubExportModal = (props: EpubExportModalProps) => {
       <DialogBody>
         <div className="space-y-4">
           <div className="flex flex-col gap-1.5">
-            <label className={FIELD_LABEL}>书名</label>
+            <label className={FIELD_LABEL}>{t("epub.bookTitle")}</label>
             <Input
               type="text"
               value={metadata.title}
-              placeholder="请输入书名"
+              placeholder={t("epub.bookTitlePlaceholder")}
               onChange={event => onFieldChange("title", event.target.value)}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
-              <label className={FIELD_LABEL}>作者</label>
+              <label className={FIELD_LABEL}>{t("epub.author")}</label>
               <Input
                 type="text"
                 value={metadata.author}
-                placeholder="请输入作者"
+                placeholder={t("epub.authorPlaceholder")}
                 onChange={event => onFieldChange("author", event.target.value)}
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className={FIELD_LABEL}>语言</label>
+              <label className={FIELD_LABEL}>{t("epub.language")}</label>
               <Input
                 type="text"
                 value={metadata.language}
-                placeholder="例如 zh-CN / en"
+                placeholder={t("epub.languagePlaceholder")}
                 onChange={event => onFieldChange("language", event.target.value)}
               />
             </div>
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className={FIELD_LABEL}>简介</label>
+            <label className={FIELD_LABEL}>{t("epub.description")}</label>
             <Textarea
               value={metadata.description}
               rows={3}
-              placeholder="可选，建议一句话简介"
+              placeholder={t("epub.descriptionPlaceholder")}
               onChange={event => onFieldChange("description", event.target.value)}
             />
           </div>
 
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
-              <label className={FIELD_LABEL}>封面图（可选）</label>
+              <label className={FIELD_LABEL}>{t("epub.cover")}</label>
               <div className="flex items-center gap-2">
                 <Button size="sm" variant="secondary" onClick={handleChooseCoverFromFile}>
-                  选择本地图片
+                  {t("epub.chooseCover")}
                 </Button>
                 <Button size="sm" variant="ghost" onClick={handleClearCover}>
-                  清除封面
+                  {t("epub.clearCover")}
                 </Button>
               </div>
             </div>
@@ -432,26 +441,28 @@ const EpubExportModal = (props: EpubExportModalProps) => {
               <div className="border-line-1 bg-surface rounded-tau-md border p-3">
                 <img
                   src={selectedCoverPreview}
-                  alt="封面预览"
+                  alt={t("epub.coverPreview")}
                   className="rounded-tau-sm h-44 w-full object-cover"
                 />
               </div>
             ) : (
               <div className="border-line-2 text-ink-3 rounded-tau-md text-tau-sm border border-dashed px-4 py-6 text-center">
-                未选择封面图
+                {t("epub.noCover")}
               </div>
             )}
 
-            <div className="text-ink-3 text-tau-sm">
-              自动提取正文图片作为候选，导出时会以内嵌图片写入 EPUB。
-            </div>
+            <div className="text-ink-3 text-tau-sm">{t("epub.coverHint")}</div>
 
             {loadingCoverCandidates ? (
-              <div className="text-ink-3 text-tau-sm">正在提取正文图片...</div>
+              <div className="text-ink-3 text-tau-sm">{t("epub.loadingCovers")}</div>
             ) : coverCandidates.length > 0 ? (
               <div className="grid grid-cols-3 gap-3">
                 {coverCandidates.map(candidate => {
                   const selected = metadata.coverImageSrc === candidate.dataUri;
+                  const label =
+                    candidate.kind === "content"
+                      ? t("epub.bodyImage", { number: candidate.ordinal.toLocaleString(locale) })
+                      : t("epub.localFile", { name: candidate.name });
                   return (
                     <button
                       key={candidate.id}
@@ -465,18 +476,16 @@ const EpubExportModal = (props: EpubExportModalProps) => {
                     >
                       <img
                         src={candidate.dataUri}
-                        alt={candidate.label}
+                        alt={label}
                         className="rounded-tau-sm h-20 w-full object-cover"
                       />
-                      <div className="text-ink-2 truncate px-1 pt-1 text-[11px]">
-                        {candidate.label}
-                      </div>
+                      <div className="text-ink-2 truncate px-1 pt-1 text-[11px]">{label}</div>
                     </button>
                   );
                 })}
               </div>
             ) : (
-              <div className="text-ink-3 text-tau-sm">未从正文中提取到可用图片</div>
+              <div className="text-ink-3 text-tau-sm">{t("epub.noCandidates")}</div>
             )}
           </div>
         </div>

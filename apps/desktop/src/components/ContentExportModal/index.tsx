@@ -1,3 +1,4 @@
+import { useContentExportI18n, type ContentExportMessageKey } from "./i18n";
 /**
  * 内容导出为图片：左侧按真实宽度预览，右侧设置栏选样式 / 版式 / 显示项，复制或保存为 PNG。
  * 样式 = 应用主题族 × 明暗：导出节点自带 data-theme / data-mode，纸、墨、强调色和编辑器
@@ -25,6 +26,18 @@ import {
   type ExportPreference,
 } from "./exportStyle";
 
+const THEME_LABEL_KEYS: Record<string, ContentExportMessageKey> = {
+  paper: "theme.paper",
+  ink: "theme.ink",
+  mono: "theme.mono",
+  ocean: "theme.ocean",
+  sakura: "theme.sakura",
+  matcha: "theme.matcha",
+  mint: "theme.mint",
+  wisteria: "theme.wisteria",
+  celadon: "theme.celadon",
+};
+
 const PREFERENCE_KEY = "content-export-image";
 
 export interface ImageExportPreviewProps {
@@ -43,6 +56,7 @@ interface ContentExportModalProps {
 const exportDpr = () => Math.max(2, window.devicePixelRatio || 1);
 
 const ContentExportModal = memo((props: ContentExportModalProps) => {
+  const { t } = useContentExportI18n();
   const { open, onClose } = props;
   // 关闭时调用方常把内容清空，退场动画期间沿用上一次的内容，预览不闪成空白
   const lastPreview = useRef<Pick<ContentExportModalProps, "renderPreview" | "title"> | null>(null);
@@ -72,7 +86,7 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
   const layout = resolveExportLayout(backdrop, width, padding);
 
   const capture = () => {
-    if (!imageRef.current) throw new Error("预览尚未就绪");
+    if (!imageRef.current) throw new Error(t("png.notReady"));
     return captureBlobWithSnapdom(imageRef.current, {
       dpr: exportDpr(),
       type: "png",
@@ -87,14 +101,14 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
       const blob = await capture();
       if (kind === "copy") {
         await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
-        toast.success("已复制到剪贴板");
+        toast.success(t("png.copied"));
       } else {
         downloadBlob(blob, createExportFileName(title));
-        toast.success("图片已保存");
+        toast.success(t("png.saved"));
       }
     } catch (error) {
       console.error("Export image failed:", error);
-      toast.error(kind === "copy" ? "复制失败，请重试" : "导出失败，请重试");
+      toast.error(kind === "copy" ? t("png.copyFailed") : t("png.exportFailed"));
     } finally {
       setBusy(null);
     }
@@ -107,7 +121,7 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
       onAfterClose={() => {
         lastPreview.current = null;
       }}
-      title="导出图片"
+      title={t("png.title")}
       // 标题与关闭钉在右侧设置栏内，预览区占满整个左侧高度
       header={<></>}
       width={1180}
@@ -174,8 +188,8 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
 
         <div className="flex w-[300px] shrink-0 flex-col">
           <div className="flex items-center gap-2.5 pt-4 pr-3.5 pb-1.5 pl-5">
-            <h2 className="text-ink-1 flex-1 text-[15px] font-[650]">导出图片</h2>
-            <IconButton aria-label="关闭" onClick={onClose} className="size-7">
+            <h2 className="text-ink-1 flex-1 text-[15px] font-[650]">{t("png.title")}</h2>
+            <IconButton aria-label={t("common.close")} onClick={onClose} className="size-7">
               <X className="size-4" strokeWidth={1.75} />
             </IconButton>
           </div>
@@ -183,9 +197,9 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
           <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 pt-2 pb-3">
             <section>
               <div className="flex items-center">
-                <SectionLabel>样式</SectionLabel>
+                <SectionLabel>{t("png.style")}</SectionLabel>
                 <label className="text-ink-3 text-tau-meta ml-auto flex cursor-pointer items-center gap-2">
-                  深色
+                  {t("png.dark")}
                   <Switch
                     size="sm"
                     checked={mode === "dark"}
@@ -198,7 +212,11 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
                   <ThemeSwatch
                     key={theme.key}
                     themeKey={theme.key}
-                    name={theme.name}
+                    name={
+                      Object.hasOwn(THEME_LABEL_KEYS, theme.key)
+                        ? t(THEME_LABEL_KEYS[theme.key])
+                        : theme.name
+                    }
                     mode={mode}
                     backdrop={backdrop}
                     active={theme.key === themeKey}
@@ -209,21 +227,24 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
             </section>
 
             <section>
-              <SectionLabel>版式</SectionLabel>
+              <SectionLabel>{t("png.layout")}</SectionLabel>
               <div className="mt-1">
-                <SettingRow label="背景">
+                <SettingRow label={t("png.backdrop")}>
                   <Select
-                    aria-label="背景"
+                    aria-label={t("png.backdrop")}
                     size="sm"
                     className="w-[124px]"
                     value={backdrop}
-                    options={BACKDROP_OPTIONS}
+                    options={BACKDROP_OPTIONS.map(option => ({
+                      ...option,
+                      label: t(`png.backdrop.${option.value}`),
+                    }))}
                     onValueChange={value => update({ backdrop: value })}
                   />
                 </SettingRow>
-                <SettingRow label="宽度">
+                <SettingRow label={t("png.width")}>
                   <Select
-                    aria-label="宽度"
+                    aria-label={t("png.width")}
                     size="sm"
                     className="w-[124px]"
                     value={width}
@@ -231,7 +252,7 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
                       value: option.value,
                       label: (
                         <span className="flex w-full items-center justify-between gap-2">
-                          {option.label}
+                          {t(`png.width.${option.value}`)}
                           <span className="text-ink-3 font-tau-mono text-[11.5px]">
                             {option.value}
                           </span>
@@ -241,13 +262,16 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
                     onValueChange={value => update({ width: value })}
                   />
                 </SettingRow>
-                <SettingRow label="边距">
+                <SettingRow label={t("png.padding")}>
                   <Select
-                    aria-label="边距"
+                    aria-label={t("png.padding")}
                     size="sm"
                     className="w-[124px]"
                     value={padding}
-                    options={PADDING_OPTIONS}
+                    options={PADDING_OPTIONS.map(option => ({
+                      ...option,
+                      label: t(`png.padding.${option.value}`),
+                    }))}
                     onValueChange={value => update({ padding: value })}
                   />
                 </SettingRow>
@@ -255,22 +279,22 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
             </section>
 
             <section>
-              <SectionLabel>显示</SectionLabel>
+              <SectionLabel>{t("png.display")}</SectionLabel>
               <div className="mt-1">
                 {title && (
                   <SwitchRow
-                    label="标题"
+                    label={t("png.showTitle")}
                     checked={preference.showTitle}
                     onChange={value => update({ showTitle: value })}
                   />
                 )}
                 <SwitchRow
-                  label="日期"
+                  label={t("png.showDate")}
                   checked={showDate}
                   onChange={value => update({ showDate: value })}
                 />
                 <SwitchRow
-                  label="署名"
+                  label={t("png.showSignature")}
                   hint="Tau"
                   checked={showSignature}
                   onChange={value => update({ showSignature: value })}
@@ -285,22 +309,22 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
                 icon={Copy}
                 onClick={() => void run("copy")}
                 loading={busy === "copy"}
-                loadingText="生成中…"
+                loadingText={t("png.generating")}
                 disabled={!previewReady || busy !== null}
                 className="h-9"
               >
-                复制
+                {t("png.copy")}
               </Button>
               <Button
                 variant="primary"
                 icon={Download}
                 onClick={() => void run("save")}
                 loading={busy === "save"}
-                loadingText="生成中…"
+                loadingText={t("png.generating")}
                 disabled={!previewReady || busy !== null}
                 className="h-9"
               >
-                保存图片
+                {t("png.save")}
               </Button>
             </div>
             <div className="text-ink-3 font-tau-mono text-center text-[11.5px]">

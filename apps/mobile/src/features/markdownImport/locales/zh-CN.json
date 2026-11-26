@@ -1,0 +1,16 @@
+{
+  "preview": "Markdown 预览",
+  "untitled": "未命名",
+  "meta": "外部文件 · {{amount}} 字",
+  "openFailed": "打开文件失败",
+  "importFailed": "导入失败",
+  "cardDone": "已导入为卡片",
+  "articleDone": "已导入为文章",
+  "projectDone": "已导入到「{{title}}」",
+  "noProjects": "还没有项目，先到项目页新建一个",
+  "saveCard": "存为卡片",
+  "saveArticle": "存为文章",
+  "saveProject": "加入项目",
+  "projectTitle": "导入到项目",
+  "projectSubtitle": "作为「{{title}}」文档放在项目根目录"
+}

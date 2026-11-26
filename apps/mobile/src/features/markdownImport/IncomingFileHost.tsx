@@ -1,3 +1,4 @@
+import { useMarkdownImportI18n } from "./i18n";
 import { useEffect } from "react";
 import { useAppContext } from "../../app/AppContext";
 import { useSingleFlight } from "../../hooks/useSingleFlight";
@@ -9,6 +10,7 @@ import * as tauri from "../../services/tauri";
  * 原生侧在收到文件时派发 tau:incoming-file；冷启动时事件早于页面加载会丢失，挂载时主动取一次兜底。
  */
 export function IncomingFileHost() {
+  const { t } = useMarkdownImportI18n();
   const navigator = useNavigator();
   const app = useAppContext();
 
@@ -17,7 +19,7 @@ export function IncomingFileHost() {
       const file = await tauri.takeIncomingFile();
       if (file) navigator.push("markdownImport", { title: file.title, markdown: file.markdown });
     } catch (error) {
-      app.presentError(error, "打开文件失败");
+      app.presentError(error, t("openFailed"));
     }
   });
 

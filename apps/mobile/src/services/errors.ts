@@ -1,3 +1,4 @@
+import { localizedErrorMessage } from "./errors.i18n";
 export type ParsedInvokeError = {
   code: string;
   message: string;
@@ -27,20 +28,17 @@ export function parseInvokeError(error: unknown): ParsedInvokeError {
 }
 
 export function mapErrorToMessage(code: string, fallback: string): string {
+  const localized = localizedErrorMessage(code);
+  if (localized !== undefined) return localized;
   const mapping: Record<string, string> = {
     SETTING_INVALID: "setting.json 格式无效，请检查配置",
     DB_NAME_INVALID: "数据库名称不合法，仅支持字母数字、点、下划线和短横线",
     DB_OPEN_FAILED: "数据库打开失败，请检查数据库文件状态",
     CARD_NOT_FOUND: "卡片不存在，可能已被删除",
-    CARD_CREATE_FAILED: "卡片创建失败，请稍后重试",
     CARD_UPDATE_FAILED: "卡片更新失败，请稍后重试",
     CARD_DELETE_FAILED: "卡片删除失败，请稍后重试",
     CARD_CONTENT_INVALID: "卡片内容格式无效，请重试",
     CONTENT_CREATE_FAILED: "内容创建失败，请稍后重试",
-    INCOMING_FILE_UNSUPPORTED: "只能打开 Markdown 文件（.md）",
-    INCOMING_FILE_TOO_LARGE: "文件超过 5 MB，无法打开",
-    INCOMING_FILE_ENCODING: "文件不是 UTF-8 编码，无法打开",
-    INCOMING_FILE_READ_FAILED: "读取文件失败，请重新打开",
     CONTENT_INVALID: "内容格式无效，请检查后重试",
     CONTENT_NOT_FOUND: "引用内容不存在，可能已被删除",
     TODO_NOT_FOUND: "任务不存在，可能已被删除",

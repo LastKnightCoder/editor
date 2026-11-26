@@ -674,23 +674,26 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       openSelectWhiteboardModal();
     } else if (key === "import-markdown") {
       if (!projectItem) return;
-      await importMarkdownFiles(async ({ title, content, contracts }) => {
-        const [parentProjectItem] = await addChildProjectItem(projectItemId, {
-          title,
-          content,
-          contracts,
-          children: [],
-          refType: "",
-          refId: 0,
-          projectItemType: EProjectItemType.Document,
-          count: getContentLength(content),
-          whiteboardContentId: 0,
-        });
-        if (parentProjectItem) {
-          setProjectItem(parentProjectItem);
-          projectItemEventBus.publishProjectItemEvent("project-item:updated", parentProjectItem);
-        }
-      });
+      await importMarkdownFiles(
+        async ({ title, content, contracts }) => {
+          const [parentProjectItem] = await addChildProjectItem(projectItemId, {
+            title,
+            content,
+            contracts,
+            children: [],
+            refType: "",
+            refId: 0,
+            projectItemType: EProjectItemType.Document,
+            count: getContentLength(content),
+            whiteboardContentId: 0,
+          });
+          if (parentProjectItem) {
+            setProjectItem(parentProjectItem);
+            projectItemEventBus.publishProjectItemEvent("project-item:updated", parentProjectItem);
+          }
+        },
+        { target: "project-item" }
+      );
     }
   });
 

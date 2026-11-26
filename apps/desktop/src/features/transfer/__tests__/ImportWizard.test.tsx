@@ -1,3 +1,5 @@
+import { desktopLocaleSource } from "@/app/i18n/runtime";
+import { importTranslator } from "../i18n-import";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -217,4 +219,148 @@ it("来源格式显示识别结果，切换后用已读入的来源重新扫描"
   );
   expect(button("Obsidian")?.getAttribute("aria-pressed")).toBe("true");
   expect(document.body.textContent).toContain("已手动指定");
+});
+
+it("语言变化保留扫描任务、项目草稿和勾选范围，导入中不重启或停止任务", async () => {
+  const original = desktopLocaleSource.getSnapshot();
+  const plan = makePlan();
+  const closeSource = vi.fn(async () => undefined);
+  plan.source.close = closeSource;
+  let finishScan: (plan: ImportPlan) => void = () => {
+    throw new Error("扫描尚未开始");
+  };
+  mocks.scanImport.mockImplementation(
+    () =>
+      new Promise<ImportPlan>(resolve => {
+        finishScan = resolve;
+      })
+  );
+  const warnings = ["历史诊断：保留原始来源信息"];
+  const outcome = {
+    result: {
+      target: "project" as const,
+      projectId: 7,
+      entityIds: [],
+      databaseIds: [],
+      docCount: 1,
+      assetCount: 1,
+      linkCount: 0,
+      warnings,
+    },
+  };
+  let finishImport: (result: typeof outcome) => void = () => {
+    throw new Error("导入尚未开始");
+  };
+  let importSignal: AbortSignal | undefined;
+  mocks.executeImport.mockImplementation(
+    (
+      _plan: ImportPlan,
+      _options: unknown,
+      hooks: {
+        signal?: AbortSignal;
+        onProgress: (phase: string, done: number, total: number, label: string) => void;
+      }
+    ) => {
+      importSignal = hooks.signal;
+      hooks.onProgress("docs", 1, 2, "原则");
+      return new Promise<typeof outcome>(resolve => {
+        finishImport = resolve;
+      });
+    }
+  );
+  const onClose = vi.fn();
+  try {
+    await act(async () =>
+      root.render(
+        <ImportWizard
+          request={{ target: "project", sourcePath: "/notes/vault" }}
+          onClose={onClose}
+        />
+      )
+    );
+    const scanSignal = mocks.scanImport.mock.calls[0][2] as AbortSignal;
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(mocks.scanImport).toHaveBeenCalledTimes(1);
+      expect(scanSignal.aborted).toBe(false);
+      expect(closeSource).not.toHaveBeenCalled();
+    }
+    await act(async () => finishScan(plan));
+    const input = document.querySelector<HTMLInputElement>("input");
+    if (!input) throw new Error("项目名称输入未挂载");
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(
+        input,
+        "我的项目草稿"
+      );
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.focus();
+    });
+    input.setSelectionRange(1, 4);
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(document.querySelector("input")).toBe(input);
+      expect(input.value).toBe("我的项目草稿");
+      expect(document.activeElement).toBe(input);
+      expect([input.selectionStart, input.selectionEnd]).toEqual([1, 4]);
+      expect(mocks.scanImport).toHaveBeenCalledTimes(1);
+      expect(mocks.executeImport).not.toHaveBeenCalled();
+    }
+    await click(importTranslator.t("common.next"));
+    const excluded = document.querySelector<HTMLInputElement>('input[aria-label="随笔"]');
+    if (!excluded) throw new Error("来源勾选未挂载");
+    await act(async () => excluded.click());
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(document.querySelector('input[aria-label="随笔"]')).toBe(excluded);
+      expect(excluded.checked).toBe(false);
+      expect(mocks.executeImport).not.toHaveBeenCalled();
+    }
+    await click(importTranslator.t("action.import.project", { count: 1, amount: "1" }));
+    expect(mocks.executeImport).toHaveBeenCalledTimes(1);
+    const [, options] = mocks.executeImport.mock.calls[0];
+    expect(options.projectTitle).toBe("我的项目草稿");
+    expect([...options.selected]).toEqual([0]);
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(importSignal?.aborted).toBe(false);
+      expect(mocks.executeImport).toHaveBeenCalledTimes(1);
+      expect(mocks.scanImport).toHaveBeenCalledTimes(1);
+      expect(mocks.undoImport).not.toHaveBeenCalled();
+      expect(onClose).not.toHaveBeenCalled();
+      expect(closeSource).not.toHaveBeenCalled();
+    }
+    await act(async () => finishImport(outcome));
+    expect(document.body.textContent).toContain(warnings[0]);
+    expect(outcome.result.warnings).toBe(warnings);
+    expect(closeSource).toHaveBeenCalledTimes(1);
+  } finally {
+    await act(async () => desktopLocaleSource.setLocale(original));
+  }
+});
+
+it("空来源提示随语言刷新，保留扫描结果且不再次扫描", async () => {
+  const original = desktopLocaleSource.getSnapshot();
+  mocks.scanImport.mockResolvedValue({ ...makePlan(), docs: [], tree: [] });
+  try {
+    await act(async () =>
+      root.render(
+        <ImportWizard
+          request={{ target: "article", sourcePath: "/notes/vault" }}
+          onClose={vi.fn()}
+        />
+      )
+    );
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(document.querySelector('[role="alert"]')?.textContent).toBe(
+        importTranslator.t("scan.empty")
+      );
+      expect(mocks.scanImport).toHaveBeenCalledTimes(1);
+      expect(mocks.executeImport).not.toHaveBeenCalled();
+      expect(button(importTranslator.t("common.next"))?.disabled).toBe(true);
+    }
+  } finally {
+    await act(async () => desktopLocaleSource.setLocale(original));
+  }
 });

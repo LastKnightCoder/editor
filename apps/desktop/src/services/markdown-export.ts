@@ -23,7 +23,7 @@ import { remoteResourceToLocal } from "@/utils/resouce";
 
 export type ExportScope = "project" | "article" | "card" | "all";
 
-export const SCOPE_LABEL: Record<ExportScope, string> = {
+export const SCOPE_FILE_NAME: Record<ExportScope, string> = {
   project: "项目",
   article: "文章",
   card: "卡片",
@@ -168,6 +168,8 @@ export interface ExportCatalog {
   tree: BatchExportTreeNode[];
   /** 项目分组节点 id → 项目 id（从项目页唤起时只勾选该项目） */
   projectNodes: Map<number, number>;
+  /** 仅用于预览标签；tree.title 仍是包内目录的规范名称。 */
+  scopeNodes: Map<number, Exclude<ExportScope, "all">>;
 }
 
 /** 组装某个范围的导出树；全部 = 项目 / 文章 / 卡片三个分组 */
@@ -177,21 +179,29 @@ export const loadExportCatalog = async (
 ): Promise<ExportCatalog> => {
   const nextId = createIdAllocator();
   const projectNodes = new Map<number, number>();
+  const scopeNodes = new Map<number, Exclude<ExportScope, "all">>();
+  const scopeGroup = (kind: Exclude<ExportScope, "all">, children: BatchExportTreeNode[]) => {
+    const node = groupNode(nextId, SCOPE_FILE_NAME[kind], children);
+    scopeNodes.set(node.id, kind);
+    return node;
+  };
   const projects = async () => {
     const nodes = await loadProjects(nextId);
     nodes.forEach(node => projectNodes.set(node.id, node.projectId));
     return nodes;
   };
-  if (scope === "project") return { tree: await projects(), projectNodes };
-  if (scope === "article") return { tree: await loadArticles(nextId), projectNodes };
-  if (scope === "card") return { tree: await loadCards(nextId, databaseName), projectNodes };
+  if (scope === "project") return { tree: await projects(), projectNodes, scopeNodes };
+  if (scope === "article") return { tree: await loadArticles(nextId), projectNodes, scopeNodes };
+  if (scope === "card")
+    return { tree: await loadCards(nextId, databaseName), projectNodes, scopeNodes };
   return {
     tree: [
-      groupNode(nextId, "项目", await projects()),
-      groupNode(nextId, "文章", await loadArticles(nextId)),
-      groupNode(nextId, "卡片", await loadCards(nextId, databaseName)),
+      scopeGroup("project", await projects()),
+      scopeGroup("article", await loadArticles(nextId)),
+      scopeGroup("card", await loadCards(nextId, databaseName)),
     ].filter(node => node.children.length > 0),
     projectNodes,
+    scopeNodes,
   };
 };
 

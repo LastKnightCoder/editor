@@ -1,3 +1,5 @@
+import { desktopI18n } from "@/app/i18n/runtime";
+import { contentTransferTranslator, contentTransferErrorText } from "./content-transfer.i18n";
 /**
  * 内容导入导出的统一入口（卡片、文章、项目文档、独立编辑窗口共用）。
  * 导出：本机资源随文件打包——无本机资源存单个 .md，有则存 .zip（.md + assets/）。
@@ -15,6 +17,8 @@ import {
   type BundleFile,
 } from "@/utils/content-transfer/bundle";
 import { readMarkdownForImport, type ImportedMarkdown } from "@/utils/content-transfer/import";
+
+const t = contentTransferTranslator.t;
 
 export interface MarkdownOutputResult {
   canceled: boolean;
@@ -55,9 +59,14 @@ const reportExportResult = async (
   if (result.canceled || !result.filePath) return;
   if (warnings.length > 0) {
     console.warn("导出警告:", warnings);
-    toast.warning(`已导出，${warnings.length} 个资源未能打包，保留了原地址`);
+    toast.warning(
+      t("export.assets", {
+        count: warnings.length,
+        amount: warnings.length.toLocaleString(desktopI18n.getSnapshot()),
+      })
+    );
   } else {
-    toast.success("已导出");
+    toast.success(t("export.done"));
   }
   await showInFolder(result.filePath).catch(error => console.warn("打开导出目录失败:", error));
 };
@@ -66,8 +75,12 @@ const reportExportResult = async (
 export async function readContentForExport(content: Descendant[], contentId?: number) {
   if (!contentId) return { content, contracts: undefined };
   const document = await (await import("@/commands/content")).getContentById(contentId);
-  if (!document) throw new Error("待导出正文已删除");
-  if (!document.contracts) throw new Error("CONTENT_FORMAT_UNSUPPORTED: 正文格式不受支持");
+  if (!document)
+    throw Object.assign(new Error("待导出正文已删除"), { code: "CONTENT_EXPORT_NOT_FOUND" });
+  if (!document.contracts)
+    throw Object.assign(new Error("CONTENT_FORMAT_UNSUPPORTED: 正文格式不受支持"), {
+      code: "CONTENT_FORMAT_UNSUPPORTED",
+    });
   return document;
 }
 
@@ -86,7 +99,8 @@ export const exportContentAsMarkdown = async (input: {
     const document = input.contentId
       ? await (await import("@/commands/content")).getContentById(input.contentId)
       : null;
-    if (input.contentId && !document) throw new Error("待导出正文已删除");
+    if (input.contentId && !document)
+      throw Object.assign(new Error("待导出正文已删除"), { code: "CONTENT_EXPORT_NOT_FOUND" });
     const content = document?.content ?? input.content,
       contracts = document?.contracts ?? input.contracts;
     const assets = await collectBundleAssets([content], { contracts });
@@ -102,7 +116,7 @@ export const exportContentAsMarkdown = async (input: {
     const result = await saveMarkdownOutput({ baseName, markdown, assetFiles: assets.files });
     await reportExportResult(result, assets.warnings);
   } catch (error) {
-    toast.error(`导出失败：${error instanceof Error ? error.message : String(error)}`);
+    toast.error(t("export.failed", { reason: contentTransferErrorText(error) }));
   }
 };
 
@@ -112,7 +126,7 @@ export const exportContentAsMarkdown = async (input: {
  */
 export const importMarkdownFiles = async (
   create: (doc: ImportedMarkdown) => Promise<unknown>,
-  options: { unit: string } = { unit: "篇" }
+  options: { target: "card" | "article" | "project-item" }
 ): Promise<number> => {
   const paths = await selectFile({
     properties: ["openFile", "multiSelections"],
@@ -138,18 +152,28 @@ export const importMarkdownFiles = async (
     }
   }
 
-  const summary = `已导入 ${imported} ${options.unit}`;
   if (imported === 0) {
-    toast.error("导入失败");
-  } else if (failed > 0 || warnings.length > 0) {
-    if (warnings.length > 0) console.warn("导入警告:", warnings);
-    const parts = [
-      failed > 0 ? `${failed} 个文件失败` : "",
-      warnings.length > 0 ? `${warnings.length} 个资源未找到` : "",
-    ].filter(Boolean);
-    toast.warning(`${summary}，${parts.join("、")}`);
+    toast.error(t("import.failed"));
   } else {
-    toast.success(summary);
+    const status =
+      failed > 0 && warnings.length > 0
+        ? "partialBoth"
+        : failed > 0
+          ? "partialFailed"
+          : warnings.length > 0
+            ? "partialMissing"
+            : "done";
+    const locale = desktopI18n.getSnapshot();
+    const summary = t(`import.${options.target}.${status}`, {
+      count: imported,
+      amount: imported.toLocaleString(locale),
+      failed: failed.toLocaleString(locale),
+      missing: warnings.length.toLocaleString(locale),
+    });
+    if (failed > 0 || warnings.length > 0) {
+      if (warnings.length) console.warn("导入警告:", warnings);
+      toast.warning(summary);
+    } else toast.success(summary);
   }
   return imported;
 };
@@ -176,7 +200,7 @@ export async function saveContentAsWord(input: WordExportInput) {
   });
   const result = await saveFileWithDialog({
     defaultFileName: sanitizeFileName(title, "未命名文档") + ".docx",
-    filters: [{ name: "Word 文档", extensions: ["docx"] }],
+    filters: [{ name: t("filter.word"), extensions: ["docx"] }],
     data: bytes,
   });
   return { canceled: result.canceled, filePath: result.filePath ?? null, warnings };
@@ -186,10 +210,16 @@ export async function exportContentAsWord(input: WordExportInput) {
   try {
     const { canceled, filePath, warnings } = await saveContentAsWord(input);
     if (canceled || !filePath) return;
-    if (warnings.length) toast.warning(`已导出，${warnings.length} 处图片未能嵌入，已在文档中标出`);
-    else toast.success("已导出 Word 文档");
+    if (warnings.length)
+      toast.warning(
+        t("word.assets", {
+          count: warnings.length,
+          amount: warnings.length.toLocaleString(desktopI18n.getSnapshot()),
+        })
+      );
+    else toast.success(t("word.done"));
     await showInFolder(filePath).catch(error => console.warn("打开导出目录失败:", error));
   } catch (error) {
-    toast.error(`Word 导出失败：${error instanceof Error ? error.message : String(error)}`);
+    toast.error(t("word.failed", { reason: contentTransferErrorText(error) }));
   }
 }

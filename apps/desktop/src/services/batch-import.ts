@@ -1,3 +1,4 @@
+import { importTranslator } from "@/features/transfer/i18n-import";
 /**
  * 批量导入的宿主接线：扫描 / 执行用到的真实命令、导入记录落账与整批撤销。
  * 写入限定在开始时的数据库，中途切库即中止（已写入部分照常记账，可撤销）。
@@ -236,7 +237,7 @@ export const executeImport = async (
  */
 export const undoImport = async (record: ImportRecord) => {
   if (record.database !== activeDatabase()) {
-    throw new Error("这条记录属于其它数据库，请先切换过去");
+    throw new Error(importTranslator.t("undo.wrongDatabase"));
   }
   if (record.target === "project" && record.projectId !== undefined) {
     await deleteProject(record.projectId);

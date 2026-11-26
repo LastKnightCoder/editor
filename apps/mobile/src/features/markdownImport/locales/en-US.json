@@ -1,0 +1,17 @@
+{
+  "preview": "Markdown preview",
+  "untitled": "Untitled",
+  "openFailed": "Could not open file",
+  "importFailed": "Could not import",
+  "cardDone": "Imported as a card",
+  "articleDone": "Imported as an article",
+  "projectDone": "Imported into “{{title}}”",
+  "noProjects": "Create a project before importing into one",
+  "saveCard": "Save as card",
+  "saveArticle": "Save as article",
+  "saveProject": "Add to project",
+  "projectTitle": "Import into project",
+  "projectSubtitle": "Add “{{title}}” as a document at the project root",
+  "meta_one": "External file · {{amount}} character",
+  "meta_other": "External file · {{amount}} characters"
+}

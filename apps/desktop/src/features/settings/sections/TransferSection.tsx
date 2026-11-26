@@ -1,3 +1,4 @@
+import { useImportI18n } from "@/features/transfer/i18n-import";
 /**
  * 导入与导出 —— 迁入 / 迁出的启动台与导入记录：按钮关闭设置后打开对应浮层，本页不承载流程。
  * 导入记录按当前数据库列出，可查看提醒或整批撤销（删除该批建出的项目 / 文章 / 卡片）。
@@ -13,29 +14,40 @@ import useSettingStore from "@/stores/useSettingStore";
 import { useImportHistoryStore, type ImportRecord } from "@/stores/useImportHistoryStore";
 import { SettingsGroup } from "../components/SettingsGroup";
 
-const recordTitle = (record: ImportRecord) =>
+type ImportText = ReturnType<typeof useImportI18n>["t"];
+const recordTitle = (record: ImportRecord, t: ImportText, locale: string) =>
   record.target === "project"
-    ? `${record.sourceName} → 项目「${record.projectTitle || record.sourceName}」`
-    : `${record.sourceName} → ${record.docCount} ${record.target === "card" ? "张卡片" : "篇文章"}`;
-
-const recordMeta = (record: ImportRecord) =>
-  [
-    new Date(record.at).toLocaleString("zh-CN", {
+    ? t("history.project", {
+        source: record.sourceName,
+        title: record.projectTitle || record.sourceName,
+      })
+    : t(`history.${record.target}`, {
+        source: record.sourceName,
+        count: record.docCount,
+        amount: record.docCount.toLocaleString(locale),
+      });
+const recordMeta = (record: ImportRecord, t: ImportText, locale: string) => {
+  const countText = (key: Parameters<typeof t>[0], count: number) =>
+    t(key, { count, amount: count.toLocaleString(locale) });
+  return [
+    new Date(record.at).toLocaleString(locale, {
       month: "numeric",
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
     }),
-    record.target === "project" ? `${record.docCount} 篇` : "",
-    `${record.assetCount} 个资源`,
-    record.databaseIds?.length ? `${record.databaseIds.length} 个数据库` : "",
-    record.stopped ? "未完成" : "",
-    record.warnings.length > 0 ? `${record.warnings.length} 条提醒` : "",
+    record.target === "project" ? countText("count.project", record.docCount) : "",
+    countText("history.assets", record.assetCount),
+    record.databaseIds?.length ? countText("history.databases", record.databaseIds.length) : "",
+    record.stopped ? t("history.incomplete") : "",
+    record.warnings.length > 0 ? countText("stats.warnings", record.warnings.length) : "",
   ]
     .filter(Boolean)
     .join(" · ");
+};
 
 export function TransferSection() {
+  const { t, locale } = useImportI18n();
   const database = useSettingStore(s => s.setting.database.active);
   const records = useImportHistoryStore(s => s.records).filter(r => r.database === database);
   const [undoing, setUndoing] = useState<ImportRecord | null>(null);
@@ -50,79 +62,58 @@ export function TransferSection() {
     if (!undoing) return;
     try {
       await undoImport(undoing);
-      toast.success("已撤销这次导入");
+      toast.success(t("undo.done"));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "撤销失败");
+      toast.error(error instanceof Error ? error.message : t("undo.failed"));
     }
   };
 
   return (
     <>
-      <SettingsGroup
-        title="导入"
-        description="正文引用的本地图片与附件一并导入，存放到当前资源存储"
-      >
-        <SettingRow
-          title="导入文件夹或压缩包"
-          description="导入为项目（保持目录树）、文章或卡片；文档之间的 .md 链接转为应用内链接，导入前可预览"
-        >
+      <SettingsGroup title={t("settings.import")} description={t("settings.importHint")}>
+        <SettingRow title={t("settings.folder")} description={t("settings.folderHint")}>
           <Button
             variant="secondary"
             size="sm"
             icon={ArrowRight}
             onClick={() => leaveTo(() => useTransferStore.getState().openImportWizard())}
           >
-            选择来源
+            {t("settings.source")}
           </Button>
         </SettingRow>
-        <SettingRow
-          title="导入 Markdown 文件"
-          description="卡片页、文章页的「导入」，或项目文档树的「导入 Markdown」；相对路径按 .md 所在目录解析"
-        />
+        <SettingRow title={t("settings.markdown")} description={t("settings.markdownHint")} />
       </SettingsGroup>
 
-      <SettingsGroup title="导出" description="本地图片、音视频和附件随文件打包，引用改为相对路径">
-        <SettingRow
-          title="导出为 Markdown 压缩包"
-          description="项目、文章、卡片或全部内容；互链可写成相对 .md 或 [[文件名]]，可附 frontmatter"
-        >
+      <SettingsGroup title={t("settings.export")} description={t("settings.exportHint")}>
+        <SettingRow title={t("settings.markdownZip")} description={t("settings.markdownZipHint")}>
           <Button
             variant="secondary"
             size="sm"
             icon={ArrowRight}
             onClick={() => leaveTo(() => useTransferStore.getState().openMarkdownExport())}
           >
-            选择范围
+            {t("settings.scope")}
           </Button>
         </SettingRow>
-        <SettingRow
-          title="导出为 PDF / EPUB"
-          description="在项目列表的卡片 ⋯ 菜单中选「整体导出」，按文档树排版成书"
-        />
-        <SettingRow
-          title="导出单篇"
-          description="卡片、文章、项目文档的「导出 › Markdown 文件」：有本地资源时导出为 .zip（含 assets/）"
-        />
+        <SettingRow title={t("settings.pdfEpub")} description={t("settings.pdfEpubHint")} />
+        <SettingRow title={t("settings.single")} description={t("settings.singleHint")} />
       </SettingsGroup>
 
       {records.length > 0 && (
-        <SettingsGroup
-          title="导入记录"
-          description="当前数据库最近的批量导入；撤销会删除该批导入的全部内容"
-        >
+        <SettingsGroup title={t("history.title")} description={t("history.hint")}>
           {records.map(record => (
             <SettingRow
               key={record.id}
-              title={recordTitle(record)}
-              description={recordMeta(record)}
+              title={recordTitle(record, t, locale)}
+              description={recordMeta(record, t, locale)}
             >
               {record.warnings.length > 0 && (
                 <Button variant="ghost" size="sm" onClick={() => setViewing(record)}>
-                  提醒
+                  {t("history.warnings")}
                 </Button>
               )}
               <Button variant="danger-soft" size="sm" onClick={() => setUndoing(record)}>
-                撤销
+                {t("history.undo")}
               </Button>
             </SettingRow>
           ))}
@@ -133,20 +124,24 @@ export function TransferSection() {
         open={!!undoing}
         onOpenChange={open => !open && setUndoing(null)}
         danger
-        title="撤销这次导入"
-        context={undoing ? recordTitle(undoing) : undefined}
-        description={
+        title={t("history.undoTitle")}
+        context={undoing ? recordTitle(undoing, t, locale) : undefined}
+        description={t(
           undoing?.target === "project"
-            ? `将删除这次导入建出的项目及其全部文档${undoing.databaseIds?.length ? "与数据库" : ""}，导入后做的修改也会一并删除。`
-            : `将删除这次导入的全部内容${undoing?.databaseIds?.length ? "与数据库" : ""}，导入后做的修改也会一并删除。`
-        }
-        impact="已上传的图片与附件文件保留"
-        confirmText="撤销导入"
+            ? undoing.databaseIds?.length
+              ? "history.undoProjectDatabases"
+              : "history.undoProject"
+            : undoing?.databaseIds?.length
+              ? "history.undoContentDatabases"
+              : "history.undoContent"
+        )}
+        impact={t("undo.impact")}
+        confirmText={t("undo.confirm")}
         onConfirm={undo}
       />
       <Dialog
-        title="导入提醒"
-        context={viewing ? recordTitle(viewing) : undefined}
+        title={t("history.warningsTitle")}
+        context={viewing ? recordTitle(viewing, t, locale) : undefined}
         open={!!viewing}
         onOpenChange={open => !open && setViewing(null)}
         size="lg"

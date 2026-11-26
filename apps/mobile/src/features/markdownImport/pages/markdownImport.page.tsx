@@ -1,3 +1,4 @@
+import { useMarkdownImportI18n } from "../i18n";
 import { useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FolderOpen, Layers, Newspaper } from "lucide-react";
@@ -48,6 +49,7 @@ function ImportButton(props: {
 
 /** 外部打开的 Markdown：只读预览，由用户决定导入为卡片、文章或项目文档 */
 function MarkdownImportScreen() {
+  const { t, locale } = useMarkdownImportI18n();
   const { params } = usePage<MarkdownImportParams>();
   const navigator = useNavigator();
   const app = useAppContext();
@@ -107,6 +109,7 @@ function MarkdownImportScreen() {
   }, [parsed.data, kit]);
   const count = useMemo(() => getContentLength(parsed.data?.content ?? []), [parsed.data]);
   const title = params.title || "未命名";
+  const displayTitle = params.title || t("untitled");
   const projects = (projectsQuery.data?.pages.flatMap(page => page.items) ?? []).filter(
     project => !project.archived
   );
@@ -118,7 +121,7 @@ function MarkdownImportScreen() {
     try {
       await create();
     } catch (error) {
-      app.presentError(error, "导入失败");
+      app.presentError(error, t("importFailed"));
     } finally {
       setImporting(false);
     }
@@ -128,7 +131,7 @@ function MarkdownImportScreen() {
     runImport(async () => {
       const card = await tauri.createQuickCard({ ...parsed.data!, count });
       void app.refreshCardsSafe({ page: 1 });
-      toast({ type: "success", text: "已导入为卡片" });
+      toast({ type: "success", text: t("cardDone") });
       navigator.replace("contentDetail", { cardId: card.id });
     });
 
@@ -136,7 +139,7 @@ function MarkdownImportScreen() {
     runImport(async () => {
       const article = await tauri.articleCreate({ title, ...parsed.data!, count });
       invalidateArticles();
-      toast({ type: "success", text: "已导入为文章" });
+      toast({ type: "success", text: t("articleDone") });
       navigator.replace("articleEditor", { articleId: article.id });
     });
 
@@ -151,13 +154,13 @@ function MarkdownImportScreen() {
         count,
       });
       invalidateProjects();
-      toast({ type: "success", text: `已导入到「${project.title}」` });
+      toast({ type: "success", text: t("projectDone", { title: project.title }) });
       navigator.replace("projectDocEditor", { itemId: item.id, projectTitle: project.title });
     });
 
   const openProjectSheet = () => {
     if (projectsQuery.isSuccess && projects.length === 0) {
-      toast({ type: "info", text: "还没有项目，先到项目页新建一个" });
+      toast({ type: "info", text: t("noProjects") });
       return;
     }
     setProjectSheetOpen(true);
@@ -165,15 +168,17 @@ function MarkdownImportScreen() {
 
   return (
     <div className="mobile-kb-screen bg-page fixed inset-0 z-50 flex flex-col">
-      <PageHeader title="Markdown 预览" onBack={() => navigator.goBack("ui")} />
+      <PageHeader title={t("preview")} onBack={() => navigator.goBack("ui")} />
 
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="mobile-page-scroll flex-1 overflow-y-auto overscroll-contain">
           <div className="px-5 pt-1.5 pb-8">
             <h2 className="text-ink-1 text-[22px] leading-snug font-extrabold break-words">
-              {title}
+              {displayTitle}
             </h2>
-            <p className="text-ink-3 mt-1 text-[12.5px] font-bold">外部文件 · {count} 字</p>
+            <p className="text-ink-3 mt-1 text-[12.5px] font-bold">
+              {t("meta", { count, amount: count.toLocaleString(locale) })}
+            </p>
             <div className="mt-4">
               {parsed.error || previewError ? (
                 <p role="alert">{parsed.error?.message ?? previewError}</p>
@@ -198,19 +203,19 @@ function MarkdownImportScreen() {
         >
           <ImportButton
             icon={<Layers size={18} />}
-            label="存为卡片"
+            label={t("saveCard")}
             disabled={importing || !parsed.data}
             onClick={() => void importAsCard()}
           />
           <ImportButton
             icon={<Newspaper size={18} />}
-            label="存为文章"
+            label={t("saveArticle")}
             disabled={importing || !parsed.data}
             onClick={() => void importAsArticle()}
           />
           <ImportButton
             icon={<FolderOpen size={18} />}
-            label="加入项目"
+            label={t("saveProject")}
             disabled={importing || !parsed.data}
             onClick={openProjectSheet}
           />
@@ -219,8 +224,8 @@ function MarkdownImportScreen() {
 
       <ActionSheet
         open={projectSheetOpen}
-        title="导入到项目"
-        subtitle={`作为「${title}」文档放在项目根目录`}
+        title={t("projectTitle")}
+        subtitle={t("projectSubtitle", { title: displayTitle })}
         items={projects.map(project => ({
           label: project.title,
           icon: <FolderOpen size={16} />,

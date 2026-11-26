@@ -1,3 +1,4 @@
+import { desktopLocaleSource } from "@/app/i18n/runtime";
 import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -208,6 +209,23 @@ describe("ContentExportModal", () => {
       });
       await vi.waitFor(() => expect(image().textContent).toContain("卡片新内容"));
       await act(async () => button("保存图片").click());
+      const originalLocale = desktopLocaleSource.getSnapshot();
+      const previewElement = image().querySelector("[data-slate-editor]");
+      if (!previewElement) throw new Error("预览编辑器未挂载");
+      const previewText = image().textContent;
+      const preference = localStorage.getItem("content-export-image");
+      try {
+        for (const locale of ["zh-TW", "en-US"]) {
+          await act(async () => desktopLocaleSource.setLocale(locale));
+          expect(image().querySelector("[data-slate-editor]")).toBe(previewElement);
+          expect(image().textContent).toBe(previewText);
+          expect(localStorage.getItem("content-export-image")).toBe(preference);
+          expect(mocks.capture).toHaveBeenCalledTimes(1);
+          expect(mocks.download).toHaveBeenCalledTimes(1);
+        }
+      } finally {
+        await act(async () => desktopLocaleSource.setLocale(originalLocale));
+      }
 
       await act(async () => tree.insertText(paragraph, 5, "再次更新", {}));
       expect(image().textContent).toContain("卡片新内容再次更新");

@@ -1,3 +1,9 @@
+import {
+  useExportI18n,
+  getExportLocale,
+  exportErrorReason,
+  type ExportMessageKey,
+} from "./i18n-export";
 /**
  * 导出为 Markdown 压缩包（迁出）：范围（项目 / 文章 / 卡片 / 全部）→ 勾选 → 资源、互链写法、frontmatter。
  * 只做 Markdown；项目的 PDF / EPUB 仍走项目卡片 ⋯ 的「整体导出」。偏好按本机记忆。
@@ -11,7 +17,7 @@ import { Button, Dialog, Input, Loading, Radio, RadioGroup, Switch, cn, toast } 
 import { CheckTree } from "@/components/CheckTree";
 import {
   DEFAULT_EXPORT_SETTINGS,
-  SCOPE_LABEL,
+  SCOPE_FILE_NAME,
   exportMarkdownBundle,
   loadExportCatalog,
   type ExportScope,
@@ -49,6 +55,8 @@ export function MarkdownExportDialog({
   request: MarkdownExportRequest;
   onClose: () => void;
 }) {
+  const { t } = useExportI18n();
+  const number = (value: number) => value.toLocaleString(getExportLocale());
   const databaseName = useSettingStore(s => s.setting.database.active);
   const [scope, setScope] = useState<ExportScope>(request.scope ?? "project");
   const [stored, setStored] = useLocalStorageState<MarkdownExportSettings>(
@@ -61,7 +69,11 @@ export function MarkdownExportDialog({
   /** 每个范围各记一份勾选（未动过的范围默认全选） */
   const [checkedByScope, setCheckedByScope] = useState<Partial<Record<ExportScope, number[]>>>({});
   const [fileName, setFileName] = useState("");
-  const [progress, setProgress] = useState<{ percent: number; label?: string } | null>(null);
+  const [progress, setProgress] = useState<{
+    percent: number;
+    label?: string;
+    stage?: ExportMessageKey;
+  } | null>(null);
 
   const catalog = useQuery({
     queryKey: ["markdown-export", databaseName, scope],
@@ -70,6 +82,15 @@ export function MarkdownExportDialog({
     gcTime: 0,
   });
   const tree = useMemo(() => catalog.data?.tree ?? [], [catalog.data]);
+  const scopeNodes = catalog.data?.scopeNodes;
+  const displayTree = useMemo(
+    () =>
+      tree.map(node => {
+        const kind = scopeNodes?.get(node.id);
+        return kind ? { ...node, title: t(`scope.${kind}`) } : node;
+      }),
+    [tree, scopeNodes, t]
+  );
   const exportableIds = useMemo(() => collectExportableIds(tree), [tree]);
 
   const defaultChecked = useMemo(() => {
@@ -94,22 +115,22 @@ export function MarkdownExportDialog({
       const node = tree.find(item => catalog.data.projectNodes.get(item.id) === request.projectId);
       if (node) return `${node.title}-${today()}`;
     }
-    return `${SCOPE_LABEL[scope]}-${today()}`;
+    return `${SCOPE_FILE_NAME[scope]}-${today()}`;
   }, [scope, request.projectId, catalog.data, tree]);
 
   const exporting = progress !== null;
   const blockReason = catalog.isLoading
-    ? "正在读取内容…"
+    ? t("markdown.reading")
     : catalog.error
-      ? "读取内容失败"
+      ? t("markdown.readFailed")
       : exportableIds.length === 0
-        ? `没有可导出的${SCOPE_LABEL[scope]}`
+        ? t("markdown.empty", { scope: t(`scope.${scope}`) })
         : selectedCount === 0
-          ? "至少勾选一篇"
+          ? t("markdown.selectOne")
           : "";
 
   const run = async () => {
-    setProgress({ percent: 0, label: "正在打包…" });
+    setProgress({ percent: 0, stage: "progress.packing" });
     try {
       const result = await exportMarkdownBundle({
         tree,
@@ -120,32 +141,42 @@ export function MarkdownExportDialog({
           setProgress({ percent: Math.round((processed / Math.max(total, 1)) * 100), label }),
       });
       if (!result.filePath) {
-        toast.info("已取消导出");
+        toast.info(t("feedback.canceled"));
         return;
       }
       if (result.warnings.length > 0) {
         console.warn("Markdown 导出警告:", result.warnings);
         toast.warning(
-          `已导出 ${result.fileCount} 篇，${result.warnings.length} 个资源未能打包，保留了原地址`
+          t("feedback.markdownWarnings", {
+            documents: number(result.fileCount),
+            assets: number(result.warnings.length),
+          })
         );
       } else {
-        toast.success(`已导出 ${result.fileCount} 篇 · ${result.assetCount} 个资源`);
+        toast.success(
+          t("feedback.markdownSuccess", {
+            documents: number(result.fileCount),
+            assets: number(result.assetCount),
+          })
+        );
       }
       onClose();
     } catch (error) {
-      toast.error(`导出失败：${error instanceof Error ? error.message : String(error)}`);
+      toast.error(t("feedback.failed", { reason: exportErrorReason(error) }));
     } finally {
       setProgress(null);
     }
   };
 
   const impact = exporting
-    ? progress?.label || "正在导出…"
-    : blockReason || `将导出 ${selectedCount} 篇为 Markdown 压缩包`;
+    ? progress?.stage
+      ? t(progress.stage)
+      : progress?.label || t("progress.exporting")
+    : blockReason || t("markdown.impact", { count: selectedCount, amount: number(selectedCount) });
 
   return (
     <Dialog
-      title="导出为 Markdown"
+      title={t("markdown.title")}
       open
       onOpenChange={next => !next && onClose()}
       locked={exporting}
@@ -155,25 +186,25 @@ export function MarkdownExportDialog({
       footer={
         <>
           <Button variant="secondary" size="sm" onClick={onClose} disabled={exporting}>
-            取消
+            {t("common.cancel")}
           </Button>
           <Button
             variant="primary"
             size="sm"
             icon={Download}
             loading={exporting}
-            loadingText={`导出中 ${progress?.percent ?? 0}%`}
+            loadingText={t("progress.percent", { percent: number(progress?.percent ?? 0) })}
             disabled={!!blockReason}
             onClick={() => void run()}
           >
-            导出
+            {t("common.export")}
           </Button>
         </>
       }
     >
       <div className="mt-3.5 grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_300px]">
         <div className="border-line-1 flex min-h-0 flex-col border-r">
-          <div className="flex flex-wrap items-center gap-1.5 pb-2.5 pl-6 pr-5">
+          <div className="flex flex-wrap items-center gap-1.5 pr-5 pb-2.5 pl-6">
             {SCOPES.map(key => (
               <button
                 key={key}
@@ -188,11 +219,14 @@ export function MarkdownExportDialog({
                     : "border-line-1 text-ink-2 hover:bg-hover"
                 )}
               >
-                {SCOPE_LABEL[key]}
+                {t(`scope.${key}`)}
               </button>
             ))}
             <span className={cn(hintClass, "ml-auto tabular-nums")}>
-              {selectedCount} / {exportableIds.length} 篇
+              {t("selection.count", {
+                selected: number(selectedCount),
+                total: number(exportableIds.length),
+              })}
             </span>
             {exportableIds.length > 0 && (
               <button
@@ -205,23 +239,30 @@ export function MarkdownExportDialog({
                   }))
                 }
               >
-                {selectedCount === exportableIds.length ? "全不选" : "全选"}
+                {t(selectedCount === exportableIds.length ? "selection.none" : "selection.all")}
               </button>
             )}
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto pb-3 pl-4 pr-3">
+          <div className="min-h-0 flex-1 overflow-y-auto pr-3 pb-3 pl-4">
             {catalog.isLoading ? (
               <Loading />
             ) : catalog.error ? (
               <p role="alert" className="text-danger text-tau-meta py-6 text-center">
-                读取内容失败：{catalog.error instanceof Error ? catalog.error.message : "未知错误"}
+                {t("markdown.readFailedReason", {
+                  reason:
+                    catalog.error instanceof Error
+                      ? catalog.error.message
+                      : t("common.unknownError"),
+                })}
               </p>
             ) : exportableIds.length === 0 ? (
-              <p className={cn(hintClass, "py-16 text-center")}>没有可导出的{SCOPE_LABEL[scope]}</p>
+              <p className={cn(hintClass, "py-16 text-center")}>
+                {t("markdown.empty", { scope: t(`scope.${scope}`) })}
+              </p>
             ) : (
               <CheckTree
                 key={scope}
-                nodes={tree}
+                nodes={displayTree}
                 checkedKeys={checkedKeys}
                 onCheckedKeysChange={keys =>
                   setCheckedByScope(prev => ({ ...prev, [scope]: keys }))
@@ -229,26 +270,24 @@ export function MarkdownExportDialog({
                 isSelectable={node => node.exportable}
                 getTag={node =>
                   node.exportable && node.empty
-                    ? { label: "空白", hint: "没有正文，导出空文件或只作文件夹" }
+                    ? { label: t("selection.empty"), hint: t("selection.emptyMarkdownHint") }
                     : null
                 }
                 initiallyCollapsed={collapsedIds}
               />
             )}
           </div>
-          <p className="text-ink-3 text-tau-micro px-6 pb-3 pt-2">
-            包内目录即左侧结构：项目按文档树，文章与卡片按首个标签分文件夹
-          </p>
+          <p className="text-ink-3 text-tau-micro px-6 pt-2 pb-3">{t("selection.structureHint")}</p>
         </div>
 
-        <div className="flex min-h-0 flex-col gap-[18px] overflow-y-auto pb-5 pl-[22px] pr-6">
+        <div className="flex min-h-0 flex-col gap-[18px] overflow-y-auto pr-6 pb-5 pl-[22px]">
           <RadioGroup
-            label="本地资源"
+            label={t("assets.title")}
             value={settings.assets}
             onValueChange={value => update({ assets: value })}
           >
-            <Radio value="pack" label="打包进 assets/" description="正文改为相对路径，换机可用" />
-            <Radio value="keep" label="保留原地址" description="只导出文字，图片仍指向本机或图床" />
+            <Radio value="pack" label={t("assets.pack")} description={t("assets.packHint")} />
+            <Radio value="keep" label={t("assets.keep")} description={t("assets.keepHint")} />
           </RadioGroup>
           <div className="-mt-2.5 flex items-center gap-3">
             <div className="min-w-0 flex-1">
@@ -258,13 +297,13 @@ export function MarkdownExportDialog({
                   settings.assets === "pack" ? "text-ink-1" : "text-ink-3"
                 )}
               >
-                同时下载远程图片
+                {t("assets.remote")}
               </div>
-              <div className={hintClass}>图床地址也打包，导出更慢</div>
+              <div className={hintClass}>{t("assets.remoteHint")}</div>
             </div>
             <Switch
               size="sm"
-              aria-label="同时下载远程图片"
+              aria-label={t("assets.remote")}
               checked={settings.includeRemote && settings.assets === "pack"}
               disabled={settings.assets !== "pack"}
               onCheckedChange={includeRemote => update({ includeRemote })}
@@ -272,35 +311,35 @@ export function MarkdownExportDialog({
           </div>
 
           <RadioGroup
-            label="文档互链"
+            label={t("links.title")}
             value={settings.linkStyle}
             onValueChange={value => update({ linkStyle: value })}
           >
             <Radio
               value="relative"
-              label="相对 .md 链接"
-              description="通用，Typora / VS Code 可跳转"
+              label={t("links.relative")}
+              description={t("links.relativeHint")}
             />
-            <Radio value="wiki" label="[[文件名]]" description="Obsidian / Logseq 双链" />
-            <Radio value="text" label="纯文字" description="只保留标题" />
+            <Radio value="wiki" label={t("links.wiki")} description={t("links.wikiHint")} />
+            <Radio value="text" label={t("links.text")} description={t("links.textHint")} />
           </RadioGroup>
-          <p className={cn(hintClass, "-mt-2.5")}>指向本次未导出内容的链接只保留标题</p>
+          <p className={cn(hintClass, "-mt-2.5")}>{t("links.outsideHint")}</p>
 
           <div className="flex items-center gap-3">
             <div className="min-w-0 flex-1">
-              <div className="text-ink-1 text-tau-body">写入 frontmatter</div>
-              <div className={hintClass}>标题、标签、创建与更新时间</div>
+              <div className="text-ink-1 text-tau-body">{t("frontmatter.title")}</div>
+              <div className={hintClass}>{t("frontmatter.hint")}</div>
             </div>
             <Switch
               size="sm"
-              aria-label="写入 frontmatter"
+              aria-label={t("frontmatter.title")}
               checked={settings.frontmatter}
               onCheckedChange={frontmatter => update({ frontmatter })}
             />
           </div>
 
           <label className="flex flex-col gap-1.5">
-            <span className={labelClass}>文件名</span>
+            <span className={labelClass}>{t("common.fileName")}</span>
             <Input
               value={fileName}
               placeholder={defaultFileName}

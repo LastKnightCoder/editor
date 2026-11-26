@@ -1,0 +1,7 @@
+{
+  "CARD_CREATE_FAILED": "Could not create card. Please retry.",
+  "INCOMING_FILE_UNSUPPORTED": "Only Markdown files (.md) can be opened",
+  "INCOMING_FILE_TOO_LARGE": "This file is larger than 5 MB and cannot be opened",
+  "INCOMING_FILE_ENCODING": "This file is not UTF-8 encoded and cannot be opened",
+  "INCOMING_FILE_READ_FAILED": "Could not read file. Please open it again."
+}

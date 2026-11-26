@@ -1,3 +1,10 @@
+import {
+  useExportI18n,
+  getExportLocale,
+  exportTranslator,
+  exportErrorReason,
+  type ExportMessageKey,
+} from "@/features/transfer/i18n-export";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Button, Dialog, Input, Select, Switch, cn, toast } from "@tau/ui";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
@@ -88,7 +95,7 @@ const SettingRow = ({
       >
         {title}
         {formatTag && (
-          <span className="font-tau-mono text-ink-2 border-line-1 rounded-[4px] border px-[5px] text-[10px] font-semibold leading-[1.5] tracking-[0.04em]">
+          <span className="font-tau-mono text-ink-2 border-line-1 rounded-[4px] border px-[5px] text-[10px] leading-[1.5] font-semibold tracking-[0.04em]">
             {formatTag}
           </span>
         )}
@@ -108,6 +115,8 @@ const SettingRow = ({
 );
 
 const BatchExportModal = (props: BatchExportModalProps) => {
+  const { t } = useExportI18n();
+  const number = (value: number) => value.toLocaleString(getExportLocale());
   const { open, onClose, scope } = props;
   const dbName = useSettingStore(state => state.setting.database.active);
 
@@ -126,6 +135,7 @@ const BatchExportModal = (props: BatchExportModalProps) => {
   const [exportProgress, setExportProgress] = useState<{
     percent: number;
     label?: string;
+    stage?: ExportMessageKey;
   } | null>(null);
   const [tree, setTree] = useState<BatchExportTreeNode[]>([]);
   const [checkedKeys, setCheckedKeys] = useState<number[]>([]);
@@ -166,7 +176,7 @@ const BatchExportModal = (props: BatchExportModalProps) => {
           return;
         }
         const msg = error instanceof Error ? error.message : String(error);
-        toast.error(`加载内容失败：${msg}`);
+        toast.error(exportTranslator.t("feedback.loadFailed", { reason: msg }));
         setLoading(false);
       });
 
@@ -190,34 +200,43 @@ const BatchExportModal = (props: BatchExportModalProps) => {
   const needsBookMeta = formats.pdf || formats.epub;
   const hasRule = !rulesApplicable || rule.pageBreak || rule.asHeading;
   const blockReason = loading
-    ? "正在加载内容..."
+    ? t("batch.loading")
     : exportableIds.length === 0
-      ? "这个项目里没有文档"
+      ? t("batch.noDocuments")
       : selectedCount === 0
-        ? "至少勾选一篇内容"
+        ? t("batch.selectOne")
         : selectedFormats.length === 0
-          ? "至少选择一种格式"
+          ? t("batch.selectFormat")
           : !hasRule
-            ? "至少开启一项排版规则"
+            ? t("batch.selectRule")
             : normalizeText(bookTitle).length === 0
-              ? `请填写${needsBookMeta ? "书名" : "文件名"}`
+              ? t(needsBookMeta ? "batch.bookTitleRequired" : "batch.fileNameRequired")
               : "";
   const canExport = !blockReason;
   const impact = exporting
-    ? exportProgress?.label || "正在导出..."
+    ? exportProgress?.stage
+      ? t(exportProgress.stage)
+      : exportProgress?.label || t("progress.exporting")
     : blockReason ||
-      `将导出 ${selectedCount} 篇 → ${selectedFormats.map(option => option.label).join("、")}`;
+      t("batch.impact", {
+        count: selectedCount,
+        amount: number(selectedCount),
+        formats: new Intl.ListFormat(getExportLocale(), {
+          style: "short",
+          type: "conjunction",
+        }).format(selectedFormats.map(option => option.label)),
+      });
 
   const handleConfirm = useMemoizedFn(async () => {
     const title = normalizeText(bookTitle);
     if (!title) {
-      toast.error("书名不能为空");
+      toast.error(t("batch.bookTitleEmpty"));
       return;
     }
 
     const chapters = flattenSelectedChapters(tree, new Set(checkedKeys));
     if (chapters.filter(chapter => !chapter.isGroup).length === 0) {
-      toast.error("请至少选择一篇要导出的内容");
+      toast.error(t("batch.chooseContent"));
       return;
     }
 
@@ -235,12 +254,12 @@ const BatchExportModal = (props: BatchExportModalProps) => {
       const zipUnits = formats.markdownZip ? contentCount + 1 : 0;
       const totalUnits = epubUnits + pdfUnits + markdownUnits + zipUnits;
       let finishedUnits = 0;
-      const report = (processed: number, label?: string) => {
+      const report = (processed: number, label?: string, stage?: ExportMessageKey) => {
         if (totalUnits <= 0) {
           return;
         }
         const percent = Math.min(99, Math.round(((finishedUnits + processed) / totalUnits) * 100));
-        setExportProgress({ percent, label });
+        setExportProgress({ percent, label, stage });
       };
 
       if (formats.epub) {
@@ -256,7 +275,7 @@ const BatchExportModal = (props: BatchExportModalProps) => {
           rule,
           onProgress: (processed, _total, label) => report(processed, label),
         });
-        report(epubUnits - 1, "正在生成 EPUB 文件...");
+        report(epubUnits - 1, undefined, "progress.generateEpub");
         const result = await exportEpubWithDialog(payload);
         finishedUnits += epubUnits;
         warnings.push(...epubWarnings, ...(result.warnings || []));
@@ -276,7 +295,7 @@ const BatchExportModal = (props: BatchExportModalProps) => {
           pdf: pdfSettings,
           onProgress: (processed, _total, label) => report(processed, label),
         });
-        report(pdfUnits - 1, "正在生成 PDF 文件...");
+        report(pdfUnits - 1, undefined, "progress.generatePdf");
         const result = await exportPdfWithDialog(payload);
         finishedUnits += pdfUnits;
         warnings.push(...(result.warnings || []));
@@ -288,10 +307,10 @@ const BatchExportModal = (props: BatchExportModalProps) => {
       }
 
       if (formats.markdown && !canceled) {
-        report(0, "正在打包资源...");
+        report(0, undefined, "progress.packAssets");
         const merged = await localizeChaptersForMerge(chapters);
         warnings.push(...merged.warnings);
-        report(0, "正在生成 Markdown...");
+        report(0, undefined, "progress.generateMarkdown");
         // 有本机资源时与 assets/ 一起存为 .zip
         const result = await saveMarkdownOutput({
           baseName: sanitizeFileName(title, "未命名"),
@@ -307,14 +326,14 @@ const BatchExportModal = (props: BatchExportModalProps) => {
       }
 
       if (formats.markdownZip && !canceled) {
-        report(0, "正在打包资源...");
+        report(0, undefined, "progress.packAssets");
         const zip = await buildMarkdownZipBytes(
           tree,
           new Set(checkedKeys),
           (processed, _total, label) => report(processed, label)
         );
         warnings.push(...zip.warnings);
-        report(zipUnits - 1, "正在保存 ZIP 文件...");
+        report(zipUnits - 1, undefined, "progress.saveZip");
         const result = await saveFileWithDialog({
           defaultFileName: `${sanitizeFileName(title, "未命名")}.zip`,
           filters: [{ name: "ZIP", extensions: ["zip"] }],
@@ -342,10 +361,17 @@ const BatchExportModal = (props: BatchExportModalProps) => {
       });
 
       if (canceled) {
-        toast.info("已取消导出");
+        toast.info(t("feedback.canceled"));
       } else {
         toast.success(
-          savedPaths.length > 0 ? `导出成功，已保存：${savedPaths.join("、")}` : "导出成功"
+          savedPaths.length > 0
+            ? t("feedback.saved", {
+                paths: new Intl.ListFormat(getExportLocale(), {
+                  style: "long",
+                  type: "conjunction",
+                }).format(savedPaths),
+              })
+            : t("feedback.success")
         );
         if (savedPaths[0]) {
           try {
@@ -355,14 +381,15 @@ const BatchExportModal = (props: BatchExportModalProps) => {
           }
         }
         if (warnings.length > 0) {
-          toast.warning(`导出完成，但有 ${warnings.length} 条警告`);
+          toast.warning(
+            t("feedback.warnings", { count: warnings.length, amount: number(warnings.length) })
+          );
           console.warn("整体导出警告:", warnings);
         }
       }
       onClose();
     } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      toast.error(`导出失败：${msg}`);
+      toast.error(t("feedback.failed", { reason: exportErrorReason(error) }));
     } finally {
       setExporting(false);
       setExportProgress(null);
@@ -376,8 +403,8 @@ const BatchExportModal = (props: BatchExportModalProps) => {
 
   return (
     <Dialog
-      title="整体导出"
-      context={scope.title || "未命名"}
+      title={t("batch.title")}
+      context={scope.title || t("common.untitled")}
       open={open}
       onOpenChange={next => !next && onClose()}
       locked={exporting}
@@ -387,28 +414,36 @@ const BatchExportModal = (props: BatchExportModalProps) => {
       footer={
         <>
           <Button variant="secondary" size="sm" onClick={onClose} disabled={exporting}>
-            取消
+            {t("common.cancel")}
           </Button>
           <Button
             variant="primary"
             size="sm"
             icon={Download}
             loading={exporting}
-            loadingText={`导出中 ${exportProgress?.percent ?? 0}%`}
+            loadingText={t("progress.percent", { percent: number(exportProgress?.percent ?? 0) })}
             disabled={!canExport}
             onClick={handleConfirm}
           >
-            {selectedFormats.length > 1 ? `导出 ${selectedFormats.length} 个文件` : "导出"}
+            {selectedFormats.length > 1
+              ? t("batch.exportFiles", {
+                  count: selectedFormats.length,
+                  amount: number(selectedFormats.length),
+                })
+              : t("common.export")}
           </Button>
         </>
       }
     >
       <div className="mt-3.5 grid min-h-0 flex-1 grid-cols-[300px_minmax(0,1fr)]">
         <div className="border-line-1 flex min-h-0 flex-col border-r">
-          <div className="flex items-center gap-2 pb-2 pl-6 pr-5">
-            <span className={labelClass}>导出内容</span>
+          <div className="flex items-center gap-2 pr-5 pb-2 pl-6">
+            <span className={labelClass}>{t("batch.content")}</span>
             <span className={cn(hintClass, "tabular-nums")}>
-              {selectedCount} / {exportableIds.length} 篇
+              {t("selection.count", {
+                selected: number(selectedCount),
+                total: number(exportableIds.length),
+              })}
             </span>
             {exportableIds.length > 0 && (
               <button
@@ -418,13 +453,13 @@ const BatchExportModal = (props: BatchExportModalProps) => {
                   setCheckedKeys(selectedCount === exportableIds.length ? [] : exportableIds)
                 }
               >
-                {selectedCount === exportableIds.length ? "全不选" : "全选"}
+                {t(selectedCount === exportableIds.length ? "selection.none" : "selection.all")}
               </button>
             )}
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto pb-2 pl-4 pr-3">
+          <div className="min-h-0 flex-1 overflow-y-auto pr-3 pb-2 pl-4">
             {loading ? (
-              <div className={cn(hintClass, "py-6 text-center")}>正在加载内容...</div>
+              <div className={cn(hintClass, "py-6 text-center")}>{t("batch.loading")}</div>
             ) : exportableIds.length > 0 ? (
               <ExportCheckTree
                 nodes={tree}
@@ -434,22 +469,22 @@ const BatchExportModal = (props: BatchExportModalProps) => {
             ) : tree.length > 0 ? (
               <ExportTreeEmpty />
             ) : (
-              <div className={cn(hintClass, "py-6 text-center")}>项目里还没有条目</div>
+              <div className={cn(hintClass, "py-6 text-center")}>{t("batch.noItems")}</div>
             )}
           </div>
           {exportableIds.length > 0 && (
-            <p className="text-ink-3 text-tau-micro flex gap-1.5 px-6 pb-3 pt-2.5">
+            <p className="text-ink-3 text-tau-micro flex gap-1.5 px-6 pt-2.5 pb-3">
               <Info className="mt-[3px] size-3 shrink-0" />
-              取消勾选的条目会在导出后记住，下次打开自动排除
+              {t("selection.rememberHint")}
             </p>
           )}
         </div>
 
-        <div className="flex min-h-0 flex-col gap-[18px] overflow-y-auto pb-5 pl-[22px] pr-6">
+        <div className="flex min-h-0 flex-col gap-[18px] overflow-y-auto pr-6 pb-5 pl-[22px]">
           <section className="flex flex-col gap-2">
             <div className="flex items-baseline gap-2">
-              <span className={labelClass}>格式</span>
-              <span className={hintClass}>可多选，每种生成一个文件</span>
+              <span className={labelClass}>{t("format.title")}</span>
+              <span className={hintClass}>{t("format.hint")}</span>
             </div>
             <FormatPicker
               formats={formats}
@@ -458,18 +493,18 @@ const BatchExportModal = (props: BatchExportModalProps) => {
           </section>
 
           <section className="flex flex-col gap-2">
-            <span className={labelClass}>排版</span>
+            <span className={labelClass}>{t("layout.title")}</span>
             <div className="border-line-1 divide-line-1 rounded-tau-md divide-y border">
               <SettingRow
-                title="每篇文档另起一页"
-                description="EPUB 中每篇天然是一章"
+                title={t("layout.pageBreak")}
+                description={t("layout.pageBreakHint")}
                 checked={rule.pageBreak}
                 disabled={!rulesApplicable}
                 onCheckedChange={pageBreak => setRule(prev => ({ ...prev, pageBreak }))}
               />
               <SettingRow
-                title="把文档标题写进正文"
-                description="顶层文档用所选级别，子文档逐级下沉"
+                title={t("layout.asHeading")}
+                description={t("layout.asHeadingHint")}
                 checked={rule.asHeading}
                 disabled={!rulesApplicable}
                 onCheckedChange={asHeading => setRule(prev => ({ ...prev, asHeading }))}
@@ -477,7 +512,7 @@ const BatchExportModal = (props: BatchExportModalProps) => {
                   <Select
                     size="sm"
                     className="w-[72px]"
-                    aria-label="标题级别"
+                    aria-label={t("layout.headingLevel")}
                     value={rule.headingLevel}
                     disabled={!rulesApplicable || !rule.asHeading}
                     onValueChange={value =>
@@ -497,20 +532,16 @@ const BatchExportModal = (props: BatchExportModalProps) => {
               {formats.pdf && (
                 <>
                   <SettingRow
-                    title="书签导航"
+                    title={t("layout.outline")}
                     formatTag="PDF"
-                    description="阅读器侧边栏按标题层级展开"
+                    description={t("layout.outlineHint")}
                     checked={pdfSettings.outline}
                     onCheckedChange={outline => setPdfSettings(prev => ({ ...prev, outline }))}
                   />
                   <SettingRow
-                    title="目录页"
+                    title={t("layout.toc")}
                     formatTag="PDF"
-                    description={
-                      rule.asHeading
-                        ? "正文前单独一页，条目可点击跳转"
-                        : "需先开启「把文档标题写进正文」"
-                    }
+                    description={t(rule.asHeading ? "layout.tocHint" : "layout.tocRequiresHeading")}
                     checked={pdfSettings.tocPage}
                     disabled={!rule.asHeading}
                     onCheckedChange={tocPage => setPdfSettings(prev => ({ ...prev, tocPage }))}
@@ -521,28 +552,33 @@ const BatchExportModal = (props: BatchExportModalProps) => {
             {!rulesApplicable && (
               <span className={cn(hintClass, "flex items-center gap-1.5")}>
                 <Info className="size-3 shrink-0" />
-                Markdown 包按目录逐篇保存，以上规则不适用
+                {t("layout.zipHint")}
               </span>
             )}
           </section>
 
           <div className={cn("grid gap-3", metaColumns)}>
             <label className="flex min-w-0 flex-col gap-1.5">
-              <span className={labelClass}>{needsBookMeta ? "书名" : "文件名"}</span>
+              <span className={labelClass}>
+                {t(needsBookMeta ? "common.bookTitle" : "common.fileName")}
+              </span>
               <Input
                 value={bookTitle}
-                placeholder="必填"
+                placeholder={t("common.required")}
                 onChange={event => setBookTitle(event.target.value)}
               />
             </label>
             {needsBookMeta && (
               <label className="flex min-w-0 flex-col gap-1.5">
                 <span className={labelClass}>
-                  作者 <span className="text-ink-3 font-normal tracking-normal">可选</span>
+                  {t("meta.author")}{" "}
+                  <span className="text-ink-3 font-normal tracking-normal">
+                    {t("common.optional")}
+                  </span>
                 </span>
                 <Input
                   value={author}
-                  placeholder="写入书籍元数据"
+                  placeholder={t("meta.authorHint")}
                   onChange={event => setAuthor(event.target.value)}
                 />
               </label>
@@ -550,7 +586,8 @@ const BatchExportModal = (props: BatchExportModalProps) => {
             {formats.epub && (
               <label className="flex min-w-0 flex-col gap-1.5">
                 <span className={labelClass}>
-                  语言 <span className="text-ink-3 font-normal tracking-normal">EPUB</span>
+                  {t("meta.language")}{" "}
+                  <span className="text-ink-3 font-normal tracking-normal">EPUB</span>
                 </span>
                 <Input
                   value={language}

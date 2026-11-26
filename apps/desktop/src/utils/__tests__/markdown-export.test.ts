@@ -1,3 +1,4 @@
+import { desktopLocaleSource } from "@/app/i18n/runtime";
 import { Blob as NodeBlob } from "node:buffer";
 import { TextWriter, Uint8ArrayReader, ZipReader, configure as configureZip } from "@zip.js/zip.js";
 import type { Descendant } from "slate";
@@ -161,6 +162,20 @@ describe("Markdown 包", () => {
     // keep：不读资源，地址原样
     expect(files["卡片/摘记.md"]).toContain("![](~/a.png)");
     expect(mocks.readBinaryFile).not.toHaveBeenCalled();
+    const locale = desktopLocaleSource.getSnapshot();
+    try {
+      for (const next of ["zh-TW", "en-US"]) {
+        desktopLocaleSource.setLocale(next);
+        const result = await buildMarkdownZipBytes(tree, new Set([2, 4]), undefined, {
+          linkStyle: "wiki",
+          frontmatter: true,
+          assets: "keep",
+        });
+        expect(await unzip(result.bytes)).toEqual(files);
+      }
+    } finally {
+      desktopLocaleSource.setLocale(locale);
+    }
   });
 
   it("远程图片：传 fetchRemote 才打包", async () => {
@@ -241,6 +256,17 @@ describe("导出范围", () => {
       });
     walk(all.tree);
     expect(new Set(ids).size).toBe(ids.length);
+    const locale = desktopLocaleSource.getSnapshot();
+    try {
+      for (const next of ["zh-TW", "en-US"]) {
+        desktopLocaleSource.setLocale(next);
+        const catalog = await loadExportCatalog("all", "db");
+        expect(shape(catalog.tree)).toEqual(shape(all.tree));
+        expect(catalog.scopeNodes).toEqual(all.scopeNodes);
+      }
+    } finally {
+      desktopLocaleSource.setLocale(locale);
+    }
 
     let next = 1;
     expect(groupByFirstTag(() => next++, [])).toEqual([]);

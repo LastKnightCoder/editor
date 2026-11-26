@@ -1,3 +1,4 @@
+import { useContentTransferI18n } from "@/services/content-transfer.i18n";
 import { exportContentAsWord } from "@/services/content-transfer";
 /**
  * Markdown 文件窗口（路由 /markdown-window?filePath= | rootPath=）：编辑磁盘上的文件 / 文件夹。
@@ -104,6 +105,7 @@ export default function MarkdownWindowPage() {
   }, []);
   const [status, setStatus] = useState<FileViewStatus>({ dirty: false });
   const [creating, setCreating] = useState<"file" | "folder" | null>(null);
+  const { t: transferT } = useContentTransferI18n();
   const [exporting, setExporting] = useState<ExportState>(null);
   const treeApiRef = useRef<{ reveal(path: string): void } | null>(null);
 
@@ -330,16 +332,19 @@ export default function MarkdownWindowPage() {
       {isMarkdown && (
         <>
           <Menu.Separator />
-          <Menu.Submenu label="复制" icon={<Copy className={MENU_ICON} strokeWidth={1.75} />}>
+          <Menu.Submenu
+            label={transferT("menu.copy")}
+            icon={<Copy className={MENU_ICON} strokeWidth={1.75} />}
+          >
             <Menu.Item
               icon={<ClipboardCopy className={MENU_ICON} strokeWidth={1.75} />}
               onSelect={() =>
                 void navigator.clipboard
                   .writeText(viewRef.current?.getMarkdown?.() ?? "")
-                  .then(() => toast.success("已复制 Markdown"))
+                  .then(() => toast.success(transferT("copyMarkdown.done")))
               }
             >
-              复制 Markdown
+              {transferT("menu.copyMarkdown")}
             </Menu.Item>
             <Menu.Item
               icon={<MessageSquare className={MENU_ICON} strokeWidth={1.75} />}
@@ -347,21 +352,24 @@ export default function MarkdownWindowPage() {
                 void copyWechatHtmlToClipboard(viewRef.current?.getContent?.() ?? [], toastAdapter)
               }
             >
-              复制公众号格式
+              {transferT("menu.copyWechat")}
             </Menu.Item>
           </Menu.Submenu>
-          <Menu.Submenu label="导出" icon={<Download className={MENU_ICON} strokeWidth={1.75} />}>
+          <Menu.Submenu
+            label={transferT("menu.export")}
+            icon={<Download className={MENU_ICON} strokeWidth={1.75} />}
+          >
             <Menu.Item
               icon={<FileText className={MENU_ICON} strokeWidth={1.75} />}
               onSelect={() => downloadMarkdown(viewRef.current?.getMarkdown?.() ?? "", fileTitle)}
             >
-              Markdown 文件
+              {transferT("menu.markdown")}
             </Menu.Item>
             <Menu.Item
               icon={<ImageIcon className={MENU_ICON} strokeWidth={1.75} />}
               onSelect={() => viewRef.current?.openImageExport?.(fileTitle || "未命名文档")}
             >
-              图片
+              {transferT("menu.image")}
             </Menu.Item>
             <Menu.Item
               icon={<BookOpen className={MENU_ICON} strokeWidth={1.75} />}
@@ -373,7 +381,7 @@ export default function MarkdownWindowPage() {
               icon={<BookOpen className={MENU_ICON} strokeWidth={1.75} />}
               onSelect={() => startExport("word")}
             >
-              Word 文档（.docx）
+              {transferT("menu.word")}
             </Menu.Item>
             <Menu.Item
               icon={<FileType className={MENU_ICON} strokeWidth={1.75} />}

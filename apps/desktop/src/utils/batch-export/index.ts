@@ -73,6 +73,13 @@ export interface MarkdownBundleOptions {
   frontmatter?: boolean;
 }
 
+export class MissingExportContentError extends Error {
+  readonly code = "EXPORT_CONTENT_MISSING";
+  constructor() {
+    super("待导出正文已删除");
+  }
+}
+
 const UNTITLED_FILE_NAME = "未命名文档";
 
 const convertProjectNode = (node: ProjectTreeNode, depth: number): BatchExportTreeNode => {
@@ -440,7 +447,7 @@ export const localizeChaptersForMerge = async (
   const snapshots: BatchExportChapter[] = [];
   for (const chapter of chapters) {
     const document = chapter.contentId ? await getContentById(chapter.contentId) : null;
-    if (chapter.contentId && !document) throw new Error("待导出正文已删除");
+    if (chapter.contentId && !document) throw new MissingExportContentError();
     snapshots.push(
       document ? { ...chapter, content: document.content, contracts: document.contracts } : chapter
     );
@@ -557,7 +564,7 @@ export const buildMarkdownZipBytes = async (
   for (const file of files) {
     if (file.node.empty) continue;
     const document = file.node.contentId ? await getContentById(file.node.contentId) : null;
-    if (file.node.contentId && !document) throw new Error("待导出正文已删除");
+    if (file.node.contentId && !document) throw new MissingExportContentError();
     contents.set(
       file.node.id,
       document?.content ??

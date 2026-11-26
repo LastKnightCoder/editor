@@ -244,7 +244,7 @@ export function CardsView() {
           count: getContentLength(content),
           isTop: false,
         }),
-      { unit: "张卡片" }
+      { target: "card" }
     );
   };
 

@@ -1,3 +1,4 @@
+import { useImportI18n } from "./i18n-import";
 /**
  * 批量导入向导（文件夹 / 压缩包 → 项目 / 文章 / 卡片）：
  * 来源与去向 → 预览（只读扫描：勾选范围、缺失资源、未解析链接）→ 执行 → 报告（可整批撤销）。
@@ -25,19 +26,16 @@ import {
 } from "@/utils/content-transfer/batch-import";
 import { DIALECTS, type DialectKey } from "@/utils/content-transfer/dialects";
 
-const TARGETS: Array<{ key: ImportTarget; label: string; hint: string; icon: LucideIcon }> = [
-  { key: "project", label: "项目", hint: "保持目录树，文件夹成为分组文档", icon: FolderKanban },
-  { key: "article", label: "文章", hint: "平铺，顶层文件夹名作为标签", icon: FileText },
-  { key: "card", label: "卡片", hint: "每个文件一张，文件夹路径作为层级标签", icon: Layers },
+const TARGETS: Array<{ key: ImportTarget; icon: LucideIcon }> = [
+  { key: "project", icon: FolderKanban },
+  { key: "article", icon: FileText },
+  { key: "card", icon: Layers },
 ];
-
-const TARGET_UNIT: Record<ImportTarget, string> = { project: "篇", article: "篇", card: "张" };
-
-const PHASES: Array<{ key: ImportPhase; label: string }> = [
-  { key: "assets", label: "上传资源" },
-  { key: "docs", label: "创建文档" },
-  { key: "links", label: "回填内部链接" },
-  { key: "tables", label: "导入表格" },
+const PHASES: Array<{ key: ImportPhase }> = [
+  { key: "assets" },
+  { key: "docs" },
+  { key: "links" },
+  { key: "tables" },
 ];
 
 const DIALECT_ORDER: DialectKey[] = ["generic", "obsidian", "notion", "logseq"];
@@ -58,21 +56,33 @@ const toTreeItems = (nodes: PlanNode[]): TreeItem[] =>
     children: toTreeItems(node.children),
   }));
 
-const issueTag = (item: TreeItem): CheckTreeTag | null => {
+const issueTag = (
+  item: TreeItem,
+  t: ReturnType<typeof useImportI18n>["t"],
+  locale: string
+): CheckTreeTag | null => {
   const doc = item.doc;
   if (!doc) return null;
   if (doc.missingAssets.length > 0) {
     return {
-      label: `${doc.missingAssets.length} 个资源缺失`,
+      label: t("issue.missing", {
+        count: doc.missingAssets.length,
+        amount: doc.missingAssets.length.toLocaleString(locale),
+      }),
       tone: "warn",
-      hint: `找不到：${doc.missingAssets.join("、")}`,
+      hint: t("issue.missingHint", {
+        paths: new Intl.ListFormat(locale).format(doc.missingAssets),
+      }),
     };
   }
   if (doc.unresolvedLinks.length > 0) {
     return {
-      label: `${doc.unresolvedLinks.length} 个链接未解析`,
+      label: t("issue.unresolved", {
+        count: doc.unresolvedLinks.length,
+        amount: doc.unresolvedLinks.length.toLocaleString(locale),
+      }),
       tone: "warn",
-      hint: `保留为普通链接：${doc.unresolvedLinks.join("、")}`,
+      hint: t("issue.linkHint", { paths: new Intl.ListFormat(locale).format(doc.unresolvedLinks) }),
     };
   }
   return null;
@@ -130,15 +140,19 @@ export function ImportWizard({
   request: ImportWizardRequest;
   onClose: () => void;
 }) {
+  const { t, locale } = useImportI18n();
+  const number = (value: number) => value.toLocaleString(locale);
+  const countText = (key: Parameters<typeof t>[0], count: number) =>
+    t(key, { count, amount: number(count) });
   const { navigator } = usePage();
   const storage = useSettingStore(s =>
-    s.setting.imageBed.active === "local" ? "本地" : "上传插件"
+    s.setting.imageBed.active === "local" ? "local" : "plugin"
   );
   const [step, setStep] = useState<Step>("source");
   const [target, setTarget] = useState<ImportTarget | undefined>(request.target);
   const [plan, setPlan] = useState<ImportPlan | null>(null);
   const [scanning, setScanning] = useState<{ done: number; total: number } | null>(null);
-  const [scanError, setScanError] = useState<string>();
+  const [scanError, setScanError] = useState<string | { kind: "empty" }>();
   const [projectTitle, setProjectTitle] = useState("");
   const [checkedKeys, setCheckedKeys] = useState<number[]>([]);
   const [useSourceTags, setUseSourceTags] = useState(true);
@@ -195,7 +209,7 @@ export function ImportWizard({
       setPlan(next);
       setProjectTitle(next.source.name);
       setCheckedKeys(next.docs.map(doc => doc.key));
-      if (next.docs.length === 0) setScanError("没有找到 Markdown 文件");
+      if (next.docs.length === 0) setScanError({ kind: "empty" });
     } catch (error) {
       if (scanId === scanIdRef.current)
         setScanError(error instanceof Error ? error.message : String(error));
@@ -229,7 +243,6 @@ export function ImportWizard({
   const treeItems = useMemo(() => (plan ? toTreeItems(plan.tree) : []), [plan]);
   const selected = useMemo(() => new Set(checkedKeys), [checkedKeys]);
   const summary = useMemo(() => (plan ? summarizePlan(plan, selected) : null), [plan, selected]);
-  const unit = target ? TARGET_UNIT[target] : "篇";
 
   const run = async () => {
     if (!plan || !target) return;
@@ -288,10 +301,10 @@ export function ImportWizard({
     if (!record) return;
     try {
       await undoImport(record);
-      toast.success("已撤销本次导入");
+      toast.success(t("undo.done"));
       onClose();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "撤销失败");
+      toast.error(error instanceof Error ? error.message : t("undo.failed"));
     }
   };
 
@@ -300,7 +313,7 @@ export function ImportWizard({
   const sourceStep = (
     <div className="flex flex-col gap-5 px-6 pt-3.5 pb-5">
       <section className="flex flex-col gap-2">
-        <span className={labelClass}>来源</span>
+        <span className={labelClass}>{t("source.label")}</span>
         <div className="border-line-1 rounded-tau-md flex items-center gap-3 border border-dashed px-3.5 py-3">
           <FolderOpen className="text-ink-3 size-4 shrink-0" strokeWidth={1.75} />
           <div className="min-w-0 flex-1">
@@ -310,19 +323,27 @@ export function ImportWizard({
                   {plan.source.rootPath}
                 </div>
                 <div className={hintClass}>
-                  {plan.docs.length} 个 Markdown · {plan.assets.size} 个被引用的资源
-                  {plan.tables.length > 0 && ` · ${plan.tables.length} 个 CSV 表格`}
-                  {plan.otherFileCount > 0 && ` · ${plan.otherFileCount} 个其它文件不导入`}
+                  {[
+                    countText("source.docs", plan.docs.length),
+                    countText("source.assets", plan.assets.size),
+                    plan.tables.length > 0 ? countText("source.tables", plan.tables.length) : null,
+                    plan.otherFileCount > 0 ? countText("source.other", plan.otherFileCount) : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
                 </div>
               </>
             ) : scanning ? (
               <div className="text-ink-2 text-tau-body">
-                正在扫描{scanning.total > 0 && ` ${scanning.done} / ${scanning.total}`}…
+                {scanning.total > 0
+                  ? t("scan.progress", {
+                      done: number(scanning.done),
+                      total: number(scanning.total),
+                    })
+                  : t("scan.busy")}
               </div>
             ) : (
-              <div className={hintClass}>
-                选择一个 Markdown 文件夹或压缩包，图片与文档之间的链接会一并处理
-              </div>
+              <div className={hintClass}>{t("source.hint")}</div>
             )}
           </div>
           <Button
@@ -331,7 +352,7 @@ export function ImportWizard({
             disabled={!!scanning}
             onClick={() => void pick("folder")}
           >
-            选择文件夹
+            {t("source.folder")}
           </Button>
           <Button
             variant="secondary"
@@ -340,7 +361,7 @@ export function ImportWizard({
             disabled={!!scanning}
             onClick={() => void pick("zip")}
           >
-            压缩包
+            {t("source.zip")}
           </Button>
         </div>
         {scanError && (
@@ -348,7 +369,7 @@ export function ImportWizard({
             role="alert"
             className="bg-danger-soft text-danger text-tau-meta rounded-tau-sm px-3 py-2"
           >
-            {scanError}
+            {typeof scanError === "string" ? scanError : t("scan.empty")}
           </p>
         )}
       </section>
@@ -356,9 +377,9 @@ export function ImportWizard({
       {plan && (
         <section className="flex flex-col gap-2">
           <div className="flex items-baseline gap-2">
-            <span className={labelClass}>来源格式</span>
+            <span className={labelClass}>{t("source.format")}</span>
             <span className={hintClass}>
-              {dialectOverride ? "已手动指定" : "已自动识别"}，换一种会重新扫描
+              {t(dialectOverride ? "source.manual" : "source.detected")}
             </span>
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -376,7 +397,7 @@ export function ImportWizard({
                     : "border-line-1 text-ink-2 hover:bg-hover"
                 )}
               >
-                {DIALECTS[key].label}
+                {key === "generic" ? t("source.generic") : DIALECTS[key].label}
               </button>
             ))}
           </div>
@@ -384,7 +405,7 @@ export function ImportWizard({
       )}
 
       <section className="flex flex-col gap-2">
-        <span className={labelClass}>导入为</span>
+        <span className={labelClass}>{t("source.as")}</span>
         <div className="grid grid-cols-3 gap-2">
           {TARGETS.map(option => {
             const active = target === option.key;
@@ -404,9 +425,9 @@ export function ImportWizard({
               >
                 <span className="text-ink-1 text-tau-body flex items-center gap-1.5 font-semibold">
                   <option.icon className="size-[15px]" strokeWidth={1.75} />
-                  {option.label}
+                  {t(`target.${option.key}`)}
                 </span>
-                <span className={hintClass}>{option.hint}</span>
+                <span className={hintClass}>{t(`targetHint.${option.key}`)}</span>
               </button>
             );
           })}
@@ -415,10 +436,10 @@ export function ImportWizard({
 
       {target === "project" && (
         <label className="flex flex-col gap-1.5">
-          <span className={labelClass}>项目名称</span>
+          <span className={labelClass}>{t("source.projectName")}</span>
           <Input
             value={projectTitle}
-            placeholder="必填"
+            placeholder={t("source.required")}
             onChange={event => setProjectTitle(event.target.value)}
           />
         </label>
@@ -430,9 +451,9 @@ export function ImportWizard({
     <div className="mt-3.5 grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_270px]">
       <div className="border-line-1 flex min-h-0 flex-col border-r">
         <div className="flex items-center gap-2 pr-5 pb-2 pl-6">
-          <span className={labelClass}>导入内容</span>
+          <span className={labelClass}>{t("preview.content")}</span>
           <span className={cn(hintClass, "tabular-nums")}>
-            {summary.docCount} / {plan.docs.length}
+            {number(summary.docCount)} / {number(plan.docs.length)}
           </span>
           <button
             type="button"
@@ -443,7 +464,7 @@ export function ImportWizard({
               )
             }
           >
-            {summary.docCount === plan.docs.length ? "全不选" : "全选"}
+            {t(summary.docCount === plan.docs.length ? "preview.none" : "preview.all")}
           </button>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto pr-3 pb-3 pl-4">
@@ -453,35 +474,46 @@ export function ImportWizard({
             checkedKeys={checkedKeys}
             onCheckedKeysChange={setCheckedKeys}
             isSelectable={item => !!item.doc}
-            getTag={issueTag}
+            getTag={item => issueTag(item, t, locale)}
           />
         </div>
       </div>
       <div className="flex min-h-0 flex-col gap-2 overflow-y-auto pr-6 pb-5 pl-5">
-        <Stat label="将导入" value={`${summary.docCount} ${unit}`}>
-          {target === "project" ? `到新项目「${projectTitle.trim() || plan.source.name}」` : null}
+        <Stat
+          label={t("preview.toImport")}
+          value={countText(`count.${target ?? "article"}`, summary.docCount)}
+        >
+          {target === "project"
+            ? t("preview.destination", { title: projectTitle.trim() || plan.source.name })
+            : null}
         </Stat>
-        <Stat label="本地资源" value={`${summary.assetCount} 个`}>
-          存到当前资源存储（{storage}）
-          {summary.missingAssetCount > 0 && `；${summary.missingAssetCount} 处找不到，保留原地址`}
+        <Stat label={t("preview.resources")} value={countText("stats.assets", summary.assetCount)}>
+          {t(summary.missingAssetCount > 0 ? "preview.storageMissing" : "preview.storage", {
+            storage: t(`storage.${storage}`),
+            count: summary.missingAssetCount,
+            amount: number(summary.missingAssetCount),
+          })}
         </Stat>
-        <Stat label="文档互链" value={`${summary.linkCount} 处`}>
-          转为应用内链接
-          {summary.unresolvedLinkCount > 0 &&
-            `；${summary.unresolvedLinkCount} 处指向本批之外，保留为普通链接`}
+        <Stat label={t("preview.links")} value={countText("stats.links", summary.linkCount)}>
+          {t(summary.unresolvedLinkCount > 0 ? "preview.outsideLinks" : "preview.linkConversion", {
+            count: summary.unresolvedLinkCount,
+            amount: number(summary.unresolvedLinkCount),
+          })}
         </Stat>
         {target !== "project" && (
           <ToggleRow
-            title="原有标签"
-            hint={`frontmatter tags、正文 #标签写进${target === "card" ? "卡片" : "文章"}标签`}
+            title={t("preview.tags")}
+            hint={t(target === "card" ? "preview.tags.card" : "preview.tags.article")}
             checked={useSourceTags}
             onCheckedChange={setUseSourceTags}
           />
         )}
         {plan.tables.length > 0 && (
           <ToggleRow
-            title={`${plan.tables.length} 个表格`}
-            hint={`CSV 导入为数据库（${plan.tables.map(table => table.title).join("、")}），列均为文本`}
+            title={countText("preview.tables", plan.tables.length)}
+            hint={t("preview.tableHint", {
+              titles: new Intl.ListFormat(locale).format(plan.tables.map(table => table.title)),
+            })}
             checked={importTables}
             onCheckedChange={setImportTables}
           />
@@ -503,16 +535,16 @@ export function ImportWizard({
           <div key={phase.key} className="flex flex-col gap-1.5">
             <div className="text-tau-body flex items-center gap-2">
               <span className={state === "pending" ? "text-ink-3" : "text-ink-1"}>
-                {index + 1}. {phase.label}
+                {number(index + 1)}. {t(`phase.${phase.key}`)}
               </span>
               <span className={cn(hintClass, "ml-auto tabular-nums")}>
                 {state === "done"
-                  ? "完成"
+                  ? t("common.done")
                   : state === "active" && progress?.phase === phase.key
-                    ? `${progress.done} / ${progress.total}`
+                    ? `${number(progress.done)} / ${number(progress.total)}`
                     : state === "active"
-                      ? "准备中"
-                      : "等待"}
+                      ? t("common.preparing")
+                      : t("common.waiting")}
               </span>
             </div>
             {state === "active" && progress?.phase === phase.key && progress.total > 0 && (
@@ -537,22 +569,28 @@ export function ImportWizard({
   const doneStep = outcome && (
     <div className="flex min-h-0 flex-col gap-3 px-6 pt-4 pb-5">
       <p className="text-ink-1 text-tau-body-lg font-semibold">
-        {outcome.result.stopped === "canceled"
-          ? "已停止，"
-          : outcome.result.stopped === "failed"
-            ? "导入中断，"
-            : ""}
-        已导入 {outcome.result.docCount} {TARGET_UNIT[outcome.result.target]}
+        {countText(
+          `done.${outcome.result.stopped ?? "complete"}.${outcome.result.target}`,
+          outcome.result.docCount
+        )}
       </p>
       <p className={hintClass}>
-        {outcome.result.assetCount} 个资源已入库 · {outcome.result.linkCount} 处链接已转为应用内链接
-        {outcome.result.databaseIds.length > 0 &&
-          ` · ${outcome.result.databaseIds.length} 个表格已导入为数据库`}
-        {outcome.result.error && `；原因：${outcome.result.error}`}
+        {[
+          countText("done.assets", outcome.result.assetCount),
+          countText("done.links", outcome.result.linkCount),
+          outcome.result.databaseIds.length > 0
+            ? countText("done.tables", outcome.result.databaseIds.length)
+            : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
+        {outcome.result.error && t("done.error", { error: outcome.result.error })}
       </p>
       {outcome.result.warnings.length > 0 && (
         <div className="flex min-h-0 flex-col gap-1.5">
-          <span className={labelClass}>{outcome.result.warnings.length} 条提醒</span>
+          <span className={labelClass}>
+            {countText("stats.warnings", outcome.result.warnings.length)}
+          </span>
           <ul className="border-line-1 rounded-tau-md text-ink-2 text-tau-sm max-h-[220px] overflow-y-auto border px-3.5 py-2.5 leading-relaxed">
             {outcome.result.warnings
               .slice(warningPage * 100, (warningPage + 1) * 100)
@@ -569,23 +607,24 @@ export function ImportWizard({
                 disabled={warningPage === 0}
                 onClick={() => setWarningPage(warningPage - 1)}
               >
-                上一页
+                {t("common.previousPage")}
               </Button>
               <span>
-                {warningPage + 1} / {Math.ceil(outcome.result.warnings.length / 100)}
+                {number(warningPage + 1)} /{" "}
+                {number(Math.ceil(outcome.result.warnings.length / 100))}
               </span>
               <Button
                 size="sm"
                 disabled={(warningPage + 1) * 100 >= outcome.result.warnings.length}
                 onClick={() => setWarningPage(warningPage + 1)}
               >
-                下一页
+                {t("common.nextPage")}
               </Button>
             </div>
           )}
         </div>
       )}
-      {record && <p className={hintClass}>可在 设置 › 导入与导出 中查看本次记录或撤销</p>}
+      {record && <p className={hintClass}>{t("done.historyHint")}</p>}
     </div>
   );
 
@@ -598,7 +637,7 @@ export function ImportWizard({
     step === "source" ? (
       <>
         <Button variant="secondary" size="sm" onClick={onClose}>
-          取消
+          {t("common.cancel")}
         </Button>
         <Button
           variant="primary"
@@ -606,16 +645,16 @@ export function ImportWizard({
           disabled={!canPreview}
           onClick={() => setStep("preview")}
         >
-          下一步
+          {t("common.next")}
         </Button>
       </>
     ) : step === "preview" ? (
       <>
         <Button variant="ghost" size="sm" className="mr-auto" onClick={() => setStep("source")}>
-          上一步
+          {t("common.previous")}
         </Button>
         <Button variant="secondary" size="sm" onClick={onClose}>
-          取消
+          {t("common.cancel")}
         </Button>
         <Button
           variant="primary"
@@ -623,12 +662,12 @@ export function ImportWizard({
           disabled={!summary || (summary.docCount === 0 && !(importTables && plan?.tables.length))}
           onClick={() => void run()}
         >
-          导入 {summary?.docCount ?? 0} {unit}
+          {countText(`action.import.${target ?? "article"}`, summary?.docCount ?? 0)}
         </Button>
       </>
     ) : step === "running" ? (
       <Button variant="secondary" size="sm" onClick={() => abortRef.current?.abort()}>
-        停止
+        {t("common.stop")}
       </Button>
     ) : (
       <>
@@ -639,31 +678,29 @@ export function ImportWizard({
             className="mr-auto"
             onClick={() => setConfirmUndo(true)}
           >
-            撤销本次导入
+            {t("undo.title")}
           </Button>
         )}
         <Button variant="secondary" size="sm" onClick={onClose}>
-          关闭
+          {t("common.close")}
         </Button>
         {outcome && outcome.result.docCount > 0 && (
           <Button variant="primary" size="sm" onClick={openResult}>
-            {outcome.result.target === "project" ? "打开项目" : "查看"}
+            {t(outcome.result.target === "project" ? "done.openProject" : "common.view")}
           </Button>
         )}
       </>
     );
 
   const impact =
-    step === "source"
-      ? "只扫描，不会写入任何数据"
-      : step === "preview"
-        ? "导入后可在 设置 › 导入与导出 中整批撤销"
-        : undefined;
+    step === "source" ? t("impact.source") : step === "preview" ? t("impact.preview") : undefined;
 
   return (
     <>
       <Dialog
-        title={step === "done" ? "导入完成" : step === "running" ? "正在导入" : "批量导入"}
+        title={t(
+          step === "done" ? "dialog.done" : step === "running" ? "dialog.running" : "dialog.title"
+        )}
         context={plan?.source.name}
         open
         onOpenChange={next => !next && onClose()}
@@ -682,14 +719,17 @@ export function ImportWizard({
         open={confirmUndo}
         onOpenChange={setConfirmUndo}
         danger
-        title="撤销本次导入"
-        description={
+        title={t("undo.title")}
+        description={t(
           outcome?.result.target === "project"
-            ? `将删除导入建出的项目及其全部文档${outcome.result.databaseIds.length ? "与数据库" : ""}，导入后做的修改也会一并删除。`
-            : `将删除本次导入的 ${outcome?.result.docCount ?? 0} ${TARGET_UNIT[outcome?.result.target ?? "article"]}内容${outcome?.result.databaseIds.length ? "与数据库" : ""}，导入后做的修改也会一并删除。`
-        }
-        impact="已上传的图片与附件文件保留"
-        confirmText="撤销导入"
+            ? outcome.result.databaseIds.length
+              ? "undo.projectDatabases"
+              : "undo.project"
+            : `undo.${outcome?.result.target ?? "article"}${outcome?.result.databaseIds.length ? "Databases" : ""}`,
+          { count: outcome?.result.docCount ?? 0, amount: number(outcome?.result.docCount ?? 0) }
+        )}
+        impact={t("undo.impact")}
+        confirmText={t("undo.confirm")}
         onConfirm={undo}
       />
     </>

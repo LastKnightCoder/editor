@@ -1,3 +1,5 @@
+import { contentTransferErrorText } from "@/services/content-transfer.i18n";
+import { useContentExportI18n, type ContentExportMessageKey } from "../ContentExportModal/i18n";
 import { readContentForExport } from "@/services/content-transfer";
 import React, { useState } from "react";
 import type { Descendant } from "slate";
@@ -19,19 +21,11 @@ const PAGE_SIZE_OPTIONS: Array<{
   { value: "Tabloid", label: "Tabloid (279×432mm)" },
 ];
 
-const CODE_BLOCK_STRATEGIES: Array<{
-  value: CodeBlockBreakStrategy;
-  label: string;
-  hint: string;
-}> = [
-  { value: "avoid", label: "避免分页", hint: "尽量整块放置代码，可能产生较大空白。" },
-  {
-    value: "adaptive",
-    label: "自适应",
-    hint: "根据当前页剩余空间和代码长度自动决定是否跨页，优先减少空白。",
-  },
-  { value: "auto", label: "强制跨页", hint: "所有代码块都允许跨页，空白最少。" },
-];
+const CODE_BLOCK_STRATEGIES = [
+  "avoid",
+  "adaptive",
+  "auto",
+] as const satisfies readonly CodeBlockBreakStrategy[];
 
 interface PdfExportModalProps {
   visible: boolean;
@@ -53,6 +47,7 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
   title,
   author,
 }) => {
+  const { t } = useContentExportI18n();
   const [loading, setLoading] = useState(false);
   const [pageSize, setPageSize] = useState<PdfExportOptions["pageSize"]>("A4");
   const [landscape, setLandscape] = useState(false);
@@ -62,8 +57,11 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
   const [marginRight, setMarginRight] = useState(15);
   const [printBackground, setPrintBackground] = useState(true);
   const [chapterBreak, setChapterBreak] = useState(true);
-  const [codeBlockStrategy, setCodeBlockStrategy] = useState<CodeBlockBreakStrategy>("adaptive");
-  const [error, setError] = useState<string | null>(null);
+  const [codeBlockStrategy, setCodeBlockStrategy] =
+    useState<(typeof CODE_BLOCK_STRATEGIES)[number]>("adaptive");
+  const [error, setError] = useState<
+    { key: ContentExportMessageKey } | { message: string } | { reason: Error } | null
+  >(null);
 
   const handleExport = async () => {
     try {
@@ -116,22 +114,27 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
         if (result.filePath) {
           onClose();
         } else {
-          setError(result.warnings[0] || "PDF 导出失败");
+          setError(result.warnings[0] ? { message: result.warnings[0] } : { key: "pdf.failed" });
         }
       }
     } catch (err) {
       console.error("PDF 导出错误：", err);
-      setError(err instanceof Error ? err.message : "未知错误");
+      setError(err instanceof Error ? { reason: err } : { key: "common.unknown" });
     } finally {
       setLoading(false);
     }
   };
 
   const marginFields = [
-    { label: "上", value: marginTop, onChange: setMarginTop },
-    { label: "下", value: marginBottom, onChange: setMarginBottom },
-    { label: "左", value: marginLeft, onChange: setMarginLeft },
-    { label: "右", value: marginRight, onChange: setMarginRight },
+    { key: "top", label: t("pdf.margin.top"), value: marginTop, onChange: setMarginTop },
+    {
+      key: "bottom",
+      label: t("pdf.margin.bottom"),
+      value: marginBottom,
+      onChange: setMarginBottom,
+    },
+    { key: "left", label: t("pdf.margin.left"), value: marginLeft, onChange: setMarginLeft },
+    { key: "right", label: t("pdf.margin.right"), value: marginRight, onChange: setMarginRight },
   ];
 
   return (
@@ -140,23 +143,23 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
       onOpenChange={next => {
         if (!next) onClose();
       }}
-      title="导出为 PDF"
+      title={t("pdf.title")}
       icon={<FileText />}
-      subtitle="配置 PDF 导出选项"
+      subtitle={t("pdf.subtitle")}
       width={520}
       locked={loading}
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={loading}>
-            取消
+            {t("common.cancel")}
           </Button>
           <Button
             variant="primary"
             onClick={handleExport}
             loading={loading}
-            loadingText="导出中..."
+            loadingText={t("common.exporting")}
           >
-            导出
+            {t("common.export")}
           </Button>
         </>
       }
@@ -164,14 +167,18 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
       <DialogBody>
         {error && (
           <div className="bg-danger-soft text-danger rounded-tau-md text-tau-body mb-4 p-3">
-            {error}
+            {"key" in error
+              ? t(error.key)
+              : "reason" in error
+                ? contentTransferErrorText(error.reason)
+                : error.message}
           </div>
         )}
 
         <div className="space-y-5">
           {/* Page Size */}
           <div className="flex flex-col gap-1.5">
-            <label className={FIELD_LABEL}>纸张大小</label>
+            <label className={FIELD_LABEL}>{t("pdf.paper")}</label>
             <Select
               value={pageSize}
               onValueChange={value => setPageSize(value)}
@@ -181,16 +188,16 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
 
           {/* Orientation */}
           <div className="flex items-center justify-between">
-            <label className="text-ink-1 text-tau-body">横向打印</label>
+            <label className="text-ink-1 text-tau-body">{t("pdf.landscape")}</label>
             <Switch checked={landscape} onCheckedChange={setLandscape} />
           </div>
 
           {/* Margins */}
           <div className="flex flex-col gap-1.5">
-            <label className={FIELD_LABEL}>页边距（毫米）</label>
+            <label className={FIELD_LABEL}>{t("pdf.margins")}</label>
             <div className="grid grid-cols-4 gap-2">
               {marginFields.map(field => (
-                <div key={field.label} className="flex flex-col gap-1">
+                <div key={field.key} className="flex flex-col gap-1">
                   <span className="text-ink-3 text-tau-sm">{field.label}</span>
                   <NumberInput
                     min={0}
@@ -206,8 +213,8 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
           {/* Print Background */}
           <div className="flex items-center justify-between">
             <div className="flex flex-col">
-              <label className="text-ink-1 text-tau-body">打印背景色</label>
-              <span className="text-ink-3 text-tau-sm">代码块、表格等元素的背景色</span>
+              <label className="text-ink-1 text-tau-body">{t("pdf.background")}</label>
+              <span className="text-ink-3 text-tau-sm">{t("pdf.backgroundHint")}</span>
             </div>
             <Switch checked={printBackground} onCheckedChange={setPrintBackground} />
           </div>
@@ -215,32 +222,32 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
           {/* Chapter Break */}
           <div className="flex items-center justify-between">
             <div className="flex flex-col">
-              <label className="text-ink-1 text-tau-body">H1 标题换页</label>
-              <span className="text-ink-3 text-tau-sm">每个 H1 标题从新页开始</span>
+              <label className="text-ink-1 text-tau-body">{t("pdf.chapterBreak")}</label>
+              <span className="text-ink-3 text-tau-sm">{t("pdf.chapterBreakHint")}</span>
             </div>
             <Switch checked={chapterBreak} onCheckedChange={setChapterBreak} />
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className={FIELD_LABEL}>代码块分页</label>
+            <label className={FIELD_LABEL}>{t("pdf.codeBreak")}</label>
             <div className="grid grid-cols-3 gap-2">
               {CODE_BLOCK_STRATEGIES.map(strategy => (
                 <button
-                  key={strategy.value}
+                  key={strategy}
                   type="button"
-                  onClick={() => setCodeBlockStrategy(strategy.value)}
+                  onClick={() => setCodeBlockStrategy(strategy)}
                   className={`rounded-tau-md text-tau-sm ease-tau-out border-[1.5px] px-3 py-2.5 font-medium transition-colors ${
-                    codeBlockStrategy === strategy.value
+                    codeBlockStrategy === strategy
                       ? "border-accent bg-accent-soft text-accent-text"
                       : "border-line-1 text-ink-2 hover:border-ink-3/50"
                   }`}
                 >
-                  {strategy.label}
+                  {t(`pdf.strategy.${strategy}.label`)}
                 </button>
               ))}
             </div>
             <p className="text-ink-3 text-tau-sm mt-1">
-              {CODE_BLOCK_STRATEGIES.find(s => s.value === codeBlockStrategy)?.hint}
+              {t(`pdf.strategy.${codeBlockStrategy}.hint`)}
             </p>
           </div>
         </div>

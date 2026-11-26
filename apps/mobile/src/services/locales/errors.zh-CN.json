@@ -1,0 +1,7 @@
+{
+  "CARD_CREATE_FAILED": "卡片创建失败，请稍后重试",
+  "INCOMING_FILE_UNSUPPORTED": "只能打开 Markdown 文件（.md）",
+  "INCOMING_FILE_TOO_LARGE": "文件超过 5 MB，无法打开",
+  "INCOMING_FILE_ENCODING": "文件不是 UTF-8 编码，无法打开",
+  "INCOMING_FILE_READ_FAILED": "读取文件失败，请重新打开"
+}

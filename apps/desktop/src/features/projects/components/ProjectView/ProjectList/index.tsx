@@ -575,25 +575,28 @@ const Project = () => {
       setAddingParentProjectItemId(parentProjectItemId);
       openSelectWhiteboardModal();
     } else if (key === "import-markdown") {
-      await importMarkdownFiles(async ({ title, content, contracts }) => {
-        const [newProject, item] = await addProjectItemToTarget(
-          {
-            title,
-            content,
-            contracts,
-            children: [],
-            refType: "",
-            refId: 0,
-            projectItemType: EProjectItemType.Document,
-            count: getContentLength(content),
-            whiteboardContentId: 0,
-          },
-          parentProjectItemId
-        );
-        if (item) {
-          navigator.push("project-detail", { id: newProject.id, itemId: item.id });
-        }
-      });
+      await importMarkdownFiles(
+        async ({ title, content, contracts }) => {
+          const [newProject, item] = await addProjectItemToTarget(
+            {
+              title,
+              content,
+              contracts,
+              children: [],
+              refType: "",
+              refId: 0,
+              projectItemType: EProjectItemType.Document,
+              count: getContentLength(content),
+              whiteboardContentId: 0,
+            },
+            parentProjectItemId
+          );
+          if (item) {
+            navigator.push("project-detail", { id: newProject.id, itemId: item.id });
+          }
+        },
+        { target: "project-item" }
+      );
     }
   });
 
