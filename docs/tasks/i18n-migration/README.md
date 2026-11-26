@@ -340,6 +340,8 @@ P7 MCP声明：SDK新增PluginMCPDeclaration，默认PluginMCPDefinition<string>
 
 P6 Native媒体进度：41路径加Root ASR/desktop文档2完成；桌面12文件39例、source4、ASR14、shared1通过，原Windows环境门控10skip保留；desktop/ASR类型、三语21 producer-code非空审计、纯binding实际标记/范围静态格式通过。真实Native→ASRTask→structuredClone IPC→commands验证fraction-only一次完整到达，唯一行为修复为删除原message truthy门槛，无合成timer/重试。0/25/29/98/100真实数值回调AST执行保MarkItDown30+percent*.3/Vibe整数，字幕/文件名/原stage/bytes/空message/unknown保持。4枚新增有意envelope unused改最小void后静态绿，native/下载/取消参数与调度不改。
 
+工具卡R2B：7路径完成；已有2文件4例、desktop type、53key三语与协议AST通过。展开/失效反馈跨语不重query，原parse/minute/title/action/entity/data/hooks/key保持；UTC自然日DST/leap12矩阵与4非法原值透出验证通过，原文案断言维护为time.dateTime协议契约。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

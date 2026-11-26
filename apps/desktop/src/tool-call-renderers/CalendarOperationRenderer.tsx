@@ -11,6 +11,12 @@ import {
   ToolValuePill,
 } from "@tau/chat-ui";
 
+import {
+  useCalendarToolI18n,
+  type CalendarToolTranslate,
+  type CalendarToolMessageKey,
+} from "./calendar.i18n";
+
 type CalendarOperationPayload = {
   kind?: string;
   success?: boolean;
@@ -38,38 +44,38 @@ const parsePayload = (output?: string): CalendarOperationPayload | null => {
   }
 };
 
-const entityTypeLabelMap: Record<string, string> = {
-  "calendar-group": "日历分组",
-  calendar: "日历",
-  "calendar-event": "日历事件",
+const entityTypeMessages: Record<string, CalendarToolMessageKey> = {
+  "calendar-group": "calendar.entity.calendar-group",
+  calendar: "calendar.entity.calendar",
+  "calendar-event": "calendar.entity.calendar-event",
 };
 
-const actionLabelMap: Record<string, string> = {
-  "create-group": "已创建日历分组",
-  "update-group": "已更新日历分组",
-  "delete-group": "已删除日历分组",
-  "create-calendar": "已创建日历",
-  "update-calendar": "已更新日历",
-  "archive-calendar": "已归档日历",
-  "unarchive-calendar": "已取消归档日历",
-  "toggle-calendar-visibility": "已更新日历显隐",
-  "delete-calendar": "已删除日历",
-  "merge-calendars": "已合并日历",
-  "create-event": "已创建日历事件",
-  "update-event": "已更新日历事件",
-  "delete-event": "已删除日历事件",
+const actionMessages: Record<string, CalendarToolMessageKey> = {
+  "create-group": "calendar.action.create-group",
+  "update-group": "calendar.action.update-group",
+  "delete-group": "calendar.action.delete-group",
+  "create-calendar": "calendar.action.create-calendar",
+  "update-calendar": "calendar.action.update-calendar",
+  "archive-calendar": "calendar.action.archive-calendar",
+  "unarchive-calendar": "calendar.action.unarchive-calendar",
+  "toggle-calendar-visibility": "calendar.action.toggle-calendar-visibility",
+  "delete-calendar": "calendar.action.delete-calendar",
+  "merge-calendars": "calendar.action.merge-calendars",
+  "create-event": "calendar.action.create-event",
+  "update-event": "calendar.action.update-event",
+  "delete-event": "calendar.action.delete-event",
 };
 
-const getPrimaryText = (payload: CalendarOperationPayload) => {
+const getPrimaryText = (payload: CalendarOperationPayload, t: CalendarToolTranslate) => {
   if (payload.success === false) {
-    return "操作失败";
+    return t("calendar.failed");
   }
 
-  if (payload.action && actionLabelMap[payload.action]) {
-    return actionLabelMap[payload.action];
+  if (payload.action && actionMessages[payload.action]) {
+    return t(actionMessages[payload.action]);
   }
 
-  return "操作已完成";
+  return t("calendar.done");
 };
 
 const getTitle = (payload: CalendarOperationPayload) => {
@@ -89,7 +95,11 @@ const getTitle = (payload: CalendarOperationPayload) => {
   return null;
 };
 
-const renderDataSummary = (payload: CalendarOperationPayload, isDark: boolean) => {
+const renderDataSummary = (
+  payload: CalendarOperationPayload,
+  isDark: boolean,
+  t: CalendarToolTranslate
+) => {
   const data = payload.data;
   if (!data || typeof data !== "object") {
     return null;
@@ -98,21 +108,27 @@ const renderDataSummary = (payload: CalendarOperationPayload, isDark: boolean) =
   if (typeof data.targetCalendarId === "number" && Array.isArray(data.sourceCalendarIds)) {
     return (
       <ToolValuePill isDark={isDark}>
-        目标日历 #{data.targetCalendarId} · 来源 {data.sourceCalendarIds.length} 个
+        {t("calendar.merge", { id: data.targetCalendarId, count: data.sourceCalendarIds.length })}
       </ToolValuePill>
     );
   }
 
   if (typeof data.calendarTitle === "string" && data.calendarTitle.trim()) {
-    return <ToolValuePill isDark={isDark}>所属日历：{data.calendarTitle}</ToolValuePill>;
+    return (
+      <ToolValuePill isDark={isDark}>
+        {t("calendar.belongsCalendar", { title: data.calendarTitle })}
+      </ToolValuePill>
+    );
   }
 
   if (typeof data.title === "string" && data.title.trim()) {
-    return <ToolValuePill isDark={isDark}>标题：{data.title}</ToolValuePill>;
+    return (
+      <ToolValuePill isDark={isDark}>{t("calendar.title", { title: data.title })}</ToolValuePill>
+    );
   }
 
   if (typeof data.name === "string" && data.name.trim()) {
-    return <ToolValuePill isDark={isDark}>名称：{data.name}</ToolValuePill>;
+    return <ToolValuePill isDark={isDark}>{t("calendar.name", { name: data.name })}</ToolValuePill>;
   }
 
   return null;
@@ -123,16 +139,21 @@ const CalendarOperationRenderer = ({
   isDark,
   renderDefault,
 }: ToolCallCustomRendererProps) => {
+  const { t } = useCalendarToolI18n();
   const payload = parsePayload(execution.output);
   if (!payload || payload.kind !== "calendar-mutation-result") {
     return <>{renderDefault()}</>;
   }
 
   const failed = payload.success === false;
-  const primaryText = getPrimaryText(payload);
+  const primaryText = getPrimaryText(payload, t);
   const displayTitle = getTitle(payload);
-  const entityLabel = payload.entityType ? entityTypeLabelMap[payload.entityType] : null;
-  const dataSummary = renderDataSummary(payload, isDark);
+  const entityLabel = payload.entityType
+    ? entityTypeMessages[payload.entityType]
+      ? t(entityTypeMessages[payload.entityType])
+      : null
+    : null;
+  const dataSummary = renderDataSummary(payload, isDark, t);
   const StatusIcon = failed ? X : Check;
 
   return (
@@ -161,7 +182,9 @@ const CalendarOperationRenderer = ({
           {displayTitle || payload.message ? (
             <div className="space-y-0.5">
               {displayTitle ? (
-                <ToolSectionTitle isDark={isDark}>对象：{displayTitle}</ToolSectionTitle>
+                <ToolSectionTitle isDark={isDark}>
+                  {t("calendar.object", { title: displayTitle })}
+                </ToolSectionTitle>
               ) : null}
               {payload.message ? (
                 <ToolMutedText isDark={isDark} className="break-words">

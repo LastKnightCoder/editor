@@ -33,6 +33,12 @@ import {
   ToolValuePill,
 } from "@tau/chat-ui";
 
+import {
+  useCalendarToolI18n,
+  type CalendarToolTranslate,
+  type CalendarToolMessageKey,
+} from "./calendar.i18n";
+
 type CalendarRendererData =
   | CalendarDashboardResult
   | CalendarQueryListResult<CalendarGroupListItem | CalendarListItem | CalendarEventListItem>
@@ -62,19 +68,30 @@ const formatMinutes = (value: number | null | undefined) => {
   return `${hours}:${minutes}`;
 };
 
-const formatEventTime = (item: CalendarEventListItem) => {
+const formatCalendarDate = (value: string, locale: string) => {
+  const date = new Date(`${value}T00:00:00Z`);
+  if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== value) return value;
+  return new Intl.DateTimeFormat(locale, {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: "UTC",
+  }).format(date);
+};
+
+const formatEventTime = (item: CalendarEventListItem, locale: string, t: CalendarToolTranslate) => {
+  const startDate = formatCalendarDate(item.startDate, locale);
+  const endDate = item.endDate ? formatCalendarDate(item.endDate, locale) : null;
   if (item.allDay) {
     return item.endDate && item.endDate !== item.startDate
-      ? `${item.startDate} - ${item.endDate} · 全天`
-      : `${item.startDate} · 全天`;
+      ? `${startDate} - ${endDate} · ${t("calendar.allDay")}`
+      : `${startDate} · ${t("calendar.allDay")}`;
   }
 
   const start = formatMinutes(item.startTime);
   const end = formatMinutes(item.endTime);
   const dateText =
-    item.endDate && item.endDate !== item.startDate
-      ? `${item.startDate} - ${item.endDate}`
-      : item.startDate;
+    item.endDate && item.endDate !== item.startDate ? `${startDate} - ${endDate}` : startDate;
   return `${dateText}${start ? ` · ${start}` : ""}${end ? ` - ${end}` : ""}`;
 };
 
@@ -85,19 +102,22 @@ const QueryRefreshButton = ({
   isDark?: boolean;
   loading: boolean;
   onRefresh: () => void;
-}) => (
-  <Button
-    variant="ghost"
-    size="sm"
-    icon={RotateCw}
-    loading={loading}
-    loadingText="刷新中..."
-    onClick={onRefresh}
-    className="-my-1 -mr-1.5 h-[26px] px-2"
-  >
-    刷新
-  </Button>
-);
+}) => {
+  const { t } = useCalendarToolI18n();
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      icon={RotateCw}
+      loading={loading}
+      loadingText={t("calendar.refreshing")}
+      onClick={onRefresh}
+      className="-my-1 -mr-1.5 h-[26px] px-2"
+    >
+      {t("calendar.refresh")}
+    </Button>
+  );
+};
 
 /** 列表行 / 详情的主标题：正文档 + medium 字重 */
 const ItemTitle = ({ children, truncate = false }: { children: ReactNode; truncate?: boolean }) => (
@@ -112,10 +132,11 @@ const ItemTitle = ({ children, truncate = false }: { children: ReactNode; trunca
 );
 
 const EventList = ({ items }: { items: CalendarEventListItem[]; isDark?: boolean }) => {
+  const { t, locale } = useCalendarToolI18n();
   const [expanded, setExpanded] = useState(false);
 
   if (items.length === 0) {
-    return <ToolMutedText>当前没有符合条件的日历事件。</ToolMutedText>;
+    return <ToolMutedText>{t("calendar.emptyEvents")}</ToolMutedText>;
   }
 
   const visibleItems = expanded ? items : items.slice(0, 5);
@@ -130,7 +151,7 @@ const EventList = ({ items }: { items: CalendarEventListItem[]; isDark?: boolean
               {item.calendarTitle ? <ToolBadge>{item.calendarTitle}</ToolBadge> : null}
             </div>
             <ToolMutedText className="mt-0.5 break-words tabular-nums">
-              {formatEventTime(item)}
+              <time dateTime={item.startDate}>{formatEventTime(item, locale, t)}</time>
             </ToolMutedText>
             {item.detailPreview ? (
               <ToolMutedText className="text-ink-2 mt-1 break-words">
@@ -148,7 +169,9 @@ const EventList = ({ items }: { items: CalendarEventListItem[]; isDark?: boolean
             icon={expanded ? ChevronUp : ChevronDown}
             onClick={() => setExpanded(value => !value)}
           >
-            {expanded ? "收起事件列表" : `展开剩余 ${items.length - 5} 条事件`}
+            {expanded
+              ? t("calendar.collapseEvents")
+              : t("calendar.moreEvents", { count: items.length - 5 })}
           </Button>
         </div>
       ) : null}
@@ -162,10 +185,11 @@ const CalendarQueryRenderer = ({
   parsedInput,
   renderDefault,
 }: ToolCallCustomRendererProps) => {
+  const { t, locale } = useCalendarToolI18n();
   const initialData = useMemo(() => parseOutput(execution.output), [execution.output]);
   const [data, setData] = useState<CalendarRendererData | null>(initialData);
   const [loading, setLoading] = useState(false);
-  const [unavailableMessage, setUnavailableMessage] = useState<string | null>(null);
+  const [unavailable, setUnavailable] = useState(false);
   const queryInput = (parsedInput ?? null) as Record<string, unknown> | null;
   const isDetailTool =
     execution.toolName === "get_calendar_group_detail" ||
@@ -175,7 +199,7 @@ const CalendarQueryRenderer = ({
   const refresh = async () => {
     setLoading(true);
     try {
-      setUnavailableMessage(null);
+      setUnavailable(false);
       let next: CalendarRendererData | null = null;
       switch (execution.toolName) {
         case "get_calendar_dashboard":
@@ -210,7 +234,7 @@ const CalendarQueryRenderer = ({
       console.error("[calendar-renderer] refresh failed", error);
       if (isDetailTool) {
         setData(null);
-        setUnavailableMessage("对象已不可用，可能已被删除或移动。");
+        setUnavailable(true);
       }
     } finally {
       setLoading(false);
@@ -219,7 +243,7 @@ const CalendarQueryRenderer = ({
 
   useEffect(() => {
     setData(initialData);
-    setUnavailableMessage(null);
+    setUnavailable(false);
   }, [initialData]);
 
   useEffect(() => {
@@ -240,7 +264,7 @@ const CalendarQueryRenderer = ({
     });
   }, [data, execution.toolName, queryInput]);
 
-  if (!data && !unavailableMessage) {
+  if (!data && !unavailable) {
     return <>{renderDefault()}</>;
   }
 
@@ -248,16 +272,16 @@ const CalendarQueryRenderer = ({
     <QueryRefreshButton isDark={isDark} loading={loading} onRefresh={() => void refresh()} />
   );
 
-  if (unavailableMessage) {
+  if (unavailable) {
     return (
       <ToolCard isDark={isDark}>
         <ToolCardHeader isDark={isDark}>
           <ToolSectionTitle isDark={isDark} action={refreshAction}>
-            详情已失效
+            {t("calendar.unavailableTitle")}
           </ToolSectionTitle>
         </ToolCardHeader>
         <ToolCardBody>
-          <ToolMutedText isDark={isDark}>{unavailableMessage}</ToolMutedText>
+          <ToolMutedText isDark={isDark}>{t("calendar.unavailable")}</ToolMutedText>
         </ToolCardBody>
       </ToolCard>
     );
@@ -274,24 +298,26 @@ const CalendarQueryRenderer = ({
       <ToolCard isDark={isDark}>
         <ToolCardHeader isDark={isDark}>
           <ToolSectionTitle isDark={isDark} action={refreshAction}>
-            日历总览
+            {t("calendar.dashboard")}
           </ToolSectionTitle>
         </ToolCardHeader>
         <ToolCardBody>
           <div className="grid grid-cols-2 gap-1.5 tabular-nums">
             <ToolValuePill isDark={isDark}>
-              日历 {currentData.summary.totalCalendars} 个
-            </ToolValuePill>
-            <ToolValuePill isDark={isDark}>分组 {currentData.summary.totalGroups} 个</ToolValuePill>
-            <ToolValuePill isDark={isDark}>
-              可见 {currentData.summary.visibleCalendars} 个
+              {t("calendar.calendars", { count: currentData.summary.totalCalendars })}
             </ToolValuePill>
             <ToolValuePill isDark={isDark}>
-              近期事件 {currentData.summary.upcomingEventCount} 条
+              {t("calendar.groups", { count: currentData.summary.totalGroups })}
+            </ToolValuePill>
+            <ToolValuePill isDark={isDark}>
+              {t("calendar.visibleCount", { count: currentData.summary.visibleCalendars })}
+            </ToolValuePill>
+            <ToolValuePill isDark={isDark}>
+              {t("calendar.upcomingCount", { count: currentData.summary.upcomingEventCount })}
             </ToolValuePill>
           </div>
           <div className="space-y-1.5">
-            <ToolSectionTitle isDark={isDark}>未来事件</ToolSectionTitle>
+            <ToolSectionTitle isDark={isDark}>{t("calendar.futureEvents")}</ToolSectionTitle>
             <EventList items={currentData.upcomingEvents} isDark={isDark} />
           </div>
         </ToolCardBody>
@@ -300,20 +326,23 @@ const CalendarQueryRenderer = ({
   }
 
   if (currentData.kind === "calendar-query-result") {
-    const titleMap: Record<string, string> = {
-      "calendar-group": "日历分组查询结果",
-      calendar: "日历查询结果",
-      "calendar-event": "日历事件查询结果",
+    const titleMessages: Record<string, CalendarToolMessageKey> = {
+      "calendar-group": "calendar.query.calendar-group",
+      calendar: "calendar.query.calendar",
+      "calendar-event": "calendar.query.calendar-event",
     };
 
     return (
       <ToolCard isDark={isDark}>
         <ToolCardHeader isDark={isDark}>
           <ToolSectionTitle isDark={isDark} action={refreshAction}>
-            {titleMap[currentData.entityType]}
+            {t(titleMessages[currentData.entityType])}
           </ToolSectionTitle>
           <ToolMutedText isDark={isDark} className="mt-0.5 tabular-nums">
-            共 {currentData.summary.totalCount} 条，当前第 {currentData.summary.page} 页
+            {t("calendar.page", {
+              count: currentData.summary.totalCount,
+              page: currentData.summary.page,
+            })}
           </ToolMutedText>
         </ToolCardHeader>
         <ToolCardBody>
@@ -328,11 +357,15 @@ const CalendarQueryRenderer = ({
                       <div className="flex min-w-0 flex-wrap items-center gap-2">
                         <ItemTitle truncate>{item.title}</ItemTitle>
                         {"visible" in item ? (
-                          <ToolBadge>{item.visible ? "可见" : "隐藏"}</ToolBadge>
+                          <ToolBadge>
+                            {item.visible ? t("calendar.visible") : t("calendar.hidden")}
+                          </ToolBadge>
                         ) : null}
                       </div>
                       {"groupName" in item && item.groupName ? (
-                        <ToolMutedText className="mt-0.5">分组：{item.groupName}</ToolMutedText>
+                        <ToolMutedText className="mt-0.5">
+                          {t("calendar.group", { name: item.groupName })}
+                        </ToolMutedText>
                       ) : null}
                       {"descriptionPreview" in item && item.descriptionPreview ? (
                         <ToolMutedText className="text-ink-2 mt-1 break-words">
@@ -344,7 +377,10 @@ const CalendarQueryRenderer = ({
                     <>
                       <ItemTitle>{item.name}</ItemTitle>
                       <ToolMutedText className="mt-0.5 tabular-nums">
-                        {item.isSystem ? "系统分组" : "普通分组"} · 日历 {item.calendarCount} 个
+                        {t("calendar.groupCalendars", {
+                          kind: t(item.isSystem ? "calendar.systemGroup" : "calendar.regularGroup"),
+                          count: item.calendarCount,
+                        })}
                       </ToolMutedText>
                     </>
                   )}
@@ -362,7 +398,7 @@ const CalendarQueryRenderer = ({
       <ToolCard isDark={isDark}>
         <ToolCardHeader isDark={isDark}>
           <ToolSectionTitle isDark={isDark} action={refreshAction}>
-            分组详情
+            {t("calendar.groupDetail")}
           </ToolSectionTitle>
         </ToolCardHeader>
         <ToolCardBody>
@@ -370,11 +406,11 @@ const CalendarQueryRenderer = ({
             <div className="flex flex-wrap items-center gap-2">
               <ItemTitle>{currentData.data.name}</ItemTitle>
               <ToolBadge isDark={isDark}>
-                {currentData.data.isSystem ? "系统分组" : "普通分组"}
+                {currentData.data.isSystem ? t("calendar.systemGroup") : t("calendar.regularGroup")}
               </ToolBadge>
             </div>
             <ToolMutedText isDark={isDark} className="tabular-nums">
-              包含日历 {currentData.data.calendars.length} 个
+              {t("calendar.containsCalendars", { count: currentData.data.calendars.length })}
             </ToolMutedText>
           </div>
           <div className="space-y-1.5">
@@ -395,25 +431,31 @@ const CalendarQueryRenderer = ({
       <ToolCard isDark={isDark}>
         <ToolCardHeader isDark={isDark}>
           <ToolSectionTitle isDark={isDark} action={refreshAction}>
-            日历详情
+            {t("calendar.calendarDetail")}
           </ToolSectionTitle>
         </ToolCardHeader>
         <ToolCardBody>
           <div className="space-y-1">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <ItemTitle truncate>{currentData.data.title}</ItemTitle>
-              <ToolBadge isDark={isDark}>{currentData.data.visible ? "可见" : "隐藏"}</ToolBadge>
-              {currentData.data.archived ? <ToolBadge isDark={isDark}>已归档</ToolBadge> : null}
+              <ToolBadge isDark={isDark}>
+                {currentData.data.visible ? t("calendar.visible") : t("calendar.hidden")}
+              </ToolBadge>
+              {currentData.data.archived ? (
+                <ToolBadge isDark={isDark}>{t("calendar.archived")}</ToolBadge>
+              ) : null}
             </div>
             {currentData.data.groupName ? (
-              <ToolMutedText isDark={isDark}>分组：{currentData.data.groupName}</ToolMutedText>
+              <ToolMutedText isDark={isDark}>
+                {t("calendar.group", { name: currentData.data.groupName })}
+              </ToolMutedText>
             ) : null}
           </div>
           {currentData.data.preview ? (
             <ToolValuePill isDark={isDark}>{currentData.data.preview}</ToolValuePill>
           ) : null}
           <div className="space-y-1.5">
-            <ToolSectionTitle isDark={isDark}>最近事件</ToolSectionTitle>
+            <ToolSectionTitle isDark={isDark}>{t("calendar.recentEvents")}</ToolSectionTitle>
             <EventList items={currentData.data.recentEvents} isDark={isDark} />
           </div>
         </ToolCardBody>
@@ -425,7 +467,7 @@ const CalendarQueryRenderer = ({
     <ToolCard isDark={isDark}>
       <ToolCardHeader isDark={isDark}>
         <ToolSectionTitle isDark={isDark} action={refreshAction}>
-          事件详情
+          {t("calendar.eventDetail")}
         </ToolSectionTitle>
       </ToolCardHeader>
       <ToolCardBody>
@@ -437,7 +479,9 @@ const CalendarQueryRenderer = ({
             ) : null}
           </div>
           <ToolMutedText isDark={isDark} className="tabular-nums">
-            {formatEventTime(currentData.data)}
+            <time dateTime={currentData.data.startDate}>
+              {formatEventTime(currentData.data, locale, t)}
+            </time>
           </ToolMutedText>
         </div>
         {currentData.data.preview ? (

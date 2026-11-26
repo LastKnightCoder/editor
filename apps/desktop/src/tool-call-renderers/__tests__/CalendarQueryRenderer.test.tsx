@@ -1,4 +1,5 @@
 import { act } from "react";
+import { desktopLocaleSource } from "@/app/i18n/runtime";
 import type { ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -94,7 +95,7 @@ describe("CalendarQueryRenderer", () => {
     expect(container.textContent).toContain("日历事件查询结果");
     expect(container.textContent).toContain("和设计团队对齐排期");
     expect(container.textContent).toContain("工作安排");
-    expect(container.textContent).toContain("2026-03-10");
+    expect(container.querySelector('time[datetime="2026-03-10"]')).not.toBeNull();
     expect(container.textContent).toContain("09:30 - 10:30");
     expect(container.textContent).toContain("项目复盘");
     expect(container.textContent).toContain("全天");
@@ -154,6 +155,25 @@ describe("CalendarQueryRenderer", () => {
 
     expect(container.textContent).toContain("事件 6");
     expect(container.textContent).toContain("收起事件列表");
+    const originalLocale = desktopLocaleSource.getSnapshot();
+    const events = [...container.querySelectorAll("time")];
+    const dateValues = events.map(event => event.dateTime);
+    const output = execution.output;
+    const refreshSpy = vi.spyOn(calendarQueryModule, "queryCalendarEvents");
+    try {
+      for (const locale of ["zh-TW", "en-US"]) {
+        await act(async () => desktopLocaleSource.setLocale(locale));
+        expect([...container.querySelectorAll("time")]).toEqual(events);
+        expect(events.map(event => event.dateTime)).toEqual(dateValues);
+        expect(container.textContent).toContain("事件 6");
+        expect(container.textContent).toContain("工作安排");
+        expect(refreshSpy).not.toHaveBeenCalled();
+        expect(execution.output).toBe(output);
+      }
+    } finally {
+      await act(async () => desktopLocaleSource.setLocale(originalLocale));
+      refreshSpy.mockRestore();
+    }
 
     await unmount(root, container);
   });
@@ -180,7 +200,9 @@ describe("CalendarQueryRenderer", () => {
       }),
     });
 
-    vi.spyOn(calendarQueryModule, "getCalendarDetail").mockRejectedValue(new Error("NOT_FOUND"));
+    const detailSpy = vi
+      .spyOn(calendarQueryModule, "getCalendarDetail")
+      .mockRejectedValue(new Error("NOT_FOUND"));
 
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
@@ -206,6 +228,21 @@ describe("CalendarQueryRenderer", () => {
     expect(container.textContent).toContain("详情已失效");
     expect(container.textContent).toContain("对象已不可用");
     expect(container.textContent).not.toContain("工作安排");
+    const originalLocale = desktopLocaleSource.getSnapshot();
+    const failureCard = container.firstElementChild;
+    let previous = failureCard?.textContent;
+    try {
+      for (const locale of ["zh-TW", "en-US"]) {
+        await act(async () => desktopLocaleSource.setLocale(locale));
+        expect(container.firstElementChild).toBe(failureCard);
+        expect(failureCard?.textContent).not.toBe(previous);
+        previous = failureCard?.textContent;
+        expect(detailSpy).toHaveBeenCalledExactlyOnceWith(2);
+      }
+    } finally {
+      await act(async () => desktopLocaleSource.setLocale(originalLocale));
+      detailSpy.mockRestore();
+    }
 
     await unmount(root, container);
     consoleSpy.mockRestore();
