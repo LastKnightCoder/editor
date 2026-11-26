@@ -6,7 +6,8 @@ import { ConfirmDialog, IconButton, Tooltip, cn, toast } from "@tau/ui";
 import type { CollaborationSession, Member } from "@tau/collaboration";
 import { removeCollaborationMember } from "@/commands";
 import { Avatar } from "./Avatar";
-import { errorText, memberActivity, memberActivityKey, sortMembers } from "./model";
+import { useRoomI18n, roomTranslator, roomErrorText } from "./room.i18n";
+import { memberActivity, memberActivityKey, sortMembers } from "./model";
 
 export function MemberList({
   session,
@@ -15,6 +16,8 @@ export function MemberList({
   session: CollaborationSession;
   deviceId?: string;
 }) {
+  const context = useRoomI18n();
+  const { t } = context;
   const [removing, setRemoving] = useState<Member>();
   const manageable =
     session.role === "owner" &&
@@ -39,11 +42,13 @@ export function MemberList({
               />
               <span className="text-tau-body min-w-0 truncate" title={member.deviceId}>
                 {member.nickname}
-                {member.deviceId === deviceId && <span className="text-ink-3">（我）</span>}
+                {member.deviceId === deviceId && (
+                  <span className="text-ink-3">{t("member.me")}</span>
+                )}
               </span>
               {member.role === "owner" && (
                 <span className="bg-accent-soft text-accent-text rounded-[6px] px-1.5 text-[11.5px] leading-[18px]">
-                  作者
+                  {t("member.owner")}
                 </span>
               )}
               <span
@@ -56,16 +61,16 @@ export function MemberList({
                       : "text-ink-3"
                 )}
               >
-                {memberActivity(member)}
+                {memberActivity(member, context)}
               </span>
               {manageable && (
                 // 固定槽位原位淡入：悬停不改变行宽（作者行留空位对齐）；无可移除成员时不占位
                 <span className="flex size-6 flex-none items-center justify-center">
                   {member.role !== "owner" && (
-                    <Tooltip content={`移除 ${member.nickname}`}>
+                    <Tooltip content={t("member.removeLabel", { nickname: member.nickname })}>
                       <IconButton
-                        aria-label={`移除 ${member.nickname}`}
-                        className="enabled:hover:bg-danger-soft enabled:hover:text-danger size-6 opacity-0 focus-visible:opacity-100 group-hover:opacity-100"
+                        aria-label={t("member.removeLabel", { nickname: member.nickname })}
+                        className="enabled:hover:bg-danger-soft enabled:hover:text-danger size-6 opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
                         onClick={() => setRemoving(member)}
                       >
                         <UserMinus className="size-[13px]" strokeWidth={1.75} />
@@ -82,16 +87,16 @@ export function MemberList({
         open={removing !== undefined}
         onOpenChange={open => !open && setRemoving(undefined)}
         danger
-        title={`移除 ${removing?.nickname ?? ""}？`}
-        description="该设备会立即断开并失去访问权限；它本机已保存的内容不受影响。"
-        confirmText="移除"
+        title={t("member.removeTitle", { nickname: removing?.nickname ?? "" })}
+        description={t("member.removeHint")}
+        confirmText={t("member.remove")}
         onConfirm={async () => {
           if (!removing) return;
           try {
             await removeCollaborationMember(session.id, removing.deviceId);
-            toast.success(`已移除 ${removing.nickname}`);
+            toast.success(roomTranslator.t("member.removed", { nickname: removing.nickname }));
           } catch (error) {
-            toast.error(errorText(error));
+            toast.error(roomErrorText(error));
             throw error;
           }
         }}

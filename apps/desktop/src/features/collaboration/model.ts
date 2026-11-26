@@ -3,10 +3,9 @@
  */
 
 import type { CollaborationSession, SharedWhiteboardInfo, SourceBinding } from "@tau/collaboration";
-import { SOURCE_LABELS } from "@/components/CollaborationUI/model";
 
 export interface SharedGroup {
-  label: string;
+  id: "owned" | "joined";
   sessions: CollaborationSession[];
   whiteboards: SharedWhiteboardInfo[];
 }
@@ -17,18 +16,19 @@ export function groupShared(
   whiteboards: SharedWhiteboardInfo[]
 ): SharedGroup[] {
   const mine = (role: string) => role === "owner";
-  return [
+  const groups: SharedGroup[] = [
     {
-      label: "我发起的",
+      id: "owned",
       sessions: sessions.filter(session => mine(session.role)),
       whiteboards: whiteboards.filter(room => mine(room.role)),
     },
     {
-      label: "我加入的",
+      id: "joined",
       sessions: sessions.filter(session => !mine(session.role)),
       whiteboards: whiteboards.filter(room => !mine(room.role)),
     },
-  ].filter(group => group.sessions.length + group.whiteboards.length > 0);
+  ];
+  return groups.filter(group => group.sessions.length + group.whiteboards.length > 0);
 }
 
 /** 协作页当前内容：正文在页内编辑，白板在页内展示协作信息。 */
@@ -50,8 +50,8 @@ export function resolveShared(
 }
 
 export interface SourceInfo {
-  /** 来源类型文案（文章 / 卡片 / 项目文档 / 内容） */
-  typeLabel: string;
+  kind: "article" | "card" | "project-item" | "content" | "shared";
+  ownerName?: string;
   title?: string;
   source?: SourceBinding;
 }
@@ -61,13 +61,13 @@ export function sourceInfo(session: CollaborationSession): SourceInfo {
   const source = session.source;
   if (source) {
     return {
-      typeLabel: SOURCE_LABELS[source.sourceType ?? "content"],
+      kind: source.sourceType ?? "content",
       title: source.sourceTitle,
       source,
     };
   }
   const owner = session.members.find(member => member.role === "owner");
-  return { typeLabel: owner ? `${owner.nickname} 的共享` : "他人的共享" };
+  return { kind: "shared", ownerName: owner?.nickname };
 }
 
 /** 能跳回原内容页的来源（日记等无详情页的内容类型不提供入口） */

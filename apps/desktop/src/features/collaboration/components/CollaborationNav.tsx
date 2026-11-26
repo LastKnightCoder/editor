@@ -1,3 +1,4 @@
+import { useRoomI18n } from "@/components/CollaborationUI/room.i18n";
 import { useCollaborationUiI18n, sessionStatusText } from "@/components/CollaborationUI/i18n";
 /**
  * 侧栏「协作」入口的两件（A3 侧栏嵌套）：
@@ -16,16 +17,17 @@ import { pendingRequests } from "@/components/CollaborationUI/model";
 import { groupShared, resolveShared } from "../model";
 
 export function CollaborationNavBadge({ collapsed }: { collapsed: boolean }) {
+  const { t, locale } = useRoomI18n();
   const count = useCollaborationStore(state => pendingRequests(state.requests).length);
   if (!count) return null;
   if (collapsed)
     return <i aria-hidden className="bg-accent absolute top-2 right-2.5 size-1.5 rounded-full" />;
   return (
     <span
-      aria-label={`${count} 个待审批的加入申请`}
+      aria-label={t("center.badge", { count, amount: count.toLocaleString(locale) })}
       className="bg-accent text-ink-inverse ml-auto min-w-[18px] shrink-0 rounded-full px-[5px] text-center text-[11px] leading-[18px] font-[600] tabular-nums"
     >
-      {count}
+      {count.toLocaleString(locale)}
     </span>
   );
 }
@@ -38,17 +40,18 @@ export function CollaborationNavSessions({
   selectedId?: string;
   onSelect: (documentId: string) => void;
 }) {
+  const { t } = useRoomI18n();
   const sessions = useCollaborationStore(state => state.sessions);
   const whiteboards = useCollaborationStore(state => state.whiteboards ?? EMPTY_BOARDS);
   const requests = useCollaborationStore(state => state.requests);
   const current = resolveShared(sessions, whiteboards, selectedId);
   return (
-    <div className="mt-0.5 mb-1 space-y-px" role="group" aria-label="共享内容">
+    <div className="mt-0.5 mb-1 space-y-px" role="group" aria-label={t("center.sharedContent")}>
       {groupShared(sessions, whiteboards).map(group => (
-        <div key={group.label}>
+        <div key={group.id}>
           {/* 缩进按父项字号（body）折算到父项文字列；flex 让子 span 不继承 body 行高 */}
           <div className="text-tau-body flex pt-1.5 pb-0.5 pl-[calc(1.06em+20px)]">
-            <span className="text-tau-tiny text-ink-3">{group.label}</span>
+            <span className="text-tau-tiny text-ink-3">{t(`group.${group.id}`)}</span>
           </div>
           {group.sessions.map(session => (
             <SessionItem
@@ -95,7 +98,8 @@ function WhiteboardItem({
   requests: number;
   onClick: () => void;
 }) {
-  const title = room.title || "未命名白板";
+  const { t, locale } = useRoomI18n();
+  const title = room.title || t("untitled.board");
   return (
     <div className="flex gap-2.5">
       <span aria-hidden className="text-tau-body w-[1.06em] shrink-0" />
@@ -103,14 +107,14 @@ function WhiteboardItem({
         type="button"
         onClick={onClick}
         aria-current={active ? "page" : undefined}
-        title={`${title} · 白板`}
+        title={`${title} · ${t("type.board")}`}
         className={childClass(active)}
       >
         <PenTool className="text-ink-3 size-3 shrink-0" strokeWidth={1.75} />
         <span className="min-w-0 flex-1 truncate">{title}</span>
         {requests > 0 && (
           <span className="bg-accent text-ink-inverse min-w-4 shrink-0 rounded-full px-1 text-center text-[10.5px] leading-4 font-[600] tabular-nums">
-            {requests}
+            {requests.toLocaleString(locale)}
           </span>
         )}
       </button>
@@ -129,9 +133,10 @@ function SessionItem({
   requests: number;
   onClick: () => void;
 }) {
+  const { t, locale } = useRoomI18n();
   const context = useCollaborationUiI18n();
   const status = useStableSessionStatus(session) ?? sessionStatus(session);
-  const title = session.title || "未命名内容";
+  const title = session.title || t("untitled.content");
   return (
     // 让出父项图标列（按 body 字号折算）放在按钮外：高亮只盖状态点起的一段；
     // 状态点落在父项文字列、与分组标题对齐，标题再缩一级
@@ -148,7 +153,7 @@ function SessionItem({
         <span className="min-w-0 flex-1 truncate">{title}</span>
         {requests > 0 && (
           <span className="bg-accent text-ink-inverse min-w-4 shrink-0 rounded-full px-1 text-center text-[10.5px] leading-4 font-[600] tabular-nums">
-            {requests}
+            {requests.toLocaleString(locale)}
           </span>
         )}
       </button>

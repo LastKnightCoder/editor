@@ -1,6 +1,7 @@
 import { useEffect, useState, type ComponentType, type Ref } from "react";
 import { isCollaborationResource } from "@tau/collaboration";
 import type { ContentCollaborationBinding } from "@tau/editor-collab";
+import { useRoomI18n } from "./room.i18n";
 
 /**
  * 包装平台媒体组件：将协同资源引用（服务器资产 / 仅本机资源）解析为本地地址后再渲染。
@@ -10,9 +11,10 @@ import type { ContentCollaborationBinding } from "@tau/editor-collab";
 export function createAssetMedia<P extends { src?: string; ref?: Ref<HTMLMediaElement> }>(
   Component: ComponentType<P>,
   binding: Pick<ContentCollaborationBinding, "resolveResource">,
-  label: string
+  kind: "video" | "audio"
 ): ComponentType<P> {
   function AssetMedia(props: P) {
+    const { t } = useRoomI18n();
     const source = typeof props.src === "string" ? props.src : "";
     const managed = isCollaborationResource(source);
     const [resolved, setResolved] = useState<string>();
@@ -36,10 +38,10 @@ export function createAssetMedia<P extends { src?: string; ref?: Ref<HTMLMediaEl
       return (
         <div
           className="border-line-1 bg-page text-ink-3 rounded-tau-md text-tau-sm flex min-h-24 w-[min(480px,100%)] items-center justify-center gap-2 border border-dashed px-4 py-6"
-          title="视频不上传协作服务器；添加者本机缺失的文件同样无法共享"
+          title={t("asset.hint")}
         >
           <i className="bg-warn h-[7px] w-[7px] flex-none rounded-full" />
-          {label}未共享，仅在添加它的设备上可播放
+          {t(`asset.${kind}`)}
         </div>
       );
     return <Component {...props} ref={props.ref} src={managed ? resolved : source} />;

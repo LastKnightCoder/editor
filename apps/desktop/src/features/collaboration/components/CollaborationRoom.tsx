@@ -1,4 +1,5 @@
 import { useCollaborationUiI18n } from "@/components/CollaborationUI/i18n";
+import { useRoomI18n, roomErrorText } from "@/components/CollaborationUI/room.i18n";
 /**
  * 协作副本：直接编辑共享内容——我发起的与我加入的都在这里改。
  * 落在协作页那张纸内，不自带卡片外壳；顶栏 / 横幅 / 底栏与页头同为 32px 左右边距。
@@ -120,6 +121,8 @@ export function CollaborationRoom({
 }) {
   const { binding, article, error, frozen, retry } = useCollaborationDocument(session.id);
   const context = useCollaborationUiI18n();
+  const roomContext = useRoomI18n();
+  const { t, locale } = roomContext;
   const [leaving, setLeaving] = useState(false);
   /* 编辑历史页边注：与正文同纸的右栏，选中条目联动正文块标注（连接线画在房间行容器内） */
   const roomRowRef = useRef<HTMLDivElement>(null);
@@ -134,6 +137,12 @@ export function CollaborationRoom({
     session.status !== "active" || frozen || binding?.doc.getMap("meta").get("version") === 1;
   const pending = pendingRequests(requests, session.id);
   const info = sourceInfo(session);
+  const sourceLabel =
+    info.kind === "shared"
+      ? info.ownerName !== undefined
+        ? t("source.owner", { nickname: info.ownerName })
+        : t("source.others")
+      : t(`source.${info.kind}`);
   const SourceIcon = (info.source && SOURCE_ICONS[info.source.sourceType ?? ""]) || Users;
   const source = openableSource(session);
   const invitation = useInvitation(session.id, ownerActive);
@@ -143,7 +152,7 @@ export function CollaborationRoom({
     try {
       await openSource(source);
     } catch (failure) {
-      toast.error(failure instanceof Error ? failure.message : "打开失败");
+      toast.error(roomErrorText(failure, "room.openFailed"));
     }
   };
 
@@ -154,19 +163,17 @@ export function CollaborationRoom({
         icon: AlertTriangle,
         text:
           session.status === "closed" && session.pending
-            ? `${session.error}。本机还有未同步的改动，可以先复制需要的内容，再清理。`
+            ? t("room.closedPendingError", { reason: session.error })
             : session.error,
       };
     if (session.status === "active" && ["offline", "error"].includes(session.connection))
       return {
         tone: "warn" as const,
         icon: WifiOff,
-        text: session.pending
-          ? "离线中，改动已保存在本机，恢复连接后自动合并。"
-          : "离线中，暂时看不到其他成员的改动。",
+        text: session.pending ? t("room.offlinePending") : t("room.offline"),
       };
     return null;
-  }, [session.error, session.status, session.pending, session.connection]);
+  }, [session.error, session.status, session.pending, session.connection, t]);
 
   return (
     <section className="flex min-h-0 flex-1 flex-col">
@@ -175,7 +182,7 @@ export function CollaborationRoom({
         <span className="text-ink-3 text-tau-sm flex min-w-0 items-center gap-1.5">
           <SourceIcon className="size-3.5 flex-none" strokeWidth={1.75} />
           <span className="truncate">
-            {info.typeLabel}
+            {sourceLabel}
             {info.title && ` · ${info.title}`}
           </span>
         </span>
@@ -189,21 +196,21 @@ export function CollaborationRoom({
             trigger={
               <button
                 type="button"
-                aria-label={ownerActive ? "成员与邀请" : "成员"}
+                aria-label={ownerActive ? t("room.membersInvitations") : t("room.members")}
                 className="rounded-tau-sm text-ink-2 hover:bg-hover hover:text-ink-1 text-tau-meta flex h-[30px] cursor-pointer items-center gap-2 pr-2.5 pl-1.5"
               >
                 <AvatarStack members={session.members} max={4} className="ring-surface" />
                 <span>{othersSummary(session, deviceId, context)}</span>
                 {pending.length > 0 && (
                   <span className="bg-accent text-ink-inverse min-w-[18px] rounded-full px-1.5 text-center text-[11px] leading-[18px] font-[600] tabular-nums">
-                    {pending.length}
+                    {pending.length.toLocaleString(locale)}
                   </span>
                 )}
               </button>
             }
           >
             <Popover.Header icon={<Users className="size-[15px]" strokeWidth={1.75} />}>
-              {ownerActive ? "成员与邀请" : "成员"}
+              {ownerActive ? t("room.membersInvitations") : t("room.members")}
             </Popover.Header>
             <Popover.Body>
               <SharePanel session={session} requests={requests} deviceId={deviceId} />
@@ -212,7 +219,7 @@ export function CollaborationRoom({
         )}
 
         {ownerActive && invitation.data && (
-          <Tooltip content="复制协作码">
+          <Tooltip content={t("invitation.copy")}>
             <button
               type="button"
               onClick={() => void invitation.copy()}
@@ -232,14 +239,15 @@ export function CollaborationRoom({
             onClick={() => void openOriginal()}
             className="rounded-tau-sm text-ink-2 hover:bg-hover hover:text-ink-1 text-tau-meta flex h-7 cursor-pointer items-center gap-1.5 px-2.5"
           >
-            <ExternalLink className="size-[14px]" strokeWidth={1.75} />在{info.typeLabel}中打开
+            <ExternalLink className="size-[14px]" strokeWidth={1.75} />
+            {t("room.openOriginal", { type: sourceLabel })}
           </button>
         )}
 
         {session.status === "active" && (
           <IconButton
-            title="编辑历史"
-            aria-label="编辑历史"
+            title={t("room.history")}
+            aria-label={t("room.history")}
             aria-pressed={history.isOpen}
             className={cn("size-[30px]", history.isOpen && "bg-accent-soft text-accent-text")}
             onClick={history.toggle}
@@ -250,7 +258,7 @@ export function CollaborationRoom({
         <Menu
           align="end"
           trigger={
-            <IconButton aria-label="更多" title="更多">
+            <IconButton aria-label={t("room.more")} title={t("room.more")}>
               <MoreHorizontal className="size-4" strokeWidth={1.75} />
             </IconButton>
           }
@@ -262,21 +270,21 @@ export function CollaborationRoom({
                 disabled={!invitation.data}
                 onSelect={() => void invitation.copy()}
               >
-                复制协作码
+                {t("invitation.copy")}
               </Menu.Item>
               <Menu.Item
                 icon={<RefreshCw className="size-[15px]" strokeWidth={1.75} />}
                 disabled={invitation.rotating}
                 onSelect={() => void invitation.rotate()}
               >
-                {invitation.data ? "轮换协作码" : "生成协作码"}
+                {invitation.data ? t("invitation.rotateCode") : t("invitation.generate")}
               </Menu.Item>
               <Menu.Separator />
             </>
           )}
           {session.status === "active" && (
             <Menu.Item icon={<History className="size-[15px]" />} onSelect={() => history.open()}>
-              编辑历史
+              {t("room.history")}
             </Menu.Item>
           )}
           <Menu.Item
@@ -290,7 +298,7 @@ export function CollaborationRoom({
             }
             onSelect={() => setLeaving(true)}
           >
-            {leaveLabel(session)}
+            {leaveLabel(session, roomContext)}
           </Menu.Item>
         </Menu>
       </header>
@@ -313,7 +321,7 @@ export function CollaborationRoom({
                   onClick={() => setLeaving(true)}
                   className="rounded-tau-sm hover:bg-hover h-7 flex-none cursor-pointer px-2.5 font-[500]"
                 >
-                  {leaveLabel(session)}
+                  {leaveLabel(session, roomContext)}
                 </button>
               )}
             </div>
@@ -324,7 +332,7 @@ export function CollaborationRoom({
                 key={request.id}
                 request={request}
                 className="bg-hover"
-                description="申请加入这份内容"
+                description={t("room.requestHere")}
               />
             ))}
         </div>
@@ -342,7 +350,7 @@ export function CollaborationRoom({
                 frozen={frozen}
                 error={error}
                 contentEditable={!readonly}
-                placeholder="未命名内容"
+                placeholder={t("untitled.content")}
                 className="text-ink-1 text-[26px] leading-[1.35] font-[600] tracking-[-0.01em]"
               />
               <div className="mt-6">
@@ -358,7 +366,7 @@ export function CollaborationRoom({
             <div className="text-danger text-tau-meta flex flex-col items-center gap-2 pt-20">
               <p role="alert">{error}</p>
               <button type="button" className="text-accent-text cursor-pointer" onClick={retry}>
-                重试
+                {t("room.retry")}
               </button>
             </div>
           ) : (
@@ -371,7 +379,7 @@ export function CollaborationRoom({
       <footer className="text-ink-3 text-tau-sm flex h-[38px] flex-none items-center gap-3.5 px-8 pb-1">
         <SessionStatus session={session} />
         <span className="flex-1" />
-        <span>更新于 {formatAgo(session.updatedAt, context.locale)}</span>
+        <span>{t("room.updatedAt", { time: formatAgo(session.updatedAt, locale) })}</span>
       </footer>
 
       <LeaveDialog session={session} open={leaving} onOpenChange={setLeaving} onLeft={onLeft} />

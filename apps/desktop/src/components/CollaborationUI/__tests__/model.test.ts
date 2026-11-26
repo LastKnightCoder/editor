@@ -88,7 +88,7 @@ describe("leaveIntent", () => {
   it("作者正常结束共享", () => {
     expect(leaveIntent(session())).toMatchObject({
       action: "leave",
-      confirmText: "结束共享",
+      kind: "owner",
       blocked: false,
     });
   });
@@ -98,14 +98,14 @@ describe("leaveIntent", () => {
   it("成员有未同步改动：可丢弃改动退出", () => {
     expect(leaveIntent(session({ role: "editor", pending: true }))).toMatchObject({
       action: "leave",
-      confirmText: "丢弃改动并退出",
+      kind: "member-pending",
       blocked: false,
     });
   });
   it("连接不可用：改走清理本地记录", () => {
     expect(leaveIntent(session({ connection: "offline" }))).toMatchObject({
       action: "discard",
-      confirmText: "清理记录",
+      kind: "discard",
     });
     expect(leaveIntent(session({ error: "作者已结束共享", status: "closed" }))).toMatchObject({
       action: "discard",

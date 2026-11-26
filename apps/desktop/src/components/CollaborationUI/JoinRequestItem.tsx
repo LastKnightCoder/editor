@@ -6,7 +6,8 @@ import { Button, IconButton, Tooltip, cn, toast } from "@tau/ui";
 import type { JoinRequest } from "@tau/collaboration";
 import { decideJoinRequest } from "@/commands";
 import { Avatar } from "./Avatar";
-import { daysLeft, errorText } from "./model";
+import { useRoomI18n, roomTranslator, roomErrorText } from "./room.i18n";
+import { daysLeft } from "./model";
 
 export function JoinRequestItem({
   request,
@@ -21,16 +22,20 @@ export function JoinRequestItem({
   compact?: boolean;
   className?: string;
 }) {
+  const { t, locale } = useRoomI18n();
+  const days = daysLeft(request.expiresAt);
   const [busy, setBusy] = useState<"approve" | "reject">();
   const decide = async (approve: boolean) => {
     setBusy(approve ? "approve" : "reject");
     try {
       await decideJoinRequest(request.id, approve);
       toast.success(
-        approve ? `已同意 ${request.nickname} 加入` : `已拒绝 ${request.nickname} 的申请`
+        roomTranslator.t(approve ? "request.approved" : "request.rejected", {
+          nickname: request.nickname,
+        })
       );
     } catch (error) {
-      toast.error(errorText(error));
+      toast.error(roomErrorText(error));
     } finally {
       setBusy(undefined);
     }
@@ -48,14 +53,15 @@ export function JoinRequestItem({
       <div className="min-w-0 flex-1">
         <div className="text-tau-body truncate font-[500]">{request.nickname}</div>
         <div className="text-ink-3 text-tau-sm truncate">
-          {description ?? `申请加入 · ${daysLeft(request.expiresAt)} 天内有效`}
+          {description ??
+            t("request.expires", { count: days, amount: days.toLocaleString(locale) })}
         </div>
       </div>
       {compact ? (
         <span className="flex flex-none gap-0.5">
-          <Tooltip content="拒绝">
+          <Tooltip content={t("request.reject")}>
             <IconButton
-              aria-label={`拒绝 ${request.nickname}`}
+              aria-label={t("request.rejectLabel", { nickname: request.nickname })}
               disabled={busy !== undefined}
               className="enabled:hover:bg-danger-soft enabled:hover:text-danger size-7"
               onClick={() => void decide(false)}
@@ -63,9 +69,9 @@ export function JoinRequestItem({
               <X className="size-[14px]" strokeWidth={1.75} />
             </IconButton>
           </Tooltip>
-          <Tooltip content="同意">
+          <Tooltip content={t("request.approve")}>
             <IconButton
-              aria-label={`同意 ${request.nickname}`}
+              aria-label={t("request.approveLabel", { nickname: request.nickname })}
               disabled={busy !== undefined}
               className="text-ok enabled:hover:bg-ok-soft enabled:hover:text-ok size-7"
               onClick={() => void decide(true)}
@@ -83,7 +89,7 @@ export function JoinRequestItem({
             disabled={busy === "approve"}
             onClick={() => void decide(false)}
           >
-            拒绝
+            {t("request.reject")}
           </Button>
           <Button
             size="sm"
@@ -92,7 +98,7 @@ export function JoinRequestItem({
             disabled={busy === "reject"}
             onClick={() => void decide(true)}
           >
-            同意
+            {t("request.approve")}
           </Button>
         </span>
       )}

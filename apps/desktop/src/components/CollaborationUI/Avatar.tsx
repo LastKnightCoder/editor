@@ -4,9 +4,10 @@
  */
 
 import { memo, type CSSProperties } from "react";
-import { memberColor, type Member } from "@tau/collaboration";
+import { memberColor } from "@tau/collaboration";
 import { cn } from "@tau/ui";
-import { memberActivity, type MemberActivity } from "./model";
+import { type MemberActivity } from "./model";
+import { useRoomI18n } from "./room.i18n";
 
 const ACTIVITY_DOT: Record<MemberActivity, string> = {
   editing: "bg-ok",
@@ -14,9 +15,6 @@ const ACTIVITY_DOT: Record<MemberActivity, string> = {
   background: "bg-ink-3",
   offline: "",
 };
-
-const activityLabel = (activity: MemberActivity) =>
-  activity === "offline" ? "离线" : memberActivity({ online: true, activity } as Member);
 
 export const Avatar = memo(function Avatar({
   id,
@@ -33,6 +31,7 @@ export const Avatar = memo(function Avatar({
   /** 活动点与叠放描边的底色，默认 surface（放在 page 上时传 ring-page） */
   className?: string;
 }) {
+  const { t } = useRoomI18n();
   const color = memberColor(id);
   const style = {
     width: size,
@@ -49,7 +48,7 @@ export const Avatar = memo(function Avatar({
         className
       )}
       style={style}
-      title={activity ? `${name} · ${activityLabel(activity)}` : name}
+      title={activity ? `${name} · ${t(`activity.${activity}`)}` : name}
     >
       {(name || "?").trim().slice(0, 1).toUpperCase()}
       {activity && activity !== "offline" && (

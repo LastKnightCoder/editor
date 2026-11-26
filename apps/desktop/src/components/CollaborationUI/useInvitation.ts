@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@tau/ui";
 import { generateCollaborationInvitation, getCurrentCollaborationInvitation } from "@/commands";
-import { errorText, formatInvitationCode } from "./model";
+import { formatInvitationCode } from "./model";
+import { roomTranslator, roomErrorText } from "./room.i18n";
 
 const invitationKey = (documentId: string) => ["collaboration", "invitation", documentId];
 
@@ -27,9 +28,9 @@ export function useInvitation(documentId: string, enabled = true) {
     try {
       const next = await generateCollaborationInvitation(documentId);
       queryClient.setQueryData(invitationKey(documentId), next);
-      if (data) toast.success("已轮换协作码，旧码不能再申请加入");
+      if (data) toast.success(roomTranslator.t("invitation.rotated"));
     } catch (error) {
-      toast.error(errorText(error, "生成协作码失败"));
+      toast.error(roomErrorText(error, "invitation.failed"));
     } finally {
       setRotating(false);
     }
@@ -40,10 +41,10 @@ export function useInvitation(documentId: string, enabled = true) {
       await navigator.clipboard.writeText(formatInvitationCode(data.code));
     } catch {
       // 窗口失焦等场景 clipboard 会拒绝写入，错误是技术文案，给统一提示
-      toast.error("复制失败，请重试");
+      toast.error(roomTranslator.t("invitation.copyFailed"));
       return false;
     }
-    toast.success("协作码已复制");
+    toast.success(roomTranslator.t("invitation.codeCopied"));
     return true;
   };
   return { data, loading: query.isPending && enabled, rotating, rotate, copy };

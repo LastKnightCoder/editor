@@ -1,4 +1,5 @@
 import { useCollaborationUiI18n } from "./i18n";
+import { useRoomI18n } from "./room.i18n";
 /** 分享面板（作者：协作码 + 申请 + 成员；成员：成员）——协作页 Popover 与内容页对话框共用 */
 
 import type { CollaborationSession, JoinRequest } from "@tau/collaboration";
@@ -17,6 +18,7 @@ export function SharePanel({
   requests: JoinRequest[];
   deviceId?: string;
 }) {
+  const { t } = useRoomI18n();
   const context = useCollaborationUiI18n();
   const pending = pendingRequests(requests, session.id);
   const ownerActive = session.role === "owner" && session.status === "active";
@@ -25,7 +27,7 @@ export function SharePanel({
       {ownerActive && <InvitationCode session={session} />}
       {ownerActive && pending.length > 0 && (
         <div className="flex flex-col gap-1.5">
-          <SectionTitle count={pending.length}>待审批</SectionTitle>
+          <SectionTitle count={pending.length}>{t("center.pendingTitle")}</SectionTitle>
           {pending.map(request => (
             <JoinRequestItem key={request.id} request={request} className="bg-hover" />
           ))}
@@ -38,7 +40,7 @@ export function SharePanel({
             session.status === "active" ? othersSummary(session, deviceId, context) : undefined
           }
         >
-          成员
+          {t("room.members")}
         </SectionTitle>
         <MemberList session={session} deviceId={deviceId} />
       </div>

@@ -272,6 +272,8 @@ P6独立编辑窗口：11路径工程完成；desktop类型/构建、三语32语
 
 P6A3-D1白板提示/预览：11路径工程完成；4文件26例、包type/白板边界、19key三语runtime/参数和范围格式/静态通过。真实未知元素往返与错误renderer不重试、URL pending任务换语不解码/插入第二次、同图片DOM/src与自定义/显式空alt均保留。发现并修复图片关闭×冒泡导致一次点击onClose两次，真实回归已锁一次关闭；CreationPreview无固定文案未动算法。
 
+P6B桌面房间/成员/退出：23路径工程完成，原14基线扩为19例通过；desktop类型、room三语109语义key参数与范围静态/格式通过。5真实契约保留Nav节点/焦点/session对象、成员确认设备与pending单请求、owner pending阻止结束/同步后原id一次退出、邀请码cache/query与code不重读/复制/轮换、同媒体player及资源解析单次；所有Doc/kit/presence依赖不加locale，2外域工厂仅稳定video/audio参数。历史面板另批。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

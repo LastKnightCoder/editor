@@ -6,10 +6,13 @@ import { Button, IconButton, Tooltip, cn } from "@tau/ui";
 import type { CollaborationSession } from "@tau/collaboration";
 import { daysLeft, formatInvitationCode } from "./model";
 import { useInvitation } from "./useInvitation";
+import { useRoomI18n } from "./room.i18n";
 
 export function InvitationCode({ session }: { session: CollaborationSession }) {
+  const { t, locale } = useRoomI18n();
   const { data, loading: isPending, rotating, rotate, copy: copyCode } = useInvitation(session.id);
   const [copied, setCopied] = useState(false);
+  const days = data ? daysLeft(data.expiresAt) : undefined;
   const copy = async () => {
     if (!(await copyCode())) return;
     setCopied(true);
@@ -17,7 +20,7 @@ export function InvitationCode({ session }: { session: CollaborationSession }) {
   };
   return (
     <div>
-      <div className="border-line-1 bg-surface rounded-tau-md flex h-[46px] items-center gap-2.5 border pl-3.5 pr-1.5">
+      <div className="border-line-1 bg-surface rounded-tau-md flex h-[46px] items-center gap-2.5 border pr-1.5 pl-3.5">
         <code
           data-testid="collaboration-code"
           className={cn(
@@ -28,8 +31,8 @@ export function InvitationCode({ session }: { session: CollaborationSession }) {
           {data ? formatInvitationCode(data.code) : "————-————-————"}
         </code>
         {data ? (
-          <Tooltip content={copied ? "已复制" : "复制协作码"}>
-            <IconButton aria-label="复制协作码" onClick={() => void copy()}>
+          <Tooltip content={copied ? t("invitation.copied") : t("invitation.copy")}>
+            <IconButton aria-label={t("invitation.copy")} onClick={() => void copy()}>
               {copied ? (
                 <Check className="text-ok size-[15px]" strokeWidth={1.75} />
               ) : (
@@ -46,18 +49,21 @@ export function InvitationCode({ session }: { session: CollaborationSession }) {
             disabled={isPending}
             onClick={() => void rotate()}
           >
-            生成协作码
+            {t("invitation.generate")}
           </Button>
         )}
       </div>
       <div className="text-ink-3 text-tau-sm mt-1.5 flex items-center gap-2">
         <span className="min-w-0 flex-1 truncate">
           {data
-            ? `${daysLeft(data.expiresAt)} 天后过期 · 对方在「加入协作」里输入`
-            : "协作码 7 天有效，发给对方即可申请加入"}
+            ? t("invitation.expires", {
+                count: days ?? 0,
+                amount: (days ?? 0).toLocaleString(locale),
+              })
+            : t("invitation.hint")}
         </span>
         {data && (
-          <Tooltip content="旧码立即失效，已加入的成员不受影响">
+          <Tooltip content={t("invitation.rotateHint")}>
             <button
               type="button"
               disabled={rotating}
@@ -65,7 +71,7 @@ export function InvitationCode({ session }: { session: CollaborationSession }) {
               className="text-accent-text inline-flex flex-none cursor-pointer items-center gap-1 font-[500] hover:underline hover:underline-offset-[3px] disabled:opacity-50"
             >
               <RefreshCw className={cn("size-3", rotating && "animate-spin")} strokeWidth={1.75} />
-              轮换
+              {t("invitation.rotate")}
             </button>
           </Tooltip>
         )}

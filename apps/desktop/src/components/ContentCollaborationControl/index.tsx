@@ -1,4 +1,9 @@
 import { useCollaborationUiI18n } from "@/components/CollaborationUI/i18n";
+import {
+  useRoomI18n,
+  roomErrorText,
+  type RoomMessageKey,
+} from "@/components/CollaborationUI/room.i18n";
 /**
  * 内容页协作入口（文章 / 卡片 / 项目文档）：底栏触发位 + 「内容协作」对话框。
  *
@@ -39,10 +44,10 @@ export interface ContentCollaborationControlHandle {
   open: () => void;
 }
 
-const POINTS = [
-  { icon: KeyRound, text: "生成一个 12 位协作码，对方输入后需要你同意" },
-  { icon: Wand2, text: "白板、数据库这类本地块不会共享，成员看到的是占位说明" },
-  { icon: LogOut, text: "随时可以结束共享，服务器上的副本会被清理" },
+const POINTS: Array<{ icon: typeof KeyRound; key: RoomMessageKey }> = [
+  { icon: KeyRound, key: "control.point.code" },
+  { icon: Wand2, key: "control.point.local" },
+  { icon: LogOut, key: "control.point.end" },
 ];
 
 export default function ContentCollaborationControl({
@@ -63,6 +68,8 @@ export default function ContentCollaborationControl({
   onClose?: () => void;
 }) {
   const context = useCollaborationUiI18n();
+  const roomContext = useRoomI18n();
+  const { t, locale } = roomContext;
   const { entry, error: sessionError } = useContentSession(contentId, source);
   const sessions = useCollaborationStore(state => state.sessions);
   const requests = useCollaborationStore(state => state.requests);
@@ -72,7 +79,7 @@ export default function ContentCollaborationControl({
   const [openRequested, setOpenRequested] = useState(false);
   const [creating, setCreating] = useState(false);
   const [leaving, setLeaving] = useState(false);
-  const [error, setError] = useState<string>();
+  const [error, setError] = useState<{ cause: unknown }>();
   // 共享刚完成时内容会话的广播可能晚于命令返回，先用返回的文档 id 接上
   const [createdId, setCreatedId] = useState<string>();
 
@@ -117,7 +124,7 @@ export default function ContentCollaborationControl({
       );
       setCreatedId(result.documentId);
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : "共享失败");
+      setError({ cause: failure });
     } finally {
       setCreating(false);
     }
@@ -130,7 +137,7 @@ export default function ContentCollaborationControl({
       setOpen(false);
       setPopoverOpen(false);
     } catch (failure) {
-      toast.error(failure instanceof Error ? failure.message : "无法打开协作页");
+      toast.error(roomErrorText(failure, "control.openFailed"));
     }
   };
 
@@ -154,23 +161,25 @@ export default function ContentCollaborationControl({
           trigger={
             <button
               type="button"
-              aria-label={`协作成员：${summary}`}
+              aria-label={t("control.membersSummary", { summary: summary ?? "" })}
               className="rounded-tau-sm text-ink-3 hover:bg-hover hover:text-ink-1 text-tau-meta flex h-[26px] cursor-pointer items-center gap-1.5 pr-2 pl-1 transition-colors"
             >
               <AvatarStack members={session.members} max={3} size={18} />
               <span className="whitespace-nowrap">
-                {session.status === "active" ? summary : "共享已结束"}
+                {session.status === "active" ? summary : t("control.closed")}
               </span>
               {pending.length > 0 && (
                 <span className="bg-accent text-ink-inverse min-w-4 rounded-full px-1 text-center text-[10.5px] leading-4 font-[600] tabular-nums">
-                  {pending.length}
+                  {pending.length.toLocaleString(locale)}
                 </span>
               )}
             </button>
           }
         >
           <Popover.Header icon={<Users className="size-[15px]" strokeWidth={1.75} />}>
-            {session.role === "owner" && session.status === "active" ? "成员与邀请" : "成员"}
+            {session.role === "owner" && session.status === "active"
+              ? t("room.membersInvitations")
+              : t("room.members")}
           </Popover.Header>
           <Popover.Body>
             <div className="flex flex-col gap-4">
@@ -180,7 +189,7 @@ export default function ContentCollaborationControl({
           </Popover.Body>
           <Popover.Footer>
             <Button variant="ghost" size="sm" className="mr-auto" onClick={viewInCenter}>
-              在协作页查看
+              {t("control.view")}
               <ArrowRight className="size-3.5" strokeWidth={1.75} />
             </Button>
             <Button
@@ -192,7 +201,7 @@ export default function ContentCollaborationControl({
                 setLeaving(true);
               }}
             >
-              {leaveLabel(session)}
+              {leaveLabel(session, roomContext)}
             </Button>
           </Popover.Footer>
         </Popover>
@@ -201,7 +210,9 @@ export default function ContentCollaborationControl({
       {!hideTrigger && !(presence && session) && (
         <button
           type="button"
-          aria-label={session ? `协作：${summary}` : "发起协作"}
+          aria-label={
+            session ? t("control.summary", { summary: summary ?? "" }) : t("control.start")
+          }
           disabled={entry?.frozen}
           onClick={() => setOpen(true)}
           className="rounded-tau-sm text-ink-2 hover:bg-hover hover:text-ink-1 text-tau-sm inline-flex h-6 cursor-pointer items-center gap-2 px-2 disabled:cursor-default disabled:opacity-50"
@@ -210,19 +221,19 @@ export default function ContentCollaborationControl({
             <>
               <StatusDot tone={sessionStatus(session).tone} />
               <span className="whitespace-nowrap">
-                {session.status === "active" ? summary : "共享已结束"}
+                {session.status === "active" ? summary : t("control.closed")}
               </span>
               <AvatarStack members={session.members} max={3} size={16} />
               {pending.length > 0 && (
                 <span className="bg-accent text-ink-inverse min-w-4 rounded-full px-1 text-center text-[10.5px] leading-4 font-[600] tabular-nums">
-                  {pending.length}
+                  {pending.length.toLocaleString(locale)}
                 </span>
               )}
             </>
           ) : (
             <>
               <Share2 className="text-ink-3 size-[13px]" strokeWidth={1.75} />
-              发起协作
+              {t("control.start")}
             </>
           )}
         </button>
@@ -234,13 +245,13 @@ export default function ContentCollaborationControl({
         onAfterClose={() => setError(undefined)}
         locked={creating}
         width={480}
-        title={session ? "内容协作" : "发起协作"}
+        title={session ? t("control.title") : t("control.start")}
         context={title || undefined}
         footer={
           session ? (
             <>
               <Button variant="ghost" className="mr-auto" onClick={viewInCenter}>
-                在协作页查看
+                {t("control.view")}
                 <ArrowRight className="size-3.5" strokeWidth={1.75} />
               </Button>
               <Button
@@ -248,23 +259,23 @@ export default function ContentCollaborationControl({
                 icon={isStale(session) ? Trash2 : LogOut}
                 onClick={() => setLeaving(true)}
               >
-                {leaveLabel(session)}
+                {leaveLabel(session, roomContext)}
               </Button>
             </>
           ) : (
             <>
               <Button variant="secondary" onClick={() => setOpen(false)}>
-                取消
+                {t("control.cancel")}
               </Button>
               <Button
                 variant="primary"
                 icon={Share2}
                 data-autofocus
                 loading={creating}
-                loadingText="正在共享…"
+                loadingText={t("control.sharing")}
                 onClick={() => void share()}
               >
-                发起共享
+                {t("control.share")}
               </Button>
             </>
           )
@@ -276,7 +287,7 @@ export default function ContentCollaborationControl({
               role="alert"
               className="bg-danger-soft text-danger text-tau-meta rounded-tau-sm mb-3 px-3 py-2"
             >
-              {error}
+              {roomErrorText(error.cause, "control.shareFailed")}
             </p>
           )}
           {session ? (
@@ -286,22 +297,22 @@ export default function ContentCollaborationControl({
             </div>
           ) : (
             <div className="text-ink-2 text-tau-body">
-              <p>把这份内容共享给其他设备实时编辑。共享后它仍在原处，你照常在这里写。</p>
+              <p>{t("control.hint")}</p>
               <ul className="mt-3 flex flex-col gap-2">
                 {POINTS.map(point => (
-                  <li key={point.text} className="flex items-start gap-2.5">
+                  <li key={point.key} className="flex items-start gap-2.5">
                     <point.icon
                       className="text-ink-3 mt-[3px] size-3.5 flex-none"
                       strokeWidth={1.75}
                     />
-                    <span className="text-tau-meta">{point.text}</span>
+                    <span className="text-tau-meta">{t(point.key)}</span>
                   </li>
                 ))}
               </ul>
               {creating && (
                 <p className="text-ink-3 text-tau-sm mt-3 flex items-center gap-1.5">
                   <Users className="size-3.5" strokeWidth={1.75} />
-                  正在暂停本地编辑、上传附件并创建共享文档…
+                  {t("control.pendingHint")}
                 </p>
               )}
             </div>

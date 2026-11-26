@@ -24,10 +24,12 @@ import { WhiteboardRoom } from "../components/WhiteboardRoom";
 import { JoinDialog } from "../components/JoinDialog";
 import { NicknameChip } from "../components/NicknameChip";
 import { ShareLocalDialog } from "../components/ShareLocalDialog";
+import { useRoomI18n } from "@/components/CollaborationUI/room.i18n";
 
 const NO_WHITEBOARDS: SharedWhiteboardInfo[] = [];
 
 export function CollaborationView() {
+  const { t, locale } = useRoomI18n();
   const { navigator } = usePage();
   const { id } = usePageParams<{ id?: string }>();
   const synced = useCollaborationStore(state => state.synced);
@@ -53,15 +55,15 @@ export function CollaborationView() {
       <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="mt-5 flex h-10 flex-none items-center gap-3 px-8">
           <h1 className="text-tau-title-lg shrink-0 font-[600] tracking-[-0.01em] whitespace-nowrap">
-            协作
+            {t("center.title")}
           </h1>
           {sessions.length + whiteboards.length > 0 && (
             <div className="text-ink-2 text-tau-meta flex items-center gap-2">
               <span>
                 <b className="text-ink-1 font-[600] tabular-nums">
-                  {sessions.length + whiteboards.length}
+                  {(sessions.length + whiteboards.length).toLocaleString(locale)}
                 </b>{" "}
-                份共享
+                {t("center.sharedUnit", { count: sessions.length + whiteboards.length })}
               </span>
               {pending.length > 0 && (
                 <>
@@ -75,12 +77,15 @@ export function CollaborationView() {
                         type="button"
                         className="text-accent-text cursor-pointer hover:underline hover:underline-offset-[3px]"
                       >
-                        {pending.length} 个申请待处理
+                        {t("center.pending", {
+                          count: pending.length,
+                          amount: pending.length.toLocaleString(locale),
+                        })}
                       </button>
                     }
                   >
                     <Popover.Header icon={<Users className="size-[15px]" strokeWidth={1.75} />}>
-                      待审批
+                      {t("center.pendingTitle")}
                     </Popover.Header>
                     <Popover.Body>
                       <div className="flex flex-col gap-1.5">
@@ -90,11 +95,12 @@ export function CollaborationView() {
                             request={request}
                             compact
                             className="bg-hover"
-                            description={`申请加入「${
-                              [...sessions, ...whiteboards].find(
-                                item => item.id === request.documentId
-                              )?.title || "未命名内容"
-                            }」`}
+                            description={t("center.requestFor", {
+                              title:
+                                [...sessions, ...whiteboards].find(
+                                  item => item.id === request.documentId
+                                )?.title || t("untitled.content"),
+                            })}
                           />
                         ))}
                       </div>
@@ -108,10 +114,10 @@ export function CollaborationView() {
           <NicknameChip deviceId={deviceId} nickname={nickname} />
 
           <Button variant="secondary" icon={KeyRound} onClick={() => setJoining(true)}>
-            输入协作码
+            {t("center.join")}
           </Button>
           <Button variant="primary" icon={Share2} onClick={() => setSharing(true)}>
-            共享本地内容
+            {t("center.share")}
           </Button>
         </div>
 
@@ -146,10 +152,8 @@ export function CollaborationView() {
               <span className="bg-accent-soft text-accent-text mb-1.5 grid size-[52px] place-items-center rounded-[16px]">
                 <Users className="size-6" strokeWidth={1.5} />
               </span>
-              <h2 className="text-ink-1 text-[15px] font-[600]">还没有协作内容</h2>
-              <p className="text-ink-2 text-tau-meta">
-                把一段本地内容或一块白板共享出去，或输入别人给你的协作码加入。文章、卡片、项目文档和白板里也能直接发起协作。
-              </p>
+              <h2 className="text-ink-1 text-[15px] font-[600]">{t("center.empty")}</h2>
+              <p className="text-ink-2 text-tau-meta">{t("center.emptyHint")}</p>
               <div className="mt-3 flex gap-2">
                 <Button
                   variant="secondary"
@@ -157,11 +161,11 @@ export function CollaborationView() {
                   icon={KeyRound}
                   onClick={() => setJoining(true)}
                 >
-                  输入协作码
+                  {t("center.join")}
                 </Button>
                 {/* 工具栏已有一枚 primary，空态 CTA 降为 soft（每屏至多一枚 primary） */}
                 <Button variant="soft" size="md" icon={Share2} onClick={() => setSharing(true)}>
-                  共享本地内容
+                  {t("center.share")}
                 </Button>
               </div>
             </div>

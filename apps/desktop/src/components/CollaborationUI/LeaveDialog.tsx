@@ -3,7 +3,8 @@
 import { ConfirmDialog, toast } from "@tau/ui";
 import type { CollaborationSession } from "@tau/collaboration";
 import { discardLocalCollaboration, leaveCollaboration } from "@/commands";
-import { errorText, leaveIntent } from "./model";
+import { leaveIntent } from "./model";
+import { useRoomI18n, roomErrorText } from "./room.i18n";
 
 export function LeaveDialog({
   session,
@@ -16,17 +17,18 @@ export function LeaveDialog({
   onOpenChange: (open: boolean) => void;
   onLeft?: () => void;
 }) {
+  const { t } = useRoomI18n();
   const intent = leaveIntent(session);
   return (
     <ConfirmDialog
       open={open}
       onOpenChange={onOpenChange}
       danger
-      title={intent.title}
-      context={session.title || "未命名内容"}
-      description={intent.description}
-      confirmText={intent.confirmText}
-      loadingText="正在处理…"
+      title={t(`leave.${intent.kind}.title`)}
+      context={session.title || t("untitled.content")}
+      description={t(`leave.${intent.kind}.description`)}
+      confirmText={t(`leave.${intent.kind}.confirm`)}
+      loadingText={t("leave.processing")}
       confirmDisabled={intent.blocked}
       onConfirm={async () => {
         try {
@@ -34,7 +36,7 @@ export function LeaveDialog({
           else await leaveCollaboration(session.id, session.pending);
           onLeft?.();
         } catch (error) {
-          toast.error(errorText(error));
+          toast.error(roomErrorText(error));
           throw error;
         }
       }}

@@ -43,15 +43,15 @@ describe("groupShared / resolveShared", () => {
   it("我发起的在前、我加入的在后，白板排在同组正文之后，空组不出现", () => {
     expect(
       groupShared(list, boards).map(g => [
-        g.label,
+        g.id,
         g.sessions.map(s => s.id),
         g.whiteboards.map(w => w.id),
       ])
     ).toEqual([
-      ["我发起的", ["o1", "o2"], ["bo"]],
-      ["我加入的", ["j1", "j2"], ["bj"]],
+      ["owned", ["o1", "o2"], ["bo"]],
+      ["joined", ["j1", "j2"], ["bj"]],
     ]);
-    expect(groupShared([joined("j1")], []).map(g => g.label)).toEqual(["我加入的"]);
+    expect(groupShared([joined("j1")], []).map(g => g.id)).toEqual(["joined"]);
   });
 
   it("参数命中即选中（正文或白板）；缺省或失效落到侧栏第一项", () => {
@@ -76,13 +76,13 @@ describe("sourceInfo / openableSource", () => {
 
   it("我发起的显示原内容类型与标题，可跳回原处", () => {
     const s = session("o1", { source });
-    expect(sourceInfo(s)).toMatchObject({ typeLabel: "文章", title: "分布式系统读书笔记" });
+    expect(sourceInfo(s)).toMatchObject({ kind: "article", title: "分布式系统读书笔记", source });
     expect(openableSource(s)).toBe(source);
   });
 
   it("我加入的显示「某某的共享」，无原内容入口", () => {
     const s = joined("j1");
-    expect(sourceInfo(s).typeLabel).toBe("阿杰 的共享");
+    expect(sourceInfo(s)).toMatchObject({ kind: "shared", ownerName: "阿杰" });
     expect(openableSource(s)).toBeUndefined();
   });
 

@@ -106,8 +106,8 @@ function withBoardResources(resource: ResourceService, base: EditorKit): EditorK
           const binding = { resolveResource: resource.remoteResourceToLocal };
           register(IEditorSlots, {
             ...slots,
-            Video: createAssetMedia(slots.Video, binding, "视频"),
-            Audio: createAssetMedia(slots.Audio, binding, "音频"),
+            Video: createAssetMedia(slots.Video, binding, "video"),
+            Audio: createAssetMedia(slots.Audio, binding, "audio"),
           });
         }
       },
