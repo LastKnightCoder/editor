@@ -370,6 +370,8 @@ Native通知十四路径完成；真实前端21例、mobile type/lint、48key三
 
 远程视频失败十九路径完成；desktop基线11至13、shared1至2例通过，desktop type/范围静态/三语runtime与Node无DOM实际烟测通过。真实Native→structuredClone→commands保原文件名/成功值、HTTP与缺参数English原message，unknown/Abort仍原reject；100ms原进度时点由fake timer验证。跨语不重cache/status或重通知，原fallback src及下载参数/清理与App memo[]保留。
 
+手机协作设置六路径完成；新2草稿/在途/原值落盘与既有settingsModule1共3例、mobile最终type/lint和22key三语通过。真实useCollaborationRuntime/store/BottomSheet/Router保同输入焦点/光标，跨语不start/retain/release/submit；服务器成功前不persist，成功后只写原trim昵称且保其它设置字段。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

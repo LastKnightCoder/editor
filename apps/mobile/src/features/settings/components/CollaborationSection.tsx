@@ -1,5 +1,9 @@
 // 协作设置：身份卡置顶（设备即身份）+ 协作组。服务器固定为默认协作服务器，与桌面端一致。
 // 本文件位于静态 bundle，因此协作运行时（yjs）只在保存动作中动态引入。
+import {
+  collaborationSettingsTranslator,
+  useCollaborationSettingsI18n,
+} from "../collaboration/i18n";
 import { useState } from "react";
 import { useAppContext } from "../../../app/AppContext";
 import { BottomSheet } from "../../../components/BottomSheet";
@@ -20,13 +24,13 @@ import {
   StatusDot,
 } from "./ui";
 
-function deviceLabel(deviceId?: string) {
-  if (!deviceId) return "未注册";
+function deviceLabel(deviceId: string) {
   if (deviceId.length <= 8) return deviceId;
   return `${deviceId.slice(0, 4)} ···· ${deviceId.slice(-3)}`;
 }
 
 export function CollaborationSection() {
+  const { t } = useCollaborationSettingsI18n();
   const app = useAppContext();
   const navigator = useNavigator();
   const setting = app.syncSettings.safeSetting;
@@ -45,12 +49,12 @@ export function CollaborationSection() {
 
   const statusText =
     status === "ready"
-      ? "已连接"
+      ? t("status.ready")
       : status === "starting"
-        ? "连接中"
+        ? t("status.starting")
         : status === "error"
-          ? "连接异常"
-          : "未连接";
+          ? t("status.error")
+          : t("status.offline");
   const statusTone = status === "ready" ? "ok" : status === "error" ? "warn" : "idle";
 
   const saveNickname = async () => {
@@ -68,10 +72,10 @@ export function CollaborationSection() {
         }),
         { persist: true }
       );
-      toast.success("昵称已更新");
+      toast.success(collaborationSettingsTranslator.t("nickname.saved"));
       setNicknameDraft(undefined);
     } catch (error) {
-      app.presentError(error, "昵称更新失败");
+      app.presentError(error, collaborationSettingsTranslator.t("nickname.failed"));
     } finally {
       setBusy(false);
     }
@@ -94,23 +98,25 @@ export function CollaborationSection() {
                 onClick={() => setNicknameDraft(nickname)}
                 className="text-accent shrink-0 text-[11.5px] font-bold"
               >
-                修改
+                {t("edit")}
               </button>
             </div>
-            <div className="text-ink-3 mt-1 text-[11.5px]">设备 {deviceLabel(deviceId)}</div>
+            <div className="text-ink-3 mt-1 text-[11.5px]">
+              {t("device", { id: deviceId ? deviceLabel(deviceId) : t("device.unregistered") })}
+            </div>
           </div>
         </div>
         <div className="border-line-1 text-ink-2 mt-3.5 flex gap-2 border-t pt-3 text-[11.5px] leading-relaxed">
-          这是协作者看到的你 · 无需注册账号，设备即身份
+          {t("identity.hint")}
         </div>
       </div>
 
-      <GroupLabel>协作</GroupLabel>
+      <GroupLabel>{t("title")}</GroupLabel>
       <GroupCard>
         <GroupRow>
           <IconWifi />
           <span className="min-w-0 flex-1">
-            <span className="text-ink-1 block text-[14px] font-medium">连接状态</span>
+            <span className="text-ink-1 block text-[14px] font-medium">{t("connection")}</span>
             {status === "error" && error ? (
               <span className="text-ink-3 block truncate text-[11.5px]">{error}</span>
             ) : null}
@@ -122,28 +128,31 @@ export function CollaborationSection() {
         </GroupRow>
         <ListItem
           icon={<IconUsers />}
-          label="我的协作"
+          label={t("rooms.title")}
           value={
             sessions.length === 0
-              ? "暂无房间"
-              : `${sessions.length} 个房间${pendingCount > 0 ? ` · ${pendingCount} 待审批` : ""}`
+              ? t("rooms.empty")
+              : t("rooms.count", {
+                  count: sessions.length,
+                  pending: pendingCount > 0 ? t("rooms.pending", { count: pendingCount }) : "",
+                })
           }
           onClick={() => navigator.push("collaborationCenter")}
         />
       </GroupCard>
 
-      <GroupNote className="pt-2">与桌面端使用同一协作服务器 · 可跨端协作</GroupNote>
+      <GroupNote className="pt-2">{t("server.hint")}</GroupNote>
 
       <BottomSheet
         open={nicknameDraft !== undefined}
-        title="修改昵称"
+        title={t("nickname.title")}
         onClose={() => setNicknameDraft(undefined)}
       >
         <FieldInput
-          label="昵称 · 协作者看到的你"
+          label={t("nickname.label")}
           value={nicknameDraft ?? ""}
           onChange={setNicknameDraft}
-          placeholder="1-40 个字符"
+          placeholder={t("nickname.placeholder")}
         />
         <div className="mt-4">
           <button
@@ -153,7 +162,7 @@ export function CollaborationSection() {
             className="shadow-lift text-ink-inverse w-full rounded-full py-3 text-[15px] font-extrabold disabled:opacity-50 disabled:shadow-none"
             style={{ background: "var(--tau-accent)" }}
           >
-            {busy ? "保存中…" : "保存"}
+            {busy ? t("saving") : t("save")}
           </button>
         </div>
       </BottomSheet>
