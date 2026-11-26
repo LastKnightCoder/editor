@@ -1,4 +1,6 @@
 // 上传结果记录：错误分类决定设置页的修复入口；最近失败只被编辑器提示取走一次，超时即作废。
+import { mobileLocaleSource } from "../i18n";
+import { uploadFailureText } from "../uploadOutcome.i18n";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   classifyUploadError,
@@ -7,6 +9,7 @@ import {
   recordUploadSuccess,
   resetUploadOutcomeForTest,
   takeRecentUploadFailure,
+  subscribeUploadOutcome,
 } from "../uploadOutcome";
 
 describe("uploadOutcome", () => {
@@ -49,4 +52,51 @@ describe("uploadOutcome", () => {
     vi.advanceTimersByTime(5000);
     expect(takeRecentUploadFailure()).toBeNull();
   });
+});
+
+it("上传诊断保留原码与原文，换语和历史读取不改写记录或重复发布", () => {
+  const original = mobileLocaleSource.getSnapshot();
+  const changed = vi.fn();
+  const unsubscribe = subscribeUploadOutcome(changed);
+  try {
+    recordUploadFailure(
+      "auth-provider",
+      new Error("RESOURCE_UPLOAD_FAILED:HTTP 403 server detail §7")
+    );
+    const failure = readUploadOutcome();
+    expect(failure).toMatchObject({
+      ok: false,
+      kind: "auth",
+      code: "RESOURCE_UPLOAD_FAILED",
+      message: "HTTP 403 server detail §7",
+    });
+    const stored = window.localStorage.getItem("tau.mobile.lastUpload");
+    const publications = changed.mock.calls.length;
+    for (const locale of ["zh-TW", "en-US"]) {
+      mobileLocaleSource.setLocale(locale);
+      uploadFailureText(failure);
+      expect(readUploadOutcome()).toBe(failure);
+      expect(window.localStorage.getItem("tau.mobile.lastUpload")).toBe(stored);
+      expect(changed).toHaveBeenCalledTimes(publications);
+    }
+    expect(takeRecentUploadFailure()).toBe(failure);
+    expect(takeRecentUploadFailure()).toBeNull();
+    // 旧记录没有错误码，按已有类别展示，不改写历史数据。
+    const historical = {
+      ok: false,
+      providerId: "old-provider",
+      at: 1,
+      kind: "auth",
+      message: "历史原因",
+    };
+    window.localStorage.setItem("tau.mobile.lastUpload", JSON.stringify(historical));
+    resetUploadOutcomeForTest();
+    expect(readUploadOutcome()).toEqual(historical);
+    uploadFailureText(readUploadOutcome());
+    expect(window.localStorage.getItem("tau.mobile.lastUpload")).toBe(JSON.stringify(historical));
+    expect(changed).toHaveBeenCalledTimes(publications);
+  } finally {
+    unsubscribe();
+    mobileLocaleSource.setLocale(original);
+  }
 });

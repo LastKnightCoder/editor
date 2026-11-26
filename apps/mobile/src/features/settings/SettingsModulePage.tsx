@@ -1,3 +1,4 @@
+import { settingsShellTranslator, useSettingsShellI18n } from "./shell.i18n";
 // 设置模块页：二级模块以独立路由页呈现（settingsModule，match: "params"）。
 // 返回逐级退栈、滚动位置保持、转场与侧滑返回全部由 router 的 Activity 保活机制提供，
 // 此组件只负责顶栏 chrome 与模块 → section 的映射。
@@ -28,33 +29,33 @@ import { useNavigator } from "../../router";
 function getTitle(module: SettingModuleKey): string {
   switch (module) {
     case "about":
-      return "关于与更新";
+      return settingsShellTranslator.t("module.about");
     case "database":
-      return "同步";
+      return settingsShellTranslator.t("module.database");
     case "databases":
-      return "数据库";
+      return settingsShellTranslator.t("module.databases");
     case "sync-overwrite":
-      return "整库覆盖";
+      return settingsShellTranslator.t("module.sync-overwrite");
     case "collaboration":
-      return "实时协作";
+      return settingsShellTranslator.t("module.collaboration");
     case "sync-status-resource":
-      return "资源文件";
+      return settingsShellTranslator.t("module.sync-status-resource");
     case "resource":
-      return "图片与附件";
+      return settingsShellTranslator.t("module.resource");
     case "voice":
-      return "语音合成";
+      return settingsShellTranslator.t("module.voice");
     case "speech-input":
-      return "语音输入";
+      return settingsShellTranslator.t("module.speech-input");
     case "ai-models":
-      return "AI 模型";
+      return settingsShellTranslator.t("module.ai-models");
     case "image-generation":
-      return "图片生成";
+      return settingsShellTranslator.t("module.image-generation");
     case "feedback":
-      return "反馈";
+      return settingsShellTranslator.t("module.feedback");
     case "notifications":
-      return "提醒与通知";
+      return settingsShellTranslator.t("module.notifications");
     default:
-      return "设置";
+      return settingsShellTranslator.t("settings");
   }
 }
 
@@ -65,6 +66,7 @@ type ModuleSectionProps = SettingsPageProps & {
 
 /** 数据库列表：切换当前数据库（低频，从同步中心「更多」进入） */
 function DatabasesView(props: ModuleSectionProps) {
+  const { t, locale } = useSettingsShellI18n();
   return (
     <div className="page-enter space-y-1">
       <GroupCard>
@@ -74,14 +76,14 @@ function DatabasesView(props: ModuleSectionProps) {
             <span className="min-w-0 flex-1">
               <span className="text-ink-1 block text-[14.5px] font-medium">{db.name}</span>
               <span className="text-ink-3 block text-[11.5px] tabular-nums">
-                结构版本 v{db.version}
+                {t("database.version", { version: db.version.toLocaleString(locale) })}
               </span>
             </span>
             {props.databases?.activeDatabase === db.name && <CheckBubble />}
           </GroupRow>
         ))}
       </GroupCard>
-      <GroupNote>切换数据库后应用将重新加载数据，同步也会改为针对新数据库。</GroupNote>
+      <GroupNote>{t("database.switchHint")}</GroupNote>
     </div>
   );
 }
@@ -161,6 +163,7 @@ function ModuleSection(props: ModuleSectionProps) {
 }
 
 export function SettingsModulePage(props: { module: SettingModuleKey }) {
+  useSettingsShellI18n();
   const navigator = useNavigator();
   const app = useAppContext();
   const scrollRef = useRef<HTMLDivElement>(null);

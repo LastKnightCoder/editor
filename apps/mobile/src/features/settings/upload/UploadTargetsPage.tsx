@@ -1,3 +1,4 @@
+import { storageTranslator, useStorageI18n, storageErrorText } from "../storage/i18n";
 /* eslint-disable react-refresh/only-export-components -- LocalTile 与「图片与附件」页共用 */
 // 上传位置列表：「这台手机」与上传服务同组单选；点已配置的行即切换，点 ⓘ 进服务页修改配置。
 
@@ -14,12 +15,13 @@ import {
   enqueueProviderConfigWrite,
   mergeProviderSettings,
 } from "../../../services/provider-config";
-import { classifyUploadError } from "../../../services/uploadOutcome";
+
 import { selectPluginProvider } from "../../../services/tauri";
 import { GroupCard, GroupRow, LetterTile } from "../components/ui";
 import { LOCAL_UPLOAD_ID, useUploadProviders } from "./providers";
 
 export function LocalTile() {
+  useStorageI18n();
   return (
     <span className="bg-tag-4-soft text-tag-4 grid h-[34px] w-[34px] shrink-0 place-items-center rounded-xl">
       <Smartphone size={17} strokeWidth={1.9} aria-hidden="true" />
@@ -28,6 +30,7 @@ export function LocalTile() {
 }
 
 export function UploadTargetsPage() {
+  useStorageI18n();
   const app = useAppContext();
   const navigator = useNavigator();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -58,11 +61,11 @@ export function UploadTargetsPage() {
       });
       toast.success(
         providerId === LOCAL_UPLOAD_ID
-          ? "之后的新图片会保存在这台手机"
-          : `之后的新图片会保存到 ${name}`
+          ? storageTranslator.t("feedback.local")
+          : storageTranslator.t("feedback.selected", { name })
       );
     } catch (error) {
-      toast.error(classifyUploadError(error).message);
+      toast.error(storageErrorText(error));
     } finally {
       setBusy(false);
     }
@@ -71,31 +74,43 @@ export function UploadTargetsPage() {
   return (
     <PortalScope>
       <div className="mobile-kb-screen bg-page fixed inset-0 z-50 flex flex-col">
-        <PageHeader title="保存到哪里" onBack={() => navigator.goBack("ui")} />
+        <PageHeader
+          title={storageTranslator.t("target.title")}
+          onBack={() => navigator.goBack("ui")}
+        />
         <div
           ref={scrollRef}
           className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto px-4"
         >
           <div className="page-enter space-y-1">
             <p className="text-ink-3 text-tau-sm px-[15px] pt-2 leading-relaxed">
-              只影响之后插入的图片和附件，已插入的保留原地址。
+              {storageTranslator.t("target.hint")}
             </p>
-            <GroupLabel>本机</GroupLabel>
+            <GroupLabel>{storageTranslator.t("target.local")}</GroupLabel>
             <GroupCard>
-              <GroupRow disabled={busy} onClick={() => void select(LOCAL_UPLOAD_ID, "这台手机")}>
+              <GroupRow
+                disabled={busy}
+                onClick={() => void select(LOCAL_UPLOAD_ID, storageTranslator.t("phone.title"))}
+              >
                 <LocalTile />
                 <span className="min-w-0 flex-1">
-                  <span className="text-ink-1 text-tau-body block font-medium">这台手机</span>
+                  <span className="text-ink-1 text-tau-body block font-medium">
+                    {storageTranslator.t("phone.title")}
+                  </span>
                   <span className="text-ink-3 text-tau-sm block truncate">
-                    离线可用，随资源文件同步到其他设备
+                    {storageTranslator.t("target.localHint")}
                   </span>
                 </span>
                 {current === LOCAL_UPLOAD_ID && (
-                  <Check size={20} className="text-accent shrink-0" aria-label="当前" />
+                  <Check
+                    size={20}
+                    className="text-accent shrink-0"
+                    aria-label={storageTranslator.t("destination.current")}
+                  />
                 )}
               </GroupRow>
             </GroupCard>
-            <GroupLabel>上传到云端，文档里直接引用网址</GroupLabel>
+            <GroupLabel>{storageTranslator.t("target.cloud")}</GroupLabel>
             <GroupCard>
               {setting &&
                 providers.map(provider => {
@@ -121,12 +136,18 @@ export function UploadTargetsPage() {
                         </span>
                       </span>
                       {provider.id === current && (
-                        <Check size={20} className="text-accent shrink-0" aria-label="当前" />
+                        <Check
+                          size={20}
+                          className="text-accent shrink-0"
+                          aria-label={storageTranslator.t("destination.current")}
+                        />
                       )}
                       {configured ? (
                         <button
                           type="button"
-                          aria-label={`${provider.name} 配置`}
+                          aria-label={storageTranslator.t("target.settings", {
+                            name: provider.name,
+                          })}
                           className="text-accent-text -mr-1 grid h-9 w-9 shrink-0 place-items-center"
                           onClick={event => {
                             event.stopPropagation();
@@ -149,7 +170,9 @@ export function UploadTargetsPage() {
                 <span className="bg-page text-ink-2 grid h-[34px] w-[34px] shrink-0 place-items-center rounded-xl">
                   <Plus size={17} aria-hidden="true" />
                 </span>
-                <span className="text-accent-text text-tau-body min-w-0 flex-1">添加上传服务</span>
+                <span className="text-accent-text text-tau-body min-w-0 flex-1">
+                  {storageTranslator.t("destination.add")}
+                </span>
                 <ChevronRight size={18} className="text-ink-3 shrink-0" aria-hidden="true" />
               </GroupRow>
             </GroupCard>

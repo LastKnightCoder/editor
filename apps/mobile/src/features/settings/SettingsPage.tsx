@@ -1,3 +1,4 @@
+import { useSettingsShellI18n } from "./shell.i18n";
 // 设置根页（我的 Tab）：功能宫格 + 总览入口。
 // 二级模块由 settingsModule 路由页承载（独立栈级，返回/滚动由 router 管理）。
 
@@ -21,16 +22,17 @@ type SettingsScreenProps = SettingsPageProps & {
 };
 
 export function SettingsPage(props: SettingsScreenProps) {
+  const { t } = useSettingsShellI18n();
   const scrollRef = useRef<HTMLDivElement>(null);
   useEdgeFade(scrollRef);
   return (
     <div className="mobile-kb-screen bg-page fixed inset-0 z-50 flex flex-col">
       <header className="mx-auto flex w-full max-w-[1120px] items-center justify-between px-[18px] pt-[calc(20px+var(--mobile-safe-top))]">
-        <h1 className="text-ink-1 text-2xl font-extrabold tracking-tight">我的</h1>
+        <h1 className="text-ink-1 text-2xl font-extrabold tracking-tight">{t("me")}</h1>
         <button
           type="button"
           onClick={props.onOpenSearch ?? (() => {})}
-          aria-label="搜索所有内容"
+          aria-label={t("search")}
           // 中等与宽档由左导航条底部的搜索承担
           className="medium:hidden bg-surface text-ink-2 shadow-card grid h-[42px] w-[42px] place-items-center rounded-[15px] transition-transform duration-200 active:scale-88"
         >

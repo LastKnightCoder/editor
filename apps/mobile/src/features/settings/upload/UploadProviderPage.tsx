@@ -1,6 +1,12 @@
 // 上传服务页：插件声明的连接表单 + 使用状态 + 上传测试。顶栏「保存」显式保存，保存不改变当前选用；
 // 测试走真实上传链路并回读一次返回的地址，区分「传不上去」与「传上去了但打不开」。
 
+import {
+  storageTranslator,
+  useStorageI18n,
+  storageDisplayContext,
+  storageErrorText,
+} from "../storage/i18n";
 import { useRef, useState } from "react";
 import { Check, CircleAlert, Image, LoaderCircle } from "lucide-react";
 import { PortalScope } from "@tau/ui";
@@ -15,7 +21,7 @@ import {
   flushProviderConfigWrites,
   mergeProviderSettings,
 } from "../../../services/provider-config";
-import { classifyUploadError } from "../../../services/uploadOutcome";
+
 import * as tauri from "../../../services/tauri";
 import { GroupCard, GroupRow } from "../components/ui";
 import { useSaveProviderConfig } from "../providerEntries";
@@ -26,14 +32,17 @@ import { useUploadProviders } from "./providers";
 
 type TestResult =
   | { status: "ok"; response: UploadTestResponse }
-  | { status: "error"; message: string };
+  | { status: "error"; cause: unknown };
 
 function TestRow(props: { testing: boolean; result: TestResult | null }) {
+  useStorageI18n();
   if (props.testing) {
     return (
       <GroupRow>
         <LoaderCircle size={17} className="text-ink-3 animate-spin" aria-hidden="true" />
-        <span className="text-ink-2 text-tau-body flex-1">正在上传测试图片…</span>
+        <span className="text-ink-2 text-tau-body flex-1">
+          {storageTranslator.t("test.uploading")}
+        </span>
       </GroupRow>
     );
   }
@@ -41,7 +50,7 @@ function TestRow(props: { testing: boolean; result: TestResult | null }) {
     return (
       <GroupRow>
         <span className="text-ink-3 text-tau-meta flex-1">
-          尚未测试，点「上传测试图片」确认能传上去、能显示
+          {storageTranslator.t("test.notRun")}
         </span>
       </GroupRow>
     );
@@ -51,22 +60,31 @@ function TestRow(props: { testing: boolean; result: TestResult | null }) {
       <GroupRow>
         <CircleAlert size={17} className="text-danger shrink-0" aria-hidden="true" />
         <span className="min-w-0 flex-1">
-          <span className="text-danger text-tau-body block font-medium">传不上去</span>
-          <span className="text-ink-3 text-tau-sm block leading-snug">{props.result.message}</span>
+          <span className="text-danger text-tau-body block font-medium">
+            {storageTranslator.t("test.failed")}
+          </span>
+          <span className="text-ink-3 text-tau-sm block leading-snug">
+            {storageErrorText(props.result.cause)}
+          </span>
         </span>
       </GroupRow>
     );
   }
   const { response } = props.result;
-  const seconds = (response.elapsedMs / 1000).toFixed(1);
+  const seconds = (response.elapsedMs / 1000).toLocaleString(storageDisplayContext().locale, {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
   if (!response.readable) {
     return (
       <GroupRow>
         <CircleAlert size={17} className="text-danger shrink-0" aria-hidden="true" />
         <span className="min-w-0 flex-1">
-          <span className="text-danger text-tau-body block font-medium">传上去了，但打不开</span>
+          <span className="text-danger text-tau-body block font-medium">
+            {storageTranslator.t("test.unreadable")}
+          </span>
           <span className="text-ink-3 text-tau-sm block leading-snug">
-            这个地址不能直接访问，文档里会显示裂图。请为存储开启公共读，或换一个公开的位置。
+            {storageTranslator.t("test.unreadableHint")}
           </span>
         </span>
       </GroupRow>
@@ -76,9 +94,11 @@ function TestRow(props: { testing: boolean; result: TestResult | null }) {
     <GroupRow>
       <Check size={17} className="text-ok shrink-0" aria-hidden="true" />
       <span className="min-w-0 flex-1">
-        <span className="text-ink-1 text-tau-body block font-medium">上传成功，图片可以打开</span>
+        <span className="text-ink-1 text-tau-body block font-medium">
+          {storageTranslator.t("test.success")}
+        </span>
         <span className="text-ink-3 text-tau-sm block break-all">
-          {seconds} 秒 · {response.url}
+          {storageTranslator.t("test.result", { seconds, url: response.url })}
         </span>
       </span>
     </GroupRow>
@@ -86,6 +106,7 @@ function TestRow(props: { testing: boolean; result: TestResult | null }) {
 }
 
 export function UploadProviderPage(props: { providerId: string }) {
+  useStorageI18n();
   const app = useAppContext();
   const scrollRef = useRef<HTMLDivElement>(null);
   useEdgeFade(scrollRef);
@@ -95,14 +116,20 @@ export function UploadProviderPage(props: { providerId: string }) {
   const draft = useProviderDraft(
     provider?.form ?? null,
     setting && provider ? provider.stored(setting) : undefined,
-    config => persist(props.providerId, config)
+    config => persist(props.providerId, config),
+    storageErrorText
   );
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState<TestResult | null>(null);
   const back = useDiscardGuard(draft.dirty, draft.reset);
 
   if (!provider || !setting || !provider.form)
-    return <UnsupportedProvider title="上传服务" legacy={!!provider && !provider.form} />;
+    return (
+      <UnsupportedProvider
+        title={storageTranslator.t("service.upload")}
+        legacy={!!provider && !provider.form}
+      />
+    );
 
   const isActive =
     setting.imageBed.active === "plugin" && setting.imageBed.plugin?.id === provider.id;
@@ -113,7 +140,7 @@ export function UploadProviderPage(props: { providerId: string }) {
   const save = async () => {
     if (await draft.save()) {
       setResult(null);
-      toast.success("配置已保存");
+      toast.success(storageTranslator.t("feedback.saved"));
     }
   };
 
@@ -126,7 +153,7 @@ export function UploadProviderPage(props: { providerId: string }) {
       const response = await tauri.resourceUploadTest(provider.id);
       setResult({ status: "ok", response });
     } catch (error) {
-      setResult({ status: "error", message: classifyUploadError(error).message });
+      setResult({ status: "error", cause: error });
     } finally {
       setTesting(false);
     }
@@ -143,9 +170,9 @@ export function UploadProviderPage(props: { providerId: string }) {
         );
         app.syncSettings.updateSetting(previous => mergeProviderSettings(previous, saved));
       });
-      toast.success(`之后的新图片会保存到 ${provider.name}`);
+      toast.success(storageTranslator.t("feedback.selected", { name: provider.name }));
     } catch (error) {
-      toast.error(classifyUploadError(error).message);
+      toast.error(storageErrorText(error));
     }
   };
 
@@ -160,7 +187,9 @@ export function UploadProviderPage(props: { providerId: string }) {
               disabled={(!draft.dirty && configured) || draft.saving}
               onClick={() => void save()}
             >
-              {draft.saving ? "保存中" : "保存"}
+              {draft.saving
+                ? storageTranslator.t("action.saving")
+                : storageTranslator.t("action.save")}
             </PageHeaderTextButton>
           }
         />
@@ -169,15 +198,19 @@ export function UploadProviderPage(props: { providerId: string }) {
           className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto px-4"
         >
           <div className="page-enter space-y-1">
-            <GroupLabel>使用</GroupLabel>
+            <GroupLabel>{storageTranslator.t("service.use")}</GroupLabel>
             <GroupCard>
               <UseRow
                 icon={<Image size={17} strokeWidth={1.9} aria-hidden="true" />}
-                title="资源存储"
+                title={storageTranslator.t("service.resource")}
                 active={isActive}
-                activeText="新插入的图片与附件上传到这里"
-                idleText={configured ? "配置已保存，尚未使用" : "填写下方配置并保存后可使用"}
-                actionLabel="设为当前"
+                activeText={storageTranslator.t("service.active")}
+                idleText={
+                  configured
+                    ? storageTranslator.t("service.saved")
+                    : storageTranslator.t("service.configure")
+                }
+                actionLabel={storageTranslator.t("service.activate")}
                 disabled={!configured || draft.dirty || testing || failedTest}
                 onAction={() => void activate()}
               />
@@ -195,7 +228,7 @@ export function UploadProviderPage(props: { providerId: string }) {
                 {draft.error}
               </p>
             )}
-            <GroupLabel>测试</GroupLabel>
+            <GroupLabel>{storageTranslator.t("test.title")}</GroupLabel>
             <GroupCard>
               <TestRow testing={testing} result={result} />
               <GroupRow
@@ -205,12 +238,14 @@ export function UploadProviderPage(props: { providerId: string }) {
                 <span
                   className={`text-tau-body ${configured && !draft.dirty ? "text-accent-text" : "text-ink-3"}`}
                 >
-                  {result ? "再测一次" : "上传测试图片"}
+                  {result ? storageTranslator.t("test.retry") : storageTranslator.t("test.upload")}
                 </span>
               </GroupRow>
             </GroupCard>
             {draft.dirty && (
-              <p className="text-ink-3 text-tau-sm px-[15px] pt-[7px]">保存后才能测试与使用</p>
+              <p className="text-ink-3 text-tau-sm px-[15px] pt-[7px]">
+                {storageTranslator.t("test.saveFirst")}
+              </p>
             )}
           </div>
         </div>

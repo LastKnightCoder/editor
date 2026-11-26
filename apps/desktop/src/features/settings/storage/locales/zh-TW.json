@@ -1,0 +1,18 @@
+{
+  "destination.title": "儲存至",
+  "destination.hint": "只影響之後插入的圖片與附件，已插入的保留原位址",
+  "destination.add": "新增上傳服務",
+  "destination.local": "本機",
+  "destination.current": "目前",
+  "destination.localHint": "應用程式目錄的 resources 資料夾，隨同步服務鏡像到其他裝置",
+  "processing.title": "處理",
+  "processing.compression": "上傳壓縮",
+  "processing.hint": "png / jpeg / jpg 儲存前自動轉為 webp",
+  "destination.note": "獨立 Markdown 檔案保留文件旁的本機儲存規則；本機 resources 目錄與雲端的鏡像在「同步 · 雲端儲存」中管理。",
+  "provider.legacy": "外掛版本較舊，更新後才能修改設定",
+  "provider.configured": "已設定",
+  "provider.unconfigured": "未設定",
+  "provider.connecting": "連線中…",
+  "provider.configure": "設定",
+  "provider.goConfigure": "前往設定"
+}

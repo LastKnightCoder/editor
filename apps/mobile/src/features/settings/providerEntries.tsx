@@ -1,3 +1,5 @@
+import { StorageNotReadyError } from "./storage/errors";
+import { storageTranslator, useStorageI18n } from "./storage/i18n";
 /* 同步与上传提供方投影：订阅插件注册表，表单声明来自插件设置分区，配置读写经原生串行保存。 */
 import { savePluginProviderConfig } from "../../services/tauri";
 import { enqueueProviderConfigWrite, mergeProviderSettings } from "../../services/provider-config";
@@ -25,6 +27,7 @@ export interface ProviderEntry {
 }
 
 export function useProviderEntries(target: "sync" | "upload"): readonly ProviderEntry[] {
+  useStorageI18n();
   const runtime = useMobilePlugins();
   const revision = runtime?.getSnapshot();
   return useMemo(() => {
@@ -55,10 +58,11 @@ export function useProviderEntries(target: "sync" | "upload"): readonly Provider
           isConfigured,
           summary: (setting: SettingCompat) =>
             !form
-              ? "插件版本较旧，更新后才能修改配置"
+              ? storageTranslator.t("provider.legacy")
               : isConfigured(setting)
-                ? providerFormSummary(form, stored(setting)) || "已配置"
-                : "尚未配置",
+                ? providerFormSummary(form, stored(setting)) ||
+                  storageTranslator.t("provider.configured")
+                : storageTranslator.t("provider.notConfigured"),
         };
       });
   }, [runtime, revision, target]);
@@ -71,7 +75,7 @@ export function useSaveProviderConfig(target: "sync" | "upload") {
   return (pluginId: string, config: JsonValue) => {
     const next = copyJson(config);
     return enqueueProviderConfigWrite(async () => {
-      if (!runtime) throw new Error("插件尚未就绪");
+      if (!runtime) throw new StorageNotReadyError();
       const saved = await savePluginProviderConfig(runtime.workspaceId, target, pluginId, next);
       app.syncSettings.updateSetting(previous => mergeProviderSettings(previous, saved));
     });

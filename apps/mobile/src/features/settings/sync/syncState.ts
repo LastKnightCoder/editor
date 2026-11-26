@@ -148,17 +148,3 @@ export function writeLastSyncTime(databaseName: string, time: number): void {
     // 存储不可用时只是不显示上次同步时间
   }
 }
-
-export function formatRelativeTime(time: number, now: number): string {
-  const diff = Math.max(0, now - time);
-  const minute = 60_000;
-  if (diff < minute) return "刚刚";
-  if (diff < 60 * minute) return `${Math.floor(diff / minute)} 分钟前`;
-  const date = new Date(time);
-  const today = new Date(now);
-  const hhmm = `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
-  if (date.toDateString() === today.toDateString()) return `今天 ${hhmm}`;
-  const yesterday = new Date(now - 86_400_000);
-  if (date.toDateString() === yesterday.toDateString()) return `昨天 ${hhmm}`;
-  return `${date.getMonth() + 1} 月 ${date.getDate()} 日 ${hhmm}`;
-}

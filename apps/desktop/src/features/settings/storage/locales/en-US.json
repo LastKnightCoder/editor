@@ -1,0 +1,18 @@
+{
+  "destination.title": "Save to",
+  "destination.hint": "Applies to new images and attachments. Existing content keeps its original URLs.",
+  "destination.add": "Add upload service",
+  "destination.local": "Local",
+  "destination.current": "Current",
+  "destination.localHint": "The resources folder in the app directory, mirrored to other devices by your sync service",
+  "processing.title": "Processing",
+  "processing.compression": "Compress uploads",
+  "processing.hint": "Convert png / jpeg / jpg to webp before saving",
+  "destination.note": "Standalone Markdown files keep their local save rules. Manage mirroring of the local resources folder in Sync · Cloud storage.",
+  "provider.legacy": "Update the plugin before editing its configuration",
+  "provider.configured": "Configured",
+  "provider.unconfigured": "Not configured",
+  "provider.connecting": "Connecting…",
+  "provider.configure": "Configure",
+  "provider.goConfigure": "Configure"
+}

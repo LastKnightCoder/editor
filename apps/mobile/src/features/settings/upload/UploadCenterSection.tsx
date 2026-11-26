@@ -1,6 +1,8 @@
 // 「图片与附件」页：目的地卡回答「新图片存到哪、传得上去吗」，更换位置走抽屉 → 服务页；
 // 资源文件同步不在这里（它跟随同步服务，在同步中心管理），只留一个跳转行。
 
+import { uploadFailureText } from "../../../services/uploadOutcome.i18n";
+import { storageTranslator, useStorageI18n } from "../storage/i18n";
 import { useState, useSyncExternalStore } from "react";
 import { ChevronRight, CircleAlert, CircleCheck, Image, RefreshCw, Shrink } from "lucide-react";
 import type { SettingCompat } from "../../../types";
@@ -21,12 +23,14 @@ const STATE_TONE: Record<DestinationState["tone"], string> = {
 };
 
 function StateIcon(props: { tone: DestinationState["tone"] }) {
+  useStorageI18n();
   if (props.tone === "warn") return <CircleAlert size={14} aria-hidden="true" />;
   if (props.tone === "ok") return <CircleCheck size={14} className="text-ok" aria-hidden="true" />;
   return <RefreshCw size={14} className="text-info" aria-hidden="true" />;
 }
 
 function IconBox(props: { children: React.ReactNode }) {
+  useStorageI18n();
   return (
     <span className="bg-page text-ink-2 grid h-[34px] w-[34px] shrink-0 place-items-center rounded-xl">
       {props.children}
@@ -39,6 +43,7 @@ export function UploadCenterSection(props: {
   updateSetting: SettingsPageProps["updateSetting"];
   onOpenModule: (module: SettingModuleKey) => void;
 }) {
+  const language = useStorageI18n();
   const navigator = useNavigator();
   const providers = useUploadProviders();
   const [now, setNow] = useState(() => Date.now());
@@ -55,7 +60,10 @@ export function UploadCenterSection(props: {
   const isLocal = activeId === LOCAL_UPLOAD_ID;
   const provider = isLocal ? undefined : providers.find(item => item.id === activeId);
   const configured = Boolean(provider?.isConfigured(setting));
-  const state = deriveDestinationState({ activeId, isLocal, configured, outcome, now });
+  const state = deriveDestinationState(
+    { activeId, isLocal, configured, outcome, now },
+    { ...language, failureText: uploadFailureText }
+  );
 
   const openProvider = (providerId: string) => navigator.push("uploadProvider", { providerId });
 
@@ -68,17 +76,20 @@ export function UploadCenterSection(props: {
       { persist: true }
     );
 
-  const name = isLocal ? "这台手机" : (provider?.name ?? "上传服务未启用");
+  const name = isLocal
+    ? storageTranslator.t("phone.title")
+    : (provider?.name ?? storageTranslator.t("phone.unavailable"));
   const summary = isLocal
-    ? "不联网也能插图，占用本机空间"
-    : (provider && configured && provider.summary(setting)) || "配置不完整";
+    ? storageTranslator.t("phone.summary")
+    : (provider && configured && provider.summary(setting)) ||
+      storageTranslator.t("phone.incomplete");
 
   return (
     <div className="page-enter space-y-1">
       <section className="setting-group px-4 pt-[18px] pb-3.5">
         <p className="text-ink-3 text-tau-sm flex items-center gap-1.5">
           <Image size={13} aria-hidden="true" />
-          新插入的图片与附件保存到
+          {storageTranslator.t("phone.destination")}
         </p>
         <div className="mt-2.5 flex items-center gap-3">
           {isLocal || !provider ? (
@@ -104,7 +115,7 @@ export function UploadCenterSection(props: {
 
       <div className="flex gap-2.5 pt-3">
         <ActionButton
-          label="更换位置"
+          label={storageTranslator.t("phone.change")}
           emphasis={false}
           onClick={() => navigator.push("uploadTargets", {})}
         />
@@ -113,33 +124,37 @@ export function UploadCenterSection(props: {
         )}
       </div>
 
-      <GroupLabel>处理</GroupLabel>
+      <GroupLabel>{storageTranslator.t("processing.title")}</GroupLabel>
       <GroupCard>
         <GroupRow>
           <IconBox>
             <Shrink size={16} strokeWidth={1.9} aria-hidden="true" />
           </IconBox>
           <span className="min-w-0 flex-1">
-            <span className="text-ink-1 text-tau-body block font-medium">压缩大图</span>
+            <span className="text-ink-1 text-tau-body block font-medium">
+              {storageTranslator.t("phone.compress")}
+            </span>
             <span className="text-ink-3 text-tau-sm block">
-              超过 300KB 转为 WebP，长边不超过 2048；关闭则上传原图
+              {storageTranslator.t("phone.compressHint")}
             </span>
           </span>
           <SwitchButton checked={setting.imageBed.enableCompression} onChange={toggleCompression} />
         </GroupRow>
       </GroupCard>
-      <GroupNote>已插入的图片保留原地址，更换位置只影响之后的新图片。</GroupNote>
+      <GroupNote>{storageTranslator.t("phone.originals")}</GroupNote>
 
-      <GroupLabel>相关</GroupLabel>
+      <GroupLabel>{storageTranslator.t("phone.related")}</GroupLabel>
       <GroupCard>
         <GroupRow onClick={() => props.onOpenModule("sync-status-resource")}>
           <IconBox>
             <RefreshCw size={16} strokeWidth={1.9} aria-hidden="true" />
           </IconBox>
           <span className="min-w-0 flex-1">
-            <span className="text-ink-1 text-tau-body block font-medium">资源文件同步</span>
+            <span className="text-ink-1 text-tau-body block font-medium">
+              {storageTranslator.t("phone.resourceSync")}
+            </span>
             <span className="text-ink-3 text-tau-sm block truncate">
-              本机图片在设备间同步，跟随「同步」中的服务
+              {storageTranslator.t("phone.resourceHint")}
             </span>
           </span>
           <ChevronRight size={16} className="text-ink-3" aria-hidden="true" />

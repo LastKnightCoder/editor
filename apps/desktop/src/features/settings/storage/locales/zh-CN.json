@@ -1,0 +1,18 @@
+{
+  "destination.title": "保存到",
+  "destination.hint": "只影响之后插入的图片与附件，已插入的保留原地址",
+  "destination.add": "添加上传服务",
+  "destination.local": "本地",
+  "destination.current": "当前",
+  "destination.localHint": "应用目录的 resources 文件夹，随同步服务镜像到其他设备",
+  "processing.title": "处理",
+  "processing.compression": "上传压缩",
+  "processing.hint": "png / jpeg / jpg 保存前自动转为 webp",
+  "destination.note": "独立 Markdown 文件保留文档旁的本地保存规则；本地 resources 目录与云端的镜像在「同步 · 云端存储」中管理。",
+  "provider.legacy": "插件版本较旧，更新后才能修改配置",
+  "provider.configured": "已配置",
+  "provider.unconfigured": "未配置",
+  "provider.connecting": "连接中…",
+  "provider.configure": "配置",
+  "provider.goConfigure": "去配置"
+}

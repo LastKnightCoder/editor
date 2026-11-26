@@ -1,3 +1,6 @@
+import { definePlugin } from "@tau/plugins";
+import { mobileLocaleSource } from "../../../../services/i18n";
+import { storageTranslator } from "../../storage/i18n";
 import { createStorageRuntime } from "../../__tests__/storageProviders";
 import { MobilePluginsContext } from "../../../../app/plugins/context";
 let storageRuntime: Awaited<ReturnType<typeof createStorageRuntime>>;
@@ -22,11 +25,13 @@ import "../../pages/uploadTargets.page";
 
 const tauriMock = vi.hoisted(() => ({
   resourceUploadTest: vi.fn(),
+  savePluginProviderConfig: vi.fn(),
   selectPluginProvider: vi.fn(),
 }));
 vi.mock("../../../../services/tauri", async importOriginal => ({
   ...(await importOriginal<object>()),
   resourceUploadTest: tauriMock.resourceUploadTest,
+  savePluginProviderConfig: tauriMock.savePluginProviderConfig,
   selectPluginProvider: tauriMock.selectPluginProvider,
 }));
 
@@ -297,4 +302,151 @@ describe("图片与附件", () => {
     expect(findButton("设为当前", activePage())?.hasAttribute("disabled")).toBe(true);
     expect(activePage()?.textContent).toContain("路径模式");
   });
+});
+
+it("切换语言保留账号与手动路径草稿、秘密字段可见性和远程选择，不自动保存或测试", async () => {
+  storageRuntime = await createStorageRuntime();
+  vi.clearAllMocks();
+  window.localStorage.clear();
+  window.history.replaceState(null, "");
+  const original = mobileLocaleSource.getSnapshot();
+  const load = vi.fn(async () => [{ value: "initial://原始路径" }]);
+  const beforeSave = vi.fn(async (values: Readonly<Record<string, string>>) => values);
+  const id = "tau.upload-fixture",
+    name = "用户存储服务";
+  storageRuntime.host.registerTrusted(
+    definePlugin({
+      id,
+      name,
+      version: "1.0.0",
+      create: () => ({
+        activate(context) {
+          context.upload.register({ id, name, upload: async () => "https://fixture.invalid/file" });
+          context.settings.register({
+            id: "upload",
+            title: name,
+            target: "upload",
+            form: {
+              groups: [
+                {
+                  title: "用户分组原文",
+                  fields: [
+                    { key: "account", label: "账号原文", type: "secret" },
+                    { key: "destination", label: "路径原文", type: "remote-choice", load },
+                  ],
+                },
+              ],
+              beforeSave,
+            },
+          });
+        },
+      }),
+    })
+  );
+  await storageRuntime.host.enable(id);
+  const setting = makeSetting("local");
+  setting.imageBed.plugin = {
+    ...setting.imageBed.plugin,
+    id: setting.imageBed.plugin?.id ?? "",
+    configurations: {
+      ...setting.imageBed.plugin?.configurations,
+      [id]: {
+        account: "原始账号",
+        destination: "initial://原始路径",
+        legacy: "未知字段原文",
+      },
+    },
+  };
+  const harness = createApp(setting);
+  tauriMock.savePluginProviderConfig.mockImplementation(
+    async (_workspace, _target, pluginId, config) => ({
+      ...harness.setting(),
+      imageBed: {
+        ...harness.setting().imageBed,
+        plugin: {
+          ...harness.setting().imageBed.plugin,
+          configurations: {
+            ...harness.setting().imageBed.plugin?.configurations,
+            [pluginId]: config,
+          },
+        },
+      },
+    })
+  );
+  try {
+    await act(async () => mobileLocaleSource.setLocale("zh-CN"));
+    mount(harness.app);
+    await openProvider("fixture", name);
+    const account = activePage()?.querySelector<HTMLInputElement>('input[aria-label="账号原文"]');
+    if (!account) throw new Error("账号输入未挂载");
+    await click(
+      [...(activePage()?.querySelectorAll<HTMLButtonElement>("button") ?? [])].find(
+        button => button.getAttribute("aria-label") === storageTranslator.t("form.show")
+      ) ?? null
+    );
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(
+        account,
+        "未保存的账号"
+      );
+      account.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await click(findButton("路径原文", activePage()));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await click(
+      findButton(storageTranslator.t("form.manualField", { field: "路径原文" }), activePage())
+    );
+    const path = activePage()?.querySelector<HTMLInputElement>('input[aria-label="路径原文"]');
+    if (!path) throw new Error("手动路径草稿未挂载");
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(
+        path,
+        "自定义/路径"
+      );
+      path.dispatchEvent(new Event("input", { bubbles: true }));
+      path.focus();
+      path.setSelectionRange(1, 4);
+    });
+    const loaded = load.mock.calls.length,
+      savedSetting = harness.setting();
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => mobileLocaleSource.setLocale(locale));
+      expect(activePage()?.querySelector('input[aria-label="账号原文"]')).toBe(account);
+      expect(account.value).toBe("未保存的账号");
+      expect(account.type).toBe("text");
+      expect(activePage()?.querySelector('input[aria-label="路径原文"]')).toBe(path);
+      expect(path.value).toBe("自定义/路径");
+      expect(document.activeElement).toBe(path);
+      expect([path.selectionStart, path.selectionEnd]).toEqual([1, 4]);
+      expect(harness.setting()).toBe(savedSetting);
+      expect(harness.persisted()).toBe(0);
+      expect(load).toHaveBeenCalledTimes(loaded);
+      expect(beforeSave).not.toHaveBeenCalled();
+      expect(tauriMock.savePluginProviderConfig).not.toHaveBeenCalled();
+      expect(tauriMock.resourceUploadTest).not.toHaveBeenCalled();
+      expect(tauriMock.selectPluginProvider).not.toHaveBeenCalled();
+      expect(harness.app.syncSettings.persistSetting).not.toHaveBeenCalled();
+    }
+    await click(
+      findButton(storageTranslator.t("form.use", { value: "自定义/路径" }), activePage())
+    );
+    await click(findButton(storageTranslator.t("action.save"), activePage()));
+    expect(beforeSave).toHaveBeenCalledTimes(1);
+    expect(tauriMock.savePluginProviderConfig).toHaveBeenCalledExactlyOnceWith(
+      "data.db",
+      "upload",
+      id,
+      { account: "未保存的账号", destination: "自定义/路径", legacy: "未知字段原文" }
+    );
+  } finally {
+    await act(async () => mobileLocaleSource.setLocale(original));
+    await storageRuntime.dispose();
+    act(() => root?.unmount());
+    host?.remove();
+    host = null;
+    root = null;
+    document.body.innerHTML = "";
+  }
 });

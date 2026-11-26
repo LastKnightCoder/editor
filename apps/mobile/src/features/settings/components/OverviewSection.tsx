@@ -1,3 +1,4 @@
+import { useSettingsShellI18n, type SettingsShellKey } from "../shell.i18n";
 import { useMobileI18n } from "../../../services/i18n-react";
 import { APP_LANGUAGES, normalizeLanguagePreference } from "@tau/shared/language";
 // 我的页根视图（v2 模板）：行内直显关键值，数据域入口收敛为两个独立页面——
@@ -49,7 +50,7 @@ import {
   type EditorOpenMode,
 } from "../../../hooks/useEditorOpenMode";
 import { normalizeReadingFontId, readingFontOption } from "../readingFont/fonts";
-import { highlightStyleLabel, normalizeHighlightStyle } from "./highlightStyle";
+import { normalizeHighlightStyle } from "./highlightStyle";
 import { useInstalledReadingFonts } from "../readingFont/queries";
 import type { SettingModule } from "./types";
 import { findAssignedModel, modelLabel } from "../../../services/ai-settings";
@@ -59,19 +60,16 @@ import { skillModeOf, useLibraryPreferences } from "../../../services/aiChat/cap
 
 export const APPEARANCE_LABELS = { light: "浅色", dark: "深色", system: "跟随系统" } as const;
 
-const EDITOR_OPEN_MODE_LABELS: Record<EditorOpenMode, string> = { read: "阅读", edit: "编辑" };
+const EDITOR_OPEN_MODES: EditorOpenMode[] = ["read", "edit"];
 
-const EDITOR_OPEN_MODE_OPTIONS: Array<{ label: string; value: EditorOpenMode }> = [
-  { label: "阅读模式", value: "read" },
-  { label: "直接编辑", value: "edit" },
-];
-
-function formatBytes(bytes: number): string {
+function formatBytes(bytes: number, locale: string): string {
+  const number = (value: number, digits: number) =>
+    value.toLocaleString(locale, { minimumFractionDigits: digits, maximumFractionDigits: digits });
   if (bytes <= 0) return "0 MB";
   const mb = bytes / 1024 / 1024;
-  if (mb >= 1024) return `${(mb / 1024).toFixed(2)} GB`;
-  if (mb >= 1) return `${mb.toFixed(1)} MB`;
-  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  if (mb >= 1024) return `${number(mb / 1024, 2)} GB`;
+  if (mb >= 1) return `${number(mb, 1)} MB`;
+  return `${number(Math.max(1, Math.round(bytes / 1024)), 0)} KB`;
 }
 
 type OverviewSectionProps = {
@@ -84,14 +82,15 @@ type OverviewSectionProps = {
   onOpenModule: (module: Exclude<SettingModule, null>) => void;
 };
 
-function findPresetLabel(
+function findPresetValue(
   options: Array<{ value: string; label: string }>,
   value: string | undefined
 ): string {
-  return options.find(option => option.value === value)?.label ?? options[0].label;
+  return options.find(option => option.value === value)?.value ?? options[0].value;
 }
 
 export function OverviewSection(props: OverviewSectionProps) {
+  const { t, locale } = useSettingsShellI18n();
   const themeName = useThemeStore(state => getTheme(state.theme)?.name ?? "");
   const appearance = useThemeStore(state => state.appearance);
   const navigator = useNavigator();
@@ -107,7 +106,7 @@ export function OverviewSection(props: OverviewSectionProps) {
 
   const uploadTargetName =
     props.activeResource === LOCAL_UPLOAD_ID
-      ? "这台手机"
+      ? t("localPhone")
       : (providers.find(item => item.id === syncSettings.safeSetting?.imageBed.plugin?.id)?.name ??
         props.activeResource);
   const ttsUsage = syncSettings.safeSetting?.ttsUsageSettings?.default;
@@ -118,55 +117,54 @@ export function OverviewSection(props: OverviewSectionProps) {
   const speech = syncSettings.safeSetting?.speechInput;
   const speechInputName =
     speech?.active === "plugin"
-      ? (speechProviders.find(item => item.id === speech.plugin.id)?.name ?? "插件已停用")
-      : "未选择";
+      ? (speechProviders.find(item => item.id === speech.plugin.id)?.name ?? t("pluginDisabled"))
+      : t("notSelected");
   // 桌面端旧设置 shadow 为布尔（true 视作中阴影），展示前归一为 preset
-  const imageAppearanceValue = `${findPresetLabel(
-    IMAGE_BORDER_RADIUS_OPTIONS,
-    props.imageAppearance?.borderRadius
-  )} · ${findPresetLabel(
+  const radius = findPresetValue(IMAGE_BORDER_RADIUS_OPTIONS, props.imageAppearance?.borderRadius);
+  const shadow = findPresetValue(
     IMAGE_SHADOW_OPTIONS,
     normalizeImageShadowPreset(props.imageAppearance?.shadow)
-  )}`;
+  );
+  const imageAppearanceValue = `${t(`image.radius.${radius}` as SettingsShellKey)} · ${t(`image.shadow.${shadow}` as SettingsShellKey)}`;
 
   return (
     <div className="space-y-4">
-      <SettingsGroup title="数据">
+      <SettingsGroup title={t("group.data")}>
         <ListItem
           icon={<IconCloud />}
-          label="同步"
+          label={t("module.database")}
           value={
             dbSizeQuery.data != null
-              ? `${props.activeDatabase ?? "本地"} · ${formatBytes(dbSizeQuery.data)}`
+              ? `${props.activeDatabase ?? t("local")} · ${formatBytes(dbSizeQuery.data, locale)}`
               : props.activeDatabase
           }
           onClick={() => props.onOpenModule("database")}
         />
         <ListItem
           icon={<IconFolder />}
-          label="图片与附件"
+          label={t("module.resource")}
           value={uploadTargetName}
           onClick={() => props.onOpenModule("resource")}
         />
       </SettingsGroup>
 
-      <SettingsGroup title="协作">
+      <SettingsGroup title={t("group.collaboration")}>
         <ListItem
           icon={<IconUsers />}
-          label="实时协作"
+          label={t("module.collaboration")}
           onClick={() => props.onOpenModule("collaboration")}
         />
       </SettingsGroup>
 
-      <SettingsGroup title="AI">
+      <SettingsGroup title={t("group.ai")}>
         <AiModelsItem onOpen={() => props.onOpenModule("ai-models")} />
         <ListItem
           icon={<IconImage />}
-          label="图片生成"
+          label={t("module.image-generation")}
           value={
             syncSettings.safeSetting?.imageGeneration?.providers.find(
               account => account.id === syncSettings.safeSetting?.imageGeneration?.currentProviderId
-            )?.name ?? "未设置"
+            )?.name ?? t("notConfigured")
           }
           onClick={() => props.onOpenModule("image-generation")}
         />
@@ -174,40 +172,40 @@ export function OverviewSection(props: OverviewSectionProps) {
         <McpItem />
       </SettingsGroup>
 
-      <SettingsGroup title="语音">
+      <SettingsGroup title={t("group.voice")}>
         <ListItem
           icon={<IconAudioLines />}
-          label="语音合成"
-          value={ttsAccountName ?? "未设置"}
+          label={t("module.voice")}
+          value={ttsAccountName ?? t("notConfigured")}
           onClick={() => props.onOpenModule("voice")}
         />
         <ListItem
           icon={<IconMic />}
-          label="语音输入"
+          label={t("module.speech-input")}
           value={speechInputName}
           onClick={() => props.onOpenModule("speech-input")}
         />
       </SettingsGroup>
 
-      <SettingsGroup title="提醒">
+      <SettingsGroup title={t("group.reminders")}>
         <ListItem
           icon={<IconBell />}
-          label="提醒与通知"
+          label={t("module.notifications")}
           onClick={() => props.onOpenModule("notifications")}
         />
       </SettingsGroup>
 
-      <SettingsGroup title="外观">
+      <SettingsGroup title={t("group.appearance")}>
         <LanguageItem />
         <ListItem
           icon={<IconMoon />}
-          label="主题"
-          value={`${themeName} · ${APPEARANCE_LABELS[appearance]}`}
+          label={t("theme")}
+          value={`${themeName} · ${t(`appearance.${appearance}`)}`}
           onClick={() => navigator.push("settings-theme")}
         />
         <ListItem
           icon={<IconImage />}
-          label="图片渲染"
+          label={t("imageAppearance")}
           value={imageAppearanceValue}
           onClick={() => navigator.push("settings-image-appearance")}
         />
@@ -215,14 +213,14 @@ export function OverviewSection(props: OverviewSectionProps) {
         <ReadingFontItem />
       </SettingsGroup>
 
-      <SettingsGroup title="编辑器">
+      <SettingsGroup title={t("group.editor")}>
         <EditorOpenModeItem />
       </SettingsGroup>
 
-      <SettingsGroup title="关于">
+      <SettingsGroup title={t("group.about")}>
         <ListItem
           icon={<IconMessageSquare />}
-          label="反馈"
+          label={t("module.feedback")}
           onClick={() => props.onOpenModule("feedback")}
         />
         <AboutUpdateItem onOpen={() => props.onOpenModule("about")} />
@@ -242,6 +240,7 @@ function SettingsGroup({ title, children }: { title: string; children: ReactNode
 
 /** 「Skill」：行尾显示可用（未停用）的数量 */
 function SkillsItem() {
+  const { t, locale } = useSettingsShellI18n();
   const navigator = useNavigator();
   const { databaseName, items, query } = useSkillCatalog();
   const preferences = useLibraryPreferences(databaseName);
@@ -250,7 +249,7 @@ function SkillsItem() {
     <ListItem
       icon={<IconWandSparkles />}
       label="Skill"
-      value={query.isSuccess ? `${available} 个` : undefined}
+      value={query.isSuccess ? t("count", { amount: available.toLocaleString(locale) }) : undefined}
       onClick={() => navigator.push("aiSkills", {})}
     />
   );
@@ -258,6 +257,7 @@ function SkillsItem() {
 
 /** 「MCP 服务器」：正常显示来源数，有连接失败时换成红色提示 */
 function McpItem() {
+  const { t, locale } = useSettingsShellI18n();
   const navigator = useNavigator();
   const { databaseName, all } = useToolSources({ passive: true });
   const { isEnabled } = useSourceEnabled(databaseName);
@@ -266,8 +266,12 @@ function McpItem() {
   return (
     <ListItem
       icon={<IconPlug />}
-      label="MCP 服务器"
-      value={failed ? `${failed} 个连接失败` : `${enabled} 个`}
+      label={t("mcp")}
+      value={
+        failed
+          ? t("mcp.failed", { count: failed, amount: failed.toLocaleString(locale) })
+          : t("count", { amount: enabled.toLocaleString(locale) })
+      }
       valueTone={failed ? "danger" : "muted"}
       onClick={() => navigator.push("aiMcp", {})}
     />
@@ -276,22 +280,35 @@ function McpItem() {
 
 /** 「AI 模型」：行尾显示对话所用模型，未分配时提示去设置 */
 function AiModelsItem(props: { onOpen: () => void }) {
+  const { t } = useSettingsShellI18n();
   const setting = useAppContext().syncSettings.safeSetting;
   const chat = findAssignedModel(setting, "chat");
-  const value = chat ? modelLabel(chat.model) : setting?.llmProviders?.length ? "未分配" : "未设置";
-  return <ListItem icon={<IconSparkles />} label="AI 模型" value={value} onClick={props.onOpen} />;
+  const value = chat
+    ? modelLabel(chat.model)
+    : setting?.llmProviders?.length
+      ? t("notAssigned")
+      : t("notConfigured");
+  return (
+    <ListItem
+      icon={<IconSparkles />}
+      label={t("module.ai-models")}
+      value={value}
+      onClick={props.onOpen}
+    />
+  );
 }
 
 /** 「背景高亮」：行尾显示当前笔触，未设置为平涂 */
 function HighlightStyleItem() {
+  const { t } = useSettingsShellI18n();
   const app = useAppContext();
   const navigator = useNavigator();
   const style = normalizeHighlightStyle(app.syncSettings.safeSetting?.appearance?.highlight?.style);
   return (
     <ListItem
       icon={<IconHighlighter />}
-      label="背景高亮"
-      value={highlightStyleLabel(style)}
+      label={t("highlight")}
+      value={t(`highlight.${style}`)}
       onClick={() => navigator.push("settings-highlight-style")}
     />
   );
@@ -299,6 +316,7 @@ function HighlightStyleItem() {
 
 /** 「正文字体」：行尾显示所选字体；所选字体未下载（被清理）时提示需重新下载 */
 export function ReadingFontItem() {
+  const { t } = useSettingsShellI18n();
   const app = useAppContext();
   const navigator = useNavigator();
   const id = normalizeReadingFontId(app.syncSettings.safeSetting?.appearance?.readingFont);
@@ -308,8 +326,14 @@ export function ReadingFontItem() {
   return (
     <ListItem
       icon={<IconType />}
-      label="正文字体"
-      value={missing ? "需重新下载" : readingFontOption(id).label}
+      label={t("font")}
+      value={
+        missing
+          ? t("font.downloadAgain")
+          : id === "system"
+            ? t("font.system")
+            : readingFontOption(id).label
+      }
       onClick={() => navigator.push("settings-reading-font")}
     />
   );
@@ -317,6 +341,7 @@ export function ReadingFontItem() {
 
 /** 「打开文档时」：已有文档默认阅读态或直接编辑，点选即时写入 editor.openMode 并落盘 */
 export function EditorOpenModeItem() {
+  const { t } = useSettingsShellI18n();
   const app = useAppContext();
   const [open, setOpen] = useState(false);
   const value = normalizeEditorOpenMode(app.syncSettings.safeSetting?.editor?.openMode);
@@ -324,18 +349,19 @@ export function EditorOpenModeItem() {
     <>
       <ListItem
         icon={<IconBookOpen />}
-        label="打开文档时"
-        value={EDITOR_OPEN_MODE_LABELS[value]}
+        label={t("openMode")}
+        value={t(`openMode.${value}`)}
         onClick={() => setOpen(true)}
       />
       <ActionSheet
         open={open}
-        title="打开文档时"
-        items={EDITOR_OPEN_MODE_OPTIONS.map(option => ({
-          label: option.label,
-          selected: option.value === value,
+        title={t("openMode")}
+        items={EDITOR_OPEN_MODES.map(mode => ({
+          key: mode,
+          label: t(`openMode.option.${mode}`),
+          selected: mode === value,
           onClick: () =>
-            app.syncSettings.updateSetting(prev => withEditorOpenMode(prev, option.value), {
+            app.syncSettings.updateSetting(prev => withEditorOpenMode(prev, mode), {
               persist: true,
             }),
         }))}
@@ -347,6 +373,7 @@ export function EditorOpenModeItem() {
 
 /** 「关于与更新」：进入「我的」即按需检查更新（仅 Android），有新版本时行尾换成提示 */
 export function AboutUpdateItem(props: { onOpen: () => void }) {
+  const { t } = useSettingsShellI18n();
   const appVersion = useAppVersion();
   const latestVersion = useAppUpdate(state =>
     state.check?.available ? state.check.latest.version : null
@@ -355,7 +382,7 @@ export function AboutUpdateItem(props: { onOpen: () => void }) {
   return (
     <ListItem
       icon={<IconCircleHelp />}
-      label="关于与更新"
+      label={t("module.about")}
       value={latestVersion ? undefined : (appVersion ?? "")}
       badge={latestVersion ? <UpdateBadge version={latestVersion} /> : undefined}
       onClick={props.onOpen}
@@ -365,13 +392,14 @@ export function AboutUpdateItem(props: { onOpen: () => void }) {
 
 /** 「关于与更新」行尾的新版本提示：红点 + 版本号 */
 function UpdateBadge({ version }: { version: string }) {
+  const { t } = useSettingsShellI18n();
   return (
     <span
       className="bg-danger-soft text-danger flex items-center gap-1.5 rounded-full py-0.5 pr-2 pl-1.5 text-[11.5px] font-semibold tabular-nums"
-      aria-label={`有新版本 ${version}`}
+      aria-label={t("update.available", { version })}
     >
       <span className="bg-danger h-1.5 w-1.5 rounded-full" aria-hidden="true" />
-      新版本 {version}
+      {t("update.badge", { version })}
     </span>
   );
 }
@@ -437,6 +465,7 @@ function LanguageItem() {
         open={open}
         title={t("language")}
         items={options.map(option => ({
+          key: option.value,
           label: option.label,
           selected: option.value === value,
           onClick: () =>

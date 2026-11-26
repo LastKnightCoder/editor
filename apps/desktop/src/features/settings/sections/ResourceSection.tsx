@@ -1,3 +1,4 @@
+import { storageTranslator, useStorageI18n } from "../storage/i18n";
 import { produce } from "immer";
 import { Info } from "lucide-react";
 import { SettingRow, Radio, ROW_DIVIDER, Switch } from "@tau/ui";
@@ -9,6 +10,7 @@ import { isProviderSection, ProviderChoiceList } from "../components/ProviderCho
 import { StatusChip } from "../components/StatusChip";
 
 export function ResourceSection() {
+  useStorageI18n();
   const imageBed = useSettingStore(state => state.setting.imageBed);
   const runtime = useDesktopPlugins();
   const sections =
@@ -17,13 +19,16 @@ export function ResourceSection() {
     imageBed.active === EImageBed.Local ? LOCAL_UPLOAD_TARGET : (imageBed.plugin?.id ?? "");
   return (
     <>
-      <SettingsGroup title="保存到" description="只影响之后插入的图片与附件，已插入的保留原地址">
+      <SettingsGroup
+        title={storageTranslator.t("destination.title")}
+        description={storageTranslator.t("destination.hint")}
+      >
         <ProviderChoiceList
           sections={sections}
           configurations={imageBed.plugin?.configurations}
           current={current}
           from="imageBed"
-          addLabel="添加上传服务"
+          addLabel={storageTranslator.t("destination.add")}
           onSelect={pluginId => selectUploadTarget(pluginId)}
           leading={name => (
             <div className={`flex min-h-14 items-center gap-3 px-3 py-2 ${ROW_DIVIDER}`}>
@@ -34,13 +39,17 @@ export function ResourceSection() {
                 onChange={() => selectUploadTarget(LOCAL_UPLOAD_TARGET)}
                 label={
                   <span className="text-tau-body-lg text-ink-1 inline-flex items-center gap-2 font-medium">
-                    本地
-                    {current === LOCAL_UPLOAD_TARGET && <StatusChip tone="accent">当前</StatusChip>}
+                    {storageTranslator.t("destination.local")}
+                    {current === LOCAL_UPLOAD_TARGET && (
+                      <StatusChip tone="accent">
+                        {storageTranslator.t("destination.current")}
+                      </StatusChip>
+                    )}
                   </span>
                 }
                 description={
                   <span className="text-tau-meta text-ink-2">
-                    应用目录的 resources 文件夹，随同步服务镜像到其他设备
+                    {storageTranslator.t("destination.localHint")}
                   </span>
                 }
               />
@@ -48,10 +57,13 @@ export function ResourceSection() {
           )}
         />
       </SettingsGroup>
-      <SettingsGroup title="处理">
-        <SettingRow title="上传压缩" description="png / jpeg / jpg 保存前自动转为 webp">
+      <SettingsGroup title={storageTranslator.t("processing.title")}>
+        <SettingRow
+          title={storageTranslator.t("processing.compression")}
+          description={storageTranslator.t("processing.hint")}
+        >
           <Switch
-            aria-label="上传压缩"
+            aria-label={storageTranslator.t("processing.compression")}
             checked={imageBed.enableCompression}
             onCheckedChange={value =>
               useSettingStore.setState(state => ({
@@ -64,8 +76,7 @@ export function ResourceSection() {
         </SettingRow>
       </SettingsGroup>
       <SettingsNote icon={<Info size={14} />}>
-        独立 Markdown 文件保留文档旁的本地保存规则；本地 resources 目录与云端的镜像在「同步 ·
-        云端存储」中管理。
+        {storageTranslator.t("destination.note")}
       </SettingsNote>
     </>
   );

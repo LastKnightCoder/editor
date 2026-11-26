@@ -1,6 +1,8 @@
 // 资源文件页：resources 目录与同步服务之间的双向镜像。状态卡 + 拇指区一个主按钮（同同步中心），
 // 下方按「需要处理 / 待上传 / 待下载 / 全部」列出文件。进入与返回时静默刷新一次账本。
 
+import { formatRelativeTime } from "../storage/format";
+import { storageDisplayContext, useStorageI18n } from "../storage/i18n";
 import { useEffect, useMemo, useState } from "react";
 import {
   CircleCheck,
@@ -33,7 +35,6 @@ import {
   type ResourceHeroState,
 } from "./resourceState";
 import { resolveSyncErrorMessage } from "./syncErrors";
-import { formatRelativeTime } from "./syncState";
 
 const PAGE_SIZE = 30;
 const IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp|svg|bmp|avif|heic)$/i;
@@ -93,6 +94,7 @@ export type ResourceFilesProps = {
 };
 
 export function ResourceFilesSection(props: ResourceFilesProps) {
+  useStorageI18n();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [configMissing, setConfigMissing] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -143,7 +145,9 @@ export function ResourceFilesSection(props: ResourceFilesProps) {
     counts,
     errorMessage,
     configMissing,
-    lastSyncText: lastSyncTime ? formatRelativeTime(lastSyncTime, Date.now()) : null,
+    lastSyncText: lastSyncTime
+      ? formatRelativeTime(lastSyncTime, Date.now(), storageDisplayContext())
+      : null,
     checked: props.statusFile !== null,
   });
 

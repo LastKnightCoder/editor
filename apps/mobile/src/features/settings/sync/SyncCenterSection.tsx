@@ -1,6 +1,8 @@
 // 同步中心：状态卡回答「数据库同步了没」，拇指区一个主按钮（同步数据库后顺带同步资源文件），
 // 服务 / 数据库 / 资源文件 / 整库覆盖下沉为普通行。资源文件跟随同一个同步服务。
 
+import { formatRelativeTime } from "../storage/format";
+import { storageDisplayContext, useStorageI18n } from "../storage/i18n";
 import { useEffect, useState } from "react";
 import { ProgressStatus } from "@tau/ui";
 import {
@@ -33,13 +35,7 @@ import { ActionButton } from "../storage/fields";
 import { useSyncProviders } from "./providers";
 import { countResources, resourceBadge, resourceSummary } from "./resourceState";
 import { resolveSyncErrorMessage } from "./syncErrors";
-import {
-  deriveSyncHero,
-  formatRelativeTime,
-  readLastSyncTime,
-  type SyncHeroState,
-  type SyncTone,
-} from "./syncState";
+import { deriveSyncHero, readLastSyncTime, type SyncHeroState, type SyncTone } from "./syncState";
 
 export type SyncCenterProps = {
   setting: SettingCompat | null;
@@ -166,6 +162,7 @@ function FirstRunView(props: { setting: SettingCompat; onOpenProvider: (id: stri
 }
 
 export function SyncCenterSection(props: SyncCenterProps) {
+  useStorageI18n();
   const navigator = useNavigator();
   const [checking, setChecking] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -255,7 +252,9 @@ export function SyncCenterSection(props: SyncCenterProps) {
 
   const databaseName = props.versions?.databaseName ?? props.activeDatabase;
   const lastSyncTime = databaseName ? readLastSyncTime(databaseName) : null;
-  const lastSyncText = lastSyncTime ? formatRelativeTime(lastSyncTime, Date.now()) : null;
+  const lastSyncText = lastSyncTime
+    ? formatRelativeTime(lastSyncTime, Date.now(), storageDisplayContext())
+    : null;
   const resourceCounts = countResources(props.resourceStatusFile);
   const badge = resourceBadge(
     props.resourceProgress,

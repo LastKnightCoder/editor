@@ -1,6 +1,7 @@
 // 存储服务配置表单（移动）：按插件声明的分组渲染，行即输入框、上标签下值；
 // 选择类字段推入全屏选择层，不用居中弹窗或下拉浮层。保存由服务页决定时机。
 
+import { storageTranslator, useStorageI18n, storageErrorText } from "./i18n";
 import { useEffect, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
@@ -34,18 +35,20 @@ const FIELD_ROW =
   "relative block px-[14px] py-2.5 [&+&]:before:absolute [&+&]:before:left-[14px] [&+&]:before:right-0 [&+&]:before:top-0 [&+&]:before:h-px [&+&]:before:bg-line-1";
 
 function FieldLabel(props: { field: ProviderField; error?: string }) {
+  useStorageI18n();
   return (
     <span className={`text-tau-sm block ${props.error ? "text-danger" : "text-ink-3"}`}>
       {props.field.label}
       {props.field.type !== "switch" &&
         props.field.type !== "service-choice" &&
         props.field.optional &&
-        " · 可选"}
+        storageTranslator.t("form.optional")}
     </span>
   );
 }
 
 function FieldError(props: { error?: string }) {
+  useStorageI18n();
   if (!props.error) return null;
   return <span className="text-danger text-tau-sm mt-0.5 block">{props.error}</span>;
 }
@@ -57,6 +60,7 @@ function TextFieldRow(props: {
   disabled: boolean;
   onChange(value: string): void;
 }) {
+  useStorageI18n();
   const [visible, setVisible] = useState(false);
   const secret = props.field.type === "secret";
   return (
@@ -81,7 +85,9 @@ function TextFieldRow(props: {
         {secret && (
           <button
             type="button"
-            aria-label={visible ? "隐藏" : "显示"}
+            aria-label={
+              visible ? storageTranslator.t("form.hide") : storageTranslator.t("form.show")
+            }
             className="text-ink-3 -mr-1 grid h-8 w-8 place-items-center"
             onClick={event => {
               event.preventDefault();
@@ -110,6 +116,7 @@ function ChoiceFieldRow(props: {
   disabled: boolean;
   onOpen(): void;
 }) {
+  useStorageI18n();
   return (
     <button
       type="button"
@@ -124,7 +131,7 @@ function ChoiceFieldRow(props: {
         >
           {props.value
             ? optionLabel(props.field, props.value)
-            : (props.field.placeholder ?? "请选择")}
+            : (props.field.placeholder ?? storageTranslator.t("form.select"))}
         </span>
         <ChevronRight size={18} className="text-ink-3 shrink-0" aria-hidden="true" />
       </span>
@@ -141,13 +148,14 @@ function ChoiceScreen(props: {
   onPick(value: string): void;
   onClose(): void;
 }) {
+  useStorageI18n();
   const { field } = props;
   const remote = field.type === "remote-choice";
   const [options, setOptions] = useState<readonly ProviderChoiceOption[]>(
     field.type === "choice" ? field.options : []
   );
   const [state, setState] = useState<"idle" | "loading" | "error">(remote ? "loading" : "idle");
-  const [error, setError] = useState("");
+  const [error, setError] = useState<unknown>(null);
   const [query, setQuery] = useState("");
   const [manual, setManual] = useState(false);
   const [draft, setDraft] = useState(props.values[field.key] ?? "");
@@ -168,7 +176,7 @@ function ChoiceScreen(props: {
       setState("idle");
     } catch (issue) {
       if (current !== request.current) return;
-      setError(issue instanceof Error ? issue.message : "加载失败");
+      setError(issue);
       setState("error");
     }
   };
@@ -193,11 +201,14 @@ function ChoiceScreen(props: {
 
   return (
     <div className="mobile-kb-screen bg-page fixed inset-0 z-[60] flex flex-col">
-      <PageHeader title={`选择${field.label}`} onBack={props.onClose} />
+      <PageHeader
+        title={storageTranslator.t("form.chooseTitle", { field: field.label })}
+        onBack={props.onClose}
+      />
       <div className="mobile-page-scroll flex-1 overflow-y-auto px-4">
         {manual ? (
           <>
-            <GroupLabel>手动输入</GroupLabel>
+            <GroupLabel>{storageTranslator.t("form.manual")}</GroupLabel>
             <GroupCard>
               <label className={FIELD_ROW}>
                 <span className="text-tau-sm text-ink-3 block">{field.label}</span>
@@ -220,7 +231,7 @@ function ChoiceScreen(props: {
               className="bg-accent text-ink-inverse text-tau-body mt-4 h-12 w-full rounded-[14px] font-semibold disabled:opacity-50"
               onClick={() => props.onPick(draft.trim())}
             >
-              使用「{draft.trim() || field.label}」
+              {storageTranslator.t("form.use", { value: draft.trim() || field.label })}
             </button>
           </>
         ) : (
@@ -229,33 +240,43 @@ function ChoiceScreen(props: {
               <div className="bg-surface text-ink-3 mt-1 flex h-10 items-center gap-2 rounded-xl px-3">
                 <Search size={17} aria-hidden="true" />
                 <input
-                  aria-label={`搜索${field.label}`}
+                  aria-label={storageTranslator.t("form.search", { field: field.label })}
                   value={query}
-                  placeholder={`搜索${field.label}`}
+                  placeholder={storageTranslator.t("form.search", { field: field.label })}
                   className="input-text text-ink-1 placeholder:text-ink-3 min-w-0 flex-1 bg-transparent outline-none"
                   onChange={event => setQuery(event.currentTarget.value)}
                 />
               </div>
             )}
-            <GroupLabel>{field.description ?? "可选项"}</GroupLabel>
+            <GroupLabel>{field.description ?? storageTranslator.t("form.options")}</GroupLabel>
             <GroupCard>
               {state === "loading" ? (
                 <div className="setting-row">
                   <LoaderCircle size={18} className="text-ink-3 animate-spin" aria-hidden="true" />
-                  <span className="text-ink-2 text-tau-body">正在加载…</span>
+                  <span className="text-ink-2 text-tau-body">
+                    {storageTranslator.t("form.loading")}
+                  </span>
                 </div>
               ) : state === "error" ? (
                 <button type="button" className="setting-row" onClick={() => void load()}>
                   <CircleAlert size={18} className="text-danger shrink-0" aria-hidden="true" />
                   <span className="min-w-0 flex-1">
-                    <span className="text-danger text-tau-body block">{error}</span>
-                    <span className="text-ink-3 text-tau-sm block">点按重试</span>
+                    <span className="text-danger text-tau-body block">
+                      {error == null
+                        ? storageTranslator.t("form.loadFailed")
+                        : storageErrorText(error)}
+                    </span>
+                    <span className="text-ink-3 text-tau-sm block">
+                      {storageTranslator.t("form.retry")}
+                    </span>
                   </span>
                 </button>
               ) : visible.length === 0 ? (
                 <div className="setting-row">
                   <span className="text-ink-3 text-tau-body">
-                    {keyword ? "没有匹配的项" : "暂无可选项"}
+                    {keyword
+                      ? storageTranslator.t("form.noMatch")
+                      : storageTranslator.t("form.empty")}
                   </span>
                 </div>
               ) : (
@@ -279,7 +300,11 @@ function ChoiceScreen(props: {
                       )}
                     </span>
                     {option.value === selected && (
-                      <Check size={20} className="text-accent shrink-0" aria-label="已选" />
+                      <Check
+                        size={20}
+                        className="text-accent shrink-0"
+                        aria-label={storageTranslator.t("form.selected")}
+                      />
                     )}
                   </button>
                 ))
@@ -290,7 +315,9 @@ function ChoiceScreen(props: {
                 <div className="mt-4" />
                 <GroupCard>
                   <button type="button" className="setting-row" onClick={() => setManual(true)}>
-                    <span className="text-accent-text text-tau-body">手动输入{field.label}</span>
+                    <span className="text-accent-text text-tau-body">
+                      {storageTranslator.t("form.manualField", { field: field.label })}
+                    </span>
                   </button>
                 </GroupCard>
               </>
@@ -303,6 +330,7 @@ function ChoiceScreen(props: {
 }
 
 function GroupLink(props: { link: { label: string; url: string } }) {
+  useStorageI18n();
   return (
     <button
       type="button"
@@ -317,11 +345,14 @@ function GroupLink(props: { link: { label: string; url: string } }) {
 
 /** 宿主服务选择：移动宿主没有对应服务，只展示已存的显示名，不提供修改。 */
 function ServiceFieldRow(props: { field: ProviderField; label: string }) {
+  useStorageI18n();
   return (
     <div className={FIELD_ROW}>
       <FieldLabel field={props.field} />
       <span className="text-ink-3 text-tau-body block min-h-[28px] leading-[28px]">
-        {props.label || props.field.placeholder || "默认"} · 请在桌面端修改
+        {storageTranslator.t("form.desktopOnly", {
+          value: props.label || props.field.placeholder || storageTranslator.t("form.default"),
+        })}
       </span>
     </div>
   );
@@ -333,6 +364,7 @@ function SwitchFieldRow(props: {
   disabled: boolean;
   onChange(value: string): void;
 }) {
+  useStorageI18n();
   const checked = props.value === "true";
   return (
     <div className={`${FIELD_ROW} flex items-center gap-3`}>
@@ -368,6 +400,7 @@ function InlineChoiceGroup(props: {
   disabled: boolean;
   onChange(value: string): void;
 }) {
+  useStorageI18n();
   const note = props.error ?? props.field.description;
   return (
     <section aria-label={props.field.label}>
@@ -425,6 +458,7 @@ export function MobileProviderForm(props: {
   signal: AbortSignal;
   onChange(values: Values, key: string): void;
 }) {
+  useStorageI18n();
   const [choosing, setChoosing] = useState<ProviderChoiceField | ProviderRemoteChoiceField | null>(
     null
   );

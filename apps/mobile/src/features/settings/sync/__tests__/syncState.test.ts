@@ -1,7 +1,10 @@
+import { createI18nRuntime, createLocaleStore } from "@tau/i18n";
+import { afterAll } from "vitest";
+import { storageMessages } from "../../storage/i18n";
+import { formatRelativeTime } from "../../storage/format";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   deriveSyncHero,
-  formatRelativeTime,
   overwriteAvailability,
   readLastSyncTime,
   writeLastSyncTime,
@@ -85,10 +88,20 @@ describe("上次同步时间", () => {
 
   it("相对时间文案", () => {
     const now = new Date(2026, 9, 23, 12, 0).getTime();
-    expect(formatRelativeTime(now - 10_000, now)).toBe("刚刚");
-    expect(formatRelativeTime(now - 3 * 60_000, now)).toBe("3 分钟前");
-    expect(formatRelativeTime(new Date(2026, 9, 23, 8, 5).getTime(), now)).toBe("今天 08:05");
-    expect(formatRelativeTime(new Date(2026, 9, 22, 22, 14).getTime(), now)).toBe("昨天 22:14");
-    expect(formatRelativeTime(new Date(2026, 8, 30, 9, 0).getTime(), now)).toBe("9 月 30 日 09:00");
+    expect(formatRelativeTime(now - 10_000, now, language)).toBe("刚刚");
+    expect(formatRelativeTime(now - 3 * 60_000, now, language)).toBe("3 分钟前");
+    expect(formatRelativeTime(new Date(2026, 9, 23, 8, 5).getTime(), now, language)).toBe(
+      "今天 08:05"
+    );
+    expect(formatRelativeTime(new Date(2026, 9, 22, 22, 14).getTime(), now, language)).toBe(
+      "昨天 22:14"
+    );
+    expect(formatRelativeTime(new Date(2026, 8, 30, 9, 0).getTime(), now, language)).toBe(
+      "9 月 30 日 09:00"
+    );
   });
 });
+
+const runtime = createI18nRuntime({ localeSource: createLocaleStore("zh-CN") });
+const language = { locale: "zh-CN", t: runtime.get(storageMessages).t };
+afterAll(() => runtime.dispose());

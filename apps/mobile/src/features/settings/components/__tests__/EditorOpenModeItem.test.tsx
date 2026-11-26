@@ -1,3 +1,4 @@
+import { mobileLocaleSource } from "../../../../services/i18n";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -29,8 +30,10 @@ function findButton(text: string): HTMLButtonElement {
 
 describe("EditorOpenModeItem", () => {
   let root: Root;
+  let originalLocale: string;
 
   beforeEach(() => {
+    originalLocale = mobileLocaleSource.getSnapshot();
     updateSettingMock.mockReset();
     const host = document.createElement("div");
     document.body.appendChild(host);
@@ -40,6 +43,7 @@ describe("EditorOpenModeItem", () => {
   afterEach(() => {
     act(() => {
       root.unmount();
+      mobileLocaleSource.setLocale(originalLocale);
     });
     document.body.innerHTML = "";
   });
@@ -68,10 +72,13 @@ describe("EditorOpenModeItem", () => {
     await act(async () => {
       findButton("打开文档时").click();
     });
-    expect(findButton("阅读模式")).toBeTruthy();
-    await act(async () => {
-      findButton("直接编辑").click();
-    });
+    const editOption = findButton("直接编辑");
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => mobileLocaleSource.setLocale(locale));
+      expect(editOption.isConnected).toBe(true);
+      expect(updateSettingMock).not.toHaveBeenCalled();
+    }
+    await act(async () => editOption.click());
 
     expect(updateSettingMock).toHaveBeenCalledTimes(1);
     const [updater, options] = updateSettingMock.mock.calls[0];

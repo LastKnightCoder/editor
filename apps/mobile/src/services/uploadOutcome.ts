@@ -1,7 +1,7 @@
 // 最近一次图片/附件上传的结果：编辑器上传管线写入，「图片与附件」页读取展示，
 // 编辑器失败提示据此补上原因与「去设置」入口。只在本机记录，不涉及远端。
 
-import { mapErrorToMessage, parseInvokeError } from "./errors";
+import { parseInvokeError } from "./errors";
 
 /** 失败类别决定设置页给出的修复入口 */
 export type UploadFailureKind = "config" | "auth" | "location" | "network" | "local" | "unknown";
@@ -14,6 +14,7 @@ export type UploadOutcome =
       at: number;
       kind: UploadFailureKind;
       message: string;
+      code?: string;
     };
 
 const STORAGE_KEY = "tau.mobile.lastUpload";
@@ -29,29 +30,24 @@ function extractHttpStatus(detail: string): number | null {
   return match ? Number(match[1]) : null;
 }
 
-/** 把上传 invoke 错误翻译成类别与一句用户可读的原因 */
-export function classifyUploadError(error: unknown): { kind: UploadFailureKind; message: string } {
+/** 保留原错误诊断；类别与错误码供展示边界投影。 */
+export interface UploadFailure {
+  kind: UploadFailureKind;
+  message: string;
+  code?: string;
+}
+
+export function classifyUploadError(error: unknown): UploadFailure {
   const { code, message } = parseInvokeError(error);
-  if (code === "RESOURCE_CONFIG_MISSING") {
-    return { kind: "config", message: message || "上传位置的配置不完整" };
-  }
-  if (code === "RESOURCE_WRITE_FAILED") {
-    return { kind: "local", message: "写入本机失败，请检查存储空间" };
-  }
-  if (code === "RESOURCE_UPLOAD_TIMEOUT") {
-    return { kind: "network", message: "网络不通或太慢，请稍后重试" };
-  }
+  const result = (kind: UploadFailureKind): UploadFailure => ({ kind, code, message });
+  if (code === "RESOURCE_CONFIG_MISSING") return result("config");
+  if (code === "RESOURCE_WRITE_FAILED") return result("local");
+  if (code === "RESOURCE_UPLOAD_TIMEOUT") return result("network");
   const status = extractHttpStatus(message);
-  if (status === 401 || status === 403) {
-    return { kind: "auth", message: "账号已失效或没有写入权限" };
-  }
-  if (status === 404) {
-    return { kind: "location", message: "找不到仓库或存储桶" };
-  }
-  if (/timed?\s*out|connect|dns|network|超时/i.test(message)) {
-    return { kind: "network", message: "网络不通或太慢，请稍后重试" };
-  }
-  return { kind: "unknown", message: mapErrorToMessage(code, message || "上传失败") };
+  if (status === 401 || status === 403) return result("auth");
+  if (status === 404) return result("location");
+  if (/timed?\s*out|connect|dns|network|超时/i.test(message)) return result("network");
+  return result("unknown");
 }
 
 export function readUploadOutcome(): UploadOutcome | null {

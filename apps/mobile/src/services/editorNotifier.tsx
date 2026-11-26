@@ -13,6 +13,7 @@ import { MobileConfirmDialog } from "../components/MobileConfirmDialog";
 import { toast as uiToast } from "@tau/ui";
 import { toast } from "../components/toast";
 import { getNavigator } from "../router";
+import { uploadFailureText } from "./uploadOutcome.i18n";
 import { takeRecentUploadFailure } from "./uploadOutcome";
 
 interface PendingRequestState<TOptions, TResult> {
@@ -72,7 +73,7 @@ function notifyError(message: string) {
   }
   toast({
     type: "error",
-    text: editorNotifierTranslator.t("upload.failed", { reason: failure.message }),
+    text: editorNotifierTranslator.t("upload.failed", { reason: uploadFailureText(failure) }),
     duration: 6000,
     action: {
       label: editorNotifierTranslator.t("upload.settings"),

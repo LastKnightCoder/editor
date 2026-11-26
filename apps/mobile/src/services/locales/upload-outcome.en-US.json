@@ -1,0 +1,9 @@
+{
+  "config": "The upload destination is not fully configured",
+  "config.detail": "The upload destination is not fully configured: {{reason}}",
+  "local": "Could not save locally. Check available storage.",
+  "network": "The network is unavailable or too slow. Try again later.",
+  "auth": "The account is invalid or lacks write permission",
+  "location": "The repository or bucket could not be found",
+  "failed": "Upload failed"
+}

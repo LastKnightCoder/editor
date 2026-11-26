@@ -1,3 +1,4 @@
+import { useSettingsShellI18n } from "../shell.i18n";
 // 「我的」功能宫格：最多两行，超出时最后一格换成「更多」。
 // 长按任一格进入编辑并直接拖动，松手即保存顺序；这份顺序同时决定平板左导航条自选段露出哪几个。
 
@@ -42,6 +43,7 @@ function move<T>(items: readonly T[], from: number, to: number): T[] {
 }
 
 export function FeatureGrid({ items }: { items: readonly FeatureEntry[] }) {
+  const { t } = useSettingsShellI18n();
   const compact = useWindowClass() === "compact";
   const save = useFeatureOrder(state => state.save);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -156,7 +158,7 @@ export function FeatureGrid({ items }: { items: readonly FeatureEntry[] }) {
       {editing ? (
         <div className="flex items-center gap-2 px-1 pb-2">
           <p className="text-ink-3 min-w-0 flex-1 text-[12.5px]">
-            {compact ? "拖动调整顺序" : "拖动调整顺序，排在前面的会显示在左侧导航条"}
+            {compact ? t("grid.drag") : t("grid.dragWide")}
           </p>
           <PageHeaderTextButton
             onClick={() => {
@@ -164,7 +166,7 @@ export function FeatureGrid({ items }: { items: readonly FeatureEntry[] }) {
               setEditing(false);
             }}
           >
-            完成
+            {t("grid.done")}
           </PageHeaderTextButton>
         </div>
       ) : null}
@@ -208,7 +210,7 @@ export function FeatureGrid({ items }: { items: readonly FeatureEntry[] }) {
           <FeatureButton
             item={{
               key: "more",
-              label: "更多",
+              label: t("grid.more"),
               open: () => setMoreOpen(true),
               tile: (
                 <span className="bg-hover text-ink-2 grid h-[46px] w-[46px] place-items-center rounded-[17px]">
@@ -223,7 +225,7 @@ export function FeatureGrid({ items }: { items: readonly FeatureEntry[] }) {
       {overflow ? (
         <ActionSheet
           open={moreOpen}
-          title="全部功能"
+          title={t("grid.all")}
           onClose={() => setMoreOpen(false)}
           items={items.slice(limit - 1).map(item => ({
             key: item.key,

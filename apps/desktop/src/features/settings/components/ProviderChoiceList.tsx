@@ -1,3 +1,4 @@
+import { storageTranslator, useStorageI18n } from "../storage/i18n";
 /* eslint-disable react-refresh/only-export-components -- 分区判定与列表同源，供同步 / 资源存储两页共用 */
 /**
  * 存储服务单选列表（同步 / 资源存储共用）：只显示配置摘要与状态，不出现任何连接字段；
@@ -60,6 +61,7 @@ export function ProviderChoiceList({
   leading?: (name: string) => ReactNode;
   onSelect: (pluginId: string, title: string) => void;
 }) {
+  useStorageI18n();
   const name = useId();
   return (
     <>
@@ -75,7 +77,7 @@ export function ProviderChoiceList({
           | undefined;
         const configured = form ? isProviderFormComplete(form, stored) : stored !== undefined;
         const summary = !form
-          ? "插件版本较旧，更新后才能修改配置"
+          ? storageTranslator.t("provider.legacy")
           : configured
             ? providerFormSummary(form, stored)
             : "";
@@ -95,13 +97,21 @@ export function ProviderChoiceList({
                 label={
                   <span className="text-tau-body-lg text-ink-1 inline-flex items-center gap-2 font-medium">
                     {section.definition.title}
-                    {isCurrent && <StatusChip tone="accent">当前</StatusChip>}
-                    {probing === pluginId && <StatusChip>连接中…</StatusChip>}
+                    {isCurrent && (
+                      <StatusChip tone="accent">
+                        {storageTranslator.t("destination.current")}
+                      </StatusChip>
+                    )}
+                    {probing === pluginId && (
+                      <StatusChip>{storageTranslator.t("provider.connecting")}</StatusChip>
+                    )}
                   </span>
                 }
                 description={
                   <span className="text-tau-meta text-ink-2 block truncate">
-                    {configured ? summary || "已配置" : "未配置"}
+                    {configured
+                      ? summary || storageTranslator.t("provider.configured")
+                      : storageTranslator.t("provider.unconfigured")}
                   </span>
                 }
               />
@@ -120,7 +130,9 @@ export function ProviderChoiceList({
                 )
               }
             >
-              {configured ? "配置" : "去配置"}
+              {configured
+                ? storageTranslator.t("provider.configure")
+                : storageTranslator.t("provider.goConfigure")}
               <ChevronRight size={14} />
             </Button>
           </div>
