@@ -13,6 +13,8 @@ import { ProjectContext } from "@/features/projects/components/ProjectView/Proje
 import toolRegistry from "@/tools/toolRegistry";
 import { currentWhiteboardToolScope } from "@/services/whiteboard-documents/agent-scope";
 import { queryClient } from "@/queryClient";
+import { desktopLocaleSource } from "@/app/i18n/runtime";
+import { whiteboardChromeTranslator } from "../i18n-chrome";
 import { DocumentBoardCanvas } from "../components/DocumentBoardCanvas";
 import { OutlineToggle } from "../components/OutlineToggle";
 import { ShelfToggle } from "../components/ShelfToggle";
@@ -42,6 +44,8 @@ const mocks = vi.hoisted(() => ({
   binding: undefined as unknown,
   guard: vi.fn((_guard: () => Promise<boolean>) => () => {}),
   shareStatus: vi.fn(),
+  resumePublication: vi.fn(),
+  cancelPublication: vi.fn(),
   remote: { open: vi.fn(), sync: vi.fn() },
   adopt: vi.fn(async () => {}),
   unshare: vi.fn(async () => ({ missing: 0 })),
@@ -96,6 +100,8 @@ vi.mock("@/commands/whiteboard-document", () => ({
   applyWhiteboardAgentOperations: vi.fn(),
   readWhiteboardShareStatus: mocks.shareStatus,
   publishWhiteboard: mocks.publish,
+  resumeWhiteboardPublication: mocks.resumePublication,
+  cancelWhiteboardPublication: mocks.cancelPublication,
   whiteboardRemoteBackend: mocks.remote,
   adoptWhiteboardEpoch: mocks.adopt,
   unshareWhiteboard: mocks.unshare,
@@ -285,6 +291,22 @@ it("Activity 隐藏不释放会话或历史，重新显示复用；真正卸载�
   });
   const binding = mocks.binding as { history: { undoStack: unknown[] } };
   expect(binding.history.undoStack).toHaveLength(1);
+  const originalLocale = desktopLocaleSource.getSnapshot();
+  const appends = mocks.append.mock.calls.length;
+  const guard = mocks.guard.mock.calls.at(-1);
+  try {
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(mocks.binding).toBe(binding);
+      expect(binding.history.undoStack).toHaveLength(1);
+      expect(mocks.open).toHaveBeenCalledTimes(1);
+      expect(mocks.release).not.toHaveBeenCalled();
+      expect(mocks.append.mock.calls.length).toBe(appends);
+      expect(mocks.guard.mock.calls.at(-1)).toBe(guard);
+    }
+  } finally {
+    await act(async () => desktopLocaleSource.setLocale(originalLocale));
+  }
   await act(async () => root!.render(render("hidden")));
   await act(async () => {
     await new Promise(resolve => setTimeout(resolve, 30));
@@ -491,6 +513,31 @@ it("首次共享未完成时只提供按原操作继续或取消", async () => {
   expect(labels).toContain("取消共享");
   expect(labels).not.toContain("共享");
   expect(mocks.remote.open).not.toHaveBeenCalled();
+  let finish: () => void = () => undefined;
+  mocks.resumePublication.mockReturnValueOnce(
+    new Promise<void>(resolve => {
+      finish = resolve;
+    })
+  );
+  await act(async () => button(whiteboardChromeTranslator.t("chrome.pending.resume"))?.click());
+  expect(mocks.resumePublication).toHaveBeenCalledExactlyOnceWith("A", "share-1");
+  const originalLocale = desktopLocaleSource.getSnapshot();
+  const binding = mocks.binding;
+  try {
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(mocks.binding).toBe(binding);
+      expect(mocks.resumePublication).toHaveBeenCalledTimes(1);
+      expect(mocks.cancelPublication).not.toHaveBeenCalled();
+      expect(button(whiteboardChromeTranslator.t("chrome.pending.resume"))?.disabled).toBe(true);
+      expect(button(whiteboardChromeTranslator.t("chrome.pending.cancel"))?.disabled).toBe(true);
+    }
+  } finally {
+    await act(async () => {
+      desktopLocaleSource.setLocale(originalLocale);
+      finish();
+    });
+  }
 });
 
 const SHARED = { serverUrl: "https://collab.test", documentId: "room" };
@@ -562,7 +609,9 @@ it("协作区域渲染异常只替换局部，画布仍挂载并可恢复面板"
   document.body.append(container);
   root = createRoot(container);
   let failed = true;
+  let attempts = 0;
   const panel = () => {
+    attempts++;
     if (failed) throw new Error("共享面板渲染故障");
     return <span>协作面板正常</span>;
   };
@@ -580,9 +629,21 @@ it("协作区域渲染异常只替换局部，画布仍挂载并可恢复面板"
       )
     );
     const canvas = container.querySelector('[data-testid="canvas"]');
-    expect(container.textContent).toContain("协作面板暂时不可用");
+    expect(container.querySelector('[role="alert"]')).not.toBeNull();
+    const originalLocale = desktopLocaleSource.getSnapshot();
+    const failedAttempts = attempts;
+    try {
+      for (const locale of ["zh-TW", "en-US"]) {
+        await act(async () => desktopLocaleSource.setLocale(locale));
+        expect(container.querySelector('[data-testid="canvas"]')).toBe(canvas);
+        expect(container.querySelector('[role="alert"]')).not.toBeNull();
+        expect(attempts).toBe(failedAttempts);
+      }
+    } finally {
+      await act(async () => desktopLocaleSource.setLocale(originalLocale));
+    }
     failed = false;
-    await act(async () => button("重试")!.click());
+    await act(async () => button(whiteboardChromeTranslator.t("chrome.retry"))!.click());
     expect(container.querySelector('[data-testid="canvas"]')).toBe(canvas);
     expect(container.textContent).toContain("协作面板正常");
   } finally {

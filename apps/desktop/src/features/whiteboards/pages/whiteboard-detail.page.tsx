@@ -1,3 +1,4 @@
+import { appMessages } from "@/app/i18n/messages";
 /**
  * 白板详情 page 定义（多页）：一块白板一个实例（getId 按白板 id）；page = 当前页，
  * 同一白板内切页由栈机原位更新参数，不堆后退历史。
@@ -23,7 +24,7 @@ export default definePage({
   key: "whiteboard-detail",
   match: "params",
   getId: params => `whiteboard-detail-${params.id}`,
-  label: "白板",
+  label: appMessages.ref("nav.whiteboard"),
   params: schema.schema,
   component: WhiteboardDetailView,
 });

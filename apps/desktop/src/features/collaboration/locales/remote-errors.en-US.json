@@ -1,0 +1,7 @@
+{
+  "offline": "Cannot reach the collaboration service. The whiteboard is safely saved locally. Continue when the network recovers, or cancel this operation.",
+  "forbidden": "The collaboration service denied this operation. The whiteboard is safely saved locally.",
+  "upgrade": "The collaboration service requires a newer app. The whiteboard is safely saved locally. Update and try again.",
+  "unsaved": "Could not confirm that the whiteboard was saved. This operation was stopped. Try again later. (Reason: {{reason}})",
+  "failed": "Could not save this whiteboard locally. This operation did not start, and saved content is unchanged. Close all pages showing this whiteboard, reopen it, and try again. (Reason: {{reason}})"
+}

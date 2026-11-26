@@ -3,6 +3,7 @@
  * 本机保存成功只说「已保存在本机」，只有远端确认覆盖了本机修订才说「已同步」。
  */
 
+import type { WhiteboardChromeTranslator } from "./i18n-chrome";
 import type { SessionStatus } from "@tau/collaboration/src/view";
 import type { CollaborationSession, SharedWhiteboardInfo } from "@tau/collaboration";
 import type { WhiteboardSaveState } from "@/services/whiteboard-documents/client";
@@ -15,76 +16,76 @@ export interface WhiteboardSyncStatus extends SessionStatus {
 }
 /** 已固定、尚未完成的操作：白板在此期间暂停编辑，只能按原操作继续或取消。 */
 export type WhiteboardPendingKind = "publication" | "unshare";
-const PENDING_LABELS: Record<WhiteboardPendingKind, string> = {
-  publication: "共享没有完成，白板暂停编辑，内容完好保存在本机",
-  unshare: "退出共享尚未完成，白板暂停编辑，请继续完成原操作",
-};
-
 export function whiteboardSyncStatus(
   local: WhiteboardSaveState,
+  t: WhiteboardChromeTranslator["t"],
   remote?: WhiteboardRemoteState,
   pending?: WhiteboardPendingKind
 ): WhiteboardSyncStatus {
-  if (pending) return { label: PENDING_LABELS[pending], tone: "syncing" };
+  if (pending)
+    return {
+      label: t(pending === "publication" ? "chrome.status.publication" : "chrome.status.unshare"),
+      tone: "syncing",
+    };
   if (local.error)
     return {
-      label: `白板保存未完成：${local.error}`,
+      label: t("chrome.status.saveFailed", { reason: local.error }),
       tone: "error",
       actions: ["retry-save"],
     };
   if (local.phase !== "saved" || local.pending > 0)
-    return { label: "正在保存到本机…", tone: "syncing", transientSyncing: true };
-  if (!remote) return { label: "已保存在本机", tone: "idle" };
+    return { label: t("chrome.status.saving"), tone: "syncing", transientSyncing: true };
+  if (!remote) return { label: t("chrome.status.saved"), tone: "idle" };
   switch (remote.phase) {
     case "checking":
-      return { label: "已保存在本机，正在读取共享状态…", tone: "syncing" };
+      return { label: t("chrome.status.checking"), tone: "syncing" };
     case "local":
-      return { label: "已保存在本机", tone: "idle" };
+      return { label: t("chrome.status.saved"), tone: "idle" };
     case "connecting":
-      return { label: "已保存在本机，正在连接协作服务…", tone: "syncing" };
+      return { label: t("chrome.status.connecting"), tone: "syncing" };
     case "syncing":
-      return { label: "已保存在本机，正在同步…", tone: "syncing", transientSyncing: true };
+      return { label: t("chrome.status.syncing"), tone: "syncing", transientSyncing: true };
     case "synced":
       return remote.unsynced
-        ? { label: "已保存在本机，正在同步…", tone: "syncing", transientSyncing: true }
-        : { label: "已同步", tone: "live" };
+        ? { label: t("chrome.status.syncing"), tone: "syncing", transientSyncing: true }
+        : { label: t("chrome.status.synced"), tone: "live" };
     case "waiting":
       return {
-        label: remote.message ?? "已保存在本机，等待协作端确认之前的改动…",
+        label: remote.message ?? t("chrome.status.waiting"),
         tone: "syncing",
         actions: ["retry"],
       };
     case "offline":
       return remote.unsynced
-        ? { label: "离线，改动已存本机，恢复连接后自动同步", tone: "syncing", actions: ["retry"] }
-        : { label: "离线", tone: "offline", actions: ["retry"] };
+        ? { label: t("chrome.status.offlinePending"), tone: "syncing", actions: ["retry"] }
+        : { label: t("chrome.status.offline"), tone: "offline", actions: ["retry"] };
     case "forbidden":
       return {
-        label: "已保存在本机，未同步：你已没有这块白板的协作权限",
+        label: t("chrome.status.forbidden"),
         tone: "error",
         actions: ["retry", "detach"],
       };
     case "closed":
       return {
-        label: "已保存在本机，未同步：这块白板的共享已结束",
+        label: t("chrome.status.closed"),
         tone: "idle",
         actions: ["detach"],
       };
     case "incompatible":
       return {
-        label: "已保存在本机，未同步：协作端需要更新版本的应用，请升级后再同步",
+        label: t("chrome.status.incompatible"),
         tone: "error",
         actions: ["retry"],
       };
     case "rejected":
       return {
-        label: "协作端没有接受部分改动，同步已暂停",
+        label: t("chrome.status.rejected"),
         tone: "error",
         actions: ["detach"],
       };
     default:
       return {
-        label: `已保存在本机，同步未完成：${remote.message ?? "请稍后重试"}`,
+        label: t("chrome.status.failed", { reason: remote.message ?? t("chrome.status.retry") }),
         tone: "error",
         actions: ["retry"],
       };

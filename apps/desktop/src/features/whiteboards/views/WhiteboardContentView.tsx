@@ -4,6 +4,7 @@
  * 不属于任何白板的独立页才在这里渲染（同一张纸面，无页签条）。
  */
 
+import { useWhiteboardChromeI18n } from "../i18n-chrome";
 import { useEffect, useMemo, useState } from "react";
 import { Loading } from "@tau/ui";
 import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
@@ -17,6 +18,7 @@ import {
 import { useWhiteboardOwner } from "../queries";
 
 export function WhiteboardContentView() {
+  const { t } = useWhiteboardChromeI18n();
   const { id } = usePageParams<{ id: number }>();
   const { navigator } = usePage();
   const { owner, loading } = useWhiteboardOwner(id);
@@ -35,10 +37,12 @@ export function WhiteboardContentView() {
       <span className="flex min-w-0 items-center gap-1">
         <OutlineToggle />
         <ShelfToggle />
-        <span className="text-tau-meta text-ink-2 min-w-0 truncate px-1.5">{name || "白板"}</span>
+        <span className="text-tau-meta text-ink-2 min-w-0 truncate px-1.5">
+          {name || t("chrome.board")}
+        </span>
       </span>
     ),
-    [name]
+    [name, t]
   );
   usePageBreadcrumb("whiteboard-content", title);
 

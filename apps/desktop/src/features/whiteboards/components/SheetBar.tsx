@@ -1,5 +1,10 @@
 import { useLayoutEffect } from "react";
-import { bindTextFieldTextarea } from "@tau/editor/api";
+import { useWhiteboardChromeI18n } from "../i18n-chrome";
+import {
+  bindTextFieldTextarea,
+  formatTextFieldInputFailure,
+  type TextFieldInputFailure,
+} from "@tau/editor/api";
 import type { EditorTextField } from "@tau/editor/text-field-contract";
 /**
  * 白板详情页签条：浮在画布纸面左下角，与右下状态栏同一套画布 chrome 语言（实底 surface +
@@ -36,6 +41,7 @@ export interface SheetBarProps {
 }
 
 export function SheetBar(props: SheetBarProps) {
+  const { t } = useWhiteboardChromeI18n();
   const { pages, activeId, textBinding } = props;
   const [order, setOrder] = useState(pages);
   const [editing, setEditing] = useState<number | null>(null);
@@ -82,7 +88,7 @@ export function SheetBar(props: SheetBarProps) {
           className="text-ink-2 hover:bg-hover hover:text-ink-1 ease-tau-out inline-flex h-[30px] items-center gap-1.5 rounded-[8px] pr-2.5 pl-2 text-[12.5px] transition-[background-color,color] duration-150"
         >
           <Plus className="size-4" strokeWidth={1.75} />
-          新建页
+          {t("chrome.page.new")}
         </button>
       </div>
     );
@@ -94,7 +100,7 @@ export function SheetBar(props: SheetBarProps) {
         onOpenChange={setListOpen}
         className="max-h-[360px]"
         trigger={
-          <ChromeButton label="所有页" tooltipPlacement="top">
+          <ChromeButton label={t("chrome.page.all")} tooltipPlacement="top">
             <Files strokeWidth={1.75} />
           </ChromeButton>
         }
@@ -113,7 +119,7 @@ export function SheetBar(props: SheetBarProps) {
               )
             }
           >
-            {p.name || "未命名"}
+            {p.name || t("chrome.unnamed")}
           </Menu.Item>
         ))}
       </Menu>
@@ -121,7 +127,7 @@ export function SheetBar(props: SheetBarProps) {
       <div
         ref={scrollRef}
         role="tablist"
-        aria-label="白板页"
+        aria-label={t("chrome.page.group")}
         className="flex min-w-0 items-center gap-0.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {order.map((p, index) => (
@@ -149,7 +155,7 @@ export function SheetBar(props: SheetBarProps) {
         ))}
       </div>
       <ChromeGap />
-      <ChromeButton label="新建页" tooltipPlacement="top" onClick={props.onAdd}>
+      <ChromeButton label={t("chrome.page.new")} tooltipPlacement="top" onClick={props.onAdd}>
         <Plus strokeWidth={1.75} />
       </ChromeButton>
     </div>
@@ -187,6 +193,7 @@ function PageTab({
   onMove(from: number, to: number): void;
   onDragEnd(): void;
 }) {
+  const { t } = useWhiteboardChromeI18n();
   const ref = useRef<HTMLDivElement>(null);
   const [{ dragging }, drag] = useDrag({
     type: DND_TYPE,
@@ -218,10 +225,10 @@ function PageTab({
         icon={<PencilLine className="size-[15px]" strokeWidth={1.75} />}
         onSelect={onStartRename}
       >
-        重命名
+        {t("chrome.page.rename")}
       </Menu.Item>
       <Menu.Item icon={<Copy className="size-[15px]" strokeWidth={1.75} />} onSelect={onDuplicate}>
-        复制这一页
+        {t("chrome.page.copy")}
       </Menu.Item>
       <Menu.Separator />
       <Menu.Item
@@ -230,7 +237,7 @@ function PageTab({
         icon={<Trash2 className="size-[15px]" strokeWidth={1.75} />}
         onSelect={onDelete}
       >
-        删除这一页
+        {t("chrome.page.delete")}
       </Menu.Item>
     </>
   );
@@ -243,7 +250,7 @@ function PageTab({
         tabIndex={0}
         aria-selected={active}
         data-page-id={page.id}
-        title={editing ? undefined : "双击改名，右键更多，拖动排序"}
+        title={editing ? undefined : t("chrome.page.hint")}
         onClick={() => !editing && onSelect()}
         onDoubleClick={onStartRename}
         onKeyDown={e => {
@@ -270,7 +277,7 @@ function PageTab({
             onCancel={onCancelRename}
           />
         ) : (
-          <span className="truncate">{page.name || "未命名"}</span>
+          <span className="truncate">{page.name || t("chrome.unnamed")}</span>
         )}
       </div>
     </ContextMenu>
@@ -288,14 +295,18 @@ function RenameInput({
   onDone(name: string): void;
   onCancel(): void;
 }) {
+  const { locale, t } = useWhiteboardChromeI18n();
   const [value, setValue] = useState(initial);
   const input = useRef<HTMLInputElement>(null),
     getBinding = useRef(textBinding);
-  const [error, setError] = useState("");
+  const [failure, setFailure] = useState<TextFieldInputFailure>();
+  const error = failure ? formatTextFieldInputFailure(failure, locale) : "";
   useLayoutEffect(() => {
     if (!getBinding.current || !input.current) return;
     const handle = getBinding.current(),
-      bound = bindTextFieldTextarea(input.current, handle, setValue, setError);
+      bound = bindTextFieldTextarea(input.current, handle, setValue, (_message, cause) =>
+        setFailure(cause)
+      );
     return () => {
       bound.dispose();
       handle.dispose();
@@ -312,6 +323,7 @@ function RenameInput({
     <input
       autoFocus
       ref={input}
+      aria-label={t("chrome.page.name")}
       title={error || undefined}
       aria-invalid={!!error}
       readOnly={!!error}

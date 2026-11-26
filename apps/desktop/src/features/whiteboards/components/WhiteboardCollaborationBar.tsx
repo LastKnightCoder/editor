@@ -6,6 +6,7 @@
  * 远端换代时自动加载已确认的内容，尚未同步的修改尽力保留为本机白板。
  */
 
+import { useWhiteboardChromeI18n, type WhiteboardChromeTranslator } from "../i18n-chrome";
 import { useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { ArrowRight, KeyRound, Layers, Link2, LogOut, Share2, Users, VideoOff } from "lucide-react";
 import { Button, ConfirmDialog, Dialog, DialogBody, Popover, toast } from "@tau/ui";
@@ -23,10 +24,8 @@ import type { WhiteboardDocumentClient } from "@/services/whiteboard-documents/c
 import { whiteboardRemoteSync } from "@/services/whiteboard-documents/registry";
 import { whiteboardShareStatusKey } from "@/services/whiteboard-documents/keys";
 import { publishWhiteboardClient } from "@/services/whiteboard-documents/share";
-import {
-  remoteFailureText,
-  type WhiteboardRemoteState,
-} from "@/services/whiteboard-documents/remote";
+import { remoteFailureText } from "@/features/collaboration/remoteErrors.i18n";
+import type { WhiteboardRemoteState } from "@/services/whiteboard-documents/remote";
 import { RecoverableBoundary } from "@/components/ErrorState";
 import { openPage } from "@/services/page-navigation";
 import useCollaborationStore from "@/stores/useCollaborationStore";
@@ -47,17 +46,22 @@ export function WhiteboardCollaborationBoundary({
   return (
     <RecoverableBoundary
       resetKeys={[resetKey]}
-      fallback={({ reset }) => (
-        <span role="alert" className="text-ink-2 text-tau-meta inline-flex items-center gap-2 p-2">
-          协作面板暂时不可用
-          <Button size="sm" variant="ghost" onClick={reset}>
-            重试
-          </Button>
-        </span>
-      )}
+      fallback={({ reset }) => <CollaborationFallback reset={reset} />}
     >
       {children}
     </RecoverableBoundary>
+  );
+}
+
+function CollaborationFallback({ reset }: { reset: () => void }) {
+  const { t } = useWhiteboardChromeI18n();
+  return (
+    <span role="alert" className="text-ink-2 text-tau-meta inline-flex items-center gap-2 p-2">
+      {t("chrome.collab.unavailable")}
+      <Button size="sm" variant="ghost" onClick={reset}>
+        {t("chrome.retry")}
+      </Button>
+    </span>
   );
 }
 
@@ -82,19 +86,20 @@ export function WhiteboardCollaborationBar({
   client: WhiteboardDocumentClient;
   documentId: string;
 }) {
+  const { t } = useWhiteboardChromeI18n();
   const { remoteSync, remote } = useWhiteboardRemote(client);
   const share = useWhiteboardShareStatus(documentId);
   const pending = pendingKind(share.data);
   const [confirming, setConfirming] = useState<ConfirmKind>();
   const readNotice = () => {
     const local = client.getSnapshot();
-    return pending || confirming || whiteboardSyncStatus(local, remote).actions?.length
+    return pending || confirming || whiteboardSyncStatus(local, t, remote).actions?.length
       ? local
       : null;
   };
   const local = useSyncExternalStore(client.subscribe, readNotice, readNotice);
   if (!local) return null;
-  const status = whiteboardSyncStatus(local, remote, pending);
+  const status = whiteboardSyncStatus(local, t, remote, pending);
   const databaseName = client.target.databaseName;
   const actions = status.actions ?? [];
   const binding = share.data?.binding ?? null;
@@ -113,17 +118,17 @@ export function WhiteboardCollaborationBar({
           variant="ghost"
           onClick={() => void client.flush().catch(() => undefined)}
         >
-          重试保存
+          {t("chrome.collab.retrySave")}
         </Button>
       )}
       {actions.includes("retry") && remoteSync && (
         <Button size="sm" variant="ghost" onClick={() => remoteSync.retry()}>
-          重试同步
+          {t("chrome.collab.retrySync")}
         </Button>
       )}
       {actions.includes("detach") && remoteSync && (
         <Button size="sm" variant="ghost" onClick={() => setConfirming("detach")}>
-          转为本机白板
+          {t("chrome.collab.detach")}
         </Button>
       )}
       {pending && share.data && (
@@ -176,32 +181,33 @@ export function WhiteboardShareEntry({
 }
 
 type ConfirmKind = "detach" | "close" | "leave";
-const CONFIRM_COPY: Record<
+function confirmCopy(
+  t: WhiteboardChromeTranslator["t"]
+): Record<
   ConfirmKind,
   { title: string; description: string; confirmText: string; impact?: string; danger?: boolean }
-> = {
-  detach: {
-    title: "转为本机白板",
-    description:
-      "这块白板已不能再同步。转为本机白板后可以照常编辑，内容留在本机；已缓存的图片一并保留，没缓存过的图片会显示为缺失。",
-    confirmText: "转为本机白板",
-  },
-  close: {
-    title: "结束共享",
-    description:
-      "结束后成员不能再打开或编辑这块白板，协作码随即失效。白板会留在你这里，包括成员已经同步上来的改动，图片会下载保存到本机。",
-    impact: "成员手里留下的是各自的本机副本，之后的改动不会再互相同步",
-    confirmText: "结束共享",
-    danger: true,
-  },
-  leave: {
-    title: "退出协作",
-    description:
-      "退出前会把你在这块白板上的改动同步给作者。退出后不再收到别人的改动，白板留在你这里作为本机白板。",
-    confirmText: "退出协作",
-    danger: true,
-  },
-};
+> {
+  return {
+    detach: {
+      title: t("chrome.collab.detach"),
+      description: t("chrome.collab.detachDescription"),
+      confirmText: t("chrome.collab.detach"),
+    },
+    close: {
+      title: t("chrome.collab.close"),
+      description: t("chrome.collab.closeDescription"),
+      impact: t("chrome.collab.closeImpact"),
+      confirmText: t("chrome.collab.close"),
+      danger: true,
+    },
+    leave: {
+      title: t("chrome.collab.leave"),
+      description: t("chrome.collab.leaveDescription"),
+      confirmText: t("chrome.collab.leave"),
+      danger: true,
+    },
+  };
+}
 
 /** 每种确认操作沿用一个操作身份：失败后重试不换身份，成功后才清空。 */
 function ConfirmAction({
@@ -216,25 +222,33 @@ function ConfirmAction({
   documentId: string;
   binding: { serverUrl: string; documentId: string } | null;
 }) {
+  const { t } = useWhiteboardChromeI18n();
   const summary = useSyncExternalStore(client.subscribe, client.getSummary, client.getSummary);
   const queryClient = useQueryClient();
   const operations = useRef<Partial<Record<ConfirmKind, string>>>({});
   const [shown, setShown] = useState<ConfirmKind>("detach");
   if (kind && kind !== shown) setShown(kind);
-  const copy = CONFIRM_COPY[kind ?? shown];
+  const copy = confirmCopy(t)[kind ?? shown];
   const run = async (action: ConfirmKind) => {
     const leaseId = client.leaseId;
     if (!leaseId) throw new Error("白板会话已关闭");
     const operationId = (operations.current[action] ??= crypto.randomUUID());
     const { missing } = await unshareWhiteboard(leaseId, { operationId, mode: action });
     toast.success(
-      missing
-        ? `${action === "close" ? "已结束共享" : action === "leave" ? "已退出协作" : "已转为本机白板"}，${missing} 张图片没有缓存，显示为缺失`
-        : action === "close"
-          ? "已结束共享，白板留在本机"
-          : action === "leave"
-            ? "已退出协作，白板留在本机"
-            : "已转为本机白板"
+      t(
+        missing
+          ? action === "close"
+            ? "chrome.collab.closedMissing"
+            : action === "leave"
+              ? "chrome.collab.leftMissing"
+              : "chrome.collab.detachedMissing"
+          : action === "close"
+            ? "chrome.collab.closed"
+            : action === "leave"
+              ? "chrome.collab.left"
+              : "chrome.collab.detached",
+        { count: missing }
+      )
     );
     delete operations.current[action];
   };
@@ -243,12 +257,12 @@ function ConfirmAction({
       open={Boolean(kind)}
       onOpenChange={open => !open && onClose()}
       title={copy.title}
-      context={summary.title || "未命名白板"}
+      context={summary.title || t("chrome.untitled")}
       description={copy.description}
       impact={copy.impact}
       danger={copy.danger}
       confirmText={copy.confirmText}
-      loadingText="正在处理…"
+      loadingText={t("chrome.collab.processing")}
       onConfirm={async () => {
         if (!kind) return;
         try {
@@ -313,13 +327,13 @@ export function PendingTransition({
   onSettled: () => void;
   children: ReactNode;
 }) {
+  const { t } = useWhiteboardChromeI18n();
   const share = useWhiteboardShareStatus(documentId);
   const kind = pendingKind(share.data);
   if (!kind || !share.data) return children;
   const description: Record<WhiteboardPendingKind, string> = {
-    unshare: "上次退出共享尚未完成，白板暂停编辑。请继续原操作，完成后会保留本机白板。",
-    publication:
-      "上次共享没有完成，白板暂停编辑，内容完好保存在本机。可以继续这次共享，或取消后恢复编辑。",
+    unshare: t("chrome.pending.unshare"),
+    publication: t("chrome.pending.publication"),
   };
   return (
     <div role="status" className="text-ink-2 text-tau-body flex flex-col items-start gap-3 p-6">
@@ -343,6 +357,7 @@ function UnshareRecovery({
   documentId: string;
   onSettled?: () => void;
 }) {
+  const { t } = useWhiteboardChromeI18n();
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState(false);
   const resume = async () => {
@@ -361,7 +376,7 @@ function UnshareRecovery({
   };
   return (
     <Button size="sm" variant="soft" loading={busy} disabled={busy} onClick={() => void resume()}>
-      继续完成退出共享
+      {t("chrome.pending.resumeUnshare")}
     </Button>
   );
 }
@@ -378,6 +393,7 @@ export function PublicationRecovery({
   documentId: string;
   onSettled?: () => void;
 }) {
+  const { t } = useWhiteboardChromeI18n();
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState<"resume" | "cancel">();
   const run = async (kind: "resume" | "cancel") => {
@@ -385,10 +401,10 @@ export function PublicationRecovery({
     try {
       if (kind === "resume") {
         await resumeWhiteboardPublication(databaseName, operationId);
-        toast.success("白板已共享");
+        toast.success(t("chrome.share.shared"));
       } else {
         await cancelWhiteboardPublication(databaseName, operationId);
-        toast.success("已取消共享，白板恢复编辑");
+        toast.success(t("chrome.pending.cancelled"));
       }
       onSettled?.();
     } catch (error) {
@@ -409,7 +425,7 @@ export function PublicationRecovery({
         disabled={Boolean(busy)}
         onClick={() => void run("resume")}
       >
-        继续共享
+        {t("chrome.pending.resume")}
       </Button>
       <Button
         size="sm"
@@ -418,7 +434,7 @@ export function PublicationRecovery({
         disabled={Boolean(busy)}
         onClick={() => void run("cancel")}
       >
-        取消共享
+        {t("chrome.pending.cancel")}
       </Button>
     </span>
   );
@@ -440,6 +456,7 @@ function WhiteboardShareControl({
   remote?: WhiteboardRemoteState;
   onUnshare: (mode: "close" | "leave") => void;
 }) {
+  const { t } = useWhiteboardChromeI18n();
   const room = useCollaborationStore(state =>
     binding ? state.whiteboards?.find(item => item.id === binding.documentId) : undefined
   );
@@ -457,7 +474,7 @@ function WhiteboardShareControl({
             className="aria-expanded:bg-press h-[30px] px-2.5"
             onClick={() => setOpen(true)}
           >
-            共享
+            {t("chrome.share.open")}
           </Button>
         )}
         <ShareDialog open={open} onOpenChange={setOpen} client={client} publication={publication} />
@@ -474,7 +491,7 @@ function WhiteboardShareControl({
       trigger={
         <button
           type="button"
-          aria-label="白板协作成员"
+          aria-label={t("chrome.share.membersLabel")}
           className="text-ink-2 hover:bg-hover hover:text-ink-1 aria-expanded:bg-press flex h-[30px] cursor-pointer items-center gap-1.5 rounded-[8px] pr-2.5 pl-1.5 transition-colors"
         >
           {session ? (
@@ -485,22 +502,20 @@ function WhiteboardShareControl({
           ) : (
             <>
               <Users className="size-3.5" strokeWidth={1.75} />
-              <span className="whitespace-nowrap">已共享</span>
+              <span className="whitespace-nowrap">{t("chrome.share.sharedLabel")}</span>
             </>
           )}
         </button>
       }
     >
       <Popover.Header icon={<Users className="size-[15px]" strokeWidth={1.75} />}>
-        {session?.role === "owner" ? "成员与邀请" : "成员"}
+        {session?.role === "owner" ? t("chrome.share.invites") : t("chrome.share.members")}
       </Popover.Header>
       <Popover.Body>
         {session ? (
           <SharePanel session={session} requests={requests} deviceId={deviceId} />
         ) : (
-          <p className="text-ink-2 text-tau-meta">
-            正在读取成员信息。连上协作服务后，这里会显示协作码和成员。
-          </p>
+          <p className="text-ink-2 text-tau-meta">{t("chrome.share.membersLoading")}</p>
         )}
       </Popover.Body>
       <Popover.Footer>
@@ -513,11 +528,13 @@ function WhiteboardShareControl({
               openPage("collaboration");
               setOpen(false);
             } catch (error) {
-              toast.error(error instanceof Error ? error.message : "无法打开协作页");
+              toast.error(
+                error instanceof Error ? error.message : t("chrome.share.openPageFailed")
+              );
             }
           }}
         >
-          在协作页查看
+          {t("chrome.share.view")}
           <ArrowRight className="size-3.5" strokeWidth={1.75} />
         </Button>
         {session && session.status === "active" && !pending && (
@@ -530,7 +547,7 @@ function WhiteboardShareControl({
               onUnshare(session.role === "owner" ? "close" : "leave");
             }}
           >
-            {session.role === "owner" ? "结束共享" : "退出协作"}
+            {session.role === "owner" ? t("chrome.collab.close") : t("chrome.collab.leave")}
           </Button>
         )}
       </Popover.Footer>
@@ -549,25 +566,31 @@ function ShareDialog({
   client: WhiteboardDocumentClient;
   publication?: WhiteboardShareStatus["publication"];
 }) {
+  const { t } = useWhiteboardChromeI18n();
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string>();
+  const [failure, setFailure] = useState<{ cause: unknown }>();
+  const error = failure ? remoteFailureText(failure.cause) : undefined;
   const snapshot = useSyncExternalStore(client.subscribe, client.getSummary, client.getSummary);
   const identity = client.identity;
   const points = [
-    { icon: KeyRound, text: "生成一个 12 位协作码，对方输入后需要你同意" },
-    { icon: Layers, text: `共享整块白板的全部 ${snapshot.pageCount} 页` },
-    { icon: Link2, text: "引用的文章、卡片只带卡面标题，原文不会随之共享" },
-    { icon: VideoOff, text: "本机视频不会上传，含本机视频的白板不能共享，先把视频移出白板再共享" },
+    { key: "code", icon: KeyRound, text: t("chrome.share.codeHint") },
+    {
+      key: "pages",
+      icon: Layers,
+      text: t("chrome.share.pagesHint", { count: snapshot.pageCount }),
+    },
+    { key: "references", icon: Link2, text: t("chrome.share.referencesHint") },
+    { key: "video", icon: VideoOff, text: t("chrome.share.videoHint") },
   ];
   const share = async () => {
     setBusy(true);
-    setError(undefined);
+    setFailure(undefined);
     try {
       await publishWhiteboardClient(client);
-      toast.success("白板已共享");
+      toast.success(t("chrome.share.shared"));
       onOpenChange(false);
     } catch (failure) {
-      setError(remoteFailureText(failure));
+      setFailure({ cause: failure });
     } finally {
       setBusy(false);
     }
@@ -576,11 +599,11 @@ function ShareDialog({
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      onAfterClose={() => setError(undefined)}
+      onAfterClose={() => setFailure(undefined)}
       locked={busy}
       width={480}
-      title="共享白板"
-      context={snapshot.title || "未命名白板"}
+      title={t("chrome.share.title")}
+      context={snapshot.title || t("chrome.untitled")}
       footer={
         publication && identity ? (
           <PublicationRecovery
@@ -592,17 +615,17 @@ function ShareDialog({
         ) : (
           <>
             <Button variant="secondary" onClick={() => onOpenChange(false)}>
-              取消
+              {t("chrome.share.cancel")}
             </Button>
             <Button
               variant="primary"
               icon={Share2}
               data-autofocus
               loading={busy}
-              loadingText="正在共享…"
+              loadingText={t("chrome.share.loading")}
               onClick={() => void share()}
             >
-              发起共享
+              {t("chrome.share.start")}
             </Button>
           </>
         )
@@ -618,10 +641,10 @@ function ShareDialog({
           </p>
         )}
         <div className="text-ink-2 text-tau-body">
-          <p>把这块白板共享给其他设备一起编辑。共享后它仍在原处，你照常在这里画。</p>
+          <p>{t("chrome.share.description")}</p>
           <ul className="mt-3 flex flex-col gap-2">
             {points.map(point => (
-              <li key={point.text} className="flex items-start gap-2.5">
+              <li key={point.key} className="flex items-start gap-2.5">
                 <point.icon className="text-ink-3 mt-[3px] size-3.5 flex-none" strokeWidth={1.75} />
                 <span className="text-tau-meta">{point.text}</span>
               </li>
@@ -630,7 +653,7 @@ function ShareDialog({
           {busy && (
             <p className="text-ink-3 text-tau-sm mt-3 flex items-center gap-1.5">
               <Users className="size-3.5" strokeWidth={1.75} />
-              正在暂停编辑、上传图片并创建共享白板…
+              {t("chrome.share.progress")}
             </p>
           )}
         </div>

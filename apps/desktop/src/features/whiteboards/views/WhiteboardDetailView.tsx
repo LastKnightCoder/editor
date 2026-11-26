@@ -38,6 +38,7 @@ import {
   useWhiteboards,
 } from "../queries";
 
+import { useWhiteboardChromeI18n, whiteboardChromeTranslator } from "../i18n-chrome";
 import { displayTitle } from "../format";
 import { useWhiteboardI18n, type WhiteboardTranslator } from "../i18n";
 
@@ -50,6 +51,7 @@ export function WhiteboardDetailView() {
 
 function Detail({ id, page, trailParam }: { id: number; page?: number; trailParam?: string }) {
   const { t } = useWhiteboardI18n();
+  const { t: chromeT } = useWhiteboardChromeI18n();
   const { navigator } = usePage();
   const { board, loading } = useWhiteboardDetail(id);
   const pageMutations = useWhiteboardPageMutations(id);
@@ -228,9 +230,10 @@ function Detail({ id, page, trailParam }: { id: number; page?: number; trailPara
 
   if (loading) return <Loading />;
   if (!board || activeId === null)
-    return <div className="text-ink-2 p-6">白板不存在或读取失败</div>;
+    return <div className="text-ink-2 p-6">{chromeT("chrome.readFailed")}</div>;
 
-  const fail = (text: string) => () => toast.error(text);
+  const fail = (key: Parameters<typeof whiteboardChromeTranslator.t>[0]) => () =>
+    toast.error(whiteboardChromeTranslator.t(key));
 
   return (
     <div className="relative flex h-full min-h-0 flex-col px-4 pt-1 pb-4">
@@ -268,7 +271,9 @@ function Detail({ id, page, trailParam }: { id: number; page?: number; trailPara
             activeId={activeId}
             onSelect={pageId => pageId !== activeId && go(pageId)}
             onAdd={() => setNewPageName("")}
-            onRename={(pageId, name) => void renamePage(pageId, name).catch(fail("改名失败"))}
+            onRename={(pageId, name) =>
+              void renamePage(pageId, name).catch(fail("chrome.page.renameFailed"))
+            }
             onDuplicate={pageId =>
               void (async () => {
                 if (documentId) {
@@ -279,13 +284,13 @@ function Detail({ id, page, trailParam }: { id: number; page?: number; trailPara
                 }
                 if (pageId === activeId) await canvasRef.current?.flush();
                 go(await pageMutations.duplicate(pageId));
-              })().catch(fail("复制失败"))
+              })().catch(fail("chrome.page.copyFailed"))
             }
             onDelete={pageId => {
               setDeleteTarget(pages.find(p => p.id === pageId) ?? null);
               setDeleteOpen(true);
             }}
-            onReorder={ids => void reorderPages(ids).catch(fail("排序失败"))}
+            onReorder={ids => void reorderPages(ids).catch(fail("chrome.page.sortFailed"))}
           />
         )}
       </div>
@@ -293,18 +298,18 @@ function Detail({ id, page, trailParam }: { id: number; page?: number; trailPara
       <ConfirmDialog
         open={newPageName !== null}
         onOpenChange={open => !open && setNewPageName(null)}
-        title="新建页"
+        title={chromeT("chrome.page.new")}
         size="sm"
         description={
           <Input
             data-autofocus
-            aria-label="页名称"
-            placeholder="输入页名称"
+            aria-label={chromeT("chrome.page.name")}
+            placeholder={chromeT("chrome.page.nameHint")}
             value={newPageName ?? ""}
             onChange={event => setNewPageName(event.target.value)}
           />
         }
-        confirmText="创建"
+        confirmText={chromeT("chrome.page.create")}
         confirmDisabled={!newPageName?.trim()}
         onConfirm={async () => {
           const name = newPageName?.trim();
@@ -312,7 +317,11 @@ function Detail({ id, page, trailParam }: { id: number; page?: number; trailPara
           try {
             go(await addPage(name));
           } catch (error) {
-            toast.error(error instanceof Error ? error.message : "新建页失败");
+            toast.error(
+              error instanceof Error
+                ? error.message
+                : whiteboardChromeTranslator.t("chrome.page.createFailed")
+            );
             throw error;
           }
         }}
@@ -321,12 +330,12 @@ function Detail({ id, page, trailParam }: { id: number; page?: number; trailPara
       <ConfirmDialog
         open={deleteOpen}
         onOpenChange={next => !next && setDeleteOpen(false)}
-        title="删除这一页"
-        context={deleteTarget?.name || "未命名"}
-        description="这一页上的所有元素会一起删除，其他页不受影响。"
-        impact={board.documentId ? "可通过撤销恢复" : "删除后无法恢复"}
+        title={chromeT("chrome.page.delete")}
+        context={deleteTarget?.name || chromeT("chrome.unnamed")}
+        description={chromeT("chrome.page.deleteDescription")}
+        impact={chromeT(board.documentId ? "chrome.page.undoable" : "chrome.page.irreversible")}
         danger
-        confirmText="删除"
+        confirmText={chromeT("chrome.delete")}
         loading={deleting}
         onConfirm={async () => {
           if (!deleteTarget) return;
@@ -337,9 +346,13 @@ function Detail({ id, page, trailParam }: { id: number; page?: number; trailPara
             await removePage(deleteTarget.id);
             if (deleteTarget.id === activeId && neighbor) go(neighbor.id);
             setDeleteOpen(false);
-            toast.success(`已删除「${deleteTarget.name || "未命名"}」`);
+            toast.success(
+              whiteboardChromeTranslator.t("chrome.deleted", {
+                name: deleteTarget.name || whiteboardChromeTranslator.t("chrome.unnamed"),
+              })
+            );
           } catch {
-            toast.error("删除失败");
+            toast.error(whiteboardChromeTranslator.t("chrome.deleteFailed"));
           } finally {
             setDeleting(false);
           }
@@ -372,7 +385,7 @@ function Detail({ id, page, trailParam }: { id: number; page?: number; trailPara
               ]);
           }
           await mutations.saveInfo(id, next, !!documentId);
-          toast.success("已保存");
+          toast.success(whiteboardChromeTranslator.t("chrome.saved"));
         }}
       />
     </div>

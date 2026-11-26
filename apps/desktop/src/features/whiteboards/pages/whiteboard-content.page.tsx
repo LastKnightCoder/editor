@@ -1,3 +1,4 @@
+import { appMessages } from "@/app/i18n/messages";
 import { definePage } from "@/page/definePage";
 import { createPageSchema, paramNumber } from "@/page/core/paramsSchema";
 import { WhiteboardContentView } from "../views/WhiteboardContentView";
@@ -8,7 +9,7 @@ export default definePage({
   key: "whiteboard-content",
   match: "params",
   getId: params => `whiteboard-content-${params.id}`,
-  label: "白板",
+  label: appMessages.ref("nav.whiteboard"),
   params: schema.schema,
   component: WhiteboardContentView,
 });

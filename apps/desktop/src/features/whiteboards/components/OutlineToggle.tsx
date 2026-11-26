@@ -1,11 +1,13 @@
+import { useWhiteboardChromeI18n } from "../i18n-chrome";
 import { PanelLeft } from "lucide-react";
 import { IconButton, Tooltip } from "@tau/ui";
 import { useWhiteboardDockStore } from "@/features/shared/whiteboard/dockStore";
 
 export function OutlineToggle() {
+  const { t } = useWhiteboardChromeI18n();
   const open = useWhiteboardDockStore(s => s.panel === "outline");
   const toggle = useWhiteboardDockStore(s => s.toggle);
-  const label = open ? "收起元素树" : "展开元素树";
+  const label = t(open ? "chrome.outline.close" : "chrome.outline.open");
   return (
     <Tooltip content={label} placement="bottom">
       <IconButton

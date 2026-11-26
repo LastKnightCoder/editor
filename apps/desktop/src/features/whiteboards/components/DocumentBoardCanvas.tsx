@@ -1,3 +1,4 @@
+import { useWhiteboardChromeI18n } from "../i18n-chrome";
 import toolRegistry from "@/tools/toolRegistry";
 import { retainWhiteboardToolScope } from "@/services/whiteboard-documents/agent-scope";
 import { whiteboardAgentTools } from "@/services/whiteboard-documents/agent-tools";
@@ -60,6 +61,7 @@ interface Props {
   ref?: Ref<BoardCanvasHandle>;
 }
 export function DocumentBoardCanvas(props: Props) {
+  const { t } = useWhiteboardChromeI18n();
   const pluginRevision = useSyncExternalStore(
     desktopContentPlugins.subscribe,
     desktopContentPlugins.getRevision,
@@ -112,10 +114,10 @@ export function DocumentBoardCanvas(props: Props) {
         onSettled={retry}
       >
         <div role="alert" className="text-ink-2 p-3">
-          {session.client ? "白板会话切换失败，当前画布只读。" : "白板文档读取失败。"}
-          {error instanceof Error ? error.message : "请重试"}
+          {t(session.client ? "chrome.sessionFailed" : "chrome.documentFailed")}
+          {error instanceof Error ? error.message : t("chrome.retryHint")}
           <Button onClick={() => void Promise.allSettled([entry.open(), contracts.refetch()])}>
-            重试
+            {t("chrome.retry")}
           </Button>
         </div>
       </PendingTransition>
@@ -129,7 +131,7 @@ export function DocumentBoardCanvas(props: Props) {
       {session.phase === "error" && recovery}
       {session.phase === "opening" && (
         <div role="status" className="text-ink-2 p-3">
-          正在切换白板会话，当前画布只读…
+          {t("chrome.sessionOpening")}
         </div>
       )}
       <div className="min-h-0 flex-1">

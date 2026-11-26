@@ -1,11 +1,9 @@
-import { afterEach, expect, it } from "vitest";
-import * as Y from "yjs";
+import { expect, it } from "vitest";
+import { createI18nRuntime, createLocaleStore } from "@tau/i18n";
+import { whiteboardChromeMessages } from "../i18n-chrome";
 import { whiteboardSyncStatus } from "../collaboration";
 
-const docs: Y.Doc[] = [];
-afterEach(() => docs.splice(0).forEach(doc => doc.destroy()));
-
-it("待续操作期间暂停编辑，被拒、结束与无权限分别给出可执行的下一步", () => {
+it("切换展示语言保留暂停、重试和脱离共享语义，未知诊断保持原值", () => {
   const saved = {
     phase: "saved",
     frozen: false,
@@ -13,30 +11,45 @@ it("待续操作期间暂停编辑，被拒、结束与无权限分别给出可�
     revision: 1,
     projectedRevision: 1,
   } as const;
-  expect(whiteboardSyncStatus(saved, undefined, "publication").label).toContain("共享没有完成");
-  expect(whiteboardSyncStatus(saved, undefined, "unshare").label).toContain("继续完成原操作");
-  expect(whiteboardSyncStatus(saved, { phase: "checking", unsynced: false }).label).toContain(
-    "读取共享状态"
-  );
-  expect(whiteboardSyncStatus(saved, { phase: "local", unsynced: false })).toEqual({
-    label: "已保存在本机",
-    tone: "idle",
-  });
-  expect(
-    whiteboardSyncStatus(saved, {
-      phase: "waiting",
-      unsynced: true,
-      message: "共享状态读取失败，正在重试",
-    })
-  ).toMatchObject({ label: "共享状态读取失败，正在重试", actions: ["retry"] });
-  expect(whiteboardSyncStatus(saved, { phase: "rejected", unsynced: true }).actions).toEqual([
-    "detach",
-  ]);
-  expect(whiteboardSyncStatus(saved, { phase: "closed", unsynced: true }).actions).toEqual([
-    "detach",
-  ]);
-  expect(whiteboardSyncStatus(saved, { phase: "forbidden", unsynced: true }).actions).toEqual([
-    "retry",
-    "detach",
-  ]);
+  const localeSource = createLocaleStore("zh-CN");
+  const runtime = createI18nRuntime({ localeSource });
+  const { t } = runtime.get(whiteboardChromeMessages);
+  const previous = whiteboardSyncStatus(saved, t, undefined, "publication").label;
+  try {
+    for (const locale of ["zh-CN", "zh-TW", "en-US"]) {
+      localeSource.setLocale(locale);
+      for (const pending of ["publication", "unshare"] as const) {
+        const status = whiteboardSyncStatus(saved, t, undefined, pending);
+        expect({ tone: status.tone, actions: status.actions }).toEqual({
+          tone: "syncing",
+          actions: undefined,
+        });
+      }
+      const checking = whiteboardSyncStatus(saved, t, { phase: "checking", unsynced: false });
+      expect(checking.tone).toBe("syncing");
+      expect(whiteboardSyncStatus(saved, t, { phase: "local", unsynced: false }).tone).toBe("idle");
+      const diagnostic = "服务器诊断: 原始消息";
+      expect(
+        whiteboardSyncStatus(saved, t, { phase: "waiting", unsynced: true, message: diagnostic })
+      ).toMatchObject({ label: diagnostic, tone: "syncing", actions: ["retry"] });
+      for (const phase of ["rejected", "closed"] as const) {
+        expect(whiteboardSyncStatus(saved, t, { phase, unsynced: true }).actions).toEqual([
+          "detach",
+        ]);
+      }
+      expect(
+        whiteboardSyncStatus(saved, t, { phase: "forbidden", unsynced: true }).actions
+      ).toEqual(["retry", "detach"]);
+      expect(whiteboardSyncStatus(saved, t, { phase: "synced", unsynced: true })).toMatchObject({
+        tone: "syncing",
+        transientSyncing: true,
+      });
+      expect(whiteboardSyncStatus(saved, t, { phase: "synced", unsynced: false }).tone).toBe(
+        "live"
+      );
+    }
+    expect(whiteboardSyncStatus(saved, t, undefined, "publication").label).not.toBe(previous);
+  } finally {
+    runtime.dispose();
+  }
 });

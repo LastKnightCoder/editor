@@ -2,6 +2,7 @@ import type {
   WhiteboardModelCommand,
   WhiteboardSnapshot as DocumentSnapshot,
 } from "@tau/collaboration";
+import { useWhiteboardChromeI18n } from "../i18n-chrome";
 import { DocumentBoardCanvas } from "./DocumentBoardCanvas";
 /**
  * 单页画布：托管文档统一落盘；不支持的旧快照拒绝打开。
@@ -49,6 +50,7 @@ export function BoardCanvas({
   standalone?: boolean;
   ref?: Ref<BoardCanvasHandle>;
 }) {
+  const { t } = useWhiteboardChromeI18n();
   const { data: content, isPending, isError } = useWhiteboardContent(id);
   const documentRef = useRef<BoardCanvasHandle>(null);
   const documentData = content?.data;
@@ -82,7 +84,7 @@ export function BoardCanvas({
   );
 
   if (isPending) return <Loading />;
-  if (isError || !content) return <div className="text-ink-2 p-6">白板不存在或读取失败</div>;
+  if (isError || !content) return <div className="text-ink-2 p-6">{t("chrome.readFailed")}</div>;
   if (managed && documentData) {
     const { documentId, pageId } = documentData;
     if (typeof documentId === "string" && typeof pageId === "string")
@@ -101,7 +103,7 @@ export function BoardCanvas({
   }
   return (
     <div role="alert" className="text-ink-2 p-6">
-      白板格式不受支持
+      {t("chrome.unsupported")}
     </div>
   );
 }
