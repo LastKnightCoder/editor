@@ -741,3 +741,97 @@ it("transport 返回不能选择别的渲染器，离线声明仍可展示既有
   );
   expect(container.textContent).toBe("远端结果");
 });
+
+it("插件词典更新MCP显示与只读身份，编辑中的传输配置和连接不重建", async () => {
+  const { defineI18n } = await import("@tau/plugins");
+  const { createPluginEnvironmentStore } = await import("@tau/plugins/environment-host");
+  const environment = createPluginEnvironmentStore({
+    platform: "desktop",
+    locale: "zh-CN",
+    input: { coarsePointer: false, finePointer: true },
+  });
+  const messages = defineI18n({
+    fallbackLocale: "zh-CN",
+    resources: {
+      "zh-CN": { name: "fixture/cn/name", description: "fixture/cn/detail" },
+      "zh-TW": { name: "fixture/tw/name", description: "fixture/tw/detail" },
+      "en-US": { name: "fixture/en/name", description: "fixture/en/detail" },
+    },
+  });
+  const instance = new PluginHost({
+    workspaceId: "localized-mcp",
+    environmentSource: environment,
+    storage: createMemoryStorage(),
+    chat: desktopPluginChat,
+    mcp: {
+      register: (context, definition, owner) =>
+        registerPluginMCP(context, definition, owner, "db-A"),
+    },
+  });
+  hosts.push(instance);
+  instance.registerTrusted(
+    definePlugin({
+      id: "test.localized",
+      name: "Plugin brand",
+      version: "1.0.0",
+      i18n: messages,
+      create: () => ({
+        activate(context) {
+          context.mcp.register({
+            id: "remote",
+            name: messages.ref("name"),
+            description: messages.ref("description"),
+            transport: { type: "streamable-http", url: "https://mcp.example.invalid/stream" },
+          });
+        },
+      }),
+    })
+  );
+  await instance.enable("test.localized");
+  await ready(1);
+  await render();
+  const item = items[0];
+  const identity = toolRegistry.getRegisteredTools()[0];
+  await act(async () => (container.querySelector("article") as HTMLElement).click());
+  const tab = document.querySelector<HTMLInputElement>('input[type="radio"][value="config"]');
+  if (!tab) throw new Error("transport config tab missing");
+  act(() => tab.click());
+  const fields = [...document.querySelectorAll<HTMLInputElement>('[role="dialog"] input')];
+  const name = fields.find(field => field.value === "fixture/cn/name");
+  const url = fields.find(field => field.value === "https://mcp.example.invalid/stream");
+  if (!name || !url) throw new Error("plugin config fields missing");
+  act(() => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(
+      url,
+      "https://edited.example.invalid/draft"
+    );
+    url.dispatchEvent(new Event("input", { bubbles: true }));
+    url.focus();
+    url.setSelectionRange(2, 7);
+  });
+  const connected = vi.mocked(connectMcpServer).mock.calls.length;
+  const stored = useMCPStore.getState().pluginTransports;
+  for (const [locale, segment] of [
+    ["en-US", "en"],
+    ["zh-TW", "tw"],
+  ] as const) {
+    await act(async () => {
+      environment.update({ locale });
+      desktopLocaleSource.setLocale(locale);
+    });
+    expect(items[0]).toBe(item);
+    expect(item.name).toBe(`fixture/${segment}/name`);
+    expect(item.description).toBe(`fixture/${segment}/detail`);
+    expect(name.value).toBe(item.name);
+    expect(name.readOnly).toBe(true);
+    expect(document.activeElement).toBe(url);
+    expect(url.value).toBe("https://edited.example.invalid/draft");
+    expect([url.selectionStart, url.selectionEnd]).toEqual([2, 7]);
+    const current = toolRegistry.getRegisteredTools()[0];
+    expect(current.executionIdentity).toBe(identity.executionIdentity);
+    expect(current.executor).toBe(identity.executor);
+    expect(current.name).toBe(identity.name);
+    expect(vi.mocked(connectMcpServer).mock.calls.length).toBe(connected);
+    expect(useMCPStore.getState().pluginTransports).toBe(stored);
+  }
+});

@@ -1,3 +1,4 @@
+import type { DisplayText } from "@tau/i18n";
 import type { Disposable } from "./contract";
 import type { JsonValue } from "./json";
 import { assertLocalId, copyJson } from "./values";
@@ -25,18 +26,20 @@ export interface PluginMCPTool {
   ): Promise<PluginMCPToolResult> | PluginMCPToolResult;
 }
 
-export type PluginMCPDefinition = {
+export type PluginMCPDefinition<Text = string> = {
   id: string;
-  name: string;
-  description?: string;
+  name: Text;
+  description?: Text;
 } & (
   | { tools: readonly PluginMCPTool[]; transport?: never }
   | { transport: PluginMCPTransport; tools?: never }
 );
 
+export type PluginMCPDeclaration = PluginMCPDefinition<DisplayText>;
+
 export interface PluginMCP {
   /** 同一插件可注册多个 MCP；停用时由宿主自动回收。 */
-  register(definition: PluginMCPDefinition): Disposable;
+  register(definition: PluginMCPDeclaration): Disposable;
 }
 
 export function snapshotMCPToolResult(result: PluginMCPToolResult): PluginMCPToolResult {
@@ -51,15 +54,29 @@ export function snapshotMCPToolResult(result: PluginMCPToolResult): PluginMCPToo
   };
 }
 
-export function snapshotMCPDefinition(definition: PluginMCPDefinition): PluginMCPDefinition {
+type DisplayReader = (field: "name" | "description", text: DisplayText) => string;
+export function snapshotMCPDefinition(definition: PluginMCPDefinition): PluginMCPDefinition;
+export function snapshotMCPDefinition(
+  definition: PluginMCPDeclaration,
+  read: DisplayReader
+): PluginMCPDefinition;
+export function snapshotMCPDefinition(
+  definition: PluginMCPDeclaration,
+  read?: DisplayReader
+): PluginMCPDefinition {
+  const name = () => (read ? read("name", definition.name) : (definition.name as string));
+  const description = () => {
+    const value = definition.description;
+    return value === undefined ? undefined : read ? read("description", value) : (value as string);
+  };
   assertLocalId(definition.id);
-  if (!definition.name?.trim()) throw new Error("MCP 名称不能为空");
+  if (!name()?.trim()) throw new Error("MCP 名称不能为空");
   if ((definition.tools === undefined) === (definition.transport === undefined))
     throw new Error("MCP 必须且只能提供 tools 或 transport");
   const base = {
     id: definition.id,
-    name: definition.name.trim(),
-    description: definition.description,
+    name: name().trim(),
+    description: description(),
   };
   if (definition.transport) {
     const transport = copyJson(definition.transport) as unknown as PluginMCPTransport;

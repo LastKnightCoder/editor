@@ -17,7 +17,7 @@
 面向作者的产品/领域 API 从 `@tau/plugins` 根入口获取，UI 组件从 `@tau/ui` 获取（PS-015）；不直接依赖 `@tau/editor/api` 等内部包。当前 SDK 提供基础、页面、自定义设置、摘录提供方和静态编辑器扩展契约。
 
 - `@tau/plugins`：definePlugin、插件实例、上下文、命令、JSON 和资源清理契约。
-- `context.mcp.register`：注册多个 MCP，本地 tools 与外部 stdio / streamable-http 互斥；复用应用 MCP 页面、快捷面板及开关，激活成功才发布，停用自动回收。作者说明见 [mcp.md](../../plugins/tau-plugin-template/docs/mcp.md)。
+- `context.mcp.register`：注册多个 MCP，本地 tools 与外部 stdio / streamable-http 互斥；复用应用 MCP 页面、快捷面板及开关，激活成功才发布，停用自动回收。作者说明见 [mcp.md](../../plugins/tau-plugin-template/docs/mcp.md)。 MCP 显示名称与说明接受 `PluginMCPDeclaration` 的词典引用，运行时 `PluginMCPDefinition` 保留字符串视图；换语不重新登记，工具调用标识、AI 描述和参数不翻译。
 - `context.notifications.send`（SDK 0.28.0）：发送应用内、独立窗口或按焦点自动分流的通知；返回单条撤销句柄，停用时自动回收。用法见 [通知与语音](/plugins/tau-plugin-template/docs/notifications-and-voice.md)。
 - `@tau/plugins/host`：PluginHost、存储适配器及内存存储。插件代码不应导入此入口。
 - `@tau/plugins/node`：Node 私有文件存储适配器，由宿主选择目录；不进入插件公开上下文。

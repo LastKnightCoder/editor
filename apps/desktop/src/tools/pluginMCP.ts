@@ -22,6 +22,17 @@ export interface PluginMCPServerInfo {
   connectionId?: string;
 }
 
+function bindDisplayInfo(
+  definition: PluginMCPDefinition,
+  info: PluginMCPServerInfo
+): PluginMCPServerInfo {
+  Object.defineProperties(info, {
+    name: { enumerable: true, configurable: true, get: () => definition.name },
+    description: { enumerable: true, configurable: true, get: () => definition.description },
+  });
+  return info;
+}
+
 interface Entry {
   info: PluginMCPServerInfo;
   context: PluginContext;
@@ -157,7 +168,7 @@ function refresh(entry: Entry): void {
   const transport = entry.definition.transport
     ? (useMCPStore.getState().pluginTransports[entry.info.id] ?? entry.definition.transport)
     : undefined;
-  entry.info = {
+  entry.info = bindDisplayInfo(entry.definition, {
     ...entry.info,
     server: transport
       ? {
@@ -169,7 +180,7 @@ function refresh(entry: Entry): void {
         }
       : undefined,
     connectionId: undefined,
-  };
+  });
   useMCPStore.getState().setConnectionStatus(entry.info.id, active ? "connecting" : "disconnected");
   publish();
   entry.pending = (async () => {
@@ -184,7 +195,7 @@ function refresh(entry: Entry): void {
         transport,
       };
       entry.connection = server;
-      entry.info = { ...entry.info, connectionId: server.id };
+      entry.info = bindDisplayInfo(entry.definition, { ...entry.info, connectionId: server.id });
       publish();
       definitions = await fetchToolsFromServer(server, {
         getServer: () => (enabled(entry) && entry.revision === revision ? server : undefined),
@@ -267,13 +278,13 @@ export function registerPluginMCP(
   const id = `plugin:${owner.id}:${definition.id}`;
   if (entries.has(id)) throw new Error("插件 MCP 已注册");
   const entry: Entry = {
-    info: {
+    info: bindDisplayInfo(definition, {
       id,
       name: definition.name,
       description: definition.description,
       pluginId: owner.id,
       pluginName: owner.name,
-    },
+    }),
     context,
     definition,
     owner,

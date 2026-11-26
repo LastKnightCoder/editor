@@ -163,7 +163,12 @@ export function useMcpServers() {
         const connection = connectionStatus[info.id];
         return {
           ...info,
-          description: info.description ?? "",
+          get name() {
+            return info.name;
+          },
+          get description() {
+            return info.description ?? "";
+          },
           kind: "plugin",
           enabled,
           status: !enabled

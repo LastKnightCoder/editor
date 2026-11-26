@@ -264,9 +264,11 @@ function ToolsPane({
 function ConfigPane({
   server,
   pluginProvided = false,
+  displayIdentity,
 }: {
   server: CustomMCPServer;
   pluginProvided?: boolean;
+  displayIdentity?: Pick<McpServerItem, "name" | "description">;
 }) {
   const { t } = useMcpFormsI18n();
   const initial = useMemo(() => draftFromServer(server), [server]);
@@ -296,6 +298,7 @@ function ConfigPane({
         draft={draft}
         onChange={setDraft}
         identityReadOnly={pluginProvided}
+        displayIdentity={displayIdentity}
       />
       <div className="mt-5 flex items-center justify-end gap-2">
         {dirty && invalid && (
@@ -518,7 +521,11 @@ export function ServerDrawer({
     >
       {current &&
         (tab === "config" && current.server ? (
-          <ConfigPane server={current.server} pluginProvided={current.kind === "plugin"} />
+          <ConfigPane
+            server={current.server}
+            pluginProvided={current.kind === "plugin"}
+            displayIdentity={current}
+          />
         ) : tab === "logs" && remote ? (
           <LogsPane serverId={current.connectionId ?? current.id} />
         ) : (

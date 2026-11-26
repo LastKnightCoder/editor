@@ -172,3 +172,115 @@ it.each([
   expect(test.registrations).toHaveLength(0);
   await test.host.dispose();
 });
+
+it("声明名称随所属插件语言更新，不重注册或改变工具协议，停用后保留最后展示", async () => {
+  const { defineI18n } = await import("@tau/i18n");
+  const { createPluginEnvironmentStore } = await import("../environment");
+  const environment = createPluginEnvironmentStore({
+    platform: "desktop",
+    locale: "zh-CN",
+    input: { coarsePointer: false, finePointer: true },
+  });
+  const registrations: Parameters<MCPAdapter["register"]>[] = [];
+  const host = new PluginHost({
+    environmentSource: environment,
+    workspaceId: "declaration-owner",
+    storage: createMemoryStorage(),
+    mcp: {
+      register: (...args) => {
+        registrations.push(args);
+        return { dispose() {} };
+      },
+    },
+  });
+  const params = { suffix: "frozen" };
+  for (const owner of ["first", "second"]) {
+    const messages = defineI18n({
+      fallbackLocale: "zh-CN",
+      resources: {
+        "zh-CN": { name: `${owner}/cn/{{suffix}}`, description: `${owner}/cn/detail` },
+        "zh-TW": { name: `${owner}/tw/{{suffix}}`, description: `${owner}/tw/detail` },
+        "en-US": { name: `${owner}/en/{{suffix}}`, description: `${owner}/en/detail` },
+      },
+    });
+    host.registerTrusted(
+      definePlugin({
+        id: `test.${owner}`,
+        name: owner,
+        version: "1.0.0",
+        i18n: messages,
+        create: () => ({
+          activate: context => {
+            context.mcp.register({
+              ...local(),
+              name: { kind: "i18n", key: "name", values: params },
+              description: messages.ref("description"),
+            });
+          },
+        }),
+      })
+    );
+    await host.enable(`test.${owner}`);
+  }
+  params.suffix = "changed after registration";
+  const definitions = registrations.map(([, definition]) => definition);
+  const tools = definitions.map(definition => definition.tools);
+  for (const [locale, segment] of [
+    ["en-US", "en"],
+    ["zh-TW", "tw"],
+  ] as const) {
+    environment.update({ locale });
+    expect(registrations).toHaveLength(definitions.length);
+    definitions.forEach((definition, index) => {
+      const owner = index === 0 ? "first" : "second";
+      expect(definition.name).toBe(`${owner}/${segment}/frozen`);
+      expect(definition.description).toBe(`${owner}/${segment}/detail`);
+      expect(definition.tools).toBe(tools[index]);
+      expect(definition.tools?.[0]).toMatchObject({
+        name: "query",
+        description: "查询",
+        inputSchema: { type: "object", properties: {} },
+      });
+    });
+  }
+  const final = definitions.map(definition => ({
+    name: definition.name,
+    description: definition.description,
+  }));
+  await host.dispose();
+  definitions.forEach((definition, index) => {
+    expect({ name: definition.name, description: definition.description }).toEqual(final[index]);
+  });
+});
+
+it("普通字符串声明仍按原接收者快照，词典引用缺少声明时不发布", async () => {
+  const definition = {
+    ...local(),
+    sourceName: "original metadata",
+    sourceDescription: "original description",
+    get name(): string {
+      return this.sourceName;
+    },
+    get description(): string {
+      return this.sourceDescription;
+    },
+  };
+  const test = setup(context => {
+    context.mcp.register(definition);
+  });
+  await test.host.enable("test.mcp");
+  definition.sourceName = "changed";
+  definition.sourceDescription = "changed";
+  expect(test.registrations[0][1]).toMatchObject({
+    name: "original metadata",
+    description: "original description",
+  });
+  await test.host.dispose();
+
+  const missing = setup(context => {
+    context.mcp.register({ ...local(), name: { kind: "i18n", key: "name" } });
+  });
+  await expect(missing.host.enable("test.mcp")).rejects.toThrow();
+  expect(missing.registrations).toEqual([]);
+  await missing.host.dispose();
+});

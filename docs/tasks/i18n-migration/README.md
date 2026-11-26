@@ -324,6 +324,8 @@ P6浏览器Library：14路径完成；原7至9例、extension type、79key三语
 
 P6浏览器actions：13路径工程完成；原ui/annotation9至10例、extension最终type、57key三语参数/范围静态格式通过。真实NoteEditor草稿与原annotation目标跨语不自动保存，菜单/selection不重复触发动作，iframe同node/src；真实Quick请求/PROMPT/PAGE_TOOLS/网页/标注/任务守卫保持，chat缓存错误另独立语义批继续。
 
+P7 MCP声明：SDK新增PluginMCPDeclaration，默认PluginMCPDefinition<string>与旧字符串/receiver快照保持；同owner的Ref参数快照、双owner隔离、切语不重新登记与停用后最后展示契约通过。SDK17例/desktop18例通过，SDK类型与desktop构建通过；真实外部MCP界面/readonly名称/URL草稿光标与工具执行身份、连接次数/配置存储保持。Host/index/官网与desktop插件分篇只交本任务hunk，模板作者文档独立提交并同步指针；实际工具描述/参数/调用与授权不变。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

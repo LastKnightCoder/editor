@@ -265,10 +265,12 @@ export function ServerForm({
   draft,
   onChange,
   identityReadOnly = false,
+  displayIdentity,
 }: {
   draft: ServerDraft;
   onChange: (draft: ServerDraft) => void;
   identityReadOnly?: boolean;
+  displayIdentity?: { name: string; description: string };
 }) {
   const { t } = useMcpFormsI18n();
   const [jsonMode, setJsonMode] = useState(false);
@@ -281,7 +283,7 @@ export function ServerForm({
       <div className="grid grid-cols-2 gap-3">
         <Field label={t("field.name")}>
           <Input
-            value={draft.name}
+            value={identityReadOnly ? (displayIdentity?.name ?? draft.name) : draft.name}
             readOnly={identityReadOnly}
             onChange={e => set("name", e.target.value)}
             placeholder={t("field.nameHint")}
@@ -290,7 +292,11 @@ export function ServerForm({
         </Field>
         <Field label={t("field.description")} hint={t("field.optional")}>
           <Input
-            value={draft.description}
+            value={
+              identityReadOnly
+                ? (displayIdentity?.description ?? draft.description)
+                : draft.description
+            }
             readOnly={identityReadOnly}
             onChange={e => set("description", e.target.value)}
             placeholder={t("field.descriptionHint")}

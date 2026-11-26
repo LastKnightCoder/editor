@@ -134,7 +134,8 @@ import {
 } from "./lifecycle";
 import { assertStorageActive, type StorageAdapter, type StorageScope } from "./storage";
 import { normalizePageParams, type PluginPageDefinition, type PluginPageHandle } from "./pages";
-import { snapshotMCPDefinition, snapshotMCPToolResult, type PluginMCPDefinition } from "./mcp";
+import { snapshotMCPToolResult, type PluginMCPDefinition, type PluginMCPDeclaration } from "./mcp";
+import { bindMCPDeclaration, copyMCPDisplayFields } from "./mcp-i18n";
 import { snapshotToolRendererDefinition, type PluginToolRendererDefinition } from "./chat";
 import {
   PluginPermissionError,
@@ -2576,9 +2577,9 @@ export class PluginHost {
   private buildMCPContext(deps: ContextDeps): PluginContext["mcp"] {
     const { context, entry, activation, scope, mcps, registerAs } = deps;
     return Object.freeze({
-      register: (definition: PluginMCPDefinition) => {
+      register: (definition: PluginMCPDeclaration) => {
         this.assertActive(entry, activation);
-        const declared = snapshotMCPDefinition(definition);
+        const declared = bindMCPDeclaration(definition, context.i18n.resolve, context.signal);
         if (declared.transport?.type === "stdio") {
           const transport = declared.transport;
           const backend = entry.metadata.backend;
@@ -2618,6 +2619,7 @@ export class PluginHost {
                 },
               })),
             };
+        copyMCPDisplayFields(declared, snapshot);
         mcps.set(definition.id, declared);
         let resource: Disposable | undefined;
         const commit = () => {
