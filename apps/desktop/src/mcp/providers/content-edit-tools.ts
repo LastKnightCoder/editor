@@ -285,7 +285,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
       name: "get_content_markdown",
       risk: "read",
       description:
-        "根据 contentId 获取 Markdown 正文。可按 range 截断，或传入冲突结果的 blockId 只重新读取目标块。仅支持 contents.contentId。",
+        "根据 contentId 获取 Markdown 正文。可按 range 截断，或传入冲突结果的 blockId 只重新读取目标块。仅支持 contents.contentId。遇到 tau-query/tau-queryjs 查询块时，创建或修改前读取 query-database Skill，保留其参数与展示配置。",
       parameters: {
         type: "object",
         properties: {

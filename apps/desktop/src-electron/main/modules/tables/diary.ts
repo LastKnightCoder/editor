@@ -137,19 +137,15 @@ export default class DiaryTable {
     return this.parseEntryDateMs(date, fallback);
   }
 
-  /**
-   * 写命令包一层：成功后广播 diary:changed 通知其它窗口（渲染端据此失效 ["diary"] 查询，
-   * 见 features/diary/queries.ts；flashcards:changed 同款）。派发层把 CommandContext
-   * 追加在实参末尾，故取最后一个参数；直接调用（测试 / 内部复用）时没有 ctx 则不广播。
-   */
+  /** 同窗也可能有独立的日记消费者；无派发上下文的内部调用不广播。 */
   private static broadcasting<A extends unknown[], R>(
     fn: (db: Database.Database, ...args: A) => R
   ): (db: Database.Database, ...args: A) => R {
     return (db, ...args) => {
       const result = fn(db, ...args);
       const ctx = args[args.length - 1] as Partial<CommandContext> | undefined;
-      if (ctx && typeof ctx.broadcastOthers === "function")
-        ctx.broadcastOthers("diary:changed", { databaseName: basename(db.name) });
+      if (ctx && typeof ctx.broadcastAll === "function")
+        ctx.broadcastAll("diary:changed", { databaseName: basename(db.name) });
       return result;
     };
   }

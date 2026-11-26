@@ -1,6 +1,7 @@
 import { rmSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { defineConfig } from "vite";
+import { build, defineConfig } from "vite";
+import { queryDatabaseWorkerPlugin } from "../../scripts/vite-query-database-worker.mjs";
 import react from "@vitejs/plugin-react-swc";
 import tailwindcss from "@tailwindcss/vite";
 import electron from "vite-plugin-electron/simple";
@@ -82,6 +83,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     plugins: [
+      queryDatabaseWorkerPlugin(build),
       {
         name: "tau-theme-bootstrap",
         transformIndexHtml: () => [

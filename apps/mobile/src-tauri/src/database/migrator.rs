@@ -205,7 +205,11 @@ pub(super) fn needs_main_initialization(conn: &Connection) -> Result<bool, Strin
             |r| r.get(0),
         )
         .map_err(|e| e.to_string())?;
-    if !exists || !task_projection_complete(conn)? || needs_receipt_upgrade(conn)? {
+    if !exists
+        || !task_projection_complete(conn)?
+        || needs_receipt_upgrade(conn)?
+        || super::query_database_migration::needs_upgrade(conn)?
+    {
         return Ok(true);
     }
     Ok(get_meta(conn, "main_schema_version")?.as_deref()
@@ -267,6 +271,7 @@ pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
         }
         tx.execute_batch(MAIN_SCHEMA_SQL)
             .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: Failed to apply main schema: {e}"))?;
+        super::query_database_migration::upgrade(&tx, now_millis())?;
         if projection_missing {
             tx.execute("UPDATE document_task_projection_state SET ready=0,after_content_id=0,epoch=lower(hex(randomblob(16))) WHERE id='main'",[]).map_err(|e|e.to_string())?;
         }

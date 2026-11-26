@@ -3,6 +3,7 @@ import { expect, it } from "vitest";
 import type { Descendant } from "slate";
 import {
   buildScopedContentUpdate,
+  createNodeDocument,
   captureScopedTextEdit,
   NodeTree,
   readDocumentIdentity,
@@ -14,6 +15,87 @@ import { applyEditOperations } from "../edit-engine";
 import { compileScopedPlan } from "../scoped-plan";
 import { createContentSnapshot, offsetToMarkdownPoint } from "../snapshot";
 import type { EditOperation } from "../types";
+import { prepareContentContracts } from "@/services/editorKit";
+import { getMarkdown } from "@/utils/markdown";
+
+it("完整查询块替换保留参数和视图，并允许无关正文继续输入", async () => {
+  const params = { tag: "读书" };
+  const presentation = {
+    views: [
+      {
+        id: 1,
+        name: "表格",
+        type: "table",
+        order: 0,
+        config: { columnOrder: ["q:title"], rowOrder: [], sorts: [], filters: null, groupBy: null },
+      },
+    ],
+    activeViewId: 1,
+  };
+  const code = 'TABLE title FROM cards WHERE hasTag("读书")';
+  const prepared = await (
+    await prepareContentContracts()
+  ).createDocument([
+    { type: "paragraph", children: [{ type: "formatted", text: "原来的正文" }] },
+    {
+      type: "query-database",
+      id: "query-id",
+      language: "dsl",
+      code,
+      paramsJson: JSON.stringify(params),
+      presentationJson: JSON.stringify(presentation),
+      children: [{ type: "formatted", text: "" }],
+    },
+  ]);
+  const document = await createNodeDocument(
+    { documentId: "query-document", baselineId: "base", epoch: 0 },
+    {
+      title: "查询示例",
+      bannerBg: "",
+      bannerPosition: "center",
+      content: prepared.content as import("@tau/collaboration").ContentNode[],
+    },
+    prepared.contracts
+  );
+  const tree = new NodeTree(document);
+  try {
+    const original = readNodeDocument(document).content;
+    const snapshot = createContentSnapshot(original as Descendant[], "database");
+    snapshot.editState = {
+      contentId: 1,
+      databaseName: "library",
+      identity: readDocumentIdentity(document),
+      state: Y.encodeStateAsUpdate(document),
+    };
+    const nextCode = code + "\nLIMIT 10";
+    const operations: EditOperation[] = [
+      {
+        op: "replace",
+        locator: { kind: "slate-path", path: [1] },
+        text: getMarkdown([{ ...original[1], code: nextCode }] as Descendant[]),
+      },
+    ];
+    const plan = await compileScopedPlan(
+      snapshot,
+      applyEditOperations({ snapshot, operations, selection: null }).patches,
+      operations
+    );
+    tree.insertText(String(original[0].collabId), 0, "用户新增", null);
+    Y.applyUpdate(document, (await buildScopedContentUpdate(document, plan)).update);
+    await validateNodeDocument(document);
+    const result = readNodeDocument(document).content;
+    expect(result[0]).toMatchObject({
+      collabId: original[0].collabId,
+      children: [{ text: "用户新增原来的正文" }],
+    });
+    expect(result[1]).toMatchObject({ type: "query-database", language: "dsl", code: nextCode });
+    expect(JSON.parse(String(result[1].paramsJson))).toEqual(params);
+    expect(JSON.parse(String(result[1].presentationJson))).toEqual(presentation);
+  } finally {
+    tree.dispose();
+    document.destroy();
+  }
+});
 
 it("把精确 Markdown 替换和全文尾部插入编译成独立范围，保留格式及无关节点", async () => {
   const document = await createTestDocument(

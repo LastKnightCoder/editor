@@ -17,6 +17,7 @@ import { AggregateRegistry } from "./core/formula/aggregateRegistry";
 import type { DatabaseAggregateDefinition } from "./core/formula/aggregateRegistry";
 import type {
   DatabaseProps,
+  DatabaseToolbarOptions,
   DatabaseConfig,
   ColumnDef,
   RowData,
@@ -43,6 +44,7 @@ import type { RowGroup } from "./core/projection";
 
 export type {
   DatabaseProps,
+  DatabaseToolbarOptions,
   DatabaseRef,
   DatabaseConfig,
   ColumnDef,

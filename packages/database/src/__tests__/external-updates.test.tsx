@@ -163,6 +163,52 @@ it("外部列宽更新保留编辑草稿并不触发保存回写", async () => {
   expect(onViewConfigChange).not.toHaveBeenCalled();
 });
 
+it("整份查询结果原子更新列与行，保留有效选择和列宽且不回写数据", async () => {
+  const ref = createRef<DatabaseRef>();
+  const onDataChange = vi.fn();
+  const onViewConfigChange = vi.fn();
+  await act(async () =>
+    root.render(
+      <Database
+        {...props}
+        ref={ref}
+        readonly
+        onDataChange={onDataChange}
+        onViewConfigChange={onViewConfigChange}
+      />
+    )
+  );
+  const api = ref.current;
+  const store = mocks.store;
+  if (!api || !store) throw new Error("数据库实例未初始化");
+  await act(async () => {
+    store.getState().selectCell("1", "title");
+    api.dispatch({ type: "column.resize", id: "title", width: 420 }, "external");
+  });
+  await act(async () =>
+    api.dispatch(
+      {
+        type: "dataset.receive",
+        columns: [...props.columns, { id: "tags", title: "标签", type: "multiSelect" }],
+        rows: [
+          { id: "1", title: "更新", tags: ["读书"] },
+          { id: "3", title: "新增" },
+        ],
+      },
+      "external"
+    )
+  );
+  expect(store.getState().columns.map(column => column.id)).toEqual(["title", "tags"]);
+  expect(api.getRows()).toEqual([
+    { id: "1", title: "更新", tags: ["读书"] },
+    { id: "3", title: "新增" },
+  ]);
+  expect(store.getState().selectedCell).toEqual({ rowId: "1", columnId: "title" });
+  expect(store.getState().columnWidths.title).toBe(420);
+  expect(onDataChange).not.toHaveBeenCalled();
+  expect(onViewConfigChange).not.toHaveBeenCalled();
+});
+
 it("搜索范围按相关性呈现，清空后恢复内部行序和分组", async () => {
   const ref = createRef<DatabaseRef>();
   await act(async () => root.render(<Database {...props} ref={ref} />));

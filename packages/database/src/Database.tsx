@@ -70,6 +70,7 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
       theme,
       readonly,
       bare = false,
+      toolbar,
       className,
     },
     ref
@@ -415,9 +416,10 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
                       onReorderViews={handleReorderViews}
                       theme={finalTheme}
                       bare={bare}
+                      toolbar={toolbar}
                     />
                   </div>
-                  <div className="min-h-0 w-full flex-1">{View}</div>
+                  <div className="flex min-h-0 w-full flex-1 flex-col">{View}</div>
                   <ConfirmDialog
                     open={confirmDeleteViewId !== null}
                     onOpenChange={open => {

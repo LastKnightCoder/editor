@@ -22,6 +22,7 @@ import { mathMarkdownCodecs } from "@tau/editor/extensions/math/markdown";
 import { emojiCodec } from "@tau/editor/extensions/emoji/markdown";
 import { webviewCodec } from "@tau/editor/extensions/webview/markdown";
 import { desktopMarkdownCodecs } from "./markdown-codecs.ts";
+import { queryDatabaseCodec } from "@/editor-extensions/query-database/markdown";
 
 export const desktopCodecComposition = [
   ...editorMarkdownCodecs,
@@ -42,6 +43,7 @@ export const desktopCodecComposition = [
   underlineCodec,
   styledTextCodec,
   emojiCodec,
+  queryDatabaseCodec,
   codeBlockCodec,
   ...mathMarkdownCodecs,
   ...diagramMarkdownCodecs,

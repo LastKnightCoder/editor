@@ -1,0 +1,188 @@
+[
+  {
+    "input": {
+      "kind": "article",
+      "scope": {
+        "tags": ["读书", "引号\"与\\路径"]
+      },
+      "fields": ["title", "author", "words"],
+      "columns": [
+        {
+          "id": "src:title",
+          "title": "文章名",
+          "width": 260
+        },
+        {
+          "id": "custom",
+          "type": "text"
+        },
+        {
+          "id": "src:author",
+          "hidden": true
+        }
+      ]
+    },
+    "config": {
+      "columnOrder": ["custom", "src:author", "src:title"],
+      "columnWidths": {
+        "src:title": 330,
+        "custom": 444
+      },
+      "filters": {
+        "id": "g",
+        "type": "group",
+        "logic": "and",
+        "children": [
+          {
+            "id": "known",
+            "type": "condition",
+            "fieldId": "src:title",
+            "operator": "contains",
+            "value": "src:title"
+          },
+          {
+            "id": "old",
+            "type": "condition",
+            "fieldId": "custom",
+            "operator": "eq",
+            "value": "ignored"
+          }
+        ]
+      },
+      "sorts": [
+        {
+          "fieldId": "src:words",
+          "direction": "desc"
+        },
+        {
+          "fieldId": "custom"
+        }
+      ],
+      "footer": {
+        "custom": {
+          "kind": "aggregate",
+          "op": "sum"
+        },
+        "src:words": {
+          "kind": "expr",
+          "expr": {
+            "kind": "binary",
+            "left": {
+              "kind": "aggregate",
+              "columnId": "custom",
+              "op": "sum"
+            },
+            "right": {
+              "kind": "literal",
+              "value": 1
+            },
+            "op": "+"
+          }
+        }
+      }
+    },
+    "definition": {
+      "version": 1,
+      "language": "dsl",
+      "code": "TABLE title AS \"文章名\", author AS \"作者\", wordCount AS \"字数\", source AS \"来源\"\nFROM articles\nWHERE hasTag(\"读书\") OR hasTag(\"引号\\\"与\\\\路径\")"
+    },
+    "view": {
+      "columnOrder": ["q:author", "q:title", "q:wordCount", "q:source"],
+      "columnWidths": {
+        "q:title": 330
+      },
+      "hiddenColumnIds": ["q:author"],
+      "filters": {
+        "id": "g",
+        "type": "group",
+        "logic": "and",
+        "children": [
+          {
+            "id": "known",
+            "type": "condition",
+            "fieldId": "q:title",
+            "operator": "contains",
+            "value": "src:title"
+          }
+        ]
+      },
+      "sorts": [
+        {
+          "fieldId": "q:wordCount",
+          "direction": "desc"
+        }
+      ],
+      "footer": {},
+      "groupBy": null,
+      "rowOrder": []
+    },
+    "type": "table",
+    "viewType": "table"
+  },
+  {
+    "input": {
+      "kind": "diary",
+      "scope": {
+        "range": "month"
+      },
+      "fields": ["day", "weather", "mood", "words"],
+      "columns": []
+    },
+    "config": {},
+    "definition": {
+      "version": 1,
+      "language": "dsl",
+      "code": "TABLE title AS \"日期\", weather AS \"天气\", mood AS \"心情\", wordCount AS \"字数\", source AS \"来源\"\nFROM diary\nWHERE year(date) = year(today()) AND month(date) = month(today())"
+    },
+    "view": {
+      "columnOrder": ["q:title", "q:weather", "q:mood", "q:wordCount", "q:source"],
+      "columnWidths": {},
+      "hiddenColumnIds": [],
+      "filters": null,
+      "groupBy": null,
+      "sorts": [],
+      "rowOrder": []
+    },
+    "type": "table",
+    "viewType": "table"
+  },
+  {
+    "input": {
+      "kind": "document",
+      "scope": {
+        "projectId": 11,
+        "deep": false
+      },
+      "fields": ["title", "parent"],
+      "columns": []
+    },
+    "config": {
+      "viewOptions": {
+        "calendar": {
+          "dateColumnId": "custom"
+        }
+      }
+    },
+    "definition": {
+      "version": 1,
+      "language": "dsl",
+      "code": "TABLE title AS \"标题\", parent AS \"上级\", source AS \"来源\"\nFROM documents\nWHERE kind = \"document\"",
+      "params": {
+        "projectId": 11,
+        "deep": false
+      }
+    },
+    "view": {
+      "columnOrder": ["q:title", "q:parent", "q:source"],
+      "columnWidths": {},
+      "hiddenColumnIds": [],
+      "filters": null,
+      "groupBy": null,
+      "sorts": [],
+      "rowOrder": [],
+      "viewOptions": {}
+    },
+    "type": "calendar",
+    "viewType": "table"
+  }
+]

@@ -33,6 +33,7 @@ mod home_stats;
 mod index_db;
 mod migrator;
 mod plugin_app;
+mod query_database_migration;
 pub use plugin_app::*;
 mod plugin_data;
 mod plugin_excerpts;

@@ -14,6 +14,8 @@
     "./inline-refs": "./inline-refs.ts",
     "./inline-suggestion-limits": "./inline-suggestion-limits.ts",
     "./database-types": "./database-types.ts",
+    "./query-database": "./query-database.ts",
+    "./query-database/client": "./src/query-database/client.ts",
     "./calendar-utils": "./calendar-utils.ts",
     "./reminders": "./reminders.ts",
     "./task-assistant": "./task-assistant.ts",

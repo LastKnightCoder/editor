@@ -61,6 +61,14 @@ export const databaseElementDefinition = {
   isVoid: true,
 } as const satisfies ElementContractDefinition;
 
+export const queryDatabaseElementDefinition = {
+  type: "query-database",
+  dataVersion: 1,
+  kind: "block",
+  isVoid: true,
+  collaboration: { textFields: ["code"] },
+} as const satisfies ElementContractDefinition;
+
 export const projectCardListElementDefinition = {
   type: "project-card-list",
   dataVersion: 1,
@@ -77,5 +85,6 @@ export const hostElementGroups = [
   { id: "host.summary-timestamp", elements: [summaryTimestampElementDefinition] },
   { id: "host.whiteboard", elements: [whiteboardElementDefinition] },
   { id: "host.database", elements: [databaseElementDefinition] },
+  { id: "host.query-database", elements: [queryDatabaseElementDefinition] },
   { id: "host.project-card-list", elements: [projectCardListElementDefinition] },
 ] as const;

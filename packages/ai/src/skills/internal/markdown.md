@@ -86,6 +86,7 @@ console.log("world");
 
 - 支持的内置扩展代码块语言：`mermaid`、`plantuml`；ABC、TikZ、Typst 等插件语法由已启用插件的 Skill 说明。
 - 普通代码块支持高亮元信息（如 `{1,3-4}`）
+- 正文中的实时查询使用 `tau-query`（DSL）或 `tau-queryjs`（JavaScript）围栏；创建或修改这类块时读取 `query-database` Skill，并保留已有的 `qdb=` 参数与展示配置。
 - 进阶动画元信息使用 `smm=...`（Base64URL 编码），通常由系统生成，不建议手写
 
 ## 其它可用结构

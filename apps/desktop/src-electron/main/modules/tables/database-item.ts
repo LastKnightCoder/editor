@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { DatabaseItem, DatabaseItemSummary, CreateDatabaseItem, UpdateDatabaseItem } from "@/types";
 import Operation from "./operation";
 import DataTableTable from "./data-table";
-import DataTableSourceTable from "./data-table-source";
+import DataTableQueryTable from "./data-table-query";
 import { getNextModuleEntityId } from "./module-entity-id";
 
 /**
@@ -48,18 +48,16 @@ export default class DatabaseItemTable {
     const rows = db
       .prepare(
         `SELECT di.*,
-                COALESCE(json_array_length(dt.rows), 0) AS row_count
+                COALESCE(json_array_length(dt.rows), 0) AS row_count, dq.table_id AS query_table_id
          FROM database_item di
          LEFT JOIN data_tables dt ON dt.id = di.data_table_id
+         LEFT JOIN data_table_queries dq ON dq.table_id = dt.id
          ORDER BY di.update_time DESC`
       )
       .all() as Array<Record<string, unknown>>;
     return rows.map(row => ({
       ...this.parse(row),
-      // 关联表的 rows 只存自建列的值，行数按源头范围数
-      rowCount:
-        DataTableSourceTable.rowCount(db, Number(row.data_table_id || 0)) ??
-        Number(row.row_count || 0),
+      rowCount: row.query_table_id != null ? null : Number(row.row_count || 0),
       openedAt: (row.last_open_time as number | null) ?? null,
     }));
   }
@@ -82,12 +80,10 @@ export default class DatabaseItemTable {
         isPrimary: true,
       };
       const dataTable = DataTableTable.create(db, {
-        columns: item.source
-          ? DataTableSourceTable.initialColumns(db, item.source)
-          : [defaultColumn],
+        columns: item.query ? [] : [defaultColumn],
         rows: [],
       });
-      if (item.source) DataTableSourceTable.attach(db, dataTable.id, item.source);
+      if (item.query) DataTableQueryTable.attach(db, dataTable.id, item.query);
 
       const id = getNextModuleEntityId(db);
       db.prepare(

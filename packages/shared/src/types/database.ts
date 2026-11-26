@@ -30,27 +30,7 @@ export interface DataTable {
   rows: RowData[];
   activeViewId: number | null;
   refCount?: number;
-  /** 关联了应用内数据源时存在：源头字段列由主进程在读取时合并 */
-  source?: DataTableSource;
-}
-
-export type DataTableSourceKind = "card" | "article" | "document" | "diary";
-
-/** 范围：卡片/文章按标签（空为全部）；项目文档为一个项目，deep 含子文档；日记按时间段 */
-export interface DataTableSourceScope {
-  tags?: string[];
-  projectId?: number;
-  deep?: boolean;
-  range?: "month" | "year" | "all";
-}
-
-export interface DataTableSource {
-  kind: DataTableSourceKind;
-  scope: DataTableSourceScope;
-  /** 选中的源头字段 key，顺序即列序 */
-  fields: string[];
-  /** 是否能在表里新建行（新建会在源头新建） */
-  canCreate: boolean;
+  query?: { definition: import("../query-database/types").QueryDefinition; revision: number };
 }
 
 export interface DatabaseData {
@@ -109,6 +89,7 @@ export interface TableViewConfig {
   columnOrder: string[];
   rowOrder: string[];
   columnWidths?: Record<string, number>;
+  hiddenColumnIds?: string[];
   groupBy?: GroupRule | null;
   sorts: SortRule[];
   filters?: FilterGroup | null;

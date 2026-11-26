@@ -96,6 +96,9 @@ export default class DataTableViewTable {
       columnOrder: config?.columnOrder ? [...config.columnOrder] : [],
       rowOrder: config?.rowOrder ? [...config.rowOrder] : [],
       columnWidths: normalizeColumnWidths(config?.columnWidths),
+      hiddenColumnIds: Array.isArray(config?.hiddenColumnIds)
+        ? [...new Set(config.hiddenColumnIds.filter(id => typeof id === "string"))]
+        : undefined,
       filters: config?.filters ? structuredClone(config.filters) : null,
       sorts: config?.sorts ? [...config.sorts] : [],
       groupBy: config?.groupBy ?? null,

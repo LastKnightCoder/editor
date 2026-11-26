@@ -1,0 +1,370 @@
+/* tokens：与 packages/ui 的 paper / cocoa 主题一致 */
+:root {
+  --page: #f3eee2;
+  --surface: #fffdf9;
+  --track: #e0d6c3;
+  --hover: rgba(67, 57, 44, 0.05);
+  --press: rgba(67, 57, 44, 0.09);
+  --selected: rgba(217, 119, 87, 0.12);
+  --ink-1: #43392c;
+  --ink-2: #6a5c49;
+  --ink-3: #a89a85;
+  --ink-inv: #fff8ef;
+  --line-1: #e9e1d2;
+  --line-2: #f0e9dc;
+  --accent: hsl(22 58% 42%);
+  --accent-hover: hsl(22 58% 35%);
+  --accent-soft: hsla(22, 58%, 42%, 0.12);
+  --accent-text: #a05236;
+  --ok: #61795f;
+  --ok-soft: rgba(97, 121, 95, 0.13);
+  --warn: #a8782c;
+  --warn-soft: rgba(196, 146, 60, 0.14);
+  --danger: #b0564d;
+  --danger-soft: rgba(176, 86, 77, 0.11);
+  --scrim: rgba(67, 57, 44, 0.22);
+  --tag-mix: 16%;
+  --code-kw: #a05236;
+  --code-str: #61795f;
+  --code-fn: #6d5fa0;
+  --code-num: #a8782c;
+  --code-cm: #a89a85;
+  --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
+  --shadow-float: 0 18px 48px -12px rgba(120, 100, 70, 0.42);
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --font:
+    -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans",
+    "Microsoft YaHei", sans-serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+}
+[data-theme="cocoa"] {
+  color-scheme: dark;
+  --page: #221d16;
+  --surface: #2e2820;
+  --track: #463d31;
+  --hover: rgba(236, 226, 208, 0.06);
+  --press: rgba(236, 226, 208, 0.11);
+  --selected: hsla(22, 62%, 65%, 0.2);
+  --ink-1: #ece2d0;
+  --ink-2: #a89a85;
+  --ink-3: #857768;
+  --ink-inv: #221d16;
+  --line-1: #3a3227;
+  --line-2: #332c22;
+  --accent: hsl(22 62% 65%);
+  --accent-hover: hsl(22 62% 72%);
+  --accent-soft: hsla(22, 62%, 65%, 0.16);
+  --accent-text: hsl(22 66% 70%);
+  --ok: #9bb597;
+  --ok-soft: rgba(155, 181, 151, 0.15);
+  --warn: #d6aa5e;
+  --warn-soft: rgba(214, 170, 94, 0.15);
+  --danger: #e08b80;
+  --danger-soft: rgba(224, 139, 128, 0.14);
+  --scrim: rgba(0, 0, 0, 0.45);
+  --tag-mix: 24%;
+  --code-kw: hsl(22 66% 70%);
+  --code-str: #9bb597;
+  --code-fn: #b4a6e0;
+  --code-num: #d6aa5e;
+  --code-cm: #857768;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.2), 0 8px 28px rgba(0, 0, 0, 0.25);
+  --shadow-float: 0 18px 48px -12px rgba(0, 0, 0, 0.7);
+}
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+body {
+  background: var(--page);
+  color: var(--ink-1);
+  font: 13px/1.6 var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+button,
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  outline: 0;
+}
+button {
+  cursor: pointer;
+}
+svg.i {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex: none;
+}
+svg.i.s {
+  width: 13px;
+  height: 13px;
+}
+svg.i.xs {
+  width: 11px;
+  height: 11px;
+  stroke-width: 2.1;
+}
+
+/* 控制条（设计稿自身，不属于方案） */
+.ctrl {
+  position: sticky;
+  top: 0;
+  z-index: 90;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 4px;
+  padding: 10px 24px;
+  background: var(--page);
+  border-bottom: 1px solid var(--line-1);
+}
+.ctrl h1 {
+  font-size: 13.5px;
+  font-weight: 600;
+  margin-right: 10px;
+}
+.ctrl .grp-l {
+  color: var(--ink-3);
+  font-size: 12px;
+  margin: 0 4px 0 10px;
+}
+.ctrl .step {
+  height: 26px;
+  padding: 0 9px;
+  border-radius: 7px;
+  color: var(--ink-2);
+  font-size: 12px;
+}
+.ctrl .step:hover {
+  background: var(--hover);
+}
+.ctrl .step.on {
+  background: var(--surface);
+  color: var(--ink-1);
+  font-weight: 500;
+  box-shadow: 0 0 0 1px var(--line-1);
+}
+.ctrl .sp {
+  flex: 1;
+}
+.stage {
+  padding: 22px 36px 48px;
+}
+.caption {
+  max-width: 1180px;
+  margin: 0 auto 16px;
+  color: var(--ink-2);
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+.caption b {
+  color: var(--ink-1);
+  font-weight: 600;
+}
+.caption ul {
+  margin: 4px 0 0 18px;
+}
+
+/* 应用外壳：侧栏 + 内容纸 */
+.app {
+  max-width: 1180px;
+  height: 760px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  background: var(--page);
+  border-radius: 14px;
+  box-shadow:
+    0 0 0 1px var(--line-1),
+    var(--shadow-card);
+  overflow: hidden;
+  position: relative;
+}
+.side {
+  padding: 16px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.side .brand {
+  padding: 2px 10px 14px;
+  font-weight: 600;
+  font-size: 14px;
+}
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
+  color: var(--ink-2);
+}
+.nav.on {
+  background: var(--selected);
+  color: var(--accent-text);
+  font-weight: 500;
+}
+.nav.sub {
+  padding-left: 34px;
+  height: 28px;
+  font-size: 12.5px;
+}
+.paper {
+  margin: 8px 8px 8px 0;
+  background: var(--surface);
+  border-radius: 12px;
+  box-shadow: 0 0 0 1px var(--line-1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  position: relative;
+}
+
+/* 通用按钮 */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 11px;
+  border-radius: 8px;
+  color: var(--ink-2);
+  font-size: 12.5px;
+  white-space: nowrap;
+  transition:
+    background 0.16s var(--ease),
+    color 0.16s var(--ease);
+}
+.btn:hover {
+  background: var(--hover);
+  color: var(--ink-1);
+}
+.btn.sm {
+  height: 26px;
+  padding: 0 9px;
+  font-size: 12px;
+  border-radius: 7px;
+}
+.btn.primary {
+  background: var(--accent);
+  color: var(--ink-inv);
+  font-weight: 500;
+}
+.btn.primary:hover {
+  background: var(--accent-hover);
+  color: var(--ink-inv);
+}
+.btn.line {
+  box-shadow: inset 0 0 0 1px var(--line-1);
+}
+.btn.soft {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-weight: 500;
+}
+.btn.on {
+  background: var(--press);
+  color: var(--ink-1);
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.icon-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: var(--ink-3);
+  transition:
+    background 0.16s var(--ease),
+    color 0.16s var(--ease);
+}
+.icon-btn:hover {
+  background: var(--hover);
+  color: var(--ink-1);
+}
+.kbd {
+  font: 10.5px var(--mono);
+  color: var(--ink-3);
+  padding: 0 4px;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1px var(--line-1);
+}
+
+/* 浮层 */
+.menu {
+  position: absolute;
+  z-index: 40;
+  padding: 5px;
+  border-radius: 11px;
+  background: var(--surface);
+  box-shadow:
+    0 0 0 1px var(--line-1),
+    var(--shadow-float);
+}
+.menu .mi {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 30px;
+  padding: 5px 9px;
+  border-radius: 7px;
+  color: var(--ink-1);
+  cursor: pointer;
+}
+.menu .mi:hover,
+.menu .mi.hl {
+  background: var(--hover);
+}
+.menu .mi svg.i {
+  color: var(--ink-2);
+}
+.menu .mi .tx b {
+  display: block;
+  font-weight: 500;
+}
+.menu .mi .tx span {
+  color: var(--ink-3);
+  font-size: 11.5px;
+}
+.menu .mi .r {
+  margin-left: auto;
+  color: var(--ink-3);
+  font-size: 11.5px;
+}
+.menu .mi .ck {
+  margin-left: auto;
+  color: var(--accent-text);
+}
+.menu hr {
+  border: 0;
+  height: 1px;
+  background: var(--line-2);
+  margin: 4px 6px;
+}
+.menu .mh {
+  padding: 6px 9px 3px;
+  color: var(--ink-3);
+  font-size: 11.5px;
+}
+.scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--scrim);
+  z-index: 30;
+  display: grid;
+  place-items: center;
+}

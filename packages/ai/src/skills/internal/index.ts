@@ -3,6 +3,8 @@ import databaseSchemaReadme from "./database-schema.md?raw";
 import knowledgeBaseReadme from "./knowledge-base.md?raw";
 import markdownReadme from "./markdown.md?raw";
 import mindmapReadme from "./mindmap.md?raw";
+import queryDatabaseReadme from "./query-database.md?raw";
+import { QUERY_DATABASE_REFERENCE } from "../../query-database";
 
 export interface InternalSkillDefinition {
   /** 唯一标识，兼作 Skill 目录名 */
@@ -14,6 +16,13 @@ export interface InternalSkillDefinition {
 }
 
 export const INTERNAL_SKILLS: readonly InternalSkillDefinition[] = [
+  {
+    folderName: "query-database",
+    name: "查询数据库",
+    description:
+      "创建、修改或修复查询数据库的 DSL / JavaScript，或编辑正文中的 tau-query / tau-queryjs 查询块时使用。",
+    readmeContent: `${queryDatabaseReadme}\n\n${QUERY_DATABASE_REFERENCE}`,
+  },
   {
     folderName: "database-schema",
     name: "主数据库结构与只读 SQL 查询",

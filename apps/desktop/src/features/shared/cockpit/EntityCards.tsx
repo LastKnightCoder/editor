@@ -192,8 +192,8 @@ export function CockpitRecentCard({
         {/* 「继续」与 meta 同行、在文档行之下，不压住上次看到的标题 */}
         <div className="mt-2 flex h-6 items-center gap-3">
           <p className="text-ink-3 min-w-0 flex-1 truncate text-[11.5px] tabular-nums">
-            {item.openedAt !== null && formatOpenedAt(item.openedAt)} · {item.metric}{" "}
-            {copy.metricUnit}
+            {item.openedAt !== null && formatOpenedAt(item.openedAt)} ·{" "}
+            {item.metric === null ? (item.metricText ?? "—") : `${item.metric} ${copy.metricUnit}`}
           </p>
           <span className="bg-accent-soft text-accent-text inline-flex h-6 shrink-0 items-center gap-1 rounded-[7px] px-2.5 text-[12px] font-medium opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100">
             继续
@@ -246,7 +246,7 @@ export function CockpitGridCard({
         )}
         <p className="text-ink-3 flex items-center gap-2 text-[11.5px] tabular-nums">
           <span>
-            {item.metric} {copy.metricUnit}
+            {item.metric === null ? (item.metricText ?? "—") : `${item.metric} ${copy.metricUnit}`}
           </span>
           <span className="bg-ink-3 size-[2.5px] rounded-full opacity-60" />
           <span>{cockpitTimeMeta(item, sort)}</span>
@@ -333,7 +333,7 @@ function ListRow({ item, visual, copy, handlers }: ItemProps & { handlers: Cockp
           {excerpt && <p className="text-ink-3 truncate text-[11.5px]">{excerpt}</p>}
         </div>
       </div>
-      {cell(item.metric, "text-right")}
+      {cell(item.metric ?? item.metricText ?? "—", "text-right")}
       <span className="min-w-0">
         {item.openedAt === null ? (
           cell("未打开过", "text-ink-3 block")

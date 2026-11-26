@@ -96,8 +96,8 @@ const DatabaseBlock = memo((props: DatabaseBlockProps) => {
     return (
       <div style={{ minHeight: `${height}em` }}>
         <Database
+          query={databaseState.table.query}
           tableId={databaseState.table.id}
-          source={databaseState.table.source}
           reload={databaseState.reload}
           key={databaseState.table.id}
           columns={databaseState.table.columns}

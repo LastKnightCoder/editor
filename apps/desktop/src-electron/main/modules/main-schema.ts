@@ -6,6 +6,7 @@ import MAIN_SCHEMA_SQL from "@tau/db-schema/schema/main.sql?raw";
 import MAIN_SCHEMA_VERSION from "@tau/db-schema/schema/main-version.json";
 import { migrateRowIds, rowIdTables, seedRowIdSequences } from "./main-row-ids";
 import { FEATURE_ONBOARDING_KEY } from "./tables/workspace-preferences";
+import { needsQueryDatabaseUpgrade, upgradeQueryDatabases } from "./main-query-databases";
 
 const schemaHash = createHash("sha1").update(MAIN_SCHEMA_SQL).digest("hex");
 const independentRowIdTables = rowIdTables(MAIN_SCHEMA_SQL);
@@ -33,6 +34,7 @@ export function ensureMainSchema(db: Database.Database): void {
   if (
     !projectionMissing &&
     !needsReceiptUpgrade(db) &&
+    !needsQueryDatabaseUpgrade(db) &&
     meta.main_schema_hash === schemaHash &&
     meta.main_schema_version === String(MAIN_SCHEMA_VERSION)
   ) {
@@ -73,6 +75,7 @@ export function ensureMainSchema(db: Database.Database): void {
       ])
         db.exec(`DROP TRIGGER IF EXISTS ${trigger}`);
       db.exec(MAIN_SCHEMA_SQL);
+      upgradeQueryDatabases(db);
       if (projectionMissing)
         db.prepare(
           "UPDATE document_task_projection_state SET ready=0,after_content_id=0,epoch=lower(hex(randomblob(16))) WHERE id='main'"

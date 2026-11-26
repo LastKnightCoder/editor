@@ -119,7 +119,7 @@ export function projectDatabase(
   const columnIds = [...new Set([...view.columnOrder, ...columns.map(column => column.id)])].filter(
     id => {
       const column = columnMap.get(id);
-      return column !== undefined && !column.hidden;
+      return column !== undefined && !column.hidden && !view.hiddenColumnIds?.includes(id);
     }
   );
   return {

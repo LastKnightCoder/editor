@@ -316,19 +316,17 @@ describe("DiaryTable", () => {
     expect(DiaryTable.getDiaryEntryById(db, first.diaryId).segments).toHaveLength(2);
   });
 
-  it("写命令经派发层调用时广播 diary:changed，读命令与无 ctx 调用不广播", () => {
-    const broadcastOthers = vi.fn();
-    const ctx = { broadcastOthers } as unknown as Parameters<
-      typeof DiaryTable.updateDiarySegment
-    >[2];
+  it("日记写命令通知全部窗口，读命令与无 ctx 调用不广播", () => {
+    const broadcastAll = vi.fn();
+    const ctx = { broadcastAll } as unknown as Parameters<typeof DiaryTable.updateDiarySegment>[2];
     const events = DiaryTable.getListenEvents() as Record<string, (...args: unknown[]) => unknown>;
 
     events["create-diary-moment"](db, { date: "2026-09-25", content: paragraph("x") }, ctx);
     events["get-all-diary-segments-flat"](db, ctx);
     events["create-diary-moment"](db, { date: "2026-09-25", content: paragraph("y") });
 
-    expect(broadcastOthers).toHaveBeenCalledTimes(1);
-    expect(broadcastOthers).toHaveBeenCalledWith("diary:changed", { databaseName: ":memory:" });
+    expect(broadcastAll).toHaveBeenCalledTimes(1);
+    expect(broadcastAll).toHaveBeenCalledWith("diary:changed", { databaseName: ":memory:" });
   });
 });
 

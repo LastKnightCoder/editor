@@ -1,0 +1,47 @@
+{
+  "card": {
+    "source": "cards",
+    "fields": [
+      ["title", "title", "开头"],
+      ["tags", "tags", "标签"],
+      ["pinned", "pinned", "置顶"],
+      ["created", "createdAt", "创建时间"],
+      ["updated", "updatedAt", "更新时间"],
+      ["words", "wordCount", "字数"]
+    ]
+  },
+  "article": {
+    "source": "articles",
+    "fields": [
+      ["title", "title", "标题"],
+      ["author", "author", "作者"],
+      ["tags", "tags", "标签"],
+      ["pinned", "pinned", "置顶"],
+      ["created", "createdAt", "创建时间"],
+      ["updated", "updatedAt", "更新时间"],
+      ["words", "wordCount", "字数"]
+    ]
+  },
+  "document": {
+    "source": "documents",
+    "fields": [
+      ["title", "title", "标题"],
+      ["parent", "parent", "上级"],
+      ["tags", "tags", "标签"],
+      ["created", "createdAt", "创建时间"],
+      ["updated", "updatedAt", "更新时间"],
+      ["words", "wordCount", "字数"]
+    ]
+  },
+  "diary": {
+    "source": "diary",
+    "fields": [
+      ["day", "title", "日期"],
+      ["date", "date", "记录日"],
+      ["weather", "weather", "天气"],
+      ["mood", "mood", "心情"],
+      ["tags", "tags", "标签"],
+      ["words", "wordCount", "字数"]
+    ]
+  }
+}

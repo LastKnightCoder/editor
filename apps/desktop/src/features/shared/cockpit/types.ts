@@ -19,7 +19,8 @@ export interface CockpitItem {
   createTime: number;
   updateTime: number;
   /** 卡面大数字（项目=文档数，数据库=行数，学习=资源数） */
-  metric: number;
+  metric: number | null;
+  metricText?: string;
   /** 最近一次打开；从未打开为 null */
   openedAt: number | null;
   /** 上次看到的子条目标题（项目=文档，Notebook=资料或笔记）；没有记录或模块无子条目时为 null */

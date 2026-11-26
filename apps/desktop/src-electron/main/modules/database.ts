@@ -38,7 +38,7 @@ import CatalogSearchTable from "./tables/catalog-search";
 import WhiteboardContentTable from "./tables/white-board-content";
 import DataTableTable from "./tables/data-table";
 import DatabaseItemTable from "./tables/database-item";
-import DataTableSourceTable from "./tables/data-table-source";
+import DataTableQueryTable from "./tables/data-table-query";
 import VibeLearningProjectTable from "./tables/vibe-learning-project";
 import DataTableViewTable from "./tables/data-table-view";
 import TodoGroupTable from "./tables/todo-group";
@@ -314,7 +314,7 @@ class DatabaseModule implements Module {
       CatalogSearchTable,
       DataTableTable,
       DatabaseItemTable,
-      DataTableSourceTable,
+      DataTableQueryTable,
       DataTableViewTable,
       TodoGroupTable,
       TodoItemTable,

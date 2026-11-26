@@ -3,8 +3,9 @@
  * 从「项目」的 data-table 类型拆出为独立顶级模块。
  */
 
-import { useMemo, useRef, useState } from "react";
-import { Table } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Radio, Table } from "lucide-react";
+import { Menu } from "@tau/ui";
 import { usePage } from "@/page/PageProvider";
 import { EntityCockpit } from "@/features/shared/cockpit/EntityCockpit";
 import type { CockpitCopy, CockpitItem, CockpitVisual } from "@/features/shared/cockpit/types";
@@ -42,11 +43,16 @@ export function DatabasesView() {
   const { items, loading } = useDatabasesSnapshot();
   const mutations = useDatabaseMutations();
   const [creating, setCreating] = useState(false);
-  const openBlank = useRef<() => void>(() => {});
 
   // 数据库没有子条目，只有打开时间，卡片不出现「上次看到」
   const cockpitItems: CockpitItem[] = useMemo(
-    () => items.map(item => ({ ...item, metric: item.rowCount, lastItemTitle: null })),
+    () =>
+      items.map(item => ({
+        ...item,
+        metric: item.rowCount,
+        metricText: item.rowCount === null ? "实时查询" : undefined,
+        lastItemTitle: null,
+      })),
     [items]
   );
 
@@ -61,15 +67,28 @@ export function DatabasesView() {
         mutations={mutations}
         onOpen={id => navigator.push("database-detail", { id })}
         onCreated={created => navigator.push("database-detail", { id: created.id })}
-        onCreateRequest={openDefault => {
-          openBlank.current = openDefault;
-          setCreating(true);
-        }}
+        renderCreateMenu={openBlank => (
+          <>
+            <Menu.Item icon={<Table />} onSelect={openBlank}>
+              <span className="flex flex-col">
+                空白数据库
+                <span className="text-ink-3 text-[11.5px]">自己定义列，手动录入</span>
+              </span>
+            </Menu.Item>
+            <Menu.Item icon={<Radio />} onSelect={() => setCreating(true)}>
+              <span className="flex flex-col">
+                实时查询
+                <span className="text-ink-3 text-[11.5px]">
+                  从卡片、待办、日记等汇总，随原文更新
+                </span>
+              </span>
+            </Menu.Item>
+          </>
+        )}
       />
       <CreateDatabaseDialog
         open={creating}
         onClose={() => setCreating(false)}
-        onBlank={() => openBlank.current()}
         onCreated={created => navigator.push("database-detail", { id: created.id })}
       />
     </>

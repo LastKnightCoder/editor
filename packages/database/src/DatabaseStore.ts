@@ -158,6 +158,9 @@ export const createDatabaseStore = (
       ? initialViewConfig.rowOrder
       : initialRows.map(row => row.id),
     columnWidths: mergedColumnWidths,
+    hiddenColumnIds: initialViewConfig?.hiddenColumnIds
+      ? [...initialViewConfig.hiddenColumnIds]
+      : undefined,
     groupBy: initialViewConfig?.groupBy ?? null,
     sorts: initialViewConfig?.sorts?.length ? [...initialViewConfig.sorts] : [],
     filters: initialViewConfig?.filters ? cloneFilters(initialViewConfig.filters) : null,
@@ -294,6 +297,23 @@ export const createDatabaseStore = (
       setQuery: query => set(state => ({ query: { ...state.query, ...query } })),
       /** 外部（source="external"）数据变更不进撤销历史：到达时清空撤销/重做栈，以当前数据重建基线。 */
       dispatch: (command, source = "user") => {
+        if (command.type === "dataset.receive") {
+          confirmedRows = command.rows;
+          commit(
+            state => ({
+              columns: command.columns,
+              rows: command.rows,
+              columnWidths: Object.fromEntries(
+                command.columns.map(column => [
+                  column.id,
+                  state.columnWidths[column.id] ?? column.width ?? 200,
+                ])
+              ),
+            }),
+            "external"
+          );
+          return;
+        }
         if (command.type === "view.receive") {
           commit(state => {
             const views = state.views.some(view => view.id === command.view.id)
@@ -710,6 +730,7 @@ export const createDatabaseStore = (
             state.viewConfig = {
               columnOrder: [...config.columnOrder],
               rowOrder: [...config.rowOrder],
+              hiddenColumnIds: config.hiddenColumnIds ? [...config.hiddenColumnIds] : undefined,
               groupBy: config.groupBy ?? null,
               sorts: [...config.sorts],
               filters: cloneFilters(config.filters ?? null),

@@ -138,6 +138,8 @@ AI 的「内容连接工具」由 `mcp/providers/content-link-tools.ts` 默认�
 
 ### Database 共享层接入
 
+查询生成的独立数据库与正文查询块使用公共 QueryDatabasePanel；通用包的 dataset.receive 原子接收列与行，allowViewEditing 允许只读结果配置列宽、列序与汇总，hiddenColumnIds 按视图保存。查询协议、只读边界与刷新见[实时查询数据库](/docs/architecture/query-database.md)。
+
 **不受控边界**：`data/columns/viewConfig` 只是初始值，内部 store 管理编辑、选择与视图配置，不监听这些 props。查询只有一个执行入口：`core/projection.ts` 合并持久化 viewConfig 与会话 query（text/filters/searchResults/grouping），数据、查询或配置提交时计算一次投影，选择变化不重算；注册视图消费投影，键盘导航消费相同 rowIds/columnIds。分组由视图定义的 `grouping` 声明（缺省通用 groupBy；`"none"` 禁用；`"view"`/函数形态由视图自带），projection 不出现视图类型字符串。拖拽传记录 ID 不传过滤后索引；排序生效时禁止手动行重排。ViewTabs 工具栏：搜索折叠图标钮（清空+失焦收回）+ 筛选/排序/分组胶囊钮（激活计数），三面板保留暂存逻辑，日期分组带二级粒度。
 
 **公式列**：`deriveFormulaRows` 在投影开头派生，四种视图与筛选/排序都消费派生行；store 行与保存回调不含公式值，行详情单独派生。表尾汇总消费筛选后 `projection.rows`，配置在 `viewConfig.footer`（宿主 normalizeConfig 白名单已登记）；字段经 `CellPlugin.valueType/toScalar/formatScalar` 参与运算，引擎不认识具体插件；桌面扩展经 hook 插槽 `useFormulaAssist` 提供对话模型（未配置则构造器无 AI 输入框）。

@@ -1,3 +1,4 @@
+import type React from "react";
 import type {
   ColumnDef as SharedColumnDef,
   CellValue as SharedCellValue,
@@ -95,6 +96,7 @@ export interface RowChanges {
 export type DatabaseCommand =
   | { type: "rows.apply"; changes: RowChanges }
   | { type: "rows.receive"; rows: RowData[] }
+  | { type: "dataset.receive"; columns: ColumnDef[]; rows: RowData[] }
   | { type: "column.configure"; id: string; config: unknown }
   | { type: "column.resize"; id: string; width: number }
   | { type: "view.receive"; view: DatabaseView; activate?: boolean }
@@ -115,6 +117,8 @@ export interface DatabaseConfig {
   allowDeleteColumn?: boolean;
   allowAddRow?: boolean;
   allowDeleteRow?: boolean;
+  /** 数据只读时仍允许列宽、列序与表尾等展示配置。 */
+  allowViewEditing?: boolean;
 }
 
 export interface DatabaseProps {
@@ -156,7 +160,15 @@ export interface DatabaseProps {
   readonly?: boolean;
   /** 嵌在页面那张纸内：去掉自身卡片外壳（底色 / 描边 / 阴影 / 圆角），页签条与表格直接铺在纸上 */
   bare?: boolean;
+  /** 宿主对视图栏的补充：左侧前缀、右侧追加控件与去掉左右内距 */
+  toolbar?: DatabaseToolbarOptions;
   className?: string;
+}
+
+export interface DatabaseToolbarOptions {
+  lead?: React.ReactNode;
+  extra?: React.ReactNode;
+  flush?: boolean;
 }
 
 export interface FieldCapabilities {

@@ -262,11 +262,11 @@ const TableView: React.FC<TableViewProps> = memo(
                 width={columnWidths[columnId] || 200}
                 onResizeStart={startResize}
                 moveColumn={handleMoveColumn}
-                onEdit={handleEditColumn}
+                onEdit={readonly ? undefined : handleEditColumn}
                 onDelete={handleDeleteColumn}
                 pluginManager={pluginManager}
                 theme={theme}
-                readonly={readonly}
+                readonly={readonly && !config?.allowViewEditing}
                 allowDeleteColumn={allowDeleteColumn}
                 commands={commands}
               />
@@ -308,10 +308,10 @@ const TableView: React.FC<TableViewProps> = memo(
     );
 
     return (
-      <div className="flex h-full w-full flex-col">
+      <div className="flex h-full min-h-0 w-full flex-1 flex-col">
         {/* 滚动条内缩同 FadeScroll：4px 细条 + 右侧 6px 透明边；不接 edge fade，免得渐隐吸顶表头 */}
         <div
-          className="min-h-0 w-full flex-1 overflow-auto border-r-[6px] border-r-transparent [&::-webkit-scrollbar-thumb]:rounded-[2px] [&::-webkit-scrollbar-track:horizontal]:mx-2.5 [&::-webkit-scrollbar-track:vertical]:my-2.5 [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar]:w-1"
+          className="min-h-0 w-full flex-1 overflow-auto border-r-[6px] border-r-transparent [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-[2px] [&::-webkit-scrollbar-track:horizontal]:mx-2.5 [&::-webkit-scrollbar-track:vertical]:my-2.5"
           ref={scrollParentRef}
         >
           <div className="flex w-full flex-col pb-10" style={{ minWidth: `${totalMinWidth}px` }}>
@@ -394,7 +394,7 @@ const TableView: React.FC<TableViewProps> = memo(
               footer={footer}
               pluginManager={pluginManager}
               aggregateRegistry={aggregateRegistry ?? builtInAggregateRegistry}
-              readonly={readonly}
+              readonly={readonly && !config?.allowViewEditing}
               onChange={setFooter}
             />
           </div>

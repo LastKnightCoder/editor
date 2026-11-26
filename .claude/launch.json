@@ -384,6 +384,20 @@
         "apps/desktop/mockups/gradient-bg"
       ],
       "port": 8863
+    },
+    {
+      "name": "query-db-mock",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8797",
+        "--bind",
+        "127.0.0.1",
+        "-d",
+        "apps/desktop/mockups/query-database"
+      ],
+      "port": 8797
     }
   ]
 }

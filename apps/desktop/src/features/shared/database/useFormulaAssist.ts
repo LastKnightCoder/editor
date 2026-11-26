@@ -9,6 +9,12 @@ import type { Role } from "@/constants";
  * 只转发构造器给出的消息（列结构，不含行数据）。
  */
 export function useFormulaAssist(): ReturnType<NonNullable<DatabaseSlots["useFormulaAssist"]>> {
+  return useCodeAssist("formulaAssist");
+}
+
+export function useCodeAssist(
+  feature: string
+): ReturnType<NonNullable<DatabaseSlots["useFormulaAssist"]>> {
   const usage = useSettingStore(state => state.setting.llmUsageSettings.chat);
   const providers = useSettingStore(state => state.setting.llmProviders);
   return useMemo(() => {
@@ -24,10 +30,10 @@ export function useFormulaAssist(): ReturnType<NonNullable<DatabaseSlots["useFor
           content: message.content,
         })),
         ...(usage?.thinkingLevel ? { thinking: usage.thinkingLevel } : {}),
-        source: { feature: "formulaAssist" },
+        source: { feature },
       });
       if (!outcome.ok) throw new Error(outcome.error ?? "模型调用失败");
       return outcome.text;
     };
-  }, [providers, usage?.providerId, usage?.modelId, usage?.thinkingLevel]);
+  }, [providers, usage?.providerId, usage?.modelId, usage?.thinkingLevel, feature]);
 }

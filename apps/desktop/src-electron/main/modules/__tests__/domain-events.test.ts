@@ -39,6 +39,7 @@ vi.mock("../database", () => ({
 
 import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sql?raw";
 import ContentTable from "../tables/content";
+import DiaryTable from "../tables/diary";
 import { ContentDocumentTable } from "../tables/content-document";
 import { ContentDocumentBlocks } from "../tables/content-document-blocks";
 import { prepareContentContract } from "@tau/db-schema/content-contracts";
@@ -119,6 +120,26 @@ describe("业务数据变更事件", () => {
     await vi.advanceTimersByTimeAsync(600);
     expect(events()).toEqual([{ type: "card.updated", id }]);
     expect(hoisted.send.mock.calls[0][1].databaseName).toBe("alpha.db");
+  });
+
+  it("日记通用正文写入提交后通知同窗消费者，回滚不发通知", async () => {
+    // 日记编辑和协作投影可绕过日记专用写命令，仍须唤醒独立查询。
+    const moment = DiaryTable.createDiaryMoment(db, { date: "2026-11-25", content: doc("甲") });
+    await vi.advanceTimersByTimeAsync(600);
+    hoisted.send.mockClear();
+    expect(() =>
+      db.transaction(() => {
+        db.prepare("UPDATE contents SET count=count+1 WHERE id=?").run(moment.contentId);
+        throw new Error("rollback");
+      })()
+    ).toThrow("rollback");
+    await vi.advanceTimersByTimeAsync(600);
+    expect(hoisted.send).not.toHaveBeenCalled();
+
+    ContentTable.updateContent(db, moment.contentId, { content: doc("乙") });
+    await vi.advanceTimersByTimeAsync(600);
+    expect(hoisted.send.mock.calls).toEqual([["diary:changed", { databaseName: "alpha.db" }]]);
+    expect(events()).toEqual([]);
   });
 
   it("分块正文在同一毫秒保存仍通知拥有者，无变化确认不发事件", async () => {

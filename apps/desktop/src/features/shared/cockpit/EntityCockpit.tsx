@@ -11,7 +11,7 @@
 import { useMemo, useState, type HTMLAttributes, type ReactNode } from "react";
 import { ChevronDown, Plus } from "lucide-react";
 import { FadeScroll } from "@tau/ui";
-import { Button, ConfirmDialog, Loading, cn, toast } from "@tau/ui";
+import { Button, ConfirmDialog, Loading, Menu, cn, toast } from "@tau/ui";
 import { CockpitGridCard, CockpitListRows, CockpitRecentCard } from "./EntityCards";
 import { CockpitToolbar } from "./CockpitToolbar";
 import { EntityDialog } from "./EntityDialog";
@@ -45,6 +45,8 @@ export interface EntityCockpitProps {
   onCreated?(created: { id: number }): void;
   /** 接管「新建」按钮（模块有自己的新建流程时传入）；openDefault 打开原有的名称 + 描述弹窗 */
   onCreateRequest?(openDefault: () => void): void;
+  /** 「新建」改为下拉菜单：返回菜单项；openDefault 打开原有的名称 + 描述弹窗 */
+  renderCreateMenu?(openDefault: () => void): ReactNode;
   /** 整体导出弹窗（仅项目支持，其余模块不传则菜单项隐去） */
   renderExport?: (item: CockpitItem, close: () => void) => ReactNode;
   /** 纸面拖入（仅项目支持：拖入文件夹导入为项目）：挂在纸面上的拖拽处理器与遮罩 */
@@ -61,6 +63,7 @@ export function EntityCockpit({
   onOpen,
   onCreated,
   onCreateRequest,
+  renderCreateMenu,
   renderExport,
   paperDrop,
 }: EntityCockpitProps) {
@@ -88,7 +91,8 @@ export function EntityCockpit({
     };
   }, [items, sort]);
 
-  const metricTotal = active.reduce((sum, item) => sum + item.metric, 0);
+  const metricTotal = active.reduce((sum, item) => sum + (item.metric ?? 0), 0);
+  const metricsComplete = active.every(item => item.metric !== null);
   const sortLabel = COCKPIT_SORTS.find(s => s.value === sort)?.label ?? "";
 
   /* ---------- 卡片操作 ---------- */
@@ -105,6 +109,28 @@ export function EntityCockpit({
   const openDefaultCreate = () => setCreateOpen(true);
   const openCreate = () =>
     onCreateRequest ? onCreateRequest(openDefaultCreate) : openDefaultCreate();
+
+  const createButton = (empty: boolean) => {
+    const button = (
+      <Button
+        variant="primary"
+        size="sm"
+        icon={Plus}
+        className="shrink-0 whitespace-nowrap"
+        onClick={renderCreateMenu ? undefined : openCreate}
+      >
+        {copy.createLabel}
+        {renderCreateMenu && <ChevronDown className="-mr-1 size-3.5" strokeWidth={2} />}
+      </Button>
+    );
+    return renderCreateMenu ? (
+      <Menu trigger={button} align={empty ? "start" : "end"} className="w-[280px]">
+        {renderCreateMenu(openDefaultCreate)}
+      </Menu>
+    ) : (
+      button
+    );
+  };
 
   if (loading) return <Loading />;
 
@@ -138,8 +164,12 @@ export function EntityCockpit({
             </h1>
             <span className="text-tau-meta text-ink-2 w-0 flex-1 truncate whitespace-nowrap tabular-nums">
               <b className="text-ink-1 font-semibold">{active.length}</b> {copy.entityUnit}
-              <span className="text-ink-3 mx-1.5">·</span>
-              <b className="text-ink-1 font-semibold">{metricTotal}</b> {copy.metricUnit}
+              {metricsComplete && (
+                <>
+                  <span className="text-ink-3 mx-1.5">·</span>
+                  <b className="text-ink-1 font-semibold">{metricTotal}</b> {copy.metricUnit}
+                </>
+              )}
               {archived.length > 0 && ` · 已归档 ${archived.length}`}
             </span>
             {total > 0 && (
@@ -150,15 +180,7 @@ export function EntityCockpit({
                 onSortChange={setSort}
               />
             )}
-            <Button
-              variant="primary"
-              size="sm"
-              icon={Plus}
-              className="shrink-0 whitespace-nowrap"
-              onClick={openCreate}
-            >
-              {copy.createLabel}
-            </Button>
+            {createButton(false)}
           </div>
         </div>
 
@@ -230,11 +252,7 @@ export function EntityCockpit({
             <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
               <p className="text-ink-2 text-[15px] font-medium">{copy.emptyTitle}</p>
               <p className="text-ink-3 text-[12.5px]">{copy.emptyHint}</p>
-              <div className="mt-3 flex gap-2">
-                <Button variant="primary" size="sm" icon={Plus} onClick={openCreate}>
-                  {copy.createLabel}
-                </Button>
-              </div>
+              <div className="mt-3 flex gap-2">{createButton(true)}</div>
             </div>
           )}
         </FadeScroll>

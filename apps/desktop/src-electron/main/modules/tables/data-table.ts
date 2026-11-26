@@ -16,9 +16,9 @@ import ContentTable from "./content";
 import { ContentIdentityTable } from "./content-identity";
 import type { DataTableTarget } from "@tau/shared/database-types";
 import { dataFieldModels } from "./field-models";
-import DataTableSourceTable from "./data-table-source";
+import DataTableQueryTable from "./data-table-query";
 import { fallbackCommandContext, type CommandContext } from "@tau/rpc";
-import { asynchronousDatabaseCommand } from "../database-command";
+import { basename } from "node:path";
 
 export default class DataTableTable {
   static getListenEvents() {
@@ -26,15 +26,8 @@ export default class DataTableTable {
       "data-table:create": this.create.bind(this),
       "data-table:create-pending": this.createPending.bind(this),
       "data-table:update": this.update.bind(this),
-      // 自行开事务：关联表写回源头后，协作标题须在事务提交后再发布
-      "data-table:patch-row": asynchronousDatabaseCommand(
-        async (db: Database.Database, request: PatchDataTableRow, ctx: CommandContext) =>
-          this.patchRow(db, request, ctx)
-      ),
-      "data-table:apply-changes": asynchronousDatabaseCommand(
-        async (db: Database.Database, request: ApplyDataTableChanges, ctx: CommandContext) =>
-          this.applyChanges(db, request, ctx)
-      ),
+      "data-table:patch-row": this.patchRow.bind(this),
+      "data-table:apply-changes": this.applyChanges.bind(this),
       "data-table:get-by-id": this.getById.bind(this),
       "data-table:get-detail": this.getDetail.bind(this),
       "data-table:set-active-view": this.setActiveView.bind(this),
@@ -92,7 +85,9 @@ export default class DataTableTable {
     const stmt = db.prepare(`SELECT * FROM data_tables WHERE id = ?`);
     const row = stmt.get(id);
     if (!row) return null;
-    return this.parse(row as Record<string, unknown>);
+    const table = this.parse(row as Record<string, unknown>);
+    const query = DataTableQueryTable.get(db, id);
+    return query ? { ...table, query } : table;
   }
 
   static getDetail(
@@ -108,18 +103,7 @@ export default class DataTableTable {
       return { table: null, views: [] };
     }
     const views = DataTableViewTable.listByTableId(db, id);
-    const merged = DataTableSourceTable.merge(db, table, rows => {
-      db.transaction(() => {
-        db.prepare("UPDATE data_tables SET rows = ?, update_time = ? WHERE id = ?").run(
-          JSON.stringify(rows),
-          Date.now(),
-          id
-        );
-        if ((table.refCount ?? 0) > 0)
-          this.syncContentRefs(db, table, { columns: table.columns, rows });
-      })();
-    });
-    return { table: merged, views };
+    return { table, views };
   }
 
   static create(db: Database.Database, table: CreateDataTable): DataTable {
@@ -187,14 +171,17 @@ export default class DataTableTable {
     })();
   }
 
-  static update(db: Database.Database, request: UpdateDataTable): DataTable | null {
-    return db.transaction(() => {
+  static update(
+    db: Database.Database,
+    request: UpdateDataTable,
+    ctx: CommandContext = fallbackCommandContext
+  ): DataTable | null {
+    const updated = db.transaction(() => {
       const table = {
         ...request,
         id: ContentIdentityTable.requireTarget(db, "data-table", request.id),
       };
-      // 关联表的全量写入会把合并进来的源头值落库：只允许走增量改动
-      if (DataTableSourceTable.get(db, table.id)) throw new Error("关联数据源的表不能整表覆盖");
+      DataTableQueryTable.assertWritable(db, table.id);
       if (table.activeViewId != null)
         DataTableViewTable.assertBelongsTo(db, table.activeViewId, table.id);
       const stmt = db.prepare(`
@@ -228,6 +215,12 @@ export default class DataTableTable {
 
       return this.getById(db, table.id);
     })();
+    if (updated)
+      ctx.broadcastAll("query-database:changed", {
+        databaseName: basename(db.name),
+        tableId: updated.id,
+      });
+    return updated;
   }
 
   static patchRow(
@@ -235,7 +228,6 @@ export default class DataTableTable {
     request: PatchDataTableRow,
     ctx: CommandContext = fallbackCommandContext
   ): boolean {
-    let publish: (() => void)[] = [];
     const patched = db.transaction(() => {
       const input = {
         ...request,
@@ -243,8 +235,8 @@ export default class DataTableTable {
       };
       const stored = this.getById(db, input.tableId);
       if (!stored || (stored.refCount ?? 0) <= 0) return false;
-      const source = DataTableSourceTable.get(db, stored.id);
-      const table = source ? DataTableSourceTable.merge(db, stored) : stored;
+      DataTableQueryTable.assertWritable(db, stored.id);
+      const table = stored;
       const row = table.rows.find(item => item.id === input.rowId);
       if (!row) return false;
       const fields = Object.keys(input.patch).filter(field => field !== "id");
@@ -261,16 +253,6 @@ export default class DataTableTable {
         if (JSON.stringify(actual) !== JSON.stringify(expected)) return false;
       }
       const patch = Object.fromEntries(fields.map(field => [field, input.patch[field]]));
-      if (source) {
-        const result = this.writeSourceChanges(
-          db,
-          stored,
-          { rows: { upsert: [{ id: input.rowId, ...patch }], remove: [] } },
-          ctx
-        );
-        publish = result?.publish ?? [];
-        return Boolean(result);
-      }
       const rows = table.rows.map(item => (item.id === input.rowId ? { ...item, ...patch } : item));
       const now = Date.now();
       db.prepare("UPDATE data_tables SET rows = ?, update_time = ? WHERE id = ?").run(
@@ -283,7 +265,11 @@ export default class DataTableTable {
       this.syncContentRefs(db, table, { columns: table.columns, rows });
       return true;
     })();
-    publish.forEach(run => run());
+    if (patched)
+      ctx.broadcastAll("query-database:changed", {
+        databaseName: basename(db.name),
+        tableId: request.tableId,
+      });
     return patched;
   }
 
@@ -292,7 +278,6 @@ export default class DataTableTable {
     request: ApplyDataTableChanges,
     ctx: CommandContext = fallbackCommandContext
   ): DataTable | null {
-    let publish: (() => void)[] = [];
     const result = db.transaction(() => {
       const input = {
         ...request,
@@ -300,11 +285,7 @@ export default class DataTableTable {
       };
       const table = this.getById(db, input.id);
       if (!table || (table.refCount ?? 0) <= 0) return null;
-      if (DataTableSourceTable.get(db, table.id)) {
-        const written = this.writeSourceChanges(db, table, input, ctx);
-        publish = written?.publish ?? [];
-        return written?.table ?? null;
-      }
+      DataTableQueryTable.assertWritable(db, table.id);
       const removed = new Set(input.rows.remove);
       const inserted = new Set(input.rows.inserted ?? []);
       const patches = new Map(input.rows.upsert.map(row => [row.id, row]));
@@ -345,36 +326,12 @@ export default class DataTableTable {
       return this.getById(db, table.id);
     })();
     // 协作正文的标题须在本地事务提交后再发布
-    publish.forEach(run => run());
+    if (result)
+      ctx.broadcastAll("query-database:changed", {
+        databaseName: basename(db.name),
+        tableId: result.id,
+      });
     return result;
-  }
-
-  /**
-   * 关联表的改动：写回源头后只落自建列；正文引用按落库的行计算（源头正文不计入），
-   * 视图按合并后的行同步。返回合并后的表。
-   */
-  private static writeSourceChanges(
-    db: Database.Database,
-    table: DataTable,
-    request: Pick<ApplyDataTableChanges, "rows" | "columns" | "expectedSource">,
-    ctx: CommandContext = fallbackCommandContext
-  ): { table: DataTable; publish: (() => void)[] } | null {
-    const written = DataTableSourceTable.applyChanges(db, table, request, ctx);
-    if (!written) return null;
-    const now = Date.now();
-    db.prepare("UPDATE data_tables SET columns = ?, rows = ?, update_time = ? WHERE id = ?").run(
-      JSON.stringify(written.columns),
-      JSON.stringify(written.rows),
-      now,
-      table.id
-    );
-    this.syncContentRefs(db, table, { columns: written.columns, rows: written.rows });
-    const stored = this.getById(db, table.id);
-    if (!stored) return null;
-    const merged = DataTableSourceTable.merge(db, stored);
-    DataTableViewTable.syncViewsWithTable(db, table.id, merged.columns, merged.rows);
-    Operation.insertOperation(db, "data-table", "update", table.id, now);
-    return { table: merged, publish: written.publish };
   }
 
   static remove(db: Database.Database, id: number): number {
@@ -538,7 +495,6 @@ export default class DataTableTable {
           }
           db.prepare("DELETE FROM data_table_views WHERE table_id = ?").run(id);
           db.prepare("DELETE FROM data_tables WHERE id = ?").run(id);
-          DataTableSourceTable.detach(db, id);
           ContentIdentityTable.retire(db, "data-table", id);
           db.prepare("DELETE FROM data_table_pending_releases WHERE table_id = ?").run(id);
           return 1;

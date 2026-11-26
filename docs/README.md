@@ -17,6 +17,7 @@
 | [design-system.md](./architecture/design-system.md)           | UI 设计系统：token 三层体系、多主题机制、组件分层                                                                                                                                        |
 | 包内文档                                                      | database / [whiteboard](/packages/whiteboard/docs/architecture.md#画框与嵌套分栏) / editor 架构手册在各包 `docs/architecture.md`；editor-collab / markdown 的投影与缓存边界见各包 README |
 | [storage-sync.md](./architecture/storage-sync.md)             | 数据库、资源与会话文件的宿主分块协议及内存边界                                                                                                                                           |
+| [query-database.md](./architecture/query-database.md)         | 只读 DSL 与 JavaScript 查询、Worker 执行、实时刷新、独立数据库和正文查询块                                                                                                               |
 | [collaboration.md](./architecture/collaboration.md)           | 实时协作、白板推送与在线状态、同步诊断、当前格式边界与提交协议                                                                                                                           |
 | [content-storage.md](./architecture/content-storage.md)       | 正文模型、身份与业务持有、会话接线、主库投影、跨端写入和耐久日志                                                                                                                         |
 | [browser-companion.md](./architecture/browser-companion.md)   | 浏览器伴读扩展：/browser 连接与一次性授权、scope、标注与笔记数据、页内实现要点、官网分发                                                                                                 |
@@ -40,6 +41,8 @@
 未发布个人记忆的卡片知识摘要清理、预览和备份恢复见 [个人记忆清理](./guides/ops-personal-memory-cleanup.md)。
 
 同名资料库覆盖后的页面恢复、多窗口隔离、图库与白板宿主以及真实 SQLite 压力验证见 [数据库重连验证](./guides/dev-database-reconnect.md)。
+
+查询数据库的真实副本、批量刷新、并发、只读对账、异常与受限内存验证见 [查询数据库验证](./guides/dev-query-database-verification.md)。
 
 日常代码检查、格式化、代码行数统计、提交钩子与性能验证见 [代码检查与格式化](./guides/development-quality.md)；好代码的判据与正反例（类型纪律、拆分配方、注释与命名、错误处理、死代码、重构验证）见 [代码风格规范](./guides/dev-code-style.md)。
 
@@ -80,8 +83,6 @@
 [Notebook 演示文稿按页生成与续改](./tasks/ppt-workspace/README.md) 记录 Agent 工作目录、页级正文、模型自检、旧稿处理及实物试跑结果。
 
 [在当前白板与 Agent 共同编辑](./tasks/whiteboard-agent/README.md) 记录当前页 MCP 工具、协作身份、实时提交与压测验收计划。
-
-[数据库关联数据源](./tasks/database-source.md) 记录新建数据库时关联卡片、文章、项目文档与日记的存储、写回与验证方案。
 
 [功能开关与首次启动选用途](./tasks/feature-toggles.md) 记录设置 › 功能、侧栏就地隐藏、常用组合与新工作区首次启动的存储、接入点与验证方案。
 

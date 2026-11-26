@@ -10,7 +10,6 @@ import type {
   DatabaseRowChanges,
   ColumnDef,
   DataTableTarget,
-  DataTableSource,
   UpdateDataTableView,
 } from "../types/database";
 
@@ -22,7 +21,6 @@ export interface UseEditDatabaseDeps {
   updateDataTableChanges?: (input: {
     id: DataTableTarget;
     rows: DatabaseRowChanges;
-    expectedSource?: DataTableSource;
     columns?: ColumnDef[];
   }) => Promise<DataTable | null>;
   getDataTableDetail: (
@@ -97,7 +95,7 @@ export function useEditDatabase(
     return null;
   }
 
-  /** 静默重读（关联源头变化时）：不清空当前表，读到后整体替换 */
+  /** 定义或视图变化时静默重读：不清空当前表，读到后整体替换 */
   const reload = async () => {
     if (!tableId || loadedTarget !== targetKey || !current()) return;
     const request = ++nextRequest.current;
@@ -116,7 +114,6 @@ export function useEditDatabase(
         ? await deps.updateDataTableChanges({
             id: tableId,
             rows: change.rows,
-            ...(table.source ? { expectedSource: table.source } : {}),
             ...(change.columnsChanged ? { columns: data.columns } : {}),
           })
         : await deps.updateDataTable({

@@ -24,12 +24,14 @@ const useDynamicExtensionsStore = create<IDynamicExtensionsStore>(set => ({
       { default: fileAttachmentExtension },
       { default: whiteboardExtension },
       { default: databaseExtension },
+      { default: queryDatabaseExtension },
     ] = await Promise.all([
       import("@/editor-extensions/content-link"),
       import("@/editor-extensions/chat-ref"),
       import("@/editor-extensions/file-attachment"),
       import("@/editor-extensions/whiteboard"),
       import("@/editor-extensions/database"),
+      import("@/editor-extensions/query-database"),
     ]);
     set({
       extensions: [
@@ -38,6 +40,7 @@ const useDynamicExtensionsStore = create<IDynamicExtensionsStore>(set => ({
         fileAttachmentExtension,
         whiteboardExtension,
         databaseExtension,
+        queryDatabaseExtension,
       ],
       initialized: true,
     });

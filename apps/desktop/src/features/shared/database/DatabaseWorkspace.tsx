@@ -1,5 +1,6 @@
 import { DataTableEditor as Database } from "./DataTableEditor";
-import { memo, useRef } from "react";
+import { memo, useRef, useState } from "react";
+import { QueryHeaderSlotContext } from "../query-database/headerSlot";
 import {
   RowData,
   ColumnDef,
@@ -10,8 +11,6 @@ import {
 import { EditText, EditTextHandle } from "@tau/ui";
 import { useMemoizedFn } from "ahooks";
 import { useEditDatabaseWithContext } from "@tau/shared";
-import { sourceFieldKey } from "@/features/databases/data-sources";
-import { DataSourcePill } from "./DataSourcePill";
 
 export interface DatabaseWorkspaceProps {
   tableId?: number;
@@ -52,7 +51,7 @@ const DatabaseWorkspace = memo(
       reload,
     } = useEditDatabaseWithContext(tableId) || {};
     const titleRef = useRef<EditTextHandle>(null);
-    const source = table?.source;
+    const [querySlot, setQuerySlot] = useState<HTMLElement | null>(null);
     const activeView = views?.find(view => view.id === activeViewId);
 
     const handleTitleCommit = useMemoizedFn(async () => {
@@ -94,7 +93,7 @@ const DatabaseWorkspace = memo(
       <div className="mx-auto flex h-full min-h-0 w-full max-w-[1760px] min-w-0 flex-col px-4 pt-1 pb-4">
         {/* 一整张纸：标题行在纸顶，Database 去掉自身卡片外壳，页签条与视图直接铺在纸上 */}
         <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className="mt-5 flex h-10 flex-none items-center gap-2 pr-7 pl-8">
+          <div className="@container/query-header mt-5 flex h-10 flex-none items-center gap-2 pr-7 pl-8">
             <EditText
               key={titleKey}
               ref={titleRef}
@@ -104,41 +103,34 @@ const DatabaseWorkspace = memo(
               contentEditable={true}
               onPressEnter={handleTitleCommit}
             />
-            {source && (
-              <DataSourcePill
-                tableId={table.id}
-                source={source}
-                customColumns={
-                  (table.columns as ColumnDef[]).filter(
-                    column => sourceFieldKey(column.id) === null
-                  ).length
-                }
-                onChanged={() => reload?.()}
-              />
+            {table?.query && (
+              <div ref={setQuerySlot} className="flex shrink-0 items-center gap-2" />
             )}
             {headerExtra}
           </div>
-          <Database
-            source={source}
-            reload={reload}
-            tableId={table.id}
-            bare
-            className="min-h-0 flex-1"
-            key={table.id}
-            columns={table.columns as ColumnDef[]}
-            data={table.rows as RowData[]}
-            views={views}
-            activeViewId={activeView.id}
-            viewConfig={activeView.config as TableViewConfig}
-            onActiveViewIdChange={handleActiveViewIdChange}
-            onViewConfigChange={handleViewConfigChange}
-            onDataChange={onDataChange}
-            onCreateView={handleCreateView}
-            onDeleteView={onDeleteView}
-            onRenameView={onRenameView}
-            onUpdateView={handleUpdateView}
-            onReorderViews={onReorderViews}
-          />
+          <QueryHeaderSlotContext.Provider value={querySlot}>
+            <Database
+              query={table.query}
+              reload={reload}
+              tableId={table.id}
+              bare
+              className="min-h-0 flex-1"
+              key={table.id}
+              columns={table.columns as ColumnDef[]}
+              data={table.rows as RowData[]}
+              views={views}
+              activeViewId={activeView.id}
+              viewConfig={activeView.config as TableViewConfig}
+              onActiveViewIdChange={handleActiveViewIdChange}
+              onViewConfigChange={handleViewConfigChange}
+              onDataChange={onDataChange}
+              onCreateView={handleCreateView}
+              onDeleteView={onDeleteView}
+              onRenameView={onRenameView}
+              onUpdateView={handleUpdateView}
+              onReorderViews={onReorderViews}
+            />
+          </QueryHeaderSlotContext.Provider>
         </div>
       </div>
     );

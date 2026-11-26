@@ -13,7 +13,7 @@ import type Database from "better-sqlite3";
 import DataChangeEventsTable from "./tables/data-change-events";
 import { Module } from "../types/module";
 import databaseModule from "./database";
-import { onDatabaseChangeBroadcast } from "./database-notifications";
+import { broadcastDatabaseChange, onDatabaseChangeBroadcast } from "./database-notifications";
 import EntitySearchTable from "./tables/entity-search";
 import { PLUGIN_CHAT_SCOPES_SQL } from "./tables/plugin-data-readonly";
 import { contentOrigin, currentPluginOrigin } from "./domain-event-origin";
@@ -330,13 +330,15 @@ class DomainEventsModule implements Module {
     else pending.entities.delete(key);
   }
 
-  /** 正文修改计入所属实体的 updated；孤儿插件实体与日记不发事件 */
+  /** 日记走专用通知，不进入插件业务事件。 */
   private locateContents(db: Database.Database, pending: Pending) {
+    let diaryChanged = false;
     const ownerOf = db.prepare(
       "SELECT plugin_id AS owner, kind FROM plugin_entities WHERE id = ? AND orphaned_time IS NULL"
     );
     for (const [contentId, refs] of EntitySearchTable.locateAll(db, [...pending.contents.keys()]))
       for (const ref of refs) {
+        if (ref.kind === "diary-moment") diaryChanged = true;
         let change: Pick<Change, "entity" | "owner" | "kind"> | undefined;
         if (ref.kind === "project-item") change = { entity: "document" };
         else if (ref.kind === "card" || ref.kind === "article") change = { entity: ref.kind };
@@ -353,6 +355,7 @@ class DomainEventsModule implements Module {
             pluginId: pending.contents.get(contentId),
           });
       }
+    return diaryChanged;
   }
 
   private queue(dbName: string): Pending {
@@ -414,7 +417,8 @@ class DomainEventsModule implements Module {
           if (typeof item.id === "string" || typeof item.id === "number")
             this.record(pending, item.entity, item.id, item.action, item);
         }
-        if (pending.contents.size) this.locateContents(db, pending);
+        if (pending.contents.size && this.locateContents(db, pending))
+          broadcastDatabaseChange("diary:changed", dbName);
         for (const { entity, id, action, pluginId, owner, kind } of pending.entities.values())
           events.push({
             type: `${entity}.${action}`,

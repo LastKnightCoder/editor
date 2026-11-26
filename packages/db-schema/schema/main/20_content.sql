@@ -59,12 +59,9 @@ CREATE TABLE IF NOT EXISTS data_table_pending_releases (
         table_id INTEGER PRIMARY KEY,
         released_at INTEGER NOT NULL
       );
--- 关联数据源的数据表：源头字段每次读取时从源头取，data_tables.rows 只存自建列的值
-CREATE TABLE IF NOT EXISTS data_table_sources (
-        table_id INTEGER PRIMARY KEY,
-        kind TEXT NOT NULL,
-        scope TEXT NOT NULL DEFAULT '{}',
-        fields TEXT NOT NULL DEFAULT '[]',
-        create_time INTEGER NOT NULL,
+CREATE TABLE IF NOT EXISTS data_table_queries (
+        table_id INTEGER PRIMARY KEY REFERENCES data_tables(id) ON DELETE CASCADE,
+        definition TEXT NOT NULL,
+        revision INTEGER NOT NULL DEFAULT 1,
         update_time INTEGER NOT NULL
       );

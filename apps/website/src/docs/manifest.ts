@@ -91,6 +91,11 @@ const DOC_GROUPS: DocGroup[] = [
         title: "数据库",
         summary: "一份数据，表格、看板、画廊、日历多种视图。",
       },
+      {
+        slug: "query-database",
+        title: "查询数据库",
+        summary: "用 DSL 或 JavaScript 查询已有内容，按标签、日期和项目组织实时结果。",
+      },
     ],
   },
   {

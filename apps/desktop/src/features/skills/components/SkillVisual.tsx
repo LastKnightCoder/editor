@@ -20,6 +20,7 @@ import { linkedDirLabel, type SkillItem, type SkillMode } from "../useSkills";
 const BUILTIN_ICONS: Record<string, LucideIcon> = {
   "knowledge-base": Library,
   "database-schema": Database,
+  "query-database": Database,
   markdown: FileCode2,
   mindmap: Network,
 };
@@ -48,7 +49,7 @@ export function SourceTag({ skill }: { skill: Skill }) {
   return (
     <span
       title={skill.rootPath}
-      className="text-tau-micro text-ink-3 border-line-1 inline-flex shrink-0 items-center gap-1 rounded-[5px] border px-1.5 font-normal leading-[18px]"
+      className="text-tau-micro text-ink-3 border-line-1 inline-flex shrink-0 items-center gap-1 rounded-[5px] border px-1.5 leading-[18px] font-normal"
     >
       {skill.source === "builtin"
         ? "内置"

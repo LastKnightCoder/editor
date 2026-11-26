@@ -1,10 +1,20 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDownUp, Filter, Layers, MoreHorizontal, Plus, Search, Table2, X } from "lucide-react";
+import {
+  ArrowDownUp,
+  Filter,
+  Layers,
+  MoreHorizontal,
+  Plus,
+  Search,
+  SlidersHorizontal,
+  Table2,
+  X,
+} from "lucide-react";
 import { useMemoizedFn } from "ahooks";
 import { useDrag, useDrop } from "react-dnd";
 import { cn, Menu, Popover, Tooltip } from "@tau/ui";
 import { EditText, EditTextHandle } from "@tau/ui";
-import { DatabaseView } from "./types";
+import { DatabaseView, type DatabaseToolbarOptions } from "./types";
 import { useDatabaseStore } from "./hooks";
 import GroupPanel from "./GroupPanel";
 import SortPanel from "./SortPanel";
@@ -42,6 +52,7 @@ interface ViewTabsProps {
   theme: "light" | "dark";
   /** 铺在页面纸上：左右内距对齐纸内其它行（px-8） */
   bare?: boolean;
+  toolbar?: DatabaseToolbarOptions;
 }
 
 interface ViewTabItemProps {
@@ -214,7 +225,7 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
           onOpenChange={setShowEditPopover}
           placement="bottom-end"
           arrow={false}
-          className="w-[380px] min-w-0 max-w-[calc(100vw-32px)]"
+          className="w-[380px] max-w-[calc(100vw-32px)] min-w-0"
         >
           <ViewEditPanel
             view={view}
@@ -244,6 +255,7 @@ const ToolbarPill = ({
   icon: Icon,
   onClick,
   buttonRef,
+  className,
 }: {
   active: boolean;
   count?: number;
@@ -251,6 +263,7 @@ const ToolbarPill = ({
   icon: typeof Filter;
   onClick: () => void;
   buttonRef: React.RefObject<HTMLButtonElement | null>;
+  className?: string;
 }) => (
   <Tooltip content={label}>
     <button
@@ -260,10 +273,11 @@ const ToolbarPill = ({
       aria-pressed={active}
       onClick={onClick}
       className={cn(
-        "ease-tau-out flex h-7 items-center gap-1.5 rounded-[8px] px-2.5 transition-[background-color,color] duration-[160ms]",
+        "ease-tau-out flex h-7 shrink-0 items-center gap-1.5 rounded-[8px] px-2.5 whitespace-nowrap transition-[background-color,color] duration-[160ms]",
         active
           ? "bg-accent-soft text-accent-text"
-          : "text-ink-3 hover:bg-hover hover:text-ink-1 active:bg-press"
+          : "text-ink-3 hover:bg-hover hover:text-ink-1 active:bg-press",
+        className
       )}
     >
       <Icon className="size-[13px]" strokeWidth={1.75} />
@@ -358,6 +372,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
     onReorderViews,
     theme,
     bare = false,
+    toolbar,
   }) => {
     const {
       activeViewId,
@@ -399,12 +414,20 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
     const filterButtonRef = useRef<HTMLButtonElement>(null);
     const sortButtonRef = useRef<HTMLButtonElement>(null);
     const groupButtonRef = useRef<HTMLButtonElement>(null);
+    const mergedButtonRef = useRef<HTMLButtonElement>(null);
+    // 视图栏窄时筛选 / 排序 / 分组并成一个按钮，面板锚到实际点击的那个按钮
+    const [panelAnchor, setPanelAnchor] = useState<HTMLElement | null>(null);
+    const openPanel = (anchor: HTMLElement | null, open: (value: boolean) => void) => {
+      setPanelAnchor(anchor);
+      open(true);
+    };
 
     const filterCount = useMemo(
       () => countFilterConditions(viewConfig.filters),
       [viewConfig.filters]
     );
     const sortCount = viewConfig.sorts?.length ?? 0;
+    const mergedCount = filterCount + sortCount + (viewConfig.groupBy !== null ? 1 : 0);
 
     const orderedIds = useMemo(() => views.map(view => view.id), [views]);
     const orderedIdsRef = useRef<number[]>(orderedIds);
@@ -491,11 +514,14 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
     return (
       <div
         className={cn(
-          "border-line-1 flex h-[46px] items-center gap-2 border-b",
-          bare ? "pl-8 pr-7" : "pl-4 pr-3"
+          "border-line-1 @container/db-toolbar flex h-[46px] items-center gap-2 border-b",
+          toolbar?.flush ? "px-0" : bare ? "pl-8 pr-7" : "pl-4 pr-3"
         )}
       >
-        <div className="flex h-full items-center gap-5 overflow-x-auto overflow-y-hidden">
+        {toolbar?.lead}
+        <div
+          className={cn("flex h-full min-w-0 items-center gap-5 overflow-x-auto overflow-y-hidden")}
+        >
           {views.map((view, index) => (
             <ViewTabItem
               key={view.id}
@@ -526,7 +552,8 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
             </button>
           </Tooltip>
         </div>
-        <div className="ml-auto flex items-center gap-0.5">
+        <div className="ml-auto flex shrink-0 items-center gap-0.5">
+          {toolbar?.extra}
           <CollapsibleSearch value={searchKeyword} onChange={text => setQuery({ text })} />
           <ToolbarPill
             active={filterCount > 0}
@@ -534,10 +561,13 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
             label="筛选"
             icon={Filter}
             buttonRef={filterButtonRef}
-            onClick={() => setShowFilter(!showFilter)}
+            className="hidden @min-[720px]/db-toolbar:flex"
+            onClick={() =>
+              showFilter ? setShowFilter(false) : openPanel(filterButtonRef.current, setShowFilter)
+            }
           />
           <Popover
-            anchor={filterButtonRef.current}
+            anchor={panelAnchor}
             open={showFilter}
             onOpenChange={setShowFilter}
             placement="bottom-end"
@@ -559,10 +589,13 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
             label="排序"
             icon={ArrowDownUp}
             buttonRef={sortButtonRef}
-            onClick={() => setShowSorting(!showSorting)}
+            className="hidden @min-[720px]/db-toolbar:flex"
+            onClick={() =>
+              showSorting ? setShowSorting(false) : openPanel(sortButtonRef.current, setShowSorting)
+            }
           />
           <Popover
-            anchor={sortButtonRef.current}
+            anchor={panelAnchor}
             open={showSorting}
             onOpenChange={setShowSorting}
             placement="bottom-end"
@@ -581,10 +614,57 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
             label="分组"
             icon={Layers}
             buttonRef={groupButtonRef}
-            onClick={() => setShowGrouping(!showGrouping)}
+            className="hidden @min-[720px]/db-toolbar:flex"
+            onClick={() =>
+              showGrouping
+                ? setShowGrouping(false)
+                : openPanel(groupButtonRef.current, setShowGrouping)
+            }
           />
+          <Menu
+            align="end"
+            trigger={
+              <button
+                ref={mergedButtonRef}
+                type="button"
+                aria-label="筛选、排序与分组"
+                className={cn(
+                  "ease-tau-out flex h-7 shrink-0 items-center gap-1.5 rounded-[8px] px-2.5 whitespace-nowrap transition-[background-color,color] duration-[160ms] @min-[720px]/db-toolbar:hidden",
+                  mergedCount > 0
+                    ? "bg-accent-soft text-accent-text"
+                    : "text-ink-3 hover:bg-hover hover:text-ink-1 active:bg-press"
+                )}
+              >
+                <SlidersHorizontal className="size-[13px]" strokeWidth={1.75} />
+                <span className="text-tau-meta">筛选排序</span>
+                {mergedCount > 0 && (
+                  <span className="text-[10.5px] font-bold tabular-nums">{mergedCount}</span>
+                )}
+              </button>
+            }
+          >
+            {(
+              [
+                ["筛选", Filter, filterCount, setShowFilter],
+                ["排序", ArrowDownUp, sortCount, setShowSorting],
+                ["分组", Layers, viewConfig.groupBy !== null ? 1 : 0, setShowGrouping],
+              ] as const
+            ).map(([label, Icon, count, open]) => (
+              <Menu.Item
+                key={label}
+                icon={<Icon />}
+                kbd={count ? String(count) : undefined}
+                // 等菜单关闭、焦点归还后再开面板，免得面板被同一次点击判定为外部点击而关掉
+                onSelect={() =>
+                  requestAnimationFrame(() => openPanel(mergedButtonRef.current, open))
+                }
+              >
+                {label}
+              </Menu.Item>
+            ))}
+          </Menu>
           <Popover
-            anchor={groupButtonRef.current}
+            anchor={panelAnchor}
             open={showGrouping}
             onOpenChange={setShowGrouping}
             placement="bottom-end"

@@ -211,7 +211,7 @@ const FooterCell: React.FC<{
         className="border-line-2 box-border flex h-9 items-center border-r px-1"
         style={{ width, minWidth: width, maxWidth: width }}
       >
-        {readonly || column.readonly ? (
+        {readonly ? (
           display && <div className="text-tau-sm w-full px-2">{content}</div>
         ) : (
           <>
