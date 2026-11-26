@@ -7,6 +7,7 @@ import { useCollaborationStore } from "../core/store";
 import { CollaborationLoading } from "../components/CollaborationLoading";
 import { leaveCollabText, runLeaveCollab } from "../leaveCollab";
 import { useCollaborationRuntime } from "../hooks/useCollaborationRuntime";
+import { useRoomI18n, roomTranslator } from "../room.i18n";
 
 const CollabEditorPage = lazy(() =>
   import("../CollabEditorPage").then(module => ({ default: module.CollabEditorPage }))
@@ -16,6 +17,7 @@ const collabEditorSchema = createPageSchema({ documentId: paramString() });
 type CollabEditorParams = typeof collabEditorSchema.type;
 
 function CollabEditorScreen() {
+  const context = useRoomI18n();
   const { params } = usePage<CollabEditorParams>();
   const navigator = useNavigator();
   const app = useAppContext();
@@ -49,14 +51,17 @@ function CollabEditorScreen() {
         isOwner
       );
     } catch (error) {
-      app.presentError(error, leaveCollabText(isOwner).errorTitle);
+      app.presentError(
+        error,
+        roomTranslator.t(isOwner ? "leave.owner.error" : "leave.member.error")
+      );
     } finally {
       setBusy(false);
       setConfirming(false);
     }
   };
 
-  const text = leaveCollabText(isOwner);
+  const text = leaveCollabText(isOwner, context);
   return (
     <>
       <Suspense fallback={<CollaborationLoading />}>

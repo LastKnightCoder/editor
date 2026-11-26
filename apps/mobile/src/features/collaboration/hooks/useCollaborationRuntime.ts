@@ -7,6 +7,7 @@ import { useEffect } from "react";
 import { useAppContext } from "../../../app/AppContext";
 import { toast } from "../../../components/toast";
 import { consumeCollaborationNotice, useCollaborationStore } from "../core/store";
+import { roomFailureText, roomTranslator } from "../room.i18n";
 
 export function useCollaborationRuntime(enabled = true) {
   const safeSetting = useAppContext().syncSettings.safeSetting;
@@ -24,7 +25,7 @@ export function useCollaborationRuntime(enabled = true) {
       retained = collaborationManager;
       return collaborationManager.start({ nickname }).catch(failure => {
         const message = failure instanceof Error ? failure.message : String(failure);
-        toast.error(message);
+        toast.error(roomFailureText(message, "runtime.failed"));
       });
     });
     return () => {
@@ -39,8 +40,8 @@ export function useCollaborationRuntime(enabled = true) {
       if (!consumeCollaborationNotice(notice.id)) continue;
       toast(
         notice.kind === "closed"
-          ? { type: "warning", text: `「${notice.title}」的共享已被作者结束` }
-          : { type: "warning", text: `你已失去「${notice.title}」的访问权限` }
+          ? { type: "warning", text: roomTranslator.t("notice.closed", { title: notice.title }) }
+          : { type: "warning", text: roomTranslator.t("notice.revoked", { title: notice.title }) }
       );
     }
   }, [notices]);

@@ -53,6 +53,7 @@ import { useOptionalPageInstanceContext } from "../../router/pageLifecycle";
 import { ContentHistorySheet } from "./ContentHistorySheet";
 import { sharedHistoryApi } from "./core/document-history";
 import { collaborationManager } from "./core/manager";
+import { useRoomI18n, roomFailureText } from "./room.i18n";
 
 export function CollabEditorPage(props: {
   documentId: string;
@@ -60,6 +61,7 @@ export function CollabEditorPage(props: {
   onExit: () => void;
 }) {
   const context = useCollaborationStatusI18n();
+  const { t, locale } = useRoomI18n();
   const navigator = useNavigator();
   const [moreOpen, setMoreOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -186,7 +188,7 @@ export function CollabEditorPage(props: {
               <>
                 <button
                   type="button"
-                  aria-label="成员管理"
+                  aria-label={t("editor.members")}
                   onClick={() => navigator.push("memberSheet", { documentId: props.documentId })}
                   className="bg-surface shadow-card active:bg-hover flex h-9 items-center gap-1 rounded-full py-1 pr-2.5 pl-1.5 transition-colors"
                 >
@@ -195,7 +197,7 @@ export function CollabEditorPage(props: {
                 </button>
                 <PageHeaderButton
                   icon={<MoreHorizontal size={20} />}
-                  aria-label="更多操作"
+                  aria-label={t("editor.more")}
                   onClick={() => setMoreOpen(true)}
                 />
               </>
@@ -227,15 +229,15 @@ export function CollabEditorPage(props: {
                 className="text-ink-3 flex min-h-[45vh] items-center justify-center gap-2"
               >
                 <Loader2 size={18} className="animate-spin" />
-                <span className="text-[13px]">正在加载协作内容…</span>
+                <span className="text-[13px]">{t("editor.loading")}</span>
               </div>
             ) : null}
 
             {!loading && !binding ? (
               <div className="flex min-h-[45vh] flex-col items-center justify-center px-8 text-center">
-                <p className="text-ink-1 text-[15px] font-bold">无法打开协作文档</p>
+                <p className="text-ink-1 text-[15px] font-bold">{t("editor.unavailable")}</p>
                 <p className="text-ink-2 mt-2 text-[12.5px] leading-relaxed">
-                  {error || session?.error || "文档不存在或你已失去访问权限"}
+                  {roomFailureText(error || session?.error, "editor.missing")}
                 </p>
                 <button
                   type="button"
@@ -352,10 +354,16 @@ export function CollabEditorPage(props: {
 
         <ActionSheet
           open={moreOpen}
-          title={session?.title ?? "协作文档"}
-          kind="协作"
+          title={session?.title ?? t("editor.untitled")}
+          kind={t("editor.kind")}
           subtitle={
-            session ? `${session.members.length} 位成员 · ${online.length} 人在线` : undefined
+            session
+              ? t("editor.summary", {
+                  count: session.members.length,
+                  members: session.members.length.toLocaleString(locale),
+                  online: online.length.toLocaleString(locale),
+                })
+              : undefined
           }
           items={[
             ...(readingMode.canEdit && binding
@@ -367,7 +375,8 @@ export function CollabEditorPage(props: {
             ...(history && session?.status === "active"
               ? [
                   {
-                    label: "编辑历史",
+                    key: "collab.history",
+                    label: t("editor.history"),
                     icon: <History size={18} />,
                     onClick: () => {
                       setMoreOpen(false);
@@ -377,23 +386,27 @@ export function CollabEditorPage(props: {
                 ]
               : []),
             {
-              label: "成员管理",
+              key: "collab.members",
+              label: t("editor.members"),
               icon: <Users size={18} />,
               tone: "sage",
               trailing: (
                 <>
-                  {session ? `${session.members.length} 人` : null}
+                  {session
+                    ? t("member.count", {
+                        count: session.members.length,
+                        amount: session.members.length.toLocaleString(locale),
+                      })
+                    : null}
                   <ChevronRight strokeWidth={2} />
                 </>
               ),
               onClick: () => navigator.push("memberSheet", { documentId: props.documentId }),
             },
             {
-              label: session?.role === "owner" ? "结束共享" : "退出协作",
-              desc:
-                session?.role === "owner"
-                  ? "所有成员将失去访问权限，云端数据被清空"
-                  : "退出后需重新申请才能加入",
+              key: "collab.leave",
+              label: session?.role === "owner" ? t("leave.owner.menu") : t("leave.member.confirm"),
+              desc: session?.role === "owner" ? t("leave.owner.hint") : t("leave.member.hint"),
               danger: true,
               icon: session?.role === "owner" ? <Unlink size={18} /> : <LogOut size={18} />,
               onClick: props.onExit,

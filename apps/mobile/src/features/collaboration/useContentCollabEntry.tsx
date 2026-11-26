@@ -6,6 +6,7 @@ import { useAppContext } from "../../app/AppContext";
 import { useNavigator, usePageLifecycle } from "../../router";
 import { collabMenuItems } from "./collabMenuItems";
 import { useContentCollabBinding } from "./useContentCollabBinding";
+import { useRoomI18n } from "./room.i18n";
 
 const ShareContentSheet = lazy(() =>
   import("./ShareContentSheet").then(module => ({ default: module.ShareContentSheet }))
@@ -28,6 +29,7 @@ export function useContentCollabEntry(
     };
   }
 ) {
+  const context = useRoomI18n();
   const navigator = useNavigator();
   const app = useAppContext();
   const [shareOpen, setShareOpen] = useState(false);
@@ -51,15 +53,18 @@ export function useContentCollabEntry(
     /** 共享结束（或发起面板关闭）后刷新绑定 */
     onCollaborationEnded: retryBinding,
     /** ⋯ 菜单中的协作项（有绑定 → 查看协作；无 → 发起协作） */
-    menuItems: collabMenuItems({
-      contentId: result.status === "unbound" ? contentId : undefined,
-      binding,
-      onStartShare: () => {
-        setShareMounted(true);
-        setShareOpen(true);
+    menuItems: collabMenuItems(
+      {
+        contentId: result.status === "unbound" ? contentId : undefined,
+        binding,
+        onStartShare: () => {
+          setShareMounted(true);
+          setShareOpen(true);
+        },
+        onOpenBinding: documentId => navigator.push("collabEditor", { documentId }),
       },
-      onOpenBinding: documentId => navigator.push("collabEditor", { documentId }),
-    }),
+      context
+    ),
     /** 发起协作面板（懒加载，含未使用协作用户的不加载），渲染在页面根部 */
     shareSheet: shareMounted ? (
       <Suspense fallback={null}>

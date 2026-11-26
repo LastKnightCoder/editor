@@ -5,7 +5,7 @@ import { Check, Loader2, RefreshCw } from "lucide-react";
 import { BottomSheet } from "../../components/BottomSheet";
 import { toast } from "../../components/toast";
 import { useNavigator } from "../../router";
-import { parseInvokeError } from "../../services/errors";
+import { useRoomI18n, roomTranslator, roomFailureText } from "./room.i18n";
 import * as tauri from "../../services/tauri";
 import { CollabCodeCard } from "./components/CollaborationUI";
 import { useCollaborationRuntime } from "./hooks/useCollaborationRuntime";
@@ -27,17 +27,18 @@ export function ShareContentSheet(props: {
   onClose: () => void;
   onError: (error: unknown, fallback: string) => void;
 }) {
+  const { t } = useRoomI18n();
   const navigator = useNavigator();
   const [phase, setPhase] = useState<"sharing" | "done" | "error">("sharing");
   const [result, setResult] = useState<ShareResult>();
-  const [message, setMessage] = useState<string>();
+  const [failure, setFailure] = useState<{ cause: unknown }>();
   const started = useRef(false);
   // 只有打开面板才持有运行时，关闭后的退场组件不再触发启动。
   useCollaborationRuntime(props.open);
 
   const run = async () => {
     setPhase("sharing");
-    setMessage(undefined);
+    setFailure(undefined);
     try {
       const { collaborationManager } = await import("./core/manager");
       props.guard?.();
@@ -65,10 +66,9 @@ export function ShareContentSheet(props: {
       } catch {
         return;
       }
-      const parsed = parseInvokeError(failure);
-      setMessage(parsed.message || "发起协作失败，请稍后重试");
+      setFailure({ cause: failure });
       setPhase("error");
-      props.onError(failure, "发起协作失败");
+      props.onError(failure, roomTranslator.t("share.failed"));
     }
   };
 
@@ -88,34 +88,36 @@ export function ShareContentSheet(props: {
     if (!result) return;
     void window.navigator.clipboard
       .writeText(result.code)
-      .then(() => toast.success("协作码已复制"))
-      .catch(() => toast.warning("复制失败"));
+      .then(() => toast.success(roomTranslator.t("code.copied")))
+      .catch(() => toast.warning(roomTranslator.t("code.copyFailed")));
   };
 
   return (
-    <BottomSheet open={props.open} title="发起协作" onClose={props.onClose}>
+    <BottomSheet open={props.open} title={t("share.title")} onClose={props.onClose}>
       {phase === "sharing" ? (
         <div className="flex flex-col items-center pt-4 pb-2">
           <Loader2 size={34} className="text-accent animate-spin" />
-          <p className="text-ink-1 mt-4 text-[16px] font-extrabold">正在创建协作房间…</p>
+          <p className="text-ink-1 mt-4 text-[16px] font-extrabold">{t("share.creating")}</p>
           <p className="text-ink-2 mt-2 text-center text-[12.5px] leading-relaxed">
-            正在把「{props.title}」发布到协作服务器
+            {t("share.uploading", { title: props.title })}
             <br />
-            白板、数据库等私有块保留在本机，不会上传
+            {t("share.private")}
           </p>
         </div>
       ) : null}
 
       {phase === "error" ? (
         <div className="flex flex-col items-center pt-4 pb-2">
-          <p className="text-ink-1 text-[16px] font-extrabold">发起协作失败</p>
-          <p className="text-ink-2 mt-2 text-center text-[12.5px] leading-relaxed">{message}</p>
+          <p className="text-ink-1 text-[16px] font-extrabold">{t("share.failed")}</p>
+          <p className="text-ink-2 mt-2 text-center text-[12.5px] leading-relaxed" role="alert">
+            {failure ? roomFailureText(failure.cause, "share.failureHint") : t("share.failureHint")}
+          </p>
           <button
             type="button"
             onClick={() => void run()}
             className="bg-page text-ink-2 mt-5 flex items-center gap-2 rounded-full px-6 py-3 text-[14px] font-bold"
           >
-            <RefreshCw size={16} /> 重试
+            <RefreshCw size={16} /> {t("share.retry")}
           </button>
         </div>
       ) : null}
@@ -125,17 +127,15 @@ export function ShareContentSheet(props: {
           <div className="bg-tag-1-soft text-tag-1 mx-auto grid h-[60px] w-[60px] place-items-center rounded-full">
             <Check size={30} strokeWidth={2.6} />
           </div>
-          <p className="text-ink-1 mt-3.5 text-center text-[17px] font-extrabold">已开启协作</p>
-          <p className="text-ink-2 mt-1 text-center text-[12px]">
-            把协作码发给伙伴，对方申请后由你批准
+          <p className="text-ink-1 mt-3.5 text-center text-[17px] font-extrabold">
+            {t("share.done")}
           </p>
+          <p className="text-ink-2 mt-1 text-center text-[12px]">{t("share.invite")}</p>
           <div className="mt-4">
             <CollabCodeCard code={result.code} expiresAt={result.expiresAt} onCopy={copy} />
           </div>
           <div className="bg-page text-ink-2 mt-3.5 flex gap-2.5 rounded-[14px] px-3.5 py-3 text-[11.5px] leading-relaxed">
-            <span className="flex-1">
-              本卡片已切换为协作模式 · 编辑实时同步 · 你是作者，可随时在成员管理中结束共享
-            </span>
+            <span className="flex-1">{t("share.ownerHint")}</span>
           </div>
           <button
             type="button"
@@ -145,7 +145,7 @@ export function ShareContentSheet(props: {
             }}
             className="border-line-1 text-ink-1 mt-3.5 w-full rounded-full border-[1.6px] py-3 text-[14px] font-bold"
           >
-            进入协作编辑
+            {t("share.enter")}
           </button>
         </>
       ) : null}

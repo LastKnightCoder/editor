@@ -288,6 +288,8 @@ P6A3-D2B脑图/剪贴板：7路径工程完成；5文件36例、包type/白板�
 
 P5 MCP列表/快捷入口：11路径加Root Toast4工程完成；插件MCP真实Host/registry/store及配置解析24例、Toast12例通过，desktop/UI类型及desktop构建、三语/插值/复数/范围静态格式通过。已有插件场景新增真实换语契约，保留搜索DOM/焦点/选区、卡片与工具注册集合、providerStates引用，之后原ID启停仍生效。纯statusText旧签名/TSX导出消费者迁完退休，UI不把译文存进MCP模型；详情/表单/内置目录显示继续下一批。
 
+P6B手机房间/成员/退出：17路径工程完成；既有editor13/share guard3与真实locale7共23例通过，mobile类型/构建、room91语义key三语参数与范围格式/静态通过（保留原7条fast-refresh warning）。真实多持有者按页面顺序挂载后验证notice仅消费一次，换语不重放通知/启动错误、不多start/retain/release；确认/菜单/邀请码与Share guard保留原target/title/content/banner/source/expectedRef，未知诊断与默认昵称数据不改。历史独立子批继续。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

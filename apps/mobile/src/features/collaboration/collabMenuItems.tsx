@@ -4,18 +4,23 @@ import { UserCheck, UserPlus } from "lucide-react";
 import type { ActionSheetItem } from "../../components/ActionSheet";
 import type { CollaborationBinding } from "../../types";
 import { CollabTrailingStatus } from "./CollabTrailingStatus";
+import type { RoomLocale } from "./room.i18n";
 
-export function collabMenuItems(options: {
-  contentId?: number | null;
-  binding: CollaborationBinding | null;
-  onStartShare: () => void;
-  onOpenBinding: (documentId: string) => void;
-}): ActionSheetItem[] {
+export function collabMenuItems(
+  options: {
+    contentId?: number | null;
+    binding: CollaborationBinding | null;
+    onStartShare: () => void;
+    onOpenBinding: (documentId: string) => void;
+  },
+  { t }: RoomLocale
+): ActionSheetItem[] {
   const { contentId, binding } = options;
   if (binding) {
     return [
       {
-        label: "查看协作",
+        key: "collab.open",
+        label: t("menu.open"),
         icon: <UserCheck size={18} />,
         tone: "apricot",
         trailing: <CollabTrailingStatus documentId={binding.documentId} />,
@@ -28,7 +33,8 @@ export function collabMenuItems(options: {
   }
   return [
     {
-      label: "发起协作",
+      key: "collab.start",
+      label: t("menu.start"),
       icon: <UserPlus size={18} />,
       tone: "apricot",
       onClick: options.onStartShare,

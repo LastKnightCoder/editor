@@ -14,6 +14,7 @@ import { useCollaborationStore } from "./core/store";
 import { sessionStatus } from "./session-status";
 import { Avatar, AvatarStack, StatusDot } from "./components/CollaborationUI";
 import { ApprovalRow } from "./components/ApprovalRow";
+import { useRoomI18n, roomTranslator, roomFailureText } from "./room.i18n";
 
 function SessionRow(props: { session: CollaborationSession; onOpen: () => void }) {
   const context = useCollaborationStatusI18n();
@@ -53,15 +54,16 @@ function SessionRow(props: { session: CollaborationSession; onOpen: () => void }
 
 /** 一个分组（标题 + 会话卡片列表）；「我发起的 / 我加入的」共用 */
 function SessionGroup(props: {
-  title: string;
+  kind: "owned" | "joined";
   sessions: CollaborationSession[];
   onOpen: (documentId: string) => void;
 }) {
+  const { t, locale } = useRoomI18n();
   if (props.sessions.length === 0) return null;
   return (
     <>
       <GroupLabel inset="page" className="font-medium">
-        {props.title} · {props.sessions.length}
+        {t(`group.${props.kind}`)} · {props.sessions.length.toLocaleString(locale)}
       </GroupLabel>
       <div className="bg-surface shadow-card divide-line-2 mx-4 mb-4 divide-y overflow-hidden rounded-[22px]">
         {props.sessions.map(session => (
@@ -76,6 +78,7 @@ export function CollaborationCenterPage(props: {
   onBack: () => void;
   onError: (error: unknown, fallback: string) => void;
 }) {
+  const { t, locale } = useRoomI18n();
   const navigator = useNavigator();
   const scrollRef = useRef<HTMLDivElement>(null);
   useEdgeFade(scrollRef);
@@ -96,9 +99,14 @@ export function CollaborationCenterPage(props: {
     setDecidingId(requestId);
     try {
       await collaborationManager.decideJoinRequest(requestId, approve);
-      toast.success(approve ? `已批准 ${nickname}` : `已拒绝 ${nickname}`);
+      toast.success(
+        roomTranslator.t(approve ? "request.approved" : "request.rejected", { nickname })
+      );
     } catch (failure) {
-      props.onError(failure, approve ? "批准加入失败" : "拒绝加入失败");
+      props.onError(
+        failure,
+        roomTranslator.t(approve ? "request.approveFailed" : "request.rejectFailed")
+      );
     } finally {
       setDecidingId(null);
     }
@@ -107,19 +115,19 @@ export function CollaborationCenterPage(props: {
   return (
     <div className="mobile-kb-screen bg-page flex h-full flex-col">
       <PageHeader
-        title="协作"
+        title={t("center.title")}
         onBack={props.onBack}
         actions={
           <>
             <PageHeaderButton
               icon={<Settings size={20} />}
-              aria-label="协作设置"
+              aria-label={t("center.settings")}
               onClick={() => navigator.push("settingsModule", { module: "collaboration" })}
             />
             <PageHeaderButton
               variant="brand"
               icon={<UserPlus size={20} />}
-              aria-label="加入协作"
+              aria-label={t("center.join")}
               onClick={() => navigator.push("joinSheet")}
             />
           </>
@@ -141,7 +149,7 @@ export function CollaborationCenterPage(props: {
               <span className="text-ink-1 text-[15.5px] font-extrabold">{nickname}</span>
               {status === "starting" ? (
                 <span className="text-ink-3 flex items-center gap-1 text-[11px]">
-                  <Loader2 size={11} className="animate-spin" /> 连接中
+                  <Loader2 size={11} className="animate-spin" /> {t("connection.starting")}
                 </span>
               ) : null}
             </span>
@@ -149,7 +157,11 @@ export function CollaborationCenterPage(props: {
               {serverUrl.replace(/^https?:\/\//, "")}
               {" · "}
               <span className={status === "ready" ? "text-tag-1" : "text-tag-5"}>
-                {status === "ready" ? "已连接" : status === "error" ? "连接异常" : "未连接"}
+                {status === "ready"
+                  ? t("connection.ready")
+                  : status === "error"
+                    ? t("connection.error")
+                    : t("connection.idle")}
               </span>
             </span>
           </span>
@@ -158,14 +170,14 @@ export function CollaborationCenterPage(props: {
 
         {error ? (
           <div className="bg-tag-5-soft text-tag-5 mx-4 mb-4 rounded-[16px] px-4 py-3 text-[12.5px] leading-relaxed">
-            {error}
+            {roomFailureText(error, "center.error")}
           </div>
         ) : null}
 
         {requests.length > 0 ? (
           <>
             <GroupLabel inset="page" tone="warn" className="font-medium">
-              待审批 · {requests.length}
+              {t("center.pending")} · {requests.length.toLocaleString(locale)}
             </GroupLabel>
             <div className="bg-surface shadow-card divide-line-2 mx-4 mb-4 divide-y overflow-hidden rounded-[22px]">
               {requests.map(request => (
@@ -185,11 +197,11 @@ export function CollaborationCenterPage(props: {
             <span className="bg-accent-soft text-accent grid h-[64px] w-[64px] place-items-center rounded-[22px]">
               <UserPlus size={28} strokeWidth={1.8} />
             </span>
-            <p className="text-ink-1 mt-5 text-[16px] font-extrabold">还没有协作</p>
+            <p className="text-ink-1 mt-5 text-[16px] font-extrabold">{t("center.empty")}</p>
             <p className="text-ink-2 mt-2 text-[13px] leading-relaxed">
-              输入伙伴分享的协作码加入，
+              {t("center.emptyJoin")}
               <br />
-              或从卡片详情发起共享
+              {t("center.emptyShare")}
             </p>
             <button
               type="button"
@@ -197,18 +209,18 @@ export function CollaborationCenterPage(props: {
               className="shadow-lift text-ink-inverse mt-6 rounded-full px-7 py-3 text-[14px] font-extrabold active:scale-[0.97]"
               style={{ background: "var(--tau-accent)" }}
             >
-              加入协作
+              {t("center.join")}
             </button>
           </div>
         ) : (
           <>
             <SessionGroup
-              title="我发起的"
+              kind="owned"
               sessions={owned}
               onOpen={documentId => navigator.push("collabEditor", { documentId })}
             />
             <SessionGroup
-              title="我加入的"
+              kind="joined"
               sessions={joined}
               onOpen={documentId => navigator.push("collabEditor", { documentId })}
             />

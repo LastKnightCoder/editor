@@ -2,6 +2,7 @@ import { useCollaborationStatusI18n, sessionStatusText } from "./status.i18n";
 // 成员管理：协作码卡置顶，向下依次为待审批、成员、危险操作。
 // 单列滚动一屏管完一个房间，复制码零跳步。
 import { useState } from "react";
+import { useRoomI18n, roomTranslator } from "./room.i18n";
 import { LogOut, Trash2 } from "lucide-react";
 import type { JoinRequest, Member } from "@tau/collaboration";
 import { BottomSheet } from "../../components/BottomSheet";
@@ -20,12 +21,10 @@ import { ApprovalRow } from "./components/ApprovalRow";
 import { CollabCodeCard, MemberRow, StatusBadge } from "./components/CollaborationUI";
 import { useStableSessionStatus } from "./session-status";
 
-type PendingConfirm = {
-  title: string;
-  description?: string;
-  confirmText: string;
-  action: () => Promise<void>;
-};
+type PendingConfirm = { action: () => Promise<void> } & (
+  | { kind: "remove"; target: Member }
+  | { kind: "leave"; owner: boolean }
+);
 
 export function MemberManageSheet(props: {
   documentId: string;
@@ -36,6 +35,8 @@ export function MemberManageSheet(props: {
   onError: (error: unknown, fallback: string) => void;
 }) {
   const context = useCollaborationStatusI18n();
+  const roomContext = useRoomI18n();
+  const { t, locale } = roomContext;
   const session = useCollaborationStore(state =>
     state.sessions.find(item => item.id === props.documentId)
   );
@@ -49,6 +50,15 @@ export function MemberManageSheet(props: {
   );
   const [confirming, setConfirming] = useState<PendingConfirm>();
 
+  const confirmView = confirming
+    ? confirming.kind === "remove"
+      ? {
+          title: t("member.removeTitle", { nickname: confirming.target.nickname }),
+          description: t("member.removeHint"),
+          confirmText: t("member.remove"),
+        }
+      : leaveCollabText(confirming.owner, roomContext)
+    : undefined;
   const status = useStableSessionStatus(session);
   const isOwner = session?.role === "owner";
   const members: Member[] = session?.members ?? [];
@@ -61,9 +71,9 @@ export function MemberManageSheet(props: {
       props.guard?.();
       writeCachedInvitation(props.documentId, result);
       setInvitation(result);
-      toast.success("已生成新的协作码");
+      toast.success(roomTranslator.t("code.generated"));
     } catch (failure) {
-      props.onError(failure, "生成协作码失败");
+      props.onError(failure, roomTranslator.t("code.failed"));
     } finally {
       setBusy(false);
     }
@@ -73,8 +83,8 @@ export function MemberManageSheet(props: {
     if (!invitation) return;
     void window.navigator.clipboard
       .writeText(invitation.code)
-      .then(() => toast.success("协作码已复制"))
-      .catch(() => toast.warning("复制失败"));
+      .then(() => toast.success(roomTranslator.t("code.copied")))
+      .catch(() => toast.warning(roomTranslator.t("code.copyFailed")));
   };
 
   const decide = async (request: JoinRequest, approve: boolean) => {
@@ -83,9 +93,16 @@ export function MemberManageSheet(props: {
       props.guard?.();
       await collaborationManager.decideJoinRequest(request.id, approve);
       props.guard?.();
-      toast.success(approve ? `已批准 ${request.nickname}` : `已拒绝 ${request.nickname}`);
+      toast.success(
+        roomTranslator.t(approve ? "request.approved" : "request.rejected", {
+          nickname: request.nickname,
+        })
+      );
     } catch (failure) {
-      props.onError(failure, approve ? "批准加入失败" : "拒绝加入失败");
+      props.onError(
+        failure,
+        roomTranslator.t(approve ? "request.approveFailed" : "request.rejectFailed")
+      );
     } finally {
       setBusy(false);
     }
@@ -101,7 +118,7 @@ export function MemberManageSheet(props: {
       props.guard?.();
       setConfirming(undefined);
     } catch (failure) {
-      props.onError(failure, "操作失败");
+      props.onError(failure, roomTranslator.t("error.operation"));
     } finally {
       setBusy(false);
     }
@@ -112,7 +129,7 @@ export function MemberManageSheet(props: {
     // 弹栈请求；普通返回由路由直接弹出 overlay（见 memberSheet.page）。
     <BottomSheet
       open
-      title="共享与成员"
+      title={t("member.title")}
       onClose={props.onClose}
       backDismiss={props.backDismiss ?? false}
     >
@@ -132,7 +149,7 @@ export function MemberManageSheet(props: {
             </StatusBadge>
           </div>
         ) : (
-          <p className="text-ink-2 mb-3 text-center text-[12.5px]">该协作已不在你的列表中</p>
+          <p className="text-ink-2 mb-3 text-center text-[12.5px]">{t("member.missing")}</p>
         )}
 
         {isOwner ? (
@@ -148,7 +165,7 @@ export function MemberManageSheet(props: {
         {requests.length > 0 ? (
           <>
             <GroupLabel inset="sheet" tone="warn" className="font-bold">
-              待审批 · {requests.length}
+              {t("center.pending")} · {requests.length.toLocaleString(locale)}
             </GroupLabel>
             <div className="bg-tag-4-soft rounded-[18px] px-3.5">
               {requests.map(request => (
@@ -156,7 +173,7 @@ export function MemberManageSheet(props: {
                   key={request.id}
                   request={request}
                   busy={busy}
-                  hint="凭协作码申请"
+                  hint={t("member.fromCode")}
                   onDecide={approve => void decide(request, approve)}
                 />
               ))}
@@ -165,7 +182,7 @@ export function MemberManageSheet(props: {
         ) : null}
 
         <GroupLabel inset="sheet" className="font-bold">
-          成员 · {members.length}
+          {t("member.members")} · {members.length.toLocaleString(locale)}
         </GroupLabel>
         <div className="divide-line-2 divide-y">
           {members.map(member => (
@@ -178,15 +195,16 @@ export function MemberManageSheet(props: {
                 isOwner
                   ? target =>
                       setConfirming({
-                        title: `移除 ${target.nickname}？`,
-                        description: "该设备将立即失去访问权限，其已保存的内容不受影响。",
-                        confirmText: "移除",
+                        kind: "remove",
+                        target,
                         action: async () => {
                           await collaborationManager.removeMember(
                             props.documentId,
                             target.deviceId
                           );
-                          toast.success(`已移除 ${target.nickname}`);
+                          toast.success(
+                            roomTranslator.t("member.removed", { nickname: target.nickname })
+                          );
                         },
                       })
                   : undefined
@@ -200,11 +218,9 @@ export function MemberManageSheet(props: {
             <button
               type="button"
               onClick={() => {
-                const text = leaveCollabText(true);
                 setConfirming({
-                  title: text.title,
-                  description: text.description,
-                  confirmText: text.confirmText,
+                  kind: "leave",
+                  owner: true,
                   action: async () => {
                     await runLeaveCollab(
                       documentId => collaborationManager.leave(documentId),
@@ -217,17 +233,15 @@ export function MemberManageSheet(props: {
               }}
               className="text-tag-5 flex w-full items-center justify-center gap-2 py-3.5 text-[14px] font-bold"
             >
-              <Trash2 size={16} /> 结束共享并清空云端数据
+              <Trash2 size={16} /> {t("leave.owner.label")}
             </button>
           ) : (
             <button
               type="button"
               onClick={() => {
-                const text = leaveCollabText(false);
                 setConfirming({
-                  title: text.title,
-                  description: text.description,
-                  confirmText: text.confirmText,
+                  kind: "leave",
+                  owner: false,
                   action: async () => {
                     await runLeaveCollab(
                       documentId => collaborationManager.leave(documentId),
@@ -240,7 +254,7 @@ export function MemberManageSheet(props: {
               }}
               className="text-tag-5 flex w-full items-center justify-center gap-2 py-3.5 text-[14px] font-bold"
             >
-              <LogOut size={16} /> 退出协作
+              <LogOut size={16} /> {t("leave.member.confirm")}
             </button>
           )}
         </div>
@@ -250,9 +264,9 @@ export function MemberManageSheet(props: {
         open={Boolean(confirming)}
         danger
         loading={busy}
-        title={confirming?.title ?? ""}
-        description={confirming?.description}
-        confirmText={confirming?.confirmText}
+        title={confirmView?.title ?? ""}
+        description={confirmView?.description}
+        confirmText={confirmView?.confirmText}
         onCancel={() => setConfirming(undefined)}
         onConfirm={() => void runConfirmed()}
       />

@@ -5,6 +5,7 @@ import { Check, Copy, RefreshCw, UserMinus } from "lucide-react";
 import type { Member } from "@tau/collaboration";
 import { memberColor } from "@tau/collaboration/src/palette";
 import type { SessionTone } from "../session-status";
+import { useRoomI18n } from "../room.i18n";
 
 export function avatarInitial(name?: string) {
   const trimmed = (name ?? "").trim();
@@ -104,12 +105,14 @@ export function StatusBadge(props: { tone: SessionTone; children: ReactNode }) {
 }
 
 /** 成员活动文案：作者显示徽章，其余按在线活动展示 */
-export function memberActivity(member: Member) {
-  if (member.role === "owner") return "作者";
-  if (!member.online) return "离线";
-  if (member.activity === "editing") return "编辑中";
-  if (member.activity === "viewing") return "查看中";
-  return "在线";
+export function memberActivityKey(
+  member: Member
+): "owner" | "offline" | "editing" | "viewing" | "online" {
+  if (member.role === "owner") return "owner";
+  if (!member.online) return "offline";
+  if (member.activity === "editing") return "editing";
+  if (member.activity === "viewing") return "viewing";
+  return "online";
 }
 
 export function memberActivityClass(member: Member) {
@@ -126,6 +129,7 @@ export function MemberRow(props: {
   onRemove?: (member: Member) => void;
   removeDisabled?: boolean;
 }) {
+  const { t } = useRoomI18n();
   const { member } = props;
   const isSelf = Boolean(props.selfId && member.deviceId === props.selfId);
   return (
@@ -143,18 +147,20 @@ export function MemberRow(props: {
           >
             {member.nickname}
           </span>
-          {isSelf ? <span className="text-ink-3 text-[11px] font-medium">（你）</span> : null}
+          {isSelf ? (
+            <span className="text-ink-3 text-[11px] font-medium">{t("member.self")}</span>
+          ) : null}
         </div>
       </div>
       <span
         className={`shrink-0 rounded-full px-2.5 py-[3px] text-[11px] font-bold ${memberActivityClass(member)}`}
       >
-        {memberActivity(member)}
+        {t(`activity.${memberActivityKey(member)}`)}
       </span>
       {props.onRemove && member.role !== "owner" && !isSelf ? (
         <button
           type="button"
-          aria-label={`移除 ${member.nickname}`}
+          aria-label={t("member.removeLabel", { nickname: member.nickname })}
           disabled={props.removeDisabled}
           onClick={() => props.onRemove?.(member)}
           className="text-tag-5/75 active:bg-tag-5-soft grid h-8 w-8 place-items-center rounded-full disabled:opacity-40"
@@ -174,6 +180,7 @@ export function CollabCodeCard(props: {
   onCopy?: () => void;
   onRotate?: () => void;
 }) {
+  const { t, locale } = useRoomI18n();
   const code = props.code;
   const groups = code ? [code.slice(0, 4), code.slice(4, 8), code.slice(8, 12)] : undefined;
   const remainDays = props.expiresAt
@@ -183,10 +190,12 @@ export function CollabCodeCard(props: {
     <div className="bg-surface shadow-card rounded-[20px] p-4">
       <div className="mb-2.5 flex items-center">
         <span className="text-ink-2 flex-1 text-[12px] font-bold tracking-[0.06em]">
-          协作码 · 分享给伙伴加入
+          {t("code.title")}
         </span>
         <span className="text-ink-3 text-[11px]">
-          {remainDays ? `${remainDays} 天后过期` : "7 天有效"}
+          {remainDays
+            ? t("code.expires", { count: remainDays, amount: remainDays.toLocaleString(locale) })
+            : t("code.valid")}
         </span>
       </div>
       <div className="text-ink-1 flex justify-center gap-2 font-mono text-[21px] font-extrabold tracking-[0.04em]">
@@ -210,7 +219,7 @@ export function CollabCodeCard(props: {
             className="shadow-lift text-ink-inverse flex flex-[1.6] items-center justify-center gap-2 rounded-full py-3 text-[13.5px] font-extrabold active:scale-[0.98]"
             style={{ background: "var(--tau-accent)" }}
           >
-            <Copy size={16} /> 复制协作码
+            <Copy size={16} /> {t("code.copy")}
           </button>
         ) : (
           <button
@@ -220,7 +229,7 @@ export function CollabCodeCard(props: {
             className="shadow-lift text-ink-inverse flex flex-[1.6] items-center justify-center gap-2 rounded-full py-3 text-[13.5px] font-extrabold disabled:opacity-50"
             style={{ background: "var(--tau-accent)" }}
           >
-            <Check size={16} /> 生成协作码
+            <Check size={16} /> {t("code.generate")}
           </button>
         )}
         {code ? (
@@ -230,13 +239,11 @@ export function CollabCodeCard(props: {
             onClick={props.onRotate}
             className="bg-page text-ink-2 flex flex-1 items-center justify-center gap-1.5 rounded-full py-3 text-[13px] font-bold disabled:opacity-50"
           >
-            <RefreshCw size={15} /> 轮换
+            <RefreshCw size={15} /> {t("code.rotate")}
           </button>
         ) : null}
       </div>
-      <p className="text-ink-3 mt-2.5 text-center text-[10.5px]">
-        轮换后旧码立即失效 · 新码 7 天有效 · 成员上限 10 人
-      </p>
+      <p className="text-ink-3 mt-2.5 text-center text-[10.5px]">{t("code.hint")}</p>
     </div>
   );
 }
