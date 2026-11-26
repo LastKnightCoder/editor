@@ -25,6 +25,8 @@ import {
   useMarkdownWindowPrefs,
 } from "./markdownWindowPrefs";
 
+import { useMarkdownTreeI18n } from "./tree.i18n";
+
 const MENU_ICON = "size-[15px] shrink-0";
 
 /** 左侧栏（落在 page 底上）：文件夹头 · 筛选 · 文件树；右缘 ResizeHandle 拖宽，双击回默认 */
@@ -50,6 +52,7 @@ export function FileSidebar({
   /** 页面借此在打开文件时展开到该文件 */
   treeApiRef: React.MutableRefObject<{ reveal(path: string): void } | null>;
 }) {
+  const { t } = useMarkdownTreeI18n();
   const { revealInFileManagerLabel } = usePlatformLabels();
   const showAll = useMarkdownWindowPrefs(s => s.showAllFiles);
   const toggleShowAll = useMarkdownWindowPrefs(s => s.toggleShowAllFiles);
@@ -77,16 +80,20 @@ export function FileSidebar({
         <span className="min-w-0 flex-1 truncate" title={rootPath}>
           {baseName(rootPath)}
         </span>
-        <IconButton className="size-6" title="新建文件 (⌘N)" onClick={() => create("file")}>
+        <IconButton
+          className="size-6"
+          title={t("tree.newFileShortcut")}
+          onClick={() => create("file")}
+        >
           <FilePlus size={14} strokeWidth={1.75} />
         </IconButton>
-        <IconButton className="size-6" title="新建文件夹" onClick={() => create("folder")}>
+        <IconButton className="size-6" title={t("tree.newFolder")} onClick={() => create("folder")}>
           <FolderPlus size={14} strokeWidth={1.75} />
         </IconButton>
         <Menu
           align="end"
           trigger={
-            <IconButton className="size-6" title="更多" aria-label="更多">
+            <IconButton className="size-6" title={t("tree.more")} aria-label={t("tree.more")}>
               <MoreHorizontal size={14} strokeWidth={1.75} />
             </IconButton>
           }
@@ -95,14 +102,14 @@ export function FileSidebar({
             icon={<RefreshCw className={MENU_ICON} strokeWidth={1.75} />}
             onSelect={() => void tree.reload()}
           >
-            刷新
+            {t("tree.refresh")}
           </Menu.Item>
           <Menu.CheckboxItem
             icon={<Eye className={MENU_ICON} strokeWidth={1.75} />}
             checked={showAll}
             onCheckedChange={toggleShowAll}
           >
-            显示所有文件
+            {t("tree.showAll")}
           </Menu.CheckboxItem>
           <Menu.Separator />
           <Menu.Item
@@ -115,7 +122,7 @@ export function FileSidebar({
             icon={<FolderInput className={MENU_ICON} strokeWidth={1.75} />}
             onSelect={onOpenFolder}
           >
-            打开其它文件夹…
+            {t("tree.otherFolder")}
           </Menu.Item>
         </Menu>
       </div>
@@ -126,11 +133,11 @@ export function FileSidebar({
           value={query}
           onChange={event => setQuery(event.target.value)}
           onKeyDown={event => event.key === "Escape" && setQuery("")}
-          placeholder="筛选文件 / 文件夹…"
+          placeholder={t("tree.filter")}
           className="text-ink-1 placeholder:text-ink-3 min-w-0 flex-1 bg-transparent outline-none"
         />
         {query && (
-          <button type="button" onClick={() => setQuery("")} aria-label="清除筛选">
+          <button type="button" onClick={() => setQuery("")} aria-label={t("tree.clearFilter")}>
             <X className="size-3" strokeWidth={1.75} />
           </button>
         )}
@@ -139,12 +146,12 @@ export function FileSidebar({
       <FadeScroll className="min-h-0 flex-1 pl-1">
         {tree.rows.length === 0 && (
           <p className="text-tau-meta text-ink-3 px-2 py-3">
-            {tree.loading ? "加载中…" : query ? "没有匹配的文件" : "文件夹是空的"}
+            {tree.loading ? t("tree.loading") : query ? t("tree.noMatch") : t("tree.empty")}
           </p>
         )}
         {tree.truncated && (
           <p className="text-tau-meta text-ink-3 px-2 pb-1">
-            结果过多，仅显示前 {FILTER_ROW_LIMIT} 行，请输入更具体的关键词
+            {t("tree.limit", { count: FILTER_ROW_LIMIT })}
           </p>
         )}
         <FileTree
@@ -167,7 +174,7 @@ export function FileSidebar({
         max={SIDEBAR_MAX_WIDTH}
         onChange={setSidebarWidth}
         side="left"
-        label="侧栏宽度"
+        label={t("tree.sidebarWidth")}
         defaultValue={SIDEBAR_DEFAULT_WIDTH}
         className="absolute top-0 -right-1 bottom-0"
       />

@@ -1,4 +1,4 @@
-import { usePlatformLabels } from "@/platform/i18n";
+import { getPlatformLabels, usePlatformLabels } from "@/platform/i18n";
 import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from "react";
 import {
   ChevronRight,
@@ -30,6 +30,15 @@ import {
 import { getFileCategory } from "../fileTypes";
 import { baseName, dirName, invalidFileName, isWithin, joinPath, splitExtension } from "../paths";
 import type { TreeRow } from "./useFileTree";
+
+import {
+  useMarkdownTreeI18n,
+  markdownTreeTranslator,
+  markdownTreeFeedback,
+  treeErrorText,
+  nameFailureText,
+  type NameFailure,
+} from "../tree.i18n";
 
 const DRAG_TYPE = "application/x-tau-md-path";
 const ICON = "size-[15px] shrink-0";
@@ -64,8 +73,6 @@ function fileIcon(name: string) {
   }
 }
 
-const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
-
 /**
  * 文件树：行内新建 / 重命名（Enter 确认、Esc 取消、非法名原地提示）、右键菜单、拖拽移动、
  * 移到回收站；行上 F2 重命名（删除不设快捷键，只走右键菜单，防误删）。
@@ -94,6 +101,7 @@ export function FileTree({
   refreshDir(dir: string): Promise<void>;
   handlers: FileTreeHandlers;
 }) {
+  const { t } = useMarkdownTreeI18n();
   const { trashName, revealInFileManagerLabel } = usePlatformLabels();
   const [editing, setEditing] = useState<Editing | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
@@ -110,18 +118,18 @@ export function FileTree({
     setEditing({ mode, dir });
   };
 
-  /** 提交行内输入；返回错误文案（留在输入态）或 null（完成） */
-  const commit = async (value: string): Promise<string | null> => {
+  /** 提交行内输入；返回原始失败（留在输入态）或 null（完成） */
+  const commit = async (value: string): Promise<NameFailure | null> => {
     if (!editing) return null;
     const name = value.trim();
     const invalid = invalidFileName(name);
-    if (invalid) return invalid;
+    if (invalid) return { kind: "name", issue: invalid };
     try {
       if (editing.mode === "rename") {
         const from = editing.path;
         if (name === baseName(from)) return null;
         const to = joinPath(dirName(from), name);
-        if (await pathExists(to)) return "已存在同名文件或文件夹";
+        if (await pathExists(to)) return { kind: "exists" };
         await handlers.beforeMutate(from);
         await renameFileOrDirectory(from, to);
         handlers.onMoved(from, to);
@@ -131,7 +139,7 @@ export function FileTree({
       const fileName =
         editing.mode === "create-file" && !splitExtension(name).ext ? `${name}.md` : name;
       const target = joinPath(editing.dir, fileName);
-      if (await pathExists(target)) return "已存在同名文件或文件夹";
+      if (await pathExists(target)) return { kind: "exists" };
       if (editing.mode === "create-file") await createTextFileExclusive(target, "");
       else await createDir(target);
       await refreshDir(editing.dir);
@@ -143,7 +151,7 @@ export function FileTree({
       }
       return null;
     } catch (error) {
-      return errorText(error);
+      return { kind: "operation", cause: error };
     }
   };
 
@@ -153,9 +161,12 @@ export function FileTree({
       await trashItem(path);
       handlers.onRemoved(path);
       await refreshDir(dirName(path));
-      toast.success(`已将「${baseName(path)}」移到${trashName}`);
+      const name = baseName(path);
+      const getMessage = () =>
+        markdownTreeTranslator.t("tree.trashed", { name, trash: getPlatformLabels().trashName });
+      toast.success(getMessage(), { getMessage });
     } catch (error) {
-      toast.error(`删除失败：${errorText(error)}`);
+      toast.error(...markdownTreeFeedback("tree.deleteFailed", { reason: treeErrorText(error) }));
     }
   };
 
@@ -163,7 +174,7 @@ export function FileTree({
     const to = joinPath(targetDir, baseName(from));
     try {
       if (await pathExists(to)) {
-        toast.error(`「${baseName(targetDir)}」中已有同名项目`);
+        toast.error(...markdownTreeFeedback("tree.moveExists", { name: baseName(targetDir) }));
         return;
       }
       await handlers.beforeMutate(from);
@@ -172,7 +183,7 @@ export function FileTree({
       await Promise.all([refreshDir(dirName(from)), refreshDir(targetDir)]);
       if (targetDir !== rootPath) toggle(targetDir, true);
     } catch (error) {
-      toast.error(`移动失败：${errorText(error)}`);
+      toast.error(...markdownTreeFeedback("tree.moveFailed", { reason: treeErrorText(error) }));
     }
   };
 
@@ -205,8 +216,14 @@ export function FileTree({
     },
   });
 
-  const copyText = (text: string, label: string) =>
-    void navigator.clipboard.writeText(text).then(() => toast.success(`已复制${label}`));
+  const copyText = (text: string, kind: "path" | "relative") =>
+    void navigator.clipboard
+      .writeText(text)
+      .then(() =>
+        toast.success(
+          ...markdownTreeFeedback(kind === "path" ? "tree.copiedPath" : "tree.copiedRelative")
+        )
+      );
 
   const menuFor = (row: TreeRow) => {
     const dir = row.isDirectory ? row.path : dirName(row.path);
@@ -217,13 +234,13 @@ export function FileTree({
           icon={<FilePlus className={MENU_ICON} strokeWidth={1.75} />}
           onSelect={() => startCreate("create-file", dir)}
         >
-          新建文件
+          {t("tree.newFile")}
         </Menu.Item>
         <Menu.Item
           icon={<FolderPlus className={MENU_ICON} strokeWidth={1.75} />}
           onSelect={() => startCreate("create-folder", dir)}
         >
-          新建文件夹
+          {t("tree.newFolder")}
         </Menu.Item>
         <Menu.Separator />
         <Menu.Item
@@ -231,19 +248,19 @@ export function FileTree({
           kbd="F2"
           onSelect={() => setEditing({ mode: "rename", path: row.path })}
         >
-          重命名
+          {t("tree.rename")}
         </Menu.Item>
         <Menu.Item
           icon={<Copy className={MENU_ICON} strokeWidth={1.75} />}
-          onSelect={() => copyText(row.path, "路径")}
+          onSelect={() => copyText(row.path, "path")}
         >
-          复制路径
+          {t("tree.copyPath")}
         </Menu.Item>
         <Menu.Item
           icon={<Link className={MENU_ICON} strokeWidth={1.75} />}
-          onSelect={() => copyText(relative, "相对路径")}
+          onSelect={() => copyText(relative, "relative")}
         >
-          复制相对路径
+          {t("tree.copyRelative")}
         </Menu.Item>
         <Menu.Item
           icon={<ExternalLink className={MENU_ICON} strokeWidth={1.75} />}
@@ -257,7 +274,7 @@ export function FileTree({
           icon={<Trash2 className={MENU_ICON} strokeWidth={1.75} />}
           onSelect={() => void trash(row.path)}
         >
-          移到{trashName}
+          {t("tree.moveToTrash", { trash: trashName })}
         </Menu.Item>
       </>
     );
@@ -361,7 +378,7 @@ export function FileTree({
                 {row.path === dirtyPath && !renaming && (
                   <span
                     className="bg-accent ml-auto size-1.5 shrink-0 rounded-full"
-                    title="未保存"
+                    title={t("tree.unsaved")}
                   />
                 )}
               </div>
@@ -384,13 +401,14 @@ function NameInput({
 }: {
   initial: string;
   selectStem?: boolean;
-  onCommit(value: string): Promise<string | null>;
+  onCommit(value: string): Promise<NameFailure | null>;
   onCancel(): void;
   onDone(): void;
 }) {
+  const { t } = useMarkdownTreeI18n();
   const ref = useRef<HTMLInputElement>(null);
   const [value, setValue] = useState(initial);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<NameFailure | null>(null);
   const busy = useRef(false);
 
   useEffect(() => {
@@ -417,7 +435,7 @@ function NameInput({
     <input
       ref={ref}
       value={value}
-      title={error ?? undefined}
+      title={error ? nameFailureText(error, t) : undefined}
       aria-invalid={Boolean(error)}
       onClick={event => event.stopPropagation()}
       onChange={event => {

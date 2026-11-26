@@ -46,9 +46,11 @@ export function rebasePath(path: string, from: string, to: string): string {
 }
 
 /** 文件名合法性：不能为空、不能含路径分隔与 Windows 保留字符、不能是 . / .. */
-export function invalidFileName(name: string): string | null {
-  if (!name.trim()) return "名称不能为空";
-  if (/[\\/:*?"<>|]/.test(name)) return '名称不能包含 \\ / : * ? " < > |';
-  if (name === "." || name === "..") return "名称无效";
+export type FileNameIssue = "empty" | "invalid-characters" | "invalid-name";
+
+export function invalidFileName(name: string): FileNameIssue | null {
+  if (!name.trim()) return "empty";
+  if (/[\\/:*?"<>|]/.test(name)) return "invalid-characters";
+  if (name === "." || name === "..") return "invalid-name";
   return null;
 }

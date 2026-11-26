@@ -362,6 +362,8 @@ Markdown F1十二源加Root copy-service1完成；原3文件35至4文件36例、
 
 影音surface19/selector11共30源完成；surface原4文件10至12/原1skip+实际EditorKit命令1共13pass，selector真实基线1至迁后1pass，desktop types/三语/AST通过。实际命令/插件身份不自动play-pause-capture、原ensure/quote/args保持，getLabel receiver/工具身份不触locale emit；modal/resolver挂起跨语不cancel/analyze/reset，defaultVariant/焦点与原provider/title/cover/url/ref完整。Known native下载失败另DTO闭环，不误归unknown。
 
+Markdown F2九路径完成；原10至11例、desktop type、29key三语及原路径/IO/drag/defaultname对照通过。实际延迟重命名跨语保同NameInput、焦点/光标与单次beforeMutate，目录过滤与路径边界原契约保持。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

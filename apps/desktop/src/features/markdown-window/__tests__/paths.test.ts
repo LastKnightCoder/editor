@@ -45,8 +45,8 @@ describe("paths", () => {
 
   it("校验文件名", () => {
     expect(invalidFileName("好.md")).toBeNull();
-    expect(invalidFileName("  ")).not.toBeNull();
-    expect(invalidFileName("a/b")).not.toBeNull();
-    expect(invalidFileName("..")).not.toBeNull();
+    expect(invalidFileName("  ")).toBe("empty");
+    expect(invalidFileName("a/b")).toBe("invalid-characters");
+    expect(invalidFileName("..")).toBe("invalid-name");
   });
 });
