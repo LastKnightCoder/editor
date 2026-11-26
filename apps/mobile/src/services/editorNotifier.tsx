@@ -125,13 +125,14 @@ export function EditorPromptHost() {
   const settle = useEditorPromptStore(state => state.settle);
   const [shown, setShown] = useState(pending);
   const [value, setValue] = useState("");
-  const [error, setError] = useState<string>();
+  const [invalid, setInvalid] = useState(false);
+  const error = invalid ? shown?.validate?.(value.trim()) : undefined;
 
   // 新请求进来时在渲染期重置草稿，避免先闪一帧上一次的输入
   if (pending && pending !== shown) {
     setShown(pending);
     setValue(pending.defaultValue ?? "");
-    setError(undefined);
+    setInvalid(false);
   }
 
   const trimmed = value.trim();
@@ -139,7 +140,7 @@ export function EditorPromptHost() {
     if (!pending || !trimmed) return;
     const message = pending.validate?.(trimmed);
     if (message) {
-      setError(message);
+      setInvalid(true);
       return;
     }
     settle(trimmed);
@@ -160,7 +161,7 @@ export function EditorPromptHost() {
         aria-invalid={!!error}
         onChange={event => {
           setValue(event.target.value);
-          setError(undefined);
+          setInvalid(false);
         }}
         onKeyDown={event => {
           if (event.key === "Enter" && !event.nativeEvent.isComposing) {

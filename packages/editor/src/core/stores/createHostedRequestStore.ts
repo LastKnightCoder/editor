@@ -32,13 +32,16 @@ export function createHostedRequestStore<TOptions extends object, TResult>(cance
         const abort = () => {
           if (get().pending === pending) get().settle(cancelled);
         };
-        const pending = {
-          ...options,
-          resolve: (result: TResult) => {
-            options.signal?.removeEventListener("abort", abort);
-            resolve(result);
+        const pending = Object.create(Object.getPrototypeOf(options), {
+          ...Object.getOwnPropertyDescriptors(options),
+          resolve: {
+            enumerable: true,
+            value: (result: TResult) => {
+              options.signal?.removeEventListener("abort", abort);
+              resolve(result);
+            },
           },
-        };
+        }) as Pending<TOptions, TResult>;
         options.signal?.addEventListener("abort", abort, { once: true });
         set({ pending });
       }),

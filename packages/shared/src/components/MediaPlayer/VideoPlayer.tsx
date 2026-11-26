@@ -1,3 +1,4 @@
+import { useMediaPlayerI18n } from "./i18n";
 import React, { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@tau/ui";
 import { AnimatePresence, motion } from "motion/react";
@@ -101,6 +102,7 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
     },
     ref
   ) => {
+    const { t } = useMediaPlayerI18n();
     const containerRef = useRef<HTMLDivElement>(null);
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const coarse = useCoarsePointer();
@@ -332,7 +334,10 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
             tapTimerRef.current = undefined;
             const seconds = forward ? DOUBLE_TAP_SEEK_SECONDS : -DOUBLE_TAP_SEEK_SECONDS;
             seek((videoRef.current?.currentTime ?? 0) + seconds);
-            showOsd(`${seconds > 0 ? "+" : "−"}${Math.abs(seconds)} 秒`);
+            showOsd({
+              key: "osd.seek",
+              values: { sign: seconds > 0 ? "+" : "−", count: Math.abs(seconds) },
+            });
           } else {
             lastTapAtRef.current = now;
             window.clearTimeout(tapTimerRef.current);
@@ -570,8 +575,8 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
             {!playing && (
               <button
                 type="button"
-                title="播放 (K)"
-                aria-label="播放"
+                title={t("play.shortcut")}
+                aria-label={t("play")}
                 className="absolute inset-0 grid place-items-center outline-none"
                 onClick={togglePlay}
               >
@@ -668,7 +673,7 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
                 <button
                   key={marker.id}
                   type="button"
-                  aria-label={`跳到 ${formatTime(marker.time)}`}
+                  aria-label={t("jump.time", { time: formatTime(marker.time) })}
                   className="group/marker absolute top-1.5 z-10 grid h-3 w-3.5 -translate-x-1/2 cursor-pointer place-items-center"
                   style={{ left: `${Math.min(1, marker.time / duration) * 100}%` }}
                   onPointerEnter={() => setHoverMarkerId(marker.id)}

@@ -1,0 +1,17 @@
+{
+  "av.audio.title": "Audio title…",
+  "av.audio.uploading": "Uploading audio…",
+  "av.audio.empty": "Empty audio",
+  "av.video.uploading": "Uploading video…",
+  "av.video.empty": "Empty video",
+  "av.chooseFile": "Choose a file to upload",
+  "av.copy.success": "Video URL copied",
+  "av.copy.failed": "Could not copy",
+  "av.video.properties": "Video properties",
+  "av.video.width": "Width {{width}}",
+  "av.video.copyUrl": "Copy video URL",
+  "av.align": "Alignment",
+  "av.align.left": "Align left",
+  "av.align.center": "Center",
+  "av.align.right": "Align right"
+}

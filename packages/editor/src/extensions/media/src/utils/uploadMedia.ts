@@ -1,3 +1,4 @@
+import { editorT } from "../../../../i18n-runtime";
 import { Editor, Transforms } from "slate";
 import { createParagraph, notifierOf } from "@tau/editor/api";
 import { beginMediaSubmission } from "./mediaSubmission";
@@ -14,7 +15,7 @@ export async function uploadMedia(
     let url: string;
     try {
       url = await submission.upload(file);
-      if (!url) throw new Error("上传失败");
+      if (!url) throw new Error(editorT(editor, "editorCommon.uploadFailed"));
     } catch (error) {
       if (submission.check()) return false;
       const outcome = submission.commit(({ element, path }) => {
@@ -31,7 +32,7 @@ export async function uploadMedia(
       });
       if (outcome.status === "committed") {
         console.error("上传媒体失败:", error);
-        notifierOf(editor).error("上传失败");
+        notifierOf(editor).error(editorT(editor, "editorCommon.uploadFailed"));
       }
       return false;
     }

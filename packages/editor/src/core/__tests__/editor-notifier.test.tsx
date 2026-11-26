@@ -1,3 +1,7 @@
+import { createI18nRuntime, createLocaleStore, type I18nRuntime } from "@tau/i18n";
+import { I18nRuntimeProvider } from "@tau/i18n/react";
+import { editorMessages } from "../../i18n-runtime";
+import usePromptStore from "../stores/usePromptStore";
 // 默认提示服务的确认与输入：走编辑器内挂载的 @tau/ui 对话框，绝不落到 window.confirm / window.prompt。
 import { act, createRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -41,7 +45,7 @@ describe("默认确认框", () => {
     document.body.innerHTML = "";
   });
 
-  const mount = async (editors = 1) => {
+  const mount = async (editors = 1, runtimes?: I18nRuntime[]) => {
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -49,17 +53,25 @@ describe("默认确认框", () => {
     await act(async () => {
       root?.render(
         <DndProvider backend={HTML5Backend}>
-          {refs.map((ref, index) => (
-            // 每个编辑器独立的节点副本：Slate 的 node→key 映射是全局 WeakMap，
-            // 跨编辑器共享同一批 node 对象会在 decoration 阶段竞态
-            <Editor
-              key={index}
-              ref={ref}
-              kit={kit}
-              initValue={structuredClone(doc)}
-              readonly={false}
-            />
-          ))}
+          {refs.map((ref, index) => {
+            const content = (
+              <Editor
+                key={index}
+                ref={ref}
+                kit={kit}
+                initValue={structuredClone(doc)}
+                readonly={false}
+              />
+            );
+            const runtime = runtimes?.[index];
+            return runtime ? (
+              <I18nRuntimeProvider key={index} runtime={runtime}>
+                {content}
+              </I18nRuntimeProvider>
+            ) : (
+              content
+            );
+          })}
         </DndProvider>
       );
     });
@@ -145,6 +157,57 @@ describe("默认确认框", () => {
       await act(async () => button("插入").click());
       await expect(result).resolves.toBe("https://example.com/a.png");
       expect(nativePrompt).not.toHaveBeenCalled();
+    });
+
+    it("队首宿主跟随发起者语言，保留校验提示、草稿和请求", async () => {
+      const firstSource = createLocaleStore("zh-CN"),
+        source = createLocaleStore("zh-CN");
+      const first = createI18nRuntime({ localeSource: firstSource }),
+        runtime = createI18nRuntime({ localeSource: source });
+      const { t } = runtime.get(editorMessages);
+      try {
+        const [, editor] = await mount(2, [first, runtime]);
+        let result!: Promise<string | null>;
+        const settled = vi.fn();
+        await act(async () => {
+          result = notifierOf(editor).prompt({
+            get title() {
+              return t("block.image");
+            },
+            validate: value =>
+              value.startsWith("https:") ? undefined : t("editorCommon.providerUrl"),
+          });
+          void result.then(settled);
+        });
+        await type("draft");
+        await act(async () => button(t("editorCommon.ok")).click());
+        const field = input(),
+          pending = usePromptStore.getState().pending;
+        await act(async () => field.focus());
+        field.setSelectionRange(1, 3);
+        for (const locale of ["zh-TW", "en-US"]) {
+          await act(async () => source.setLocale(locale));
+          expect(dialog()?.textContent).toContain(t("block.image"));
+          expect(dialog()?.querySelector('[role="alert"]')?.textContent).toBe(
+            t("editorCommon.providerUrl")
+          );
+          expect(input()).toBe(field);
+          expect(field.value).toBe("draft");
+          expect(document.activeElement).toBe(field);
+          expect([field.selectionStart, field.selectionEnd]).toEqual([1, 3]);
+          expect(usePromptStore.getState().pending).toBe(pending);
+          expect(settled).not.toHaveBeenCalled();
+          expect(firstSource.getSnapshot()).toBe("zh-CN");
+        }
+        await type("https://original.example");
+        await act(async () => button(t("editorCommon.ok")).click());
+        await expect(result).resolves.toBe("https://original.example");
+      } finally {
+        await act(async () => root?.unmount());
+        root = null;
+        first.dispose();
+        runtime.dispose();
+      }
     });
 
     it("校验不通过时保持打开并就地提示，改对后才结算", async () => {

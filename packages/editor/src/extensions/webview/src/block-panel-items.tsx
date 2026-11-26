@@ -1,3 +1,5 @@
+import { I18nRuntimeProvider } from "@tau/i18n/react";
+import { editorRuntime } from "../../../i18n-runtime";
 import { editorT, editorAliases } from "../../../i18n-runtime";
 import type { Editor as LocaleEditor } from "slate";
 import { Editor } from "slate";
@@ -16,19 +18,23 @@ const openInsertWebviewModal = (editor: Editor) => {
 
   const render = (open: boolean) =>
     root.render(
-      <InputUrlModal
-        editor={editor}
-        open={open}
-        onOk={({ url, sourceType }) => {
-          insertWebview(editor, { url, sourceType });
-          render(false);
-        }}
-        onCancel={() => render(false)}
-        onAfterClose={() => {
-          root.unmount();
-          container.remove();
-        }}
-      />
+      <I18nRuntimeProvider runtime={editorRuntime(editor)}>
+        <InputUrlModal
+          editor={editor}
+          open={open}
+          onOk={({ url, sourceType }) => {
+            insertWebview(editor, { url, sourceType });
+            render(false);
+          }}
+          onCancel={() => render(false)}
+          onAfterClose={() => {
+            queueMicrotask(() => {
+              root.unmount();
+              container.remove();
+            });
+          }}
+        />
+      </I18nRuntimeProvider>
     );
 
   render(true);

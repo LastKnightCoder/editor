@@ -1,3 +1,4 @@
+import { useEditorI18n } from "../../../../i18n";
 import { IFileService, IResourceService } from "@tau/shared/host-services";
 import { useRef, useState, useEffect } from "react";
 import { useMemoizedFn } from "ahooks";
@@ -31,6 +32,7 @@ import { normalizeWebviewUrl } from "../utils/url";
 import { webviewActionsMap } from "../menu";
 
 const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
+  const { t } = useEditorI18n();
   const editor = useSlateStatic();
   const { element, children, attributes } = props;
   const { url, height = 400 } = element;
@@ -172,7 +174,7 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
 
   const handleSelectLocalHtml = useMemoizedFn(async () => {
     if (!uploadResource) {
-      notifier.error("当前编辑器未配置上传能力");
+      notifier.error(t("image.web.uploadUnavailable"));
       return;
     }
     const filePaths = await selectFile?.({
@@ -189,7 +191,7 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
     let progress: EditorLoadingHandle | undefined;
     try {
       setLocalUploadLoading(true);
-      progress = notifier.loading("正在上传 HTML 文件…");
+      progress = notifier.loading(t("image.web.uploading"));
       const fileName = getFileBaseName?.(filePath) || "";
       const fileContent = await readTextFile?.(filePath);
       const htmlFile = new File([fileContent as string], fileName, {
@@ -197,7 +199,7 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
       });
       const uploadedUrl = await uploadResource(htmlFile);
       if (!uploadedUrl) {
-        progress.error("上传 HTML 文件失败");
+        progress.error(t("image.web.uploadFailed"));
         return;
       }
       const normalizedUrl = normalizeWebviewUrl(uploadedUrl);
@@ -212,11 +214,11 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
           at: path,
         }
       );
-      progress.success("HTML 文件已插入");
+      progress.success(t("image.web.inserted"));
     } catch (error) {
       console.error("选择 HTML 文件失败:", error);
-      if (progress) progress.error("选择 HTML 文件失败");
-      else notifier.error("选择 HTML 文件失败");
+      if (progress) progress.error(t("image.web.selectionFailed"));
+      else notifier.error(t("image.web.selectionFailed"));
     } finally {
       setLocalUploadLoading(false);
     }
@@ -286,7 +288,7 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
             >
               <button
                 type="button"
-                aria-label="全屏查看"
+                aria-label={t("image.fullscreen")}
                 className="absolute top-2 right-2 grid size-9 place-items-center rounded-full border-none bg-[var(--ed-bg-surface)] text-[var(--ed-text-secondary)] shadow-[var(--ed-shadow-float)]"
                 onClick={event => {
                   event.stopPropagation();
@@ -304,7 +306,7 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
                 }}
               >
                 <MousePointerClick size={14} />
-                点按与网页交互
+                {t("image.web.interact")}
               </button>
             </div>
           )}
@@ -331,9 +333,9 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
         <InputUrlModal
           editor={editor}
           open={editUrlOpen}
-          title="编辑网页地址"
-          subtitle="修改远程网址，或重新上传本地 HTML 文件"
-          okText="保存"
+          title={t("image.web.edit")}
+          subtitle={t("image.web.editDescription")}
+          okText={t("image.save")}
           defaultValue={url}
           defaultSourceType={element.sourceType ?? WebLinkSourceType.REMOTE}
           onOk={handleEditUrlConfirm}

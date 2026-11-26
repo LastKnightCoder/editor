@@ -1,3 +1,4 @@
+import { sourceT } from "./i18n";
 import { Edit3, type LucideIcon } from "lucide-react";
 import React from "react";
 import type { Element } from "slate";
@@ -49,5 +50,11 @@ const previewMenuItems: EditorMenuEntry[] = [
 export const previewMenuExtension = defineExtension({
   id: "tau.preview-menu",
   commands: previewCommands,
-  menu: previewMenuItems,
+  menu: editor =>
+    previewMenuItems.map(item => ({
+      ...item,
+      get title() {
+        return sourceT(editor, "edit");
+      },
+    })),
 });

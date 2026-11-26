@@ -1,3 +1,4 @@
+import { useEditorI18n } from "../../../../../i18n";
 import { useTextFieldBinding } from "@tau/editor/api";
 import { IEditorTextFields } from "@tau/editor/api";
 import React, { PropsWithChildren } from "react";
@@ -16,6 +17,7 @@ interface BlockMathProps {
 }
 
 const BlockMath: React.FC<PropsWithChildren<BlockMathProps>> = props => {
+  const { t } = useEditorI18n();
   const { attributes, element, children } = props;
   const { tex } = element;
   const editor = useSlateStatic();
@@ -40,7 +42,7 @@ const BlockMath: React.FC<PropsWithChildren<BlockMathProps>> = props => {
     >
       <PreviewWithEditor
         mode={"stex"}
-        title="公式"
+        title={t("code.mathTitle")}
         icon={Sigma}
         initValue={bound ? source.value : tex}
         textBinding={source.binding ?? undefined}

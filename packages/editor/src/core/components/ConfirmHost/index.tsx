@@ -1,3 +1,6 @@
+import { useEditorI18nRuntime } from "../../../i18n";
+import { editorMessages, requestRuntime } from "../../../i18n-runtime";
+import { useI18n } from "@tau/i18n/react";
 import { ConfirmDialog } from "@tau/ui";
 import useConfirmStore from "../../stores/useConfirmStore";
 import { useHostedRequestLeader } from "../../stores/createHostedRequestStore";
@@ -8,6 +11,8 @@ import { useHostedRequestLeader } from "../../stores/createHostedRequestStore";
  */
 export default function ConfirmHost() {
   const pending = useConfirmStore(state => state.pending);
+  const inheritedRuntime = useEditorI18nRuntime();
+  const { t } = useI18n(editorMessages, requestRuntime(pending) ?? inheritedRuntime);
   const settle = useConfirmStore(state => state.settle);
   const isLeader = useHostedRequestLeader(useConfirmStore);
 
@@ -21,8 +26,8 @@ export default function ConfirmHost() {
       }}
       title={pending?.title ?? ""}
       description={pending?.description}
-      confirmText={pending?.confirmText ?? "确认"}
-      cancelText={pending?.cancelText ?? "取消"}
+      confirmText={pending?.confirmText ?? t("editorCommon.confirm")}
+      cancelText={pending?.cancelText ?? t("editorCommon.cancel")}
       danger={pending?.danger}
       onConfirm={() => settle(true)}
     />

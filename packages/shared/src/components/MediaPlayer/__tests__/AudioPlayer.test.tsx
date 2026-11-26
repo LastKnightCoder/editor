@@ -1,3 +1,8 @@
+import { createI18nRuntime, createLocaleStore } from "@tau/i18n";
+import { I18nRuntimeProvider } from "@tau/i18n/react";
+import { mediaPlayerMessages } from "../i18n";
+import { MediaOsd } from "../MediaControls";
+import { useOsd } from "../useMediaKeyboard";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -149,4 +154,99 @@ describe("AudioPlayer", () => {
     expect(audio.currentTime).toBe(42);
     expect(play).toHaveBeenCalled();
   });
+});
+
+it("语言切换保留播放器、播放进度与打开的倍速菜单，不重新加载媒体", async () => {
+  const locale = createLocaleStore("zh-CN");
+  const runtime = createI18nRuntime({ localeSource: locale });
+  try {
+    const el = await mount(
+      <I18nRuntimeProvider runtime={runtime}>
+        <AudioPlayer src="stable.m4a" playbackRate={1.25} sourceText="用户原文" />
+      </I18nRuntimeProvider>
+    );
+    const audio = el.querySelector("audio");
+    if (!audio) throw new Error("播放器未挂载");
+    await loadMetadata(audio, 3735);
+    await act(async () => {
+      audio.currentTime = 42;
+      audio.volume = 0.4;
+      audio.dispatchEvent(new Event("timeupdate"));
+      audio.dispatchEvent(new Event("volumechange"));
+      audio.dispatchEvent(new Event("play"));
+    });
+    const source = buttonByText(el, runtime.get(mediaPlayerMessages).t("audio.source"));
+    if (!source) throw new Error("原文入口未挂载");
+    await act(async () => source.click());
+    const menu = el.querySelector<HTMLButtonElement>('button[aria-haspopup="listbox"]');
+    if (!menu) throw new Error("倍速入口未挂载");
+    await act(async () => menu.click());
+    const list = el.querySelector('[role="listbox"]');
+    if (!list) throw new Error("倍速菜单未打开");
+    const selected = list.querySelector('[aria-selected="true"]');
+    const load = vi.spyOn(audio, "load").mockImplementation(() => undefined);
+    const play = vi.spyOn(audio, "play").mockResolvedValue(undefined);
+    const pause = vi.spyOn(audio, "pause").mockImplementation(() => undefined);
+    for (const next of ["zh-TW", "en-US"]) {
+      await act(async () => locale.setLocale(next));
+      expect(el.querySelector("audio")).toBe(audio);
+      expect(el.querySelector('[role="listbox"]')).toBe(list);
+      expect(list.querySelector('[aria-selected="true"]')).toBe(selected);
+      expect(el.textContent).toContain("用户原文");
+      expect(audio.currentTime).toBe(42);
+      expect(audio.volume).toBe(0.4);
+      expect(audio.playbackRate).toBe(1.25);
+      expect(load).not.toHaveBeenCalled();
+      expect(play).not.toHaveBeenCalled();
+      expect(pause).not.toHaveBeenCalled();
+    }
+  } finally {
+    await act(async () => root?.unmount());
+    root = null;
+    runtime.dispose();
+    vi.restoreAllMocks();
+  }
+});
+
+it("正在显示的操作反馈随语言刷新，保留同一反馈身份与原关闭计时", async () => {
+  vi.useFakeTimers();
+  const locale = createLocaleStore("zh-CN");
+  const runtime = createI18nRuntime({ localeSource: locale });
+  let current = (): ReturnType<typeof useOsd>["osd"] => null;
+  const Probe = () => {
+    const state = useOsd();
+    current = () => state.osd;
+    return (
+      <>
+        <button onClick={() => state.showOsd({ key: "osd.muted" })}>action</button>
+        <MediaOsd osd={state.osd} />
+      </>
+    );
+  };
+  try {
+    const el = await mount(
+      <I18nRuntimeProvider runtime={runtime}>
+        <Probe />
+      </I18nRuntimeProvider>
+    );
+    await act(async () => el.querySelector("button")?.click());
+    const initial = current();
+    const timeout = vi.spyOn(window, "setTimeout");
+    for (const next of ["zh-TW", "en-US"]) {
+      await act(async () => locale.setLocale(next));
+      expect(current()).toBe(initial);
+      expect(el.textContent).toContain(runtime.get(mediaPlayerMessages).t("osd.muted"));
+    }
+    expect(timeout).not.toHaveBeenCalled();
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+    expect(current()).toBeNull();
+  } finally {
+    await act(async () => root?.unmount());
+    root = null;
+    runtime.dispose();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  }
 });

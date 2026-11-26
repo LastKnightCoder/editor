@@ -1,0 +1,13 @@
+{
+  "editorCommon.cancel": "Cancel",
+  "editorCommon.ok": "Confirm",
+  "editorCommon.confirm": "Confirm",
+  "editorCommon.alignLeft": "Align left",
+  "editorCommon.alignCenter": "Center",
+  "editorCommon.alignRight": "Align right",
+  "editorCommon.cannotInsert": "Move the cursor to an empty line before inserting media",
+  "editorCommon.insertUrl": "Insert {{type}} from a URL",
+  "editorCommon.insert": "Insert",
+  "editorCommon.providerUrl": "This URL belongs to a content provider. Use its insert option.",
+  "editorCommon.uploadFailed": "Upload failed"
+}

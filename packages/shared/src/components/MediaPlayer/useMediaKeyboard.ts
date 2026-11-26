@@ -1,3 +1,4 @@
+import type { MediaOsdMessage } from "./i18n";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { resolveMediaShortcut, stepPlaybackRate } from "./mediaShortcuts";
 
@@ -9,12 +10,12 @@ const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 const isTextInput = (element: HTMLElement) =>
   element.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(element.tagName);
 
-/** 键盘操作反馈（OSD）：显示一段短文案，0.7 秒后自动收起 */
+/** 反馈保留消息与参数，语言变化只更新展示，不重放动作或延长显示。 */
 export function useOsd() {
-  const [osd, setOsd] = useState<{ text: string; id: number } | null>(null);
+  const [osd, setOsd] = useState<{ message: MediaOsdMessage; id: number } | null>(null);
   const timerRef = useRef<number | undefined>(undefined);
-  const showOsd = useCallback((text: string) => {
-    setOsd(prev => ({ text, id: (prev?.id ?? 0) + 1 }));
+  const showOsd = useCallback((message: MediaOsdMessage) => {
+    setOsd(prev => ({ message, id: (prev?.id ?? 0) + 1 }));
     window.clearTimeout(timerRef.current);
     timerRef.current = window.setTimeout(() => setOsd(null), OSD_DURATION_MS);
   }, []);
@@ -59,7 +60,7 @@ interface MediaKeyDownOptions {
   lastVolumeRef: React.RefObject<number>;
   rate: number;
   changeRate: (rate: number) => void;
-  showOsd: (text: string) => void;
+  showOsd: (message: MediaOsdMessage) => void;
   /** 每次按键生效后回调（如全屏胶囊的静置计时重置） */
   onActivity?: () => void;
   /** 以下能力只有视频提供；未提供时对应按键放行 */
@@ -108,7 +109,10 @@ export function useMediaKeyDown(options: MediaKeyDownOptions) {
         break;
       case "seekBy":
         o.seek(media.currentTime + action.seconds);
-        o.showOsd(`${action.seconds > 0 ? "+" : "−"}${Math.abs(action.seconds)} 秒`);
+        o.showOsd({
+          key: "osd.seek",
+          values: { sign: action.seconds > 0 ? "+" : "−", count: Math.abs(action.seconds) },
+        });
         break;
       case "volumeBy": {
         const next = clamp01((o.muted ? 0 : o.volume) + action.delta);
@@ -116,14 +120,23 @@ export function useMediaKeyDown(options: MediaKeyDownOptions) {
         if (next === 0) {
           o.setMuted(true);
         }
-        o.showOsd(next === 0 ? "已静音" : `音量 ${Math.round(next * 100)}%`);
+        o.showOsd(
+          next === 0
+            ? { key: "osd.muted" }
+            : { key: "osd.volume", values: { amount: Math.round(next * 100) } }
+        );
         break;
       }
       case "toggleMute": {
         const willMute = !(o.muted || o.volume === 0);
         o.toggleMute();
         o.showOsd(
-          willMute ? "已静音" : `音量 ${Math.round((o.volume || o.lastVolumeRef.current) * 100)}%`
+          willMute
+            ? { key: "osd.muted" }
+            : {
+                key: "osd.volume",
+                values: { amount: Math.round((o.volume || o.lastVolumeRef.current) * 100) },
+              }
         );
         break;
       }
@@ -137,20 +150,20 @@ export function useMediaKeyDown(options: MediaKeyDownOptions) {
         const next = stepPlaybackRate(o.rate, action.step);
         if (next != null) {
           o.changeRate(next);
-          o.showOsd(`${next}× 速度`);
+          o.showOsd({ key: "osd.rate", values: { rate: next } });
         }
         break;
       }
       case "frameStep":
         if (media.paused) {
           o.seek(media.currentTime + action.direction * FRAME_SECONDS);
-          o.showOsd(action.direction > 0 ? "下一帧" : "上一帧");
+          o.showOsd({ key: action.direction > 0 ? "osd.nextFrame" : "osd.previousFrame" });
         }
         break;
       case "seekToFraction":
         if (o.duration > 0) {
           o.seek(o.duration * action.fraction);
-          o.showOsd(`跳到 ${Math.round(action.fraction * 100)}%`);
+          o.showOsd({ key: "osd.jump", values: { amount: Math.round(action.fraction * 100) } });
         }
         break;
     }

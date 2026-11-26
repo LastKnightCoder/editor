@@ -1,3 +1,4 @@
+import { useSourceI18n } from "./i18n";
 import { useTouchInteraction } from "@tau/editor/api";
 import { TouchPreviewWithEditor } from "./TouchPreviewWithEditor";
 import React, {
@@ -77,7 +78,10 @@ const PointerPreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorPro
     const pendingFocusRef = useRef<"start" | "end" | null>(null);
     const ref = useRef<HTMLDivElement>(null);
     const addParagraphRef = useRef<AddParagraphRef>(null);
+    const currentTitle = useRef(title);
+    currentTitle.current = title;
     const slateEditor = useSlateStatic();
+    const { t } = useSourceI18n(slateEditor);
     const { isDark } = useEditorTheme();
     const editorReadOnly = useReadOnly();
     const selected = useSelected();
@@ -331,11 +335,19 @@ const PointerPreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorPro
 
     // 预览菜单复用同一个编辑入口。
     useEffect(() => {
-      previewActionsMap.set(element, { title, icon, edit: startEditing, copySource, readOnly });
+      previewActionsMap.set(element, {
+        get title() {
+          return currentTitle.current;
+        },
+        icon,
+        edit: startEditing,
+        copySource,
+        readOnly,
+      });
       return () => {
         previewActionsMap.delete(element);
       };
-    }, [element, title, icon, startEditing, copySource, readOnly]);
+    }, [element, icon, startEditing, copySource, readOnly]);
 
     const preview = (
       <PreviewErrorContext.Provider value={setInlineError}>
@@ -360,16 +372,21 @@ const PointerPreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorPro
         {readOnly ? (
           <ToolbarIconButton
             icon={copied ? Check : Copy}
-            title={copied ? "已复制" : "复制源码"}
+            title={t(copied ? "copiedShort" : "copy")}
             tone={copied ? "ok" : "default"}
             onClick={copySource}
           />
         ) : (
-          <ToolbarIconButton icon={Pencil} title="编辑" onClick={startEditing} />
+          <ToolbarIconButton icon={Pencil} title={t("edit")} onClick={startEditing} />
         )}
         <If condition={!readOnly}>
           <ToolbarDivider />
-          <ToolbarIconButton icon={Trash2} title="删除" tone="danger" onClick={deleteElement} />
+          <ToolbarIconButton
+            icon={Trash2}
+            title={t("delete")}
+            tone="danger"
+            onClick={deleteElement}
+          />
         </If>
       </FloatingToolbar>
     );
@@ -395,7 +412,7 @@ const PointerPreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorPro
                 onClick={finishEditing}
               >
                 <Check size="1.1em" strokeWidth={2} />
-                完成
+                {t("done")}
               </button>
             </div>
           </If>
@@ -453,7 +470,7 @@ const PointerPreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorPro
             <EmptySourcePlaceholder
               title={title}
               readOnly={readOnly}
-              hint="点击"
+
               onClick={startEditing}
             />
           )}

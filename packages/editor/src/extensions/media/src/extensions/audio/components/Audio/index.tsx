@@ -1,3 +1,4 @@
+import { useEditorI18n } from "../../../../../../../i18n";
 import { ElementRenderProps as IExtensionBaseProps } from "@tau/editor/api";
 import { type AudioElement } from "../../../../types/index";
 
@@ -14,6 +15,7 @@ import { useMediaUploading } from "../../../../utils/mediaSubmission";
 import { MEDIA_SELECTED_OUTLINE_CLASS } from "../../../../utils/mediaFrameClasses";
 
 const Audio = (props: IExtensionBaseProps<AudioElement>) => {
+  const { t } = useEditorI18n();
   const { attributes, element, children } = props;
   const editor = useSlateStatic();
   const readOnly = useReadOnly();
@@ -32,7 +34,7 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
     !readOnly && !touch ? (
       <input
         {...titleInput}
-        placeholder="音频标题…"
+        placeholder={t("av.audio.title")}
         className="text-tau-body -ml-1 w-full truncate rounded-[6px] border-none bg-transparent px-1 font-medium text-[var(--ed-text)] transition-colors outline-none placeholder:font-normal placeholder:text-[var(--ed-text-tertiary)] hover:bg-[var(--ed-bg-hover)] focus:bg-[var(--ed-bg-surface)] focus:shadow-[0_0_0_1px_var(--ed-border),var(--ed-focus-ring)]"
       />
     ) : undefined;
@@ -46,18 +48,17 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
     return (
       <div className="flex items-center justify-center gap-[0.5em] rounded-[0.75em] border border-dashed border-gray-300 p-[1.5em] text-[0.875em] text-gray-500 dark:border-zinc-700 dark:text-zinc-400">
         {uploading ? (
-          <span>音频上传中...</span>
+          <span>{t("av.audio.uploading")}</span>
         ) : (
           <>
-            <span>空音频，</span>
+            <span>{t("av.audio.empty")}</span>
             <button
               type="button"
               className="cursor-pointer border-none bg-transparent p-0 font-semibold text-[var(--ed-text-inverse)] underline-offset-2 hover:underline"
               onClick={() => openLocalMediaPicker(editor, "audio", element)}
             >
-              选择文件
+              {t("av.chooseFile")}
             </button>
-            <span>上传</span>
           </>
         )}
       </div>

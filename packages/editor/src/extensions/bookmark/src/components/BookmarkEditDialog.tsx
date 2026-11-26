@@ -1,3 +1,4 @@
+import { useEditorI18n } from "../../../../i18n";
 import { useRef, useState } from "react";
 import type { Editor } from "slate";
 import { Bookmark, Upload } from "lucide-react";
@@ -40,6 +41,7 @@ export default function BookmarkEditDialog({
   onClose,
   onAfterClose,
 }: EditDialogProps) {
+  const { t } = useEditorI18n();
   const { meta, overrides } = element;
   const [title, setTitle] = useState(overrides?.title ?? meta?.title ?? "");
   const [description, setDescription] = useState(overrides?.description ?? meta?.description ?? "");
@@ -61,7 +63,7 @@ export default function BookmarkEditDialog({
       setCover("custom");
     } catch (error) {
       console.error("书签封面上传失败:", error);
-      notifierOf(editor).error("封面上传失败");
+      notifierOf(editor).error(t("image.bookmark.coverUploadFailed"));
     } finally {
       setUploading(false);
     }
@@ -94,45 +96,45 @@ export default function BookmarkEditDialog({
       open={open}
       onOpenChange={next => !next && onClose()}
       onAfterClose={onAfterClose}
-      title="编辑书签"
+      title={t("image.bookmark.edit")}
       subtitle={element.url}
       icon={<Bookmark className="size-4" strokeWidth={1.75} />}
       locked={uploading}
       footer={
         <>
           <Button variant="ghost" size="sm" className="mr-auto" onClick={restore}>
-            恢复为网页信息
+            {t("image.bookmark.restore")}
           </Button>
           <Button variant="secondary" size="sm" disabled={uploading} onClick={onClose}>
-            取消
+            {t("image.cancel")}
           </Button>
           <Button variant="primary" size="sm" disabled={uploading} onClick={save}>
-            完成
+            {t("image.done")}
           </Button>
         </>
       }
     >
       <DialogBody>
         <div className="flex flex-col gap-4">
-          <Field label="标题">
+          <Field label={t("image.bookmark.title")}>
             <Input
               value={title}
               placeholder={element.url}
               onChange={e => setTitle(e.target.value)}
             />
           </Field>
-          <Field label="描述">
+          <Field label={t("image.bookmark.description")}>
             <Textarea rows={2} value={description} onChange={e => setDescription(e.target.value)} />
           </Field>
           <div className="flex flex-col gap-1.5">
-            <span className="text-ink-3 text-[12px]">封面</span>
+            <span className="text-ink-3 text-[12px]">{t("image.bookmark.coverLabel")}</span>
             <div className="flex flex-wrap gap-1.5">
               <button
                 type="button"
                 className={cn(CHIP, cover === "page" && CHIP_ON)}
                 onClick={() => setCover("page")}
               >
-                网页封面
+                {t("image.bookmark.pageCover")}
               </button>
               {upload && (
                 <button
@@ -146,7 +148,11 @@ export default function BookmarkEditDialog({
                   onClick={() => (customImage ? setCover("custom") : fileRef.current?.click())}
                 >
                   <Upload size={12} strokeWidth={1.75} />
-                  {uploading ? "上传中…" : customImage ? "自定义图片" : "上传图片"}
+                  {uploading
+                    ? t("image.loading")
+                    : customImage
+                      ? t("image.bookmark.customImage")
+                      : t("image.uploadImage")}
                 </button>
               )}
               {customImage && (
@@ -156,7 +162,7 @@ export default function BookmarkEditDialog({
                   disabled={uploading}
                   onClick={() => fileRef.current?.click()}
                 >
-                  更换
+                  {t("image.change")}
                 </button>
               )}
               <button
@@ -164,7 +170,7 @@ export default function BookmarkEditDialog({
                 className={cn(CHIP, cover === "none" && CHIP_ON)}
                 onClick={() => setCover("none")}
               >
-                不显示
+                {t("image.bookmark.hide")}
               </button>
             </div>
             <input

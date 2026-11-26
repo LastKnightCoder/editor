@@ -1,0 +1,20 @@
+{
+  "edit": "編輯",
+  "delete": "刪除",
+  "done": "完成",
+  "copy": "複製原始碼",
+  "copied": "原始碼已複製",
+  "copiedShort": "已複製",
+  "copyFailed": "複製失敗",
+  "historyFailed": "復原或重做失敗",
+  "sourceLabel": "{{title}}原始碼",
+  "back": "返回",
+  "undo": "復原",
+  "redo": "重做",
+  "resizePreview": "調整預覽高度",
+  "editSource": "編輯原始碼",
+  "stale": "預覽保留上一次成功的結果",
+  "empty": "空白的{{title}}",
+  "startClick": "{{title}} · 按一下開始編寫",
+  "startTap": "{{title}} · 點按開始編寫"
+}

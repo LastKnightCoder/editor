@@ -1,3 +1,4 @@
+import { useEditorI18n } from "../../../../../../../i18n";
 import { CODE_BLOCK_LANGUAGE_OPTIONS, normalizeCodeBlockLanguageDisplayName } from "@tau/shared";
 import { For } from "@tau/shared";
 import React, { useState } from "react";
@@ -13,6 +14,7 @@ interface SelectLanguageProps {
 }
 
 const SelectLanguage = (props: SelectLanguageProps) => {
+  const { t } = useEditorI18n();
   const { value, onChange, className, style = {}, readonly } = props;
 
   const [open, setOpen] = useState(false);
@@ -43,7 +45,7 @@ const SelectLanguage = (props: SelectLanguageProps) => {
             className
           )}
         >
-          {normalizedValue}
+          {normalizedValue === "Plain Text" ? t("code.plainText") : normalizedValue}
           {!readonly && <ChevronDown size="1.1em" strokeWidth={2} className="opacity-60" />}
         </button>
       }
@@ -68,7 +70,7 @@ const SelectLanguage = (props: SelectLanguageProps) => {
                   color: "var(--ed-text)",
                 }}
               >
-                {item.label}
+                {item.value === "Plain Text" ? t("code.plainText") : item.label}
               </div>
             );
           }}

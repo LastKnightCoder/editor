@@ -1,3 +1,15 @@
+import commonEnUS from "./locales/common.en-US.json";
+import commonZhTW from "./locales/common.zh-TW.json";
+import commonZhCN from "./locales/common.zh-CN.json";
+import avEnUS from "./locales/av.en-US.json";
+import avZhTW from "./locales/av.zh-TW.json";
+import avZhCN from "./locales/av.zh-CN.json";
+import imageEnUS from "./locales/image.en-US.json";
+import imageZhTW from "./locales/image.zh-TW.json";
+import imageZhCN from "./locales/image.zh-CN.json";
+import codeEnUS from "./locales/code.en-US.json";
+import codeZhTW from "./locales/code.zh-TW.json";
+import codeZhCN from "./locales/code.zh-CN.json";
 import { createI18nRuntime, createLocaleStore, defineI18n } from "@tau/i18n";
 import zhCN from "./locales/zh-CN.json";
 import zhTW from "./locales/zh-TW.json";
@@ -5,7 +17,11 @@ import enUS from "./locales/en-US.json";
 
 export const editorMessages = defineI18n({
   fallbackLocale: "zh-CN",
-  resources: { "zh-CN": zhCN, "zh-TW": zhTW, "en-US": enUS },
+  resources: {
+    "zh-CN": { ...zhCN, ...codeZhCN, ...imageZhCN, ...avZhCN, ...commonZhCN },
+    "zh-TW": { ...zhTW, ...codeZhTW, ...imageZhTW, ...avZhTW, ...commonZhTW },
+    "en-US": { ...enUS, ...codeEnUS, ...imageEnUS, ...avEnUS, ...commonEnUS },
+  },
 });
 export type EditorMessageKey = Parameters<typeof editorMessages.ref>[0];
 export const standaloneEditorI18n = createI18nRuntime({ localeSource: createLocaleStore("zh-CN") });
@@ -30,4 +46,9 @@ export function editorAliases(key: EditorMessageKey): string[] {
   return Object.values(editorMessages.resources)
     .map(resource => resource[key])
     .filter(Boolean);
+}
+
+export const requestRuntimeKey = Symbol("editor-request-runtime");
+export function requestRuntime(options: object | null): I18nRuntime | undefined {
+  return options ? Object.getOwnPropertyDescriptor(options, requestRuntimeKey)?.value : undefined;
 }

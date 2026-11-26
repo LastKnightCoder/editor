@@ -1,3 +1,4 @@
+import { useEditorI18n, type EditorMessageKey } from "../../../../../i18n";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Button, cn, usePortalContainer } from "@tau/ui";
@@ -132,6 +133,7 @@ const ImageCropEditor = ({
   onCancel,
   onConfirm,
 }: ImageCropEditorProps) => {
+  const { t } = useEditorI18n();
   const portalContainer = usePortalContainer();
   const rootRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -146,7 +148,7 @@ const ImageCropEditor = ({
   const stagePointersRef = useRef(new Map<number, Vec>());
   const [animating, setAnimating] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<{ key: EditorMessageKey } | { message: string } | null>(null);
 
   // ---- 载入原图（crossOrigin 让导出时画布不被污染） ----
   useEffect(() => {
@@ -156,7 +158,7 @@ const ImageCropEditor = ({
       imageRef.current = img;
       setImage({ width: img.naturalWidth, height: img.naturalHeight });
     };
-    img.onerror = () => setError("原图加载失败，无法裁剪");
+    img.onerror = () => setError({ key: "image.sourceLoadFailed" });
     img.src = imageSrc;
   }, [imageSrc]);
 
@@ -328,7 +330,7 @@ const ImageCropEditor = ({
   const confirm = async () => {
     if (!view || !imageRef.current || saving) return;
     setSaving(true);
-    setError("");
+    setError(null);
     const transform = toTransform(view);
     const { mime, ext } = outputFormatOf(originalUrl);
     let blob: Blob;
@@ -336,7 +338,7 @@ const ImageCropEditor = ({
       blob = await exportCrop(imageRef.current, transform, mime);
     } catch (cause) {
       console.error("裁剪导出失败:", cause);
-      setError("裁剪结果导出失败：图片来源不允许读取像素");
+      setError({ key: "image.crop.exportFailed" });
       setSaving(false);
       return;
     }
@@ -344,7 +346,11 @@ const ImageCropEditor = ({
     try {
       await onConfirm({ transform, blob, ext });
     } catch (cause) {
-      setError(cause instanceof Error && cause.message ? cause.message : "保存失败，请重试");
+      setError(
+        cause instanceof Error && cause.message
+          ? { message: cause.message }
+          : { key: "image.crop.saveFailed" }
+      );
     } finally {
       setSaving(false);
     }
@@ -374,7 +380,7 @@ const ImageCropEditor = ({
       tabIndex={-1}
       role="dialog"
       aria-modal="true"
-      aria-label="裁剪与旋转"
+      aria-label={t("image.crop.title")}
       className="fixed inset-0 z-[1100] flex flex-col bg-[#111113] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-white outline-none select-none"
       onKeyDown={handleKeyDown}
     >
@@ -386,17 +392,17 @@ const ImageCropEditor = ({
             onClick={onCancel}
             className="text-tau-body rounded-tau-sm h-8 px-3 text-white/75 transition-colors hover:bg-white/10 hover:text-white"
           >
-            取消
+            {t("image.cancel")}
           </button>
         </div>
         <div className="text-tau-body text-white/75">
           {error ? (
             <span className="flex items-center gap-1.5">
               <CircleAlert size={15} />
-              {error}
+              {"key" in error ? t(error.key) : error.message}
             </span>
           ) : (
-            "裁剪与旋转"
+            t("image.crop.title")
           )}
         </div>
         <div className="flex justify-end">
@@ -407,7 +413,7 @@ const ImageCropEditor = ({
             loading={saving}
             onClick={() => void confirm()}
           >
-            完成
+            {t("image.done")}
           </Button>
         </div>
       </div>
@@ -481,11 +487,11 @@ const ImageCropEditor = ({
         <div
           ref={dialRef}
           role="slider"
-          aria-label="微调角度"
+          aria-label={t("image.crop.straighten")}
           aria-valuemin={-MAX_STRAIGHTEN}
           aria-valuemax={MAX_STRAIGHTEN}
           aria-valuenow={view?.straighten ?? 0}
-          title="拖动微调角度，双击归零"
+          title={t("image.crop.straightenHint")}
           className="relative h-10 w-[min(520px,80%)] cursor-ew-resize touch-none"
           onPointerDown={event => {
             if (!view) return;
@@ -524,14 +530,18 @@ const ImageCropEditor = ({
                     : "text-white/70 hover:bg-white/10 hover:text-white"
                 )}
               >
-                {item.label}
+                {item.key === "original"
+                  ? t("image.crop.original")
+                  : item.key === "free"
+                    ? t("image.crop.free")
+                    : item.label}
               </button>
             ))}
           </div>
           <span className="h-4 w-px bg-white/15" />
           <button
             type="button"
-            title="向左旋转 90°"
+            title={t("image.crop.rotate")}
             onClick={rotate}
             className="rounded-tau-sm grid size-8 place-items-center text-white/75 hover:bg-white/10 hover:text-white"
           >
@@ -539,7 +549,7 @@ const ImageCropEditor = ({
           </button>
           <button
             type="button"
-            title="水平翻转"
+            title={t("image.crop.flip")}
             onClick={flip}
             className="rounded-tau-sm grid size-8 place-items-center text-white/75 hover:bg-white/10 hover:text-white"
           >
@@ -551,7 +561,7 @@ const ImageCropEditor = ({
             onClick={reset}
             className="text-tau-meta rounded-tau-sm h-7 px-2.5 text-white/70 hover:bg-white/10 hover:text-white"
           >
-            还原
+            {t("image.crop.reset")}
           </button>
         </div>
       </div>

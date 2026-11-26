@@ -1,3 +1,4 @@
+import { useMediaPlayerI18n } from "./i18n";
 import React, { useLayoutEffect, useMemo, useState } from "react";
 import { cn } from "@tau/ui";
 import { motion } from "motion/react";
@@ -40,6 +41,7 @@ const Waveform = ({
   segments,
   className,
 }: WaveformProps) => {
+  const { t } = useMediaPlayerI18n();
   const scrubber = useScrubber({ onScrub, onCommit });
   const shown = scrubber.shownValue(value);
   const [width, setWidth] = useState(0);
@@ -94,7 +96,7 @@ const Waveform = ({
       transition={{ duration: 0.25 }}
       className={cn("relative h-10 cursor-pointer touch-none select-none", className)}
       role="slider"
-      aria-label="播放进度"
+      aria-label={t("progress")}
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={Math.round(shown * 100)}

@@ -1,3 +1,4 @@
+import { useEditorI18n } from "../../../../../../../i18n";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import { ReactEditor, useReadOnly, useSlateStatic } from "slate-react";
@@ -42,6 +43,7 @@ const fileNameOf = (src: string) => {
 };
 
 const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
+  const { t } = useEditorI18n();
   const { element, children, attributes } = props;
   const readOnly = useReadOnly();
   const isLast = useIsLastElement(element);
@@ -67,16 +69,15 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
   const uploading = useMediaUploading(editor, element);
 
   // 底栏信息位：「来源 · 标题」，无标题的直链 / 本地文件退回文件名
-  const info = useMemo(() => {
-    const title = typeof element.metaInfo?.title === "string" ? element.metaInfo.title : undefined;
-    const label = matchedProvider?.label;
-    const parts = [
-      typeof label === "function" ? label(element) : label,
-      title ?? (matchedProvider ? undefined : fileNameOf(src)),
-    ];
-    const text = parts.filter(Boolean).join(" · ");
-    return text ? <span className="truncate">{text}</span> : undefined;
-  }, [element, matchedProvider, src]);
+  const title = typeof element.metaInfo?.title === "string" ? element.metaInfo.title : undefined;
+  const providerLabel = matchedProvider?.label;
+  const infoText = [
+    typeof providerLabel === "function" ? providerLabel(element) : providerLabel,
+    title ?? (matchedProvider ? undefined : fileNameOf(src)),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const info = infoText ? <span className="truncate">{infoText}</span> : undefined;
 
   // 外部点击取消选中
   useEffect(() => {
@@ -152,8 +153,8 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
   const handleCopyLink = useMemoizedFn(() => {
     navigator.clipboard
       .writeText(src)
-      .then(() => notifier.success("视频地址已复制"))
-      .catch(() => notifier.error("复制失败"));
+      .then(() => notifier.success(t("av.copy.success")))
+      .catch(() => notifier.error(t("av.copy.failed")));
   });
 
   const handlePlaybackRateChange = useMemoizedFn((rate: number) => {
@@ -277,18 +278,17 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
     return (
       <div className="flex items-center justify-center gap-[0.5em] rounded-[0.75em] border border-dashed border-gray-300 p-[1.5em] text-[0.875em] text-gray-500 dark:border-zinc-700 dark:text-zinc-400">
         {uploading ? (
-          <span>视频上传中...</span>
+          <span>{t("av.video.uploading")}</span>
         ) : (
           <>
-            <span>空视频，</span>
+            <span>{t("av.video.empty")}</span>
             <button
               type="button"
               className="cursor-pointer border-none bg-transparent p-0 font-semibold text-[var(--ed-text-inverse)] underline-offset-2 hover:underline"
               onClick={() => openLocalMediaPicker(editor, "video", element)}
             >
-              选择文件
+              {t("av.chooseFile")}
             </button>
-            <span>上传</span>
           </>
         )}
       </div>

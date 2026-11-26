@@ -1,3 +1,4 @@
+import { useMediaPlayerI18n, type MediaPlayerMessageKey } from "./i18n";
 import React, { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, cn } from "@tau/ui";
 import { ChevronDown, CircleAlert } from "lucide-react";
@@ -60,28 +61,28 @@ const TOUCH_SEEK_SECONDS = 15;
 /** 1 分钟以内的短音频不记忆播放位置 */
 const RESUME_MIN_DURATION = 60;
 
-const ERROR_MESSAGES: Record<number, string> = {
-  2: "网络错误，音频没能加载",
-  3: "文件已损坏或格式不支持",
-  4: "文件不存在或格式不支持",
+const ERROR_MESSAGE_KEYS: Record<number, MediaPlayerMessageKey> = {
+  2: "audio.networkError",
+  3: "audio.decodeError",
+  4: "audio.sourceError",
 };
 
 /** 从媒体地址提取文件名作为标题 */
 const deriveLabel = (src: string): string => {
   if (!src || src.startsWith("data:")) {
-    return "音频";
+    return "";
   }
   try {
     const url = new URL(src);
     const name = decodeURIComponent(url.pathname.split("/").pop() || "");
-    return name || "音频";
+    return name;
   } catch {
     const clean = src.split("?")[0].split("#")[0];
     try {
       const name = decodeURIComponent(clean.split("/").pop() || "");
-      return name || "音频";
+      return name;
     } catch {
-      return "音频";
+      return "";
     }
   }
 };
@@ -119,6 +120,7 @@ const AudioPlayer = forwardRef<HTMLAudioElement, AudioPlayerProps>(
     },
     ref
   ) => {
+    const { t } = useMediaPlayerI18n();
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const coarse = useCoarsePointer();
     const setAudioRefs = useCallback(
@@ -211,7 +213,7 @@ const AudioPlayer = forwardRef<HTMLAudioElement, AudioPlayerProps>(
         resume.dismiss();
       },
       renderTooltip: (next: number) => (
-        <span className="font-tau-mono text-tau-micro px-1 tabular-nums leading-snug">
+        <span className="font-tau-mono text-tau-micro px-1 leading-snug tabular-nums">
           {formatTime(next * duration)}
         </span>
       ),
@@ -239,7 +241,7 @@ const AudioPlayer = forwardRef<HTMLAudioElement, AudioPlayerProps>(
 
     const loading = !src;
     const failed = errorCode != null;
-    const title = label || deriveLabel(src ?? "");
+    const title = label || deriveLabel(src ?? "") || t("audio.title");
     const knownDuration = duration > 0 ? duration : (durationHint ?? 0);
     const durationText = knownDuration > 0 ? formatTime(knownDuration) : "--:--";
     const waveformSegments = useMemo(
@@ -265,7 +267,7 @@ const AudioPlayer = forwardRef<HTMLAudioElement, AudioPlayerProps>(
 
     const metaLine = failed ? (
       <span className="text-danger truncate">
-        无法播放：{ERROR_MESSAGES[errorCode] ?? "音频无法播放"}
+        {t("audio.failed", { reason: t(ERROR_MESSAGE_KEYS[errorCode] ?? "audio.error") })}
       </span>
     ) : resume.resumedAt != null ? (
       <ResumeNotice label={formatTime(resume.resumedAt)} onRestart={resume.restart} />
@@ -311,7 +313,7 @@ const AudioPlayer = forwardRef<HTMLAudioElement, AudioPlayerProps>(
               {sourceText && (
                 <>
                   <span className="border-line-1 text-ink-2 shrink-0 rounded-[6px] border px-1.5 text-[11px] leading-[18px]">
-                    文本生成
+                    {t("audio.generated")}
                   </span>
                   <button
                     type="button"
@@ -319,7 +321,7 @@ const AudioPlayer = forwardRef<HTMLAudioElement, AudioPlayerProps>(
                     onClick={() => setSourceOpen(open => !open)}
                     className="text-ink-2 hover:bg-hover hover:text-ink-1 text-tau-sm flex shrink-0 items-center gap-0.5 rounded-[6px] px-1"
                   >
-                    原文
+                    {t("audio.source")}
                     <ChevronDown
                       size={13}
                       className={cn("transition-transform", sourceOpen && "rotate-180")}
@@ -335,7 +337,7 @@ const AudioPlayer = forwardRef<HTMLAudioElement, AudioPlayerProps>(
 
           {failed ? (
             <Button size="sm" variant="primary" onClick={retry}>
-              重试
+              {t("retry")}
             </Button>
           ) : coarse ? (
             <>
@@ -403,7 +405,7 @@ const AudioPlayer = forwardRef<HTMLAudioElement, AudioPlayerProps>(
         )}
 
         {sourceText && sourceOpen && (
-          <div className="bg-hover rounded-tau-sm text-ink-2 text-tau-body mt-1.5 select-text whitespace-pre-wrap px-3 py-2.5 leading-relaxed">
+          <div className="bg-hover rounded-tau-sm text-ink-2 text-tau-body mt-1.5 px-3 py-2.5 leading-relaxed whitespace-pre-wrap select-text">
             {sourceText}
           </div>
         )}

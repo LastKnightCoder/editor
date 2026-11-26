@@ -192,8 +192,6 @@ const MEDIA_URL_PLACEHOLDERS: Record<MediaType, string> = {
   audio: "https://example.com/audio.mp3",
 };
 
-const CANNOT_INSERT_HINT = "当前选区无法插入，请将光标置于正文空行后重试";
-
 /** 打开"网络地址"输入框并在光标处插入；输入框由提示服务承接（桌面默认 Dialog，mobile 底部面板） */
 export const openMediaUrlInput = async (editor: Editor, mediaType: MediaType) => {
   const anchor = captureInsertionSubmission(editor);
@@ -202,25 +200,32 @@ export const openMediaUrlInput = async (editor: Editor, mediaType: MediaType) =>
     const reason = anchor.check();
     if (reason) {
       if (reason === "target-lost" || reason === "target-changed")
-        notifier.warning(CANNOT_INSERT_HINT);
+        notifier.warning(editorT(editor, "editorCommon.cannotInsert"));
       return;
     }
     const url = await notifier.prompt({
       signal: anchor.signal,
-      title: `插入网络${MEDIA_TYPE_LABELS[mediaType]}`,
+      get title() {
+        return editorT(editor, "editorCommon.insertUrl", {
+          type: editorT(editor, `block.${mediaType}`),
+        });
+      },
       placeholder: MEDIA_URL_PLACEHOLDERS[mediaType],
-      confirmText: "插入",
+      get confirmText() {
+        return editorT(editor, "editorCommon.insert");
+      },
       inputMode: "url",
       validate: value => {
         if (mediaType === "video" && isProviderSourceUrl(editor, value)) {
-          return "该地址属于特殊内容源，请通过对应入口创建视频";
+          return editorT(editor, "editorCommon.providerUrl");
         }
       },
     });
     if (!url) return;
     anchor.commit(({ range }) => {
       Transforms.select(editor, range);
-      if (!insertMediaByUrl(editor, mediaType, url)) notifier.warning(CANNOT_INSERT_HINT);
+      if (!insertMediaByUrl(editor, mediaType, url))
+        notifier.warning(editorT(editor, "editorCommon.cannotInsert"));
     });
   } finally {
     anchor.dispose();

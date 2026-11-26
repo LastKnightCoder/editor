@@ -2100,6 +2100,9 @@ importers:
 
   packages/editor-source-view:
     dependencies:
+      '@tau/i18n':
+        specifier: workspace:*
+        version: link:../i18n
       '@tau/shared':
         specifier: workspace:*
         version: link:../shared

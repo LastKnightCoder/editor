@@ -1,3 +1,5 @@
+import { editorT } from "../../../../../../i18n-runtime";
+import { menuText } from "../../../../../../menu-i18n";
 import { IFileService, type FileService } from "@tau/shared/host-services";
 import {
   AlignCenter,
@@ -62,7 +64,7 @@ async function copyImageToClipboard(element: ImageElement, editor: Editor): Prom
               [blob.type]: blob,
             }),
           ]);
-          message.success("图片复制成功");
+          message.success(editorT(editor, "image.copySuccess"));
           return;
         }
       } catch (error) {
@@ -75,22 +77,22 @@ async function copyImageToClipboard(element: ImageElement, editor: Editor): Prom
 
     if (localPath) {
       await navigator.clipboard.writeText(localPath);
-      message.success("图片路径复制成功");
+      message.success(editorT(editor, "image.pathCopied"));
       return;
     }
 
     if (url.startsWith("local://")) {
       const normalized = url.replace("local://", "");
       await navigator.clipboard.writeText(normalized);
-      message.success("图片路径复制成功");
+      message.success(editorT(editor, "image.pathCopied"));
       return;
     }
 
     await navigator.clipboard.writeText(url);
-    message.warning("无法直接复制图片，已复制图片链接");
+    message.warning(editorT(editor, "image.copyFallback"));
   } catch (error) {
     console.error("复制图片失败:", error);
-    message.error("复制图片失败");
+    message.error(editorT(editor, "image.copyImageFailed"));
   }
 }
 
@@ -102,22 +104,22 @@ async function copyImageLink(url: string, editor: Editor): Promise<void> {
 
     if (localPath) {
       await navigator.clipboard.writeText(localPath);
-      message.success("链接复制成功");
+      message.success(editorT(editor, "image.linkCopied"));
       return;
     }
 
     if (url.startsWith("local://")) {
       const normalized = url.replace("local://", "");
       await navigator.clipboard.writeText(normalized);
-      message.success("链接复制成功");
+      message.success(editorT(editor, "image.linkCopied"));
       return;
     }
 
     await navigator.clipboard.writeText(url);
-    message.success("链接复制成功");
+    message.success(editorT(editor, "image.linkCopied"));
   } catch (error) {
     console.error("复制链接失败:", error);
-    message.error("复制链接失败");
+    message.error(editorT(editor, "image.copyLinkFailed"));
   }
 }
 
@@ -156,9 +158,13 @@ export const imageCommands: EditorCommand[] = [
         if (submission.check()) return;
         const url = await notifierOf(editor).prompt({
           signal: submission.signal,
-          title: "替换为网络图片",
+          get title() {
+            return editorT(editor, "image.replaceUrl");
+          },
           placeholder: "https://example.com/image.png",
-          confirmText: "替换",
+          get confirmText() {
+            return editorT(editor, "image.replace");
+          },
           inputMode: "url",
         });
         if (!url?.trim()) return;
@@ -196,8 +202,12 @@ export const imageCommands: EditorCommand[] = [
         if (submission.check()) return;
         const alt = await notifierOf(editor).prompt({
           signal: submission.signal,
-          title: "替代文本",
-          placeholder: "描述图片内容，供读屏与导出使用",
+          get title() {
+            return editorT(editor, "image.alt");
+          },
+          get placeholder() {
+            return editorT(editor, "image.altDescription");
+          },
           defaultValue: element.alt ?? "",
         });
         if (alt == null) return;
@@ -254,7 +264,8 @@ export const imageCommands: EditorCommand[] = [
     run: (editor, ctx) => {
       const element = asImage(ctx.element);
       const value = ctx.payload as
-        { borderRadius?: ImageBorderRadiusPreset; shadow?: ImageShadowPreset } | undefined;
+        | { borderRadius?: ImageBorderRadiusPreset; shadow?: ImageShadowPreset }
+        | undefined;
       if (!element || !value) return;
       const path = findPath(editor, element);
       if (path) Transforms.setNodes(editor, value, { at: path });
@@ -301,23 +312,23 @@ const ALIGNMENTS = [
 export const buildImageMenuItems = (appearance?: ImageAppearanceConfig): EditorMenuEntry[] => [
   {
     id: "tau.image.fullscreen",
-    title: "全屏预览",
+    title: menuText("image.fullscreenPreview"),
     icon: <Maximize2 size={16} />,
     command: "tau.image.fullscreen",
   },
   {
     id: "tau.image.crop",
-    title: "裁剪图片",
+    title: menuText("image.cropImage"),
     icon: <Crop size={16} />,
     command: "tau.image.crop",
   },
   {
     id: "tau.image.set-align",
-    title: "对齐方式",
+    title: menuText("image.align"),
     icon: alignIcon,
-    children: ALIGNMENTS.map(({ align, label }) => ({
+    children: ALIGNMENTS.map(({ align }) => ({
       id: `tau.image.set-align-${align}`,
-      title: label,
+      title: menuText(`image.align.${align}`),
       icon:
         align === "left" ? (
           <AlignLeft size={16} />
@@ -333,33 +344,35 @@ export const buildImageMenuItems = (appearance?: ImageAppearanceConfig): EditorM
   },
   {
     id: "tau.image.edit-description",
-    title: ctx => ((ctx.element as ImageElement).description ? "编辑说明" : "添加说明"),
+    title: menuText(ctx =>
+      (ctx.element as ImageElement).description ? "image.editCaption" : "image.addCaption"
+    ),
     icon: <Text size={16} />,
     command: "tau.image.edit-description",
   },
   {
     id: "tau.image.edit-alt",
-    title: "替代文本",
+    title: menuText("image.alt"),
     icon: <Eye size={16} />,
     command: "tau.image.edit-alt",
   },
   {
     id: "tau.image.replace",
-    title: "替换图片",
+    title: menuText("image.replaceImage"),
     icon: <ImageUp size={16} />,
     command: "tau.image.replace",
   },
   {
     id: "tau.image.set-appearance",
-    title: "外观",
+    title: menuText("image.appearance"),
     icon: <Palette size={16} />,
     children: [
       {
         id: "tau.image.set-appearance-radius",
-        title: "圆角",
+        title: menuText("image.radius"),
         children: IMAGE_BORDER_RADIUS_OPTIONS.map(option => ({
           id: `tau.image.set-appearance-radius-${option.value}`,
-          title: option.label,
+          title: menuText(`image.radius.${option.value}`),
           command: "tau.image.set-appearance",
           payload: { borderRadius: option.value },
           disabled: (ctx: EditorMenuContext) =>
@@ -369,10 +382,10 @@ export const buildImageMenuItems = (appearance?: ImageAppearanceConfig): EditorM
       },
       {
         id: "tau.image.set-appearance-shadow",
-        title: "阴影",
+        title: menuText("image.shadow"),
         children: IMAGE_SHADOW_OPTIONS.map(option => ({
           id: `tau.image.set-appearance-shadow-${option.value}`,
-          title: option.label,
+          title: menuText(`image.shadow.${option.value}`),
           command: "tau.image.set-appearance",
           payload: { shadow: option.value },
           disabled: (ctx: EditorMenuContext) =>
@@ -385,13 +398,13 @@ export const buildImageMenuItems = (appearance?: ImageAppearanceConfig): EditorM
   },
   {
     id: "tau.image.copy-image",
-    title: "复制图片",
+    title: menuText("image.copyImage"),
     icon: <Copy size={16} />,
     command: "tau.image.copy-image",
   },
   {
     id: "tau.image.copy-link",
-    title: "复制地址",
+    title: menuText("image.copyAddress"),
     icon: <Link2 size={16} />,
     command: "tau.image.copy-link",
   },

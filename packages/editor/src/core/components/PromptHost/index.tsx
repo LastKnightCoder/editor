@@ -1,4 +1,7 @@
-import { useState } from "react";
+import { useEditorI18nRuntime } from "../../../i18n";
+import { editorMessages, requestRuntime } from "../../../i18n-runtime";
+import { useI18n } from "@tau/i18n/react";
+import { useRef, useState } from "react";
 import { Button, Dialog, DialogBody, Input } from "@tau/ui";
 
 import usePromptStore from "../../stores/usePromptStore";
@@ -10,19 +13,42 @@ import { useHostedRequestLeader } from "../../stores/createHostedRequestStore";
  */
 export default function PromptHost() {
   const pending = usePromptStore(state => state.pending);
+  const inheritedRuntime = useEditorI18nRuntime();
+  const { t } = useI18n(editorMessages, requestRuntime(pending) ?? inheritedRuntime);
   const settle = usePromptStore(state => state.settle);
   const isLeader = useHostedRequestLeader(usePromptStore);
   // 最近一次请求：关闭动画期间 pending 已清空，标题与按钮文案仍按它渲染
   const [shown, setShown] = useState(pending);
   const [value, setValue] = useState("");
-  const [error, setError] = useState<string>();
+  const [invalid, setInvalid] = useState(false);
+  const error = invalid && pending ? pending.validate?.(value.trim()) : undefined;
 
   // 新请求进来时在渲染期重置草稿，避免先闪一帧上一次的输入
   if (pending && pending !== shown) {
     setShown(pending);
     setValue(pending.defaultValue ?? "");
-    setError(undefined);
+    setInvalid(false);
   }
+
+  const lastCopy = useRef<
+    | {
+        title: string;
+        placeholder?: string;
+        cancelText: string;
+        confirmText: string;
+        inputMode?: "text" | "url";
+      }
+    | undefined
+  >(undefined);
+  if (pending)
+    lastCopy.current = {
+      title: pending.title,
+      placeholder: pending.placeholder,
+      cancelText: pending.cancelText ?? t("editorCommon.cancel"),
+      confirmText: pending.confirmText ?? t("editorCommon.ok"),
+      inputMode: pending.inputMode,
+    };
+  const copy = lastCopy.current;
 
   if (!isLeader) return null;
 
@@ -31,7 +57,7 @@ export default function PromptHost() {
     if (!pending || !trimmed) return;
     const message = pending.validate?.(trimmed);
     if (message) {
-      setError(message);
+      setInvalid(true);
       return;
     }
     settle(trimmed);
@@ -42,15 +68,15 @@ export default function PromptHost() {
     <Dialog
       open={!!pending}
       onOpenChange={open => !open && cancel()}
-      title={shown?.title ?? ""}
+      title={copy?.title ?? ""}
       width={460}
       footer={
         <>
           <Button variant="secondary" size="sm" onClick={cancel}>
-            {shown?.cancelText ?? "取消"}
+            {copy?.cancelText ?? t("editorCommon.cancel")}
           </Button>
           <Button variant="primary" size="sm" disabled={!trimmed} onClick={submit}>
-            {shown?.confirmText ?? "确定"}
+            {copy?.confirmText ?? t("editorCommon.ok")}
           </Button>
         </>
       }
@@ -58,13 +84,13 @@ export default function PromptHost() {
       <DialogBody>
         <Input
           data-autofocus
-          placeholder={shown?.placeholder}
-          inputMode={shown?.inputMode}
+          placeholder={copy?.placeholder}
+          inputMode={copy?.inputMode}
           value={value}
           aria-invalid={!!error}
           onChange={e => {
             setValue(e.target.value);
-            setError(undefined);
+            setInvalid(false);
           }}
           onKeyDown={e => {
             if (e.key === "Enter" && !e.nativeEvent.isComposing) {

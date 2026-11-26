@@ -1,3 +1,4 @@
+import { useSourceI18n } from "./i18n";
 import {
   useEffect,
   useLayoutEffect,
@@ -58,6 +59,7 @@ export function SourceEditorPage({
   previewSlotRef,
   onClose,
 }: SourceEditorPageProps) {
+  const { t } = useSourceI18n();
   const { isDark } = useEditorTheme();
   const notifier = useNotifier();
   const sectionRef = useRef<HTMLElement>(null);
@@ -84,15 +86,15 @@ export function SourceEditorPage({
     try {
       textBinding?.[action]();
     } catch (cause) {
-      notifier.error(cause instanceof Error ? cause.message : "撤销失败");
+      notifier.error(cause instanceof Error ? cause.message : t("historyFailed"));
     }
   };
 
   const copySource = () => {
     const source = textarea()?.value ?? draft;
     void navigator.clipboard?.writeText(source).then(
-      () => notifier.success("源码已复制"),
-      () => notifier.error("复制失败")
+      () => notifier.success(t("copied")),
+      () => notifier.error(t("copyFailed"))
     );
   };
 
@@ -134,7 +136,7 @@ export function SourceEditorPage({
           ref={sectionRef}
           role="dialog"
           aria-modal="true"
-          aria-label={`${title}源码`}
+          aria-label={t("sourceLabel", { title })}
           data-source-editor-page=""
           data-pan-ignore-drag="true"
           data-kb-optout="true"
@@ -173,7 +175,7 @@ export function SourceEditorPage({
         >
           <PortalScope>
             <header className="flex h-12 shrink-0 items-center gap-1 px-2">
-              <IconButton aria-label="返回" className="size-10" onClick={onClose}>
+              <IconButton aria-label={t("back")} className="size-10" onClick={onClose}>
                 <ChevronLeft size={22} />
               </IconButton>
               <h2 className="text-tau-body flex flex-1 items-center justify-center gap-1.5 font-semibold">
@@ -183,7 +185,7 @@ export function SourceEditorPage({
               {textBinding ? (
                 <>
                   <IconButton
-                    aria-label="撤销"
+                    aria-label={t("undo")}
                     className="size-10"
                     disabled={readOnly}
                     onPointerDown={keepFocus}
@@ -192,7 +194,7 @@ export function SourceEditorPage({
                     <Undo2 size={19} />
                   </IconButton>
                   <IconButton
-                    aria-label="重做"
+                    aria-label={t("redo")}
                     className="size-10"
                     disabled={readOnly}
                     onPointerDown={keepFocus}
@@ -225,7 +227,7 @@ export function SourceEditorPage({
             <div
               role="separator"
               aria-orientation="horizontal"
-              aria-label="调整预览高度"
+              aria-label={t("resizePreview")}
               className="flex h-4 shrink-0 touch-none items-center justify-center"
               onPointerDown={startDrag}
             >
@@ -279,12 +281,12 @@ export function SourceEditorPage({
                   onClick={copySource}
                 >
                   <Copy size={16} />
-                  复制源码
+                  {t("copy")}
                 </button>
                 <span className="flex-1" />
                 {!readOnly && (
                   <IconButton
-                    aria-label="编辑源码"
+                    aria-label={t("editSource")}
                     className="size-10"
                     onClick={() => textarea()?.focus()}
                   >

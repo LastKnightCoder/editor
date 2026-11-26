@@ -1,3 +1,4 @@
+import { menuText } from "../../../../../../menu-i18n";
 import { AlignCenter, AlignLeft, AlignRight } from "lucide-react";
 import { Transforms } from "slate";
 import { ReactEditor } from "slate-react";
@@ -32,20 +33,16 @@ const alignIcon = (ctx: EditorMenuContext) => {
   );
 };
 
-const ALIGNMENTS = [
-  { align: "left", label: "左对齐" },
-  { align: "center", label: "居中" },
-  { align: "right", label: "右对齐" },
-] as const;
+const ALIGNMENTS = ["left", "center", "right"] as const;
 
 export const videoMenuItems: EditorMenuEntry[] = [
   {
     id: "tau.video.align",
-    title: "对齐方式",
+    title: menuText("av.align"),
     icon: alignIcon,
-    children: ALIGNMENTS.map(({ align, label }) => ({
+    children: ALIGNMENTS.map(align => ({
       id: `tau.video.align-${align}`,
-      title: label,
+      title: menuText(`av.align.${align}`),
       icon:
         align === "left" ? (
           <AlignLeft size={16} />

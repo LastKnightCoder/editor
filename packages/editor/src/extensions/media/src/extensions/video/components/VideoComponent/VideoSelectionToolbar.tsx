@@ -1,3 +1,4 @@
+import { useEditorI18n } from "../../../../../../../i18n";
 import { Link2 } from "lucide-react";
 
 import {
@@ -27,31 +28,43 @@ const VideoSelectionToolbar = ({
   onAlign,
   onWidthPreset,
   onCopyLink,
-}: VideoSelectionToolbarProps) => (
-  <MediaToolbar label="视频属性">
-    {MEDIA_ALIGNMENTS.map(({ align: value, label, Icon }) => (
+}: VideoSelectionToolbarProps) => {
+  const { t, locale } = useEditorI18n();
+  return (
+    <MediaToolbar label={t("av.video.properties")}>
+      {MEDIA_ALIGNMENTS.map(({ align: value, Icon }) => (
+        <ToolbarButton
+          key={value}
+          title={t(`av.align.${value}`)}
+          icon={<Icon size={15} />}
+          active={align === value}
+          onClick={() => onAlign(value)}
+        />
+      ))}
+      <ToolbarGap />
+      {WIDTH_PRESETS.map(ratio => (
+        <ToolbarButton
+          key={ratio}
+          title={t("av.video.width", {
+            width: new Intl.NumberFormat(locale, {
+              style: "percent",
+              maximumFractionDigits: 0,
+            }).format(ratio),
+          })}
+          label={`${ratio * 100}%`}
+          mono
+          active={activePreset === ratio}
+          onClick={() => onWidthPreset(ratio)}
+        />
+      ))}
+      <ToolbarGap />
       <ToolbarButton
-        key={value}
-        title={label}
-        icon={<Icon size={15} />}
-        active={align === value}
-        onClick={() => onAlign(value)}
+        title={t("av.video.copyUrl")}
+        icon={<Link2 size={15} />}
+        onClick={onCopyLink}
       />
-    ))}
-    <ToolbarGap />
-    {WIDTH_PRESETS.map(ratio => (
-      <ToolbarButton
-        key={ratio}
-        title={`宽度 ${ratio * 100}%`}
-        label={`${ratio * 100}%`}
-        mono
-        active={activePreset === ratio}
-        onClick={() => onWidthPreset(ratio)}
-      />
-    ))}
-    <ToolbarGap />
-    <ToolbarButton title="复制视频地址" icon={<Link2 size={15} />} onClick={onCopyLink} />
-  </MediaToolbar>
-);
+    </MediaToolbar>
+  );
+};
 
 export default VideoSelectionToolbar;

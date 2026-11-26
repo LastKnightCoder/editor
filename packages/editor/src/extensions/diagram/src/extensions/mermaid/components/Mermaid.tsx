@@ -1,3 +1,4 @@
+import { useEditorI18n } from "../../../../../../i18n";
 import { useRef, useEffect, useState } from "react";
 import { useCreation } from "ahooks";
 import { renderMermaidSvg } from "../../../renderers/mermaid-render-core";
@@ -9,14 +10,16 @@ interface IMermaidProps {
 }
 
 const Mermaid = (props: IMermaidProps) => {
+  const { t } = useEditorI18n();
   const { chart } = props;
   // token 随主题族 / 明暗 / 局部强制明暗变化而换引用，借此触发重渲染
   const { isDark, token } = useEditorTheme();
   const ref = useRef<HTMLDivElement>(null);
-  const [error, setError] = useState<string>("");
+  const [error, setError] = useState<string | true>("");
+  const errorText = error === true ? t("code.renderFailed") : error;
   const [svgContent, setSvgContent] = useState<string>("");
   // 在源码预览块内时错误交给块的错误条，这里保留上一次成功的图
-  const errorReported = useReportPreviewError(error || null, { stale: !!svgContent });
+  const errorReported = useReportPreviewError(errorText || null, { stale: !!svgContent });
 
   const mermaidId = useCreation(() => {
     return `mermaid-${Math.random().toString(36).slice(2)}`;
@@ -40,7 +43,7 @@ const Mermaid = (props: IMermaidProps) => {
         setError("");
       } catch (e: unknown) {
         if (!isMounted) return;
-        const errorMsg = typeof e === "string" ? e : e instanceof Error ? e.message : "渲染失败";
+        const errorMsg = typeof e === "string" ? e : e instanceof Error ? e.message : true;
         setError(errorMsg);
       }
     };
@@ -56,7 +59,9 @@ const Mermaid = (props: IMermaidProps) => {
     <>
       <code id={mermaidId} style={{ display: "none" }}></code>
       {error && !errorReported ? (
-        <div className="p-[1em] text-center text-[0.875em] text-[var(--ed-danger)]">{error}</div>
+        <div className="p-[1em] text-center text-[0.875em] text-[var(--ed-danger)]">
+          {errorText}
+        </div>
       ) : (
         <div
           ref={ref}

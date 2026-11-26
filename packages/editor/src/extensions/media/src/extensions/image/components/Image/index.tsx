@@ -1,3 +1,4 @@
+import { useEditorI18n } from "../../../../../../../i18n";
 import React, { useEffect, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import { Transforms } from "slate";
@@ -74,6 +75,7 @@ const imageFileOf = (data: DataTransfer | null) =>
  * 触屏模式：单击把 Slate 选区放进本块表示选中，属性条、手柄、快捷键与拖入替换都不出现，操作由宿主工具栏经命令完成。
  */
 const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
+  const { t } = useEditorI18n();
   const { attributes, children, element, appearance: appearanceOption } = props;
   const {
     url,
@@ -224,11 +226,11 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
         let uploaded: string | undefined;
         try {
           uploaded = await submission.upload(file);
-          if (!uploaded) throw new Error("图片上传失败");
+          if (!uploaded) throw new Error(t("image.uploadFailed"));
         } catch (error) {
           if (!submission.check()) {
             console.error("替换图片失败:", error);
-            notifier.error("图片上传失败");
+            notifier.error(t("image.uploadFailed"));
           }
           return;
         }
@@ -329,7 +331,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
         let uploaded: string | undefined;
         try {
           uploaded = await submission.upload(file);
-          if (!uploaded) throw new Error("裁剪结果上传失败，请重试");
+          if (!uploaded) throw new Error(t("image.cropUploadFailed"));
         } catch (error) {
           if (submission.check()) return;
           throw error;
@@ -406,8 +408,8 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
       else if (mod && event.key.toLowerCase() === "c" && !window.getSelection()?.toString()) {
         void (async () => {
           const ok = displayImgRef.current ? await copyImageElement(displayImgRef.current) : false;
-          if (ok) notifier.success("图片已复制");
-          else notifier.error("复制失败：图片来源不允许读取");
+          if (ok) notifier.success(t("image.copied"));
+          else notifier.error(t("image.copyReadFailed"));
         })();
       } else handled = false;
       if (handled) {
@@ -441,6 +443,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
     deleteImage,
     replaceWithFile,
     notifier,
+    t,
   ]);
 
   // ---- 尺寸 ----
@@ -535,10 +538,10 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
         {busy ? (
           <>
             <Spinner className="size-4" />
-            图片上传中…
+            {t("image.uploadingImage")}
           </>
         ) : (
-          "选择图片，或把图片拖到这里"
+          t("image.chooseImage")
         )}
       </button>
     );
@@ -552,7 +555,9 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
             <span className="grid size-9 place-items-center rounded-full bg-[var(--ed-bg-surface)] text-[var(--ed-text-secondary)]">
               <ImageOff size={17} />
             </span>
-            <span className="text-tau-body font-medium text-[var(--ed-text)]">图片加载失败</span>
+            <span className="text-tau-body font-medium text-[var(--ed-text)]">
+              {t("image.loadFailed")}
+            </span>
             <span className="text-tau-sm line-clamp-2 max-w-[42ch] [font-family:var(--ed-font-mono)] break-all text-[var(--ed-text-tertiary)]">
               {displayUrl}
             </span>
@@ -566,7 +571,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
                   setReloadKey(key => key + 1);
                 }}
               >
-                重试
+                {t("image.retry")}
               </Button>
               {!readOnly && (
                 <Button
@@ -577,7 +582,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
                     pickReplacement();
                   }}
                 >
-                  替换图片
+                  {t("image.replaceImage")}
                 </Button>
               )}
             </span>
@@ -678,13 +683,13 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
           {busy && (
             <div className="text-tau-sm absolute inset-x-3 bottom-3 flex items-center gap-2 rounded-[10px] bg-[var(--ed-bg-surface)] px-3 py-1.5 text-[var(--ed-text-secondary)] shadow-[var(--ed-shadow-float)]">
               <Spinner className="size-3.5" />
-              上传中…
+              {t("image.loading")}
             </div>
           )}
           {dragOver && (
             <div className="pointer-events-none absolute inset-0 grid place-items-center bg-[var(--ed-accent-soft)] outline-2 -outline-offset-8 outline-[var(--ed-accent)] outline-dashed">
               <span className="text-tau-body rounded-full bg-[var(--ed-bg-surface)] px-3.5 py-1.5 font-semibold text-[var(--ed-accent-text)] shadow-[var(--ed-shadow-float)]">
-                松开以替换这张图片
+                {t("image.releaseReplace")}
               </span>
             </div>
           )}
@@ -730,7 +735,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
               // 空内容时占位符绝对定位不占高，min-h 保住一行，聚焦前后高度不变
               className="min-h-[1lh] text-[var(--ed-text-secondary)] caret-[var(--ed-accent)] outline-none"
               defaultValue={description || ""}
-              placeholder="添加图片说明…"
+              placeholder={t("image.captionPlaceholder")}
               contentEditable={!readOnly}
               defaultFocus
               onChange={value => setProps({ description: value })}
@@ -753,7 +758,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
               className="cursor-text border-none bg-transparent p-0 text-inherit opacity-70 transition-opacity hover:opacity-100"
               onClick={openDescEditor}
             >
-              添加图片说明…
+              {t("image.captionPlaceholder")}
             </button>
           )}
         </div>
@@ -797,7 +802,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
           className="pointer-events-none fixed top-0 left-0 h-px w-px opacity-0"
           onLoad={event => setCropSrc(event.currentTarget.currentSrc)}
           onLoadError={() => {
-            notifier.error("原图加载失败，无法裁剪");
+            notifier.error(t("image.sourceLoadFailed"));
             closeCrop();
           }}
         />

@@ -1,3 +1,4 @@
+import { useEditorI18n } from "../../../../../../../i18n";
 import React, { memo, useEffect, useRef, useState } from "react";
 import { RenderElementProps, useSlateStatic, useReadOnly, ReactEditor } from "slate-react";
 import { Transforms } from "slate";
@@ -39,6 +40,7 @@ const RESIZE_HANDLES: { direction: ResizeDirection; cursor: string }[] = [
  * 触屏模式：单击把 Slate 选区放进本节点表示选中，不出把手，尺寸与删除由宿主工具栏完成。
  */
 const InlineImageComponent: React.FC<InlineImageProps> = memo(props => {
+  const { t } = useEditorI18n();
   const { attributes, children, element } = props;
   const { url, alt, width, height } = element;
   const editor = useSlateStatic();
@@ -153,7 +155,7 @@ const InlineImageComponent: React.FC<InlineImageProps> = memo(props => {
         >
           {failed ? (
             <span
-              title={`图片加载失败：${url}`}
+              title={t("image.loadFailedUrl", { url })}
               className="inline-grid h-full min-h-[1.5em] w-full min-w-[1.5em] place-items-center rounded-[4px] bg-[var(--ed-bg-sunken)] align-bottom text-[var(--ed-text-tertiary)]"
             >
               <ImageOff size="0.9em" />

@@ -1,0 +1,13 @@
+{
+  "editorCommon.cancel": "取消",
+  "editorCommon.ok": "確定",
+  "editorCommon.confirm": "確認",
+  "editorCommon.alignLeft": "靠左對齊",
+  "editorCommon.alignCenter": "置中",
+  "editorCommon.alignRight": "靠右對齊",
+  "editorCommon.cannotInsert": "無法在目前選區插入，請將游標移至正文空行後重試",
+  "editorCommon.insertUrl": "插入網路{{type}}",
+  "editorCommon.insert": "插入",
+  "editorCommon.providerUrl": "此網址屬於特殊內容來源，請透過對應入口建立影片",
+  "editorCommon.uploadFailed": "上傳失敗"
+}

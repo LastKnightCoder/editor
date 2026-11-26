@@ -1,3 +1,5 @@
+import { editorT } from "../../../i18n-runtime";
+import { menuText } from "../../../menu-i18n";
 import { Edit, FileCode, Maximize2, RefreshCw, Trash2 } from "lucide-react";
 import { Transforms } from "slate";
 import { ReactEditor } from "slate-react";
@@ -70,9 +72,15 @@ export const webviewCommands: EditorCommand[] = [
       const element = asWebview(ctx.element);
       if (!element) return;
       const confirmed = await notifierOf(editor).confirm({
-        title: "确认删除",
-        description: "确定要删除这个网页视图吗？",
-        confirmText: "删除",
+        get title() {
+          return editorT(editor, "image.web.confirmDelete");
+        },
+        get description() {
+          return editorT(editor, "image.web.deleteDescription");
+        },
+        get confirmText() {
+          return editorT(editor, "image.delete");
+        },
         danger: true,
       });
       if (!confirmed) return;
@@ -85,36 +93,37 @@ export const webviewCommands: EditorCommand[] = [
 export const webviewMenuItems: EditorMenuEntry[] = [
   {
     id: "tau.webview.edit",
-    title: "编辑",
+    title: menuText("image.edit"),
     icon: <Edit size={16} />,
     command: "tau.webview.edit",
   },
   {
     id: "tau.webview.select-local",
-    title: ctx =>
+    title: menuText(ctx =>
       webviewActionsMap.get(ctx.element as WebviewElement)?.isUploading()
-        ? "上传中..."
-        : "选择本地 HTML",
+        ? "image.loading"
+        : "image.web.chooseShort"
+    ),
     icon: <FileCode size={16} />,
     command: "tau.webview.select-local",
     disabled: ctx => webviewActionsMap.get(ctx.element as WebviewElement)?.isUploading() ?? false,
   },
   {
     id: "tau.webview.fullscreen",
-    title: "全屏查看",
+    title: menuText("image.fullscreen"),
     icon: <Maximize2 size={16} />,
     command: "tau.webview.fullscreen",
   },
   {
     id: "tau.webview.refresh",
-    title: "刷新",
+    title: menuText("image.refresh"),
     icon: <RefreshCw size={16} />,
     command: "tau.webview.refresh",
   },
   {
     // 覆盖内核默认删除（id 相同）：网页视图删除需要确认
     id: "tau.block.delete",
-    title: "删除",
+    title: menuText("image.delete"),
     icon: <Trash2 size={16} />,
     command: "tau.webview.delete",
     group: "block",

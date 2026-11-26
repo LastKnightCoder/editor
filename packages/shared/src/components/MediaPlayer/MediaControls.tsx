@@ -1,3 +1,4 @@
+import { useMediaPlayerI18n, type MediaOsdMessage } from "./i18n";
 import React, { useEffect, useRef, useState } from "react";
 import { cn } from "@tau/ui";
 import { AnimatePresence, motion } from "motion/react";
@@ -88,11 +89,12 @@ export function SeekButton({
   tone: MediaTone;
   className?: string;
 }) {
+  const { t } = useMediaPlayerI18n();
   const Icon = seconds < 0 ? RotateCcw : RotateCw;
   return (
     <button
       type="button"
-      aria-label={seconds < 0 ? `快退 ${-seconds} 秒` : `快进 ${seconds} 秒`}
+      aria-label={t(seconds < 0 ? "seek.back" : "seek.forward", { count: Math.abs(seconds) })}
       className={cn(iconButtonClass(tone), "relative", className)}
       onClick={onSeek}
     >
@@ -115,13 +117,14 @@ export function PlayButton({
   tone: MediaTone;
   size?: "md" | "lg";
 }) {
+  const { t } = useMediaPlayerI18n();
   const Icon = playing ? Pause : Play;
   const large = size === "lg";
   return (
     <button
       type="button"
-      title={playing ? "暂停 (K)" : "播放 (K)"}
-      aria-label={playing ? "暂停" : "播放"}
+      title={t(playing ? "pause.shortcut" : "play.shortcut")}
+      aria-label={t(playing ? "pause" : "play")}
       onClick={onToggle}
       className={cn(
         "grid shrink-0 place-items-center rounded-full",
@@ -176,6 +179,7 @@ function VolumeSlider({
   onDraggingChange: (dragging: boolean) => void;
   tone: MediaTone;
 }) {
+  const { t } = useMediaPlayerI18n();
   const [dragging, setDragging] = useState(false);
   const styles = TONES[tone];
 
@@ -192,7 +196,7 @@ function VolumeSlider({
   return (
     <div
       role="slider"
-      aria-label="音量"
+      aria-label={t("volume")}
       aria-orientation="vertical"
       aria-valuemin={0}
       aria-valuemax={100}
@@ -249,6 +253,7 @@ export function VolumeControl({
   onActiveChange?: (active: boolean) => void;
   tone: MediaTone;
 }) {
+  const { t } = useMediaPlayerI18n();
   const rootRef = useRef<HTMLDivElement>(null);
   const [hovering, setHovering] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -289,8 +294,8 @@ export function VolumeControl({
     >
       <button
         type="button"
-        title={muted ? "取消静音 (M)" : "静音 (M)"}
-        aria-label={muted ? "取消静音" : "静音"}
+        title={t(muted ? "unmute.shortcut" : "mute.shortcut")}
+        aria-label={t(muted ? "unmute" : "mute")}
         onClick={onToggleMute}
         className={iconButtonClass(tone, open)}
       >
@@ -314,7 +319,7 @@ export function VolumeControl({
             onChange={onVolumeChange}
             onDraggingChange={setDragging}
           />
-          <span className="font-tau-mono text-[10.5px] tabular-nums leading-none">
+          <span className="font-tau-mono text-[10.5px] leading-none tabular-nums">
             {Math.round(shown * 100)}
           </span>
         </div>
@@ -336,6 +341,7 @@ export function RateMenu({
   tone: MediaTone;
   className?: string;
 }) {
+  const { t, locale } = useMediaPlayerI18n();
   const [open, setOpenState] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const styles = TONES[tone];
@@ -367,8 +373,8 @@ export function RateMenu({
     <div ref={rootRef} className={cn("relative shrink-0", className)}>
       <button
         type="button"
-        title="播放速度"
-        aria-label={`播放速度 ${rate} 倍`}
+        title={t("rate")}
+        aria-label={t("rate.value", { rate: rate.toLocaleString(locale) })}
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen(!open)}
@@ -378,12 +384,12 @@ export function RateMenu({
           open && styles.iconActive
         )}
       >
-        {rate}×
+        {rate.toLocaleString(locale)}×
       </button>
       {open && (
         <div
           role="listbox"
-          aria-label="播放速度"
+          aria-label={t("rate")}
           className={cn(
             "rounded-tau-sm absolute bottom-full right-0 z-30 mb-2 flex min-w-[88px] flex-col gap-0.5 p-1",
             styles.pop
@@ -405,7 +411,7 @@ export function RateMenu({
                 rate === option && styles.popItemActive
               )}
             >
-              {option}×{rate === option && <Check size={12} />}
+              {option.toLocaleString(locale)}×{rate === option && <Check size={12} />}
             </button>
           ))}
         </div>
@@ -425,11 +431,12 @@ export function PipButton({
   tone: MediaTone;
   className?: string;
 }) {
+  const { t } = useMediaPlayerI18n();
   return (
     <button
       type="button"
-      title={active ? "退出画中画 (P)" : "画中画 (P)"}
-      aria-label={active ? "退出画中画" : "画中画"}
+      title={t(active ? "pip.exitShortcut" : "pip.shortcut")}
+      aria-label={t(active ? "pip.exit" : "pip")}
       onClick={onToggle}
       className={cn(iconButtonClass(tone, active), className)}
     >
@@ -447,11 +454,12 @@ export function FullscreenToggle({
   onToggle: () => void;
   tone: MediaTone;
 }) {
+  const { t } = useMediaPlayerI18n();
   return (
     <button
       type="button"
-      title={fullscreen ? "退出全屏 (F)" : "全屏 (F)"}
-      aria-label={fullscreen ? "退出全屏" : "全屏"}
+      title={t(fullscreen ? "fullscreen.exitShortcut" : "fullscreen.shortcut")}
+      aria-label={t(fullscreen ? "fullscreen.exit" : "fullscreen")}
       onClick={onToggle}
       className={iconButtonClass(tone)}
     >
@@ -468,7 +476,8 @@ export const mediaToneTrack = (tone: MediaTone) => ({
 });
 
 /** 键盘操作反馈条：浮在播放器（画面或卡片）正中，淡入淡出 */
-export function MediaOsd({ osd }: { osd: { text: string; id: number } | null }) {
+export function MediaOsd({ osd }: { osd: { message: MediaOsdMessage; id: number } | null }) {
+  const { t } = useMediaPlayerI18n();
   return (
     <AnimatePresence>
       {osd && (
@@ -478,9 +487,9 @@ export function MediaOsd({ osd }: { osd: { text: string; id: number } | null }) 
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.12 }}
-          className="bg-ink-1 text-ink-inverse shadow-float text-tau-meta pointer-events-none absolute left-1/2 top-1/2 z-30 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full px-3.5 py-1.5 font-semibold tabular-nums"
+          className="bg-ink-1 text-ink-inverse shadow-float text-tau-meta pointer-events-none absolute top-1/2 left-1/2 z-30 -translate-x-1/2 -translate-y-1/2 rounded-full px-3.5 py-1.5 font-semibold whitespace-nowrap tabular-nums"
         >
-          {osd.text}
+          {t(osd.message.key, osd.message.values)}
         </motion.div>
       )}
     </AnimatePresence>
@@ -496,16 +505,17 @@ export function ResumeNotice({
   label: string;
   onRestart: () => void;
 }) {
+  const { t } = useMediaPlayerI18n();
   return (
     <span className="text-accent-text flex min-w-0 items-center gap-1.5">
       <History size={13} className="shrink-0" />
-      <span className="truncate">已从上次的 {label} 继续</span>
+      <span className="truncate">{t("resume", { time: label })}</span>
       <button
         type="button"
         onClick={onRestart}
         className="text-ink-2 hover:text-ink-1 shrink-0 underline underline-offset-[3px]"
       >
-        从头播放
+        {t("restart")}
       </button>
     </span>
   );

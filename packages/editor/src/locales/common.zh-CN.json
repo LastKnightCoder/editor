@@ -1,0 +1,13 @@
+{
+  "editorCommon.cancel": "取消",
+  "editorCommon.ok": "确定",
+  "editorCommon.confirm": "确认",
+  "editorCommon.alignLeft": "左对齐",
+  "editorCommon.alignCenter": "居中",
+  "editorCommon.alignRight": "右对齐",
+  "editorCommon.cannotInsert": "当前选区无法插入，请将光标置于正文空行后重试",
+  "editorCommon.insertUrl": "插入网络{{type}}",
+  "editorCommon.insert": "插入",
+  "editorCommon.providerUrl": "该地址属于特殊内容源，请通过对应入口创建视频",
+  "editorCommon.uploadFailed": "上传失败"
+}

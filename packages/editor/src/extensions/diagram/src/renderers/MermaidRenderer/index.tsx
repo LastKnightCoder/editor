@@ -1,3 +1,4 @@
+import { useEditorI18n } from "../../../../../i18n";
 import React, { useEffect, useRef, useState } from "react";
 import { Tooltip } from "@tau/ui";
 import { CircleAlert, Code, Copy, Download, Eye, Loader2, Maximize2, RotateCw } from "lucide-react";
@@ -23,9 +24,11 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
   messageApi,
   refreshKey,
 }) => {
+  const { t } = useEditorI18n();
   const containerRef = useRef<HTMLDivElement>(null);
   const [svgContent, setSvgContent] = useState<string>("");
-  const [error, setError] = useState<string>("");
+  const [error, setError] = useState<string | true>("");
+  const errorText = error === true ? t("code.renderFailed") : error;
   const [viewMode, setViewMode] = useState<"preview" | "source">("preview");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -65,7 +68,7 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
         }
       } catch (err) {
         if (isMounted) {
-          setError((err as { message?: string }).message || "Failed to render diagram");
+          setError(err instanceof Error && err.message ? err.message : true);
         }
       } finally {
         if (isMounted) {
@@ -91,24 +94,24 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
   const handleCopySource = () => {
     navigator.clipboard.writeText(code).then(
       () => {
-        messageApi?.success("源码已复制");
+        messageApi?.success(t("code.sourceCopied"));
       },
       () => {
-        messageApi?.error("复制失败");
+        messageApi?.error(t("code.clipboardFailed"));
       }
     );
   };
 
   const handleDownload = async () => {
     if (!containerRef.current) {
-      messageApi?.error("图表未渲染");
+      messageApi?.error(t("code.diagramNotRendered"));
       return;
     }
 
     try {
       const svgElement = containerRef.current.querySelector("svg");
       if (!svgElement) {
-        messageApi?.error("未找到图表");
+        messageApi?.error(t("code.diagramMissing"));
         return;
       }
 
@@ -130,7 +133,7 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
 
       const ctx = canvas.getContext("2d");
       if (!ctx) {
-        messageApi?.error("无法创建画布");
+        messageApi?.error(t("code.canvasFailed"));
         return;
       }
 
@@ -158,20 +161,20 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
             a.download = "mermaid-diagram.png";
             a.click();
             URL.revokeObjectURL(downloadUrl);
-            messageApi?.success("图表已下载");
+            messageApi?.success(t("code.downloaded"));
           } else {
-            messageApi?.error("下载失败");
+            messageApi?.error(t("code.downloadFailed"));
           }
         });
       };
       img.onerror = () => {
         URL.revokeObjectURL(url);
-        messageApi?.error("转换图片失败");
+        messageApi?.error(t("code.imageConversionFailed"));
       };
       img.src = url;
     } catch (err) {
       console.error("Download error:", err);
-      messageApi?.error("下载失败");
+      messageApi?.error(t("code.downloadFailed"));
     }
   };
 
@@ -190,9 +193,9 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
           <div className="m-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900/50 dark:bg-red-950/50">
             <div className="flex items-center gap-2 font-medium text-red-600 dark:text-red-400">
               <CircleAlert size={16} />
-              Diagram render error
+              {t("code.renderError")}
             </div>
-            <p className="mt-1 pl-6 text-xs text-red-500/90 dark:text-red-400/80">{error}</p>
+            <p className="mt-1 pl-6 text-xs text-red-500/90 dark:text-red-400/80">{errorText}</p>
           </div>
         );
       }
@@ -226,12 +229,12 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
         <div className="flex items-center justify-between gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-800">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
-              Mermaid Diagram
+              {t("code.mermaidTitle")}
             </span>
           </div>
 
           <div className="flex items-center gap-2">
-            <Tooltip content="刷新">
+            <Tooltip content={t("code.refresh")}>
               <button
                 className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 active:translate-y-px dark:text-gray-300 dark:hover:bg-neutral-700 dark:hover:text-white"
                 onClick={handleRefresh}
@@ -239,7 +242,7 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
                 <RotateCw size={16} />
               </button>
             </Tooltip>
-            <Tooltip content={viewMode === "preview" ? "查看源码" : "查看预览"}>
+            <Tooltip content={t(viewMode === "preview" ? "code.viewSource" : "code.viewPreview")}>
               <button
                 className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 active:translate-y-px dark:text-gray-300 dark:hover:bg-neutral-700 dark:hover:text-white"
                 onClick={() => setViewMode(viewMode === "preview" ? "source" : "preview")}
@@ -248,7 +251,7 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
               </button>
             </Tooltip>
             {viewMode === "source" && (
-              <Tooltip content="复制源码">
+              <Tooltip content={t("code.copySource")}>
                 <button
                   className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 active:translate-y-px dark:text-gray-300 dark:hover:bg-neutral-700 dark:hover:text-white"
                   onClick={handleCopySource}
@@ -258,7 +261,7 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
               </Tooltip>
             )}
             {viewMode === "preview" && svgContent && (
-              <Tooltip content="下载为图片">
+              <Tooltip content={t("code.downloadImage")}>
                 <button
                   className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 active:translate-y-px dark:text-gray-300 dark:hover:bg-neutral-700 dark:hover:text-white"
                   onClick={handleDownload}
@@ -267,7 +270,7 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
                 </button>
               </Tooltip>
             )}
-            <Tooltip content="全屏">
+            <Tooltip content={t("code.fullscreen")}>
               <button
                 className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 active:translate-y-px dark:text-gray-300 dark:hover:bg-neutral-700 dark:hover:text-white"
                 onClick={() => setIsFullscreen(true)}
@@ -284,7 +287,7 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
 
       {/* 全屏模式 */}
       {isFullscreen && (
-        <FullscreenPortal title="Mermaid Diagram" onClose={() => setIsFullscreen(false)}>
+        <FullscreenPortal title={t("code.mermaidTitle")} onClose={() => setIsFullscreen(false)}>
           {renderContent()}
         </FullscreenPortal>
       )}

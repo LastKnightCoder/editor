@@ -1,3 +1,4 @@
+import { useSourceI18n } from "./i18n";
 import { useEffect, useLayoutEffect, useRef, useState, type PropsWithChildren } from "react";
 import { createPortal } from "react-dom";
 import { useDebounceFn, useMemoizedFn } from "ahooks";
@@ -42,6 +43,7 @@ export function TouchPreviewWithEditor({
   textBinding,
 }: PropsWithChildren<IPreviewWithEditorProps>) {
   const editor = useSlateStatic();
+  const { t } = useSourceI18n(editor);
   const notifier = useNotifier();
   const editorReadOnly = useReadOnly();
   const readOnly =
@@ -63,8 +65,8 @@ export function TouchPreviewWithEditor({
   const [placeholderHeight, setPlaceholderHeight] = useState<number>();
   const [canScrollRight, setCanScrollRight] = useState(false);
 
-  const latest = useRef({ element, onChange });
-  latest.current = { element, onChange };
+  const latest = useRef({ element, onChange, title });
+  latest.current = { element, onChange, title };
   /** 非绑定模式最后写入的源码，用来区分自己的回写与外部改写 */
   const written = useRef(initValue);
   const [externalRevision, setExternalRevision] = useState(0);
@@ -139,19 +141,27 @@ export function TouchPreviewWithEditor({
 
   const copySource = useMemoizedFn(() => {
     void navigator.clipboard?.writeText(initValue).then(
-      () => notifier.success("源码已复制"),
-      () => notifier.error("复制失败")
+      () => notifier.success(t("copied")),
+      () => notifier.error(t("copyFailed"))
     );
   });
 
   useSourceFocusRequests(element, () => openPage());
 
   useEffect(() => {
-    previewActionsMap.set(element, { title, icon, edit: openPage, copySource, readOnly });
+    previewActionsMap.set(element, {
+      get title() {
+        return latest.current.title;
+      },
+      icon,
+      edit: openPage,
+      copySource,
+      readOnly,
+    });
     return () => {
       previewActionsMap.delete(element);
     };
-  }, [element, title, icon, openPage, copySource, readOnly]);
+  }, [element, icon, openPage, copySource, readOnly]);
 
   return (
     <div contentEditable={false} data-source-presentation="touch">
@@ -164,12 +174,7 @@ export function TouchPreviewWithEditor({
         }}
       >
         {isEmpty && !open && (
-          <EmptySourcePlaceholder
-            title={title}
-            readOnly={readOnly}
-            hint="点按"
-            onClick={openPage}
-          />
+          <EmptySourcePlaceholder title={title} readOnly={readOnly} touch onClick={openPage} />
         )}
         <div
           ref={setBlockSlot}

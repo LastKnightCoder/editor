@@ -1,3 +1,5 @@
+import { editorT } from "../../../i18n-runtime";
+import { menuText } from "../../../menu-i18n";
 import {
   Check,
   Copy,
@@ -45,9 +47,9 @@ export const bookmarkCommands: EditorCommand[] = [
       if (!element) return;
       try {
         await navigator.clipboard.writeText(element.url);
-        notifierOf(editor).success("已复制链接");
+        notifierOf(editor).success(editorT(editor, "image.copiedLink"));
       } catch {
-        notifierOf(editor).error("复制失败");
+        notifierOf(editor).error(editorT(editor, "image.copyFailed"));
       }
     },
   },
@@ -86,35 +88,35 @@ const current = (element: Element) => asBookmark(element)?.appearance ?? "row";
 export const bookmarkMenuItems: EditorMenuEntry[] = [
   {
     id: "tau.bookmark.open",
-    title: "打开网页",
+    title: menuText("image.bookmark.open"),
     icon: <ExternalLink size={16} />,
     command: "tau.bookmark.open",
   },
   {
     id: "tau.bookmark.copy",
-    title: "复制链接",
+    title: menuText("image.copyLink"),
     icon: <Copy size={16} />,
     command: "tau.bookmark.copy",
   },
   {
     id: "tau.bookmark.edit",
-    title: "编辑",
+    title: menuText("image.edit"),
     icon: <Pencil size={16} />,
     command: "tau.bookmark.edit",
   },
   {
     id: "tau.bookmark.refresh",
-    title: "重新读取网页信息",
+    title: menuText("image.bookmark.refresh"),
     icon: <RefreshCw size={16} />,
     command: "tau.bookmark.refresh",
   },
   {
     id: "tau.bookmark.appearance",
-    title: "外观",
+    title: menuText("image.appearance"),
     icon: <PanelRight size={16} />,
     children: APPEARANCES.map(item => ({
       id: `tau.bookmark.appearance.${item.value}`,
-      title: item.title,
+      title: menuText(`image.bookmark.${item.value}`),
       icon: ctx =>
         current(ctx.element) === item.value ? <Check size={16} /> : <item.icon size={16} />,
       command: "tau.bookmark.appearance",

@@ -1,3 +1,5 @@
+import { menuText } from "../../../../../../menu-i18n";
+import { editorT } from "../../../../../../i18n-runtime";
 import {
   Code2,
   Copy,
@@ -58,10 +60,10 @@ export const codeBlockCommands: EditorCommand[] = [
       if (navigator.clipboard && codeEditor) {
         void navigator.clipboard
           .writeText(codeEditor.getValue())
-          .then(() => notifier.success("代码复制成功"))
-          .catch(() => notifier.error("代码复制失败"));
+          .then(() => notifier.success(editorT(editor, "code.copySucceeded")))
+          .catch(() => notifier.error(editorT(editor, "code.copyFailed")));
       } else {
-        notifier.error("代码复制失败");
+        notifier.error(editorT(editor, "code.copyFailed"));
       }
     },
   },
@@ -80,7 +82,7 @@ export const codeBlockCommands: EditorCommand[] = [
         code: sourceCode,
         magicMove: createInitialMagicMove(sourceCode, element.highlightLines),
       });
-      notifierOf(editor).success("已开启分步演示，正在编辑第 2 步");
+      notifierOf(editor).success(editorT(editor, "code.stepsEnabled"));
     },
   },
   {
@@ -104,7 +106,7 @@ export const codeBlockCommands: EditorCommand[] = [
       if (!highlightLines) {
         Transforms.unsetNodes(editor, "highlightLines", { at: path });
       }
-      notifierOf(editor).success("已关闭分步演示");
+      notifierOf(editor).success(editorT(editor, "code.stepsDisabled"));
     },
   },
   {
@@ -127,7 +129,7 @@ export const codeBlockCommands: EditorCommand[] = [
         code: getActiveStepCode(nextMagicMove, element.code || ""),
         magicMove: nextMagicMove,
       });
-      notifierOf(editor).success("已新增下一步");
+      notifierOf(editor).success(editorT(editor, "code.stepInserted"));
     },
   },
   {
@@ -153,7 +155,7 @@ export const codeBlockCommands: EditorCommand[] = [
           code: result.code,
           magicMove: result.magicMove,
         });
-        notifier.success("已删除当前步骤");
+        notifier.success(editorT(editor, "code.stepRemoved"));
         return;
       }
       setCodeBlockNodes(editor, element, {
@@ -165,7 +167,7 @@ export const codeBlockCommands: EditorCommand[] = [
       if (!result.highlightLines) {
         Transforms.unsetNodes(editor, "highlightLines", { at: path });
       }
-      notifier.success("只剩一步，已关闭分步演示");
+      notifier.success(editorT(editor, "code.lastStep"));
     },
   },
   {
@@ -220,19 +222,19 @@ const hasSteps = (ctx: EditorMenuContext) => {
 export const codeBlockMenuItems: EditorMenuEntry[] = [
   {
     id: "tau.code-block.copy-code",
-    title: "复制代码",
+    title: menuText("code.copyCode"),
     icon: <Copy size={16} />,
     command: "tau.code-block.copy-code",
     order: 10,
   },
   {
     id: "tau.code-block.set-language",
-    title: "修改语言",
+    title: menuText("code.language"),
     order: 20,
     icon: <Code2 size={16} />,
     children: CODE_BLOCK_LANGUAGE_OPTIONS.map(lang => ({
       id: `tau.code-block.set-language-${lang.value}`,
-      title: lang.label,
+      title: lang.value === "Plain Text" ? menuText("code.plainText") : lang.label,
       command: "tau.code-block.set-language",
       payload: { language: lang.value },
       disabled: ctx =>
@@ -242,7 +244,9 @@ export const codeBlockMenuItems: EditorMenuEntry[] = [
   },
   {
     id: "tau.code-block.edit-filename",
-    title: ctx => ((ctx.element as CodeBlockElement).filename ? "修改文件名" : "设置文件名"),
+    title: menuText(ctx =>
+      (ctx.element as CodeBlockElement).filename ? "code.editFilename" : "code.setFilename"
+    ),
     icon: <FileText size={16} />,
     command: "tau.code-block.edit-filename",
     order: 30,
@@ -250,18 +254,19 @@ export const codeBlockMenuItems: EditorMenuEntry[] = [
   },
   {
     id: "tau.code-block.toggle-line-numbers",
-    title: ctx =>
-      (ctx.element as CodeBlockElement).lineNumbers === false ? "显示行号" : "隐藏行号",
+    title: menuText(ctx =>
+      (ctx.element as CodeBlockElement).lineNumbers === false ? "code.showLines" : "code.hideLines"
+    ),
     icon: <ListOrdered size={16} />,
     command: "tau.code-block.toggle-line-numbers",
     order: 40,
   },
   {
     id: "tau.code-block.toggle-wrap",
-    title: ctx => {
-      if (hasSteps(ctx)) return "自动换行（分步演示中不可用）";
-      return (ctx.element as CodeBlockElement).wrap ? "关闭自动换行" : "自动换行";
-    },
+    title: menuText(ctx => {
+      if (hasSteps(ctx)) return "code.wrapUnavailable";
+      return (ctx.element as CodeBlockElement).wrap ? "code.disableWrap" : "code.wrap";
+    }),
     icon: <WrapText size={16} />,
     command: "tau.code-block.toggle-wrap",
     order: 50,
@@ -269,7 +274,7 @@ export const codeBlockMenuItems: EditorMenuEntry[] = [
   },
   {
     id: "tau.code-block.magic-move.enable",
-    title: "分步演示",
+    title: menuText("code.steps"),
     icon: <Presentation size={16} />,
     command: "tau.code-block.magic-move.enable",
     order: 60,
@@ -277,7 +282,7 @@ export const codeBlockMenuItems: EditorMenuEntry[] = [
   },
   {
     id: "tau.code-block.magic-move.insert-next-step",
-    title: "在后面插入一步",
+    title: menuText("code.insertStep"),
     icon: <Plus size={16} />,
     command: "tau.code-block.magic-move.insert-next-step",
     order: 61,
@@ -285,7 +290,7 @@ export const codeBlockMenuItems: EditorMenuEntry[] = [
   },
   {
     id: "tau.code-block.magic-move.remove-current-step",
-    title: "删除当前步骤",
+    title: menuText("code.removeStep"),
     icon: <Trash2 size={16} />,
     command: "tau.code-block.magic-move.remove-current-step",
     order: 62,
@@ -294,7 +299,7 @@ export const codeBlockMenuItems: EditorMenuEntry[] = [
   },
   {
     id: "tau.code-block.magic-move.disable",
-    title: "关闭分步演示",
+    title: menuText("code.disableSteps"),
     icon: <X size={16} />,
     command: "tau.code-block.magic-move.disable",
     order: 63,

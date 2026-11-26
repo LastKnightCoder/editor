@@ -1,0 +1,17 @@
+{
+  "av.audio.title": "音频标题…",
+  "av.audio.uploading": "音频上传中...",
+  "av.audio.empty": "空音频",
+  "av.video.uploading": "视频上传中...",
+  "av.video.empty": "空视频",
+  "av.chooseFile": "选择文件上传",
+  "av.copy.success": "视频地址已复制",
+  "av.copy.failed": "复制失败",
+  "av.video.properties": "视频属性",
+  "av.video.width": "宽度 {{width}}",
+  "av.video.copyUrl": "复制视频地址",
+  "av.align": "对齐方式",
+  "av.align.left": "左对齐",
+  "av.align.center": "居中",
+  "av.align.right": "右对齐"
+}

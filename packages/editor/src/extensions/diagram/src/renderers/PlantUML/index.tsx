@@ -1,5 +1,6 @@
+import { useEditorI18n } from "../../../../../i18n";
 import { PLANTUML_DEFAULT_SERVER, buildPlantumlSvgUrl, applyDarkTheme } from "../plantuml-source";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /**
  * PlantUML 渲染（slidev 方案）：编码后直接经渲染服务器以 <img> 呈现，
@@ -22,6 +23,7 @@ export interface IPlantUMLProps {
 const DEFAULT_DARK_THEME = "cyborg-outline";
 
 const PlantUML = (props: IPlantUMLProps) => {
+  const { t, locale } = useEditorI18n();
   const {
     content,
     isDark,
@@ -36,6 +38,12 @@ const PlantUML = (props: IPlantUMLProps) => {
   const [failedUrl, setFailedUrl] = useState("");
   // 当前地址加载失败时显示上一张成功的图，而不是破图图标
   const shownUrl = failedUrl === imgUrl && loadedUrl ? loadedUrl : imgUrl;
+  const previousLocale = useRef(locale);
+  useEffect(() => {
+    if (previousLocale.current === locale) return;
+    previousLocale.current = locale;
+    if (failedUrl === imgUrl) onError?.(t("code.plantumlFailed"), !!loadedUrl);
+  }, [locale, failedUrl, imgUrl, loadedUrl, onError, t]);
 
   return (
     <div
@@ -47,7 +55,7 @@ const PlantUML = (props: IPlantUMLProps) => {
       {!content.trim() ? null : (
         <img
           src={shownUrl}
-          alt="PlantUML diagram"
+          alt={t("code.plantumlAlt")}
           className="max-w-full"
           onLoad={event => {
             const src = event.currentTarget.getAttribute("src") ?? "";
@@ -57,7 +65,7 @@ const PlantUML = (props: IPlantUMLProps) => {
           onError={event => {
             if (event.currentTarget.getAttribute("src") !== imgUrl) return;
             setFailedUrl(imgUrl);
-            onError?.("无法加载 PlantUML 渲染结果，请检查网络或渲染服务器地址", !!loadedUrl);
+            onError?.(t("code.plantumlFailed"), !!loadedUrl);
           }}
         />
       )}

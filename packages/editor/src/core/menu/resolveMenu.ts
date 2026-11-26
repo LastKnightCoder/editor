@@ -65,7 +65,14 @@ function renderEntry(
   if (!entry.command && children.length === 0) return null;
 
   const command = entry.command;
-  const label = menuLabelReader(entry.title, ctx);
+  const title = entry.title;
+  const label =
+    typeof title === "string" && Object.getOwnPropertyDescriptor(entry, "title")?.get
+      ? () => {
+          const value = entry.title;
+          return typeof value === "string" ? value : title;
+        }
+      : menuLabelReader(title, ctx);
   const item: ContextMenuItem = {
     key: entry.id,
     get label() {

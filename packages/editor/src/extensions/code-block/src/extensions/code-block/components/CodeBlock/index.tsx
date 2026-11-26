@@ -1,3 +1,4 @@
+import { useEditorI18n } from "../../../../../../../i18n";
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Transforms } from "slate";
 import { ReactEditor, RenderElementProps, useReadOnly, useSlateStatic } from "slate-react";
@@ -93,6 +94,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
     wrap = false,
     lineNumbers = true,
   } = element as CodeBlockElement;
+  const { t, locale } = useEditorI18n();
   const slateEditor = useSlateStatic();
   const contextReadOnly = useReadOnly();
   const stepsModel = isCodeBlockV2(element) ? element : null;
@@ -387,7 +389,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
       pendingLocalCodeRef.current = nextCode;
       setCode(nextCode);
     } catch (error) {
-      message.error(error instanceof Error ? error.message : "源码写入失败");
+      message.error(error instanceof Error ? error.message : t("code.writeFailed"));
     }
   });
 
@@ -638,13 +640,13 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
     const editorController = codeBlockMap.get(uuid);
     const currentCode = editorController?.getValue() ?? code;
     if (!navigator.clipboard) {
-      message.error("复制代码失败");
+      message.error(t("code.copyFailed"));
       return;
     }
     try {
       await navigator.clipboard.writeText(currentCode);
     } catch {
-      message.error("复制代码失败");
+      message.error(t("code.copyFailed"));
       return;
     }
     setCopied(true);
@@ -846,9 +848,12 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
               />
               {isFolded
                 ? hiddenLineCount > 0
-                  ? `展开剩余 ${hiddenLineCount} 行`
-                  : "展开"
-                : "收起"}
+                  ? t("code.expandLines", {
+                      count: hiddenLineCount,
+                      amount: hiddenLineCount.toLocaleString(locale),
+                    })
+                  : t("code.expand")
+                : t("code.collapse")}
             </div>
           )}
         </div>

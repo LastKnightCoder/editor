@@ -15,12 +15,20 @@ export const openBookmarkUrlInput = async (editor: Editor) => {
     if (anchor.check()) return;
     const value = await notifier.prompt({
       signal: anchor.signal,
-      title: "添加网页书签",
-      placeholder: "粘贴或输入网址",
-      confirmText: "添加书签",
+      get title() {
+        return editorT(editor, "image.bookmark.add");
+      },
+      get placeholder() {
+        return editorT(editor, "image.bookmark.url");
+      },
+      get confirmText() {
+        return editorT(editor, "image.bookmark.addConfirm");
+      },
       inputMode: "url",
       validate: value =>
-        isBookmarkUrl(normalizeBookmarkUrl(value)) ? undefined : "请输入 http(s) 网址",
+        isBookmarkUrl(normalizeBookmarkUrl(value))
+          ? undefined
+          : editorT(editor, "image.bookmark.urlRequired"),
     });
     if (!value) return;
     anchor.commit(({ range }) => {
@@ -40,7 +48,14 @@ const getItems = (editor: LocaleEditor): IBlockPanelListItem[] => {
         return editorT(editor, "block.bookmark");
       },
       keywords: [
-        ...["网页书签", "书签", "bookmark", "链接卡片", "shuqian", "wangye"],
+        ...[
+          editorT(editor, "image.paste.bookmark"),
+          "书签",
+          "bookmark",
+          "链接卡片",
+          "shuqian",
+          "wangye",
+        ],
         ...editorAliases("block.bookmark"),
       ],
       get description() {

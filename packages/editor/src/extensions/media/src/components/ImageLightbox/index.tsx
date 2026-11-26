@@ -1,3 +1,4 @@
+import { useEditorI18n } from "../../../../../i18n";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useSlateStatic } from "slate-react";
@@ -70,6 +71,7 @@ type LightboxViewProps = Pick<
 >;
 
 const LightboxView = ({ items, index, setIndex, close }: LightboxViewProps) => {
+  const { t } = useEditorI18n();
   useEffect(() => lockBodyScroll(document), []);
   const portalContainer = usePortalContainer();
   const { Image } = useEditorSlots();
@@ -176,15 +178,15 @@ const LightboxView = ({ items, index, setIndex, close }: LightboxViewProps) => {
   const copyImage = async () => {
     const img = imageRef.current;
     const ok = img ? await copyImageElement(img) : false;
-    if (ok) notifier.success("图片已复制");
-    else notifier.error("复制失败：图片来源不允许读取");
+    if (ok) notifier.success(t("image.copied"));
+    else notifier.error(t("image.copyReadFailed"));
   };
 
   const downloadImage = async () => {
     const img = imageRef.current;
     const blob = img ? await imageElementToBlob(img) : null;
     if (!blob) {
-      notifier.error("下载失败：图片来源不允许读取");
+      notifier.error(t("image.downloadReadFailed"));
       return;
     }
     const link = document.createElement("a");
@@ -200,7 +202,7 @@ const LightboxView = ({ items, index, setIndex, close }: LightboxViewProps) => {
       tabIndex={-1}
       role="dialog"
       aria-modal="true"
-      aria-label="图片预览"
+      aria-label={t("image.preview")}
       className="fixed inset-0 z-[1100] flex flex-col bg-[#0e0e0f] text-white outline-none"
       onKeyDown={handleKeyDown}
     >
@@ -215,7 +217,7 @@ const LightboxView = ({ items, index, setIndex, close }: LightboxViewProps) => {
         <span className="flex-1" />
         <button
           type="button"
-          title="缩小 (−)"
+          title={t("image.zoomOut")}
           className={barButtonClass}
           onClick={() => zoomAt(zoom / 1.25)}
         >
@@ -226,7 +228,7 @@ const LightboxView = ({ items, index, setIndex, close }: LightboxViewProps) => {
         </span>
         <button
           type="button"
-          title="放大 (+)"
+          title={t("image.zoomIn")}
           className={barButtonClass}
           onClick={() => zoomAt(zoom * 1.25)}
         >
@@ -234,7 +236,7 @@ const LightboxView = ({ items, index, setIndex, close }: LightboxViewProps) => {
         </button>
         <button
           type="button"
-          title="适应窗口 (0)"
+          title={t("image.fit")}
           className={barButtonClass}
           onClick={() => zoomAt(1)}
         >
@@ -243,7 +245,7 @@ const LightboxView = ({ items, index, setIndex, close }: LightboxViewProps) => {
         <span className="w-2.5" />
         <button
           type="button"
-          title="复制图片"
+          title={t("image.copyImage")}
           className={barButtonClass}
           onClick={() => void copyImage()}
         >
@@ -251,14 +253,19 @@ const LightboxView = ({ items, index, setIndex, close }: LightboxViewProps) => {
         </button>
         <button
           type="button"
-          title="下载"
+          title={t("image.download")}
           className={barButtonClass}
           onClick={() => void downloadImage()}
         >
           <Download size={16} />
         </button>
         <span className="w-2.5" />
-        <button type="button" title="关闭 (Esc)" className={barButtonClass} onClick={close}>
+        <button
+          type="button"
+          title={t("image.closeKey")}
+          className={barButtonClass}
+          onClick={close}
+        >
           <X size={17} />
         </button>
       </div>
@@ -312,7 +319,7 @@ const LightboxView = ({ items, index, setIndex, close }: LightboxViewProps) => {
           <>
             <button
               type="button"
-              title="上一张 (←)"
+              title={t("image.previous")}
               className="absolute top-1/2 left-4 grid size-10 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
               onClick={() => go(-1)}
             >
@@ -320,7 +327,7 @@ const LightboxView = ({ items, index, setIndex, close }: LightboxViewProps) => {
             </button>
             <button
               type="button"
-              title="下一张 (→)"
+              title={t("image.next")}
               className="absolute top-1/2 right-4 grid size-10 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
               onClick={() => go(1)}
             >

@@ -1,3 +1,4 @@
+import { editorT } from "../../../i18n-runtime";
 import { elementView } from "@tau/editor/api";
 import { Editor, Element, Node, Transforms, type Path } from "slate";
 import { ReactEditor } from "slate-react";
@@ -46,12 +47,13 @@ function writablePath(editor: Editor, block: CodeBlockV2Element): Path {
       (identity && (node as unknown as { collabId?: string }).collabId === identity)
   );
   if (!entry || !Element.isElement(entry[0]) || !isCodeBlockV2(entry[0] as CodeBlockV2Element))
-    throw new Error("代码块已失效");
+    throw new Error(editorT(editor, "code.blockMissing"));
   const path = entry[1];
-  if (ReactEditor.isReadOnly(editor)) throw new Error("代码块只读");
+  if (ReactEditor.isReadOnly(editor)) throw new Error(editorT(editor, "code.readonly"));
   for (let depth = 1; depth <= path.length; depth++) {
     const node = Node.get(editor, path.slice(0, depth));
-    if (Element.isElement(node) && !canEditElement(editor, node)) throw new Error("代码块只读");
+    if (Element.isElement(node) && !canEditElement(editor, node))
+      throw new Error(editorT(editor, "code.readonly"));
   }
   return path;
 }
@@ -104,6 +106,6 @@ export function updateCodeStep(
 ): void {
   const path = writablePath(editor, block);
   const { step, index } = activeCodeStep(editor, Node.get(editor, path) as CodeBlockV2Element);
-  if (!step || !canEditElement(editor, step)) throw new Error("源码步骤只读");
+  if (!step || !canEditElement(editor, step)) throw new Error(editorT(editor, "code.stepReadonly"));
   Transforms.setNodes(editor, patch, { at: [...path, index], voids: true });
 }

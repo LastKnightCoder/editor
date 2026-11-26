@@ -1,3 +1,4 @@
+import { useEditorI18n } from "../../../../i18n";
 import { useState, type MouseEvent, type ReactNode } from "react";
 import { useReadOnly, useSlateStatic } from "slate-react";
 import { Copy, ExternalLink, Globe, MoreHorizontal, Pencil, WifiOff } from "lucide-react";
@@ -87,6 +88,7 @@ const OPS_BUTTON =
   "text-[var(--ed-text-secondary)] hover:bg-[var(--ed-bg-hover)] hover:text-[var(--ed-text)]";
 
 export default function BookmarkCard({ element }: ElementRenderProps<BookmarkElement>) {
+  const { t } = useEditorI18n();
   const editor = useSlateStatic();
   const readOnly = useReadOnly();
   const touch = useTouchInteraction();
@@ -108,9 +110,9 @@ export default function BookmarkCard({ element }: ElementRenderProps<BookmarkEle
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(element.url);
-      notifier.success("已复制链接");
+      notifier.success(t("image.copiedLink"));
     } catch {
-      notifier.error("复制失败");
+      notifier.error(t("image.copyFailed"));
     }
   };
   const retry = () => void fetchBookmarkMeta(editor, element);
@@ -130,14 +132,14 @@ export default function BookmarkCard({ element }: ElementRenderProps<BookmarkEle
   const status = canRetry ? (
     <span className="flex items-center gap-1.5 text-[12.5px] text-[var(--ed-text-tertiary)]">
       <WifiOff size={13} strokeWidth={1.75} />
-      没能读取网页信息
+      {t("image.bookmark.failed")}
       <button
         type="button"
         data-bookmark-control=""
         className="cursor-pointer rounded-[4px] border-none bg-transparent px-1 text-[12px] text-[var(--ed-accent-text)] hover:bg-[var(--ed-accent-soft)]"
         onClick={retry}
       >
-        重试
+        {t("image.retry")}
       </button>
     </span>
   ) : null;
@@ -155,8 +157,8 @@ export default function BookmarkCard({ element }: ElementRenderProps<BookmarkEle
       >
         <button
           type="button"
-          title="打开"
-          aria-label="打开"
+          title={t("image.open")}
+          aria-label={t("image.open")}
           data-web-link={element.url}
           className={OPS_BUTTON}
           onClick={() => openLink(element.url)}
@@ -165,8 +167,8 @@ export default function BookmarkCard({ element }: ElementRenderProps<BookmarkEle
         </button>
         <button
           type="button"
-          title="复制链接"
-          aria-label="复制链接"
+          title={t("image.copyLink")}
+          aria-label={t("image.copyLink")}
           className={OPS_BUTTON}
           onClick={copy}
         >
@@ -174,8 +176,8 @@ export default function BookmarkCard({ element }: ElementRenderProps<BookmarkEle
         </button>
         <button
           type="button"
-          title="编辑"
-          aria-label="编辑"
+          title={t("image.edit")}
+          aria-label={t("image.edit")}
           className={OPS_BUTTON}
           onClick={() => openBookmarkEditor(editor, element)}
         >
@@ -184,8 +186,8 @@ export default function BookmarkCard({ element }: ElementRenderProps<BookmarkEle
         <span className="mx-0.5 my-1 w-px bg-[var(--ed-border)]" />
         <button
           type="button"
-          title="更多"
-          aria-label="更多"
+          title={t("image.more")}
+          aria-label={t("image.more")}
           className={OPS_BUTTON}
           onClick={event => {
             const rect = event.currentTarget.getBoundingClientRect();
@@ -204,7 +206,7 @@ export default function BookmarkCard({ element }: ElementRenderProps<BookmarkEle
     touch ? "rounded-[12px]" : "rounded-[10px]",
     (!touch || readOnly) && "cursor-pointer"
   );
-  const label = `打开网页：${display.title}`;
+  const label = t("image.bookmark.openLabel", { title: display.title });
 
   if (appearance === "compact") {
     return (

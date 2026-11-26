@@ -13,6 +13,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@tau/i18n": "workspace:*",
     "@tau/shared": "workspace:*",
     "@tau/ui": "workspace:*",
     "ahooks": "^3.7.7",

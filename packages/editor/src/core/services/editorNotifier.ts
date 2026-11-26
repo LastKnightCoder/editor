@@ -1,11 +1,37 @@
+import { editorT, editorRuntime, requestRuntimeKey } from "../../i18n-runtime";
 import type { Editor } from "slate";
 import { captureEditorSubmission } from "../api/submission";
 
-import { defaultEditorNotifier, type EditorNotifier } from "./notifier";
+import {
+  defaultEditorNotifier,
+  type EditorNotifier,
+  type EditorConfirmOptions,
+  type EditorPromptOptions,
+} from "./notifier";
 import { IEditorNotifier } from "./tokens";
 
 const serviceOf = (editor: Editor): EditorNotifier =>
   editor.tryGetService?.(IEditorNotifier) ?? defaultEditorNotifier;
+
+function localizedOptions<T extends EditorConfirmOptions | EditorPromptOptions>(
+  editor: Editor,
+  options: T,
+  prompt: boolean
+): T {
+  return Object.create(Object.getPrototypeOf(options), {
+    ...Object.getOwnPropertyDescriptors(options),
+    [requestRuntimeKey]: { value: editorRuntime(editor) },
+    confirmText: {
+      enumerable: true,
+      get: () =>
+        options.confirmText ?? editorT(editor, prompt ? "editorCommon.ok" : "editorCommon.confirm"),
+    },
+    cancelText: {
+      enumerable: true,
+      get: () => options.cancelText ?? editorT(editor, "editorCommon.cancel"),
+    },
+  });
+}
 
 const notifiers = new WeakMap<Editor, EditorNotifier>();
 
@@ -18,7 +44,7 @@ export function notifierOf(editor: Editor): EditorNotifier {
     error: message => serviceOf(editor).error(message),
     warning: message => serviceOf(editor).warning(message),
     loading: message => serviceOf(editor).loading(message),
-    confirm: options => serviceOf(editor).confirm(options),
+    confirm: options => serviceOf(editor).confirm(localizedOptions(editor, options, false)),
     prompt: async options => {
       const request = captureEditorSubmission(editor, {
         signal: options.signal,
@@ -27,7 +53,11 @@ export function notifierOf(editor: Editor): EditorNotifier {
       const service = serviceOf(editor);
       try {
         if (request.check()) return null;
-        const result = await service.prompt({ ...options, signal: request.signal });
+        const forwarded = Object.create(Object.getPrototypeOf(options), {
+          ...Object.getOwnPropertyDescriptors(localizedOptions(editor, options, true)),
+          signal: { enumerable: true, value: request.signal },
+        }) as EditorPromptOptions;
+        const result = await service.prompt(forwarded);
         return request.check() ? null : result;
       } finally {
         request.dispose();

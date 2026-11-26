@@ -1,3 +1,4 @@
+import { useEditorI18n } from "../../../../../i18n";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useSlateStatic } from "slate-react";
 import { Transforms } from "slate";
@@ -36,6 +37,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
   showTabs = true,
   loading = false,
 }) => {
+  const { t } = useEditorI18n();
   const message = useNotifier();
   const editor = useSlateStatic();
   const pending = useRef<ReturnType<typeof beginMediaSubmission>>(null);
@@ -84,7 +86,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
     async (file: File) => {
       if (inline && (!inputSession.current || inputSession.current.check())) return;
       if (!file.type.startsWith("image/")) {
-        message.error("请上传图片文件");
+        message.error(t("image.fileRequired"));
         return;
       }
 
@@ -98,7 +100,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
         setPopoverVisible(false);
       }
     },
-    [message, editor, element, inline]
+    [message, editor, element, inline, t]
   );
 
   const handleLinkConfirm = useCallback(() => {
@@ -116,9 +118,9 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
       setLinkValue("");
       setPopoverVisible(false);
     } else {
-      message.error("请输入有效的图片链接");
+      message.error(t("image.validUrlRequired"));
     }
-  }, [linkValue, message, editor, element, inline]);
+  }, [linkValue, message, editor, element, inline, t]);
 
   const linkForm = (
     <div className="flex items-center gap-3 py-2">
@@ -128,16 +130,16 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
         onKeyDown={e => {
           if (e.key === "Enter") handleLinkConfirm();
         }}
-        placeholder="请输入网络图片地址"
+        placeholder={t("image.imageUrl")}
       />
-      <Button onClick={handleLinkConfirm}>确定</Button>
+      <Button onClick={handleLinkConfirm}>{t("image.confirm")}</Button>
     </div>
   );
 
   const tabItems = (compact: boolean): TabItem<UploaderTab>[] => [
     {
       key: "upload",
-      label: "本地上传",
+      label: t("image.uploadLocal"),
       children: (
         <FileDropZone
           accept="image/*"
@@ -150,12 +152,12 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
             className="text-[var(--ed-text-tertiary)]"
           />
           <p className="m-0 text-[0.875em] text-[var(--ed-text-secondary)]">
-            {compact ? "点击或拖拽图片" : "点击或拖拽图片到此处上传"}
+            {compact ? t("image.dropCompact") : t("image.drop")}
           </p>
         </FileDropZone>
       ),
     },
-    { key: "link", label: "网络图片", children: linkForm },
+    { key: "link", label: t("image.networkImage"), children: linkForm },
   ];
 
   if (inline) {
@@ -175,7 +177,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
                 className="inline-flex h-full cursor-pointer items-center gap-1 px-1 text-[12px] text-[var(--ed-text-secondary)] hover:text-[var(--ed-accent)]"
               >
                 <Upload size="1em" />
-                上传图片
+                {t("image.uploadImage")}
               </button>
             }
           >

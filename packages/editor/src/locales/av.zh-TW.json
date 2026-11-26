@@ -1,0 +1,17 @@
+{
+  "av.audio.title": "音訊標題…",
+  "av.audio.uploading": "音訊上傳中…",
+  "av.audio.empty": "空音訊",
+  "av.video.uploading": "影片上傳中…",
+  "av.video.empty": "空影片",
+  "av.chooseFile": "選擇檔案上傳",
+  "av.copy.success": "已複製影片網址",
+  "av.copy.failed": "複製失敗",
+  "av.video.properties": "影片屬性",
+  "av.video.width": "寬度 {{width}}",
+  "av.video.copyUrl": "複製影片網址",
+  "av.align": "對齊方式",
+  "av.align.left": "靠左對齊",
+  "av.align.center": "置中",
+  "av.align.right": "靠右對齊"
+}

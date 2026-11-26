@@ -426,3 +426,27 @@ it("语言变化只刷新内置标题，插件函数与状态条件保持打开�
     runtime.dispose();
   }
 });
+
+it("字符串标题 getter 保留读取语义，普通标题函数仍只在打开时求值", () => {
+  let title = "first";
+  const original = vi.fn(() => "snapshot");
+  const items = resolveBlockMenuItems(
+    [
+      source("example", [
+        {
+          id: "getter",
+          get title() {
+            return title;
+          },
+          command: "original.action",
+        },
+        { id: "function", title: original, command: "other.action" },
+      ]),
+    ],
+    ctxOf(element("paragraph"))
+  );
+  title = "next";
+  expect(items[0].label).toBe(title);
+  expect(items[1].label).toBe("snapshot");
+  expect(original).toHaveBeenCalledTimes(1);
+});

@@ -1,3 +1,5 @@
+import { createI18nRuntime, createLocaleStore, type I18nRuntime } from "@tau/i18n";
+import { I18nRuntimeProvider } from "@tau/i18n/react";
 import { Activity, act, createRef, useState, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -108,7 +110,12 @@ describe("触屏源码页", () => {
     previewClicked.mockClear();
   });
 
-  const mount = async ({ bound = true, readonly = false, initial = "\\draw" } = {}) => {
+  const mount = async ({
+    bound = true,
+    readonly = false,
+    initial = "\\draw",
+    runtime,
+  }: { bound?: boolean; readonly?: boolean; initial?: string; runtime?: I18nRuntime } = {}) => {
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);
@@ -137,29 +144,34 @@ describe("触屏源码页", () => {
         </div>
       );
     };
+    const RuntimeScope = ({ children }: { children: ReactNode }) =>
+      runtime ? <I18nRuntimeProvider runtime={runtime}>{children}</I18nRuntimeProvider> : children;
     await act(async () =>
       root.render(
-        <DndProvider backend={HTML5Backend}>
-          <Outer>
-            <Editor
-              ref={ref}
-              kit={kit}
-              readonly={readonly}
-              initValue={[
-                paragraph("前"),
-                {
-                  type: "test-source",
-                  source: initial,
-                  children: [{ type: "formatted", text: "" }],
-                },
-                paragraph("后"),
-              ]}
-            />
-          </Outer>
-        </DndProvider>
+        <RuntimeScope>
+          <DndProvider backend={HTML5Backend}>
+            <Outer>
+              <Editor
+                ref={ref}
+                kit={kit}
+                readonly={readonly}
+                initValue={[
+                  paragraph("前"),
+                  {
+                    type: "test-source",
+                    source: initial,
+                    children: [{ type: "formatted", text: "" }],
+                  },
+                  paragraph("后"),
+                ]}
+              />
+            </Outer>
+          </DndProvider>
+        </RuntimeScope>
       )
     );
     editor = ref.current!.getEditor();
+    return () => ref.current?.getEditor();
   };
 
   const source = () => (editor.children[1] as SourceElement).source;
@@ -191,6 +203,34 @@ describe("触屏源码页", () => {
       input.dispatchEvent(new Event("input", { bubbles: true }));
     });
   };
+
+  it("切换语言保留源码页、绑定输入与光标，不重建编辑器或动作", async () => {
+    const locale = createLocaleStore("zh-CN"),
+      runtime = createI18nRuntime({ localeSource: locale });
+    try {
+      const currentEditor = await mount({ runtime });
+      await openPage();
+      await type("source draft");
+      const field = textarea(),
+        before = source(),
+        actions = previewActionsMap.get(editor.children[1] as never);
+      const selected = structuredClone(editor.selection);
+      field.setSelectionRange(2, 5);
+      for (const next of ["zh-TW", "en-US"]) {
+        await act(async () => locale.setLocale(next));
+        expect(textarea()).toBe(field);
+        expect(field.value).toBe("source draft");
+        expect([field.selectionStart, field.selectionEnd]).toEqual([2, 5]);
+        expect(source()).toBe(before);
+        expect(editor.selection).toEqual(selected);
+        expect(currentEditor()).toBe(editor);
+        expect(previewActionsMap.get(editor.children[1] as never)).toBe(actions);
+      }
+    } finally {
+      await act(async () => root?.unmount());
+      runtime.dispose();
+    }
+  });
 
   it("打开后预览移进页面、只挂一份，返回后放回正文", async () => {
     await mount();

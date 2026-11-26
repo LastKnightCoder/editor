@@ -1,0 +1,20 @@
+{
+  "edit": "Edit",
+  "delete": "Delete",
+  "done": "Done",
+  "copy": "Copy source",
+  "copied": "Source copied",
+  "copiedShort": "Copied",
+  "copyFailed": "Could not copy",
+  "historyFailed": "Could not undo or redo",
+  "sourceLabel": "{{title}} source",
+  "back": "Back",
+  "undo": "Undo",
+  "redo": "Redo",
+  "resizePreview": "Resize preview",
+  "editSource": "Edit source",
+  "stale": "Preview shows the last successful result",
+  "empty": "Empty {{title}}",
+  "startClick": "Click to start writing {{title}}",
+  "startTap": "Tap to start writing {{title}}"
+}

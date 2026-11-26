@@ -1,3 +1,5 @@
+import { I18nRuntimeProvider } from "@tau/i18n/react";
+import { editorRuntime } from "../../../../i18n-runtime";
 import { createRoot } from "react-dom/client";
 import type { Editor } from "slate";
 
@@ -11,16 +13,20 @@ export function openBookmarkEditor(editor: Editor, element: BookmarkElement): vo
   const root = createRoot(container);
   const render = (open: boolean) =>
     root.render(
-      <BookmarkEditDialog
-        editor={editor}
-        element={element}
-        open={open}
-        onClose={() => render(false)}
-        onAfterClose={() => {
-          root.unmount();
-          container.remove();
-        }}
-      />
+      <I18nRuntimeProvider runtime={editorRuntime(editor)}>
+        <BookmarkEditDialog
+          editor={editor}
+          element={element}
+          open={open}
+          onClose={() => render(false)}
+          onAfterClose={() => {
+            queueMicrotask(() => {
+              root.unmount();
+              container.remove();
+            });
+          }}
+        />
+      </I18nRuntimeProvider>
     );
   render(true);
 }

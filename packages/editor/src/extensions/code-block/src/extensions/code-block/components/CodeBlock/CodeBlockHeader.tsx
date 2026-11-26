@@ -1,3 +1,4 @@
+import { useEditorI18n } from "../../../../../../../i18n";
 import { useEffect, useRef, useState } from "react";
 import { Check, ChevronLeft, ChevronRight, Copy, MoreHorizontal, Plus } from "lucide-react";
 
@@ -84,65 +85,69 @@ const InlineInput = ({
   );
 };
 
-const StepNavigator = ({ steps, readOnly }: { steps: CodeBlockStepNav; readOnly: boolean }) => (
-  <>
-    <span className="ml-[0.125em] inline-flex h-[1.75em] shrink-0 items-center gap-px rounded-[0.5em] px-[1px] text-[1em] shadow-[inset_0_0_0_1px_var(--ed-border)]">
-      <ToolbarIconButton
-        icon={ChevronLeft}
-        title="上一步"
-        disabled={!steps.hasPrevious}
-        onClick={steps.onPrevious}
-        className="h-[1.375em] w-[1.375em]"
-      />
-      <span
-        className="min-w-[2.6em] select-none text-center font-[family-name:var(--ed-font-mono)] text-[0.72em] font-medium leading-none text-[var(--ed-text-secondary)]"
-        aria-label="步骤进度"
-      >
-        {`${steps.current + 1}/${steps.total}`}
-      </span>
-      <ToolbarIconButton
-        icon={ChevronRight}
-        title="下一步"
-        disabled={!steps.hasNext}
-        onClick={steps.onNext}
-        className="h-[1.375em] w-[1.375em]"
-      />
-      {steps.onInsertNext && (
+const StepNavigator = ({ steps, readOnly }: { steps: CodeBlockStepNav; readOnly: boolean }) => {
+  const { t, locale } = useEditorI18n();
+  return (
+    <>
+      <span className="ml-[0.125em] inline-flex h-[1.75em] shrink-0 items-center gap-px rounded-[0.5em] px-[1px] text-[1em] shadow-[inset_0_0_0_1px_var(--ed-border)]">
         <ToolbarIconButton
-          icon={Plus}
-          title="在后面插入一步"
-          onClick={steps.onInsertNext}
-          active
+          icon={ChevronLeft}
+          title={t("code.previous")}
+          disabled={!steps.hasPrevious}
+          onClick={steps.onPrevious}
           className="h-[1.375em] w-[1.375em]"
         />
-      )}
-    </span>
-    {!readOnly && steps.onTitleChange ? (
-      <InlineInput
-        key={steps.current}
-        initialValue={steps.title ?? ""}
-        placeholder="写一句这一步做了什么…"
-        className="flex-1 text-[0.78em] text-[var(--ed-text-tertiary)]"
-        onCommit={value => steps.onTitleChange?.(value.trim())}
-      />
-    ) : (
-      <span
-        className="min-w-0 flex-1 truncate px-[0.375em] text-[0.78em] text-[var(--ed-text-tertiary)]"
-        title={steps.title}
-      >
-        {steps.title}
+        <span
+          className="min-w-[2.6em] text-center font-[family-name:var(--ed-font-mono)] text-[0.72em] leading-none font-medium text-[var(--ed-text-secondary)] select-none"
+          aria-label={t("code.stepProgress")}
+        >
+          {`${(steps.current + 1).toLocaleString(locale)}/${steps.total.toLocaleString(locale)}`}
+        </span>
+        <ToolbarIconButton
+          icon={ChevronRight}
+          title={t("code.next")}
+          disabled={!steps.hasNext}
+          onClick={steps.onNext}
+          className="h-[1.375em] w-[1.375em]"
+        />
+        {steps.onInsertNext && (
+          <ToolbarIconButton
+            icon={Plus}
+            title={t("code.insertStep")}
+            onClick={steps.onInsertNext}
+            active
+            className="h-[1.375em] w-[1.375em]"
+          />
+        )}
       </span>
-    )}
-  </>
-);
+      {!readOnly && steps.onTitleChange ? (
+        <InlineInput
+          key={steps.current}
+          initialValue={steps.title ?? ""}
+          placeholder={t("code.stepTitlePlaceholder")}
+          className="flex-1 text-[0.78em] text-[var(--ed-text-tertiary)]"
+          onCommit={value => steps.onTitleChange?.(value.trim())}
+        />
+      ) : (
+        <span
+          className="min-w-0 flex-1 truncate px-[0.375em] text-[0.78em] text-[var(--ed-text-tertiary)]"
+          title={steps.title}
+        >
+          {steps.title}
+        </span>
+      )}
+    </>
+  );
+};
 
 const MoreButton = ({ onOpenMenu }: { onOpenMenu: (anchor: DOMRect) => void }) => {
+  const { t } = useEditorI18n();
   const anchorRef = useRef<HTMLSpanElement | null>(null);
   return (
     <span ref={anchorRef} className={cn("inline-flex", REVEAL_ON_HOVER)}>
       <ToolbarIconButton
         icon={MoreHorizontal}
-        title="更多"
+        title={t("code.more")}
         onClick={() => {
           const anchor = anchorRef.current?.getBoundingClientRect();
           if (anchor) onOpenMenu(anchor);
@@ -179,53 +184,57 @@ const CodeBlockHeader = ({
   copied,
   onCopy,
   onOpenMenu,
-}: CodeBlockHeaderProps) => (
-  <div
-    className="flex h-[2.25em] items-center gap-[0.25em] border-b border-solid border-[var(--ed-border)] px-[0.375em] text-[var(--ed-text-secondary)]"
-    onClick={event => event.stopPropagation()}
-  >
-    <SelectLanguage readonly={readOnly} value={language} onChange={onLanguageChange} />
-    {editingFilename && !readOnly ? (
-      <InlineInput
-        initialValue={filename ?? ""}
-        placeholder="文件名，如 src/index.ts"
-        autoFocus
-        className="w-[16em] font-[family-name:var(--ed-font-mono)] text-[0.75em] text-[var(--ed-text-secondary)]"
-        onCommit={onFilenameCommit}
-      />
-    ) : (
-      filename && (
-        <span
-          className={cn(
-            "min-w-0 shrink truncate rounded-[0.3125em] px-[0.375em] py-[0.125em] font-[family-name:var(--ed-font-mono)] text-[0.75em] text-[var(--ed-text-tertiary)]",
-            !readOnly && "cursor-text transition-colors duration-150 hover:bg-[var(--ed-bg-hover)]"
-          )}
-          title={filename}
-          onClick={readOnly ? undefined : onEditFilename}
-        >
-          {filename}
-        </span>
-      )
-    )}
-    {steps ? <StepNavigator steps={steps} readOnly={readOnly} /> : <span className="flex-1" />}
-    <button
-      type="button"
-      title="复制代码"
-      className={cn(
-        "inline-flex h-[1.75em] shrink-0 cursor-pointer items-center gap-[0.3em] rounded-[0.375em] border-none bg-transparent px-[0.5em] text-[0.75em] text-[var(--ed-text-tertiary)] transition-colors duration-150 hover:bg-[var(--ed-bg-hover)] hover:text-[var(--ed-text)]",
-        copied ? "text-[var(--ed-ok)] opacity-100 hover:text-[var(--ed-ok)]" : REVEAL_ON_HOVER
-      )}
-      onClick={onCopy}
+}: CodeBlockHeaderProps) => {
+  const { t } = useEditorI18n();
+  return (
+    <div
+      className="flex h-[2.25em] items-center gap-[0.25em] border-b border-solid border-[var(--ed-border)] px-[0.375em] text-[var(--ed-text-secondary)]"
+      onClick={event => event.stopPropagation()}
     >
-      {copied ? (
-        <Check size="1.15em" strokeWidth={2.2} />
+      <SelectLanguage readonly={readOnly} value={language} onChange={onLanguageChange} />
+      {editingFilename && !readOnly ? (
+        <InlineInput
+          initialValue={filename ?? ""}
+          placeholder={t("code.filenamePlaceholder")}
+          autoFocus
+          className="w-[16em] font-[family-name:var(--ed-font-mono)] text-[0.75em] text-[var(--ed-text-secondary)]"
+          onCommit={onFilenameCommit}
+        />
       ) : (
-        <Copy size="1.15em" strokeWidth={1.9} />
+        filename && (
+          <span
+            className={cn(
+              "min-w-0 shrink truncate rounded-[0.3125em] px-[0.375em] py-[0.125em] font-[family-name:var(--ed-font-mono)] text-[0.75em] text-[var(--ed-text-tertiary)]",
+              !readOnly &&
+                "cursor-text transition-colors duration-150 hover:bg-[var(--ed-bg-hover)]"
+            )}
+            title={filename}
+            onClick={readOnly ? undefined : onEditFilename}
+          >
+            {filename}
+          </span>
+        )
       )}
-      {copied ? "已复制" : "复制"}
-    </button>
-    {onOpenMenu && <MoreButton onOpenMenu={onOpenMenu} />}
-  </div>
-);
+      {steps ? <StepNavigator steps={steps} readOnly={readOnly} /> : <span className="flex-1" />}
+      <button
+        type="button"
+        title={t("code.copyCode")}
+        className={cn(
+          "inline-flex h-[1.75em] shrink-0 cursor-pointer items-center gap-[0.3em] rounded-[0.375em] border-none bg-transparent px-[0.5em] text-[0.75em] text-[var(--ed-text-tertiary)] transition-colors duration-150 hover:bg-[var(--ed-bg-hover)] hover:text-[var(--ed-text)]",
+          copied ? "text-[var(--ed-ok)] opacity-100 hover:text-[var(--ed-ok)]" : REVEAL_ON_HOVER
+        )}
+        onClick={onCopy}
+      >
+        {copied ? (
+          <Check size="1.15em" strokeWidth={2.2} />
+        ) : (
+          <Copy size="1.15em" strokeWidth={1.9} />
+        )}
+        {t(copied ? "code.copied" : "code.copy")}
+      </button>
+      {onOpenMenu && <MoreButton onOpenMenu={onOpenMenu} />}
+    </div>
+  );
+};
 
 export default CodeBlockHeader;

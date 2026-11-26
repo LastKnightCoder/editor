@@ -1,3 +1,6 @@
+import { createI18nRuntime, createLocaleStore, type I18nRuntime } from "@tau/i18n";
+import { I18nRuntimeProvider } from "@tau/i18n/react";
+import { editorMessages } from "../../../../i18n-runtime";
 import { act, createRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -40,7 +43,14 @@ afterEach(async () => {
   open.mockClear();
 });
 
-async function mount(value: Descendant[], { readonly = false, touch = false } = {}) {
+async function mount(
+  value: Descendant[],
+  {
+    readonly = false,
+    touch = false,
+    runtime,
+  }: { readonly?: boolean; touch?: boolean; runtime?: I18nRuntime } = {}
+) {
   const kit = createEditorKit({
     extensions: [bookmarkExtension, linkExtension],
     services: [
@@ -54,13 +64,17 @@ async function mount(value: Descendant[], { readonly = false, touch = false } = 
   host = document.createElement("div");
   document.body.appendChild(host);
   root = createRoot(host);
+  const content = (
+    <DndProvider backend={HTML5Backend}>
+      <Editor ref={ref} kit={kit} initValue={value} readonly={readonly} />
+    </DndProvider>
+  );
   await act(async () =>
     root!.render(
-      <DndProvider backend={HTML5Backend}>
-        <Editor ref={ref} kit={kit} initValue={value} readonly={readonly} />
-      </DndProvider>
+      runtime ? <I18nRuntimeProvider runtime={runtime}>{content}</I18nRuntimeProvider> : content
     )
   );
+  return ref;
 }
 
 const card = () => host.querySelector<HTMLElement>("[data-bookmark]")!;
@@ -122,4 +136,76 @@ describe("书签卡片", () => {
     await click();
     expect(open).toHaveBeenCalledWith("https://sspai.com/post/1");
   });
+});
+
+it("独立书签编辑弹层继承语言，切换时保留草稿焦点且确认前不写正文", async () => {
+  const locale = createLocaleStore("zh-CN");
+  const runtime = createI18nRuntime({ localeSource: locale });
+  const { t } = runtime.get(editorMessages);
+  try {
+    const ref = await mount([bookmark(), paragraph()], { runtime });
+    const editor = ref.current?.getEditor();
+    if (!editor) throw new Error("编辑器未挂载");
+    const before = JSON.stringify(editor.children);
+    vi.useFakeTimers();
+    await act(async () =>
+      editor.commands.execute(
+        "tau.bookmark.edit",
+        undefined,
+        editor.children[0] as BookmarkElement,
+        [0]
+      )
+    );
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+    });
+    const field = [...document.querySelectorAll("input")].find(
+      input => input.value === "卡片笔记写作法"
+    );
+    if (!field) throw new Error("书签编辑未打开");
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(
+        field,
+        "未提交的书签标题"
+      );
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+      field.focus();
+    });
+    field.setSelectionRange(1, 4);
+    for (const next of ["zh-TW", "en-US"]) {
+      await act(async () => locale.setLocale(next));
+      expect(
+        [...document.querySelectorAll("input")].find(input => input.value === "未提交的书签标题")
+      ).toBe(field);
+      expect(document.activeElement).toBe(field);
+      expect([field.selectionStart, field.selectionEnd]).toEqual([1, 4]);
+      expect(ref.current?.getEditor()).toBe(editor);
+      expect(JSON.stringify(editor.children)).toBe(before);
+    }
+    const done = [...document.querySelectorAll("button")].find(
+      button => button.textContent === t("image.done")
+    );
+    if (!done) throw new Error("书签确认入口未挂载");
+    await act(async () => done.click());
+    expect(editor.children[0]).toMatchObject({
+      overrides: { title: "未提交的书签标题" },
+      meta: { title: "卡片笔记写作法" },
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+    });
+  } finally {
+    const cancel = [...document.querySelectorAll("button")].find(
+      button => button.textContent === t("image.cancel")
+    );
+    if (cancel) await act(async () => cancel.click());
+    if (vi.isFakeTimers())
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(250);
+      });
+    await act(async () => root?.unmount());
+    root = undefined;
+    runtime.dispose();
+    vi.useRealTimers();
+  }
 });

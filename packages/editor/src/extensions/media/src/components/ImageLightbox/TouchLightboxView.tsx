@@ -1,3 +1,4 @@
+import { useEditorI18n } from "../../../../../i18n";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { cn, lockBodyScroll, usePortalContainer } from "@tau/ui";
@@ -43,6 +44,7 @@ const midpoint = (a: Point, b: Point): Point => ({ x: (a.x + b.x) / 2, y: (a.y +
  * 未放大时左右滑切图、下滑关闭（跟手缩小、背景渐隐）。底部为说明与复制。
  */
 const TouchLightboxView = ({ items, index, setIndex, close }: TouchLightboxViewProps) => {
+  const { t } = useEditorI18n();
   useEffect(() => lockBodyScroll(document), []);
   const portalContainer = usePortalContainer();
   const { Image } = useEditorSlots();
@@ -293,8 +295,8 @@ const TouchLightboxView = ({ items, index, setIndex, close }: TouchLightboxViewP
 
   const copyImage = async () => {
     const ok = imageRef.current ? await copyImageElement(imageRef.current) : false;
-    if (ok) notifier.success("图片已复制");
-    else notifier.error("复制失败：图片来源不允许读取");
+    if (ok) notifier.success(t("image.copied"));
+    else notifier.error(t("image.copyReadFailed"));
   };
 
   const dismissProgress = Math.min(1, dismissY / 400);
@@ -309,9 +311,9 @@ const TouchLightboxView = ({ items, index, setIndex, close }: TouchLightboxViewP
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="图片预览"
+      aria-label={t("image.preview")}
       data-touch-lightbox="true"
-      className="fixed inset-0 z-[1100] flex select-none flex-col text-white"
+      className="fixed inset-0 z-[1100] flex flex-col text-white select-none"
     >
       {/* 背景单独一层，下滑时渐隐露出文档（看图场景固定深色，不随主题） */}
       <div
@@ -328,7 +330,7 @@ const TouchLightboxView = ({ items, index, setIndex, close }: TouchLightboxViewP
       >
         <button
           type="button"
-          aria-label="关闭"
+          aria-label={t("image.close")}
           className="grid size-10 place-items-center rounded-full text-white"
           onClick={close}
         >
@@ -407,7 +409,7 @@ const TouchLightboxView = ({ items, index, setIndex, close }: TouchLightboxViewP
           onClick={() => void copyImage()}
         >
           <Copy size={20} />
-          复制
+          {t("image.copy")}
         </button>
       </div>
     </div>,

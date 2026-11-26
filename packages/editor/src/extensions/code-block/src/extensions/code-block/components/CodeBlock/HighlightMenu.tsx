@@ -1,3 +1,4 @@
+import { useEditorI18n } from "../../../../../../../i18n";
 import React from "react";
 import { ContextMenu, Menu } from "@tau/ui";
 
@@ -16,14 +17,15 @@ export default function HighlightMenu({
   onAdd,
   onRemove,
 }: HighlightMenuProps) {
+  const { t } = useEditorI18n();
   if (readOnly) return <React.Fragment>{children}</React.Fragment>;
   return (
     <ContextMenu
       content={
         <React.Fragment>
-          <Menu.Item onSelect={onAdd}>高亮选中行</Menu.Item>
+          <Menu.Item onSelect={onAdd}>{t("code.addHighlight")}</Menu.Item>
           <Menu.Item disabled={!canRemove} onSelect={onRemove}>
-            取消高亮选中行
+            {t("code.removeHighlight")}
           </Menu.Item>
         </React.Fragment>
       }

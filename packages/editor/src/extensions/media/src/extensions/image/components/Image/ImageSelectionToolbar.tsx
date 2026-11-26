@@ -1,3 +1,4 @@
+import { useEditorI18n } from "../../../../../../../i18n";
 import type { ReactNode } from "react";
 import { Captions, Crop, MoreHorizontal } from "lucide-react";
 
@@ -40,52 +41,62 @@ const ImageSelectionToolbar = ({
   onAction,
   onCaption,
   onMore,
-}: ImageSelectionToolbarProps) => (
-  <MediaToolbar label="图片属性">
-    {MEDIA_ALIGNMENTS.map(({ align: value, label, Icon }) => (
+}: ImageSelectionToolbarProps) => {
+  const { t, locale } = useEditorI18n();
+  return (
+    <MediaToolbar label={t("image.properties")}>
+      {MEDIA_ALIGNMENTS.map(({ align: value, Icon }) => (
+        <ToolbarButton
+          key={value}
+          title={t(`image.align.${value}`)}
+          icon={<Icon size={15} />}
+          active={align === value}
+          onClick={() => onAlign(value)}
+        />
+      ))}
+      <ToolbarGap />
+      {WIDTH_PRESETS.map(ratio => (
+        <ToolbarButton
+          key={ratio}
+          title={t("image.width", {
+            percent: new Intl.NumberFormat(locale, { style: "percent" }).format(ratio),
+          })}
+          label={new Intl.NumberFormat(locale, { style: "percent" }).format(ratio)}
+          mono
+          active={activePreset === ratio}
+          onClick={() => onWidthPreset(ratio)}
+        />
+      ))}
+      <ToolbarGap />
       <ToolbarButton
-        key={value}
-        title={label}
-        icon={<Icon size={15} />}
-        active={align === value}
-        onClick={() => onAlign(value)}
+        title={t("image.crop")}
+        shortcut="C"
+        icon={<Crop size={15} />}
+        onClick={onCrop}
       />
-    ))}
-    <ToolbarGap />
-    {WIDTH_PRESETS.map(ratio => (
+      {actions.map(action => (
+        <ToolbarButton
+          key={action.id}
+          title={action.label}
+          icon={action.icon}
+          label={action.icon ? undefined : action.label}
+          onClick={() => onAction(action.id)}
+        />
+      ))}
       <ToolbarButton
-        key={ratio}
-        title={`宽度 ${ratio * 100}%`}
-        label={`${ratio * 100}%`}
-        mono
-        active={activePreset === ratio}
-        onClick={() => onWidthPreset(ratio)}
+        title={hasDescription ? t("image.editCaption") : t("image.addCaption")}
+        shortcut="Enter"
+        icon={<Captions size={15} />}
+        onClick={onCaption}
       />
-    ))}
-    <ToolbarGap />
-    <ToolbarButton title="裁剪" shortcut="C" icon={<Crop size={15} />} onClick={onCrop} />
-    {actions.map(action => (
+      <ToolbarGap />
       <ToolbarButton
-        key={action.id}
-        title={action.label}
-        icon={action.icon}
-        label={action.icon ? undefined : action.label}
-        onClick={() => onAction(action.id)}
+        title={t("image.more")}
+        icon={<MoreHorizontal size={15} />}
+        onClick={event => onMore(event.currentTarget.getBoundingClientRect())}
       />
-    ))}
-    <ToolbarButton
-      title={hasDescription ? "编辑说明" : "添加说明"}
-      shortcut="Enter"
-      icon={<Captions size={15} />}
-      onClick={onCaption}
-    />
-    <ToolbarGap />
-    <ToolbarButton
-      title="更多"
-      icon={<MoreHorizontal size={15} />}
-      onClick={event => onMore(event.currentTarget.getBoundingClientRect())}
-    />
-  </MediaToolbar>
-);
+    </MediaToolbar>
+  );
+};
 
 export default ImageSelectionToolbar;

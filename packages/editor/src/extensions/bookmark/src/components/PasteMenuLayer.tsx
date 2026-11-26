@@ -1,3 +1,4 @@
+import { useEditorI18n } from "../../../../i18n";
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { Node } from "slate";
@@ -17,6 +18,7 @@ const NAV_KEYS = new Set(["ArrowUp", "ArrowDown", "Enter", "Escape"]);
 
 /** 空段落粘贴网址后的「粘贴为」菜单：默认保持链接，输入或点别处即收起。 */
 export default function PasteMenuLayer({ readOnly }: ExtensionLayerProps) {
+  const { t } = useEditorI18n();
   const editor = useSlateStatic();
   const controller = pasteMenuOf(editor);
   const state = useSyncExternalStore(
@@ -91,12 +93,14 @@ export default function PasteMenuLayer({ readOnly }: ExtensionLayerProps) {
       <div
         data-bookmark-paste-menu=""
         role="menu"
-        aria-label="粘贴为"
+        aria-label={t("image.paste.title")}
         className="fixed z-[10050] w-[200px] rounded-[10px] border border-[var(--ed-border)] bg-[var(--ed-bg-surface)] p-1 text-[13px] shadow-[var(--ed-shadow-float)]"
         style={position}
         onMouseDown={event => event.preventDefault()}
       >
-        <div className="px-2 pt-1 pb-0.5 text-[11.5px] text-[var(--ed-text-tertiary)]">粘贴为</div>
+        <div className="px-2 pt-1 pb-0.5 text-[11.5px] text-[var(--ed-text-tertiary)]">
+          {t("image.paste.title")}
+        </div>
         {CHOICES.map((choice, index) => (
           <button
             key={choice.value}
@@ -110,7 +114,7 @@ export default function PasteMenuLayer({ readOnly }: ExtensionLayerProps) {
             onClick={() => applyPasteChoice(editor, choice.value)}
           >
             <choice.icon size={14} strokeWidth={1.75} className="text-[var(--ed-text-secondary)]" />
-            {choice.title}
+            {t(`image.paste.${choice.value}`)}
             {choice.hint && (
               <kbd className="ml-auto rounded-[4px] border border-[var(--ed-border)] px-1 text-[11px] font-[var(--ed-font-mono)] text-[var(--ed-text-tertiary)]">
                 {choice.hint}

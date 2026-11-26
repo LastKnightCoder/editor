@@ -1,3 +1,4 @@
+import { useEditorI18n, type EditorMessageKey } from "../../../../i18n";
 /**
  * 网页地址弹窗（插入 / 编辑共用）：远程网址直接使用，本地 HTML 选文件上传后取资源地址。
  * 版式对齐桌面端「添加网页」弹窗（@tau/ui Dialog + Segmented 切换来源）。
@@ -58,17 +59,18 @@ const InputUrlModal = ({
   onAfterClose,
   defaultValue = "",
   defaultSourceType = WebLinkSourceType.REMOTE,
-  title = "添加网页",
-  subtitle = "添加远程网址，或上传本地 HTML 文件",
-  okText = "确认添加",
+  title,
+  subtitle,
+  okText,
 }: InputUrlModalProps) => {
+  const { t } = useEditorI18n();
   const isDefaultLocal = defaultSourceType === WebLinkSourceType.LOCAL;
   const [activeTab, setActiveTab] = useState<SourceTab>(isDefaultLocal ? "local" : "remote");
   const [remoteUrl, setRemoteUrl] = useState(isDefaultLocal ? "" : defaultValue);
   const [localUrl, setLocalUrl] = useState(isDefaultLocal ? defaultValue : "");
   const [localFileName, setLocalFileName] = useState("");
   const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<EditorMessageKey | null>(null);
 
   // 编辑态每次打开回填当前块的地址
   useEffect(() => {
@@ -100,14 +102,14 @@ const InputUrlModal = ({
         new File([content], fileName, { type: "text/html" })
       );
       if (!uploadedUrl) {
-        setError("上传 HTML 文件失败");
+        setError("image.web.uploadFailed");
         return;
       }
       setLocalUrl(uploadedUrl);
       setLocalFileName(fileName);
     } catch (err) {
       console.error("选择 HTML 文件失败:", err);
-      setError("选择本地 HTML 文件失败");
+      setError("image.web.pickFailed");
     } finally {
       setUploading(false);
     }
@@ -118,13 +120,13 @@ const InputUrlModal = ({
     if (activeTab === "remote") {
       const url = normalizeUrl(remoteUrl);
       if (!url) {
-        setError("请输入网页地址");
+        setError("image.web.addressRequired");
         return;
       }
       onOk({ url, sourceType: WebLinkSourceType.REMOTE });
     } else {
       if (!localUrl) {
-        setError("请先选择本地 HTML 文件");
+        setError("image.web.fileRequired");
         return;
       }
       onOk({ url: localUrl, sourceType: WebLinkSourceType.LOCAL });
@@ -145,17 +147,17 @@ const InputUrlModal = ({
       open={open}
       onOpenChange={next => !next && onCancel()}
       onAfterClose={onAfterClose}
-      title={title}
-      subtitle={subtitle}
+      title={title ?? t("image.web.add")}
+      subtitle={subtitle ?? t("image.web.addDescription")}
       icon={<Globe className="size-4" strokeWidth={1.75} />}
       locked={uploading}
       footer={
         <>
           <Button variant="secondary" size="sm" disabled={uploading} onClick={onCancel}>
-            取消
+            {t("image.cancel")}
           </Button>
           <Button variant="primary" size="sm" disabled={confirmDisabled} onClick={handleOk}>
-            {okText}
+            {okText ?? t("image.web.confirmAdd")}
           </Button>
         </>
       }
@@ -163,7 +165,7 @@ const InputUrlModal = ({
       <DialogBody>
         <div className="flex flex-col gap-4">
           <Segmented
-            label="网页来源"
+            label={t("image.web.source")}
             size="md"
             value={activeTab}
             onValueChange={(v: SourceTab) => {
@@ -172,12 +174,12 @@ const InputUrlModal = ({
             }}
             disabled={uploading}
           >
-            <Segmented.Item value="remote" icon={Globe} label="远程网址" />
-            <Segmented.Item value="local" icon={FileCode} label="本地 HTML" />
+            <Segmented.Item value="remote" icon={Globe} label={t("image.web.remote")} />
+            <Segmented.Item value="local" icon={FileCode} label={t("image.web.local")} />
           </Segmented>
 
           {activeTab === "remote" ? (
-            <Field label="网址">
+            <Field label={t("image.web.address")}>
               <Input
                 data-autofocus
                 type="url"
@@ -211,11 +213,11 @@ const InputUrlModal = ({
               )}
               <span className="text-tau-body text-ink-1 max-w-full truncate font-medium">
                 {uploading
-                  ? "上传中…"
-                  : localFileName || (localUrl ? "已选择本地 HTML" : "选择本地 HTML 文件")}
+                  ? t("image.loading")
+                  : localFileName || (localUrl ? t("image.web.selected") : t("image.web.choose"))}
               </span>
               <span className="text-tau-sm text-ink-3">
-                {localUrl ? "点击重新选择" : "支持 .html / .htm"}
+                {localUrl ? t("image.web.chooseAgain") : t("image.web.extensions")}
               </span>
             </button>
           )}
@@ -225,7 +227,7 @@ const InputUrlModal = ({
               role="alert"
               className="bg-danger-soft text-danger text-tau-meta rounded-tau-sm px-3.5 py-2.5"
             >
-              {error}
+              {t(error)}
             </p>
           )}
         </div>
