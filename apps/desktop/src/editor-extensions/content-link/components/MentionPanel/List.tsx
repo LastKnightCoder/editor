@@ -1,3 +1,4 @@
+import { useContentLinkI18n } from "../../i18n";
 import { memo } from "react";
 import Item from "./Item";
 import useMentionPanelStore from "../../stores/useMentionPanelStore";
@@ -9,6 +10,7 @@ interface IListProps {
 
 // 保持搜索返回的相关性顺序（不按类型分组重排——↑↓ 的 activeIndex 按原序走）
 const List = memo((props: IListProps) => {
+  const { t } = useContentLinkI18n();
   const { query } = props;
 
   const { searchResults, activeIndex, selectItem, setState } = useMentionPanelStore(state => ({
@@ -21,7 +23,7 @@ const List = memo((props: IListProps) => {
   return (
     <div
       role="listbox"
-      aria-label="引用内容"
+      aria-label={t("title")}
       className="max-h-[320px] min-h-0 overflow-y-auto p-1.5"
     >
       {searchResults.map((item, index) => (

@@ -1,3 +1,4 @@
+import { menuText } from "../../../../menu-i18n";
 import { Circle, Palette } from "lucide-react";
 import { Transforms } from "slate";
 import { getCommandElementPath } from "@tau/editor/api";
@@ -34,11 +35,11 @@ const COLORS: { value: Color; label: string; hex: string }[] = [
 export const highlightBlockMenuItems: EditorMenuEntry[] = [
   {
     id: "tau.highlight-block.set-color",
-    title: "修改颜色",
+    title: menuText("menu.changeColor"),
     icon: <Palette size={16} />,
     children: COLORS.map(color => ({
       id: `tau.highlight-block.set-color-${color.value}`,
-      title: color.label,
+      title: menuText(`palette.${color.value}`),
       icon: <Circle size={16} style={{ fill: color.hex, color: color.hex }} />,
       command: "tau.highlight-block.set-color",
       payload: { color: color.value },

@@ -1,6 +1,6 @@
 import { createI18nRuntime, createLocaleStore } from "@tau/i18n";
 import { I18nRuntimeProvider } from "@tau/i18n/react";
-import { editorMessages } from "../../../../../../i18n";
+import { editorMessages } from "../../../../../../i18n-runtime";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { createEditor, Editor, Transforms, type Descendant } from "slate";

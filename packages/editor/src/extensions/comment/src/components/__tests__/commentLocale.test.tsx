@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { createI18nRuntime, createLocaleStore } from "@tau/i18n";
 import { I18nRuntimeProvider } from "@tau/i18n/react";
 import { expect, it, vi } from "vitest";
-import { editorMessages } from "../../../../../i18n";
+import { editorMessages } from "../../../../../i18n-runtime";
 import CommentList from "../CommentList";
 
 it("切换语言保留批注回复的草稿与焦点，确认后按原线程提交", async () => {

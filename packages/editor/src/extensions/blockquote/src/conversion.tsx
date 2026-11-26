@@ -1,3 +1,4 @@
+import { menuText } from "../../../menu-i18n";
 import { Quote, FileText } from "lucide-react";
 import { Transforms } from "slate";
 import {
@@ -33,7 +34,7 @@ export const conversionMenuFor = {
     {
       order: 80,
       id: "tau.transform.blockquote",
-      title: "引用块",
+      title: menuText("block.quote"),
       icon: <Quote size={16} />,
       command: "tau.transform.to.blockquote",
       payload: { target: "blockquote" },
@@ -46,7 +47,7 @@ export const conversionMenuFor = {
       {
         order: 10,
         id: "tau.transform.paragraph",
-        title: "段落",
+        title: menuText("menu.paragraph"),
         icon: <FileText size={16} />,
         command: "tau.transform.blockquote.to-paragraph",
         payload: { target: "paragraph" },

@@ -1,3 +1,4 @@
+import { useContentLinkI18n } from "../../i18n";
 /**
  * @ 引用面板（外观与输入框 ＋ 面板同一套 ComposerPanel）：
  *  - 编辑器在对话输入框里（祖先带 COMPOSER_ANCHOR_ATTR）→ 从输入框上沿向上展开、与外框同宽；
@@ -38,6 +39,7 @@ const findComposerAnchor = (editor: Editor): HTMLElement | null => {
 };
 
 const MentionPanel = memo((props: IMentionPanelProps) => {
+  const { t } = useContentLinkI18n();
   const { editor } = props;
   const modelInfo = useEmbeddingConfig();
   const panelRef = useRef<HTMLDivElement>(null);
@@ -190,21 +192,21 @@ const MentionPanel = memo((props: IMentionPanelProps) => {
               <span className="text-accent-text">{query}</span>
             </>
           ) : (
-            <span className="text-ink-3">最近内容</span>
+            <span className="text-ink-3">{t("recent")}</span>
           )}
         </span>
         {loading && <Spinner className="ml-auto size-3.5 border-[1.5px]" />}
       </div>
       {!loading && searchResults.length === 0 ? (
-        <div className="text-tau-sm text-ink-3 px-3.5 pt-3 pb-4">没有找到相关内容</div>
+        <div className="text-tau-sm text-ink-3 px-3.5 pt-3 pb-4">{t("noResults")}</div>
       ) : (
         <List query={query} />
       )}
       <ComposerPanelFooter
         hints={[
-          ["↑↓", "选择"],
-          ["Enter", "引用"],
-          ["Esc", "关闭"],
+          ["↑↓", t("hint.select")],
+          ["Enter", t("hint.reference")],
+          ["Esc", t("hint.close")],
         ]}
       />
     </ComposerPanel>,

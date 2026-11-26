@@ -1,9 +1,8 @@
-import { Box, Images } from "lucide-react";
+import { groupBlockPanelItems } from "./groupItems";
 import { PortalToBody, cn } from "@tau/ui";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useSlateStatic } from "slate-react";
 import List, { blockPanelScrollPanelClass } from "./List";
-import { IBlockPanelListItem } from "../../types";
 import type { ExtensionAssembly } from "../../kit/ExtensionAssembly";
 
 import useBlockPanelStore from "../../stores/useBlockPanelStore";
@@ -32,75 +31,8 @@ const BlockPanel = memo((props: IBlockPanelProps) => {
   // blockPanelVisible 进依赖：面板每次打开时重算，媒体插入项的
   // isAvailable（如 AI 生图配置状态）在打开时刻求值而非挂载时冻结
   const blockPanelList = useMemo(() => {
-    const list = assembly.getBlockPanelItems(editor);
-
-    const imageTitles = new Set(["行内图片", "图册"]);
-    const reactTitles = new Set(["React 组件", "从模板选择"]);
-    const groupedItems: IBlockPanelListItem[] = [];
-    const imageItems: IBlockPanelListItem[] = [];
-    const reactItems: IBlockPanelListItem[] = [];
-
-    list.forEach(item => {
-      if (imageTitles.has(item.title)) {
-        imageItems.push(item);
-      } else if (reactTitles.has(item.title)) {
-        reactItems.push(item);
-      } else {
-        groupedItems.push(item);
-      }
-    });
-
-    // 图片扩展自带"图片"分组（插入方式二级菜单），行内图片/图册并入其子级
-    const mergeGroup = (
-      sourceItems: IBlockPanelListItem[],
-      titles: Set<string>,
-      groupItem: IBlockPanelListItem
-    ) => {
-      if (sourceItems.length === 0) return;
-
-      const existingGroup = groupedItems.find(item => item.title === groupItem.title);
-      if (existingGroup) {
-        // 以新对象替换而非原地变异，扩展返回缓存项时不会被累积污染
-        const merged: IBlockPanelListItem = {
-          ...existingGroup,
-          children: [...(existingGroup.children ?? []), ...sourceItems],
-        };
-        groupedItems.splice(groupedItems.indexOf(existingGroup), 1, merged);
-        return;
-      }
-
-      const firstIndex = list.findIndex(item => titles.has(item.title));
-      let insertIndex = groupedItems.length;
-      if (firstIndex >= 0) {
-        insertIndex = list
-          .slice(0, firstIndex)
-          .filter(item => !imageTitles.has(item.title) && !reactTitles.has(item.title)).length;
-      }
-
-      const finalList = [...groupedItems];
-      finalList.splice(insertIndex, 0, { ...groupItem, children: sourceItems });
-      groupedItems.splice(0, groupedItems.length, ...finalList);
-    };
-
-    mergeGroup(imageItems, imageTitles, {
-      icon: Images,
-      title: "图片",
-      description: "插入不同类型的图片",
-      keywords: ["图片", "image", "块级图片", "行内图片", "图册"],
-    });
-
-    mergeGroup(reactItems, reactTitles, {
-      icon: Box,
-      title: "React 组件",
-      description: "插入自定义 React 组件",
-      keywords: ["React", "组件", "custom"],
-    });
-
-    if (imageItems.length === 0 && reactItems.length === 0) {
-      return list;
-    }
-
-    return groupedItems;
+    if (!blockPanelVisible) return [];
+    return groupBlockPanelItems(assembly.getBlockPanelItems(editor));
   }, [assembly, editor, blockPanelVisible]);
 
   const panelRef = useRef<HTMLDivElement>(null);

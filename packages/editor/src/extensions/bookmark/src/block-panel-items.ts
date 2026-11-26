@@ -1,3 +1,5 @@
+import { editorT, editorAliases } from "../../../i18n-runtime";
+import type { Editor as LocaleEditor } from "slate";
 import { Bookmark } from "lucide-react";
 import { Transforms, type Editor } from "slate";
 import { captureInsertionSubmission, notifierOf, type IBlockPanelListItem } from "@tau/editor/api";
@@ -30,14 +32,24 @@ export const openBookmarkUrlInput = async (editor: Editor) => {
   }
 };
 
-const blockPanelItems: IBlockPanelListItem[] = [
-  {
-    icon: Bookmark,
-    title: "网页书签",
-    keywords: ["网页书签", "书签", "bookmark", "链接卡片", "shuqian", "wangye"],
-    description: "以卡片展示网页标题、描述与封面",
-    onClick: editor => void openBookmarkUrlInput(editor),
-  },
-];
+const getItems = (editor: LocaleEditor): IBlockPanelListItem[] => {
+  const blockPanelItems: IBlockPanelListItem[] = [
+    {
+      icon: Bookmark,
+      get title() {
+        return editorT(editor, "block.bookmark");
+      },
+      keywords: [
+        ...["网页书签", "书签", "bookmark", "链接卡片", "shuqian", "wangye"],
+        ...editorAliases("block.bookmark"),
+      ],
+      get description() {
+        return editorT(editor, "block.bookmarkDescription");
+      },
+      onClick: editor => void openBookmarkUrlInput(editor),
+    },
+  ];
 
-export default blockPanelItems;
+  return blockPanelItems;
+};
+export default getItems;

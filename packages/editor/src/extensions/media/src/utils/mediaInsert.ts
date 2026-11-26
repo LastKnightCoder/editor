@@ -1,3 +1,4 @@
+import { editorT, editorAliases } from "../../../../i18n-runtime";
 import { Editor, Node, Path, Transforms } from "slate";
 import { v4 as getUuid } from "uuid";
 import { notifierOf, captureElementSubmission, captureInsertionSubmission } from "@tau/editor/api";
@@ -237,20 +238,40 @@ export const getMediaInsertMenuItems = (
   if (!editor) {
     return [];
   }
-  const label = MEDIA_TYPE_LABELS[mediaType];
+  const typeLabel = () => editorT(editor, `block.${mediaType}`);
   const items: IBlockPanelListItem[] = [
     {
       icon: Upload,
-      title: "本地上传",
-      keywords: ["上传", "upload", "本地", ...getMediaTypeKeywords(mediaType)],
-      description: `从本地选择${label}文件上传`,
+      get title() {
+        return editorT(editor, "insert.upload");
+      },
+      keywords: [
+        "上传",
+        "upload",
+        "本地",
+        ...getMediaTypeKeywords(mediaType),
+        ...editorAliases("insert.upload"),
+      ],
+      get description() {
+        return editorT(editor, "insert.uploadDescription", { type: typeLabel() });
+      },
       onClick: () => openLocalMediaPicker(editor, mediaType),
     },
     {
       icon: Link,
-      title: "网络地址",
-      keywords: ["网络", "链接", "url", ...getMediaTypeKeywords(mediaType)],
-      description: `通过${label}的网络地址插入`,
+      get title() {
+        return editorT(editor, "insert.url");
+      },
+      keywords: [
+        "网络",
+        "链接",
+        "url",
+        ...getMediaTypeKeywords(mediaType),
+        ...editorAliases("insert.url"),
+      ],
+      get description() {
+        return editorT(editor, "insert.urlDescription", { type: typeLabel() });
+      },
       onClick: () => void openMediaUrlInput(editor, mediaType),
     },
   ];
@@ -262,9 +283,16 @@ export const getMediaInsertMenuItems = (
     .forEach(source => {
       items.push({
         icon: source.icon ?? Plus,
-        title: source.label,
+        get title() {
+          return source.label;
+        },
         keywords: [source.label, ...getMediaTypeKeywords(mediaType)],
-        description: `通过${source.label}插入${label}`,
+        get description() {
+          return editorT(editor, "insert.sourceDescription", {
+            source: source.label,
+            type: typeLabel(),
+          });
+        },
         onClick: () =>
           source.open({
             mediaType,

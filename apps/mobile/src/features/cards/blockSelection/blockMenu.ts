@@ -33,7 +33,15 @@ export function pruneMenuItems(items: readonly ContextMenuItem[]): ContextMenuIt
     if (item.disabled) return [];
     const children = item.children ? pruneMenuItems(item.children) : undefined;
     if (!item.onSelect && !children?.length) return [];
-    return [{ ...item, children: children?.length ? children : undefined }];
+    return [
+      {
+        ...item,
+        get label() {
+          return item.label;
+        },
+        children: children?.length ? children : undefined,
+      },
+    ];
   });
 }
 

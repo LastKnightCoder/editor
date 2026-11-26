@@ -1,3 +1,4 @@
+import { menuText } from "../../../../menu-i18n";
 import { AlertCircle, AlertTriangle, FileText, Info, Lightbulb, Palette } from "lucide-react";
 import type { ReactElement } from "react";
 import { Transforms } from "slate";
@@ -34,11 +35,11 @@ export const calloutCommands: EditorCommand[] = [
 export const calloutMenuItems: EditorMenuEntry[] = [
   {
     id: "tau.callout.set-type",
-    title: "修改类型",
+    title: menuText("menu.changeType"),
     icon: <Palette size={16} />,
     children: CALLOUT_TYPES.map(type => ({
       id: `tau.callout.set-type-${type.value}`,
-      title: type.label,
+      title: menuText(type.value === "note" ? "callout.remark" : `callout.${type.value}`),
       icon: type.icon,
       command: "tau.callout.set-type",
       payload: { calloutType: type.value },

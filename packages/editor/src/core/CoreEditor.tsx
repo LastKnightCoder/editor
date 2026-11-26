@@ -1,3 +1,5 @@
+import { bindEditorI18n } from "../i18n-runtime";
+import { useEditorI18nRuntime } from "../i18n";
 import { IEditorTextFields } from "../../source-contracts";
 import { createLocalTextFields } from "./kit/localTextFields";
 import { bindElementDefinitions } from "./api/elementVersions";
@@ -195,6 +197,7 @@ const Index = memo(
     const readonly = readonlyProp || Boolean(documentProp?.readonly);
     useDocumentRevision(documentProp);
 
+    const i18nRuntime = useEditorI18nRuntime();
     const resolvedKit = useResolvedKit(kitProp);
     // 文档源可以覆盖服务（如共享模式的资源上传），作用域限于本编辑器
     const baseKit = useMemo(
@@ -354,6 +357,8 @@ const Index = memo(
       };
       return slateEditor;
     }, [assembly.plugins, documentProp?.lineage, editorIdentity, externalHistory]);
+
+    bindEditorI18n(editor, i18nRuntime);
 
     const {
       binding: suggestion,

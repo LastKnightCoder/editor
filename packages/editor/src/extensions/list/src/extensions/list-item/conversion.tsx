@@ -1,3 +1,4 @@
+import { menuText } from "../../../../../menu-i18n";
 import { List, ListOrdered } from "lucide-react";
 import { Editor, Element, Node, Transforms, type Descendant, type Path } from "slate";
 import {
@@ -89,7 +90,7 @@ export function createListConversion(type: "bulleted-list" | "numbered-list") {
     menuFor: createBlockConversionMenu(sourceTypes, [
       {
         id: "tau.transform." + type,
-        title: type === "bulleted-list" ? "无序列表" : "有序列表",
+        title: menuText(type === "bulleted-list" ? "block.bulleted" : "block.numbered"),
         icon: type === "bulleted-list" ? <List size={16} /> : <ListOrdered size={16} />,
         command: command.id,
         order: type === "bulleted-list" ? 30 : 40,

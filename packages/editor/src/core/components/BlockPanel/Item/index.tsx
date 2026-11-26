@@ -1,3 +1,4 @@
+import { useEditorI18n } from "../../../../i18n";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@tau/ui";
 import { memo, useEffect, useRef } from "react";
@@ -17,6 +18,7 @@ interface IItemProps {
 
 const Item = memo(
   ({ item, active, hasChildren, shouldAutoScroll, onAnchorChange, onClick }: IItemProps) => {
+    useEditorI18n();
     const IconComponent = item.icon;
     const buttonRef = useRef<HTMLButtonElement>(null);
 

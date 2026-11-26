@@ -1,3 +1,4 @@
+import { menuText } from "../../menu-i18n";
 import { RefreshCw } from "lucide-react";
 import type { EditorMenuContribution, EditorMenuEntry } from "../api/menu";
 
@@ -9,7 +10,7 @@ export function createBlockConversionMenu(
   const menu: EditorMenuContribution = [
     {
       id: "tau.transform",
-      title: "转换成",
+      title: menuText("menu.convert"),
       icon: <RefreshCw size={16} />,
       group: "transform",
       mergeChildren: true,

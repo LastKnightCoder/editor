@@ -1,3 +1,5 @@
+import { pickerTranslator, useEntityPickerI18n } from "./i18n";
+import { entityDisplayTime } from "./format";
 /**
  * EntityPicker —— 「关联已有」的公共检索弹窗：类型分段 + 关键字检索（空关键字按最近更新）。
  *
@@ -27,14 +29,22 @@ import {
 } from "@tau/ui";
 import { searchEntities } from "@/commands";
 import type { EntityCandidate, EntityKind } from "@/types";
-import { ENTITY_KIND_META, entityKey, entityTime } from "./meta";
+import { ENTITY_KIND_META, entityKey } from "./meta";
 import { EntityKindIcon } from "@/components/EntityKind/EntityKindIcon";
 
 const MAX_SEGMENTS = 5;
 
 const ALL = "all";
 type KindTab = EntityKind | typeof ALL;
-const ALL_META = { label: "全部", noun: "内容", icon: LayoutGrid };
+const ALL_META = {
+  get label() {
+    return pickerTranslator.t("all");
+  },
+  get noun() {
+    return pickerTranslator.t("content");
+  },
+  icon: LayoutGrid,
+};
 const tabMeta = (tab: KindTab) =>
   tab === ALL ? ALL_META : { ...ENTITY_KIND_META[tab], noun: ENTITY_KIND_META[tab].label };
 
@@ -64,10 +74,11 @@ export function EntityPicker({
   kinds,
   multiple = true,
   isLinked,
-  confirmLabel = "关联",
+  confirmLabel,
   hint,
   onConfirm,
 }: EntityPickerProps) {
+  const { t, locale } = useEntityPickerI18n();
   const tabs: KindTab[] = kinds.length > 1 ? [ALL, ...kinds] : kinds;
   const [kind, setKind] = useState<KindTab>(tabs[0]);
   const [keyword, setKeyword] = useState("");
@@ -79,7 +90,7 @@ export function EntityPicker({
   useEdgeFade(listEl);
   const now = useRef(Date.now());
 
-  const { data, isPending } = useQuery({
+  const { data, isPending, isError, refetch } = useQuery({
     queryKey: ["entity-search", kind === ALL ? kinds : kind, debounced],
     queryFn: async () => ({
       kind,
@@ -162,11 +173,14 @@ export function EntityPicker({
       footer={
         <>
           <span className="text-ink-2 mr-auto flex items-center gap-3 text-[12.5px]">
-            {multiple && (picked.size ? `已选 ${picked.size} 项` : "未选择")}
+            {multiple &&
+              (picked.size
+                ? t("selected", { count: picked.size, amount: picked.size.toLocaleString(locale) })
+                : t("noneSelected"))}
             {hint && <span className="text-ink-3 text-[12px]">{hint}</span>}
           </span>
           <Button variant="secondary" size="sm" disabled={saving} onClick={onClose}>
-            取消
+            {t("cancel")}
           </Button>
           {multiple && (
             <Button
@@ -176,7 +190,7 @@ export function EntityPicker({
               disabled={!picked.size}
               onClick={() => void confirm([...picked.values()])}
             >
-              {confirmLabel}
+              {confirmLabel ?? t("link")}
             </Button>
           )}
         </>
@@ -190,8 +204,8 @@ export function EntityPicker({
               value={keyword}
               onChange={e => setKeyword(e.target.value)}
               onKeyDown={onKeyDown}
-              placeholder={`搜索${meta.noun}…`}
-              aria-label={`搜索${meta.noun}`}
+              placeholder={t("search", { type: meta.noun })}
+              aria-label={t("searchLabel", { type: meta.noun })}
               lead={Search}
               wrapperClassName="flex-1"
             />
@@ -221,7 +235,7 @@ export function EntityPicker({
             ) : (
               tabs.length > 1 && (
                 <Segmented
-                  label="类型"
+                  label={t("type")}
                   size="sm"
                   value={kind}
                   onValueChange={(v: KindTab) => setKind(v)}
@@ -241,11 +255,16 @@ export function EntityPicker({
             aria-multiselectable={multiple || undefined}
             className="edge-fade-scroll scrollbar-inset -mr-3.5 h-[400px] overflow-y-auto border-r-4 border-r-transparent pr-2"
           >
-            {isPending || !items ? (
+            {isPending || (!items && !isError) ? (
               <Loading />
-            ) : !items.length ? (
+            ) : isError || !items?.length ? (
               <p className="text-ink-3 py-10 text-center text-[12.5px]">
-                {debounced ? `没有匹配的${meta.noun}` : `还没有${meta.noun}`}
+                {t(isError ? "failed" : debounced ? "noMatch" : "empty", { type: meta.noun })}
+                {isError && (
+                  <Button variant="ghost" size="sm" onClick={() => void refetch()}>
+                    {t("retry")}
+                  </Button>
+                )}
               </p>
             ) : (
               items.map((candidate, index) => {
@@ -295,8 +314,8 @@ export function EntityPicker({
                     </span>
                     <span className="text-ink-3 shrink-0 text-[11.5px]">
                       {linked
-                        ? "已关联"
-                        : [candidate.meta, entityTime(candidate.time, now.current)]
+                        ? t("linked")
+                        : [candidate.meta, entityDisplayTime(candidate.time, locale, now.current)]
                             .filter(Boolean)
                             .join(" · ")}
                     </span>

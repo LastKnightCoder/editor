@@ -1,17 +1,26 @@
+import { editorT, editorAliases } from "../../../../../../i18n-runtime";
+import type { Editor as LocaleEditor } from "slate";
 import { Code2 } from "lucide-react";
 import type { IBlockPanelListItem } from "@tau/editor/api";
 import { insertCodeBlock } from "../../../insert";
 
-const items: IBlockPanelListItem[] = [
-  {
-    icon: Code2,
-    title: "代码块",
-    keywords: ["codeblock", "代码块", "daimakuai"],
-    description: "代码块",
-    onClick: editor => {
-      insertCodeBlock(editor);
+const getItems = (editor: LocaleEditor): IBlockPanelListItem[] => {
+  const items: IBlockPanelListItem[] = [
+    {
+      icon: Code2,
+      get title() {
+        return editorT(editor, "block.code");
+      },
+      keywords: [...["codeblock", "代码块", "daimakuai"], ...editorAliases("block.code")],
+      get description() {
+        return editorT(editor, "block.code");
+      },
+      onClick: editor => {
+        insertCodeBlock(editor);
+      },
     },
-  },
-];
+  ];
 
-export default items;
+  return items;
+};
+export default getItems;

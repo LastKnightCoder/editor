@@ -1,3 +1,4 @@
+import { menuText } from "../../../menu-i18n";
 import { MessageSquare, Info, Lightbulb, AlertTriangle, AlertCircle, FileText } from "lucide-react";
 import { Transforms } from "slate";
 import {
@@ -54,11 +55,11 @@ export const conversionMenuFor = {
     {
       order: 70,
       id: "tau.transform.callout",
-      title: "Callout 块",
+      title: menuText("menu.callout"),
       icon: <MessageSquare size={16} />,
       children: CALLOUT_TYPES.map(type => ({
         id: `tau.transform.callout-${type.value}`,
-        title: type.label,
+        title: menuText(type.value === "note" ? "callout.remark" : `callout.${type.value}`),
         icon:
           type.value === "info" ? (
             <Info size={16} />
@@ -86,7 +87,7 @@ export const conversionMenuFor = {
       {
         order: 10,
         id: "tau.transform.paragraph",
-        title: "段落",
+        title: menuText("menu.paragraph"),
         icon: <FileText size={16} />,
         command: "tau.transform.callout.to-paragraph",
         payload: { target: "paragraph" },

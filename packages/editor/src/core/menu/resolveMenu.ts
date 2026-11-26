@@ -1,3 +1,4 @@
+import { menuLabelReader } from "../../menu-i18n";
 import type {
   EditorMenuContext,
   EditorMenuContribution,
@@ -64,9 +65,12 @@ function renderEntry(
   if (!entry.command && children.length === 0) return null;
 
   const command = entry.command;
+  const label = menuLabelReader(entry.title, ctx);
   const item: ContextMenuItem = {
     key: entry.id,
-    label: resolveMenuValue(entry.title, ctx) ?? entry.id,
+    get label() {
+      return label() ?? entry.id;
+    },
     icon: resolveMenuValue(entry.icon, ctx),
     danger: entry.danger,
     disabled: entry.disabled ? safePredicate(entry.disabled, ctx, owner, true) : false,

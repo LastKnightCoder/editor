@@ -1,3 +1,4 @@
+import { menuText } from "../../menu-i18n";
 import { ArrowDown, ArrowUp, Copy, Scissors, Trash2 } from "lucide-react";
 import { Editor, Node, Path, Transforms } from "slate";
 
@@ -101,7 +102,7 @@ const commands: EditorCommand[] = [
 const blockMenu: EditorMenuEntry[] = [
   {
     id: "tau.block.move-up",
-    title: "上移",
+    title: menuText("menu.moveUp"),
     icon: <ArrowUp size={16} />,
     command: "tau.block.move-up",
     group: "block",
@@ -110,7 +111,7 @@ const blockMenu: EditorMenuEntry[] = [
   },
   {
     id: "tau.block.move-down",
-    title: "下移",
+    title: menuText("menu.moveDown"),
     icon: <ArrowDown size={16} />,
     command: "tau.block.move-down",
     group: "block",
@@ -119,7 +120,7 @@ const blockMenu: EditorMenuEntry[] = [
   },
   {
     id: "tau.block.cut",
-    title: "剪切",
+    title: menuText("menu.cut"),
     icon: <Scissors size={16} />,
     command: "tau.block.cut",
     group: "block",
@@ -127,7 +128,7 @@ const blockMenu: EditorMenuEntry[] = [
   },
   {
     id: "tau.block.copy",
-    title: "复制",
+    title: menuText("menu.copy"),
     icon: <Copy size={16} />,
     command: "tau.block.copy",
     group: "block",
@@ -135,7 +136,7 @@ const blockMenu: EditorMenuEntry[] = [
   },
   {
     id: "tau.block.delete",
-    title: "删除",
+    title: menuText("menu.delete"),
     icon: <Trash2 size={16} />,
     command: "tau.block.delete",
     group: "block",

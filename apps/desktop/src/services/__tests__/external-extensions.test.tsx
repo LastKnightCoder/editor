@@ -195,9 +195,32 @@ describe("外包扩展的真实编辑器接线", () => {
   });
 
   it("从 Portal 子菜单点击 React 组件会插入，不能被外部点击监听抢先关闭", async () => {
-    const { editor } = await mount([
-      { type: "paragraph", children: [{ type: "formatted", text: "" }] },
-    ]);
+    const groupedInsertion = defineExtension({
+      id: "test.portal-group",
+      blockPanel: editor => {
+        const contribution = customBlockExtension.blockPanel;
+        const items =
+          typeof contribution === "function" ? contribution(editor) : (contribution ?? []);
+        const first = items[0];
+        if (!first) throw new Error("发布包缺少插入入口");
+        return [
+          {
+            id: "test.portal",
+            title: "Portal group",
+            icon: first.icon,
+            description: "",
+            keywords: [],
+            children: [],
+          },
+          ...items.map(item => ({ ...item, group: "test.portal" })),
+        ];
+      },
+    });
+    const { editor } = await mount(
+      [{ type: "paragraph", children: [{ type: "formatted", text: "" }] }],
+      undefined,
+      [groupedInsertion]
+    );
     await act(async () => {
       Transforms.select(editor, { path: [0, 0], offset: 0 });
       editor.insertText("/");
@@ -208,13 +231,13 @@ describe("外包扩展的真实编辑器接线", () => {
         position: { x: 0, y: 0 },
       });
     });
-    const group = Array.from(document.querySelectorAll("button")).find(button =>
-      button.textContent?.includes("React 组件")
+    const group = Array.from(document.querySelectorAll("button")).find(
+      button => button.textContent === "Portal group"
     );
     expect(group).toBeTruthy();
     await act(async () => group!.click());
     const child = document.querySelector("[data-editor-block-panel-layer] button");
-    expect(child?.textContent).toBe("React 组件");
+    if (!child) throw new Error("显式分组的子菜单未打开");
     await act(async () => {
       child!.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
     });

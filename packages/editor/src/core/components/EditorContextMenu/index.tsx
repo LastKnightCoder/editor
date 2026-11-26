@@ -1,3 +1,4 @@
+import { useEditorI18n } from "../../../i18n";
 import { Fragment, memo, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronRight } from "lucide-react";
@@ -16,6 +17,7 @@ import {
 
 const EditorContextMenu = memo(
   ({ visible, position, items, onClose, readonly }: EditorContextMenuProps) => {
+    useEditorI18n();
     const menuRef = useRef<HTMLDivElement>(null);
     const portalContainer = usePortalContainer();
     useEffect(() => {

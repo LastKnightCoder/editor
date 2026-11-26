@@ -1,3 +1,4 @@
+import { editorT, editorAliases } from "../../../../../../i18n-runtime";
 import { Image } from "lucide-react";
 import type { Editor } from "slate";
 import { IBlockPanelListItem } from "@tau/editor/api";
@@ -9,10 +10,15 @@ const getItems = (editor?: Editor): IBlockPanelListItem[] => {
   }
   return [
     {
+      id: "tau.image",
       icon: Image,
-      title: "图片",
-      keywords: ["图片", "image", "tupian"],
-      description: "插入图片",
+      get title() {
+        return editorT(editor, "block.image");
+      },
+      keywords: [...["图片", "image", "tupian"], ...editorAliases("block.image")],
+      get description() {
+        return editorT(editor, "block.insertImage");
+      },
       children: getMediaInsertMenuItems(editor, "image"),
     },
   ];

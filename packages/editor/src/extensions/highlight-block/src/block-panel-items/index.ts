@@ -1,17 +1,26 @@
+import { editorT, editorAliases } from "../../../../i18n-runtime";
+import type { Editor as LocaleEditor } from "slate";
 import { Highlighter } from "lucide-react";
 import { IBlockPanelListItem } from "../types";
 import { insertHighlightBlock } from "../operations";
 
-const items: IBlockPanelListItem[] = [
-  {
-    icon: Highlighter,
-    title: "高亮块",
-    keywords: ["highlight", "高亮块", "gaoliangkuai"],
-    description: "高亮块",
-    onClick: editor => {
-      insertHighlightBlock(editor, "red");
+const getItems = (editor: LocaleEditor): IBlockPanelListItem[] => {
+  const items: IBlockPanelListItem[] = [
+    {
+      icon: Highlighter,
+      get title() {
+        return editorT(editor, "block.highlight");
+      },
+      keywords: [...["highlight", "高亮块", "gaoliangkuai"], ...editorAliases("block.highlight")],
+      get description() {
+        return editorT(editor, "block.highlight");
+      },
+      onClick: editor => {
+        insertHighlightBlock(editor, "red");
+      },
     },
-  },
-];
+  ];
 
-export default items;
+  return items;
+};
+export default getItems;

@@ -1,3 +1,4 @@
+import { menuText } from "../../../menu-i18n";
 import { Heading1, Heading2, Heading3, Heading4, Heading5, Heading6 } from "lucide-react";
 import { Transforms } from "slate";
 import {
@@ -29,7 +30,7 @@ export const conversionCommands: EditorCommand[] = [
 ];
 const levelMenu = ([1, 2, 3, 4, 5, 6] as const).map(level => ({
   id: `tau.transform.header-${level}`,
-  title: `标题 ${level}`,
+  title: menuText("menu.heading", { level }),
   icon:
     level === 1 ? (
       <Heading1 size={16} />
@@ -55,7 +56,7 @@ export const conversionMenuFor = {
       {
         order: 20,
         id: "tau.transform.header",
-        title: "标题",
+        title: menuText("block.heading"),
         icon: <Heading1 size={16} />,
         children: levelMenu,
       },
@@ -64,7 +65,7 @@ export const conversionMenuFor = {
   header: [
     {
       id: "tau.header.level",
-      title: "标题级别",
+      title: menuText("menu.headingLevel"),
       icon: <Heading1 size={16} />,
       children: levelMenu.map(entry => ({
         ...entry,

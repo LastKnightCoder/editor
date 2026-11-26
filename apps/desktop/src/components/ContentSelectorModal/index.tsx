@@ -1,3 +1,4 @@
+import { useEntityPickerI18n } from "../EntityPicker/i18n";
 /**
  * 选择内容弹窗：EntityPicker 的适配层，结果按全局搜索的 SearchResult 形状回传，
  * 供编辑器内容链接、数据库关联文档 / 卡片、白板插入卡片等沿用旧回调的调用方使用。
@@ -65,9 +66,10 @@ const ContentSelectorModal: React.FC<ContentSelectorModalProps> = ({
   multiple = false,
   excludeIds = EMPTY_IDS,
   excludeContentIds = EMPTY_IDS,
-  title = "选择内容",
+  title,
   subtitle,
 }) => {
+  const { t } = useEntityPickerI18n();
   const kinds = useMemo(
     () => (Array.isArray(contentType) ? contentType : [contentType]).map(t => INDEX_TO_KIND[t]),
     [contentType]
@@ -77,11 +79,11 @@ const ContentSelectorModal: React.FC<ContentSelectorModalProps> = ({
     <EntityPicker
       open={open}
       onClose={onCancel}
-      title={title}
+      title={title ?? t("select")}
       subtitle={subtitle}
       kinds={kinds}
       multiple={multiple}
-      confirmLabel="确定"
+      confirmLabel={t("confirm")}
       isLinked={candidate =>
         excludeIds.includes(candidate.id) ||
         (candidate.contentId !== null && excludeContentIds.includes(candidate.contentId))

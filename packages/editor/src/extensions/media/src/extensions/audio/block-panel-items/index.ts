@@ -1,3 +1,4 @@
+import { editorT, editorAliases } from "../../../../../../i18n-runtime";
 import { AudioLines } from "lucide-react";
 import type { Editor } from "slate";
 import { IBlockPanelListItem } from "@tau/editor/api";
@@ -10,9 +11,13 @@ const getItems = (editor?: Editor): IBlockPanelListItem[] => {
   return [
     {
       icon: AudioLines,
-      title: "音频",
-      keywords: ["音频", "audio", "yinpin"],
-      description: "插入音频",
+      get title() {
+        return editorT(editor, "block.audio");
+      },
+      keywords: [...["音频", "audio", "yinpin"], ...editorAliases("block.audio")],
+      get description() {
+        return editorT(editor, "block.insertAudio");
+      },
       children: getMediaInsertMenuItems(editor, "audio"),
     },
   ];

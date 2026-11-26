@@ -1,3 +1,6 @@
+import { createI18nRuntime, createLocaleStore } from "@tau/i18n";
+import { bindEditorI18n, editorMessages } from "../../../i18n-runtime";
+import { menuText } from "../../../menu-i18n";
 // P8：菜单贡献点求值器——when 过滤、disabled 灰显、分组排序与分隔线、同 id 覆盖、命令执行与错误隔离（01 §5.4）。
 import { describe, expect, it, vi } from "vitest";
 import { createEditor, type Editor, type Element } from "slate";
@@ -374,4 +377,52 @@ describe("resolveBlockMenuItems", () => {
       error.mockRestore();
     }
   });
+});
+
+it("语言变化只刷新内置标题，插件函数与状态条件保持打开时的快照", () => {
+  const locale = createLocaleStore("zh-CN"),
+    runtime = createI18nRuntime({ localeSource: locale });
+  const editor = createEditor();
+  bindEditorI18n(editor, runtime);
+  const condition = vi.fn(() => true),
+    plugin = vi.fn(() => "作者原文"),
+    state = vi.fn(() => "menu.expand" as const);
+  const execute = vi.fn();
+  editor.commands = { execute };
+  const ctx = ctxOf(element("paragraph"), editor);
+  try {
+    const items = resolveBlockMenuItems(
+      [
+        source("example", [
+          {
+            id: "owned",
+            title: menuText(state),
+            command: "original.action",
+            when: condition,
+            payload: { color: "yellow" },
+          },
+          { id: "external", title: plugin, command: "plugin.action" },
+        ]),
+      ],
+      ctx
+    );
+    for (const next of ["zh-TW", "en-US"]) {
+      locale.setLocale(next);
+      expect(items[0].label).toBe(runtime.get(editorMessages).t("menu.expand"));
+      expect(items[1].label).toBe("作者原文");
+    }
+    expect(condition).toHaveBeenCalledTimes(1);
+    expect(plugin).toHaveBeenCalledTimes(1);
+    expect(state).toHaveBeenCalledTimes(1);
+    expect(execute).not.toHaveBeenCalled();
+    items[0].onSelect?.();
+    expect(execute).toHaveBeenCalledExactlyOnceWith(
+      "original.action",
+      { color: "yellow" },
+      ctx.element,
+      ctx.path
+    );
+  } finally {
+    runtime.dispose();
+  }
 });

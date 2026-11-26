@@ -1,17 +1,26 @@
+import { editorT, editorAliases } from "../../../../../../i18n-runtime";
+import type { Editor as LocaleEditor } from "slate";
 import { ListChecks } from "lucide-react";
 import { IBlockPanelListItem } from "../../../types";
 import { insertCheckList } from "../../../utils";
 
-const items: IBlockPanelListItem[] = [
-  {
-    icon: ListChecks,
-    title: "任务列表",
-    keywords: ["check-list", "列表", "todo"],
-    description: "任务列表",
-    onClick: editor => {
-      insertCheckList(editor);
+const getItems = (editor: LocaleEditor): IBlockPanelListItem[] => {
+  const items: IBlockPanelListItem[] = [
+    {
+      icon: ListChecks,
+      get title() {
+        return editorT(editor, "block.todo");
+      },
+      keywords: [...["check-list", "列表", "todo"], ...editorAliases("block.todo")],
+      get description() {
+        return editorT(editor, "block.todo");
+      },
+      onClick: editor => {
+        insertCheckList(editor);
+      },
     },
-  },
-];
+  ];
 
-export default items;
+  return items;
+};
+export default getItems;

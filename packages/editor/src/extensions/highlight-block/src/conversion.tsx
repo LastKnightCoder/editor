@@ -1,3 +1,4 @@
+import { menuText } from "../../../menu-i18n";
 import { Highlighter, Circle, FileText } from "lucide-react";
 import { Transforms } from "slate";
 import {
@@ -52,11 +53,11 @@ export const conversionMenuFor = {
     {
       order: 50,
       id: "tau.transform.highlight-block",
-      title: "高亮块",
+      title: menuText("block.highlight"),
       icon: <Highlighter size={16} />,
       children: HIGHLIGHT_COLORS.map(color => ({
         id: `tau.transform.highlight-${color.value}`,
-        title: color.label,
+        title: menuText(`palette.${color.value}`),
         icon: <Circle size={16} style={{ fill: color.hex, color: color.hex }} />,
         command: "tau.transform.to.highlight-block",
         payload: { target: "highlight-block", options: { color: color.value } },
@@ -70,7 +71,7 @@ export const conversionMenuFor = {
       {
         order: 10,
         id: "tau.transform.paragraph",
-        title: "段落",
+        title: menuText("menu.paragraph"),
         icon: <FileText size={16} />,
         command: "tau.transform.highlight-block.to-paragraph",
         payload: { target: "paragraph" },

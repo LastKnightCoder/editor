@@ -1,17 +1,12 @@
-import { createI18nRuntime, createLocaleStore, defineI18n } from "@tau/i18n";
 import { useI18n, useI18nRuntime } from "@tau/i18n/react";
-import zhCN from "./locales/zh-CN.json";
-import zhTW from "./locales/zh-TW.json";
-import enUS from "./locales/en-US.json";
+import { editorMessages, standaloneEditorI18n, type EditorMessageKey } from "./i18n-runtime";
+export type { EditorMessageKey } from "./i18n-runtime";
 
-export const editorMessages = defineI18n({
-  fallbackLocale: "zh-CN",
-  resources: { "zh-CN": zhCN, "zh-TW": zhTW, "en-US": enUS },
-});
-export type EditorMessageKey = Parameters<typeof editorMessages.ref>[0];
-const standalone = createI18nRuntime({ localeSource: createLocaleStore("zh-CN") });
+export function useEditorI18nRuntime() {
+  return useI18nRuntime() ?? standaloneEditorI18n;
+}
 export function useEditorI18n() {
-  return useI18n(editorMessages, useI18nRuntime() ?? standalone);
+  return useI18n(editorMessages, useEditorI18nRuntime());
 }
 export function EditorText({ message }: { message: EditorMessageKey }) {
   return useEditorI18n().t(message);

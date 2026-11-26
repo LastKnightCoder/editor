@@ -1,3 +1,4 @@
+import { pickerTranslator } from "./i18n";
 import {
   BookOpen,
   CalendarDays,
@@ -20,21 +21,96 @@ import type { EntityKind } from "@/types";
 
 /** 实体类型的展示口径（与问题材料 TARGET_META 同图标） */
 export const ENTITY_KIND_META: Record<EntityKind, { label: string; icon: LucideIcon }> = {
-  card: { label: "卡片", icon: Layers },
-  article: { label: "文章", icon: FileText },
-  project_item: { label: "项目文档", icon: File },
-  project: { label: "项目", icon: FolderKanban },
-  white_board: { label: "白板", icon: Presentation },
-  notebook: { label: "Notebook", icon: FlaskConical },
-  "diary-moment": { label: "日记", icon: Feather },
-  excerpt: { label: "划线", icon: Highlighter },
-  pdf: { label: "PDF", icon: BookOpen },
-  "pdf-annotation": { label: "PDF 标注", icon: ScrollText },
-  "web-clip": { label: "剪藏", icon: Globe },
-  "chat-session": { label: "对话", icon: MessageCircle },
-  todo: { label: "待办", icon: CircleCheck },
-  "calendar-event": { label: "日程", icon: CalendarDays },
-  "plugin-entity": { label: "插件内容", icon: Puzzle },
+  card: {
+    get label() {
+      return pickerTranslator.t("kind.card");
+    },
+    icon: Layers,
+  },
+  article: {
+    get label() {
+      return pickerTranslator.t("kind.article");
+    },
+    icon: FileText,
+  },
+  project_item: {
+    get label() {
+      return pickerTranslator.t("kind.project_item");
+    },
+    icon: File,
+  },
+  project: {
+    get label() {
+      return pickerTranslator.t("kind.project");
+    },
+    icon: FolderKanban,
+  },
+  white_board: {
+    get label() {
+      return pickerTranslator.t("kind.white_board");
+    },
+    icon: Presentation,
+  },
+  notebook: {
+    get label() {
+      return pickerTranslator.t("kind.notebook");
+    },
+    icon: FlaskConical,
+  },
+  "diary-moment": {
+    get label() {
+      return pickerTranslator.t("kind.diary-moment");
+    },
+    icon: Feather,
+  },
+  excerpt: {
+    get label() {
+      return pickerTranslator.t("kind.excerpt");
+    },
+    icon: Highlighter,
+  },
+  pdf: {
+    get label() {
+      return pickerTranslator.t("kind.pdf");
+    },
+    icon: BookOpen,
+  },
+  "pdf-annotation": {
+    get label() {
+      return pickerTranslator.t("kind.pdf-annotation");
+    },
+    icon: ScrollText,
+  },
+  "web-clip": {
+    get label() {
+      return pickerTranslator.t("kind.web-clip");
+    },
+    icon: Globe,
+  },
+  "chat-session": {
+    get label() {
+      return pickerTranslator.t("kind.chat-session");
+    },
+    icon: MessageCircle,
+  },
+  todo: {
+    get label() {
+      return pickerTranslator.t("kind.todo");
+    },
+    icon: CircleCheck,
+  },
+  "calendar-event": {
+    get label() {
+      return pickerTranslator.t("kind.calendar-event");
+    },
+    icon: CalendarDays,
+  },
+  "plugin-entity": {
+    get label() {
+      return pickerTranslator.t("kind.plugin-entity");
+    },
+    icon: Puzzle,
+  },
 };
 
 export const entityKey = (c: { kind: EntityKind; id: number; sessionId?: string }) =>

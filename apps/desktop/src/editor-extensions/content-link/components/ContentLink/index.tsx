@@ -1,3 +1,4 @@
+import { useContentLinkI18n } from "../../i18n";
 import React, { useEffect, useRef, useState, memo } from "react";
 import { Transforms, type Node } from "slate";
 import { ReactEditor, RenderElementProps, useReadOnly, useSlateStatic } from "slate-react";
@@ -31,6 +32,7 @@ const LINK_ACTIVE = "decoration-accent";
 const LINK_BROKEN = "cursor-default text-ink-3 line-through decoration-solid decoration-ink-3";
 
 const ContentLink = memo((props: IContentLinkProps) => {
+  const { t } = useContentLinkI18n();
   const { attributes, children, element } = props;
   const { contentId, contentType, contentTitle, refId } = element;
 
@@ -79,7 +81,7 @@ const ContentLink = memo((props: IContentLinkProps) => {
     try {
       await openContent(contentType, refId);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "打开内容失败");
+      toast.error(error instanceof Error ? error.message : t("openFailed"));
     }
   };
 

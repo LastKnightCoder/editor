@@ -1,3 +1,4 @@
+import { contentLinkTranslator, useContentLinkI18n } from "../../i18n";
 import { memo, useEffect, useMemo, useRef, type ReactNode } from "react";
 import { FileText, FolderOpen, Newspaper, Puzzle, StickyNote } from "lucide-react";
 import { usePluginEntityMetaResolver, type KindMeta } from "@/components/EntityKind";
@@ -14,10 +15,30 @@ interface IItemProps {
 }
 
 const TYPE_META: Record<string, KindMeta> = {
-  card: { label: "卡片", icon: StickyNote },
-  article: { label: "文章", icon: Newspaper },
-  "project-item": { label: "项目文档", icon: FolderOpen },
-  "plugin-entity": { label: "插件内容", icon: Puzzle },
+  card: {
+    get label() {
+      return contentLinkTranslator.t("type.card");
+    },
+    icon: StickyNote,
+  },
+  article: {
+    get label() {
+      return contentLinkTranslator.t("type.article");
+    },
+    icon: Newspaper,
+  },
+  "project-item": {
+    get label() {
+      return contentLinkTranslator.t("type.project-item");
+    },
+    icon: FolderOpen,
+  },
+  "plugin-entity": {
+    get label() {
+      return contentLinkTranslator.t("type.plugin-entity");
+    },
+    icon: Puzzle,
+  },
 };
 
 /** 命中字 accent 标出（大小写不敏感，只标第一处） */
@@ -36,6 +57,7 @@ function highlight(text: string, query: string): ReactNode {
 }
 
 const Item = memo((props: IItemProps) => {
+  const { t } = useContentLinkI18n();
   const { item, query, active, onHover, onClick } = props;
   const ref = useRef<HTMLDivElement>(null);
   // 插件内容按插件声明的类型名与图标显示
@@ -45,7 +67,7 @@ const Item = memo((props: IItemProps) => {
   );
 
   const plain = useMemo(() => richTextPlainText(item.content), [item.content]);
-  const title = item.title?.trim() || plain.slice(0, 40) || "无标题";
+  const title = item.title?.trim() || plain.slice(0, 40) || t("untitled");
   const snippet = item.title?.trim() ? plain.slice(0, 80) : "";
 
   useEffect(() => {

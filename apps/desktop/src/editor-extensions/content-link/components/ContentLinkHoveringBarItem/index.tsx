@@ -1,3 +1,4 @@
+import { useContentLinkI18n } from "../../i18n";
 import { useMemo, useState, useRef, useContext, memo } from "react";
 import { BaseSelection, Editor, Element, Transforms } from "slate";
 import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
@@ -12,6 +13,7 @@ import classnames from "classnames";
 import { unwrapContentLink, wrapContentLink } from "../utils";
 
 const LinkHoveringItem = memo(() => {
+  const { t } = useContentLinkI18n();
   const selectionRef = useRef<BaseSelection | null>(null);
   const [openSelectModal, setOpenSelectModal] = useState<boolean>(false);
   const { contentId } = useContext(EditContentContext) || {};
@@ -54,7 +56,7 @@ const LinkHoveringItem = memo(() => {
   const onSelectOk = async (selectedResult: SearchResult | SearchResult[]) => {
     const cardResults = Array.isArray(selectedResult) ? selectedResult : [selectedResult];
     if (cardResults.length === 0) {
-      toast.warning("请选择内容");
+      toast.warning(t("selectFirst"));
       return;
     }
     selectionRef.current && Transforms.select(editor, selectionRef.current);
@@ -74,7 +76,7 @@ const LinkHoveringItem = memo(() => {
   return (
     <div>
       {/* 层级抬到悬浮工具条（z 9999）之上，与编辑器内置按钮的提示一致 */}
-      <Tooltip content={"关联内容"} className="z-[10200]">
+      <Tooltip content={t("title")} className="z-[10200]">
         <div
           className={classnames(
             "flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg",
@@ -87,12 +89,12 @@ const LinkHoveringItem = memo(() => {
         </div>
       </Tooltip>
       <ContentSelectorModal
-        title="选择关联内容"
+        title={t("select")}
         open={openSelectModal}
         onCancel={onCancelSelect}
         onSelect={onSelectOk}
         contentType={["card", "article", "project-item", "diary-moment"]}
-        emptyDescription="没有可选择的内容"
+        emptyDescription={t("empty")}
         showTitle={false}
         multiple={false}
         excludeContentIds={excludeContentIds}

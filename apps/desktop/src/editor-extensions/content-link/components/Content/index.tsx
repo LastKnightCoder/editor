@@ -1,3 +1,5 @@
+import { contentLinkTranslator, useContentLinkI18n } from "../../i18n";
+import { formatRecentDateTime } from "@/features/shared/list/format";
 import { lazy, memo, Suspense, type ReactNode } from "react";
 import {
   ArrowUpRight,
@@ -11,18 +13,47 @@ import {
 } from "lucide-react";
 import { AnchoredPanel, Button, PanelHasHeaderContext, Spinner, cn } from "@tau/ui";
 import { useEntityKindMeta, type KindIcon } from "@/components/EntityKind";
-import { formatAgo } from "@/utils/formatAgo";
 import { IContent } from "@/types";
 
 const Editor = lazy(() => import("@/components/ContentEditor"));
 
 const TYPE_META: Record<string, { label: string; icon: LucideIcon; tone: string }> = {
-  card: { label: "卡片", icon: Layers, tone: "bg-ok-soft text-ok" },
-  article: { label: "文章", icon: FileText, tone: "bg-info-soft text-info" },
-  "project-item": { label: "项目文档", icon: FolderKanban, tone: "bg-tag-4-soft text-tag-4" },
-  "plugin-entity": { label: "插件内容", icon: Puzzle, tone: "bg-tag-5-soft text-tag-5" },
+  card: {
+    get label() {
+      return contentLinkTranslator.t("type.card");
+    },
+    icon: Layers,
+    tone: "bg-ok-soft text-ok",
+  },
+  article: {
+    get label() {
+      return contentLinkTranslator.t("type.article");
+    },
+    icon: FileText,
+    tone: "bg-info-soft text-info",
+  },
+  "project-item": {
+    get label() {
+      return contentLinkTranslator.t("type.project-item");
+    },
+    icon: FolderKanban,
+    tone: "bg-tag-4-soft text-tag-4",
+  },
+  "plugin-entity": {
+    get label() {
+      return contentLinkTranslator.t("type.plugin-entity");
+    },
+    icon: Puzzle,
+    tone: "bg-tag-5-soft text-tag-5",
+  },
 };
-const FALLBACK_META = { label: "内容", icon: FileText, tone: "bg-hover text-ink-2" };
+const FALLBACK_META = {
+  get label() {
+    return contentLinkTranslator.t("type.content");
+  },
+  icon: FileText,
+  tone: "bg-hover text-ink-2",
+};
 
 interface IContentProps {
   /** undefined = 载入中，null = 不存在或已删除 */
@@ -63,6 +94,7 @@ const Header = ({
 );
 
 const Content = memo((props: IContentProps) => {
+  const { t, locale } = useContentLinkI18n();
   const { content, contentType, refId, contentTitle, unshared, onOpen, onRemove } = props;
   const baseMeta = TYPE_META[contentType] ?? FALLBACK_META;
   // 插件内容按插件声明的类型名与图标显示，色调沿用通用的插件内容
@@ -76,33 +108,21 @@ const Content = memo((props: IContentProps) => {
   const title = contentTitle || `${typeMeta.label} #${content?.id ?? ""}`.trim();
 
   if (unshared) {
-    return (
-      <Header
-        icon={Lock}
-        tone="bg-warn-soft text-warn"
-        title={title}
-        meta="内容未共享，仅保存在创建者本机"
-      />
-    );
+    return <Header icon={Lock} tone="bg-warn-soft text-warn" title={title} meta={t("local")} />;
   }
 
   if (content === undefined) {
-    return <Header icon={typeMeta.icon} tone={typeMeta.tone} title={title} meta="正在载入…" />;
+    return <Header icon={typeMeta.icon} tone={typeMeta.tone} title={title} meta={t("loading")} />;
   }
 
   if (content === null) {
     return (
       <div className="pb-3">
-        <Header
-          icon={Unlink}
-          tone="bg-hover text-ink-3"
-          title="链接已失效"
-          meta="引用的内容不存在或已被删除"
-        />
+        <Header icon={Unlink} tone="bg-hover text-ink-3" title={t("invalid")} meta={t("deleted")} />
         {onRemove && (
           <div className="flex justify-end px-3 pt-1">
             <Button variant="ghost" size="sm" onClick={onRemove}>
-              移除链接
+              {t("remove")}
             </Button>
           </div>
         )}
@@ -116,7 +136,10 @@ const Content = memo((props: IContentProps) => {
         icon={typeMeta.icon}
         tone={typeMeta.tone}
         title={title}
-        meta={`${typeMeta.label} · ${formatAgo(content.updateTime)}编辑`}
+        meta={t("meta", {
+          type: typeMeta.label,
+          date: formatRecentDateTime(content.updateTime, locale, (day, time) => `${day} ${time}`),
+        })}
       />
       <AnchoredPanel.Body className="max-h-[260px]">
         <Suspense fallback={<Spinner />}>
@@ -130,10 +153,12 @@ const Content = memo((props: IContentProps) => {
       </AnchoredPanel.Body>
       <AnchoredPanel.Footer className="justify-between py-2 pr-2.5 pl-4">
         <span className="text-tau-micro text-ink-3">
-          {content.count > 0 ? `约 ${content.count} 字` : ""}
+          {content.count > 0
+            ? t("words", { count: content.count, amount: content.count.toLocaleString(locale) })
+            : ""}
         </span>
         <Button variant="ghost" size="sm" icon={ArrowUpRight} onClick={onOpen}>
-          打开
+          {t("open")}
         </Button>
       </AnchoredPanel.Footer>
     </PanelHasHeaderContext.Provider>

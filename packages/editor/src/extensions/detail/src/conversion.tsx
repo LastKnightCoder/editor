@@ -1,3 +1,4 @@
+import { menuText } from "../../../menu-i18n";
 import { ChevronDown, FileText } from "lucide-react";
 import { Transforms } from "slate";
 import {
@@ -33,7 +34,7 @@ export const conversionMenuFor = {
     {
       order: 60,
       id: "tau.transform.detail",
-      title: "详情块",
+      title: menuText("block.detail"),
       icon: <ChevronDown size={16} />,
       command: "tau.transform.to.detail",
       payload: { target: "detail" },
@@ -46,7 +47,7 @@ export const conversionMenuFor = {
       {
         order: 10,
         id: "tau.transform.paragraph",
-        title: "段落",
+        title: menuText("menu.paragraph"),
         icon: <FileText size={16} />,
         command: "tau.transform.detail.to-paragraph",
         payload: { target: "paragraph" },

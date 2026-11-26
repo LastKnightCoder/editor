@@ -1,3 +1,4 @@
+import { menuText } from "../../../../menu-i18n";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { Transforms } from "slate";
 import { getCommandElementPath } from "@tau/editor/api";
@@ -23,7 +24,7 @@ export const detailCommands: EditorCommand[] = [
 export const detailMenuItems: EditorMenuEntry[] = [
   {
     id: "tau.detail.toggle",
-    title: ctx => ((ctx.element as DetailElement).open ? "收起" : "展开"),
+    title: menuText(ctx => ((ctx.element as DetailElement).open ? "menu.collapse" : "menu.expand")),
     icon: ctx =>
       (ctx.element as DetailElement).open ? <ChevronUp size={16} /> : <ChevronDown size={16} />,
     command: "tau.detail.toggle",

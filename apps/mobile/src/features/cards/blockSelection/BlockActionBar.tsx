@@ -171,7 +171,9 @@ export function BlockActionBar(props: BlockActionBarProps) {
     const indices = selected;
     openSheet("转换为", [
       sharedTransforms.map(item => ({
-        label: item.label,
+        get label() {
+          return item.label;
+        },
         icon: item.icon,
         onClick: later(() => applyTransformToBlocks(kit, editor, indices, item.key)),
       })),
@@ -180,7 +182,9 @@ export function BlockActionBar(props: BlockActionBarProps) {
 
   // 单块命令：块数变化由选择状态自动裁剪越界下标
   const toSheetItem = (item: ContextMenuItem, desc?: string): ActionSheetItem => ({
-    label: item.label,
+    get label() {
+      return item.label;
+    },
     icon: item.icon,
     danger: item.danger,
     desc,

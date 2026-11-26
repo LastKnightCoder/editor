@@ -1,3 +1,5 @@
+import { editorT, editorAliases } from "../../../i18n-runtime";
+import type { Editor as LocaleEditor } from "slate";
 import { Editor } from "slate";
 import { createRoot } from "react-dom/client";
 import { Globe } from "lucide-react";
@@ -33,12 +35,16 @@ const openInsertWebviewModal = (editor: Editor) => {
 };
 
 // 打开菜单时读取图标，避免生产分块的循环依赖提前固化未初始化的导入。
-const blockPanelItems = (): IBlockPanelListItem[] => [
+const blockPanelItems = (editor: LocaleEditor): IBlockPanelListItem[] => [
   {
     icon: Globe,
-    title: "网页",
-    keywords: ["网页", "url", "webview", "wangye"],
-    description: "插入一个网页视图",
+    get title() {
+      return editorT(editor, "block.webview");
+    },
+    keywords: [...["网页", "url", "webview", "wangye"], ...editorAliases("block.webview")],
+    get description() {
+      return editorT(editor, "block.webviewDescription");
+    },
     onClick: openInsertWebviewModal,
   },
 ];
