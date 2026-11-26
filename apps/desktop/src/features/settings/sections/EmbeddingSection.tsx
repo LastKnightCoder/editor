@@ -6,6 +6,7 @@
  * 切换模型会触发后台重建向量索引；即时保存（无应答区）。
  */
 
+import { embeddingText, embeddingValue, useEmbeddingSettingsI18n } from "./EmbeddingSection.i18n";
 import { useCallback, useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 import { produce } from "immer";
@@ -70,7 +71,12 @@ const DOWNLOAD_SOURCE_OPTIONS = [
 ];
 
 const DEVICE_OPTIONS = [
-  { value: "auto", label: "自动" },
+  {
+    value: "auto",
+    get label() {
+      return embeddingText("ui.automatic");
+    },
+  },
   { value: "cpu", label: "CPU" },
   { value: "cuda", label: "CUDA" },
 ];
@@ -96,6 +102,8 @@ const mutateEmbedding = (updater: (embedding: ISetting["embedding"]) => void) =>
 };
 
 export function EmbeddingSection() {
+  useEmbeddingSettingsI18n();
+
   const embedding = useSettingStore(s => s.setting.embedding);
   const active = embedding.active;
   const activeModel = active?.provider === "local" ? active : null;
@@ -105,10 +113,12 @@ export function EmbeddingSection() {
 
   /* ── 本地模型列表（getEmbeddingModels 实读 + 下载进度） ── */
   const [localModels, setLocalModels] = useState<EmbeddingModelInfo[]>([]);
-  const [localLoadError, setLocalLoadError] = useState("");
+  const [localLoadError, setLocalLoadError] = useState<string | { code: "modelsLoadFailed" }>("");
+  const localLoadMessage =
+    typeof localLoadError === "string" ? localLoadError : embeddingText("error.modelsLoadFailed");
   const [downloadingModel, setDownloadingModel] = useState<string | null>(null);
   const [downloadProgress, setDownloadProgress] = useState(0);
-  const [downloadMessage, setDownloadMessage] = useState("");
+  const [downloadMessage, setDownloadMessage] = useState<string | null>("");
   const downloadingModelRef = useRef<string | null>(null);
   const [paramsOpen, setParamsOpen] = useState(false);
   const [deletingModel, setDeletingModel] = useState<EmbeddingModelInfo | null>(null);
@@ -130,12 +140,21 @@ export function EmbeddingSection() {
   const activeSubtitle = !active
     ? ""
     : active.provider === "local"
-      ? `内置 · 本地模型 · ${active.dimensions} 维`
-      : `插件 · ${embeddingSections.find(item => item.context.pluginId === active.pluginId)?.definition.title ?? active.pluginId} · ${active.dimensions} 维`;
+      ? embeddingText("message.builtInLocalModelDimensions", {
+          dimensions: embeddingValue(active.dimensions),
+        })
+      : embeddingText("message.pluginDimensions", {
+          provider: embeddingValue(
+            embeddingSections.find(item => item.context.pluginId === active.pluginId)?.definition
+              .title ?? active.pluginId
+          ),
+          dimensions: embeddingValue(active.dimensions),
+        });
 
   /* ──「设为当前」确认框 ── */
   const [pending, setPending] = useState<ActivationSpec | null>(null);
-  const [probeError, setProbeError] = useState("");
+  const [probeError, setProbeError] = useState<string | { code: "timeout" }>("");
+  const probeMessage = typeof probeError === "string" ? probeError : embeddingText("error.timeout");
   const [indexedCount, setIndexedCount] = useState(0);
 
   // 打开确认框即清空上次探测错误；已有 active 时顺带拉一次索引计数（impact 用）
@@ -162,7 +181,7 @@ export function EmbeddingSection() {
       void embeddingModelHealth(model.name, embedding.local.devicePolicy || "auto").catch(
         () => undefined
       );
-      toast.success("模型已启用，后台正在自动处理索引");
+      toast.success(embeddingText("ui.modelEnabledIndexingContinuesInTheBackground"));
       return;
     }
     const { pluginId, model, config } = pending;
@@ -174,11 +193,7 @@ export function EmbeddingSection() {
       .catch((error: unknown) => {
         const timedOut = error instanceof Error && error.name === "TimeoutError";
         setProbeError(
-          timedOut
-            ? "连接超时（30 秒），请检查网络与插件配置"
-            : error instanceof Error
-              ? error.message
-              : String(error)
+          timedOut ? { code: "timeout" } : error instanceof Error ? error.message : String(error)
         );
         throw error;
       });
@@ -187,7 +202,7 @@ export function EmbeddingSection() {
     mutateEmbedding(draft => {
       draft.active = { provider: "plugin", pluginId, model: model.id, dimensions };
     });
-    toast.success("模型已设为当前，可手动发起索引");
+    toast.success(embeddingText("ui.modelSelectedYouCanStartIndexingManually"));
   };
 
   const loadLocalModels = useCallback(async () => {
@@ -198,7 +213,7 @@ export function EmbeddingSection() {
         setLocalLoadError("");
       } else {
         setLocalModels([]);
-        setLocalLoadError(result.error || "获取本地模型列表失败");
+        setLocalLoadError(result.error || { code: "modelsLoadFailed" });
       }
     } catch (error) {
       setLocalModels([]);
@@ -241,20 +256,22 @@ export function EmbeddingSection() {
     setDownloadingModel(model.name);
     downloadingModelRef.current = model.name;
     setDownloadProgress(0);
-    setDownloadMessage("准备下载...");
+    setDownloadMessage(null);
     try {
       const result = await downloadEmbeddingModel(
         model.name,
         embedding.local.source || "modelscope"
       );
       if (result.success) {
-        toast.success(`模型 ${model.label} 下载成功`);
+        toast.success(
+          embeddingText("message.downloadedModel", { model: embeddingValue(model.label) })
+        );
         await loadLocalModels();
       } else {
-        toast.error(result.error || "下载失败");
+        toast.error(result.error || embeddingText("ui.downloadFailed"));
       }
     } catch (error) {
-      toast.error(`下载失败: ${error}`);
+      toast.error(embeddingText("message.downloadFailed", { error: embeddingValue(error) }));
     } finally {
       setDownloadingModel(null);
       downloadingModelRef.current = null;
@@ -269,12 +286,12 @@ export function EmbeddingSection() {
     downloadingModelRef.current = null;
     setDownloadProgress(0);
     setDownloadMessage("");
-    toast.info("已取消下载");
+    toast.info(embeddingText("ui.downloadCancelled"));
   };
 
   const handleHealthCheck = async () => {
     if (!activeModel?.model) {
-      toast.warning("请先启用一个模型");
+      toast.warning(embeddingText("ui.enableAModelFirst"));
       return;
     }
     try {
@@ -283,12 +300,12 @@ export function EmbeddingSection() {
         embedding.local.devicePolicy || "auto"
       );
       if (!result.success || !result.health) {
-        toast.error(result.error || "健康检查失败");
+        toast.error(result.error || embeddingText("ui.healthCheckFailed"));
         return;
       }
       setHealthInfo(result.health);
     } catch (error) {
-      toast.error(`健康检查失败: ${error}`);
+      toast.error(embeddingText("message.healthCheckFailed", { error: embeddingValue(error) }));
     }
   };
 
@@ -304,7 +321,9 @@ export function EmbeddingSection() {
     pending?.kind === "local" ? pending.model.label : (pending?.model.label ?? pending?.model.id);
   // 插件模型不自动索引，文案必须与编排器行为一致
   const indexHint =
-    pending?.kind === "plugin" ? "之后可在「当前生效」中手动发起索引" : "并在后台重建";
+    pending?.kind === "plugin"
+      ? embeddingText("ui.thenStartIndexingManuallyUnderCurrentModel")
+      : embeddingText("ui.andRebuildItInTheBackground");
 
   return (
     <>
@@ -313,26 +332,29 @@ export function EmbeddingSection() {
       <SettingsGroup
         title={
           <>
-            本地模型 <Tag>内置</Tag>
+            {embeddingText("ui.localModels")} <Tag>{embeddingText("ui.builtIn")}</Tag>
           </>
         }
-        description="本机离线运行，不产生调用费用"
+        description={embeddingText("ui.runsOfflineOnThisDeviceWithoutAPI")}
       >
         {localLoadError ? (
           <div className="text-tau-meta text-ink-2 flex items-center gap-2 px-3 py-3">
-            <span className="text-danger">本地模型列表加载失败：{localLoadError}</span>
+            <span className="text-danger">
+              {embeddingText("ui.couldNotLoadLocalModels2")}
+              {localLoadMessage}
+            </span>
             <Button
               variant="secondary"
               size="sm"
               icon={RefreshCw}
               onClick={() => void loadLocalModels()}
             >
-              重试加载
+              {embeddingText("ui.retryLoading")}
             </Button>
           </div>
         ) : localModels.length === 0 ? (
           <div className="text-tau-meta text-ink-2 px-3 py-3">
-            暂未获取到本地模型列表，可点击「重试加载」或重启应用后再试。
+            {embeddingText("ui.localModelsAreUnavailableChooseRetryLoading")}
           </div>
         ) : (
           localModels.map(model => (
@@ -359,9 +381,15 @@ export function EmbeddingSection() {
           onClick={() => setParamsOpen(value => !value)}
         >
           <span className="min-w-0 flex-1">
-            <span className="text-tau-body-lg text-ink-1 block font-medium">本地运行参数</span>
+            <span className="text-tau-body-lg text-ink-1 block font-medium">
+              {embeddingText("ui.localRuntimeOptions")}
+            </span>
             <span className="text-tau-meta text-ink-2 mt-0.5 block">
-              下载源 {sourceLabel} · 设备 {deviceLabel} · 批大小 {embedding.local.batchSize ?? 8}
+              {embeddingText("runtime.summary", {
+                source: sourceLabel,
+                device: deviceLabel,
+                batch: embeddingValue(embedding.local.batchSize ?? 8),
+              })}
             </span>
           </span>
           <ChevronDown
@@ -375,9 +403,12 @@ export function EmbeddingSection() {
         </button>
         {paramsOpen && (
           <>
-            <SettingRow title="下载源" description="模型下载镜像，影响下载地址与速度">
+            <SettingRow
+              title={embeddingText("ui.downloadSource")}
+              description={embeddingText("ui.modelDownloadMirrorAffectsTheDownloadLocation")}
+            >
               <Select
-                aria-label="本地模型下载源"
+                aria-label={embeddingText("ui.localModelDownloadSource")}
                 className="w-[168px]"
                 value={embedding.local.source || "modelscope"}
                 options={DOWNLOAD_SOURCE_OPTIONS}
@@ -385,16 +416,22 @@ export function EmbeddingSection() {
                 onValueChange={v => updateLocalSource(v as EmbeddingDownloadSource)}
               />
             </SettingRow>
-            <SettingRow title="运行设备" description="预热与健康检查的推理设备">
+            <SettingRow
+              title={embeddingText("ui.computeDevice")}
+              description={embeddingText("ui.deviceUsedForWarmupAndHealthChecks")}
+            >
               <Select
-                aria-label="本地模型设备策略"
+                aria-label={embeddingText("ui.localModelDevicePolicy")}
                 className="w-[168px]"
                 value={embedding.local.devicePolicy || "auto"}
                 options={DEVICE_OPTIONS}
                 onValueChange={v => updateLocalDevice(v as EmbeddingDevicePolicy)}
               />
             </SettingRow>
-            <SettingRow title="批大小" description="单次向量化并入库的文档批数">
+            <SettingRow
+              title={embeddingText("ui.batchSize2")}
+              description={embeddingText("ui.documentsToEmbedAndStoreInEach")}
+            >
               <Input
                 className="w-[168px] tabular-nums"
                 value={String(embedding.local.batchSize ?? 8)}
@@ -410,16 +447,19 @@ export function EmbeddingSection() {
         const form = section.definition.form;
         const stored = embedding.plugins[pluginId]?.config;
         const configured = form ? isProviderFormComplete(form, stored) : stored !== undefined;
-        const summary = form && configured ? providerFormSummary(form, stored) || "已配置" : "";
+        const summary =
+          form && configured
+            ? providerFormSummary(form, stored) || embeddingText("ui.configured")
+            : "";
         return (
           <SettingsGroup
             key={section.key}
             title={
               <>
-                {section.definition.title} <Tag>插件</Tag>
+                {section.definition.title} <Tag>{embeddingText("ui.plugin")}</Tag>
               </>
             }
-            description={configured ? summary : "未配置连接"}
+            description={configured ? summary : embeddingText("ui.connectionNotConfigured")}
             action={
               <Button
                 size="sm"
@@ -427,12 +467,14 @@ export function EmbeddingSection() {
                 icon={Settings2}
                 onClick={() => openProviderSettings(pluginId, section.key, "embedding")}
               >
-                {configured ? "配置" : "去配置"}
+                {configured ? embeddingText("ui.configureExisting") : embeddingText("ui.configure")}
               </Button>
             }
           >
             {(section.definition.models ?? []).length === 0 ? (
-              <div className="text-tau-meta text-ink-2 px-3 py-3">该插件未声明可用模型</div>
+              <div className="text-tau-meta text-ink-2 px-3 py-3">
+                {embeddingText("ui.thisPluginDoesNotListAnyAvailable")}
+              </div>
             ) : (
               (section.definition.models ?? []).map(model => {
                 const isCurrent =
@@ -445,15 +487,21 @@ export function EmbeddingSection() {
                     title={model.label ?? model.id}
                     description={
                       [
-                        model.dimensions ? `${model.dimensions} 维` : "",
-                        configured ? "" : "配置连接后可用",
+                        model.dimensions
+                          ? embeddingText("message.dimensions", {
+                              dimensions: embeddingValue(model.dimensions),
+                            })
+                          : "",
+                        configured
+                          ? ""
+                          : embeddingText("ui.availableAfterConfiguringTheConnection"),
                       ]
                         .filter(Boolean)
                         .join(" · ") || undefined
                     }
                   >
                     {isCurrent ? (
-                      <StatusChip tone="accent">当前使用</StatusChip>
+                      <StatusChip tone="accent">{embeddingText("ui.inUse")}</StatusChip>
                     ) : (
                       <Button
                         variant="secondary"
@@ -468,7 +516,7 @@ export function EmbeddingSection() {
                           })
                         }
                       >
-                        设为当前
+                        {embeddingText("ui.setAsCurrent")}
                       </Button>
                     )}
                   </SettingRow>
@@ -491,14 +539,18 @@ export function EmbeddingSection() {
           <Plus size={15} />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="text-tau-body-lg text-ink-2 block">获取更多嵌入模型</span>
-          <span className="text-tau-meta text-ink-3 block">在插件中心浏览嵌入提供方</span>
+          <span className="text-tau-body-lg text-ink-2 block">
+            {embeddingText("ui.getMoreEmbeddingModels")}
+          </span>
+          <span className="text-tau-meta text-ink-3 block">
+            {embeddingText("ui.browseEmbeddingProvidersInThePluginCenter")}
+          </span>
         </span>
         <ExternalLink size={14} className="text-ink-3" />
       </button>
 
       <SettingsNote icon={<Zap size={14} strokeWidth={1.75} />}>
-        浏览、下载和配置都不会改变当前模型；只有点「设为当前」并确认后，才会清除并重建索引。
+        {embeddingText("ui.browsingDownloadingAndConfiguringDoNotChange")}
       </SettingsNote>
 
       <ConfirmDialog
@@ -506,32 +558,42 @@ export function EmbeddingSection() {
         onOpenChange={open => {
           if (!open) setPending(null);
         }}
-        title={active ? "切换嵌入模型" : "启用嵌入模型"}
+        title={
+          active
+            ? embeddingText("ui.switchEmbeddingModel")
+            : embeddingText("ui.enableEmbeddingModel")
+        }
         context={pendingLabel}
         description={
           active ? (
             <span className="flex flex-col gap-1.5">
               <span>
-                当前：{activeLabel} → 切换为：{pendingLabel}
+                {embeddingText("activation.fromTo", { from: activeLabel, to: pendingLabel ?? "" })}
               </span>
-              <span>不同模型的向量不能混用，切换后会清除现有索引，{indexHint}</span>
-              {probeError && <span className="text-danger break-all">{probeError}</span>}
+              <span>{embeddingText("activation.difference", { action: indexHint })}</span>
+              {probeError && <span className="text-danger break-all">{probeMessage}</span>}
             </span>
           ) : (
             <span className="flex flex-col gap-1.5">
               <span>
                 {pending?.kind === "plugin"
-                  ? "确认后会先验证连接，之后可在「当前生效」中手动发起索引（会产生调用费用）"
-                  : "确认后开始在后台建立索引"}
+                  ? embeddingText("ui.confirmToVerifyTheConnectionThenStart")
+                  : embeddingText("ui.confirmToStartIndexingInTheBackground")}
               </span>
-              {probeError && <span className="text-danger break-all">{probeError}</span>}
+              {probeError && <span className="text-danger break-all">{probeMessage}</span>}
             </span>
           )
         }
-        impact={active && indexedCount > 0 ? `将清除 ${indexedCount} 条已建立的索引` : undefined}
+        impact={
+          active && indexedCount > 0
+            ? embeddingText("message.existingIndexEntriesWillBeCleared", {
+                count: embeddingValue(indexedCount),
+              })
+            : undefined
+        }
         danger={Boolean(active)}
-        confirmText={active ? "清除索引并切换" : "启用"}
-        loadingText={pending?.kind === "plugin" ? "正在验证…" : undefined}
+        confirmText={active ? embeddingText("ui.clearIndexAndSwitch") : embeddingText("ui.enable")}
+        loadingText={pending?.kind === "plugin" ? embeddingText("ui.verifying") : undefined}
         onConfirm={confirmActivation}
       />
 
@@ -540,19 +602,19 @@ export function EmbeddingSection() {
         onOpenChange={open => {
           if (!open) setDeletingModel(null);
         }}
-        title="删除本地模型"
+        title={embeddingText("ui.deleteLocalModel")}
         context={deletingModel?.label}
-        description="删除模型文件不会清除已建立的索引；重新下载后可继续使用"
+        description={embeddingText("ui.deletingModelFilesKeepsTheExistingIndex")}
         danger
-        confirmText="删除"
+        confirmText={embeddingText("ui.delete")}
         onConfirm={async () => {
           if (!deletingModel) return;
           const result = await deleteEmbeddingModel(deletingModel.name);
           if (result.success) {
-            toast.success("删除成功");
+            toast.success(embeddingText("ui.deleted"));
             await loadLocalModels();
           } else {
-            toast.error(result.error || "删除失败");
+            toast.error(result.error || embeddingText("ui.couldNotDelete"));
           }
         }}
       />
@@ -562,21 +624,30 @@ export function EmbeddingSection() {
         onOpenChange={open => {
           if (!open) setHealthInfo(null);
         }}
-        title="Embedding 健康检查"
-        subtitle="当前启用模型的运行状态"
+        title={embeddingText("ui.embeddingHealthCheck")}
+        subtitle={embeddingText("ui.runtimeStatusOfTheCurrentModel")}
         footer={
           <Button variant="secondary" size="sm" onClick={() => setHealthInfo(null)}>
-            关闭
+            {embeddingText("ui.close")}
           </Button>
         }
       >
         <DialogBody>
           <div className="text-tau-meta text-ink-2 flex flex-col gap-1.5">
             <span>
-              已加载：<b className="text-ink-1 font-semibold">{healthInfo?.loaded ? "是" : "否"}</b>
+              {embeddingText("ui.loaded")}
+              <b className="text-ink-1 font-semibold">
+                {healthInfo?.loaded ? embeddingText("ui.yes") : embeddingText("ui.no")}
+              </b>
             </span>
-            <span>设备：{healthInfo?.device || "—"}</span>
-            <span>维度：{healthInfo?.dimensions || "—"}</span>
+            <span>
+              {embeddingText("ui.device2")}
+              {healthInfo?.device || "—"}
+            </span>
+            <span>
+              {embeddingText("ui.dimensions")}
+              {healthInfo?.dimensions || "—"}
+            </span>
             <span className="font-tau-mono text-tau-sm text-ink-3 break-all">
               {healthInfo?.model_path || "—"}
             </span>
@@ -604,28 +675,34 @@ function LocalModelRow({
   isCurrent: boolean;
   downloading: boolean;
   downloadProgress: number;
-  downloadMessage: string;
+  downloadMessage: string | null;
   onActivate: () => void;
   onHealthCheck: () => void;
   onDelete: () => void;
   onDownload: () => void;
   onCancel: () => void;
 }) {
+  useEmbeddingSettingsI18n();
+
   const statusText = downloading
-    ? `下载中 ${downloadProgress}%`
+    ? embeddingText("message.downloading", { percent: embeddingValue(downloadProgress) })
     : model.downloaded
-      ? "已下载"
-      : "未下载";
+      ? embeddingText("ui.downloaded")
+      : embeddingText("ui.notDownloaded");
   return (
     <div className={`rounded-tau-sm px-3 py-3 ${ROW_DIVIDER}`}>
       <div className="flex items-center gap-4">
         <div className="min-w-0 flex-1">
           <div className="text-ink-1 flex items-center gap-2">
             <span className="font-tau-mono text-tau-body truncate font-medium">{model.label}</span>
-            {isCurrent && <StatusChip tone="accent">当前使用</StatusChip>}
+            {isCurrent && <StatusChip tone="accent">{embeddingText("ui.inUse")}</StatusChip>}
           </div>
           <div className="text-tau-meta text-ink-2 mt-0.5 truncate">
-            {model.size} · {model.dimensions} 维 · {statusText}
+            {embeddingText("model.rowSummary", {
+              size: model.size,
+              dimensions: embeddingValue(model.dimensions),
+              status: statusText,
+            })}
           </div>
         </div>
         <div className="flex flex-none items-center gap-2">
@@ -633,13 +710,17 @@ function LocalModelRow({
             <>
               {!isCurrent && (
                 <Button variant="secondary" size="sm" icon={Zap} onClick={onActivate}>
-                  设为当前
+                  {embeddingText("ui.setAsCurrent")}
                 </Button>
               )}
               <Menu
                 align="end"
                 trigger={
-                  <IconButton aria-label={`${model.label} 的更多操作`}>
+                  <IconButton
+                    aria-label={embeddingText("message.moreActionsFor", {
+                      model: embeddingValue(model.label),
+                    })}
+                  >
                     <Ellipsis size={16} strokeWidth={1.75} />
                   </IconButton>
                 }
@@ -649,24 +730,24 @@ function LocalModelRow({
                   disabled={!isCurrent}
                   onSelect={onHealthCheck}
                 >
-                  健康检查
+                  {embeddingText("ui.healthCheck")}
                 </Menu.Item>
                 <Menu.Item
                   danger
                   icon={<Trash2 size={16} strokeWidth={1.75} />}
                   onSelect={onDelete}
                 >
-                  删除本地模型…
+                  {embeddingText("ui.deleteLocalModel2")}
                 </Menu.Item>
               </Menu>
             </>
           ) : downloading ? (
             <Button variant="secondary" size="sm" onClick={onCancel}>
-              取消
+              {embeddingText("ui.cancel")}
             </Button>
           ) : (
             <Button variant="secondary" size="sm" icon={Download} onClick={onDownload}>
-              下载
+              {embeddingText("ui.download")}
             </Button>
           )}
         </div>
@@ -680,7 +761,12 @@ function LocalModelRow({
             />
           </div>
           <div className="text-tau-sm text-ink-2 mt-1 tabular-nums">
-            {downloadMessage || `下载中… ${downloadProgress}%`}
+            {downloadMessage === null
+              ? embeddingText("download.preparing")
+              : downloadMessage ||
+                embeddingText("message.downloading2", {
+                  percent: embeddingValue(downloadProgress),
+                })}
           </div>
         </div>
       )}

@@ -1,3 +1,5 @@
+import { desktopLocaleSource } from "@/app/i18n/runtime";
+import { embeddingText } from "../sections/EmbeddingSection.i18n";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -16,6 +18,10 @@ if (typeof AbortSignal.timeout !== "function") {
 
 const mocks = vi.hoisted(() => ({
   sections: [] as unknown[],
+  subscribe: vi.fn(),
+  progress: undefined as
+    | ((progress: { modelName: string; percentage: number; message?: string }) => void)
+    | undefined,
   models: { success: true, data: [] as unknown[] },
   indexStatus: {} as Record<string, unknown>,
   execute: vi.fn(),
@@ -32,7 +38,15 @@ vi.mock("@/commands", () => ({
   embeddingModelHealth: vi.fn(async () => ({ success: true, health: { loaded: true } })),
   getEmbeddingIndexStatus: vi.fn(async () => mocks.indexStatus),
   startEmbeddingIndex: vi.fn(async () => ({ started: true })),
-  onEmbeddingDownloadProgress: () => () => undefined,
+  onEmbeddingDownloadProgress: (
+    listener: (progress: { modelName: string; percentage: number; message?: string }) => void
+  ) => {
+    mocks.subscribe();
+    mocks.progress = listener;
+    return () => {
+      if (mocks.progress === listener) mocks.progress = undefined;
+    };
+  },
   onEmbeddingIndexProgress: () => () => undefined,
 }));
 vi.mock("@/app/plugins/context", () => ({
@@ -78,6 +92,7 @@ const pluginSection = {
 let container: HTMLDivElement;
 let root: Root;
 const previous = useSettingStore.getState().setting;
+const originalLocale = desktopLocaleSource.getSnapshot();
 const render = () =>
   act(async () =>
     root.render(
@@ -104,6 +119,8 @@ const activateButton = (rowTitle: string) =>
   )! as HTMLButtonElement;
 
 beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.progress = undefined;
   mocks.sections = [];
   mocks.models = { success: true, data: [structuredClone(localModel)] };
   mocks.indexStatus = {
@@ -140,6 +157,7 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
+  desktopLocaleSource.setLocale(originalLocale);
   useSettingStore.setState({ setting: previous });
 });
 
@@ -261,4 +279,92 @@ it("插件探测成功：以实测维度写入 active", async () => {
     model: "m1",
     dimensions: 3,
   });
+});
+
+it("换语保留待激活模型，探测期间不重复执行或提前写入，探测样本文本保持原值", async () => {
+  mocks.sections = [pluginSection];
+  useSettingStore.setState(state => ({
+    setting: {
+      ...state.setting,
+      embedding: {
+        ...state.setting.embedding,
+        plugins: { "test.embed": { config: { apiKey: "test-key" } } },
+      },
+    },
+  }));
+  let finish: ((vectors: number[][]) => void) | undefined;
+  mocks.execute.mockImplementation(
+    () =>
+      new Promise(resolve => {
+        finish = resolve;
+      })
+  );
+  const commands = await import("@/commands");
+  await render();
+  const before = useSettingStore.getState().setting.embedding;
+  const loads = vi.mocked(commands.getEmbeddingModels).mock.calls.length;
+  await act(async () => activateButton("嵌入一号").click());
+  await act(async () => desktopLocaleSource.setLocale("zh-TW"));
+  expect(mocks.execute).not.toHaveBeenCalled();
+  await act(async () => bodyButton(embeddingText("ui.enable")).click());
+  for (const locale of ["en-US", "zh-CN"]) {
+    await act(async () => desktopLocaleSource.setLocale(locale));
+    expect(mocks.execute).toHaveBeenCalledExactlyOnceWith(
+      {
+        pluginId: "test.embed",
+        config: { apiKey: "test-key" },
+        modelId: "m1",
+        texts: ["嵌入模型连通性测试"],
+      },
+      expect.any(AbortSignal)
+    );
+    expect(useSettingStore.getState().setting.embedding).toBe(before);
+    expect(vi.mocked(commands.getEmbeddingModels).mock.calls.length).toBe(loads);
+    expect(mocks.subscribe).toHaveBeenCalledTimes(1);
+  }
+  if (!finish) throw new Error("模型探测未进入插件边界");
+  await act(async () => finish?.([[0.1, 0.2, 0.3]]));
+  expect(mocks.execute).toHaveBeenCalledTimes(1);
+  expect(useSettingStore.getState().setting.embedding.active).toEqual({
+    provider: "plugin",
+    pluginId: "test.embed",
+    model: "m1",
+    dimensions: 3,
+  });
+});
+
+it("换语保留下载实例、服务进度与配置，下载完成不会自动激活模型", async () => {
+  mocks.models = { success: true, data: [{ ...localModel, downloaded: false }] };
+  const commands = await import("@/commands");
+  let finish: ((result: { success: boolean }) => void) | undefined;
+  vi.mocked(commands.downloadEmbeddingModel).mockImplementationOnce(
+    () =>
+      new Promise(resolve => {
+        finish = resolve;
+      })
+  );
+  await render();
+  const before = useSettingStore.getState().setting.embedding;
+  const loads = vi.mocked(commands.getEmbeddingModels).mock.calls.length;
+  await act(async () => button(embeddingText("ui.download")).click());
+  if (!mocks.progress || !finish) throw new Error("下载尚未进入服务边界");
+  const message = "原始服务进度 [asset-17]";
+  await act(async () => mocks.progress?.({ modelName: localModel.name, percentage: 37, message }));
+  for (const locale of ["zh-TW", "en-US"]) {
+    await act(async () => desktopLocaleSource.setLocale(locale));
+    expect(commands.downloadEmbeddingModel).toHaveBeenCalledExactlyOnceWith(
+      localModel.name,
+      "modelscope"
+    );
+    expect(commands.cancelEmbeddingDownload).not.toHaveBeenCalled();
+    expect(mocks.subscribe).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(commands.getEmbeddingModels).mock.calls.length).toBe(loads);
+    expect(useSettingStore.getState().setting.embedding).toBe(before);
+    expect(text()).toContain(message);
+  }
+  mocks.models = { success: true, data: [structuredClone(localModel)] };
+  await act(async () => finish?.({ success: true }));
+  expect(commands.downloadEmbeddingModel).toHaveBeenCalledTimes(1);
+  expect(useSettingStore.getState().setting.embedding).toBe(before);
+  expect(useSettingStore.getState().setting.embedding.active).toBeNull();
 });

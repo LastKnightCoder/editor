@@ -8,6 +8,7 @@
  * 一轮增量索引（只处理未索引与内容有更新的文档）。
  */
 
+import { embeddingText, embeddingValue, useEmbeddingSettingsI18n } from "./EmbeddingSection.i18n";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CircleDashed, Play, RefreshCw } from "lucide-react";
 import { ROW_DIVIDER, SettingRow, Button, toast } from "@tau/ui";
@@ -24,38 +25,80 @@ import { SettingsGroup } from "../components/SettingsGroup";
 import { StatusChip } from "../components/StatusChip";
 
 const TYPE_LABELS: Record<EmbeddingIndexContentType, string> = {
-  card: "卡片",
-  article: "文章",
-  "project-item": "项目文档",
-  "diary-moment": "日记",
-  excerpt: "划线",
-  "pdf-annotation": "PDF 标注",
-  "web-clip": "剪藏",
-  "plugin-entity": "插件内容",
+  get card() {
+    return embeddingText("ui.cards");
+  },
+  get article() {
+    return embeddingText("ui.articles");
+  },
+  get "project-item"() {
+    return embeddingText("ui.projectDocuments");
+  },
+  get "diary-moment"() {
+    return embeddingText("ui.diary");
+  },
+  get excerpt() {
+    return embeddingText("ui.highlights");
+  },
+  get "pdf-annotation"() {
+    return embeddingText("ui.pdfAnnotations");
+  },
+  get "web-clip"() {
+    return embeddingText("ui.webClips");
+  },
+  get "plugin-entity"() {
+    return embeddingText("ui.pluginContent");
+  },
 };
 
 const REASON_LABELS: Record<string, string> = {
-  manual: "手动发起",
-  content_idle: "编辑后自动",
-  startup_reconcile: "启动时",
-  db_switch: "切换数据库",
-  config_switch: "切换配置",
-  model_switch: "切换模型",
-  sync_upload_reconnect: "同步上传后",
-  sync_download_reconnect: "同步下载后",
+  get manual() {
+    return embeddingText("ui.manual");
+  },
+  get content_idle() {
+    return embeddingText("ui.afterEditing");
+  },
+  get startup_reconcile() {
+    return embeddingText("ui.atStartup");
+  },
+  get db_switch() {
+    return embeddingText("ui.databaseChange");
+  },
+  get config_switch() {
+    return embeddingText("ui.configurationChange");
+  },
+  get model_switch() {
+    return embeddingText("ui.modelChange");
+  },
+  get sync_upload_reconnect() {
+    return embeddingText("ui.afterSyncUpload");
+  },
+  get sync_download_reconnect() {
+    return embeddingText("ui.afterSyncDownload");
+  },
 };
 
-const formatTime = (ts?: number) => {
-  if (!ts) return "—";
-  const d = new Date(ts);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getMonth() + 1}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-};
+const formatTime = (ts: number | undefined, locale: string) =>
+  !ts
+    ? "—"
+    : new Intl.DateTimeFormat(locale, {
+        month: "numeric",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23",
+      }).format(ts);
 
-const formatDuration = (run: EmbeddingIndexProgress) => {
+const formatDuration = (run: EmbeddingIndexProgress, locale: string, t: typeof embeddingText) => {
   if (!run.finishedAt) return "";
   const seconds = Math.max(0, Math.round((run.finishedAt - run.startedAt) / 1000));
-  return seconds < 60 ? `${seconds} 秒` : `${Math.floor(seconds / 60)} 分 ${seconds % 60} 秒`;
+  const numbers = new Intl.NumberFormat(locale, { useGrouping: false });
+  return seconds < 60
+    ? t("duration.seconds", { seconds: numbers.format(seconds) })
+    : t("duration.minutesSeconds", {
+        minutes: numbers.format(Math.floor(seconds / 60)),
+        seconds: numbers.format(seconds % 60),
+      });
 };
 
 export function EmbeddingActiveGroup({
@@ -69,6 +112,8 @@ export function EmbeddingActiveGroup({
   /** 来源摘要：「内置 · 本地模型 · N 维」/「插件 · 提供方 · N 维」 */
   subtitle: string;
 }) {
+  const { locale, t } = useEmbeddingSettingsI18n();
+
   const [status, setStatus] = useState<EmbeddingIndexStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [starting, setStarting] = useState(false);
@@ -84,7 +129,11 @@ export function EmbeddingActiveGroup({
       setRunning(next.running);
     } catch (error) {
       if (mountedRef.current) {
-        toast.error(`读取索引状态失败：${error instanceof Error ? error.message : String(error)}`);
+        toast.error(
+          embeddingText("message.couldNotLoadIndexStatus", {
+            error: embeddingValue(error instanceof Error ? error.message : String(error)),
+          })
+        );
       }
     } finally {
       if (mountedRef.current) setLoading(false);
@@ -126,12 +175,16 @@ export function EmbeddingActiveGroup({
     try {
       const result = await startEmbeddingIndex();
       if (result.started) {
-        toast.success("已开始索引，只处理未索引与内容有更新的文档");
+        toast.success(embeddingText("ui.indexingStartedForUnindexedAndUpdatedDocuments"));
       } else {
-        toast.warning(result.error || "无法发起索引");
+        toast.warning(result.error || embeddingText("ui.couldNotStartIndexing"));
       }
     } catch (error) {
-      toast.error(`发起索引失败：${error instanceof Error ? error.message : String(error)}`);
+      toast.error(
+        embeddingText("message.couldNotStartIndexing", {
+          error: embeddingValue(error instanceof Error ? error.message : String(error)),
+        })
+      );
     } finally {
       setStarting(false);
     }
@@ -143,26 +196,26 @@ export function EmbeddingActiveGroup({
   const lastRun = status?.lastRun;
 
   const description = !status
-    ? "正在读取…"
+    ? embeddingText("ui.loading")
     : !active
       ? undefined
       : active.provider === "plugin"
-        ? "插件模型不会自动索引，需要手动发起（会产生调用费用）"
-        : "本地模型会在启动、同步后、切换模型时自动补齐；编辑内容后停止编辑约 2 分钟自动更新";
+        ? embeddingText("ui.pluginModelsRequireManualIndexingAPICharges")
+        : embeddingText("ui.localModelsIndexAutomaticallyAtStartupAfter");
 
   const activeChip = !status
-    ? { tone: "ok" as const, text: "生效中" }
+    ? { tone: "ok" as const, text: embeddingText("ui.active") }
     : running
-      ? { tone: "accent" as const, text: "索引中" }
+      ? { tone: "accent" as const, text: embeddingText("ui.indexing") }
       : !status.providerReady && active?.provider === "local"
-        ? { tone: "warn" as const, text: "等待下载" }
+        ? { tone: "warn" as const, text: embeddingText("ui.waitingForDownload") }
         : !status.providerReady && active?.provider === "plugin"
-          ? { tone: "warn" as const, text: "插件未就绪" }
-          : { tone: "ok" as const, text: "生效中" };
+          ? { tone: "warn" as const, text: embeddingText("ui.pluginNotReady") }
+          : { tone: "ok" as const, text: embeddingText("ui.active") };
 
   return (
     <SettingsGroup
-      title="当前生效"
+      title={embeddingText("ui.currentModel")}
       description={description}
       action={
         <>
@@ -173,7 +226,7 @@ export function EmbeddingActiveGroup({
             loading={loading}
             onClick={() => void refresh()}
           >
-            刷新
+            {embeddingText("ui.refresh")}
           </Button>
           <Button
             variant="secondary"
@@ -183,7 +236,7 @@ export function EmbeddingActiveGroup({
             disabled={!status?.configValid || running !== null}
             onClick={() => void handleStart()}
           >
-            {running ? "索引中" : "立即索引"}
+            {running ? embeddingText("ui.indexing") : embeddingText("ui.indexNow")}
           </Button>
         </>
       }
@@ -198,28 +251,37 @@ export function EmbeddingActiveGroup({
             <CircleDashed size={16} strokeWidth={1.75} />
           </span>
           <div className="min-w-0 flex-1">
-            <div className="text-tau-body-lg text-ink-1 font-medium">尚未启用嵌入模型</div>
+            <div className="text-tau-body-lg text-ink-1 font-medium">
+              {embeddingText("ui.noEmbeddingModelEnabled")}
+            </div>
             <div className="text-tau-meta text-ink-2 mt-0.5">
-              在下方选择一个模型并点「设为当前」，确认后开始建立索引
+              {embeddingText("ui.chooseAModelBelowAndSelectSet")}
             </div>
           </div>
-          <StatusChip>未启用</StatusChip>
+          <StatusChip>{embeddingText("ui.notEnabled")}</StatusChip>
         </div>
       )}
 
       <SettingRow
-        title="索引覆盖"
+        title={embeddingText("ui.indexCoverage")}
         description={
           stats
-            ? `共 ${stats.total} 篇 · 已索引 ${stats.indexed} · 待更新 ${stats.outdated} · 未索引 ${stats.unindexed}`
-            : "暂无统计"
+            ? embeddingText("message.documentsIndexedOutdatedUnindexed", {
+                total: embeddingValue(stats.total),
+                indexed: embeddingValue(stats.indexed),
+                outdated: embeddingValue(stats.outdated),
+                unindexed: embeddingValue(stats.unindexed),
+              })
+            : embeddingText("ui.noStatistics")
         }
       >
         {stats &&
           (pending === 0 ? (
-            <StatusChip tone="ok">已是最新</StatusChip>
+            <StatusChip tone="ok">{embeddingText("ui.upToDate")}</StatusChip>
           ) : (
-            <StatusChip tone="warn">{pending} 篇待处理</StatusChip>
+            <StatusChip tone="warn">
+              {embeddingText("index.pending", { count: embeddingValue(pending) })}
+            </StatusChip>
           ))}
         <span className="text-tau-meta text-ink-1 w-12 text-right font-semibold tabular-nums">
           {stats ? `${percent}%` : "—"}
@@ -236,7 +298,11 @@ export function EmbeddingActiveGroup({
                 <span key={type} className="tabular-nums">
                   {TYPE_LABELS[type]} {counts.indexed}/{counts.total}
                   {counts.outdated + counts.unindexed > 0 && (
-                    <span className="text-ink-3">（待 {counts.outdated + counts.unindexed}）</span>
+                    <span className="text-ink-3">
+                      {embeddingText("index.typePending", {
+                        count: embeddingValue(counts.outdated + counts.unindexed),
+                      })}
+                    </span>
                   )}
                 </span>
               );
@@ -247,11 +313,20 @@ export function EmbeddingActiveGroup({
 
       {running && (
         <SettingRow
-          title="正在索引"
+          title={embeddingText("ui.indexing2")}
           description={
             running.phase === "collecting"
-              ? "正在收集需要索引的文档…"
-              : `${REASON_LABELS[running.reason] ?? running.reason} · ${running.processed} / ${running.queued}${running.failed > 0 ? ` · 失败 ${running.failed}` : ""}`
+              ? embeddingText("ui.collectingDocumentsToIndex")
+              : embeddingText("message.text", {
+                  reason: embeddingValue(REASON_LABELS[running.reason] ?? running.reason),
+                  processed: embeddingValue(running.processed),
+                  queued: embeddingValue(running.queued),
+                  failed: embeddingValue(
+                    running.failed > 0
+                      ? embeddingText("message.failed", { count: embeddingValue(running.failed) })
+                      : ""
+                  ),
+                })
           }
         >
           <div className="w-[168px]">
@@ -261,16 +336,39 @@ export function EmbeddingActiveGroup({
       )}
 
       <SettingRow
-        title="上次索引"
+        title={embeddingText("ui.lastIndexingRun")}
         description={
           lastRun
-            ? `${formatTime(lastRun.finishedAt)} · ${REASON_LABELS[lastRun.reason] ?? lastRun.reason} · 处理 ${lastRun.queued} 篇，成功 ${lastRun.indexed}${lastRun.failed > 0 ? `，失败 ${lastRun.failed}` : ""}${formatDuration(lastRun) ? ` · 用时 ${formatDuration(lastRun)}` : ""}`
-            : "暂无记录"
+            ? embeddingText("message.processedSucceeded", {
+                date: embeddingValue(formatTime(lastRun.finishedAt, locale)),
+                reason: embeddingValue(REASON_LABELS[lastRun.reason] ?? lastRun.reason),
+                queued: embeddingValue(lastRun.queued),
+                indexed: embeddingValue(lastRun.indexed),
+                failed: embeddingValue(
+                  lastRun.failed > 0
+                    ? embeddingText("message.failed2", { count: embeddingValue(lastRun.failed) })
+                    : ""
+                ),
+                duration: embeddingValue(
+                  formatDuration(lastRun, locale, t)
+                    ? embeddingText("message.duration", {
+                        duration: embeddingValue(formatDuration(lastRun, locale, t)),
+                      })
+                    : ""
+                ),
+              })
+            : embeddingText("ui.noRecords")
         }
       >
-        {lastRun?.phase === "failed" && <StatusChip tone="danger">失败</StatusChip>}
-        {lastRun?.phase === "aborted" && <StatusChip tone="neutral">已中断</StatusChip>}
-        {lastRun?.phase === "done" && <StatusChip tone="ok">完成</StatusChip>}
+        {lastRun?.phase === "failed" && (
+          <StatusChip tone="danger">{embeddingText("ui.failed")}</StatusChip>
+        )}
+        {lastRun?.phase === "aborted" && (
+          <StatusChip tone="neutral">{embeddingText("ui.interrupted")}</StatusChip>
+        )}
+        {lastRun?.phase === "done" && (
+          <StatusChip tone="ok">{embeddingText("ui.completed")}</StatusChip>
+        )}
       </SettingRow>
       {lastRun?.phase === "failed" && lastRun.error && (
         <div className="text-tau-sm text-danger px-3 pb-3 break-all">{lastRun.error}</div>
