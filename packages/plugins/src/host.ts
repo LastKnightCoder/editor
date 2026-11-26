@@ -58,6 +58,7 @@ import type {
   PluginDefinition,
   PluginInstance,
   PluginSettingsDefinition,
+  PluginSettingsDeclaration,
   PluginSettingsHandle,
   PluginSidebarGroupDefinition,
   PluginSidebarGroupHandle,
@@ -74,7 +75,7 @@ import type {
   PluginStorage,
 } from "./index";
 import { assertLocalId, copyJson } from "./values";
-import { assertProviderForm } from "./provider-form";
+import { resolveProviderForm } from "./provider-form-i18n";
 import {
   sidebarDragType,
   snapshotSidebarUpdate,
@@ -2650,21 +2651,26 @@ export class PluginHost {
   private buildSettingsContext(deps: ContextDeps): PluginContext["settings"] {
     const { context, entry, activation, registerAs } = deps;
     return Object.freeze({
-      register: (input: Localized<PluginSettingsDefinition>) => {
-        const definition = bindI18nFields(input, ["title"], context.i18n.resolve);
+      register: (input: PluginSettingsDeclaration) => {
+        const bound = bindI18nFields(input, ["title"], context.i18n.resolve);
         this.assertActive(entry, activation);
-        assertLocalId(definition.id);
-        if (!definition.title.trim()) throw new Error("设置分区标题不能为空");
-        if (definition.form) {
-          if (!definition.target) throw new Error("form 需要声明提供方目标");
-          if (definition.component) throw new Error("设置分区不能同时声明 form 与组件");
-          assertProviderForm(definition.form);
-        } else if (typeof definition.component !== "function") throw new Error("设置分区缺少组件");
+        assertLocalId(bound.id);
+        if (!bound.title.trim()) throw new Error("设置分区标题不能为空");
+        const descriptors = Object.getOwnPropertyDescriptors(bound);
+        const form = bound.form;
+        if (form) {
+          if (!bound.target) throw new Error("form 需要声明提供方目标");
+          if (bound.component) throw new Error("设置分区不能同时声明 form 与组件");
+          descriptors.form = {
+            enumerable: true,
+            value: resolveProviderForm(form, context.i18n.resolve),
+          };
+        } else if (typeof bound.component !== "function") throw new Error("设置分区缺少组件");
+        const definition = Object.freeze(
+          Object.defineProperties({}, descriptors)
+        ) as PluginSettingsDefinition;
         if (!this.options.settings) throw new Error("当前宿主不支持设置分区");
-        const handle = this.options.settings.register(
-          context,
-          bindI18nFields(input, ["title"], context.i18n.resolve)
-        );
+        const handle = this.options.settings.register(context, definition);
         let disposed = false;
         const resource = registerAs("settings", {
           dispose: () => {

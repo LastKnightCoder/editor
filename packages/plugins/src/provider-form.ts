@@ -1,13 +1,14 @@
+import { snapshotDisplayText, type DisplayText } from "@tau/i18n";
 import type { JsonValue } from "./json";
 
 /** 提供方配置表单：插件只声明字段，桌面与移动宿主各自渲染、保存与校验。 */
 export type ProviderFormValues = Readonly<Record<string, string>>;
 
-interface ProviderFieldBase {
+interface ProviderFieldBase<Text extends DisplayText = string> {
   key: string;
-  label: string;
-  description?: string;
-  placeholder?: string;
+  label: Text;
+  description?: Text;
+  placeholder?: Text;
   /** 未标注的字段为必填，空值时宿主拒绝保存 */
   optional?: boolean;
   /** 按声明顺序拼成服务列表里的配置摘要；secret 字段不能作摘要 */
@@ -16,13 +17,17 @@ interface ProviderFieldBase {
   visibleWhen?: { key: string; equals: string };
 }
 
-export interface ProviderTextField extends ProviderFieldBase {
+export interface ProviderTextField<
+  Text extends DisplayText = string,
+> extends ProviderFieldBase<Text> {
   type: "text" | "secret" | "url";
   default?: string;
 }
 
 /** 开关字段：取值为 "true" / "false"，与其它字段一样按字符串保存；不参与必填校验。 */
-export interface ProviderSwitchField extends ProviderFieldBase {
+export interface ProviderSwitchField<
+  Text extends DisplayText = string,
+> extends ProviderFieldBase<Text> {
   type: "switch";
   default?: boolean;
 }
@@ -34,45 +39,54 @@ export type ProviderHostService = "git.cacheDirectory";
  * 宿主服务选择：值由宿主服务给出（如选择 Git 缓存目录），用户不直接输入。
  * key 存服务返回的标识，labelKey 存显示名；留空表示使用宿主默认，placeholder 为默认时的说明。
  */
-export interface ProviderServiceChoiceField extends ProviderFieldBase {
+export interface ProviderServiceChoiceField<
+  Text extends DisplayText = string,
+> extends ProviderFieldBase<Text> {
   type: "service-choice";
   service: ProviderHostService;
   labelKey: string;
 }
 
-export interface ProviderChoiceOption {
+export interface ProviderChoiceOption<Text extends DisplayText = string> {
   value: string;
-  label?: string;
-  description?: string;
+  label?: Text;
+  description?: Text;
 }
 
-export interface ProviderChoiceField extends ProviderFieldBase {
+export interface ProviderChoiceField<
+  Text extends DisplayText = string,
+> extends ProviderFieldBase<Text> {
   type: "choice";
-  options: readonly ProviderChoiceOption[];
+  options: readonly ProviderChoiceOption<Text>[];
   default?: string;
 }
 
-export interface ProviderRemoteChoiceField extends ProviderFieldBase {
+export interface ProviderRemoteChoiceField<
+  Text extends DisplayText = string,
+> extends ProviderFieldBase<Text> {
   type: "remote-choice";
   /** 按当前填写的值加载可选项；失败时抛出可读的错误 */
-  load(values: ProviderFormValues, signal: AbortSignal): Promise<readonly ProviderChoiceOption[]>;
+  load(
+    values: ProviderFormValues,
+    signal: AbortSignal
+  ): Promise<readonly ProviderChoiceOption<Text>[]>;
   /** 其中任一字段变化时清空本字段 */
   dependsOn?: readonly string[];
 }
 
-export type ProviderField =
-  | ProviderTextField
-  | ProviderChoiceField
-  | ProviderRemoteChoiceField
-  | ProviderSwitchField
-  | ProviderServiceChoiceField;
+export type ProviderField<Text extends DisplayText = string> =
+  | ProviderTextField<Text>
+  | ProviderChoiceField<Text>
+  | ProviderRemoteChoiceField<Text>
+  | ProviderSwitchField<Text>
+  | ProviderServiceChoiceField<Text>;
 
-export interface ProviderFieldGroup {
-  title: string;
-  description?: string;
+export interface ProviderFieldGroup<Text extends DisplayText = string> {
+  title: Text;
+  description?: Text;
   /** 外部链接（如服务商控制台），由宿主在分组旁展示 */
-  link?: { label: string; url: string };
-  fields: readonly ProviderField[];
+  link?: { label: Text; url: string };
+  fields: readonly ProviderField<Text>[];
 }
 
 /** beforeSave 抛出此错误时，宿主把文案标在对应字段上。 */
@@ -94,28 +108,42 @@ export function isProviderFieldError(error: unknown): error is ProviderFieldErro
   );
 }
 
-export interface ProviderForm {
-  groups: readonly ProviderFieldGroup[];
+export interface ProviderForm<Text extends DisplayText = string> {
+  groups: readonly ProviderFieldGroup<Text>[];
   /** 保存前调用：可补全字段（如按令牌取用户名）或抛错拒绝保存 */
   beforeSave?(values: ProviderFormValues, signal: AbortSignal): Promise<ProviderFormValues>;
 }
 
-export function providerFormFields(form: ProviderForm): readonly ProviderField[] {
+/** 作者声明可引用词典；宿主收到的 ProviderForm 默认仍为已解析字符串。 */
+export type ProviderFormDeclaration = ProviderForm<DisplayText>;
+
+export function providerFormFields<Text extends DisplayText>(
+  form: ProviderForm<Text>
+): readonly ProviderField<Text>[] {
   return form.groups.flatMap(group => group.fields);
 }
 
-export function assertProviderForm(form: ProviderForm): void {
+export function assertProviderForm(
+  form: ProviderFormDeclaration,
+  resolve?: (text: DisplayText) => string
+): void {
+  const text = (value: DisplayText | undefined): string => {
+    if (value === undefined || value === null) return "";
+    const snapshot = snapshotDisplayText(value);
+    return typeof snapshot === "string" ? snapshot : resolve ? resolve(snapshot) : snapshot.key;
+  };
   if (!form || !Array.isArray(form.groups) || form.groups.length === 0)
     throw new Error("提供方设置必须声明表单分组");
   const keys = new Set<string>();
   for (const group of form.groups) {
-    if (!group.title?.trim()) throw new Error("表单分组标题不能为空");
-    if (group.link && (!group.link.label?.trim() || !/^https:\/\//.test(group.link.url ?? "")))
+    if (!text(group.title).trim()) throw new Error("表单分组标题不能为空");
+    if (group.link && (!text(group.link.label).trim() || !/^https:\/\//.test(group.link.url ?? "")))
       throw new Error(`表单分组「${group.title}」的链接需要标题与 https 地址`);
     if (!Array.isArray(group.fields) || group.fields.length === 0)
       throw new Error(`表单分组「${group.title}」没有字段`);
     for (const field of group.fields) {
-      if (!field.key?.trim() || !field.label?.trim()) throw new Error("表单字段需要 key 与 label");
+      if (!field.key?.trim() || !text(field.label).trim())
+        throw new Error("表单字段需要 key 与 label");
       if (keys.has(field.key)) throw new Error(`表单字段 key 重复：${field.key}`);
       keys.add(field.key);
       if (field.type === "switch" && field.summary)
@@ -156,13 +184,16 @@ export function assertProviderForm(form: ProviderForm): void {
 }
 
 /** 字段在当前取值下是否显示。 */
-export function isProviderFieldVisible(field: ProviderField, values: ProviderFormValues): boolean {
+export function isProviderFieldVisible(
+  field: ProviderField<DisplayText>,
+  values: ProviderFormValues
+): boolean {
   return !field.visibleWhen || values[field.visibleWhen.key] === field.visibleWhen.equals;
 }
 
 /** 从已存配置读出表单初值：只取声明字段的字符串值，字段缺省时取声明的 default。 */
 export function readProviderFormValues(
-  form: ProviderForm,
+  form: ProviderFormDeclaration,
   stored: JsonValue | undefined
 ): Record<string, string> {
   const source = stored && typeof stored === "object" && !Array.isArray(stored) ? stored : {};
@@ -187,7 +218,7 @@ export function readProviderFormValues(
 
 /** 改一个字段并清空依赖它的远程选择字段。 */
 export function patchProviderFormValues(
-  form: ProviderForm,
+  form: ProviderFormDeclaration,
   values: ProviderFormValues,
   key: string,
   value: string

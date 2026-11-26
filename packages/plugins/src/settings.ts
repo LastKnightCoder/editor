@@ -2,7 +2,7 @@ import type { Localized } from "@tau/i18n";
 import type { ComponentType } from "react";
 import type { Disposable, PluginContext } from "./index";
 import type { JsonValue } from "./json";
-import type { ProviderForm } from "./provider-form";
+import type { ProviderForm, ProviderFormDeclaration } from "./provider-form";
 
 export interface PluginSettingsProps {
   readonly context: PluginContext;
@@ -66,6 +66,10 @@ export type PluginSettingsDefinition =
   | PluginProviderSettingsDefinition
   | PluginComponentSettingsDefinition;
 
+export type PluginSettingsDeclaration =
+  | Localized<PluginComponentSettingsDefinition>
+  | (Omit<Localized<PluginProviderSettingsDefinition>, "form"> & { form: ProviderFormDeclaration });
+
 export interface PluginSettingsHandle extends Disposable {
   readonly id: string;
   open(): Promise<void>;
@@ -73,5 +77,5 @@ export interface PluginSettingsHandle extends Disposable {
 
 export interface PluginSettings {
   /** 分区随本次激活回收；提供方保存使用配置属性，普通设置使用 context.storage。 */
-  register(definition: Localized<PluginSettingsDefinition>): PluginSettingsHandle;
+  register(definition: PluginSettingsDeclaration): PluginSettingsHandle;
 }

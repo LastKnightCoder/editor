@@ -226,6 +226,8 @@ P5C4 TTS：两端配置/试听/克隆与手机卡片生成工程完成。桌面 
 
 P6A1 白板宿主管理：列表/卡片/导航/创建编辑/标签/删除及关联选择器工程完成，17源码路径；原4文件21例、最终7文件24例通过，2个真实UI状态回归最终复核通过。展示Title/时间显式t/locale，旧displayTitle/relativeTime/fullTime消费者清零后退休，model稳定titleSearchText保留原CN默认名搜索/排序。queries的默认页名与服务不动，语言保留草稿/焦点/选区、筛选/勾选和在途确认。desktop类型、三语/参数/复数、范围静态/格式检查通过；A2外框/A3公共包另批，性能核心及BoardContent硬排除。
 
+P7 提供方声明与官方试点：SDK新增作者Declaration与纯binder，Host按所属context一次绑定、验证并登记同一视图；默认ProviderForm<string>与宿主接口保持。原getter/receiver/同步异常/原Promise和业务字段不变，静态ref参数快照，owner隔离无全局缓存。SDK直接契约19例与Host组合28例过，四官方提供方WebDAV/S3/OSS/GitHub发布原测试共25例过，真实Host元数据3例与各仓协议AST/字典/JSON入包对账通过。GitHub发布已在隔离副本安装本地SDK通过type+ZIP构建，未安装原插件依赖、未发布SDK或插件；旧npm pin保留，使用新声明依赖本批源码宿主/本地SDK组合，发版另行处理。作者文档在模板独立提交、插件各自独立提交并同父提交更新指针；其他任务dirty host/index/文档只纳入本任务精确hunk。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

@@ -30,6 +30,7 @@ export type {
 export type {
   PluginSettings,
   PluginSettingsDefinition,
+  PluginSettingsDeclaration,
   PluginProviderSettingsDefinition,
   PluginComponentSettingsDefinition,
   PluginSettingsModel,
