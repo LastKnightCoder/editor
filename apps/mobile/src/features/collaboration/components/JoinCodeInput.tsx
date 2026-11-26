@@ -1,6 +1,7 @@
 // 协作码输入：12 位按 4-4-4 分格展示，隐藏 input 捕获键盘（含粘贴整码）。
 // 字符集与服务端一致：23456789ABCDEFGHJKLMNPQRSTUVWXYZ（排除易混淆的 I/O/0/1）。
 import { useRef, useState } from "react";
+import { useJoinCollaborationI18n } from "../join.i18n";
 
 const CODE_LENGTH = 12;
 const INVALID_CHARACTERS = /[^2-9A-HJ-NP-Z]/g;
@@ -18,6 +19,7 @@ export function JoinCodeInput(props: {
   onChange: (next: string) => void;
   disabled?: boolean;
 }) {
+  const { t } = useJoinCollaborationI18n();
   const inputRef = useRef<HTMLInputElement>(null);
   const [focused, setFocused] = useState(false);
   const cells = Array.from({ length: CODE_LENGTH }, (_, index) => props.value[index] ?? "");
@@ -37,7 +39,7 @@ export function JoinCodeInput(props: {
         autoCorrect="off"
         autoComplete="off"
         spellCheck={false}
-        aria-label="协作码"
+        aria-label={t("codeLabel")}
         className="absolute inset-0 h-full w-full opacity-0"
       />
       <div className="flex justify-center gap-[9px]">

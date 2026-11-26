@@ -1,0 +1,20 @@
+{
+  "title": "Join collaboration",
+  "waitingTitle": "Waiting for the author’s approval",
+  "waitingHint": "Request submitted. The document will open automatically once approved",
+  "applied": "Join request sent",
+  "waitTiming": "This usually takes a few minutes. You can go back; you will be notified when approved",
+  "later": "Come back later",
+  "rejected": "Request rejected or code expired?",
+  "expiredHint": "Codes are valid for 7 days. Rotating a code invalidates the old one immediately. If rejected, ask the author for a new code to apply again.",
+  "codeHint": "Enter the 12-character code shared by the author",
+  "clipboard": "Collaboration code found in clipboard",
+  "fill": "Fill in",
+  "expiry": "Codes are valid for 7 days and created by the author in Members",
+  "submit": "Request to join",
+  "submitting": "Submitting…",
+  "failed": "Could not join. Check the collaboration code",
+  "errorTitle": "Could not join collaboration",
+  "codeLabel": "Collaboration code",
+  "loading": "Loading collaboration…"
+}

@@ -250,6 +250,8 @@ P7 SDK文档只读展示：18源码工程完成，原文档28例加真实Editor�
 
 P5桌面Sidebar/Toast联动：22源码及RootToast5工程完成，7文件36例与Toast12例通过；desktop/UI包类型、三语参数/复数、纯binding无DOM及范围静态/格式通过。真实队列/编辑/会话管理与压缩任务换语保留焦点/选区/草稿/在途创建、同toast身份和原payload；getMessage不重放或重计时，resolve/reject清除旧getter。chatError仅存raw string或本域带原message的SidebarError，原clear时机/AI标题prompt/默认名/排序不改；共享prepareChatSession固定配置诊断后续统一码化，不按中文猜。作者UI文档单独提交同步父指针。
 
+P6B手机加入：12源码工程完成；真实生产route/Router/Overlay回归2例和相关router基线3例通过，mobile类型、18语义key与20既有协作错误码字典对账/静态/格式通过。换语保留原码/焦点/草稿/失败及pending状态、剪贴板仅1读、runtime仅1retain/start，unrelated session不跳转，approved仅按原response.documentId一次replace；20中文错误原值机械对账，parse/fallback逐字节不变。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。
