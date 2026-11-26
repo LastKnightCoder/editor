@@ -1,3 +1,4 @@
+import { imageWebviewTranslator } from "../../image-webview.i18n";
 import { whiteboardMedia, prepareWhiteboardImage } from "../../media";
 import { useRef, useEffect, useState } from "react";
 import { useMemoizedFn } from "ahooks";
@@ -38,7 +39,7 @@ const ImageSelectorModal = ({ open, onClose, board, action }: ImageSelectorModal
   const handleAddImage = useMemoizedFn(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      const toastId = toast.loading("正在处理图片，请稍候…");
+      const toastId = toast.loading(imageWebviewTranslator.t("image.processing"));
       try {
         await ImageUtil.insertImage(file, board, whiteboardMedia(board));
       } finally {
@@ -61,7 +62,7 @@ const ImageSelectorModal = ({ open, onClose, board, action }: ImageSelectorModal
 
   const handleInsertFromUrl = useMemoizedFn(async (url: string) => {
     await ImageUtil.insertImageFromPath(url, board);
-    toast.success("图片已插入");
+    toast.success(imageWebviewTranslator.t("image.inserted"));
     setUrlModalOpen(false);
     onClose();
   });
@@ -70,7 +71,7 @@ const ImageSelectorModal = ({ open, onClose, board, action }: ImageSelectorModal
     const result = await generateWhiteboardImage(prompt, signal);
     signal.throwIfAborted();
     await ImageUtil.insertImageFromPath(await prepareWhiteboardImage(board, result.url), board);
-    toast.success("图片已生成并插入");
+    toast.success(imageWebviewTranslator.t("image.generated"));
     setAiGenerateOpen(false);
     onClose();
   });

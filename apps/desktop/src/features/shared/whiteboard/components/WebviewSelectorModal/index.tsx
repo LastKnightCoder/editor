@@ -1,3 +1,4 @@
+import { imageWebviewTranslator, useImageWebviewI18n } from "../../image-webview.i18n";
 /**
  * 添加网页：远程网址直接添加，或选择本地 HTML 上传后插入。
  *
@@ -37,6 +38,7 @@ const normalizeUrl = (value: string) => {
 };
 
 const WebviewSelectorModal = ({ open, onClose, board }: WebviewSelectorModalProps) => {
+  const { t } = useImageWebviewI18n();
   const uploadResource = (file: File) => board.getService(IResourceService).upload(file);
   const [url, setUrl] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -80,7 +82,7 @@ const WebviewSelectorModal = ({ open, onClose, board }: WebviewSelectorModalProp
     if (uploading) return;
     const normalized = normalizeUrl(url);
     if (!normalized) {
-      toast.error("请输入网页地址");
+      toast.error(imageWebviewTranslator.t("webview.urlRequired"));
       return;
     }
     insertWebview(normalized, "remote");
@@ -104,13 +106,13 @@ const WebviewSelectorModal = ({ open, onClose, board }: WebviewSelectorModalProp
       const htmlFile = new File([fileContent], fileName, { type: "text/html" });
       const uploadedUrl = await uploadResource(htmlFile);
       if (!uploadedUrl) {
-        toast.error("上传 HTML 文件失败");
+        toast.error(imageWebviewTranslator.t("webview.uploadFailed"));
         return;
       }
       if (canSubmit()) insertWebview(uploadedUrl, "local");
     } catch (error) {
       console.error("选择 HTML 文件失败:", error);
-      toast.error("选择本地 HTML 文件失败");
+      toast.error(imageWebviewTranslator.t("webview.selectFailed"));
     } finally {
       setUploading(false);
     }
@@ -120,13 +122,13 @@ const WebviewSelectorModal = ({ open, onClose, board }: WebviewSelectorModalProp
     <Dialog
       open={open}
       onOpenChange={next => !next && onClose()}
-      title="添加网页"
+      title={t("webview.title")}
       width={460}
       locked={uploading}
       footer={
         <>
           <Button variant="secondary" size="sm" disabled={uploading} onClick={onClose}>
-            取消
+            {t("cancel")}
           </Button>
           <Button
             variant="primary"
@@ -134,7 +136,7 @@ const WebviewSelectorModal = ({ open, onClose, board }: WebviewSelectorModalProp
             disabled={!url.trim() || uploading}
             onClick={handleSubmit}
           >
-            添加
+            {t("add")}
           </Button>
         </>
       }
@@ -142,7 +144,7 @@ const WebviewSelectorModal = ({ open, onClose, board }: WebviewSelectorModalProp
       <DialogBody>
         <div className="flex flex-col gap-3">
           <label className="flex flex-col gap-1.5">
-            <span className="text-ink-2 text-[12px]">网页地址</span>
+            <span className="text-ink-2 text-[12px]">{t("webview.address")}</span>
             <Input
               data-autofocus
               lead={Globe}
@@ -154,20 +156,20 @@ const WebviewSelectorModal = ({ open, onClose, board }: WebviewSelectorModalProp
                   handleSubmit();
                 }
               }}
-              placeholder="在此粘贴网址，例如：https://www.example.com"
+              placeholder={t("webview.placeholder")}
             />
           </label>
-          <span className="text-ink-3 text-[12px]">或者</span>
+          <span className="text-ink-3 text-[12px]">{t("or")}</span>
           <Button
             variant="secondary"
             size="sm"
             icon={FileCode}
             loading={uploading}
-            loadingText="正在上传…"
+            loadingText={t("uploading")}
             onClick={handleSelectLocalHtml}
             className="self-start"
           >
-            选择本地 HTML 文件…
+            {t("webview.selectHtml")}
           </Button>
         </div>
       </DialogBody>

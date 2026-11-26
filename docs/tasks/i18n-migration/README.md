@@ -382,6 +382,8 @@ Markdown F3十四源加Root Core/README二路径完成；全窗口9文件49例�
 
 来源标签与手机占位十二源完成；desktop3文件21例/原1skip、mobile2文件14例及双端type/范围lint/三语runtime通过。三注册者AST除getLabel和import全等，原工具身份/effect deps/白板会话性能原样；手机provider id/match/数组不变，已追占位仅用于渲染无写入/导出路径。
 
+白板宿主图片网页十四路径完成；旧组装3pass/原1skip加新5真实契约共8pass/1原skip、desktop type/lint和47key三语通过。真实Dialog/Input/白板session/Shared Webview验证草稿caret、同preview/signal/单submit、原HTML字节与文件名/local来源、失活目标不写及同iframe/src/resolver只一次；10生产源审计无固定中文JSX。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

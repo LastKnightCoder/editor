@@ -64,6 +64,7 @@ export async function prepareWhiteboardImage(board: Board, url: string): Promise
       bytes = await readBinaryFile(path);
     file = new File([Uint8Array.from(bytes)], await getFileBaseName(path), { type: "image/png" });
   }
-  if (!valid()) throw new Error("图片目标已变化");
+  if (!valid())
+    throw Object.assign(new Error("图片目标已变化"), { code: "WHITEBOARD_IMAGE_TARGET_CHANGED" });
   return board.getService(IResourceService).upload(file);
 }

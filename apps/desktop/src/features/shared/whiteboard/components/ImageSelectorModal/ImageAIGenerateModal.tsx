@@ -1,3 +1,8 @@
+import {
+  imageModalIssueText,
+  useImageWebviewI18n,
+  type ImageModalIssue,
+} from "../../image-webview.i18n";
 /**
  * AI 图片生成：描述画面 → 生成并插入。
  * 生成中主按钮走 Button loading；⌘/Ctrl + Enter 提交。
@@ -20,8 +25,9 @@ const ImageAIGenerateModal: React.FC<ImageAIGenerateModalProps> = ({
   onCancel,
   onConfirm,
 }) => {
+  const { t } = useImageWebviewI18n();
   const [prompt, setPrompt] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ImageModalIssue | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const canGenerate = useImageCapabilities(state => state.canGenerate);
   const taskRef = useRef<AbortController | null>(null);
@@ -44,7 +50,7 @@ const ImageAIGenerateModal: React.FC<ImageAIGenerateModalProps> = ({
     if (submitting || !canGenerate) return;
     const finalPrompt = prompt.trim();
     if (!finalPrompt) {
-      setError("请输入图片生成要求");
+      setError({ kind: "prompt-required" });
       return;
     }
 
@@ -55,8 +61,12 @@ const ImageAIGenerateModal: React.FC<ImageAIGenerateModalProps> = ({
       setSubmitting(true);
       await onConfirm(finalPrompt, controller.signal);
     } catch (err) {
-      if (controller.signal.aborted || (err as Error).name === "AbortError") return;
-      setError((err as Error).message || "AI 图片生成失败");
+      if (
+        controller.signal.aborted ||
+        (err && typeof err === "object" && "name" in err && err.name === "AbortError")
+      )
+        return;
+      setError({ kind: "generate", cause: err });
     } finally {
       if (!controller.signal.aborted) setSubmitting(false);
     }
@@ -74,24 +84,24 @@ const ImageAIGenerateModal: React.FC<ImageAIGenerateModalProps> = ({
       open={open}
       onOpenChange={next => !next && onCancel()}
       locked={submitting}
-      title="AI 图片生成"
+      title={t("image.aiTitle")}
       icon={<Sparkles strokeWidth={1.75} />}
-      subtitle="使用设置中的图片模型，生成后插入第一张结果"
+      subtitle={t("image.aiHint")}
       width={480}
       footer={
         <>
           <Button variant="secondary" size="sm" onClick={onCancel} disabled={submitting}>
-            取消
+            {t("cancel")}
           </Button>
           <Button
             variant="primary"
             size="sm"
             loading={submitting}
-            loadingText="生成中…"
+            loadingText={t("image.generating")}
             disabled={!prompt.trim() || !canGenerate}
             onClick={handleSubmit}
           >
-            生成并插入
+            {t("image.generateInsert")}
           </Button>
         </>
       }
@@ -99,7 +109,7 @@ const ImageAIGenerateModal: React.FC<ImageAIGenerateModalProps> = ({
       <DialogBody>
         <div className="flex flex-col gap-3">
           <label className="flex flex-col gap-1.5">
-            <span className="text-ink-2 text-[12px]">生成要求</span>
+            <span className="text-ink-2 text-[12px]">{t("image.prompt")}</span>
             <Textarea
               data-autofocus
               rows={4}
@@ -109,19 +119,15 @@ const ImageAIGenerateModal: React.FC<ImageAIGenerateModalProps> = ({
                 setError(null);
               }}
               onKeyDown={handleKeyDown}
-              placeholder="例如：一张干净的产品架构示意图，浅色背景，包含数据流、服务层和用户端"
+              placeholder={t("image.promptPlaceholder")}
               aria-invalid={error ? true : undefined}
             />
           </label>
 
-          {!canGenerate && (
-            <p className="text-tau-meta text-ink-2">
-              请先在图片生成设置中选择支持生成的图片插件账号。
-            </p>
-          )}
+          {!canGenerate && <p className="text-tau-meta text-ink-2">{t("image.setup")}</p>}
           {error && (
             <p className="bg-danger-soft text-danger rounded-tau-sm px-3 py-2 text-[12.5px]">
-              {error}
+              {imageModalIssueText(error)}
             </p>
           )}
         </div>

@@ -1,4 +1,13 @@
-import { memo, useMemo, useState, useEffect, useRef, useSyncExternalStore } from "react";
+import { imageWebviewTranslator, useImageWebviewI18n } from "../../image-webview.i18n";
+import {
+  useCallback,
+  memo,
+  useMemo,
+  useState,
+  useEffect,
+  useRef,
+  useSyncExternalStore,
+} from "react";
 import { useMemoizedFn } from "ahooks";
 import { Menu, toast } from "@tau/ui";
 import { MoreHorizontal, Pencil, RefreshCw, Upload } from "lucide-react";
@@ -63,6 +72,7 @@ interface WebviewElementProps {
 const DRAG_PADDING = 20;
 
 const WebviewElementComponent = memo((props: WebviewElementProps) => {
+  const { t } = useImageWebviewI18n();
   const { element, onResize, onResizeStart, onResizeEnd } = props;
   const { id, x, y, width, height, url } = element;
 
@@ -77,6 +87,15 @@ const WebviewElementComponent = memo((props: WebviewElementProps) => {
   const [localUploadLoading, setLocalUploadLoading] = useState(false);
 
   const board = useBoard();
+  const resolveResource = useCallback(
+    async (value: string) => {
+      if (!value.startsWith("tau-collab-")) return remoteResourceToLocal(value);
+      const resolve = board.getService(IResourceService).remoteResourceToLocal;
+      if (!resolve) throw new Error("资源服务缺少本地化能力");
+      return resolve(value);
+    },
+    [board]
+  );
   const { isSelected } = useSelectState(id);
   const sketch = useSketch(element);
   const selection = useSelection();
@@ -141,7 +160,7 @@ const WebviewElementComponent = memo((props: WebviewElementProps) => {
     if (tempUrl !== url) {
       const normalizedUrl = normalizeWebviewUrl(tempUrl);
       if (!normalizedUrl) {
-        toast.error("请输入有效的网页地址");
+        toast.error(imageWebviewTranslator.t("webview.invalid"));
         setTempUrl(url);
         return;
       }
@@ -160,7 +179,7 @@ const WebviewElementComponent = memo((props: WebviewElementProps) => {
 
   const handleSelectLocalHtml = useMemoizedFn(async () => {
     if (!uploadResource) {
-      toast.error("当前环境未配置上传能力");
+      toast.error(imageWebviewTranslator.t("webview.noUpload"));
       return;
     }
     const filePaths = await selectFile({
@@ -183,7 +202,7 @@ const WebviewElementComponent = memo((props: WebviewElementProps) => {
       });
       const uploadedUrl = await uploadResource(htmlFile);
       if (!uploadedUrl) {
-        toast.error("上传 HTML 文件失败");
+        toast.error(imageWebviewTranslator.t("webview.uploadFailed"));
         return;
       }
       const path = board.children.findIndex(item => item.id === id);
@@ -195,11 +214,11 @@ const WebviewElementComponent = memo((props: WebviewElementProps) => {
           newProperties: { url: uploadedUrl, sourceType: "local" },
         });
         setTempUrl(uploadedUrl);
-        toast.success("HTML 文件已添加");
+        toast.success(imageWebviewTranslator.t("webview.htmlAdded"));
       }
     } catch (error) {
       console.error(error);
-      toast.error("选择 HTML 文件失败");
+      toast.error(imageWebviewTranslator.t("webview.fileFailed"));
     } finally {
       setLocalUploadLoading(false);
     }
@@ -252,12 +271,7 @@ const WebviewElementComponent = memo((props: WebviewElementProps) => {
             }}
             convertFileSrc={convertFileSrc}
             getHomeDir={getHomeDir}
-            remoteResourceToLocal={async value => {
-              if (!value.startsWith("tau-collab-")) return remoteResourceToLocal(value);
-              const resolve = board.getService(IResourceService).remoteResourceToLocal;
-              if (!resolve) throw new Error("资源服务缺少本地化能力");
-              return resolve(value);
-            }}
+            remoteResourceToLocal={resolveResource}
           />
         </div>
 
@@ -294,17 +308,17 @@ const WebviewElementComponent = memo((props: WebviewElementProps) => {
                 }
               >
                 <Menu.Item onSelect={() => handleUrlEdit()} icon={<Pencil size={14} />}>
-                  编辑地址
+                  {t("webview.editUrl")}
                 </Menu.Item>
                 <Menu.Item
                   onSelect={handleSelectLocalHtml}
                   disabled={localUploadLoading}
                   icon={<Upload size={14} />}
                 >
-                  {localUploadLoading ? "上传中..." : "选择本地 HTML"}
+                  {localUploadLoading ? t("webview.uploading") : t("webview.localHtml")}
                 </Menu.Item>
                 <Menu.Item onSelect={() => handleRefresh()} icon={<RefreshCw size={14} />}>
-                  刷新
+                  {t("refresh")}
                 </Menu.Item>
               </Menu>
             </If>

@@ -1,3 +1,8 @@
+import {
+  imageModalIssueText,
+  useImageWebviewI18n,
+  type ImageModalIssue,
+} from "../../image-webview.i18n";
 /**
  * 插入网络图片：地址输入 + 实时预览。
  * 地址合法（http/https）才出预览与可点的「插入」；校验仍走 validateImageUrl。
@@ -21,8 +26,9 @@ const looksLikeImageUrl = (value: string) => /^https?:\/\/\S+/i.test(value.trim(
 type PreviewState = "idle" | "loading" | "ok" | "error";
 
 const ImageUrlModal: React.FC<ImageUrlModalProps> = ({ open, onCancel, onConfirm }) => {
+  const { t } = useImageWebviewI18n();
   const [url, setUrl] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ImageModalIssue | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ url: string; ok: boolean } | null>(null);
 
@@ -55,7 +61,7 @@ const ImageUrlModal: React.FC<ImageUrlModalProps> = ({ open, onCancel, onConfirm
       setSubmitting(true);
       await onConfirm(finalUrl);
     } catch (err) {
-      setError((err as Error).message || "插入图片失败");
+      setError({ kind: "insert", cause: err });
     } finally {
       setSubmitting(false);
     }
@@ -73,22 +79,22 @@ const ImageUrlModal: React.FC<ImageUrlModalProps> = ({ open, onCancel, onConfirm
       open={open}
       onOpenChange={next => !next && onCancel()}
       locked={submitting}
-      title="插入图片"
+      title={t("image.title")}
       width={460}
       footer={
         <>
           <Button variant="secondary" size="sm" onClick={onCancel} disabled={submitting}>
-            取消
+            {t("cancel")}
           </Button>
           <Button
             variant="primary"
             size="sm"
             loading={submitting}
-            loadingText="插入中…"
+            loadingText={t("image.inserting")}
             disabled={!url.trim()}
             onClick={handleSubmit}
           >
-            插入
+            {t("insert")}
           </Button>
         </>
       }
@@ -96,7 +102,7 @@ const ImageUrlModal: React.FC<ImageUrlModalProps> = ({ open, onCancel, onConfirm
       <DialogBody>
         <div className="flex flex-col gap-3">
           <label className="flex flex-col gap-1.5">
-            <span className="text-ink-2 text-[12px]">图片地址</span>
+            <span className="text-ink-2 text-[12px]">{t("image.address")}</span>
             <Input
               data-autofocus
               value={url}
@@ -130,10 +136,10 @@ const ImageUrlModal: React.FC<ImageUrlModalProps> = ({ open, onCancel, onConfirm
                 <ImageIcon className="size-[22px]" strokeWidth={1.5} />
                 <span>
                   {preview === "loading"
-                    ? "正在加载预览…"
+                    ? t("image.previewLoading")
                     : preview === "error"
-                      ? "无法加载这张图片"
-                      : "粘贴地址后在这里预览"}
+                      ? t("image.previewFailed")
+                      : t("image.previewHint")}
                 </span>
               </div>
             )}
@@ -141,7 +147,7 @@ const ImageUrlModal: React.FC<ImageUrlModalProps> = ({ open, onCancel, onConfirm
 
           {error && (
             <p className="bg-danger-soft text-danger rounded-tau-sm px-3 py-2 text-[12.5px]">
-              {error}
+              {imageModalIssueText(error)}
             </p>
           )}
         </div>
