@@ -18,7 +18,11 @@ export interface PendingWhiteboardUpdate {
   update: Uint8Array;
 }
 export interface WhiteboardOutbox {
-  list(databaseName: string, documentId: string): Promise<PendingWhiteboardUpdate[]>;
+  list(
+    databaseName: string,
+    documentId: string,
+    includeDatabaseAlias?: boolean
+  ): Promise<PendingWhiteboardUpdate[]>;
   put(update: PendingWhiteboardUpdate): Promise<void>;
   remove(batchId: string): Promise<void>;
 }
@@ -27,7 +31,7 @@ export interface WhiteboardDocumentBackend {
   append(leaseId: string, batchId: string, update: Uint8Array): Promise<WhiteboardDocumentReceipt>;
   flush(leaseId: string): Promise<WhiteboardDocumentReceipt>;
   snapshot(leaseId: string): Promise<WhiteboardDocumentOpen>;
-  release(leaseId: string): Promise<void>;
+  release(leaseId: string, draftsDrained?: boolean): Promise<void>;
   events(listener: (event: WhiteboardDocumentEvent) => void): () => void;
   drains(listener: (event: WhiteboardDocumentFlushRequest) => void): () => void;
   resumes(listener: (event: WhiteboardDocumentResume) => void): () => void;
@@ -91,6 +95,7 @@ export class WhiteboardDocumentClient {
   private persisted = new Map<string, Promise<void>>();
   private sequence = 0;
   private closed = false;
+  private closingForReclaim = false;
   private modelHolders = 0;
   private modelDisposed = false;
   /** 会话关闭后，已挂载的画布仍需读取模型，直到 React 完成替换与清理。 */
@@ -129,7 +134,9 @@ export class WhiteboardDocumentClient {
         if (this.drains.get(event.requestId) !== event.leaseId) return;
         this.drains.delete(event.requestId);
         if (this.opened?.leaseId === event.leaseId && !this.stale)
-          this.set({ frozen: [...this.drains.values()].includes(event.leaseId) });
+          this.set({
+            frozen: this.closingForReclaim || [...this.drains.values()].includes(event.leaseId),
+          });
       })
     );
     if (backend.detached)
@@ -468,10 +475,40 @@ export class WhiteboardDocumentClient {
       if (!this.stale) {
         const opened = this.opened;
         if (!opened) throw new Error("白板会话未打开");
-        await this.backend.release(opened.leaseId);
+        let draftsDrained = false;
+        if (this.state.checkDraftsOnRelease) {
+          if (!this.state.frozen) this.flushInputs();
+          this.closingForReclaim = true;
+          this.set({ frozen: true });
+          if (this.pending.length) await this.flush();
+          try {
+            const drafts = await this.outbox.list(
+              this.target.databaseName,
+              opened.identity.documentId,
+              true
+            );
+            draftsDrained = !drafts.length && !this.pending.length;
+          } catch {
+            // 不能证明其他窗口的草稿已落盘时继续正常关闭，下次再清理。
+          }
+        }
+        if (this.pending.length) {
+          draftsDrained = false;
+          await this.flush();
+        }
+        await this.backend.release(opened.leaseId, draftsDrained);
       }
     } catch (error) {
-      if (!this.stale) throw error;
+      if (!this.stale) {
+        if (this.closingForReclaim) {
+          this.closingForReclaim = false;
+          this.set({
+            frozen:
+              this.opened !== undefined && [...this.drains.values()].includes(this.opened.leaseId),
+          });
+        }
+        throw error;
+      }
     }
     if (this.stale) await this.preservePending();
     this.dispose();

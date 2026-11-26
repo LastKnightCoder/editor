@@ -4,7 +4,7 @@ import { expect, it } from "vitest";
 import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { WhiteboardJournal } from "../journal";
+import { WhiteboardJournal, journalKey, stateHash } from "../journal";
 
 it("日志升级到版本 2 保留已有记录，更高版本备份后新建", () => {
   const directory = mkdtempSync(join(tmpdir(), "whiteboard-journal-version-"));
@@ -31,5 +31,35 @@ it("日志升级到版本 2 保留已有记录，更高版本备份后新建", (
     ).toBe(true);
   } finally {
     rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+it("资料库别名还有未投影的编辑时，回收不能切换代次", () => {
+  const journal = new WhiteboardJournal(":memory:");
+  try {
+    const state = Uint8Array.of(1),
+      hash = stateHash(state);
+    const original = {
+      databaseName: "library",
+      sourceId: "source",
+      documentId: "board",
+      baselineId: "base",
+      epoch: 0,
+      revision: 1,
+      projectedRevision: 1,
+      hash,
+      projectedHash: hash,
+      state,
+    };
+    const alias = { ...original, databaseName: "library.db" };
+    journal.seed(original, []);
+    journal.seed(alias, []);
+    const change = Uint8Array.of(2);
+    const durable = journal.append(alias, "draft", change, change, []);
+    expect(journal.prepareReclaim(original, stateHash(change))).toBe(false);
+    expect(journal.load(journalKey(alias))).toEqual(durable);
+    expect(journal.load(journalKey(original))).toEqual(original);
+  } finally {
+    journal.close();
   }
 });

@@ -372,7 +372,15 @@ export class WhiteboardDocumentsModule {
         else WhiteboardContentTable.deleteWhiteboard(db, id);
       },
       projected,
-      (name, id) => this.blocked(name, id)
+      (name, id, action) =>
+        this.blocked(name, id) ||
+        (action === "reclaim" &&
+          (Boolean(this.store.get(`whiteboard-binding:${name}:${id}`, null)) ||
+            [...this.drains].some(
+              scope =>
+                (!scope.databaseName || scope.databaseName === name) &&
+                (!scope.documentId || scope.documentId === id)
+            )))
     );
     const { store, assets } = openWhiteboardState(PathUtil.getAppDir(), async url =>
       (await this.remoteClient()).identity(url)

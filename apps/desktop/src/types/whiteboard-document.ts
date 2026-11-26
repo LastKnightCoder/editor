@@ -1,3 +1,7 @@
+/** 资料库连接允许使用带或不带 .db 后缀的名称。 */
+export const alternateWhiteboardDatabaseName = (name: string): string =>
+  name.endsWith(".db") ? name.slice(0, -3) : name + ".db";
+
 export interface WhiteboardDocumentIdentity {
   databaseName: string;
   documentId: string;
@@ -8,6 +12,7 @@ export interface WhiteboardDocumentIdentity {
 export interface WhiteboardDocumentReceipt {
   revision: number;
   projectedRevision: number;
+  checkDraftsOnRelease?: boolean;
   error?: string;
 }
 export interface WhiteboardDocumentOpen extends WhiteboardDocumentReceipt {

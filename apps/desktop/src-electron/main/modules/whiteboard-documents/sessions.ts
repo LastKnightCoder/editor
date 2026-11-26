@@ -7,6 +7,7 @@ import {
   collectWhiteboardRelations,
   WHITEBOARD_LIMITS,
 } from "@tau/collaboration";
+import { alternateWhiteboardDatabaseName } from "@/types/whiteboard-document";
 import type {
   WhiteboardDocumentOpen,
   WhiteboardDocumentReceipt,
@@ -16,6 +17,7 @@ import type { AgentBoardRequest } from "../../../../shared/whiteboard-agent";
 import { agentContracts, editAgentCandidate, identifyAgentBatch } from "./agent";
 import { WhiteboardJournal, journalKey, type JournalDocument } from "./journal";
 import { WhiteboardDocumentRepository, type WhiteboardRelationCounter } from "./repository";
+import { IdleWhiteboardReclaims, reclaimThreshold } from "./idle-reclaim";
 import { repairWhiteboardDocument } from "./repair";
 import { dirname, join } from "node:path";
 import { Worker } from "node:worker_threads";
@@ -44,6 +46,8 @@ interface Session {
   value: JournalDocument;
   model: WhiteboardModel;
   db: Database.Database;
+  shared: boolean;
+  uncleanRelease?: boolean;
   error?: string;
 }
 interface Lease {
@@ -57,6 +61,7 @@ interface Lease {
 export class WhiteboardDocumentSessions {
   private sessions = new Map<string, Session>();
   private opening = new Map<string, Promise<Session>>();
+  private readonly reclaims: IdleWhiteboardReclaims;
   private leases = new Map<string, Lease>();
   private queue = new DocumentWriteQueue(16 * 1024 * 1024);
   private pendingWrites = new Map<string, number>();
@@ -81,10 +86,26 @@ export class WhiteboardDocumentSessions {
       documentId: string,
       bodyOnly?: boolean
     ) => void = () => {},
-    private readonly blocked: (databaseName: string, documentId: string) => boolean = () => false,
+    private readonly blocked: (
+      databaseName: string,
+      documentId: string,
+      action?: "reclaim"
+    ) => boolean = () => false,
     private readonly repairs = join(journalDirectory(journal), "repairs"),
     private readonly discarded = join(journalDirectory(journal), "discarded")
-  ) {}
+  ) {
+    this.reclaims = new IdleWhiteboardReclaims(
+      journal,
+      job =>
+        job.db.open &&
+        journal.db.open &&
+        this.database(job.databaseName) === job.db &&
+        !this.isActive(job.databaseName, job.documentId) &&
+        !this.isActive(alternateWhiteboardDatabaseName(job.databaseName), job.documentId) &&
+        !this.pendingWrites.has(job.key) &&
+        !this.blocked(job.databaseName, job.documentId, "reclaim")
+    );
+  }
   private repository(name: string): WhiteboardDocumentRepository {
     const db = this.database(name);
     if (!db?.open) throw new Error("原数据库连接已关闭");
@@ -107,6 +128,9 @@ export class WhiteboardDocumentSessions {
     return {
       revision: session.value.revision,
       projectedRevision: session.value.projectedRevision,
+      ...(!session.shared && session.value.state.length >= reclaimThreshold
+        ? { checkDraftsOnRelease: true }
+        : {}),
       ...(session.error ? { error: session.error } : {}),
     };
   }
@@ -262,6 +286,7 @@ export class WhiteboardDocumentSessions {
     if (this.blocked(source.databaseName, source.documentId))
       throw new Error("白板共享提交尚未完成，请重试");
     const key = journalKey(source);
+    this.journal.finishReclaim(source);
     let cached: JournalDocument | null;
     try {
       cached = this.journal.load(key);
@@ -300,7 +325,7 @@ export class WhiteboardDocumentSessions {
           value,
           collectWhiteboardRelations(model, true).map(ref => ref.target)
         );
-      const session: Session = { value, model, db: repo.db };
+      const session: Session = { value, model, db: repo.db, shared: doc.share.has("meta") };
       this.project(session);
       this.sessions.set(key, session);
       return session;
@@ -321,6 +346,7 @@ export class WhiteboardDocumentSessions {
       .prepare("SELECT document_id FROM whiteboard_document_pages WHERE content_id=?")
       .get(contentId) as { document_id: string } | undefined;
     if (!row) return;
+    this.reclaims.cancel(repo.databaseName, row.document_id);
     const live = [...this.sessions.values()].some(
       session => session.value.documentId === row.document_id && session.db === repo.db
     );
@@ -503,11 +529,21 @@ export class WhiteboardDocumentSessions {
       ...this.receipt(session),
     };
   }
-  async release(leaseId: string, owner: number): Promise<void> {
+  async release(leaseId: string, owner: number, draftsDrained = false): Promise<void> {
     await this.flush(leaseId, owner);
-    const { lease } = this.require(leaseId, owner);
+    const { lease, session } = this.require(leaseId, owner);
     this.leases.delete(leaseId);
     this.evict(lease.key);
+    if (
+      draftsDrained &&
+      !lease.seals.size &&
+      !session.uncleanRelease &&
+      !this.sessions.has(lease.key) &&
+      !session.shared &&
+      session.value.state.length >= reclaimThreshold
+    ) {
+      this.reclaims.schedule(session.db, session.value);
+    }
   }
   private evict(key: string): void {
     const session = this.sessions.get(key);
@@ -548,6 +584,8 @@ export class WhiteboardDocumentSessions {
   abandon(owner: number): void {
     for (const lease of [...this.leases.values()])
       if (lease.owner === owner) {
+        const session = this.sessions.get(lease.key);
+        if (session) session.uncleanRelease = true;
         this.leases.delete(lease.id);
         this.evict(lease.key);
       }
@@ -643,10 +681,13 @@ export class WhiteboardDocumentSessions {
   detach(leaseId: string, owner: number): void {
     const lease = this.leases.get(leaseId);
     if (!lease || lease.owner !== owner) return;
+    const session = this.sessions.get(lease.key);
+    if (session) session.uncleanRelease = true;
     this.leases.delete(leaseId);
     this.evict(lease.key);
   }
   dispose(): void {
+    this.reclaims.clear();
     for (const session of this.sessions.values()) {
       session.model.dispose();
       session.model.doc.destroy();
