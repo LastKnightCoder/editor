@@ -1,3 +1,5 @@
+import { ttsText, ttsErrorText, ttsValue, useTtsSettingsI18n } from "../tts.i18n";
+import { TtsSettingsError } from "../tts-settings-error";
 import { useCallback, useRef, useEffect } from "react";
 import { AudioLines, Check, ChevronDown, FileAudio, Plus, Trash2, Upload, X } from "lucide-react";
 import { Button, IconButton, Input, cn } from "@tau/ui";
@@ -32,6 +34,8 @@ export const VoiceClonePanel = ({
   notify,
   getCloner,
 }: VoiceClonePanelProps) => {
+  useTtsSettingsI18n();
+
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const controllerRef = useRef<AbortController | null>(null);
   useEffect(() => () => controllerRef.current?.abort(), []);
@@ -44,13 +48,13 @@ export const VoiceClonePanel = ({
   }, []);
 
   const validateVoiceId = useCallback(
-    (voiceId: string): string => {
+    (voiceId: string): "" | "duplicate" => {
       const trimmedId = voiceId.trim();
       if (!trimmedId) return "";
 
       const existingVoice = voices.find(v => v.id === trimmedId);
       if (existingVoice) {
-        return "该 Voice ID 已存在，请使用不同的 ID";
+        return "duplicate";
       }
 
       return "";
@@ -100,7 +104,7 @@ export const VoiceClonePanel = ({
 
   const addCloneItem = useCallback(() => {
     if (cloneItems.length >= 5) {
-      notify("warning", "最多支持同时克隆 5 个音色");
+      notify("warning", ttsText("ui.youCanCloneUpTo5Voices"));
       return;
     }
     setCloneItems([
@@ -117,7 +121,7 @@ export const VoiceClonePanel = ({
   const removeCloneItem = useCallback(
     (id: string) => {
       if (cloneItems.length <= 1) {
-        notify("warning", "至少需要保留一个克隆项");
+        notify("warning", ttsText("ui.keepAtLeastOneCloneItem"));
         return;
       }
       setCloneItems(cloneItems.filter(item => item.id !== id));
@@ -147,12 +151,19 @@ export const VoiceClonePanel = ({
       const item = cloneItems[i];
 
       if (item.voiceIdError) {
-        validationErrors.push(`克隆项 ${i + 1}: ${item.voiceIdError}`);
+        validationErrors.push(
+          ttsText("message.cloneItem", {
+            index: ttsValue(i + 1),
+            error: ttsValue(ttsText("validation.duplicateVoiceId")),
+          })
+        );
         continue;
       }
 
       if (!item.audioFile) {
-        validationErrors.push(`克隆项 ${i + 1}: 请选择一个参考音频文件`);
+        validationErrors.push(
+          ttsText("message.cloneItemChooseAReferenceAudioFile", { index: ttsValue(i + 1) })
+        );
       }
     }
 
@@ -164,7 +175,7 @@ export const VoiceClonePanel = ({
     // 克隆走当前 TTS 服务商的克隆能力（Minimax 直传文件；Qwen 经资源上传中转）
     const cloner = getCloner ? getCloner() : TTSProviderFactory.getVoiceCloner();
     if (!cloner) {
-      notify("error", "请先在「设置 · 语音」配置支持音色克隆的 TTS 服务商");
+      notify("error", ttsText("ui.configureATTSProviderThatSupportsVoice"));
       return;
     }
 
@@ -176,7 +187,10 @@ export const VoiceClonePanel = ({
     const totalVoices = cloneItems.length;
 
     try {
-      notify("info", `开始克隆音色，共 ${totalVoices} 个音色...`);
+      notify(
+        "info",
+        ttsText("message.startingVoiceCloningVoices", { count: ttsValue(totalVoices) })
+      );
 
       for (let i = 0; i < cloneItems.length; i++) {
         controller.signal.throwIfAborted();
@@ -185,10 +199,17 @@ export const VoiceClonePanel = ({
         const voiceId = item.voiceId.trim();
 
         try {
-          notify("info", `[${voiceNum}/${totalVoices}] 开始处理音色: ${voiceId}`);
+          notify(
+            "info",
+            ttsText("message.processingVoice", {
+              index: ttsValue(voiceNum),
+              total: ttsValue(totalVoices),
+              id: ttsValue(voiceId),
+            })
+          );
 
           const file = item.audioFile;
-          if (!file) throw new Error("请选择参考音频");
+          if (!file) throw new TtsSettingsError("REFERENCE_REQUIRED");
           const voice = await cloner.cloneVoice(
             file.file,
             {
@@ -206,26 +227,47 @@ export const VoiceClonePanel = ({
           notify(
             "success",
             clonedVoiceId === voiceId
-              ? `[${voiceNum}/${totalVoices}] 音色 ${voiceId} 克隆成功`
-              : `[${voiceNum}/${totalVoices}] 音色克隆成功，实际音色 ID：${clonedVoiceId}`
+              ? ttsText("message.voiceCloned", {
+                  index: ttsValue(voiceNum),
+                  total: ttsValue(totalVoices),
+                  id: ttsValue(voiceId),
+                })
+              : ttsText("message.voiceClonedActualVoiceID", {
+                  index: ttsValue(voiceNum),
+                  total: ttsValue(totalVoices),
+                  id: ttsValue(clonedVoiceId),
+                })
           );
         } catch (error) {
           controller.signal.throwIfAborted();
-          const errorMsg = (error as Error).message || "";
+          const errorMsg = ttsErrorText(error);
           if (error instanceof Error && error.name === "AbortError") throw error;
           console.error(`处理音色 ${voiceId} 失败:`, error);
-          notify("error", `[${voiceNum}/${totalVoices}] 音色复刻失败: ${errorMsg}`);
+          notify(
+            "error",
+            ttsText("message.voiceCloningFailed", {
+              index: ttsValue(voiceNum),
+              total: ttsValue(totalVoices),
+              error: ttsValue(errorMsg),
+            })
+          );
         }
       }
 
       if (successCount === 0) {
-        throw new Error("所有音色都克隆失败");
+        throw new TtsSettingsError("ALL_CLONES_FAILED");
       }
 
       if (successCount === totalVoices) {
-        notify("success", `成功克隆 ${successCount} 个音色！`);
+        notify("success", ttsText("message.voicesCloned", { count: ttsValue(successCount) }));
       } else {
-        notify("warning", `部分成功：成功克隆 ${successCount}/${totalVoices} 个音色`);
+        notify(
+          "warning",
+          ttsText("message.partiallyCompleteClonedVoices", {
+            succeeded: ttsValue(successCount),
+            total: ttsValue(totalVoices),
+          })
+        );
       }
 
       setShowCloneForm(false);
@@ -238,7 +280,7 @@ export const VoiceClonePanel = ({
         },
       ]);
     } catch (error) {
-      if (!controller.signal.aborted) notify("error", (error as Error).message || "音色克隆失败");
+      if (!controller.signal.aborted) notify("error", ttsErrorText(error));
     } finally {
       await cloner.dispose?.();
       if (controllerRef.current === controller) {
@@ -268,7 +310,7 @@ export const VoiceClonePanel = ({
         aria-expanded={showCloneForm}
         className="-ml-2 self-start"
       >
-        {showCloneForm ? "收起音色克隆" : "克隆自定义音色"}
+        {showCloneForm ? ttsText("ui.hideVoiceCloning") : ttsText("ui.cloneACustomVoice")}
         <ChevronDown
           className={cn(
             "text-ink-3 ease-tau-out size-3.5 transition-transform duration-150",
@@ -289,10 +331,12 @@ export const VoiceClonePanel = ({
                 className="border-line-1 rounded-tau-md flex flex-col gap-4 border px-3.5 py-3"
               >
                 <div className="flex h-[26px] items-center justify-between">
-                  <span className="text-ink-1 text-tau-meta font-medium">音色 {index + 1}</span>
+                  <span className="text-ink-1 text-tau-meta font-medium">
+                    {ttsText("ui.voice")} {index + 1}
+                  </span>
                   {cloneItems.length > 1 && (
                     <IconButton
-                      aria-label={`删除音色 ${index + 1}`}
+                      aria-label={ttsText("message.deleteVoice", { index: ttsValue(index + 1) })}
                       className="enabled:hover:text-danger -mr-1.5 size-[26px]"
                       onClick={() => removeCloneItem(item.id)}
                     >
@@ -301,25 +345,33 @@ export const VoiceClonePanel = ({
                   )}
                 </div>
 
-                <Field label="Voice ID" hint="可选，具体格式由所选服务检查">
+                <Field
+                  label="Voice ID"
+                  hint={ttsText("ui.optionalTheSelectedServiceValidatesTheFormat")}
+                >
                   <Input
-                    placeholder="例如：my_voice_001"
+                    placeholder={ttsText("ui.forExampleMyVoice001")}
                     value={item.voiceId}
                     onChange={e => updateCloneItemVoiceId(item.id, e.target.value)}
                     aria-invalid={!!item.voiceIdError || undefined}
                   />
                   {item.voiceIdError && (
-                    <span className="text-danger text-tau-meta">{item.voiceIdError}</span>
+                    <span className="text-danger text-tau-meta">
+                      {ttsText("validation.duplicateVoiceId")}
+                    </span>
                   )}
                   {voiceIdOk && (
                     <span className="text-ok text-tau-meta flex items-center gap-1">
                       <Check className="size-3.5" strokeWidth={1.75} />
-                      Voice ID 未重复，提交时由服务商校验
+                      {ttsText("ui.voiceIDIsUniqueTheProviderWill")}
                     </span>
                   )}
                 </Field>
 
-                <Field label="参考音频" hint="每个音色一个参考文件，格式和时长以服务商要求为准">
+                <Field
+                  label={ttsText("ui.referenceAudio")}
+                  hint={ttsText("ui.oneReferenceFilePerVoiceFollowThe")}
+                >
                   <input
                     ref={el => {
                       fileInputRefs.current[item.id] = el;
@@ -344,7 +396,7 @@ export const VoiceClonePanel = ({
                           {formatFileSize(file.size)}
                         </span>
                         <IconButton
-                          aria-label={`移除 ${file.name}`}
+                          aria-label={ttsText("message.remove", { name: ttsValue(file.name) })}
                           className="size-6 shrink-0"
                           onClick={() => handleRemoveCloneFile(item.id, file.id)}
                         >
@@ -359,7 +411,7 @@ export const VoiceClonePanel = ({
                     onClick={() => openFilePicker(item.id)}
                     className="self-start"
                   >
-                    选择音频
+                    {ttsText("ui.chooseAudio")}
                   </Button>
                 </Field>
               </div>
@@ -367,10 +419,10 @@ export const VoiceClonePanel = ({
           })}
 
           <ul className="text-ink-3 text-tau-meta m-0 flex list-disc flex-col gap-2 pl-4">
-            <li>可填写期望的 Voice ID，最终以服务商返回的 ID 为准</li>
-            <li>每个音色使用一个参考音频，重新选择会替换原文件</li>
-            <li>建议使用清晰的单人语音</li>
-            <li>可同时克隆最多 5 个不同的音色</li>
+            <li>{ttsText("ui.youCanRequestAVoiceIDThe")}</li>
+            <li>{ttsText("ui.eachVoiceUsesOneReferenceRecordingChoosing")}</li>
+            <li>{ttsText("ui.useClearSpeechFromASingleSpeaker")}</li>
+            <li>{ttsText("ui.cloneUpTo5DifferentVoicesAt")}</li>
           </ul>
 
           <div className="flex items-center gap-3">
@@ -382,7 +434,7 @@ export const VoiceClonePanel = ({
                 onClick={addCloneItem}
                 className="-ml-2"
               >
-                添加克隆项
+                {ttsText("ui.addCloneItem")}
                 <span className="text-ink-3 tabular-nums">{cloneItems.length}/5</span>
               </Button>
             )}
@@ -394,7 +446,7 @@ export const VoiceClonePanel = ({
               loading={cloneLoading}
               disabled={cloneDisabled}
             >
-              开始批量克隆（{cloneItems.length} 个音色）
+              {ttsText("clone.startBatch", { count: cloneItems.length })}
             </Button>
           </div>
         </div>

@@ -1,3 +1,4 @@
+import { ttsText, ttsErrorText, ttsValue, useTtsSettingsI18n } from "./i18n";
 import { useEffect, useState } from "react";
 import { AudioPlayer } from "@tau/shared";
 import { ChevronRight, CircleAlert } from "lucide-react";
@@ -7,7 +8,6 @@ import { useNavigator, usePageLifecycle } from "../../../router";
 import { TtsPageShell } from "./components/TtsPageShell";
 import { TtsChoiceSheet, TtsVoicePicker } from "./components/TtsSelectionSheets";
 import { TtsEmpty, TtsProviderTile, TtsSection, TtsStatus } from "./components/TtsUi";
-import { ttsErrorMessage } from "./errors";
 import { useTtsAudioTest } from "./hooks/useTtsAudioTest";
 import { useTtsDomain } from "./hooks/useTtsDomain";
 import { useTtsVoices } from "./hooks/useTtsVoices";
@@ -25,6 +25,8 @@ export function TtsTestPage({
   modelId?: string;
   voiceId?: string;
 }) {
+  useTtsSettingsI18n();
+
   const navigator = useNavigator();
   const { runtime, setting, accounts, usage, providerFor } = useTtsDomain();
   const [accountId, setAccountId] = useState(instanceId);
@@ -83,8 +85,11 @@ export function TtsTestPage({
 
   if (!account) {
     return (
-      <TtsPageShell title="测试语音">
-        <TtsEmpty title="账号不存在" description="它可能已被删除，请返回语音设置选择其他账号。" />
+      <TtsPageShell title={ttsText("ui.testVoice")}>
+        <TtsEmpty
+          title={ttsText("ui.accountNotFound")}
+          description={ttsText("ui.itMayHaveBeenDeletedReturnTo")}
+        />
       </TtsPageShell>
     );
   }
@@ -92,12 +97,18 @@ export function TtsTestPage({
   const selectedVoice = voices.data?.voices.find(voice => voice.id === voiceId);
   const footer = test.pending ? (
     <>
-      <ActionButton label="取消测试" emphasis={false} onClick={test.cancel} />
-      <ActionButton label="合成中" emphasis busy disabled onClick={() => undefined} />
+      <ActionButton label={ttsText("ui.cancelTest")} emphasis={false} onClick={test.cancel} />
+      <ActionButton
+        label={ttsText("ui.synthesizing")}
+        emphasis
+        busy
+        disabled
+        onClick={() => undefined}
+      />
     </>
   ) : (
     <ActionButton
-      label={test.generated ? "重新生成" : "合成并试听"}
+      label={test.generated ? ttsText("ui.generateAgain") : ttsText("ui.synthesizeAndPreview")}
       emphasis
       disabled={!available || !modelId || !voiceId.trim() || !text.trim()}
       onClick={() => void test.synthesize(text)}
@@ -105,7 +116,7 @@ export function TtsTestPage({
   );
 
   return (
-    <TtsPageShell title="测试语音" footer={footer}>
+    <TtsPageShell title={ttsText("ui.testVoice")} footer={footer}>
       <div className="page-enter">
         <GroupCard>
           <GroupRow>
@@ -114,39 +125,42 @@ export function TtsTestPage({
               <span className="text-ink-1 text-tau-body block truncate font-medium">
                 {account.name}
               </span>
-              <span className="text-ink-3 text-tau-sm block">已保存配置 · 不会改变当前服务</span>
+              <span className="text-ink-3 text-tau-sm block">
+                {ttsText("ui.savedConfigurationCurrentServiceStaysUnchanged")}
+              </span>
             </span>
-            {test.generated && <span className="text-tag-1 text-tau-sm font-medium">成功</span>}
+            {test.generated && (
+              <span className="text-tag-1 text-tau-sm font-medium">{ttsText("ui.succeeded")}</span>
+            )}
           </GroupRow>
         </GroupCard>
         {!available && (
           <TtsStatus
             tone="warning"
-            title="语音插件或模型不可用"
+            title={ttsText("ui.voicePluginOrModelUnavailable")}
             action={
               <button type="button" className="text-accent-text" onClick={openPluginCenter}>
-                去插件中心检查
+                {ttsText("ui.checkInThePluginCenter")}
               </button>
             }
           >
-            已保存配置仍然保留，启用插件并选择模型后才能测试。
+            {ttsText("ui.savedConfigurationIsRetainedEnableThePlugin")}
           </TtsStatus>
         )}
         {test.pending && (
-          <TtsStatus tone="pending" title="正在合成语音…">
-            正在请求 {provider?.definition.title ?? account.name}
-            。取消后不再交付迟到结果，厂商已完成的操作仍可能计费。
+          <TtsStatus tone="pending" title={ttsText("ui.synthesizingSpeech")}>
+            {ttsText("test.requesting", { name: provider?.definition.title ?? account.name })}
           </TtsStatus>
         )}
         {test.generated && test.audio && (
-          <TtsStatus tone="success" title="合成成功，可以试听">
-            音频仅用于本页测试，不会插入文档或上传到附件；生成后不会自动播放。
+          <TtsStatus tone="success" title={ttsText("ui.synthesisCompleteReadyToPreview")}>
+            {ttsText("ui.audioIsOnlyForTestingOnThis")}
           </TtsStatus>
         )}
         {test.error && (
           <TtsStatus
             tone="error"
-            title="本次没有生成音频"
+            title={ttsText("ui.noAudioGenerated")}
             action={
               <button
                 type="button"
@@ -154,7 +168,7 @@ export function TtsTestPage({
                 onClick={() => navigator.push("ttsAccount", { instanceId: account.id })}
               >
                 <CircleAlert size={14} aria-hidden="true" />
-                检查账号配置
+                {ttsText("ui.checkAccountConfiguration")}
               </button>
             }
           >
@@ -166,15 +180,18 @@ export function TtsTestPage({
             <AudioPlayer
               ref={test.audioRef}
               src={test.audio.url}
-              label="语音测试"
-              info={`${test.audio.mime || "音频"} · ${(test.audio.size / 1024).toFixed(1)} KB`}
+              label={ttsText("ui.voiceTest")}
+              info={ttsText("message.kb", {
+                mime: ttsValue(test.audio.mime || ttsText("ui.audio")),
+                size: ttsValue((test.audio.size / 1024).toFixed(1)),
+              })}
               preload="none"
             />
           </div>
         )}
-        <TtsSection label="服务与音色">
+        <TtsSection label={ttsText("ui.serviceVoice")}>
           <GroupRow disabled={test.pending} onClick={() => setSheet("account")}>
-            <span className="text-ink-1 text-tau-body flex-1">账号</span>
+            <span className="text-ink-1 text-tau-body flex-1">{ttsText("ui.account")}</span>
             <span className="text-ink-3 text-tau-meta max-w-[55%] truncate">{account.name}</span>
             <ChevronRight size={17} className="text-ink-3" aria-hidden="true" />
           </GroupRow>
@@ -182,26 +199,28 @@ export function TtsTestPage({
             disabled={test.pending || !account.models.length}
             onClick={() => setSheet("model")}
           >
-            <span className="text-ink-1 text-tau-body flex-1">模型</span>
+            <span className="text-ink-1 text-tau-body flex-1">{ttsText("ui.models")}</span>
             <span className="text-ink-3 text-tau-sm max-w-[55%] truncate font-mono">
-              {modelId || "未设置"}
+              {modelId || ttsText("ui.notSet")}
             </span>
             <ChevronRight size={17} className="text-ink-3" aria-hidden="true" />
           </GroupRow>
           <GroupRow disabled={test.pending || !available} onClick={() => setSheet("voice")}>
             <span className="min-w-0 flex-1">
-              <span className="text-ink-1 text-tau-body block">音色</span>
-              <span className="text-ink-3 text-tau-sm block">未找到时可手动输入音色 ID</span>
+              <span className="text-ink-1 text-tau-body block">{ttsText("ui.voice")}</span>
+              <span className="text-ink-3 text-tau-sm block">
+                {ttsText("ui.enterAVoiceIDManuallyIfIt")}
+              </span>
             </span>
             <span className="text-ink-3 text-tau-meta max-w-[45%] truncate">
-              {selectedVoice?.name || voiceId || "未设置"}
+              {selectedVoice?.name || voiceId || ttsText("ui.notSet")}
             </span>
             <ChevronRight size={17} className="text-ink-3" aria-hidden="true" />
           </GroupRow>
         </TtsSection>
         <section className="mt-4">
           <label htmlFor="tts-test-text" className="text-ink-2 text-tau-meta mb-2 block px-1">
-            测试文本
+            {ttsText("ui.testText")}
           </label>
           <textarea
             id="tts-test-text"
@@ -217,15 +236,16 @@ export function TtsTestPage({
           </div>
         </section>
         {voices.data?.info.textInstructions && (
-          <GroupNote>服务商文本提示：{voices.data.info.textInstructions}</GroupNote>
+          <GroupNote>
+            {ttsText("ui.providerTextHint")}
+            {voices.data.info.textInstructions}
+          </GroupNote>
         )}
-        <GroupNote>
-          测试使用最近一次成功保存的配置，并产生真实服务商用量；不支持后台播放。
-        </GroupNote>
+        <GroupNote>{ttsText("ui.testingUsesTheLastSavedConfigurationAnd")}</GroupNote>
       </div>
       <TtsChoiceSheet
         open={sheet === "account"}
-        title="选择测试账号"
+        title={ttsText("ui.chooseATestAccount")}
         choices={eligibleAccounts.map(item => ({
           id: item.id,
           label: item.name,
@@ -237,7 +257,7 @@ export function TtsTestPage({
       />
       <TtsChoiceSheet
         open={sheet === "model"}
-        title="选择测试模型"
+        title={ttsText("ui.chooseATestModel")}
         choices={account.models.map(model => ({
           id: model.id,
           label: model.label ?? model.id,
@@ -251,7 +271,7 @@ export function TtsTestPage({
         open={sheet === "voice"}
         voices={voices.data?.voices}
         loading={voices.isFetching}
-        error={voices.error ? ttsErrorMessage(voices.error, account.config) : undefined}
+        error={voices.error ? ttsErrorText(voices.error, account.config) : undefined}
         selectedId={voiceId}
         onSelect={id => {
           setVoiceId(id);

@@ -1,3 +1,4 @@
+import { ttsText, ttsErrorText, ttsValue, useTtsSettingsI18n } from "./tts.i18n";
 import { openProviderSettings } from "@/services/open-provider-settings";
 /** 选择语音账号、模型与音色；连接配置和模型目录在插件页管理。 */
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -11,9 +12,9 @@ import { TTSProviderFactory } from "@/utils/tts";
 import { SettingsGroup } from "../components/SettingsGroup";
 import { useDesktopPlugins } from "@/app/plugins/context";
 
-const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
-
 export function VoiceTtsPanel() {
+  useTtsSettingsI18n();
+
   const ttsProviders = useSettingStore(s => s.setting.ttsProviders);
   const runtime = useDesktopPlugins();
 
@@ -87,7 +88,9 @@ export function VoiceTtsPanel() {
     } catch (error) {
       if (ticket === loadVoicesRef.current) {
         setVoices([]);
-        toast.error(`获取音色列表失败：${errorText(error)}`);
+        toast.error(
+          ttsText("message.couldNotFetchVoices", { error: ttsValue(ttsErrorText(error)) })
+        );
       }
     } finally {
       if (ticket === loadVoicesRef.current) {
@@ -106,47 +109,56 @@ export function VoiceTtsPanel() {
 
   return (
     <>
-      <SettingsGroup title="语音账号" description="连接信息、模型目录与音色复刻在插件页管理。">
+      <SettingsGroup
+        title={ttsText("ui.voiceAccounts")}
+        description={ttsText("ui.manageConnectionDetailsModelsAndVoiceCloning")}
+      >
         {(runtime?.listSettings().filter(item => item.definition.target === "tts") ?? []).map(
           section => (
             <SettingRow key={section.key} title={section.definition.title}>
               <Button
                 onClick={() => openProviderSettings(section.context.pluginId, section.key, "voice")}
               >
-                管理账号
+                {ttsText("ui.manageAccounts")}
               </Button>
             </SettingRow>
           )
         )}
         {!runtime?.listSettings().some(item => item.definition.target === "tts") && (
-          <p className="text-tau-meta text-ink-2">请到插件中心安装并启用语音合成插件。</p>
+          <p className="text-tau-meta text-ink-2">{ttsText("ui.installAndEnableATextToSpeech")}</p>
         )}
       </SettingsGroup>
 
-      <SettingsGroup title="当前服务" description="编辑器朗读与播客生成使用的语音服务">
-        <SettingRow title="提供商" description="未选择时语音合成功能不可用">
+      <SettingsGroup
+        title={ttsText("ui.currentService")}
+        description={ttsText("ui.voiceServiceUsedForEditorReadAloud")}
+      >
+        <SettingRow
+          title={ttsText("ui.provider")}
+          description={ttsText("ui.selectAProviderToEnableTextTo")}
+        >
           <Select
-            aria-label="语音合成提供商"
+            aria-label={ttsText("ui.textToSpeechProvider")}
             className="w-[240px]"
-            placeholder="请选择提供商"
+            placeholder={ttsText("ui.chooseAProvider")}
             value={usageProvider?.id ?? null}
-            emptyText="先到插件页添加账号"
+            emptyText={ttsText("ui.addAnAccountOnThePluginPage")}
             options={ttsProviders.map(provider => ({
               value: provider.id,
               disabled: !hasActivePlugin(provider.pluginId) || provider.models.length === 0,
-              label: `${provider.name || "未命名"}${hasActivePlugin(provider.pluginId) ? "" : "（插件未启用）"}`,
+              label: `${provider.name || ttsText("ui.untitled")}${hasActivePlugin(provider.pluginId) ? "" : ttsText("ui.pluginInactive")}`,
             }))}
             onValueChange={switchUsageProvider}
           />
         </SettingRow>
         {usageProvider && (
-          <SettingRow title="模型">
+          <SettingRow title={ttsText("ui.models")}>
             <Select
-              aria-label="语音合成模型"
+              aria-label={ttsText("ui.textToSpeechModel")}
               className="w-[280px]"
-              placeholder="请选择模型"
+              placeholder={ttsText("ui.chooseAModel")}
               value={usage?.modelId || null}
-              emptyText="该服务商暂未添加模型"
+              emptyText={ttsText("ui.thisProviderHasNoModelsYet")}
               options={usageProvider.models.map(model => ({
                 value: model.id,
                 label: model.label ?? model.id,
@@ -156,15 +168,18 @@ export function VoiceTtsPanel() {
           </SettingRow>
         )}
         {usageProvider && usage?.modelId && (
-          <SettingRow title="音色" description="列表从服务商获取；也可直接输入官方文档中的音色 ID">
+          <SettingRow
+            title={ttsText("ui.voice")}
+            description={ttsText("ui.fetchedFromTheProviderYouCanAlso")}
+          >
             <div className="flex items-center gap-2">
               <Select
-                aria-label="语音合成音色"
+                aria-label={ttsText("ui.textToSpeechVoice")}
                 className="w-[280px]"
                 searchable
                 creatable
-                placeholder="选择或输入音色 ID"
-                emptyText="暂无音色——可直接输入音色 ID"
+                placeholder={ttsText("ui.chooseOrEnterAVoiceID")}
+                emptyText={ttsText("ui.noVoicesYouCanEnterAVoice")}
                 value={usage.voiceId || null}
                 options={voices.map(voice => ({
                   value: voice.id,
@@ -173,7 +188,7 @@ export function VoiceTtsPanel() {
                 onValueChange={switchUsageVoice}
               />
               <IconButton
-                aria-label="刷新音色列表"
+                aria-label={ttsText("ui.refreshVoices")}
                 disabled={voicesLoading}
                 onClick={() => void loadVoices()}
               >

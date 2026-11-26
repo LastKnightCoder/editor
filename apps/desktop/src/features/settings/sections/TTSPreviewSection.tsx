@@ -1,3 +1,13 @@
+import {
+  ttsText,
+  ttsErrorText,
+  ttsValue,
+  useTtsSettingsI18n,
+  ttsIssue,
+  ttsIssueText,
+  type TtsIssue,
+} from "./tts.i18n";
+import { TtsSettingsError } from "./tts-settings-error";
 /**
  * 语音合成试听：用已保存的账号配置真实合成一段文本并页内播放。
  * 账号 / 模型 / 音色默认跟随「当前服务」，在这里改动只作用于本次试听，不写回设置。
@@ -19,7 +29,6 @@ type Usage = { providerId: string; modelId: string; voiceId: string } | null;
 type Draft = { providerId?: string; modelId?: string; voiceId?: string };
 type PreviewAudio = { url: string; mime: string; size: number; text: string };
 
-const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
 const isAbort = (error: unknown) => error instanceof DOMException && error.name === "AbortError";
 
 export function TTSPreviewSection({
@@ -31,6 +40,8 @@ export function TTSPreviewSection({
   usage: Usage;
   isAvailable: (pluginId: string) => boolean;
 }) {
+  useTtsSettingsI18n();
+
   const eligible = providers.filter(item => item.models.length > 0 && isAvailable(item.pluginId));
   const [draft, setDraft] = useState<Draft>({});
   const provider =
@@ -55,7 +66,7 @@ export function TTSPreviewSection({
     queryFn: async () => {
       const synthesis =
         provider && TTSProviderFactory.createFromSetting(provider, modelId)?.synthesis;
-      if (!synthesis) throw new Error("语音服务不可用");
+      if (!synthesis) throw new TtsSettingsError("SERVICE_UNAVAILABLE");
       try {
         return await synthesis.getVoiceList();
       } finally {
@@ -66,7 +77,8 @@ export function TTSPreviewSection({
 
   const [audio, setAudio] = useState<PreviewAudio | null>(null);
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState("");
+  const [failure, setFailure] = useState<TtsIssue | null>(null);
+  const error = ttsIssueText(failure);
   const controllerRef = useRef<AbortController | null>(null);
   const urlRef = useRef<string | null>(null);
   const releaseAudio = useCallback(() => {
@@ -85,7 +97,7 @@ export function TTSPreviewSection({
   useEffect(() => {
     cancel();
     releaseAudio();
-    setError("");
+    setFailure(null);
   }, [selectionKey, cancel, releaseAudio]);
   useEffect(
     () => () => {
@@ -101,21 +113,21 @@ export function TTSPreviewSection({
     if (!provider || !modelId || !voice || !content) return;
     cancel();
     releaseAudio();
-    setError("");
+    setFailure(null);
     setPending(true);
     const controller = new AbortController();
     controllerRef.current = controller;
     const synthesis = TTSProviderFactory.createFromSetting(provider, modelId)?.synthesis;
     try {
-      if (!synthesis) throw new Error("语音服务不可用");
+      if (!synthesis) throw new TtsSettingsError("SERVICE_UNAVAILABLE");
       const result = await synthesis.synthesizeSpeech(content, voice, undefined, controller.signal);
       if (controller.signal.aborted) return;
-      if (!result.audio.byteLength) throw new Error("服务商没有返回音频数据");
+      if (!result.audio.byteLength) throw new TtsSettingsError("EMPTY_AUDIO");
       const blob = new Blob([new Uint8Array(result.audio)], { type: result.mime || "audio/mpeg" });
       urlRef.current = URL.createObjectURL(blob);
       setAudio({ url: urlRef.current, mime: blob.type, size: blob.size, text: content });
     } catch (issue) {
-      if (!controller.signal.aborted && !isAbort(issue)) setError(errorText(issue));
+      if (!controller.signal.aborted && !isAbort(issue)) setFailure(ttsIssue(issue));
     } finally {
       void synthesis?.dispose?.().catch(() => undefined);
       if (controllerRef.current === controller) {
@@ -127,28 +139,31 @@ export function TTSPreviewSection({
 
   return (
     <SettingsGroup
-      title="试听"
-      description="使用已保存的配置真实合成并产生用量；这里的选择不会改动当前服务"
+      title={ttsText("ui.preview")}
+      description={ttsText("ui.synthesizeUsingSavedConfigurationIncurringRealUsage")}
     >
       {!provider ? (
         <div className="text-tau-meta text-ink-2 px-3 py-6 text-center">
-          暂无可试听的账号——添加模型并确认对应语音插件已启用
+          {ttsText("ui.noAccountsAvailableForPreviewAddA")}
         </div>
       ) : (
         <>
-          <SettingRow title="账号">
+          <SettingRow title={ttsText("ui.account")}>
             <Select
-              aria-label="试听账号"
+              aria-label={ttsText("ui.previewAccount")}
               className="w-[240px]"
               value={provider.id}
               disabled={pending}
-              options={eligible.map(item => ({ value: item.id, label: item.name || "未命名" }))}
+              options={eligible.map(item => ({
+                value: item.id,
+                label: item.name || ttsText("ui.untitled"),
+              }))}
               onValueChange={id => setDraft({ providerId: id })}
             />
           </SettingRow>
-          <SettingRow title="模型">
+          <SettingRow title={ttsText("ui.models")}>
             <Select
-              aria-label="试听模型"
+              aria-label={ttsText("ui.previewModel")}
               className="w-[280px]"
               value={modelId}
               disabled={pending}
@@ -160,16 +175,22 @@ export function TTSPreviewSection({
             />
           </SettingRow>
           <SettingRow
-            title="音色"
-            description={voices.error ? `获取音色失败：${errorText(voices.error)}` : undefined}
+            title={ttsText("ui.voice")}
+            description={
+              voices.error
+                ? ttsText("message.couldNotFetchVoices2", {
+                    error: ttsValue(ttsErrorText(voices.error)),
+                  })
+                : undefined
+            }
           >
             <Select
-              aria-label="试听音色"
+              aria-label={ttsText("ui.previewVoice")}
               className="w-[280px]"
               searchable
               creatable
-              placeholder="选择或输入音色 ID"
-              emptyText="暂无音色——可直接输入音色 ID"
+              placeholder={ttsText("ui.chooseOrEnterAVoiceID")}
+              emptyText={ttsText("ui.noVoicesYouCanEnterAVoice")}
               value={voiceId || null}
               disabled={pending}
               options={(voices.data ?? []).map(voice => ({
@@ -179,7 +200,7 @@ export function TTSPreviewSection({
               onValueChange={id => setDraft({ providerId: provider.id, modelId, voiceId: id })}
             />
             <IconButton
-              aria-label="刷新试听音色列表"
+              aria-label={ttsText("ui.refreshPreviewVoices")}
               disabled={voices.isFetching}
               onClick={() => void voices.refetch()}
             >
@@ -192,7 +213,7 @@ export function TTSPreviewSection({
           </SettingRow>
           <div className="space-y-3 px-3 py-3">
             <Textarea
-              aria-label="试听文本"
+              aria-label={ttsText("ui.previewText")}
               value={text}
               rows={3}
               maxLength={MAX_TEXT_LENGTH}
@@ -207,7 +228,7 @@ export function TTSPreviewSection({
               )}
               {pending && (
                 <Button variant="ghost" onClick={cancel}>
-                  取消
+                  {ttsText("ui.cancel")}
                 </Button>
               )}
               <Button
@@ -215,14 +236,17 @@ export function TTSPreviewSection({
                 disabled={!voiceId.trim() || !text.trim()}
                 onClick={() => void synthesize()}
               >
-                {audio ? "重新生成" : "合成并试听"}
+                {audio ? ttsText("ui.generateAgain") : ttsText("ui.synthesizeAndPreview")}
               </Button>
             </div>
             {audio && (
               <AudioPlayer
                 src={audio.url}
-                label="试听"
-                info={`${audio.mime || "音频"} · ${(audio.size / 1024).toFixed(1)} KB`}
+                label={ttsText("ui.preview")}
+                info={ttsText("message.kb", {
+                  mime: ttsValue(audio.mime || ttsText("ui.audio")),
+                  size: ttsValue((audio.size / 1024).toFixed(1)),
+                })}
                 sourceText={audio.text}
               />
             )}

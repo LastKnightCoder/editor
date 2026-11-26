@@ -1,3 +1,4 @@
+import { ttsText, useTtsSettingsI18n } from "../i18n";
 import { useEffect, useMemo, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import type { TTSVoice } from "@tau/plugins";
@@ -49,7 +50,17 @@ export function TtsChoiceSheet({
   );
 }
 
-const VOICE_TYPE_LABELS = { system: "系统音色", cloned: "我的复刻", custom: "自定义音色" } as const;
+const VOICE_TYPE_LABELS = {
+  get system() {
+    return ttsText("ui.systemVoices");
+  },
+  get cloned() {
+    return ttsText("ui.myClonedVoices");
+  },
+  get custom() {
+    return ttsText("ui.customVoices");
+  },
+} as const;
 
 export function TtsVoicePicker({
   open,
@@ -70,6 +81,8 @@ export function TtsVoicePicker({
   onRefresh: () => void;
   onClose: () => void;
 }) {
+  useTtsSettingsI18n();
+
   const [search, setSearch] = useState("");
   const [manualId, setManualId] = useState("");
   useEffect(() => {
@@ -90,17 +103,17 @@ export function TtsVoicePicker({
   }, [voices, search]);
 
   return (
-    <BottomSheet open={open} title="选择音色" onClose={onClose}>
+    <BottomSheet open={open} title={ttsText("ui.chooseVoice")} onClose={onClose}>
       <div className="flex items-center gap-2">
         <SearchField
           value={search}
           onValueChange={setSearch}
-          placeholder="搜索名称或音色 ID"
+          placeholder={ttsText("ui.searchNamesOrVoiceIDs")}
           className="min-w-0 flex-1"
         />
         <button
           type="button"
-          aria-label="刷新音色列表"
+          aria-label={ttsText("ui.refreshVoices")}
           disabled={loading}
           onClick={onRefresh}
           className="bg-page text-ink-2 grid h-10 w-10 shrink-0 place-items-center rounded-full disabled:opacity-50"
@@ -109,7 +122,9 @@ export function TtsVoicePicker({
         </button>
       </div>
       {error && <p className="text-danger text-tau-meta mt-3">{error}</p>}
-      {loading && !voices?.length && <p className="text-ink-3 py-5 text-center">正在获取音色…</p>}
+      {loading && !voices?.length && (
+        <p className="text-ink-3 py-5 text-center">{ttsText("ui.fetchingVoices")}</p>
+      )}
       <div className="mt-3 space-y-1">
         {filtered.map(voice => (
           <button
@@ -133,19 +148,21 @@ export function TtsVoicePicker({
       </div>
       {!loading && !filtered.length && (
         <p className="text-ink-3 text-tau-meta py-4 text-center">
-          {search ? "没有匹配的音色，可手动输入 ID" : "暂未获取到音色，可手动输入 ID"}
+          {search
+            ? ttsText("ui.noMatchingVoicesEnterAnIDManually")
+            : ttsText("ui.noVoicesAvailableYetEnterAnID")}
         </p>
       )}
       <div className="border-line-2 mt-4 border-t pt-4">
         <label htmlFor="tts-manual-voice" className="text-ink-2 text-tau-meta mb-2 block">
-          手动输入音色 ID
+          {ttsText("ui.enterVoiceIDManually")}
         </label>
         <input
           id="tts-manual-voice"
           value={manualId}
           onChange={event => setManualId(event.currentTarget.value)}
           className="input-base w-full rounded-xl px-3"
-          placeholder="输入服务商文档中的音色 ID"
+          placeholder={ttsText("ui.enterTheVoiceIDFromYourProvider")}
           autoCapitalize="off"
           autoCorrect="off"
         />
@@ -155,7 +172,7 @@ export function TtsVoicePicker({
           onClick={() => onSelect(manualId.trim())}
           className="bg-accent text-ink-inverse text-tau-body mt-2 min-h-11 w-full rounded-xl font-semibold disabled:opacity-50"
         >
-          使用此音色 ID
+          {ttsText("ui.useThisVoiceID")}
         </button>
       </div>
     </BottomSheet>

@@ -1,3 +1,4 @@
+import { ttsText, useTtsSettingsI18n } from "./tts.i18n";
 import { useState } from "react";
 import { SettingRow, Select, toast } from "@tau/ui";
 import { VoiceClonePanel } from "./voice-clone/VoiceClonePanel";
@@ -13,19 +14,21 @@ export function TTSPluginCloneSection({
   provider: PluginTTSProviderSetting;
   onCloned(): void;
 }) {
+  useTtsSettingsI18n();
+
   const [selected, setSelected] = useState("");
   const modelId = provider.models.some(model => model.id === selected)
     ? selected
     : (provider.models[0]?.id ?? "");
   return (
     <SettingsCardSection
-      title="音色复刻"
-      description="使用当前编辑账号的模型；不会切换默认语音账号"
+      title={ttsText("ui.voiceCloning")}
+      description={ttsText("ui.useTheModelOfTheAccountBeing")}
     >
-      <SettingRow title="复刻目标模型">
+      <SettingRow title={ttsText("ui.targetModelForCloning")}>
         <Select
           className="w-[300px] max-w-full"
-          aria-label="复刻目标模型"
+          aria-label={ttsText("ui.targetModelForCloning")}
           value={modelId}
           options={provider.models.map(model => ({
             value: model.id,
@@ -44,7 +47,7 @@ export function TTSPluginCloneSection({
             onCloned={onCloned}
           />
         ) : (
-          <p className="text-tau-meta text-ink-2">请先配置模型。</p>
+          <p className="text-tau-meta text-ink-2">{ttsText("ui.configureAModelFirst")}</p>
         )}
       </div>
     </SettingsCardSection>

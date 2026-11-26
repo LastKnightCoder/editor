@@ -1,3 +1,4 @@
+import { mobileLocaleSource } from "../../../../services/i18n";
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TTSVoice } from "@tau/plugins";
@@ -31,6 +32,7 @@ vi.mock("../../../../services/plugin-tts", () => ({
   withMobilePluginTTS: tts.withSession,
 }));
 
+const originalLocale = mobileLocaleSource.getSnapshot();
 let runtime: MobilePluginRuntime;
 let mounted: ReturnType<typeof mountTtsHarness> | null;
 
@@ -59,6 +61,7 @@ beforeEach(async () => {
 afterEach(async () => {
   mounted?.unmount();
   mounted = null;
+  mobileLocaleSource.setLocale(originalLocale);
   await runtime.dispose();
 });
 
@@ -168,6 +171,23 @@ describe("TTS 音色复刻", () => {
     await prepareClone(state);
     await click(findButton("开始复刻", activePage()));
     await waitFor(() => Boolean(findButton("取消复刻", activePage())));
+    const field = document.querySelector<HTMLInputElement>("#tts-clone-name");
+    const clients = tts.withSession.mock.calls.length;
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => mobileLocaleSource.setLocale(locale));
+      expect(document.querySelector("#tts-clone-name")).toBe(field);
+      expect(field?.value).toBe("我的声音");
+      expect(tts.clone).toHaveBeenCalledTimes(1);
+      expect(tts.clone.mock.calls[0][0].name).toBe("我的声音");
+      expect(tts.clone.mock.calls[0][0].file).toEqual({
+        name: "sample.mp3",
+        mimeType: "audio/mpeg",
+        content: new Uint8Array([1, 2, 3]),
+      });
+      expect(taskSignal?.aborted).toBe(false);
+      expect(tts.withSession.mock.calls.length).toBe(clients);
+    }
+    await act(async () => mobileLocaleSource.setLocale(originalLocale));
     await click(findButton("取消复刻", activePage()));
     expect(taskSignal?.aborted).toBe(true);
     pending.resolve({ id: "late-voice", name: "迟到结果", type: "cloned" });

@@ -1,7 +1,7 @@
 export interface CloneVoiceItem {
   id: string;
   voiceId: string;
-  voiceIdError: string;
+  voiceIdError: "" | "duplicate";
   audioFile: AudioFileItem | null;
 }
 

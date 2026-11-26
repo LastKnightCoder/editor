@@ -1,10 +1,12 @@
+import { ttsIssue, ttsIssueText, type TtsIssue, useTtsSettingsI18n } from "../i18n";
+import { TtsSettingsError } from "../tts-settings-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { TTSVoice } from "@tau/plugins";
 import type { MobilePluginRuntime } from "../../../../app/plugins/runtime";
 import { usePageInstanceContext, usePageLifecycle } from "../../../../router";
 import { withMobilePluginTTS } from "../../../../services/plugin-tts";
 import type { TTSProviderSetting } from "../../../../types";
-import { isTtsAbort, ttsErrorMessage } from "../errors";
+import { isTtsAbort } from "../errors";
 
 const MIME_ALIASES: Record<string, string> = {
   "audio/x-wav": "audio/wav",
@@ -35,6 +37,7 @@ export function useTtsClone({
   modelId: string;
   enabled: boolean;
 }) {
+  useTtsSettingsI18n();
   const { phase } = usePageInstanceContext();
   const activeRef = useRef(phase === "active");
   activeRef.current = phase === "active";
@@ -43,7 +46,8 @@ export function useTtsClone({
   const controllerRef = useRef<AbortController | null>(null);
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState<TTSVoice | null>(null);
-  const [error, setError] = useState("");
+  const [failure, setFailure] = useState<TtsIssue | null>(null);
+  const error = ttsIssueText(failure);
 
   const abortPending = useCallback(() => {
     runRef.current += 1;
@@ -54,12 +58,12 @@ export function useTtsClone({
     abortPending();
     setPending(false);
     setResult(null);
-    setError("");
+    setFailure(null);
   }, [abortPending]);
   const cancel = useCallback(() => {
     abortPending();
     setPending(false);
-    setError("");
+    setFailure(null);
   }, [abortPending]);
 
   usePageLifecycle({ onPause: stop, onDestroy: stop });
@@ -85,17 +89,17 @@ export function useTtsClone({
     async (file: File, name: string) => {
       const cleanName = name.trim();
       if (!runtime || !account || !enabled || !modelId) {
-        setError("当前模型不支持音色复刻，或语音插件不可用");
+        setFailure({ key: "validation.cloneUnavailable" });
         return;
       }
       if (!cleanName) {
-        setError("请输入音色名称");
+        setFailure({ key: "validation.nameRequired" });
         return;
       }
       abortPending();
       setPending(true);
       setResult(null);
-      setError("");
+      setFailure(null);
       const controller = new AbortController();
       controllerRef.current = controller;
       const ticket = runRef.current;
@@ -111,7 +115,7 @@ export function useTtsClone({
           runtime,
           { pluginId: account.pluginId, config: account.config, modelId },
           session => {
-            if (!session.info.canClone) throw new Error("当前模型不支持音色复刻");
+            if (!session.info.canClone) throw new TtsSettingsError("CLONE_UNSUPPORTED");
             return session.clone(
               {
                 file: { name: file.name, mimeType: fileMimeType(file), content },
@@ -128,7 +132,7 @@ export function useTtsClone({
         if (!isCurrent()) return;
         setResult(null);
         if (!isTtsAbort(issue) && !controller.signal.aborted) {
-          setError(ttsErrorMessage(issue, account.config, "音色复刻失败，请检查配置后重试"));
+          setFailure(ttsIssue(issue, account.config, "error.cloneFailed"));
         }
       } finally {
         if (runRef.current === ticket) {

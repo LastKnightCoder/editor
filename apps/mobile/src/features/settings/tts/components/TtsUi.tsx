@@ -1,3 +1,4 @@
+import { ttsText, useTtsSettingsI18n } from "../i18n";
 import type { ReactNode } from "react";
 import { AudioLines, CircleAlert, CircleCheck, LoaderCircle } from "lucide-react";
 import { GroupLabel } from "../../../../components/GroupLabel";
@@ -103,13 +104,15 @@ export function TtsStatus({
 }
 
 export function TtsCurrentBadge({ unavailable = false }: { unavailable?: boolean }) {
+  useTtsSettingsI18n();
+
   return (
     <span
       className={`text-tau-micro shrink-0 rounded-full px-2 py-0.5 font-semibold ${
         unavailable ? "bg-warn-soft text-warn" : "bg-accent-soft text-accent-text"
       }`}
     >
-      {unavailable ? "不可用" : "当前"}
+      {unavailable ? ttsText("ui.unavailable") : ttsText("ui.current")}
     </span>
   );
 }

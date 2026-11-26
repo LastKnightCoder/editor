@@ -1,9 +1,11 @@
+import { ttsIssue, ttsIssueText, type TtsIssue, useTtsSettingsI18n } from "../i18n";
+import { TtsSettingsError } from "../tts-settings-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { MobilePluginRuntime } from "../../../../app/plugins/runtime";
 import { usePageInstanceContext, usePageLifecycle } from "../../../../router";
 import { withMobilePluginTTS } from "../../../../services/plugin-tts";
 import type { TTSProviderSetting } from "../../../../types";
-import { isTtsAbort, ttsErrorMessage } from "../errors";
+import { isTtsAbort } from "../errors";
 
 export type TtsAudioResult = { url: string; mime: string; size: number; blob: Blob };
 
@@ -25,6 +27,7 @@ export function useTtsAudioTest({
   speed?: number;
   maxLength?: number;
 }) {
+  useTtsSettingsI18n();
   const { phase } = usePageInstanceContext();
   const activeRef = useRef(phase === "active");
   activeRef.current = phase === "active";
@@ -36,7 +39,8 @@ export function useTtsAudioTest({
   const [audio, setAudio] = useState<TtsAudioResult | null>(null);
   const [pending, setPending] = useState(false);
   const [generated, setGenerated] = useState(false);
-  const [error, setError] = useState("");
+  const [failure, setFailure] = useState<TtsIssue | null>(null);
+  const error = ttsIssueText(failure);
 
   const disposeAudio = useCallback(() => {
     audioRef.current?.pause();
@@ -59,13 +63,13 @@ export function useTtsAudioTest({
     setAudio(null);
     setPending(false);
     setGenerated(false);
-    setError("");
+    setFailure(null);
   }, [abortPending, disposeAudio]);
   const cancel = useCallback(() => {
     abortPending();
     setPending(false);
     setGenerated(false);
-    setError("");
+    setFailure(null);
   }, [abortPending]);
 
   usePageLifecycle({ onPause: stop, onDestroy: stop });
@@ -92,25 +96,25 @@ export function useTtsAudioTest({
     async (text: string) => {
       const cleanText = text.trim();
       if (!runtime || !account || !enabled || !modelId) {
-        setError("语音服务不可用，请检查插件与账号配置");
+        setFailure({ key: "validation.synthesisUnavailable" });
         return;
       }
       if (!cleanText) {
-        setError("请输入要合成的文本");
+        setFailure({ key: "validation.textRequired" });
         return;
       }
       if (cleanText.length > maxLength) {
-        setError(`文本不能超过 ${maxLength} 字`);
+        setFailure({ key: "validation.textLimit", values: { limit: maxLength } });
         return;
       }
       if (!voiceId.trim()) {
-        setError("请选择或手动输入音色 ID");
+        setFailure({ key: "validation.voiceRequired" });
         return;
       }
 
       abortPending();
       clearAudio();
-      setError("");
+      setFailure(null);
       setPending(true);
       const controller = new AbortController();
       controllerRef.current = controller;
@@ -136,7 +140,7 @@ export function useTtsAudioTest({
           controller.signal
         );
         if (!isCurrent()) return;
-        if (!result.audio.byteLength) throw new Error("服务商没有返回音频数据");
+        if (!result.audio.byteLength) throw new TtsSettingsError("EMPTY_AUDIO");
         const bytes = new Uint8Array(result.audio);
         const blob = new Blob([bytes.buffer], { type: result.mime || "audio/mpeg" });
         const url = URL.createObjectURL(blob);
@@ -153,7 +157,7 @@ export function useTtsAudioTest({
         setAudio(null);
         setGenerated(false);
         if (!isTtsAbort(issue) && !controller.signal.aborted) {
-          setError(ttsErrorMessage(issue, account.config, "语音合成失败，请检查账号后重试"));
+          setFailure(ttsIssue(issue, account.config, "error.synthesisFailed"));
         }
       } finally {
         if (runRef.current === ticket) {

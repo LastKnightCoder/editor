@@ -1,3 +1,5 @@
+import { TtsSettingsError } from "../../settings/tts/tts-settings-error";
+import { ttsText } from "../../settings/tts/binding";
 import {
   captureElementSubmission,
   captureInsertionSubmission,
@@ -49,8 +51,6 @@ export type TtsGeneratedAudio = {
   blob: Blob;
   text: string;
 };
-
-const CANNOT_INSERT_HINT = "插入位置已变化，请重新打开后再试";
 
 const EXTENSION_BY_MIME: Record<string, string> = {
   "audio/mpeg": "mp3",
@@ -124,13 +124,13 @@ function withNewBatch(editor: SlateEditor, fn: () => void) {
 
 async function upload(editor: SlateEditor, blob: Blob): Promise<string> {
   const url = await editor.getService(IResourceService).upload(ttsAudioFile(blob));
-  if (!url) throw new Error("音频保存失败");
+  if (!url) throw new TtsSettingsError("AUDIO_SAVE_FAILED");
   return url;
 }
 
 /** 写入失败统一给提示；成功返回 true */
 function finish(editor: SlateEditor, committed: boolean): boolean {
-  if (!committed) notifierOf(editor).warning(CANNOT_INSERT_HINT);
+  if (!committed) notifierOf(editor).warning(ttsText("insert.targetChanged"));
   return committed;
 }
 

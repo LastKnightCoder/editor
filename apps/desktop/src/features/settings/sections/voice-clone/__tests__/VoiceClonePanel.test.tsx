@@ -72,6 +72,8 @@ it("每音色只保留一个参考文件，仍可批量创建且使用返回的�
 });
 
 it("关闭复刻表单取消当前文件，并丢弃迟到结果及后续批次", async () => {
+  const { desktopLocaleSource } = await import("@/app/i18n/runtime");
+  const original = desktopLocaleSource.getSnapshot();
   vi.clearAllMocks();
   let complete!: (value: { id: string; name: string; type: string }) => void;
   mocks.clone.mockImplementation(
@@ -99,6 +101,15 @@ it("关闭复刻表单取消当前文件，并丢弃迟到结果及后续批次"
     )!;
     await act(async () => button.click());
     expect(mocks.clone).toHaveBeenCalledTimes(1);
+    const notices = mocks.notify.mock.calls.length;
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(mocks.clone).toHaveBeenCalledTimes(1);
+      expect(mocks.clone.mock.calls[0][0].name).toBe("voice.wav");
+      expect(mocks.clone.mock.calls[0][1]).toEqual({ voiceId: "", voiceName: "voice.wav" });
+      expect(mocks.clone.mock.calls[0][2].aborted).toBe(false);
+      expect(mocks.notify.mock.calls.length).toBe(notices);
+    }
     await act(async () => closeForm());
     expect(mocks.clone.mock.calls[0][2].aborted).toBe(true);
     await act(async () => {
@@ -109,6 +120,7 @@ it("关闭复刻表单取消当前文件，并丢弃迟到结果及后续批次"
     expect(mocks.clone).toHaveBeenCalledTimes(1);
   } finally {
     await act(async () => root.unmount());
+    desktopLocaleSource.setLocale(original);
     container.remove();
   }
 });

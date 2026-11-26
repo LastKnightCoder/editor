@@ -1,3 +1,4 @@
+import { mobileLocaleSource } from "../../../../services/i18n";
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PluginSettingsProps } from "@tau/plugins";
@@ -60,6 +61,7 @@ function AuthorSettings({ ttsConfig }: PluginSettingsProps) {
   );
 }
 
+const originalLocale = mobileLocaleSource.getSnapshot();
 let runtime: MobilePluginRuntime;
 let mounted: ReturnType<typeof mountTtsHarness> | null;
 
@@ -72,6 +74,7 @@ beforeEach(async () => {
 afterEach(async () => {
   mounted?.unmount();
   mounted = null;
+  mobileLocaleSource.setLocale(originalLocale);
   await runtime.dispose();
 });
 
@@ -340,6 +343,21 @@ describe("声明式表单的 TTS 账号", () => {
 
     await setInputValue(key, "rotated");
     await waitFor(() => !save().disabled);
+    key.focus();
+    key.setSelectionRange(1, 4);
+    const control = save();
+    const before = state.current;
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => mobileLocaleSource.setLocale(locale));
+      expect(activePage()?.querySelector('input[aria-label="API Key"]')).toBe(key);
+      expect(key.value).toBe("rotated");
+      expect(document.activeElement).toBe(key);
+      expect([key.selectionStart, key.selectionEnd]).toEqual([1, 4]);
+      expect(control.disabled).toBe(false);
+      expect(state.current).toBe(before);
+      expect(native.save).not.toHaveBeenCalled();
+    }
+    await act(async () => mobileLocaleSource.setLocale(originalLocale));
     await click(save());
     await waitFor(() => native.save.mock.calls.length === 1);
     expect(native.save).toHaveBeenCalledWith(

@@ -1,7 +1,9 @@
+import { ttsText, ttsErrorText, useTtsSettingsI18n } from "../i18n";
 // 语音账号的插件凭据表单：插件声明字段，宿主渲染并在导航栏「保存」时写回本账号实例。
 
 import { useEffect, useRef } from "react";
 import type { JsonValue, ProviderForm } from "@tau/plugins";
+import { copyJson } from "@tau/plugins/host";
 import { MobileProviderForm } from "../../storage/ProviderForm";
 import { useProviderDraft } from "../../storage/useProviderDraft";
 import { TtsStatus } from "./TtsUi";
@@ -26,7 +28,18 @@ export function TtsAccountForm({
   /** 把草稿状态交给页面导航栏的保存按钮 */
   onDraft(draft: TtsAccountDraft): void;
 }) {
-  const draft = useProviderDraft(form, stored, persist);
+  useTtsSettingsI18n();
+
+  const submittedConfig = useRef(stored);
+  const draft = useProviderDraft(
+    form,
+    stored,
+    async config => {
+      submittedConfig.current = copyJson(config);
+      await persist(config);
+    },
+    issue => ttsErrorText(issue, submittedConfig.current, "error.configSaveFailed")
+  );
   const saveRef = useRef(draft.save);
   saveRef.current = draft.save;
   const { dirty, saving } = draft;
@@ -44,7 +57,7 @@ export function TtsAccountForm({
         onChange={draft.change}
       />
       {draft.error && (
-        <TtsStatus tone="error" title="保存失败">
+        <TtsStatus tone="error" title={ttsText("ui.couldNotSave")}>
           {draft.error}
         </TtsStatus>
       )}

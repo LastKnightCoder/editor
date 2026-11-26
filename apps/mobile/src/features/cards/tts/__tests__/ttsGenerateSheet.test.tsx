@@ -1,3 +1,4 @@
+import { mobileLocaleSource } from "../../../../services/i18n";
 import { act, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MobilePluginRuntime } from "../../../../app/plugins/runtime";
@@ -36,6 +37,7 @@ vi.mock("../../../../services/plugin-tts", () => ({
   withMobilePluginTTS: tts.withSession,
 }));
 
+const originalLocale = mobileLocaleSource.getSnapshot();
 let runtime: MobilePluginRuntime;
 let mounted: ReturnType<typeof mountTtsHarness> | null = null;
 
@@ -59,6 +61,7 @@ beforeEach(async () => {
 afterEach(async () => {
   mounted?.unmount();
   mounted = null;
+  mobileLocaleSource.setLocale(originalLocale);
   await runtime.dispose();
   vi.restoreAllMocks();
 });
@@ -130,6 +133,26 @@ describe("TtsGenerateSheet", () => {
       expect.any(AbortSignal)
     );
 
+    const audio = document.querySelector<HTMLAudioElement>('[data-testid="tts-audio"]');
+    const field = requireTextarea();
+    const requests = tts.withSession.mock.calls.length;
+    field.focus();
+    field.setSelectionRange(1, 3);
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => mobileLocaleSource.setLocale(locale));
+      expect(document.querySelector('[data-testid="tts-audio"]')).toBe(audio);
+      expect(requireTextarea()).toBe(field);
+      expect(field.value).toBe("遗忘曲线");
+      expect(document.activeElement).toBe(field);
+      expect([field.selectionStart, field.selectionEnd]).toEqual([1, 3]);
+      expect(tts.synthesize).toHaveBeenCalledTimes(1);
+      expect(tts.withSession.mock.calls.length).toBe(requests);
+      expect(commit).not.toHaveBeenCalled();
+      expect(onInserted).not.toHaveBeenCalled();
+      expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+      expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
+    }
+    await act(async () => mobileLocaleSource.setLocale(originalLocale));
     await click(findButton("插入到文档"));
     await waitFor(() => onInserted.mock.calls.length > 0);
     expect(commit).toHaveBeenCalledWith({ blob: expect.any(Blob), text: "遗忘曲线" });

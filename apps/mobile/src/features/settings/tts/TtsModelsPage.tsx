@@ -1,3 +1,11 @@
+import {
+  ttsText,
+  ttsValue,
+  useTtsSettingsI18n,
+  ttsIssue,
+  ttsIssueText,
+  type TtsIssue,
+} from "./i18n";
 import { useState, type FormEvent } from "react";
 import { Trash2 } from "lucide-react";
 import { useNavigator } from "../../../router";
@@ -6,34 +14,36 @@ import { GroupRow } from "../components/ui";
 import { ActionButton } from "../storage/fields";
 import { TtsPageShell } from "./components/TtsPageShell";
 import { TtsCurrentBadge, TtsEmpty, TtsSection, TtsStatus } from "./components/TtsUi";
-import { ttsErrorMessage } from "./errors";
 import { useTtsDomain } from "./hooks/useTtsDomain";
 import { findTtsAccount } from "./model";
 
 export function TtsModelsPage({ instanceId }: { instanceId: string }) {
+  useTtsSettingsI18n();
+
   const navigator = useNavigator();
   const { setting, usage, database, applySnapshot } = useTtsDomain();
   const account = findTtsAccount(setting, instanceId);
   const [modelId, setModelId] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
-  const [error, setError] = useState("");
+  const [failure, setFailure] = useState<TtsIssue | null>(null);
+  const error = ttsIssueText(failure);
 
   const add = async (event: FormEvent) => {
     event.preventDefault();
     const id = modelId.trim();
     if (!account || !id || busy) return;
     if (account.models.some(model => model.id === id)) {
-      setError("模型 ID 在当前账号内不能重复");
+      setFailure({ key: "validation.duplicateModelId" });
       return;
     }
     setBusy("add");
-    setError("");
+    setFailure(null);
     try {
       const saved = await applySnapshot(() => addTtsModel(database, account.id, { id }));
       if (!saved) return;
       setModelId("");
     } catch (issue) {
-      setError(ttsErrorMessage(issue, account.config, "模型添加失败"));
+      setFailure(ttsIssue(issue, account.config, "error.modelAddFailed"));
     } finally {
       setBusy(null);
     }
@@ -42,11 +52,11 @@ export function TtsModelsPage({ instanceId }: { instanceId: string }) {
   const remove = async (id: string) => {
     if (!account || busy) return;
     setBusy(id);
-    setError("");
+    setFailure(null);
     try {
       await applySnapshot(() => deleteTtsModel(database, account.id, id));
     } catch (issue) {
-      setError(ttsErrorMessage(issue, account.config, "模型删除失败"));
+      setFailure(ttsIssue(issue, account.config, "error.modelDeleteFailed"));
     } finally {
       setBusy(null);
     }
@@ -54,21 +64,30 @@ export function TtsModelsPage({ instanceId }: { instanceId: string }) {
 
   if (!account) {
     return (
-      <TtsPageShell title="管理模型">
-        <TtsEmpty title="账号不存在" description="它可能已被删除，请返回语音设置查看。" />
+      <TtsPageShell title={ttsText("ui.manageModels")}>
+        <TtsEmpty
+          title={ttsText("ui.accountNotFound")}
+          description={ttsText("ui.itMayHaveBeenDeletedReturnTo2")}
+        />
       </TtsPageShell>
     );
   }
 
   return (
     <TtsPageShell
-      title="管理模型"
-      footer={<ActionButton label="完成" emphasis={false} onClick={() => navigator.goBack("ui")} />}
+      title={ttsText("ui.manageModels")}
+      footer={
+        <ActionButton
+          label={ttsText("ui.completed")}
+          emphasis={false}
+          onClick={() => navigator.goBack("ui")}
+        />
+      }
     >
       <div className="page-enter">
         <TtsSection
           label={account.name}
-          note="删除当前模型后由原生回落到第一个模型并清空音色；没有剩余模型时清空当前选择。"
+          note={ttsText("ui.deletingTheCurrentModelSelectsTheFirst")}
         >
           {account.models.map(model => (
             <GroupRow key={model.id}>
@@ -81,7 +100,7 @@ export function TtsModelsPage({ instanceId }: { instanceId: string }) {
               )}
               <button
                 type="button"
-                aria-label={`删除模型 ${model.id}`}
+                aria-label={ttsText("message.deleteModel", { id: ttsValue(model.id) })}
                 disabled={!!busy}
                 className="text-danger grid h-10 w-10 shrink-0 place-items-center disabled:opacity-50"
                 onClick={() => void remove(model.id)}
@@ -92,26 +111,26 @@ export function TtsModelsPage({ instanceId }: { instanceId: string }) {
           ))}
           {!account.models.length && (
             <GroupRow>
-              <span className="text-ink-3 py-2">暂无模型，请在下方输入模型 ID。</span>
+              <span className="text-ink-3 py-2">{ttsText("ui.noModelsYetEnterAModelID")}</span>
             </GroupRow>
           )}
         </TtsSection>
         {error && (
-          <TtsStatus tone="error" title="模型操作失败">
+          <TtsStatus tone="error" title={ttsText("ui.modelOperationFailed")}>
             {error}
           </TtsStatus>
         )}
         <section className="mt-4">
           <form onSubmit={event => void add(event)} className="bg-surface rounded-2xl p-4">
             <label htmlFor="tts-custom-model" className="text-ink-2 text-tau-meta mb-2 block">
-              添加自定义模型 ID
+              {ttsText("ui.addCustomModelID")}
             </label>
             <input
               id="tts-custom-model"
               value={modelId}
               onChange={event => setModelId(event.currentTarget.value)}
               className="input-base w-full rounded-xl px-3 font-mono"
-              placeholder="输入服务商文档中的模型 ID"
+              placeholder={ttsText("ui.enterTheModelIDFromYourProvider")}
               autoCapitalize="off"
               autoCorrect="off"
             />
@@ -120,10 +139,10 @@ export function TtsModelsPage({ instanceId }: { instanceId: string }) {
               disabled={!modelId.trim() || !!busy}
               className="bg-accent text-ink-inverse text-tau-body mt-3 min-h-11 w-full rounded-xl font-semibold disabled:opacity-50"
             >
-              {busy === "add" ? "正在添加…" : "添加模型"}
+              {busy === "add" ? ttsText("ui.adding") : ttsText("ui.addModel")}
             </button>
             <p className="text-ink-3 text-tau-sm mt-2">
-              模型 ID 在当前账号内唯一，预设目录由插件保存时写入。
+              {ttsText("ui.modelIDsAreUniqueWithinEachAccount")}
             </p>
           </form>
         </section>

@@ -159,19 +159,36 @@ describe("captureTtsInsertTarget", () => {
     expect(editor.children[0]).toMatchObject({ title: "新 · 朗读", audioText: "新" });
   });
 
-  it("replace：生成期间音频被换成别的文件则放弃并提示", async () => {
-    const { editor } = createTtsEditor([audio()]);
-    const target = capture(editor, {
-      kind: "replace",
-      element: editor.children[0] as never,
-      path: [0],
-      text: "",
-    });
-    Transforms.setNodes(editor, { src: "user-picked.mp3" } as never, { at: [0] });
+  it("replace：目标变化后只给当前语言字符串提示，不改写原音频", async () => {
+    const { mobileLocaleSource } = await import("../../../../services/i18n");
+    const original = mobileLocaleSource.getSnapshot();
+    const attempt = async () => {
+      const { editor } = createTtsEditor([audio()]);
+      const target = capture(editor, {
+        kind: "replace",
+        element: editor.children[0] as never,
+        path: [0],
+        text: "",
+      });
+      Transforms.setNodes(editor, { src: "user-picked.mp3" } as never, { at: [0] });
+      await expect(target.commit({ blob: blob(), text: "文字" })).resolves.toBe(false);
+      expect(editor.children[0]).toMatchObject({ src: "user-picked.mp3" });
+      return warning.mock.calls.at(-1)?.[0];
+    };
     warning.mockClear();
-    await expect(target.commit({ blob: blob(), text: "文字" })).resolves.toBe(false);
-    expect(editor.children[0]).toMatchObject({ src: "user-picked.mp3" });
-    expect(warning).toHaveBeenCalled();
+    try {
+      mobileLocaleSource.setLocale("zh-CN");
+      const first = await attempt();
+      expect(typeof first).toBe("string");
+      mobileLocaleSource.setLocale("en-US");
+      expect(warning).toHaveBeenCalledTimes(1);
+      const next = await attempt();
+      expect(typeof next).toBe("string");
+      expect(next).not.toBe(first);
+      expect(warning).toHaveBeenCalledTimes(2);
+    } finally {
+      mobileLocaleSource.setLocale(original);
+    }
   });
 
   it("目标块被删除后放弃写入", async () => {

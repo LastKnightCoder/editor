@@ -1,3 +1,4 @@
+import { TtsSettingsError } from "../tts-settings-error";
 import { useQuery } from "@tanstack/react-query";
 import { withMobilePluginTTS } from "../../../../services/plugin-tts";
 import type { TTSProviderSetting } from "../../../../types";
@@ -18,7 +19,7 @@ export function useTtsVoices(
     refetchOnMount: "always",
     refetchOnWindowFocus: false,
     queryFn: async ({ signal }) => {
-      if (!runtime || !account || !modelId) throw new Error("语音服务不可用");
+      if (!runtime || !account || !modelId) throw new TtsSettingsError("SERVICE_UNAVAILABLE");
       return withMobilePluginTTS(
         runtime,
         { pluginId: account.pluginId, config: account.config, modelId },
@@ -44,7 +45,7 @@ export function useTtsSessionInfo(
     refetchOnMount: "always",
     refetchOnWindowFocus: false,
     queryFn: async ({ signal }) => {
-      if (!runtime || !account || !modelId) throw new Error("语音服务不可用");
+      if (!runtime || !account || !modelId) throw new TtsSettingsError("SERVICE_UNAVAILABLE");
       return withMobilePluginTTS(
         runtime,
         { pluginId: account.pluginId, config: account.config, modelId },

@@ -113,3 +113,68 @@ it("取消后不交付迟到的音频，失败时页内显示原因", async () =
   await act(async () => button("合成并试听")?.click());
   expect(container.querySelector("[role=alert]")?.textContent).toBe("账号余额不足");
 });
+
+it("换语保留试听草稿、在途合成和已生成音频实例，不重取音色或重放", async () => {
+  const { desktopLocaleSource } = await import("@/app/i18n/runtime");
+  const { ttsText } = await import("../sections/tts.i18n");
+  const original = desktopLocaleSource.getSnapshot();
+  let complete: ((result: { audio: Uint8Array; mime: string }) => void) | undefined;
+  let signal: AbortSignal | undefined;
+  mocks.synthesize.mockImplementation((_text, _voice, _options, taskSignal) => {
+    signal = taskSignal;
+    return new Promise(resolve => {
+      complete = resolve;
+    });
+  });
+  try {
+    await render();
+    const field = container.querySelector<HTMLTextAreaElement>("textarea");
+    if (!field) throw new Error("试听文本未挂载");
+    const text = "Original input 保留 model_id";
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set?.call(
+        field,
+        text
+      );
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+      field.focus();
+    });
+    field.setSelectionRange(1, 4);
+    const fetches = mocks.voices.mock.calls.length;
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(container.querySelector("textarea")).toBe(field);
+      expect(field.value).toBe(text);
+      expect(document.activeElement).toBe(field);
+      expect([field.selectionStart, field.selectionEnd]).toEqual([1, 4]);
+      expect(mocks.voices.mock.calls.length).toBe(fetches);
+      expect(mocks.synthesize).not.toHaveBeenCalled();
+    }
+    await act(async () => button(ttsText("ui.synthesizeAndPreview"))?.click());
+    await act(async () => desktopLocaleSource.setLocale("zh-CN"));
+    expect(mocks.synthesize).toHaveBeenCalledExactlyOnceWith(
+      text,
+      "voice-b",
+      undefined,
+      expect.any(AbortSignal)
+    );
+    expect(signal?.aborted).toBe(false);
+    if (!complete) throw new Error("合成未进入服务边界");
+    await act(async () => complete?.({ audio: new Uint8Array([1, 2, 3]), mime: "audio/mpeg" }));
+    const player = container.querySelector("[data-testid=player]");
+    if (!player) throw new Error("试听音频未交付");
+    const clients = mocks.create.mock.calls.length;
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(container.querySelector("[data-testid=player]")).toBe(player);
+      expect(player.getAttribute("data-text")).toBe(text);
+      expect(mocks.create.mock.calls.length).toBe(clients);
+      expect(mocks.voices.mock.calls.length).toBe(fetches);
+      expect(mocks.synthesize).toHaveBeenCalledTimes(1);
+      expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
+      expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+    }
+  } finally {
+    await act(async () => desktopLocaleSource.setLocale(original));
+  }
+});

@@ -1,3 +1,4 @@
+import { mobileLocaleSource } from "../../../../services/i18n";
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PluginSettingsProps, TTSAudio } from "@tau/plugins";
@@ -73,6 +74,7 @@ function AuthorSettings({ ttsConfig }: PluginSettingsProps) {
   );
 }
 
+const originalLocale = mobileLocaleSource.getSnapshot();
 let runtime: MobilePluginRuntime;
 let mounted: ReturnType<typeof mountTtsHarness> | null;
 let urlSequence = 0;
@@ -106,6 +108,7 @@ beforeEach(async () => {
 afterEach(async () => {
   mounted?.unmount();
   mounted = null;
+  mobileLocaleSource.setLocale(originalLocale);
   await runtime.dispose();
   vi.restoreAllMocks();
 });
@@ -190,6 +193,25 @@ describe("TTS 合成试听", () => {
     expect(blob).toBeInstanceOf(Blob);
     expect((blob as Blob).type).toBe("audio/mpeg");
 
+    const requests = tts.voices.mock.calls.length;
+    const clients = tts.withSession.mock.calls.length;
+    const field = document.querySelector<HTMLTextAreaElement>("#tts-test-text");
+    if (!field) throw new Error("试听文本未挂载");
+    const originalText = field.value;
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => mobileLocaleSource.setLocale(locale));
+      expect(document.querySelector('[data-testid="tts-audio"]')).toBe(audio);
+      expect(document.querySelector("#tts-test-text")).toBe(field);
+      expect(field.value).toBe(originalText);
+      expect(tts.synthesize).toHaveBeenCalledTimes(1);
+      expect(tts.voices.mock.calls.length).toBe(requests);
+      expect(tts.withSession.mock.calls.length).toBe(clients);
+      expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
+      expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+      expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
+      expect(HTMLMediaElement.prototype.pause).not.toHaveBeenCalled();
+    }
+    await act(async () => mobileLocaleSource.setLocale(originalLocale));
     await click(findButton("重新生成", activePage()));
     await waitFor(
       () =>

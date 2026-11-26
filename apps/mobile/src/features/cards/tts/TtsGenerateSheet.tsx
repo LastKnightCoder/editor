@@ -1,3 +1,11 @@
+import {
+  ttsText,
+  ttsErrorText,
+  useTtsSettingsI18n,
+  ttsIssue,
+  ttsIssueText,
+  type TtsIssue,
+} from "../../settings/tts/i18n";
 import { useEffect, useMemo, useState } from "react";
 import { AudioPlayer } from "@tau/shared";
 import { ChevronRight, CircleAlert, RefreshCw, Sparkles } from "lucide-react";
@@ -9,7 +17,6 @@ import { GroupCard, GroupRow } from "../../settings/components/ui";
 import { ActionButton } from "../../settings/storage/fields";
 import { TtsChoiceSheet, TtsVoicePicker } from "../../settings/tts/components/TtsSelectionSheets";
 import { TtsEmpty } from "../../settings/tts/components/TtsUi";
-import { ttsErrorMessage } from "../../settings/tts/errors";
 import { useTtsAudioTest } from "../../settings/tts/hooks/useTtsAudioTest";
 import { useTtsDomain } from "../../settings/tts/hooks/useTtsDomain";
 import { useTtsVoices } from "../../settings/tts/hooks/useTtsVoices";
@@ -29,6 +36,8 @@ type TtsGenerateSheetProps = {
 };
 
 export function TtsGenerateSheet({ target, onClose, onInserted }: TtsGenerateSheetProps) {
+  useTtsSettingsI18n();
+
   // 退场动画期间 target 已置空，沿用上一次的内容避免面板先变空再滑走
   const [shown, setShown] = useState(target);
   if (target && target !== shown) setShown(target);
@@ -40,7 +49,11 @@ export function TtsGenerateSheet({ target, onClose, onInserted }: TtsGenerateShe
   return (
     <BottomSheet
       open={target !== null}
-      title={shown?.intent.kind === "replace" ? "用文字生成音频" : "文字转语音"}
+      title={
+        shown?.intent.kind === "replace"
+          ? ttsText("ui.generateAudioFromText")
+          : ttsText("ui.textToSpeech")
+      }
       onClose={onClose}
       dismissible={!locked}
     >
@@ -68,6 +81,8 @@ function TtsGenerateBody({
   onInserted: TtsGenerateSheetProps["onInserted"];
   onLockedChange: (locked: boolean) => void;
 }) {
+  useTtsSettingsI18n();
+
   const navigator = useNavigator();
   const { runtime, setting, accounts, usage, providerFor } = useTtsDomain();
   const eligibleAccounts = useMemo(
@@ -88,7 +103,8 @@ function TtsGenerateBody({
   const [sheet, setSheet] = useState<"account" | "voice" | null>(null);
   const [generatedText, setGeneratedText] = useState("");
   const [inserting, setInserting] = useState(false);
-  const [insertError, setInsertError] = useState("");
+  const [insertFailure, setInsertFailure] = useState<TtsIssue | null>(null);
+  const insertError = ttsIssueText(insertFailure);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
 
   const available = !!account && !!providerFor(account.pluginId) && !!modelId;
@@ -130,7 +146,7 @@ function TtsGenerateBody({
   useSheetBackDismiss(locked, requestClose);
 
   const generate = async () => {
-    setInsertError("");
+    setInsertFailure(null);
     setGeneratedText(cleanText);
     await audio.synthesize(cleanText);
   };
@@ -138,7 +154,7 @@ function TtsGenerateBody({
   const insert = async () => {
     if (!audio.audio || !hasResult) return;
     setInserting(true);
-    setInsertError("");
+    setInsertFailure(null);
     try {
       const ok = await target.commit({ blob: audio.audio.blob, text: cleanText });
       if (ok) {
@@ -146,7 +162,7 @@ function TtsGenerateBody({
         onInserted(target.intent.kind);
       }
     } catch (error) {
-      setInsertError(ttsErrorMessage(error, undefined, "音频保存失败，请重试"));
+      setInsertFailure(ttsIssue(error, undefined, "error.audioSaveFailed"));
     } finally {
       setInserting(false);
     }
@@ -160,9 +176,15 @@ function TtsGenerateBody({
   if (!eligibleAccounts.length || !account) {
     return (
       <TtsEmpty
-        title="还没有语音服务"
-        description="安装语音合成插件并添加账号后，就能把文字生成为音频。"
-        actions={<ActionButton label="去设置语音合成" emphasis onClick={openSettings} />}
+        title={ttsText("ui.noVoiceServicesYet")}
+        description={ttsText("ui.installATextToSpeechPluginAnd")}
+        actions={
+          <ActionButton
+            label={ttsText("ui.openTextToSpeechSettings")}
+            emphasis
+            onClick={openSettings}
+          />
+        }
       />
     );
   }
@@ -174,7 +196,7 @@ function TtsGenerateBody({
     <div className="flex flex-col gap-3">
       <div className="bg-surface border-line-1 rounded-2xl border">
         <label htmlFor="tts-generate-text" className="sr-only">
-          要朗读的文字
+          {ttsText("ui.textToReadAloud")}
         </label>
         <textarea
           id="tts-generate-text"
@@ -182,27 +204,29 @@ function TtsGenerateBody({
           onChange={event => setText(event.currentTarget.value)}
           rows={5}
           disabled={busy}
-          placeholder="输入要转成语音的文字"
+          placeholder={ttsText("ui.enterTextToConvertToSpeech")}
           className="input-base bg-surface w-full resize-none rounded-2xl border-0 px-4 pt-3 pb-1 leading-relaxed focus:shadow-none"
         />
         <div
           className={`text-tau-sm px-4 pb-2 text-right tabular-nums ${overLimit ? "text-danger" : "text-ink-3"}`}
         >
-          {text.length} / {TTS_MAX_TEXT_LENGTH} 字
+          {text.length} / {TTS_MAX_TEXT_LENGTH} {ttsText("ui.characters")}
         </div>
       </div>
 
       <GroupCard>
         <GroupRow disabled={busy} onClick={() => setSheet("voice")}>
-          <span className="text-ink-1 text-tau-body flex-1">音色</span>
+          <span className="text-ink-1 text-tau-body flex-1">{ttsText("ui.voice")}</span>
           <span className="text-ink-3 text-tau-meta max-w-[55%] truncate">
-            {selectedVoice?.name || voiceId || (voices.isFetching ? "正在获取…" : "未设置")}
+            {selectedVoice?.name ||
+              voiceId ||
+              (voices.isFetching ? ttsText("ui.fetching") : ttsText("ui.notSet"))}
           </span>
           <ChevronRight size={17} className="text-ink-3" aria-hidden="true" />
         </GroupRow>
         <GroupRow>
-          <span className="text-ink-1 text-tau-body flex-1">语速</span>
-          <span className="flex gap-1" role="radiogroup" aria-label="语速">
+          <span className="text-ink-1 text-tau-body flex-1">{ttsText("ui.speed")}</span>
+          <span className="flex gap-1" role="radiogroup" aria-label={ttsText("ui.speed")}>
             {TTS_SPEEDS.map(value => (
               <button
                 key={value}
@@ -224,7 +248,7 @@ function TtsGenerateBody({
         </GroupRow>
         {eligibleAccounts.length > 1 && (
           <GroupRow disabled={busy} onClick={() => setSheet("account")}>
-            <span className="text-ink-1 text-tau-body flex-1">语音服务</span>
+            <span className="text-ink-1 text-tau-body flex-1">{ttsText("ui.voiceService")}</span>
             <span className="text-ink-3 text-tau-meta max-w-[55%] truncate">{account.name}</span>
             <ChevronRight size={17} className="text-ink-3" aria-hidden="true" />
           </GroupRow>
@@ -236,8 +260,12 @@ function TtsGenerateBody({
           <AudioPlayer
             ref={audio.audioRef}
             src={audio.audio.url}
-            label="试听"
-            info={stale ? "文字已修改，需要重新生成" : `${selectedVoice?.name ?? voiceId}`}
+            label={ttsText("ui.preview")}
+            info={
+              stale
+                ? ttsText("ui.textChangedGenerateTheAudioAgain")
+                : `${selectedVoice?.name ?? voiceId}`
+            }
             autoPlay={!stale}
             preload="auto"
           />
@@ -254,26 +282,34 @@ function TtsGenerateBody({
         </div>
       )}
 
-      <p className="text-ink-3 text-tau-sm px-1">
-        音色、语速默认取自「语音合成」设置，这里的改动只用于本次。
-      </p>
+      <p className="text-ink-3 text-tau-sm px-1">{ttsText("ui.voiceAndSpeedDefaultToTextTo")}</p>
 
       <div className="flex gap-2.5 pt-1">
         {audio.pending ? (
           <>
-            <ActionButton label="停止" emphasis={false} onClick={audio.cancel} />
-            <ActionButton label="生成中" emphasis busy disabled onClick={() => undefined} />
+            <ActionButton label={ttsText("ui.stop")} emphasis={false} onClick={audio.cancel} />
+            <ActionButton
+              label={ttsText("ui.generating")}
+              emphasis
+              busy
+              disabled
+              onClick={() => undefined}
+            />
           </>
         ) : hasResult ? (
           <>
             <ActionButton
-              label="重新生成"
+              label={ttsText("ui.generateAgain")}
               emphasis={false}
               disabled={inserting}
               onClick={() => void generate()}
             />
             <ActionButton
-              label={target.intent.kind === "replace" ? "替换音频" : "插入到文档"}
+              label={
+                target.intent.kind === "replace"
+                  ? ttsText("ui.replaceAudio")
+                  : ttsText("ui.insertIntoDocument")
+              }
               emphasis
               busy={inserting}
               disabled={inserting}
@@ -292,14 +328,14 @@ function TtsGenerateBody({
             ) : (
               <Sparkles size={17} aria-hidden="true" />
             )}
-            {audio.audio ? "重新生成" : "生成并试听"}
+            {audio.audio ? ttsText("ui.generateAgain") : ttsText("ui.generateAndPreview")}
           </button>
         )}
       </div>
 
       <TtsChoiceSheet
         open={sheet === "account"}
-        title="选择语音服务"
+        title={ttsText("ui.chooseVoiceService")}
         choices={eligibleAccounts.map(item => ({
           id: item.id,
           label: item.name,
@@ -321,7 +357,7 @@ function TtsGenerateBody({
         open={sheet === "voice"}
         voices={voices.data?.voices}
         loading={voices.isFetching}
-        error={voices.error ? ttsErrorMessage(voices.error, account.config) : undefined}
+        error={voices.error ? ttsErrorText(voices.error, account.config) : undefined}
         selectedId={voiceId}
         onSelect={id => {
           setVoiceId(id);
@@ -332,10 +368,10 @@ function TtsGenerateBody({
       />
       <MobileConfirmDialog
         open={confirmDiscard}
-        title="放弃生成的音频？"
-        description="还没有插入到文档，关闭后需要重新生成。"
-        cancelText="继续编辑"
-        confirmText="放弃"
+        title={ttsText("ui.discardGeneratedAudio")}
+        description={ttsText("ui.itHasNotBeenInsertedIntoThe")}
+        cancelText={ttsText("ui.keepEditing")}
+        confirmText={ttsText("ui.discard")}
         danger
         onCancel={() => setConfirmDiscard(false)}
         onConfirm={() => {
