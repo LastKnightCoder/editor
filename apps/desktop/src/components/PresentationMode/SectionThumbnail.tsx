@@ -1,3 +1,4 @@
+import { usePresentationI18n } from "./i18n";
 /** 节缩略图：同一份舞台渲染按比例缩小（比例与放映一致），多屏的节标「N 屏」 */
 import { memo, useState } from "react";
 import type { Descendant } from "slate";
@@ -27,6 +28,7 @@ export const SectionThumbnail = memo(function SectionThumbnail({
   selected = false,
   onSelect,
 }: SectionThumbnailProps) {
+  const { t } = usePresentationI18n();
   const [screens, setScreens] = useState(1);
   const scale = displayWidth / stage.width;
 
@@ -42,7 +44,7 @@ export const SectionThumbnail = memo(function SectionThumbnail({
       style={{ width: displayWidth, height: stage.height * scale }}
     >
       <div
-        className="absolute left-0 top-0 origin-top-left"
+        className="absolute top-0 left-0 origin-top-left"
         style={{ transform: `scale(${scale})` }}
       >
         <SlideFrame
@@ -54,17 +56,17 @@ export const SectionThumbnail = memo(function SectionThumbnail({
         />
       </div>
       {current && (
-        <span className="text-tau-micro bg-accent text-ink-inverse absolute left-2 top-2 rounded-full px-[7px] leading-[18px]">
-          当前
+        <span className="text-tau-micro bg-accent text-ink-inverse absolute top-2 left-2 rounded-full px-[7px] leading-[18px]">
+          {t("thumbnail.current")}
         </span>
       )}
       {screens > 1 && (
-        <span className="text-tau-micro bg-hover text-ink-2 absolute right-2 top-2 inline-flex items-center gap-1 rounded-full px-[7px] leading-[18px] backdrop-blur-[4px]">
+        <span className="text-tau-micro bg-hover text-ink-2 absolute top-2 right-2 inline-flex items-center gap-1 rounded-full px-[7px] leading-[18px] backdrop-blur-[4px]">
           <Layers className="size-[11px]" strokeWidth={1.75} />
-          {screens} 屏
+          {t("thumbnail.screens", { count: screens })}
         </span>
       )}
-      <span className="text-tau-micro text-ink-3 absolute bottom-1.5 right-2 tabular-nums">
+      <span className="text-tau-micro text-ink-3 absolute right-2 bottom-1.5 tabular-nums">
         {index + 1}
       </span>
     </button>

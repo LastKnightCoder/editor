@@ -1,3 +1,4 @@
+import { usePresentationI18n } from "./i18n";
 /** 全览：节缩略图网格；键盘选择由放映层统一处理，这里上报实际列数 */
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Descendant } from "slate";
@@ -24,6 +25,7 @@ export function Overview({
   onColumns,
   onEnter,
 }: OverviewProps) {
+  const { t } = usePresentationI18n();
   const gridRef = useRef<HTMLDivElement>(null);
   const [layout, setLayout] = useState({ columns: 1, cardWidth: MIN_CARD_WIDTH });
 
@@ -50,11 +52,11 @@ export function Overview({
   }, [selected]);
 
   return (
-    <div className="bg-page/95 absolute inset-0 overflow-y-auto px-[90px] pb-20 pt-16 backdrop-blur-md">
+    <div className="bg-page/95 absolute inset-0 overflow-y-auto px-[90px] pt-16 pb-20 backdrop-blur-md">
       <div className="text-tau-title mb-[22px] flex items-baseline gap-3 font-semibold">
-        全览
+        {t("overview")}
         <span className="text-tau-sm text-ink-3 font-normal">
-          {sections.length} 节 · 方向键选择 · Enter 进入 · Esc 返回
+          {t("overview.hint", { count: sections.length })}
         </span>
       </div>
       <div

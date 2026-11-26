@@ -1,3 +1,4 @@
+import { usePresentationI18n } from "./i18n";
 /**
  * 演示模式（全屏舞台 + 镜头推进）。
  * 进入即窗口全屏（退出还原）；文档按结构分节（sections.ts），每节铺满舞台（SlideFrame），
@@ -71,9 +72,13 @@ function useStage() {
 }
 
 function StepDots({ count, current }: { count: number; current: number }) {
+  const { t } = usePresentationI18n();
   if (count < 2) return null;
   return (
-    <span className="mx-2 inline-flex gap-1" aria-label={`第 ${current + 1} / ${count} 屏`}>
+    <span
+      className="mx-2 inline-flex gap-1"
+      aria-label={t("step", { current: current + 1, count })}
+    >
       {Array.from({ length: count }, (_, i) => (
         <span
           key={i}
@@ -93,6 +98,7 @@ interface PresentationModeProps {
 }
 
 const PresentationMode = ({ content, onExit }: PresentationModeProps) => {
+  const { t } = usePresentationI18n();
   const sections = useMemo(() => splitSections(content), [content]);
   const total = sections.length;
   const paged = total > 1;
@@ -350,7 +356,7 @@ const PresentationMode = ({ content, onExit }: PresentationModeProps) => {
     <PortalToBody>
       <div
         role="dialog"
-        aria-label="演示"
+        aria-label={t("presentation")}
         {...stageThemeProps}
         className={cn(
           "app-region-no-drag bg-surface text-ink-1 fixed inset-0 z-[95] select-none overflow-hidden",
@@ -390,19 +396,19 @@ const PresentationMode = ({ content, onExit }: PresentationModeProps) => {
               <div className="text-tau-sm text-ink-3 pointer-events-none absolute bottom-[84px] left-1/2 flex -translate-x-1/2 gap-3.5 whitespace-nowrap">
                 {canAdvance && (
                   <span>
-                    <Kbd>←</Kbd> <Kbd>→</Kbd> 推进
+                    <Kbd>←</Kbd> <Kbd>→</Kbd> {t("advance")}
                   </span>
                 )}
                 {paged && (
                   <span>
-                    <Kbd>O</Kbd> 全览
+                    <Kbd>O</Kbd> {t("overview")}
                   </span>
                 )}
                 <span>
-                  <Kbd>?</Kbd> 快捷键
+                  <Kbd>?</Kbd> {t("help.title")}
                 </span>
                 <span>
-                  <Kbd>Esc</Kbd> 退出
+                  <Kbd>Esc</Kbd> {t("exit")}
                 </span>
               </div>
             )}
@@ -415,7 +421,7 @@ const PresentationMode = ({ content, onExit }: PresentationModeProps) => {
               {paged && (
                 <>
                   <StageHudButton
-                    label="上一屏"
+                    label={t("previous")}
                     shortcut="←"
                     onClick={prev}
                     disabled={page === 0 && current === 0}
@@ -428,7 +434,7 @@ const PresentationMode = ({ content, onExit }: PresentationModeProps) => {
                     className="text-ink-1 hover:bg-hover h-8 min-w-16 rounded-full px-2 font-medium tabular-nums"
                   >
                     {jump ? (
-                      <span className="text-accent-text">跳到 {jump}</span>
+                      <span className="text-accent-text">{t("jump", { section: jump })}</span>
                     ) : (
                       <>
                         {page + 1}
@@ -438,7 +444,7 @@ const PresentationMode = ({ content, onExit }: PresentationModeProps) => {
                     )}
                   </button>
                   <StageHudButton
-                    label="下一屏"
+                    label={t("next")}
                     shortcut="→"
                     onClick={next}
                     disabled={page === total - 1 && lastScreen}
@@ -452,12 +458,17 @@ const PresentationMode = ({ content, onExit }: PresentationModeProps) => {
               <StepDots count={screens} current={current} />
               {(title || screens > 1) && <StageHudDivider />}
               {paged && (
-                <StageHudButton label="全览" shortcut="O" onClick={openOverview} active={overview}>
+                <StageHudButton
+                  label={t("overview")}
+                  shortcut="O"
+                  onClick={openOverview}
+                  active={overview}
+                >
                   <LayoutGrid className="size-4" strokeWidth={1.75} />
                 </StageHudButton>
               )}
               <StageHudButton
-                label={stageMode === "dark" ? "浅色画面" : "深色画面"}
+                label={stageMode === "dark" ? t("theme.light") : t("theme.dark")}
                 shortcut="D"
                 onClick={toggleStageMode}
               >
@@ -469,7 +480,7 @@ const PresentationMode = ({ content, onExit }: PresentationModeProps) => {
               </StageHudButton>
               {canToggleFullScreen() && (
                 <StageHudButton
-                  label={fullScreen ? "退出全屏" : "全屏"}
+                  label={fullScreen ? t("exitFullscreen") : t("fullscreen")}
                   shortcut="F"
                   onClick={toggleFullScreen}
                 >
@@ -480,11 +491,11 @@ const PresentationMode = ({ content, onExit }: PresentationModeProps) => {
                   )}
                 </StageHudButton>
               )}
-              <StageHudButton label="快捷键" shortcut="?" onClick={() => setHelp(true)}>
+              <StageHudButton label={t("help.title")} shortcut="?" onClick={() => setHelp(true)}>
                 <Keyboard className="size-4" strokeWidth={1.75} />
               </StageHudButton>
               <StageHudDivider />
-              <StageHudButton label="退出演示" shortcut="Esc" onClick={onExit}>
+              <StageHudButton label={t("exitPresentation")} shortcut="Esc" onClick={onExit}>
                 <X className="size-4" strokeWidth={1.75} />
               </StageHudButton>
             </StageHud>

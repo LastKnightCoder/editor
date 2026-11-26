@@ -376,6 +376,8 @@ Native通知十四路径完成；真实前端21例、mobile type/lint、48key三
 
 Markdown F3十四源加Root Core/README二路径完成；全窗口9文件49例、desktop与editor包type、三语及协议静态对照通过。真实Host下短/长未同步反向原生选区原先回跳，隔离语言订阅与aria标签后保原，既有同Slate/代码控制器/源码/撤销与转换失败不重读契约保持。全35生产文件/64 AST项审计仅合法默认名/复制alt/raw诊断，无固定UI残留。
 
+演示模式八源完成；已有cameraPlan/sections六例、desktop type/build与32key三语语义/插值/实际runtime复数通过。独立AST严格对照四UI全部非展示handlers/hooks与timer/observer/navigation不变，SlideFrame/sections/cameraPlan/frame逐字相同；纯UI改动未补锁文字或样式测试。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。
