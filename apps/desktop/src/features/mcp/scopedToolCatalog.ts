@@ -1,3 +1,4 @@
+import type { McpMetadataKey } from "./metadata.messages";
 /**
  * 功能专属工具目录：PDF / 视频笔记 / 学习项目三组场景工具的静态展示定义。
  * 实际工具实例在对应功能页面打开时经 toolRegistry.registerScopedTools 注册（只给该场景的对话），
@@ -24,8 +25,8 @@ import { createVibeLearningProductTools } from "@/features/vibe-learning/views/V
 export interface ScopedToolGroup {
   /** 分组标识（同时也是 ServerIcon 的图标匹配键） */
   id: string;
-  label: string;
-  description: string;
+  labelKey: McpMetadataKey;
+  descriptionKey: McpMetadataKey;
   tools: Array<{ name: string; description: string; parameters?: ToolDefinition["parameters"] }>;
 }
 
@@ -35,8 +36,8 @@ const toToolSummaries = (definitions: ToolDefinition[]) =>
 export const SCOPED_TOOL_GROUPS: ScopedToolGroup[] = [
   {
     id: "scoped-pdf",
-    label: "PDF 文档",
-    description: "在 PDF 阅读页的对话中，AI 可检索 PDF 原文、按页读取，并查看目录、批注与书签。",
+    labelKey: "scope.pdf.name",
+    descriptionKey: "scope.pdf.description",
     tools: toToolSummaries([
       createPdfSearchTool(0, ""),
       createGetPdfDocumentInfoTool(0, ""),
@@ -48,8 +49,8 @@ export const SCOPED_TOOL_GROUPS: ScopedToolGroup[] = [
   },
   {
     id: "scoped-video-note",
-    label: "视频笔记",
-    description: "在视频笔记页的对话中，AI 可搜索转录内容并按时间段读取原文。",
+    labelKey: "scope.video.name",
+    descriptionKey: "scope.video.description",
     tools: toToolSummaries([
       createVideoNoteSearchTool(0, ""),
       createGetVideoNoteTranscriptRangeTool(0),
@@ -57,8 +58,8 @@ export const SCOPED_TOOL_GROUPS: ScopedToolGroup[] = [
   },
   {
     id: "scoped-vibe-learning",
-    label: "学习项目",
-    description: "在学习项目（Notebook）的对话中，AI 可检索项目资料、生成学习内容并保存为笔记。",
+    labelKey: "scope.learning.name",
+    descriptionKey: "scope.learning.description",
     tools: toToolSummaries([
       createUnifiedVibeLearningTool(0, ""),
       ...createVibeLearningProductTools(0, ""),

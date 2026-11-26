@@ -31,7 +31,10 @@ import { McpView } from "@/features/mcp/views/McpView";
 import { McpQuickPanel } from "@/features/mcp/components/McpQuickPanel";
 import { callMcpTool, connectMcpServer, disconnectMcpServer, listMcpServerTools } from "@/commands";
 
-vi.mock("@/mcp/providers", () => ({ MCP_PROVIDERS: [] }));
+const providerFixtures = vi.hoisted(
+  () => [] as import("@/mcp/providers/types").MCPProviderDefinition[]
+);
+vi.mock("@/mcp/providers", () => ({ MCP_PROVIDERS: providerFixtures }));
 vi.mock("@/features/mcp/scopedToolCatalog", () => ({ SCOPED_TOOL_GROUPS: [] }));
 vi.mock("@/features/mcp/piBuiltinTools", () => ({ PI_BUILTIN_TOOLS: [] }));
 vi.mock("@/tools", async () => ({
@@ -56,6 +59,7 @@ const hosts: PluginHost[] = [];
 let root: Root | undefined;
 let container: HTMLDivElement;
 let items: McpServerItem[] = [];
+let builtinItems: McpServerItem[] = [];
 const local = (id: string): PluginMCPDefinition => ({
   id,
   name: `本地 ${id}`,
@@ -121,7 +125,9 @@ function host(
   return instance;
 }
 function HostView() {
-  items = useMcpServers().custom;
+  const servers = useMcpServers();
+  items = servers.custom;
+  builtinItems = servers.builtin;
   return (
     <>
       <McpView />
@@ -152,6 +158,7 @@ const execute = (tool: RegisteredTool, databaseName = "db-A") =>
   );
 
 beforeEach(() => {
+  providerFixtures.length = 0;
   vi.stubGlobal("crypto", webcrypto);
   useMCPStore.setState({
     providerStates: {},
@@ -176,6 +183,78 @@ afterEach(async () => {
   }
   items = [];
   vi.unstubAllGlobals();
+});
+
+it("内置显示元数据换语不重建工具，用户同名ID仍保留原始配置", async () => {
+  const tools = vi.fn(() => [
+    {
+      name: "fixture_tool",
+      risk: "read" as const,
+      description: "Protocol description supplied to the agent",
+      parameters: { type: "object" as const, properties: {} },
+      executor: async () => ({ content: "fixture output" }),
+    },
+  ]);
+  const provider = {
+    id: "openai-image-tools",
+    name: "Original provider metadata",
+    description: "Original provider description",
+    isAvailable: () => false,
+    tools,
+  };
+  providerFixtures.push(provider);
+  useMCPStore.setState({
+    customServers: [
+      {
+        id: provider.id,
+        name: "User-provided server",
+        description: "User-provided description",
+        enabled: false,
+        transport: { type: "stdio", command: "node", args: ["/path with spaces/server.js"] },
+      },
+    ],
+  });
+  await render();
+  const builtin = builtinItems[0];
+  const custom = items[0];
+  const before = { name: builtin.name, description: builtin.description, error: builtin.error };
+  const toolMetadata = builtin.tools;
+  const source = { ...provider };
+  const calls = tools.mock.calls.length;
+  expect(calls).toBeGreaterThan(0);
+  const field = container.querySelector("input");
+  if (!field) throw new Error("server search is missing");
+  act(() => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(
+      field,
+      before.name
+    );
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+    field.focus();
+    field.setSelectionRange(0, 1);
+  });
+  const card = container.querySelector("article");
+  if (!card) throw new Error("matching builtin card missing");
+  for (const locale of ["en-US", "zh-TW"] as const) {
+    await act(async () => desktopLocaleSource.setLocale(locale));
+    expect(container.querySelector("article")).toBe(card);
+    expect(document.activeElement).toBe(field);
+    expect(field.value).toBe(before.name);
+    expect([field.selectionStart, field.selectionEnd]).toEqual([0, 1]);
+    expect(builtin.name).not.toBe(before.name);
+    expect(builtin.description).not.toBe(before.description);
+    expect(builtin.error).not.toBe(before.error);
+    expect(builtin.tools).toBe(toolMetadata);
+    expect(tools.mock.calls.length).toBe(calls);
+    expect(provider).toEqual(source);
+    expect(items[0]).toBe(custom);
+    expect(custom.name).toBe("User-provided server");
+    expect(custom.description).toBe("User-provided description");
+    expect(custom.server?.transport).toMatchObject({
+      command: "node",
+      args: ["/path with spaces/server.js"],
+    });
+  }
 });
 
 it("多个 MCP 直接出现在现有卡片和快捷面板，整项关闭不影响插件和其他 MCP", async () => {

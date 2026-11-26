@@ -300,6 +300,8 @@ P6B历史：16路径工程完成；共享模型13基线、desktop历史2、mobil
 
 P6A3-E1导出弹层：6路径工程完成；3文件15例、包type/白板边界、export19key三语对账与范围格式/静态通过。独立AST严格对照初始化/reset/选择/尺寸/Slider和截图-下载-恢复选区保持；真实在途换语只capture一次，同Blob/filename路径与控件配置保留。选择null属性原归一化为缺省的行为不改，回归按原selectedElements与空框选语义验证。
 
+P5 MCP显示目录：10路径工程完成；真实MCP/配置/表单3文件26例通过，desktop类型/构建、三语参数与范围静态/格式、启动/插件边界通过。新增真实场景验证内置名称/说明/可用性跨语更新，保原检索/焦点/选区与同卡片DOM，不多调用工具factory；原tool数组/声明不变，用户服务器即使与内置ID相同也保原配置。独立AST证明所有启停/保存/导入/删除/重连/log/scoped source函数与memo/effect依赖不变；共享AI定义不翻译，显示key旧字段消费者清零退休。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

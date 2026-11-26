@@ -113,8 +113,9 @@ function Section({
 }
 
 const matches = (item: McpServerItem, q: string) =>
-  item.name.toLowerCase().includes(q) ||
-  item.description.toLowerCase().includes(q) ||
+  (item.searchText !== undefined
+    ? item.searchText.toLowerCase().includes(q)
+    : item.name.toLowerCase().includes(q) || item.description.toLowerCase().includes(q)) ||
   item.tools.some(t => t.name.toLowerCase().includes(q));
 
 export function McpView() {

@@ -1,3 +1,10 @@
+import {
+  mcpMetadataT,
+  metadataSearchText,
+  providerMetadataText,
+  providerMetadataSearchText,
+} from "./metadata.binding";
+import type { McpMetadataKey } from "./metadata.messages";
 /**
  * MCP 页的数据层：把内置 provider 与自定义服务器合成统一的列表项，并收拢启停 / 保存 /
  * 重连 / 删除等写操作。连接本身由 tools/index.ts 订阅 store 驱动——这里只改 store，
@@ -38,6 +45,8 @@ export interface McpServerItem {
   connectionId?: string;
   name: string;
   description: string;
+  /** 语言无关的展示检索别名；不参与工具或服务器身份。 */
+  searchText?: string;
   enabled: boolean;
   status: McpServerStatus;
   error?: string;
@@ -52,8 +61,11 @@ export interface McpServerItem {
   server?: CustomMCPServer;
 }
 
-const UNAVAILABLE_HINT: Record<string, { text: string; section: SettingsSectionKey }> = {
-  "openai-image-tools": { text: "需要先配置图片生成服务", section: "imageGeneration" },
+const UNAVAILABLE_HINT: Record<
+  string,
+  { messageKey: McpMetadataKey; section: SettingsSectionKey }
+> = {
+  "openai-image-tools": { messageKey: "availability.image", section: "imageGeneration" },
 };
 
 function builtinItem(
@@ -65,11 +77,20 @@ function builtinItem(
   return {
     id: provider.id,
     kind: "builtin",
-    name: provider.name,
-    description: provider.description,
+    searchText: providerMetadataSearchText(provider.id, provider.name, provider.description),
+    get name() {
+      return providerMetadataText(provider.id, "name", provider.name);
+    },
+    get description() {
+      return providerMetadataText(provider.id, "description", provider.description);
+    },
     enabled,
     status: !available ? "unavailable" : enabled ? "ready" : "off",
-    error: available ? undefined : (UNAVAILABLE_HINT[provider.id]?.text ?? "当前不可用"),
+    get error() {
+      return available
+        ? undefined
+        : mcpMetadataT(UNAVAILABLE_HINT[provider.id]?.messageKey ?? "availability.unavailable");
+    },
     settingsSection: available ? undefined : UNAVAILABLE_HINT[provider.id]?.section,
     tools: provider.tools().map(({ name, description, parameters }) => ({
       name,
@@ -186,8 +207,13 @@ export function getScopedServerItems(): McpServerItem[] {
   return SCOPED_TOOL_GROUPS.map(group => ({
     id: group.id,
     kind: "scoped" as const,
-    name: group.label,
-    description: group.description,
+    searchText: metadataSearchText([group.labelKey, group.descriptionKey]),
+    get name() {
+      return mcpMetadataT(group.labelKey);
+    },
+    get description() {
+      return mcpMetadataT(group.descriptionKey);
+    },
     enabled: true,
     status: "ready" as const,
     locked: true,
@@ -204,15 +230,22 @@ export function getScopedServerItems(): McpServerItem[] {
 export function getPiBuiltinServerItem(): McpServerItem {
   return {
     id: "pi-builtin-tools",
+    searchText: metadataSearchText(["pi.name", "pi.description"]),
     kind: "pi",
-    name: "AI 基础工具",
-    description: "AI 助手自带的文件读取、编辑与命令执行工具，每次对话默认可用。",
+    get name() {
+      return mcpMetadataT("pi.name");
+    },
+    get description() {
+      return mcpMetadataT("pi.description");
+    },
     enabled: true,
     status: "ready",
     locked: true,
     tools: PI_BUILTIN_TOOLS.map(tool => ({
       name: tool.name,
-      description: tool.description,
+      get description() {
+        return mcpMetadataT(tool.descriptionKey);
+      },
     })),
     disabledTools: new Set<string>(),
   };
@@ -222,9 +255,14 @@ export function getPiBuiltinServerItem(): McpServerItem {
 export function getSubagentServerItem(): McpServerItem {
   return {
     id: "subagent-tools",
+    searchText: metadataSearchText(["subagent.name", "subagent.description"]),
     kind: "pi",
-    name: "子 Agent",
-    description: "Subagent 工具：创建、复用、等待和取消子 Agent；send_parent 仅供子会话报告进度。",
+    get name() {
+      return mcpMetadataT("subagent.name");
+    },
+    get description() {
+      return mcpMetadataT("subagent.description");
+    },
     enabled: true,
     status: "ready",
     locked: true,
@@ -232,8 +270,15 @@ export function getSubagentServerItem(): McpServerItem {
       const tool = SUBAGENT_TOOL_CATALOG[name];
       return {
         name,
-        displayName: tool.audience === "child" ? `${name}（仅子会话）` : name,
-        description: `${tool.label}：${tool.audience === "child" ? "仅子 Agent 可调用。" : ""}${tool.description}`,
+        get displayName() {
+          return tool.audience === "child" ? mcpMetadataT("subagent.childName", { name }) : name;
+        },
+        get description() {
+          return mcpMetadataT(
+            tool.audience === "child" ? "subagent.childDescription" : "subagent.toolDescription",
+            { label: tool.label, description: tool.description }
+          );
+        },
         parameters: tool.parameters,
       };
     }),
