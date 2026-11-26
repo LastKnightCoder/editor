@@ -1,3 +1,4 @@
+import { usePluginI18n } from "./i18n";
 import {
   useInfiniteQuery,
   useMutation,
@@ -48,6 +49,7 @@ export function usePluginCommunity(pluginId: string) {
 
 /** 目录随客户端版本由主进程补全；离线时保留上次结果并显示错误。 */
 export function usePluginCatalog(query = "", sort: PluginCatalogSort = "downloads7d") {
+  const { t } = usePluginI18n();
   const result = useQuery({
     queryKey: ["plugins", "catalog", query.trim(), sort],
     queryFn: () => fetchPluginCatalog(query, sort),
@@ -58,7 +60,12 @@ export function usePluginCatalog(query = "", sort: PluginCatalogSort = "download
   return {
     data: result.data ?? null,
     loading: result.isPending,
-    error: result.error instanceof Error ? result.error.message : result.error ? "读取失败" : "",
+    error:
+      result.error instanceof Error
+        ? result.error.message
+        : result.error
+          ? t("common.readFailed")
+          : "",
     refresh: () => void result.refetch(),
   };
 }

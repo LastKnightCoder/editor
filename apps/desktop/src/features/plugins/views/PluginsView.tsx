@@ -1,3 +1,11 @@
+import { categoryLabel, installedPluginError } from "../display";
+import { STATE_LABELS, STATIC_PACKAGE_LABELS } from "../display";
+import {
+  pluginTranslator,
+  pluginNumber,
+  pluginCount,
+  usePluginI18n,
+} from "@/features/plugins/i18n";
 import { PLUGIN_DEVELOPER_DOCS_URL, PLUGIN_PORTAL_URL } from "@tau/plugins/center";
 import { useState, type ReactNode } from "react";
 import {
@@ -24,8 +32,6 @@ import { openPluginDirectory, stagePluginZip } from "@/commands/plugin-local";
 import type { PluginCategory } from "@tau/plugins/package";
 import type { PluginCatalogEntry, PluginCatalogSort } from "@/types/plugin-center";
 import {
-  STATE_LABELS,
-  STATIC_PACKAGE_LABELS,
   availableUpdates,
   catalogCategories,
   pendingCount,
@@ -49,18 +55,25 @@ import {
   StagedChip,
   UninstallDialog,
 } from "../components/PluginParts";
+const t = pluginTranslator.t;
 
 type PluginsTab = "discover" | "installed" | "updates";
 const TABS: readonly PluginsTab[] = ["discover", "installed", "updates"];
 
 export function PluginsView() {
+  usePluginI18n();
   const runtime = useDesktopPlugins();
   const startupError = useDesktopPluginError();
   const { navigator } = usePage();
   const params = usePageParams<{ tab?: string }>();
   const tab = TABS.find(item => item === params.tab) ?? "discover";
   const [query, setQuery] = useState("");
-  const [actionError, setActionError] = useState("");
+  const [actionFailure, setActionFailure] = useState<{ cause: unknown } | null>(null);
+  const actionError = actionFailure
+    ? actionFailure.cause instanceof Error
+      ? actionFailure.cause.message
+      : t("common.actionFailed")
+    : "";
   const [sort, setSort] = useState<PluginCatalogSort>("downloads7d");
   const [category, setCategory] = useState<PluginCategory | null>(null);
   const skipInstallNotice = useSkipInstallNotice();
@@ -73,10 +86,10 @@ export function PluginsView() {
   });
   const openDetail = (pluginId: string) => navigator.push("plugin-detail", { pluginId });
   const run = (action: () => Promise<unknown>) => {
-    setActionError("");
+    setActionFailure(null);
     void Promise.resolve()
       .then(action)
-      .catch(cause => setActionError(cause instanceof Error ? cause.message : "操作失败"));
+      .catch(cause => setActionFailure({ cause }));
   };
 
   return (
@@ -84,9 +97,11 @@ export function PluginsView() {
       <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="flex flex-none flex-col px-8 pt-5">
           <div className="flex h-10 items-center gap-3">
-            <h1 className="text-tau-title-lg shrink-0 font-semibold tracking-[-0.01em]">插件</h1>
+            <h1 className="text-tau-title-lg shrink-0 font-semibold tracking-[-0.01em]">
+              {t("center.title")}
+            </h1>
             <span className="text-tau-meta text-ink-2 w-0 flex-1 truncate">
-              扩展页面、侧边栏、命令与摘录来源
+              {t("center.subtitle")}
             </span>
             {tab === "discover" && (
               <CategoryMenu
@@ -98,14 +113,14 @@ export function PluginsView() {
             {tab === "discover" && (
               <Select
                 size="sm"
-                aria-label="插件排序"
+                aria-label={t("center.sort")}
                 disabled={!catalog.data?.windowStart}
                 value={catalog.data?.windowStart ? sort : "updated"}
                 onValueChange={value => setSort(value as PluginCatalogSort)}
                 options={[
-                  { value: "downloads7d", label: "最近热门" },
-                  { value: "downloadsTotal", label: "下载最多" },
-                  { value: "updated", label: "最近更新" },
+                  { value: "downloads7d", label: t("center.popular") },
+                  { value: "downloadsTotal", label: t("center.downloads") },
+                  { value: "updated", label: t("center.updated") },
                 ]}
               />
             )}
@@ -115,11 +130,11 @@ export function PluginsView() {
               clearable
               value={query}
               onChange={event => setQuery(event.target.value)}
-              placeholder="搜索插件"
+              placeholder={t("center.search")}
               className="w-0"
               wrapperClassName="w-auto max-w-[240px] flex-[0_1_240px]"
             />
-            <MoreButton label="更多插件操作">
+            <MoreButton label={t("center.more")}>
               {runtime?.local && (
                 <>
                   {import.meta.env.DEV && (
@@ -132,20 +147,20 @@ export function PluginsView() {
                         })
                       }
                     >
-                      从 ZIP 安装…
+                      {t("center.zip")}
                     </Menu.Item>
                   )}
                   <Menu.Item
                     icon={<FolderOpen strokeWidth={1.75} />}
                     onSelect={() => run(openPluginDirectory)}
                   >
-                    打开插件目录
+                    {t("center.directory")}
                   </Menu.Item>
                   <Menu.Item
                     icon={<RefreshCw strokeWidth={1.75} />}
                     onSelect={() => run(async () => runtime.local?.refresh())}
                   >
-                    重新扫描
+                    {t("center.rescan")}
                   </Menu.Item>
                   <Menu.Separator />
                 </>
@@ -155,20 +170,20 @@ export function PluginsView() {
                 checked={!skipInstallNotice}
                 onCheckedChange={checked => saveSkipInstallNotice(!checked)}
               >
-                安装插件前提示风险
+                {t("center.risk")}
               </Menu.CheckboxItem>
               <Menu.Separator />
               <Menu.Item
                 icon={<BookOpen strokeWidth={1.75} />}
                 onSelect={() => void openExternal(PLUGIN_DEVELOPER_DOCS_URL)}
               >
-                开发插件文档
+                {t("center.docs")}
               </Menu.Item>
               <Menu.Item
                 icon={<ExternalLink strokeWidth={1.75} />}
                 onSelect={() => void openExternal(PLUGIN_PORTAL_URL)}
               >
-                发布门户
+                {t("center.portal")}
               </Menu.Item>
             </MoreButton>
           </div>
@@ -177,11 +192,17 @@ export function PluginsView() {
             activeKey={tab}
             onChange={key => navigator.push("plugins", { tab: key })}
             items={[
-              { key: "discover", label: "发现", children: null },
-              { key: "installed", label: `已安装 ${installed.length}`, children: null },
+              { key: "discover", label: t("center.discover"), children: null },
+              {
+                key: "installed",
+                label: pluginCount("center.installedCount", installed.length),
+                children: null,
+              },
               {
                 key: "updates",
-                label: updates.length ? `更新 ${updates.length}` : "更新",
+                label: updates.length
+                  ? pluginCount("center.updateCount", updates.length)
+                  : t("common.update"),
                 children: null,
               },
             ]}
@@ -193,7 +214,8 @@ export function PluginsView() {
             <RestartBar count={pendingCount(runtime)} />
             {tab === "discover" && catalog.data && catalog.error && (
               <p role="alert" className="text-tau-meta text-danger">
-                目录刷新失败，正在显示上次结果。{catalog.error}
+                {t("center.stale")}
+                {catalog.error}
               </p>
             )}
             {(actionError || startupError || runtime?.local?.scanError) && (
@@ -203,7 +225,7 @@ export function PluginsView() {
             )}
           </div>
           {!runtime ? (
-            <p className="text-tau-body text-ink-2">{startupError ? "" : "正在准备插件管理…"}</p>
+            <p className="text-tau-body text-ink-2">{startupError ? "" : t("center.preparing")}</p>
           ) : tab === "discover" ? (
             <Discover
               runtime={runtime}
@@ -240,14 +262,20 @@ function CategoryMenu({
   value: PluginCategory | null;
   onChange: (value: PluginCategory | null) => void;
 }) {
+  usePluginI18n();
   const items = catalogCategories(entries);
   if (!items.length && !value) return null;
-  const label = items.find(item => item.id === value)?.label ?? "全部分类";
+  const label = value ? categoryLabel(value) : t("center.allCategories");
   return (
     <Menu
       align="end"
       trigger={
-        <Button variant="ghost" size="sm" icon={LayoutGrid} aria-label={`插件分类：${label}`}>
+        <Button
+          variant="ghost"
+          size="sm"
+          icon={LayoutGrid}
+          aria-label={t("center.category", { category: label })}
+        >
           {label}
           <ChevronDown className="text-ink-3 size-3.5" strokeWidth={1.75} />
         </Button>
@@ -257,10 +285,10 @@ function CategoryMenu({
         value={value ?? ""}
         onValueChange={next => onChange((next || null) as PluginCategory | null)}
       >
-        <Menu.RadioItem value="">全部分类</Menu.RadioItem>
+        <Menu.RadioItem value="">{t("center.allCategories")}</Menu.RadioItem>
         {items.map(item => (
           <Menu.RadioItem key={item.id} value={item.id}>
-            {item.label}
+            {categoryLabel(item.id)}
             <span className="text-ink-3 ml-auto pl-4 tabular-nums">{item.count}</span>
           </Menu.RadioItem>
         ))}
@@ -286,13 +314,17 @@ function Discover({
   onOpen: (id: string) => void;
   onClearCategory: () => void;
 }) {
-  if (catalog.loading) return <Loading label="正在加载插件…" />;
+  usePluginI18n();
+  if (catalog.loading) return <Loading label={t("center.loading")} />;
   if (!catalog.data)
     return (
-      <Empty icon={<CloudOff />} title="暂时连不上插件中心">
-        <p>已安装的插件照常运行。{catalog.error}</p>
+      <Empty icon={<CloudOff />} title={t("center.offline")}>
+        <p>
+          {t("center.keepRunning")}
+          {catalog.error}
+        </p>
         <Button variant="secondary" size="sm" className="mt-2" onClick={catalog.refresh}>
-          重试
+          {t("common.retry")}
         </Button>
       </Empty>
     );
@@ -308,10 +340,12 @@ function Discover({
     return (
       <Empty
         icon={<SearchX />}
-        title={query ? `该分类下没有「${query.trim()}」` : "该分类下暂无插件"}
+        title={
+          query ? t("center.categoryNoQuery", { query: query.trim() }) : t("center.emptyCategory")
+        }
       >
         <Button variant="secondary" size="sm" className="mt-2" onClick={onClearCategory}>
-          查看全部分类
+          {t("center.viewAll")}
         </Button>
       </Empty>
     );
@@ -319,9 +353,9 @@ function Discover({
     return (
       <Empty
         icon={<SearchX />}
-        title={query ? `没有找到「${query.trim()}」` : "插件中心还没有插件"}
+        title={query ? t("center.noQuery", { query: query.trim() }) : t("center.empty")}
       >
-        <p>想要的功能可以自己做一个。</p>
+        <p>{t("center.buildOwn")}</p>
         <Button
           variant="ghost"
           size="sm"
@@ -329,7 +363,7 @@ function Discover({
           className="mt-2"
           onClick={() => void openExternal(PLUGIN_DEVELOPER_DOCS_URL)}
         >
-          查看开发文档
+          {t("center.viewDocs")}
         </Button>
       </Empty>
     );
@@ -359,6 +393,7 @@ function CatalogCard({
   installed?: InstalledPlugin;
   onOpen: () => void;
 }) {
+  usePluginI18n();
   const pending = runtime.local?.updates.find(item => item.id === entry.pluginId);
   return (
     <article
@@ -388,8 +423,11 @@ function CatalogCard({
         {typeof entry.downloadsTotal === "number" && (
           <span
             className="flex items-center gap-1 tabular-nums"
-            aria-label={`下载 ${entry.downloadsTotal.toLocaleString()} 次`}
-            title={`下载 ${entry.downloadsTotal.toLocaleString()} 次，近 7 日 ${entry.downloads7d.toLocaleString()} 次`}
+            aria-label={pluginCount("center.downloadCount", entry.downloadsTotal)}
+            title={t("center.downloadStats", {
+              total: pluginNumber(entry.downloadsTotal),
+              recent: pluginNumber(entry.downloads7d),
+            })}
           >
             <Download className="size-3.5" strokeWidth={1.75} aria-hidden />
             {entry.downloadsTotal.toLocaleString()}
@@ -414,11 +452,14 @@ function CardEnableSwitch({
   runtime: DesktopPluginRuntime;
   plugin: InstalledPlugin;
 }) {
+  usePluginI18n();
   const control = usePluginControl(runtime, plugin);
   return (
     <Switch
       size="sm"
-      aria-label={`${plugin.enabled ? "停用" : "启用"} ${plugin.info.name}`}
+      aria-label={t(plugin.enabled ? "center.disablePlugin" : "center.enablePlugin", {
+        name: plugin.info.name,
+      })}
       title={control.error || undefined}
       checked={plugin.enabled}
       disabled={!control.canToggle}
@@ -438,6 +479,7 @@ function Installed({
   query: string;
   onOpen: (id: string) => void;
 }) {
+  usePluginI18n();
   const shown = installed.filter(item => matchesQuery([item.info.id, item.info.name], query));
   const attention = shown.filter(needsAttention);
   const normal = shown.filter(item => !needsAttention(item));
@@ -445,7 +487,7 @@ function Installed({
   return (
     <>
       {(attention.length > 0 || issues.length > 0) && (
-        <Group title="需要处理" hint="出问题的插件不会影响其他插件">
+        <Group title={t("center.attention")} hint={t("center.isolated")}>
           {attention.map(item => (
             <InstalledRow key={item.info.id} runtime={runtime} plugin={item} onOpen={onOpen} />
           ))}
@@ -462,10 +504,10 @@ function Installed({
           ))}
         </Group>
       )}
-      <Group title="已安装" hint="启用状态在所有资料库保持一致">
+      <Group title={t("common.installed")} hint={t("center.globalEnabled")}>
         {normal.length === 0 ? (
           <p className="text-tau-meta text-ink-2 px-3 py-4">
-            {query ? "没有匹配的插件" : "当前没有可管理的插件"}
+            {query ? t("center.noMatch") : t("center.noManaged")}
           </p>
         ) : (
           normal.map(item => (
@@ -476,8 +518,9 @@ function Installed({
       {runtime.local && (
         <p className="text-tau-meta text-ink-2 flex items-center gap-2 px-1">
           <FolderOpen className="text-ink-3 size-4" strokeWidth={1.75} />
-          插件目录 <span className="font-tau-mono text-[12px]">{runtime.local.directory}</span>
-          <span className="text-ink-3">· 放入目录或从 ZIP 安装的插件默认停用，请手动启用</span>
+          {t("center.directoryLabel")}
+          <span className="font-tau-mono text-[12px]">{runtime.local.directory}</span>
+          <span className="text-ink-3">{t("center.localDisabled")}</span>
         </p>
       )}
     </>
@@ -493,13 +536,14 @@ export function InstalledRow({
   plugin: InstalledPlugin;
   onOpen: (id: string) => void;
 }) {
+  usePluginI18n();
   const control = usePluginControl(runtime, plugin);
   const [uninstalling, setUninstalling] = useState(false);
   const { info } = plugin;
   const error =
     plugin.info.state === "restart-required"
-      ? plugin.error
-      : control.error || plugin.error || plugin.update?.error;
+      ? installedPluginError(plugin)
+      : control.error || installedPluginError(plugin) || plugin.update?.error;
   return (
     <>
       <div
@@ -542,7 +586,9 @@ export function InstalledRow({
           ) : (
             <Switch
               size="sm"
-              aria-label={`${plugin.enabled ? "停用" : "启用"} ${info.name}`}
+              aria-label={t(plugin.enabled ? "center.disablePlugin" : "center.enablePlugin", {
+                name: info.name,
+              })}
               checked={plugin.enabled}
               disabled={!control.canToggle}
               onCheckedChange={() => void control.toggle()}
@@ -581,27 +627,31 @@ export function PluginMenu({
   onDetail?: () => void;
   onUninstall: () => void;
 }) {
+  usePluginI18n();
   const local = runtime.local?.owns(plugin.info.id);
   const update = plugin.update;
   return (
-    <MoreButton label={`${plugin.info.name} 的更多操作`}>
-      {onDetail && <Menu.Item onSelect={onDetail}>查看详情</Menu.Item>}
+    <MoreButton label={t("center.morePlugin", { name: plugin.info.name })}>
+      {onDetail && <Menu.Item onSelect={onDetail}>{t("center.details")}</Menu.Item>}
       {update?.pending && (
-        <Menu.Item onSelect={() => void control.cancelUpdate()}>取消待更新</Menu.Item>
+        <Menu.Item onSelect={() => void control.cancelUpdate()}>
+          {t("center.cancelUpdate")}
+        </Menu.Item>
       )}
       {update?.previousVersion && (
         <Menu.Item
           disabled={update.pending || update.blocked}
           onSelect={() => void control.restorePrevious()}
         >
-          恢复上一版 {update.previousVersion}
+          {t("center.restore")}
+          {update.previousVersion}
         </Menu.Item>
       )}
       {local && (
         <>
           <Menu.Separator />
           <Menu.Item danger onSelect={onUninstall}>
-            卸载…
+            {t("center.uninstall")}
           </Menu.Item>
         </>
       )}
@@ -620,20 +670,24 @@ function Updates({
   catalogError: string;
   onOpen: (id: string) => void;
 }) {
+  usePluginI18n();
   const install = useInstallRelease(useDesktopPlugins());
   const installing = useInstallingReleases();
   // 已下载待重启的条目与正在下载的版本不再重复发起
   const pending = availableUpdates(entries, installed).filter(id => !installing.includes(id));
   if (!entries.length)
     return (
-      <Empty icon={<RefreshCw />} title={catalogError ? "暂时无法检查更新" : "所有插件都是最新的"}>
-        <p>{catalogError || "只检查从插件中心安装的插件；本地 ZIP 安装的插件不在线检查。"}</p>
+      <Empty
+        icon={<RefreshCw />}
+        title={catalogError ? t("center.checkFailed") : t("center.upToDate")}
+      >
+        <p>{catalogError || t("center.updatesHint")}</p>
       </Empty>
     );
   return (
     <Group
-      title="可更新"
-      hint="下载后自动切换到新版，失败会保留旧版；编辑器和白板内容插件重启后生效"
+      title={t("center.available")}
+      hint={t("center.updateHint")}
       action={
         pending.length > 0 && (
           <Button
@@ -642,7 +696,7 @@ function Updates({
             icon={ArrowUpCircle}
             onClick={() => pending.forEach(releaseId => install.mutate(releaseId))}
           >
-            全部更新 {pending.length}
+            {pluginCount("center.updateAllCount", pending.length)}
           </Button>
         )
       }
@@ -684,6 +738,7 @@ function Group({
   action?: ReactNode;
   children: ReactNode;
 }) {
+  usePluginI18n();
   return (
     <section className="mb-6">
       <div className="mb-2 flex items-center gap-2 px-1">
@@ -699,6 +754,7 @@ function Group({
 }
 
 function Empty({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
+  usePluginI18n();
   return (
     <div className="text-tau-meta text-ink-2 flex flex-col items-center gap-1.5 px-5 py-16 text-center [&>span>svg]:size-6">
       <span className="bg-accent-soft text-accent-text mb-1.5 grid size-[52px] place-items-center rounded-[16px]">

@@ -78,10 +78,17 @@ it("版本页合并中心全部版本与本机状态，新版在前", () => {
     [published("1.0.1"), published("1.0.3", false), published("1.0.2")],
     undefined
   );
-  expect(rows.map(row => [row.version, row.notes.join(" · ")])).toEqual([
-    ["1.0.3", "最新 · 需要客户端 ≥ 0.60.0 · 2026-10-13 发布"],
-    ["1.0.2", "2026-10-12 发布"],
-    ["1.0.1", "当前使用 · 2026-10-11 发布"],
+  expect(rows.map(row => [row.version, row.notes])).toEqual([
+    [
+      "1.0.3",
+      [
+        { kind: "latest" },
+        { kind: "requires-app", version: "0.60.0" },
+        { kind: "published", date: "2026-10-13" },
+      ],
+    ],
+    ["1.0.2", [{ kind: "published", date: "2026-10-12" }]],
+    ["1.0.1", [{ kind: "current" }, { kind: "published", date: "2026-10-11" }]],
   ]);
 
   const staged = {
@@ -95,14 +102,14 @@ it("版本页合并中心全部版本与本机状态，新版在前", () => {
       row.action,
     ])
   ).toEqual([
-    ["1.0.3", "已下载，重启后生效", "cancel-update"],
-    ["1.0.2", "当前使用", undefined],
-    ["1.0.0", "上一版备份", "restore-previous"],
+    ["1.0.3", { kind: "staged" }, "cancel-update"],
+    ["1.0.2", { kind: "current" }, undefined],
+    ["1.0.0", { kind: "previous" }, "restore-previous"],
   ]);
 
   // 中心版本未读到时只显示目录里的最新版
   expect(versionRows(undefined, undefined, entry(version("2.0.0"))).map(row => row.notes)).toEqual([
-    ["最新", "2026-10-17 发布"],
+    [{ kind: "latest" }, { kind: "published", date: "2026-10-17" }],
   ]);
 });
 

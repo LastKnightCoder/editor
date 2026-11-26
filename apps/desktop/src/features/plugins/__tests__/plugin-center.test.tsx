@@ -1,3 +1,5 @@
+import { desktopLocaleSource } from "@/app/i18n/runtime";
+import { pluginTranslator } from "../i18n";
 import { act, StrictMode, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -552,4 +554,50 @@ it("更新页「全部更新」并行下载全部可更新插件，单项按钮�
   });
   await settle();
   expect(mock.stage).toHaveBeenCalledTimes(2);
+});
+
+it("换语保留搜索与安装确认，安装目标和风险选择不变且只安装一次", async () => {
+  const original = desktopLocaleSource.getSnapshot();
+  const search = page().querySelector<HTMLInputElement>(
+    `input[placeholder="${pluginTranslator.t("center.search")}"]`
+  );
+  if (!search) throw new Error("Plugin search did not mount");
+  try {
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(
+        search,
+        "中心插件"
+      );
+      search.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await settle();
+    await click(pluginTranslator.t("common.install"));
+    const confirmation = dialog(),
+      skip = confirmation.querySelector<HTMLInputElement>('input[type="checkbox"]');
+    if (!skip) throw new Error("Installation confirmation did not mount");
+    await act(async () => skip.click());
+    const releases = mock.release.mock.calls.length,
+      catalogs = mock.catalog.mock.calls.length;
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(
+        page().querySelector(`input[placeholder="${pluginTranslator.t("center.search")}"]`)
+      ).toBe(search);
+      expect(search.value).toBe("中心插件");
+      expect(dialog()).toBe(confirmation);
+      expect(confirmation.querySelector('input[type="checkbox"]')).toBe(skip);
+      expect(skip.checked).toBe(true);
+      expect(confirmation.textContent).toContain("中心插件");
+      expect(mock.stage).not.toHaveBeenCalled();
+      expect(mock.release).toHaveBeenCalledTimes(releases);
+      expect(mock.catalog).toHaveBeenCalledTimes(catalogs);
+    }
+    await click(pluginTranslator.t("common.install"), confirmation);
+    expect(mock.stage).toHaveBeenCalledExactlyOnceWith("r1");
+    expect(runtime.host.getState(ID)).toBe("active");
+    expect(runtime.host.listPlugins().find(plugin => plugin.id === ID)?.name).toBe("中心插件");
+    expect(mock.relaunch).not.toHaveBeenCalled();
+  } finally {
+    await act(async () => desktopLocaleSource.setLocale(original));
+  }
 });

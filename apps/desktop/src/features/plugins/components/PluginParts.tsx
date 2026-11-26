@@ -1,3 +1,5 @@
+import { SOURCE_LABELS, SYSTEM_ACCESS_LABELS } from "../display";
+import { pluginTranslator, pluginCount, usePluginI18n } from "@/features/plugins/i18n";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -15,18 +17,18 @@ import { useDesktopPlugins } from "@/app/plugins/context";
 import { relaunchForPlugins } from "@/commands/plugin-local";
 import type { PluginBackendManifest } from "@tau/plugins/package";
 import {
-  SOURCE_LABELS,
-  SYSTEM_ACCESS_LABELS,
   readSkipInstallNotice,
   saveSkipInstallNotice,
   type InstallState,
   type PluginSourceKind,
 } from "../model";
 import { pluginReleaseQuery, useInstallRelease, useReleaseInstallState } from "../queries";
+const t = pluginTranslator.t;
 
 const CHIP = "text-tau-sm inline-flex h-5 items-center gap-1 whitespace-nowrap rounded-full px-2";
 
 export function SourceChip({ source }: { source: PluginSourceKind }) {
+  usePluginI18n();
   const Icon = { center: Store, zip: Package }[source];
   return (
     <span className={cn(CHIP, "bg-hover text-ink-2")}>
@@ -37,16 +39,14 @@ export function SourceChip({ source }: { source: PluginSourceKind }) {
 }
 
 export function StagedChip({ version }: { version?: string }) {
+  usePluginI18n();
   return (
     <span className={cn(CHIP, "bg-accent-soft text-accent-text")}>
       <RotateCw className="size-3" strokeWidth={1.75} />
-      {version ? `${version} 重启后生效` : "重启后生效"}
+      {version ? t("install.stagedVersion", { version }) : t("install.restart")}
     </span>
   );
 }
-
-const INSTALL_NOTICE =
-  "插件在完整应用环境中运行，可以读取和修改你的笔记数据。插件中心审核功能与来源，但不保证没有缺陷，请只安装你信任的插件。安装后即启用，可随时在「已安装」中停用。普通插件立即生效，编辑器和白板内容插件需重启应用后生效。";
 
 type InstallConfirm = { kind: "plain" } | { kind: "backend"; backend: PluginBackendManifest };
 
@@ -63,6 +63,7 @@ export function InstallButton({
   name: string;
   onCancel?: () => void;
 }) {
+  usePluginI18n();
   const runtime = useDesktopPlugins();
   const install = useInstallRelease(runtime);
   const progress = useReleaseInstallState("releaseId" in state ? state.releaseId : undefined);
@@ -77,7 +78,7 @@ export function InstallButton({
         <StagedChip version={state.version} />
         {onCancel && (
           <Button variant="ghost" size="sm" onClick={onCancel}>
-            取消
+            {t("common.cancel")}
           </Button>
         )}
       </span>
@@ -86,16 +87,16 @@ export function InstallButton({
     return (
       <span className={cn(CHIP, "bg-ok-soft text-ok")}>
         <Check className="size-3" strokeWidth={2} />
-        已安装
+        {t("common.installed")}
       </span>
     );
   if (state.kind === "local")
-    return <span className={cn(CHIP, "bg-hover text-ink-2")}>已本地安装</span>;
+    return <span className={cn(CHIP, "bg-hover text-ink-2")}>{t("install.local")}</span>;
   if (state.kind === "incompatible")
     return (
-      <span className={cn(CHIP, "bg-hover text-ink-2")} title="请先更新客户端">
+      <span className={cn(CHIP, "bg-hover text-ink-2")} title={t("install.upgradeApp")}>
         <Lock className="size-3" strokeWidth={1.75} />
-        需要客户端 {state.minAppVersion}
+        {t("version.requiresApp", { version: state.minAppVersion })}
       </span>
     );
   const update = state.kind === "update";
@@ -117,19 +118,23 @@ export function InstallButton({
         size="sm"
         icon={update ? ArrowUpCircle : Download}
         loading={progress.pending || checking}
-        loadingText={checking ? "读取中" : "下载校验中"}
-        aria-label={update ? `更新 ${name} 到 ${state.version}` : `安装 ${name}`}
+        loadingText={checking ? t("install.reading") : t("install.downloading")}
+        aria-label={
+          update
+            ? t("install.updatePlugin", { name, version: state.version })
+            : t("install.installPlugin", { name })
+        }
         onClick={event => {
           event.stopPropagation();
           if (update) start();
           else void request();
         }}
       >
-        {update ? `更新到 ${state.version}` : "安装"}
+        {update ? t("install.updateVersion", { version: state.version }) : t("common.install")}
       </Button>
       {progress.error && (
         <span role="alert" className="text-tau-sm text-danger max-w-[220px] text-right">
-          {progress.error instanceof Error ? progress.error.message : "安装失败"}
+          {progress.error instanceof Error ? progress.error.message : t("common.installFailed")}
         </span>
       )}
       <ConfirmDialog
@@ -139,38 +144,32 @@ export function InstallButton({
           if (!open) setSkipNotice(false);
         }}
         danger={confirm.kind === "backend"}
-        title={`安装「${name}」${state.version}？`}
+        title={t("install.confirm", { name, version: state.version })}
         description={
           confirm.kind === "backend" ? (
             <div className="flex flex-col gap-3">
-              <p>
-                此插件包含本机后台代码，可使用当前用户的系统权限。独立进程不限制它对文件和网络的访问，插件中心已审核此版本的系统能力，但不保证没有缺陷。
-              </p>
+              <p>{t("install.backendNotice")}</p>
               <p className="text-ink-1">{confirm.backend.reason}</p>
               <p>
-                系统用途：
+                {t("install.systemPurpose")}
                 {confirm.backend.systemAccess
                   .map(value => SYSTEM_ACCESS_LABELS[value])
-                  .join("、") || "系统信息与计算"}
+                  .join("、") || t("install.systemDefault")}
               </p>
-              <p>{INSTALL_NOTICE}</p>
+              <p>{t("install.notice")}</p>
             </div>
           ) : (
             <div className="flex flex-col gap-3">
-              <p>{INSTALL_NOTICE}</p>
+              <p>{t("install.notice")}</p>
               <Checkbox
                 checked={skipNotice}
                 onChange={event => setSkipNotice(event.target.checked)}
-                label={
-                  <span className="whitespace-normal">
-                    以后安装不再提示（含后台的插件仍会提示，可在插件页「⋯」中恢复）
-                  </span>
-                }
+                label={<span className="whitespace-normal">{t("install.skip")}</span>}
               />
             </div>
           )
         }
-        confirmText="安装"
+        confirmText={t("common.install")}
         onConfirm={() => {
           if (confirm.kind === "plain" && skipNotice) saveSkipInstallNotice(true);
           start();
@@ -181,26 +180,29 @@ export function InstallButton({
 }
 
 export function RestartBar({ count }: { count: number }) {
-  const [error, setError] = useState("");
+  usePluginI18n();
+  const [failure, setFailure] = useState<{ cause: unknown } | null>(null);
+  const error = failure
+    ? failure.cause instanceof Error
+      ? failure.cause.message
+      : t("install.restartFailed")
+    : "";
   if (count === 0) return null;
   return (
     <div className="bg-accent-soft text-accent-text text-tau-meta flex items-center gap-3 rounded-[var(--tau-radius-md)] px-3.5 py-2.5">
       <RotateCw className="size-4 flex-none" strokeWidth={1.75} />
       <span className="min-w-0 flex-1">
-        <b className="font-semibold">{count} 项变更</b>
-        涉及内容插件的变更将在重启后生效。
+        <b className="font-semibold">{pluginCount("install.changes", count)}</b>
+        {" · "}
+        {t("install.changesHint")}
         {error && <span className="text-danger ml-2">{error}</span>}
       </span>
       <Button
         variant="primary"
         size="sm"
-        onClick={() =>
-          void relaunchForPlugins().catch(cause =>
-            setError(cause instanceof Error ? cause.message : "重启失败")
-          )
-        }
+        onClick={() => void relaunchForPlugins().catch(cause => setFailure({ cause }))}
       >
-        立即重启
+        {t("install.restartNow")}
       </Button>
     </div>
   );
@@ -217,6 +219,7 @@ export function UninstallDialog({
   onOpenChange: (open: boolean) => void;
   onConfirm: (purgeData: boolean) => Promise<unknown>;
 }) {
+  usePluginI18n();
   const [purge, setPurge] = useState(false);
   return (
     <ConfirmDialog
@@ -226,25 +229,26 @@ export function UninstallDialog({
         if (!next) setPurge(false);
       }}
       danger
-      title={`卸载「${name}」？`}
+      title={t("install.uninstallTitle", { name })}
       description={
         <div className="flex flex-col gap-3">
-          <p>将停用插件并移除代码与旧版本备份，它贡献的入口随之消失。已写入笔记的内容不受影响。</p>
+          <p>{t("install.uninstallHint")}</p>
           <Checkbox
             checked={purge}
             onChange={event => setPurge(event.target.checked)}
-            label="同时删除插件的私有数据（设置与插件自己保存的记录）"
+            label={t("install.purge")}
           />
-          {!purge && <p className="text-ink-3">不删除时，重新安装可恢复这些数据。</p>}
+          {!purge && <p className="text-ink-3">{t("install.keepData")}</p>}
         </div>
       }
-      confirmText="卸载"
+      confirmText={t("common.uninstall")}
       onConfirm={() => onConfirm(purge)}
     />
   );
 }
 
 export function MoreButton({ label, children }: { label: string; children: React.ReactNode }) {
+  usePluginI18n();
   return (
     <Menu
       align="end"

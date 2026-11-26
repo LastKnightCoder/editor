@@ -1,3 +1,5 @@
+import { SYSTEM_ACCESS_LABELS } from "../display";
+import { pluginTranslator, pluginNumber, usePluginI18n } from "@/features/plugins/i18n";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@tau/ui";
 import {
@@ -7,18 +9,31 @@ import {
 } from "@/commands/plugin-backend";
 import useSettingStore from "@/stores/useSettingStore";
 import type { BackendState } from "@tau/plugins/backend";
-import { SYSTEM_ACCESS_LABELS } from "../model";
+const t = pluginTranslator.t;
 
 const labels: Record<BackendState, string> = {
-  stopped: "未运行",
-  starting: "正在启动",
-  running: "运行中",
-  draining: "正在停止",
-  failed: "运行失败",
-  blocked: "等待授权",
+  get stopped() {
+    return t("backend.stopped");
+  },
+  get starting() {
+    return t("backend.starting");
+  },
+  get running() {
+    return t("backend.running");
+  },
+  get draining() {
+    return t("backend.stopping");
+  },
+  get failed() {
+    return t("backend.failed");
+  },
+  get blocked() {
+    return t("backend.blocked");
+  },
 };
 
 export function PluginBackendPanel({ pluginId }: { pluginId: string }) {
+  usePluginI18n();
   const workspace = useSettingStore(state => state.setting.database.active);
   const query = useQuery({
     queryKey: ["plugins", "backend", workspace, pluginId],
@@ -38,63 +53,66 @@ export function PluginBackendPanel({ pluginId }: { pluginId: string }) {
   if (!data)
     return (
       <p className="text-tau-body text-ink-2">
-        {query.error instanceof Error ? query.error.message : "正在读取后台信息…"}
+        {query.error instanceof Error ? query.error.message : t("backend.reading")}
       </p>
     );
   const error = action.error ?? query.error;
   return (
     <div className="text-tau-body space-y-4">
       <p className="text-ink-1">{data.backend.reason}</p>
-      <p className="text-ink-2">
-        此插件包含本机后台代码，可使用当前用户的系统权限。独立进程不限制它对文件和网络的访问，请只允许你信任的插件。
-      </p>
+      <p className="text-ink-2">{t("backend.notice")}</p>
       <dl className="text-ink-2 grid grid-cols-[auto_1fr] gap-x-5 gap-y-2">
-        <dt>审核来源</dt>
-        <dd>
-          {data.systemReviewed
-            ? "插件中心已完成此版本的系统能力审核"
-            : "本地安装，未经插件中心系统能力审核"}
-        </dd>
-        <dt>版本</dt>
+        <dt>{t("backend.reviewSource")}</dt>
+        <dd>{data.systemReviewed ? t("backend.reviewed") : t("backend.unreviewed")}</dd>
+        <dt>{t("detail.versions")}</dt>
         <dd>{data.version}</dd>
-        <dt>运行状态</dt>
+        <dt>{t("backend.state")}</dt>
         <dd>
           {labels[data.status.state]}
           {data.status.pid ? ` · ${data.status.pid}` : ""}
         </dd>
-        <dt>运行范围</dt>
-        <dd>{data.backend.scope === "application" ? "整个应用" : "当前工作区"}</dd>
-        <dt>启动时机</dt>
+        <dt>{t("backend.scope")}</dt>
+        <dd>
+          {data.backend.scope === "application" ? t("backend.application") : t("backend.workspace")}
+        </dd>
+        <dt>{t("backend.activation")}</dt>
         <dd>
           {
             {
-              "on-demand": "使用时启动",
-              "app-ready": "应用启动时",
-              "workspace-ready": "工作区就绪时",
+              "on-demand": t("backend.onDemand"),
+              "app-ready": t("backend.appReady"),
+              "workspace-ready": t("backend.workspaceReady"),
             }[data.backend.activation]
           }
         </dd>
-        <dt>运行时间</dt>
-        <dd>{data.backend.lifetime === "persistent" ? "保持运行至所属范围结束" : "空闲时回收"}</dd>
-        <dt>系统用途</dt>
+        <dt>{t("backend.lifetime")}</dt>
+        <dd>
+          {data.backend.lifetime === "persistent" ? t("backend.persistent") : t("backend.idle")}
+        </dd>
+        <dt>{t("backend.purpose")}</dt>
         <dd>
           {data.backend.systemAccess.map(value => SYSTEM_ACCESS_LABELS[value]).join("、") ||
-            "系统信息与计算"}
+            t("install.systemDefault")}
         </dd>
       </dl>
       {data.status.diagnostics && (
         <p className="text-tau-meta text-ink-2">
-          启动耗时 {data.status.diagnostics.startupMs ?? "—"} ms · 本次应用会话失败{" "}
-          {data.status.diagnostics.failures} 次 · 调用超时 {data.status.diagnostics.timeouts} 次
+          {t("backend.diagnostics", {
+            startup: data.status.diagnostics.startupMs ?? "—",
+            failures: pluginNumber(data.status.diagnostics.failures),
+            timeouts: pluginNumber(data.status.diagnostics.timeouts),
+          })}
         </p>
       )}
       {data.status.resources && (
         <p className="text-tau-meta text-ink-2">
-          CPU {data.status.resources.cpuPercent.toFixed(1)}% · 内存{" "}
-          {(data.status.resources.memoryKiB / 1024).toFixed(1)} MiB
+          {t("backend.resources", {
+            cpu: data.status.resources.cpuPercent.toFixed(1),
+            memory: (data.status.resources.memoryKiB / 1024).toFixed(1),
+          })}
         </p>
       )}
-      {!data.enabled && <p className="text-ink-2">插件已停用，授权后仍需启用插件才能运行。</p>}
+      {!data.enabled && <p className="text-ink-2">{t("backend.disabled")}</p>}
       {data.status.error && (
         <p role="alert" className="text-warn">
           {data.status.error}
@@ -102,7 +120,7 @@ export function PluginBackendPanel({ pluginId }: { pluginId: string }) {
       )}
       {error && (
         <p role="alert" className="text-warn">
-          {error instanceof Error ? error.message : "操作失败"}
+          {error instanceof Error ? error.message : t("common.actionFailed")}
         </p>
       )}
       <div className="flex flex-wrap gap-2">
@@ -112,14 +130,14 @@ export function PluginBackendPanel({ pluginId }: { pluginId: string }) {
               disabled={action.isPending || !data.enabled || data.executionAvailable === false}
               onClick={() => action.mutate("restart")}
             >
-              启动或重启后台
+              {t("backend.restart")}
             </Button>
             <Button
               variant="danger-soft"
               disabled={action.isPending}
               onClick={() => action.mutate(null)}
             >
-              撤销并停止
+              {t("backend.revoke")}
             </Button>
           </>
         ) : (
@@ -128,13 +146,13 @@ export function PluginBackendPanel({ pluginId }: { pluginId: string }) {
               disabled={action.isPending || data.executionAvailable === false}
               onClick={() => action.mutate("once")}
             >
-              仅本次允许运行
+              {t("backend.once")}
             </Button>
             <Button
               disabled={action.isPending || data.executionAvailable === false}
               onClick={() => action.mutate("always")}
             >
-              允许此版本自动运行
+              {t("backend.always")}
             </Button>
           </>
         )}

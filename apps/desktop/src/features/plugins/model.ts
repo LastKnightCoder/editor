@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react";
 import type { PluginInfo } from "@tau/plugins/host";
-import { comparePluginVersions, type PluginContributionKind } from "@tau/plugins/host";
-import { PLUGIN_CATEGORIES, type PluginSystemAccess } from "@tau/plugins/package";
+import { comparePluginVersions } from "@tau/plugins/host";
+import { PLUGIN_CATEGORIES } from "@tau/plugins/package";
 import type { DesktopPluginRuntime } from "@/app/plugins/runtime";
 import type { LocalPluginUpdate } from "@/types/plugin-local";
 import type { PluginCatalogEntry, PluginVersionRecord } from "@/types/plugin-center";
@@ -13,40 +13,6 @@ export function catalogCategories(entries: readonly PluginCatalogEntry[]) {
     count: entries.filter(entry => entry.categories?.includes(item.id)).length,
   })).filter(item => item.count > 0);
 }
-
-/** 详情页「此插件提供」的显示顺序与文案，按运行时实际注册统计。 */
-export const CONTRIBUTION_LABELS: Record<PluginContributionKind, string> = {
-  page: "页面",
-  sidebar: "侧边栏入口",
-  navigation: "功能入口",
-  command: "命令",
-  settings: "设置分组",
-  sync: "同步方式",
-  upload: "上传方式",
-  asr: "语音识别",
-  tts: "语音服务",
-  images: "图片服务",
-  embeddings: "嵌入服务",
-  video: "视频来源",
-  publish: "博客发布",
-  mcp: "MCP 服务",
-  chat: "聊天工具展示",
-  skill: "Skill",
-  ai: "AI 功能",
-  editor: "编辑器扩展",
-  whiteboard: "白板扩展",
-  excerpts: "摘录来源",
-  home: "首页面板",
-  action: "对象动作",
-  "entity-panel": "详情区块",
-  "notebook-output": "Notebook 输出",
-};
-
-export const SYSTEM_ACCESS_LABELS: Record<PluginSystemAccess, string> = {
-  filesystem: "文件",
-  network: "网络",
-  process: "外部程序",
-};
 
 const SKIP_INSTALL_NOTICE_KEY = "plugins:skip-install-notice";
 const installNoticeListeners = new Set<() => void>();
@@ -87,26 +53,8 @@ export const pendingCount = (runtime: DesktopPluginRuntime | null) =>
 
 export type PluginSourceKind = "center" | "zip";
 
-export const SOURCE_LABELS: Record<PluginSourceKind, string> = {
-  center: "插件中心",
-  zip: "本地 ZIP",
-};
-
-export const STATE_LABELS: Record<PluginInfo["state"], string> = {
-  disabled: "已停用",
-  activating: "正在启用",
-  active: "已启用",
-  deactivating: "正在停用",
-  failed: "启用失败",
-  "restart-required": "需要重启",
-};
-
 /** 不含代码的安装包：安装即生效，不参与启停。 */
 export type StaticPackageKind = "template" | "skills";
-export const STATIC_PACKAGE_LABELS: Record<StaticPackageKind, { kind: string; state: string }> = {
-  template: { kind: "博客模板", state: "模板已安装" },
-  skills: { kind: "Skill 包", state: "Skill 已可用" },
-};
 
 export interface InstalledPlugin {
   packageKind?: StaticPackageKind;
@@ -118,6 +66,7 @@ export interface InstalledPlugin {
   enabled: boolean;
   /** 宿主或管理器报告的错误；需要用户处理的插件置顶展示。 */
   error?: string;
+  errorCode?: "cleanup-unconfirmed";
 }
 
 function pluginSource(runtime: DesktopPluginRuntime, id: string): PluginSourceKind {
@@ -159,6 +108,7 @@ export function installedPlugins(runtime: DesktopPluginRuntime): InstalledPlugin
           ? local.enabled(info.id)
           : Boolean(info.state === "active" || runtime.local?.enabled(info.id)),
       error,
+      errorCode: info.state === "restart-required" ? "cleanup-unconfirmed" : undefined,
     };
   });
 }
@@ -205,9 +155,14 @@ export function availableUpdates(
   });
 }
 
+export type VersionNote =
+  | { kind: "staged" | "current" | "previous" | "latest" }
+  | { kind: "requires-app"; version: string }
+  | { kind: "published"; date: string };
+
 export interface VersionRowModel {
   version: string;
-  notes: string[];
+  notes: VersionNote[];
   action?: "cancel-update" | "restore-previous";
 }
 
@@ -228,14 +183,14 @@ export function versionRows(
   };
   const update = installed?.update;
   if (update?.pendingVersion)
-    Object.assign(row(update.pendingVersion), { action: "cancel-update" }).notes.push(
-      "已下载，重启后生效"
-    );
-  if (installed) row(installed.info.version).notes.push("当前使用");
+    Object.assign(row(update.pendingVersion), { action: "cancel-update" }).notes.push({
+      kind: "staged",
+    });
+  if (installed) row(installed.info.version).notes.push({ kind: "current" });
   if (update?.previousVersion)
-    Object.assign(row(update.previousVersion), { action: "restore-previous" }).notes.push(
-      "上一版备份"
-    );
+    Object.assign(row(update.previousVersion), { action: "restore-previous" }).notes.push({
+      kind: "previous",
+    });
 
   const published: readonly PluginVersionRecord[] =
     versions ??
@@ -253,9 +208,10 @@ export function versionRows(
   );
   for (const item of published) {
     const value = row(item.version);
-    if (item.version === latest) value.notes.push("最新");
-    if (!item.compatible) value.notes.push(`需要客户端 ≥ ${item.minAppVersion}`);
-    if (item.publishedAt) value.notes.push(`${item.publishedAt.slice(0, 10)} 发布`);
+    if (item.version === latest) value.notes.push({ kind: "latest" });
+    if (!item.compatible) value.notes.push({ kind: "requires-app", version: item.minAppVersion });
+    if (item.publishedAt)
+      value.notes.push({ kind: "published", date: item.publishedAt.slice(0, 10) });
   }
   return [...rows.values()].sort((a, b) => comparePluginVersions(b.version, a.version));
 }

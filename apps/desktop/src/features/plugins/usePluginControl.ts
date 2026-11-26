@@ -1,3 +1,4 @@
+import { usePluginI18n, type PluginMessageKey } from "./i18n";
 import { useState } from "react";
 import type { DesktopPluginRuntime } from "@/app/plugins/runtime";
 import { cancelLocalPluginUpdate, restoreLocalPlugin } from "@/commands/plugin-local";
@@ -5,17 +6,18 @@ import type { InstalledPlugin } from "./model";
 
 /** 单个插件的管理操作：按来源交给对应管理器，忙态与错误按插件就地展示。 */
 export function usePluginControl(runtime: DesktopPluginRuntime, plugin: InstalledPlugin) {
+  const { t } = usePluginI18n();
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [failure, setFailure] = useState<{ cause: unknown; key: PluginMessageKey } | null>(null);
   const id = plugin.info.id;
   const state = plugin.info.state;
-  const run = async (action: () => Promise<unknown>, fallback: string) => {
+  const run = async (action: () => Promise<unknown>, fallback: PluginMessageKey) => {
     setBusy(true);
-    setError("");
+    setFailure(null);
     try {
       await action();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : fallback);
+      setFailure({ cause, key: fallback });
     } finally {
       setBusy(false);
     }
@@ -28,25 +30,25 @@ export function usePluginControl(runtime: DesktopPluginRuntime, plugin: Installe
   };
   return {
     busy: managing,
-    error,
+    error: failure ? (failure.cause instanceof Error ? failure.cause.message : t(failure.key)) : "",
     canToggle:
       !plugin.packageKind &&
       !managing &&
       !transitioning &&
       !(state === "restart-required" && !plugin.enabled),
     toggle: () =>
-      run(() => (plugin.enabled ? manager.disable(id) : manager.enable(id)), "操作失败"),
+      run(() => (plugin.enabled ? manager.disable(id) : manager.enable(id)), "common.actionFailed"),
     uninstall: (purgeData: boolean) =>
-      run(async () => runtime.local?.uninstall(id, purgeData), "卸载失败"),
+      run(async () => runtime.local?.uninstall(id, purgeData), "common.uninstallFailed"),
     restorePrevious: () =>
       run(async () => {
         await restoreLocalPlugin(id);
         await refreshLocal();
-      }, "恢复失败"),
+      }, "common.restoreFailed"),
     cancelUpdate: () =>
       run(async () => {
         await cancelLocalPluginUpdate(id);
         await refreshLocal();
-      }, "取消失败"),
+      }, "common.cancelFailed"),
   };
 }

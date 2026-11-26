@@ -1,3 +1,4 @@
+import { usePluginI18n, pluginCount, pluginNumber } from "../i18n";
 /**
  * 侧栏「插件」入口的角标：等待授权数与可更新数并列，离开插件页也能发现；
  * 收起为图标列时合并为一个角点。
@@ -20,6 +21,7 @@ function useUpdateCount() {
 }
 
 export function PluginNavBadge({ collapsed }: { collapsed: boolean }) {
+  usePluginI18n();
   const requests = usePluginPermissionUi(state => Object.keys(state.pending).length);
   const updates = useUpdateCount();
   if (!requests && !updates) return null;
@@ -29,19 +31,19 @@ export function PluginNavBadge({ collapsed }: { collapsed: boolean }) {
     <span className="ml-auto flex shrink-0 items-center gap-1">
       {requests > 0 && (
         <span
-          aria-label={`${requests} 个插件等待授权`}
+          aria-label={pluginCount("nav.permissions", requests)}
           className={`bg-accent-soft text-accent ${PILL}`}
         >
-          {requests}
+          {pluginNumber(requests)}
         </span>
       )}
       {updates > 0 && (
         <span
-          aria-label={`${updates} 个插件可更新`}
-          title={`${updates} 个插件可更新`}
+          aria-label={pluginCount("nav.updates", updates)}
+          title={pluginCount("nav.updates", updates)}
           className={`bg-ok-soft text-ok ${PILL}`}
         >
-          ↑{updates}
+          ↑{pluginNumber(updates)}
         </span>
       )}
     </span>

@@ -1,5 +1,8 @@
+import { categoryLabel } from "../display";
+import { pluginTranslator, usePluginI18n } from "@/features/plugins/i18n";
 import { Tag, type TagColor } from "@tau/ui";
-import { PLUGIN_CATEGORIES, type PluginCategory } from "@tau/plugins/package";
+import { type PluginCategory } from "@tau/plugins/package";
+const t = pluginTranslator.t;
 
 /** 相近分类共用色相：存储类蓝、写作产出类绿、语音与视频同色；锈红与赭黄不在 Tag 色板内，用 tag 色覆盖底与字。 */
 const TONES: Record<PluginCategory, { color: TagColor; className?: string }> = {
@@ -15,13 +18,13 @@ const TONES: Record<PluginCategory, { color: TagColor; className?: string }> = {
   video: { color: "purple", className: "bg-tag-5-soft text-tag-5" },
   page: { color: "purple", className: "bg-tag-4-soft text-tag-4" },
 };
-const LABELS = new Map<string, string>(PLUGIN_CATEGORIES.map(item => [item.id, item.label]));
 
 export function CategoryTag({ category }: { category: PluginCategory }) {
+  usePluginI18n();
   const tone = TONES[category] ?? { color: "gray" as const };
   return (
     <Tag color={tone.color} showDot={false} className={tone.className}>
-      {LABELS.get(category) ?? category}
+      {categoryLabel(category)}
     </Tag>
   );
 }
@@ -32,9 +35,10 @@ export function CategoryTags({
 }: {
   categories: readonly PluginCategory[] | undefined;
 }) {
+  usePluginI18n();
   if (!categories?.length) return null;
   return (
-    <ul aria-label="分类" className="flex flex-wrap gap-1.5">
+    <ul aria-label={t("category.label")} className="flex flex-wrap gap-1.5">
       {categories.map(category => (
         <li key={category} className="flex">
           <CategoryTag category={category} />
