@@ -10,6 +10,7 @@
  * - 更新：自动检查更新开关（misc.update.autoCheck）；本版更新内容（安装包内置公告）
  */
 
+import { aboutTranslator, useAboutI18n } from "../about/i18n";
 import { useEffect, useState } from "react";
 import { Download, ExternalLink, RefreshCw, RotateCw } from "lucide-react";
 import { SettingRow, Button, Panel, Switch } from "@tau/ui";
@@ -24,6 +25,7 @@ import { StatusChip } from "../components/StatusChip";
 import { BackgroundGroup } from "./BackgroundGroup";
 
 export function AboutSection() {
+  useAboutI18n();
   const [version, setVersion] = useState<string | null>(null);
   const [versionError, setVersionError] = useState(false);
 
@@ -62,7 +64,11 @@ export function AboutSection() {
             <div className="min-w-0">
               <div className="text-tau-body-lg text-ink-1 font-semibold">Tau</div>
               <div className="font-tau-mono text-tau-meta text-ink-2">
-                {versionError ? "获取版本失败" : version ? `v${version}` : "加载中…"}
+                {versionError
+                  ? aboutTranslator.t("version.failed")
+                  : version
+                    ? `v${version}`
+                    : aboutTranslator.t("loading")}
               </div>
             </div>
             <div className="ml-auto flex flex-none items-center gap-2">
@@ -74,7 +80,7 @@ export function AboutSection() {
                   icon={ExternalLink}
                   onClick={() => fallbackUrl && void openExternal(fallbackUrl)}
                 >
-                  手动下载
+                  {aboutTranslator.t("action.manualDownload")}
                 </Button>
               )}
               {status === "available" ? (
@@ -84,7 +90,7 @@ export function AboutSection() {
                   icon={Download}
                   onClick={() => void useUpdateStore.getState().download()}
                 >
-                  立即更新
+                  {aboutTranslator.t("action.update")}
                 </Button>
               ) : status === "ready" ? (
                 <Button
@@ -93,7 +99,7 @@ export function AboutSection() {
                   icon={RotateCw}
                   onClick={() => void useUpdateStore.getState().install()}
                 >
-                  重启并安装
+                  {aboutTranslator.t("action.restart")}
                 </Button>
               ) : status === "downloading" ? null : (
                 <Button
@@ -101,10 +107,10 @@ export function AboutSection() {
                   size="sm"
                   icon={RefreshCw}
                   loading={status === "checking"}
-                  loadingText="检查中…"
+                  loadingText={aboutTranslator.t("action.checking")}
                   onClick={() => void useUpdateStore.getState().check()}
                 >
-                  检查更新
+                  {aboutTranslator.t("action.check")}
                 </Button>
               )}
             </div>
@@ -118,50 +124,71 @@ export function AboutSection() {
             </div>
           )}
           {status === "error" && (
-            <div className="text-tau-meta text-ink-2 mt-2.5">{errorMessage ?? "检查更新失败"}</div>
+            <div className="text-tau-meta text-ink-2 mt-2.5">
+              {errorMessage ?? aboutTranslator.t("error.check")}
+            </div>
           )}
         </Panel>
       </SettingsGroup>
 
       <BackgroundGroup />
-      <SettingsGroup title="更新">
-        <SettingRow title="自动检查更新" description="启动时在后台检查并自动下载新版本">
-          <Switch aria-label="自动检查更新" checked={autoCheck} onCheckedChange={setAutoCheck} />
+      <SettingsGroup title={aboutTranslator.t("update.title")}>
+        <SettingRow
+          title={aboutTranslator.t("update.auto")}
+          description={aboutTranslator.t("update.autoHint")}
+        >
+          <Switch
+            aria-label={aboutTranslator.t("update.auto")}
+            checked={autoCheck}
+            onCheckedChange={setAutoCheck}
+          />
         </SettingRow>
         {releaseNotes.length > 0 && (
-          <SettingRow title="新版本更新内容" description={`v${releaseNotes[0].version} 带来的变化`}>
+          <SettingRow
+            title={aboutTranslator.t("notes.new")}
+            description={aboutTranslator.t("notes.changes", { version: releaseNotes[0].version })}
+          >
             <Button
               variant="secondary"
               size="sm"
               onClick={() => useReleaseNotesStore.getState().show(releaseNotes)}
             >
-              查看
+              {aboutTranslator.t("action.view")}
             </Button>
           </SettingRow>
         )}
         {currentNotes.length > 0 && (
-          <SettingRow title="本版更新内容" description={`v${version} 带来的变化`}>
+          <SettingRow
+            title={aboutTranslator.t("notes.current")}
+            description={aboutTranslator.t("notes.changes", { version: version ?? "" })}
+          >
             <Button
               variant="secondary"
               size="sm"
               onClick={() => useReleaseNotesStore.getState().show(currentNotes)}
             >
-              查看
+              {aboutTranslator.t("action.view")}
             </Button>
           </SettingRow>
         )}
       </SettingsGroup>
 
-      <SettingsGroup title="更多">
+      <SettingsGroup title={aboutTranslator.t("more")}>
         {APP_LINKS.map(link => (
-          <SettingRow key={link.url} title={link.label} description={link.detail}>
+          <SettingRow
+            key={link.url}
+            title={aboutTranslator.t(link.label)}
+            description={
+              "detailMessage" in link ? aboutTranslator.t(link.detailMessage) : link.detail
+            }
+          >
             <Button
               variant="ghost"
               size="sm"
               icon={ExternalLink}
               onClick={() => openExternal(link.url)}
             >
-              打开
+              {aboutTranslator.t("action.open")}
             </Button>
           </SettingRow>
         ))}
@@ -172,9 +199,9 @@ export function AboutSection() {
 
 /** 关于页底部外链，与移动端 AboutSection 的 LINKS 保持一致 */
 const APP_LINKS = [
-  { label: "官网", detail: "taunote.app", url: "https://taunote.app" },
-  { label: "使用文档", detail: "功能说明与常见问题", url: "https://taunote.app/docs/" },
-  { label: "源代码", detail: "GitHub", url: "https://github.com/LastKnightCoder/editor" },
+  { label: "links.site", detail: "taunote.app", url: "https://taunote.app" },
+  { label: "links.docs", detailMessage: "links.docsHint", url: "https://taunote.app/docs/" },
+  { label: "links.source", detail: "GitHub", url: "https://github.com/LastKnightCoder/editor" },
 ] as const;
 
 function UpdateChip({
@@ -186,20 +213,33 @@ function UpdateChip({
   newVersion: string | null;
   percent: number;
 }) {
+  useAboutI18n();
   switch (status) {
     case "checking":
-      return <StatusChip tone="accent">检查中</StatusChip>;
+      return <StatusChip tone="accent">{aboutTranslator.t("status.checking")}</StatusChip>;
     case "upToDate":
-      return <StatusChip tone="ok">已是最新</StatusChip>;
+      return <StatusChip tone="ok">{aboutTranslator.t("status.latest")}</StatusChip>;
     case "available":
-      return <StatusChip tone="accent">v{newVersion} 可更新</StatusChip>;
+      return (
+        <StatusChip tone="accent">
+          {aboutTranslator.t("status.available", { version: newVersion ?? "" })}
+        </StatusChip>
+      );
     case "downloading":
-      return <StatusChip tone="accent">正在下载 {percent}%</StatusChip>;
+      return (
+        <StatusChip tone="accent">
+          {aboutTranslator.t("status.downloading", { percent })}
+        </StatusChip>
+      );
     case "ready":
-      return <StatusChip tone="ok">v{newVersion} 已就绪，重启后安装</StatusChip>;
+      return (
+        <StatusChip tone="ok">
+          {aboutTranslator.t("status.ready", { version: newVersion ?? "" })}
+        </StatusChip>
+      );
     case "error":
-      return <StatusChip tone="danger">更新失败</StatusChip>;
+      return <StatusChip tone="danger">{aboutTranslator.t("status.failed")}</StatusChip>;
     default:
-      return <StatusChip>尚未检查</StatusChip>;
+      return <StatusChip>{aboutTranslator.t("status.unchecked")}</StatusChip>;
   }
 }

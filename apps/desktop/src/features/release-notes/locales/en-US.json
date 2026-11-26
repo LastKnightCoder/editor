@@ -1,0 +1,8 @@
+{
+  "title": "Release notes",
+  "title.single": "v{{version}} release notes",
+  "title.range": "v{{oldest}} – v{{newest}} release notes",
+  "action.later": "Later",
+  "action.update": "Update now",
+  "action.restart": "Restart and install"
+}

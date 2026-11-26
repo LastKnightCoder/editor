@@ -1,6 +1,14 @@
 // 关于：应用身份卡 + 软件更新（仅 Android，应用内下载后交给系统安装器）+ 外部链接。
 // iOS 的更新走 App Store / TestFlight，这里不展示更新区。
 
+import { formatUpdateSize, formatPublishedDate } from "./format";
+import {
+  aboutTranslator,
+  useAboutI18n,
+  aboutDisplayContext,
+  updateErrorText,
+  type AboutMessageKey,
+} from "./i18n";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   ArrowDownToLine,
@@ -31,33 +39,25 @@ import {
 import { useAppVersion } from "./useAppVersion";
 
 const LINKS = [
-  { label: "官网", detail: "taunote.app", url: "https://taunote.app", icon: Globe },
+  { label: "links.site", detail: "taunote.app", url: "https://taunote.app", icon: Globe },
   {
-    label: "使用文档",
-    detail: "功能说明与常见问题",
+    label: "links.docs",
+    detailMessage: "links.docsHint",
     url: "https://taunote.app/docs/",
     icon: BookOpen,
   },
   {
-    label: "源代码",
+    label: "links.source",
     detail: "GitHub",
     url: "https://github.com/LastKnightCoder/editor",
     icon: Github,
   },
 ] as const;
 
-function formatSize(bytes: number) {
-  return `${Math.max(1, Math.round(bytes / 1024 / 1024))} MB`;
-}
-
-function formatDate(iso: string) {
-  const date = new Date(iso);
-  return Number.isNaN(date.getTime()) ? "" : `${date.getMonth() + 1} 月 ${date.getDate()} 日发布`;
-}
-
 function IdentityCard({ version }: { version: string | undefined }) {
+  useAboutI18n();
   return (
-    <section className="setting-group px-[18px] pb-5 pt-7 text-center">
+    <section className="setting-group px-[18px] pt-7 pb-5 text-center">
       <img
         src={appIcon}
         alt=""
@@ -65,9 +65,11 @@ function IdentityCard({ version }: { version: string | undefined }) {
       />
       <h2 className="text-ink-1 text-[21px] font-extrabold tracking-tight">Tau</h2>
       <p className="text-ink-2 mt-0.5 text-[12.5px] tabular-nums">
-        {version ? `版本 ${version}` : "读取版本中…"}
+        {version
+          ? aboutTranslator.t("version.label", { version })
+          : aboutTranslator.t("version.loading")}
       </p>
-      <p className="text-ink-3 mt-2 text-[12px] leading-relaxed">让想法，长成体系</p>
+      <p className="text-ink-3 mt-2 text-[12px] leading-relaxed">{aboutTranslator.t("tagline")}</p>
     </section>
   );
 }
@@ -79,6 +81,7 @@ function StatusTile({
   tone: "ok" | "accent" | "warn" | "idle";
   children: ReactNode;
 }) {
+  useAboutI18n();
   const toneClass = {
     ok: "bg-ok-soft text-ok",
     accent: "bg-accent-soft text-accent-text",
@@ -93,6 +96,7 @@ function StatusTile({
 }
 
 function ProgressBar({ received, total }: { received: number; total: number }) {
+  useAboutI18n();
   const percent = total > 0 ? Math.min(100, (received / total) * 100) : 0;
   return (
     <span className="bg-line-1 mt-2 block h-1 overflow-hidden rounded-full" aria-hidden="true">
@@ -105,6 +109,7 @@ function ProgressBar({ received, total }: { received: number; total: number }) {
 }
 
 function UpdateRow() {
+  useAboutI18n();
   const { phase, check, progress, error, checkForUpdate } = useAppUpdate();
   const icon = { size: 17, strokeWidth: 1.9, "aria-hidden": true } as const;
   const latest = check?.latest;
@@ -116,8 +121,12 @@ function UpdateRow() {
           <CircleAlert {...icon} />
         </StatusTile>
         <span className="min-w-0 flex-1">
-          <span className="text-ink-1 block text-[14.5px] font-medium">检查更新</span>
-          <span className="text-ink-3 block text-[11.5px]">点按重试</span>
+          <span className="text-ink-1 block text-[14.5px] font-medium">
+            {aboutTranslator.t("action.check")}
+          </span>
+          <span className="text-ink-3 block text-[11.5px]">
+            {aboutTranslator.t("action.retry")}
+          </span>
         </span>
         <RefreshCw size={15} className="text-ink-3" aria-hidden="true" />
       </GroupRow>
@@ -129,7 +138,9 @@ function UpdateRow() {
         <StatusTile tone="idle">
           <LoaderCircle {...icon} className="animate-spin" />
         </StatusTile>
-        <span className="text-ink-1 flex-1 text-[14.5px] font-medium">正在检查更新…</span>
+        <span className="text-ink-1 flex-1 text-[14.5px] font-medium">
+          {aboutTranslator.t("status.mobileChecking")}
+        </span>
       </GroupRow>
     );
   }
@@ -140,14 +151,23 @@ function UpdateRow() {
           <CircleCheck {...icon} />
         </StatusTile>
         <span className="min-w-0 flex-1">
-          <span className="text-ink-1 block text-[14.5px] font-medium">已是最新版本</span>
-          <span className="text-ink-3 block text-[11.5px]">点按重新检查</span>
+          <span className="text-ink-1 block text-[14.5px] font-medium">
+            {aboutTranslator.t("status.mobileLatest")}
+          </span>
+          <span className="text-ink-3 block text-[11.5px]">
+            {aboutTranslator.t("action.recheck")}
+          </span>
         </span>
         <RefreshCw size={15} className="text-ink-3" aria-hidden="true" />
       </GroupRow>
     );
   }
-  const meta = latest ? [formatSize(latest.size), formatDate(latest.releaseDate)] : [];
+  const meta = latest
+    ? [
+        formatUpdateSize(latest.size, aboutDisplayContext().locale),
+        formatPublishedDate(latest.releaseDate, aboutDisplayContext()),
+      ]
+    : [];
   return (
     <GroupRow>
       <StatusTile tone="accent">
@@ -155,11 +175,16 @@ function UpdateRow() {
       </StatusTile>
       <span className="min-w-0 flex-1">
         <span className="text-ink-1 block text-[14.5px] font-medium">
-          {phase === "ready" ? "新版本已下载" : `发现新版本 ${latest?.version ?? ""}`}
+          {phase === "ready"
+            ? aboutTranslator.t("status.mobileReady")
+            : aboutTranslator.t("status.mobileAvailable", { version: latest?.version ?? "" })}
         </span>
         <span className="text-ink-3 block text-[11.5px] tabular-nums">
           {phase === "downloading" && progress
-            ? `正在下载 ${formatSize(progress.received)} / ${formatSize(progress.total)}`
+            ? aboutTranslator.t("status.mobileDownloading", {
+                received: formatUpdateSize(progress.received, aboutDisplayContext().locale),
+                total: formatUpdateSize(progress.total, aboutDisplayContext().locale),
+              })
             : meta.filter(Boolean).join(" · ")}
         </span>
         {phase === "downloading" && (
@@ -172,6 +197,7 @@ function UpdateRow() {
 
 /** 更新说明不在关于页展开，点进独立页面查看 */
 function ReleaseNotesRow({ check }: { check: AppUpdateCheck }) {
+  useAboutI18n();
   const navigator = useNavigator();
   const notes = notesToShow(check);
   if (notes.length === 0) return null;
@@ -182,11 +208,14 @@ function ReleaseNotesRow({ check }: { check: AppUpdateCheck }) {
       </StatusTile>
       <span className="min-w-0 flex-1">
         <span className="text-ink-1 block text-[14.5px] font-medium">
-          {check.available ? "新版本更新内容" : "本版更新内容"}
+          {check.available ? aboutTranslator.t("notes.new") : aboutTranslator.t("notes.current")}
         </span>
         <span className="text-ink-3 block text-[11.5px] tabular-nums">
           {check.available && notes.length > 1
-            ? `包含 ${notes.length} 个版本的更新`
+            ? aboutTranslator.t("notes.versions", {
+                count: notes.length,
+                amount: notes.length.toLocaleString(aboutDisplayContext().locale),
+              })
             : `v${notes[0].version}`}
         </span>
       </span>
@@ -196,14 +225,15 @@ function ReleaseNotesRow({ check }: { check: AppUpdateCheck }) {
 }
 
 const UPDATE_ACTIONS: Partial<
-  Record<UpdatePhase, { label: string; run?: "download" | "install" }>
+  Record<UpdatePhase, { label: AboutMessageKey; run?: "download" | "install" }>
 > = {
-  available: { label: "下载并安装", run: "download" },
-  downloading: { label: "正在下载" },
-  ready: { label: "安装", run: "install" },
+  available: { label: "action.downloadInstall", run: "download" },
+  downloading: { label: "action.downloading" },
+  ready: { label: "action.install", run: "install" },
 };
 
 function UpdateSection() {
+  useAboutI18n();
   const { phase, check, error, download, install } = useAppUpdate();
   useAutoUpdateCheck();
 
@@ -212,7 +242,7 @@ function UpdateSection() {
 
   return (
     <>
-      <GroupLabel>软件更新</GroupLabel>
+      <GroupLabel>{aboutTranslator.t("update.mobileTitle")}</GroupLabel>
       <GroupCard>
         <UpdateRow />
         {check && <ReleaseNotesRow check={check} />}
@@ -220,13 +250,13 @@ function UpdateSection() {
       {error && (
         <p className="text-warn flex items-center gap-1.5 px-[15px] pt-2 text-[12px]">
           <CircleAlert size={13} aria-hidden="true" />
-          {error}
+          {updateErrorText(error)}
         </p>
       )}
       {action && (
         <div className="flex pt-3">
           <ActionButton
-            label={action.label}
+            label={aboutTranslator.t(action.label)}
             emphasis
             busy={!action.run}
             disabled={!action.run}
@@ -235,19 +265,20 @@ function UpdateSection() {
         </div>
       )}
       {(phase === "available" || phase === "ready") && (
-        <GroupNote className="pt-2">安装时由系统确认覆盖，笔记与设置都会保留。</GroupNote>
+        <GroupNote className="pt-2">{aboutTranslator.t("update.installHint")}</GroupNote>
       )}
     </>
   );
 }
 
 export function AboutSection() {
+  useAboutI18n();
   const version = useAppVersion();
   return (
     <div className="page-enter space-y-1 pb-8">
       <IdentityCard version={version} />
       {supportsInAppUpdate() && <UpdateSection />}
-      <GroupLabel>更多</GroupLabel>
+      <GroupLabel>{aboutTranslator.t("more")}</GroupLabel>
       <GroupCard>
         {LINKS.map(link => (
           <GroupRow key={link.url} onClick={() => void openUrl(link.url).catch(() => undefined)}>
@@ -255,14 +286,20 @@ export function AboutSection() {
               <link.icon size={17} strokeWidth={1.9} aria-hidden="true" />
             </StatusTile>
             <span className="min-w-0 flex-1">
-              <span className="text-ink-1 block text-[14.5px] font-medium">{link.label}</span>
-              <span className="text-ink-3 block truncate text-[11.5px]">{link.detail}</span>
+              <span className="text-ink-1 block text-[14.5px] font-medium">
+                {aboutTranslator.t(link.label)}
+              </span>
+              <span className="text-ink-3 block truncate text-[11.5px]">
+                {"detailMessage" in link ? aboutTranslator.t(link.detailMessage) : link.detail}
+              </span>
             </span>
             <ChevronRight size={16} className="text-ink-3" aria-hidden="true" />
           </GroupRow>
         ))}
       </GroupCard>
-      <p className="text-ink-3 pt-5 text-center text-[11px]">由 LastKnightCoder 开发</p>
+      <p className="text-ink-3 pt-5 text-center text-[11px]">
+        {aboutTranslator.t("developer", { name: "LastKnightCoder" })}
+      </p>
     </div>
   );
 }

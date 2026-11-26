@@ -1,3 +1,8 @@
+import { desktopLocaleSource } from "@/app/i18n/runtime";
+import { getVersions } from "@/commands";
+import { backgroundPreferenceCommands } from "@/commands/contracts/background-preferences";
+import { ReleaseNotesDialog } from "@/features/release-notes/ReleaseNotesDialog";
+import { useReleaseNotesStore } from "@/features/release-notes/releaseNotesStore";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -87,4 +92,58 @@ it("下载中显示进度", async () => {
   await render();
   expect(text()).toContain("正在下载 42%");
   expect(button("检查更新")).toBeUndefined();
+});
+
+it("切换语言保留下载状态与公告载荷，不检查、下载、安装或重新读取版本", async () => {
+  const original = desktopLocaleSource.getSnapshot();
+  const check = vi.fn(),
+    download = vi.fn(),
+    install = vi.fn();
+  const notes = [{ version: "3.9.0", note: "# 原始公告正文" }];
+  useUpdateStore.setState({
+    status: "downloading",
+    newVersion: "3.9.0",
+    progress: 42,
+    releaseNotes: notes,
+    check,
+    download,
+    install,
+  });
+  try {
+    await render();
+    const snapshot = useUpdateStore.getState(),
+      reads = {
+        version: vi.mocked(getVersions).mock.calls.length,
+        background: vi.mocked(backgroundPreferenceCommands.read.call).mock.calls.length,
+      };
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(useUpdateStore.getState()).toBe(snapshot);
+      expect(useUpdateStore.getState().releaseNotes).toBe(notes);
+      expect({
+        version: vi.mocked(getVersions).mock.calls.length,
+        background: vi.mocked(backgroundPreferenceCommands.read.call).mock.calls.length,
+      }).toEqual(reads);
+      expect(check).not.toHaveBeenCalled();
+      expect(download).not.toHaveBeenCalled();
+      expect(install).not.toHaveBeenCalled();
+    }
+    useReleaseNotesStore.getState().show(notes, { updateAction: true });
+    await act(async () => root.render(<ReleaseNotesDialog />));
+    const notice = useReleaseNotesStore.getState();
+    for (const locale of ["zh-CN", "en-US"]) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(useReleaseNotesStore.getState()).toBe(notice);
+      expect(notice.notes).toBe(notes);
+      expect(notice.open).toBe(true);
+      expect(notice.updateAction).toBe(true);
+      expect(download).not.toHaveBeenCalled();
+      expect(install).not.toHaveBeenCalled();
+    }
+  } finally {
+    await act(async () => {
+      desktopLocaleSource.setLocale(original);
+      useReleaseNotesStore.getState().close();
+    });
+  }
 });

@@ -1,3 +1,4 @@
+import { aboutTranslator } from "../features/settings/about/i18n";
 import { useEffect, useRef } from "react";
 import { appNotify } from "@/features/notifications/notify";
 import useSettingStore from "@/stores/useSettingStore";
@@ -26,15 +27,15 @@ async function notifyIfUpgraded() {
 
   appNotify({
     id: UPGRADED_NOTICE_ID,
-    title: `已更新到 v${change.currentVersion}`,
-    body: "看看这次更新带来了哪些变化。",
-    source: "应用更新",
+    title: aboutTranslator.t("notice.upgradedTitle", { version: change.currentVersion }),
+    body: aboutTranslator.t("notice.upgradedBody"),
+    source: aboutTranslator.t("notice.source"),
     icon: "sparkles",
     sticky: true,
     actions: [
-      { label: "稍后" },
+      { label: aboutTranslator.t("action.later") },
       {
-        label: "查看更新内容",
+        label: aboutTranslator.t("notice.view"),
         reveal: true,
         primary: true,
         onClick: () => useReleaseNotesStore.getState().show(notes),
@@ -77,22 +78,22 @@ const useAutoUpdateCheck = () => {
     const { releaseNotes } = useUpdateStore.getState();
     appNotify({
       id: NOTICE_ID,
-      title: `新版本 v${newVersion} 已就绪`,
-      body: `已在后台下载完成，随时可以更新到 v${newVersion}。`,
-      source: "应用更新",
+      title: aboutTranslator.t("notice.readyTitle", { version: newVersion }),
+      body: aboutTranslator.t("notice.readyBody", { version: newVersion }),
+      source: aboutTranslator.t("notice.source"),
       icon: "rotateCw",
       sticky: true,
       actions: [
         releaseNotes.length > 0
           ? {
-              label: "查看更新内容",
+              label: aboutTranslator.t("notice.view"),
               reveal: true,
               onClick: () =>
                 useReleaseNotesStore.getState().show(releaseNotes, { updateAction: true }),
             }
-          : { label: "稍后" },
+          : { label: aboutTranslator.t("action.later") },
         {
-          label: "立即更新",
+          label: aboutTranslator.t("action.update"),
           primary: true,
           onClick: () => void useUpdateStore.getState().install(),
         },

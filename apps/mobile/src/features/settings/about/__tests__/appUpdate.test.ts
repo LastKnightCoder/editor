@@ -114,7 +114,11 @@ describe("useAppUpdate", () => {
     await useAppUpdate.getState().download();
     expect(useAppUpdate.getState()).toMatchObject({
       phase: "available",
-      error: "安装包校验未通过，请重新下载",
+      error: {
+        code: "APP_UPDATE_CORRUPT",
+        diagnostic: "size or digest mismatch",
+        cause: "APP_UPDATE_CORRUPT: size or digest mismatch",
+      },
     });
   });
 
@@ -130,7 +134,11 @@ describe("useAppUpdate", () => {
     await useAppUpdate.getState().checkForUpdate();
     expect(useAppUpdate.getState()).toMatchObject({
       phase: "idle",
-      error: "网络连接失败，请稍后重试",
+      error: {
+        code: "APP_UPDATE_NETWORK",
+        diagnostic: "timeout",
+        cause: "APP_UPDATE_NETWORK: timeout",
+      },
     });
   });
 });

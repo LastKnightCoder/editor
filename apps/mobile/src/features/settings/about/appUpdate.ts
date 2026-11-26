@@ -1,6 +1,8 @@
 // Android 应用内更新的前端状态：检查 → 下载（校验）→ 交给系统安装器。
 // 命令实现见 src-tauri/src/app_update.rs；状态放模块级 store，离开关于页后下载继续、回来仍能看到进度。
 
+import { captureAppUpdateFailure, type AppUpdateFailure } from "./errors";
+import { aboutTranslator } from "./i18n";
 import { useEffect } from "react";
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { create } from "zustand";
@@ -36,7 +38,7 @@ type AppUpdateState = {
   checkedAt: number | null;
   progress: DownloadProgress | null;
   downloadedVersion: string | null;
-  error: string | null;
+  error: AppUpdateFailure | null;
   checkForUpdate: () => Promise<void>;
   download: () => Promise<void>;
   install: () => Promise<void>;
@@ -44,21 +46,6 @@ type AppUpdateState = {
 
 export function supportsInAppUpdate(userAgent = navigator.userAgent): boolean {
   return /Android/i.test(userAgent);
-}
-
-const ERROR_MESSAGES: Record<string, string> = {
-  APP_UPDATE_NETWORK: "网络连接失败，请稍后重试",
-  APP_UPDATE_MANIFEST_INVALID: "更新信息暂不可用，请稍后重试",
-  APP_UPDATE_CORRUPT: "安装包校验未通过，请重新下载",
-  APP_UPDATE_STORAGE: "无法保存安装包，请检查存储空间",
-  APP_UPDATE_BUSY: "安装包正在下载",
-  APP_UPDATE_NOT_DOWNLOADED: "安装包已失效，请重新下载",
-  APP_UPDATE_INSTALL_FAILED: "无法打开系统安装器",
-  APP_UPDATE_UNSUPPORTED: "当前设备不支持应用内更新",
-};
-
-function updateErrorMessage(error: unknown): string {
-  return ERROR_MESSAGES[parseInvokeError(error).code] ?? "更新失败，请稍后重试";
 }
 
 export function compareVersions(a: string, b: string): number {
@@ -120,7 +107,7 @@ export const useAppUpdate = create<AppUpdateState>((set, get) => ({
     } catch (error) {
       const previous = get().check;
       const phase = previous ? (previous.available ? "available" : "latest") : "idle";
-      set({ phase, error: updateErrorMessage(error) });
+      set({ phase, error: captureAppUpdateFailure(error) });
     }
   },
 
@@ -134,7 +121,7 @@ export const useAppUpdate = create<AppUpdateState>((set, get) => ({
       set({ phase: "ready", downloadedVersion: version });
       await get().install();
     } catch (error) {
-      set({ phase: "available", progress: null, error: updateErrorMessage(error) });
+      set({ phase: "available", progress: null, error: captureAppUpdateFailure(error) });
     }
   },
 
@@ -144,16 +131,16 @@ export const useAppUpdate = create<AppUpdateState>((set, get) => ({
     try {
       const outcome = await invoke<InstallOutcome>("app_update_install", { version });
       if (outcome === "permission-required") {
-        toast.info("请在系统设置中允许 Tau 安装应用，返回后点「安装」");
+        toast.info(aboutTranslator.t("install.permission"));
       }
     } catch (error) {
-      const message = updateErrorMessage(error);
+      const failure = captureAppUpdateFailure(error);
       // 缓存被系统清理后只能重新下载
       if (parseInvokeError(error).code === "APP_UPDATE_NOT_DOWNLOADED") {
-        set({ phase: "available", downloadedVersion: null, error: message });
+        set({ phase: "available", downloadedVersion: null, error: failure });
         return;
       }
-      set({ error: message });
+      set({ error: failure });
     }
   },
 }));
