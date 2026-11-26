@@ -1,3 +1,4 @@
+import { useActionsI18n } from "../actions.i18n";
 import { useRef, useState } from "react";
 import { Highlighter, NotebookPen, Sparkles } from "lucide-react";
 import { cn } from "@tau/ui";
@@ -19,6 +20,7 @@ const STATUS_DOT: Record<string, string> = {
  * 悬停整颗滑出并竖向展开快捷动作；单击开关面板；沿边上下拖动，拖过视口中线换边，位置按站点记住。
  */
 export function Orb() {
+  const { t } = useActionsI18n();
   const controller = useController();
   const side = useCompanion(state => state.side);
   const ratio = useCompanion(state => state.orbRatio);
@@ -63,7 +65,7 @@ export function Orb() {
         {!drag && (
           <div className="bg-surface shadow-float pointer-events-none absolute bottom-[46px] left-1/2 flex -translate-x-1/2 flex-col gap-0.5 rounded-full p-1 opacity-0 transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100">
             <QuickAction
-              label="问这页"
+              label={t("orb.ask")}
               hint="⌥J"
               side={edge}
               onClick={() => controller.openPanel("chat")}
@@ -71,20 +73,24 @@ export function Orb() {
               <Sparkles size={15} strokeWidth={1.8} />
             </QuickAction>
             <QuickAction
-              label="本页标注"
+              label={t("orb.annotations")}
               side={edge}
               onClick={() => controller.openPanel("annotations")}
             >
               <Highlighter size={15} strokeWidth={1.8} />
             </QuickAction>
-            <QuickAction label="页面笔记" side={edge} onClick={() => controller.openPanel("note")}>
+            <QuickAction
+              label={t("note.page")}
+              side={edge}
+              onClick={() => controller.openPanel("note")}
+            >
               <NotebookPen size={15} strokeWidth={1.8} />
             </QuickAction>
           </div>
         )}
         <button
           type="button"
-          aria-label={panelOpen ? "关闭伴读面板" : "打开伴读面板"}
+          aria-label={panelOpen ? t("orb.close") : t("orb.open")}
           className={cn(
             "bg-surface shadow-lift text-accent-text relative grid size-9 cursor-grab place-items-center rounded-full font-serif text-[19px] font-semibold italic leading-none touch-none",
             panelOpen ? "ring-accent ring-[1.5px]" : "ring-line-1 ring-1",

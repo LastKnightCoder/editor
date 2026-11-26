@@ -1,3 +1,4 @@
+import { useActionsI18n } from "../actions.i18n";
 import { PortalScope } from "@tau/ui";
 import { useCompanion } from "../state/store";
 import { useController } from "./context";
@@ -35,6 +36,7 @@ export function App() {
 }
 
 function Coach() {
+  const { t } = useActionsI18n();
   const controller = useController();
   const seen = useCompanion(state => state.coachSeen);
   const side = useCompanion(state => state.side);
@@ -49,20 +51,18 @@ function Coach() {
         [side === "right" ? "right" : "left"]: 60,
       }}
     >
-      <h4 className="text-tau-body-lg text-ink-1 mb-1 font-semibold">伴读在这里</h4>
-      <p className="text-tau-meta text-ink-2 mb-2.5">
-        选中文字即可高亮、批注或提问；悬停这颗球看快捷动作，拖动可换位置。
-      </p>
+      <h4 className="text-tau-body-lg text-ink-1 mb-1 font-semibold">{t("coach.title")}</h4>
+      <p className="text-tau-meta text-ink-2 mb-2.5">{t("coach.body")}</p>
       <div className="flex items-center justify-between">
         <span className="text-tau-tiny text-ink-3 border-line-1 rounded-[5px] border px-1.5 font-mono">
-          ⌥J 打开面板
+          {t("coach.shortcut")}
         </span>
         <button
           type="button"
           onClick={() => controller.dismissCoach()}
           className="border-line-1 text-ink-2 hover:bg-hover text-tau-sm rounded-tau-sm h-[26px] border px-2.5"
         >
-          知道了
+          {t("coach.dismiss")}
         </button>
       </div>
     </div>

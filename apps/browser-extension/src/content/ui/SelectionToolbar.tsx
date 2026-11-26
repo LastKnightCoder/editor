@@ -1,3 +1,4 @@
+import { useActionsI18n } from "../actions.i18n";
 import { useLayoutEffect, useRef, useState } from "react";
 import {
   ChevronDown,
@@ -15,14 +16,6 @@ import { cn } from "@tau/ui";
 import { HIGHLIGHT_HEX } from "../page/highlights";
 import { useCompanion } from "../state/store";
 import { useController, useEscLayer } from "./context";
-
-const COLOR_NAMES: Record<HighlightColor, string> = {
-  yellow: "黄",
-  green: "绿",
-  blue: "蓝",
-  purple: "紫",
-  red: "红",
-};
 
 export function Swatch({
   color,
@@ -56,6 +49,7 @@ const TOOLBAR_GAP = 8;
  * 新选区：五色高亮、批注、问 AI、摘录、复制；已有标注：换色、批注、问 AI、删除。
  */
 export function SelectionToolbar() {
+  const { t } = useActionsI18n();
   const controller = useController();
   const selection = useCompanion(state => state.selection);
   const annotations = useCompanion(state => state.annotations);
@@ -91,7 +85,7 @@ export function SelectionToolbar() {
     <div
       ref={ref}
       role="toolbar"
-      aria-label="选中文字的操作"
+      aria-label={t("selection.actions")}
       onMouseDown={event => event.preventDefault()}
       className="bg-surface shadow-float animate-tau-pop rounded-tau-md fixed z-40 flex h-[38px] items-center gap-0.5 px-[5px]"
       style={position ?? { left: -9999, top: -9999 }}
@@ -100,8 +94,8 @@ export function SelectionToolbar() {
         <button
           key={color}
           type="button"
-          title={`${COLOR_NAMES[color]}色高亮`}
-          aria-label={`${COLOR_NAMES[color]}色高亮`}
+          title={t(`highlight.${color}`)}
+          aria-label={t(`highlight.${color}`)}
           onClick={() => controller.highlight(color)}
           className="hover:bg-hover rounded-tau-sm grid h-7 w-[26px] place-items-center"
         >
@@ -110,11 +104,11 @@ export function SelectionToolbar() {
       ))}
       <Divider />
       <ToolButton icon={MessageSquareText} onClick={() => controller.annotate()}>
-        批注
+        {t("annotation.create")}
       </ToolButton>
       <div className="relative">
         <ToolButton icon={Sparkles} accent onClick={() => setMenu(open => !open)}>
-          问 AI
+          {t("ask")}
           <ChevronDown size={13} strokeWidth={1.8} className="text-ink-3 -ml-0.5" />
         </ToolButton>
         {menu && (
@@ -123,16 +117,16 @@ export function SelectionToolbar() {
             className="bg-surface shadow-float rounded-tau-md absolute top-[38px] left-0 z-10 min-w-[168px] p-1"
           >
             <MenuItem icon={Sparkles} onClick={() => void controller.quickAsk("explain")}>
-              解释
+              {t("quick.explain")}
             </MenuItem>
             <MenuItem icon={Languages} onClick={() => void controller.quickAsk("translate")}>
-              翻译
+              {t("quick.translate")}
             </MenuItem>
             <MenuItem icon={List} onClick={() => void controller.quickAsk("summarize")}>
-              概括这段
+              {t("quick.summarize")}
             </MenuItem>
             <MenuItem icon={MessageCircle} onClick={() => void controller.quickAsk("free")}>
-              自由提问…
+              {t("quick.free")}
             </MenuItem>
           </div>
         )}
@@ -145,16 +139,16 @@ export function SelectionToolbar() {
             danger
             onClick={() => controller.removeAnnotation(selection.annotationId!)}
           >
-            删除
+            {t("delete")}
           </ToolButton>
         </>
       ) : (
         <>
           <ToolButton icon={Quote} onClick={() => controller.excerpt()}>
-            摘录
+            {t("excerpt")}
           </ToolButton>
           <Divider />
-          <ToolButton icon={Copy} label="复制" onClick={() => controller.copySelection()} />
+          <ToolButton icon={Copy} label={t("copy")} onClick={() => controller.copySelection()} />
         </>
       )}
     </div>

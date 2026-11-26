@@ -1,6 +1,6 @@
 import { ArrowUpRight, Copy, MessageSquareText, NotebookPen, Sparkles, X } from "lucide-react";
 import { IconButton } from "@tau/ui";
-import { useConnectionI18n } from "../i18n";
+import { actionsTranslator, useActionsI18n } from "../actions.i18n";
 import { stripCites } from "../state/controller";
 import { showToast, useCompanion } from "../state/store";
 import { useController, useEscLayer } from "./context";
@@ -10,7 +10,7 @@ const WIDTH = 360;
 
 /** 选区快答（解释 / 翻译）：回答贴在原文下方，用完即收；「在面板继续」接着聊 */
 export function QuickBubble() {
-  const { t } = useConnectionI18n();
+  const { t } = useActionsI18n();
   const controller = useController();
   const bubble = useCompanion(state => state.bubble);
   const modelLabel = useCompanion(state => state.chat.model?.label);
@@ -32,13 +32,17 @@ export function QuickBubble() {
         <span>{t(`quick.${bubble.kind}`)}</span>
         {modelLabel && <span>· {modelLabel}</span>}
         <span className="flex-1" />
-        <IconButton aria-label="关闭" className="size-6" onClick={() => controller.closeBubble()}>
+        <IconButton
+          aria-label={t("close")}
+          className="size-6"
+          onClick={() => controller.closeBubble()}
+        >
           <X size={14} strokeWidth={1.8} />
         </IconButton>
       </div>
       <div className="max-h-[300px] overflow-y-auto">
         {bubble.status === "error" ? (
-          <p className="text-danger text-tau-body">{bubble.error ?? "回答失败"}</p>
+          <p className="text-danger text-tau-body">{bubble.error ?? t("quick.failed")}</p>
         ) : bubble.text ? (
           <Markdown text={bubble.text} />
         ) : (
@@ -52,22 +56,22 @@ export function QuickBubble() {
             onClick={() =>
               void navigator.clipboard
                 .writeText(stripCites(bubble.text))
-                .then(() => showToast("已复制"))
+                .then(() => showToast(actionsTranslator.t("toast.copied")))
             }
           >
-            复制
+            {t("copy")}
           </BubbleAction>
           <BubbleAction icon={MessageSquareText} onClick={() => controller.bubbleToAnnotation()}>
-            存为批注
+            {t("quick.saveAnnotation")}
           </BubbleAction>
           <BubbleAction
             icon={NotebookPen}
             onClick={() => {
               controller.appendToNote(stripCites(bubble.text));
-              showToast("已存入页面笔记");
+              showToast(actionsTranslator.t("toast.noteSaved"));
             }}
           >
-            存为笔记
+            {t("quick.saveNote")}
           </BubbleAction>
           <span className="flex-1" />
           <BubbleAction
@@ -78,7 +82,7 @@ export function QuickBubble() {
               controller.openPanel("chat");
             }}
           >
-            在面板继续
+            {t("quick.continue")}
           </BubbleAction>
         </div>
       )}

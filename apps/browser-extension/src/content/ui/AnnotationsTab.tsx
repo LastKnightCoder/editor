@@ -1,3 +1,4 @@
+import { useActionsI18n } from "../actions.i18n";
 import { Highlighter, Trash2 } from "lucide-react";
 import { HIGHLIGHT_COLORS } from "@tau/shared/browser-companion";
 import { cn, IconButton } from "@tau/ui";
@@ -8,6 +9,7 @@ import { Swatch } from "./SelectionToolbar";
 
 /** 本页标注：按页面顺序，颜色筛选，点击滚到原文；找不到原文的单独归在末尾 */
 export function AnnotationsTab() {
+  const { t, locale } = useActionsI18n();
   const controller = useController();
   const annotations = useCompanion(state => state.annotations);
   const unlocated = useCompanion(state => state.unlocated);
@@ -27,12 +29,13 @@ export function AnnotationsTab() {
             filter ? "text-ink-2 hover:bg-hover" : "bg-accent-soft text-accent-text"
           )}
         >
-          全部
+          {t("annotations.all")}
         </button>
         {HIGHLIGHT_COLORS.map(color => (
           <button
             key={color}
             type="button"
+            aria-label={t(`highlight.${color}`)}
             aria-pressed={filter === color}
             onClick={() => useCompanion.setState({ filter: filter === color ? null : color })}
             className={cn(
@@ -48,7 +51,7 @@ export function AnnotationsTab() {
         {list.length === 0 ? (
           <div className="text-tau-meta text-ink-3 flex h-full flex-col items-center justify-center px-6 py-10 text-center">
             <Highlighter size={22} strokeWidth={1.6} className="mb-2" />
-            {filter ? "这个颜色还没有标注" : "选中页面文字即可高亮或批注"}
+            {filter ? t("annotations.emptyColor") : t("annotations.empty")}
           </div>
         ) : (
           list.map(item => (
@@ -73,12 +76,12 @@ export function AnnotationsTab() {
                 )}
                 <p className="text-tau-micro text-ink-3 mt-1">
                   {missing.has(item.id)
-                    ? "页面上找不到这段原文"
-                    : new Date(item.createdAt).toLocaleDateString()}
+                    ? t("annotations.missing")
+                    : new Date(item.createdAt).toLocaleDateString(locale)}
                 </p>
               </div>
               <IconButton
-                aria-label="删除标注"
+                aria-label={t("annotation.delete")}
                 className="hover:text-danger absolute top-1.5 right-1.5 size-6 opacity-0 group-hover:opacity-100"
                 onClick={event => {
                   event.stopPropagation();
@@ -93,9 +96,9 @@ export function AnnotationsTab() {
       </div>
       <div className="text-tau-sm text-ink-3 flex items-center gap-2 px-4 pt-2 pb-3">
         <span className={cn("size-1.5 rounded-full", ready ? "bg-ok" : "bg-ink-3")} />
-        {ready ? "已同步到 Tau" : "存在本机，连上 Tau 后同步"}
+        {ready ? t("annotations.synced") : t("annotations.local")}
         <span className="flex-1" />
-        {annotations.length} 条
+        {t("annotations.count", { count: annotations.length })}
       </div>
     </>
   );

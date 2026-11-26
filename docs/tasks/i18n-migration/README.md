@@ -322,6 +322,8 @@ P6浏览器Note：7路径完成；note-app3/原模型6共9例、extension type�
 
 P6浏览器Library：14路径完成；原7至9例、extension type、79key三语参数/范围检查通过。真实rename草稿/光标跨语不发RPC，非文本草稿仍可打开原note iframe，locale不重挂/重查/改节点；null/空串数据边界及原排序/QueryClient/query身份保留，旧Sidebar/SORT/COLOR显示map清零退役。
 
+P6浏览器actions：13路径工程完成；原ui/annotation9至10例、extension最终type、57key三语参数/范围静态格式通过。真实NoteEditor草稿与原annotation目标跨语不自动保存，菜单/selection不重复触发动作，iframe同node/src；真实Quick请求/PROMPT/PAGE_TOOLS/网页/标注/任务守卫保持，chat缓存错误另独立语义批继续。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

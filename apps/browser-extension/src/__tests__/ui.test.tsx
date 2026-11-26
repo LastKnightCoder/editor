@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ControllerContext } from "../content/ui/context";
 import { SelectionToolbar } from "../content/ui/SelectionToolbar";
 import { Panel } from "../content/ui/Panel";
+import { NoteEditor } from "../content/ui/Annotations";
+import { actionsTranslator } from "../content/actions.i18n";
 import { initialChat, useCompanion } from "../content/state/store";
 import { extensionLocaleSource } from "../shared/i18n";
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -14,6 +16,8 @@ const controller = {
   quickAsk: vi.fn(),
   excerpt: vi.fn(),
   copySelection: vi.fn(),
+  saveNoteOf: vi.fn(),
+  annotations: { rangeOf: () => ({ getBoundingClientRect: () => rect }) },
   removeAnnotation: vi.fn(),
   clearSelection: vi.fn(() => useCompanion.setState({ selection: null })),
   closePanel: vi.fn(() => useCompanion.setState({ panelOpen: false })),
@@ -46,6 +50,7 @@ beforeEach(() => {
     tab: "chat",
     status: { state: "unpaired" },
     annotations: [],
+    editingNoteId: null,
     chat: initialChat("s"),
   });
 });
@@ -79,7 +84,16 @@ describe("选区工具条", () => {
       item.textContent?.includes("问 AI")
     )!;
     await act(async () => ai.click());
-    expect(container.querySelectorAll('[role="menuitem"]')).toHaveLength(4);
+    const menu = container.querySelector('[role="menu"]');
+    const selection = useCompanion.getState().selection;
+    for (const locale of ["zh-TW", "en-US"] as const) {
+      await act(async () => extensionLocaleSource.setLocale(locale));
+      expect(container.querySelector('[role="menu"]')).toBe(menu);
+      expect(useCompanion.getState().selection).toBe(selection);
+      expect((controller as any).quickAsk).not.toHaveBeenCalled();
+      expect((controller as any).highlight).not.toHaveBeenCalled();
+      expect((controller as any).excerpt).not.toHaveBeenCalled();
+    }
     await act(async () => dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
     expect(container.querySelector('[role="menu"]')).toBeNull();
     await act(async () => dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
@@ -165,9 +179,48 @@ describe("页面笔记", () => {
       )
     );
     const frame = container.querySelector("iframe")!;
-    expect(frame.title).toBe("页面笔记");
+
     expect(frame.getAttribute("src")).toBe(
       "chrome-extension://x/note.html?url=https%3A%2F%2Fa.com%2Fpost"
     );
+    const src = frame.getAttribute("src");
+    for (const locale of ["zh-TW", "en-US"] as const) {
+      await act(async () => extensionLocaleSource.setLocale(locale));
+      expect(container.querySelector("iframe")).toBe(frame);
+      expect(frame.getAttribute("src")).toBe(src);
+    }
+  });
+});
+
+describe("批注草稿", () => {
+  it("切换语言保留编辑对象与未保存内容，确认仍写入原标注", async () => {
+    const item = {
+      id: "annotation-original",
+      color: "blue" as const,
+      text: "原文",
+      note: "已有批注",
+      anchor: null,
+      createdAt: 0,
+    };
+    useCompanion.setState({ annotations: [item], editingNoteId: item.id });
+    render(<NoteEditor />);
+    const input = container.querySelector("textarea")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(
+        input,
+        "未保存的内容"
+      );
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    for (const locale of ["zh-TW", "en-US"] as const) {
+      await act(async () => extensionLocaleSource.setLocale(locale));
+      expect(container.querySelector("textarea")).toBe(input);
+      expect(input.value).toBe("未保存的内容");
+      expect(useCompanion.getState().annotations[0]).toBe(item);
+      expect(useCompanion.getState().editingNoteId).toBe(item.id);
+      expect((controller as any).saveNoteOf).not.toHaveBeenCalled();
+    }
+    await act(async () => button(actionsTranslator.t("save"))!.click());
+    expect((controller as any).saveNoteOf).toHaveBeenCalledExactlyOnceWith(item.id, "未保存的内容");
   });
 });

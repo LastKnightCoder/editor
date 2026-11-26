@@ -1,3 +1,4 @@
+import { useActionsI18n, annotationRelativeTime } from "../actions.i18n";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MessageSquareText, PenLine, Sparkles, Trash2 } from "lucide-react";
 import type { WebAnnotation } from "@tau/shared/browser-companion";
@@ -10,16 +11,9 @@ import { useController, useEscLayer } from "./context";
 const MARKER = 20;
 const CARD_WIDTH = 248;
 
-const relativeTime = (time: number) => {
-  const minutes = Math.round((Date.now() - time) / 60_000);
-  if (minutes < 1) return "刚刚";
-  if (minutes < 60) return `${minutes} 分钟前`;
-  if (minutes < 1440) return `${Math.round(minutes / 60)} 小时前`;
-  return `${Math.round(minutes / 1440)} 天前`;
-};
-
 /** 批注编辑：贴在高亮下方，⌘↵ 保存 */
 export function NoteEditor() {
+  const { t } = useActionsI18n();
   const controller = useController();
   const id = useCompanion(state => state.editingNoteId);
   const item = useCompanion(state => state.annotations.find(annotation => annotation.id === id));
@@ -57,7 +51,7 @@ export function NoteEditor() {
         ref={ref}
         rows={3}
         value={value}
-        placeholder="写下你的想法…"
+        placeholder={t("annotation.placeholder")}
         onChange={event => setValue(event.target.value)}
         onKeyDown={event => {
           if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) save();
@@ -66,13 +60,13 @@ export function NoteEditor() {
       />
       <div className="mt-2 flex items-center justify-end gap-1.5">
         <span className="text-tau-tiny text-ink-3 border-line-1 mr-auto rounded-[5px] border px-1.5 font-mono">
-          ⌘↵ 保存
+          {t("annotation.shortcut")}
         </span>
         <Button size="sm" variant="ghost" onClick={close}>
-          取消
+          {t("cancel")}
         </Button>
         <Button size="sm" variant="primary" onClick={save}>
-          保存
+          {t("save")}
         </Button>
       </div>
     </div>
@@ -84,6 +78,7 @@ export function NoteEditor() {
  * 不占阅读宽度；悬停浮出批注，点击钉住。正文贴满视口时标记退到高亮行尾。
  */
 export function MarginMarkers() {
+  const { t } = useActionsI18n();
   const controller = useController();
   const annotations = useCompanion(state => state.annotations);
   const layout = useCompanion(state => state.layoutVersion);
@@ -127,7 +122,7 @@ export function MarginMarkers() {
           <button
             key={item.id}
             type="button"
-            aria-label="查看批注"
+            aria-label={t("annotation.view")}
             onMouseEnter={() => useCompanion.setState({ hoverNoteId: item.id })}
             onMouseLeave={() => useCompanion.setState({ hoverNoteId: null })}
             onClick={() =>
@@ -154,6 +149,7 @@ export function MarginMarkers() {
 }
 
 function NoteCard({ item, x, y }: { item: WebAnnotation; x: number; y: number }) {
+  const { t, locale } = useActionsI18n();
   const controller = useController();
   const roomRight = x + MARKER + 8 + CARD_WIDTH < innerWidth - 12;
   return (
@@ -169,9 +165,11 @@ function NoteCard({ item, x, y }: { item: WebAnnotation; x: number; y: number })
     >
       <p className="text-ink-1 whitespace-pre-wrap">{item.note}</p>
       <div className="text-tau-sm text-ink-3 mt-1.5 flex items-center gap-0.5">
-        <span className="mr-auto">批注 · {relativeTime(item.createdAt)}</span>
+        <span className="mr-auto">
+          {t("annotation.time", { time: annotationRelativeTime(item.createdAt, { locale, t }) })}
+        </span>
         <IconButton
-          aria-label="编辑批注"
+          aria-label={t("annotation.edit")}
           className="size-6"
           onClick={() =>
             useCompanion.setState({ editingNoteId: item.id, pinnedNoteId: null, hoverNoteId: null })
@@ -180,7 +178,7 @@ function NoteCard({ item, x, y }: { item: WebAnnotation; x: number; y: number })
           <PenLine size={14} strokeWidth={1.8} />
         </IconButton>
         <IconButton
-          aria-label="问 AI"
+          aria-label={t("ask")}
           className="size-6"
           onClick={() => {
             useCompanion.setState(state => ({
@@ -194,7 +192,7 @@ function NoteCard({ item, x, y }: { item: WebAnnotation; x: number; y: number })
           <Sparkles size={14} strokeWidth={1.8} />
         </IconButton>
         <IconButton
-          aria-label="删除标注"
+          aria-label={t("annotation.delete")}
           className="size-6"
           onClick={() => controller.removeAnnotation(item.id)}
         >

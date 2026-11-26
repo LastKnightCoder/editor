@@ -1,3 +1,4 @@
+import { actionsTranslator } from "../actions.i18n";
 /**
  * 内容脚本的总控：连接后台、维护本页标注与对话、跟踪选区与页面变化、响应 Tau 的页面工具请求。
  * UI 组件只读 store、调用这里的动作。
@@ -126,7 +127,7 @@ export class CompanionController {
   hideOnSite(): void {
     setState({ hiddenOnSite: true, panelOpen: false });
     void storageSet(`hidden:${this.siteKey()}`, true);
-    showToast(`已在 ${this.siteKey()} 隐藏伴读，点工具栏的 Tau 图标可再次打开`);
+    showToast(actionsTranslator.t("toast.hidden", { site: this.siteKey() }));
   }
 
   /** 在伴读库里打开本页 */
@@ -306,7 +307,7 @@ export class CompanionController {
     }
     if (!this.selectionRange) return;
     const created = this.annotations.create(this.selectionRange, color);
-    if (!created) showToast("这段文字没法标注");
+    if (!created) showToast(actionsTranslator.t("toast.cannotAnnotate"));
     this.clearSelection();
   }
 
@@ -324,12 +325,12 @@ export class CompanionController {
   saveNoteOf(id: string, note: string): void {
     this.annotations.update(id, { note: note.trim() });
     setState({ editingNoteId: null });
-    if (note.trim()) showToast("批注已保存");
+    if (note.trim()) showToast(actionsTranslator.t("toast.annotationSaved"));
   }
 
   removeAnnotation(id: string): void {
     this.annotations.remove(id);
-    showToast("已删除标注");
+    showToast(actionsTranslator.t("toast.annotationDeleted"));
   }
 
   locateAnnotation(id: string): void {
@@ -342,12 +343,15 @@ export class CompanionController {
     const source = quote.block ? `（第 ${quote.block} 段）` : "";
     this.appendToNote(`> ${quote.text.replace(/\n/g, "\n> ")}\n> ${source}`.trimEnd());
     this.clearSelection();
-    showToast("已摘录到页面笔记");
+    showToast(actionsTranslator.t("toast.excerpted"));
   }
 
   copySelection(): void {
     const quote = this.currentQuote();
-    if (quote) void navigator.clipboard.writeText(quote.text).then(() => showToast("已复制"));
+    if (quote)
+      void navigator.clipboard
+        .writeText(quote.text)
+        .then(() => showToast(actionsTranslator.t("toast.copied")));
     this.clearSelection();
   }
 
@@ -358,8 +362,8 @@ export class CompanionController {
     if (state === "ready") return true;
     showToast(
       state === "pairing"
-        ? "请先在 Tau 中确认连接，标注不受影响"
-        : "还没连上 Tau：标注会先存在本机，连上后同步"
+        ? actionsTranslator.t("toast.confirmConnection")
+        : actionsTranslator.t("toast.offline")
     );
     this.openPanel("chat");
     return false;
@@ -404,7 +408,7 @@ export class CompanionController {
     const created = this.annotations.create(this.bubbleRange, "purple", stripCites(bubble.text));
     this.bubbleRange = null;
     setState({ bubble: null });
-    if (created) showToast("已存为批注");
+    if (created) showToast(actionsTranslator.t("toast.asAnnotation"));
   }
 
   // ———————— 面板 ————————
@@ -432,7 +436,9 @@ export class CompanionController {
   }
 
   retryConnect(): void {
-    void this.bridge.call("connect", undefined).catch(() => showToast("连接失败，请重试"));
+    void this.bridge
+      .call("connect", undefined)
+      .catch(() => showToast(actionsTranslator.t("toast.connectFailed")));
   }
 
   openTau(): void {
@@ -440,7 +446,7 @@ export class CompanionController {
     window.location.assign(BROWSER_COMPANION_DEEP_LINK);
     void this.bridge
       .call("connect.after-launch", undefined)
-      .catch(() => showToast("未能开始连接，请重新检测"));
+      .catch(() => showToast(actionsTranslator.t("toast.launchFailed")));
   }
 
   scrollToBlock(index: number): void {
