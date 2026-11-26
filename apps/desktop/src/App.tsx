@@ -1,3 +1,5 @@
+import { RemoteVideoFailure } from "../shared/remote-video-failure";
+import { remoteVideoFailureText } from "@/services/remote-video-failure.binding";
 import { connectDesktopI18n } from "./app/i18n/connect";
 import { PluginEnvironmentProvider } from "@tau/plugins/environment-host";
 import { desktopPluginEnvironment } from "@/app/plugins/environment";
@@ -105,6 +107,8 @@ const Application = () => {
         };
       },
       showError: msg => toast.error(msg),
+      errorText: error =>
+        error instanceof RemoteVideoFailure ? remoteVideoFailureText(error) : undefined,
       isRemoteUrl: url => url.startsWith("http://") || url.startsWith("https://"),
     }),
     []

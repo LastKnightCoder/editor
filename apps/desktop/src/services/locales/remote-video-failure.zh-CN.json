@@ -1,0 +1,4 @@
+{
+  "failure.http": "视频下载失败：HTTP {{status}}",
+  "failure.arguments": "缺少视频链接或本地路径"
+}

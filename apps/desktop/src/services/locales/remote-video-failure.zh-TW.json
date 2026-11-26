@@ -1,0 +1,4 @@
+{
+  "failure.http": "影片下載失敗：HTTP {{status}}",
+  "failure.arguments": "缺少影片連結或本機路徑"
+}

@@ -1,3 +1,4 @@
+import { RemoteVideoFailure, type RemoteVideoResponse } from "../../../shared/remote-video-failure";
 import type { MediaProgressSemantic } from "../../../shared/media-progress";
 import { ipcMain, WebContents } from "electron";
 import path from "node:path";
@@ -154,7 +155,7 @@ async function downloadFileWithProgress(
   });
 
   if (!response.ok) {
-    throw new Error(`Download failed: HTTP ${response.status}`);
+    throw new RemoteVideoFailure("http", { status: response.status });
   }
 
   const totalSize = parseInt(response.headers.get("content-length") || "0");
@@ -288,8 +289,17 @@ async function cacheRemoteVideo(
         stage: "error",
         progress: 0,
         message: `Download failed: ${error instanceof Error ? error.message : String(error)}`,
-        code: "video.remote.error",
-        params: { error: error instanceof Error ? error.message : String(error) },
+        ...(error instanceof RemoteVideoFailure &&
+        error.code === "http" &&
+        typeof error.params.status === "number"
+          ? {
+              code: "video.remote.error.http",
+              params: { status: error.params.status },
+            }
+          : {
+              code: "video.remote.error",
+              params: { error: error instanceof Error ? error.message : String(error) },
+            }),
       });
     }
 
@@ -310,29 +320,34 @@ const init = async () => {
     async (
       _event,
       { url, localPath, title }: { url: string; localPath: string; title?: string }
-    ) => {
-      if (!url || !localPath) {
-        throw new Error("url and localPath are required");
+    ): Promise<RemoteVideoResponse<RemoteVideoCacheEntry>> => {
+      try {
+        if (!url || !localPath) {
+          throw new RemoteVideoFailure("arguments");
+        }
+        const resolvedPath = resolveLocalPath(localPath);
+        const stat = await fs.stat(resolvedPath);
+        const id = keyOf(url);
+        const config = await readCacheConfig();
+        const now = new Date().toISOString();
+        const existing = config.entries[id];
+        const nextEntry: RemoteVideoCacheEntry = {
+          id,
+          url,
+          localPath: resolvedPath,
+          fileName: path.basename(resolvedPath),
+          fileSize: stat.size,
+          title: title || existing?.title || path.basename(resolvedPath),
+          createdAt: existing?.createdAt ?? now,
+          lastAccessed: now,
+        };
+        config.entries[id] = nextEntry;
+        await writeCacheConfig(config);
+        return { ok: true, value: nextEntry };
+      } catch (error) {
+        if (error instanceof RemoteVideoFailure) return { ok: false, failure: error.toData() };
+        throw error;
       }
-      const resolvedPath = resolveLocalPath(localPath);
-      const stat = await fs.stat(resolvedPath);
-      const id = keyOf(url);
-      const config = await readCacheConfig();
-      const now = new Date().toISOString();
-      const existing = config.entries[id];
-      const nextEntry: RemoteVideoCacheEntry = {
-        id,
-        url,
-        localPath: resolvedPath,
-        fileName: path.basename(resolvedPath),
-        fileSize: stat.size,
-        title: title || existing?.title || path.basename(resolvedPath),
-        createdAt: existing?.createdAt ?? now,
-        lastAccessed: now,
-      };
-      config.entries[id] = nextEntry;
-      await writeCacheConfig(config);
-      return nextEntry;
     }
   );
 
@@ -405,9 +420,10 @@ const init = async () => {
       try {
         const result = await cacheRemoteVideo(url, fileName, requestId);
         activeSenders.delete(requestId);
-        return { ...result, requestId };
+        return { ok: true, value: { ...result, requestId } };
       } catch (error) {
         activeSenders.delete(requestId);
+        if (error instanceof RemoteVideoFailure) return { ok: false, failure: error.toData() };
         throw error;
       }
     }

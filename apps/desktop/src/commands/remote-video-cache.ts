@@ -1,3 +1,7 @@
+import {
+  unwrapRemoteVideoResponse,
+  type RemoteVideoResponse,
+} from "../../shared/remote-video-failure";
 import type { MediaProgressSemantic } from "../../shared/media-progress";
 import { invoke, on, off } from "@/electron";
 import type { IpcRendererEvent } from "electron";
@@ -33,7 +37,9 @@ export const addRemoteVideoCacheEntry = async (payload: {
   localPath: string;
   title?: string;
 }): Promise<RemoteVideoCacheEntry> => {
-  return await invoke("remote-video-cache:add", payload);
+  return unwrapRemoteVideoResponse(
+    await invoke<RemoteVideoResponse<RemoteVideoCacheEntry>>("remote-video-cache:add", payload)
+  );
 };
 
 export const listRemoteVideoCache = async (): Promise<RemoteVideoCacheEntry[]> => {
@@ -67,7 +73,16 @@ export const downloadRemoteVideoWithProgress = async (
   }
 
   try {
-    return await invoke("remote-video-cache:download-with-progress", payload);
+    return unwrapRemoteVideoResponse(
+      await invoke<
+        RemoteVideoResponse<{
+          localPath: string;
+          fileSize: number;
+          cached: boolean;
+          requestId: number;
+        }>
+      >("remote-video-cache:download-with-progress", payload)
+    );
   } finally {
     const handler = progressHandler;
     if (handler) {

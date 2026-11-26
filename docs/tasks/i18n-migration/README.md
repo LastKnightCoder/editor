@@ -368,6 +368,8 @@ Native通知十四路径完成；真实前端21例、mobile type/lint、48key三
 
 在线视频失败十五路径完成；四文件21例、desktop type、三语与原8分类诊断逐字对照通过。真实Native handler→structuredClone→commands覆成功/已知失败、重复任务取消/HTTP/cache identity；原normalize旧导出消费清零退出，UI重投影保任务和原始未知cause。
 
+远程视频失败十九路径完成；desktop基线11至13、shared1至2例通过，desktop type/范围静态/三语runtime与Node无DOM实际烟测通过。真实Native→structuredClone→commands保原文件名/成功值、HTTP与缺参数English原message，unknown/Abort仍原reject；100ms原进度时点由fake timer验证。跨语不重cache/status或重通知，原fallback src及下载参数/清理与App memo[]保留。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

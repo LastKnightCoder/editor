@@ -1,3 +1,5 @@
+import { RemoteVideoFailure } from "../../../shared/remote-video-failure";
+import { remoteVideoFailureText } from "@/services/remote-video-failure.binding";
 import { VideoCacheFailure } from "../../../shared/video-cache-failure";
 import { videoCacheFailureText } from "@/services/video-cache-failure.binding";
 import type { MediaProgress } from "../../../shared/media-progress";
@@ -53,5 +55,7 @@ export function videoTranscriptionFailureText(error: unknown): string {
     ? videoTranscriptionT(`failure.${error.code}`)
     : error instanceof VideoCacheFailure
       ? videoCacheFailureText(error)
-      : String(error);
+      : error instanceof RemoteVideoFailure
+        ? remoteVideoFailureText(error)
+        : String(error);
 }

@@ -1,3 +1,4 @@
+import { remoteVideoHttpFailureText } from "./remote-video-failure.binding";
 import type { MediaProgress } from "../../shared/media-progress";
 import { desktopI18n } from "@/app/i18n/runtime";
 import { mediaProgressMessages } from "./media-progress.messages";
@@ -80,6 +81,10 @@ export function mediaProgressText(
         });
       break;
     }
+    case "video.remote.error.http":
+      if (typeof param("status") === "number")
+        return remoteVideoHttpFailureText(param("status") as number);
+      break;
     case "video.remote.error":
       if (typeof param("error") === "string")
         return t("video.error", { error: param("error") as string });

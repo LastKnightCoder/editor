@@ -1,0 +1,4 @@
+{
+  "error.fallback": "Failed to download video",
+  "error.notice": "Video download failed: {{error}}"
+}

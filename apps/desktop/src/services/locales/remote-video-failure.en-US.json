@@ -1,0 +1,4 @@
+{
+  "failure.http": "Video download failed: HTTP {{status}}",
+  "failure.arguments": "A video URL and local path are required"
+}

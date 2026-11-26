@@ -1,0 +1,4 @@
+{
+  "http": "Download failed: HTTP {{status}}",
+  "arguments": "url and localPath are required"
+}

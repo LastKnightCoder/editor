@@ -1,3 +1,5 @@
+import { createI18nRuntime, createLocaleStore } from "@tau/i18n";
+import { I18nRuntimeProvider } from "@tau/i18n/react";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
@@ -74,5 +76,63 @@ it("缓存进度保留opaque语义与数值，普通重渲染不重新下载", a
     await act(async () => root.unmount());
     host.remove();
     vi.useRealTimers();
+  }
+});
+
+it("错误换语读取同一raw cause与宿主投影，不重新下载或重放提示", async () => {
+  const locales = createLocaleStore("en-US");
+  const runtime = createI18nRuntime({ localeSource: locales });
+  const original = Object.assign(new Error("original provider diagnostic"), { status: 503 });
+  let project = true;
+  const cacheVideo = vi.fn(async () => {
+    throw original;
+  });
+  const notice = vi.fn();
+  const status = vi.fn(async () => null);
+  const seen: unknown[] = [];
+  const deps: UseRemoteVideoDeps = {
+    cacheVideo,
+    getCacheStatus: status,
+    showError: notice,
+    isRemoteUrl: () => true,
+    errorText(error) {
+      expect(this).toBe(deps);
+      seen.push(error);
+      return project ? `${locales.getSnapshot()}:${original.status}` : undefined;
+    },
+  };
+  let source!: ReturnType<typeof useRemoteVideo>;
+  function View() {
+    source = useRemoteVideo("https://raw.example/video", deps);
+    return null;
+  }
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  try {
+    await act(async () =>
+      root.render(
+        <I18nRuntimeProvider runtime={runtime}>
+          <View />
+        </I18nRuntimeProvider>
+      )
+    );
+    expect(source.error).toBe("en-US:503");
+    expect(source.videoUrl).toBe("https://raw.example/video");
+    expect(source.loading).toBe(false);
+    await act(async () => locales.setLocale("zh-TW"));
+    expect(source.error).toBe("zh-TW:503");
+    project = false;
+    await act(async () => locales.setLocale("zh-CN"));
+    expect(source.error).toBe(original.message);
+    expect(seen.every(error => error === original)).toBe(true);
+    expect(cacheVideo).toHaveBeenCalledTimes(1);
+    expect(status).toHaveBeenCalledTimes(1);
+    expect(notice).toHaveBeenCalledTimes(1);
+    expect(original.message).toBe("original provider diagnostic");
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+    runtime.dispose();
   }
 });

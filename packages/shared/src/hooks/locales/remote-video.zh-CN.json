@@ -1,0 +1,4 @@
+{
+  "error.fallback": "视频下载失败",
+  "error.notice": "视频下载失败：{{error}}"
+}

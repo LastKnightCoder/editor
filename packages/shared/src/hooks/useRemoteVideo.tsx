@@ -1,4 +1,5 @@
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { useRemoteVideoI18n } from "./remote-video-i18n";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 
 interface VideoProgressSemantic {
   code?: string;
@@ -46,14 +47,26 @@ export interface UseRemoteVideoDeps {
     url: string
   ) => Promise<{ cached: boolean; localPath?: string; fileSize?: number } | null>;
   showError: (message: string) => void;
+  errorText?: (error: unknown) => string | undefined;
   isRemoteUrl: (url: string) => boolean;
 }
 
+type ErrorPresentation = {
+  t: ReturnType<typeof useRemoteVideoI18n>["t"];
+  deps?: Pick<UseRemoteVideoDeps, "errorText">;
+};
+const errorMessage = (error: unknown, presentation: ErrorPresentation) =>
+  presentation.deps?.errorText?.(error) ??
+  (error instanceof Error ? error.message : presentation.t("error.fallback"));
+
 // Base hook with explicit dependencies
 export function useRemoteVideo(src?: string, deps?: UseRemoteVideoDeps): UseRemoteVideoResult {
+  const { t } = useRemoteVideoI18n();
+  const presentation = useRef<ErrorPresentation>({ t, deps });
+  presentation.current = { t, deps };
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ cause: unknown } | null>(null);
   const [streamProgress, setStreamProgress] = useState<RemoteVideoStreamProgress | null>(null);
   const [attempt, setAttempt] = useState(0);
   const retry = useCallback(() => setAttempt(value => value + 1), []);
@@ -142,9 +155,10 @@ export function useRemoteVideo(src?: string, deps?: UseRemoteVideoDeps): UseRemo
         }, 2000);
       } catch (err) {
         console.error("Failed to process remote video:", err);
-        const errorMessage = err instanceof Error ? err.message : "Failed to download video";
-        setError(errorMessage);
-        deps.showError(`Video download failed: ${errorMessage}`);
+        setError({ cause: err });
+        deps.showError(
+          presentation.current.t("error.notice", { error: errorMessage(err, presentation.current) })
+        );
 
         // Fallback to original URL on error
         setVideoUrl(src);
@@ -163,7 +177,7 @@ export function useRemoteVideo(src?: string, deps?: UseRemoteVideoDeps): UseRemo
   return {
     videoUrl,
     loading,
-    error,
+    error: error ? errorMessage(error.cause, presentation.current) : null,
     streamProgress,
     retry,
   };
