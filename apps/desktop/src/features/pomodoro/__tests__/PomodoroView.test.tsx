@@ -1,3 +1,7 @@
+import { desktopLocaleSource } from "@/app/i18n/runtime";
+import { pomoText } from "../i18n";
+import { toast } from "@tau/ui";
+import { createPomodoroPreset, setBackgroundSound } from "@/commands/pomodoro";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -310,4 +314,91 @@ it("开始前选「专注于…」，▶ 与数字键都带上；开始后清空
   });
   expect(container.querySelector('[aria-label="选择专注于什么"]')).not.toBeNull();
   mocks.events = [];
+});
+
+it("语言变化保留预设草稿与运行会话，完成反馈不重播", async () => {
+  const original = desktopLocaleSource.getSnapshot();
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const notice = vi.spyOn(toast, "success");
+  try {
+    await act(async () =>
+      root.render(
+        <QueryClientProvider client={client}>
+          <PomodoroView />
+        </QueryClientProvider>
+      )
+    );
+    await act(async () => {
+      await vi.waitFor(() =>
+        expect(container.querySelector('[data-preset-chip="1"]')).not.toBeNull()
+      );
+    });
+    const session: PomodoroSession = {
+      ...record(99, NOW - 10 * MIN, 0, 25),
+      endTime: undefined,
+      status: "running",
+    };
+    await act(async () => usePomodoroTimer.setState({ session }));
+    const add = buttonByText(pomoText("ui.newPreset"));
+    if (!add) throw new Error("新建预设入口未挂载");
+    await act(async () => add.click());
+    const input = document.querySelector<HTMLInputElement>(
+      `input[placeholder="${pomoText("ui.eGConcreteMathematics")}"]`
+    );
+    if (!input) throw new Error("预设草稿未挂载");
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(
+        input,
+        "预设草稿"
+      );
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.focus();
+    });
+    input.setSelectionRange(1, 3);
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(
+        document.querySelector<HTMLInputElement>(
+          `input[placeholder="${pomoText("ui.eGConcreteMathematics")}"]`
+        )
+      ).toBe(input);
+      expect(input.value).toBe("预设草稿");
+      expect(document.activeElement).toBe(input);
+      expect([input.selectionStart, input.selectionEnd]).toEqual([1, 3]);
+      expect(usePomodoroTimer.getState().session).toBe(session);
+      expect(text()).toContain("15:00");
+      for (const action of [
+        mocks.start,
+        mocks.stop,
+        mocks.pause,
+        mocks.resume,
+        createPomodoroPreset,
+        setBackgroundSound,
+      ])
+        expect(action).not.toHaveBeenCalled();
+    }
+    await act(async () =>
+      usePomodoroTimer.setState({
+        session: null,
+        lastResult: {
+          seq: 991,
+          presetId: 1,
+          startTime: NOW - 25 * MIN,
+          endedAt: NOW,
+          focusMs: 25 * MIN,
+          expectedMs: 25 * MIN,
+          pauseCount: 0,
+          saved: true,
+        },
+      })
+    );
+    expect(notice).toHaveBeenCalledTimes(1);
+    await act(async () => desktopLocaleSource.setLocale("zh-CN"));
+    expect(notice).toHaveBeenCalledTimes(1);
+    expect(input.value).toBe("预设草稿");
+  } finally {
+    await act(async () => desktopLocaleSource.setLocale(original));
+    vi.restoreAllMocks();
+    client.clear();
+  }
 });

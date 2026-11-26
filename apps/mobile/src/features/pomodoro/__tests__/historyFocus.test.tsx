@@ -18,7 +18,6 @@ vi.mock("../queries", () => ({
     state.ranges.push({ start: params.start, end: params.end });
     return { data: state.sessions, isLoading: false };
   },
-  presetNameOf: () => "深度工作",
   invalidatePomodoroQueries: vi.fn(),
 }));
 vi.mock("../../../components/ActionSheet", () => ({ ActionSheet: () => null }));

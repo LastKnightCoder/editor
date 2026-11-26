@@ -3,7 +3,7 @@
  * 无 React、无命令调用，页面 / 小窗 / 沉浸窗共用；单测见 __tests__/model.test.ts。
  */
 
-import type { PomodoroPreset, PomodoroSession } from "@/types";
+import type { PomodoroSession } from "@/types";
 
 export const MINUTE_MS = 60_000;
 export const HOUR_MS = 60 * MINUTE_MS;
@@ -20,11 +20,6 @@ export function startOfDay(ts: number): number {
   const d = new Date(ts);
   d.setHours(0, 0, 0, 0);
   return d.getTime();
-}
-
-/** ts 所在日相对 now 所在日的偏移（今天 0、昨天 -1） */
-function dayOffset(ts: number, now: number): number {
-  return Math.round((startOfDay(ts) - startOfDay(now)) / DAY_MS);
 }
 
 /* ---------- 计时 ---------- */
@@ -91,38 +86,9 @@ export function formatDuration(ms: number): string {
   return h > 0 ? `${h}h ${pad(m)}m` : `${m}m`;
 }
 
-/** 1 小时 5 分 / 25 分钟 */
-export function formatDurationCN(ms: number): string {
-  const minutes = Math.round(ms / MINUTE_MS);
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  if (h === 0) return `${m} 分钟`;
-  return m ? `${h} 小时 ${m} 分` : `${h} 小时`;
-}
-
 export function formatHM(ts: number): string {
   const d = new Date(ts);
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-const WEEK = "日一二三四五六";
-export const weekdayLabel = (ts: number) => `周${WEEK[new Date(ts).getDay()]}`;
-export const monthDayLabel = (ts: number) => {
-  const d = new Date(ts);
-  return `${d.getMonth() + 1}月${d.getDate()}日`;
-};
-
-export function dayLabel(ts: number, now: number): string {
-  const offset = dayOffset(ts, now);
-  if (offset === 0) return "今天";
-  if (offset === -1) return "昨天";
-  if (offset === -2) return "前天";
-  return monthDayLabel(ts);
-}
-
-/** 预设简写：25′ / 正计时 */
-export function presetShort(preset: Pick<PomodoroPreset, "mode" | "durationMin">): string {
-  return preset.mode === "countdown" ? `${preset.durationMin}′` : "正计时";
 }
 
 /* ---------- 聚合 ---------- */

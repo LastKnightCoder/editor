@@ -1,3 +1,4 @@
+import { pomoText, pomoValue, usePomodoroI18n } from "../i18n";
 /**
  * 修改专注时长（Popover，锚定记录行的时长按钮 / 账本色块）。
  * 接口只能改 focusMs：主进程随之重算结束时间与暂停段并重建日历事件，所以不提供撤销。
@@ -22,6 +23,8 @@ export function FocusEditorPopover({
   onClose: () => void;
   onSubmit: (session: PomodoroSession, focusMs: number) => Promise<unknown>;
 }) {
+  usePomodoroI18n();
+
   const [minutes, setMinutes] = useState(0);
   const [saving, setSaving] = useState(false);
   useEffect(() => {
@@ -34,10 +37,10 @@ export function FocusEditorPopover({
     setSaving(true);
     try {
       await onSubmit(session, minutes * MINUTE_MS);
-      toast.success(`已改为 ${minutes} 分钟`);
+      toast.success(pomoText("feedback.durationChanged", { minutes: pomoValue(minutes) }));
       onClose();
     } catch {
-      toast.error("修改失败");
+      toast.error(pomoText("ui.couldNotUpdate"));
     } finally {
       setSaving(false);
     }
@@ -54,7 +57,7 @@ export function FocusEditorPopover({
       className="w-[288px]"
     >
       <Popover.Header icon={<Clock className="size-[15px]" strokeWidth={1.75} />}>
-        修改专注时长
+        {pomoText("ui.editFocusDuration")}
       </Popover.Header>
       <Popover.Body>
         <form
@@ -64,7 +67,11 @@ export function FocusEditorPopover({
           }}
         >
           <div className="flex items-center gap-1.5">
-            <IconButton aria-label="减少 1 分钟" className="size-7" onClick={() => step(-1)}>
+            <IconButton
+              aria-label={pomoText("ui.subtractOneMinute")}
+              className="size-7"
+              onClick={() => step(-1)}
+            >
               <Minus className="size-[15px]" strokeWidth={1.75} />
             </IconButton>
             <NumberInput
@@ -74,20 +81,24 @@ export function FocusEditorPopover({
               className="text-center tabular-nums"
               value={minutes}
               onValueChange={value => setMinutes(value ?? 0)}
-              aria-label="专注时长（分钟）"
+              aria-label={pomoText("ui.focusDurationMinutes")}
               aria-invalid={!valid || undefined}
             />
-            <IconButton aria-label="增加 1 分钟" className="size-7" onClick={() => step(1)}>
+            <IconButton
+              aria-label={pomoText("ui.addOneMinute")}
+              className="size-7"
+              onClick={() => step(1)}
+            >
               <Plus className="size-[15px]" strokeWidth={1.75} />
             </IconButton>
             <span className="text-ink-2 text-tau-meta ml-0.5 flex-none whitespace-nowrap">
-              分钟
+              {pomoText("unit.minutes")}
             </span>
           </div>
           {session && (
             <p className="text-ink-2 text-tau-meta mt-2.5">
-              {formatHM(session.startTime)} 开始 ·
-              结束时间随专注时长调整，日程里的对应事件同步更新。
+              {formatHM(session.startTime)}{" "}
+              {pomoText("ui.startAndEndTimesAdjustWithFocusDurationAnd")}
             </p>
           )}
           <button type="submit" hidden />
@@ -95,7 +106,7 @@ export function FocusEditorPopover({
       </Popover.Body>
       <Popover.Footer>
         <Button variant="ghost" size="sm" onClick={onClose}>
-          取消
+          {pomoText("ui.cancel")}
         </Button>
         <Button
           variant="primary"
@@ -104,7 +115,7 @@ export function FocusEditorPopover({
           disabled={!valid}
           onClick={() => void submit()}
         >
-          保存
+          {pomoText("ui.save")}
         </Button>
       </Popover.Footer>
     </Popover>

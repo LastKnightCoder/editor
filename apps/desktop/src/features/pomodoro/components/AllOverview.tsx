@@ -1,3 +1,4 @@
+import { pomoText, pomoValue, usePomodoroI18n, pomoFormat } from "../i18n";
 /**
  * 「全部」概览：累计数字 → 按自然年的热力格（新年在上，区内滚动）→ 首条记录以来的单色月度柱。
  * 点格子跳到那天所在的账本；点年份 / 月份标签 / 月度柱打开那段时间的账本。
@@ -8,9 +9,8 @@ import { useMemo } from "react";
 import { cn } from "@tau/ui";
 import { FadeScroll } from "@tau/ui";
 import type { PomodoroPreset, PomodoroSession } from "@/types";
-import { HOUR_MS, MINUTE_MS, formatDuration, startOfDay, weekdayLabel } from "../model";
+import { HOUR_MS, MINUTE_MS, formatDuration, startOfDay } from "../model";
 import { addDays, monthWindow, type DayWindow, type QuickKey } from "../range";
-import { DELETED_PRESET_NAME } from "./presetTone";
 
 const LEVEL = [
   "bg-track",
@@ -21,7 +21,7 @@ const LEVEL = [
 ];
 const levelOf = (ms: number) =>
   ms <= 0 ? 0 : ms < 30 * MINUTE_MS ? 1 : ms < 60 * MINUTE_MS ? 2 : ms < 120 * MINUTE_MS ? 3 : 4;
-const WEEKDAY_LABELS = ["一", "", "三", "", "五", "", "日"];
+const WEEKDAY_LABELS = [0, null, 2, null, 4, null, 6];
 
 interface DayStat {
   ms: number;
@@ -45,6 +45,8 @@ export function AllOverview({
   onJumpToDay(day: number): void;
   onOpenWindow(window: DayWindow, key: QuickKey | null): void;
 }) {
+  usePomodoroI18n();
+
   const today = startOfDay(now);
   const thisYear = new Date(now).getFullYear();
 
@@ -87,36 +89,46 @@ export function AllOverview({
   const years: number[] = [];
   for (let y = thisYear; y >= data.firstYear; y--) years.push(y);
   const highlightName =
-    highlight != null ? (presetsById.get(highlight)?.name ?? DELETED_PRESET_NAME) : null;
+    highlight != null
+      ? (presetsById.get(highlight)?.name ?? pomoText("fallback.deletedPreset"))
+      : null;
 
   if (data.list.length === 0)
     return (
       <div className="text-ink-2 text-tau-meta flex flex-1 items-center justify-center pb-10">
         {highlightName
-          ? `「${highlightName}」还没有专注记录`
-          : "还没有专注记录，完成第一个番茄后这里会出现全年热力格"}
+          ? pomoText("empty.namedPreset", { name: pomoValue(highlightName) })
+          : pomoText("ui.completeYourFirstFocusSessionToSeeTheYearly")}
       </div>
     );
 
   return (
     <div className="flex min-h-0 flex-1 flex-col pr-3">
       <div className="mt-1 flex flex-none gap-[30px]">
-        <Figure value={`${Math.round(data.total / HOUR_MS)} 小时`} label="累计专注" />
-        <Figure value={String(data.byDay.size)} label="有专注的天" />
-        <Figure value={String(data.best)} label="最长连续（天）" />
+        <Figure
+          value={pomoText("duration.hours", { hours: pomoValue(Math.round(data.total / HOUR_MS)) })}
+          label={pomoText("ui.totalFocus2")}
+        />
+        <Figure value={String(data.byDay.size)} label={pomoText("ui.daysWithFocus")} />
+        <Figure value={String(data.best)} label={pomoText("ui.longestStreakDays")} />
         <Figure
           value={formatDuration(data.total / Math.max(1, data.byDay.size))}
-          label="专注日日均"
+          label={pomoText("ui.averagePerActiveDay")}
         />
         {bestMonth && bestMonth.ms > 0 && (
           <Figure
-            value={`${bestMonth.year !== thisYear ? `${bestMonth.year}.` : ""}${bestMonth.month + 1}月`}
-            label={`最投入的月份 · ${formatDuration(bestMonth.ms)}`}
+            value={pomoText("date.monthWithYearPrefix", {
+              year: pomoValue(bestMonth.year !== thisYear ? `${bestMonth.year}.` : ""),
+              month: pomoValue(bestMonth.month + 1),
+            })}
+            label={pomoText("summary.bestMonth", {
+              duration: pomoValue(formatDuration(bestMonth.ms)),
+            })}
           />
         )}
       </div>
 
-      <FadeScroll className="-mr-1 mt-3 min-h-[172px] flex-[0_1_auto]">
+      <FadeScroll className="mt-3 -mr-1 min-h-[172px] flex-[0_1_auto]">
         {years.map(year => (
           <YearHeatmap
             key={year}
@@ -134,17 +146,18 @@ export function AllOverview({
           />
         ))}
         <div className="text-ink-3 mt-2 flex items-center justify-end gap-1 text-[11px]">
-          少
+          {pomoText("ui.less")}
           {LEVEL.map(tone => (
             <i key={tone} className={cn("size-[11px] rounded-[3px]", tone)} />
           ))}
-          多（30 分 / 1 时 / 2 时）
+          {pomoText("ui.more30Min1Hr2Hr")}
         </div>
       </FadeScroll>
 
       <div className="text-ink-3 mt-3.5 flex flex-none items-baseline gap-2 text-[12px]">
-        <b className="text-ink-1 text-tau-body font-semibold">按月</b>
-        {highlightName ? `只看「${highlightName}」 · ` : ""}点月份看那个月
+        <b className="text-ink-1 text-tau-body font-semibold">{pomoText("ui.byMonth")}</b>
+        {highlightName ? pomoText("filter.presetPrefix", { name: pomoValue(highlightName) }) : ""}
+        {pomoText("ui.selectAMonthToViewIt")}
       </div>
       <div
         className="mt-2 grid min-h-[84px] flex-1 items-end gap-1"
@@ -156,7 +169,11 @@ export function AllOverview({
             <button
               key={`${m.year}-${m.month}`}
               type="button"
-              title={`${m.year}年${m.month + 1}月 · ${formatDuration(m.ms)}`}
+              title={pomoText("date.monthDuration", {
+                year: pomoValue(m.year),
+                month: pomoValue(m.month + 1),
+                duration: pomoValue(formatDuration(m.ms)),
+              })}
               onClick={() => onOpenWindow(monthWindow(m.year, m.month, now), null)}
               className="group/bar hover:bg-hover flex h-full flex-col justify-end gap-1 rounded-lg px-1 pt-1"
             >
@@ -183,7 +200,7 @@ export function AllOverview({
                     {String(m.year).slice(2)}
                   </em>
                 )}
-                {m.month + 1}月
+                {pomoFormat.monthName(m.month)}
               </span>
             </button>
           );
@@ -219,6 +236,8 @@ function YearHeatmap({
   onOpenYear(): void;
   onOpenMonth(month: number): void;
 }) {
+  usePomodoroI18n();
+
   const jan1 = new Date(year, 0, 1).getTime();
   const gridStart = addDays(jan1, -((new Date(jan1).getDay() + 6) % 7));
   let yearMs = 0;
@@ -253,7 +272,10 @@ function YearHeatmap({
       >
         <b className="text-tau-body font-semibold tabular-nums">{year}</b>
         <span className="text-ink-3 text-[12px] tabular-nums">
-          {yearDays} 天 · {Math.round(yearMs / HOUR_MS)} 小时
+          {pomoText("stats.year", {
+            days: pomoValue(yearDays),
+            hours: pomoValue(Math.round(yearMs / HOUR_MS)),
+          })}
         </span>
       </button>
       <div className="mt-1 grid grid-cols-[22px_minmax(0,1fr)] gap-x-1.5">
@@ -266,17 +288,17 @@ function YearHeatmap({
               key={month}
               type="button"
               onClick={() => onOpenMonth(month)}
-              className="text-ink-3 hover:bg-accent-soft hover:text-accent-text -ml-0.5 whitespace-nowrap rounded px-0.5 text-left text-[11px]"
+              className="text-ink-3 hover:bg-accent-soft hover:text-accent-text -ml-0.5 rounded px-0.5 text-left text-[11px] whitespace-nowrap"
               style={{ gridColumn: col + 1 }}
             >
-              {month + 1}月
+              {pomoFormat.monthName(month)}
             </button>
           ))}
         </div>
         <div className="text-ink-3 grid grid-rows-7 gap-[3px] text-[10.5px]">
           {WEEKDAY_LABELS.map((w, i) => (
             <span key={i} className="flex items-center">
-              {w}
+              {w === null ? "" : pomoFormat.weekdayFromMonday(w)}
             </span>
           ))}
         </div>
@@ -291,7 +313,19 @@ function YearHeatmap({
               <button
                 key={day}
                 type="button"
-                title={`${new Date(day).getMonth() + 1}月${new Date(day).getDate()}日 ${weekdayLabel(day)} · ${stat ? `${stat.count} 个 · ${formatDuration(stat.ms)}` : "无记录"}`}
+                title={pomoText("date.daySummary", {
+                  month: pomoValue(new Date(day).getMonth() + 1),
+                  day: pomoValue(new Date(day).getDate()),
+                  weekday: pomoValue(pomoFormat.weekday(day)),
+                  summary: pomoValue(
+                    stat
+                      ? pomoText("summary.sessionsDuration", {
+                          count: pomoValue(stat.count),
+                          duration: pomoValue(formatDuration(stat.ms)),
+                        })
+                      : pomoText("ui.noRecords")
+                  ),
+                })}
                 onClick={() => onJumpToDay(day)}
                 className={cn(
                   "aspect-square rounded-[3px] transition-transform duration-100 hover:scale-125",

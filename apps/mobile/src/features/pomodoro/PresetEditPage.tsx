@@ -1,3 +1,4 @@
+import { pomoText, pomoValue, usePomodoroI18n } from "./i18n";
 // 预设编辑页（P3·独立编辑页）：名称 / 模式选择卡 / 时长步进；编辑态含归档开关与删除。
 // 未保存离开不拦截（字段轻量，误退可重填），保存后回主页。
 
@@ -22,6 +23,8 @@ type PresetEditPageProps = {
 };
 
 export function PresetEditPage({ presetId, onBack, onError }: PresetEditPageProps) {
+  usePomodoroI18n();
+
   const isNew = presetId < 0;
   const presetsQuery = usePomodoroPresets();
   const preset = useMemo(
@@ -55,11 +58,13 @@ export function PresetEditPage({ presetId, onBack, onError }: PresetEditPageProp
   if (!isNew && presetsQuery.isSuccess && !preset) {
     return (
       <div className="mobile-kb-screen bg-page fixed inset-0 z-50 flex flex-col">
-        <PageHeader title="编辑预设" onBack={onBack} />
+        <PageHeader title={pomoText("ui.editPreset")} onBack={onBack} />
         <div className="flex flex-1 flex-col items-center justify-center gap-2 px-8">
-          <p className="text-ink-2 text-[13.5px] font-semibold">预设不存在或已被删除</p>
+          <p className="text-ink-2 text-[13.5px] font-semibold">
+            {pomoText("ui.thisPresetIsMissingOrHasBeenDeleted")}
+          </p>
           <button type="button" onClick={onBack} className="text-accent mt-2 text-[13px] font-bold">
-            返回
+            {pomoText("ui.back")}
           </button>
         </div>
       </div>
@@ -76,7 +81,7 @@ export function PresetEditPage({ presetId, onBack, onError }: PresetEditPageProp
           mode,
           durationMin: mode === "countdown" ? durationMin : undefined,
         });
-        toast.success("已创建预设");
+        toast.success(pomoText("ui.presetCreated"));
       } else {
         await tauri.pomodoroUpdatePreset({
           id: presetId,
@@ -88,12 +93,15 @@ export function PresetEditPage({ presetId, onBack, onError }: PresetEditPageProp
         if (preset && preset.archived !== archived) {
           await tauri.pomodoroArchivePreset(presetId, archived);
         }
-        toast.success("已保存");
+        toast.success(pomoText("ui.saved"));
       }
       invalidatePomodoroQueries();
       onBack();
     } catch (error) {
-      onError(error, isNew ? "创建预设失败" : "保存预设失败");
+      onError(
+        error,
+        isNew ? pomoText("ui.couldNotCreatePreset") : pomoText("ui.couldNotSavePreset")
+      );
     } finally {
       setSaving(false);
     }
@@ -105,14 +113,32 @@ export function PresetEditPage({ presetId, onBack, onError }: PresetEditPageProp
     title: string;
     desc: string;
   }> = [
-    { value: "countdown", icon: Timer, title: "倒计时", desc: "到点提醒收尾" },
-    { value: "countup", icon: Plus, title: "正计时", desc: "不限时，手动结束" },
+    {
+      value: "countdown",
+      icon: Timer,
+      get title() {
+        return pomoText("mode.countdown");
+      },
+      get desc() {
+        return pomoText("ui.finishWhenTheTimerEnds");
+      },
+    },
+    {
+      value: "countup",
+      icon: Plus,
+      get title() {
+        return pomoText("mode.countup");
+      },
+      get desc() {
+        return pomoText("mode.manualHint");
+      },
+    },
   ];
 
   return (
     <div className="mobile-kb-screen bg-page fixed inset-0 z-50 flex flex-col">
       <PageHeader
-        title={isNew ? "新建预设" : "编辑预设"}
+        title={isNew ? pomoText("ui.newPreset") : pomoText("ui.editPreset")}
         onBack={onBack}
         actions={
           <button
@@ -121,7 +147,7 @@ export function PresetEditPage({ presetId, onBack, onError }: PresetEditPageProp
             disabled={!canSave}
             className={`text-accent px-2.5 py-2 text-sm font-bold ${canSave ? "" : "opacity-40"}`}
           >
-            {saving ? "保存中…" : "保存"}
+            {saving ? pomoText("ui.saving") : pomoText("ui.save")}
           </button>
         }
       />
@@ -132,19 +158,21 @@ export function PresetEditPage({ presetId, onBack, onError }: PresetEditPageProp
           className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto overscroll-contain px-[18px]"
         >
           <section className="rounded-card bg-surface shadow-card mt-3 p-4">
-            <label className="text-ink-3 mb-1.5 block text-[11.5px] font-extrabold">名称</label>
+            <label className="text-ink-3 mb-1.5 block text-[11.5px] font-extrabold">
+              {pomoText("ui.name")}
+            </label>
             <input
               type="text"
               value={name}
               onChange={event => setName(event.target.value)}
-              placeholder="如：深度工作"
+              placeholder={pomoText("ui.eGDeepWork")}
               maxLength={20}
               className="input-base w-full px-3.5 py-3 font-bold"
             />
           </section>
 
           <section className="rounded-card bg-surface shadow-card mt-3 p-4">
-            <p className="text-ink-3 mb-2.5 text-[11.5px] font-extrabold">模式</p>
+            <p className="text-ink-3 mb-2.5 text-[11.5px] font-extrabold">{pomoText("ui.mode")}</p>
             <div className="flex flex-col gap-2.5">
               {modeCards.map(card => {
                 const active = mode === card.value;
@@ -186,11 +214,13 @@ export function PresetEditPage({ presetId, onBack, onError }: PresetEditPageProp
 
           {mode === "countdown" ? (
             <section className="rounded-card bg-surface shadow-card mt-3 p-4">
-              <p className="text-ink-3 mb-2.5 text-[11.5px] font-extrabold">时长（分钟）</p>
+              <p className="text-ink-3 mb-2.5 text-[11.5px] font-extrabold">
+                {pomoText("ui.durationMinutes")}
+              </p>
               <div className="flex items-center gap-3">
                 <button
                   type="button"
-                  aria-label="减少 5 分钟"
+                  aria-label={pomoText("ui.subtract5Minutes")}
                   onClick={() => setDurationMin(value => Math.max(1, value - 5))}
                   className="bg-page text-ink-1 grid h-11 w-11 place-items-center rounded-[15px] text-xl font-black"
                 >
@@ -198,11 +228,13 @@ export function PresetEditPage({ presetId, onBack, onError }: PresetEditPageProp
                 </button>
                 <span className="text-ink-1 flex-1 text-center text-[21px] font-extrabold tabular-nums">
                   {durationMin}
-                  <em className="text-ink-3 ml-1 text-[12px] font-bold not-italic">分钟</em>
+                  <em className="text-ink-3 ml-1 text-[12px] font-bold not-italic">
+                    {pomoText("unit.minutes")}
+                  </em>
                 </span>
                 <button
                   type="button"
-                  aria-label="增加 5 分钟"
+                  aria-label={pomoText("ui.add5Minutes")}
                   onClick={() => setDurationMin(value => Math.min(180, value + 5))}
                   className="bg-page text-ink-1 grid h-11 w-11 place-items-center rounded-[15px] text-xl font-black"
                 >
@@ -239,16 +271,18 @@ export function PresetEditPage({ presetId, onBack, onError }: PresetEditPageProp
             <>
               <section className="rounded-card bg-surface shadow-card mt-3 flex items-center gap-3 p-4">
                 <div className="min-w-0 flex-1">
-                  <p className="text-ink-1 text-[13.5px] font-extrabold">归档预设</p>
+                  <p className="text-ink-1 text-[13.5px] font-extrabold">
+                    {pomoText("ui.archivePreset")}
+                  </p>
                   <p className="text-ink-3 mt-0.5 text-[10.5px] font-semibold">
-                    列表隐藏，历史记录保留
+                    {pomoText("ui.hideFromTheListAndKeepHistory")}
                   </p>
                 </div>
                 <button
                   type="button"
                   role="switch"
                   aria-checked={archived}
-                  aria-label="归档预设"
+                  aria-label={pomoText("ui.archivePreset")}
                   onClick={() => setArchived(value => !value)}
                   className="relative h-[26px] w-[44px] shrink-0 rounded-full transition-colors"
                   style={{ background: archived ? "var(--tau-accent)" : "var(--tau-line-1)" }}
@@ -266,12 +300,12 @@ export function PresetEditPage({ presetId, onBack, onError }: PresetEditPageProp
                 className="bg-tag-5-soft text-tag-5 active:bg-hover mt-3 flex w-full items-center justify-center gap-2 rounded-[16px] py-3.5 text-[13.5px] font-extrabold"
               >
                 <Trash2 size={15} />
-                删除预设
+                {pomoText("ui.deletePreset")}
               </button>
 
               <p className="text-ink-3 mt-3 flex items-center justify-center gap-1 text-[10.5px] font-semibold">
                 <Archive size={11} />
-                归档与删除也可在主页预设行的「⋯」菜单操作
+                {pomoText("ui.youCanAlsoArchiveOrDeletePresetsFromTheir")}
               </p>
             </>
           ) : null}
@@ -280,9 +314,11 @@ export function PresetEditPage({ presetId, onBack, onError }: PresetEditPageProp
 
       <MobileConfirmDialog
         open={confirmDelete}
-        title="删除预设"
-        description={`删除「${name || preset?.name || ""}」？该操作不可恢复。`}
-        confirmText="删除"
+        title={pomoText("ui.deletePreset")}
+        description={pomoText("confirm.delete", {
+          name: pomoValue(name || preset?.name || ""),
+        })}
+        confirmText={pomoText("ui.delete")}
         danger
         onCancel={() => setConfirmDelete(false)}
         onConfirm={() => {
@@ -291,10 +327,10 @@ export function PresetEditPage({ presetId, onBack, onError }: PresetEditPageProp
             try {
               await tauri.pomodoroDeletePreset(presetId);
               invalidatePomodoroQueries();
-              toast.success("已删除预设");
+              toast.success(pomoText("ui.deletedPreset"));
               onBack();
             } catch (error) {
-              onError(error, "删除预设失败");
+              onError(error, pomoText("ui.couldNotDeletePreset"));
             }
           })();
         }}

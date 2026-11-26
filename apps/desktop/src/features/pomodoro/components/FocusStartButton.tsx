@@ -1,3 +1,4 @@
+import { pomoText, pomoValue, usePomodoroI18n, pomoFormat } from "../i18n";
 /**
  * 域外入口的「开始专注」（日程事件抽屉、待办抽屉）：
  * 没有进行中的番茄 → 弹预设菜单，选中即开始并关联到该对象；
@@ -14,7 +15,7 @@ import { useActivePomodoro } from "@/hooks/useActivePomodoro";
 import { usePage } from "@/page/PageProvider";
 import type { PomodoroBindTarget, PomodoroPreset } from "@/types";
 import { sameTarget } from "../bindTargets";
-import { presetShort } from "../model";
+
 import { usePomodoroPresets } from "../queries";
 import { PresetDot } from "./PomodoroBits";
 
@@ -31,13 +32,15 @@ const targetOfSession = (session: {
 export function FocusStartButton({
   target,
   title,
-  label = "开始专注",
+  label = pomoText("ui.startFocusSession"),
 }: {
   target: PomodoroBindTarget;
   /** 关联对象标题（toast 用） */
   title: string;
   label?: string;
 }) {
+  usePomodoroI18n();
+
   const active = useActivePomodoro();
   const presets = usePomodoroPresets();
   const { navigator } = usePage();
@@ -50,14 +53,20 @@ export function FocusStartButton({
         size="sm"
         icon={Link2}
         disabled={bound}
-        title={bound ? "当前专注已关联到这里" : "把正在进行的专注关联到这里"}
+        title={
+          bound
+            ? pomoText("ui.theCurrentSessionIsAlreadyLinkedHere")
+            : pomoText("ui.linkTheCurrentFocusSessionHere")
+        }
         onClick={() =>
           void updatePomodoroBinding(target)
-            .then(() => toast.success(`当前专注已关联到「${title}」`))
-            .catch(() => toast.error("关联失败"))
+            .then(() =>
+              toast.success(pomoText("feedback.bindingChanged", { name: pomoValue(title) }))
+            )
+            .catch(() => toast.error(pomoText("ui.couldNotLink")))
         }
       >
-        {bound ? "专注中" : "专注于此"}
+        {bound ? pomoText("state.focusing") : pomoText("ui.focusOnThis")}
       </Button>
     );
   }
@@ -65,18 +74,28 @@ export function FocusStartButton({
   const start = (preset: PomodoroPreset) =>
     void startPomodoroSession({ presetId: preset.id, target })
       .then(() =>
-        toast.success(`已开始专注 · ${preset.name}`, {
+        toast.success(pomoText("feedback.started", { name: pomoValue(preset.name) }), {
           action: isElectron
-            ? { label: "打开小窗", onClick: () => void openPomodoroMiniWindow() }
+            ? {
+                get label() {
+                  return pomoText("ui.openMiniWindow");
+                },
+                onClick: () => void openPomodoroMiniWindow(),
+              }
             : undefined,
         })
       )
-      .catch(() => toast.error("开始专注失败"));
+      .catch(() => toast.error(pomoText("ui.couldNotStartFocusSession")));
 
   return (
     <Menu
       trigger={
-        <Button variant="secondary" size="sm" icon={Play} title={`${label}，选一个预设`}>
+        <Button
+          variant="secondary"
+          size="sm"
+          icon={Play}
+          title={pomoText("action.choosePreset", { label: pomoValue(label) })}
+        >
           {label}
         </Button>
       }
@@ -89,12 +108,16 @@ export function FocusStartButton({
         >
           <span className="flex min-w-0 items-center gap-3">
             <span className="truncate">{preset.name}</span>
-            <span className="text-ink-3 ml-auto shrink-0 tabular-nums">{presetShort(preset)}</span>
+            <span className="text-ink-3 ml-auto shrink-0 tabular-nums">
+              {pomoFormat.presetShort(preset)}
+            </span>
           </span>
         </Menu.Item>
       ))}
       {presets.active.length === 0 && (
-        <Menu.Item onSelect={() => navigator.push("pomodoro", {})}>去番茄页新建预设</Menu.Item>
+        <Menu.Item onSelect={() => navigator.push("pomodoro", {})}>
+          {pomoText("ui.createAPresetOnTheFocusPage")}
+        </Menu.Item>
       )}
     </Menu>
   );

@@ -51,8 +51,8 @@ describe("eventCandidates", () => {
       at(14, 30)
     );
     expect(list.map(c => c.title)).toEqual(["写季度报告", "健身", "读书会", "站会", "晨读"]);
-    expect(list[0]).toMatchObject({ meta: "进行中 · 13:00–15:00", group: "event" });
-    expect(list[1].meta).toBe("16:00–17:00");
+    expect(list[0]).toMatchObject({ range: "13:00–15:00", phase: "live", group: "event" });
+    expect(list[1].range).toBe("16:00–17:00");
   });
 });
 

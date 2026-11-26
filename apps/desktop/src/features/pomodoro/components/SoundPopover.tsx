@@ -1,3 +1,4 @@
+import { pomoText, usePomodoroI18n } from "../i18n";
 /**
  * 背景音面板（Popover）：8 种环境音 + 无，选中即切换（主进程广播，背景音窗口播放）；
  * 音量拖动时本地即时跟手，松手才落到主进程，避免拖动过程连发请求。
@@ -22,6 +23,8 @@ export function SoundPopover({
   trigger: ReactElement;
   placement?: ComponentProps<typeof Popover>["placement"];
 }) {
+  usePomodoroI18n();
+
   const sound = usePomodoroTimer(s => s.sound);
   const volume = usePomodoroTimer(s => s.volume);
   const [draftVolume, setDraftVolume] = useState(volume);
@@ -30,7 +33,7 @@ export function SoundPopover({
   return (
     <Popover trigger={trigger} placement={placement} arrow={false} className="w-[300px]">
       <Popover.Header icon={<Music className="size-[15px]" strokeWidth={1.75} />}>
-        背景音
+        {pomoText("ui.backgroundSound")}
       </Popover.Header>
       <Popover.Body>
         <div className="grid grid-cols-3 gap-1.5">
@@ -49,7 +52,7 @@ export function SoundPopover({
                     : "border-line-1 text-ink-2 hover:border-ink-3 hover:text-ink-1 border"
                 )}
               >
-                {option.label}
+                {pomoText(`sound.${option.value ?? "none"}`)}
               </button>
             );
           })}
@@ -66,7 +69,7 @@ export function SoundPopover({
             min={0}
             max={100}
             value={draftVolume}
-            aria-label="音量"
+            aria-label={pomoText("ui.volume")}
             onChange={e => setDraftVolume(Number(e.target.value))}
             onPointerUp={() => void pomodoroActions.setVolume(draftVolume)}
             onKeyUp={() => void pomodoroActions.setVolume(draftVolume)}

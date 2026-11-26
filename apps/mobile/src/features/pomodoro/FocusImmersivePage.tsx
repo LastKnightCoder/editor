@@ -1,3 +1,4 @@
+import { pomoText, pomoValue, usePomodoroI18n } from "./i18n";
 // 沉浸专注页（P2·全屏 overlay）。
 // 竖屏：环内大时间纵向居中；横屏（landscape·独白式）：裸箭头 + 预设名（左上）、
 // 居中超大细字重时间、底部发丝进度线、常驻对称双圆钮（暂停/结束）——全部常驻、无隐藏态。
@@ -79,10 +80,12 @@ function PauseFab({
   size?: number;
   onToggle: () => void;
 }) {
+  usePomodoroI18n();
+
   return (
     <button
       type="button"
-      aria-label={paused ? "继续" : "暂停"}
+      aria-label={paused ? pomoText("ui.resume") : pomoText("ui.pause")}
       disabled={busy}
       onClick={onToggle}
       className="bg-surface text-ink-1 shadow-float grid place-items-center rounded-full transition-transform active:scale-90"
@@ -98,6 +101,8 @@ function PauseFab({
 }
 
 function StopButton({ onClick }: { onClick: () => void }) {
+  usePomodoroI18n();
+
   return (
     <button
       type="button"
@@ -105,7 +110,7 @@ function StopButton({ onClick }: { onClick: () => void }) {
       className="text-ink-3 decoration-line-1 flex items-center gap-1.5 px-4 py-2 text-[12.5px] font-extrabold underline underline-offset-4"
     >
       <Square size={11} fill="currentColor" />
-      结束专注
+      {pomoText("ui.endFocusSession")}
     </button>
   );
 }
@@ -116,6 +121,8 @@ type FocusImmersivePageProps = {
 };
 
 export function FocusImmersivePage({ onRequestClose, onError }: FocusImmersivePageProps) {
+  usePomodoroI18n();
+
   const presetsQuery = usePomodoroPresets();
   const presets = presetsQuery.data ?? [];
   const controller = usePomodoroController(presets, onError);
@@ -162,13 +169,16 @@ export function FocusImmersivePage({ onRequestClose, onError }: FocusImmersivePa
 
   const subText = () => {
     if (controller.isPaused) {
-      return `已暂停 · 暂停 ${tick?.session.pauseCount ?? 0} 次`;
+      return pomoText("status.paused", { count: pomoValue(tick?.session.pauseCount ?? 0) });
     }
     if (tick?.session.expectedMs) {
       const percent = Math.round(progress * 100);
-      return `已专注 ${formatClock(elapsed)} · ${percent}%`;
+      return pomoText("status.focusProgress", {
+        duration: pomoValue(formatClock(elapsed)),
+        percent: pomoValue(percent),
+      });
     }
-    return "自由专注 · 不限时";
+    return pomoText("mode.freeUnlimited");
   };
 
   const backdropStyle = {
@@ -190,12 +200,15 @@ export function FocusImmersivePage({ onRequestClose, onError }: FocusImmersivePa
             <Check size={22} strokeWidth={3} />
           </span>
           <span className="text-ink-2 text-[11.5px] font-bold">
-            已专注 {formatFocusDuration(controller.lastCompleted?.focusMs ?? 0)}
+            {pomoText("state.elapsed")}{" "}
+            {formatFocusDuration(controller.lastCompleted?.focusMs ?? 0)}
           </span>
         </FocusRing>
         <div className="flex flex-col items-center gap-3">
-          <p className="text-ink-1 text-[17px] font-extrabold">专注完成 🎉</p>
-          <p className="text-ink-3 text-[12px] font-semibold">建议休息 5 分钟再继续 🍵</p>
+          <p className="text-ink-1 text-[17px] font-extrabold">{pomoText("ui.focusComplete")}</p>
+          <p className="text-ink-3 text-[12px] font-semibold">
+            {pomoText("ui.takeA5MinuteBreakBeforeContinuing")}
+          </p>
           <div className="mt-2 flex items-center gap-3">
             {preset ? (
               <button
@@ -207,7 +220,7 @@ export function FocusImmersivePage({ onRequestClose, onError }: FocusImmersivePa
                 className="shadow-lift text-ink-inverse rounded-[16px] px-6 py-3 text-[14px] font-extrabold"
                 style={{ background: "var(--tau-ok)" }}
               >
-                再来一个
+                {pomoText("ui.startAnother")}
               </button>
             ) : null}
             <button
@@ -215,7 +228,7 @@ export function FocusImmersivePage({ onRequestClose, onError }: FocusImmersivePa
               onClick={onRequestClose}
               className="bg-page text-ink-2 rounded-[16px] px-6 py-3 text-[14px] font-extrabold"
             >
-              休息一下
+              {pomoText("ui.takeABreak")}
             </button>
           </div>
         </div>
@@ -240,15 +253,17 @@ export function FocusImmersivePage({ onRequestClose, onError }: FocusImmersivePa
       <div className="flex items-center justify-between px-4 pt-[calc(var(--mobile-safe-top)+10px)] landscape:absolute landscape:inset-x-0 landscape:top-0 landscape:justify-start landscape:gap-1 landscape:px-5">
         <button
           type="button"
-          aria-label="收起，计时继续"
+          aria-label={pomoText("ui.collapseTimerKeepsRunning")}
           onClick={onRequestClose}
           className="text-ink-2 active:bg-press grid h-10 w-10 place-items-center rounded-full"
         >
           <ChevronDown size={24} strokeWidth={2.2} />
         </button>
         <span className="text-ink-2 landscape:text-ink-3 max-w-[60%] truncate text-[12.5px] font-extrabold landscape:text-[11.5px] landscape:font-bold landscape:tracking-[0.14em]">
-          {preset?.name ?? "专注中"}
-          {preset?.mode === "countdown" ? ` · ${preset.durationMin} 分钟` : " · 正计时"}
+          {preset?.name ?? pomoText("state.focusing")}
+          {preset?.mode === "countdown"
+            ? pomoText("duration.minuteSuffix", { minutes: pomoValue(preset.durationMin) })
+            : pomoText("mode.countupSuffix")}
         </span>
         <span className="w-10 landscape:hidden" />
       </div>
@@ -266,7 +281,9 @@ export function FocusImmersivePage({ onRequestClose, onError }: FocusImmersivePa
       <div className="flex flex-col items-center gap-4 pb-[calc(var(--mobile-safe-bottom)+28px)] landscape:hidden">
         <PauseFab paused={controller.isPaused} busy={controller.busy} onToggle={togglePause} />
         <StopButton onClick={requestStop} />
-        <p className="text-ink-3 text-[11.5px] font-bold tracking-widest">放下手机 · 专注此刻</p>
+        <p className="text-ink-3 text-[11.5px] font-bold tracking-widest">
+          {pomoText("ui.putYourPhoneDownFocusOnNow")}
+        </p>
       </div>
 
       {/* ── 横屏（独白式）：居中超大时间 + 底部发丝进度线 + 常驻对称双圆钮 ── */}
@@ -289,7 +306,7 @@ export function FocusImmersivePage({ onRequestClose, onError }: FocusImmersivePa
       <div className="absolute inset-x-0 bottom-[7vh] hidden items-center justify-center gap-5 landscape:flex">
         <button
           type="button"
-          aria-label={controller.isPaused ? "继续" : "暂停"}
+          aria-label={controller.isPaused ? pomoText("ui.resume") : pomoText("ui.pause")}
           disabled={controller.busy}
           onClick={togglePause}
           className="shadow-lift ease-bounce text-ink-inverse grid h-12 w-12 place-items-center rounded-full transition-transform active:scale-[0.88]"
@@ -303,7 +320,7 @@ export function FocusImmersivePage({ onRequestClose, onError }: FocusImmersivePa
         </button>
         <button
           type="button"
-          aria-label="结束专注"
+          aria-label={pomoText("ui.endFocusSession")}
           onClick={requestStop}
           className="bg-surface text-ink-1 border-line-1 shadow-float ease-bounce grid h-12 w-12 place-items-center rounded-full border transition-transform active:scale-[0.88]"
         >
@@ -313,16 +330,18 @@ export function FocusImmersivePage({ onRequestClose, onError }: FocusImmersivePa
 
       <MobileConfirmDialog
         open={confirmStop}
-        title="放弃本次专注？"
-        description={`当前专注 ${formatClock(elapsed)}，不足 5 分钟的记录不会计入统计。`}
-        confirmText="放弃"
+        title={pomoText("ui.discardThisFocusSession")}
+        description={pomoText("confirm.discardShort", {
+          duration: pomoValue(formatClock(elapsed)),
+        })}
+        confirmText={pomoText("ui.discard")}
         danger
         onCancel={() => setConfirmStop(false)}
         onConfirm={() => {
           setConfirmStop(false);
           void controller.stop(true).then(saved => {
             if (saved == null) {
-              toast.info("已放弃本次专注");
+              toast.info(pomoText("ui.focusSessionDiscarded"));
             }
           });
         }}

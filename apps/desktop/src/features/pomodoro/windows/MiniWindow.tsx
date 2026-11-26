@@ -1,3 +1,4 @@
+import { pomoText, pomoValue, usePomodoroI18n, pomoFormat } from "../i18n";
 /**
  * 番茄小窗（360×84 无边框置顶窗，路由 /pomodoro/mini）：控制条的缩影
  * （原型 288×68 等比放大 1.25 倍，字号 / 控件一律用字面像素，不随全局字号缩放）。
@@ -13,7 +14,7 @@ import { cn } from "@tau/ui";
 import { platform } from "@/platform";
 import { hidePomodoroMiniWindow } from "@/commands/window";
 import { requestOpenPageInMainWindow } from "@/services/main-window-requests";
-import { formatClock, formatDurationCN, formatHM, isEarlyStop } from "../model";
+import { formatClock, formatHM, isEarlyStop } from "../model";
 import { usePomodoroPresets } from "../queries";
 import { pomodoroActions, useLiveTiming } from "../timerStore";
 import { PresetDot } from "../components/PomodoroBits";
@@ -80,6 +81,8 @@ function TextButton({
 }
 
 export function MiniWindow() {
+  usePomodoroI18n();
+
   const { dbReady } = useAuxWindowBoot();
   const zoom = useCancelPageZoom();
   const presets = usePomodoroPresets(dbReady);
@@ -87,7 +90,7 @@ export function MiniWindow() {
   const [result, dismissResult] = useEndResult();
   const [confirming, setConfirming] = useState(false);
 
-  const nameOf = (presetId: number) => presets.byId.get(presetId)?.name ?? "专注";
+  const nameOf = (presetId: number) => presets.byId.get(presetId)?.name ?? pomoText("ui.focus2");
   const close = () => {
     dismissResult();
     void hidePomodoroMiniWindow();
@@ -115,13 +118,15 @@ export function MiniWindow() {
         <div className="min-w-0 flex-1">
           <div className="text-warn flex items-center gap-2 text-[15px] font-medium">
             <AlertTriangle className="size-4" strokeWidth={1.75} />
-            不足 5 分钟
+            {pomoText("ui.lessThan5Minutes")}
           </div>
-          <div className="text-ink-2 mt-1 text-[15.5px]">结束后不会留下记录</div>
+          <div className="text-ink-2 mt-1 text-[15.5px]">
+            {pomoText("ui.endingNowWillNotSaveARecord")}
+          </div>
         </div>
-        <TextButton onClick={() => setConfirming(false)}>继续</TextButton>
+        <TextButton onClick={() => setConfirming(false)}>{pomoText("ui.resume")}</TextButton>
         <TextButton tone="danger" onClick={stop}>
-          结束
+          {pomoText("ui.end")}
         </TextButton>
       </>
     );
@@ -136,7 +141,11 @@ export function MiniWindow() {
             <PresetDot presetId={session.presetId} className="size-2" />
             <span className="truncate">{session.boundTitle ?? nameOf(session.presetId)}</span>
             <span className={cn(timing.paused ? "text-warn font-medium" : "text-ink-3")}>
-              {timing.paused ? "已暂停" : countdown ? "剩余" : "已专注"}
+              {timing.paused
+                ? pomoText("state.paused")
+                : countdown
+                  ? pomoText("state.remaining")
+                  : pomoText("state.elapsed")}
             </span>
           </div>
           <div
@@ -158,10 +167,10 @@ export function MiniWindow() {
             )}
           >
             {timing.endsAt != null
-              ? `${formatHM(timing.endsAt)} 结束`
+              ? pomoText("status.endsAt", { time: pomoValue(formatHM(timing.endsAt)) })
               : countdown
-                ? "结束时间顺延"
-                : "正计时"}
+                ? pomoText("ui.endTimeMovesWhilePaused")
+                : pomoText("mode.countup")}
           </span>
           <div
             className={cn(
@@ -173,7 +182,7 @@ export function MiniWindow() {
             <MiniButton
               primary
               paused={timing.paused}
-              label={timing.paused ? "继续" : "暂停"}
+              label={timing.paused ? pomoText("ui.resume") : pomoText("ui.pause")}
               onClick={() => void pomodoroActions.toggle()}
             >
               {timing.paused ? (
@@ -182,10 +191,10 @@ export function MiniWindow() {
                 <Pause className="size-[15px] fill-current" strokeWidth={0} />
               )}
             </MiniButton>
-            <MiniButton label="结束" onClick={stop}>
+            <MiniButton label={pomoText("ui.end")} onClick={stop}>
               <Square className="size-[17px]" strokeWidth={1.75} />
             </MiniButton>
-            <MiniButton label="回到番茄专注页" onClick={() => void backToMain()}>
+            <MiniButton label={pomoText("ui.goToFocus")} onClick={() => void backToMain()}>
               <Expand className="size-[17px]" strokeWidth={1.75} />
             </MiniButton>
           </div>
@@ -205,12 +214,17 @@ export function MiniWindow() {
               <AlertTriangle className="text-warn size-4 flex-none" strokeWidth={1.75} />
             )}
             <span className="truncate">
-              {result.saved ? `完成「${nameOf(result.presetId)}」` : "不足 5 分钟，未记录"}
+              {result.saved
+                ? pomoText("feedback.completedNamed", { name: pomoValue(nameOf(result.presetId)) })
+                : pomoText("ui.lessThan5MinutesNotRecorded")}
             </span>
           </div>
           <div className="text-ink-2 mt-1 text-[15.5px]">
             {result.saved
-              ? `${isEarlyStop(result) ? "提前结束 · " : ""}${formatDurationCN(result.focusMs)}`
+              ? pomoText("status.durationWithPrefix", {
+                  prefix: pomoValue(isEarlyStop(result) ? pomoText("ui.endedEarly2") : ""),
+                  duration: pomoValue(pomoFormat.durationDetail(result.focusMs)),
+                })
               : nameOf(result.presetId)}
           </div>
         </div>
@@ -222,10 +236,10 @@ export function MiniWindow() {
               if (preset) void pomodoroActions.start(preset);
             }}
           >
-            再来一个
+            {pomoText("ui.startAnother")}
           </TextButton>
         )}
-        <MiniButton label="关闭小窗" onClick={close}>
+        <MiniButton label={pomoText("ui.closeMiniWindow")} onClick={close}>
           <X className="size-[17px]" strokeWidth={1.75} />
         </MiniButton>
       </>
@@ -233,8 +247,10 @@ export function MiniWindow() {
   } else {
     body = (
       <>
-        <div className="text-ink-2 flex-1 text-[15.5px]">没有进行中的专注</div>
-        <MiniButton label="关闭小窗" onClick={close}>
+        <div className="text-ink-2 flex-1 text-[15.5px]">
+          {pomoText("ui.noFocusSessionRunning")}
+        </div>
+        <MiniButton label={pomoText("ui.closeMiniWindow")} onClick={close}>
           <X className="size-[17px]" strokeWidth={1.75} />
         </MiniButton>
       </>

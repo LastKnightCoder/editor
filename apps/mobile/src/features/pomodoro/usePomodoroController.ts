@@ -1,3 +1,4 @@
+import { pomoText } from "./i18n";
 // 活动会话控制器：订阅后端活动会话（query），本地 1s tick 推算 elapsed/remain，
 // 提供 start/pause/resume/stop 编排（成功后 invalidate 整个 pomodoro 域）。
 // 倒计时归零时自动以「完成」收尾（对齐桌面端 autoStop 语义）。
@@ -86,7 +87,7 @@ export function usePomodoroController(
         invalidatePomodoroQueries();
         return saved;
       } catch (error) {
-        onError(error, "结束专注失败");
+        onError(error, pomoText("feedback.stopFailed"));
         return null;
       } finally {
         setBusy(false);
@@ -119,7 +120,7 @@ export function usePomodoroController(
         await activeQuery.refetch();
         return true;
       } catch (error) {
-        onError(error, "开始专注失败");
+        onError(error, pomoText("feedback.startFailed"));
         return false;
       } finally {
         setBusy(false);
@@ -134,7 +135,7 @@ export function usePomodoroController(
       await tauri.pomodoroPauseSession();
       await activeQuery.refetch();
     } catch (error) {
-      onError(error, "暂停专注失败");
+      onError(error, pomoText("feedback.pauseFailed"));
     } finally {
       setBusy(false);
     }
@@ -146,7 +147,7 @@ export function usePomodoroController(
       await tauri.pomodoroResumeSession();
       await activeQuery.refetch();
     } catch (error) {
-      onError(error, "继续专注失败");
+      onError(error, pomoText("feedback.resumeFailed"));
     } finally {
       setBusy(false);
     }

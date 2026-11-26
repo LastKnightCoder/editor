@@ -1,3 +1,4 @@
+import { pomoText, pomoValue, usePomodoroI18n, pomoFormat } from "../i18n";
 /**
  * 预设详情抽屉（非模态 Drawer，盖在账本右侧；点左栏预设行打开，Esc 经页面浮层仲裁关闭）：
  * 开始按钮 → 近 WINDOW_DAYS 天概况（个数 / 累计 / 日均 / 最近一次）→ 近 14 天每日柱 → 按天分组的记录。
@@ -10,15 +11,11 @@ import { useOverlayDismiss } from "@/page/PageProvider";
 import type { PomodoroPreset, PomodoroSession } from "@/types";
 import {
   DAY_MS,
-  dayLabel,
   formatClock,
   formatDuration,
-  formatDurationCN,
   groupByDay,
-  monthDayLabel,
   startOfDay,
   sumFocus,
-  weekdayLabel,
   type SessionTiming,
 } from "../model";
 import { WINDOW_DAYS } from "../queries";
@@ -56,6 +53,8 @@ export function PresetDrawer({
   onEditFocus(session: PomodoroSession, anchor: HTMLElement): void;
   onDelete(session: PomodoroSession): void;
 }) {
+  usePomodoroI18n();
+
   useOverlayDismiss(onClose, preset !== null);
   /* 关闭时保留最后一个预设做退场动画 */
   const current = useRetainedValue(preset);
@@ -76,23 +75,31 @@ export function PresetDrawer({
       open={preset !== null}
       onOpenChange={next => !next && onClose()}
       size="sm"
-      label="预设详情"
+      label={pomoText("ui.presetDetails")}
       icon={current && <PresetDot presetId={current.id} className="mt-[9px] size-2.5" />}
       title={current?.name}
       subtitle={
         current &&
-        (current.mode === "countdown" ? `倒计时 ${current.durationMin} 分钟` : "正计时 · 手动结束")
+        (current.mode === "countdown"
+          ? pomoText("mode.countdownMinutes", { minutes: pomoValue(current.durationMin) })
+          : pomoText("mode.countupManual"))
       }
       actions={
         current && (
           <>
-            <Tooltip content="编辑预设">
-              <IconButton aria-label="编辑预设" onClick={e => onEdit(current, e.currentTarget)}>
+            <Tooltip content={pomoText("ui.editPreset")}>
+              <IconButton
+                aria-label={pomoText("ui.editPreset")}
+                onClick={e => onEdit(current, e.currentTarget)}
+              >
                 <Pencil className="size-4" strokeWidth={1.75} />
               </IconButton>
             </Tooltip>
-            <Tooltip content="归档">
-              <IconButton aria-label="归档预设" onClick={() => onArchive(current)}>
+            <Tooltip content={pomoText("ui.archive")}>
+              <IconButton
+                aria-label={pomoText("ui.archivePreset")}
+                onClick={() => onArchive(current)}
+              >
                 <Archive className="size-4" strokeWidth={1.75} />
               </IconButton>
             </Tooltip>
@@ -106,7 +113,8 @@ export function PresetDrawer({
           <div className="px-2.5">
             {liveHere && liveTiming ? (
               <div className="bg-accent-soft text-accent-text text-tau-body flex h-10 items-center justify-center gap-2 rounded-[10px] font-medium tabular-nums">
-                {liveTiming.paused ? "已暂停" : "正在专注"} · {formatClock(liveTiming.displayMs)}
+                {liveTiming.paused ? pomoText("state.paused") : pomoText("state.focusingNow")} ·{" "}
+                {formatClock(liveTiming.displayMs)}
               </div>
             ) : (
               <Button
@@ -116,23 +124,28 @@ export function PresetDrawer({
                 disabled={live !== null}
                 onClick={() => onStart(current)}
               >
-                {live ? "结束当前专注后可开始" : "开始专注"}
+                {live
+                  ? pomoText("ui.endTheCurrentSessionBeforeStartingAnother")
+                  : pomoText("ui.startFocusSession")}
               </Button>
             )}
 
             <div className="mt-4 grid grid-cols-3 gap-2">
-              <Stat label={`近 ${WINDOW_DAYS} 天`} value={`${sessions.length} 个`} />
-              <Stat label="累计专注" value={formatDuration(total)} />
               <Stat
-                label="最近一次"
-                value={sessions.length ? dayLabel(sessions[0].startTime, now) : "—"}
+                label={pomoText("range.lastDays", { days: pomoValue(WINDOW_DAYS) })}
+                value={pomoText("summary.sessionCount", { count: pomoValue(sessions.length) })}
+              />
+              <Stat label={pomoText("ui.totalFocus2")} value={formatDuration(total)} />
+              <Stat
+                label={pomoText("ui.mostRecent")}
+                value={sessions.length ? pomoFormat.day(sessions[0].startTime, now) : "—"}
               />
             </div>
 
-            <h3 className="text-tau-body mb-2 mt-5 flex items-baseline font-semibold">
-              近 {TREND_DAYS} 天
+            <h3 className="text-tau-body mt-5 mb-2 flex items-baseline font-semibold">
+              {pomoText("range.lastDays", { days: pomoValue(TREND_DAYS) })}
               <span className="text-ink-3 text-tau-sm ml-auto font-normal tabular-nums">
-                日均{" "}
+                {pomoText("ui.dailyAverage")}{" "}
                 {formatDuration(sumFocus(trend.flatMap(t => days.get(t.day) ?? [])) / TREND_DAYS)}
               </span>
             </h3>
@@ -143,8 +156,8 @@ export function PresetDrawer({
                   delay={150}
                   content={
                     <span className="tabular-nums">
-                      {monthDayLabel(day)} {weekdayLabel(day)} ·{" "}
-                      {ms ? formatDurationCN(ms) : "没有专注"}
+                      {pomoFormat.monthDay(day)} {pomoFormat.weekday(day)} ·{" "}
+                      {ms ? pomoFormat.durationDetail(ms) : pomoText("ui.noFocus")}
                     </span>
                   }
                 >
@@ -161,19 +174,19 @@ export function PresetDrawer({
               ))}
             </div>
 
-            <h3 className="text-tau-body mb-1 mt-5 font-semibold">记录</h3>
+            <h3 className="text-tau-body mt-5 mb-1 font-semibold">{pomoText("ui.records")}</h3>
           </div>
 
           {sessions.length === 0 ? (
             <p className="text-ink-3 text-tau-meta px-2.5 py-2">
-              近 {WINDOW_DAYS} 天还没有用这个预设专注过
+              {pomoText("empty.presetRange", { days: pomoValue(WINDOW_DAYS) })}
             </p>
           ) : (
             [...days].map(([day, list]) => (
               <section key={day} className="mt-2">
                 <div className="text-ink-3 text-tau-sm flex items-baseline px-2.5 py-1 tabular-nums">
-                  <span className="text-ink-2 font-medium">{dayLabel(day, now)}</span>
-                  <span className="ml-1.5">{weekdayLabel(day)}</span>
+                  <span className="text-ink-2 font-medium">{pomoFormat.day(day, now)}</span>
+                  <span className="ml-1.5">{pomoFormat.weekday(day)}</span>
                   <span className="ml-auto">{formatDuration(sumFocus(list))}</span>
                 </div>
                 {list.map(s => (

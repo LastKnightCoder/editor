@@ -9,5 +9,3 @@ export function presetDotClass(presetId: number, exists = true): string {
   if (!exists) return "bg-ink-3";
   return DOT_TONES[(((presetId - 1) % DOT_TONES.length) + DOT_TONES.length) % DOT_TONES.length];
 }
-
-export const DELETED_PRESET_NAME = "已删除的预设";

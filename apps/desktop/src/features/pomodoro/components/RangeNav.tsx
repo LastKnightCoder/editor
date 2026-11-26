@@ -1,3 +1,4 @@
+import { pomoText, pomoValue, usePomodoroI18n, pomoFormat } from "../i18n";
 /**
  * 账本时间导航：‹ 当前范围 ▾ › + 回到今天（「全部」概览时只留范围按钮）。
  * 点当前范围打开选择面板——左列快捷项（近 N 天 / 本月 / 上个月 / 今年 / 过去一年 / 往年 / 全部），
@@ -15,12 +16,11 @@ import {
   quickRanges,
   shiftWindow,
   windowDays,
-  windowLabel,
   type DayWindow,
   type QuickKey,
 } from "../range";
 
-const WEEK_HEAD = "一二三四五六日";
+const WEEK_HEAD = [0, 1, 2, 3, 4, 5, 6];
 
 export function RangeNav({
   window: win,
@@ -44,6 +44,8 @@ export function RangeNav({
   onJumpToDay(day: number): void;
   onToday(): void;
 }) {
+  usePomodoroI18n();
+
   const [open, setOpen] = useState(false);
   const today = startOfDay(now);
   const atStart = earliest != null && win.from <= earliest;
@@ -52,8 +54,8 @@ export function RangeNav({
     <div className="flex flex-none items-center gap-0.5">
       {!all && (
         <IconButton
-          aria-label={`往前 ${windowDays(win)} 天`}
-          title={`往前 ${windowDays(win)} 天`}
+          aria-label={pomoText("range.previous", { days: pomoValue(windowDays(win)) })}
+          title={pomoText("range.previous", { days: pomoValue(windowDays(win)) })}
           className="size-[26px]"
           disabled={atStart}
           onClick={() => onChange(shiftWindow(win, -1, now), null)}
@@ -70,10 +72,10 @@ export function RangeNav({
         trigger={
           <button
             type="button"
-            className="text-tau-meta hover:bg-hover text-ink-1 inline-flex h-[26px] items-center gap-1.5 whitespace-nowrap rounded-lg px-2 font-medium tabular-nums"
+            className="text-tau-meta hover:bg-hover text-ink-1 inline-flex h-[26px] items-center gap-1.5 rounded-lg px-2 font-medium whitespace-nowrap tabular-nums"
           >
             <CalendarDays className="text-ink-2 size-[13px]" strokeWidth={1.75} />
-            {all ? "全部" : windowLabel(win, quickKey, now, earliest)}
+            {all ? pomoText("ui.all") : pomoFormat.windowLabel(win, quickKey, now, earliest)}
             <ChevronDown className="text-ink-3 size-3" strokeWidth={1.75} />
           </button>
         }
@@ -102,8 +104,8 @@ export function RangeNav({
       </Popover>
       {!all && (
         <IconButton
-          aria-label={`往后 ${windowDays(win)} 天`}
-          title={`往后 ${windowDays(win)} 天`}
+          aria-label={pomoText("range.next", { days: pomoValue(windowDays(win)) })}
+          title={pomoText("range.next", { days: pomoValue(windowDays(win)) })}
           className="size-[26px]"
           disabled={win.to >= today}
           onClick={() => onChange(shiftWindow(win, 1, now), null)}
@@ -115,9 +117,9 @@ export function RangeNav({
         <button
           type="button"
           onClick={onToday}
-          className="text-accent-text hover:bg-accent-soft text-tau-sm h-[26px] whitespace-nowrap rounded-lg px-2 font-medium"
+          className="text-accent-text hover:bg-accent-soft text-tau-sm h-[26px] rounded-lg px-2 font-medium whitespace-nowrap"
         >
-          回到今天
+          {pomoText("ui.backToToday")}
         </button>
       )}
     </div>
@@ -143,6 +145,8 @@ function RangePanel({
   onPick(window: DayWindow, key: QuickKey | null): void;
   onPickDay(day: number): void;
 }) {
+  usePomodoroI18n();
+
   const today = startOfDay(now);
   const [month, setMonth] = useState(() => {
     const d = new Date(win.to);
@@ -206,14 +210,14 @@ function RangePanel({
                   : "text-ink-1 hover:bg-hover"
               )}
             >
-              {q.label}
+              {pomoFormat.quickLabel(q.key)}
               <span
                 className={cn(
                   "text-[11px] tabular-nums",
                   !all && q.key === quickKey ? "text-accent-text" : "text-ink-3"
                 )}
               >
-                {windowDays(q.window)} 天
+                {windowDays(q.window)} {pomoText("unit.days", { count: windowDays(q.window) })}
               </span>
             </button>
           )
@@ -227,12 +231,13 @@ function RangePanel({
             all ? "bg-selected text-accent-text font-medium" : "text-ink-1 hover:bg-hover"
           )}
         >
-          全部
+          {pomoText("ui.all")}
           {earliest != null && (
             <span
               className={cn("text-[11px] tabular-nums", all ? "text-accent-text" : "text-ink-3")}
             >
-              {windowDays({ from: earliest, to: today })} 天
+              {windowDays({ from: earliest, to: today })}{" "}
+              {pomoText("unit.days", { count: windowDays({ from: earliest, to: today }) })}
             </span>
           )}
         </button>
@@ -241,7 +246,7 @@ function RangePanel({
       <div>
         <div className="mb-2 flex items-center gap-1">
           <IconButton
-            aria-label="上个月"
+            aria-label={pomoText("ui.previousMonth")}
             className="size-7"
             disabled={prevDisabled}
             onClick={() => monthStep(-1)}
@@ -249,10 +254,10 @@ function RangePanel({
             <ChevronLeft className="size-4" strokeWidth={1.75} />
           </IconButton>
           <b className="text-tau-body flex-1 text-center font-semibold tabular-nums">
-            {m.getFullYear()}年{m.getMonth() + 1}月
+            {pomoFormat.monthYear(m.getFullYear(), m.getMonth())}
           </b>
           <IconButton
-            aria-label="下个月"
+            aria-label={pomoText("ui.nextMonth")}
             className="size-7"
             disabled={nextDisabled}
             onClick={() => monthStep(1)}
@@ -264,9 +269,9 @@ function RangePanel({
           className="grid grid-cols-7 gap-0.5"
           onMouseLeave={() => pending != null && setHover(pending)}
         >
-          {[...WEEK_HEAD].map(w => (
+          {WEEK_HEAD.map(w => (
             <span key={w} className="text-ink-3 h-[22px] text-center text-[11px] leading-[22px]">
-              {w}
+              {pomoFormat.weekdayFromMonday(w)}
             </span>
           ))}
           {cells.map(day => {
@@ -306,8 +311,11 @@ function RangePanel({
         </div>
         <p className="text-ink-3 mt-2.5 text-[12px]">
           {pending != null
-            ? `起点 ${new Date(pending).getMonth() + 1}月${new Date(pending).getDate()}日，再点选终点（点同一天 = 跳到那天）`
-            : "点两次选起止 · 带点 = 有记录"}
+            ? pomoText("range.chooseEnd", {
+                month: pomoValue(new Date(pending).getMonth() + 1),
+                day: pomoValue(new Date(pending).getDate()),
+              })
+            : pomoText("ui.selectAStartAndEndDateDotsIndicateRecords")}
         </p>
       </div>
     </div>

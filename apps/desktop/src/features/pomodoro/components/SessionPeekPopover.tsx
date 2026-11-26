@@ -1,3 +1,4 @@
+import { pomoText, pomoValue, usePomodoroI18n, pomoFormat } from "../i18n";
 /**
  * 账本色块详情（Popover）：起止时刻、专注 / 预期、暂停分布条、关联对象（可跳转），操作 = 修改时长 / 删除。
  */
@@ -5,16 +6,9 @@
 import { Clock, Trash2 } from "lucide-react";
 import { Button, IconButton, Popover, cn } from "@tau/ui";
 import type { PomodoroPreset, PomodoroSession } from "@/types";
-import {
-  MINUTE_MS,
-  dayLabel,
-  formatDuration,
-  formatDurationCN,
-  formatHM,
-  isEarlyStop,
-} from "../model";
+import { MINUTE_MS, formatDuration, formatHM, isEarlyStop } from "../model";
 import { EarlyTag, PresetDot } from "./PomodoroBits";
-import { DELETED_PRESET_NAME, presetDotClass } from "./presetTone";
+import { presetDotClass } from "./presetTone";
 
 export function SessionPeekPopover({
   session,
@@ -36,6 +30,8 @@ export function SessionPeekPopover({
   /** 跳到关联的日程 / 待办 */
   onOpenBinding(session: PomodoroSession): void;
 }) {
+  usePomodoroI18n();
+
   const end = session ? (session.endTime ?? session.startTime) : 0;
   const span = session ? Math.max(1, end - session.startTime) : 1;
   return (
@@ -51,7 +47,7 @@ export function SessionPeekPopover({
         <>
           <Popover.Header icon={<PresetDot presetId={session.presetId} exists={!!preset} />}>
             <span className="flex items-center gap-2">
-              {preset?.name ?? DELETED_PRESET_NAME}
+              {preset?.name ?? pomoText("fallback.deletedPreset")}
               {isEarlyStop(session) && <EarlyTag />}
             </span>
           </Popover.Header>
@@ -75,22 +71,27 @@ export function SessionPeekPopover({
               ))}
             </div>
             <dl className="text-tau-meta grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 tabular-nums">
-              <dt className="text-ink-2">时间</dt>
+              <dt className="text-ink-2">{pomoText("ui.time")}</dt>
               <dd className="text-ink-1 text-right">
-                {dayLabel(session.startTime, now)} {formatHM(session.startTime)}–{formatHM(end)}
+                {pomoFormat.day(session.startTime, now)} {formatHM(session.startTime)}–
+                {formatHM(end)}
               </dd>
-              <dt className="text-ink-2">专注</dt>
+              <dt className="text-ink-2">{pomoText("ui.focus2")}</dt>
               <dd className="text-ink-1 text-right font-medium">
-                {formatDurationCN(session.focusMs)}
-                {session.expectedMs ? ` / ${Math.round(session.expectedMs / MINUTE_MS)} 分钟` : ""}
+                {pomoFormat.durationDetail(session.focusMs)}
+                {session.expectedMs
+                  ? pomoText("duration.expectedSuffix", {
+                      minutes: pomoValue(Math.round(session.expectedMs / MINUTE_MS)),
+                    })
+                  : ""}
               </dd>
               {session.boundTitle && (
                 <>
-                  <dt className="text-ink-2">关联</dt>
+                  <dt className="text-ink-2">{pomoText("ui.linkedTo")}</dt>
                   <dd className="min-w-0 text-right">
                     <button
                       type="button"
-                      title={`打开「${session.boundTitle}」`}
+                      title={pomoText("action.openNamed", { name: pomoValue(session.boundTitle) })}
                       onClick={() => {
                         onClose();
                         onOpenBinding(session);
@@ -102,18 +103,21 @@ export function SessionPeekPopover({
                   </dd>
                 </>
               )}
-              <dt className="text-ink-2">暂停</dt>
+              <dt className="text-ink-2">{pomoText("ui.pause")}</dt>
               <dd className="text-ink-1 text-right">
                 {session.pauseCount
-                  ? `${session.pauseCount} 次 · ${formatDuration(session.pauseTotalMs)}`
-                  : "无"}
+                  ? pomoText("summary.pausesDuration", {
+                      count: pomoValue(session.pauseCount),
+                      duration: pomoValue(formatDuration(session.pauseTotalMs)),
+                    })
+                  : pomoText("ui.none")}
               </dd>
             </dl>
           </Popover.Body>
           <Popover.Footer className="justify-between">
             <IconButton
-              aria-label="删除记录"
-              title="删除记录"
+              aria-label={pomoText("ui.deleteRecord")}
+              title={pomoText("ui.deleteRecord")}
               className="hover:text-danger size-7"
               onClick={() => {
                 onClose();
@@ -132,7 +136,7 @@ export function SessionPeekPopover({
                 if (target) onEditFocus(session, target);
               }}
             >
-              修改时长
+              {pomoText("ui.editDuration")}
             </Button>
           </Popover.Footer>
         </>

@@ -1,3 +1,4 @@
+import { pomoText, pomoValue, usePomodoroI18n } from "../i18n";
 /**
  * 「专注于…」选择器：可选地把这次专注关联到今天的一条日程或一条待办。
  * 触发行显示当前选择（未选 = 「可选」）；点开 Popover：搜索框 + 两组候选 + 「不关联」，
@@ -34,6 +35,8 @@ export function BindPicker({
   onChange(choice: BindChoice | null): void;
   className?: string;
 }) {
+  usePomodoroI18n();
+
   const [open, setOpen] = useState(false);
   return (
     <Popover
@@ -45,7 +48,11 @@ export function BindPicker({
       trigger={
         <button
           type="button"
-          aria-label={value ? `专注于「${value.title}」，点击更改` : "选择专注于什么"}
+          aria-label={
+            value
+              ? pomoText("bind.current", { name: pomoValue(value.title) })
+              : pomoText("ui.chooseWhatToFocusOn")
+          }
           className={cn(
             "text-tau-sm hover:bg-hover group/bind flex min-h-7 w-full min-w-0 items-center gap-1.5 rounded-[8px] px-2 text-left transition-colors",
             value ? "text-ink-1" : "text-ink-3",
@@ -53,14 +60,16 @@ export function BindPicker({
           )}
         >
           <Link2 className="size-3.5 shrink-0" strokeWidth={1.75} />
-          <span className="text-ink-3 shrink-0">专注于</span>
-          <span className="min-w-0 flex-1 truncate">{value ? value.title : "… 可选"}</span>
+          <span className="text-ink-3 shrink-0">{pomoText("ui.focusOn")}</span>
+          <span className="min-w-0 flex-1 truncate">
+            {value ? value.title : pomoText("ui.optional")}
+          </span>
           {value && (
             <span
               role="button"
               tabIndex={-1}
-              aria-label="不关联"
-              title="不关联"
+              aria-label={pomoText("ui.noLink")}
+              title={pomoText("ui.noLink")}
               onClick={e => {
                 e.stopPropagation();
                 onChange(null);
@@ -93,6 +102,8 @@ function PickerPanel({
   value: PomodoroBindTarget | null;
   onPick(choice: BindChoice | null): void;
 }) {
+  usePomodoroI18n();
+
   const nowMs = Date.now();
   const events = useEventsOfDay(getDateStart(nowMs));
   const roles = useCalendarRoles();
@@ -132,14 +143,20 @@ function PickerPanel({
             pick(cursor);
           }
         }}
-        placeholder="搜索今天的日程或待办"
-        aria-label="搜索专注对象"
+        placeholder={pomoText("ui.searchTodaySEventsOrTasks")}
+        aria-label={pomoText("ui.searchFocusTargets")}
         className="text-tau-body placeholder:text-ink-3 border-line-1 mx-3 mb-1.5 rounded-[8px] border bg-transparent px-2.5 py-1.5 outline-none focus:border-[var(--tau-accent)]"
       />
-      <div role="listbox" aria-label="专注对象" className="min-h-0 overflow-y-auto px-1.5">
+      <div
+        role="listbox"
+        aria-label={pomoText("ui.focusTarget")}
+        className="min-h-0 overflow-y-auto px-1.5"
+      >
         {candidates.length === 0 && (
           <p className="text-ink-3 text-tau-sm px-2.5 py-3">
-            {query ? "没有匹配的日程或待办" : "今天没有日程，也没有未完成的待办"}
+            {query
+              ? pomoText("ui.noMatchingEventsOrTasks")
+              : pomoText("ui.noEventsTodayOrUnfinishedTasks")}
           </p>
         )}
         {candidates.map((candidate, index) => (
@@ -149,8 +166,8 @@ function PickerPanel({
             heading={
               index === 0 || candidates[index - 1].group !== candidate.group
                 ? candidate.group === "event"
-                  ? "今天的日程"
-                  : "待办"
+                  ? pomoText("ui.todaySEvents")
+                  : pomoText("ui.task")
                 : null
             }
             active={cursor === index}
@@ -170,7 +187,7 @@ function PickerPanel({
             cursor === candidates.length && "bg-hover"
           )}
         >
-          不关联
+          {pomoText("ui.noLink")}
         </button>
       </div>
     </div>
@@ -192,10 +209,11 @@ function CandidateRow({
   onHover(): void;
   onPick(): void;
 }) {
+  usePomodoroI18n();
   const Icon = candidate.group === "event" ? CalendarClock : CircleCheck;
   return (
     <>
-      {heading && <div className="text-ink-3 text-tau-micro px-2.5 pb-0.5 pt-2">{heading}</div>}
+      {heading && <div className="text-ink-3 text-tau-micro px-2.5 pt-2 pb-0.5">{heading}</div>}
       <button
         type="button"
         role="option"
@@ -212,7 +230,9 @@ function CandidateRow({
         <span className="min-w-0 flex-1 truncate">{candidate.title}</span>
         {candidate.group === "event" && (
           <span className="text-ink-3 font-tau-mono shrink-0 text-[11px] tabular-nums">
-            {candidate.meta}
+            {candidate.phase === "live"
+              ? pomoText("bind.live", { range: candidate.range ?? "" })
+              : candidate.range}
           </span>
         )}
       </button>

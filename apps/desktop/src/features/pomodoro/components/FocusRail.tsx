@@ -1,3 +1,4 @@
+import { pomoText, pomoValue, usePomodoroI18n, pomoFormat } from "../i18n";
 /**
  * 专注左栏：预设纵向列表（点行打开预设详情抽屉，点行尾 ▶ 或数字键直接开始），
  * 专注中顶部换成竖版播放器（时间 / 状态 / 进度线 / 小窗 · 沉浸 / 背景音 / 结束 / 暂停继续）。
@@ -25,7 +26,7 @@ import { FadeScroll } from "@tau/ui";
 import { isElectron } from "@/electron";
 import { openPomodoroImmersiveWindow, openPomodoroMiniWindow } from "@/commands/window";
 import type { PomodoroBindTarget, PomodoroPreset, PomodoroSession } from "@/types";
-import { formatClock, formatHM, presetShort, type SessionTiming } from "../model";
+import { formatClock, formatHM, type SessionTiming } from "../model";
 import { pomodoroActions } from "../timerStore";
 import { BindPicker, type BindChoice } from "./BindPicker";
 import { PresetDot } from "./PomodoroBits";
@@ -62,6 +63,8 @@ export function FocusRail({
   onArchive(preset: PomodoroPreset): void;
   onReorder(orderedIds: number[]): void;
 }) {
+  usePomodoroI18n();
+
   const live = session !== null && timing !== null;
   return (
     <aside className="flex min-h-0 min-w-0 flex-col pt-3 pr-4 pb-4 pl-6">
@@ -69,9 +72,11 @@ export function FocusRail({
         <Player key={session.startTime} session={session} timing={timing} presetName={presetName} />
       ) : (
         <div className="mb-2 px-2.5">
-          <h2 className="text-tau-title font-semibold">开始专注</h2>
+          <h2 className="text-tau-title font-semibold">{pomoText("ui.startFocusSession")}</h2>
           <p className="text-ink-3 text-tau-sm mt-0.5">
-            {presets.length ? "点 ▶ 或数字键开始 · 点预设看详情" : "先建一个预设"}
+            {presets.length
+              ? pomoText("ui.selectOrPressANumberToStartSelectA")
+              : pomoText("ui.createAPresetFirst")}
           </p>
           <BindPicker value={bind} onChange={onBind} className="-mx-2 mt-1.5 w-[calc(100%+16px)]" />
         </div>
@@ -115,6 +120,8 @@ function PresetList({
   onArchive(preset: PomodoroPreset): void;
   onReorder(orderedIds: number[]): void;
 }) {
+  usePomodoroI18n();
+
   const [drag, setDrag] = useState<{ id: number; overId: number | null; before: boolean } | null>(
     null
   );
@@ -143,7 +150,9 @@ function PresetList({
   return (
     <>
       {disabled && (
-        <h3 className="text-ink-3 text-tau-sm mt-5 mb-1 px-2.5">预设 · 结束当前专注后可开始</h3>
+        <h3 className="text-ink-3 text-tau-sm mt-5 mb-1 px-2.5">
+          {pomoText("ui.presetsEndTheCurrentSessionToStartAnother")}
+        </h3>
       )}
       {/* -mr-1.5：FadeScroll 右侧 6px 透明边吃进栏内边距，行右缘与标题对齐 */}
       <FadeScroll className="-mr-1.5 flex min-h-0 flex-1 flex-col gap-px py-1">
@@ -157,7 +166,7 @@ function PresetList({
                   icon={<Play className="size-[15px]" strokeWidth={1.75} />}
                   onSelect={() => start(preset)}
                 >
-                  开始专注
+                  {pomoText("ui.startFocusSession")}
                 </Menu.Item>
                 <Menu.Item
                   icon={<Pencil className="size-[15px]" strokeWidth={1.75} />}
@@ -168,14 +177,14 @@ function PresetList({
                     if (el) onEdit(preset, el);
                   }}
                 >
-                  编辑
+                  {pomoText("ui.edit")}
                 </Menu.Item>
                 <Menu.Separator />
                 <Menu.Item
                   icon={<Archive className="size-[15px]" strokeWidth={1.75} />}
                   onSelect={() => onArchive(preset)}
                 >
-                  归档
+                  {pomoText("ui.archive")}
                 </Menu.Item>
               </>
             }
@@ -200,7 +209,13 @@ function PresetList({
                 draggable={!disabled}
                 aria-current={openPresetId === preset.id || undefined}
                 data-preset-chip={preset.id}
-                title={disabled ? preset.name : `「${preset.name}」详情 · 右键编辑 · 拖动排序`}
+                title={
+                  disabled
+                    ? preset.name
+                    : pomoText("preset.rowHint", {
+                        name: pomoValue(preset.name),
+                      })
+                }
                 onClick={() => onOpen(preset)}
                 onDragStart={e => {
                   e.dataTransfer.effectAllowed = "move";
@@ -219,7 +234,7 @@ function PresetList({
                   {preset.name}
                 </span>
                 <span className="text-ink-3 text-tau-sm flex-none font-normal tabular-nums">
-                  {presetShort(preset)}
+                  {pomoFormat.presetShort(preset)}
                 </span>
               </button>
               <span className="relative grid w-9 flex-none place-items-center">
@@ -236,8 +251,11 @@ function PresetList({
                 {!disabled && (
                   <button
                     type="button"
-                    aria-label={`开始「${preset.name}」`}
-                    title={`开始「${preset.name}」${index < 9 ? `（${index + 1}）` : ""}`}
+                    aria-label={pomoText("action.startPreset", { name: pomoValue(preset.name) })}
+                    title={pomoText("action.startPresetShortcut", {
+                      name: pomoValue(preset.name),
+                      shortcut: pomoValue(index < 9 ? `（${index + 1}）` : ""),
+                    })}
                     data-preset-start={preset.id}
                     onClick={() => start(preset)}
                     className="group/start absolute inset-0 grid cursor-pointer place-items-center rounded-[10px] opacity-0 transition-opacity duration-150 outline-none group-focus-within/chip:opacity-100 group-hover/chip:opacity-100 focus-visible:shadow-[var(--tau-focus-ring)]"
@@ -258,7 +276,7 @@ function PresetList({
             className="border-line-1 text-ink-2 hover:bg-hover hover:text-ink-1 text-tau-body inline-flex h-10 flex-none items-center gap-1.5 rounded-[10px] border border-dashed px-3 transition-colors duration-150"
           >
             <Plus className="size-3.5" strokeWidth={1.75} />
-            新建预设
+            {pomoText("ui.newPreset")}
           </button>
         )}
       </FadeScroll>
@@ -284,6 +302,8 @@ function Player({
   timing: SessionTiming;
   presetName: string;
 }) {
+  usePomodoroI18n();
+
   const [confirming, setConfirming] = useState(false);
   const countdown = timing.remainMs !== undefined;
 
@@ -309,9 +329,16 @@ function Player({
             timing.paused ? "text-warn" : "text-accent-text"
           )}
         >
-          {timing.paused ? "已暂停" : countdown ? "剩余" : "已专注"}
+          {timing.paused
+            ? pomoText("state.paused")
+            : countdown
+              ? pomoText("state.remaining")
+              : pomoText("state.elapsed")}
           {session.pauseCount > 0 && (
-            <span className="text-ink-3 font-normal"> · 暂停 {session.pauseCount} 次</span>
+            <span className="text-ink-3 font-normal">
+              {" "}
+              {pomoText("status.pausesSuffix", { count: pomoValue(session.pauseCount) })}
+            </span>
           )}
         </span>
       </div>
@@ -320,8 +347,9 @@ function Player({
       </div>
       {/* 栏窄：只放起止时间一行，暂停次数移到状态标签后，避免折行 */}
       <div className="text-ink-2 text-tau-sm mt-2 truncate whitespace-nowrap tabular-nums">
-        {formatHM(session.startTime)} 开始
-        {timing.endsAt != null && ` → ${formatHM(timing.endsAt)} 结束`}
+        {formatHM(session.startTime)} {pomoText("ui.start")}
+        {timing.endsAt != null &&
+          pomoText("status.endArrow", { time: pomoValue(formatHM(timing.endsAt)) })}
       </div>
 
       <BindPicker
@@ -329,7 +357,9 @@ function Player({
           session.boundTitle ? { target: sessionTarget(session), title: session.boundTitle } : null
         }
         onChange={choice =>
-          void pomodoroActions.bind(choice?.target ?? null).catch(() => toast.error("关联失败"))
+          void pomodoroActions
+            .bind(choice?.target ?? null)
+            .catch(() => toast.error(pomoText("ui.couldNotLink")))
         }
         className="-mx-2 mt-1.5 w-[calc(100%+16px)]"
       />
@@ -347,13 +377,19 @@ function Player({
       <div className="mt-3.5 flex items-center gap-0.5">
         {isElectron && (
           <>
-            <Tooltip content="小窗">
-              <IconButton aria-label="小窗" onClick={() => void openPomodoroMiniWindow()}>
+            <Tooltip content={pomoText("ui.miniWindow")}>
+              <IconButton
+                aria-label={pomoText("ui.miniWindow")}
+                onClick={() => void openPomodoroMiniWindow()}
+              >
                 <PictureInPicture2 className="size-4" strokeWidth={1.75} />
               </IconButton>
             </Tooltip>
-            <Tooltip content="沉浸（I）">
-              <IconButton aria-label="沉浸" onClick={() => void openPomodoroImmersiveWindow()}>
+            <Tooltip content={pomoText("ui.immersiveI")}>
+              <IconButton
+                aria-label={pomoText("ui.immersive")}
+                onClick={() => void openPomodoroImmersiveWindow()}
+              >
                 <Expand className="size-4" strokeWidth={1.75} />
               </IconButton>
             </Tooltip>
@@ -361,20 +397,25 @@ function Player({
         )}
         <SoundPopover
           trigger={
-            <IconButton aria-label="背景音" title="背景音">
+            <IconButton
+              aria-label={pomoText("ui.backgroundSound")}
+              title={pomoText("ui.backgroundSound")}
+            >
               <Music className="size-4" strokeWidth={1.75} />
             </IconButton>
           }
         />
-        <Tooltip content="结束">
-          <IconButton aria-label="结束" onClick={stop}>
+        <Tooltip content={pomoText("ui.end")}>
+          <IconButton aria-label={pomoText("ui.end")} onClick={stop}>
             <Square className="size-4" strokeWidth={1.75} />
           </IconButton>
         </Tooltip>
         <button
           type="button"
-          aria-label={timing.paused ? "继续" : "暂停"}
-          title={`${timing.paused ? "继续" : "暂停"}（空格）`}
+          aria-label={timing.paused ? pomoText("ui.resume") : pomoText("ui.pause")}
+          title={pomoText("action.spaceShortcut", {
+            action: pomoValue(timing.paused ? pomoText("ui.resume") : pomoText("ui.pause")),
+          })}
           onClick={() => void pomodoroActions.toggle()}
           className={cn(
             "text-ink-inverse ml-auto grid size-[42px] flex-none place-items-center rounded-full transition-colors duration-150",
@@ -393,10 +434,10 @@ function Player({
       <ConfirmDialog
         open={confirming}
         onOpenChange={setConfirming}
-        title="结束这次专注？"
-        description="专注还不足 5 分钟，结束后不会留下记录。"
-        cancelText="继续专注"
-        confirmText="仍然结束"
+        title={pomoText("ui.endThisFocusSession")}
+        description={pomoText("ui.thisSessionIsUnder5MinutesAndWillNot")}
+        cancelText={pomoText("ui.keepFocusing")}
+        confirmText={pomoText("ui.endAnyway")}
         danger
         onConfirm={() => void pomodoroActions.stop()}
       />

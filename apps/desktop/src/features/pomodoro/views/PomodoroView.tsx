@@ -1,3 +1,4 @@
+import { pomoText, pomoValue, usePomodoroI18n, type PomodoroMessageKey, pomoFormat } from "../i18n";
 /**
  * 番茄专注页 · 时间账本：一整张纸，纸顶固定工具栏（标题 + 今日摘要 + 已归档 + 新建预设），
  * 纸内左栏专注（预设纵向列表，行尾 ▶ / 数字键开始；专注中顶部换成播放器）+ 右侧账本（日 × 时账本 +
@@ -22,7 +23,6 @@ import type { PomodoroPreset, PomodoroSession } from "@/types";
 import {
   HOUR_MS,
   formatDuration,
-  formatDurationCN,
   groupByDay,
   isEarlyStop,
   startOfDay,
@@ -79,7 +79,7 @@ function useMinuteNow(): number {
 }
 
 /** 延迟落库的删除：立即隐藏，撤销 toast 关闭时执行 commit（悬停冻结连带延长撤销窗口，无死按钮）；撤销即取消；卸载时立即落库 */
-function useDeferredDelete(commit: (id: number) => Promise<unknown>, errorText: string) {
+function useDeferredDelete(commit: (id: number) => Promise<unknown>, errorKey: PomodoroMessageKey) {
   const [pending, setPending] = useState<ReadonlySet<number>>(() => new Set());
   const pendingCommits = useRef(new Set<number>());
   const commitRef = useRef(commit);
@@ -96,7 +96,7 @@ function useDeferredDelete(commit: (id: number) => Promise<unknown>, errorText: 
     pendingCommits.current.delete(id);
     commitRef
       .current(id)
-      .catch(() => toast.error(errorText))
+      .catch(() => toast.error(pomoText(errorKey)))
       .finally(() => drop(id));
   };
   const flushRef = useRef(flush);
@@ -115,7 +115,9 @@ function useDeferredDelete(commit: (id: number) => Promise<unknown>, errorText: 
       duration: UNDO_MS,
       onClose: () => flushRef.current(id),
       action: {
-        label: "撤销",
+        get label() {
+          return pomoText("ui.undo");
+        },
         onClick: () => {
           // 撤销先于 onClose 触发：摘掉待落库条目后，随后的 onClose 空转
           pendingCommits.current.delete(id);
@@ -128,6 +130,8 @@ function useDeferredDelete(commit: (id: number) => Promise<unknown>, errorText: 
 }
 
 export function PomodoroView() {
+  usePomodoroI18n();
+
   const { navigator } = usePage();
   const minuteNow = useMinuteNow();
   const { session: live, timing, now: secondNow } = useLiveTiming();
@@ -148,7 +152,7 @@ export function PomodoroView() {
     void pomodoroActions
       .start(preset, pendingBind?.target)
       .then(() => setPendingBind(null))
-      .catch(() => toast.error("开始专注失败"));
+      .catch(() => toast.error(pomoText("ui.couldNotStartFocusSession")));
 
   const [ledger, setLedger] = useState<LedgerView>(() => ({
     kind: "days",
@@ -169,8 +173,8 @@ export function PomodoroView() {
   } | null>(null);
   const [peek, setPeek] = useState<{ session: PomodoroSession; anchor: HTMLElement } | null>(null);
 
-  const sessionDeletes = useDeferredDelete(mutations.deleteSession, "删除记录失败");
-  const presetDeletes = useDeferredDelete(mutations.deletePreset, "删除预设失败");
+  const sessionDeletes = useDeferredDelete(mutations.deleteSession, "ui.couldNotDeleteRecord");
+  const presetDeletes = useDeferredDelete(mutations.deletePreset, "ui.couldNotDeletePreset");
 
   /* ---------- 结束回报（仅本页可见时；Activity 恢复时不补报旧结果） ---------- */
   const lastResult = usePomodoroTimer(s => s.lastResult);
@@ -179,11 +183,22 @@ export function PomodoroView() {
     if (!lastResult || lastResult.seq <= seenSeq.current) return;
     seenSeq.current = lastResult.seq;
     if (Date.now() - lastResult.endedAt > 10_000) return;
-    const name = presets.byId.get(lastResult.presetId)?.name ?? "专注";
-    if (!lastResult.saved) toast.info("不足 5 分钟，本次未记录");
+    const name = presets.byId.get(lastResult.presetId)?.name ?? pomoText("ui.focus2");
+    if (!lastResult.saved) toast.info(pomoText("ui.lessThan5MinutesThisSessionWasNotRecorded"));
     else if (isEarlyStop(lastResult))
-      toast.info(`「${name}」提前结束 · 记录 ${formatDurationCN(lastResult.focusMs)}`);
-    else toast.success(`完成「${name}」· ${formatDurationCN(lastResult.focusMs)}`);
+      toast.info(
+        pomoText("feedback.endedEarly", {
+          name: pomoValue(name),
+          duration: pomoValue(pomoFormat.durationDetail(lastResult.focusMs)),
+        })
+      );
+    else
+      toast.success(
+        pomoText("feedback.completed", {
+          name: pomoValue(name),
+          duration: pomoValue(pomoFormat.durationDetail(lastResult.focusMs)),
+        })
+      );
   }, [lastResult, presets.byId]);
 
   /* ---------- 键盘 ---------- */
@@ -287,21 +302,32 @@ export function PomodoroView() {
   const openPresetSessions = openPreset
     ? recentVisible.filter(s => s.presetId === openPreset.id)
     : [];
-  const liveName = live ? (presets.byId.get(live.presetId)?.name ?? "专注") : "";
+  const liveName = live ? (presets.byId.get(live.presetId)?.name ?? pomoText("ui.focus2")) : "";
 
   const submitPreset = (draft: PresetDraft) =>
     editor?.preset
-      ? mutations.updatePreset(editor.preset.id, draft).then(() => toast.success("预设已保存"))
-      : mutations.createPreset(draft).then(() => toast.success(`已创建「${draft.name}」`));
+      ? mutations
+          .updatePreset(editor.preset.id, draft)
+          .then(() => toast.success(pomoText("ui.presetSaved")))
+      : mutations
+          .createPreset(draft)
+          .then(() =>
+            toast.success(pomoText("feedback.presetCreated", { name: pomoValue(draft.name) }))
+          );
 
   const archivePreset = (preset: PomodoroPreset) => {
     if (live?.presetId === preset.id) {
-      toast.info("正在专注的预设不能归档");
+      toast.info(pomoText("ui.aPresetInUseCannotBeArchived"));
       return false;
     }
     void mutations.setArchived(preset.id, true).then(() =>
-      toast.success(`已归档「${preset.name}」`, {
-        action: { label: "撤销", onClick: () => void mutations.setArchived(preset.id, false) },
+      toast.success(pomoText("feedback.presetArchived", { name: pomoValue(preset.name) }), {
+        action: {
+          get label() {
+            return pomoText("ui.undo");
+          },
+          onClick: () => void mutations.setArchived(preset.id, false),
+        },
       })
     );
     return true;
@@ -329,7 +355,7 @@ export function PomodoroView() {
   const toggleHighlight = (id: number) => setHighlight(h => (h === id ? null : id));
 
   const deleteSession = (session: PomodoroSession) =>
-    sessionDeletes.schedule(session.id, "已删除 1 条记录");
+    sessionDeletes.schedule(session.id, pomoText("ui.oneRecordDeleted"));
 
   return (
     <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pt-1 pb-4">
@@ -338,32 +364,38 @@ export function PomodoroView() {
         <div className="flex flex-none flex-col px-8 pt-5">
           <div className="mb-3 flex h-10 flex-none items-center gap-3">
             <h1 className="text-tau-title-lg shrink-0 font-semibold tracking-[-0.01em] whitespace-nowrap">
-              番茄专注
+              {pomoText("ui.focus")}
             </h1>
             <span className="text-ink-2 text-tau-meta w-0 flex-1 truncate whitespace-nowrap tabular-nums">
-              今天 <b className="text-ink-1 font-semibold">{todaySessions.length}</b> 个
+              {pomoText("ui.today")}{" "}
+              <b className="text-ink-1 font-semibold">{todaySessions.length}</b>{" "}
+              {pomoText("unit.count", { count: todaySessions.length })}
               <span className="text-ink-3 mx-2">·</span>
               <b className="text-ink-1 font-semibold">{formatDuration(sumFocus(todaySessions))}</b>
               {streak > 0 && (
                 <>
-                  <span className="text-ink-3 mx-2">·</span>连续{" "}
+                  <span className="text-ink-3 mx-2">·</span>
+                  {pomoText("ui.streak")}{" "}
                   <b className="text-ink-1 font-semibold">
                     {streak >= WINDOW_DAYS ? `${WINDOW_DAYS}+` : streak}
                   </b>{" "}
-                  天
+                  {pomoText("unit.days", { count: streak })}
                 </>
               )}
             </span>
             <Menu
               align="end"
               trigger={
-                <IconButton aria-label="已归档的预设" title="已归档的预设">
+                <IconButton
+                  aria-label={pomoText("ui.archivedPresets")}
+                  title={pomoText("ui.archivedPresets")}
+                >
                   <Archive className="size-4" strokeWidth={1.75} />
                 </IconButton>
               }
             >
               {archivedPresets.length === 0 ? (
-                <Menu.Item disabled>没有归档的预设</Menu.Item>
+                <Menu.Item disabled>{pomoText("ui.noArchivedPresets")}</Menu.Item>
               ) : (
                 archivedPresets.map(preset => (
                   <Menu.Submenu
@@ -376,20 +408,29 @@ export function PomodoroView() {
                       onSelect={() =>
                         void mutations
                           .setArchived(preset.id, false)
-                          .then(() => toast.success(`已恢复「${preset.name}」`))
+                          .then(() =>
+                            toast.success(
+                              pomoText("feedback.presetRestored", { name: pomoValue(preset.name) })
+                            )
+                          )
                       }
                     >
-                      恢复
+                      {pomoText("ui.restore2")}
                     </Menu.Item>
                     <Menu.Separator />
                     <Menu.Item
                       danger
                       icon={<Trash2 className="size-[15px]" strokeWidth={1.75} />}
                       onSelect={() =>
-                        presetDeletes.schedule(preset.id, `已删除「${preset.name}」，历史记录保留`)
+                        presetDeletes.schedule(
+                          preset.id,
+                          pomoText("feedback.presetDeleted", {
+                            name: pomoValue(preset.name),
+                          })
+                        )
                       }
                     >
-                      删除
+                      {pomoText("ui.delete")}
                     </Menu.Item>
                   </Menu.Submenu>
                 ))
@@ -402,7 +443,7 @@ export function PomodoroView() {
               className="shrink-0 whitespace-nowrap"
               onClick={e => setEditor({ preset: null, anchor: e.currentTarget })}
             >
-              新建预设
+              {pomoText("ui.newPreset")}
             </Button>
           </div>
         </div>
@@ -422,7 +463,9 @@ export function PomodoroView() {
             onCreate={anchor => setEditor({ preset: null, anchor })}
             onEdit={(preset, anchor) => setEditor({ preset, anchor })}
             onArchive={archivePreset}
-            onReorder={ids => void mutations.reorder(ids).catch(() => toast.error("排序失败"))}
+            onReorder={ids =>
+              void mutations.reorder(ids).catch(() => toast.error(pomoText("ui.couldNotReorder")))
+            }
           />
           <div className="relative grid min-h-0 grid-cols-1 grid-rows-[minmax(0,1fr)]">
             {ledger.kind === "days" ? (
@@ -442,9 +485,12 @@ export function PomodoroView() {
             ) : (
               <section className="flex min-h-0 flex-col pt-4 pr-2 pb-4 pl-8">
                 <LedgerHeader
-                  title="时间账本"
+                  title={pomoText("ui.focusLedger")}
                   nav={rangeNav}
-                  summary={`${allVisible.length} 个 · ${Math.round(sumFocus(allVisible) / HOUR_MS)} 小时`}
+                  summary={pomoText("summary.sessionsHours", {
+                    count: pomoValue(allVisible.length),
+                    hours: pomoValue(Math.round(sumFocus(allVisible) / HOUR_MS)),
+                  })}
                 />
                 {all.loading ? (
                   <Loading />
@@ -464,7 +510,7 @@ export function PomodoroView() {
                   presetsById={presets.byId}
                   highlight={highlight}
                   onToggle={toggleHighlight}
-                  hint="点格子跳到那天 · 点年份 / 月份看那段时间 · 点图例高亮"
+                  hint={pomoText("ui.selectADayToOpenItSelectAYear")}
                 />
               </section>
             )}

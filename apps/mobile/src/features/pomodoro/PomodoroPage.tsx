@@ -1,3 +1,4 @@
+import { pomoText, pomoValue, usePomodoroI18n } from "./i18n";
 // 番茄专注主页（P1·清单式）：统计英雄卡 + 预设纵向列表 + 进行中横条。
 // 计时 UI 由沉浸页（pomodoroFocus）承载；这里只做启动入口与进行中回跳。
 
@@ -66,6 +67,8 @@ export function PomodoroPage({
   onCreatePreset,
   onError,
 }: PomodoroPageProps) {
+  usePomodoroI18n();
+
   const listScrollRef = useRef<HTMLDivElement>(null);
   useEdgeFade(listScrollRef);
 
@@ -93,7 +96,7 @@ export function PomodoroPage({
 
   const startPreset = (preset: PomodoroPreset) => {
     if (controller.session) {
-      toast({ type: "info", text: "已有进行中的专注" });
+      toast({ type: "info", text: pomoText("ui.aFocusSessionIsAlreadyRunning") });
       onOpenFocus();
       return;
     }
@@ -113,7 +116,7 @@ export function PomodoroPage({
       await tauri.pomodoroReorderPresets(next.map(item => item.id));
       invalidatePomodoroQueries();
     } catch (error) {
-      onError(error, "调整预设顺序失败");
+      onError(error, pomoText("ui.couldNotReorderPresets"));
     }
   };
 
@@ -122,7 +125,12 @@ export function PomodoroPage({
       await tauri.pomodoroArchivePreset(preset.id, !preset.archived);
       invalidatePomodoroQueries();
     } catch (error) {
-      onError(error, preset.archived ? "取消归档失败" : "归档预设失败");
+      onError(
+        error,
+        preset.archived
+          ? pomoText("ui.couldNotRestorePreset")
+          : pomoText("ui.couldNotArchivePreset")
+      );
     }
   };
 
@@ -130,7 +138,9 @@ export function PomodoroPage({
     const orderActions: ActionSheetItem[] = preset.archived
       ? [
           {
-            label: "取消归档",
+            get label() {
+              return pomoText("ui.restore");
+            },
             icon: <ArchiveRestore size={16} />,
             onClick: () => {
               setMorePreset(null);
@@ -140,7 +150,9 @@ export function PomodoroPage({
         ]
       : [
           {
-            label: "上移",
+            get label() {
+              return pomoText("ui.moveUp");
+            },
             icon: <ChevronUp size={16} />,
             onClick: () => {
               setMorePreset(null);
@@ -148,7 +160,9 @@ export function PomodoroPage({
             },
           },
           {
-            label: "下移",
+            get label() {
+              return pomoText("ui.moveDown");
+            },
             icon: <ChevronDown size={16} />,
             onClick: () => {
               setMorePreset(null);
@@ -156,7 +170,9 @@ export function PomodoroPage({
             },
           },
           {
-            label: "归档预设",
+            get label() {
+              return pomoText("ui.archivePreset");
+            },
             icon: <Archive size={16} />,
             onClick: () => {
               setMorePreset(null);
@@ -166,7 +182,9 @@ export function PomodoroPage({
         ];
     return [
       {
-        label: "编辑预设",
+        get label() {
+          return pomoText("ui.editPreset");
+        },
         icon: <Pencil size={16} />,
         onClick: () => {
           setMorePreset(null);
@@ -175,7 +193,9 @@ export function PomodoroPage({
       },
       ...orderActions,
       {
-        label: "删除预设",
+        get label() {
+          return pomoText("ui.deletePreset");
+        },
         icon: <Trash2 size={16} />,
         danger: true,
         onClick: () => {
@@ -189,19 +209,19 @@ export function PomodoroPage({
   return (
     <div className="mobile-kb-screen bg-page fixed inset-0 z-50 flex flex-col">
       <PageHeader
-        title="番茄专注"
+        title={pomoText("ui.focus")}
         onBack={onBack}
         actions={
           <>
             <PageHeaderButton
               icon={<Clock size={17} strokeWidth={2} />}
-              aria-label="专注记录"
+              aria-label={pomoText("ui.focusHistory")}
               onClick={onOpenHistory}
             />
             <PageHeaderButton
               icon={<Plus size={18} strokeWidth={2.6} />}
               variant="brand"
-              aria-label="新建预设"
+              aria-label={pomoText("ui.newPreset")}
               onClick={onCreatePreset}
             />
           </>
@@ -233,9 +253,9 @@ export function PomodoroPage({
                 }}
               />
               <span className="text-ink-1 min-w-0 flex-1 truncate text-[13.5px] font-bold">
-                {controller.preset?.name ?? "专注中"}
+                {controller.preset?.name ?? pomoText("state.focusing")}
                 <span className="text-ink-3 ml-2 text-[11px] font-semibold">
-                  {controller.isPaused ? "已暂停" : "专注中"}
+                  {controller.isPaused ? pomoText("state.paused") : pomoText("state.focusing")}
                 </span>
               </span>
               <span className="text-accent shrink-0 text-[19px] font-extrabold tabular-nums">
@@ -269,8 +289,13 @@ export function PomodoroPage({
                 </span>
                 <span className="text-ink-2 mt-1 block text-[12px]">
                   {todaySummary
-                    ? `今日 ${todaySummary.count} 个番茄${todaySummary.count === 0 ? " · 开始一次专注吧" : ""}`
-                    : "加载中"}
+                    ? pomoText("summary.today", {
+                        count: pomoValue(todaySummary.count),
+                        hint: pomoValue(
+                          todaySummary.count === 0 ? pomoText("ui.startAFocusSession") : ""
+                        ),
+                      })
+                    : pomoText("ui.loading")}
                 </span>
               </span>
             </button>
@@ -282,7 +307,9 @@ export function PomodoroPage({
               <span className="text-tag-2 block text-[21px] leading-tight font-extrabold tabular-nums">
                 {weeklySummaryQuery.isLoading ? "…" : formatFocusDuration(weeklyFocusMs)}
               </span>
-              <span className="text-ink-2 mt-0.5 block text-[11.5px]">本周专注</span>
+              <span className="text-ink-2 mt-0.5 block text-[11.5px]">
+                {pomoText("ui.focusThisWeek")}
+              </span>
             </button>
             <button
               type="button"
@@ -295,27 +322,33 @@ export function PomodoroPage({
                   : formatFocusDuration(totalSummaryQuery.data?.focusMs ?? 0)}
               </span>
               <span className="text-ink-2 mt-0.5 block text-[11.5px]">
-                累计 {totalSummaryQuery.data?.count ?? "…"} 次
+                {pomoText("stats.totalSessions", {
+                  count: pomoValue(totalSummaryQuery.data?.count ?? "…"),
+                })}
               </span>
             </button>
           </div>
 
           {/* 预设列表（清单式，与任务中心同构） */}
           <div className="mt-5 mb-1.5 flex items-baseline justify-between px-[19px]">
-            <h2 className="text-ink-1 text-[16.5px] font-extrabold">预设</h2>
+            <h2 className="text-ink-1 text-[16.5px] font-extrabold">{pomoText("ui.presets")}</h2>
           </div>
           <div className="list-group mx-[18px]">
             {presetsQuery.isLoading ? (
-              <p className="text-ink-3 px-4 py-6 text-center text-sm">正在加载预设...</p>
+              <p className="text-ink-3 px-4 py-6 text-center text-sm">
+                {pomoText("ui.loadingPresets")}
+              </p>
             ) : activePresets.length === 0 ? (
               <div className="px-4 py-7 text-center">
-                <p className="text-ink-2 text-[13px] font-semibold">还没有专注预设</p>
+                <p className="text-ink-2 text-[13px] font-semibold">
+                  {pomoText("ui.noFocusPresetsYet")}
+                </p>
                 <button
                   type="button"
                   onClick={onCreatePreset}
                   className="text-accent mt-2 text-[13px] font-bold"
                 >
-                  新建一个，比如「深度工作 25 分钟」 ›
+                  {pomoText("ui.createOneSuchAsDeepWork25Min")}
                 </button>
               </div>
             ) : (
@@ -329,7 +362,11 @@ export function PomodoroPage({
                   >
                     <button
                       type="button"
-                      aria-label={running ? "查看专注" : `开始 ${preset.name}`}
+                      aria-label={
+                        running
+                          ? pomoText("ui.viewFocusSession")
+                          : pomoText("action.startNamed", { name: pomoValue(preset.name) })
+                      }
                       onClick={() => (running ? onOpenFocus() : startPreset(preset))}
                       className="text-ink-inverse grid h-[38px] w-[38px] shrink-0 place-items-center rounded-full transition-transform active:scale-90"
                       style={{ background: tone.bg, boxShadow: "var(--tau-shadow-lift)" }}
@@ -355,14 +392,18 @@ export function PomodoroPage({
                               color: "var(--tau-accent)",
                             }}
                           >
-                            {controller.isPaused ? "已暂停" : "进行中"}
+                            {controller.isPaused
+                              ? pomoText("state.paused")
+                              : pomoText("state.running")}
                           </span>
                         ) : null}
                       </span>
                       <span className="text-ink-3 mt-0.5 block text-[10.5px] font-semibold tabular-nums">
                         {preset.mode === "countdown"
-                          ? `倒计时 · ${preset.durationMin} 分钟`
-                          : "正计时 · 不限时"}
+                          ? pomoText("mode.countdownDuration", {
+                              minutes: pomoValue(preset.durationMin),
+                            })
+                          : pomoText("mode.countupUnlimited")}
                         {running && controller.tick
                           ? ` · ${formatClock(controller.tick.remainMs ?? controller.tick.elapsedMs)}`
                           : ""}
@@ -370,7 +411,9 @@ export function PomodoroPage({
                     </button>
                     <button
                       type="button"
-                      aria-label={`${preset.name} 更多操作`}
+                      aria-label={pomoText("action.moreNamed", {
+                        name: pomoValue(preset.name),
+                      })}
                       onClick={() => setMorePreset(preset)}
                       className="text-ink-3 grid h-[30px] w-[30px] shrink-0 place-items-center rounded-full"
                     >
@@ -391,7 +434,7 @@ export function PomodoroPage({
                 className="text-ink-3 mx-[19px] mt-3 flex items-center gap-1.5 text-[11.5px] font-extrabold"
               >
                 <Archive size={12} />
-                已归档（{archivedPresets.length}）
+                {pomoText("presets.archivedCount", { count: pomoValue(archivedPresets.length) })}
                 <ChevronDown
                   size={13}
                   className={`transition-transform ${archivedOpen ? "" : "-rotate-90"}`}
@@ -414,13 +457,17 @@ export function PomodoroPage({
                         </span>
                         <span className="text-ink-3 mt-0.5 block text-[10.5px] font-semibold tabular-nums">
                           {preset.mode === "countdown"
-                            ? `倒计时 · ${preset.durationMin} 分钟`
-                            : "正计时 · 不限时"}
+                            ? pomoText("mode.countdownDuration", {
+                                minutes: pomoValue(preset.durationMin),
+                              })
+                            : pomoText("mode.countupUnlimited")}
                         </span>
                       </button>
                       <button
                         type="button"
-                        aria-label={`${preset.name} 更多操作`}
+                        aria-label={pomoText("action.moreNamed", {
+                          name: pomoValue(preset.name),
+                        })}
                         onClick={() => setMorePreset(preset)}
                         className="text-ink-3 grid h-[30px] w-[30px] shrink-0 place-items-center rounded-full"
                       >
@@ -439,7 +486,7 @@ export function PomodoroPage({
             className="text-ink-2 active:bg-hover mx-[18px] mt-3 flex w-[calc(100%-36px)] items-center justify-center gap-1.5 rounded-[16px] py-3 text-[12.5px] font-bold"
           >
             <Clock size={14} />
-            全部专注记录
+            {pomoText("ui.allFocusHistory")}
             <ChevronRight size={14} />
           </button>
         </div>
@@ -448,16 +495,18 @@ export function PomodoroPage({
       <ActionSheet
         open={morePreset != null}
         title={morePreset?.name}
-        kind="预设"
+        kind={pomoText("ui.presets")}
         items={morePreset ? moreItems(morePreset) : []}
         onClose={() => setMorePreset(null)}
       />
 
       <MobileConfirmDialog
         open={deletePreset != null}
-        title="删除预设"
-        description={`删除「${deletePreset?.name ?? ""}」？该操作不可恢复，历史记录将显示为「已删除预设」。`}
-        confirmText="删除"
+        title={pomoText("ui.deletePreset")}
+        description={pomoText("confirm.deletePreset", {
+          name: pomoValue(deletePreset?.name ?? ""),
+        })}
+        confirmText={pomoText("ui.delete")}
         danger
         onCancel={() => setDeletePreset(null)}
         onConfirm={() => {
@@ -468,9 +517,9 @@ export function PomodoroPage({
             try {
               await tauri.pomodoroDeletePreset(target.id);
               invalidatePomodoroQueries();
-              toast.success("已删除预设");
+              toast.success(pomoText("ui.deletedPreset"));
             } catch (error) {
-              onError(error, "删除预设失败");
+              onError(error, pomoText("ui.couldNotDeletePreset"));
             }
           })();
         }}

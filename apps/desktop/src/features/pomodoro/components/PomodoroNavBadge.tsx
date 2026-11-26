@@ -1,3 +1,4 @@
+import { pomoText, usePomodoroI18n } from "../i18n";
 /**
  * 侧栏「番茄专注」入口的实时计时：专注中显示剩余 / 已专注时间与呼吸点，暂停显示「已暂停」；
  * 侧栏收起为图标列时退化为图标右上角的状态点。计时在主进程，离开番茄页也看得到。
@@ -8,6 +9,8 @@ import { formatClock } from "../model";
 import { useLiveTiming } from "../timerStore";
 
 export function PomodoroNavBadge({ collapsed }: { collapsed: boolean }) {
+  usePomodoroI18n();
+
   const { timing } = useLiveTiming();
   if (!timing) return null;
   const dot = (
@@ -19,7 +22,7 @@ export function PomodoroNavBadge({ collapsed }: { collapsed: boolean }) {
       )}
     />
   );
-  if (collapsed) return <span className="absolute right-2.5 top-2">{dot}</span>;
+  if (collapsed) return <span className="absolute top-2 right-2.5">{dot}</span>;
   return (
     <span
       className={cn(
@@ -28,7 +31,7 @@ export function PomodoroNavBadge({ collapsed }: { collapsed: boolean }) {
       )}
     >
       {dot}
-      {timing.paused ? "已暂停" : formatClock(timing.displayMs)}
+      {timing.paused ? pomoText("state.paused") : formatClock(timing.displayMs)}
     </span>
   );
 }

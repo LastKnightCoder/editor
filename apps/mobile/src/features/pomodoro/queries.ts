@@ -3,7 +3,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { getQueryClient } from "../../router";
-import type { PomodoroPreset, PomodoroSession } from "../../types";
+import type { PomodoroPreset } from "../../types";
 import * as tauri from "../../services/tauri";
 import { startOfWeek, todayRange } from "./timer";
 
@@ -95,9 +95,4 @@ export function usePomodoroSessions(params: PomodoroSessionsParams = {}, enabled
 
 export function invalidatePomodoroQueries() {
   getQueryClient().invalidateQueries({ queryKey: ["pomodoro"] });
-}
-
-/** 会话行展示名：预设可能已删除 */
-export function presetNameOf(presets: PomodoroPreset[], session: PomodoroSession): string {
-  return presets.find(preset => preset.id === session.presetId)?.name ?? "已删除预设";
 }

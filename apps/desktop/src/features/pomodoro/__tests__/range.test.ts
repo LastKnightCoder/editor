@@ -1,3 +1,4 @@
+import { pomoFormat } from "../i18n";
 import { describe, expect, it } from "vitest";
 import {
   addDays,
@@ -9,7 +10,6 @@ import {
   shiftWindow,
   windowAround,
   windowDays,
-  windowLabel,
 } from "../range";
 
 const day = (y: number, m: number, d: number) => new Date(y, m - 1, d).getTime();
@@ -79,12 +79,12 @@ describe("快捷区间", () => {
   });
 
   it("标题：快捷项名，否则日期范围（非今年带年份）", () => {
-    expect(windowLabel(lastDays(14, NOW), "last14", NOW, null)).toBe("近 14 天");
-    expect(windowLabel({ from: day(2026, 8, 14), to: day(2026, 8, 27) }, null, NOW, null)).toBe(
-      "8月14日 – 8月27日"
-    );
-    expect(windowLabel({ from: day(2025, 12, 25), to: day(2026, 1, 7) }, null, NOW, null)).toBe(
-      "2025年12月25日 – 2026年1月7日"
-    );
+    expect(pomoFormat.windowLabel(lastDays(14, NOW), "last14", NOW, null)).toBe("近 14 天");
+    expect(
+      pomoFormat.windowLabel({ from: day(2026, 8, 14), to: day(2026, 8, 27) }, null, NOW, null)
+    ).toBe("8月14日 – 8月27日");
+    expect(
+      pomoFormat.windowLabel({ from: day(2025, 12, 25), to: day(2026, 1, 7) }, null, NOW, null)
+    ).toBe("2025年12月25日 – 2026年1月7日");
   });
 });

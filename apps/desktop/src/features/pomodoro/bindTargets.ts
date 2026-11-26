@@ -14,7 +14,8 @@ export interface BindCandidate {
   group: "event" | "todo";
   target: PomodoroBindTarget;
   title: string;
-  meta: string;
+  range?: string;
+  phase?: "live" | "plan" | "record";
 }
 
 const PHASE_RANK = { live: 0, plan: 1, record: 2 } as const;
@@ -52,7 +53,8 @@ export function eventCandidates(
         group: "event" as const,
         target: { kind: "event" as const, eventId: event.id },
         title: event.title,
-        meta: phase === "live" ? `进行中 · ${range}` : range,
+        range,
+        phase,
       };
     });
 }
@@ -63,7 +65,6 @@ export function todoCandidates(roots: TodoEntry[]): BindCandidate[] {
     group: "todo",
     target: { kind: "todo", todoId: todo.id },
     title: todo.title,
-    meta: "待办",
   }));
 }
 

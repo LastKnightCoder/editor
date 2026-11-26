@@ -1,3 +1,4 @@
+import { pomoText, pomoValue, usePomodoroI18n, pomoFormat } from "../i18n";
 /**
  * 时间账本：窗口内每天一行（新的在上）、横轴 6–24 点，色块 = 一段专注（暂停处留缺口），今天一行有「现在」刻度线。
  *
@@ -20,15 +21,13 @@ import {
   axisPercent,
   focusDistribution,
   formatDuration,
-  formatDurationCN,
   formatHM,
   startOfDay,
   sumFocus,
-  weekdayLabel,
 } from "../model";
 import { listDays, windowDays, type DayWindow } from "../range";
 import { PresetDot } from "./PomodoroBits";
-import { DELETED_PRESET_NAME, presetDotClass } from "./presetTone";
+import { presetDotClass } from "./presetTone";
 
 const TICKS = Array.from(
   { length: (AXIS_TO_HOUR - AXIS_FROM_HOUR) / 3 + 1 },
@@ -94,6 +93,8 @@ export function Ledger({
   onToggleHighlight(presetId: number): void;
   onOpenSession(session: PomodoroSession, anchor: HTMLElement): void;
 }) {
+  usePomodoroI18n();
+
   const [rowsEl, setRowsEl] = useState<HTMLDivElement | null>(null);
   const [tall, setTall] = useState(false);
 
@@ -122,11 +123,16 @@ export function Ledger({
   const total = sumFocus(inRange);
 
   return (
-    <section className="flex min-h-0 flex-col pb-4 pl-8 pr-2 pt-4">
+    <section className="flex min-h-0 flex-col pt-4 pr-2 pb-4 pl-8">
       <LedgerHeader
-        title="时间账本"
+        title={pomoText("ui.focusLedger")}
         nav={nav}
-        summary={`${range} 天 · ${inRange.length} 个 · ${formatDuration(total)} · 日均 ${formatDuration(total / range)}`}
+        summary={pomoText("summary.range", {
+          days: pomoValue(range),
+          count: pomoValue(inRange.length),
+          duration: pomoValue(formatDuration(total)),
+          average: pomoValue(formatDuration(total / range)),
+        })}
       />
 
       <div className="text-ink-3 grid h-6 grid-cols-[92px_minmax(0,1fr)_62px] pr-3 text-[11px] tabular-nums">
@@ -176,7 +182,7 @@ export function Ledger({
         presetsById={presetsById}
         highlight={highlight}
         onToggle={onToggleHighlight}
-        hint="点色块看详情 · 点图例高亮"
+        hint={pomoText("ui.selectABlockForDetailsSelectALegendTo")}
       />
     </section>
   );
@@ -194,7 +200,7 @@ export function LedgerHeader({
   return (
     // 窄屏时标题与范围导航不压缩，只让右侧摘要省略
     <div className="mb-1.5 flex min-h-[30px] items-center gap-2">
-      <h2 className="text-tau-title flex-none whitespace-nowrap font-semibold">{title}</h2>
+      <h2 className="text-tau-title flex-none font-semibold whitespace-nowrap">{title}</h2>
       {nav}
       <span className="min-w-2 flex-1" />
       <span title={summary} className="text-ink-3 text-tau-sm min-w-0 truncate tabular-nums">
@@ -221,6 +227,8 @@ export function PresetLegend({
   onToggle(presetId: number): void;
   hint: string;
 }) {
+  usePomodoroI18n();
+
   const byPreset = useMemo(() => {
     const map = new Map<number, number>();
     for (const s of sessions) map.set(s.presetId, (map.get(s.presetId) ?? 0) + s.focusMs);
@@ -247,7 +255,7 @@ export function PresetLegend({
 
   const hidden = byPreset.slice(visibleCount);
   const hiddenHighlight = highlight != null && hidden.some(([id]) => id === highlight);
-  const nameOf = (id: number) => presetsById.get(id)?.name ?? DELETED_PRESET_NAME;
+  const nameOf = (id: number) => presetsById.get(id)?.name ?? pomoText("fallback.deletedPreset");
 
   const chip = ([presetId, ms]: [number, number], full = false) => (
     <button
@@ -273,7 +281,7 @@ export function PresetLegend({
   );
 
   return (
-    <div className="flex flex-none items-center gap-1 pl-2 pr-3 pt-2.5">
+    <div className="flex flex-none items-center gap-1 pt-2.5 pr-3 pl-2">
       <div ref={setRowEl} className="flex h-[26px] min-w-0 flex-1 flex-wrap gap-1 overflow-hidden">
         {byPreset.map(entry => chip(entry))}
       </div>
@@ -300,13 +308,15 @@ export function PresetLegend({
                   <span className="max-w-[10em] truncate">{nameOf(highlight)}</span>
                 </>
               ) : (
-                `另外 ${hidden.length} 个`
+                pomoText("legend.more", { count: pomoValue(hidden.length) })
               )}
               <ChevronDown className="size-3" strokeWidth={1.75} />
             </button>
           }
         >
-          <Popover.Header>全部预设 · {byPreset.length} 个</Popover.Header>
+          <Popover.Header>
+            {pomoText("legend.allPresets", { count: pomoValue(byPreset.length) })}
+          </Popover.Header>
           <Popover.Body className="px-2">
             <div className="flex flex-col gap-px">{byPreset.map(entry => chip(entry, true))}</div>
           </Popover.Body>
@@ -340,6 +350,8 @@ function DayRow({
   onSelect(): void;
   onOpenSession(session: PomodoroSession, anchor: HTMLElement): void;
 }) {
+  usePomodoroI18n();
+
   const offset = Math.round((dayStart - startOfDay(now)) / DAY_MS);
   const date = new Date(dayStart);
   const weekend = date.getDay() === 0 || date.getDay() === 6;
@@ -353,7 +365,7 @@ function DayRow({
     const left = axisPercent(s.startTime, dayStart);
     const width = Math.max(0.5, axisPercent(end, dayStart) - left);
     const preset = presetsById.get(s.presetId);
-    const name = preset?.name ?? DELETED_PRESET_NAME;
+    const name = preset?.name ?? pomoText("fallback.deletedPreset");
     const key = isLive ? "live" : s.id;
     // 暂停段用 mask 挖成透明缺口（而非盖一层底色）：缺口随色块一起缩放，行 hover/选中的底色直接透出
     const mask = pauseMask(s, dayStart, left, width, now);
@@ -368,8 +380,19 @@ function DayRow({
             <b className="font-semibold">{name}</b>
             <span className="block opacity-75">
               {isLive
-                ? `${formatHM(s.startTime)} 开始 · 进行中`
-                : `${formatHM(s.startTime)}–${formatHM(end)} · ${formatDurationCN(s.focusMs)}${s.pauseCount ? ` · 暂停 ${s.pauseCount} 次` : ""}`}
+                ? pomoText("status.startedAt", {
+                    time: pomoValue(formatHM(s.startTime)),
+                  })
+                : pomoText("session.details", {
+                    from: pomoValue(formatHM(s.startTime)),
+                    to: pomoValue(formatHM(end)),
+                    duration: pomoValue(pomoFormat.durationDetail(s.focusMs)),
+                    pauses: pomoValue(
+                      s.pauseCount
+                        ? pomoText("status.pausesSuffix", { count: pomoValue(s.pauseCount) })
+                        : ""
+                    ),
+                  })}
             </span>
           </span>
         }
@@ -378,7 +401,11 @@ function DayRow({
           type="button"
           data-block
           data-hl={highlight === s.presetId || undefined}
-          aria-label={`${name} ${formatHM(s.startTime)}–${isLive ? "进行中" : formatHM(end)}`}
+          aria-label={pomoText("session.dayRange", {
+            day: pomoValue(name),
+            from: pomoValue(formatHM(s.startTime)),
+            to: pomoValue(isLive ? pomoText("state.running") : formatHM(end)),
+          })}
           aria-disabled={isLive || undefined}
           onClick={e => {
             e.stopPropagation();
@@ -435,20 +462,22 @@ function DayRow({
             )}
           >
             {offset === 0
-              ? "今天"
+              ? pomoText("ui.today")
               : offset === -1
-                ? "昨天"
+                ? pomoText("ui.yesterday")
                 : date.getFullYear() !== new Date(now).getFullYear()
                   ? `${String(date.getFullYear()).slice(2)}/${date.getMonth() + 1}/${date.getDate()}`
                   : `${date.getMonth() + 1}/${date.getDate()}`}
           </b>{" "}
           <span className={cn(weekend && "text-ink-3", tall && "text-tau-sm")}>
-            {weekdayLabel(dayStart)}
+            {pomoFormat.weekday(dayStart)}
           </span>
         </span>
         {tall && (
           <span className="text-ink-3 text-tau-micro">
-            {sessions.length ? `${sessions.length} 个番茄` : "无记录"}
+            {sessions.length
+              ? pomoText("summary.tomatoes", { count: pomoValue(sessions.length) })
+              : pomoText("ui.noRecords")}
           </span>
         )}
       </span>
@@ -495,6 +524,8 @@ function Distribution({
   range: number;
   total: number;
 }) {
+  usePomodoroI18n();
+
   const buckets = useMemo(() => focusDistribution(sessions), [sessions]);
   const max = Math.max(...buckets, 1);
   const peak = buckets.indexOf(Math.max(...buckets));
@@ -507,11 +538,18 @@ function Distribution({
   const [hovered, setHovered] = useState<number | null>(null);
 
   return (
-    <div className="mr-3 mt-1.5 grid h-[58px] flex-none grid-cols-[92px_minmax(0,1fr)_62px] items-end pt-1.5">
+    <div className="mt-1.5 mr-3 grid h-[58px] flex-none grid-cols-[92px_minmax(0,1fr)_62px] items-end pt-1.5">
       <span className="self-center pl-2 leading-[1.35]">
-        <b className="text-ink-1 text-tau-meta block font-semibold">时段分布</b>
+        <b className="text-ink-1 text-tau-meta block font-semibold">
+          {pomoText("ui.timeDistribution")}
+        </b>
         <span className="text-accent-text text-tau-micro whitespace-nowrap tabular-nums">
-          {hasData ? `峰值 ${label(peak)}–${label(peak + 1)}` : "暂无数据"}
+          {hasData
+            ? pomoText("summary.peak", {
+                from: pomoValue(label(peak)),
+                to: pomoValue(label(peak + 1)),
+              })
+            : pomoText("ui.noData")}
         </span>
       </span>
       <div className="relative h-full">
@@ -532,8 +570,13 @@ function Distribution({
                   </b>
                   <span className="block opacity-75">
                     {minutes
-                      ? `累计 ${formatDurationCN(minutes * MINUTE_MS)} · 占 ${Math.max(1, Math.round((minutes * MINUTE_MS * 100) / total))}%`
-                      : "没有专注"}
+                      ? pomoText("summary.distribution", {
+                          duration: pomoValue(pomoFormat.durationDetail(minutes * MINUTE_MS)),
+                          percent: pomoValue(
+                            Math.max(1, Math.round((minutes * MINUTE_MS * 100) / total))
+                          ),
+                        })
+                      : pomoText("ui.noFocus")}
                   </span>
                 </span>
               }
@@ -559,10 +602,10 @@ function Distribution({
           </span>
         ))}
       </div>
-      <span className="text-tau-meta self-center whitespace-nowrap pr-1.5 text-right font-semibold tabular-nums leading-[1.35]">
+      <span className="text-tau-meta self-center pr-1.5 text-right leading-[1.35] font-semibold whitespace-nowrap tabular-nums">
         {formatDuration(total)}
         <span className="text-ink-3 block text-[11px] font-normal">
-          日均 {formatDuration(total / range)}
+          {pomoText("ui.dailyAverage")} {formatDuration(total / range)}
         </span>
       </span>
     </div>

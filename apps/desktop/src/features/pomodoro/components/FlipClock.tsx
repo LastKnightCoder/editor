@@ -96,11 +96,11 @@ function FlipDigit({ digit }: { digit: string }) {
       />
       <i
         aria-hidden
-        className="absolute -left-px top-1/2 z-[6] h-[calc(var(--ch)*0.05)] w-[calc(var(--ch)*0.03)] -translate-y-1/2 bg-black"
+        className="absolute top-1/2 -left-px z-[6] h-[calc(var(--ch)*0.05)] w-[calc(var(--ch)*0.03)] -translate-y-1/2 bg-black"
       />
       <i
         aria-hidden
-        className="absolute -right-px top-1/2 z-[6] h-[calc(var(--ch)*0.05)] w-[calc(var(--ch)*0.03)] -translate-y-1/2 bg-black"
+        className="absolute top-1/2 -right-px z-[6] h-[calc(var(--ch)*0.05)] w-[calc(var(--ch)*0.03)] -translate-y-1/2 bg-black"
       />
     </div>
   );

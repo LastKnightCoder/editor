@@ -1,3 +1,4 @@
+import { pomoText, usePomodoroI18n } from "../i18n";
 /**
  * 预设编辑 Popover：名称 / 计时方式（倒计时 · 正计时）/ 时长（步进 + 快捷档）。
  * 新建与编辑同一形态；触发器模式（工具栏「新建预设」）与锚点模式（chip 右键「编辑」）都支持。
@@ -36,6 +37,8 @@ export function PresetEditorPopover({
   placement?: ComponentProps<typeof Popover>["placement"];
   onSubmit: (draft: PresetDraft) => Promise<unknown>;
 }) {
+  usePomodoroI18n();
+
   const [draft, setDraft] = useState(() => draftOf(preset));
   const [saving, setSaving] = useState(false);
   const [nameError, setNameError] = useState(false);
@@ -59,7 +62,7 @@ export function PresetEditorPopover({
       await onSubmit({ ...draft, name });
       onOpenChange(false);
     } catch {
-      toast.error(preset ? "保存失败" : "创建失败");
+      toast.error(preset ? pomoText("ui.couldNotSave") : pomoText("ui.couldNotCreate"));
     } finally {
       setSaving(false);
     }
@@ -87,7 +90,7 @@ export function PresetEditorPopover({
           )
         }
       >
-        {preset ? "编辑预设" : "新建预设"}
+        {preset ? pomoText("ui.editPreset") : pomoText("ui.newPreset")}
       </Popover.Header>
       <Popover.Body>
         <form
@@ -97,12 +100,12 @@ export function PresetEditorPopover({
             void submit();
           }}
         >
-          <Field label="名称">
+          <Field label={pomoText("ui.name")}>
             <Input
               data-autofocus
               size="sm"
               value={draft.name}
-              placeholder="如：具体数学"
+              placeholder={pomoText("ui.eGConcreteMathematics")}
               aria-invalid={nameError || undefined}
               onChange={e => {
                 setNameError(false);
@@ -110,21 +113,25 @@ export function PresetEditorPopover({
               }}
             />
           </Field>
-          <Field label="计时方式">
+          <Field label={pomoText("ui.timerMode")}>
             <Segmented
-              label="计时方式"
+              label={pomoText("ui.timerMode")}
               value={draft.mode}
               onValueChange={(mode: PomodoroMode) => setDraft(d => ({ ...d, mode }))}
             >
-              <Segmented.Item value="countdown" icon={Hourglass} label="倒计时" />
-              <Segmented.Item value="countup" icon={ArrowUp} label="正计时" />
+              <Segmented.Item
+                value="countdown"
+                icon={Hourglass}
+                label={pomoText("mode.countdown")}
+              />
+              <Segmented.Item value="countup" icon={ArrowUp} label={pomoText("mode.countup")} />
             </Segmented>
           </Field>
           {draft.mode === "countdown" ? (
-            <Field label="时长">
+            <Field label={pomoText("ui.duration")}>
               <div className="flex items-center gap-1.5">
                 <IconButton
-                  aria-label="减少 5 分钟"
+                  aria-label={pomoText("ui.subtract5Minutes")}
                   className="size-7"
                   onClick={() => setDuration(draft.durationMin - 5)}
                 >
@@ -135,12 +142,12 @@ export function PresetEditorPopover({
                   className="w-16 text-center tabular-nums"
                   value={draft.durationMin}
                   onValueChange={value => setDraft(d => ({ ...d, durationMin: value ?? 0 }))}
-                  aria-label="时长（分钟）"
+                  aria-label={pomoText("ui.durationMinutes")}
                   aria-invalid={!durationValid || undefined}
                 />
-                <span className="text-ink-2 text-tau-meta">分钟</span>
+                <span className="text-ink-2 text-tau-meta">{pomoText("unit.minutes")}</span>
                 <IconButton
-                  aria-label="增加 5 分钟"
+                  aria-label={pomoText("ui.add5Minutes")}
                   className="size-7"
                   onClick={() => setDuration(draft.durationMin + 5)}
                 >
@@ -167,7 +174,7 @@ export function PresetEditorPopover({
             </Field>
           ) : (
             <p className="text-ink-2 text-tau-meta">
-              正计时没有终点，手动结束；不足 5 分钟不会留下记录。
+              {pomoText("ui.countUpHasNoTimeLimitEndItManually")}
             </p>
           )}
           <button type="submit" hidden />
@@ -175,7 +182,7 @@ export function PresetEditorPopover({
       </Popover.Body>
       <Popover.Footer>
         <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
-          取消
+          {pomoText("ui.cancel")}
         </Button>
         <Button
           variant="primary"
@@ -184,7 +191,7 @@ export function PresetEditorPopover({
           disabled={!durationValid}
           onClick={() => void submit()}
         >
-          {preset ? "保存" : "创建"}
+          {preset ? pomoText("ui.save") : pomoText("ui.create")}
         </Button>
       </Popover.Footer>
     </Popover>

@@ -1,3 +1,4 @@
+import { pomoText, usePomodoroI18n } from "../i18n";
 /** 预设色点与「提前结束」标签。 */
 
 import { cn } from "@tau/ui";
@@ -21,9 +22,11 @@ export function PresetDot({
 }
 
 export function EarlyTag() {
+  usePomodoroI18n();
+
   return (
     <span className="bg-warn-soft text-warn text-tau-micro inline-flex h-5 shrink-0 items-center rounded-[6px] px-1.5">
-      提前结束
+      {pomoText("ui.endedEarly")}
     </span>
   );
 }

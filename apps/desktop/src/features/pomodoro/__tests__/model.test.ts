@@ -1,3 +1,4 @@
+import { pomoFormat } from "../i18n";
 import { describe, expect, it } from "vitest";
 import type { PomodoroSession } from "@/types";
 import {
@@ -8,7 +9,6 @@ import {
   focusDistribution,
   formatClock,
   formatDuration,
-  formatDurationCN,
   isEarlyStop,
   sessionTiming,
   startOfDay,
@@ -103,8 +103,8 @@ describe("格式", () => {
     expect(formatClock(65 * MINUTE_MS + 9_000)).toBe("1:05:09");
     expect(formatDuration(68 * MINUTE_MS)).toBe("1h 08m");
     expect(formatDuration(25 * MINUTE_MS)).toBe("25m");
-    expect(formatDurationCN(65 * MINUTE_MS)).toBe("1 小时 5 分");
-    expect(formatDurationCN(120 * MINUTE_MS)).toBe("2 小时");
+    expect(pomoFormat.durationDetail(65 * MINUTE_MS)).toBe("1 小时 5 分");
+    expect(pomoFormat.durationDetail(120 * MINUTE_MS)).toBe("2 小时");
   });
 });
 

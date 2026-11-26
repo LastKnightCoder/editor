@@ -1,3 +1,4 @@
+import { pomoText, usePomodoroI18n, pomoFormat } from "../i18n";
 /**
  * 番茄沉浸窗（全屏置顶，路由 /pomodoro/immersive）：纯黑底 + 大号黑色翻牌时钟（白字），
  * 牌面不跟随主题色（窗口固定深色 token 只供控件与弹出层用）。
@@ -10,7 +11,7 @@ import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from
 import { AlertTriangle, Check, Music, Pause, Play, Square, X } from "lucide-react";
 import { cn } from "@tau/ui";
 import { hidePomodoroImmersiveWindow } from "@/commands/window";
-import { formatClock, formatDurationCN, isEarlyStop } from "../model";
+import { formatClock, isEarlyStop } from "../model";
 import { usePomodoroPresets } from "../queries";
 import { pomodoroActions, useLiveTiming } from "../timerStore";
 import { FlipClock } from "../components/FlipClock";
@@ -77,6 +78,8 @@ function TextButton({
 }
 
 export function ImmersiveWindow() {
+  usePomodoroI18n();
+
   const { dbReady } = useAuxWindowBoot({ forceMode: "dark" });
   const presets = usePomodoroPresets(dbReady);
   const { session, timing } = useLiveTiming();
@@ -122,7 +125,7 @@ export function ImmersiveWindow() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  const nameOf = (presetId: number) => presets.byId.get(presetId)?.name ?? "专注";
+  const nameOf = (presetId: number) => presets.byId.get(presetId)?.name ?? pomoText("ui.focus2");
   const showConfirm = !!(confirming && timing?.willDiscard);
   const paused = !!timing?.paused;
   const pinned = paused || showConfirm || !!result || !session;
@@ -140,7 +143,12 @@ export function ImmersiveWindow() {
         <span>{session.boundTitle ?? nameOf(session.presetId)}</span>
         {session.boundTitle && <span className="text-ink-3">· {nameOf(session.presetId)}</span>}
         <span className={paused ? "text-warn font-medium" : "text-ink-3"}>
-          · {paused ? "已暂停" : countdown ? "剩余" : "已专注"}
+          ·{" "}
+          {paused
+            ? pomoText("state.paused")
+            : countdown
+              ? pomoText("state.remaining")
+              : pomoText("state.elapsed")}
         </span>
       </>
     );
@@ -148,11 +156,11 @@ export function ImmersiveWindow() {
       <>
         <span className="text-warn mr-1 flex items-center gap-2 text-[length:max(12px,2vh)]">
           <AlertTriangle className="size-[max(14px,2.2vh)]" strokeWidth={1.75} />
-          不足 5 分钟，结束后不会留下记录
+          {pomoText("ui.lessThan5MinutesEndingWillNotSaveA")}
         </span>
-        <TextButton onClick={() => setConfirming(false)}>继续专注</TextButton>
+        <TextButton onClick={() => setConfirming(false)}>{pomoText("ui.keepFocusing")}</TextButton>
         <TextButton tone="danger" onClick={stop}>
-          仍然结束
+          {pomoText("ui.endAnyway")}
         </TextButton>
       </>
     ) : (
@@ -160,7 +168,7 @@ export function ImmersiveWindow() {
         <SoundPopover
           placement="top"
           trigger={
-            <RoundButton label="背景音">
+            <RoundButton label={pomoText("ui.backgroundSound")}>
               <Music className="size-[max(14px,2.4vh)]" strokeWidth={1.75} />
             </RoundButton>
           }
@@ -168,7 +176,7 @@ export function ImmersiveWindow() {
         <RoundButton
           primary
           paused={paused}
-          label={paused ? "继续（空格）" : "暂停（空格）"}
+          label={paused ? pomoText("ui.resumeSpace") : pomoText("ui.pauseSpace")}
           onClick={() => void pomodoroActions.toggle()}
         >
           {paused ? (
@@ -177,10 +185,10 @@ export function ImmersiveWindow() {
             <Pause className="size-[max(14px,2.4vh)] fill-current" strokeWidth={0} />
           )}
         </RoundButton>
-        <RoundButton label="结束" onClick={stop}>
+        <RoundButton label={pomoText("ui.end")} onClick={stop}>
           <Square className="size-[max(14px,2.4vh)]" strokeWidth={1.75} />
         </RoundButton>
-        <RoundButton label="退出沉浸（Esc）" onClick={exit}>
+        <RoundButton label={pomoText("ui.exitImmersiveModeEsc")} onClick={exit}>
           <X className="size-[max(14px,2.4vh)]" strokeWidth={1.75} />
         </RoundButton>
       </>
@@ -191,16 +199,16 @@ export function ImmersiveWindow() {
     meta = result.saved ? (
       <span className="text-ok flex items-center gap-2">
         <Check className="size-[max(13px,2.2vh)]" strokeWidth={2.4} />
-        完成「{nameOf(result.presetId)}」
+        {pomoText("feedback.completedNamed", { name: nameOf(result.presetId) })}
         <span className="text-ink-3">
-          · {early ? "提前结束 · " : ""}
-          {formatDurationCN(result.focusMs)}
+          · {early ? pomoText("ui.endedEarly2") : ""}
+          {pomoFormat.durationDetail(result.focusMs)}
         </span>
       </span>
     ) : (
       <span className="text-warn flex items-center gap-2">
         <AlertTriangle className="size-[max(13px,2.2vh)]" strokeWidth={1.75} />
-        不足 5 分钟，本次未记录
+        {pomoText("ui.lessThan5MinutesThisSessionWasNotRecorded")}
       </span>
     );
     const preset = presets.byId.get(result.presetId);
@@ -208,15 +216,15 @@ export function ImmersiveWindow() {
       <>
         {preset && (
           <TextButton tone="primary" onClick={() => void pomodoroActions.start(preset)}>
-            再来一个
+            {pomoText("ui.startAnother")}
           </TextButton>
         )}
-        <TextButton onClick={exit}>退出沉浸</TextButton>
+        <TextButton onClick={exit}>{pomoText("ui.exitImmersiveMode")}</TextButton>
       </>
     );
   } else {
-    meta = <span className="text-ink-3">没有进行中的专注</span>;
-    controls = <TextButton onClick={exit}>退出沉浸</TextButton>;
+    meta = <span className="text-ink-3">{pomoText("ui.noFocusSessionRunning")}</span>;
+    controls = <TextButton onClick={exit}>{pomoText("ui.exitImmersiveMode")}</TextButton>;
   }
 
   return (
@@ -236,13 +244,13 @@ export function ImmersiveWindow() {
         <kbd className="bg-page text-ink-2 rounded-[5px] px-1.5 py-0.5 font-mono text-[0.9em]">
           Esc
         </kbd>{" "}
-        退出
+        {pomoText("ui.exit")}
       </span>
 
       <div className="absolute inset-0 flex items-center justify-center">
         {/* 信息行与牌组左对齐 */}
         <div className="flex flex-col items-stretch [--ch:min(50vh,21vw)]">
-          <div className="text-ink-2 mb-[max(16px,4.4vh)] flex items-center gap-[max(8px,1.2vh)] whitespace-nowrap pl-[calc(var(--ch)*0.02)] text-[length:max(12px,2.1vh)]">
+          <div className="text-ink-2 mb-[max(16px,4.4vh)] flex items-center gap-[max(8px,1.2vh)] pl-[calc(var(--ch)*0.02)] text-[length:max(12px,2.1vh)] whitespace-nowrap">
             {meta}
           </div>
           <FlipClock time={clock} dimmed={paused} />
