@@ -13,6 +13,7 @@ import {
   type ChatInput,
 } from "../../services/aiChat/chatController";
 import { ensureChatInteractions } from "./interactions";
+import { WorkspaceError } from "./workspace-errors";
 import { useThinkingLevel } from "./useThinkingLevel";
 
 export function useChatSession(options: {
@@ -31,7 +32,7 @@ export function useChatSession(options: {
     [assigned]
   );
   const chat = useChatStore(state => state.chats[options.sessionId]);
-  const [loadError, setLoadError] = useState("");
+  const [loadError, setLoadError] = useState<Error | null>(null);
   const [created, setCreated] = useState(!options.isNew);
   // 会话建好前临时选的模型；建好后以会话状态里的为准
   const [override, setOverride] = useState<LLMUsageConfigV2 | null>(null);
@@ -47,10 +48,12 @@ export function useChatSession(options: {
   }, []);
   useEffect(() => {
     setCreated(!options.isNew);
-    setLoadError("");
+    setLoadError(null);
     if (options.isNew || !databaseName) return;
     openChat(databaseName, options.sessionId, defaultModel).catch(error =>
-      setLoadError(error instanceof Error ? error.message : "对话读取失败")
+      setLoadError(
+        error instanceof Error ? error : new WorkspaceError("error.load", "对话读取失败")
+      )
     );
     // 只在会话变化时读取一次
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -63,7 +66,9 @@ export function useChatSession(options: {
         await createChat(databaseName, options.sessionId, model, options.domain);
         setCreated(true);
       } catch (error) {
-        setLoadError(error instanceof Error ? error.message : "对话创建失败");
+        setLoadError(
+          error instanceof Error ? error : new WorkspaceError("error.create", "对话创建失败")
+        );
         return;
       }
     }
@@ -83,7 +88,7 @@ export function useChatSession(options: {
     model,
     modelInfo,
     running: !!chat?.runId,
-    loadError,
+    loadError: loadError?.message ? loadError : null,
     thinking,
     send,
     pickModel,

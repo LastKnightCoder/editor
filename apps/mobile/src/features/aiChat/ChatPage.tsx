@@ -1,3 +1,4 @@
+import { useWorkspaceI18n } from "./workspace.i18n";
 // 对话页：二级页面（隐藏 Dock）。新对话首条消息发出时才建会话；副标题是当前模型，点按只为本会话切换。
 // 带来源内容时是就近对话：顶部原文条，输入框上方预置整篇 / 选中片段引用与快捷问法。
 
@@ -15,7 +16,7 @@ import { ChatEmpty, ChatSetup } from "./ChatEmpty";
 import { ChatMessages } from "./ChatMessages";
 import { describeChatError } from "./chatErrors";
 import {
-  CONTENT_KIND_TITLE,
+  CONTENT_KIND_TITLE_KEYS,
   mentionOf,
   QUOTE_PROMPTS,
   WHOLE_PROMPTS,
@@ -23,6 +24,7 @@ import {
 } from "./contentChat";
 import { useMessageActions } from "./MessageActions";
 import { SourceBar } from "./SourceBar";
+import { workspaceErrorText } from "./workspace-errors";
 import { useChatSession } from "./useChatSession";
 
 export function ChatPage(props: {
@@ -32,6 +34,7 @@ export function ChatPage(props: {
   /** 就近对话的来源内容 */
   content?: ContentChatTarget;
 }) {
+  const { t } = useWorkspaceI18n();
   const navigator = useNavigator();
   const { content } = props;
   const {
@@ -69,7 +72,7 @@ export function ChatPage(props: {
   }, [props.prompt, model]);
 
   const openSettings = () => navigator.push("settingsModule", { module: "ai-models" });
-  const error = chat?.error ? describeChatError(chat.error) : null;
+  const error = chat?.error ? describeChatError(chat.error, t) : null;
   return (
     <PortalScope>
       <div className="bg-page fixed inset-0 z-50">
@@ -85,10 +88,8 @@ export function ChatPage(props: {
               >
                 <span className="text-ink-1 max-w-full truncate text-[16px] font-bold">
                   {content
-                    ? CONTENT_KIND_TITLE[content.entityType]
-                    : chat?.title && chat.title !== "新对话"
-                      ? chat.title
-                      : "新对话"}
+                    ? t(CONTENT_KIND_TITLE_KEYS[content.entityType])
+                    : chat?.title || t("chat.new")}
                 </span>
                 {model && (
                   <span className="text-ink-2 text-tau-sm flex max-w-full items-center gap-1">
@@ -105,7 +106,7 @@ export function ChatPage(props: {
               <>
                 <PageHeaderButton
                   icon={<History size={20} />}
-                  aria-label="对话记录"
+                  aria-label={t("chat.history")}
                   className="text-ink-2 [&_svg]:stroke-2"
                   onClick={() => navigator.push("aiChatHistory", {})}
                 />
@@ -114,7 +115,7 @@ export function ChatPage(props: {
                     icon={<SquarePen size={19} />}
                     className="text-ink-2 [&_svg]:stroke-2"
                     disabled={!chat?.messages.length}
-                    aria-label="新对话"
+                    aria-label={t("chat.new")}
                     onClick={() =>
                       navigator.replace("aiChat", { sessionId: crypto.randomUUID(), isNew: "1" })
                     }
@@ -138,7 +139,7 @@ export function ChatPage(props: {
                 empty={
                   content ? (
                     <p className="text-ink-3 text-tau-meta px-6 pt-10 text-center leading-relaxed">
-                      {content.quote ? "问问选中的这段，或用下面的快捷问法。" : "问问这篇内容。"}
+                      {content.quote ? t("content.quoteHint") : t("content.wholeHint")}
                     </p>
                   ) : (
                     <ChatEmpty onPick={text => void send(text)} />
@@ -159,9 +160,9 @@ export function ChatPage(props: {
                   />
                   <span className="text-ink-2 min-w-0 flex-1 leading-relaxed">
                     <b className="text-ink-1 text-tau-body block font-semibold">
-                      {error?.title ?? "对话读取失败"}
+                      {error?.title ?? t("error.load")}
                     </b>
-                    {error?.detail ?? loadError}
+                    {error?.detail ?? workspaceErrorText(loadError)}
                   </span>
                   {error?.action === "settings" && (
                     <button
@@ -169,7 +170,7 @@ export function ChatPage(props: {
                       onClick={openSettings}
                       className="text-accent-text self-center font-semibold"
                     >
-                      去检查
+                      {t("error.check")}
                     </button>
                   )}
                   {error?.action === "model" && (
@@ -178,7 +179,7 @@ export function ChatPage(props: {
                       onClick={() => setPicking(true)}
                       className="text-accent-text self-center font-semibold"
                     >
-                      换模型
+                      {t("error.changeModel")}
                     </button>
                   )}
                 </div>
@@ -197,10 +198,14 @@ export function ChatPage(props: {
                   },
                 })}
                 {...(content && {
-                  placeholder: "问问这段内容…",
+                  placeholder: t("content.placeholder"),
                   mentions,
                   onMentionsChange: setMentions,
-                  quickPrompts: content.quote ? QUOTE_PROMPTS : WHOLE_PROMPTS,
+                  quickPrompts: (content.quote ? QUOTE_PROMPTS : WHOLE_PROMPTS).map(prompt => ({
+                    id: prompt.id,
+                    label: t(prompt.labelKey),
+                    text: prompt.text,
+                  })),
                 })}
                 onSend={input => void send(input)}
                 onStop={() => void stopRun(props.sessionId)}
@@ -210,8 +215,8 @@ export function ChatPage(props: {
           {actions.sheets}
           <ModelPickerSheet
             open={picking}
-            title="本次对话使用的模型"
-            description="只影响这段对话；默认模型在「我的 › AI 模型」里设置。"
+            title={t("chat.modelTitle")}
+            description={t("chat.modelHint")}
             providers={providers}
             value={model}
             clearable={false}

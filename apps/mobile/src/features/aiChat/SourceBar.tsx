@@ -1,3 +1,4 @@
+import { useWorkspaceI18n } from "./workspace.i18n";
 // 原文条：就近对话顶部标明来源，点按就地展开正文前几段（选中片段高亮），再点收起。
 
 import { useState } from "react";
@@ -23,6 +24,7 @@ function excerptOf(text: string, quote?: string) {
 }
 
 export function SourceBar(props: { contentId: number; title: string; quote?: string }) {
+  const { t } = useWorkspaceI18n();
   const [open, setOpen] = useState(false);
   const { data: text } = useQuery({
     queryKey: ["ai-content-chat-source", props.contentId],
@@ -42,10 +44,10 @@ export function SourceBar(props: { contentId: number; title: string; quote?: str
       >
         <FileText size={15} className="shrink-0" aria-hidden="true" />
         <span className="text-ink-1 min-w-0 flex-1 truncate font-semibold">
-          {props.title || "未命名"}
+          {props.title || t("source.untitled")}
         </span>
         <span className="text-accent-text flex shrink-0 items-center gap-0.5 font-semibold">
-          {open ? "收起" : "看原文"}
+          {open ? t("source.collapse") : t("source.view")}
           {open ? (
             <ChevronUp size={13} aria-hidden="true" />
           ) : (
@@ -56,7 +58,9 @@ export function SourceBar(props: { contentId: number; title: string; quote?: str
       {open && (
         <div className="max-h-32 overflow-y-auto overscroll-contain px-3 pb-2.5 leading-relaxed">
           {!excerpt ? (
-            <span className="text-ink-3">{text === "" ? "正文为空" : "读取中…"}</span>
+            <span className="text-ink-3">
+              {text === "" ? t("source.empty") : t("source.loading")}
+            </span>
           ) : excerpt.quoteAt >= 0 ? (
             <>
               {excerpt.head}

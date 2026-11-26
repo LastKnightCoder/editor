@@ -2,6 +2,8 @@
 // 同一篇再次进入续上最近一次会话；原文条展开正文并高亮选中片段。
 
 import { act } from "react";
+import { mobileLocaleSource } from "../../../services/i18n";
+import { workspaceT } from "../workspace.binding";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import { PageHost, RouterProvider, getNavigator } from "../../../router";
@@ -160,6 +162,7 @@ beforeEach(() => {
   root = createRoot(host);
 });
 afterEach(() => {
+  act(() => mobileLocaleSource.setLocale("zh-CN"));
   act(() => root.unmount());
   host.remove();
 });
@@ -184,7 +187,15 @@ it("首次就近提问：选中片段作为引用，快捷问法发出时以 con
   expect(pressable("新对话")).toBeUndefined();
   expect(service.sessions.create).not.toHaveBeenCalled();
 
-  await click(pressable("解释这段"));
+  const composer = activePage().querySelector("textarea");
+  for (const locale of ["en-US", "zh-TW"] as const) {
+    await act(async () => mobileLocaleSource.setLocale(locale));
+    expect(activePage().querySelector("textarea")).toBe(composer);
+    expect(service.sessions.list).toHaveBeenCalledTimes(1);
+    expect(service.sessions.create).not.toHaveBeenCalled();
+    expect(service.runs.start).not.toHaveBeenCalled();
+  }
+  await click(pressable(workspaceT("prompt.explainQuote")));
   await waitFor(() => service.runs.start.mock.calls.length === 1);
   expect(service.sessions.create).toHaveBeenCalledWith(
     expect.objectContaining({

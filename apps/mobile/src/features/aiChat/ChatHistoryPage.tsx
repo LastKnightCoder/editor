@@ -1,3 +1,4 @@
+import { useWorkspaceI18n } from "./workspace.i18n";
 // 对话记录：只列「对话」作用域（与桌面主对话同一份），按今天 / 本周 / 更早分组；左滑删除，长按重命名或删除。
 // 后台还在生成的会话带脉冲点。数据按当前库读取，切库后随之切换。
 
@@ -35,18 +36,22 @@ type Row = {
 
 function bucketOf(time: number, now = new Date()) {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  if (time >= today) return "今天";
-  if (time >= today - 6 * DAY) return "本周";
-  return "更早";
+  if (time >= today) return "today";
+  if (time >= today - 6 * DAY) return "week";
+  return "older";
 }
 
-function timeLabel(time: number, now = new Date()) {
+function timeLabel(time: number, locale: string, now = new Date()) {
   const date = new Date(time);
-  if (bucketOf(time, now) === "今天")
-    return `${date.getHours()}:${String(date.getMinutes()).padStart(2, "0")}`;
-  if (bucketOf(time, now) === "本周")
-    return ["周日", "周一", "周二", "周三", "周四", "周五", "周六"][date.getDay()];
-  return `${date.getMonth() + 1}/${date.getDate()}`;
+  if (bucketOf(time, now) === "today")
+    return new Intl.DateTimeFormat(locale, {
+      hour: "numeric",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).format(date);
+  if (bucketOf(time, now) === "week")
+    return new Intl.DateTimeFormat(locale, { weekday: "short" }).format(date);
+  return new Intl.DateTimeFormat(locale, { month: "numeric", day: "numeric" }).format(date);
 }
 
 /** 左滑露出删除：只跟踪横向拖动，纵向滚动交给列表 */
@@ -58,6 +63,7 @@ function SwipeRow(props: {
   onMenu(): void;
   children: ReactNode;
 }) {
+  const { t } = useWorkspaceI18n();
   const [offset, setOffset] = useState(0);
   const start = useRef<{ x: number; y: number; base: number; horizontal?: boolean } | null>(null);
   const pressTimer = useRef<number | null>(null);
@@ -71,7 +77,7 @@ function SwipeRow(props: {
     <div className="[&+&]:before:bg-line-1 relative overflow-hidden [&+&]:before:absolute [&+&]:before:top-0 [&+&]:before:right-0 [&+&]:before:left-[14px] [&+&]:before:z-10 [&+&]:before:h-px">
       <button
         type="button"
-        aria-label="删除对话"
+        aria-label={t("history.delete")}
         onClick={props.onDelete}
         className="bg-danger absolute inset-y-0 right-0 grid w-[72px] place-items-center text-white"
       >
@@ -128,12 +134,13 @@ function SwipeRow(props: {
 }
 
 function RenameSheet(props: { row: Row | null; onCancel(): void; onSubmit(title: string): void }) {
+  const { t } = useWorkspaceI18n();
   const [value, setValue] = useState("");
   useEffect(() => {
     if (props.row) setValue(props.row.title);
   }, [props.row]);
   return (
-    <BottomSheet open={!!props.row} title="重命名对话" onClose={props.onCancel}>
+    <BottomSheet open={!!props.row} title={t("history.rename")} onClose={props.onCancel}>
       <form
         className="px-5 pb-5"
         onSubmit={event => {
@@ -142,7 +149,7 @@ function RenameSheet(props: { row: Row | null; onCancel(): void; onSubmit(title:
         }}
       >
         <input
-          aria-label="对话标题"
+          aria-label={t("history.inputTitle")}
           value={value}
           maxLength={60}
           autoFocus
@@ -154,7 +161,7 @@ function RenameSheet(props: { row: Row | null; onCancel(): void; onSubmit(title:
           disabled={!value.trim()}
           className="bg-accent text-ink-inverse text-tau-body mt-3 h-11 w-full rounded-[12px] font-semibold disabled:opacity-50"
         >
-          保存
+          {t("history.save")}
         </button>
       </form>
     </BottomSheet>
@@ -162,6 +169,8 @@ function RenameSheet(props: { row: Row | null; onCancel(): void; onSubmit(title:
 }
 
 export function ChatHistoryPage() {
+  const { t, locale } = useWorkspaceI18n();
+  const number = (value: number) => new Intl.NumberFormat(locale).format(value);
   const navigator = useNavigator();
   const queryClient = useQueryClient();
   const databaseName = useAppContext().syncSettings.safeSetting?.database?.active ?? "";
@@ -181,7 +190,7 @@ export function ChatHistoryPage() {
   const rows: Row[] = (query.data?.pages ?? []).flatMap(page =>
     page.items.map(item => ({
       id: item.id,
-      title: item.title || "新对话",
+      title: item.title,
       updateTime: item.updateTime,
       messageCount: item.messageCount,
       contentId:
@@ -191,10 +200,11 @@ export function ChatHistoryPage() {
     }))
   );
   // 一页可能全是其他功能的会话、过滤后为空：还有下一页就继续取，直到凑出内容或取完
+  const { isFetching, hasNextPage, fetchNextPage } = query;
   useEffect(() => {
-    if (!query.isFetching && query.hasNextPage && rows.length < 12) void query.fetchNextPage();
-  }, [query, rows.length]);
-  const groups = new Map<string, Row[]>();
+    if (!isFetching && hasNextPage && rows.length < 12) void fetchNextPage();
+  }, [isFetching, hasNextPage, fetchNextPage, rows.length]);
+  const groups = new Map<ReturnType<typeof bucketOf>, Row[]>();
   for (const row of rows) {
     const key = bucketOf(row.updateTime);
     groups.set(key, [...(groups.get(key) ?? []), row]);
@@ -206,7 +216,7 @@ export function ChatHistoryPage() {
       await removeChat(databaseName, removing.id);
       await queryClient.invalidateQueries({ queryKey: ["aiChat", "history", databaseName] });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "删除失败");
+      toast.error(error instanceof Error ? error.message : t("history.deleteFailed"));
     } finally {
       setRemoving(null);
     }
@@ -220,19 +230,19 @@ export function ChatHistoryPage() {
       await renameChat(databaseName, row.id, title.trim());
       await queryClient.invalidateQueries({ queryKey: ["aiChat", "history", databaseName] });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "重命名失败");
+      toast.error(error instanceof Error ? error.message : t("history.renameFailed"));
     }
   };
 
   return (
     <div className="mobile-kb-screen bg-page fixed inset-0 z-50 flex flex-col">
       <PageHeader
-        title="对话记录"
+        title={t("chat.history")}
         onBack={() => void navigator.goBack("ui")}
         actions={
           <PageHeaderButton
             icon={<SquarePen size={19} />}
-            aria-label="新对话"
+            aria-label={t("chat.new")}
             onClick={() => navigator.push("aiChat", { sessionId: crypto.randomUUID(), isNew: "1" })}
           />
         }
@@ -251,13 +261,11 @@ export function ChatHistoryPage() {
         }}
       >
         {query.isLoading ? null : rows.length === 0 ? (
-          <p className="text-ink-3 text-tau-meta px-8 py-16 text-center">
-            还没有对话。在「今天」页的问答条里问一句试试。
-          </p>
+          <p className="text-ink-3 text-tau-meta px-8 py-16 text-center">{t("history.empty")}</p>
         ) : (
           [...groups].map(([label, items]) => (
             <section key={label}>
-              <GroupLabel>{label}</GroupLabel>
+              <GroupLabel>{t(`history.${label}`)}</GroupLabel>
               <div className="setting-group">
                 {items.map(row => {
                   const live = !!running[row.id]?.runId;
@@ -272,22 +280,28 @@ export function ChatHistoryPage() {
                         <span className="text-ink-1 text-tau-body flex items-center gap-1.5 font-medium">
                           {live && (
                             <span
-                              aria-label="正在生成"
+                              aria-label={t("history.generating")}
                               className="bg-accent pulse-soft h-[7px] w-[7px] shrink-0 rounded-full"
                             />
                           )}
-                          <span className="truncate">{row.title}</span>
+                          <span className="truncate">{row.title || t("chat.new")}</span>
                         </span>
                         <span className="text-ink-3 text-tau-sm block truncate">
                           {live
-                            ? "正在生成…"
+                            ? t("history.generatingText")
                             : row.contentId
-                              ? `来自笔记 · ${row.messageCount} 次提问`
-                              : `${row.messageCount} 次提问`}
+                              ? t("history.fromNote", {
+                                  count: row.messageCount,
+                                  number: number(row.messageCount),
+                                })
+                              : t("history.questions", {
+                                  count: row.messageCount,
+                                  number: number(row.messageCount),
+                                })}
                         </span>
                       </span>
                       <span className="text-ink-3 text-tau-sm shrink-0 pt-0.5 tabular-nums">
-                        {timeLabel(row.updateTime)}
+                        {timeLabel(row.updateTime, locale)}
                       </span>
                     </SwipeRow>
                   );
@@ -302,12 +316,12 @@ export function ChatHistoryPage() {
         title={menu?.title}
         items={[
           {
-            label: "重命名",
+            label: t("action.rename"),
             icon: <Pencil size={18} />,
             onClick: () => setRenaming(menu),
           },
           {
-            label: "删除",
+            label: t("action.delete"),
             icon: <Trash2 size={18} />,
             danger: true,
             onClick: () => setRemoving(menu),
@@ -318,9 +332,9 @@ export function ChatHistoryPage() {
       <RenameSheet row={renaming} onCancel={() => setRenaming(null)} onSubmit={rename} />
       <MobileConfirmDialog
         open={!!removing}
-        title={`删除「${removing?.title ?? ""}」？`}
-        description="对话记录会从这台设备删除，同步后其他设备也会删除。"
-        confirmText="删除"
+        title={t("history.deleteTitle", { title: removing?.title || t("chat.new") })}
+        description={t("history.deleteHint")}
+        confirmText={t("action.delete")}
         danger
         onCancel={() => setRemoving(null)}
         onConfirm={() => void remove()}

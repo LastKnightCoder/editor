@@ -1,6 +1,8 @@
 // 输入区：麦克风切到语音模式（微信式「按住 说话」），按住录音松手发送；键盘图标切回打字并聚焦。
 
 import { act } from "react";
+import { mobileLocaleSource } from "../../../services/i18n";
+import { workspaceT } from "../workspace.binding";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { HOLD_DELAY_MS } from "../../speechInput/useHoldGesture";
@@ -38,7 +40,14 @@ vi.mock("../../cards/editorExtensions/ContentLinkPickerSheet", () => ({
   ContentLinkPickerSheet: () => null,
 }));
 
+const images = vi.hoisted(() => ({ convert: vi.fn<(file: File) => Promise<string>>() }));
+vi.mock("../attachments", async importOriginal => ({
+  ...(await importOriginal<object>()),
+  imageFileToDataUrl: images.convert,
+}));
+
 import { ChatComposer } from "../ChatComposer";
+import { ChatEmpty } from "../ChatEmpty";
 import { KeyboardViewportProvider } from "../../../components/KeyboardViewportProvider";
 import { toast } from "../../../components/toast";
 
@@ -70,11 +79,13 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.clearAllMocks();
   speech.unavailable = null;
+  images.convert.mockReset();
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
 });
 afterEach(() => {
+  act(() => mobileLocaleSource.setLocale("zh-CN"));
   act(() => root.unmount());
   host.remove();
   vi.useRealTimers();
@@ -110,6 +121,16 @@ it("语音模式下按住录音，松手把识别结果直接发送", async () =
   pointer(bar, "pointerdown");
   expect(speech.service.start).toHaveBeenCalledTimes(1);
   expect(bar.textContent).toBe("松开 发送");
+  const recording = await speech.service.start.mock.results[0].value;
+  for (const locale of ["en-US", "zh-TW"] as const) {
+    await act(async () => mobileLocaleSource.setLocale(locale));
+    expect(byLabel(workspaceT("voice.hold"))).toBe(bar);
+    expect(bar.getAttribute("aria-pressed")).toBe("true");
+    expect(speech.service.start).toHaveBeenCalledTimes(1);
+    expect(recording.cancel).not.toHaveBeenCalled();
+    expect(recording.stop).not.toHaveBeenCalled();
+    expect(onSend).not.toHaveBeenCalled();
+  }
   await act(async () => vi.advanceTimersByTimeAsync(HOLD_DELAY_MS + 10));
   pointer(bar, "pointerup");
   await act(async () => vi.advanceTimersByTimeAsync(10));
@@ -218,4 +239,88 @@ it("点按输入框在抬手时收起外壳并聚焦，按下与滑动不移动�
   expect(Number.parseInt(kbHeight(), 10)).toBeGreaterThan(0);
   act(() => textarea().blur());
   expect(kbHeight()).toBe("0px");
+});
+
+it("换语保留输入选区、显式空占位与在途图片读取，发送原附件和引用", async () => {
+  const mention = {
+    entityType: "card" as const,
+    entityId: 8,
+    contentId: 20,
+    title: "新对话",
+    previewText: "原始引用",
+  };
+  const changeMentions = vi.fn();
+  act(() =>
+    root.render(
+      <ChatComposer
+        running={false}
+        placeholder=""
+        imageInput
+        mentions={[mention]}
+        onMentionsChange={changeMentions}
+        onSend={onSend}
+        onStop={vi.fn()}
+      />
+    )
+  );
+  const input = textarea();
+  const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
+  if (!setter) throw new Error("missing native textarea setter");
+  act(() => {
+    setter.call(input, "用户草稿 :content[id]");
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  let finish!: (value: string) => void;
+  images.convert.mockImplementation(
+    () =>
+      new Promise(resolve => {
+        finish = resolve;
+      })
+  );
+  const picker = host.querySelector<HTMLInputElement>('input[type="file"][multiple]');
+  if (!picker) throw new Error("missing image picker");
+  const file = new File(["image"], "用户原图.png", { type: "image/png" });
+  Object.defineProperty(picker, "files", { configurable: true, value: [file] });
+  act(() => picker.dispatchEvent(new Event("change", { bubbles: true })));
+  input.focus();
+  input.setSelectionRange(2, 5);
+  for (const locale of ["en-US", "zh-TW"] as const) {
+    await act(async () => mobileLocaleSource.setLocale(locale));
+    expect(textarea()).toBe(input);
+    expect(input.value).toBe("用户草稿 :content[id]");
+    expect(input.placeholder).toBe("");
+    expect(document.activeElement).toBe(input);
+    expect([input.selectionStart, input.selectionEnd]).toEqual([2, 5]);
+    expect(images.convert).toHaveBeenCalledTimes(1);
+    expect(changeMentions).not.toHaveBeenCalled();
+    expect(speech.service.start).not.toHaveBeenCalled();
+    expect(onSend).not.toHaveBeenCalled();
+  }
+  const url = "data:image/jpeg;base64,ORIGINAL";
+  await act(async () => finish(url));
+  await act(async () => mobileLocaleSource.setLocale("en-US"));
+  expect(host.querySelector("img")?.getAttribute("src")).toBe(url);
+  act(() => input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
+  expect(onSend).toHaveBeenCalledTimes(1);
+  expect(onSend).toHaveBeenCalledWith({
+    text: "用户草稿 :content[id]",
+    mentions: [mention],
+    images: [url],
+  });
+});
+
+it("建议问题换语只更新显示，点击仍发送原始提问文本", async () => {
+  vi.setSystemTime(new Date(2026, 10, 27, 9));
+  const pick = vi.fn();
+  act(() => root.render(<ChatEmpty onPick={pick} />));
+  const suggestion = host.querySelector("button");
+  if (!suggestion) throw new Error("missing suggestion");
+  for (const locale of ["en-US", "zh-TW"] as const) {
+    await act(async () => mobileLocaleSource.setLocale(locale));
+    expect(host.querySelector("button")).toBe(suggestion);
+    expect(pick).not.toHaveBeenCalled();
+  }
+  act(() => suggestion.click());
+  expect(pick).toHaveBeenCalledTimes(1);
+  expect(pick).toHaveBeenCalledWith("今天有哪些日程");
 });

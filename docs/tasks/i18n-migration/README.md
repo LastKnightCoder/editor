@@ -254,6 +254,8 @@ P6B手机加入：12源码工程完成；真实生产route/Router/Overlay回归2
 
 P6A3-B属性面板：22源码加Root5上下文/guard工程完成；集成后4文件27例、包type与作者边界均通过。属性161key三语参数/复数、范围静态/格式通过；真实输入/滑杆与Popover用fake RAF确定交互时点，换语保留草稿/选区/实例、不写属性。原颜色/主题/枚举/default/name和算法不变，不存在的SourceReadonly字段未人为制造。Root分离纯fallback/context后author闭包不加载Board或tools资源。
 
+P5手机对话工作区：23路径工程完成，真实页面/输入/Skill共25例通过；mobile类型、三语参数/复数、native无DOM binding、范围静态/格式通过。真实换语保留录音连接/流式run与listener、输入焦点选区、异步图片和引用schema、Skill选择/目录次数、rename草稿与history查询次数；6个content prompt及10个home建议payload原字节审计通过。loadError空message维持无错误态，外部未知诊断保留；消息卡和实际speech工作台另批。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

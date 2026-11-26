@@ -2,6 +2,8 @@
 // 流式回答、写入审批走宿主作答、工具时间线与回答操作、未配置引导与对话记录。
 
 import { act } from "react";
+import { mobileLocaleSource } from "../../../services/i18n";
+import { workspaceT } from "../workspace.binding";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import { Role } from "@tau/shared/chat-core";
@@ -203,6 +205,7 @@ beforeEach(() => {
   root = createRoot(host);
 });
 afterEach(() => {
+  act(() => mobileLocaleSource.setLocale("zh-CN"));
   act(() => root.unmount());
   host.remove();
 });
@@ -260,6 +263,20 @@ it("新对话：首条消息才建会话，命名标题，流式回答后收尾"
   });
   await waitFor(() => text().includes("你今天有 3 个安排"));
   expect(pressable("停止生成")).toBeTruthy();
+  const state = useChatStore.getState().chats.s1;
+  const listener = service.listeners.get(runId);
+  const createCount = service.sessions.create.mock.calls.length;
+  const getCount = service.sessions.get.mock.calls.length;
+  for (const locale of ["en-US", "zh-TW"] as const) {
+    await act(async () => mobileLocaleSource.setLocale(locale));
+    expect(useChatStore.getState().chats.s1).toBe(state);
+    expect(service.listeners.get(runId)).toBe(listener);
+    expect(service.runs.start).toHaveBeenCalledTimes(1);
+    expect(service.runs.abort).not.toHaveBeenCalled();
+    expect(service.sessions.create).toHaveBeenCalledTimes(createCount);
+    expect(service.sessions.get).toHaveBeenCalledTimes(getCount);
+  }
+  await act(async () => mobileLocaleSource.setLocale("zh-CN"));
   emit(runId, {
     type: "settled",
     result: { outcome: "completed", committedRevision: "r3", messages: [] },
@@ -314,6 +331,15 @@ it("从输入框选择手动 Skill，发送携带选择并清空待发送标签"
   expect(document.body.textContent).toContain("仅手动调用");
   await click(pressable("周报整理", document));
   await click(pressable("简明风格", document));
+  const selected = pressable("周报整理", document);
+  const skillsRequests = service.skills.list.mock.calls.length;
+  for (const locale of ["en-US", "zh-TW"] as const) {
+    await act(async () => mobileLocaleSource.setLocale(locale));
+    expect(pressable("周报整理", document)).toBe(selected);
+    expect(selected?.getAttribute("aria-pressed")).toBe("true");
+    expect(service.skills.list).toHaveBeenCalledTimes(skillsRequests);
+  }
+  await act(async () => mobileLocaleSource.setLocale("zh-CN"));
   await click(pressable("完成", document));
   await click(pressable("移除 Skill：简明风格"));
   type("整理周报");
@@ -602,7 +628,21 @@ it("对话记录：长按弹出重命名与删除，重命名记 titleDirty", as
       setter.call(input, "间隔复习");
       input.dispatchEvent(new Event("input", { bubbles: true }));
     });
-    await click(pressable("保存", document.body));
+    input.focus();
+    input.setSelectionRange(1, 3);
+    const listCalls = service.sessions.list.mock.calls.length;
+    for (const locale of ["en-US", "zh-TW"] as const) {
+      await act(async () => mobileLocaleSource.setLocale(locale));
+      expect(
+        document.querySelector(`input[aria-label="${workspaceT("history.inputTitle")}"]`)
+      ).toBe(input);
+      expect(input.value).toBe("间隔复习");
+      expect(document.activeElement).toBe(input);
+      expect([input.selectionStart, input.selectionEnd]).toEqual([1, 3]);
+      expect(service.sessions.list).toHaveBeenCalledTimes(listCalls);
+      expect(service.sessions.patch).not.toHaveBeenCalled();
+    }
+    await click(pressable(workspaceT("history.save"), document.body));
     await waitFor(() => service.sessions.patch.mock.calls.length === 1);
     expect(service.sessions.patch).toHaveBeenCalledWith(
       { databaseName: "data.db", sessionId: "a" },

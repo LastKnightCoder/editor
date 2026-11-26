@@ -6,7 +6,7 @@ import { Mic, Sparkles } from "lucide-react";
 import { useMemo, useRef } from "react";
 import { useEdgeFadeX } from "../../hooks/useScrollState";
 import { useNavigator } from "../../router";
-import { suggestionsFor } from "./suggestions";
+import { suggestionsFor, suggestionPrompt } from "./suggestions";
 
 export function AskBar() {
   const { t } = useAskI18n();
@@ -41,7 +41,7 @@ export function AskBar() {
           <button
             key={key}
             type="button"
-            onClick={() => open(t(key))}
+            onClick={() => open(suggestionPrompt(key))}
             className="bg-surface text-ink-2 text-tau-sm h-[30px] shrink-0 rounded-full px-3 transition-transform active:scale-95"
           >
             {t(key)}

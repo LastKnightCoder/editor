@@ -1,3 +1,4 @@
+import { useWorkspaceI18n } from "./workspace.i18n";
 // 输入区是两行的一体卡片：上行写字，下行左边 ＋、「引用笔记」与思考强度，右下角一个位置三种状态——
 // 生成中为停止、有文字或附件为发送、否则为语音 / 键盘切换。待发送的引用与图片挂在卡片第一行。
 // 语音模式与微信一致：上行换成「按住 说话」，松手发送；再点键盘图标回到打字并弹出键盘。
@@ -54,7 +55,7 @@ export function ChatComposer(props: {
   mentions?: MentionRef[];
   onMentionsChange?(mentions: MentionRef[]): void;
   /** 引用存在且没写字时，输入框下方的快捷问法 */
-  quickPrompts?: string[];
+  quickPrompts?: readonly { id: string; label: string; text: string }[];
   /** 思考强度：当前模型可选不止一档时才传，下排显示档位胶囊 */
   thinking?: {
     level: ThinkingLevel;
@@ -64,6 +65,7 @@ export function ChatComposer(props: {
   onSend(input: ChatInput): void;
   onStop(): void;
 }) {
+  const { t, locale } = useWorkspaceI18n();
   const [value, setValue] = useState("");
   const [voiceMode, setVoiceMode] = useState(false);
   const [images, setImages] = useState<string[]>([]);
@@ -97,7 +99,13 @@ export function ChatComposer(props: {
   const albumRef = useRef<HTMLInputElement>(null);
   const mentions = props.mentions ?? localMentions;
   const { thinking } = props;
-  const thinkingOption = THINKING_LEVEL_OPTIONS.find(option => option.value === thinking?.level);
+  const thinkingOptions = THINKING_LEVEL_OPTIONS.map(option => ({
+    value: option.value,
+    label: t(`thinking.${option.value}.label`),
+    short: t(`thinking.${option.value}.short`),
+    description: t(`thinking.${option.value}.description`),
+  }));
+  const thinkingOption = thinkingOptions.find(option => option.value === thinking?.level);
   const setMentions = props.onMentionsChange ?? setLocalMentions;
   const text = value.trim();
   const hasPayload = !!text || images.length > 0;
@@ -129,15 +137,15 @@ export function ChatComposer(props: {
       const urls = await Promise.all(list.map(imageFileToDataUrl));
       setImages(current => [...current, ...urls].slice(0, MAX_IMAGES));
     } catch {
-      toast.error("图片读取失败");
+      toast.error(t("composer.imageFailed"));
     }
   };
 
   const imageHint =
     props.imageInput === false
-      ? "当前模型不支持图片，先在顶部换一个带图片能力的模型"
+      ? t("composer.imageUnsupported")
       : images.length >= MAX_IMAGES
-        ? `一次最多 ${MAX_IMAGES} 张`
+        ? t("composer.imageLimit", { count: new Intl.NumberFormat(locale).format(MAX_IMAGES) })
         : undefined;
   const pickImage = (ref: typeof cameraRef) => {
     if (imageHint) return toast.info({ text: imageHint });
@@ -147,7 +155,7 @@ export function ChatComposer(props: {
   const trailing = props.running ? (
     <button
       type="button"
-      aria-label="停止生成"
+      aria-label={t("composer.stop")}
       onClick={props.onStop}
       className={cn(ROUND_BUTTON, "bg-ink-1 text-ink-inverse")}
     >
@@ -156,7 +164,7 @@ export function ChatComposer(props: {
   ) : showSend ? (
     <button
       type="button"
-      aria-label="发送"
+      aria-label={t("composer.send")}
       disabled={props.disabled}
       onClick={submit}
       className={cn(ROUND_BUTTON, "bg-accent text-ink-inverse disabled:opacity-50")}
@@ -166,7 +174,7 @@ export function ChatComposer(props: {
   ) : voiceMode ? (
     <button
       type="button"
-      aria-label="切换到键盘"
+      aria-label={t("composer.keyboard")}
       onClick={focusInput}
       className={cn(ROUND_BUTTON, "bg-page text-ink-1")}
     >
@@ -175,7 +183,7 @@ export function ChatComposer(props: {
   ) : (
     <button
       type="button"
-      aria-label="切换到语音输入"
+      aria-label={t("composer.voice")}
       onClick={() => {
         reservation.releaseNow();
         inputRef.current?.blur();
@@ -198,13 +206,13 @@ export function ChatComposer(props: {
         <div className="scrollbar-hide -mx-3 mb-2 flex gap-2 overflow-x-auto px-3">
           {props.quickPrompts.map(prompt => (
             <button
-              key={prompt}
+              key={prompt.id}
               type="button"
               disabled={props.disabled}
-              onClick={() => send({ text: prompt, mentions })}
+              onClick={() => send({ text: prompt.text, mentions })}
               className="bg-surface text-ink-2 text-tau-sm h-[30px] shrink-0 rounded-full px-3 transition-transform active:scale-95"
             >
-              {prompt}
+              {prompt.label}
             </button>
           ))}
         </div>
@@ -216,7 +224,7 @@ export function ChatComposer(props: {
               <button
                 key={skill.id}
                 type="button"
-                aria-label={`移除 Skill：${skill.name}`}
+                aria-label={t("composer.removeSkill", { name: skill.name })}
                 className="bg-accent-soft text-accent-text text-tau-sm flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1"
                 onClick={() =>
                   setSelectedSkills(current => current.filter(item => item.id !== skill.id))
@@ -243,7 +251,7 @@ export function ChatComposer(props: {
                 <img src={image} alt="" className="h-12 w-12 rounded-xl object-cover" />
                 <button
                   type="button"
-                  aria-label="去掉图片"
+                  aria-label={t("composer.removeImage")}
                   onClick={() => setImages(images.filter((_, other) => other !== index))}
                   className="bg-ink-1 text-ink-inverse absolute -top-1.5 -right-1.5 grid h-5 w-5 place-items-center rounded-full"
                 >
@@ -266,7 +274,7 @@ export function ChatComposer(props: {
           rows={1}
           hidden={voiceMode}
           value={value}
-          placeholder={props.placeholder ?? "发消息"}
+          placeholder={props.placeholder ?? t("composer.placeholder")}
           onBlur={() => reservation.releaseNow()}
           onTouchStart={event => {
             const touch = event.touches[0];
@@ -307,7 +315,7 @@ export function ChatComposer(props: {
         <div className="mt-2.5 flex items-center gap-1.5">
           <button
             type="button"
-            aria-label="添加图片或引用"
+            aria-label={t("composer.add")}
             onClick={() => setPlusOpen(true)}
             className={cn(TOOL_BUTTON, "w-[34px]")}
           >
@@ -315,23 +323,23 @@ export function ChatComposer(props: {
           </button>
           <button
             type="button"
-            aria-label="引用笔记"
+            aria-label={t("composer.mention")}
             onClick={() => setPickerOpen(true)}
             className={cn(TOOL_BUTTON, "text-tau-sm gap-1 pr-3 pl-2.5")}
           >
             <AtSign size={15} aria-hidden="true" />
-            引用笔记
+            {t("composer.mention")}
           </button>
           {thinking && (
             <button
               type="button"
-              aria-label={`思考强度：${thinkingOption?.label ?? ""}`}
+              aria-label={t("composer.thinkingCurrent", { label: thinkingOption?.label ?? "" })}
               disabled={props.running}
               onClick={() => setThinkingOpen(true)}
               className={cn(TOOL_BUTTON, "text-tau-sm gap-1 pr-3 pl-2.5 disabled:opacity-50")}
             >
               <Brain size={15} aria-hidden="true" />
-              {thinkingOption?.short ?? "立答"}
+              {thinkingOption?.short ?? t("thinking.off.short")}
             </button>
           )}
           <span className="flex-1" />
@@ -364,26 +372,26 @@ export function ChatComposer(props: {
         open={plusOpen}
         items={[
           {
-            label: "拍照提问",
+            label: t("composer.camera"),
             icon: <Camera size={18} />,
             desc: imageHint,
             onClick: () => pickImage(cameraRef),
           },
           {
-            label: "从相册选",
+            label: t("composer.album"),
             icon: <ImageIcon size={18} />,
             desc: imageHint,
             onClick: () => pickImage(albumRef),
           },
           {
-            label: "引用笔记",
+            label: t("composer.mention"),
             icon: <AtSign size={18} />,
             onClick: () => setPickerOpen(true),
           },
           ...(props.databaseName
             ? [
                 {
-                  label: "选择 Skill",
+                  label: t("skill.select"),
                   icon: <WandSparkles size={18} />,
                   onClick: () => setSkillsOpen(true),
                 },
@@ -395,17 +403,17 @@ export function ChatComposer(props: {
       {thinking && (
         <ActionSheet
           open={thinkingOpen}
-          title="思考强度"
-          subtitle="想得越多回答越慢；记在本机，所有对话共用"
-          items={THINKING_LEVEL_OPTIONS.filter(option =>
-            thinking.options.includes(option.value)
-          ).map(option => ({
-            key: option.value,
-            label: option.label,
-            desc: option.description,
-            selected: option.value === thinking.level,
-            onClick: () => thinking.onPick(option.value),
-          }))}
+          title={t("composer.thinking")}
+          subtitle={t("composer.thinkingHint")}
+          items={thinkingOptions
+            .filter(option => thinking.options.includes(option.value))
+            .map(option => ({
+              key: option.value,
+              label: option.label,
+              desc: option.description,
+              selected: option.value === thinking.level,
+              onClick: () => thinking.onPick(option.value),
+            }))}
           onClose={() => setThinkingOpen(false)}
         />
       )}

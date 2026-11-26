@@ -1,6 +1,7 @@
 // 就近对话的来源内容：内容页「问 AI」带入对话页的身份与选中片段。
 
 import type { MentionRef } from "@tau/shared/chat-core";
+import type { WorkspaceMessageKey } from "./workspace.messages";
 
 export interface ContentChatTarget {
   contentId: number;
@@ -11,15 +12,27 @@ export interface ContentChatTarget {
   quote?: string;
 }
 
-export const CONTENT_KIND_TITLE: Record<MentionRef["entityType"], string> = {
-  card: "关于这张卡片",
-  article: "关于这篇文章",
-  "project-item": "关于这篇文档",
-  diary: "关于这篇日记",
+export const CONTENT_KIND_TITLE_KEYS: Record<MentionRef["entityType"], WorkspaceMessageKey> = {
+  card: "content.card",
+  article: "content.article",
+  "project-item": "content.project-item",
+  diary: "content.diary",
 };
-
-export const QUOTE_PROMPTS = ["解释这段", "总结这段", "翻译成英文"];
-export const WHOLE_PROMPTS = ["总结这篇", "列出要点", "出几道问答题帮我复习"];
+export interface ContentQuickPrompt {
+  id: string;
+  labelKey: WorkspaceMessageKey;
+  text: string;
+}
+export const QUOTE_PROMPTS: readonly ContentQuickPrompt[] = [
+  { id: "explain-quote", labelKey: "prompt.explainQuote", text: "解释这段" },
+  { id: "summarize-quote", labelKey: "prompt.summarizeQuote", text: "总结这段" },
+  { id: "translate-quote", labelKey: "prompt.translateQuote", text: "翻译成英文" },
+];
+export const WHOLE_PROMPTS: readonly ContentQuickPrompt[] = [
+  { id: "summarize-whole", labelKey: "prompt.summarizeWhole", text: "总结这篇" },
+  { id: "key-points", labelKey: "prompt.keyPoints", text: "列出要点" },
+  { id: "review", labelKey: "prompt.review", text: "出几道问答题帮我复习" },
+];
 
 export function mentionOf(target: ContentChatTarget): MentionRef {
   return {

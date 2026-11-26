@@ -1,3 +1,4 @@
+import { useWorkspaceI18n } from "./workspace.i18n";
 // 对话的语音输入（与微信一致）：输入框切到语音模式后变成整条「按住 说话」，
 // 按住录音、上滑到 ✕ 取消、松手把识别结果直接发送。对话不经语音整理：模型能直接理解口语，省一次调用。
 
@@ -16,6 +17,7 @@ export function HoldToTalkBar(props: {
   onSend(text: string): void;
   portalContainer?: HTMLElement | null;
 }) {
+  const { t } = useWorkspaceI18n();
   const cancelTargetRef = useRef<HTMLDivElement | null>(null);
   const service = useSpeechInputService();
   const unavailableReason = useSpeechUnavailableReason();
@@ -28,7 +30,7 @@ export function HoldToTalkBar(props: {
     onError: error =>
       toast({
         type: "error",
-        text: error instanceof Error ? error.message : "语音输入失败",
+        text: error instanceof Error ? error.message : t("voice.failed"),
       }),
   });
   const gesture = useHoldGesture(
@@ -46,7 +48,7 @@ export function HoldToTalkBar(props: {
       // 按下时已开始录音，按得太短不发送
       onTap: () => {
         session.cancel();
-        toast.info({ id: HINT_ID, text: "按住说话，松手发送", duration: 1800 });
+        toast.info({ id: HINT_ID, text: t("voice.hint"), duration: 1800 });
       },
     },
     cancelTargetRef,
@@ -58,7 +60,7 @@ export function HoldToTalkBar(props: {
     <>
       <button
         type="button"
-        aria-label="按住说话"
+        aria-label={t("voice.hold")}
         aria-pressed={holding}
         disabled={props.disabled}
         className={cn(
@@ -71,14 +73,14 @@ export function HoldToTalkBar(props: {
         )}
         {...gesture.bind}
       >
-        {holding ? (gesture.cancelArmed ? "松开 取消" : "松开 发送") : "按住 说话"}
+        {holding ? (gesture.cancelArmed ? t("voice.cancel") : t("voice.send")) : t("voice.idle")}
       </button>
       <DictationOverlay
         open={holding && active}
         connecting={session.phase === "connecting"}
         startedAt={session.startedAt}
         cancelArmed={gesture.cancelArmed}
-        releaseHint="松手发送"
+        releaseHint={t("voice.releaseHint")}
         cancelTargetRef={cancelTargetRef}
         portalContainer={props.portalContainer}
       />

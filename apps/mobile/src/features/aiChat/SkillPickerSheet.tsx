@@ -1,3 +1,4 @@
+import { useWorkspaceI18n } from "./workspace.i18n";
 import { useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { AiSkillDescriptor } from "@tau/ai/skills";
@@ -17,6 +18,7 @@ export function SkillPickerSheet(props: {
   onChange(skills: AiSkillDescriptor[]): void;
   onClose(): void;
 }) {
+  const { t } = useWorkspaceI18n();
   const runtime = useMobilePlugins();
   const sources = runtime?.aiSkills;
   const revision = useSyncExternalStore(
@@ -34,26 +36,24 @@ export function SkillPickerSheet(props: {
   });
   const selectedIds = new Set(props.selected.map(skill => skill.id));
   return (
-    <BottomSheet open title="选择 Skill" onClose={props.onClose}>
+    <BottomSheet open title={t("skill.select")} onClose={props.onClose}>
       <div className="px-5 pb-5">
-        <p className="text-ink-3 text-tau-sm mb-3">选择的 Skill 用于下一条消息，发送后清空。</p>
-        {query.isPending && <p className="text-ink-3 text-tau-sm py-4">正在读取 Skill…</p>}
+        <p className="text-ink-3 text-tau-sm mb-3">{t("skill.hint")}</p>
+        {query.isPending && <p className="text-ink-3 text-tau-sm py-4">{t("skill.loading")}</p>}
         {query.isError && (
           <div role="alert" className="text-ink-2 text-tau-sm py-4">
-            Skill 读取失败
+            {t("skill.failed")}
             <button
               type="button"
               className="text-accent-text ml-3"
               onClick={() => void query.refetch()}
             >
-              重试
+              {t("action.retry")}
             </button>
           </div>
         )}
         {query.data?.length === 0 && (
-          <p className="text-ink-3 text-tau-sm py-4 text-center">
-            没有可用的 Skill。停用的 Skill 可以在 Skill 管理里重新启用。
-          </p>
+          <p className="text-ink-3 text-tau-sm py-4 text-center">{t("skill.empty")}</p>
         )}
         {query.data?.map(skill => (
           <button
@@ -75,7 +75,7 @@ export function SkillPickerSheet(props: {
                 {skill.description}
               </span>
               {skill.disableModelInvocation && (
-                <span className="text-ink-3 text-tau-meta mt-1 block">仅手动调用</span>
+                <span className="text-ink-3 text-tau-meta mt-1 block">{t("skill.manual")}</span>
               )}
             </span>
             {selectedIds.has(skill.id) && <CheckBubble />}
@@ -86,7 +86,7 @@ export function SkillPickerSheet(props: {
           className="bg-accent text-ink-inverse text-tau-body mt-3 w-full rounded-2xl py-3 font-semibold"
           onClick={props.onClose}
         >
-          完成
+          {t("action.done")}
         </button>
         <button
           type="button"
@@ -96,7 +96,7 @@ export function SkillPickerSheet(props: {
             getNavigator().push("aiSkills", {});
           }}
         >
-          管理 Skill
+          {t("skill.manage")}
         </button>
       </div>
     </BottomSheet>

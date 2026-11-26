@@ -1,3 +1,5 @@
+import { useWorkspaceI18n } from "./workspace.i18n";
+import type { WorkspaceMessageKey } from "./workspace.messages";
 // 消息列表：与桌面、浏览器扩展同一套 MessageView（用户气泡、助手通栏、思考与工具按原序）。
 // 触屏没有悬停：工具逐条进时间线（features/aiChat/tools），操作行只常显在最后一条回答下，其余操作靠长按菜单。
 // 生成中用户上滑阅读时停止跟随，出现「回到最新」。
@@ -69,6 +71,7 @@ function userParts(content: ChatSessionMessage["content"]) {
 
 /** 用户消息上方的引用：选中片段显示原文两行，整篇与 @ 笔记显示标题 */
 export function MentionQuote(props: { mention: MentionRef; onRemove?: () => void }) {
+  const { t } = useWorkspaceI18n();
   const { mention } = props;
   return (
     <div className="bg-surface text-tau-sm text-ink-2 flex max-w-full items-start gap-2 rounded-xl px-2.5 py-1.5">
@@ -78,15 +81,17 @@ export function MentionQuote(props: { mention: MentionRef; onRemove?: () => void
           <span className="line-clamp-2 leading-snug">{mention.previewText}</span>
         ) : (
           <span className="block truncate">
-            <span className="text-ink-3">{MENTION_KIND[mention.entityType] ?? "笔记"} · </span>
-            {mention.title || "未命名"}
+            <span className="text-ink-3">
+              {t(MENTION_KIND_KEYS[mention.entityType] ?? "mention.note")} ·{" "}
+            </span>
+            {mention.title || t("source.untitled")}
           </span>
         )}
       </span>
       {props.onRemove && (
         <button
           type="button"
-          aria-label="去掉引用"
+          aria-label={t("mention.remove")}
           onClick={props.onRemove}
           className="text-ink-3 -mr-1 grid h-5 w-5 shrink-0 place-items-center"
         >
@@ -99,6 +104,7 @@ export function MentionQuote(props: { mention: MentionRef; onRemove?: () => void
 
 /** 输入框里待发送的引用：一行可删的小签，选中片段显示原文开头，整篇显示标题 */
 export function MentionChip(props: { mention: MentionRef; onRemove(): void }) {
+  const { t } = useWorkspaceI18n();
   const { mention } = props;
   const Icon = mention.quote ? TextQuote : FileText;
   return (
@@ -107,11 +113,11 @@ export function MentionChip(props: { mention: MentionRef; onRemove(): void }) {
       <span className="min-w-0 truncate">
         {mention.quote
           ? mention.previewText
-          : `${mention.title || "未命名"} · ${MENTION_KIND[mention.entityType] ?? "笔记"}`}
+          : `${mention.title || t("source.untitled")} · ${t(MENTION_KIND_KEYS[mention.entityType] ?? "mention.note")}`}
       </span>
       <button
         type="button"
-        aria-label="去掉引用"
+        aria-label={t("mention.remove")}
         onClick={props.onRemove}
         className="text-ink-3 grid h-6 w-6 shrink-0 place-items-center rounded-full"
       >
@@ -121,11 +127,11 @@ export function MentionChip(props: { mention: MentionRef; onRemove(): void }) {
   );
 }
 
-const MENTION_KIND: Record<string, string> = {
-  card: "卡片",
-  article: "文章",
-  "project-item": "项目文档",
-  diary: "日记",
+const MENTION_KIND_KEYS: Record<string, WorkspaceMessageKey> = {
+  card: "mention.card",
+  article: "mention.article",
+  "project-item": "mention.project-item",
+  diary: "mention.diary",
 };
 
 const LONG_PRESS_MS = 450;
