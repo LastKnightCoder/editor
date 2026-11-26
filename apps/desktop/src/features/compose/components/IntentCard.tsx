@@ -9,12 +9,14 @@ import { Button, Popover, Textarea, cn } from "@tau/ui";
 import { useOverlayDismiss } from "@/page/PageProvider";
 import type { EntityRefKind } from "@/entity/ref";
 
-const KIND_OPTIONS: Array<{ kind: EntityRefKind; label: string }> = [
-  { kind: "card", label: "卡片" },
-  { kind: "article", label: "文章" },
-  { kind: "project-item", label: "项目文档" },
-  { kind: "diary-moment", label: "日记" },
-];
+import { useComposeUiI18n } from "../ui.i18n";
+
+const KIND_OPTIONS = [
+  "card",
+  "article",
+  "project-item",
+  "diary-moment",
+] as const satisfies readonly EntityRefKind[];
 
 export function IntentCard({
   initialIntent,
@@ -30,8 +32,9 @@ export function IntentCard({
   onStart(intent: string, kinds: EntityRefKind[]): void;
   onSkip(): void;
 }) {
+  const { t } = useComposeUiI18n();
   const [intent, setIntent] = useState(initialIntent);
-  const [kinds, setKinds] = useState<EntityRefKind[]>(KIND_OPTIONS.map(option => option.kind));
+  const [kinds, setKinds] = useState<EntityRefKind[]>([...KIND_OPTIONS]);
   useOverlayDismiss(onSkip, !busy);
   const start = () => {
     if (!intent.trim() || !kinds.length || busy) return;
@@ -40,18 +43,16 @@ export function IntentCard({
 
   return (
     <div className="bg-overlay absolute inset-0 z-20 grid place-items-center p-6">
-      <div className="bg-surface shadow-float rounded-tau-lg w-full max-w-[520px] px-[22px] pb-4 pt-5">
-        <h3 className="text-ink-1 text-[16px] font-semibold">这篇想写什么？</h3>
-        <p className="text-ink-3 text-tau-meta mb-3.5 mt-1">
-          {canGather
-            ? "说说主题、想表达的观点或想回答的问题。我会从你的笔记里挑出相关的，分好组放到左边白板上。"
-            : "写下来留在正文上方作提醒。配置「AI 洞见」模型后，可以按这句话自动找资料。"}
+      <div className="bg-surface shadow-float rounded-tau-lg w-full max-w-[520px] px-[22px] pt-5 pb-4">
+        <h3 className="text-ink-1 text-[16px] font-semibold">{t("ui.intent.title")}</h3>
+        <p className="text-ink-3 text-tau-meta mt-1 mb-3.5">
+          {canGather ? t("ui.intent.gatherHint") : t("ui.intent.noModelHint")}
         </p>
         <Textarea
           autoFocus
           rows={4}
           value={intent}
-          placeholder="例如：解释间隔重复为什么有效，结合我这两个月做闪卡的体验，最后说说它的局限"
+          placeholder={t("ui.intent.example")}
           onChange={event => setIntent(event.target.value)}
           onKeyDown={event => {
             if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
@@ -62,16 +63,16 @@ export function IntentCard({
         />
         {canGather && (
           <div className="mt-3 flex flex-wrap gap-1.5">
-            {KIND_OPTIONS.map(option => {
-              const on = kinds.includes(option.kind);
+            {KIND_OPTIONS.map(kind => {
+              const on = kinds.includes(kind);
               return (
                 <button
-                  key={option.kind}
+                  key={kind}
                   type="button"
                   aria-pressed={on}
                   onClick={() =>
                     setKinds(current =>
-                      on ? current.filter(kind => kind !== option.kind) : [...current, option.kind]
+                      on ? current.filter(value => value !== kind) : [...current, kind]
                     )
                   }
                   className={cn(
@@ -81,7 +82,7 @@ export function IntentCard({
                       : "border-line-1 text-ink-2 hover:bg-hover"
                   )}
                 >
-                  {option.label}
+                  {t(`ui.kind.${kind}`)}
                 </button>
               );
             })}
@@ -89,7 +90,7 @@ export function IntentCard({
         )}
         <div className="mt-4 flex items-center gap-2">
           <Button variant="ghost" size="sm" onClick={onSkip} disabled={busy}>
-            {canGather ? "跳过，空白白板" : "空白白板开始"}
+            {canGather ? t("ui.intent.skip") : t("ui.intent.blank")}
           </Button>
           <div className="flex-1" />
           {canGather ? (
@@ -100,7 +101,7 @@ export function IntentCard({
               loading={busy}
               disabled={!intent.trim() || !kinds.length}
             >
-              开始找资料
+              {t("ui.intent.gather")}
             </Button>
           ) : (
             <Button
@@ -109,7 +110,7 @@ export function IntentCard({
               loading={busy}
               disabled={!intent.trim()}
             >
-              开始
+              {t("ui.intent.start")}
             </Button>
           )}
         </div>
@@ -126,6 +127,7 @@ export function IntentButton({
   intent: string;
   onChange(intent: string): void;
 }) {
+  const { t } = useComposeUiI18n();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(intent);
   const save = () => {
@@ -145,8 +147,8 @@ export function IntentButton({
       trigger={
         <button
           type="button"
-          title="写作意图"
-          aria-label="写作意图"
+          title={t("ui.intent.entry")}
+          aria-label={t("ui.intent.entry")}
           className={cn(
             "bg-surface shadow-card text-ink-2 hover:text-ink-1 hover:bg-surface-hover grid size-[30px] place-items-center rounded-full",
             open && "text-ink-1"
@@ -157,12 +159,12 @@ export function IntentButton({
       }
     >
       <div className="p-3">
-        <p className="text-ink-3 text-tau-meta mb-2">写作意图 · 「再找一些」按它找资料</p>
+        <p className="text-ink-3 text-tau-meta mb-2">{t("ui.intent.editHint")}</p>
         <Textarea
           autoFocus
           rows={4}
           value={draft}
-          placeholder="这篇想写什么"
+          placeholder={t("ui.intent.placeholder")}
           onChange={event => setDraft(event.target.value)}
           onKeyDown={event => {
             if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
@@ -173,10 +175,10 @@ export function IntentButton({
         />
         <div className="mt-2.5 flex justify-end gap-2">
           <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
-            取消
+            {t("ui.cancel")}
           </Button>
           <Button variant="primary" size="sm" onClick={save}>
-            保存
+            {t("ui.save")}
           </Button>
         </div>
       </div>

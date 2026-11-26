@@ -5,7 +5,7 @@
  * 窗口放不下两栏时白板收起、只留正文。
  */
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode, type ComponentProps } from "react";
 import { ResizeHandle, cn } from "@tau/ui";
 import {
   BOARD_PANE_MIN,
@@ -13,6 +13,13 @@ import {
   EDITOR_PANE_MIN,
   useComposePreferences,
 } from "../preferences";
+
+import { useComposeUiI18n } from "../ui.i18n";
+
+function ComposeResizeHandle(props: Omit<ComponentProps<typeof ResizeHandle>, "label">) {
+  const { t } = useComposeUiI18n();
+  return <ResizeHandle {...props} label={t("ui.layout.width")} />;
+}
 
 export function ComposeLayout({
   active,
@@ -54,14 +61,13 @@ export function ComposeLayout({
         </div>
       )}
       {showBoard && (
-        <ResizeHandle
+        <ComposeResizeHandle
           key="handle"
           value={paneWidth}
           min={EDITOR_PANE_MIN}
           max={max}
           onChange={setEditorWidth}
           side="right"
-          label="正文栏宽度"
           defaultValue={EDITOR_PANE_DEFAULT}
           className="mx-0.5 shrink-0 self-stretch"
         />

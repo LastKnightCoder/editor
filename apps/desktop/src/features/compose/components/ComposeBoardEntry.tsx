@@ -7,7 +7,10 @@ import { PanelsLeftRight } from "lucide-react";
 import { ContextRow } from "@/features/context/components/ContextList";
 import { useComposeBoardSummary } from "../queries";
 
+import { useComposeUiI18n } from "../ui.i18n";
+
 export function ComposeBoardEntry({ contentId, onOpen }: { contentId: number; onOpen(): void }) {
+  const { t } = useComposeUiI18n();
   const { data } = useComposeBoardSummary(contentId);
   if (!data?.documents) return null;
   return (
@@ -15,8 +18,8 @@ export function ComposeBoardEntry({ contentId, onOpen }: { contentId: number; on
       <ContextRow onClick={onOpen}>
         <span className="text-ink-3 flex min-w-0 items-center gap-1.5 text-[12px]">
           <PanelsLeftRight className="size-[13px] shrink-0" strokeWidth={1.75} />
-          <b className="text-ink-2 font-medium">创作白板</b>
-          <span className="tabular-nums">{data.documents} 份资料</span>
+          <b className="text-ink-2 font-medium">{t("ui.board.title")}</b>
+          <span className="tabular-nums">{t("ui.board.documents", { count: data.documents })}</span>
         </span>
       </ContextRow>
     </div>

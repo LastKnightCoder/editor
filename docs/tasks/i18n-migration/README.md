@@ -386,6 +386,8 @@ Markdown F3十四源加Root Core/README二路径完成；全窗口9文件49例�
 
 白板影音外壳十一源完成；真实异步状态2加原组装3共5pass/原1skip，desktop type/lint与三语runtime通过。实际Selector/白板api挂起传输后换语不再次选文件/写入/关闭，原File与board参数保持，loading只创建一次、完成dismiss同ID；AST除显示/读取器外整源码全等。
 
+Compose C1九路径完成；原2文件6至3文件8例、desktop type、24key三语与原kinds/order/handlers/query/action/keys/模型AI静态对照通过。真实IntentCard/Popover跨语保同草稿/光标/焦点/选中kind，不start/skip/save；显式提交仍原trim intent与EntityRefKind，Layout原宽度prefs及正文白板不变。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。
