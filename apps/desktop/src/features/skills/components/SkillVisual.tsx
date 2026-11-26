@@ -1,3 +1,4 @@
+import { useSkillsI18n, skillWarning } from "../i18n";
 /**
  * Skill 页共用小件：图标、来源 / 调用方式徽标、常驻上下文预算条。
  * 图标中性墨色（同 MCP 页）；颜色只给语义状态（自动 ok、仅手动 info、问题 warn / danger）。
@@ -45,6 +46,7 @@ export function SkillIcon({ skill, size = "md" }: { skill: Skill; size?: "md" | 
 }
 
 export function SourceTag({ skill }: { skill: Skill }) {
+  const { t } = useSkillsI18n();
   if (skill.source === "mine" || !skill.source) return null;
   return (
     <span
@@ -52,11 +54,11 @@ export function SourceTag({ skill }: { skill: Skill }) {
       className="text-tau-micro text-ink-3 border-line-1 inline-flex shrink-0 items-center gap-1 rounded-[5px] border px-1.5 leading-[18px] font-normal"
     >
       {skill.source === "builtin"
-        ? "内置"
+        ? t("skills.source.builtin")
         : skill.source === "plugin"
-          ? `插件 · ${skill.pluginName}`
+          ? t("skills.source.pluginName", { name: skill.pluginName ?? "" })
           : skill.source === "package"
-            ? `Skill 包 · ${skill.pluginName}`
+            ? t("skills.source.packageName", { name: skill.pluginName ?? "" })
             : linkedDirLabel(skill)}
     </span>
   );
@@ -67,9 +69,9 @@ const MODE_STYLE: Record<SkillMode, string> = {
   manual: "bg-info-soft text-info",
   off: "text-ink-3 border border-dashed border-line-1",
 };
-const MODE_TEXT: Record<SkillMode, string> = { auto: "自动", manual: "仅手动", off: "已停用" };
 
 export function ModeBadge({ mode }: { mode: SkillMode }) {
+  const { t } = useSkillsI18n();
   return (
     <span
       className={cn(
@@ -77,12 +79,19 @@ export function ModeBadge({ mode }: { mode: SkillMode }) {
         MODE_STYLE[mode]
       )}
     >
-      {MODE_TEXT[mode]}
+      {t(
+        mode === "off"
+          ? "skills.mode.offBadge"
+          : mode === "auto"
+            ? "skills.mode.auto"
+            : "skills.mode.manual"
+      )}
     </span>
   );
 }
 
 export function WarningText({ item, className }: { item: SkillItem; className?: string }) {
+  const { t } = useSkillsI18n();
   if (!item.warning) return null;
   return (
     <span
@@ -92,7 +101,7 @@ export function WarningText({ item, className }: { item: SkillItem; className?: 
         className
       )}
     >
-      {item.warning.text}
+      {skillWarning(item, t)}
     </span>
   );
 }
@@ -111,14 +120,15 @@ export function BudgetBar({
   longCount: number;
   className?: string;
 }) {
+  const { t } = useSkillsI18n();
   const scale = Math.max(1000, total);
   return (
     <div
       className={cn("text-tau-sm text-ink-2 flex min-w-0 items-center gap-2.5", className)}
-      title="自动模式的 Skill 会把名称和描述放进每次对话的系统提示词"
+      title={t("skills.budget.hint")}
     >
       <span className="shrink-0 whitespace-nowrap tabular-nums">
-        常驻上下文 <b className="text-ink-1 font-semibold">{total}</b> tokens
+        {t("skills.budget.context", { tokens: total })}
       </span>
       <span className="bg-hover flex h-1.5 min-w-[80px] flex-1 overflow-hidden rounded-full">
         <i
@@ -128,8 +138,10 @@ export function BudgetBar({
         <i className="bg-warn block h-full" style={{ width: `${(longTokens / scale) * 100}%` }} />
       </span>
       <span className="text-ink-3 shrink-0 whitespace-nowrap tabular-nums">
-        {count} 个自动
-        {longCount > 0 && <span className="text-warn"> · {longCount} 个描述偏长</span>}
+        {t("skills.budget.auto", { count })}
+        {longCount > 0 && (
+          <span className="text-warn">{t("skills.budget.long", { count: longCount })}</span>
+        )}
       </span>
     </div>
   );

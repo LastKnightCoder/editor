@@ -9,8 +9,15 @@ const messages = defineI18n({
   fallbackLocale: "zh-CN",
   resources: { "zh-CN": zhCN, "zh-TW": zhTW, "en-US": enUS },
 });
-export function usePlatformLabels() {
-  const { t } = useI18n(messages, desktopI18n);
+const translator = desktopI18n.get(messages);
+export function getPlatformLabels() {
   const os = platform.os === "darwin" ? "mac" : platform.os === "win32" ? "win" : "other";
-  return { revealInFileManagerLabel: t(`reveal.${os}`), trashName: t(`trash.${os}`) };
+  return {
+    revealInFileManagerLabel: translator.t(`reveal.${os}`),
+    trashName: translator.t(`trash.${os}`),
+  };
+}
+export function usePlatformLabels() {
+  useI18n(messages, desktopI18n);
+  return getPlatformLabels();
 }

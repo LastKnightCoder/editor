@@ -18,6 +18,11 @@ const LONG_DESCRIPTION_TOKENS = 150;
 
 export type SkillMode = SkillInvocation | "off";
 
+export type SkillWarning =
+  | { level: "warn"; code: "shadowed" }
+  | { level: "danger"; code: "description-missing" }
+  | { level: "warn"; code: "description-long"; tokens: number };
+
 export interface SkillItem {
   skill: Skill;
   key: string;
@@ -29,7 +34,7 @@ export interface SkillItem {
   shadowed: boolean;
   /** 自动模式下常驻系统提示词的 tokens（名称 + 描述） */
   tokens: number;
-  warning?: { level: "danger" | "warn"; text: string };
+  warning?: SkillWarning;
   usage?: SkillUsage;
   readonly: boolean;
 }
@@ -48,11 +53,10 @@ export function toSkillItems(
     const shadowed = !winners.has(skill);
     const tokens = estimateTokens(`${skill.name} ${skill.description}`);
     let warning: SkillItem["warning"];
-    if (shadowed) warning = { level: "warn", text: "与更高优先级的同名 Skill 冲突，不会生效" };
-    else if (!skill.description.trim())
-      warning = { level: "danger", text: "缺少描述，AI 无法判断何时使用它" };
+    if (shadowed) warning = { level: "warn", code: "shadowed" };
+    else if (!skill.description.trim()) warning = { level: "danger", code: "description-missing" };
     else if (invocation === "auto" && tokens > LONG_DESCRIPTION_TOKENS)
-      warning = { level: "warn", text: `描述偏长（约 ${tokens} tokens），建议把细则移到正文` };
+      warning = { level: "warn", code: "description-long", tokens };
     return {
       skill,
       key: skillKey(skill),
@@ -106,14 +110,6 @@ export function setSkillMode(skill: Skill, mode: SkillMode) {
   if (mode === "off") store.setEnabled(skill.folderName, false);
   else store.setInvocation(skill.folderName, mode);
 }
-
-export const SOURCE_LABEL: Record<SkillSource, string> = {
-  mine: "我的",
-  builtin: "内置",
-  plugin: "插件",
-  package: "Skill 包",
-  linked: "关联目录",
-};
 
 export const MODE_OPTIONS: Array<{ value: SkillMode; label: string; description: string }> = [
   { value: "auto", label: "自动", description: "AI 按描述自行决定何时加载" },

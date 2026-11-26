@@ -1,3 +1,4 @@
+import { useSkillsI18n, skillWarning, skillModeOptions, skillsFeedback } from "../i18n";
 import { usePlatformLabels } from "@/platform/i18n";
 /**
  * Skill 详情抽屉（通用 Drawer，md 560px）：
@@ -43,7 +44,7 @@ import {
 } from "@/commands/skill";
 import { saveFileWithDialog } from "@/commands/extra";
 import type { SkillFile } from "@/types";
-import { MODE_OPTIONS, setSkillMode, type SkillItem } from "../useSkills";
+import { setSkillMode, type SkillItem } from "../useSkills";
 import { ModeBadge, SkillIcon, SourceTag } from "../components/SkillVisual";
 import { copySkillToMine } from "../skillActions";
 
@@ -73,7 +74,11 @@ function useSkillContent(item: SkillItem | null) {
       .then(([readme, detail]) => {
         if (alive) setContent({ path, readme: readme ?? "", files: detail?.files ?? [] });
       })
-      .catch(error => alive && toast.error(`读取 Skill 失败：${(error as Error).message}`));
+      .catch(
+        error =>
+          alive &&
+          toast.error(...skillsFeedback("skills.readFailed", { reason: (error as Error).message }))
+      );
     return () => {
       alive = false;
     };
@@ -100,6 +105,7 @@ function OverviewPane({
   readme: string | null;
   files: SkillFile[];
 }) {
+  const { t } = useSkillsI18n();
   const body = useMemo(() => (readme === null ? null : splitSkillDocument(readme).body), [readme]);
   const value = useMemo(() => (body === null ? null : importFromMarkdown(body)), [body]);
   const { skill } = item;
@@ -119,15 +125,17 @@ function OverviewPane({
               : "bg-warn-soft text-warn"
           )}
         >
-          {item.warning.text}
+          {skillWarning(item, t)}
         </div>
       )}
       <div className="border-line-1 rounded-[12px] border px-3.5 py-3">
         <div className="text-tau-sm text-ink-3 mb-1 flex items-center gap-1.5">
           <Radar className="size-3.5" strokeWidth={1.75} />
-          AI 看到的描述 · 据此决定何时加载
+          {t("skills.descriptionHint")}
           {item.mode === "auto" && (
-            <span className="ml-auto tabular-nums">约 {item.tokens} tokens</span>
+            <span className="ml-auto tabular-nums">
+              {t("skills.tokens", { tokens: item.tokens })}
+            </span>
           )}
         </div>
         <p
@@ -136,15 +144,15 @@ function OverviewPane({
             skill.description ? "text-ink-1" : "text-ink-3"
           )}
         >
-          {skill.description || "（空）"}
+          {skill.description || t("skills.empty")}
         </p>
       </div>
 
       <div className="border-line-1 grid grid-cols-2 gap-x-4 gap-y-3 rounded-[12px] border px-3.5 py-3">
-        <Meta label="调用方式">
+        <Meta label={t("skills.invocation")}>
           <ModeBadge mode={item.mode} />
         </Meta>
-        <Meta label="工具预授权">
+        <Meta label={t("skills.allowedTools")}>
           {skill.allowedTools?.length ? (
             <span className="flex flex-wrap gap-1">
               {skill.allowedTools.map(t => (
@@ -154,10 +162,10 @@ function OverviewPane({
               ))}
             </span>
           ) : (
-            <span className="text-ink-3">未声明</span>
+            <span className="text-ink-3">{t("skills.undeclared")}</span>
           )}
         </Meta>
-        <Meta label={`文件 · ${fileList.length}`}>
+        <Meta label={t("skills.files", { count: fileList.length })}>
           <ul className="font-tau-mono text-ink-2 m-0 max-h-28 list-none overflow-y-auto p-0 text-[11.5px] leading-[1.7]">
             {fileList.map(f => (
               <li key={f} className="truncate">
@@ -166,9 +174,9 @@ function OverviewPane({
             ))}
           </ul>
         </Meta>
-        <Meta label="位置">
+        <Meta label={t("skills.location")}>
           <span className="font-tau-mono text-ink-2 text-[11.5px] break-all">
-            {skill.source === "builtin" ? "随应用内置（只读）" : skill.path}
+            {skill.source === "builtin" ? t("skills.builtinLocation") : skill.path}
           </span>
         </Meta>
       </div>
@@ -184,7 +192,7 @@ function OverviewPane({
             className="text-tau-body"
           />
         ) : (
-          <p className="text-tau-meta text-ink-3 m-0">加载中…</p>
+          <p className="text-tau-meta text-ink-3 m-0">{t("skills.loading")}</p>
         )}
       </div>
     </div>
@@ -207,6 +215,7 @@ function SettingsPane({
   item: SkillItem;
   onDelete: (item: SkillItem) => void;
 }) {
+  const { t } = useSkillsI18n();
   const { trashName } = usePlatformLabels();
   const { skill } = item;
   const exportZip = async () => {
@@ -214,25 +223,22 @@ function SettingsPane({
       const data = await exportSkillZip(skill.path);
       const result = await saveFileWithDialog({
         defaultFileName: `${skill.folderName}.zip`,
-        filters: [{ name: "Skill 压缩包", extensions: ["zip"] }],
+        filters: [{ name: t("skills.zipFilter"), extensions: ["zip"] }],
         data,
       });
-      if (!result.canceled) toast.success("已导出");
+      if (!result.canceled) toast.success(...skillsFeedback("skills.exported"));
     } catch (error) {
-      toast.error(`导出失败：${(error as Error).message}`);
+      toast.error(...skillsFeedback("skills.exportFailed", { reason: (error as Error).message }));
     }
   };
 
   return (
     <div className="flex flex-col gap-6">
       <section>
-        <h4 className="text-tau-meta m-0 mb-1 font-semibold">调用方式</h4>
-        <p className="text-tau-sm text-ink-3 m-0 mb-2.5">
-          决定 AI 什么时候读取这个 Skill。偏好只存在本机、不改原文件，内置与关联目录的 Skill
-          也能设。
-        </p>
+        <h4 className="text-tau-meta m-0 mb-1 font-semibold">{t("skills.invocation")}</h4>
+        <p className="text-tau-sm text-ink-3 m-0 mb-2.5">{t("skills.invocationHint")}</p>
         <div className="grid grid-cols-3 gap-2">
-          {MODE_OPTIONS.map(option => {
+          {skillModeOptions(t).map(option => {
             const active = item.mode === option.value;
             return (
               <button
@@ -254,10 +260,7 @@ function SettingsPane({
           })}
         </div>
         {skill.defaultInvocation === "manual" && (
-          <p className="text-tau-sm text-ink-3 m-0 mt-2">
-            SKILL.md 声明了 <code className="font-tau-mono">disable-model-invocation: true</code>
-            ，默认仅手动。
-          </p>
+          <p className="text-tau-sm text-ink-3 m-0 mt-2">{t("skills.manualDeclared")}</p>
         )}
       </section>
 
@@ -265,9 +268,9 @@ function SettingsPane({
         <div className="border-line-1 flex items-center gap-3 rounded-[12px] border px-3.5 py-3">
           <Lock className="text-ink-3 size-4 shrink-0" strokeWidth={1.75} />
           <ActionText
-            title="正文只读"
+            title={t("skills.readonly")}
             description={
-              skill.source === "builtin" ? "随应用更新" : "来自外部目录，请在原工具里修改"
+              skill.source === "builtin" ? t("skills.updatesWithApp") : t("skills.editAtSource")
             }
           />
           <Button
@@ -277,13 +280,13 @@ function SettingsPane({
             className="shrink-0"
             onClick={() => void copySkillToMine(skill)}
           >
-            复制为我的
+            {t("skills.copyMine")}
           </Button>
         </div>
       ) : (
         <div className="border-line-1 flex flex-col rounded-[12px] border">
           <div className="flex items-center gap-3 px-3.5 py-3">
-            <ActionText title="导出" description="打包成 .zip，可在其它工具里导入" />
+            <ActionText title={t("skills.export")} description={t("skills.exportHint")} />
             <Button
               size="sm"
               variant="secondary"
@@ -291,11 +294,14 @@ function SettingsPane({
               className="shrink-0"
               onClick={() => void exportZip()}
             >
-              导出
+              {t("skills.export")}
             </Button>
           </div>
           <div className="flex items-center gap-3 px-3.5 py-3">
-            <ActionText title="删除" description={`整个文件夹移到${trashName}，可以恢复`} />
+            <ActionText
+              title={t("skills.delete")}
+              description={t("skills.removeHint", { trash: trashName })}
+            />
             <Button
               size="sm"
               variant="danger-soft"
@@ -303,7 +309,7 @@ function SettingsPane({
               className="shrink-0"
               onClick={() => onDelete(item)}
             >
-              删除
+              {t("skills.delete")}
             </Button>
           </div>
         </div>
@@ -313,13 +319,14 @@ function SettingsPane({
 }
 
 function UsagePane({ item }: { item: SkillItem }) {
+  const { t, locale } = useSkillsI18n();
   const usage = item.usage;
   if (!usage?.count) {
     return (
       <p className="text-tau-meta text-ink-3 m-0 py-10 text-center">
-        还没有对话加载过这个 Skill
+        {t("skills.usage.empty")}
         <br />
-        <span className="text-tau-sm">AI 自动读取或你用 $ 点名后，会在这里留下记录</span>
+        <span className="text-tau-sm">{t("skills.usage.emptyHint")}</span>
       </p>
     );
   }
@@ -338,14 +345,14 @@ function UsagePane({ item }: { item: SkillItem }) {
       <div className="grid grid-cols-3 gap-2.5">
         <div className="border-line-1 rounded-[12px] border px-3.5 py-2.5">
           <div className="text-[20px] font-semibold tabular-nums">{usage.count}</div>
-          <div className="text-tau-sm text-ink-3">累计加载</div>
+          <div className="text-tau-sm text-ink-3">{t("skills.usage.total")}</div>
         </div>
         <div className="border-line-1 rounded-[12px] border px-3.5 py-2.5">
           <div className="text-[20px] font-semibold tabular-nums">{autoRatio}%</div>
-          <div className="text-tau-sm text-ink-3">AI 自动加载占比</div>
+          <div className="text-tau-sm text-ink-3">{t("skills.usage.ratio")}</div>
         </div>
         <div className="border-line-1 rounded-[12px] border px-3.5 py-2.5">
-          <div className="text-tau-sm text-ink-3">近 8 周</div>
+          <div className="text-tau-sm text-ink-3">{t("skills.usage.weeks")}</div>
           <div className="mt-1.5 flex h-9 items-end gap-[3px]">
             {weeks.map((n, i) => (
               <i
@@ -360,7 +367,9 @@ function UsagePane({ item }: { item: SkillItem }) {
           </div>
         </div>
       </div>
-      <div className="text-tau-sm text-ink-3">最近 {usage.recent.length} 次加载</div>
+      <div className="text-tau-sm text-ink-3">
+        {t("skills.usage.recent", { count: usage.recent.length })}
+      </div>
       <ul className="m-0 list-none p-0">
         {usage.recent.map((record, index) => (
           <li key={index} className="text-tau-meta flex items-center gap-3 px-1 py-2">
@@ -368,15 +377,21 @@ function UsagePane({ item }: { item: SkillItem }) {
               {record.conversationKey ?? "—"}
             </span>
             <span className="border-line-1 text-tau-tiny text-ink-2 rounded-full border px-2 leading-[18px]">
-              {record.how === "auto" ? "自动加载" : "$ 点名"}
+              {record.how === "auto" ? t("skills.usage.auto") : t("skills.usage.mention")}
             </span>
             <span className="text-ink-3 w-24 text-right tabular-nums">
-              {dayjs(record.at).format("MM-DD HH:mm")}
+              {new Intl.DateTimeFormat(locale, {
+                month: "2-digit",
+                day: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+                hourCycle: "h23",
+              }).format(record.at)}
             </span>
           </li>
         ))}
       </ul>
-      <p className="text-tau-sm text-ink-3 m-0">记录只统计本机，最多保留最近 30 次。</p>
+      <p className="text-tau-sm text-ink-3 m-0">{t("skills.usage.local")}</p>
     </div>
   );
 }
@@ -390,6 +405,7 @@ export function SkillDrawer({
   onClose: () => void;
   onDelete: (item: SkillItem) => void;
 }) {
+  const { t } = useSkillsI18n();
   const { revealInFileManagerLabel } = usePlatformLabels();
   const { navigator } = usePage();
   const [tab, setTab] = useState<DrawerTab>("overview");
@@ -407,7 +423,7 @@ export function SkillDrawer({
     <Drawer
       open={item !== null}
       onOpenChange={open => !open && onClose()}
-      label={current ? `${current.skill.name} 详情` : "Skill 详情"}
+      label={current ? t("skills.detailName", { name: current.skill.name }) : t("skills.detail")}
       icon={current && <SkillIcon skill={current.skill} size="lg" />}
       title={
         current && (
@@ -428,7 +444,10 @@ export function SkillDrawer({
         current && (
           <>
             <ModeBadge mode={current.mode} />
-            {current.skill.fileCount ?? 1} 个文件 · 用过 {current.usage?.count ?? 0} 次
+            {t("skills.detailMeta", {
+              files: current.skill.fileCount ?? 1,
+              uses: current.usage?.count ?? 0,
+            })}
           </>
         )
       }
@@ -442,18 +461,18 @@ export function SkillDrawer({
                 icon={Copy}
                 onClick={() => void copySkillToMine(current.skill)}
               >
-                复制为我的
+                {t("skills.copyMine")}
               </Button>
             ) : (
               <Button size="sm" variant="secondary" icon={Pencil} onClick={edit}>
-                编辑
+                {t("skills.edit")}
               </Button>
             )}
             {current.skill.readmeContent === undefined && (
               <Menu
                 align="end"
                 trigger={
-                  <IconButton aria-label="更多">
+                  <IconButton aria-label={t("skills.more")}>
                     <MoreHorizontal className="size-4" strokeWidth={1.75} />
                   </IconButton>
                 }
@@ -468,16 +487,16 @@ export function SkillDrawer({
                   <>
                     <Menu.Separator />
                     <Menu.Item icon={<Trash2 />} danger onSelect={() => onDelete(current)}>
-                      删除
+                      {t("skills.delete")}
                     </Menu.Item>
                   </>
                 )}
               </Menu>
             )}
-            <Tooltip content={current.enabled ? "停用" : "启用"}>
+            <Tooltip content={t(current.enabled ? "skills.disable" : "skills.enable")}>
               <span>
                 <Switch
-                  aria-label={current.enabled ? "停用 Skill" : "启用 Skill"}
+                  aria-label={current.enabled ? t("skills.disableSkill") : t("skills.enableSkill")}
                   checked={current.enabled}
                   onCheckedChange={v =>
                     useSkillStore.getState().setEnabled(current.skill.folderName, v)
@@ -491,14 +510,14 @@ export function SkillDrawer({
       }
       toolbar={
         <Segmented
-          label="详情分区"
+          label={t("skills.sections")}
           size="sm"
           value={tab}
           onValueChange={(v: DrawerTab) => setTab(v)}
         >
-          <Segmented.Item value="overview" label="概览" />
-          <Segmented.Item value="settings" label="设置" />
-          <Segmented.Item value="usage" label="使用记录" />
+          <Segmented.Item value="overview" label={t("skills.overview")} />
+          <Segmented.Item value="settings" label={t("skills.settings")} />
+          <Segmented.Item value="usage" label={t("skills.usage")} />
         </Segmented>
       }
     >

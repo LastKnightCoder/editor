@@ -1,4 +1,5 @@
-import { usePlatformLabels } from "@/platform/i18n";
+import { useSkillsI18n, skillSourceLabel, skillsTranslator } from "../i18n";
+import { getPlatformLabels, usePlatformLabels } from "@/platform/i18n";
 /**
  * Skill 页：卡片库（我的 / 内置 / 关联目录）+ 右侧抽屉 + 添加弹窗；
  * 「编辑」推入整页编辑器（skill-edit）。卡片开关即时生效（停用 ⇄ 恢复原调用方式）。
@@ -9,7 +10,7 @@ import { FolderSymlink, Plus, Search, Sparkles } from "lucide-react";
 import { Button, ConfirmDialog, FilterPill, Input, Switch, cn, toast } from "@tau/ui";
 import { FadeScroll } from "@tau/ui";
 import useSkillStore from "@/stores/useSkillStore";
-import { useSkillItems, SOURCE_LABEL, type SkillItem } from "../useSkills";
+import { useSkillItems, type SkillItem } from "../useSkills";
 import { ModeBadge, BudgetBar, SkillIcon, SourceTag, WarningText } from "../components/SkillVisual";
 import { SkillDrawer } from "./SkillDrawer";
 import { AddSkillDialog, type AddSkillTab } from "./AddSkillDialog";
@@ -31,6 +32,7 @@ function SkillCard({
   active: boolean;
   onOpen: () => void;
 }) {
+  const { t } = useSkillsI18n();
   const { skill } = item;
   const uses = item.usage?.count ?? 0;
   return (
@@ -56,7 +58,9 @@ function SkillCard({
         <span onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
           <Switch
             size="sm"
-            aria-label={item.enabled ? `停用 ${skill.name}` : `启用 ${skill.name}`}
+            aria-label={t(item.enabled ? "skills.disableName" : "skills.enableName", {
+              name: skill.name,
+            })}
             checked={item.enabled}
             onCheckedChange={v => useSkillStore.getState().setEnabled(skill.folderName, v)}
           />
@@ -69,7 +73,7 @@ function SkillCard({
           !item.enabled && "opacity-60"
         )}
       >
-        {skill.description || "没有描述"}
+        {skill.description || t("skills.noDescription")}
       </p>
       <div className="text-tau-sm text-ink-3 mt-auto flex min-w-0 items-center gap-2">
         <ModeBadge mode={item.mode} />
@@ -77,7 +81,7 @@ function SkillCard({
           <WarningText item={item} />
         ) : (
           <span className="ml-auto shrink-0 tabular-nums">
-            {uses ? `用过 ${uses} 次` : "未使用"}
+            {uses ? t("skills.uses", { count: uses }) : t("skills.unused")}
           </span>
         )}
       </div>
@@ -118,6 +122,7 @@ const FILTERS: Record<Filter, (item: SkillItem) => boolean> = {
 };
 
 export function SkillsView() {
+  const { t } = useSkillsI18n();
   const { trashName } = usePlatformLabels();
   const { items, budget, loaded } = useSkillItems();
   const [query, setQuery] = useState("");
@@ -152,7 +157,7 @@ export function SkillsView() {
               Skill
             </h1>
             <span className="text-tau-meta text-ink-2 w-0 flex-1 truncate whitespace-nowrap tabular-nums">
-              已启用 <b className="text-ink-1 font-semibold">{counts.enabled}</b> / {counts.all}
+              {t("skills.enabledSummary", { enabled: counts.enabled, total: counts.all })}
             </span>
             <Input
               size="sm"
@@ -166,7 +171,7 @@ export function SkillsView() {
                   setQuery("");
                 }
               }}
-              placeholder="搜索 Skill"
+              placeholder={t("skills.search")}
               className="w-0"
               wrapperClassName="w-auto max-w-[240px] flex-[0_1_240px]"
             />
@@ -177,7 +182,7 @@ export function SkillsView() {
               className="shrink-0 whitespace-nowrap"
               onClick={() => setAdding("link")}
             >
-              关联目录
+              {t("skills.linkFolders")}
             </Button>
             <Button
               variant="primary"
@@ -186,35 +191,31 @@ export function SkillsView() {
               className="shrink-0 whitespace-nowrap"
               onClick={() => setAdding("new")}
             >
-              添加 Skill
+              {t("skills.add")}
             </Button>
           </div>
 
-          <p className="text-tau-meta text-ink-2 mt-1 px-0.5">
-            Skill 是一份说明文档，教 AI
-            按你的方式完成特定任务。「自动」只把描述放进对话、需要时才读全文；「仅手动」只在输入框用
-            <kbd className="font-tau-mono text-ink-1 mx-0.5">$</kbd>点名时生效。
-          </p>
+          <p className="text-tau-meta text-ink-2 mt-1 px-0.5">{t("skills.introduction")}</p>
           <div className="mt-3 flex flex-wrap items-center gap-2 px-0.5 pb-3">
             <FilterPill
               variant="raised"
               active={filter === "all"}
               onClick={() => setFilter("all")}
-              label="全部"
+              label={t("skills.filter.all")}
               count={counts.all}
             />
             <FilterPill
               variant="raised"
               active={filter === "enabled"}
               onClick={() => setFilter("enabled")}
-              label="已启用"
+              label={t("skills.filter.enabled")}
               count={counts.enabled}
             />
             <FilterPill
               variant="raised"
               active={filter === "manual"}
               onClick={() => setFilter("manual")}
-              label="仅手动"
+              label={t("skills.mode.manual")}
               count={counts.manual}
             />
             {counts.issues > 0 && (
@@ -222,7 +223,7 @@ export function SkillsView() {
                 variant="raised"
                 active={filter === "issues"}
                 onClick={() => setFilter("issues")}
-                label="需要处理"
+                label={t("skills.filter.issues")}
                 count={counts.issues}
                 className={filter === "issues" ? undefined : "text-warn"}
               />
@@ -233,7 +234,10 @@ export function SkillsView() {
 
         <FadeScroll className="mb-4 min-h-0 flex-1 pt-3 pr-[26px] pb-2 pl-8">
           {(mine.length > 0 || (!q && filter === "all")) && (
-            <Section title={SOURCE_LABEL.mine} hint={mine.length ? String(mine.length) : undefined}>
+            <Section
+              title={skillSourceLabel("mine", t)}
+              hint={mine.length ? String(mine.length) : undefined}
+            >
               {mine.map(item => (
                 <SkillCard
                   key={item.key}
@@ -249,11 +253,9 @@ export function SkillsView() {
                   className="border-line-1 text-ink-3 hover:bg-hover hover:text-ink-1 flex min-h-[132px] flex-col items-center justify-center gap-1.5 rounded-[var(--tau-radius-lg)] border border-dashed transition-[background,color] duration-150"
                 >
                   <Plus className="size-5" strokeWidth={1.5} />
-                  <span className="text-tau-meta">新建 Skill</span>
+                  <span className="text-tau-meta">{t("skills.create")}</span>
                   {mine.length === 0 && (
-                    <span className="text-tau-sm text-ink-3">
-                      从模板开始、让 AI 起草，或导入现成的
-                    </span>
+                    <span className="text-tau-sm text-ink-3">{t("skills.createHint")}</span>
                   )}
                 </button>
               )}
@@ -261,7 +263,7 @@ export function SkillsView() {
           )}
 
           {builtin.length > 0 && (
-            <Section title={SOURCE_LABEL.builtin} hint="随应用更新，可停用、可复制后修改">
+            <Section title={skillSourceLabel("builtin", t)} hint={t("skills.builtinHint")}>
               {builtin.map(item => (
                 <SkillCard
                   key={item.key}
@@ -274,7 +276,7 @@ export function SkillsView() {
           )}
 
           {bySource("plugin").length > 0 && (
-            <Section title={SOURCE_LABEL.plugin} hint="随插件启停，只读">
+            <Section title={skillSourceLabel("plugin", t)} hint={t("skills.pluginHint")}>
               {bySource("plugin").map(item => (
                 <SkillCard
                   key={item.key}
@@ -287,7 +289,7 @@ export function SkillsView() {
           )}
 
           {bySource("package").length > 0 && (
-            <Section title={SOURCE_LABEL.package} hint="从插件中心安装，只读">
+            <Section title={skillSourceLabel("package", t)} hint={t("skills.packageHint")}>
               {bySource("package").map(item => (
                 <SkillCard
                   key={item.key}
@@ -300,7 +302,7 @@ export function SkillsView() {
           )}
 
           {linked.length > 0 && (
-            <Section title={SOURCE_LABEL.linked} hint="其它 AI 工具的 skills 目录 · 只读">
+            <Section title={skillSourceLabel("linked", t)} hint={t("skills.linkedHint")}>
               {linked.map(item => (
                 <SkillCard
                   key={item.key}
@@ -317,7 +319,7 @@ export function SkillsView() {
               <span className="bg-accent-soft text-accent-text mb-1.5 grid size-[52px] place-items-center rounded-[16px]">
                 <Sparkles className="size-6" strokeWidth={1.5} />
               </span>
-              <p className="text-ink-1 text-[15px] font-semibold">没有符合条件的 Skill</p>
+              <p className="text-ink-1 text-[15px] font-semibold">{t("skills.noMatch")}</p>
               <Button
                 variant="secondary"
                 size="sm"
@@ -327,7 +329,7 @@ export function SkillsView() {
                   setFilter("all");
                 }}
               >
-                清除筛选
+                {t("skills.clearFilters")}
               </Button>
             </div>
           )}
@@ -341,17 +343,19 @@ export function SkillsView() {
       <ConfirmDialog
         open={deleting !== null}
         onOpenChange={open => !open && setDeleting(null)}
-        title="删除 Skill"
+        title={t("skills.remove.title")}
         context={deleting?.skill.name}
-        description={`整个 Skill 文件夹会移到${trashName}，可以从那里恢复。`}
-        confirmText="删除"
+        description={t("skills.remove.description", { trash: trashName })}
+        confirmText={t("skills.delete")}
         danger
         onConfirm={async () => {
           if (!deleting) return;
           try {
             await useSkillStore.getState().deleteSkill(deleting.skill);
             if (openKey === deleting.key) setOpenKey(null);
-            toast.success(`已移到${trashName}`);
+            const getMessage = () =>
+              skillsTranslator.t("skills.moved", { trash: getPlatformLabels().trashName });
+            toast.success(getMessage(), { getMessage });
           } catch (error) {
             toast.error((error as Error).message);
           }

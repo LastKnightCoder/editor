@@ -1,3 +1,5 @@
+import { skillsFeedback, skillsTranslator } from "./i18n";
+import type { TranslationValues } from "@tau/i18n";
 /**
  * Skill 页的跨视图动作。
  */
@@ -7,6 +9,16 @@ import { commitSkillImport, inspectSkillImport } from "@/commands/skill";
 import useSkillStore from "@/stores/useSkillStore";
 import { splitSkillDocument } from "@/utils/skill-frontmatter";
 import type { Skill } from "@/types";
+
+class SkillCopyError extends Error {
+  constructor(
+    readonly code: "missing-readme" | "conflict",
+    message: string,
+    readonly values: TranslationValues = {}
+  ) {
+    super(message);
+  }
+}
 
 /**
  * 只读 Skill 复制为「我的」：关联目录整目录复制（含脚本与参考资料）；内置按正文新建。
@@ -21,20 +33,34 @@ export async function copySkillToMine(skill: Skill): Promise<void> {
     } else {
       const inspection = await inspectSkillImport({ type: "folder", path: skill.path });
       const [candidate] = inspection.candidates;
-      if (!candidate) throw new Error("没有找到 SKILL.md");
+      if (!candidate) throw new SkillCopyError("missing-readme", "没有找到 SKILL.md");
       if (candidate.exists) {
-        throw new Error(`「我的」里已有同名 Skill「${candidate.folderName}」`);
+        throw new SkillCopyError(
+          "conflict",
+          `「我的」里已有同名 Skill「${candidate.folderName}」`,
+          { folder: candidate.folderName }
+        );
       }
       await commitSkillImport(inspection.token, [{ relPath: candidate.relPath }]);
       await store.loadSkills();
     }
     if (skill.readmeContent !== undefined) {
       store.setEnabled(skill.folderName, false);
-      toast.success("已复制为「我的」Skill，只读原件已停用");
+      toast.success(...skillsFeedback("skills.copy.doneDisabled"));
     } else {
-      toast.success("已复制为「我的」Skill");
+      toast.success(...skillsFeedback("skills.copy.done"));
     }
   } catch (error) {
-    toast.error(`复制失败：${(error as Error).message}`);
+    const reason = () =>
+      error instanceof SkillCopyError
+        ? skillsTranslator.t(
+            error.code === "missing-readme" ? "skills.copy.missingReadme" : "skills.copy.conflict",
+            error.values
+          )
+        : error instanceof Error
+          ? error.message
+          : String(error);
+    const message = () => skillsTranslator.t("skills.copy.failed", { reason: reason() });
+    toast.error(message(), { getMessage: message });
   }
 }

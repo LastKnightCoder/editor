@@ -1,3 +1,5 @@
+import { desktopLocaleSource } from "@/app/i18n/runtime";
+import { skillWarning, skillsTranslator } from "../i18n";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/commands/skill", () => ({
@@ -75,4 +77,24 @@ describe("Skill 条目与交给 agent 的过滤", () => {
     expect(items[0].warning?.level).toBe("danger");
     expect(items[1].warning?.level).toBe("warn");
   });
+});
+
+it("警告换语只投影显示，agent条目、tokens与原始metadata不随语言改变", () => {
+  const original = desktopLocaleSource.getSnapshot();
+  desktopLocaleSource.setLocale("zh-CN");
+  const list = [skill("long", "mine", { name: "用户名字", description: "很".repeat(200) })];
+  const items = toSkillItems(list, {}, {});
+  const initialItems = JSON.stringify(items);
+  const initialAgents = resolveAgentSkills(list);
+  const before = skillWarning(items[0], skillsTranslator.t);
+  try {
+    desktopLocaleSource.setLocale("en-US");
+    expect(skillWarning(items[0], skillsTranslator.t)).not.toBe(before);
+    expect(JSON.stringify(items)).toBe(initialItems);
+    expect(toSkillItems(list, {}, {})).toEqual(items);
+    expect(resolveAgentSkills(list)).toEqual(initialAgents);
+    expect(items[0].skill).toBe(list[0]);
+  } finally {
+    desktopLocaleSource.setLocale(original);
+  }
 });

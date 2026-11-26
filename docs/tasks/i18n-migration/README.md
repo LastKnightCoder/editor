@@ -312,6 +312,8 @@ P5手机录音卡：21路径完成；原2文件8例增强后3文件11例全绿�
 
 P5共用视频转录：12路径完成；baseline4文件14至final5文件18全绿，desktop type、三语参数/纯binding实际标记、范围静态格式与协议AST通过。下载/ASR options与ja语言、原raw progress、llmConfirm同对象/DOM/确认目标、optionsRequest、Pi流及保存等待均不因locale重开；原消息/字幕/词时间戳与回调参数不变。4条host自产服务进度尚需稳定DTO闭环，未误记迁完，观看界面另批。
 
+P5 Skills目录/详情：11路径加Root平台getter1完成；3文件10例、desktop type、96key三语复数参数与范围检查通过。真实Readonly Editor onInit/DOM/实例、抽屉分区/IPC、agent metadata/tokens跨语言保持；原README/YAML/default name/AI内容不译，SOURCE_LABEL与warning.text消费清零退出。S1删除反馈额外改为getMessage读取当前垃圾桶名称，同一push/任务不变；MODE_OPTIONS尚有S2旧消费者，按分批冻结边界留到S2消费清零后删。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。
