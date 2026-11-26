@@ -1,3 +1,4 @@
+import { ServerConfigError, type ServerConfigIssue } from "./serverConfigIssues";
 /**
  * MCP 服务器配置的纯函数层：表单草稿 ⇄ 存储结构、`mcpServers` JSON 导入 / 导出。
  *
@@ -36,7 +37,7 @@ export interface ServerPayload {
 export interface ImportEntry {
   draft: ServerDraft;
   /** 无法导入的原因（有值时该项不导入） */
-  error?: string;
+  error?: ServerConfigIssue;
 }
 
 export const emptyDraft = (): ServerDraft => ({
@@ -83,15 +84,15 @@ export function draftFromServer(server: CustomMCPServer): ServerDraft {
 }
 
 /** 返回第一条校验错误；null = 可以保存 */
-export function validateDraft(draft: ServerDraft): string | null {
-  if (!draft.name.trim()) return "请填写名称";
+export function validateDraft(draft: ServerDraft): ServerConfigIssue | null {
+  if (!draft.name.trim()) return { code: "nameRequired" };
   if (draft.type === "stdio") {
-    if (!draft.command.trim()) return "请填写启动命令";
+    if (!draft.command.trim()) return { code: "commandRequired" };
     return null;
   }
   const url = draft.url.trim();
-  if (!url) return "请填写服务器 URL";
-  if (!/^https?:\/\//i.test(url)) return "URL 需以 http:// 或 https:// 开头";
+  if (!url) return { code: "urlRequired" };
+  if (!/^https?:\/\//i.test(url)) return { code: "urlProtocol" };
   return null;
 }
 
@@ -154,10 +155,10 @@ const HTTP_TYPES = new Set(["http", "streamable-http", "streamable_http", "strea
 
 function entryFromConfig(name: string, config: unknown): ImportEntry {
   const draft = { ...emptyDraft(), name };
-  if (!isObject(config)) return { draft, error: "配置不是对象" };
+  if (!isObject(config)) return { draft, error: { code: "notObject" } };
   const type = typeof config.type === "string" ? config.type : undefined;
 
-  if (type === "sse") return { draft, error: "暂不支持 SSE 传输" };
+  if (type === "sse") return { draft, error: { code: "sseUnsupported" } };
 
   if (typeof config.url === "string" || (type && HTTP_TYPES.has(type))) {
     draft.type = "streamable-http";
@@ -170,22 +171,27 @@ function entryFromConfig(name: string, config: unknown): ImportEntry {
     draft.env = toPairs(stringRecord(config.env));
     draft.cwd = typeof config.cwd === "string" ? config.cwd : "";
   } else {
-    return { draft, error: type ? `不支持的传输类型「${type}」` : "缺少 command 或 url" };
+    return {
+      draft,
+      error: type
+        ? { code: "unsupportedTransport", transport: type }
+        : { code: "missingTransport" },
+    };
   }
   if (typeof config.description === "string") draft.description = config.description;
   const invalid = validateDraft(draft);
   return invalid ? { draft, error: invalid } : { draft };
 }
 
-/** 解析粘贴的 JSON；格式错误时抛出可直接展示的 Error */
+/** 解析粘贴的 JSON；格式错误时抛出带稳定 issue 与原诊断的 Error */
 export function parseServersJson(text: string): ImportEntry[] {
   let data: unknown;
   try {
     data = JSON.parse(text);
   } catch {
-    throw new Error("不是合法的 JSON");
+    throw new ServerConfigError({ code: "invalidJson" }, "不是合法的 JSON");
   }
-  if (!isObject(data)) throw new Error("JSON 顶层需要是对象");
+  if (!isObject(data)) throw new ServerConfigError({ code: "invalidRoot" }, "JSON 顶层需要是对象");
 
   const map = isObject(data.mcpServers)
     ? data.mcpServers
@@ -196,7 +202,8 @@ export function parseServersJson(text: string): ImportEntry[] {
         : data;
 
   const entries = Object.entries(map).map(([name, config]) => entryFromConfig(name, config));
-  if (entries.length === 0) throw new Error("没有找到服务器配置");
+  if (entries.length === 0)
+    throw new ServerConfigError({ code: "emptyConfig" }, "没有找到服务器配置");
   return entries;
 }
 

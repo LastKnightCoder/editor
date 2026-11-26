@@ -1,3 +1,5 @@
+import { useMcpFormsI18n } from "../forms.i18n";
+import { configIssueText } from "../serverConfigDisplay";
 /**
  * 服务器详情抽屉（通用 Drawer，md 560px）：头部身份 + 启停；自定义服务器分「工具 / 配置 / 日志」，
  * 内置只有工具。工具开关与启停即时生效；配置改动需「保存并重连」。
@@ -74,6 +76,7 @@ function ToolsPane({
   onShowLogs: () => void;
   onOpenSettings: () => void;
 }) {
+  const { t, locale } = useMcpFormsI18n();
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
   const tools = q
@@ -94,7 +97,7 @@ function ToolsPane({
           item.server && (
             <div className="flex shrink-0 gap-1">
               <Button size="sm" variant="ghost" onClick={onShowLogs}>
-                查看日志
+                {t("tools.logs")}
               </Button>
               <Button
                 size="sm"
@@ -102,13 +105,15 @@ function ToolsPane({
                 icon={RefreshCw}
                 onClick={() => void reconnectServer(item.id)}
               >
-                重试
+                {t("action.retry")}
               </Button>
             </div>
           )
         }
       >
-        <b className="font-semibold">{item.server ? "连接失败" : "加载失败"}</b>
+        <b className="font-semibold">
+          {t(item.server ? "tools.connectFailed" : "tools.loadFailed")}
+        </b>
         {item.error && (
           <div className="text-ink-1 font-tau-mono mt-0.5 text-[12px]">{item.error}</div>
         )}
@@ -119,7 +124,7 @@ function ToolsPane({
         action={
           item.settingsSection && (
             <Button size="sm" variant="secondary" onClick={onOpenSettings}>
-              前往设置
+              {t("tools.settings")}
             </Button>
           )
         }
@@ -134,12 +139,12 @@ function ToolsPane({
         {banner}
         <p className="text-tau-meta text-ink-3 px-1 py-10 text-center">
           {item.status === "connecting"
-            ? "正在连接，连接成功后会列出服务器提供的工具"
+            ? t("tools.connecting")
             : item.status === "off"
-              ? "启用后连接服务器，这里会列出它提供的工具"
+              ? t("tools.off")
               : item.status === "error"
-                ? "连接成功后会在这里列出服务器提供的工具"
-                : "服务器没有提供工具"}
+                ? t("tools.wait")
+                : t("tools.empty")}
         </p>
       </>
     );
@@ -155,21 +160,27 @@ function ToolsPane({
           clearable
           value={query}
           onChange={e => setQuery(e.target.value)}
-          placeholder="筛选工具"
+          placeholder={t("tools.filter")}
           wrapperClassName="w-[220px]"
         />
         <span className="flex-1" />
         <span className="text-tau-sm text-ink-3 tabular-nums">
           {locked
-            ? `${item.tools.length} 个工具 · 常开`
-            : `${enabledCount} / ${item.tools.length} 已启用`}
+            ? t("tools.locked", {
+                count: item.tools.length,
+                number: item.tools.length.toLocaleString(locale),
+              })
+            : t("tools.enabled", {
+                enabled: enabledCount.toLocaleString(locale),
+                number: item.tools.length.toLocaleString(locale),
+              })}
         </span>
         {!locked && (
           <Menu
             align="end"
             trigger={
               <Button size="sm" variant="ghost">
-                批量
+                {t("tools.batch")}
               </Button>
             }
           >
@@ -182,7 +193,7 @@ function ToolsPane({
                 )
               }
             >
-              全部启用
+              {t("tools.enableAll")}
             </Menu.Item>
             <Menu.Item
               onSelect={() =>
@@ -193,7 +204,7 @@ function ToolsPane({
                 )
               }
             >
-              全部停用
+              {t("tools.disableAll")}
             </Menu.Item>
           </Menu>
         )}
@@ -230,7 +241,10 @@ function ToolsPane({
               </div>
               <Switch
                 size="sm"
-                aria-label={locked ? `${label}（常开）` : `${enabled ? "停用" : "启用"} ${label}`}
+                aria-label={t(
+                  locked ? "toggle.locked" : enabled ? "toggle.disable" : "toggle.enable",
+                  { name: label }
+                )}
                 checked={enabled}
                 disabled={locked}
                 onCheckedChange={v => setToolsEnabled(item, [tool.name], v)}
@@ -240,7 +254,7 @@ function ToolsPane({
           );
         })}
         {tools.length === 0 && (
-          <li className="text-tau-meta text-ink-3 py-8 text-center">没有匹配的工具</li>
+          <li className="text-tau-meta text-ink-3 py-8 text-center">{t("tools.noMatch")}</li>
         )}
       </ul>
     </>
@@ -254,6 +268,7 @@ function ConfigPane({
   server: CustomMCPServer;
   pluginProvided?: boolean;
 }) {
+  const { t } = useMcpFormsI18n();
   const initial = useMemo(() => draftFromServer(server), [server]);
   const [draft, setDraft] = useState<ServerDraft>(initial);
   const [saving, setSaving] = useState(false);
@@ -267,7 +282,7 @@ function ConfigPane({
     setSaving(true);
     try {
       await saveServer(draft, server.id);
-      toast.success(server.enabled ? "已保存，正在重新连接" : "已保存");
+      toast.success(t(server.enabled ? "config.savedReconnect" : "config.saved"));
     } finally {
       setSaving(false);
     }
@@ -283,9 +298,11 @@ function ConfigPane({
         identityReadOnly={pluginProvided}
       />
       <div className="mt-5 flex items-center justify-end gap-2">
-        {dirty && invalid && <span className="text-tau-sm text-danger mr-auto">{invalid}</span>}
+        {dirty && invalid && (
+          <span className="text-tau-sm text-danger mr-auto">{configIssueText(invalid, t)}</span>
+        )}
         <Button variant="ghost" disabled={!dirty} onClick={() => setDraft(initial)}>
-          撤销
+          {t("config.undo")}
         </Button>
         <Button
           variant="primary"
@@ -293,7 +310,7 @@ function ConfigPane({
           loading={saving}
           onClick={() => void save()}
         >
-          {server.enabled ? "保存并重连" : "保存"}
+          {t(server.enabled ? "config.saveReconnect" : "config.save")}
         </Button>
       </div>
     </>
@@ -308,9 +325,11 @@ const LOG_TONE: Record<McpLogEntry["level"], string> = {
   stderr: "text-ink-2",
 };
 
-const formatTime = (time: number) => new Date(time).toLocaleTimeString("zh-CN", { hour12: false });
+const formatTime = (time: number, locale: string) =>
+  new Date(time).toLocaleTimeString(locale, { hour12: false });
 
 function LogsPane({ serverId }: { serverId: string }) {
+  const { t, locale } = useMcpFormsI18n();
   const { lines, clear } = useMcpLogs(serverId);
   const endRef = useRef<HTMLDivElement>(null);
   // scrollIntoView 在新版 Chromium 返回 Promise，不能直接作为 effect 返回值
@@ -320,16 +339,18 @@ function LogsPane({ serverId }: { serverId: string }) {
 
   const copy = async () => {
     const text = lines
-      .map(l => `${formatTime(l.time)} ${l.level === "stderr" ? "[stderr] " : ""}${l.text}`)
+      .map(
+        l => `${formatTime(l.time, "zh-CN")} ${l.level === "stderr" ? "[stderr] " : ""}${l.text}`
+      )
       .join("\n");
     await navigator.clipboard.writeText(text);
-    toast.success("已复制日志");
+    toast.success(t("logs.copied"));
   };
 
   return (
     <>
       <div className="mb-2 flex items-center gap-1">
-        <span className="text-tau-sm text-ink-3">最近 200 行 · 仅本次运行</span>
+        <span className="text-tau-sm text-ink-3">{t("logs.hint")}</span>
         <span className="flex-1" />
         <Button
           size="sm"
@@ -338,7 +359,7 @@ function LogsPane({ serverId }: { serverId: string }) {
           disabled={lines.length === 0}
           onClick={() => void copy()}
         >
-          复制
+          {t("action.copy")}{" "}
         </Button>
         <Button
           size="sm"
@@ -347,16 +368,18 @@ function LogsPane({ serverId }: { serverId: string }) {
           disabled={lines.length === 0}
           onClick={() => void clear()}
         >
-          清空
+          {t("logs.clear")}
         </Button>
       </div>
       {lines.length === 0 ? (
-        <p className="text-tau-meta text-ink-3 py-10 text-center">暂无日志</p>
+        <p className="text-tau-meta text-ink-3 py-10 text-center">{t("logs.empty")}</p>
       ) : (
         <div className="bg-hover font-tau-mono rounded-[12px] px-3.5 py-3 text-[11.5px] leading-[1.75]">
           {lines.map((line, index) => (
             <div key={index} className="flex gap-2.5">
-              <span className="text-ink-3 shrink-0 tabular-nums">{formatTime(line.time)}</span>
+              <span className="text-ink-3 shrink-0 tabular-nums">
+                {formatTime(line.time, locale)}
+              </span>
               <span className={cn("min-w-0 whitespace-pre-wrap break-all", LOG_TONE[line.level])}>
                 {line.level === "stderr" && <span className="text-ink-3">[stderr] </span>}
                 {line.text}
@@ -379,6 +402,7 @@ export function ServerDrawer({
   onClose: () => void;
   onDelete: (item: McpServerItem) => void;
 }) {
+  const { t } = useMcpFormsI18n();
   const [tab, setTab] = useState<DrawerTab>("tools");
   const current = useRetainedValue(item);
   const currentId = current?.id;
@@ -389,14 +413,14 @@ export function ServerDrawer({
   const copyJson = async () => {
     if (!current?.server) return;
     await navigator.clipboard.writeText(serversToJson([current.server]));
-    toast.success("已复制为 mcpServers JSON");
+    toast.success(t("drawer.copied"));
   };
 
   return (
     <Drawer
       open={item !== null}
       onOpenChange={open => !open && onClose()}
-      label={current ? `${current.name} 详情` : "服务器详情"}
+      label={current ? t("drawer.named", { name: current.name }) : t("drawer.title")}
       icon={current && <ServerIcon item={current} size="lg" />}
       title={
         current && (
@@ -404,12 +428,12 @@ export function ServerDrawer({
             <span className="truncate">{current.name}</span>
             <span className="text-tau-micro text-ink-3 border-line-1 shrink-0 rounded-[5px] border px-1.5 font-normal">
               {current.pluginName
-                ? `来自 ${current.pluginName}`
+                ? t("drawer.plugin", { name: current.pluginName })
                 : custom
                   ? current.server?.transport.type === "stdio"
                     ? "stdio"
                     : "http"
-                  : "内置"}
+                  : t("drawer.builtin")}
             </span>
           </>
         )
@@ -432,9 +456,9 @@ export function ServerDrawer({
           <>
             {remote && (
               <>
-                <Tooltip content="重新连接">
+                <Tooltip content={t("drawer.reconnect")}>
                   <IconButton
-                    aria-label="重新连接"
+                    aria-label={t("drawer.reconnect")}
                     disabled={!current.enabled}
                     onClick={() => void reconnectServer(current.id)}
                   >
@@ -445,17 +469,17 @@ export function ServerDrawer({
                   <Menu
                     align="end"
                     trigger={
-                      <IconButton aria-label="更多">
+                      <IconButton aria-label={t("action.more")}>
                         <MoreHorizontal className="size-4" strokeWidth={1.75} />
                       </IconButton>
                     }
                   >
                     <Menu.Item icon={<Copy />} onSelect={() => void copyJson()}>
-                      复制为 JSON
+                      {t("drawer.copy")}
                     </Menu.Item>
                     <Menu.Separator />
                     <Menu.Item icon={<Trash2 />} danger onSelect={() => onDelete(current)}>
-                      删除服务器
+                      {t("drawer.delete")}
                     </Menu.Item>
                   </Menu>
                 )}
@@ -464,10 +488,10 @@ export function ServerDrawer({
             <Switch
               aria-label={
                 current.locked
-                  ? `${current.name}（常开）`
+                  ? t("toggle.locked", { name: current.name })
                   : current.enabled
-                    ? "停用服务器"
-                    : "启用服务器"
+                    ? t("drawer.disable")
+                    : t("drawer.enable")
               }
               checked={current.enabled}
               disabled={current.locked || current.status === "unavailable"}
@@ -480,14 +504,14 @@ export function ServerDrawer({
       toolbar={
         remote && (
           <Segmented
-            label="详情分区"
+            label={t("drawer.sections")}
             size="sm"
             value={tab}
             onValueChange={(v: DrawerTab) => setTab(v)}
           >
-            <Segmented.Item value="tools" label="工具" />
-            <Segmented.Item value="config" label="配置" />
-            <Segmented.Item value="logs" label="日志" />
+            <Segmented.Item value="tools" label={t("drawer.tools")} />
+            <Segmented.Item value="config" label={t("drawer.config")} />
+            <Segmented.Item value="logs" label={t("drawer.logs")} />
           </Segmented>
         )
       }

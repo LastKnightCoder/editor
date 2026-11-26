@@ -48,20 +48,33 @@ describe("parseServersJson", () => {
   it("单个服务器对象没有名称，需要用户补填", () => {
     const [entry] = parseServersJson(JSON.stringify({ command: "uvx", args: ["mcp-server"] }));
     expect(entry.draft.command).toBe("uvx");
-    expect(entry.error).toBe("请填写名称");
+    expect(entry.error).toEqual({ code: "nameRequired" });
   });
 
   it("SSE 与缺字段的条目给出原因", () => {
     const entries = parseServersJson(
       JSON.stringify({ mcpServers: { a: { type: "sse", url: "https://x" }, b: { foo: 1 } } })
     );
-    expect(entries.map(e => e.error)).toEqual(["暂不支持 SSE 传输", "缺少 command 或 url"]);
+    expect(entries.map(e => e.error)).toEqual([
+      { code: "sseUnsupported" },
+      { code: "missingTransport" },
+    ]);
   });
 
   it("非法 JSON 与空配置抛出可读错误", () => {
-    expect(() => parseServersJson("{")).toThrow("不是合法的 JSON");
-    expect(() => parseServersJson("[]")).toThrow("JSON 顶层需要是对象");
-    expect(() => parseServersJson('{"mcpServers":{}}')).toThrow("没有找到服务器配置");
+    for (const [text, code] of [
+      ["{", "invalidJson"],
+      ["[]", "invalidRoot"],
+      ['{"mcpServers":{}}', "emptyConfig"],
+    ]) {
+      let failure: unknown;
+      try {
+        parseServersJson(text);
+      } catch (error) {
+        failure = error;
+      }
+      expect(failure).toMatchObject({ issue: { code } });
+    }
   });
 });
 
@@ -102,8 +115,8 @@ describe("草稿与存储结构互转", () => {
 
   it("校验 URL 协议与必填项", () => {
     const http = { ...emptyDraft(), name: "a", type: "streamable-http" as const };
-    expect(validateDraft(http)).toBe("请填写服务器 URL");
-    expect(validateDraft({ ...http, url: "x.dev" })).toMatch(/http/);
+    expect(validateDraft(http)).toEqual({ code: "urlRequired" });
+    expect(validateDraft({ ...http, url: "x.dev" })).toEqual({ code: "urlProtocol" });
     expect(validateDraft({ ...http, url: "https://x.dev" })).toBeNull();
   });
 });

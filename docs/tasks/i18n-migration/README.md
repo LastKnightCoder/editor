@@ -292,6 +292,8 @@ P6B手机房间/成员/退出：17路径工程完成；既有editor13/share guar
 
 P6A3-D2C白板媒体/反馈：14路径工程完成；5文件20例、包type/白板边界、44key三语runtime、Node纯feedback owner/参数快照与范围格式静态通过。真实preview事件链保持同img/src/Board/ext与读取次数，默认caption可变而用户中文caption保留；file-drop同Toast/单上传、Export自产kind/未知raw、video自定义同名label通过。独立5插件AST对照非UI协议保持，原名字/URI/default/body/上传导出动作不改。导出弹层与节点附属UI另批。
 
+P5 MCP详情/配置/导入：13路径工程完成；已有插件MCP/解析24例及真实ServerForm状态1例通过，desktop类型/构建、forms三语参数/复数与范围静态格式通过。换语保留同输入DOM/焦点/选区、密钥掩码与原值、无效JSON和未提交draft，修正后仍生成原名称/description/带空格参数。旧校验文案断言维护为issue语义契约；独立AST证明emptyDraft、pairs、草稿/存储转换、序列化、敏感键和transport描述11函数原样，协议/缓存/日志正文不改。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

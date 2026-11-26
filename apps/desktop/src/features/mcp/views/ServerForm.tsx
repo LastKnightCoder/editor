@@ -1,3 +1,6 @@
+import { useMcpFormsI18n } from "../forms.i18n";
+import { configIssueText, configErrorText } from "../serverConfigDisplay";
+import type { ServerConfigIssue } from "../serverConfigIssues";
 /**
  * 服务器配置表单：添加弹窗「手动填写」与详情抽屉「配置」共用。
  * 参数逐项编辑（回车添加，可含空格路径）；环境变量 / 请求头为键值表，密钥类键名的值默认遮蔽；
@@ -50,6 +53,7 @@ export function Field({
 }
 
 function ArgsEditor({ args, onChange }: { args: string[]; onChange: (args: string[]) => void }) {
+  const { t } = useMcpFormsI18n();
   const [input, setInput] = useState("");
   const commit = () => {
     const value = input.trim();
@@ -62,11 +66,11 @@ function ArgsEditor({ args, onChange }: { args: string[]; onChange: (args: strin
       {args.map((arg, index) => (
         <span
           key={`${index}-${arg}`}
-          className="bg-hover font-tau-mono text-ink-1 inline-flex h-6 max-w-full items-center gap-1 rounded-[7px] pl-2 pr-0.5 text-[12px]"
+          className="bg-hover font-tau-mono text-ink-1 inline-flex h-6 max-w-full items-center gap-1 rounded-[7px] pr-0.5 pl-2 text-[12px]"
         >
           <span className="truncate">{arg}</span>
           <IconButton
-            aria-label={`移除参数 ${arg}`}
+            aria-label={t("args.remove", { arg })}
             className="text-ink-3 size-5 rounded-[5px]"
             onClick={() => onChange(args.filter((_, i) => i !== index))}
           >
@@ -98,7 +102,7 @@ function ArgsEditor({ args, onChange }: { args: string[]; onChange: (args: strin
               .filter(Boolean),
           ]);
         }}
-        placeholder={args.length === 0 ? "每项一个参数，回车添加" : "添加参数"}
+        placeholder={t(args.length === 0 ? "args.empty" : "args.add")}
         className="font-tau-mono text-ink-1 placeholder:text-ink-3 placeholder:font-tau h-6 min-w-[120px] flex-1 bg-transparent px-1 text-[12px] outline-none"
       />
     </div>
@@ -114,6 +118,7 @@ function SecretInput({
   onChange: (value: string) => void;
   placeholder: string;
 }) {
+  const { t } = useMcpFormsI18n();
   const [shown, setShown] = useState(false);
   return (
     <div className="flex min-w-0 flex-1 items-center">
@@ -126,7 +131,7 @@ function SecretInput({
         className="font-tau-mono text-ink-1 placeholder:text-ink-3 h-[32px] min-w-0 flex-1 bg-transparent px-2.5 text-[12px] outline-none"
       />
       <IconButton
-        aria-label={shown ? "隐藏" : "显示"}
+        aria-label={t(shown ? "secret.hide" : "secret.show")}
         className="text-ink-3 mr-1 size-6 rounded-[6px]"
         onClick={() => setShown(v => !v)}
       >
@@ -147,6 +152,7 @@ function KeyValueEditor({
   keyPlaceholder: string;
   addLabel: string;
 }) {
+  const { t } = useMcpFormsI18n();
   const update = (index: number, patch: Partial<KeyValue>) =>
     onChange(pairs.map((pair, i) => (i === index ? { ...pair, ...patch } : pair)));
   return (
@@ -168,19 +174,19 @@ function KeyValueEditor({
             <SecretInput
               value={pair.value}
               onChange={value => update(index, { value })}
-              placeholder="值"
+              placeholder={t("pair.value")}
             />
           ) : (
             <input
               value={pair.value}
               onChange={e => update(index, { value: e.target.value })}
-              placeholder="值"
+              placeholder={t("pair.value")}
               autoComplete="off"
               className="font-tau-mono text-ink-1 placeholder:text-ink-3 h-[32px] min-w-0 flex-1 bg-transparent px-2.5 text-[12px] outline-none"
             />
           )}
           <IconButton
-            aria-label="删除这一行"
+            aria-label={t("pair.remove")}
             className="text-ink-3 mr-1 size-6 shrink-0 rounded-[6px]"
             onClick={() => onChange(pairs.filter((_, i) => i !== index))}
           >
@@ -208,10 +214,11 @@ function JsonEditor({
   draft: ServerDraft;
   onChange: (draft: ServerDraft) => void;
 }) {
+  const { t } = useMcpFormsI18n();
   const [text, setText] = useState(() =>
     JSON.stringify(transportToJson(draftToPayload(draft).transport), null, 2)
   );
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ServerConfigIssue | Error | null>(null);
   const apply = (value: string) => {
     setText(value);
     try {
@@ -223,12 +230,14 @@ function JsonEditor({
         description: draft.description || entry.draft.description,
       };
       const invalid = validateDraft({ ...next, name: next.name || "_" });
-      if (invalid)
-        throw new Error(entry.error && entry.error !== "请填写名称" ? entry.error : invalid);
+      if (invalid) {
+        setError(entry.error && entry.error.code !== "nameRequired" ? entry.error : invalid);
+        return;
+      }
       onChange(next);
       setError(null);
     } catch (e) {
-      setError((e as Error).message);
+      setError(e instanceof Error ? e : new Error(String(e)));
     }
   };
   return (
@@ -242,7 +251,11 @@ function JsonEditor({
         className="font-tau-mono text-[12px] leading-[1.7]"
       />
       <span className={cn("text-tau-micro", error ? "text-danger" : "text-ink-3")}>
-        {error ?? "与 Claude Desktop / Cursor 的 mcpServers 条目同格式，可直接粘贴"}
+        {error
+          ? error instanceof Error
+            ? configErrorText(error, t)
+            : configIssueText(error, t)
+          : t("json.hint")}
       </span>
     </div>
   );
@@ -257,6 +270,7 @@ export function ServerForm({
   onChange: (draft: ServerDraft) => void;
   identityReadOnly?: boolean;
 }) {
+  const { t } = useMcpFormsI18n();
   const [jsonMode, setJsonMode] = useState(false);
   const set = <K extends keyof ServerDraft>(key: K, value: ServerDraft[K]) =>
     onChange({ ...draft, [key]: value });
@@ -265,45 +279,46 @@ export function ServerForm({
   return (
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-2 gap-3">
-        <Field label="名称">
+        <Field label={t("field.name")}>
           <Input
             value={draft.name}
             readOnly={identityReadOnly}
             onChange={e => set("name", e.target.value)}
-            placeholder="例如 filesystem"
+            placeholder={t("field.nameHint")}
             data-autofocus
           />
         </Field>
-        <Field label="描述" hint="可选">
+        <Field label={t("field.description")} hint={t("field.optional")}>
           <Input
             value={draft.description}
             readOnly={identityReadOnly}
             onChange={e => set("description", e.target.value)}
-            placeholder="记一下它是做什么的"
+            placeholder={t("field.descriptionHint")}
           />
         </Field>
       </div>
 
       <div className="flex items-end justify-between gap-3">
-        <Field label="连接方式">
+        <Field label={t("field.transport")}>
           <Segmented
-            label="连接方式"
+            label={t("field.transport")}
             size="sm"
             value={draft.type}
             onValueChange={(value: TransportType) => set("type", value)}
             disabled={jsonMode}
           >
-            <Segmented.Item value="stdio" icon={Terminal} label="本地进程 stdio" />
-            <Segmented.Item value="streamable-http" icon={Cloud} label="远程 HTTP" />
+            <Segmented.Item value="stdio" icon={Terminal} label={t("field.stdio")} />
+            <Segmented.Item value="streamable-http" icon={Cloud} label={t("field.http")} />
           </Segmented>
         </Field>
         <Button
           variant="ghost"
           size="sm"
           icon={jsonMode ? ListChecks : Braces}
+          aria-pressed={jsonMode}
           onClick={() => setJsonMode(v => !v)}
         >
-          {jsonMode ? "返回表单" : "以 JSON 编辑"}
+          {t(jsonMode ? "form.back" : "form.json")}
         </Button>
       </div>
 
@@ -311,7 +326,7 @@ export function ServerForm({
         <JsonEditor draft={draft} onChange={onChange} />
       ) : stdio ? (
         <>
-          <Field label="命令" hint="如 npx、uvx、node，或可执行文件的绝对路径">
+          <Field label={t("field.command")} hint={t("field.commandHint")}>
             <Input
               className="font-tau-mono"
               value={draft.command}
@@ -319,29 +334,29 @@ export function ServerForm({
               placeholder="npx"
             />
           </Field>
-          <Field label="参数">
+          <Field label={t("field.args")}>
             <ArgsEditor args={draft.args} onChange={args => set("args", args)} />
           </Field>
-          <Field label="环境变量" hint="名称含 KEY / TOKEN / SECRET 等的值默认遮蔽">
+          <Field label={t("field.env")} hint={t("field.envHint")}>
             <KeyValueEditor
               pairs={draft.env}
               onChange={env => set("env", env)}
-              keyPlaceholder="名称"
-              addLabel="添加环境变量"
+              keyPlaceholder={t("field.name")}
+              addLabel={t("field.addEnv")}
             />
           </Field>
-          <Field label="工作目录" hint="可选">
+          <Field label={t("field.cwd")} hint={t("field.optional")}>
             <div className="flex gap-2">
               <Input
                 className="font-tau-mono"
                 value={draft.cwd}
                 onChange={e => set("cwd", e.target.value)}
-                placeholder="默认使用应用的工作目录"
+                placeholder={t("field.cwdHint")}
               />
               <Button
                 variant="secondary"
                 icon={FolderOpen}
-                aria-label="选择目录"
+                aria-label={t("field.chooseCwd")}
                 onClick={async () => {
                   const dir = await selectDirectoryWithDialog();
                   if (dir) set("cwd", dir);
@@ -360,12 +375,12 @@ export function ServerForm({
               placeholder="https://example.com/mcp"
             />
           </Field>
-          <Field label="请求头" hint="如 Authorization；值默认遮蔽">
+          <Field label={t("field.headers")} hint={t("field.headersHint")}>
             <KeyValueEditor
               pairs={draft.headers}
               onChange={headers => set("headers", headers)}
-              keyPlaceholder="名称"
-              addLabel="添加请求头"
+              keyPlaceholder={t("field.name")}
+              addLabel={t("field.addHeader")}
             />
           </Field>
         </>
