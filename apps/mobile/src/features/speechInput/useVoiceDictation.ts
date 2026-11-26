@@ -8,14 +8,12 @@ import {
 } from "../../services/mobileSettingsBridge";
 import { prepareSpeechRefinement } from "../../services/speechRefinement";
 import { useOptionalPageInstanceContext } from "../../router/pageLifecycle";
+import { speechInputNeedsSettings } from "../../services/speechInputState";
+import { speechFailureText } from "./workspace.binding";
 import { commitDictation, type DictationCommit, type DictationTarget } from "./commitDictation";
 import { setDictationPreview, splitPreviewText } from "./dictationPreview";
 import { useDictationSession } from "./useDictationSession";
-import {
-  needsSpeechSettings,
-  useSpeechInputService,
-  useSpeechUnavailableReason,
-} from "./speechService";
+import { useSpeechInputService, useSpeechUnavailableReason } from "./speechService";
 
 /** 识别文字这么久没有变化时提示「没听到声音」 */
 export const QUIET_HINT_MS = 7_000;
@@ -75,7 +73,7 @@ export function useVoiceDictation(options: VoiceDictationOptions) {
   const unavailableReason = useSpeechUnavailableReason();
   const [cancelArmed, setCancelArmedState] = useState(false);
   const [result, setResult] = useState<VoiceResult | null>(null);
-  const [error, setError] = useState<VoiceError | null>(null);
+  const [error, setError] = useState<{ cause: unknown; openSettings?: () => void } | null>(null);
   const [quiet, setQuiet] = useState(false);
   const editorRef = useRef<Editor | null>(null);
   const pointRef = useRef<PointRef | null>(null);
@@ -179,10 +177,9 @@ export function useVoiceDictation(options: VoiceDictationOptions) {
     onError: cause => {
       clearQuietTimers();
       releaseTarget();
-      const message = cause instanceof Error ? cause.message : "语音输入失败";
       setError({
-        message,
-        openSettings: needsSpeechSettings(message) ? openSettings : undefined,
+        cause,
+        openSettings: speechInputNeedsSettings(cause) ? openSettings : undefined,
       });
     },
   });
@@ -283,6 +280,9 @@ export function useVoiceDictation(options: VoiceDictationOptions) {
     []
   );
 
+  const displayError: VoiceError | null = error
+    ? { message: speechFailureText(error.cause), openSettings: error.openSettings }
+    : null;
   return {
     phase: session.phase,
     startedAt: session.startedAt,
@@ -291,7 +291,7 @@ export function useVoiceDictation(options: VoiceDictationOptions) {
     setCancelArmed,
     quiet,
     result,
-    error,
+    error: displayError,
     unavailableReason,
     openSettings,
     begin,

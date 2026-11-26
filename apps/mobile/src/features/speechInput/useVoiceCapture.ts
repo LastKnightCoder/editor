@@ -3,12 +3,10 @@ import { useCallback, useState } from "react";
 import type { Descendant } from "slate";
 import * as tauri from "../../services/tauri";
 import { toast } from "../../components/toast";
+import { speechInputNeedsSettings } from "../../services/speechInputState";
+import { speechFailureText } from "./workspace.binding";
 import { useDictationSession } from "./useDictationSession";
-import {
-  needsSpeechSettings,
-  useSpeechInputService,
-  useSpeechUnavailableReason,
-} from "./speechService";
+import { useSpeechInputService, useSpeechUnavailableReason } from "./speechService";
 
 /** 识别原文按换行拆段，作为速记卡片正文 */
 export function transcriptToContent(text: string): Descendant[] {
@@ -72,12 +70,11 @@ export function useVoiceCapture(options: VoiceCaptureOptions) {
     },
     onError: error => {
       setPreview("");
-      const message =
-        error instanceof Error ? error.message : voiceCaptureTranslator.t("inputFailed");
+      const message = speechFailureText(error);
       toast({
         type: "error",
         text: message,
-        action: needsSpeechSettings(message)
+        action: speechInputNeedsSettings(error)
           ? { label: voiceCaptureTranslator.t("settings"), onClick: options.onOpenSettings }
           : undefined,
       });

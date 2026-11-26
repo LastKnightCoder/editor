@@ -1,3 +1,4 @@
+import { useSpeechWorkspaceI18n } from "./workspace.i18n";
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
@@ -27,6 +28,7 @@ export function ReadingVoiceSheet(props: ReadingVoiceSheetProps) {
 }
 
 function OpenSheet(props: ReadingVoiceSheetProps) {
+  const { t } = useSpeechWorkspaceI18n();
   const { getEditor, onClose, refine, portalContainer } = props;
   const dictation = useVoiceDictation({ getEditor, mode: "end", refine });
   const { begin, active, finish } = dictation;
@@ -65,10 +67,11 @@ function OpenSheet(props: ReadingVoiceSheetProps) {
         className="rounded-t-[24px] pt-9"
         header={
           <div className="text-ink-3 absolute inset-x-4 top-2.5 flex items-center text-[12px]">
-            追加到<b className="text-ink-1 ml-1 font-semibold">文末</b>
+            {t("sheet.appendPrefix")}
+            <b className="text-ink-1 ml-1 font-semibold">{t("sheet.end")}</b>
             <button
               type="button"
-              aria-label="关闭语音输入"
+              aria-label={t("sheet.close")}
               className="text-ink-2 active:bg-press ml-auto flex h-8 w-8 items-center justify-center rounded-full"
               onClick={close}
             >

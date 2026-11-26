@@ -1,3 +1,5 @@
+import { formatSpeechElapsed } from "./formatElapsed";
+import { useSpeechWorkspaceI18n } from "./workspace.i18n";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Check,
@@ -19,11 +21,6 @@ export const DICTATION_LIMIT_MS = 120_000;
 /** 剩余该时长起计时变红 */
 const WARN_REMAINING_MS = 15_000;
 const WAVE_BARS = 22;
-
-function formatElapsed(ms: number) {
-  const seconds = Math.floor(ms / 1000);
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
-}
 
 function useElapsed(startedAt: number | null, running: boolean) {
   const [now, setNow] = useState(() => Date.now());
@@ -78,6 +75,7 @@ function SideButton(props: {
 
 /** 语音面板：大麦克风轻点开始 / 停止，按住说、上滑 ✕ 取消；两侧撤回这段与换行 */
 export function VoicePanel(props: VoicePanelProps) {
+  const { t, locale } = useSpeechWorkspaceI18n();
   const { dictation, height, hideNewline = false, header, className } = props;
   const cancelTargetRef = useRef<HTMLDivElement | null>(null);
   const holdModeRef = useRef(false);
@@ -135,7 +133,7 @@ export function VoicePanel(props: VoicePanelProps) {
               cancelArmed || connecting ? "bg-ink-3" : "bg-accent animate-pulse"
             )}
           />
-          {connecting ? "正在连接…" : formatElapsed(elapsed)}
+          {connecting ? t("voice.connecting") : formatSpeechElapsed(elapsed, locale)}
         </span>
         {connecting ? null : (
           <div
@@ -165,14 +163,14 @@ export function VoicePanel(props: VoicePanelProps) {
       <>
         <span className="bg-accent-soft text-accent-text flex h-[26px] items-center gap-1 rounded-full px-2.5 text-[12.5px] font-semibold">
           <Sparkles size={13} className="animate-pulse" aria-hidden />
-          AI 润色中…
+          {t("voice.polishing")}
         </span>
         <button
           type="button"
           className="text-accent-text text-[12.5px] font-semibold"
           onClick={dictation.skipPolish}
         >
-          跳过
+          {t("voice.skip")}
         </button>
       </>
     );
@@ -181,14 +179,14 @@ export function VoicePanel(props: VoicePanelProps) {
       <>
         <span className="bg-tag-1-soft text-tag-1 flex h-[26px] items-center gap-1 rounded-full px-2.5 text-[12.5px] font-semibold">
           <Sparkles size={13} aria-hidden />
-          {result.showingOriginal ? "已换回原文" : "已润色"}
+          {result.showingOriginal ? t("voice.originalShown") : t("voice.refined")}
         </span>
         <button
           type="button"
           className="text-accent-text text-[12.5px] font-semibold"
           onClick={dictation.toggleOriginal}
         >
-          {result.showingOriginal ? "用润色" : "用原文"}
+          {result.showingOriginal ? t("voice.useRefined") : t("voice.useOriginal")}
         </button>
       </>
     );
@@ -197,7 +195,12 @@ export function VoicePanel(props: VoicePanelProps) {
       <>
         <span className="bg-tag-1-soft text-tag-1 flex h-[26px] items-center gap-1 rounded-full px-2.5 text-[12.5px] font-semibold">
           <Check size={13} strokeWidth={2.6} aria-hidden />
-          {result.kind === "failed" ? "润色失败，已用原文" : `已写入 ${result.count} 字`}
+          {result.kind === "failed"
+            ? t("voice.refineFailed")
+            : t("voice.written", {
+                count: result.count,
+                number: result.count.toLocaleString(locale),
+              })}
         </span>
         {result.kind === "failed" ? (
           <button
@@ -205,13 +208,13 @@ export function VoicePanel(props: VoicePanelProps) {
             className="text-accent-text text-[12.5px] font-semibold"
             onClick={dictation.retryPolish}
           >
-            重试
+            {t("voice.retry")}
           </button>
         ) : null}
       </>
     );
   } else {
-    status = <span className="text-ink-3 text-[13px]">轻点开始</span>;
+    status = <span className="text-ink-3 text-[13px]">{t("voice.tapStart")}</span>;
   }
 
   let hint: ReactNode;
@@ -223,24 +226,24 @@ export function VoicePanel(props: VoicePanelProps) {
         className="bg-accent-soft text-accent-text flex h-[30px] items-center gap-0.5 rounded-full px-3.5 text-[13px] font-semibold"
         onClick={settingsAction}
       >
-        去设置语音识别
+        {t("voice.settings")}
         <ChevronRight size={14} aria-hidden />
       </button>
     );
   } else if (holding) {
     hint = cancelArmed ? (
-      <span className="text-danger font-semibold">松手取消，这段不写入</span>
+      <span className="text-danger font-semibold">{t("hint.cancel")}</span>
     ) : (
-      "松手写入 · 上滑到 ✕ 取消"
+      t("hint.holding")
     );
   } else if (active) {
-    hint = quiet ? "没听到声音，即将自动停止" : "说完点一下";
+    hint = quiet ? t("hint.quiet") : t("hint.active");
   } else if (result?.kind === "polishing") {
-    hint = "润色时也可以继续说下一段";
+    hint = t("hint.polishing");
   } else if (result) {
-    hint = "接着点一下继续说";
+    hint = t("hint.continue");
   } else {
-    hint = "点一下开始说，再点一下停止 · 也可以按住说";
+    hint = t("hint.idle");
   }
 
   const micDisabled = Boolean(blocked);
@@ -266,7 +269,7 @@ export function VoicePanel(props: VoicePanelProps) {
       {holding ? (
         <div
           ref={cancelTargetRef}
-          aria-label="上滑到此处取消"
+          aria-label={t("voice.cancelTarget")}
           className={cn(
             "shadow-float absolute left-1/2 flex -translate-x-1/2 items-center justify-center rounded-full transition-all duration-150 ease-tau-out",
             cancelArmed
@@ -281,7 +284,7 @@ export function VoicePanel(props: VoicePanelProps) {
       <div className="flex h-[30px] items-center gap-3">{status}</div>
       <div className="flex w-full flex-1 items-center justify-between px-[34px]">
         <SideButton
-          label="撤回这段"
+          label={t("action.undo")}
           icon={<Undo2 size={20} strokeWidth={2.2} />}
           disabled={!result || active}
           hidden={holding}
@@ -289,7 +292,7 @@ export function VoicePanel(props: VoicePanelProps) {
         />
         <button
           type="button"
-          aria-label={active ? "停止并写入" : "开始说话"}
+          aria-label={active ? t("action.stopInsert") : t("action.start")}
           aria-pressed={active}
           disabled={micDisabled}
           className={cn(
@@ -313,7 +316,7 @@ export function VoicePanel(props: VoicePanelProps) {
           )}
         </button>
         <SideButton
-          label="换行"
+          label={t("action.newline")}
           icon={<CornerDownLeft size={20} strokeWidth={2.2} />}
           disabled={active}
           hidden={holding || hideNewline}

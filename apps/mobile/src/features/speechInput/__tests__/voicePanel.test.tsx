@@ -1,4 +1,6 @@
 import { act } from "react";
+import { mobileLocaleSource } from "../../../services/i18n";
+import { speechWorkspaceT } from "../workspace.binding";
 import { createRoot, type Root } from "react-dom/client";
 import { createEditor, Node, type Editor } from "slate";
 import { withHistory } from "slate-history";
@@ -31,6 +33,7 @@ import type { SettingCompat } from "../../../types";
 let root: Root;
 let host: HTMLDivElement;
 let editor: Editor;
+let dictation: ReturnType<typeof useVoiceDictation>;
 let session: {
   resolve: (value: ASRTranscript) => void;
   reject: (error: unknown) => void;
@@ -40,7 +43,7 @@ let session: {
 };
 
 function Harness() {
-  const dictation = useVoiceDictation({ getEditor: () => editor, mode: "point" });
+  dictation = useVoiceDictation({ getEditor: () => editor, mode: "point" });
   return <VoicePanel dictation={dictation} height={280} />;
 }
 
@@ -130,6 +133,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  act(() => mobileLocaleSource.setLocale("zh-CN"));
   act(() => root.unmount());
   host.remove();
   setMobileSettingSnapshot(null);
@@ -202,6 +206,23 @@ describe("语音面板", () => {
     await flush();
     expect(mocks.start).toHaveBeenCalledTimes(1);
     expect(byLabel("停止并写入")).toBeTruthy();
+    const activeMic = mic();
+    const recording = session;
+    const startedAt = dictation.startedAt;
+    const selection = JSON.stringify(editor.selection);
+    for (const locale of ["en-US", "zh-TW"] as const) {
+      await act(async () => mobileLocaleSource.setLocale(locale));
+      expect(mic()).toBe(activeMic);
+      expect(dictation.startedAt).toBe(startedAt);
+      expect(dictation.active).toBe(true);
+      expect(session).toBe(recording);
+      expect(mocks.start).toHaveBeenCalledTimes(1);
+      expect(recording.stop).not.toHaveBeenCalled();
+      expect(recording.cancel).not.toHaveBeenCalled();
+      expect(JSON.stringify(editor.selection)).toBe(selection);
+      expect(text()).toBe("下一步：");
+    }
+    await act(async () => mobileLocaleSource.setLocale("zh-CN"));
 
     tap(mic());
     await flush();
@@ -266,6 +287,10 @@ describe("语音面板", () => {
     act(() => session.preview("拆成"));
     act(() => vi.advanceTimersByTime(QUIET_STOP_MS - 1));
     expect(session.stop).not.toHaveBeenCalled();
+    for (const locale of ["en-US", "zh-TW"] as const) {
+      await act(async () => mobileLocaleSource.setLocale(locale));
+      expect(session.stop).not.toHaveBeenCalled();
+    }
     act(() => vi.advanceTimersByTime(1));
     await flush();
     expect(session.stop).toHaveBeenCalled();
@@ -284,8 +309,13 @@ describe("语音面板", () => {
     );
     expect(mic().disabled).toBe(true);
     expect(document.body.textContent).toContain("识别插件账号尚未配置");
+    for (const locale of ["en-US", "zh-TW"] as const) {
+      act(() => mobileLocaleSource.setLocale(locale));
+      expect(mic().disabled).toBe(true);
+      expect(mocks.start).not.toHaveBeenCalled();
+    }
     const settings = [...document.querySelectorAll("button")].find(
-      node => node.textContent === "去设置语音识别"
+      node => node.textContent === speechWorkspaceT("voice.settings")
     )!;
     act(() => settings.click());
     expect(mocks.push).toHaveBeenCalledWith("settingsModule", { module: "speech-input" });
@@ -294,9 +324,19 @@ describe("语音面板", () => {
   it("识别出错显示在面板里", async () => {
     tap(mic());
     await flush();
-    act(() => session.reject(new Error("麦克风权限被拒绝")));
+    const diagnostic = "供应商提示：账号尚未配置";
+    act(() => session.reject(new Error(diagnostic)));
     await flush();
-    expect(document.body.textContent).toContain("麦克风权限被拒绝");
-    expect(byLabel("开始说话")).toBeTruthy();
+    for (const locale of ["en-US", "zh-TW"] as const) {
+      await act(async () => mobileLocaleSource.setLocale(locale));
+      expect(document.body.textContent).toContain(diagnostic);
+      expect(
+        [...document.querySelectorAll("button")].some(
+          node => node.textContent === speechWorkspaceT("voice.settings")
+        )
+      ).toBe(false);
+      expect(mocks.start).toHaveBeenCalledTimes(1);
+    }
+    expect(byLabel(speechWorkspaceT("action.start"))).toBeTruthy();
   });
 });

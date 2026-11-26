@@ -1,4 +1,5 @@
 import { act } from "react";
+import { mobileLocaleSource } from "../../../services/i18n";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -27,6 +28,7 @@ describe("DictationOverlay", () => {
   });
 
   afterEach(() => {
+    act(() => mobileLocaleSource.setLocale("zh-CN"));
     act(() => root.unmount());
     document.body.innerHTML = "";
     vi.useRealTimers();
@@ -86,6 +88,34 @@ describe("DictationOverlay", () => {
     );
     expect(timer).toBeTruthy();
     expect(timer?.className).not.toContain("text-danger");
+  });
+
+  it("换语保留浮层与取消目标，不重启计时或改写调用方动作", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-27T10:00:00Z"));
+    const timers = vi.spyOn(window, "setInterval");
+    const releases = vi.spyOn(window, "clearInterval");
+    const cancelTarget = { current: null as HTMLDivElement | null };
+    render({
+      startedAt: Date.now() - 30_000,
+      releaseHint: "调用方动作原文",
+      cancelTargetRef: cancelTarget,
+    });
+    const node = overlay();
+    const target = cancelTarget.current;
+    const timerId = timers.mock.results[0]?.value;
+    if (timerId === undefined) throw new Error("missing elapsed timer lease");
+    await act(async () => vi.advanceTimersByTimeAsync(2000));
+    for (const locale of ["en-US", "zh-TW"] as const) {
+      await act(async () => mobileLocaleSource.setLocale(locale));
+      expect(overlay()).toBe(node);
+      expect(cancelTarget.current).toBe(target);
+      expect(overlay()?.textContent).toContain("调用方动作原文");
+      expect(overlay()?.textContent).toContain("0:32");
+      expect(releases).not.toHaveBeenCalledWith(timerId);
+    }
+    timers.mockRestore();
+    releases.mockRestore();
   });
 
   it("渲染到指定 portalContainer", () => {

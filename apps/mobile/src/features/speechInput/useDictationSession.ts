@@ -1,3 +1,4 @@
+import { SpeechInputFailure } from "../../services/speechInputState";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ASRError,
@@ -115,7 +116,7 @@ export function useDictationSession(options: DictationSessionOptions): Dictation
     if (runRef.current) return;
     if (!service) {
       setPhase("error");
-      optionsRef.current.onError(new Error("语音输入不可用"));
+      optionsRef.current.onError(new SpeechInputFailure("SPEECH_INPUT_UNAVAILABLE"));
       return;
     }
     const run: Run = {

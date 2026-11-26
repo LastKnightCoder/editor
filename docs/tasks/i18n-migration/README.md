@@ -294,6 +294,8 @@ P6A3-D2C白板媒体/反馈：14路径工程完成；5文件20例、包type/白�
 
 P5 MCP详情/配置/导入：13路径工程完成；已有插件MCP/解析24例及真实ServerForm状态1例通过，desktop类型/构建、forms三语参数/复数与范围静态格式通过。换语保留同输入DOM/焦点/选区、密钥掩码与原值、无效JSON和未提交draft，修正后仍生成原名称/description/带空格参数。旧校验文案断言维护为issue语义契约；独立AST证明emptyDraft、pairs、草稿/存储转换、序列化、敏感键和transport描述11函数原样，协议/缓存/日志正文不改。
 
+P5手机实际听写：24路径加Root原始诊断JSON工程完成；10文件78例中77通过，另聊天composer8例通过；唯一toolbarVoiceMode:66左右顺序布局断言在改动前基线已失败，相关toolbar源码/测试未触及，未删断言或转skip。mobile最终类型/构建、三语参数/复数/范围静态及实际Node无DOM分类烟测通过。真实fake timer保留录音实例/startedAt/选区、quiet10s、overlay原timer lease/portal/caller hint；EN界面仍按原ja-JP识别配置，未知含中文配置字样的诊断不跳设置。旧helper/regex消费清零退出，原生参数/计时器体/速记正文/coach生命周期AST对照保持。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

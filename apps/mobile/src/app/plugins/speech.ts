@@ -1,18 +1,9 @@
 import type { SpeechAdapter } from "@tau/plugins/host";
-import { defaultSpeechInputSetting, type SpeechInputService } from "@tau/asr";
+import type { SpeechInputService } from "@tau/asr";
 import type { ASRProviderRegistry } from "@tau/plugins/asr-host";
 import { createMobileSpeechInputService } from "../../services/speechInput";
 import { getMobileSettingSnapshot } from "../../services/mobileSettingsBridge";
-
-/** 与应用自己的语音输入共用识别设置；可用时为 null */
-export function speechUnavailableReason(
-  setting: ReturnType<typeof getMobileSettingSnapshot> = getMobileSettingSnapshot()
-): string | null {
-  const speech = setting?.speechInput ?? defaultSpeechInputSetting();
-  if (speech.active === "native") return null;
-  if (!speech.plugin.configurations[speech.plugin.id]) return "识别插件账号尚未配置";
-  return null;
-}
+import { SpeechInputFailure, speechInputUnavailability } from "../../services/speechInputState";
 
 const services = new WeakMap<ASRProviderRegistry, SpeechInputService>();
 
@@ -29,10 +20,12 @@ export function speechServiceFor(registry: ASRProviderRegistry): SpeechInputServ
 /** 插件拿到的只有识别文字，不接触音频 */
 export function createMobilePluginSpeech(registry: ASRProviderRegistry): SpeechAdapter {
   return {
-    unavailableReason: () => speechUnavailableReason(),
+    unavailableReason: () =>
+      speechInputUnavailability(getMobileSettingSnapshot()?.speechInput)?.message ?? null,
     async start(_context, options) {
-      const reason = speechUnavailableReason();
-      if (reason) throw new Error(`SPEECH_UNAVAILABLE：${reason}`);
+      const failure = speechInputUnavailability(getMobileSettingSnapshot()?.speechInput);
+      if (failure)
+        throw new SpeechInputFailure(failure.code, `SPEECH_UNAVAILABLE：${failure.message}`);
       const session = await speechServiceFor(registry).start(options);
       return {
         result: session.result.then(transcript => transcript.text.trim()),

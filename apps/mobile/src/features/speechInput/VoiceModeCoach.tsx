@@ -1,3 +1,4 @@
+import { useSpeechWorkspaceI18n } from "./workspace.i18n";
 import { useCallback, useState } from "react";
 
 const COACH_STORAGE_KEY = "tau.mobile.voice-mode-coach-seen";
@@ -25,6 +26,7 @@ export function useVoiceModeCoach(eligible: boolean) {
 }
 
 export function VoiceModeCoach(props: { onDismiss: () => void }) {
+  const { t } = useSpeechWorkspaceI18n();
   return (
     <button
       type="button"
@@ -33,7 +35,7 @@ export function VoiceModeCoach(props: { onDismiss: () => void }) {
       onMouseDown={event => event.preventDefault()}
       onClick={props.onDismiss}
     >
-      现在可以点这里，用说的输入
+      {t("coach.hint")}
       <span
         aria-hidden
         className="bg-ink-1 absolute -bottom-[5px] left-[15px] h-2.5 w-2.5 rotate-45"

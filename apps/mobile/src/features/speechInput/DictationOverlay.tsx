@@ -1,3 +1,5 @@
+import { formatSpeechElapsed } from "./formatElapsed";
+import { useSpeechWorkspaceI18n } from "./workspace.i18n";
 import { useEffect, useState, type Ref } from "react";
 import { createPortal } from "react-dom";
 import { Sparkles, X } from "lucide-react";
@@ -31,11 +33,6 @@ export type DictationOverlayProps = {
   portalContainer?: HTMLElement | null;
 };
 
-function formatElapsed(ms: number) {
-  const seconds = Math.floor(ms / 1000);
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
-}
-
 function useElapsed(startedAt: number | null, running: boolean) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -49,6 +46,7 @@ function useElapsed(startedAt: number | null, running: boolean) {
 
 /** 按住说话时的底部沉浸区：盖在键盘位置之上，键盘本身不收起，正文位置不变 */
 export function DictationOverlay(props: DictationOverlayProps) {
+  const { t, locale } = useSpeechWorkspaceI18n();
   const {
     open,
     connecting,
@@ -65,10 +63,18 @@ export function DictationOverlay(props: DictationOverlayProps) {
   if (!open) return null;
   const warn = DICTATION_LIMIT_MS - elapsed <= WARN_REMAINING_MS;
   const hint = cancelArmed
-    ? "松手取消"
+    ? t("overlay.cancel")
     : quiet
-      ? "没听清，靠近一点"
-      : `${releaseHint ?? (polishEnabled ? "松手后 AI 润色" : appendToEnd ? "松手追加到文末" : "松手插入")} · 上滑取消`;
+      ? t("overlay.quiet")
+      : t("overlay.releaseHint", {
+          action:
+            releaseHint ??
+            (polishEnabled
+              ? t("overlay.polish")
+              : appendToEnd
+                ? t("overlay.append")
+                : t("overlay.insert")),
+        });
 
   const node = (
     <div
@@ -81,7 +87,7 @@ export function DictationOverlay(props: DictationOverlayProps) {
       <div className="dictation-scrim absolute inset-0" aria-hidden />
       <div
         ref={cancelTargetRef}
-        aria-label="上滑到此处取消"
+        aria-label={t("voice.cancelTarget")}
         className={cn(
           "relative mb-[26px] flex items-center justify-center rounded-full shadow-float transition-all duration-150 ease-tau-out",
           cancelArmed
@@ -132,7 +138,7 @@ export function DictationOverlay(props: DictationOverlayProps) {
               cancelArmed || connecting ? "bg-ink-3" : "bg-accent animate-pulse"
             )}
           />
-          {connecting ? "正在连接…" : formatElapsed(elapsed)}
+          {connecting ? t("voice.connecting") : formatSpeechElapsed(elapsed, locale)}
         </span>
         <span
           className={cn(

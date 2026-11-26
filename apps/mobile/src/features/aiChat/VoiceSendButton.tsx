@@ -5,6 +5,7 @@ import { useWorkspaceI18n } from "./workspace.i18n";
 import { useRef } from "react";
 import { cn } from "@tau/ui";
 import { toast } from "../../components/toast";
+import { speechFailureText } from "../speechInput/workspace.binding";
 import { DictationOverlay } from "../speechInput/DictationOverlay";
 import { useDictationSession } from "../speechInput/useDictationSession";
 import { useHoldGesture } from "../speechInput/useHoldGesture";
@@ -30,7 +31,7 @@ export function HoldToTalkBar(props: {
     onError: error =>
       toast({
         type: "error",
-        text: error instanceof Error ? error.message : t("voice.failed"),
+        text: speechFailureText(error),
       }),
   });
   const gesture = useHoldGesture(

@@ -1,0 +1,8 @@
+{
+  "SPEECH_PLUGIN_NOT_CONFIGURED": "语音输入尚未配置识别插件",
+  "SPEECH_ACCOUNT_NOT_CONFIGURED": "识别插件账号尚未配置",
+  "SPEECH_PLUGIN_NOT_READY": "识别插件尚未就绪",
+  "SPEECH_INPUT_BUSY": "已有语音输入正在进行",
+  "SPEECH_INPUT_UNAVAILABLE": "语音输入不可用",
+  "SPEECH_INPUT_FAILED": "语音输入失败"
+}

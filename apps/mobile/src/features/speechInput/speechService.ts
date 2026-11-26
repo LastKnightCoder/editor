@@ -1,7 +1,10 @@
 import { useMemo, useSyncExternalStore } from "react";
 import type { SpeechInputService } from "@tau/asr";
 import { useMobilePlugins } from "../../app/plugins/context";
-import { speechServiceFor, speechUnavailableReason } from "../../app/plugins/speech";
+import { speechServiceFor } from "../../app/plugins/speech";
+import { speechInputUnavailability } from "../../services/speechInputState";
+import { speechFailureText } from "./workspace.binding";
+import { useSpeechWorkspaceI18n } from "./workspace.i18n";
 import {
   getMobileSettingSnapshot,
   subscribeMobileSettingSnapshot,
@@ -15,15 +18,12 @@ export function useSpeechInputService(): SpeechInputService | null {
 
 /** 不能开始录音的原因，可用时为 null */
 export function useSpeechUnavailableReason(): string | null {
+  useSpeechWorkspaceI18n();
   const setting = useSyncExternalStore(
     subscribeMobileSettingSnapshot,
     getMobileSettingSnapshot,
     getMobileSettingSnapshot
   );
-  return useMemo(() => speechUnavailableReason(setting), [setting]);
-}
-
-/** 错误是否该引导去「我的 › 语音 › 语音输入」 */
-export function needsSpeechSettings(message: string): boolean {
-  return /尚未配置/.test(message);
+  const failure = useMemo(() => speechInputUnavailability(setting?.speechInput), [setting]);
+  return failure ? speechFailureText(failure) : null;
 }

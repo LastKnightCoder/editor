@@ -7,6 +7,7 @@ import type { SpeechInputService } from "@tau/asr";
 import type { ASRProviderRegistry } from "@tau/plugins/asr-host";
 import { copyJson } from "@tau/plugins/host";
 import { getMobileSettingSnapshot } from "./mobileSettingsBridge";
+import { SpeechInputFailure } from "./speechInputState";
 import { startNativeSpeechInput } from "./nativeSpeechInput";
 
 export function createMobileSpeechInputService(registry: ASRProviderRegistry) {
@@ -14,9 +15,9 @@ export function createMobileSpeechInputService(registry: ASRProviderRegistry) {
     const setting = structuredClone(
       getMobileSettingSnapshot()?.speechInput ?? defaultSpeechInputSetting()
     );
-    if (setting.active !== "plugin") throw new Error("语音输入尚未配置识别插件");
+    if (setting.active !== "plugin") throw new SpeechInputFailure("SPEECH_PLUGIN_NOT_CONFIGURED");
     const account = setting.plugin.configurations[setting.plugin.id];
-    if (!account) throw new Error("识别插件账号尚未配置");
+    if (!account) throw new SpeechInputFailure("SPEECH_ACCOUNT_NOT_CONFIGURED");
     const { instance } = registry.create(
       setting.plugin.id,
       copyJson(account.config),
@@ -26,7 +27,11 @@ export function createMobileSpeechInputService(registry: ASRProviderRegistry) {
       { input: "stream", language: setting.language },
       signal
     );
-    if (availability.state !== "ready") throw new Error(availability.reason ?? "识别插件尚未就绪");
+    if (availability.state !== "ready") {
+      if (availability.reason !== undefined && availability.reason !== null)
+        throw new Error(availability.reason);
+      throw new SpeechInputFailure("SPEECH_PLUGIN_NOT_READY");
+    }
     const format = availability.acceptedAudio?.streamFormats?.[0] ?? MAC_NATIVE_ASR_DEFAULTS.format;
     const session = await registry.openStream(
       setting.plugin.id,
@@ -40,7 +45,7 @@ export function createMobileSpeechInputService(registry: ASRProviderRegistry) {
   let active = false;
   return {
     async start(options) {
-      if (active) throw new Error("已有语音输入正在进行");
+      if (active) throw new SpeechInputFailure("SPEECH_INPUT_BUSY");
       active = true;
       try {
         const setting = getMobileSettingSnapshot()?.speechInput ?? defaultSpeechInputSetting();

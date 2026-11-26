@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { defaultSpeechInputSetting } from "@tau/asr";
+import { mobileLocaleSource } from "../i18n";
 import { setMobileSettingSnapshot } from "../mobileSettingsBridge";
 
 const native = vi.hoisted(() => ({ invoke: vi.fn() }));
@@ -34,10 +35,16 @@ describe("移动端系统语音输入", () => {
   });
 
   afterEach(() => {
+    mobileLocaleSource.setLocale("zh-CN");
     setMobileSettingSnapshot(null);
   });
 
   it("转发 partial 预览，松手后只用 final 结果定稿", async () => {
+    const recognitionLanguage = "ja-JP";
+    setMobileSettingSnapshot({
+      speechInput: { ...defaultSpeechInputSetting(), language: recognitionLanguage },
+    } as never);
+    mobileLocaleSource.setLocale("en-US");
     const service = createMobileSpeechInputService({} as never);
     const onPreview = vi.fn();
     const session = await service.start({ signal: new AbortController().signal, onPreview });
@@ -50,8 +57,11 @@ describe("移动端系统语音输入", () => {
     expect(onPreview.mock.calls.map(([text]) => text)).toEqual(["今天天气", "今天天气很好"]);
     await expect(session.result).resolves.toMatchObject({
       text: "今天天气很好",
-      language: "zh-CN",
+      language: recognitionLanguage,
     });
+    expect(
+      native.invoke.mock.calls.find(([name]) => name === "plugin:native-speech|start")?.[1]
+    ).toMatchObject({ language: recognitionLanguage });
     expect(native.invoke).toHaveBeenCalledWith("plugin:native-speech|stop", { id: sessionId });
   });
 

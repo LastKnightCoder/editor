@@ -193,7 +193,9 @@ describe("useDictationSession", () => {
   it("service 为 null：start 直接报不可用", () => {
     render({ service: null });
     act(() => session.start());
-    expect(callbacks.onError).toHaveBeenCalledWith(new Error("语音输入不可用"));
+    expect(callbacks.onError).toHaveBeenCalledWith(
+      expect.objectContaining({ code: "SPEECH_INPUT_UNAVAILABLE", message: "语音输入不可用" })
+    );
     expect(session.phase).toBe("error");
   });
 
