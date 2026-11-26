@@ -1,0 +1,8 @@
+{
+  "failure.format": "章节格式不正确",
+  "failure.empty": "没有生成章节",
+  "failure.model": "未配置视频总结模型",
+  "failure.generate": "章节生成失败",
+  "notice.regenerated": "章节已重新生成",
+  "notice.failed": "章节生成失败：{{error}}"
+}

@@ -352,6 +352,8 @@ P6 Native媒体进度：41路径加Root ASR/desktop文档2完成；桌面12文�
 
 手机reading18/context9共27源完成；reading原107至109与入口6共115例，context19例、mobile最终type、70+28key三语/范围检查通过。实际菜单同node/selection且仅点击执行、展开排序不写正文与单步undo、摘录在途不重发，Badge→SnapSheet不重查且先关后按原target跳转；Outline旧label表清零，原data catalog/计数合并/查询deps不改。
 
+影音watch10/chapters9/legacy12加Root日期收束5完成；watch10例、chapters2例、legacy10/原1skip，desktop type/三语及AST对照通过。真实quote原>视频格式/prompt、视频/字幕modal草稿焦点/编辑器/订阅、章节挂起AI与insights坐标保持；原formatDate对新函数54个输入逐个默认输出一致。Root统一editor日期consumer并清零删window-format与死词条，不新增并行formatter；原默认文件/AI标题与时间戳序列化保持。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

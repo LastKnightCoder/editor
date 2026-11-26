@@ -24,7 +24,6 @@
   "status.transition": "Switching sharing mode… Content is temporarily read-only",
   "date.created": "Created {{date}}",
   "date.modified": "Modified {{date}}",
-  "date.relativeTime": "{{date}} {{time}}",
   "boot.invalid": "Invalid window parameters",
   "boot.invalidHint": "Unable to determine which content to edit.",
   "boot.failed": "Database connection failed",

@@ -1,3 +1,6 @@
+import { useLegacyVideoI18n } from "./legacy.i18n";
+import { legacyVideoT } from "./legacy.binding";
+import { transcriptionLanguageText } from "./i18n-transcription";
 import { useEbookI18n } from "./i18n-ebook";
 import { useState, useRef, useEffect, useMemo, useCallback, type ReactElement } from "react";
 import {
@@ -99,6 +102,7 @@ const VideoNotePanel = ({
   onSubtitleMountedChange,
   reserveCloseButtonSpace = false,
 }: VideoNotePanelProps) => {
+  const { t, locale } = useLegacyVideoI18n();
   const uploadResource = useUploadResource();
   const activeDatabase = useSettingStore(state => state.setting.database.active);
 
@@ -235,7 +239,7 @@ const VideoNotePanel = ({
       try {
         const note = await getVideoNoteById(videoNoteId);
         if (!note) {
-          toast.error("视频笔记不存在");
+          toast.error(legacyVideoT("missing"));
           return;
         }
         setVideoNote(note);
@@ -253,7 +257,7 @@ const VideoNotePanel = ({
         setNoteContentMap(nextContentMap);
       } catch (error) {
         console.error("Failed to load video note:", error);
-        toast.error("加载失败");
+        toast.error(legacyVideoT("error.load"));
       } finally {
         setLoading(false);
       }
@@ -297,7 +301,7 @@ const VideoNotePanel = ({
       return item;
     } catch (error) {
       console.error("Failed to create note item:", error);
-      toast.error("创建笔记失败");
+      toast.error(legacyVideoT("error.create"));
       return null;
     }
   });
@@ -413,7 +417,7 @@ const VideoNotePanel = ({
       );
     } catch (error) {
       console.error("Failed to save edited segment:", error);
-      toast.error("保存失败");
+      toast.error(legacyVideoT("error.save"));
     }
 
     // 清除编辑状态
@@ -563,7 +567,7 @@ const VideoNotePanel = ({
             style={{ borderTopColor: "currentColor" }}
           />
         </div>
-        <span className={classNames("text-sm", "text-ink-2")}>加载中...</span>
+        <span className={classNames("text-sm", "text-ink-2")}>{t("loading")}</span>
       </div>
     );
   }
@@ -580,8 +584,8 @@ const VideoNotePanel = ({
         >
           <FileText size={26} />
         </div>
-        <p className={classNames("text-sm font-medium", "text-ink-1")}>视频笔记不存在</p>
-        <p className={classNames("text-xs", "text-ink-2")}>该笔记可能已被删除或加载异常</p>
+        <p className={classNames("text-sm font-medium", "text-ink-1")}>{t("missing")}</p>
+        <p className={classNames("text-xs", "text-ink-2")}>{t("missingHint")}</p>
       </div>
     );
   }
@@ -604,7 +608,7 @@ const VideoNotePanel = ({
             )}
           >
             <Volume2 size={12} />
-            转录
+            {t("tab.transcript")}
           </button>
           <button
             disabled={!transcriptForChat}
@@ -619,7 +623,7 @@ const VideoNotePanel = ({
             )}
           >
             <MessageCircle size={12} />
-            对话
+            {t("tab.chat")}
           </button>
           <button
             onClick={() => setActiveTab("note")}
@@ -633,7 +637,7 @@ const VideoNotePanel = ({
             )}
           >
             <Pencil size={12} />
-            笔记
+            {t("tab.note")}
           </button>
         </div>
       </div>
@@ -687,7 +691,7 @@ const VideoNotePanel = ({
                       onClick={handleCancelOptimization}
                     >
                       <X size={14} strokeWidth={1.75} />
-                      <span>取消优化</span>
+                      <span>{t("transcript.cancel")}</span>
                     </button>
                   </div>
                 )}
@@ -724,7 +728,7 @@ const VideoNotePanel = ({
                         e.stopPropagation();
                         handleStartEditSegment(index);
                       }}
-                      title="编辑"
+                      title={t("transcript.edit")}
                     >
                       <Pencil size={14} />
                     </button>
@@ -742,7 +746,7 @@ const VideoNotePanel = ({
             ) : (
               <div className="flex h-full flex-col items-center justify-center gap-2 text-gray-400">
                 <Volume2 size={24} />
-                <span className="text-sm">点击"转录"按钮生成视频字幕</span>
+                <span className="text-sm">{t("transcript.empty")}</span>
               </div>
             )}
           </FadeScroll>
@@ -770,11 +774,9 @@ const VideoNotePanel = ({
                 </div>
                 <div className="space-y-1">
                   <p className={classNames("text-sm font-medium", "text-ink-1")}>
-                    需要先完成转录，才可开启对话
+                    {t("chat.unavailable")}
                   </p>
-                  <p className={classNames("text-xs", "text-ink-2")}>
-                    完成转录后，即可基于视频内容向 AI 提问
-                  </p>
+                  <p className={classNames("text-xs", "text-ink-2")}>{t("chat.hint")}</p>
                 </div>
                 <button
                   type="button"
@@ -790,7 +792,7 @@ const VideoNotePanel = ({
                   ) : (
                     <Volume2 size={12} />
                   )}
-                  <span>{isTranscribing ? "转录中..." : "开始转录"}</span>
+                  <span>{isTranscribing ? t("transcript.running") : t("transcript.start")}</span>
                 </button>
               </div>
             )}
@@ -820,7 +822,7 @@ const VideoNotePanel = ({
                   </button>
                   <input
                     value={activeNoteItem.title || ""}
-                    placeholder="请输入标题"
+                    placeholder={t("note.title")}
                     className={classNames(
                       "min-w-0 flex-1 border-none bg-transparent p-0 text-base font-medium outline-none placeholder:text-gray-400",
                       "text-accent-text"
@@ -838,7 +840,7 @@ const VideoNotePanel = ({
                     className="rounded-lg px-2 py-1 text-xs text-red-500 transition-colors hover:bg-red-50 dark:hover:bg-red-900/20"
                     onClick={() => handleDeleteNote(activeNoteItem.id)}
                   >
-                    删除
+                    {t("note.delete")}
                   </button>
                 </div>
                 <FadeScroll className="min-h-0 flex-1 pr-3.5 pb-2 pl-5">
@@ -850,7 +852,7 @@ const VideoNotePanel = ({
                     onChange={handleEditorChange}
                     extensions={customExtensions}
                     readonly={false}
-                    placeHolder="开始记录这张笔记卡片..."
+                    placeHolder={t("note.placeholder")}
                     onInit={handleEditorInit}
                   />
                 </FadeScroll>
@@ -861,7 +863,7 @@ const VideoNotePanel = ({
               <div className="mx-auto flex h-full min-h-0 w-full max-w-4xl flex-col">
                 <div className="mb-3 flex shrink-0 items-center justify-between">
                   <h4 className={classNames("m-0 text-sm font-semibold", "text-ink-1")}>
-                    创作内容
+                    {t("note.content")}
                   </h4>
                   <button
                     type="button"
@@ -875,7 +877,7 @@ const VideoNotePanel = ({
                     onClick={handleAddNote}
                   >
                     <Plus size={14} />
-                    新建卡片
+                    {t("note.create")}
                   </button>
                 </div>
 
@@ -915,7 +917,7 @@ const VideoNotePanel = ({
                                   : "text-gray-400 dark:text-gray-500"
                               )}
                             >
-                              {index + 1}
+                              {(index + 1).toLocaleString(locale, { useGrouping: false })}
                             </span>
                             <span
                               className={classNames(
@@ -925,7 +927,12 @@ const VideoNotePanel = ({
                                   : "text-gray-700 dark:text-gray-200"
                               )}
                             >
-                              {item.title?.trim() || `笔记卡片 ${index + 1}`}
+                              {item.title?.trim() ||
+                                t("note.number", {
+                                  number: (index + 1).toLocaleString(locale, {
+                                    useGrouping: false,
+                                  }),
+                                })}
                             </span>
                             <span
                               className={classNames(
@@ -933,7 +940,7 @@ const VideoNotePanel = ({
                                 "text-gray-400 dark:text-gray-500"
                               )}
                             >
-                              {formatDate(item.updateTime, true)}
+                              {formatDate(item.updateTime, true, locale)}
                             </span>
                             <button
                               type="button"
@@ -945,7 +952,7 @@ const VideoNotePanel = ({
                                 event.stopPropagation();
                                 handleDeleteNote(item.id);
                               }}
-                              title="删除"
+                              title={t("note.delete")}
                             >
                               <Trash2 size={14} />
                             </button>
@@ -982,11 +989,9 @@ const VideoNotePanel = ({
                     </div>
                     <div className="space-y-1.5">
                       <p className={classNames("text-base font-semibold", "text-ink-1")}>
-                        还没有笔记卡片
+                        {t("note.empty")}
                       </p>
-                      <p className={classNames("text-sm", "text-ink-2")}>
-                        创建卡片，边看视频边记录灵感与思考
-                      </p>
+                      <p className={classNames("text-sm", "text-ink-2")}>{t("note.emptyHint")}</p>
                     </div>
                     <button
                       type="button"
@@ -997,7 +1002,7 @@ const VideoNotePanel = ({
                       onClick={handleAddNote}
                     >
                       <Plus size={16} />
-                      创建第一张卡片
+                      {t("note.first")}
                     </button>
                   </div>
                 )}
@@ -1021,9 +1026,9 @@ const VideoNotePanel = ({
             ? videoNote.transcriptSegments[editingSegmentIndex]?.text || ""
             : ""
         }
-        modalTitle="编辑转录文案"
-        modalDescription="修改转录内容"
-        placeholder="请输入转录文案"
+        modalTitle={t("transcript.editTitle")}
+        modalDescription={t("transcript.editDescription")}
+        placeholder={t("transcript.placeholder")}
       />
 
       <VideoNoteEpubExportModal
@@ -1052,15 +1057,18 @@ const VideoNotePanel = ({
         <LanguageSelect
           value={transcriptionLanguage}
           onChange={handleTranscriptionLanguageChange}
-          options={TRANSCRIPTION_LANGUAGES}
+          options={TRANSCRIPTION_LANGUAGES.map(option => ({
+            ...option,
+            label: transcriptionLanguageText(option.value, option.label),
+          }))}
           disabled={isTranscribing}
-          placeholder="转录语言"
+          placeholder={t("language.placeholder")}
         />
         <div className="flex items-center gap-1.5">
           <Button size="sm" variant="secondary" disabled={isTranscribing} onClick={openOptions}>
-            本次转录设置
+            {t("transcript.options")}
           </Button>
-          <Tooltip content={isTranscribing ? transcriptionProgress : "转录视频"}>
+          <Tooltip content={isTranscribing ? transcriptionProgress : t("transcript.action")}>
             <button
               className={classNames(
                 "flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-medium transition-all disabled:cursor-not-allowed disabled:opacity-50",
@@ -1074,11 +1082,13 @@ const VideoNotePanel = ({
               ) : (
                 <Volume2 size={12} />
               )}
-              <span>{isTranscribing ? "转录中" : "转录"}</span>
+              <span>
+                {isTranscribing ? t("transcript.runningShort") : t("transcript.actionShort")}
+              </span>
             </button>
           </Tooltip>
           {videoNote?.transcriptWordSegments && videoNote.transcriptWordSegments.length > 0 && (
-            <Tooltip content="AI 优化断句">
+            <Tooltip content={t("transcript.optimize")}>
               <button
                 className={classNames(
                   "flex h-8 w-8 items-center justify-center rounded-lg text-sm transition-all disabled:cursor-not-allowed disabled:opacity-50",
@@ -1112,10 +1122,10 @@ const VideoNotePanel = ({
             <Tooltip
               content={
                 !hasTranscriptSegments
-                  ? "请先转录后再挂载字幕"
+                  ? t("subtitle.needsTranscript")
                   : subtitleMounted
-                    ? "已挂载字幕（可关闭）"
-                    : "挂载字幕"
+                    ? t("subtitle.mounted")
+                    : t("subtitle.mount")
               }
             >
               <button
@@ -1140,9 +1150,9 @@ const VideoNotePanel = ({
         open={pendingDeleteNoteId != null}
         onOpenChange={v => !v && setPendingDeleteNoteId(null)}
         danger
-        title="删除笔记卡片"
-        description="确定删除该笔记卡片吗？"
-        confirmText="删除"
+        title={t("note.deleteTitle")}
+        description={t("note.deleteConfirm")}
+        confirmText={t("note.delete")}
         onConfirm={confirmDeleteNote}
       />
       {optionsRequest && (
@@ -1157,7 +1167,7 @@ const VideoNotePanel = ({
         onOpenChange={v => !v && dismissLlmConfirm()}
         title={transcriptionLlmConfirm?.title ?? ""}
         description={transcriptionLlmConfirm?.description ?? ""}
-        confirmText="打开设置"
+        confirmText={t("settings.open")}
         onConfirm={() => {
           dismissLlmConfirm();
           openLLMSettingsSection();

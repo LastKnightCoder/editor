@@ -24,7 +24,6 @@
   "status.transition": "正在切換共享狀態… 正文暫時唯讀",
   "date.created": "建立於 {{date}}",
   "date.modified": "修改於 {{date}}",
-  "date.relativeTime": "{{date}}{{time}}",
   "boot.invalid": "視窗參數無效",
   "boot.invalidHint": "無法確定要編輯的內容。",
   "boot.failed": "資料庫連線失敗",

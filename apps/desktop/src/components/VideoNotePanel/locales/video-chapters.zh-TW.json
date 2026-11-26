@@ -1,0 +1,8 @@
+{
+  "failure.format": "章節格式不正確",
+  "failure.empty": "未產生章節",
+  "failure.model": "尚未設定影片摘要模型",
+  "failure.generate": "章節產生失敗",
+  "notice.regenerated": "章節已重新產生",
+  "notice.failed": "章節產生失敗：{{error}}"
+}

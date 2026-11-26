@@ -1,3 +1,5 @@
+import { useVideoWatchI18n } from "./watch.i18n";
+import { videoWatchT } from "./watch.binding";
 import {
   useState,
   useMemo,
@@ -49,10 +51,10 @@ export interface VideoNoteChatPanelHandle {
 }
 
 const QUICK_ASKS = [
-  { label: "解释", prompt: "解释一下这句话" },
-  { label: "展开讲讲", prompt: "结合视频前后内容展开讲讲这里" },
-  { label: "举个例子", prompt: "举个例子说明这句话" },
-];
+  { labelKey: "ask.explain", prompt: "解释一下这句话" },
+  { labelKey: "ask.expand", prompt: "结合视频前后内容展开讲讲这里" },
+  { labelKey: "ask.example", prompt: "举个例子说明这句话" },
+] as const;
 
 const applyQuote = (content: MessageContentItem[], quote: TranscriptQuote) => {
   const lines = `> 视频 ${formatTimestamp(quote.time)}\n> ${quote.text}`;
@@ -65,7 +67,11 @@ const applyQuote = (content: MessageContentItem[], quote: TranscriptQuote) => {
 };
 
 /** 新对话的建议提问：总结不再是独立功能，交给对话 */
-const SUGGESTED_PROMPTS = ["总结这个视频的核心观点", "按章节列出要点和时间点", "出 5 道自测题"];
+const SUGGESTED_PROMPTS = [
+  { labelKey: "suggest.summary", prompt: "总结这个视频的核心观点" },
+  { labelKey: "suggest.chapters", prompt: "按章节列出要点和时间点" },
+  { labelKey: "suggest.quiz", prompt: "出 5 道自测题" },
+] as const;
 
 function ChatEmptyState({
   hasTranscript,
@@ -74,24 +80,25 @@ function ChatEmptyState({
   hasTranscript: boolean;
   onPick: (prompt: string) => void;
 }) {
+  const { t } = useVideoWatchI18n();
   return (
     <div className="flex h-full flex-col items-center justify-center px-6 pb-10 text-center">
-      <h2 className="text-tau-title text-ink-1 font-semibold">问问这个视频</h2>
+      <h2 className="text-tau-title text-ink-1 font-semibold">{t("chat.empty")}</h2>
       {hasTranscript ? (
         <div className="mt-4 flex w-full max-w-[320px] flex-col gap-2">
-          {SUGGESTED_PROMPTS.map(prompt => (
+          {SUGGESTED_PROMPTS.map(suggestion => (
             <button
-              key={prompt}
+              key={suggestion.labelKey}
               type="button"
-              onClick={() => onPick(prompt)}
+              onClick={() => onPick(suggestion.prompt)}
               className="border-line-1 text-tau-meta text-ink-2 hover:bg-hover hover:text-ink-1 rounded-tau-sm ease-tau-out border px-3 py-2 text-left transition-colors duration-[160ms]"
             >
-              {prompt}
+              {t(suggestion.labelKey)}
             </button>
           ))}
         </div>
       ) : (
-        <p className="text-tau-meta text-ink-3 mt-2">转录完成后，AI 才能基于视频内容回答</p>
+        <p className="text-tau-meta text-ink-3 mt-2">{t("chat.transcriptNeeded")}</p>
       )}
     </div>
   );
@@ -102,6 +109,7 @@ const VideoNoteChatPanel = forwardRef<VideoNoteChatPanelHandle, VideoNoteChatPan
     { videoNoteId, toolScope, transcript, docked = false, onClose },
     ref
   ) {
+    const { t } = useVideoWatchI18n();
     const { isDark } = useTheme();
     const editTitleRef = useRef<EditTextHandle>(null);
     const chatContainerRef = useRef<ChatContainerHandle>(null);
@@ -126,7 +134,7 @@ const VideoNoteChatPanel = forwardRef<VideoNoteChatPanelHandle, VideoNoteChatPan
       try {
         await rename(currentChat.id, title);
       } catch (error) {
-        toast.error("更新标题失败");
+        toast.error(videoWatchT("chat.renameFailed"));
         console.error(error);
       }
     });
@@ -165,13 +173,13 @@ const VideoNoteChatPanel = forwardRef<VideoNoteChatPanelHandle, VideoNoteChatPan
         <div className="bg-surface border-line-1 rounded-tau-md flex items-start gap-2 border px-2.5 py-2">
           <div className="min-w-0 flex-1">
             <div className="text-tau-meta text-ink-3 tabular-nums">
-              视频 {formatTimestamp(quote.time)}
+              {t("chat.quote", { time: formatTimestamp(quote.time) })}
             </div>
             <div className="text-tau-sm text-ink-2 line-clamp-2">{quote.text}</div>
           </div>
           <IconButton
-            title="移除引用"
-            aria-label="移除引用"
+            title={t("chat.removeQuote")}
+            aria-label={t("chat.removeQuote")}
             onClick={() => setQuote(null)}
             className="-mt-0.5 -mr-1 size-6"
           >
@@ -181,12 +189,12 @@ const VideoNoteChatPanel = forwardRef<VideoNoteChatPanelHandle, VideoNoteChatPan
         <div className="flex flex-wrap gap-1.5">
           {QUICK_ASKS.map(ask => (
             <button
-              key={ask.label}
+              key={ask.labelKey}
               type="button"
               onClick={() => fillInput(ask.prompt)}
               className="border-line-1 text-tau-meta text-ink-2 hover:bg-hover hover:text-ink-1 ease-tau-out h-6 rounded-full border px-2.5 transition-colors duration-[160ms]"
             >
-              {ask.label}
+              {t(ask.labelKey)}
             </button>
           ))}
         </div>
@@ -215,12 +223,17 @@ const VideoNoteChatPanel = forwardRef<VideoNoteChatPanelHandle, VideoNoteChatPan
             </div>
             {onClose && (
               <>
-                <IconButton title="新对话" aria-label="新对话" onClick={newChat} className="size-7">
+                <IconButton
+                  title={t("chat.new")}
+                  aria-label={t("chat.new")}
+                  onClick={newChat}
+                  className="size-7"
+                >
                   <SquarePen size={15} strokeWidth={1.75} />
                 </IconButton>
                 <IconButton
-                  title="收起对话 (Ctrl/⌘ J)"
-                  aria-label="收起对话"
+                  title={t("chat.collapseShortcut")}
+                  aria-label={t("chat.collapse")}
                   onClick={onClose}
                   className="size-7"
                 >

@@ -1,0 +1,21 @@
+{
+  "tips.network": "检查网络连接是否正常",
+  "tips.account": "在「设置 · 账号与连接」中检查账号或代理",
+  "tips.membership": "部分清晰度可能需要会员权限",
+  "tips.link": "确认视频链接是否有效",
+  "tips.retry": "稍后重试或尝试其他视频链接",
+  "chat.empty": "问问这个视频",
+  "chat.transcriptNeeded": "转录完成后，AI 才能基于视频内容回答",
+  "chat.quote": "视频 {{time}}",
+  "chat.removeQuote": "移除引用",
+  "chat.new": "新对话",
+  "chat.collapse": "收起对话",
+  "chat.collapseShortcut": "收起对话 (Ctrl/⌘ J)",
+  "chat.renameFailed": "更新标题失败",
+  "ask.explain": "解释",
+  "ask.expand": "展开讲讲",
+  "ask.example": "举个例子",
+  "suggest.summary": "总结这个视频的核心观点",
+  "suggest.chapters": "按章节列出要点和时间点",
+  "suggest.quiz": "出 5 道自测题"
+}

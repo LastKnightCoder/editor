@@ -24,7 +24,6 @@
   "status.transition": "正在切换共享状态… 正文暂时只读",
   "date.created": "创建于 {{date}}",
   "date.modified": "修改于 {{date}}",
-  "date.relativeTime": "{{date}}{{time}}",
   "boot.invalid": "窗口参数无效",
   "boot.invalidHint": "无法确定要编辑的内容。",
   "boot.failed": "数据库连接失败",

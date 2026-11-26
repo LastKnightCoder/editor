@@ -1,0 +1,21 @@
+{
+  "tips.network": "檢查網路連線是否正常",
+  "tips.account": "在「設定 · 帳號與連線」中檢查帳號或代理",
+  "tips.membership": "部分畫質可能需要會員權限",
+  "tips.link": "確認影片連結是否有效",
+  "tips.retry": "稍後重試或嘗試其他影片連結",
+  "chat.empty": "詢問這段影片",
+  "chat.transcriptNeeded": "轉錄完成後，AI 才能根據影片內容回答",
+  "chat.quote": "影片 {{time}}",
+  "chat.removeQuote": "移除引用",
+  "chat.new": "新增對話",
+  "chat.collapse": "收合對話",
+  "chat.collapseShortcut": "收合對話 (Ctrl/⌘ J)",
+  "chat.renameFailed": "更新標題失敗",
+  "ask.explain": "解釋",
+  "ask.expand": "進一步說明",
+  "ask.example": "舉個例子",
+  "suggest.summary": "總結這段影片的核心觀點",
+  "suggest.chapters": "依章節列出重點和時間點",
+  "suggest.quiz": "出 5 道自我測驗題"
+}

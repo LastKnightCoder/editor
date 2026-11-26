@@ -1,0 +1,8 @@
+{
+  "failure.format": "The chapter format is invalid",
+  "failure.empty": "No chapters were generated",
+  "failure.model": "No video summary model is configured",
+  "failure.generate": "Could not generate chapters",
+  "notice.regenerated": "Chapters regenerated",
+  "notice.failed": "Could not generate chapters: {{error}}"
+}

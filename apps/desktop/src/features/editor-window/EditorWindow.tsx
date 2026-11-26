@@ -56,7 +56,7 @@ import EpubExportModal from "@/components/EpubExportModal";
 import { PdfExportModal } from "@/components/PdfExportModal";
 import { copyMarkdownToClipboard, copyWechatHtmlToClipboard, getContentLength } from "@/utils";
 import { useEditorWindowI18n } from "./window.i18n";
-import { windowTimestamp } from "./window-format";
+import { formatDate } from "@/utils/time";
 import type { DocumentDriver, DocumentFields, EditorDocument } from "./documentDrivers";
 import type { SaveState } from "./useEditorDocument";
 import { useEditorWindowPrefs } from "./editorWindowPrefs";
@@ -428,12 +428,10 @@ export function EditorWindow({
                   driver.hasTitle ? "mb-6 mt-3" : "mb-5"
                 )}
               >
-                <span>
-                  {t("date.created", { date: windowTimestamp(doc.createTime, locale, t) })}
-                </span>
+                <span>{t("date.created", { date: formatDate(doc.createTime, true, locale) })}</span>
                 <span className="mx-0.5 opacity-50">·</span>
                 <span>
-                  {t("date.modified", { date: windowTimestamp(doc.updateTime, locale, t) })}
+                  {t("date.modified", { date: formatDate(doc.updateTime, true, locale) })}
                 </span>
               </div>
               {/* 点正文下方空白处落到正文末尾 */}

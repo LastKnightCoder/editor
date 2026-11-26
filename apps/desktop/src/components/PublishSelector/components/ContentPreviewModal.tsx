@@ -1,3 +1,4 @@
+import { useDesktopLocale } from "@/app/i18n/react";
 import { memo } from "react";
 import { getContentKit } from "@/services/editorKit";
 import { Descendant } from "slate";
@@ -21,6 +22,7 @@ interface ContentPreviewModalProps {
 
 export const ContentPreviewModal = memo<ContentPreviewModalProps>(
   ({ open, title, content, contentKey, onClose, meta, icon }) => {
+    const locale = useDesktopLocale();
     return (
       <Dialog
         open={open}
@@ -35,8 +37,8 @@ export const ContentPreviewModal = memo<ContentPreviewModalProps>(
           <div className="flex flex-col" style={{ height: "60vh", maxHeight: "60vh" }}>
             {meta && (
               <div className="border-line-2 text-ink-3 mb-4 flex items-center gap-3 border-b pb-3 text-[11.5px]">
-                {meta.createTime && <span>创建于 {formatDate(meta.createTime, true)}</span>}
-                {meta.updateTime && <span>更新于 {formatDate(meta.updateTime, true)}</span>}
+                {meta.createTime && <span>创建于 {formatDate(meta.createTime, true, locale)}</span>}
+                {meta.updateTime && <span>更新于 {formatDate(meta.updateTime, true, locale)}</span>}
                 {content && <span>字数：{getContentLength(content)}</span>}
               </div>
             )}

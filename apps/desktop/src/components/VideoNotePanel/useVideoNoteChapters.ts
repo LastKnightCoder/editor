@@ -1,3 +1,5 @@
+import { VideoChaptersFailure } from "./video-chapters-error";
+import { videoChaptersT, videoChaptersFailureText } from "./video-chapters.binding";
 /**
  * 视频笔记 AI 章节：转录就绪且配了「视频总结」模型时自动生成，存 video_notes.insights；
  * 转录变化（hash 对不上）即视为过期并重新生成。未配模型时不生成，界面按无章节呈现。
@@ -30,7 +32,7 @@ export const hashTranscript = (segments: TranscriptSegment[]): string => {
 export const parseChapters = (text: string, segments: TranscriptSegment[]): VideoNoteChapter[] => {
   const body = text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1);
   const raw = (JSON.parse(body) as { chapters?: unknown }).chapters;
-  if (!Array.isArray(raw)) throw new Error("章节格式不正确");
+  if (!Array.isArray(raw)) throw new VideoChaptersFailure("format");
   const starts = segments.map(segment => segment.start);
   const snap = (value: number) =>
     starts.reduce((best, start) =>
@@ -51,7 +53,7 @@ export const parseChapters = (text: string, segments: TranscriptSegment[]): Vide
     }))
     .sort((a, b) => a.start - b.start)
     .filter((item, index, list) => index === 0 || item.start !== list[index - 1].start);
-  if (!chapters.length) throw new Error("没有生成章节");
+  if (!chapters.length) throw new VideoChaptersFailure("empty");
   chapters[0].start = 0;
   return chapters;
 };
@@ -79,7 +81,7 @@ export function useVideoNoteChapters({ videoNote, busy, onSaved }: UseVideoNoteC
 
   const mutation = useMutation({
     mutationFn: async (input: { id: number; hash: string; segments: TranscriptSegment[] }) => {
-      if (!provider || !model) throw new Error("未配置视频总结模型");
+      if (!provider || !model) throw new VideoChaptersFailure("model");
       const messages: RequestMessage[] = [
         { role: Role.System, content: [{ type: "text", text: VIDEO_CHAPTERS_SYSTEM_PROMPT }] },
         {
@@ -94,7 +96,8 @@ export function useVideoNoteChapters({ videoNote, busy, onSaved }: UseVideoNoteC
         messages,
         source: { feature: "videoSummary", entityId: String(input.id) },
       });
-      if (!result.ok) throw new Error(result.error || "章节生成失败");
+      if (!result.ok)
+        throw result.error ? new Error(result.error) : new VideoChaptersFailure("generate");
       const next = {
         version: 2 as const,
         transcriptHash: input.hash,
@@ -115,11 +118,14 @@ export function useVideoNoteChapters({ videoNote, busy, onSaved }: UseVideoNoteC
       {
         onSuccess: ({ id, insights: next }) => {
           if (id === videoNoteIdRef.current) onSaved(next);
-          if (manual) toast.success("章节已重新生成");
+          if (manual) toast.success(videoChaptersT("notice.regenerated"));
         },
         onError: error => {
           console.error("Failed to generate video chapters:", error);
-          if (manual) toast.error(`章节生成失败：${error.message}`);
+          if (manual)
+            toast.error(
+              videoChaptersT("notice.failed", { error: videoChaptersFailureText(error) })
+            );
         },
       }
     );

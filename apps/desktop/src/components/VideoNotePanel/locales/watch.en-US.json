@@ -1,0 +1,21 @@
+{
+  "tips.network": "Check your network connection",
+  "tips.account": "Check your account or proxy in Settings · Accounts & connections",
+  "tips.membership": "Some quality options may require a membership",
+  "tips.link": "Check that the video link is valid",
+  "tips.retry": "Try again later or use another video link",
+  "chat.empty": "Ask about this video",
+  "chat.transcriptNeeded": "AI can answer questions about this video after transcription",
+  "chat.quote": "Video {{time}}",
+  "chat.removeQuote": "Remove quote",
+  "chat.new": "New chat",
+  "chat.collapse": "Collapse chat",
+  "chat.collapseShortcut": "Collapse chat (Ctrl/⌘ J)",
+  "chat.renameFailed": "Could not update title",
+  "ask.explain": "Explain",
+  "ask.expand": "Tell me more",
+  "ask.example": "Give an example",
+  "suggest.summary": "Summarize the main ideas in this video",
+  "suggest.chapters": "List key points and timestamps by chapter",
+  "suggest.quiz": "Create 5 self-test questions"
+}

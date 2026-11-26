@@ -1,3 +1,4 @@
+import { useLegacyVideoI18n } from "./legacy.i18n";
 import { useState, useRef } from "react";
 import { SelectDropDown } from "@tau/shared";
 import { ChevronDown, Check, Globe } from "lucide-react";
@@ -22,14 +23,15 @@ const LanguageSelect = ({
   onChange,
   options,
   disabled = false,
-  placeholder = "选择语言",
+  placeholder,
   className,
 }: LanguageSelectProps) => {
+  const { t } = useLegacyVideoI18n();
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   const selectedOption = options.find(opt => opt.value === value);
-  const displayValue = selectedOption?.label || value || placeholder;
+  const displayValue = selectedOption?.label || value || (placeholder ?? t("language.choose"));
   const hasValue = !!value && !!selectedOption;
 
   const handleSelect = (option: LanguageOption) => {

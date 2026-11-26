@@ -15,6 +15,7 @@
  * 图谱入口不做（卡片库列表页已有）。
  */
 
+import { useCardsI18n } from "../i18n";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Descendant, Range } from "slate";
 import { Transforms } from "slate";
@@ -93,6 +94,7 @@ function cloneRange(selection: Range | null): Range | null {
 }
 
 export function CardDetailView() {
+  const { locale } = useCardsI18n();
   const { navigator } = usePage();
   // 本实例 params（PageHost 按栈条目注入；勿读全局栈顶——多实例保活时会串台）
   const { id, at } = usePageParams<{ id: number; at?: string }>();
@@ -203,7 +205,7 @@ export function CardDetailView() {
       </div>
     );
 
-  const cardMetaText = `创建于 ${formatDate(card.create_time, true)} · 最后修改 ${formatDate(card.update_time, true)} · ${card.count.toLocaleString("zh-CN")} 字`;
+  const cardMetaText = `创建于 ${formatDate(card.create_time, true, locale)} · 最后修改 ${formatDate(card.update_time, true, locale)} · ${card.count.toLocaleString("zh-CN")} 字`;
 
   return (
     <div
