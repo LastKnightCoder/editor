@@ -1,3 +1,5 @@
+import { menuText } from "../menu-i18n";
+import { whiteboardT } from "../i18n-runtime";
 import { embeddedTextOptions, type TextExtensionOptions } from "../extensions/text";
 import { useSyncExternalStore, type ReactNode } from "react";
 import {
@@ -84,13 +86,15 @@ import { WHITEBOARD_LIMITS } from "@tau/collaboration";
 
 /** 像列表或多行的文字才拆成大纲；超出上限时提示只转了前面一部分 */
 const outlineFromText = (
+  board: Board,
   text: string,
   maxDepth: number = WHITEBOARD_LIMITS.payloadDepth
 ): MindOutline[] | null => {
   if (!isMarkdownLikeText(text) && !/\n/.test(text.trim())) return null;
   const { outline, truncated } = markdownToOutline(text, MIND_OUTLINE_LIMIT, maxDepth);
   if (!outline.length) return null;
-  if (truncated) toast.info(`内容较多，只转换了前 ${MIND_OUTLINE_LIMIT} 行`);
+  if (truncated)
+    toast.info(whiteboardT(board, "menus.mind.truncated", { count: MIND_OUTLINE_LIMIT }));
   return outline;
 };
 import { SelectTransforms } from "../transforms";
@@ -237,7 +241,7 @@ export class MindPlugin implements IBoardPlugin {
     const maxDepth = WHITEBOARD_LIMITS.payloadDepth - path.length;
     try {
       const outline =
-        outlineFromText(text, maxDepth) ??
+        outlineFromText(board, text, maxDepth) ??
         markdownToOutline(text.trim(), MIND_OUTLINE_LIMIT, maxDepth).outline;
       if (!outline.length) return false;
       return this.attachUnder(
@@ -247,7 +251,7 @@ export class MindPlugin implements IBoardPlugin {
       );
     } catch (error) {
       if (!(error instanceof MindOutlineDepthError)) throw error;
-      toast.error(error.message);
+      toast.error(whiteboardT(board, "menus.mind.depth"));
       return true;
     }
   }
@@ -291,9 +295,9 @@ export class MindPlugin implements IBoardPlugin {
       text = null;
     }
     try {
-      const outline = text ? outlineFromText(text) : null;
+      const outline = text ? outlineFromText(board, text) : null;
       if (!outline || outlineDepth(outline) < 2) {
-        toast.info("剪贴板里没有多级列表");
+        toast.info(whiteboardT(board, "menus.mind.noOutline"));
         return;
       }
       const root = mindRootFromOutline(outline, ctx.viewPortPoint, board.getFontSize());
@@ -308,7 +312,10 @@ export class MindPlugin implements IBoardPlugin {
     } catch (error) {
       if (error instanceof WhiteboardValidationError || error instanceof MindOutlineDepthError) {
         toast.error(
-          error instanceof MindOutlineDepthError ? error.message : "粘贴失败，原内容未改变"
+          whiteboardT(
+            board,
+            error instanceof MindOutlineDepthError ? "menus.mind.depth" : "menus.mind.pasteFailed"
+          )
         );
         return;
       }
@@ -351,7 +358,6 @@ export class MindPlugin implements IBoardPlugin {
     if (context.board.readonly) return [];
     const ids = context.targetElements.filter(el => el.type === "mind-node").map(el => el.id);
     const adjacent = MindUtil.adjacentSiblings(root, ids) !== null;
-    const hint = adjacent ? undefined : "选中相邻的同级节点";
     const commit = (next: MindNodeElement | null | undefined, selectId?: string) => {
       const path = PathUtil.getPathByElement(context.board, root);
       if (!next || !path) return;
@@ -369,7 +375,10 @@ export class MindPlugin implements IBoardPlugin {
     const items: PluginContextMenuItem[] = [
       {
         key: "mind-summary",
-        label: hint ? `概要（${hint}）` : "概要",
+        ...menuText(
+          context.board,
+          adjacent ? "menus.mind.summary" : "menus.mind.summaryUnavailable"
+        ),
         icon: <Braces size={14} />,
         shortcut: this.shortcut("mod+shift+s"),
         disabled: !adjacent,
@@ -383,7 +392,10 @@ export class MindPlugin implements IBoardPlugin {
       },
       {
         key: "mind-boundary",
-        label: hint ? `外框（${hint}）` : "外框",
+        ...menuText(
+          context.board,
+          adjacent ? "menus.mind.boundary" : "menus.mind.boundaryUnavailable"
+        ),
         icon: <BoxSelect size={14} />,
         shortcut: this.shortcut("mod+shift+b"),
         disabled: !adjacent,
@@ -394,7 +406,7 @@ export class MindPlugin implements IBoardPlugin {
     if (ids.length === 1)
       items.push({
         key: "mind-relation",
-        label: "添加联系线",
+        ...menuText(context.board, "menus.mind.relation"),
         icon: <Spline size={14} />,
         shortcut: this.shortcut("mod+l"),
         priority: 106,
@@ -407,21 +419,28 @@ export class MindPlugin implements IBoardPlugin {
       if (!MindUtil.rangeNodes(root, parent!, boundary).some(n => n.id === node!.id)) continue;
       items.push({
         key: `mind-boundary-${boundary.id}`,
-        label: boundary.title ? `外框「${boundary.title}」` : "外框",
+        ...menuText(
+          context.board,
+          boundary.title ? "menus.mind.boundaryTitle" : "menus.mind.boundary",
+          { title: boundary.title ?? "" }
+        ),
         icon: <BoxSelect size={14} />,
         priority: 107,
         onSelect: () => {},
         children: [
           {
             key: "mind-boundary-title",
-            label: boundary.title ? "编辑外框标题" : "添加外框标题",
+            ...menuText(
+              context.board,
+              boundary.title ? "menus.mind.editBoundaryTitle" : "menus.mind.addBoundaryTitle"
+            ),
             icon: <Type size={14} />,
             priority: 0,
             onSelect: () => context.board.emit(EDIT_BOUNDARY_EVENT, boundary.id),
           },
           {
             key: "mind-boundary-remove",
-            label: "删除外框",
+            ...menuText(context.board, "menus.mind.removeBoundary"),
             icon: <Trash2 size={14} />,
             danger: true,
             priority: 1,
@@ -434,18 +453,18 @@ export class MindPlugin implements IBoardPlugin {
   }
 
   /** 根节点「展开到」：层级数随导图实际深度，最多到第 5 层 */
-  private expandToMenu(root: MindNodeElement): PluginContextMenuItem {
+  private expandToMenu(board: Board, root: MindNodeElement): PluginContextMenuItem {
     const deepest = Math.min(MindUtil.maxLevel(root) - 1, 5);
     return {
       key: "mind-expand-to",
-      label: "展开到",
+      ...menuText(board, "menus.mind.expandTo"),
       icon: <ListTree size={14} />,
       priority: 104,
       onSelect: () => {},
       children: [
         ...Array.from({ length: Math.max(deepest, 1) }, (_, i) => ({
           key: `mind-expand-to-${i + 1}`,
-          label: `第 ${i + 1} 层`,
+          ...menuText(board, "menus.mind.level", { number: i + 1 }),
           shortcut: this.shortcut(`alt+${i + 1}`),
           priority: i,
           onSelect: (ctx: ContextMenuContext) =>
@@ -453,7 +472,7 @@ export class MindPlugin implements IBoardPlugin {
         })),
         {
           key: "mind-expand-to-all",
-          label: "全部展开",
+          ...menuText(board, "menus.mind.expandAll"),
           shortcut: this.shortcut("alt+0"),
           priority: 10,
           onSelect: (ctx: ContextMenuContext) =>
@@ -463,7 +482,7 @@ export class MindPlugin implements IBoardPlugin {
     };
   }
 
-  private expandAllMenu(node: MindNodeElement): PluginContextMenuItem {
+  private expandAllMenu(board: Board, node: MindNodeElement): PluginContextMenuItem {
     let folded = false;
     MindUtil.dfs(node, {
       before: current => {
@@ -472,7 +491,7 @@ export class MindPlugin implements IBoardPlugin {
     });
     return {
       key: "mind-expand-all",
-      label: "展开全部子级",
+      ...menuText(board, "menus.mind.expandDescendants"),
       icon: <ListTree size={14} />,
       shortcut: this.shortcut("mod+shift+."),
       priority: 102,
@@ -503,7 +522,7 @@ export class MindPlugin implements IBoardPlugin {
     if (targetElements.length === 0) {
       items.push({
         key: "create-mindmap",
-        label: "思维导图",
+        ...menuText(context.board, "menus.mind.create"),
         icon: <Network size={14} />,
         priority: 130,
         onSelect: (ctx: ContextMenuContext) => {
@@ -513,7 +532,7 @@ export class MindPlugin implements IBoardPlugin {
       if (!context.board.readonly)
         items.push({
           key: "paste-as-mindmap",
-          label: "粘贴为思维导图",
+          ...menuText(context.board, "menus.mind.paste"),
           icon: <ClipboardPaste size={14} />,
           priority: 131,
           onSelect: (ctx: ContextMenuContext) => void this.pasteAsMindMap(ctx),
@@ -535,14 +554,14 @@ export class MindPlugin implements IBoardPlugin {
         // 根节点菜单：单向布局只有一组子节点，不分左右
         items.push({
           key: "add-mind-node",
-          label: "添加节点",
+          ...menuText(context.board, "menus.mind.addNode"),
           icon: <Plus size={14} />,
           priority: 100,
           children: bothSides
             ? [
                 {
                   key: "add-left-child",
-                  label: "左子节点",
+                  ...menuText(context.board, "menus.mind.leftChild"),
                   icon: <ArrowLeft size={14} />,
                   priority: 0,
                   onSelect: (ctx: ContextMenuContext) => {
@@ -572,7 +591,7 @@ export class MindPlugin implements IBoardPlugin {
                 },
                 {
                   key: "add-right-child",
-                  label: "右子节点",
+                  ...menuText(context.board, "menus.mind.rightChild"),
                   icon: <ArrowRight size={14} />,
                   priority: 1,
                   onSelect: (ctx: ContextMenuContext) => {
@@ -604,7 +623,7 @@ export class MindPlugin implements IBoardPlugin {
             : [
                 {
                   key: "add-child-node",
-                  label: "子节点",
+                  ...menuText(context.board, "menus.mind.child"),
                   icon: <CornerDownRight size={14} />,
                   priority: 0,
                   onSelect: (ctx: ContextMenuContext) => this.addChildFromMenu(ctx),
@@ -615,7 +634,7 @@ export class MindPlugin implements IBoardPlugin {
 
         items.push({
           key: "relayout-mindmap",
-          label: "重新布局",
+          ...menuText(context.board, "menus.mind.relayout"),
           icon: <LayoutGrid size={14} />,
           priority: 101,
           onSelect: (ctx: ContextMenuContext) => {
@@ -642,7 +661,7 @@ export class MindPlugin implements IBoardPlugin {
           const folded = MindUtil.isFolded(getMindLayout(root), mindNode, "right");
           items.push({
             key: "toggle-fold",
-            label: folded ? "展开节点" : "收起节点",
+            ...menuText(context.board, folded ? "menus.mind.expand" : "menus.mind.collapse"),
             icon: folded ? <ChevronDown size={14} /> : <ChevronUp size={14} />,
             priority: 102,
             onSelect: (ctx: ContextMenuContext) => this.toggleFoldFromMenu(ctx, "right"),
@@ -652,7 +671,10 @@ export class MindPlugin implements IBoardPlugin {
         if (bothSides && leftChildren.length > 0) {
           items.push({
             key: "toggle-left-fold",
-            label: mindNode.isLeftFold ? "展开左侧" : "收起左侧",
+            ...menuText(
+              context.board,
+              mindNode.isLeftFold ? "menus.mind.expandLeft" : "menus.mind.collapseLeft"
+            ),
             icon: mindNode.isLeftFold ? <ChevronDown size={14} /> : <ChevronUp size={14} />,
             priority: 102,
             onSelect: (ctx: ContextMenuContext) => {
@@ -677,7 +699,10 @@ export class MindPlugin implements IBoardPlugin {
         if (bothSides && rightChildren.length > 0) {
           items.push({
             key: "toggle-right-fold",
-            label: mindNode.isRightFold ? "展开右侧" : "收起右侧",
+            ...menuText(
+              context.board,
+              mindNode.isRightFold ? "menus.mind.expandRight" : "menus.mind.collapseRight"
+            ),
             icon: mindNode.isRightFold ? <ChevronDown size={14} /> : <ChevronUp size={14} />,
             priority: 103,
             onSelect: (ctx: ContextMenuContext) => {
@@ -699,18 +724,18 @@ export class MindPlugin implements IBoardPlugin {
           });
         }
 
-        if (mindNode.children.length > 0) items.push(this.expandToMenu(root));
+        if (mindNode.children.length > 0) items.push(this.expandToMenu(context.board, root));
       } else {
         // 非根节点菜单
         items.push({
           key: "add-mind-node",
-          label: "添加节点",
+          ...menuText(context.board, "menus.mind.addNode"),
           icon: <Plus size={14} />,
           priority: 100,
           children: [
             {
               key: "add-sibling-before",
-              label: "上兄弟节点",
+              ...menuText(context.board, "menus.mind.previousSibling"),
               icon: <ArrowUp size={14} />,
               priority: 0,
               onSelect: (ctx: ContextMenuContext) => {
@@ -734,7 +759,7 @@ export class MindPlugin implements IBoardPlugin {
             },
             {
               key: "add-sibling-after",
-              label: "下兄弟节点",
+              ...menuText(context.board, "menus.mind.nextSibling"),
               icon: <ArrowDown size={14} />,
               priority: 1,
               onSelect: (ctx: ContextMenuContext) => {
@@ -763,7 +788,7 @@ export class MindPlugin implements IBoardPlugin {
             },
             {
               key: "add-child-node",
-              label: "子节点",
+              ...menuText(context.board, "menus.mind.child"),
               icon: <CornerDownRight size={14} />,
               priority: 2,
               onSelect: (ctx: ContextMenuContext) => {
@@ -801,14 +826,14 @@ export class MindPlugin implements IBoardPlugin {
           items.push(
             {
               key: "toggle-fold",
-              label: collapsed ? "展开节点" : "收起节点",
+              ...menuText(context.board, collapsed ? "menus.mind.expand" : "menus.mind.collapse"),
               icon: collapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />,
               shortcut: this.shortcut("mod+."),
               priority: 101,
               onSelect: (ctx: ContextMenuContext) =>
                 this.applyRootChange(ctx, (root, node) => MindUtil.toggleCollapsed(root, node.id)),
             },
-            this.expandAllMenu(mindNode)
+            this.expandAllMenu(context.board, mindNode)
           );
         }
       }
@@ -819,7 +844,7 @@ export class MindPlugin implements IBoardPlugin {
       if (mindNode.contentId) {
         items.push({
           key: "mind-open-note",
-          label: "打开笔记",
+          ...menuText(context.board, "menus.mind.openNote"),
           icon: <StickyNote size={14} />,
           priority: 150,
           onSelect: (ctx: ContextMenuContext) => {
@@ -831,7 +856,7 @@ export class MindPlugin implements IBoardPlugin {
 
         items.push({
           key: "mind-unlink-note",
-          label: "取消关联笔记",
+          ...menuText(context.board, "menus.mind.unlinkNote"),
           icon: <Unlink size={14} />,
           priority: 151,
           danger: true,
@@ -844,13 +869,13 @@ export class MindPlugin implements IBoardPlugin {
       } else {
         items.push({
           key: "mind-link-note",
-          label: "关联笔记",
+          ...menuText(context.board, "menus.mind.linkNote"),
           icon: <FilePlus2 size={14} />,
           priority: 150,
           children: [
             {
               key: "mind-create-note",
-              label: "新建笔记",
+              ...menuText(context.board, "menus.mind.createNote"),
               icon: <FilePlus2 size={14} />,
               priority: 0,
               onSelect: async (ctx: ContextMenuContext) => {
@@ -898,7 +923,7 @@ export class MindPlugin implements IBoardPlugin {
             },
             {
               key: "mind-select-note",
-              label: "选择笔记",
+              ...menuText(context.board, "menus.mind.selectNote"),
               icon: <Search size={14} />,
               priority: 1,
               onSelect: (ctx: ContextMenuContext) => {

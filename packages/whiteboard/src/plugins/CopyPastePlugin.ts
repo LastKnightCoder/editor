@@ -1,3 +1,5 @@
+import { menuText } from "../menu-i18n";
+import { whiteboardT } from "../i18n-runtime";
 import { toast } from "@tau/ui";
 import { embeddedTextOptions, type TextExtensionOptions } from "../extensions/text";
 import { WhiteboardValidationError } from "../extensions/validation";
@@ -129,7 +131,7 @@ export class CopyPastePlugin implements IBoardPlugin {
       // 没有选中元素时，显示禁用的复制项
       items.push({
         key: "copy",
-        label: "复制",
+        ...menuText(board, "menus.clipboard.copy"),
         icon: React.createElement(Copy, { size: 14 }),
         shortcut: copyShortcut,
         priority: 300,
@@ -137,11 +139,13 @@ export class CopyPastePlugin implements IBoardPlugin {
         onSelect: () => {},
       });
     } else {
-      const labelSuffix = targetCount > 1 ? "选中" : "元素";
       const layerActionState = getLayerOrderActionState(board, targetElements);
       items.push({
         key: "copy",
-        label: `复制${labelSuffix}`,
+        ...menuText(
+          board,
+          targetCount > 1 ? "menus.clipboard.copySelected" : "menus.clipboard.copyElement"
+        ),
         icon: React.createElement(Copy, { size: 14 }),
         shortcut: copyShortcut,
         priority: 300,
@@ -162,7 +166,7 @@ export class CopyPastePlugin implements IBoardPlugin {
       items.push(
         {
           key: "layer-move-up",
-          label: "上移一层",
+          ...menuText(board, "menus.clipboard.up"),
           icon: React.createElement(ArrowUp, { size: 14 }),
           priority: 304,
           disabled: layerActionState.moveUpDisabled,
@@ -172,7 +176,7 @@ export class CopyPastePlugin implements IBoardPlugin {
         },
         {
           key: "layer-move-down",
-          label: "下移一层",
+          ...menuText(board, "menus.clipboard.down"),
           icon: React.createElement(ArrowDown, { size: 14 }),
           priority: 305,
           disabled: layerActionState.moveDownDisabled,
@@ -182,7 +186,7 @@ export class CopyPastePlugin implements IBoardPlugin {
         },
         {
           key: "layer-move-top",
-          label: "移至顶层",
+          ...menuText(board, "menus.clipboard.top"),
           icon: React.createElement(ArrowUpToLine, { size: 14 }),
           priority: 306,
           disabled: layerActionState.moveTopDisabled,
@@ -192,7 +196,7 @@ export class CopyPastePlugin implements IBoardPlugin {
         },
         {
           key: "layer-move-bottom",
-          label: "移至底层",
+          ...menuText(board, "menus.clipboard.bottom"),
           icon: React.createElement(ArrowDownToLine, { size: 14 }),
           priority: 307,
           disabled: layerActionState.moveBottomDisabled,
@@ -211,7 +215,10 @@ export class CopyPastePlugin implements IBoardPlugin {
       if (canDelete) {
         items.push({
           key: "delete",
-          label: `删除${labelSuffix}`,
+          ...menuText(
+            board,
+            targetCount > 1 ? "menus.clipboard.deleteSelected" : "menus.clipboard.deleteElement"
+          ),
           icon: React.createElement(Trash2, { size: 14 }),
           shortcut: deleteShortcut,
           priority: 310,
@@ -237,20 +244,23 @@ export class CopyPastePlugin implements IBoardPlugin {
     if (targetCount && board.document?.pages && board.document.moveToPage && !board.readonly) {
       items.push({
         key: "move-to-page",
-        label: "移动到画板页",
+        ...menuText(board, "menus.clipboard.movePage"),
         icon: React.createElement(Copy, { size: 14 }),
         priority: 306,
         onSelect: () => {},
-        children: board.document.pages().map(page => ({
-          key: `move-page-${page.id}`,
-          label: page.title || "未命名页",
-          priority: 0,
-          onSelect: () =>
-            board.document?.moveToPage?.(
-              this.filterContainerChildren(board, targetElements).map(element => element.id),
-              page.id
-            ),
-        })),
+        children: board.document.pages().map(page => {
+          const title = page.title;
+          return {
+            key: `move-page-${page.id}`,
+            ...(title ? { label: title } : menuText(board, "menus.clipboard.untitledPage")),
+            priority: 0,
+            onSelect: () =>
+              board.document?.moveToPage?.(
+                this.filterContainerChildren(board, targetElements).map(element => element.id),
+                page.id
+              ),
+          };
+        }),
       });
     }
     return items;
@@ -317,7 +327,7 @@ export class CopyPastePlugin implements IBoardPlugin {
     );
 
     if (payloadCandidates.some(value => value.length > 32 * 1024 * 1024)) {
-      toast.error("粘贴内容超过导入预算，原内容未改变");
+      toast.error(whiteboardT(board, "menus.clipboard.budget"));
       e.preventDefault();
       e.stopImmediatePropagation();
       return;
@@ -374,13 +384,17 @@ export class CopyPastePlugin implements IBoardPlugin {
       e.preventDefault();
       e.stopImmediatePropagation();
       if (!board.document?.importTransfer) {
-        toast.error("请在协作文档中导入可编辑白板");
+        toast.error(whiteboardT(board, "menus.clipboard.requireDocument"));
         return true;
       }
       void board.document
         .importTransfer(dataObj as unknown as import("@tau/collaboration").WhiteboardTransfer)
         .catch(error =>
-          toast.error(error instanceof Error ? error.message : "导入失败，原内容已保留")
+          toast.error(
+            error instanceof Error
+              ? error.message
+              : whiteboardT(board, "menus.clipboard.importFailed")
+          )
         );
       return true;
     }

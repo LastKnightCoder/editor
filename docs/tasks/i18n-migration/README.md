@@ -284,6 +284,8 @@ P5桌面对话工作目录/停靠：10路径工程完成；真实QueryClient+传
 
 P5手机工具展示：19路径工程完成；5文件31例、mobile类型/构建、三语key/参数/复数、无DOM纯formatter和范围静态/格式通过。公开ToolInteractionHost异步边界保留审批pending、分页/other草稿、preview真实缓存；真实router保留原同步broker协议与choice/request身份。6日期parity覆盖短日期/全天exclusive，独立AST确认parseObject/prettyJson/parseLocalText/isOverdue/humanizeToolName/startOfDay及LOCAL正则原样。旧SPECS/SOURCE_NOTE/WEEKDAYS label消费者清零退出，无兼容；RawData/图片prompt/url/fileName和AI载荷不改。
 
+P6A3-D2B脑图/剪贴板：7路径工程完成；5文件36例、包type/白板边界、menus-structure51key三语runtime及范围静态格式通过。真实概要生成跨locale产物正文相等（不锁默认词值），页面标题getter打开只读一次/ID动作不变；独立AST对照非UI协议/默认正文/算法保持，正规化差异仅显示/反馈和明确Board参数穿透。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。
