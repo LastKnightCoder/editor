@@ -6,6 +6,7 @@
  * 根节点带 CANVAS_OVERLAY_ATTR：面板里的按键、指针不归画布。
  */
 
+import { materialNoteText, useDocumentInsertI18n } from "../../insert.i18n";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useDebounce, useMemoizedFn } from "ahooks";
@@ -29,6 +30,7 @@ import {
   placedKeys,
   toMaterialOption,
   type MaterialOption,
+  type MaterialGroup,
 } from "./insert";
 import { useRelated } from "./related";
 
@@ -42,6 +44,8 @@ type KindFilter = EntityKind | null;
 const KIND_ORDER: KindFilter[] = [null, ...INSERTABLE_KINDS];
 
 function Panel({ request, onClose }: { request: DocumentInsertRequest; onClose(): void }) {
+  const context = useDocumentInsertI18n();
+  const { t } = context;
   const board = useBoard();
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -76,27 +80,27 @@ function Panel({ request, onClose }: { request: DocumentInsertRequest; onClose()
   });
   const related = useRelated(near);
 
-  const groups = useMemo(() => {
+  const groups = useMemo<MaterialGroup[]>(() => {
     const matchesKind = (option: Option) => !kind || option.kind === kind;
     const results = (search.data ?? [])
       .map(candidate => toMaterialOption(candidate, now))
       .filter((option): option is Option => option !== null);
-    if (debounced.trim()) return [{ name: "搜索结果", options: results }];
+    if (debounced.trim()) return [{ id: "search", options: results }];
     const relatedOptions = (related.data ?? [])
       .map((item): Option => ({
         entityRef: item.entityRef,
         title: item.title,
         key: item.key,
         kind: item.kind,
-        note: item.reason,
+        note: { kind: "related", reasonKind: item.reasonKind },
       }))
       .filter(matchesKind);
     const relatedKeys = new Set(relatedOptions.map(option => option.key));
     return [
       ...(relatedOptions.length && near
-        ? [{ name: `和「${near.title || "选中的文档"}」相关`, options: relatedOptions }]
+        ? [{ id: "related" as const, title: near.title, options: relatedOptions }]
         : []),
-      { name: "最近编辑", options: results.filter(option => !relatedKeys.has(option.key)) },
+      { id: "recent" as const, options: results.filter(option => !relatedKeys.has(option.key)) },
     ].filter(group => group.options.length > 0);
   }, [search.data, related.data, debounced, kind, near, now]);
   const flat = useMemo(() => groups.flatMap(group => group.options), [groups]);
@@ -191,7 +195,7 @@ function Panel({ request, onClose }: { request: DocumentInsertRequest; onClose()
       ref={rootRef}
       {...{ [CANVAS_OVERLAY_ATTR]: "" }}
       role="dialog"
-      aria-label="放入文档"
+      aria-label={t("insert.title")}
       className={cn(
         "bg-surface border-line-1 shadow-float rounded-tau-lg pointer-events-auto absolute z-[9] flex flex-col border",
         "animate-quick-insert-in origin-top-left motion-reduce:animate-fadeIn",
@@ -207,8 +211,8 @@ function Panel({ request, onClose }: { request: DocumentInsertRequest; onClose()
           ref={inputRef}
           value={keyword}
           onChange={event => setKeyword(event.target.value)}
-          placeholder={request.linkFrom ? "连到一篇新的…" : "放入卡片、文章、项目文档、PDF、日记"}
-          aria-label="搜索要放入的内容"
+          placeholder={request.linkFrom ? t("insert.linkPlaceholder") : t("insert.placeholder")}
+          aria-label={t("insert.searchLabel")}
           className="text-ink-1 placeholder:text-ink-3 min-w-0 flex-1 bg-transparent text-[14px] outline-none"
         />
         <div className="flex shrink-0 gap-0.5">
@@ -243,12 +247,16 @@ function Panel({ request, onClose }: { request: DocumentInsertRequest; onClose()
           <Loading />
         ) : flat.length === 0 ? (
           <p className="text-ink-3 py-8 text-center text-[12.5px]">
-            {debounced ? `没有找到「${debounced}」` : "还没有可以放入的内容"}
+            {debounced ? t("empty.search", { keyword: debounced }) : t("empty")}
           </p>
         ) : (
           groups.map(group => (
-            <div key={group.name}>
-              <div className="text-ink-3 truncate px-2.5 pt-2 pb-1 text-[11.5px]">{group.name}</div>
+            <div key={group.id}>
+              <div className="text-ink-3 truncate px-2.5 pt-2 pb-1 text-[11.5px]">
+                {group.id === "related"
+                  ? t("group.related", { title: group.title || t("selectedDocument") })
+                  : t(`group.${group.id}`)}
+              </div>
               {group.options.map(option => {
                 const i = index++;
                 const on = picked.has(option.key);
@@ -282,10 +290,12 @@ function Panel({ request, onClose }: { request: DocumentInsertRequest; onClose()
                         onBoard ? "text-ink-3" : "text-ink-1"
                       )}
                     >
-                      {option.title || "无标题"}
+                      {option.title || t("untitled")}
                     </span>
                     <span className="text-ink-3 shrink-0 text-[11.5px]">
-                      {onBoard ? `板上 · ${option.note}` : option.note}
+                      {onBoard
+                        ? t("onBoard", { note: materialNoteText(option.note, context) })
+                        : materialNoteText(option.note, context)}
                     </span>
                     {picked.size > 0 && (
                       <span
@@ -308,13 +318,13 @@ function Panel({ request, onClose }: { request: DocumentInsertRequest; onClose()
       </div>
       <div className="border-line-1 text-ink-3 flex shrink-0 gap-3 border-t px-3 py-[7px] text-[11.5px]">
         {picked.size ? (
-          <span className="text-ink-2">已选 {picked.size} 篇，↵ 一起放入</span>
+          <span className="text-ink-2">{t("picked.insert", { count: picked.size })}</span>
         ) : (
           <>
-            <span>↑↓ 选择</span>
-            <span>↵ 放入</span>
-            <span>⌘↵ 多选</span>
-            <span>Tab 类型</span>
+            <span>{t("shortcut.select")}</span>
+            <span>{t("shortcut.insert")}</span>
+            <span>{t("shortcut.multi")}</span>
+            <span>{t("shortcut.kind")}</span>
           </>
         )}
       </div>

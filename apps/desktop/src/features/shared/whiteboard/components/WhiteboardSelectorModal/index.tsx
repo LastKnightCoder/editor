@@ -1,3 +1,4 @@
+import { documentInsertTranslator, useDocumentInsertI18n } from "../../insert.i18n";
 import { toast } from "@tau/ui";
 import { getWhiteboardDocument } from "@tau/whiteboard/collaboration";
 import { referenceWhiteboardEntity } from "@/commands/whiteboard-document";
@@ -30,6 +31,7 @@ const WhiteboardSelectorModal = ({
   board,
   action = "create",
 }: WhiteboardSelectorModalProps) => {
+  const { t } = useDocumentInsertI18n();
   const [allWhiteboards, setAllWhiteboards] = useState<IWhiteboard[]>([]);
   const [loadingWhiteboards, setLoadingWhiteboards] = useState(false);
   const mutations = useWhiteboardMutations();
@@ -103,7 +105,7 @@ const WhiteboardSelectorModal = ({
         open={open}
         initial={null}
         knownTags={knownTags}
-        createLabel="创建并插入"
+        createLabel={t("whiteboard.createInsert")}
         onClose={handleCancel}
         onSubmit={async info => {
           const canSubmit = board.captureSubmission();
@@ -118,14 +120,16 @@ const WhiteboardSelectorModal = ({
   return (
     <SelectWhiteboardModal
       open={open}
-      title="引用已有白板"
+      title={t("whiteboard.reference")}
       multiple={false}
       loading={loadingWhiteboards}
       onCancel={handleCancel}
       onOk={whiteboards => {
         if (!whiteboards[0]) return;
         void insertWhiteboardElement(whiteboards[0]).catch(error =>
-          toast.error(error instanceof Error ? error.message : "引用建立失败")
+          toast.error(
+            error instanceof Error ? error.message : documentInsertTranslator.t("reference.failed")
+          )
         );
         handleCancel();
       }}

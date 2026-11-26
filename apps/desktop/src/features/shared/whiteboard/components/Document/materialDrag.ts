@@ -5,6 +5,7 @@
  * - linkFrom（引用拖出时为当前阅读的那张卡）：放下后从它连箭头。
  */
 
+import { documentInsertTranslator } from "../../insert.i18n";
 import type { WhiteboardAPI } from "@tau/whiteboard";
 import { toast } from "@tau/ui";
 import { insertDocuments, type InsertTarget } from "./insert";
@@ -71,7 +72,8 @@ export async function dropMaterials(
     : { at: point, linkFrom: payload.linkFrom };
   try {
     const placed = await insertDocuments(api, payload.targets, request);
-    if (placed.length > 1) toast.info(`放入 ${placed.length} 篇`);
+    if (placed.length > 1)
+      toast.info(documentInsertTranslator.t("dropped", { count: placed.length }));
     return placed;
   } catch {
     // 失败提示已给出

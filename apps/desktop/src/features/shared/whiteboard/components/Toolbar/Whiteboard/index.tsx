@@ -1,14 +1,21 @@
+import { useDocumentInsertI18n } from "../../../insert.i18n";
 import { Presentation, Plus, Link2 } from "lucide-react";
 import { ToolMenu, type WhiteboardToolProps } from "@tau/whiteboard";
 
 export default function WhiteboardTool({ run }: WhiteboardToolProps) {
+  const { t } = useDocumentInsertI18n();
   return (
     <ToolMenu
-      label="白板"
+      label={t("tool.whiteboard")}
       icon={<Presentation strokeWidth={1.75} />}
       items={[
-        { key: "create", label: "创建新白板", icon: Plus, onSelect: () => run("create") },
-        { key: "reference", label: "引用已有白板", icon: Link2, onSelect: () => run("reference") },
+        { key: "create", label: t("whiteboard.create"), icon: Plus, onSelect: () => run("create") },
+        {
+          key: "reference",
+          label: t("whiteboard.reference"),
+          icon: Link2,
+          onSelect: () => run("reference"),
+        },
       ]}
     />
   );

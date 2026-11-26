@@ -6,8 +6,10 @@
  * 根节点带 CANVAS_OVERLAY_ATTR：建议上的指针不归画布。
  */
 
+import { documentInsertTranslator, useDocumentInsertI18n } from "../../insert.i18n";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
+import { omit } from "lodash";
 import { Plus } from "lucide-react";
 import { toast } from "@tau/ui";
 import {
@@ -75,6 +77,7 @@ interface Open {
 }
 
 function Suggestions({ open, onPlaced }: { open: Open; onPlaced(item: RelatedItem): void }) {
+  const { t } = useDocumentInsertI18n();
   const board = useBoard();
   const viewPort = useViewPort();
   const busy = useRef(false);
@@ -94,7 +97,8 @@ function Suggestions({ open, onPlaced }: { open: Open; onPlaced(item: RelatedIte
     busy.current = true;
     const { x, y } = boxOf(index);
     try {
-      const [placed] = await insertDocuments(board, [item], {
+      const storedItem = omit(item, "reasonKind");
+      const [placed] = await insertDocuments(board, [storedItem], {
         at: { x, y: y + SUGGESTION.height / 2 },
         linkFrom: card.id,
         keepSelection: true,
@@ -177,15 +181,15 @@ function Suggestions({ open, onPlaced }: { open: Open; onPlaced(item: RelatedIte
                 strokeWidth={1.75}
               />
               <span className="truncate">
-                {ENTITY_KIND_META[item.kind].label} · {item.reason}
+                {ENTITY_KIND_META[item.kind].label} · {t(`reason.${item.reasonKind}`)}
               </span>
               <span className="text-accent-text ml-auto flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
                 <Plus className="size-3" strokeWidth={2} />
-                放入
+                {t("insert")}
               </span>
             </span>
             <span className="text-ink-1 mt-1 line-clamp-1 text-[14px] leading-snug font-semibold">
-              {item.title || "无标题"}
+              {item.title || t("untitled")}
             </span>
             {item.summary && (
               <span className="text-ink-3 mt-0.5 truncate text-[12px]">{item.summary}</span>
@@ -217,7 +221,7 @@ export function SuggestionLayer() {
       if (request !== requestRef.current) return;
       if (items.length === 0) {
         setOpen(null);
-        toast.info("没有更多相关的内容了");
+        toast.info(documentInsertTranslator.t("related.empty"));
         return;
       }
       const shown = items.slice(0, MAX_SUGGESTIONS);

@@ -18,7 +18,8 @@ import { toast } from "@tau/ui";
 import { referenceWhiteboardEntity } from "@/commands/whiteboard-document";
 import useSettingStore from "@/stores/useSettingStore";
 import type { EntityCandidate, EntityKind } from "@/types";
-import { entityTime } from "@/components/EntityPicker/meta";
+import { documentInsertTranslator } from "../../insert.i18n";
+import type { RelatedReasonKind } from "./related";
 
 /** 可放进白板的实体：日记只能选某一条碎碎念，不能整天放入；PDF 放的是整份 */
 export const INSERTABLE_KINDS: EntityKind[] = [
@@ -48,12 +49,22 @@ export function toInsertTarget(candidate: Pick<EntityCandidate, "kind" | "id" | 
   return kind ? { entityRef: { kind, id: candidate.id }, title: candidate.title } : null;
 }
 
+export type MaterialNote =
+  | { kind: "metadata"; meta: string; time: number; now: number }
+  | { kind: "related"; reasonKind: RelatedReasonKind };
+
+export interface MaterialGroup {
+  id: "related" | "search" | "recent";
+  title?: string;
+  options: MaterialOption[];
+}
+
 /** 检索结果里的一行：放入面板与素材架共用 */
 export interface MaterialOption extends InsertTarget {
   key: string;
   kind: EntityKind;
   /** 右侧说明：所属项目、时间，或相关原因 */
-  note: string;
+  note: MaterialNote;
 }
 
 export const targetKey = (target: InsertTarget) =>
@@ -66,7 +77,7 @@ export function toMaterialOption(candidate: EntityCandidate, now: number): Mater
     ...target,
     key: targetKey(target),
     kind: candidate.kind,
-    note: [candidate.meta, entityTime(candidate.time, now)].filter(Boolean).join(" · "),
+    note: { kind: "metadata", meta: candidate.meta, time: candidate.time, now },
   };
 }
 
@@ -117,7 +128,7 @@ export async function insertDocuments(
       board.select([placed.id]);
       ViewPortTransforms.centerElementsIfNotInViewPort(board, [placed]);
       board.flashElement(placed.id);
-      toast.info("已经在白板上，带你过去");
+      toast.info(documentInsertTranslator.t("placed"));
       return [];
     }
   }
@@ -138,7 +149,9 @@ export async function insertDocuments(
         documents[index] = { entity, title: targets[index].title };
       });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "引用建立失败");
+      toast.error(
+        error instanceof Error ? error.message : documentInsertTranslator.t("reference.failed")
+      );
       throw error;
     }
     if (useSettingStore.getState().setting.database.active !== databaseName) return [];

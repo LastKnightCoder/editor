@@ -11,11 +11,23 @@ import type { EntityKind } from "@/types";
 import { toInsertTarget, type InsertTarget } from "./insert";
 import { textEntityRef } from "./entityRef";
 
+export type RelatedReasonKind = "linked" | "inline" | "backlink" | "similar";
+
+// 建议插入会保存这些来源原因，保持原始数据值；界面读取 reasonKind。
+const RAW_REASON: Record<RelatedReasonKind, string> = {
+  linked: "已连接",
+  inline: "正文引用",
+  backlink: "引用了它",
+  similar: "内容相近",
+};
+
 export interface RelatedItem extends InsertTarget {
   key: string;
   kind: EntityKind;
-  /** 为什么相关：「已连接」「正文引用」「引用了它」「内容相近」 */
+  /** 随建议插入保存的来源原因。 */
   reason: string;
+  /** 界面原因标识，不写入白板节点。 */
+  reasonKind: RelatedReasonKind;
   /** AI 一句话要点；没有时为空串 */
   summary: string;
 }
@@ -34,7 +46,7 @@ export async function loadRelated(target: NonNullable<DocumentElement["entityRef
   const items: RelatedItem[] = [];
   const push = (
     entity: { ref: { kind: string; id: number }; title: string },
-    reason: string,
+    reasonKind: RelatedReasonKind,
     summary = ""
   ) => {
     const kind = (
@@ -45,11 +57,11 @@ export async function loadRelated(target: NonNullable<DocumentElement["entityRef
     const key = `${target.entityRef.kind}:${target.entityRef.id}`;
     if (seen.has(key)) return;
     seen.add(key);
-    items.push({ ...target, key, kind, reason, summary });
+    items.push({ ...target, key, kind, reason: RAW_REASON[reasonKind], reasonKind, summary });
   };
-  context?.links.forEach(link => push(link.entity, link.inlineOnly ? "正文引用" : "已连接"));
-  context?.backlinks.forEach(link => push(link.source, "引用了它"));
-  related.forEach(item => push(item.entity, "内容相近", item.summary));
+  context?.links.forEach(link => push(link.entity, link.inlineOnly ? "inline" : "linked"));
+  context?.backlinks.forEach(link => push(link.source, "backlink"));
+  related.forEach(item => push(item.entity, "similar", item.summary));
   return items.slice(0, RELATED_LIMIT);
 }
 

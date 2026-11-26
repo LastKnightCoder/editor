@@ -394,6 +394,8 @@ Compose C1九路径完成；原2文件6至3文件8例、desktop type、24key三�
 
 TTS工作台十一源完成；原2例加真实全流程契约先基线3至迁后3通过，desktop type/lint与Node无DOM已知/未知/cause烟测、三语runtime通过。生成挂起→同audio→添加挂起跨三语保voice/输入caret/Blob/MIME/URL/currentTime/volume/rate，synthesize/getVoiceList/dispose各一次，无额外pause/revoke/submit；AST证明effects/loadVoices/play/cleanup整段与原上传数据参数保持。
 
+Document A十五路径完成；既有相关16例与新4真实契约共20通过（旧16首跑在普通源修改后，不称改前基线），desktop type/lint与40key三语通过。真实白板session/QueryClient保搜索caret/选中行、不重查/释放/放入；Suggestion逐字段保旧reason/summary/key/kind/title/ref且无新flag。旧entityTime零消费者删除，9输入×沪/纽约含DST对照数值与相对时间事实一致；11生产源无固定中文JSX，余4为原持久原因数据，原pickSide FastRefresh warning保留。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。
