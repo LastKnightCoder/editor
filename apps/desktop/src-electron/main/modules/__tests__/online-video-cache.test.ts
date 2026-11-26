@@ -1,4 +1,6 @@
 // @vitest-environment node
+import { EventEmitter } from "node:events";
+import { VideoCacheFailure } from "../../../../shared/video-cache-failure";
 import { mkdtemp, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -6,14 +8,39 @@ import { join } from "node:path";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { must } from "../../test-support";
 
-const state = vi.hoisted(() => ({ dir: "", call: vi.fn() }));
-vi.mock("electron", () => ({ ipcMain: { handle: vi.fn() } }));
+const state = vi.hoisted(() => ({
+  dir: "",
+  call: vi.fn(),
+  handlers: new Map<string, (...args: unknown[]) => unknown>(),
+  listeners: new Set<(event: unknown, data: unknown) => void>(),
+  sender: null as unknown,
+}));
+vi.mock("electron", () => ({
+  ipcMain: {
+    handle: (name: string, handler: (...args: unknown[]) => unknown) =>
+      state.handlers.set(name, handler),
+  },
+}));
+vi.mock("@/commands/module-init", () => ({
+  withModule: (_name: string, run: () => unknown) => run(),
+}));
+vi.mock("@/electron", () => ({
+  invoke: async (name: string, ...args: unknown[]) => {
+    const handler = state.handlers.get(name);
+    if (!handler) throw new Error("missing handler " + name);
+    return structuredClone(await handler({ sender: state.sender }, ...args));
+  },
+  on: (_name: string, listener: (event: unknown, data: unknown) => void) =>
+    state.listeners.add(listener),
+  off: (_name: string, listener: (event: unknown, data: unknown) => void) =>
+    state.listeners.delete(listener),
+}));
 vi.mock("electron-log", () => ({ default: { warn: vi.fn(), error: vi.fn() } }));
 vi.mock("../../utils/PathUtil", () => ({ default: { getAppDir: () => state.dir } }));
 vi.mock("../../utils/FfmpegService", () => ({ default: {} }));
 vi.mock("../../utils/YtDlpService", () => ({
   default: {},
-  normalizeDownloadErrorMessage: (message: string) => message,
+  createYtDlpDownloadFailure: (message: string) => new Error(message),
 }));
 vi.mock("../../services/plugin-video", () => ({ pluginVideoRelay: { call: state.call } }));
 
@@ -34,6 +61,15 @@ function respond(request: { kind: string }) {
 
 beforeEach(async () => {
   state.dir = await mkdtemp(join(tmpdir(), "tau-online-video-"));
+  state.handlers.clear();
+  state.listeners.clear();
+  state.sender = Object.assign(new EventEmitter(), {
+    id: 73,
+    isDestroyed: () => false,
+    send: (_name: string, value: unknown) => {
+      for (const listener of state.listeners) listener({}, structuredClone(value));
+    },
+  });
   state.call.mockReset();
   state.call.mockImplementation(respond);
 });
@@ -132,4 +168,89 @@ it("HTTP 失败时报告状态码；初始化清除平台缓存退役前的目�
   await cache.init();
   await expect(stat(join(state.dir, "bilibili-cache"))).rejects.toThrow();
   await expect(stat(join(state.dir, "youtube-cache-config.json"))).rejects.toThrow();
+});
+
+it("已知缓存身份/HTTP失败经真实IPC结构化传输，未知provider仍拒绝且监听清理", async () => {
+  await cache.init();
+  const commands = await import("@/commands/online-video-cache");
+  state.call.mockResolvedValue(null);
+  await expect(commands.getOnlineVideoCacheStatus(target)).rejects.toMatchObject({
+    code: "identity",
+    message: "插件未返回缓存身份",
+  });
+  state.call.mockImplementation(respond);
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => new Response(null, { status: 503 }))
+  );
+  let error: unknown;
+  try {
+    await commands.ensureOnlineVideo(target);
+  } catch (caught) {
+    error = caught;
+  }
+  expect(error).toBeInstanceOf(VideoCacheFailure);
+  expect(error).toMatchObject({
+    code: "http",
+    message: "视频下载失败：HTTP 503",
+    params: { status: 503 },
+  });
+  expect((error as Error).cause).toBeUndefined();
+  expect(state.listeners.size).toBe(0);
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => new Response(bytes, { headers: { "content-length": "4" } }))
+  );
+  const downloaded = await commands.ensureOnlineVideo(target);
+  expect(downloaded.fileSize).toBe(4);
+  expect(new Uint8Array(await readFile(downloaded.localPath))).toEqual(bytes);
+  await expect(commands.getOnlineVideoCacheStatus(target)).resolves.toMatchObject({
+    localPath: downloaded.localPath,
+    fileSize: 4,
+    cached: true,
+  });
+  const privateCause = new Error("private stderr with request credentials");
+  state.call.mockRejectedValueOnce(new VideoCacheFailure("runtime", {}, { cause: privateCause }));
+  try {
+    await commands.getOnlineVideoCacheStatus(target);
+  } catch (caught) {
+    error = caught;
+  }
+  expect(error).toMatchObject({ code: "runtime" });
+  expect((error as Error).cause).toBeUndefined();
+  expect((error as Error).message).not.toContain(privateCause.message);
+  const unknown = new Error("raw provider diagnostic");
+  state.call.mockRejectedValue(unknown);
+  await expect(commands.ensureOnlineVideo(target)).rejects.toBe(unknown);
+  expect(state.listeners.size).toBe(0);
+  expect((state.sender as EventEmitter).listenerCount("destroyed")).toBe(0);
+});
+
+it("重复请求返回已知失败后仍保留原任务，原owner可以取消且abort不包装", async () => {
+  await cache.init();
+  let sourceSignal!: AbortSignal;
+  const fetcher = vi.fn(
+    (_url: string, options: { signal: AbortSignal }) =>
+      new Promise<Response>((_resolve, reject) => {
+        sourceSignal = options.signal;
+        sourceSignal.addEventListener("abort", () => reject(sourceSignal.reason), { once: true });
+      })
+  );
+  vi.stubGlobal("fetch", fetcher);
+  const run = state.handlers.get("online-video-cache:ensure");
+  const cancel = state.handlers.get("online-video-cache:cancel");
+  if (!run || !cancel) throw new Error("missing cache handlers");
+  const first = Promise.resolve(run({ sender: state.sender }, "same-request", target));
+  const aborted = expect(first).rejects.toHaveProperty("name", "AbortError");
+  await vi.waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
+  const duplicate = structuredClone(await run({ sender: state.sender }, "same-request", target));
+  expect(duplicate).toMatchObject({
+    ok: false,
+    failure: { code: "duplicate", message: "视频缓存请求已存在" },
+  });
+  expect(sourceSignal.aborted).toBe(false);
+  cancel({ sender: state.sender }, "same-request");
+  await aborted;
+  expect(sourceSignal.aborted).toBe(true);
+  expect((state.sender as EventEmitter).listenerCount("destroyed")).toBe(0);
 });

@@ -1,0 +1,9 @@
+{
+  "failure.identity": "外掛未傳回快取識別碼",
+  "failure.http": "影片下載失敗：HTTP {{status}}",
+  "failure.duplicate": "影片快取請求已存在",
+  "failure.runtime": "應用程式內的執行環境異常，請重新啟動後再試",
+  "failure.format": "所選畫質無法使用，已自動改用最佳可用格式，請重試",
+  "failure.timeout": "網路逾時，請檢查代理或稍後再試",
+  "failure.download": "下載失敗，請稍後重試或嘗試其他影片連結"
+}

@@ -1,3 +1,7 @@
+import {
+  unwrapVideoCacheResponse,
+  type VideoCacheResponse,
+} from "../../shared/video-cache-failure";
 import type { VideoRef } from "@tau/plugins";
 import { invoke, off, on } from "@/electron";
 import { withModule } from "./module-init";
@@ -31,13 +35,13 @@ export function ensureOnlineVideo(
     on("online-video-cache:progress", listener);
     options.signal?.addEventListener("abort", cancel, { once: true });
     try {
-      const result = await invoke<OnlineVideoCacheResult>(
+      const result = await invoke<VideoCacheResponse<OnlineVideoCacheResult>>(
         "online-video-cache:ensure",
         requestId,
         target
       );
       options.signal?.throwIfAborted();
-      return result;
+      return unwrapVideoCacheResponse(result);
     } finally {
       off("online-video-cache:progress", listener);
       options.signal?.removeEventListener("abort", cancel);
@@ -46,7 +50,14 @@ export function ensureOnlineVideo(
 }
 
 export const getOnlineVideoCacheStatus = (target: OnlineVideoTarget) =>
-  module(() => invoke<OnlineVideoCacheResult | null>("online-video-cache:status", target));
+  module(async () =>
+    unwrapVideoCacheResponse(
+      await invoke<VideoCacheResponse<OnlineVideoCacheResult | null>>(
+        "online-video-cache:status",
+        target
+      )
+    )
+  );
 
 export interface OnlineVideoCacheEntry {
   id: string;

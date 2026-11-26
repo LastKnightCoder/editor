@@ -1,3 +1,4 @@
+import { VideoCacheFailure, type VideoCacheResponse } from "../../../shared/video-cache-failure";
 import { createHash } from "node:crypto";
 import { createWriteStream } from "node:fs";
 import * as fs from "node:fs/promises";
@@ -10,7 +11,7 @@ import log from "electron-log";
 import type { VideoPlaybackSource, VideoRef, VideoStream } from "@tau/plugins";
 import PathUtil from "../utils/PathUtil";
 import FfmpegService from "../utils/FfmpegService";
-import YtDlpService, { normalizeDownloadErrorMessage } from "../utils/YtDlpService";
+import YtDlpService, { createYtDlpDownloadFailure } from "../utils/YtDlpService";
 import { pluginVideoRelay } from "../services/plugin-video";
 import type {
   OnlineVideoCacheProgress,
@@ -75,7 +76,7 @@ async function cacheId(target: OnlineVideoTarget, signal?: AbortSignal) {
     { kind: "cacheKey", pluginId: target.providerId, ref: target.ref },
     signal
   );
-  if (typeof key !== "string" || !key) throw new Error("插件未返回缓存身份");
+  if (typeof key !== "string" || !key) throw new VideoCacheFailure("identity");
   return createHash("sha256").update(`${target.providerId}\0${key}`).digest("hex");
 }
 
@@ -115,7 +116,8 @@ async function download(
   onBytes: (done: number, total: number) => void
 ) {
   const response = await fetch(stream.url, { headers: stream.headers, signal });
-  if (!response.ok || !response.body) throw new Error(`视频下载失败：HTTP ${response.status}`);
+  if (!response.ok || !response.body)
+    throw new VideoCacheFailure("http", { status: response.status });
   const total = Number(response.headers.get("content-length")) || 0;
   let done = 0;
   const source = Readable.fromWeb(response.body as import("node:stream/web").ReadableStream);
@@ -237,7 +239,7 @@ async function fetchSource(
         if (signal.aborted) throw error;
         const raw = error instanceof Error ? error.message : String(error);
         log.error(`[OnlineVideoCache] yt-dlp 下载失败：${raw}`);
-        throw new Error(normalizeDownloadErrorMessage(raw));
+        throw createYtDlpDownloadFailure(raw, error);
       });
       if (result.outputPath !== output) await fs.rename(result.outputPath, output);
     }
@@ -366,20 +368,32 @@ export async function init() {
   );
   ipcMain.handle(
     "online-video-cache:ensure",
-    async (event, requestId: string, target: OnlineVideoTarget) => {
-      if (requests.has(requestId)) throw new Error("视频缓存请求已存在");
-      const controller = new AbortController();
-      requests.set(requestId, { owner: event.sender.id, controller });
-      const release = () => controller.abort();
-      event.sender.once("destroyed", release);
+    async (
+      event,
+      requestId: string,
+      target: OnlineVideoTarget
+    ): Promise<VideoCacheResponse<OnlineVideoCacheResult>> => {
       try {
-        return await ensureOnlineVideo(target, {
-          signal: controller.signal,
-          onProgress: progress => send(event.sender, { ...progress, requestId }),
-        });
-      } finally {
-        requests.delete(requestId);
-        event.sender.off("destroyed", release);
+        if (requests.has(requestId)) throw new VideoCacheFailure("duplicate");
+        const controller = new AbortController();
+        requests.set(requestId, { owner: event.sender.id, controller });
+        const release = () => controller.abort();
+        event.sender.once("destroyed", release);
+        try {
+          return {
+            ok: true,
+            value: await ensureOnlineVideo(target, {
+              signal: controller.signal,
+              onProgress: progress => send(event.sender, { ...progress, requestId }),
+            }),
+          };
+        } finally {
+          requests.delete(requestId);
+          event.sender.off("destroyed", release);
+        }
+      } catch (error) {
+        if (error instanceof VideoCacheFailure) return { ok: false, failure: error.toData() };
+        throw error;
       }
     }
   );
@@ -387,8 +401,19 @@ export async function init() {
     const request = requests.get(requestId);
     if (request?.owner === event.sender.id) request.controller.abort();
   });
-  ipcMain.handle("online-video-cache:status", (_event, target: OnlineVideoTarget) =>
-    getOnlineVideoCacheStatus(target)
+  ipcMain.handle(
+    "online-video-cache:status",
+    async (
+      _event,
+      target: OnlineVideoTarget
+    ): Promise<VideoCacheResponse<OnlineVideoCacheResult | null>> => {
+      try {
+        return { ok: true, value: await getOnlineVideoCacheStatus(target) };
+      } catch (error) {
+        if (error instanceof VideoCacheFailure) return { ok: false, failure: error.toData() };
+        throw error;
+      }
+    }
   );
   ipcMain.handle("online-video-cache:list", () => listCache());
   ipcMain.handle("online-video-cache:delete", (_event, id: string) => deleteCache(id));

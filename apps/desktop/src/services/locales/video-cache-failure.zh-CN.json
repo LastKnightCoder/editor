@@ -1,0 +1,9 @@
+{
+  "failure.identity": "插件未返回缓存身份",
+  "failure.http": "视频下载失败：HTTP {{status}}",
+  "failure.duplicate": "视频缓存请求已存在",
+  "failure.runtime": "应用内运行环境异常，请重启应用后重试",
+  "failure.format": "所选清晰度不可用，已自动回退最佳可用格式，请重试",
+  "failure.timeout": "网络超时，请检查代理或稍后再试",
+  "failure.download": "下载失败，请稍后重试或尝试其他视频链接"
+}

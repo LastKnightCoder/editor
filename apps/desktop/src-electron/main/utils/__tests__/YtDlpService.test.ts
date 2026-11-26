@@ -266,20 +266,19 @@ describe("YtDlpService", () => {
   });
 });
 
-describe("normalizeDownloadErrorMessage", () => {
-  it("运行环境、格式不可用、超时与未知错误分别给出用户提示", async () => {
-    const { normalizeDownloadErrorMessage } = await import("../YtDlpService");
-    expect(normalizeDownloadErrorMessage("No supported JavaScript runtime could be found")).toBe(
-      "应用内运行环境异常，请重启应用后重试"
-    );
-    expect(normalizeDownloadErrorMessage("ERROR: Requested format is not available")).toBe(
-      "所选清晰度不可用，已自动回退最佳可用格式，请重试"
-    );
-    expect(normalizeDownloadErrorMessage("The user aborted a request")).toBe(
-      "网络超时，请检查代理或稍后再试"
-    );
-    expect(normalizeDownloadErrorMessage("ERROR: something else")).toBe(
-      "下载失败，请稍后重试或尝试其他视频链接"
-    );
+describe("createYtDlpDownloadFailure", () => {
+  it("CLI诊断沿用原分类规则，保留原cause供主进程诊断", async () => {
+    const { createYtDlpDownloadFailure } = await import("../YtDlpService");
+    for (const [raw, code] of [
+      ["No supported JavaScript runtime could be found", "runtime"],
+      ["ERROR: Requested format is not available", "format"],
+      ["The user aborted a request", "timeout"],
+      ["ERROR: something else", "download"],
+    ]) {
+      const cause = new Error(raw);
+      const failure = createYtDlpDownloadFailure(raw, cause);
+      expect(failure.code).toBe(code);
+      expect(failure.cause).toBe(cause);
+    }
   });
 });

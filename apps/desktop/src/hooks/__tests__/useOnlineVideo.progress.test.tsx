@@ -1,3 +1,4 @@
+import { VideoCacheFailure } from "../../../shared/video-cache-failure";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
@@ -119,4 +120,30 @@ it("缺少提供方事实随语言投影，启用后的未知同文字服务错�
   await act(async () => desktopLocaleSource.setLocale("zh-TW"));
   expect(state.error).toBe(unknown.message);
   expect(wire.ensure).toHaveBeenCalledTimes(1);
+});
+
+it("已知native下载失败换语仅投影现有错误，不重取源或改变原诊断", async () => {
+  const failure = new VideoCacheFailure("http", { status: 503 });
+  const original = failure.message;
+  wire.ensure.mockRejectedValueOnce(failure);
+  const meta = { type: "bilibili", bvid: "raw-native", cid: "raw-cid" };
+  let state!: ReturnType<typeof useOnlineVideo>;
+  function View() {
+    state = useOnlineVideo(meta);
+    return <span>{state.error}</span>;
+  }
+  host = document.createElement("div");
+  document.body.append(host);
+  root = createRoot(host);
+  await act(async () => root?.render(<View />));
+  await act(async () => desktopLocaleSource.setLocale("en-US"));
+  expect(state.error).not.toBe(original);
+  expect(state.error).toContain("503");
+  const english = state.error;
+  await act(async () => desktopLocaleSource.setLocale("zh-TW"));
+  expect(state.error).not.toBe(english);
+  expect(wire.ensure).toHaveBeenCalledTimes(1);
+  expect(failure.message).toBe(original);
+  expect(failure.params.status).toBe(503);
+  expect(wire.convert).not.toHaveBeenCalled();
 });

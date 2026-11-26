@@ -1,3 +1,5 @@
+import { VideoCacheFailure } from "../../../shared/video-cache-failure";
+import { videoCacheFailureText } from "@/services/video-cache-failure.binding";
 import type { MediaProgress } from "../../../shared/media-progress";
 import { mediaProgressText } from "@/services/media-progress.binding";
 import { desktopI18n } from "@/app/i18n/runtime";
@@ -49,5 +51,7 @@ export function createVideoLlmConfirm(requirement: ReturnType<typeof checkLLMOpt
 export function videoTranscriptionFailureText(error: unknown): string {
   return error instanceof VideoTranscriptionFailure
     ? videoTranscriptionT(`failure.${error.code}`)
-    : String(error);
+    : error instanceof VideoCacheFailure
+      ? videoCacheFailureText(error)
+      : String(error);
 }

@@ -1,3 +1,4 @@
+import { VideoCacheFailure } from "../../../shared/video-cache-failure";
 import type { MediaProgressSemantic } from "../../../shared/media-progress";
 import { spawn } from "node:child_process";
 import * as fs from "node:fs/promises";
@@ -84,12 +85,16 @@ const RUNTIME_ERROR_RE =
 const FORMAT_ERROR_RE = /Requested format is not available/i;
 const ABORT_ERROR_RE = /aborted|AbortError|The user aborted a request/i;
 
-/** yt-dlp 原始错误转为面向用户的提示，原文只写日志。 */
-export function normalizeDownloadErrorMessage(rawMessage: string): string {
-  if (RUNTIME_ERROR_RE.test(rawMessage)) return "应用内运行环境异常，请重启应用后重试";
-  if (FORMAT_ERROR_RE.test(rawMessage)) return "所选清晰度不可用，已自动回退最佳可用格式，请重试";
-  if (ABORT_ERROR_RE.test(rawMessage)) return "网络超时，请检查代理或稍后再试";
-  return "下载失败，请稍后重试或尝试其他视频链接";
+/** Preserve native diagnostics as cause; only the host-owned category crosses IPC. */
+export function createYtDlpDownloadFailure(rawMessage: string, cause: unknown): VideoCacheFailure {
+  const code = RUNTIME_ERROR_RE.test(rawMessage)
+    ? "runtime"
+    : FORMAT_ERROR_RE.test(rawMessage)
+      ? "format"
+      : ABORT_ERROR_RE.test(rawMessage)
+        ? "timeout"
+        : "download";
+  return new VideoCacheFailure(code, {}, { cause });
 }
 
 export default class YtDlpService {

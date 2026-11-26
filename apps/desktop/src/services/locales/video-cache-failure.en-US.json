@@ -1,0 +1,9 @@
+{
+  "failure.identity": "The plugin did not return a cache identity",
+  "failure.http": "Video download failed: HTTP {{status}}",
+  "failure.duplicate": "This video cache request already exists",
+  "failure.runtime": "The app runtime encountered an issue. Restart the app and try again",
+  "failure.format": "The selected quality is unavailable. The best available format was selected; try again",
+  "failure.timeout": "The network request timed out. Check your proxy or try again later",
+  "failure.download": "Download failed. Try again later or use another video link"
+}

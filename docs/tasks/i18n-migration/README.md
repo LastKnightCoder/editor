@@ -366,6 +366,8 @@ Markdown F2九路径完成；原10至11例、desktop type、29key三语及原路
 
 Native通知十四路径完成；真实前端21例、mobile type/lint、48key三语通过；Android离线生产Kotlin编译成功。Swift旧/新/坏ui往返、类别稳定隔离/重启并集及真实前端→SDK嵌套桥接契约通过，iOS13 codec typecheck与插件语法通过。完整iOS App/插件链接未执行（本地无Tauri/SwiftRs simulator预构建模块）；未作设备投递验收。
 
+在线视频失败十五路径完成；四文件21例、desktop type、三语与原8分类诊断逐字对照通过。真实Native handler→structuredClone→commands覆成功/已知失败、重复任务取消/HTTP/cache identity；原normalize旧导出消费清零退出，UI重投影保任务和原始未知cause。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。
