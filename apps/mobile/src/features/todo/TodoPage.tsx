@@ -1,3 +1,4 @@
+import { useTodoI18n, todoTranslator } from "./i18n";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDown,
@@ -44,18 +45,34 @@ type TodoPageProps = {
 };
 
 const TYPE_LABELS: Record<TodoItemType, string> = {
-  normal: "普通",
-  deadline: "截止",
-  planned: "计划",
-  recurring: "周期",
+  get normal() {
+    return todoTranslator.t("type.short.normal");
+  },
+  get deadline() {
+    return todoTranslator.t("type.short.deadline");
+  },
+  get planned() {
+    return todoTranslator.t("type.short.planned");
+  },
+  get recurring() {
+    return todoTranslator.t("type.short.recurring");
+  },
 };
 
 // 系统分组展示名：systemType → 业务语义（后端 title 仅作兜底）
 const SYSTEM_GROUP_LABELS: Record<Exclude<TodoGroup["systemType"], null>, string> = {
-  all: "全部任务",
-  normal: "普通任务",
-  deadline: "截止任务",
-  recurring: "周期任务",
+  get all() {
+    return todoTranslator.t("group.system.all");
+  },
+  get normal() {
+    return todoTranslator.t("type.full.normal");
+  },
+  get deadline() {
+    return todoTranslator.t("type.full.deadline");
+  },
+  get recurring() {
+    return todoTranslator.t("type.full.recurring");
+  },
 };
 
 const SYSTEM_GROUP_ORDER: Exclude<TodoGroup["systemType"], null>[] = [
@@ -101,6 +118,7 @@ export function TodoPage({
   isVisible = true,
   autoOpenCreate = false,
 }: TodoPageProps) {
+  const { t: translate, locale } = useTodoI18n();
   const store = useTodoStore();
   const [newTitle, setNewTitle] = useState("");
   const [newType, setNewType] = useState<TodoItemType>("normal");
@@ -194,7 +212,7 @@ export function TodoPage({
       setNewGroupTitle("");
       setGroupSheetOpen(false);
     } catch (error) {
-      onError(error, "创建任务分组失败");
+      onError(error, todoTranslator.t("error.group"));
     } finally {
       setCreatingGroup(false);
     }
@@ -206,7 +224,10 @@ export function TodoPage({
     const activeGroup = allGroups.find(group => group.id === store.activeGroupId);
     const targetGroupId = activeGroup?.isSystem ? (groups[0]?.id ?? null) : store.activeGroupId;
     if (targetGroupId == null) {
-      onError(new Error("TODO_GROUP_NOT_FOUND: no writable group"), "请先创建一个任务分组");
+      onError(
+        new Error("TODO_GROUP_NOT_FOUND: no writable group"),
+        todoTranslator.t("error.groupRequired")
+      );
       return;
     }
     try {
@@ -219,7 +240,7 @@ export function TodoPage({
       setCreateItemSheetOpen(false);
       onOpenDetail(item.id, item.groupId);
     } catch (error) {
-      onError(error, "创建任务失败");
+      onError(error, todoTranslator.t("error.create"));
     }
   };
 
@@ -246,7 +267,7 @@ export function TodoPage({
       setSubSheetTitle("");
       setSubSheetOpen(false);
     } catch (error) {
-      onError(error, "任务操作失败");
+      onError(error, todoTranslator.t("error.action"));
     }
   };
 
@@ -258,7 +279,7 @@ export function TodoPage({
       await store.deleteItemCascade(item.id);
       setDeleteTarget(null);
     } catch (error) {
-      onError(error, "删除任务失败");
+      onError(error, todoTranslator.t("error.delete"));
     } finally {
       setDeleteLoading(false);
     }
@@ -268,7 +289,7 @@ export function TodoPage({
     try {
       await store.moveAndReorder(payload);
     } catch (error) {
-      onError(error, "调整任务顺序失败");
+      onError(error, todoTranslator.t("error.reorder"));
       throw error;
     }
   };
@@ -276,7 +297,7 @@ export function TodoPage({
   const actionSheetItems: ActionSheetItem[] = actionItem
     ? [
         {
-          label: "查看详情",
+          label: translate("action.details"),
           icon: <Eye size={18} />,
           tone: "sky",
           onClick: () => {
@@ -284,7 +305,7 @@ export function TodoPage({
           },
         },
         {
-          label: "新增子任务",
+          label: translate("action.child"),
           icon: <GitBranch size={18} />,
           tone: "sage",
           onClick: () => {
@@ -294,7 +315,7 @@ export function TodoPage({
           },
         },
         {
-          label: "在上方插入",
+          label: translate("action.above"),
           icon: <ArrowUp size={18} />,
           tone: "apricot",
           onClick: () => {
@@ -304,7 +325,7 @@ export function TodoPage({
           },
         },
         {
-          label: "在下方插入",
+          label: translate("action.below"),
           icon: <ArrowDown size={18} />,
           tone: "apricot",
           onClick: () => {
@@ -314,7 +335,7 @@ export function TodoPage({
           },
         },
         {
-          label: "删除任务",
+          label: translate("action.delete"),
           danger: true,
           icon: <Trash2 size={18} />,
           onClick: () => {
@@ -337,7 +358,7 @@ export function TodoPage({
 
   const plusSheetItems: ActionSheetItem[] = [
     {
-      label: "新建任务",
+      label: translate("action.create"),
       icon: <ListTodo size={18} />,
       tone: "sage",
       onClick: () => {
@@ -347,7 +368,7 @@ export function TodoPage({
       },
     },
     {
-      label: "新建分组",
+      label: translate("action.group"),
       icon: <FolderPlus size={18} />,
       tone: "butter",
       onClick: () => {
@@ -369,15 +390,30 @@ export function TodoPage({
   const activeGroupStats = activeGroup ? statsMap[activeGroup.id] : undefined;
   const stateFilterActive = store.filters.completed !== undefined || store.filters.overdue === true;
   const scopeCountLabel = store.filters.keyword
-    ? `${filteredItems.length} 项结果`
-    : `${activeGroupStats?.uncompleted ?? 0} 项待办`;
+    ? translate("count.results", {
+        count: filteredItems.length,
+        amount: filteredItems.length.toLocaleString(locale),
+      })
+    : translate("count.open", {
+        count: activeGroupStats?.uncompleted ?? 0,
+        amount: (activeGroupStats?.uncompleted ?? 0).toLocaleString(locale),
+      });
 
   const renderGroupRow = (group: TodoGroup) => {
     const isActive = store.activeGroupId === group.id;
     const stats = statsMap[group.id];
-    const parts = [`${stats?.total ?? 0} 项`];
-    if (stats && stats.uncompleted > 0) parts.push(`未完成 ${stats.uncompleted}`);
-    if (stats && stats.overdue > 0) parts.push(`逾期 ${stats.overdue}`);
+    const parts = [
+      translate("count.total", {
+        count: stats?.total ?? 0,
+        amount: (stats?.total ?? 0).toLocaleString(locale),
+      }),
+    ];
+    if (stats && stats.uncompleted > 0)
+      parts.push(
+        translate("count.incomplete", { amount: stats.uncompleted.toLocaleString(locale) })
+      );
+    if (stats && stats.overdue > 0)
+      parts.push(translate("count.overdue", { amount: stats.overdue.toLocaleString(locale) }));
     const label = group.systemType
       ? (SYSTEM_GROUP_LABELS[group.systemType] ?? group.title)
       : group.title;
@@ -411,22 +447,26 @@ export function TodoPage({
   };
 
   const filterOptions: Array<{
+    id: string;
     label: string;
     active: boolean;
     onClick: () => void;
   }> = [
     {
-      label: "全部",
+      id: "all",
+      label: translate("filter.all"),
       active: store.filters.completed === undefined && !store.filters.overdue,
       onClick: () => store.setFilters({ completed: undefined, overdue: undefined }),
     },
     {
-      label: "未完成",
+      id: "open",
+      label: translate("filter.open"),
       active: store.filters.completed === false && !store.filters.overdue,
       onClick: () => store.setFilters({ completed: false, overdue: undefined }),
     },
     {
-      label: "逾期",
+      id: "overdue",
+      label: translate("filter.overdue"),
       active: store.filters.overdue === true,
       onClick: () => store.setFilters({ overdue: true, completed: undefined }),
     },
@@ -438,7 +478,7 @@ export function TodoPage({
         <PageHeader>
           <PageHeaderSearch
             value={searchInput}
-            placeholder="搜索任务"
+            placeholder={translate("search.placeholder")}
             onChange={value => {
               setSearchInput(value);
               store.setFilters({ keyword: value.trim() || undefined });
@@ -452,13 +492,13 @@ export function TodoPage({
         </PageHeader>
       ) : (
         <PageHeader
-          title="任务中心"
+          title={translate("title")}
           onBack={onBack}
           actions={
             <>
               <PageHeaderButton
                 icon={<Search size={17} strokeWidth={2} />}
-                aria-label="搜索"
+                aria-label={translate("search")}
                 onClick={() => {
                   setSearchInput(store.filters.keyword ?? "");
                   setSearchBarOpen(true);
@@ -467,7 +507,7 @@ export function TodoPage({
               <PageHeaderButton
                 icon={<Plus size={18} strokeWidth={2.6} />}
                 variant="brand"
-                aria-label="新建"
+                aria-label={translate("new")}
                 onClick={() => setPlusSheetOpen(true)}
               />
             </>
@@ -484,11 +524,15 @@ export function TodoPage({
           className="border-line-1 bg-surface shadow-card flex min-w-0 shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 transition-transform active:scale-[0.97]"
         >
           <span className="text-ink-1 max-w-[7em] truncate text-[13px] font-extrabold">
-            {activeGroup?.title ?? "任务"}
+            {activeGroup
+              ? activeGroup.systemType
+                ? (SYSTEM_GROUP_LABELS[activeGroup.systemType] ?? activeGroup.title)
+                : activeGroup.title
+              : translate("task")}
           </span>
           {activeGroupStats && activeGroupStats.uncompleted > 0 ? (
             <span className="bg-page text-ink-3 rounded-full px-1.5 py-0.5 text-[10px] leading-none font-bold tabular-nums">
-              {activeGroupStats.uncompleted}
+              {activeGroupStats.uncompleted.toLocaleString(locale)}
             </span>
           ) : null}
           <ChevronDown size={14} className="text-ink-3 shrink-0" />
@@ -499,7 +543,7 @@ export function TodoPage({
           className="border-line-1 bg-surface text-ink-2 shadow-card relative flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-[12.5px] font-extrabold transition-transform active:scale-[0.97]"
         >
           <ListFilter size={14} />
-          筛选
+          {translate("filter.title")}
           {stateFilterActive ? (
             <span className="border-page bg-accent absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2" />
           ) : null}
@@ -515,7 +559,7 @@ export function TodoPage({
           className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto"
         >
           {itemsQuery.isLoading ? (
-            <div className="text-ink-3 px-4 py-8 text-center text-sm">正在加载任务...</div>
+            <div className="text-ink-3 px-4 py-8 text-center text-sm">{translate("loading")}</div>
           ) : (
             <TodoItemTree
               items={filteredItems}
@@ -539,7 +583,11 @@ export function TodoPage({
       </div>
 
       {/* 新增分组 Sheet */}
-      <BottomSheet open={groupSheetOpen} title="新增分组" onClose={() => setGroupSheetOpen(false)}>
+      <BottomSheet
+        open={groupSheetOpen}
+        title={translate("group.add")}
+        onClose={() => setGroupSheetOpen(false)}
+      >
         <input
           ref={groupInputRef}
           type="text"
@@ -548,7 +596,7 @@ export function TodoPage({
           onKeyDown={e => {
             if (e.key === "Enter") void handleCreateGroup();
           }}
-          placeholder="请输入分组名称"
+          placeholder={translate("group.placeholder")}
           className="input-base w-full px-4"
         />
         <button
@@ -557,33 +605,43 @@ export function TodoPage({
           disabled={creatingGroup || !newGroupTitle.trim()}
           className="shadow-lift text-ink-inverse mt-3 h-11 w-full rounded-full text-sm font-bold active:scale-[0.98] disabled:opacity-50"
         >
-          创建
+          {translate("create")}
         </button>
       </BottomSheet>
 
       {/* 分组选择 Sheet（A2）：系统分组（含类型维度）+ 自定义分组，行内带统计 */}
       <BottomSheet
         open={groupPickerOpen}
-        title="选择分组"
+        title={translate("group.choose")}
         onClose={() => setGroupPickerOpen(false)}
       >
-        <div className="text-ink-3 mb-1 text-[11.5px] font-extrabold">系统分组</div>
+        <div className="text-ink-3 mb-1 text-[11.5px] font-extrabold">
+          {translate("group.system")}
+        </div>
         {orderedSystemGroups.map(renderGroupRow)}
-        <div className="text-ink-3 mt-4 mb-1 text-[11.5px] font-extrabold">自定义分组</div>
+        <div className="text-ink-3 mt-4 mb-1 text-[11.5px] font-extrabold">
+          {translate("group.custom")}
+        </div>
         {customGroups.length > 0 ? (
           customGroups.map(renderGroupRow)
         ) : (
-          <div className="text-ink-3 py-3 text-[12.5px]">还没有自定义分组</div>
+          <div className="text-ink-3 py-3 text-[12.5px]">{translate("group.none")}</div>
         )}
       </BottomSheet>
 
       {/* 筛选 Sheet（A2）：状态筛选（类型维度并入系统分组，不再单独暴露） */}
-      <BottomSheet open={filterSheetOpen} title="筛选" onClose={() => setFilterSheetOpen(false)}>
-        <div className="text-ink-3 mb-2.5 text-[11.5px] font-extrabold">状态</div>
+      <BottomSheet
+        open={filterSheetOpen}
+        title={translate("filter.title")}
+        onClose={() => setFilterSheetOpen(false)}
+      >
+        <div className="text-ink-3 mb-2.5 text-[11.5px] font-extrabold">
+          {translate("filter.status")}
+        </div>
         <div className="flex gap-2">
           {filterOptions.map(opt => (
             <button
-              key={opt.label}
+              key={opt.id}
               type="button"
               onClick={() => {
                 opt.onClick();
@@ -604,10 +662,10 @@ export function TodoPage({
         open={subSheetOpen}
         title={
           subSheetMode === "child"
-            ? "新增子任务"
+            ? translate("action.child")
             : subSheetMode === "above"
-              ? "在上方插入"
-              : "在下方插入"
+              ? translate("action.above")
+              : translate("action.below")
         }
         onClose={() => setSubSheetOpen(false)}
       >
@@ -619,7 +677,7 @@ export function TodoPage({
           onKeyDown={e => {
             if (e.key === "Enter") void handleCreateRelative();
           }}
-          placeholder="请输入任务标题"
+          placeholder={translate("task.placeholder")}
           className="input-base w-full px-4"
         />
         <button
@@ -628,14 +686,14 @@ export function TodoPage({
           disabled={!subSheetTitle.trim()}
           className="shadow-lift text-ink-inverse mt-3 h-11 w-full rounded-full text-sm font-bold active:scale-[0.98] disabled:opacity-50"
         >
-          创建
+          {translate("create")}
         </button>
       </BottomSheet>
 
       {/* 新建任务 Sheet */}
       <BottomSheet
         open={createItemSheetOpen}
-        title="新建任务"
+        title={translate("action.create")}
         onClose={() => setCreateItemSheetOpen(false)}
       >
         <input
@@ -646,7 +704,7 @@ export function TodoPage({
           onKeyDown={e => {
             if (e.key === "Enter") void handleCreateItem();
           }}
-          placeholder="请输入任务标题"
+          placeholder={translate("task.placeholder")}
           className="input-base w-full px-4"
         />
         <button
@@ -654,7 +712,7 @@ export function TodoPage({
           onClick={() => setTypeSheetOpen(true)}
           className="input-base mt-3 flex w-full items-center justify-between px-4 py-3.5"
         >
-          <span className="text-ink-2 text-sm">类型</span>
+          <span className="text-ink-2 text-sm">{translate("type")}</span>
           <span className="text-ink-1 text-sm font-bold">{TYPE_LABELS[newType]}</span>
         </button>
         <button
@@ -663,14 +721,14 @@ export function TodoPage({
           disabled={!newTitle.trim()}
           className="shadow-lift text-ink-inverse mt-3 h-11 w-full rounded-full text-sm font-bold active:scale-[0.98] disabled:opacity-50"
         >
-          创建
+          {translate("create")}
         </button>
       </BottomSheet>
 
       {/* 类型选择 ActionSheet */}
       <ActionSheet
         open={typeSheetOpen}
-        title="选择任务类型"
+        title={translate("type.choose")}
         items={SELECTABLE_TODO_TYPES.map(t => ({
           label: TYPE_LABELS[t],
           selected: newType === t,
@@ -690,18 +748,18 @@ export function TodoPage({
       <ActionSheet
         open={actionSheetOpen}
         title={actionItem?.title}
-        kind="任务"
+        kind={translate("task")}
         items={actionSheetItems}
         onClose={() => setActionSheetOpen(false)}
       />
 
       <MobileConfirmDialog
         open={deleteTarget !== null}
-        title="删除任务"
+        title={translate("action.delete")}
         description={
           deleteTarget && activeItems.some(i => i.parentId === deleteTarget.id)
-            ? `「${clampText(deleteTarget.title, 18)}」及其全部子任务将被删除。`
-            : `「${clampText(deleteTarget?.title ?? "", 18)}」将被删除。`
+            ? translate("delete.tree", { title: clampText(deleteTarget.title, 18) })
+            : translate("delete.single", { title: clampText(deleteTarget?.title ?? "", 18) })
         }
         danger
         loading={deleteLoading}

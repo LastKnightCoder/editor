@@ -1,7 +1,8 @@
 import type { Translator } from "@tau/i18n";
 import type { QuickAddResult as TodoQuickAdd } from "@/features/todos/quickAdd";
 import type { QuickAddResult as EventQuickAdd } from "@/features/schedule/quickAdd";
-import { dayDiff, daysLeftInWeek, isDateOnlyTs } from "@/utils/dayWords";
+import { isDateOnlyTs, mondayFirstWeekdays } from "@/utils/dayWords";
+import { dayWord } from "@/utils/date-format";
 import type { QuickAddMessageKey } from "./i18n";
 
 type Language = { locale: string; t: Translator<QuickAddMessageKey>["t"] };
@@ -10,16 +11,8 @@ const clock = (ts: number, locale: string) =>
     ts
   );
 
-export function quickAddDay(ts: number, now: number, locale: string): string {
-  const diff = dayDiff(ts, now);
-  if (diff === 0 || diff === 1 || diff === 2 || diff === -1)
-    return new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(diff, "day");
-  if (diff > 0 && diff <= daysLeftInWeek(now))
-    return new Intl.DateTimeFormat(locale, { weekday: "short" }).format(ts);
-  return new Intl.DateTimeFormat(locale, { month: "long", day: "numeric" }).format(ts);
-}
 function dateTime(ts: number, now: number, { t, locale }: Language): string {
-  const date = quickAddDay(ts, now, locale);
+  const date = dayWord(ts, now, locale);
   return isDateOnlyTs(ts) ? date : t("date.time", { date, time: clock(ts, locale) });
 }
 export function describeTodoQuickAdd(
@@ -47,7 +40,7 @@ export function describeTodoQuickAdd(
       break;
     case "weekly": {
       const days = recurrence.weekdays?.length ? recurrence.weekdays : [start.getDay()];
-      const sorted = [...days].sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7));
+      const sorted = mondayFirstWeekdays(days);
       const formatter = new Intl.DateTimeFormat(locale, {
         weekday: locale.startsWith("zh") ? "narrow" : "long",
       });
@@ -85,5 +78,5 @@ export function describeEventQuickAdd(
     parsed.startTime !== null && parsed.endTime !== null
       ? t("event.range", { start: minuteTime(parsed.startTime), end: minuteTime(parsed.endTime) })
       : t("event.allDay");
-  return showDate ? t("event.when", { date: quickAddDay(parsed.date, now, locale), time }) : time;
+  return showDate ? t("event.when", { date: dayWord(parsed.date, now, locale), time }) : time;
 }

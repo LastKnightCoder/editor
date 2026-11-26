@@ -1,7 +1,10 @@
+import { useI18n } from "@tau/i18n/react";
+import { desktopI18n } from "@/app/i18n/runtime";
 import type { ReactElement } from "react";
 import { Menu } from "@tau/ui";
 import {
   MAX_REMINDERS,
+  reminderMessages,
   normalizeReminders,
   reminderLabel,
   reminderPresets,
@@ -17,6 +20,7 @@ interface ReminderMenuProps {
 
 /** 提醒多选（最多 MAX_REMINDERS 个）：勾选项不关闭菜单，便于连选 */
 export function ReminderMenu({ trigger, value, onChange, allDay = false }: ReminderMenuProps) {
+  const { t, locale } = useI18n(reminderMessages, desktopI18n);
   const selected = new Set(value);
   const full = selected.size >= MAX_REMINDERS;
   const toggle = (offset: number, checked: boolean) =>
@@ -27,7 +31,7 @@ export function ReminderMenu({ trigger, value, onChange, allDay = false }: Remin
   const presets = reminderPresets(allDay);
   const others = value
     .filter(offset => !presets.some(preset => preset.offset === offset))
-    .map(offset => ({ offset, label: reminderLabel(offset, allDay) }));
+    .map(offset => ({ offset }));
   return (
     <Menu trigger={trigger}>
       {[...presets, ...others].map(preset => (
@@ -37,13 +41,13 @@ export function ReminderMenu({ trigger, value, onChange, allDay = false }: Remin
           disabled={full && !selected.has(preset.offset)}
           onCheckedChange={checked => toggle(preset.offset, checked)}
         >
-          {preset.label}
+          {reminderLabel(preset.offset, allDay, { locale, t })}
         </Menu.CheckboxItem>
       ))}
       {value.length > 0 && (
         <>
           <Menu.Separator />
-          <Menu.Item onSelect={() => onChange([])}>不提醒</Menu.Item>
+          <Menu.Item onSelect={() => onChange([])}>{t("none")}</Menu.Item>
         </>
       )}
     </Menu>

@@ -1,3 +1,5 @@
+import { todosTranslator, useTodosI18n } from "@/features/todos/i18n";
+import { dayWord, monthDay } from "@/utils/date-format";
 /**
  * 文档条目抽屉：标题只读（在原文改），展示原文上下文（父项与前后各一项）。
  * 动作：打开原文定位 / 转为独立待办 / 本文不收集。非模态，Esc 经页面浮层仲裁关闭。
@@ -9,9 +11,10 @@ import { Button, Drawer, cn, useRetainedValue } from "@tau/ui";
 import { useOverlayDismiss } from "@/page/PageProvider";
 import type { DocTaskItem, DocTaskSource } from "@/types/doc-tasks";
 import { useDocTasksOf } from "@/hooks/useDocTasks";
-import { dayWord, monthDay } from "../model";
+
 import { openDocTask } from "./DocTaskBits";
 import { TodoCheck } from "./TodoBits";
+const t = todosTranslator.t;
 
 export function DocTaskDrawer({
   task,
@@ -32,6 +35,7 @@ export function DocTaskDrawer({
   onPromote(task: DocTaskItem): void;
   onExclude(source: DocTaskSource): void;
 }) {
+  const { locale } = useTodosI18n();
   const open = task !== null;
   useOverlayDismiss(onClose, open);
   const current = useRetainedValue(task);
@@ -49,7 +53,7 @@ export function DocTaskDrawer({
       open={open}
       onOpenChange={next => !next && onClose()}
       size="sm"
-      label="文档待办"
+      label={t("doc.title")}
       className="top-0"
       icon={
         current && (
@@ -57,23 +61,23 @@ export function DocTaskDrawer({
             size="lg"
             className="mt-1"
             checked={current.checked}
-            label={current.checked ? "在原文中取消勾选" : "在原文中勾选"}
+            label={current.checked ? t("doc.uncheck") : t("doc.check")}
             onToggle={() => onToggle(current)}
           />
         )
       }
       title={
         current && (
-          <span className="text-[16px] font-semibold leading-[1.5] tracking-[-0.005em]">
-            {current.title || "未命名任务"}
+          <span className="text-[16px] leading-[1.5] font-semibold tracking-[-0.005em]">
+            {current.title || t("common.untitled")}
           </span>
         )
       }
-      subtitle={<span className="text-ink-3 text-[11.5px]">标题在原文中修改</span>}
+      subtitle={<span className="text-ink-3 text-[11.5px]">{t("doc.editTitleInSource")}</span>}
     >
       {current && currentSource && (
         <div className="flex flex-col gap-4 text-[13px]">
-          <Field label="来源">
+          <Field label={t("doc.source")}>
             <button
               type="button"
               onClick={() => openDocTask(currentSource, current)}
@@ -83,15 +87,15 @@ export function DocTaskDrawer({
               <span className="truncate">{currentSource.title}</span>
             </button>
           </Field>
-          <Field label="日期">
+          <Field label={t("repeat.date")}>
             {current.dueAt != null
-              ? `${dayWord(current.dueAt, now)}（${monthDay(current.dueAt)}）`
+              ? `${dayWord(current.dueAt, now, locale)}（${monthDay(current.dueAt, locale)}）`
               : "—"}
           </Field>
-          <Field label="项目">{groupTitle ?? "—"}</Field>
+          <Field label={t("doc.group")}>{groupTitle ?? "—"}</Field>
           {context.length > 0 && (
             <div>
-              <div className="text-ink-3 mb-1.5 text-[11.5px]">原文上下文</div>
+              <div className="text-ink-3 mb-1.5 text-[11.5px]">{t("doc.context")}</div>
               <div className="bg-page rounded-tau-sm text-ink-2 flex flex-col gap-1 px-3 py-2.5 text-[12.5px]">
                 {parent && !context.includes(parent) && (
                   <span className="text-ink-3">{parent.title}</span>
@@ -112,24 +116,21 @@ export function DocTaskDrawer({
               </div>
             </div>
           )}
-          <p className="text-ink-3 text-[11.5px]">
-            在正文里写 #项目名 归入项目、写日期（如「周五」）排进议程；改动会同步到这里。
-            需要周期、番茄或日程时，转为独立待办（原文保持不变）。
-          </p>
+          <p className="text-ink-3 text-[11.5px]">{t("doc.help")}</p>
           <div className="flex flex-wrap gap-2">
             <Button variant="primary" size="sm" onClick={() => openDocTask(currentSource, current)}>
-              打开原文定位
+              {t("doc.locate")}
             </Button>
             <Button variant="secondary" size="sm" onClick={() => onPromote(current)}>
-              转为独立待办
+              {t("doc.promote")}
             </Button>
             <Button
               variant="ghost"
               size="sm"
-              title="这篇文档的勾选项都不再出现在待办里，可在原文底部恢复"
+              title={t("doc.excludeHint")}
               onClick={() => onExclude(currentSource)}
             >
-              本文不收集
+              {t("doc.exclude")}
             </Button>
           </div>
         </div>

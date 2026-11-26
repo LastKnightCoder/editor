@@ -1,3 +1,7 @@
+import { createI18nRuntime, createLocaleStore } from "@tau/i18n";
+import { I18nRuntimeProvider } from "@tau/i18n/react";
+import { datepickerMessages } from "../i18n";
+import { TimeField } from "../TimeField";
 /**
  * DatePicker / DateRangePicker 单测（A+ 形态）：
  * 受控/非受控回填 · day 即点即定 · minute 挂起 + 时刻区 + 确定提交 · 时刻自由键入
@@ -464,4 +468,210 @@ describe("DateRangePicker（已有值 / 界外日 / 时刻）", () => {
     expect(label().textContent).toBe("9月1日 – 9月5日");
     expect(label().className).not.toContain("text-accent-text");
   });
+});
+
+describe("日期控件语言切换", () => {
+  it("minute 面板保留翻月、待选日期、时刻草稿和网格，Enter 后按原协议提交", () => {
+    const source = createLocaleStore("zh-CN");
+    const runtime = createI18nRuntime({ localeSource: source });
+    const { t } = runtime.get(datepickerMessages);
+    const commit = vi.fn();
+    const h = render(
+      <I18nRuntimeProvider runtime={runtime}>
+        <DatePicker precision="minute" defaultValue="2026-09-19 09:00" onValueChange={commit} />
+      </I18nRuntimeProvider>
+    );
+    try {
+      const trigger = h.container.querySelector<HTMLButtonElement>('[role="combobox"]');
+      if (!trigger) throw new Error("日期入口未挂载");
+      click(trigger);
+      const p = panel();
+      if (!p) throw new Error("日期面板未挂载");
+      click(dayCell(p, 20));
+      const next = p.querySelector(`[aria-label="${t("calendar.next.month")}"]`);
+      if (!next) throw new Error("翻月入口未挂载");
+      click(next);
+      click(next);
+      const days = [...p.querySelectorAll('[role="gridcell"]')].map(cell => cell.id);
+      if (!days.length) throw new Error("翻月后的日期格未挂载");
+      const input = p.querySelector<HTMLInputElement>(`[aria-label="${t("time.label")}"]`);
+      const toggle = p.querySelector(`[aria-label="${t("time.grid")}"]`);
+      if (!input || !toggle) throw new Error("时刻输入未挂载");
+      typeInto(input, "10:5");
+      act(() => input.focus());
+      input.setSelectionRange(1, 3);
+      click(toggle);
+      const grid = p.querySelector('[role="listbox"]');
+      if (!grid) throw new Error("时刻网格未打开");
+      for (const locale of ["zh-TW", "en-US"]) {
+        act(() => source.setLocale(locale));
+        expect(panel()).toBe(p);
+        expect([...p.querySelectorAll('[role="gridcell"]')].map(cell => cell.id)).toEqual(days);
+        expect(p.querySelector("input")).toBe(input);
+        expect(input.value).toBe("10:5");
+        expect(document.activeElement).toBe(input);
+        expect([input.selectionStart, input.selectionEnd]).toEqual([1, 3]);
+        expect(p.querySelector('[role="listbox"]')).toBe(grid);
+        expect(commit).not.toHaveBeenCalled();
+        expect(trigger.getAttribute("aria-expanded")).toBe("true");
+      }
+      key(input, "Enter");
+      expect(commit).toHaveBeenCalledExactlyOnceWith("2026-09-20 10:05");
+      expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    } finally {
+      h.cleanup();
+      runtime.dispose();
+    }
+  });
+
+  it("范围端点与未提交时刻跨语言保留，Esc 分层关闭后回到已提交值", () => {
+    const source = createLocaleStore("zh-CN"),
+      runtime = createI18nRuntime({ localeSource: source });
+    const { t } = runtime.get(datepickerMessages);
+    const commit = vi.fn();
+    const h = render(
+      <I18nRuntimeProvider runtime={runtime}>
+        <DateRangePicker
+          precision="minute"
+          defaultValue={["2026-09-12 09:00", "2026-09-19 18:00"]}
+          onValueChange={commit}
+        />
+      </I18nRuntimeProvider>
+    );
+    try {
+      const trigger = h.container.querySelector<HTMLButtonElement>('[role="combobox"]');
+      if (!trigger) throw new Error("范围入口未挂载");
+      click(trigger);
+      const p = panel();
+      if (!p) throw new Error("范围面板未挂载");
+      const first = p.querySelector<HTMLElement>("[data-calendar-panel]");
+      if (!first) throw new Error("月视图未挂载");
+      click(dayCell(first, 20));
+      click(dayCell(first, 21));
+      const selected = [...p.querySelectorAll('[role="gridcell"][aria-selected="true"]')].map(
+        cell => cell.id
+      );
+      const input = p.querySelector<HTMLInputElement>(`[aria-label="${t("time.end")}"]`);
+      if (!input) throw new Error("结束时刻未挂载");
+      typeInto(input, "21:");
+      act(() => input.focus());
+      input.setSelectionRange(1, 3);
+      const row = input.parentElement;
+      const toggle = row?.querySelector(`[aria-label="${t("time.grid")}"]`);
+      if (!toggle) throw new Error("结束时刻网格入口未挂载");
+      click(toggle);
+      const grid = p.querySelector('[role="listbox"]');
+      if (!grid) throw new Error("结束时刻网格未打开");
+      for (const locale of ["zh-TW", "en-US"]) {
+        act(() => source.setLocale(locale));
+        expect(panel()).toBe(p);
+        expect(p.querySelector("[data-calendar-panel]")).toBe(first);
+        expect(
+          [...p.querySelectorAll('[role="gridcell"][aria-selected="true"]')].map(cell => cell.id)
+        ).toEqual(selected);
+        expect(p.querySelector(`[aria-label="${t("time.end")}"]`)).toBe(input);
+        expect(input.value).toBe("21:");
+        expect(document.activeElement).toBe(input);
+        expect([input.selectionStart, input.selectionEnd]).toEqual([1, 3]);
+        expect(p.querySelector('[role="listbox"]')).toBe(grid);
+        expect(commit).not.toHaveBeenCalled();
+      }
+      key(input, "Escape");
+      expect(panel()).toBe(p);
+      expect(p.querySelector('[role="listbox"]')).toBeNull();
+      key(input, "Escape");
+      expect(trigger.getAttribute("aria-expanded")).toBe("false");
+      click(trigger);
+      const reopened = panel();
+      if (!reopened) throw new Error("范围面板未重新打开");
+      expect(
+        reopened.querySelector<HTMLInputElement>(`[aria-label="${t("time.end")}"]`)?.value
+      ).toBe("18:00");
+      expect(commit).not.toHaveBeenCalled();
+    } finally {
+      h.cleanup();
+      runtime.dispose();
+    }
+  });
+
+  it("显式 placeholder、aria 和预设文案保持调用方原文", () => {
+    const source = createLocaleStore("zh-CN"),
+      runtime = createI18nRuntime({ localeSource: source });
+    const commit = vi.fn();
+    const h = render(
+      <I18nRuntimeProvider runtime={runtime}>
+        <DatePicker
+          placeholder="Caller date"
+          presets={[{ label: "Caller preset", value: () => "2026-09-12" }]}
+          onValueChange={commit}
+        />
+        <DateRangePicker placeholder="Caller range" />
+        <TimeField value="09:00" aria-label="Caller time" onValueChange={vi.fn()} />
+      </I18nRuntimeProvider>
+    );
+    try {
+      const [single, range] = h.container.querySelectorAll<HTMLButtonElement>('[role="combobox"]');
+      const input = h.container.querySelector<HTMLInputElement>('[aria-label="Caller time"]');
+      if (!single || !range || !input) throw new Error("控件未挂载");
+      click(single);
+      const preset = [...panel()!.querySelectorAll("button")].find(
+        button => button.textContent === "Caller preset"
+      );
+      if (!preset) throw new Error("调用方预设未挂载");
+      for (const locale of ["zh-TW", "en-US"]) {
+        act(() => source.setLocale(locale));
+        expect(single.textContent).toContain("Caller date");
+        expect(range.textContent).toContain("Caller range");
+        expect(h.container.querySelector('[aria-label="Caller time"]')).toBe(input);
+        expect(
+          [...panel()!.querySelectorAll("button")].find(
+            button => button.textContent === "Caller preset"
+          )
+        ).toBe(preset);
+        expect(commit).not.toHaveBeenCalled();
+      }
+      click(preset);
+      expect(commit).toHaveBeenCalledExactlyOnceWith("2026-09-12");
+    } finally {
+      h.cleanup();
+      runtime.dispose();
+    }
+  });
+});
+
+it("切换语言保留月份钻取视图，选月后按原月序提交", () => {
+  const source = createLocaleStore("zh-CN");
+  const runtime = createI18nRuntime({ localeSource: source });
+  const commit = vi.fn();
+  const h = render(
+    <I18nRuntimeProvider runtime={runtime}>
+      <DatePicker defaultValue="2026-09-19" onValueChange={commit} />
+    </I18nRuntimeProvider>
+  );
+  try {
+    const trigger = h.container.querySelector<HTMLButtonElement>('[role="combobox"]');
+    if (!trigger) throw new Error("日期入口未挂载");
+    click(trigger);
+    const p = panel();
+    const heading = p?.querySelector('button[aria-live="polite"]');
+    if (!p || !heading) throw new Error("月份标题未挂载");
+    click(heading);
+    const grid = p.querySelector('[role="grid"]');
+    const selected = grid?.querySelector('[aria-pressed="true"]');
+    if (!grid || !selected) throw new Error("月份钻取未打开");
+    for (const locale of ["zh-TW", "en-US"]) {
+      act(() => source.setLocale(locale));
+      expect(p.querySelector('[role="grid"]')).toBe(grid);
+      expect(grid.querySelector('[aria-pressed="true"]')).toBe(selected);
+      expect(commit).not.toHaveBeenCalled();
+    }
+    const january = grid.querySelector("button");
+    if (!january) throw new Error("月份选项未挂载");
+    click(january);
+    click(dayCell(p, 20));
+    expect(commit).toHaveBeenCalledExactlyOnceWith("2026-01-20");
+  } finally {
+    h.cleanup();
+    runtime.dispose();
+  }
 });

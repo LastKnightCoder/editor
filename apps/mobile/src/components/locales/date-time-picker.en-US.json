@@ -1,0 +1,16 @@
+{
+  "day.today": "Today",
+  "day.tomorrow": "Tomorrow",
+  "month.previous": "Previous month",
+  "month.next": "Next month",
+  "time.minusHour": "Subtract one hour",
+  "time.plusHour": "Add one hour",
+  "unit.hour": "h",
+  "unit.minute": "min",
+  "clear": "Clear",
+  "confirm": "Confirm",
+  "time.minusMinutes_one": "Subtract {{count}} minute",
+  "time.minusMinutes_other": "Subtract {{count}} minutes",
+  "time.plusMinutes_one": "Add {{count}} minute",
+  "time.plusMinutes_other": "Add {{count}} minutes"
+}

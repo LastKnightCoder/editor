@@ -1,4 +1,4 @@
-import { canonicalLocale } from "./locale";
+import { canonicalLocale } from "./locale.ts";
 
 export type TranslationValues = Readonly<Record<string, string | number | boolean>>;
 export interface I18nMessage {

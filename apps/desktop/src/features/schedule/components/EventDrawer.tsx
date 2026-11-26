@@ -7,6 +7,7 @@
  * 表单干净时跟随；有未保存修改则先确认「放弃修改」，选「继续编辑」把 store 拨回当前这条。
  */
 
+import { scheduleText, scheduleFormat, useScheduleI18n } from "../i18n";
 import { useEffect, useRef, useState } from "react";
 import type { CalendarEvent } from "@/types";
 import { Trash2 } from "lucide-react";
@@ -20,18 +21,9 @@ import { useEventForm } from "./EventDialog/useEventForm";
 import { FocusStartButton } from "@/features/pomodoro/components/FocusStartButton";
 import { EventTitle, useEventDecor } from "./EventTitle";
 
-const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
-
-function dateLabel(start: number, end: number | null) {
-  const fmt = (ts: number) => {
-    const d = new Date(ts);
-    return `${d.getMonth() + 1}月${d.getDate()}日 周${WEEKDAYS[d.getDay()]}`;
-  };
-  if (!end || new Date(end).toDateString() === new Date(start).toDateString()) return fmt(start);
-  return `${fmt(start)} – ${fmt(end)}`;
-}
-
 export function EventDrawer({ className }: { className?: string }) {
+  useScheduleI18n();
+
   const requested = usePeekStore(s => s.event);
   const close = usePeekStore(s => s.close);
   const { calendars } = useCalendarCatalog();
@@ -47,7 +39,7 @@ export function EventDrawer({ className }: { className?: string }) {
   const decorOf = useEventDecor(event ? [event] : []);
   const form = useEventForm(event, () => {
     close();
-    toast.success("日程已保存");
+    toast.success(scheduleText("feedback.saved"));
   });
 
   useEffect(() => {
@@ -66,7 +58,7 @@ export function EventDrawer({ className }: { className?: string }) {
         modal={false}
         open={selected !== null}
         onOpenChange={open => !open && close()}
-        label="日程详情"
+        label={scheduleText("event.details")}
         width={440}
         className={className}
         icon={
@@ -96,14 +88,16 @@ export function EventDrawer({ className }: { className?: string }) {
         subtitle={
           event && (
             <span className="font-tau-mono block truncate tabular-nums">
-              {dateLabel(event.startDate, event.endDate)} · {eventTimeLabel(event)}
+              {scheduleFormat.dateRange(event.startDate, event.endDate)} · {eventTimeLabel(event)}
               {calendar && <span className="font-sans"> · {calendar.title}</span>}
             </span>
           )
         }
         footer={
           <>
-            {form.dirty && <span className="text-warn text-tau-sm mr-auto">有未保存的修改</span>}
+            {form.dirty && (
+              <span className="text-warn text-tau-sm mr-auto">{scheduleText("event.unsaved")}</span>
+            )}
             {!form.isSystemCalendarEvent && !form.dirty && (
               <Button
                 variant="danger-soft"
@@ -112,12 +106,12 @@ export function EventDrawer({ className }: { className?: string }) {
                 disabled={form.saving}
                 onClick={form.remove}
               >
-                删除
+                {scheduleText("action.delete")}
               </Button>
             )}
             <span className="flex-1" />
             <Button variant="secondary" size="sm" disabled={form.saving} onClick={close}>
-              关闭
+              {scheduleText("action.close")}
             </Button>
             <Button
               variant="primary"
@@ -126,7 +120,7 @@ export function EventDrawer({ className }: { className?: string }) {
               disabled={!form.canSave}
               onClick={form.save}
             >
-              保存
+              {scheduleText("action.save")}
             </Button>
           </>
         }
@@ -143,13 +137,15 @@ export function EventDrawer({ className }: { className?: string }) {
           setPending(null);
         }}
         danger
-        title="放弃未保存的修改？"
+        title={scheduleText("discard.title")}
         context={event?.title}
         description={
-          pending?.next ? "切换到另一条日程，这里的修改将丢失。" : "关闭后这里的修改将丢失。"
+          pending?.next
+            ? scheduleText("discard.switchDescription")
+            : scheduleText("discard.closeDescription")
         }
-        cancelText="继续编辑"
-        confirmText="放弃修改"
+        cancelText={scheduleText("action.keepEditing")}
+        confirmText={scheduleText("action.discard")}
         onConfirm={() => {
           discarded.current = true;
           // 关闭时 event 仍保留同一条（退场动画），表单不会自动重载：显式丢弃修改

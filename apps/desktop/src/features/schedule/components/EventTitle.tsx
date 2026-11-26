@@ -3,6 +3,7 @@
  * 待办日程前置勾选圈，点圈直接完成 / 取消（不冒泡、不触发日程点击与拖拽）。
  */
 
+import { scheduleText, useScheduleI18n } from "../i18n";
 import { useCallback } from "react";
 import { Check, Timer } from "lucide-react";
 import { cn } from "@tau/ui";
@@ -39,16 +40,24 @@ interface EventTitleProps {
 }
 
 export function EventTitle({ event, decor, className }: EventTitleProps) {
+  useScheduleI18n();
+
   const done = decor.source?.isCompleted === true;
   return (
     <span className={cn("flex min-w-0 items-center gap-1.5", className)}>
       {decor.kind === "pomodoro" && (
-        <Timer aria-label="番茄钟" className="size-3 shrink-0 opacity-75" strokeWidth={2} />
+        <Timer
+          aria-label={scheduleText("source.pomodoro")}
+          className="size-3 shrink-0 opacity-75"
+          strokeWidth={2}
+        />
       )}
       {(decor.kind === "todo" || decor.source) && (
         <button
           type="button"
-          aria-label={done ? "标记为未完成" : "标记为完成"}
+          aria-label={
+            done ? scheduleText("action.markIncomplete") : scheduleText("action.markComplete")
+          }
           disabled={!decor.onToggle}
           onClick={e => {
             e.stopPropagation();

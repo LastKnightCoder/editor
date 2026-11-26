@@ -1,3 +1,4 @@
+import { useTodoI18n } from "../i18n";
 import { CalendarDays, Check, Clock, MoreHorizontal, RefreshCw } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -284,6 +285,7 @@ const TodoItemRow = memo(function TodoItemRow({
   onRowPointerUp,
   suppressTapRef,
 }: TodoItemRowProps) {
+  const { t: translate, locale } = useTodoI18n();
   const isOverdue =
     !item.isCompleted &&
     item.dueAt != null &&
@@ -302,7 +304,7 @@ const TodoItemRow = memo(function TodoItemRow({
       onPointerMove={onRowPointerMove}
       onPointerUp={onRowPointerUp}
       onPointerCancel={onRowPointerUp}
-      className={`border-line-1 relative select-none border-b border-dashed ${
+      className={`border-line-1 relative border-b border-dashed select-none ${
         isDragging ? "opacity-80" : ""
       }`}
     >
@@ -320,7 +322,9 @@ const TodoItemRow = memo(function TodoItemRow({
           type="button"
           role="checkbox"
           aria-checked={item.isCompleted}
-          aria-label={item.isCompleted ? "标记为未完成" : "标记为已完成"}
+          aria-label={
+            item.isCompleted ? translate("action.uncomplete") : translate("action.complete")
+          }
           onClick={() => onToggleComplete(item, !item.isCompleted)}
           className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 transition-all duration-200 ${
             item.isCompleted
@@ -359,7 +363,7 @@ const TodoItemRow = memo(function TodoItemRow({
           </div>
           {item.dueAt ? (
             <div className="text-ink-3 mt-0.5 pl-[19px] text-[10.5px] tabular-nums">
-              {new Date(item.dueAt).toLocaleString()}
+              {new Date(item.dueAt).toLocaleString(locale)}
             </div>
           ) : null}
         </button>
@@ -374,7 +378,7 @@ const TodoItemRow = memo(function TodoItemRow({
             onOpenActions(item);
           }}
           className="text-ink-3 active:bg-hover -mr-1 rounded-full p-2"
-          aria-label="任务操作"
+          aria-label={translate("action.taskActions")}
         >
           <MoreHorizontal size={16} aria-hidden="true" />
         </button>
@@ -398,6 +402,7 @@ export function TodoItemTree({
   onMoveAndReorder,
   enableDragSort = true,
 }: TodoItemTreeProps) {
+  const { t: translate } = useTodoI18n();
   const sourceItems = allItems ?? items;
 
   // 上层常传内联回调：经 ref 转发为稳定引用，保证行级 memo 生效
@@ -792,7 +797,7 @@ export function TodoItemTree({
   if (visibleRows.length === 0) {
     return (
       <div className="list-group text-ink-3 px-4 py-8 text-center text-sm">
-        当前分组还没有任务，先添加一条吧
+        {translate("tree.empty")}
       </div>
     );
   }
@@ -801,7 +806,7 @@ export function TodoItemTree({
     <div className="pb-6">
       {!enableDragSort ? (
         <div className="bg-page text-ink-3 mb-3 rounded-full px-4 py-2 text-center text-xs font-medium">
-          当前筛选条件下已禁用拖拽排序，清空筛选后可长按拖拽
+          {translate("tree.dragDisabled")}
         </div>
       ) : null}
       <div className="list-group relative mx-4">

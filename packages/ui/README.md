@@ -23,19 +23,21 @@ Dialog 内自动提供局部 Portal 容器，挂载点位于当前遮罩内、�
 
 ## 控件
 
-现有 Button、IconButton、Panel、Loading、Toast、Tooltip、Select、Menu、Dialog、ConfirmDialog、Popover、YearHeatmap 全量迁移。
+提供 Button、IconButton、Panel、Loading、Toast、Tooltip、Select、Menu、Dialog、ConfirmDialog、Popover 与 YearHeatmap。
 
-新增 Input/Textarea/NumberInput、FormField、Checkbox/RadioGroup/Switch、Tabs、Tag/ColorSwatch、InlineEdit、Rating、ProgressBar、CalendarPanel/TimeInput/DatePicker、ImagePreview。Select 支持多选；选项 CRUD 由上层字段编辑器负责。
+值输入与展示包括 Input/Textarea/NumberInput、FormField、Checkbox/RadioGroup/Switch、Tabs、Tag/ColorSwatch、InlineEdit、Rating、ProgressBar、CalendarPanel/TimeField/DatePicker/DateRangePicker 与 ImagePreview。Select 支持多选；选项 CRUD 由上层字段编辑器负责。
 
-日期面板支持手输年月日、范围、清空和秒级时间，可独立放进其他容器。布局密度和业务浮层返回由宿主选择；包不导入 Page 或移动 router。
+日期面板提供单日、范围、清空和分钟精度时刻选择，可独立放进其他容器。布局密度和业务浮层返回由宿主选择；包不导入 Page 或移动 router。
 
 `ProgressStatus` 在 `ProgressBar` 上方展示阶段文案与百分比，供两端传输任务共用；`value` 为 0–100，`label` 由宿主提供，组件不负责估算进度。
 
 ## 界面语言
 
-Dialog、ConfirmDialog、Select、Input、Tag 与 YearHeatmap 的默认文案跟随所在 `I18nRuntimeProvider`，内置简体、繁体与英文词典。调用方显式传入的按钮文案、占位和空态优先使用；没有翻译 Provider 时保持中文默认值。切换语言不重建控件，不清除输入、选中值或确认状态。
+Dialog、ConfirmDialog、Select、Input、Tag、YearHeatmap 与日期控件的默认文案跟随所在 `I18nRuntimeProvider`，内置简体、繁体与英文词典。调用方显式传入的按钮文案、占位和空态优先使用；没有翻译 Provider 时保持中文默认值。切换语言不重建控件，不清除输入、选中值或确认状态。
 
 UI 词典位于本包的 `src/locales/{zh-CN,zh-TW,en-US}.json`，`src/i18n.ts` 只负责导入和绑定，不读取业务设置或插件词典。应用和插件只需由宿主提供语言运行时；外部内容和调用方自定义文案由其所有者翻译。
+
+日期控件独立词典位于 `src/primitives/datepicker/locales/`，格式化显式接收 locale，解析值保持 ISO 日期/日期时刻。周一起始、15 分钟网格与提交/取消规则不随语言改变；翻月、范围端点和时刻草稿保持原状态。显式 placeholder 与预设文案仍由调用方决定。
 
 ## 验证
 

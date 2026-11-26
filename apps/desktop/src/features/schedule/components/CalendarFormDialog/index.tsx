@@ -4,6 +4,7 @@
  * 系统日历只能改颜色：名称禁用、分组隐藏。
  */
 
+import { scheduleText, useScheduleI18n } from "../../i18n";
 import { useEffect, useMemo, useState } from "react";
 import { Button, Dialog, DialogBody, Input, Select, cn, toast, type SelectOption } from "@tau/ui";
 import { useCalendarCatalog, useScheduleMutations } from "../../queries";
@@ -26,6 +27,8 @@ const CalendarFormDialog = ({
   defaultGroupId,
   onClose,
 }: CalendarFormDialogProps) => {
+  const { t } = useScheduleI18n();
+
   const { calendarGroups } = useCalendarCatalog();
   const { createCalendar, updateCalendar, createCalendarGroup } = useScheduleMutations();
 
@@ -52,15 +55,21 @@ const CalendarFormDialog = ({
 
   const groupOptions = useMemo<SelectOption<string>[]>(
     () => [
-      { value: "", label: <span className="text-ink-3">不分组</span>, searchText: "不分组" },
+      {
+        value: "",
+        label: <span className="text-ink-3">{t("group.none")}</span>,
+        get searchText() {
+          return t("group.none");
+        },
+      },
       ...userGroups.map(g => ({ value: g.name, label: g.name })),
     ],
-    [userGroups]
+    [userGroups, t]
   );
 
   const handleSave = async () => {
     if (!title.trim()) {
-      toast.warning("请输入日历名称");
+      toast.warning(scheduleText("validation.calendarName"));
       return;
     }
     setSaving(true);
@@ -104,7 +113,7 @@ const CalendarFormDialog = ({
       onClose();
     } catch (error) {
       console.error("Failed to save calendar:", error);
-      toast.error("保存失败");
+      toast.error(scheduleText("feedback.saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -116,16 +125,22 @@ const CalendarFormDialog = ({
       onOpenChange={next => {
         if (!next) onClose();
       }}
-      title={editing ? (isSystem ? "编辑颜色" : "编辑日历") : "新建日历"}
+      title={
+        editing
+          ? isSystem
+            ? scheduleText("calendar.editColor")
+            : scheduleText("calendar.edit")
+          : scheduleText("calendar.create")
+      }
       context={isSystem ? calendar?.title : undefined}
       locked={saving}
       footer={
         <>
           <Button variant="secondary" size="sm" disabled={saving} onClick={onClose}>
-            取消
+            {scheduleText("action.cancel")}
           </Button>
           <Button variant="primary" size="sm" loading={saving} onClick={handleSave}>
-            {editing ? "保存" : "创建"}
+            {editing ? scheduleText("action.save") : scheduleText("action.create")}
           </Button>
         </>
       }
@@ -134,12 +149,12 @@ const CalendarFormDialog = ({
         <div className="flex flex-col gap-3.5">
           {!isSystem && (
             <label className="flex flex-col gap-1.5">
-              <span className="text-ink-2 text-[12px]">名称</span>
+              <span className="text-ink-2 text-[12px]">{scheduleText("field.name")}</span>
               <Input
                 data-autofocus
                 value={title}
                 onChange={e => setTitle(e.target.value)}
-                placeholder="如：工作、学习"
+                placeholder={scheduleText("calendar.namePlaceholder")}
                 onKeyDown={e => {
                   if (e.key === "Enter" && !e.nativeEvent.isComposing) void handleSave();
                 }}
@@ -148,26 +163,26 @@ const CalendarFormDialog = ({
           )}
           {!isSystem && (
             <div className="flex flex-col gap-1.5">
-              <span className="text-ink-2 text-[12px]">分组（可选）</span>
+              <span className="text-ink-2 text-[12px]">{scheduleText("group.optional")}</span>
               <Select
                 options={groupOptions}
                 value={groupName ?? ""}
                 onValueChange={v => setGroupName(v || null)}
                 searchable
                 creatable
-                placeholder="选择或输入新分组"
+                placeholder={scheduleText("group.chooseOrCreate")}
               />
             </div>
           )}
           <div className="flex flex-col gap-1.5">
-            <span className="text-ink-2 text-[12px]">颜色</span>
+            <span className="text-ink-2 text-[12px]">{scheduleText("field.color")}</span>
             <div className="flex flex-wrap gap-2">
               {PROJECT_COLORS.map(c => (
                 <button
                   key={c.name}
                   type="button"
-                  title={c.label}
-                  aria-label={c.label}
+                  title={scheduleText(`color.${c.name}`)}
+                  aria-label={scheduleText(`color.${c.name}`)}
                   aria-pressed={color === c.name}
                   onClick={() => setColor(c.name)}
                   style={toneStyle(c.name)}

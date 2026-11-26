@@ -1,3 +1,4 @@
+import { useDateTimePickerI18n } from "./DateTimePickerSheet.i18n";
 // 自定义日期时间选择器：月历网格 + 时/分步进器 + 快捷时间胶囊。
 // 替代 datetime-local 原生输入（WebView 下样式失控，且未设置时只能显示空值）。
 
@@ -26,20 +27,18 @@ type DateTimePickerSheetProps = {
   onClose: () => void;
 };
 
-const WEEKDAY_LABELS = ["一", "二", "三", "四", "五", "六", "日"];
+const WEEKDAYS = [1, 2, 3, 4, 5, 6, 0];
 
-const QUICK_TIMES: Array<{ label: string; hour: number; minute: number }> = [
-  { label: "09:00", hour: 9, minute: 0 },
-  { label: "12:00", hour: 12, minute: 0 },
-  { label: "15:00", hour: 15, minute: 0 },
-  { label: "18:00", hour: 18, minute: 0 },
-  { label: "20:30", hour: 20, minute: 30 },
-  { label: "22:00", hour: 22, minute: 0 },
+const QUICK_TIMES: Array<{ hour: number; minute: number }> = [
+  { hour: 9, minute: 0 },
+  { hour: 12, minute: 0 },
+  { hour: 15, minute: 0 },
+  { hour: 18, minute: 0 },
+  { hour: 20, minute: 30 },
+  { hour: 22, minute: 0 },
 ];
 
 const MINUTE_STEP = 5;
-
-const pad2 = (value: number) => `${value}`.padStart(2, "0");
 
 function draftFromValue(ts: number): DateTimeDraft {
   const date = new Date(ts);
@@ -80,6 +79,14 @@ export function DateTimePickerSheet({
   onClear,
   onClose,
 }: DateTimePickerSheetProps) {
+  const { t, locale } = useDateTimePickerI18n();
+  const timeNumber = new Intl.NumberFormat(locale, { minimumIntegerDigits: 2, useGrouping: false });
+  const timeLabel = (hour: number, minute: number) =>
+    new Intl.DateTimeFormat(locale, {
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).format(new Date(2023, 0, 1, hour, minute));
   const [draft, setDraft] = useState<DateTimeDraft>(() => defaultDraft(defaultHour));
 
   // 每次打开重置草稿：有值回填，无值落到今天 + defaultHour
@@ -147,10 +154,10 @@ export function DateTimePickerSheet({
       {/* 快捷日期 */}
       <div className="flex gap-2">
         <button type="button" className={quickDayClass(isToday)} onClick={() => setQuickDay(0)}>
-          今天
+          {t("day.today")}
         </button>
         <button type="button" className={quickDayClass(isTomorrow)} onClick={() => setQuickDay(1)}>
-          明天
+          {t("day.tomorrow")}
         </button>
       </div>
 
@@ -158,18 +165,20 @@ export function DateTimePickerSheet({
       <div className="mt-4 flex items-center justify-between px-1">
         <button
           type="button"
-          aria-label="上个月"
+          aria-label={t("month.previous")}
           onClick={() => shiftMonth(-1)}
           className="text-ink-2 active:bg-hover grid h-9 w-9 place-items-center rounded-full"
         >
           <ChevronLeft size={18} />
         </button>
         <span className="text-ink-1 text-[14px] font-extrabold tabular-nums">
-          {draft.year}年{draft.month + 1}月
+          {new Intl.DateTimeFormat(locale, { year: "numeric", month: "long" }).format(
+            new Date(draft.year, draft.month, 1)
+          )}
         </span>
         <button
           type="button"
-          aria-label="下个月"
+          aria-label={t("month.next")}
           onClick={() => shiftMonth(1)}
           className="text-ink-2 active:bg-hover grid h-9 w-9 place-items-center rounded-full"
         >
@@ -177,9 +186,14 @@ export function DateTimePickerSheet({
         </button>
       </div>
       <div className="mt-1.5 grid grid-cols-7">
-        {WEEKDAY_LABELS.map(label => (
-          <div key={label} className="text-ink-3 grid h-7 place-items-center text-[11px] font-bold">
-            {label}
+        {WEEKDAYS.map(weekday => (
+          <div
+            key={`weekday-${weekday}`}
+            className="text-ink-3 grid h-7 place-items-center text-[11px] font-bold"
+          >
+            {new Intl.DateTimeFormat(locale, { weekday: "short" }).format(
+              new Date(2023, 0, 1 + weekday)
+            )}
           </div>
         ))}
         {calendarCells.map((day, index) =>
@@ -189,6 +203,7 @@ export function DateTimePickerSheet({
             <button
               key={day}
               type="button"
+              aria-pressed={isSameDay(draft, draft.year, draft.month, day)}
               onClick={() => setDraft(prev => ({ ...prev, day }))}
               className={`mx-auto grid h-10 w-10 place-items-center rounded-full text-[13.5px] font-bold tabular-nums transition-all active:scale-90 ${
                 isSameDay(draft, draft.year, draft.month, day)
@@ -209,7 +224,7 @@ export function DateTimePickerSheet({
         <div className="flex items-center gap-2.5">
           <button
             type="button"
-            aria-label="减一小时"
+            aria-label={t("time.minusHour")}
             onClick={() => patchTime({ hour: (draft.hour + 23) % 24 })}
             className="bg-page text-ink-2 grid h-9 w-9 place-items-center rounded-full transition-transform active:scale-90"
           >
@@ -217,13 +232,13 @@ export function DateTimePickerSheet({
           </button>
           <div className="w-[52px] text-center">
             <span className="text-ink-1 text-[22px] font-extrabold tabular-nums">
-              {pad2(draft.hour)}
+              {timeNumber.format(draft.hour)}
             </span>
-            <span className="text-ink-3 ml-1 text-[11px] font-bold">时</span>
+            <span className="text-ink-3 ml-1 text-[11px] font-bold">{t("unit.hour")}</span>
           </div>
           <button
             type="button"
-            aria-label="加一小时"
+            aria-label={t("time.plusHour")}
             onClick={() => patchTime({ hour: (draft.hour + 1) % 24 })}
             className="bg-page text-ink-2 grid h-9 w-9 place-items-center rounded-full transition-transform active:scale-90"
           >
@@ -233,7 +248,7 @@ export function DateTimePickerSheet({
         <div className="flex items-center gap-2.5">
           <button
             type="button"
-            aria-label="减五分钟"
+            aria-label={t("time.minusMinutes", { count: MINUTE_STEP })}
             onClick={() => patchTime({ minute: shiftMinute(draft.minute, -MINUTE_STEP) })}
             className="bg-page text-ink-2 grid h-9 w-9 place-items-center rounded-full transition-transform active:scale-90"
           >
@@ -241,13 +256,13 @@ export function DateTimePickerSheet({
           </button>
           <div className="w-[52px] text-center">
             <span className="text-ink-1 text-[22px] font-extrabold tabular-nums">
-              {pad2(draft.minute)}
+              {timeNumber.format(draft.minute)}
             </span>
-            <span className="text-ink-3 ml-1 text-[11px] font-bold">分</span>
+            <span className="text-ink-3 ml-1 text-[11px] font-bold">{t("unit.minute")}</span>
           </div>
           <button
             type="button"
-            aria-label="加五分钟"
+            aria-label={t("time.plusMinutes", { count: MINUTE_STEP })}
             onClick={() => patchTime({ minute: shiftMinute(draft.minute, MINUTE_STEP) })}
             className="bg-page text-ink-2 grid h-9 w-9 place-items-center rounded-full transition-transform active:scale-90"
           >
@@ -262,14 +277,15 @@ export function DateTimePickerSheet({
           const active = draft.hour === quick.hour && draft.minute === quick.minute;
           return (
             <button
-              key={quick.label}
+              key={`${quick.hour}:${quick.minute}`}
               type="button"
+              aria-pressed={active}
               onClick={() => patchTime({ hour: quick.hour, minute: quick.minute })}
               className={`flex-1 rounded-full px-2 py-2 text-xs font-bold tabular-nums transition-all active:scale-95 ${
                 active ? "bg-accent shadow-lift text-ink-inverse" : "bg-page text-ink-2"
               }`}
             >
-              {quick.label}
+              {timeLabel(quick.hour, quick.minute)}
             </button>
           );
         })}
@@ -283,7 +299,7 @@ export function DateTimePickerSheet({
             onClick={onClear}
             className="bg-page text-ink-2 h-11 flex-1 rounded-full text-sm font-bold transition-transform active:scale-[0.98]"
           >
-            清除
+            {t("clear")}
           </button>
         ) : null}
         <button
@@ -295,7 +311,7 @@ export function DateTimePickerSheet({
           }}
           className="shadow-lift text-ink-inverse bg-accent h-11 flex-1 rounded-full text-sm font-bold transition-transform active:scale-[0.98]"
         >
-          确认
+          {t("confirm")}
         </button>
       </div>
     </BottomSheet>

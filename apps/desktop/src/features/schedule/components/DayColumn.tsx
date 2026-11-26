@@ -8,6 +8,7 @@
  * 待安排面板里的待办可拖到空档 / 补记行上 = 安排进该空隙（列表形态算不出任意落点，只接受这两种行）。
  */
 
+import { scheduleText, scheduleValue, scheduleFormat, useScheduleI18n } from "../i18n";
 import { useQuickAddI18n } from "@/features/shared/quick-add/i18n";
 import { describeEventQuickAdd } from "@/features/shared/quick-add/format";
 import { useMemo, useState, type CSSProperties, type DragEvent } from "react";
@@ -35,7 +36,7 @@ import {
 import {
   absorbFocus,
   buildDayTimeline,
-  focusLabel,
+  focusMinutes,
   isMarker,
   spanPercent,
   type FocusSpan,
@@ -48,9 +49,8 @@ import { AllDayBar } from "./EventChips";
 import { EventTitle, useEventDecor } from "./EventTitle";
 import { useNowMinutes } from "./TimeGridParts";
 
-const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
-
-const hours = (minutes: number) => `${Number((minutes / 60).toFixed(1))} 小时`;
+const hours = (minutes: number) =>
+  scheduleText("duration.hours", { hours: scheduleValue(Number((minutes / 60).toFixed(1))) });
 
 /** 标记排序：全天在前，定时标记（截止时刻）按时刻在后 */
 const markerOrder = (event: CalendarEvent) => (event.allDay ? -1 : (event.startTime ?? 0));
@@ -80,6 +80,8 @@ function useWritableCalendars() {
 }
 
 export function DayColumn() {
+  useScheduleI18n();
+
   const { calendars } = useCalendarCatalog();
   const writable = useWritableCalendars();
   const roles = useCalendarRoles();
@@ -123,7 +125,7 @@ export function DayColumn() {
 
   const scheduleGap = (start: number) => {
     if (!defaultCalendar) {
-      toast.warning("请先创建一个日历");
+      toast.warning(scheduleText("feedback.createCalendarFirst"));
       return;
     }
     setEditingEvent({
@@ -148,11 +150,11 @@ export function DayColumn() {
     const title = rest.replace(/\s+/g, " ").trim();
     const calendar = writable.find(c => c.id === calendarId) ?? defaultCalendar;
     if (!title) {
-      toast.warning("请写上做了什么");
+      toast.warning(scheduleText("validation.recordTitle"));
       return false;
     }
     if (!calendar) {
-      toast.warning("请先创建一个日历");
+      toast.warning(scheduleText("feedback.createCalendarFirst"));
       return false;
     }
     try {
@@ -170,7 +172,7 @@ export function DayColumn() {
       return true;
     } catch (error) {
       console.error("Failed to record gap:", error);
-      toast.error("补记失败");
+      toast.error(scheduleText("feedback.recordFailed"));
       return false;
     }
   };
@@ -189,33 +191,40 @@ export function DayColumn() {
         </span>
         <div className="flex flex-col pb-0.5">
           <b className="text-tau-title font-semibold">
-            周{WEEKDAYS[date.getDay()]}
-            {isToday && " · 今天"}
+            {scheduleFormat.weekday(day)}
+            {isToday && scheduleText("date.todaySuffix")}
           </b>
-          <span className="text-ink-2 text-tau-meta">
-            {date.getFullYear()} 年 {date.getMonth() + 1} 月
-          </span>
+          <span className="text-ink-2 text-tau-meta">{scheduleFormat.yearMonth(day)}</span>
         </div>
         <span className="flex-1" />
         <IconButton
           className="size-7"
-          title="前一天"
-          aria-label="前一天"
+          title={scheduleText("navigation.previousDay")}
+          aria-label={scheduleText("navigation.previousDay")}
           onClick={() => setCurrentDate(day - 12 * 3600000)}
         >
           <ChevronLeft className="size-4" strokeWidth={1.75} />
         </IconButton>
         <IconButton
           className="size-7"
-          title="后一天"
-          aria-label="后一天"
+          title={scheduleText("navigation.nextDay")}
+          aria-label={scheduleText("navigation.nextDay")}
           onClick={() => setCurrentDate(day + 36 * 3600000)}
         >
           <ChevronRight className="size-4" strokeWidth={1.75} />
         </IconButton>
       </div>
       <p className="text-ink-3 text-tau-sm px-6 pb-2.5">
-        {total === 0 ? "这一天还没有安排" : `${total} 项${busy ? ` · 已排 ${hours(busy)}` : ""}`}
+        {total === 0
+          ? scheduleText("day.empty")
+          : scheduleText("summary.day", {
+              count: scheduleValue(total),
+              busy: scheduleValue(
+                busy
+                  ? scheduleText("summary.busySuffix", { duration: scheduleValue(hours(busy)) })
+                  : ""
+              ),
+            })}
       </p>
 
       {/* FadeScroll 右侧 6px 透明边 + pr-[18px] = 24px，与标题行的 px-6 对齐 */}
@@ -289,6 +298,8 @@ function TimelineRow({
   focus?: FocusSpan[];
   focusTone?: CSSProperties;
 }) {
+  useScheduleI18n();
+
   const at = item.kind === "now" ? item.at : item.start;
   const gap = item.kind === "record-gap" || item.kind === "plan-gap";
   const [dropping, setDropping] = useState(false);
@@ -377,7 +388,8 @@ function TimelineRow({
           onClick={() => onSchedule(item.start)}
           className={cn("text-ink-3 hover:text-ink-2 hover:bg-hover text-left", GAP_FRAME)}
         >
-          空档 {hours(item.end - item.start)} · 点击安排
+          {scheduleText("gap.title")} {hours(item.end - item.start)}{" "}
+          {scheduleText("gap.actionHint")}
         </button>
       )}
       {item.kind === "record-gap" && (
@@ -385,7 +397,7 @@ function TimelineRow({
       )}
       {item.kind === "now" && (
         <span className="text-accent-text font-tau-mono pt-[9px] text-[11.5px] font-semibold">
-          现在
+          {scheduleText("time.now")}
         </span>
       )}
     </div>
@@ -412,6 +424,8 @@ function EventCard({
   focus?: FocusSpan[];
   focusTone?: CSSProperties;
 }) {
+  useScheduleI18n();
+
   const fill = ledgerFill(item.phase);
   return (
     <div
@@ -448,7 +462,7 @@ function EventCard({
             })}
           </div>
           <span className="text-ink-3 font-tau-mono shrink-0 text-[10.5px] tabular-nums">
-            {focusLabel(focus)}
+            {scheduleFormat.focus(focusMinutes(focus))}
           </span>
         </div>
       )}
@@ -466,6 +480,8 @@ function RecordGap({
   end: number;
   onRecord: (start: number, end: number, text: string) => Promise<boolean>;
 }) {
+  useScheduleI18n();
+
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
@@ -491,7 +507,7 @@ function RecordGap({
         onClick={() => setEditing(true)}
         className={cn("text-ink-3 hover:text-ink-2 hover:bg-hover text-left", GAP_FRAME)}
       >
-        + 补记 {range}
+        {scheduleText("record.add")} {range}
       </button>
     );
   }
@@ -500,8 +516,8 @@ function RecordGap({
       autoFocus
       value={text}
       disabled={saving}
-      aria-label={`补记 ${range}`}
-      placeholder={`${range} 做了什么？回车补记`}
+      aria-label={scheduleText("record.range", { range: scheduleValue(range) })}
+      placeholder={scheduleText("record.placeholder", { range: scheduleValue(range) })}
       onChange={e => setText(e.target.value)}
       onKeyDown={e => {
         if (e.key === "Enter" && !e.nativeEvent.isComposing) void submit();
@@ -524,6 +540,8 @@ function RecordGap({
 
 /** 底部快速添加：输入即解析，命中片段以标签回显；回车创建 */
 function QuickAdd({ day }: { day: number }) {
+  useScheduleI18n();
+
   const language = useQuickAddI18n();
   const { t, locale } = language;
   const { calendars } = useCalendarCatalog();

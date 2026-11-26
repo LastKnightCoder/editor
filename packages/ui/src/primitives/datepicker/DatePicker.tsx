@@ -1,3 +1,4 @@
+import { useDatepickerI18n } from "./i18n";
 /**
  * DatePicker 基础件 —— 经典月历单日期。
  *
@@ -84,6 +85,7 @@ export function DatePickerPanel({
   className,
   ref,
 }: DatePickerPanelProps) {
+  const { t } = useDatepickerI18n();
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [view, setView] = useState<CalendarView>("days");
   const [month, setMonth] = useState(() => {
@@ -171,7 +173,7 @@ export function DatePickerPanel({
       />
       {presets && presets.length > 0 && (
         <div className="border-line-2 mt-2 flex flex-wrap items-center gap-1.5 border-t pt-2">
-          <span className="text-ink-3 mr-0.5 text-[11px]">常用</span>
+          <span className="text-ink-3 mr-0.5 text-[11px]">{t("date.presets")} </span>
           {presets.map((preset, i) => (
             <button
               key={i}
@@ -203,7 +205,7 @@ export function DatePickerPanel({
             onClick={() => onCommit(null)}
             className="text-ink-2 hover:bg-hover hover:text-ink-1 h-[28px] cursor-pointer rounded-[8px] px-3 text-[12px] outline-none focus-visible:shadow-[var(--tau-focus-ring)]"
           >
-            清空
+            {t("common.clear")}
           </button>
           <button
             type="button"
@@ -211,7 +213,7 @@ export function DatePickerPanel({
             onClick={applyMinute}
             className="bg-accent text-ink-inverse hover:bg-accent-hover ml-auto h-[28px] cursor-pointer rounded-[8px] px-4 text-[12px] font-[550] outline-none focus-visible:shadow-[var(--tau-focus-ring)] disabled:pointer-events-none disabled:opacity-50"
           >
-            确定
+            {t("common.confirm")}
           </button>
         </div>
       ) : (
@@ -221,14 +223,14 @@ export function DatePickerPanel({
             onClick={pickToday}
             className="text-accent-text hover:bg-selected cursor-pointer rounded-[7px] px-2.5 py-1 text-[12px] font-[550] outline-none focus-visible:shadow-[var(--tau-focus-ring)]"
           >
-            今天
+            {t("common.today")}
           </button>
           <button
             type="button"
             onClick={() => onCommit(null)}
             className="text-ink-2 hover:bg-hover hover:text-ink-1 cursor-pointer rounded-[7px] px-2.5 py-1 text-[12px] outline-none focus-visible:shadow-[var(--tau-focus-ring)]"
           >
-            清空
+            {t("common.clear")}
           </button>
         </div>
       )}
@@ -270,7 +272,7 @@ export function DatePicker({
   onValueChange,
   precision = "day",
   presets,
-  placeholder = "选择日期",
+  placeholder,
   size = "md",
   clearable = false,
   isDateDisabled,
@@ -282,6 +284,7 @@ export function DatePicker({
   className,
   ref,
 }: DatePickerProps) {
+  const { t, locale } = useDatepickerI18n();
   const portalContainer = usePortalContainer();
   const rootRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -355,14 +358,14 @@ export function DatePicker({
     // （避免同一事件冒泡双路径重复提交）
   };
 
-  const display = value == null ? null : formatDisplay(value);
+  const display = value == null ? null : formatDisplay(value, locale);
 
   const panel = createPortal(
     <div
       ref={panelRef}
       id={panelId}
       role="dialog"
-      aria-label="选择日期"
+      aria-label={t("date.choose")}
       inert={!open}
       data-open={open}
       onKeyDown={onPanelKeyDown}
@@ -429,12 +432,12 @@ export function DatePicker({
         )}
       >
         <span className={cn("min-w-0 flex-1 truncate text-left", display == null && "text-ink-3")}>
-          {display ?? placeholder}
+          {display ?? placeholder ?? t("date.choose")}
         </span>
         {clearable && display != null && (
           <span
             role="button"
-            aria-label="清空"
+            aria-label={t("common.clear")}
             tabIndex={-1}
             onClick={(e: ReactMouseEvent) => {
               e.stopPropagation();

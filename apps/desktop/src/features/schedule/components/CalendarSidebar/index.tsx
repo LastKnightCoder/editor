@@ -4,6 +4,7 @@
  * 合并模式下行首换成合并勾选。分组与过滤逻辑保持 legacy 口径。
  */
 
+import { scheduleText, scheduleValue, useScheduleI18n } from "../../i18n";
 import { memo, useEffect, useState, type ReactNode } from "react";
 import {
   Archive,
@@ -28,9 +29,12 @@ import CreateGroupDialog from "../CreateGroupDialog";
 import MergeCalendarsDialog from "../MergeCalendarsDialog";
 
 type PendingConfirm =
-  { kind: "calendar"; calendar: Calendar } | { kind: "group"; group: CalendarGroup; count: number };
+  | { kind: "calendar"; calendar: Calendar }
+  | { kind: "group"; group: CalendarGroup; count: number };
 
 const CalendarSidebar = memo(() => {
+  useScheduleI18n();
+
   const { calendars, calendarGroups } = useCalendarCatalog();
   const showSystemSection = useScheduleStore(s => s.showSystemSection);
   const showMyCalendarSection = useScheduleStore(s => s.showMyCalendarSection);
@@ -108,13 +112,17 @@ const CalendarSidebar = memo(() => {
           type="button"
           role="checkbox"
           aria-checked={checked}
-          aria-label={mergeRow ? `选择合并：${calendar.title}` : `显示 ${calendar.title}`}
+          aria-label={
+            mergeRow
+              ? scheduleText("merge.selectCalendar", { title: scheduleValue(calendar.title) })
+              : scheduleText("calendar.showNamed", { title: scheduleValue(calendar.title) })
+          }
           disabled={mergeModeEnabled && !canMerge}
           onClick={() =>
             mergeRow
               ? toggleCalendarForMerge(calendar.id)
               : void toggleCalendarVisibility(calendar.id).catch(() =>
-                  toast.error("更新日历显隐失败")
+                  toast.error(scheduleText("feedback.visibilityFailed"))
                 )
           }
           className={cn(
@@ -137,9 +145,11 @@ const CalendarSidebar = memo(() => {
             align="end"
             trigger={
               <IconButton
-                className="size-6 opacity-0 focus-visible:opacity-100 group-hover/row:opacity-100 aria-expanded:opacity-100"
-                title="更多"
-                aria-label={`${calendar.title} 更多操作`}
+                className="size-6 opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100"
+                title={scheduleText("action.more")}
+                aria-label={scheduleText("action.moreNamed", {
+                  name: scheduleValue(calendar.title),
+                })}
               >
                 <MoreHorizontal className="size-3.5" strokeWidth={1.75} />
               </IconButton>
@@ -150,7 +160,7 @@ const CalendarSidebar = memo(() => {
                 icon={<Pencil className="size-[15px]" strokeWidth={1.75} />}
                 onSelect={() => setEditingCalendar(calendar)}
               >
-                编辑颜色
+                {scheduleText("calendar.editColor")}
               </Menu.Item>
             ) : (
               <>
@@ -158,25 +168,29 @@ const CalendarSidebar = memo(() => {
                   icon={<Pencil className="size-[15px]" strokeWidth={1.75} />}
                   onSelect={() => setEditingCalendar(calendar)}
                 >
-                  编辑
+                  {scheduleText("action.edit")}
                 </Menu.Item>
                 {calendar.archived ? (
                   <Menu.Item
                     icon={<ArchiveRestore className="size-[15px]" strokeWidth={1.75} />}
                     onSelect={() =>
-                      void unarchiveCalendar(calendar.id).catch(() => toast.error("取消归档失败"))
+                      void unarchiveCalendar(calendar.id).catch(() =>
+                        toast.error(scheduleText("feedback.unarchiveFailed"))
+                      )
                     }
                   >
-                    取消归档
+                    {scheduleText("action.unarchive")}
                   </Menu.Item>
                 ) : (
                   <Menu.Item
                     icon={<Archive className="size-[15px]" strokeWidth={1.75} />}
                     onSelect={() =>
-                      void archiveCalendar(calendar.id).catch(() => toast.error("归档失败"))
+                      void archiveCalendar(calendar.id).catch(() =>
+                        toast.error(scheduleText("feedback.archiveFailed"))
+                      )
                     }
                   >
-                    归档
+                    {scheduleText("action.archive")}
                   </Menu.Item>
                 )}
                 <Menu.Separator />
@@ -185,7 +199,7 @@ const CalendarSidebar = memo(() => {
                   icon={<Trash2 className="size-[15px]" strokeWidth={1.75} />}
                   onSelect={() => setPendingConfirm({ kind: "calendar", calendar })}
                 >
-                  删除
+                  {scheduleText("action.delete")}
                 </Menu.Item>
               </>
             )}
@@ -202,7 +216,7 @@ const CalendarSidebar = memo(() => {
     const expanded = !collapsedGroups.has(group.id);
     return (
       <div key={group.id}>
-        <div className="group/row hover:bg-hover flex h-[30px] items-center gap-1 rounded-[8px] pl-0.5 pr-1">
+        <div className="group/row hover:bg-hover flex h-[30px] items-center gap-1 rounded-[8px] pr-1 pl-0.5">
           <button
             type="button"
             onClick={() => toggleGroup(group.id)}
@@ -220,9 +234,11 @@ const CalendarSidebar = memo(() => {
               align="end"
               trigger={
                 <IconButton
-                  className="size-6 opacity-0 focus-visible:opacity-100 group-hover/row:opacity-100 aria-expanded:opacity-100"
-                  title="更多"
-                  aria-label={`${group.name} 更多操作`}
+                  className="size-6 opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100"
+                  title={scheduleText("action.more")}
+                  aria-label={scheduleText("action.moreNamed", {
+                    name: scheduleValue(group.name),
+                  })}
                 >
                   <MoreHorizontal className="size-3.5" strokeWidth={1.75} />
                 </IconButton>
@@ -232,7 +248,7 @@ const CalendarSidebar = memo(() => {
                 icon={<Plus className="size-[15px]" strokeWidth={1.75} />}
                 onSelect={() => setCreateGroupId(group.id)}
               >
-                添加日历
+                {scheduleText("calendar.add")}
               </Menu.Item>
               <Menu.Separator />
               <Menu.Item
@@ -246,7 +262,7 @@ const CalendarSidebar = memo(() => {
                   })
                 }
               >
-                删除分组
+                {scheduleText("group.delete")}
               </Menu.Item>
             </Menu>
           )}
@@ -255,7 +271,9 @@ const CalendarSidebar = memo(() => {
           (list.length > 0 ? (
             list.map(cal => renderCalendar(cal, true))
           ) : (
-            <p className="text-ink-3 text-tau-sm py-1 pl-[22px]">暂无日历</p>
+            <p className="text-ink-3 text-tau-sm py-1 pl-[22px]">
+              {scheduleText("calendar.empty")}
+            </p>
           ))}
       </div>
     );
@@ -267,28 +285,40 @@ const CalendarSidebar = memo(() => {
       className="edge-fade-scroll -mx-1 flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto px-1 pb-3"
     >
       <Section
-        title="我的日历"
+        title={scheduleText("calendar.mine")}
         count={calendars.filter(c => !c.isInSystemGroup && !c.archived).length}
         open={showMyCalendarSection}
         onToggle={() => setShowMyCalendarSection(!showMyCalendarSection)}
         actions={
           mergeModeEnabled ? (
-            <Tooltip content="退出合并">
-              <IconButton className="size-6" aria-label="退出合并" onClick={toggleMergeMode}>
+            <Tooltip content={scheduleText("merge.exit")}>
+              <IconButton
+                className="size-6"
+                aria-label={scheduleText("merge.exit")}
+                onClick={toggleMergeMode}
+              >
                 <X className="size-3.5" strokeWidth={1.75} />
               </IconButton>
             </Tooltip>
           ) : (
             <>
-              <Tooltip content="合并日历">
-                <IconButton className="size-6" aria-label="合并日历" onClick={toggleMergeMode}>
+              <Tooltip content={scheduleText("merge.title")}>
+                <IconButton
+                  className="size-6"
+                  aria-label={scheduleText("merge.title")}
+                  onClick={toggleMergeMode}
+                >
                   <Merge className="size-3.5" strokeWidth={1.75} />
                 </IconButton>
               </Tooltip>
               <Menu
                 align="end"
                 trigger={
-                  <IconButton className="size-6" title="新建" aria-label="新建日历或分组">
+                  <IconButton
+                    className="size-6"
+                    title={scheduleText("action.new")}
+                    aria-label={scheduleText("calendar.createOrGroup")}
+                  >
                     <Plus className="size-3.5" strokeWidth={1.75} />
                   </IconButton>
                 }
@@ -297,13 +327,13 @@ const CalendarSidebar = memo(() => {
                   icon={<Plus className="size-[15px]" strokeWidth={1.75} />}
                   onSelect={() => setCreateGroupId(null)}
                 >
-                  新建日历
+                  {scheduleText("calendar.create")}
                 </Menu.Item>
                 <Menu.Item
                   icon={<FolderPlus className="size-[15px]" strokeWidth={1.75} />}
                   onSelect={() => setShowCreateGroupDialog(true)}
                 >
-                  新建分组
+                  {scheduleText("group.create")}
                 </Menu.Item>
               </Menu>
             </>
@@ -312,10 +342,10 @@ const CalendarSidebar = memo(() => {
       >
         {mergeModeEnabled && (
           <div className="bg-accent-soft mb-1.5 flex flex-col gap-2 rounded-[10px] px-3 py-2.5">
-            <p className="text-accent-text text-tau-meta">勾选至少 2 个日历进行合并</p>
+            <p className="text-accent-text text-tau-meta">{scheduleText("merge.selectHint")}</p>
             {selectedCalendarsForMerge.length >= 2 && (
               <Button variant="primary" size="sm" block onClick={() => setShowMergeDialog(true)}>
-                合并选中的 {selectedCalendarsForMerge.length} 个日历
+                {scheduleText("merge.selected", { count: selectedCalendarsForMerge.length })}
               </Button>
             )}
           </div>
@@ -324,14 +354,14 @@ const CalendarSidebar = memo(() => {
         {ungrouped(false).map(cal => renderCalendar(cal, false))}
         {userGroups.length === 0 && ungrouped(false).length === 0 && (
           <p className="text-ink-3 text-tau-meta px-1.5 py-1 leading-[1.7]">
-            还没有日历。日历用来给日程分类，比如「工作」「学习」。
+            {scheduleText("calendar.emptyHint")}
           </p>
         )}
       </Section>
 
       {systemGroup && (
         <Section
-          title="系统日历"
+          title={scheduleText("calendar.systemSection")}
           count={calendars.filter(c => c.isInSystemGroup && !c.archived).length}
           open={showSystemSection}
           onToggle={() => setShowSystemSection(!showSystemSection)}
@@ -343,7 +373,7 @@ const CalendarSidebar = memo(() => {
 
       {hasArchived && (
         <Section
-          title="归档"
+          title={scheduleText("action.archive")}
           count={calendars.filter(c => c.archived).length}
           open={showArchivedSection}
           onToggle={() => setShowArchivedSection(!showArchivedSection)}
@@ -378,7 +408,11 @@ const CalendarSidebar = memo(() => {
           if (!next) setPendingConfirm(null);
         }}
         danger
-        title={pendingConfirm?.kind === "group" ? "删除分组" : "删除日历"}
+        title={
+          pendingConfirm?.kind === "group"
+            ? scheduleText("group.delete")
+            : scheduleText("calendar.delete")
+        }
         context={
           pendingConfirm?.kind === "group"
             ? pendingConfirm.group.name
@@ -387,12 +421,16 @@ const CalendarSidebar = memo(() => {
         description={
           pendingConfirm?.kind === "group"
             ? pendingConfirm.count > 0
-              ? `分组内的 ${pendingConfirm.count} 个日历会移出分组，日历本身不删除。`
-              : "分组为空。"
-            : "该日历下的所有日程会一并删除。"
+              ? scheduleText("group.deleteDescription", {
+                  count: scheduleValue(pendingConfirm.count),
+                })
+              : scheduleText("group.empty")
+            : scheduleText("calendar.deleteDescription")
         }
-        impact={pendingConfirm?.kind === "calendar" ? "删除后不可恢复" : undefined}
-        confirmText="删除"
+        impact={
+          pendingConfirm?.kind === "calendar" ? scheduleText("action.irreversible") : undefined
+        }
+        confirmText={scheduleText("action.delete")}
         onConfirm={async () => {
           if (!pendingConfirm) return;
           if (pendingConfirm.kind === "group") await deleteCalendarGroup(pendingConfirm.group.id);
@@ -421,9 +459,11 @@ function Section({
   actions?: ReactNode;
   children: ReactNode;
 }) {
+  useScheduleI18n();
+
   return (
     <section>
-      <div className="flex h-7 items-center gap-1 pl-0.5 pr-1">
+      <div className="flex h-7 items-center gap-1 pr-1 pl-0.5">
         <button
           type="button"
           onClick={onToggle}

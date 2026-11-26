@@ -1,6 +1,7 @@
 // 颜色选择 BottomSheet：17 色数据色板 + 「跟随日历」入口；
 // 深色模式自动切 dark 色值，选中项用品牌色 ring + 底色间隙标注。
 
+import { useCalendarI18n } from "../i18n";
 import { Check } from "lucide-react";
 import { BottomSheet } from "../../../components/BottomSheet";
 import { useThemeStore } from "@tau/themes/react";
@@ -22,9 +23,10 @@ export function ColorPickerSheet({
   onSelect,
   onClose,
 }: ColorPickerSheetProps) {
+  const { t: translate, locale } = useCalendarI18n();
   const isDark = useThemeStore(s => s.mode === "dark");
   return (
-    <BottomSheet open={open} title="日程颜色" onClose={onClose}>
+    <BottomSheet open={open} title={translate("color.title")} onClose={onClose}>
       <div className="grid grid-cols-6 gap-3.5 px-1 pt-1">
         {CALENDAR_COLORS.map(entry => {
           const value = calendarColorValue(entry.name, isDark);
@@ -33,7 +35,7 @@ export function ColorPickerSheet({
             <button
               key={entry.name}
               type="button"
-              aria-label={entry.label}
+              aria-label={translate(entry.message)}
               aria-pressed={isSelected}
               onClick={() => {
                 onSelect(entry.name);
@@ -53,7 +55,9 @@ export function ColorPickerSheet({
       </div>
       <div className="flex items-center justify-between pt-4">
         <span className="text-ink-3 text-[11.5px] font-semibold">
-          与桌面端同一套 17 色 · 主题自动切换
+          {translate("color.paletteHint", {
+            amount: CALENDAR_COLORS.length.toLocaleString(locale),
+          })}
         </span>
         <button
           type="button"
@@ -63,7 +67,8 @@ export function ColorPickerSheet({
           }}
           className="text-accent text-[13.5px] font-extrabold"
         >
-          跟随日历{calendarColor ? " ›" : ""}
+          {translate("event.inheritColor")}
+          {calendarColor ? " ›" : ""}
         </button>
       </div>
     </BottomSheet>

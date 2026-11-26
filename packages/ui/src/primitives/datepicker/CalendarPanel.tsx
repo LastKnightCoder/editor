@@ -1,3 +1,4 @@
+import { useDatepickerI18n } from "./i18n";
 /**
  * CalendarPanel —— DatePicker / DateRangePicker 共享的月网格（A+ 基座形态）。
  *
@@ -14,7 +15,7 @@
 import { useId, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "../../cn";
-import { WEEKDAY_LABELS, addMonths, monthCells, sameDay, toDateKey } from "./calendarEngine";
+import { weekdayLabels, addMonths, monthCells, sameDay, toDateKey } from "./calendarEngine";
 
 export type CalendarView = "days" | "months" | "years";
 
@@ -55,6 +56,7 @@ export function CalendarPanel({
   hideOutsideDays = false,
   className,
 }: CalendarPanelProps) {
+  const { t, locale } = useDatepickerI18n();
   const gridId = useId();
   const year = month.getFullYear();
   const monthIndex = month.getMonth();
@@ -101,13 +103,13 @@ export function CalendarPanel({
   };
 
   const navStep = view === "days" ? 1 : view === "months" ? 1 : 10;
-  const navLabel = view === "days" ? "月" : view === "months" ? "年" : "十年";
+  const navUnit = view === "days" ? "month" : view === "months" ? "year" : "decade";
   const label =
     view === "days"
-      ? `${year}年${monthIndex + 1}月`
+      ? new Intl.DateTimeFormat(locale, { year: "numeric", month: "long" }).format(month)
       : view === "months"
-        ? `${year}年`
-        : `${decadeStart} — ${decadeStart + 9}`;
+        ? new Intl.DateTimeFormat(locale, { year: "numeric" }).format(month)
+        : t("calendar.decade", { start: decadeStart, end: decadeStart + 9 });
 
   return (
     <div
@@ -119,7 +121,7 @@ export function CalendarPanel({
       <div className="mb-1.5 flex items-center gap-1">
         <button
           type="button"
-          aria-label={`上一${navLabel}`}
+          aria-label={t(`calendar.previous.${navUnit}`)}
           onClick={() =>
             view === "days"
               ? stepMonth(-navStep)
@@ -145,7 +147,7 @@ export function CalendarPanel({
         </button>
         <button
           type="button"
-          aria-label={`下一${navLabel}`}
+          aria-label={t(`calendar.next.${navUnit}`)}
           onClick={() =>
             view === "days"
               ? stepMonth(navStep)
@@ -166,12 +168,12 @@ export function CalendarPanel({
           className="outline-none"
         >
           <div className="mb-0.5 grid grid-cols-7">
-            {WEEKDAY_LABELS.map(day => (
+            {weekdayLabels(locale).map(({ day, label }) => (
               <span
                 key={day}
                 className="text-ink-3 h-[22px] text-center text-[11px] leading-[22px]"
               >
-                {day}
+                {label}
               </span>
             ))}
           </div>
@@ -228,7 +230,9 @@ export function CalendarPanel({
           {(view === "months"
             ? Array.from({ length: 12 }, (_, i) => ({
                 key: `m${i}`,
-                text: `${i + 1}月`,
+                text: new Intl.DateTimeFormat(locale, { month: "short" }).format(
+                  new Date(year, i, 1)
+                ),
                 on: i === monthIndex,
               }))
             : Array.from({ length: 12 }, (_, i) => {

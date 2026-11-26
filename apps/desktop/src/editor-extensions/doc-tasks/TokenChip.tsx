@@ -1,3 +1,5 @@
+import { useAppI18n } from "@/app/i18n/react";
+import { dayWord } from "@/utils/date-format";
 /**
  * 勾选项里 `#项目` / 日期的胶囊外观（装饰标记）。日期原文是带年份的绝对日期，胶囊后附相对说法
  *（今天 / 周五）；项目带色点，项目不存在时不装饰。点胶囊打开小菜单（DocTaskLayer 渲染）。
@@ -8,12 +10,13 @@ import { useReadOnly, useSlateStatic } from "slate-react";
 import { cn } from "@tau/ui";
 import type { MarkRenderProps } from "@tau/editor/api";
 import { isAbsoluteDateHint, resolveDocTaskDue } from "@/entity/doc-tasks";
-import { dayDiff, dayWord, monthDay } from "@/utils/dayWords";
+import { dayDiff, dayLabelKind } from "@/utils/dayWords";
 import { docTaskGroupsOf } from "./service";
 import { openChipMenu } from "./chipMenu";
 import type { DocTaskTokenLeaf } from "./index";
 
 export function DocTaskTokenChip({ leaf, children }: MarkRenderProps) {
+  const { locale } = useAppI18n();
   const editor = useSlateStatic();
   const readOnly = useReadOnly();
   const token = leaf as unknown as DocTaskTokenLeaf;
@@ -53,7 +56,7 @@ export function DocTaskTokenChip({ leaf, children }: MarkRenderProps) {
         ? resolveDocTaskDue(token.docTaskAnchoredDate, now)
         : null;
     const overdue = due != null && dayDiff(due, now) < 0;
-    const relative = due != null ? dayWord(due, now) : null;
+    const relative = due != null ? dayWord(due, now, locale) : null;
     return (
       <span
         data-doc-task-token="date"
@@ -65,7 +68,7 @@ export function DocTaskTokenChip({ leaf, children }: MarkRenderProps) {
       >
         {/* 原文文字必须原样可见：Slate 靠它映射光标与选区，不能隐藏或替换 */}
         {children}
-        {relative && due !== null && relative !== monthDay(due) && (
+        {relative && due !== null && dayLabelKind(due, now) !== "date" && (
           <span
             aria-hidden
             contentEditable={false}

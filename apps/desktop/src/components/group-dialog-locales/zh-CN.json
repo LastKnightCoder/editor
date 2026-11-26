@@ -1,0 +1,22 @@
+{
+  "noun": "项目",
+  "placeholder": "例如：编辑器重构",
+  "enterName": "请输入{{noun}}名称",
+  "saveFailed": "保存失败",
+  "createFailed": "创建{{noun}}失败",
+  "edit": "编辑{{noun}}",
+  "new": "新建{{noun}}",
+  "cancel": "取消",
+  "save": "保存",
+  "create": "创建",
+  "name": "名称",
+  "color": "颜色",
+  "groupColor": "{{noun}}颜色",
+  "tone.rose": "红",
+  "tone.orange": "橙",
+  "tone.yellow": "黄",
+  "tone.green": "绿",
+  "tone.blue": "蓝",
+  "tone.purple": "紫",
+  "tone.gray": "灰"
+}

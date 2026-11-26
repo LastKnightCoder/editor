@@ -1,3 +1,4 @@
+import { ScheduleError } from "./errors";
 import { useCallback, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import * as calendarCommands from "@/commands/calendar";
@@ -97,7 +98,7 @@ export function useScheduleCommands() {
   const { commands, connectionId } = useDatabaseCommands(scheduleCommands, database);
   const assertCurrentDatabase = useCallback(() => {
     if (databaseId(useSettingStore.getState().setting.database.active) !== databaseId(database)) {
-      throw new Error("数据库已切换，请重新打开日程操作");
+      throw new ScheduleError("DATABASE_CHANGED", "数据库已切换，请重新打开日程操作");
     }
   }, [database]);
   return { database, commands, connectionId, assertCurrentDatabase };
@@ -181,7 +182,7 @@ export function useCalendarEventDetail(id: number | undefined) {
   return useQuery({
     queryKey: scheduleKeys.detail(database, id, connectionId),
     queryFn: () => {
-      if (id == null) throw new Error("缺少日程 ID");
+      if (id == null) throw new ScheduleError("EVENT_ID_MISSING", "缺少日程 ID");
       return commands.getCalendarEventById(id);
     },
     enabled: connected && id != null,
@@ -221,7 +222,7 @@ export function useScheduleMutations() {
       const calendar = client
         .getQueryData<CalendarCatalog>(scheduleKeys.catalog(database, connectionId))
         ?.calendars.find(item => item.id === id);
-      if (!calendar) throw new Error("日历已不存在，请刷新后重试");
+      if (!calendar) throw new ScheduleError("CALENDAR_NOT_FOUND", "日历已不存在，请刷新后重试");
       return calendar;
     };
     return {
@@ -313,7 +314,7 @@ export function useScheduleMutations() {
       async deleteEvent(id: number) {
         assertCurrentDatabase();
         const result = await commands.deleteCalendarEvent(id);
-        if (!result) throw new Error("日程已不存在");
+        if (!result) throw new ScheduleError("EVENT_NOT_FOUND", "日程已不存在");
         // 延迟删除在 resolve 后放开 pending（pendingDeleteStore）：等重拉落地，避免已删日程闪回
         await refresh();
         return result;

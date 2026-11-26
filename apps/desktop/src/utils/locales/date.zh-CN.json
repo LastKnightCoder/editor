@@ -1,0 +1,12 @@
+{
+  "date.time": "{{date}} {{time}}",
+  "date.nextWeekday": "下周{{weekday}}",
+  "recurrence.daily": "每天",
+  "recurrence.weekdays": "工作日",
+  "recurrence.weekly": "每周{{days}}",
+  "recurrence.monthly": "每月 {{day}} 日",
+  "recurrence.yearly": "每年 {{month}}{{day}}日",
+  "recurrence.everyDays": "每 {{amount}} 天",
+  "recurrence.everyWeeks": "每 {{amount}} 周的周{{days}}",
+  "recurrence.everyMonths": "每 {{amount}} 个月的 {{day}} 日"
+}

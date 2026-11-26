@@ -272,3 +272,36 @@ describe("日程数据隔离", () => {
     expect(sharedClient.getQueryState(api.scheduleKeys.content("a", 1))?.isInvalidated).toBe(false);
   });
 });
+
+it("切换语言保留日程窗口与日历过滤，不重新查询或写入", async () => {
+  const { desktopLocaleSource } = await import("@/app/i18n/runtime");
+  const { useScheduleI18n } = await import("../i18n");
+  const original = desktopLocaleSource.getSnapshot();
+  function LocalizedEvents() {
+    useScheduleI18n();
+    return <EventsProbe />;
+  }
+  try {
+    await mount(<LocalizedEvents />);
+    await waitFor(() => expect(host.textContent).toBe("a"));
+    const beforeCalls = invoke.mock.calls.slice();
+    const beforeQueries = client
+      .getQueryCache()
+      .getAll()
+      .map(query => [query.queryKey, query.state.data]);
+    const beforeUi = ui.getState();
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(invoke.mock.calls).toEqual(beforeCalls);
+      expect(
+        client
+          .getQueryCache()
+          .getAll()
+          .map(query => [query.queryKey, query.state.data])
+      ).toEqual(beforeQueries);
+      expect(ui.getState()).toBe(beforeUi);
+    }
+  } finally {
+    await act(async () => desktopLocaleSource.setLocale(original));
+  }
+});

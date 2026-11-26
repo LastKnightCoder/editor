@@ -1,3 +1,5 @@
+import { todosTranslator, useTodosI18n } from "@/features/todos/i18n";
+import { dayWord, monthDay } from "@/utils/date-format";
 /**
  * 抽屉详情（B3：非模态 Drawer，恰好盖住右板；不压暗议程，Esc 经页面浮层仲裁逐层关闭）。
  * 内容：标题（即改即存）→ 项目 / 父任务路径 → 属性 → 打卡 → 子任务 → 关联材料 → 描述 → 时间脚注。
@@ -8,7 +10,7 @@ import { ChevronRight, CornerUpLeft, Trash2 } from "lucide-react";
 import { Drawer, IconButton, useRetainedValue } from "@tau/ui";
 import { useOverlayDismiss } from "@/page/PageProvider";
 import type { TodoGroup } from "@/types";
-import { dayWord, doneToday, hm, isOverdue, monthDay } from "../model";
+import { doneToday, hm, isOverdue } from "../model";
 import type { TodoMutations } from "../queries";
 import type { TodoEntry, TodoSnapshot } from "../types";
 import { DetailFields } from "./DetailFields";
@@ -20,6 +22,7 @@ import {
   SubtaskSection,
 } from "./DetailSections";
 import { GroupDot, TodoCheck } from "./TodoBits";
+const t = todosTranslator.t;
 
 export function TodoDrawer({
   entry,
@@ -42,6 +45,7 @@ export function TodoDrawer({
   onToggle(entry: TodoEntry): void;
   onDelete(entry: TodoEntry): void;
 }) {
+  const { locale } = useTodosI18n();
   const open = entry !== null;
   useOverlayDismiss(onClose, open);
   /* 关闭时保留最后一条内容做退场动画 */
@@ -58,14 +62,14 @@ export function TodoDrawer({
       open={open}
       onOpenChange={next => !next && onClose()}
       size="sm"
-      label="任务详情"
+      label={t("drawer.title")}
       className="top-0"
       icon={
         current && (
           <div className="flex items-start gap-1">
             {/* 子任务详情：返回上级父任务（与正文的父任务路径链接互补，这里给显眼入口） */}
             {parent && (
-              <IconButton title="返回上级任务" onClick={() => onOpen(parent)}>
+              <IconButton title={t("drawer.parent")} onClick={() => onOpen(parent)}>
                 <CornerUpLeft className="size-[15px]" strokeWidth={1.75} />
               </IconButton>
             )}
@@ -75,7 +79,9 @@ export function TodoDrawer({
               checked={checked}
               recurring={recurring}
               overdue={isOverdue(current, now)}
-              label={recurring ? "今日打卡" : checked ? "标记未完成" : "完成"}
+              label={
+                recurring ? t("habit.today") : checked ? t("common.uncheck") : t("common.complete")
+              }
               onToggle={() => onToggle(current)}
             />
           </div>
@@ -85,7 +91,7 @@ export function TodoDrawer({
       subtitle={
         <span className="flex min-w-0 items-center gap-1.5 text-[11.5px]">
           <GroupDot color={group?.color} className="size-[7px] shrink-0" />
-          <span className="text-ink-2 truncate">{group?.title ?? "未归类"}</span>
+          <span className="text-ink-2 truncate">{group?.title ?? t("drawer.ungrouped")}</span>
           {parent && (
             <>
               <ChevronRight className="size-3 shrink-0" strokeWidth={1.75} />
@@ -107,10 +113,10 @@ export function TodoDrawer({
               <FocusStartButton
                 target={{ kind: "todo", todoId: current.id }}
                 title={current.title}
-                label="专注"
+                label={t("drawer.focus")}
               />
             )}
-            <IconButton title="删除（可撤销）" onClick={() => onDelete(current)}>
+            <IconButton title={t("drawer.delete")} onClick={() => onDelete(current)}>
               <Trash2 className="size-[15px]" strokeWidth={1.75} />
             </IconButton>
           </>
@@ -131,10 +137,16 @@ export function TodoDrawer({
           <NoteLinksSection entry={current} mutations={mutations} />
           <DescriptionSection entry={current} mutations={mutations} />
           <p className="text-ink-3 mt-5 text-[11.5px] tabular-nums">
-            创建于 {monthDay(current.createTime)} {hm(current.createTime)}
+            {t("drawer.created", {
+              date: monthDay(current.createTime, locale),
+              time: hm(current.createTime),
+            })}
             {current.isCompleted &&
               current.completedAt != null &&
-              ` · 完成于 ${dayWord(current.completedAt, now)} ${hm(current.completedAt)}`}
+              t("drawer.completed", {
+                date: dayWord(current.completedAt, now, locale),
+                time: hm(current.completedAt),
+              })}
           </p>
         </Fragment>
       )}
@@ -144,6 +156,7 @@ export function TodoDrawer({
 
 /** 标题即改即存：失焦或回车提交，清空则回退原值；按任务 id 挂 key，切换任务时重置草稿 */
 function TitleField({ entry, mutations }: { entry: TodoEntry; mutations: TodoMutations }) {
+  useTodosI18n();
   const [title, setTitle] = useState(entry.title);
   useEffect(() => setTitle(entry.title), [entry.title]);
 
@@ -155,7 +168,7 @@ function TitleField({ entry, mutations }: { entry: TodoEntry; mutations: TodoMut
 
   return (
     <textarea
-      aria-label="任务标题"
+      aria-label={t("drawer.taskTitle")}
       rows={1}
       value={title}
       onChange={e => setTitle(e.target.value)}
@@ -166,7 +179,7 @@ function TitleField({ entry, mutations }: { entry: TodoEntry; mutations: TodoMut
           e.currentTarget.blur();
         }
       }}
-      className="field-sizing-content min-w-0 flex-1 resize-none bg-transparent text-[16px] font-semibold leading-[1.5] tracking-[-0.005em] outline-none"
+      className="field-sizing-content min-w-0 flex-1 resize-none bg-transparent text-[16px] leading-[1.5] font-semibold tracking-[-0.005em] outline-none"
     />
   );
 }

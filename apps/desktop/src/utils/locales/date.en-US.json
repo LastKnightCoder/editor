@@ -1,0 +1,15 @@
+{
+  "date.time": "{{date}} {{time}}",
+  "date.nextWeekday": "Next {{weekday}}",
+  "recurrence.daily": "Every day",
+  "recurrence.weekdays": "Weekdays",
+  "recurrence.weekly": "Weekly on {{days}}",
+  "recurrence.monthly": "Monthly on day {{day}}",
+  "recurrence.yearly": "Yearly on {{month}} {{day}}",
+  "recurrence.everyDays_one": "Every {{amount}} day",
+  "recurrence.everyDays_other": "Every {{amount}} days",
+  "recurrence.everyWeeks_one": "Every {{amount}} week on {{days}}",
+  "recurrence.everyWeeks_other": "Every {{amount}} weeks on {{days}}",
+  "recurrence.everyMonths_one": "Every {{amount}} month on day {{day}}",
+  "recurrence.everyMonths_other": "Every {{amount}} months on day {{day}}"
+}

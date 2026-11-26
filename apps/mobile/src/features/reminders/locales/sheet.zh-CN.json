@@ -1,0 +1,12 @@
+{
+  "sheet.title": "提醒",
+  "permission.disabled": "通知已关闭。",
+  "permission.disabledHint": "提醒会保存但不会响。",
+  "permission.settings": "去开启",
+  "permission.title": "到点提醒你",
+  "permission.explanation": "需要通知权限，才能在截止前、日程开始前提醒你。关掉 App 也会准时响。",
+  "permission.allow": "开启通知",
+  "permission.later": "以后再说",
+  "selection.count": "已选 {{amount}} 个，最多 {{limit}} 个",
+  "sheet.done": "完成"
+}

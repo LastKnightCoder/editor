@@ -1,85 +1,39 @@
+import { scheduleText, scheduleValue, scheduleFormat, useScheduleI18n } from "../../i18n";
 import { useState } from "react";
 import dayjs from "dayjs";
 import { ChevronDown, ChevronLeft, ChevronRight, CalendarDays, ListTodo, Plus } from "lucide-react";
 import { Button, DatePickerPanel, IconButton, Popover, Segmented, cn, toast } from "@tau/ui";
 import { useScheduleStore } from "../../uiStore";
 import { useCalendarCatalog } from "../../queries";
-import { getDateStart, getWeekStart } from "@/utils/calendar";
+import { getDateStart } from "@/utils/calendar";
 import type { CalendarEvent, CalendarViewType } from "@/types";
 import { useDayEvents } from "../DayColumn";
 
 // 「日」由右栏当日时间线承担
 const VIEWS: { value: CalendarViewType; label: string }[] = [
-  { value: "week", label: "周" },
-  { value: "month", label: "月" },
-  { value: "agenda", label: "议程" },
+  {
+    value: "week",
+    get label() {
+      return scheduleText("view.week");
+    },
+  },
+  {
+    value: "month",
+    get label() {
+      return scheduleText("view.month");
+    },
+  },
+  {
+    value: "agenda",
+    get label() {
+      return scheduleText("view.agenda");
+    },
+  },
 ];
-
-const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
-const CN_MONTHS = [
-  "一月",
-  "二月",
-  "三月",
-  "四月",
-  "五月",
-  "六月",
-  "七月",
-  "八月",
-  "九月",
-  "十月",
-  "十一月",
-  "十二月",
-];
-const EN_MONTHS = [
-  "JAN",
-  "FEB",
-  "MAR",
-  "APR",
-  "MAY",
-  "JUN",
-  "JUL",
-  "AUG",
-  "SEP",
-  "OCT",
-  "NOV",
-  "DEC",
-];
-
-/** 标题 = 中文主 + mono 副（年份 / 周次） */
-function formatTitle(view: CalendarViewType, current: number) {
-  const date = new Date(current);
-  const year = date.getFullYear();
-  if (view === "day") {
-    return {
-      main: `${date.getMonth() + 1} 月 ${date.getDate()} 日`,
-      sub: `周${WEEKDAYS[date.getDay()]} · ${year}`,
-    };
-  }
-  if (view === "week") {
-    const start = new Date(getWeekStart(current));
-    const end = new Date(start);
-    end.setDate(start.getDate() + 6);
-    const main =
-      start.getMonth() === end.getMonth()
-        ? `${start.getMonth() + 1} 月 ${start.getDate()} – ${end.getDate()} 日`
-        : `${start.getMonth() + 1} 月 ${start.getDate()} 日 – ${end.getMonth() + 1} 月 ${end.getDate()} 日`;
-    return { main, sub: `${start.getFullYear()} · W${String(isoWeek(start)).padStart(2, "0")}` };
-  }
-  return {
-    main: CN_MONTHS[date.getMonth()],
-    sub: `${year} · ${view === "agenda" ? "议程" : EN_MONTHS[date.getMonth()]}`,
-  };
-}
-
-/** ISO 周次（周一起始，含 1 月 4 日的周为第 1 周） */
-function isoWeek(monday: Date) {
-  const thursday = new Date(monday);
-  thursday.setDate(monday.getDate() + 3);
-  const firstThursday = new Date(thursday.getFullYear(), 0, 4);
-  return 1 + Math.round((thursday.getTime() - firstThursday.getTime()) / (7 * 86400000));
-}
 
 const CalendarHeader = () => {
+  useScheduleI18n();
+
   const currentView = useScheduleStore(s => s.currentView);
   const currentDate = useScheduleStore(s => s.currentDate);
   const { calendars } = useCalendarCatalog();
@@ -97,12 +51,12 @@ const CalendarHeader = () => {
   } = useScheduleStore.getState();
   const [jumpOpen, setJumpOpen] = useState(false);
 
-  const title = formatTitle(currentView, currentDate);
+  const title = scheduleFormat.header(currentView, currentDate);
 
   const handleCreate = () => {
     const target = calendars.find(c => !c.isInSystemGroup && !c.archived);
     if (!target) {
-      toast.warning("请先创建一个日历");
+      toast.warning(scheduleText("feedback.createCalendarFirst"));
       return;
     }
     const day = getDateStart(currentDate);
@@ -136,7 +90,7 @@ const CalendarHeader = () => {
         trigger={
           <button
             type="button"
-            title="跳转到日期"
+            title={scheduleText("navigation.jumpDate")}
             className={cn(
               "hover:bg-hover -ml-2 flex shrink-0 items-baseline gap-2 whitespace-nowrap rounded-[10px] px-2 py-0.5",
               "text-tau-title-lg font-semibold tracking-[-0.01em] transition-colors",
@@ -168,19 +122,27 @@ const CalendarHeader = () => {
         />
       </Popover>
       <div className="ml-1.5 flex items-center">
-        <IconButton title="上一页" aria-label="上一页" onClick={goToPrevious}>
+        <IconButton
+          title={scheduleText("navigation.previous")}
+          aria-label={scheduleText("navigation.previous")}
+          onClick={goToPrevious}
+        >
           <ChevronLeft className="size-4" strokeWidth={1.75} />
         </IconButton>
-        <IconButton title="下一页" aria-label="下一页" onClick={goToNext}>
+        <IconButton
+          title={scheduleText("navigation.next")}
+          aria-label={scheduleText("navigation.next")}
+          onClick={goToNext}
+        >
           <ChevronRight className="size-4" strokeWidth={1.75} />
         </IconButton>
       </div>
       <Button variant="secondary" size="sm" onClick={goToToday} className="shrink-0">
-        今天
+        {scheduleText("today")}
       </Button>
       <span className="flex-1" />
       <Segmented
-        label="视图"
+        label={scheduleText("view.label")}
         size="sm"
         value={currentView === "day" ? "month" : currentView}
         onValueChange={value => setCurrentView(value)}
@@ -194,24 +156,24 @@ const CalendarHeader = () => {
         variant="primary"
         size="sm"
         icon={Plus}
-        title="新建日程"
-        aria-label="新建日程"
+        title={scheduleText("event.create")}
+        aria-label={scheduleText("event.create")}
         onClick={handleCreate}
         className="shrink-0 @max-[720px]:px-[7px]"
       >
-        <span className="@max-[720px]:hidden">新建日程</span>
+        <span className="@max-[720px]:hidden">{scheduleText("event.create")}</span>
       </Button>
       <Button
         variant={showTodoPanel ? "soft" : "secondary"}
         size="sm"
         icon={ListTodo}
         aria-pressed={showTodoPanel}
-        title={showTodoPanel ? "收起待安排" : "待安排：把待办拖进日程"}
+        title={showTodoPanel ? scheduleText("todo.collapse") : scheduleText("todo.dragHint")}
         onClick={() => setShowTodoPanel(!showTodoPanel)}
-        aria-label="待安排"
+        aria-label={scheduleText("todo.unscheduled")}
         className="shrink-0 whitespace-nowrap @max-[720px]:px-[7px]"
       >
-        <span className="@max-[720px]:hidden">待安排</span>
+        <span className="@max-[720px]:hidden">{scheduleText("todo.unscheduled")}</span>
       </Button>
       <DayPanelButton open={showDayPanel} onToggle={() => setShowDayPanel(!showDayPanel)} />
     </div>
@@ -220,24 +182,26 @@ const CalendarHeader = () => {
 
 /** 当日抽屉开关：写明打开的是哪天、有几项，而不是一个孤立图标 */
 function DayPanelButton({ open, onToggle }: { open: boolean; onToggle(): void }) {
+  useScheduleI18n();
+
   const { day, isToday, dayEvents } = useDayEvents();
-  const date = new Date(day);
-  const dayText = isToday
-    ? "今天"
-    : `${date.getMonth() + 1}/${date.getDate()} 周${WEEKDAYS[date.getDay()]}`;
+  const dayText = isToday ? scheduleText("today") : scheduleFormat.monthDayWeekday(day);
   return (
     <Button
       variant={open ? "soft" : "secondary"}
       size="sm"
       icon={CalendarDays}
       aria-pressed={open}
-      title={open ? "收起当日时间线" : "打开当日时间线（快速添加、空档安排）"}
+      title={open ? scheduleText("day.collapse") : scheduleText("day.expandHint")}
       onClick={onToggle}
       className="shrink-0 whitespace-nowrap tabular-nums"
     >
       {dayText}
       <span className={cn("font-normal @max-[860px]:hidden", open ? "opacity-80" : "text-ink-3")}>
-        · {dayEvents.length ? `${dayEvents.length} 项` : "无安排"}
+        ·{" "}
+        {dayEvents.length
+          ? scheduleText("summary.items", { count: scheduleValue(dayEvents.length) })
+          : scheduleText("day.noPlans")}
       </span>
     </Button>
   );

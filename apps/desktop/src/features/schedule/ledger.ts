@@ -155,12 +155,9 @@ export function absorbFocus(
   return { blocks: kept, focus };
 }
 
-/** 专注总时长文案：「专注 1h20m」「专注 45m」 */
-export function focusLabel(spans: FocusSpan[]): string {
-  const minutes = spans.reduce((sum, span) => sum + Math.max(0, span.end - span.start), 0);
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return `专注 ${h ? `${h}h` : ""}${m || !h ? `${m}m` : ""}`;
+/** 专注总时长（分钟），仅聚合原始片段。 */
+export function focusMinutes(spans: FocusSpan[]): number {
+  return spans.reduce((sum, span) => sum + Math.max(0, span.end - span.start), 0);
 }
 
 /** 专注段在宿主区间内的百分比位置（越界裁剪） */

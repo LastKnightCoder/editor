@@ -136,3 +136,70 @@ describe("日程表单数据接线", () => {
     expect(host.querySelector('[role="alert"]')).toBeNull();
   });
 });
+
+it("切换语言保留草稿焦点和全天日期，进行中的保存只提交一次", async () => {
+  const { desktopLocaleSource } = await import("@/app/i18n/runtime");
+  const { scheduleText } = await import("../i18n");
+  const original = desktopLocaleSource.getSnapshot();
+  fetchContent.mockResolvedValue({ content: description });
+  try {
+    await mount();
+    await act(async () => {
+      await vi.waitFor(() => expect(form.canSave).toBe(true));
+    });
+    await act(async () => changeTitle("原文草稿"));
+    const input = host.querySelector<HTMLInputElement>(
+      `input[placeholder="${scheduleText("event.titlePlaceholder")}"]`
+    );
+    if (!input) throw new Error("标题字段未挂载");
+    input.focus();
+    input.setSelectionRange(1, 3);
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(
+        host.querySelector(`input[placeholder="${scheduleText("event.titlePlaceholder")}"]`)
+      ).toBe(input);
+      expect(input.value).toBe("原文草稿");
+      expect(document.activeElement).toBe(input);
+      expect([input.selectionStart, input.selectionEnd]).toEqual([1, 3]);
+      expect(form.dirty).toBe(true);
+      expect(fetchContent).toHaveBeenCalledTimes(1);
+      expect(updateEvent).not.toHaveBeenCalled();
+    }
+    updateContent.mockResolvedValue(undefined);
+    let finish: ((value: CalendarEvent) => void) | undefined;
+    updateEvent.mockImplementation(
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        })
+    );
+    let saving: Promise<void> | undefined;
+    await act(async () => {
+      saving = form.save();
+    });
+    await act(async () => desktopLocaleSource.setLocale("zh-CN"));
+    expect(form.saving).toBe(true);
+    expect(updateEvent).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        id: event.id,
+        title: "原文草稿",
+        startDate: event.startDate,
+        endDate: null,
+        startTime: null,
+        endTime: null,
+        allDay: true,
+        calendarId: event.calendarId,
+      })
+    );
+    expect(done).not.toHaveBeenCalled();
+    if (!finish) throw new Error("保存未进入命令边界");
+    await act(async () => {
+      finish?.(event);
+      await saving;
+    });
+    expect(done).toHaveBeenCalledTimes(1);
+  } finally {
+    await act(async () => desktopLocaleSource.setLocale(original));
+  }
+});

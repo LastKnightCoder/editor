@@ -1,3 +1,11 @@
+import { todosTranslator, todosCount, useTodosI18n } from "@/features/todos/i18n";
+import {
+  dayWord,
+  recurrenceText,
+  monthDay,
+  weekdayName,
+  nextWeekdayLabel,
+} from "@/utils/date-format";
 /**
  * 抽屉详情 · 属性区：项目 / 类型 / 截止 / 重复规则 / 提醒 / 日程同步说明 / 安排与已投入专注（只读）。
  * 每项即改即存（无保存按钮）；日历同步由主进程 updateItem 内部完成。
@@ -41,20 +49,35 @@ import type {
 import type { ComponentProps, ReactNode } from "react";
 import { summarizeReminders } from "@tau/shared/reminders";
 import { ReminderMenu } from "@/components/ReminderMenu";
-import { dayWord, recurrenceText, todoReminders } from "../model";
+import { todoReminders } from "../model";
 import type { TodoMutations } from "../queries";
 import type { TodoEntry } from "../types";
 import { GroupDot } from "./TodoBits";
+const t = todosTranslator.t;
 
 const toPicker = (ts: number | null | undefined) =>
   ts == null ? null : dayjs(ts).format("YYYY-MM-DD HH:mm");
 const fromPicker = (value: string | null) => (value ? dayjs(value).valueOf() : null);
 
+function DatePresetLabel({ kind }: { kind: "today" | "tomorrow" | "monday" }) {
+  const { locale } = useTodosI18n();
+  const now = Date.now();
+  return kind === "monday"
+    ? nextWeekdayLabel(1, locale)
+    : dayWord(kind === "today" ? now : dayjs(now).add(1, "day").valueOf(), now, locale);
+}
+
 const PRESETS: DatePickerPreset[] = [
-  { label: "今天", value: () => dayjs().startOf("day").format("YYYY-MM-DD HH:mm") },
-  { label: "明天", value: () => dayjs().add(1, "day").startOf("day").format("YYYY-MM-DD HH:mm") },
   {
-    label: "下周一",
+    label: <DatePresetLabel kind="today" />,
+    value: () => dayjs().startOf("day").format("YYYY-MM-DD HH:mm"),
+  },
+  {
+    label: <DatePresetLabel kind="tomorrow" />,
+    value: () => dayjs().add(1, "day").startOf("day").format("YYYY-MM-DD HH:mm"),
+  },
+  {
+    label: <DatePresetLabel kind="monday" />,
     value: () =>
       dayjs()
         .add((8 - dayjs().day()) % 7 || 7, "day")
@@ -72,29 +95,30 @@ export function DetailFields({
   groups: TodoGroup[];
   mutations: TodoMutations;
 }) {
+  const { locale } = useTodosI18n();
   const group = groups.find(g => g.id === entry.groupId);
   const isChild = entry.parentId != null;
 
   return (
     <div className="flex flex-col gap-0.5">
-      <Field icon={Folder} label="项目">
+      <Field icon={Folder} label={t("doc.group")}>
         {isChild ? (
           <span className="text-ink-2 flex items-center gap-1.5 text-[12.5px]">
             <GroupDot color={group?.color} className="size-[7px]" />
             {group?.title ?? "—"}
-            <span className="text-ink-3">· 随父任务</span>
+            <span className="text-ink-3">{t("field.inheritGroup")}</span>
           </span>
         ) : (
           <Menu
             trigger={
               <FieldButton>
                 <GroupDot color={group?.color} className="size-[7px]" />
-                {group?.title ?? "选择项目"}
+                {group?.title ?? t("field.chooseGroup")}
                 <ChevronDown className="text-ink-3 size-[13px]" strokeWidth={1.75} />
               </FieldButton>
             }
           >
-            <Menu.Group>移动到项目</Menu.Group>
+            <Menu.Group>{t("field.moveGroup")}</Menu.Group>
             <Menu.RadioGroup
               value={String(entry.groupId)}
               onValueChange={v => void mutations.moveToGroup(entry, Number(v))}
@@ -113,23 +137,23 @@ export function DetailFields({
         )}
       </Field>
 
-      <Field icon={List} label="类型">
+      <Field icon={List} label={t("field.type")}>
         <Segmented
-          label="任务类型"
+          label={t("field.taskType")}
           size="sm"
           value={entry.type}
           onValueChange={(type: TodoItemType) => {
-            void mutations.changeType(entry, type).catch(() => toast.error("切换任务类型失败"));
+            void mutations.changeType(entry, type).catch(() => toast.error(t("field.typeFailed")));
           }}
         >
-          <Segmented.Item value="normal" label="普通" />
-          <Segmented.Item value="deadline" icon={Flag} label="截止" />
-          <Segmented.Item value="recurring" icon={Repeat} label="周期" />
+          <Segmented.Item value="normal" label={t("kind.normal")} />
+          <Segmented.Item value="deadline" icon={Flag} label={t("kind.deadline")} />
+          <Segmented.Item value="recurring" icon={Repeat} label={t("kind.recurring")} />
         </Segmented>
       </Field>
 
       {entry.type === "deadline" && (
-        <Field icon={Flag} label="截止">
+        <Field icon={Flag} label={t("kind.deadline")}>
           <DatePicker
             size="sm"
             precision="minute"
@@ -141,32 +165,32 @@ export function DetailFields({
             }}
             className="w-[176px]"
           />
-          <span className="text-ink-3 text-[11.5px]">00:00 视为全天</span>
+          <span className="text-ink-3 text-[11.5px]">{t("field.midnight")}</span>
         </Field>
       )}
 
       {entry.type === "recurring" && entry.recurrence && (
-        <Field icon={Repeat} label="重复">
+        <Field icon={Repeat} label={t("field.recurrence")}>
           <RecurrenceEditor recurrence={entry.recurrence} mutations={mutations} />
           <span className="text-ink-3 text-[11.5px]">
-            自 {dayjs(entry.recurrence.startDate).format("M月D日")} 起
+            {t("repeat.start", { date: monthDay(entry.recurrence.startDate, locale) })}
             {entry.recurrence.endDate
-              ? ` · 至 ${dayjs(entry.recurrence.endDate).format("M月D日")}`
+              ? t("repeat.end", { date: monthDay(entry.recurrence.endDate, locale) })
               : entry.recurrence.maxOccurrences
-                ? ` · 共 ${entry.recurrence.maxOccurrences} 次`
-                : " · 永不结束"}
+                ? todosCount("count.occurrences", entry.recurrence.maxOccurrences)
+                : t("repeat.never")}
           </span>
         </Field>
       )}
 
       {entry.type === "deadline" && (
-        <Field icon={Bell} label="提醒">
+        <Field icon={Bell} label={t("field.reminder")}>
           <ReminderMenu
             value={todoReminders(entry)}
             onChange={offsets => void mutations.setReminders(entry, offsets)}
             trigger={
               <FieldButton muted={entry.remindBefore == null}>
-                {summarizeReminders(todoReminders(entry))}
+                {summarizeReminders(todoReminders(entry), false, { locale })}
                 <ChevronDown className="text-ink-3 size-[13px]" strokeWidth={1.75} />
               </FieldButton>
             }
@@ -175,11 +199,11 @@ export function DetailFields({
       )}
 
       {entry.type !== "normal" && (
-        <Field icon={CalendarDays} label="日程">
+        <Field icon={CalendarDays} label={t("field.schedule")}>
           <span className="text-ink-3 text-[12px]">
             {entry.type === "recurring"
-              ? "按规则显示在「待办清单 · 周期任务」日历"
-              : "截止日显示在「待办清单 · 截止任务」日历"}
+              ? t("field.recurringCalendar")
+              : t("field.deadlineCalendar")}
           </span>
         </Field>
       )}
@@ -192,24 +216,26 @@ export function DetailFields({
 
 /** 安排：日历里关联这条待办的事件——有未结束的显示「已安排」，否则「上次安排」；没有时不显示 */
 function ScheduleField({ todoId }: { todoId: number }) {
+  const { locale } = useTodosI18n();
   const { navigator } = usePage();
   const summary = useTodoSchedules([todoId])[todoId];
   const event = summary?.next ?? summary?.last;
   if (!event) return null;
   const now = Date.now();
-  const more = summary.count > 1 ? ` · 共 ${summary.count} 次` : "";
+  const more = summary.count > 1 ? todosCount("count.occurrences", summary.count) : "";
   return (
-    <Field icon={CalendarClock} label="安排">
+    <Field icon={CalendarClock} label={t("field.arrangements")}>
       <button
         type="button"
-        title="在日程中查看"
+        title={t("field.openSchedule")}
         onClick={() => navigator.push("schedule", { eventId: event.id })}
         className={cn(
           "text-[12px] tabular-nums hover:underline",
           summary.next ? "text-ink-2" : "text-ink-3"
         )}
       >
-        {summary.next ? "已安排" : "上次安排"} · {scheduleText(event, now)}
+        {summary.next ? t("field.scheduled") : t("field.lastScheduled")} ·{" "}
+        {scheduleText(event, now, locale)}
         {more}
       </button>
     </Field>
@@ -217,22 +243,27 @@ function ScheduleField({ todoId }: { todoId: number }) {
 }
 
 /** 「周三 9:00–11:00」「今天 14:00–15:00」「10月3日 全天」 */
-function scheduleText(event: CalendarEvent, now: number): string {
-  const day = dayWord(event.startDate, now);
-  if (event.allDay || event.startTime == null) return `${day} 全天`;
+function scheduleText(event: CalendarEvent, now: number, locale: string): string {
+  const day = dayWord(event.startDate, now, locale);
+  if (event.allDay || event.startTime == null) return t("schedule.allDay", { date: day });
   const end = event.endTime ?? event.startTime + 60;
-  return `${day} ${formatTime(event.startTime)}–${formatTime(end)}`;
+  return t("schedule.range", {
+    date: day,
+    start: formatTime(event.startTime),
+    end: formatTime(end),
+  });
 }
 
 /** 已投入：绑定到这条待办（含其日程）的番茄；没有时不显示 */
 function FocusField({ todoId }: { todoId: number }) {
+  useTodosI18n();
   const summary = useTodoFocusSummary(todoId);
   if (!summary?.count) return null;
   const minutes = Math.round(summary.focusMs / 60_000);
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
   return (
-    <Field icon={Timer} label="专注">
+    <Field icon={Timer} label={t("drawer.focus")}>
       <span className="text-ink-2 text-[12px] tabular-nums">
         {summary.count} 🍅 · {h ? `${h}h` : ""}
         {m || !h ? `${m}m` : ""}
@@ -243,15 +274,14 @@ function FocusField({ todoId }: { todoId: number }) {
 
 /* ---------- 重复规则编辑（Popover） ---------- */
 
-const REC_TYPES: { value: RecurrenceType; label: string }[] = [
-  { value: "daily", label: "天" },
-  { value: "weekdays", label: "工作日" },
-  { value: "weekly", label: "周" },
-  { value: "monthly", label: "月" },
-  { value: "yearly", label: "年" },
+const REC_TYPES: { value: Exclude<RecurrenceType, "custom"> }[] = [
+  { value: "daily" },
+  { value: "weekdays" },
+  { value: "weekly" },
+  { value: "monthly" },
+  { value: "yearly" },
 ];
 const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0];
-const WEEK_SHORT = ["日", "一", "二", "三", "四", "五", "六"];
 
 function RecurrenceEditor({
   recurrence,
@@ -260,6 +290,7 @@ function RecurrenceEditor({
   recurrence: TodoRecurrence;
   mutations: TodoMutations;
 }) {
+  const { locale } = useTodosI18n();
   const save = (patch: Parameters<TodoMutations["updateRecurrence"]>[1]) =>
     void mutations.updateRecurrence(recurrence, patch);
   const start = new Date(recurrence.startDate);
@@ -272,16 +303,16 @@ function RecurrenceEditor({
       className="w-[300px]"
       trigger={
         <FieldButton>
-          {recurrenceText(recurrence)}
+          {recurrenceText(recurrence, locale)}
           <ChevronDown className="text-ink-3 size-[13px]" strokeWidth={1.75} />
         </FieldButton>
       }
     >
-      <Popover.Header>重复规则</Popover.Header>
+      <Popover.Header>{t("repeat.rule")}</Popover.Header>
       <Popover.Body>
         <div className="flex flex-col gap-3 pb-1 text-[12.5px]">
           <div className="flex items-center gap-2">
-            <span className="text-ink-2 w-9 shrink-0">每</span>
+            <span className="text-ink-2 w-9 shrink-0">{t("repeat.every")}</span>
             {recurrence.type !== "weekdays" && (
               <NumberInput
                 size="sm"
@@ -293,7 +324,7 @@ function RecurrenceEditor({
               />
             )}
             <Segmented
-              label="重复单位"
+              label={t("repeat.unit")}
               size="sm"
               value={recurrence.type}
               onValueChange={(type: RecurrenceType) =>
@@ -304,15 +335,23 @@ function RecurrenceEditor({
                 })
               }
             >
-              {REC_TYPES.map(t => (
-                <Segmented.Item key={t.value} value={t.value} label={t.label} />
+              {REC_TYPES.map(option => (
+                <Segmented.Item
+                  key={option.value}
+                  value={option.value}
+                  label={
+                    option.value === "weekdays"
+                      ? t("repeat.weekdays")
+                      : todosCount(`repeat.units.${option.value}`, recurrence.interval || 1)
+                  }
+                />
               ))}
             </Segmented>
           </div>
 
           {recurrence.type === "weekly" && (
             <div className="flex items-center gap-2">
-              <span className="text-ink-2 w-9 shrink-0">周几</span>
+              <span className="text-ink-2 w-9 shrink-0">{t("repeat.weekDays")}</span>
               <div className="flex gap-1">
                 {WEEK_ORDER.map(d => {
                   const on = weekdays.includes(d);
@@ -332,7 +371,7 @@ function RecurrenceEditor({
                           : "border-line-1 text-ink-2 hover:bg-hover border"
                       )}
                     >
-                      {WEEK_SHORT[d]}
+                      {weekdayName(d, locale, "narrow")}
                     </button>
                   );
                 })}
@@ -342,7 +381,10 @@ function RecurrenceEditor({
 
           {recurrence.type === "monthly" && (
             <div className="flex items-center gap-2">
-              <span className="text-ink-2 w-9 shrink-0">日期</span>
+              <span className="text-ink-2 w-9 shrink-0">{t("repeat.date")}</span>
+              <span className="text-ink-3">
+                {t("repeat.monthDate", { day: "\uFFFC" }).split("\uFFFC")[0]}
+              </span>
               <NumberInput
                 size="sm"
                 min={1}
@@ -351,17 +393,19 @@ function RecurrenceEditor({
                 onValueChange={v => v != null && v >= 1 && v <= 31 && save({ monthDay: v })}
                 wrapperClassName="w-[64px] flex-none"
               />
-              <span className="text-ink-3">号</span>
+              <span className="text-ink-3">
+                {t("repeat.monthDate", { day: "\uFFFC" }).split("\uFFFC")[1]}
+              </span>
             </div>
           )}
 
           <Switch
             size="sm"
-            label="排除法定节假日"
+            label={t("repeat.holidays")}
             checked={recurrence.excludeHolidays}
             onCheckedChange={checked => save({ excludeHolidays: checked })}
           />
-          <p className="text-ink-3 text-[11.5px]">改动即时保存；过去的打卡记录不受影响。</p>
+          <p className="text-ink-3 text-[11.5px]">{t("repeat.hint")}</p>
         </div>
       </Popover.Body>
     </Popover>

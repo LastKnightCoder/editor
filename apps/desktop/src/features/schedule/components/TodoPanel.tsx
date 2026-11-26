@@ -6,17 +6,13 @@
  */
 
 import { useMemo, useState, type DragEvent } from "react";
+import { dateTimeWord, dayWord } from "@/utils/date-format";
+import { scheduleText, useScheduleI18n } from "../i18n";
 import { Search, X } from "lucide-react";
 import { IconButton, cn } from "@tau/ui";
 import { FadeScroll } from "@tau/ui";
 import { useTodoMutations, useTodoSnapshot } from "@/features/todos/queries";
-import {
-  TODO_DRAG_TYPE,
-  dateTimeWord,
-  dayWord,
-  liveEntries,
-  openRoots,
-} from "@/features/todos/model";
+import { TODO_DRAG_TYPE, liveEntries, openRoots } from "@/features/todos/model";
 import { GroupDot, TodoCheck } from "@/features/todos/components/TodoBits";
 import type { TodoEntry } from "@/features/todos/types";
 import type { TodoScheduleSummary } from "@/types";
@@ -24,6 +20,7 @@ import { formatTime } from "@/utils/calendar";
 import { useTodoSchedules } from "../queries";
 
 export function TodoPanel({ onClose }: { onClose(): void }) {
+  useScheduleI18n();
   const { snapshot } = useTodoSnapshot();
   const mutations = useTodoMutations();
   const [query, setQuery] = useState("");
@@ -47,16 +44,22 @@ export function TodoPanel({ onClose }: { onClose(): void }) {
   }, [roots, snapshot, query]);
 
   return (
-    <aside aria-label="待安排" className="border-line-1 flex w-[248px] flex-none flex-col border-l">
-      <div className="flex items-center gap-1 pb-1 pl-4 pr-2 pt-4">
-        <h3 className="text-tau-body flex-1 font-semibold">待安排</h3>
-        <IconButton className="size-7" title="收起待安排" aria-label="收起待安排" onClick={onClose}>
+    <aside
+      aria-label={scheduleText("todo.unscheduled")}
+      className="border-line-1 flex w-[248px] flex-none flex-col border-l"
+    >
+      <div className="flex items-center gap-1 pt-4 pr-2 pb-1 pl-4">
+        <h3 className="text-tau-body flex-1 font-semibold">{scheduleText("todo.unscheduled")}</h3>
+        <IconButton
+          className="size-7"
+          title={scheduleText("todo.collapse")}
+          aria-label={scheduleText("todo.collapse")}
+          onClick={onClose}
+        >
           <X className="size-4" strokeWidth={1.75} />
         </IconButton>
       </div>
-      <p className="text-ink-3 text-tau-sm px-4 pb-2">
-        拖进月历安排全天，拖进时间段安排时间。没做完可以再拖。
-      </p>
+      <p className="text-ink-3 text-tau-sm px-4 pb-2">{scheduleText("todo.dragDescription")}</p>
       <label className="border-line-1 mx-3 mb-1 flex items-center gap-1.5 rounded-[8px] border px-2">
         <Search className="text-ink-3 size-3.5 shrink-0" strokeWidth={1.75} />
         <input
@@ -68,20 +71,20 @@ export function TodoPanel({ onClose }: { onClose(): void }) {
               setQuery("");
             }
           }}
-          placeholder="搜索待办"
-          aria-label="搜索待办"
+          placeholder={scheduleText("todo.search")}
+          aria-label={scheduleText("todo.search")}
           className="text-tau-sm placeholder:text-ink-3 min-w-0 flex-1 bg-transparent py-1.5 outline-none"
         />
       </label>
       <FadeScroll className="min-h-0 flex-1 px-2 pb-3">
         {groups.length === 0 && (
           <p className="text-ink-3 text-tau-sm px-2 py-4">
-            {query ? "没有匹配的待办" : "没有待安排的待办"}
+            {query ? scheduleText("todo.noMatches") : scheduleText("todo.empty")}
           </p>
         )}
         {groups.map(({ group, entries }) => (
           <section key={group.id}>
-            <h4 className="text-ink-3 text-tau-micro flex items-center gap-1.5 px-2 pb-0.5 pt-3">
+            <h4 className="text-ink-3 text-tau-micro flex items-center gap-1.5 px-2 pt-3 pb-0.5">
               <GroupDot color={group.color} className="size-[7px]" />
               {group.title}
             </h4>
@@ -112,12 +115,13 @@ function TodoRow({
   now: number;
   onComplete(): void;
 }) {
+  const { locale } = useScheduleI18n();
   const [dragging, setDragging] = useState(false);
-  const meta = todoMeta(entry, schedule, now);
+  const meta = todoMeta(entry, schedule, now, locale);
   return (
     <div
       draggable
-      title="拖进日程安排时间"
+      title={scheduleText("todo.dragTitle")}
       onDragStart={(e: DragEvent) => {
         e.dataTransfer.setData(TODO_DRAG_TYPE, String(entry.id));
         e.dataTransfer.effectAllowed = "copy";
@@ -133,7 +137,7 @@ function TodoRow({
         size="sm"
         className="mt-0.5"
         checked={false}
-        label={`完成「${entry.title}」`}
+        label={scheduleText("todo.completeNamed", { title: entry.title })}
         onToggle={onComplete}
       />
       <div className="min-w-0 flex-1">
@@ -145,14 +149,23 @@ function TodoRow({
 }
 
 /** 淡色 meta：安排优先，其次截止日 */
-function todoMeta(entry: TodoEntry, schedule: TodoScheduleSummary | undefined, now: number) {
+function todoMeta(
+  entry: TodoEntry,
+  schedule: TodoScheduleSummary | undefined,
+  now: number,
+  locale: string
+) {
   if (schedule?.next) {
     const e = schedule.next;
-    const time = e.allDay || e.startTime == null ? "全天" : formatTime(e.startTime);
-    return `已安排 · ${dayWord(e.startDate, now)} ${time}`;
+    const time =
+      e.allDay || e.startTime == null ? scheduleText("time.allDay") : formatTime(e.startTime);
+    return scheduleText("todo.scheduled", { date: dayWord(e.startDate, now, locale), time });
   }
-  if (schedule?.last) return `上次安排 · ${dayWord(schedule.last.startDate, now)}`;
+  if (schedule?.last)
+    return scheduleText("todo.lastScheduled", {
+      date: dayWord(schedule.last.startDate, now, locale),
+    });
   if (entry.type === "deadline" && entry.dueAt != null)
-    return `截止 · ${dateTimeWord(entry.dueAt, now)}`;
+    return scheduleText("todo.due", { date: dateTimeWord(entry.dueAt, now, locale) });
   return null;
 }

@@ -1,10 +1,12 @@
 // 日程列表区：全天 chip 置顶 + 定时事件行（时间列/色条/标题/meta），
 // 今日插入「现在」分隔线，空态引导新建。底部留白由主页整页滚动容器承载，这里只留呼吸间距。
 
+import { formatMonthDay } from "../format";
+import { useCalendarI18n } from "../i18n";
 import { memo } from "react";
 import { CalendarDays } from "lucide-react";
 import type { CalendarEvent } from "../types";
-import { formatTime, isSameDay, sortEventsForDay, todayStart, formatMonthDay } from "../utils";
+import { formatTime, isSameDay, sortEventsForDay, todayStart } from "../utils";
 
 type EventListSectionProps = {
   events: CalendarEvent[];
@@ -37,6 +39,7 @@ function EventListSectionImpl({
   resolveColor,
   onSelectEvent,
 }: EventListSectionProps) {
+  const { t: translate, locale } = useCalendarI18n();
   const sorted = sortEventsForDay(events.filter(event => !event.allDay));
   const allDayEvents = sortEventsForDay(events.filter(event => event.allDay));
   const isToday = selectedDate === todayStart();
@@ -62,7 +65,7 @@ function EventListSectionImpl({
                 {event.title}
                 {crossDay && event.endDate ? (
                   <small className="text-ink-3 font-semibold">
-                    · 至 {formatMonthDay(event.endDate)}
+                    · {translate("list.until", { date: formatMonthDay(event.endDate, locale) })}
                   </small>
                 ) : null}
               </button>
@@ -74,8 +77,10 @@ function EventListSectionImpl({
       {sorted.length === 0 && allDayEvents.length === 0 ? (
         <div className="bg-surface shadow-card mt-3.5 rounded-[18px] px-5 py-[26px] text-center">
           <CalendarDays size={30} className="text-ink-3 mx-auto" aria-hidden />
-          <div className="text-ink-1 mt-2 text-[14px] font-extrabold">这天没有日程</div>
-          <div className="text-ink-2 mt-1 text-[12px]">点右上 ＋ 新建</div>
+          <div className="text-ink-1 mt-2 text-[14px] font-extrabold">
+            {translate("list.empty")}
+          </div>
+          <div className="text-ink-2 mt-1 text-[12px]">{translate("list.newHint")}</div>
         </div>
       ) : (
         <div className="flex flex-col gap-[9px]">
@@ -99,7 +104,7 @@ function EventListSectionImpl({
               >
                 <span className="w-[52px] flex-none text-right">
                   {crossDayTimed ? (
-                    <b className="text-[12px] font-extrabold">跨天</b>
+                    <b className="text-[12px] font-extrabold">{translate("list.crossDay")}</b>
                   ) : (
                     <>
                       <b className="text-[13.5px] font-extrabold tabular-nums">
@@ -117,7 +122,7 @@ function EventListSectionImpl({
                   <span className="text-ink-2 mt-0.5 flex items-center gap-1.5 text-[11.5px]">
                     {event.isInSystemEvent ? (
                       <span className="bg-page text-ink-3 rounded-full px-[7px] py-px text-[10px] font-bold">
-                        {event.calendarTitle ?? "系统"}
+                        {event.calendarTitle ?? translate("system")}
                       </span>
                     ) : null}
                     {event.calendarTitle ?? ""}
@@ -148,7 +153,9 @@ function EventListSectionImpl({
           })}
           {isToday && !dividerPlaced && sorted.length > 0 ? (
             <div className="flex items-center gap-2 px-0.5 py-1.5">
-              <span className="text-ink-3 text-[11px] font-extrabold">今日日程已结束</span>
+              <span className="text-ink-3 text-[11px] font-extrabold">
+                {translate("list.ended")}
+              </span>
               <span className="h-0.5 flex-1 rounded-full bg-[var(--tau-line-1)]" />
             </div>
           ) : null}

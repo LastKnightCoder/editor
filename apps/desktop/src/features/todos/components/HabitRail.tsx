@@ -1,3 +1,5 @@
+import { todosTranslator, todosNumber, todosCount, useTodosI18n } from "@/features/todos/i18n";
+import { dayWord, weekday, monthDay } from "@/utils/date-format";
 /**
  * 今日概览：今日打卡 / 本周负荷 / 最近完成，三段靠留白分组；承载在 TodayDrawer 里。
  */
@@ -7,7 +9,6 @@ import { CircleCheck } from "lucide-react";
 import { cn } from "@tau/ui";
 import {
   DAY_MS,
-  dayWord,
   doneToday,
   hm,
   isScheduledOn,
@@ -15,12 +16,12 @@ import {
   scheduledToday,
   startOfWeek,
   streakOf,
-  WEEKDAY_CN,
   dayDiff,
 } from "../model";
 import type { TodoEntry } from "../types";
 import { CELL_CLASS, CELL_TITLE } from "./habitCellStyle";
 import { TodoCheck } from "./TodoBits";
+const t = todosTranslator.t;
 
 export function HabitRail({
   roots,
@@ -41,6 +42,7 @@ export function HabitRail({
   /** 点击本周负荷某天：滚动议程到对应分段（dayOffset 相对今天） */
   onJump(dayOffset: number): void;
 }) {
+  const { locale } = useTodosI18n();
   const habits = roots.filter(e => e.type === "recurring" && e.recurrence);
   const today = habits.filter(e => scheduledToday(e, now));
   const resting = habits.filter(e => !scheduledToday(e, now));
@@ -92,12 +94,12 @@ export function HabitRail({
                 transform="rotate(-90 11 11)"
               />
             </svg>
-            今日打卡
+            {t("habit.today")}
           </>
         }
-        meta={`${doneCount}/${today.length}`}
+        meta={`${todosNumber(doneCount)}/${todosNumber(today.length)}`}
       >
-        {today.length === 0 && <p className="text-ink-3 py-1 text-[12px]">今天没有计划中的打卡</p>}
+        {today.length === 0 && <p className="text-ink-3 py-1 text-[12px]">{t("habit.noToday")}</p>}
         {today.map(entry => (
           <div
             key={entry.id}
@@ -115,13 +117,13 @@ export function HabitRail({
             <TodoCheck
               checked={doneToday(entry, now)}
               recurring
-              label="今日打卡"
+              label={t("habit.today")}
               onToggle={() => onToggleHabit(entry)}
             />
             <span className="min-w-0">
               <span className="text-tau-meta block truncate">{entry.title}</span>
               <span className="text-ink-3 text-[11px] tabular-nums">
-                连续 {streakOf(entry, now)}
+                {todosCount("count.streak", streakOf(entry, now))}
               </span>
             </span>
             <WeekDots entry={entry} now={now} />
@@ -129,14 +131,16 @@ export function HabitRail({
         ))}
         {resting.length > 0 && (
           <p className="text-ink-3 min-w-0 pt-1.5 text-[11.5px] break-words">
-            今日休息：{resting.map(e => e.title).join("、")}
+            {t("habit.resting", {
+              titles: new Intl.ListFormat(locale).format(resting.map(entry => entry.title)),
+            })}
           </p>
         )}
       </Block>
 
       <Block
-        title="本周负荷"
-        meta={`${monthDayShort(monday)} – ${monthDayShort(monday + 6 * DAY_MS)}`}
+        title={t("habit.weekLoad")}
+        meta={`${monthDay(monday, locale)} – ${monthDay(monday + 6 * DAY_MS, locale)}`}
       >
         <div className="grid h-[92px] grid-cols-7 items-end gap-1.5 pt-1">
           {week.map(d => {
@@ -146,11 +150,17 @@ export function HabitRail({
               <button
                 key={d.day}
                 type="button"
-                title={`${WEEKDAY_CN[new Date(d.day).getDay()]}：截止 ${d.deadline} · 打卡 ${d.recurring}`}
+                title={t("habit.load", {
+                  weekday: weekday(d.day, locale),
+                  deadline: todosNumber(d.deadline),
+                  recurring: todosNumber(d.recurring),
+                })}
                 onClick={() => onJump(d.offset)}
                 className="ease-tau-out hover:bg-hover flex h-full flex-col items-center justify-end gap-1 rounded-[8px] py-0.5 transition-[background-color] duration-150"
               >
-                <span className="text-ink-2 text-[11px] tabular-nums">{total || ""}</span>
+                <span className="text-ink-2 text-[11px] tabular-nums">
+                  {total ? todosNumber(total) : ""}
+                </span>
                 <span
                   className="bg-track flex w-4 flex-col-reverse overflow-hidden rounded-[5px]"
                   style={{ height: Math.max(4, total * unit) }}
@@ -168,20 +178,24 @@ export function HabitRail({
                     d.offset === 0 ? "text-accent-text font-semibold" : "text-ink-3"
                   )}
                 >
-                  {d.offset === 0 ? "今" : WEEKDAY_CN[new Date(d.day).getDay()].slice(1)}
+                  {d.offset === 0
+                    ? new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(0, "day")
+                    : weekday(d.day, locale, "narrow")}
                 </span>
               </button>
             );
           })}
         </div>
         <div className="text-ink-3 mt-2 flex gap-3 text-[11px]">
-          <Legend className="bg-warn">截止</Legend>
-          <Legend className="bg-ok">打卡</Legend>
+          <Legend className="bg-warn">{t("kind.deadline")}</Legend>
+          <Legend className="bg-ok">{t("agenda.checkIn")}</Legend>
         </div>
       </Block>
 
-      <Block title="最近完成">
-        {recent.length === 0 && <p className="text-ink-3 py-1 text-[12px]">还没有完成的任务</p>}
+      <Block title={t("habit.recent")}>
+        {recent.length === 0 && (
+          <p className="text-ink-3 py-1 text-[12px]">{t("habit.noRecent")}</p>
+        )}
         {recent.map(({ entry, completedAt }) => (
           <button
             key={entry.id}
@@ -192,7 +206,7 @@ export function HabitRail({
             <CircleCheck className="text-ok size-[13px] shrink-0" strokeWidth={1.75} />
             <span className="text-ink-2 text-tau-meta min-w-0 flex-1 truncate">{entry.title}</span>
             <span className="text-ink-3 text-[11px] whitespace-nowrap tabular-nums">
-              {dayWord(completedAt, now)} {hm(completedAt)}
+              {dayWord(completedAt, now, locale)} {hm(completedAt)}
             </span>
           </button>
         ))}
@@ -203,9 +217,10 @@ export function HabitRail({
 
 /** 本周一 → 周日 7 个打卡点 */
 export function WeekDots({ entry, now }: { entry: TodoEntry; now: number }) {
+  useTodosI18n();
   const monday = startOfWeek(now);
   return (
-    <span className="flex gap-[3px]" title="本周 一 → 日">
+    <span className="flex gap-[3px]" title={t("habit.weekHint")}>
       {Array.from({ length: 7 }, (_, i) => {
         const day = monday + i * DAY_MS;
         const state = occurrenceState(entry, day, now);
@@ -248,9 +263,4 @@ function Legend({ className, children }: { className: string; children: ReactNod
       {children}
     </span>
   );
-}
-
-function monthDayShort(ts: number) {
-  const d = new Date(ts);
-  return `${d.getMonth() + 1}月${d.getDate()}日`;
 }

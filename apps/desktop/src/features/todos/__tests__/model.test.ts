@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import type { TodoRecurrence } from "@/types";
 import {
   bucketOf,
-  dayWord,
   groupDeletionIds,
   habitCells,
   habitStats,
@@ -11,7 +10,6 @@ import {
   liveEntries,
   nextOccurrence,
   openRoots,
-  recurrenceText,
   streakOf,
 } from "../model";
 import type { OccurrenceMark, TodoEntry, TodoSnapshot } from "../types";
@@ -58,17 +56,6 @@ function habit(rec: Partial<TodoRecurrence>, marks: [number, OccurrenceMark][] =
   return entry({ type: "recurring", recurrence: rule(rec), occurrences: new Map(marks) });
 }
 
-describe("dayWord", () => {
-  it("今天 / 明天 / 后天 / 本周内周几 / 其余月日", () => {
-    expect(dayWord(at(9, 24, 9), NOW)).toBe("今天");
-    expect(dayWord(at(9, 23), NOW)).toBe("昨天");
-    expect(dayWord(at(9, 25), NOW)).toBe("明天");
-    expect(dayWord(at(9, 26), NOW)).toBe("后天");
-    expect(dayWord(at(9, 27), NOW)).toBe("周日");
-    expect(dayWord(at(9, 28), NOW)).toBe("9月28日");
-  });
-});
-
 describe("bucketOf", () => {
   it("截止任务按自然日分段（今天晚些时候到期仍在今天）", () => {
     expect(bucketOf(entry({ type: "deadline", dueAt: at(9, 23, 18) }), NOW)).toBe("overdue");
@@ -105,14 +92,6 @@ describe("周期规则", () => {
     expect(nextOccurrence(rule({ type: "weekly", weekdays: [1] }), NOW)).toBe(at(9, 28));
     expect(nextOccurrence(rule({ type: "monthly", monthDay: 25 }), NOW)).toBe(at(9, 25));
     expect(nextOccurrence(rule({ type: "daily" }), NOW, 1)).toBe(at(9, 25));
-  });
-
-  it("规则文案：周一在前", () => {
-    expect(recurrenceText(rule({ type: "weekly", weekdays: [4, 1] }))).toBe("每周一、四");
-    expect(recurrenceText(rule({ type: "weekly", weekdays: [0, 6] }))).toBe("每周六、日");
-    expect(recurrenceText(rule({ type: "monthly", monthDay: 25 }))).toBe("每月 25 日");
-    expect(recurrenceText(rule({ type: "daily", interval: 2 }))).toBe("每 2 天");
-    expect(recurrenceText(rule({ type: "weekdays" }))).toBe("工作日");
   });
 });
 

@@ -1,3 +1,4 @@
+import { todoTranslator } from "./i18n";
 // 任务完成状态切换（含循环任务的当日完成语义），首页摘要与任务中心共用。
 
 import * as tauri from "../../services/tauri";
@@ -30,6 +31,6 @@ export async function toggleTodoComplete(
     }
     await useTodoStore.getState().toggleCompleteCascade({ id: item.id, isCompleted });
   } catch (error) {
-    onError(error, "更新任务完成状态失败");
+    onError(error, todoTranslator.t("error.complete"));
   }
 }

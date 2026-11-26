@@ -1,3 +1,4 @@
+import { useReminderSheetI18n } from "./ReminderSheet.i18n";
 import { useEffect, useState } from "react";
 import { BellOff, BellRing, Check } from "lucide-react";
 import {
@@ -5,18 +6,21 @@ import {
   normalizeReminders,
   reminderLabel,
   reminderPresets,
+  summarizeReminders,
 } from "@tau/shared/reminders";
 import { BottomSheet } from "../../components/BottomSheet";
 import { useNotifyPermission } from "./useNotifyPermission";
 
-const pad = (value: number) => String(value).padStart(2, "0");
-
-function clockOf(time: number) {
+function clockOf(time: number, locale: string) {
   const date = new Date(time);
-  const now = new Date();
-  const sameDay = date.toDateString() === now.toDateString();
-  const hm = `${pad(date.getHours())}:${pad(date.getMinutes())}`;
-  return sameDay ? hm : `${date.getMonth() + 1}/${date.getDate()} ${hm}`;
+  const sameDay = date.toDateString() === new Date().toDateString();
+  return new Intl.DateTimeFormat(locale, {
+    month: sameDay ? undefined : "numeric",
+    day: sameDay ? undefined : "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(time);
 }
 
 type ReminderSheetProps = {
@@ -41,6 +45,7 @@ export function ReminderSheet({
   onChange,
   onClose,
 }: ReminderSheetProps) {
+  const { t, locale } = useReminderSheetI18n();
   const [draft, setDraft] = useState<number[]>([...value]);
   const permission = useNotifyPermission(open);
   const [explaining, setExplaining] = useState(false);
@@ -54,7 +59,7 @@ export function ReminderSheet({
   const presets = reminderPresets(allDay);
   const others = draft
     .filter(offset => !presets.some(preset => preset.offset === offset))
-    .map(offset => ({ offset, label: reminderLabel(offset, allDay) }));
+    .map(offset => ({ offset }));
   const options = [...presets, ...others];
   const full = draft.length >= MAX_REMINDERS;
 
@@ -77,7 +82,7 @@ export function ReminderSheet({
   };
 
   return (
-    <BottomSheet open={open} title="提醒" onClose={commit}>
+    <BottomSheet open={open} title={t("sheet.title")} onClose={commit}>
       <div className="px-4 pb-2">
         {permission.state?.notifications === "denied" && (
           <button
@@ -87,8 +92,9 @@ export function ReminderSheet({
           >
             <BellOff size={16} className="mt-0.5 shrink-0" />
             <span>
-              <b className="text-ink-1">通知已关闭</b>，提醒会保存但不会响。
-              <span className="text-accent-text font-semibold">去开启</span>
+              <b className="text-ink-1">{t("permission.disabled")}</b>{" "}
+              {t("permission.disabledHint")}{" "}
+              <span className="text-accent-text font-semibold">{t("permission.settings")}</span>
             </span>
           </button>
         )}
@@ -96,9 +102,9 @@ export function ReminderSheet({
           <div className="bg-accent-soft mb-3 flex items-start gap-3 rounded-[14px] px-3.5 py-3">
             <BellRing size={18} className="text-accent-text mt-0.5 shrink-0" />
             <div className="min-w-0 flex-1">
-              <div className="text-ink-1 text-[14px] font-semibold">到点提醒你</div>
+              <div className="text-ink-1 text-[14px] font-semibold">{t("permission.title")}</div>
               <div className="text-ink-2 mt-0.5 text-[12.5px] leading-relaxed">
-                需要通知权限，才能在截止前、日程开始前提醒你。关掉 App 也会准时响。
+                {t("permission.explanation")}
               </div>
               <div className="mt-2.5 flex gap-2">
                 <button
@@ -109,14 +115,14 @@ export function ReminderSheet({
                     void permission.request();
                   }}
                 >
-                  开启通知
+                  {t("permission.allow")}
                 </button>
                 <button
                   type="button"
                   className="text-ink-2 h-8 rounded-[10px] px-2 text-[13px]"
                   onClick={() => setExplaining(false)}
                 >
-                  以后再说
+                  {t("permission.later")}
                 </button>
               </div>
             </div>
@@ -132,15 +138,16 @@ export function ReminderSheet({
                 key={option.offset}
                 type="button"
                 disabled={disabled}
+                aria-pressed={checked}
                 onClick={() => toggle(option.offset)}
                 className={`flex h-12 w-full items-center gap-2.5 px-3.5 text-left text-[15px] ${
                   index > 0 ? "border-line-2 border-t" : ""
                 } ${disabled ? "text-ink-3" : "text-ink-1"}`}
               >
-                <span className="flex-1">{option.label}</span>
+                <span className="flex-1">{reminderLabel(option.offset, allDay, { locale })}</span>
                 {checked && anchor != null && (
                   <span className="text-ink-3 text-[12px] tabular-nums">
-                    {clockOf(anchor - option.offset)}
+                    {clockOf(anchor - option.offset, locale)}
                   </span>
                 )}
                 <span
@@ -156,14 +163,19 @@ export function ReminderSheet({
         </div>
         <div className="text-ink-3 flex items-center justify-between px-1 pt-2.5 text-[11.5px]">
           <span>
-            {draft.length ? `已选 ${draft.length} 个，最多 ${MAX_REMINDERS} 个` : "不提醒"}
+            {draft.length
+              ? t("selection.count", {
+                  amount: draft.length.toLocaleString(locale),
+                  limit: MAX_REMINDERS.toLocaleString(locale),
+                })
+              : summarizeReminders([], allDay, { locale })}
           </span>
           <button
             type="button"
             onClick={commit}
             className="text-accent-text text-[14px] font-semibold"
           >
-            完成
+            {t("sheet.done")}
           </button>
         </div>
       </div>

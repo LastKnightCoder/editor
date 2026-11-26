@@ -1,3 +1,4 @@
+import { scheduleText, scheduleFormat, useScheduleI18n } from "../../i18n";
 import {
   useEffect,
   useMemo,
@@ -56,10 +57,11 @@ interface PendingWeekEvent {
   endMinutes: number;
 }
 
-const WEEKDAY_NAMES = ["一", "二", "三", "四", "五", "六", "日"];
 const LANE = 22;
 
 const WeekView = () => {
+  useScheduleI18n();
+
   const currentDate = useScheduleStore(s => s.currentDate);
   const { calendars } = useCalendarCatalog();
   const editingEvent = useScheduleStore(s => s.editingEvent);
@@ -102,7 +104,7 @@ const WeekView = () => {
   const createAt = (dayIndex: number, startMinutes: number, endMinutes: number) => {
     const target = calendars.find(c => !c.isInSystemGroup && !c.archived);
     if (!target) {
-      toast.warning("请先创建一个日历");
+      toast.warning(scheduleText("feedback.createCalendarFirst"));
       return;
     }
     setPendingEvent({ dayIndex, startMinutes, endMinutes });
@@ -161,7 +163,7 @@ const WeekView = () => {
         endDate: event.endDate == null ? null : startDate,
         startTime: next.start,
         endTime: next.end,
-      }).catch(() => toast.error("调整时间失败"));
+      }).catch(() => toast.error(scheduleText("feedback.adjustFailed")));
     },
   });
   const columns = useMemo(
@@ -204,7 +206,7 @@ const WeekView = () => {
   return (
     <div className="flex h-full flex-col">
       {/* 日期头 */}
-      <div className="flex flex-none pb-1.5 pr-3 pt-3">
+      <div className="flex flex-none pt-3 pr-3 pb-1.5">
         <div className={GUTTER} />
         {weekDays.map((day, index) => {
           const today = isToday(day.getTime());
@@ -213,7 +215,7 @@ const WeekView = () => {
             <button
               type="button"
               key={index}
-              title="在右栏查看这一天"
+              title={scheduleText("day.open")}
               onClick={() => setCurrentDate(day.getTime())}
               className={cn(
                 "text-ink-3 hover:bg-hover mx-0.5 flex flex-1 items-baseline gap-1.5 rounded-[8px] py-0.5 pl-2 text-[12px]",
@@ -229,15 +231,17 @@ const WeekView = () => {
               >
                 {day.getDate()}
               </b>
-              周{WEEKDAY_NAMES[index]}
+              {scheduleFormat.weekday(day.getTime())}
             </button>
           );
         })}
       </div>
 
       {/* 全天车道 */}
-      <div className="flex flex-none pb-1.5 pr-3">
-        <span className={cn("text-ink-3 pr-2 pt-0.5 text-right text-[11px]", GUTTER)}>全天</span>
+      <div className="flex flex-none pr-3 pb-1.5">
+        <span className={cn("text-ink-3 pr-2 pt-0.5 text-right text-[11px]", GUTTER)}>
+          {scheduleText("time.allDay")}
+        </span>
         <div className="relative flex-1" style={{ height: Math.max(1, laneCount) * LANE }}>
           {allDayPlacements.map(p => (
             <AllDayBar
@@ -261,7 +265,7 @@ const WeekView = () => {
 
       {/* 时间网格：离纸底留 16px，滚动条不贴纸缘；
           FadeScroll 右侧 6px 透明边 + pr-1.5 合计 12px，与日期头 / 全天车道的 pr-3 对齐 */}
-      <FadeScroll scrollRef={scrollRef} className="mb-4 mt-2 min-h-0 flex-1 pr-1.5">
+      <FadeScroll scrollRef={scrollRef} className="mt-2 mb-4 min-h-0 flex-1 pr-1.5">
         <div ref={gridRef} className="flex" style={{ height: GRID_HEIGHT }}>
           <HourGutter />
           {weekDays.map((day, dayIndex) => (
@@ -366,6 +370,8 @@ function WeekDayColumn({
   onSelect: (start: number, end: number) => void;
   first: boolean;
 }) {
+  useScheduleI18n();
+
   const positions = useEventOverlap(events);
   const { isDragging, selectedRange, handlers } = useTimeSlotDrag({
     onSelect,

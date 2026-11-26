@@ -1,3 +1,4 @@
+import { scheduleText, useScheduleI18n } from "../../i18n";
 import { useEffect, useState } from "react";
 import { Button, Dialog, DialogBody, Input, toast } from "@tau/ui";
 import { useScheduleMutations } from "../../queries";
@@ -8,6 +9,8 @@ interface CreateGroupDialogProps {
 }
 
 const CreateGroupDialog = ({ open, onClose }: CreateGroupDialogProps) => {
+  useScheduleI18n();
+
   const { createCalendarGroup } = useScheduleMutations();
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
@@ -18,7 +21,7 @@ const CreateGroupDialog = ({ open, onClose }: CreateGroupDialogProps) => {
 
   const handleSubmit = async () => {
     if (!name.trim()) {
-      toast.warning("请输入分组名称");
+      toast.warning(scheduleText("validation.groupName"));
       return;
     }
     setSaving(true);
@@ -32,7 +35,7 @@ const CreateGroupDialog = ({ open, onClose }: CreateGroupDialogProps) => {
       onClose();
     } catch (error) {
       console.error("Failed to create group:", error);
-      toast.error("创建分组失败");
+      toast.error(scheduleText("feedback.createGroupFailed"));
     } finally {
       setSaving(false);
     }
@@ -44,28 +47,28 @@ const CreateGroupDialog = ({ open, onClose }: CreateGroupDialogProps) => {
       onOpenChange={next => {
         if (!next) onClose();
       }}
-      title="新建分组"
+      title={scheduleText("group.create")}
       size="sm"
       locked={saving}
       footer={
         <>
           <Button variant="secondary" size="sm" disabled={saving} onClick={onClose}>
-            取消
+            {scheduleText("action.cancel")}
           </Button>
           <Button variant="primary" size="sm" loading={saving} onClick={handleSubmit}>
-            创建
+            {scheduleText("action.create")}
           </Button>
         </>
       }
     >
       <DialogBody>
         <label className="flex flex-col gap-1.5">
-          <span className="text-ink-2 text-[12px]">分组名称</span>
+          <span className="text-ink-2 text-[12px]">{scheduleText("group.name")}</span>
           <Input
             data-autofocus
             value={name}
             onChange={e => setName(e.target.value)}
-            placeholder="输入分组名称"
+            placeholder={scheduleText("group.namePlaceholder")}
             onKeyDown={e => {
               if (e.key === "Enter" && !e.nativeEvent.isComposing) void handleSubmit();
             }}

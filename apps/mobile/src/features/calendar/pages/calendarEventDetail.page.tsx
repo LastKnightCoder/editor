@@ -1,6 +1,7 @@
 // 日程详情页（screen/params，按事件身份去重）。删除在页面层落库后弹栈，
 // 编辑跳转携带事件 id；系统事件提供番茄钟/待办来源跳转。
 
+import { calendarTranslator } from "../i18n";
 import { CalendarEventDetailPage } from "../CalendarEventDetailPage";
 import { useAppContext } from "../../../app/AppContext";
 import { createPageSchema, definePage, paramNumber, useNavigator, usePage } from "../../../router";
@@ -31,7 +32,7 @@ function CalendarEventDetailScreen() {
             invalidateCalendarQueries();
             navigator.goBack("ui");
           })
-          .catch(error => app.presentError(error, "删除日程失败"));
+          .catch(error => app.presentError(error, calendarTranslator.t("error.deleteEvent")));
       }}
       onOpenPomodoroHistory={day => navigator.push("pomodoroHistory", { day })}
       onOpenTodo={() => navigator.push("todo")}

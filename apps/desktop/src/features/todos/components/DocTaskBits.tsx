@@ -1,3 +1,5 @@
+import { todosTranslator, useTodosI18n } from "@/features/todos/i18n";
+import { dayWord, monthDay } from "@/utils/date-format";
 /**
  * 文档待办的行与小件：勾选写回原文（乐观更新）；行尾显示来源文档，点来源打开原文并定位到该项。
  * 文档条目没有删除 / 改期 / 移动菜单——这些都在原文里改。
@@ -7,9 +9,10 @@ import { FileText } from "lucide-react";
 import { cn } from "@tau/ui";
 import { openEntity } from "@/services/open-content";
 import type { DocTaskItem, DocTaskSource } from "@/types/doc-tasks";
-import { bucketForDay, dayDiff, dayWord, monthDay } from "../model";
+import { bucketForDay, dayDiff } from "../model";
 import type { BucketKey } from "../types";
 import { TodoCheck } from "./TodoBits";
+const t = todosTranslator.t;
 
 export function docTaskBucket(task: DocTaskItem, now: number): BucketKey {
   return task.dueAt == null ? "none" : bucketForDay(dayDiff(task.dueAt, now), now);
@@ -39,6 +42,7 @@ export function DocTaskRow({
   onToggle(task: DocTaskItem): void;
   onOpen(task: DocTaskItem): void;
 }) {
+  const { locale } = useTodosI18n();
   const overdue = !task.checked && task.dueAt != null && dayDiff(task.dueAt, now) < 0;
   return (
     <div
@@ -66,28 +70,30 @@ export function DocTaskRow({
       <TodoCheck
         checked={task.checked}
         overdue={overdue}
-        label={task.checked ? "在原文中取消勾选" : "在原文中勾选"}
+        label={task.checked ? t("doc.uncheck") : t("doc.check")}
         onToggle={() => onToggle(task)}
       />
       <span className="flex min-w-0 flex-col">
         <span className={cn("text-tau-body truncate", task.checked && "text-ink-3 line-through")}>
-          {task.title || "未命名任务"}
+          {task.title || t("common.untitled")}
         </span>
         {task.dueAt != null && (
           <span className={cn("text-ink-3 text-[11.5px] tabular-nums", overdue && "text-danger")}>
-            {overdue ? `${monthDay(task.dueAt)} · 已逾期` : dayWord(task.dueAt, now)}
+            {overdue
+              ? t("doc.overdueDate", { date: monthDay(task.dueAt, locale) })
+              : dayWord(task.dueAt, now, locale)}
           </span>
         )}
       </span>
       {showSource && source && (
         <button
           type="button"
-          title={`打开《${source.title}》并定位`}
+          title={t("doc.locateSource", { title: source.title })}
           onClick={e => {
             e.stopPropagation();
             openDocTask(source, task);
           }}
-          className="text-ink-3 hover:text-accent-text flex max-w-[16em] items-center gap-1 whitespace-nowrap text-[11.5px]"
+          className="text-ink-3 hover:text-accent-text flex max-w-[16em] items-center gap-1 text-[11.5px] whitespace-nowrap"
         >
           <FileText className="size-[11px] shrink-0" strokeWidth={1.75} />
           <span className="truncate">{source.title}</span>

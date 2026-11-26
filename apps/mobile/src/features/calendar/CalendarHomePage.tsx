@@ -1,6 +1,8 @@
 // 日历主页——月份标题/把手均可逆切换月历与选中周条，
 // 切换保留选中日与列表位置；月历 6 周范围一次拉取，彩点与列表同源派生。
 
+import { formatDayHead, formatMonthNav } from "./format";
+import { useCalendarI18n } from "./i18n";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, ListPlus, Plus } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
@@ -8,14 +10,7 @@ import { useThemeStore } from "@tau/themes/react";
 import { useEdgeFade } from "../../hooks/useScrollState";
 import { eventColorValue } from "./constants";
 import { useCalendars, useCalendarEventsByRange } from "./queries";
-import {
-  addDays,
-  eventOccursOnDay,
-  formatDayHead,
-  formatMonthNav,
-  getMonthGrid,
-  todayStart,
-} from "./utils";
+import { addDays, eventOccursOnDay, getMonthGrid, todayStart } from "./utils";
 import { MonthGrid } from "./components/MonthGrid";
 import { EventListSection } from "./components/EventListSection";
 import { CalendarFilterChips } from "./components/CalendarFilterChips";
@@ -102,6 +97,7 @@ export function CalendarHomePage({
   onOpenEvent,
   onOpenManage,
 }: CalendarHomePageProps) {
+  const { t: translate, locale } = useCalendarI18n();
   const isDark = useThemeStore(s => s.mode === "dark");
   const calendarsQuery = useCalendars();
   const { data: calendars = [] } = calendarsQuery;
@@ -144,8 +140,8 @@ export function CalendarHomePage({
     [rangeEvents, selectedDate]
   );
   const allDayCount = selectedEvents.filter(event => event.allDay).length;
-  const dayHead = formatDayHead(selectedDate);
-  const monthNav = formatMonthNav(anchorMonth);
+  const dayHead = formatDayHead(selectedDate, locale);
+  const monthNav = formatMonthNav(anchorMonth, locale);
 
   const resolveColor = useCallback(
     (event: CalendarEvent) => eventColorValue(event.color, event.calendarColor, isDark),
@@ -289,20 +285,20 @@ export function CalendarHomePage({
   // 折叠动画：max-height + opacity 过渡（elastic-month 弹性曲线）；
   // 折叠时月历网格只渲染选中周行（week-only）。整页单滚动后此处只用 max-height 裁剪，
   // 不再自带滚动条（否则又变成「网格内滚动 + 列表内滚动」的两段式）
-  const expandLabel = expanded ? "收起月历" : "展开月历";
+  const expandLabel = expanded ? translate("home.collapse") : translate("home.expand");
   const scrollRef = useRef<HTMLDivElement | null>(null);
   useEdgeFade(scrollRef);
 
   return (
     <div className="mobile-kb-screen bg-page fixed inset-0 z-50 flex flex-col">
       <PageHeader
-        title="日历"
+        title={translate("calendar")}
         onBack={onBack}
         actions={
           <>
             <button
               type="button"
-              aria-label="日历管理"
+              aria-label={translate("manage.title")}
               onClick={onOpenManage}
               className="text-ink-1 active:bg-press grid h-10 w-10 place-items-center rounded-full transition active:scale-90"
             >
@@ -310,7 +306,7 @@ export function CalendarHomePage({
             </button>
             <button
               type="button"
-              aria-label="新建日程"
+              aria-label={translate("event.new")}
               onClick={() => onCreateEvent(selectedDate)}
               className="shadow-lift text-ink-inverse grid h-10 w-10 place-items-center rounded-[13px] transition active:scale-90"
               style={{ background: "var(--tau-accent)" }}
@@ -341,7 +337,7 @@ export function CalendarHomePage({
           <span className="flex gap-2">
             <button
               type="button"
-              aria-label="上一月"
+              aria-label={translate("home.previous")}
               onClick={() => shiftMonth(-1)}
               className="bg-surface shadow-card text-ink-1 grid h-8 w-8 place-items-center rounded-full"
             >
@@ -352,11 +348,11 @@ export function CalendarHomePage({
               onClick={goToday}
               className="text-accent bg-accent-soft h-8 rounded-full px-3.5 text-[12.5px] font-extrabold"
             >
-              今天
+              {translate("home.today")}
             </button>
             <button
               type="button"
-              aria-label="下一月"
+              aria-label={translate("home.next")}
               onClick={() => shiftMonth(1)}
               className="bg-surface shadow-card text-ink-1 grid h-8 w-8 place-items-center rounded-full"
             >
@@ -425,15 +421,28 @@ export function CalendarHomePage({
           <span className="text-accent text-[12px] font-bold">{dayHead.weekday}</span>
           <span className="text-ink-3 ml-auto text-[11.5px] font-bold">
             {selectedEvents.length === 0
-              ? "无日程"
-              : `${selectedEvents.length} 件日程${allDayCount > 0 ? ` · ${allDayCount} 件全天` : ""}`}
+              ? translate("home.none")
+              : [
+                  translate("home.events", {
+                    count: selectedEvents.length,
+                    amount: selectedEvents.length.toLocaleString(locale),
+                  }),
+                  allDayCount > 0
+                    ? translate("home.allDayCount", {
+                        count: allDayCount,
+                        amount: allDayCount.toLocaleString(locale),
+                      })
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
           </span>
         </div>
 
         <div className="min-h-[160px] flex-1">
           {calendarsQuery.isError || eventsQuery.isError ? (
             <div role="alert" className="text-ink-2 p-5 text-center text-sm">
-              <p>日程加载失败</p>
+              <p>{translate("home.failed")}</p>
               <button
                 type="button"
                 className="text-accent mt-2 min-h-11 px-4"
@@ -442,12 +451,12 @@ export function CalendarHomePage({
                   void eventsQuery.refetch();
                 }}
               >
-                重试
+                {translate("common.retry")}
               </button>
             </div>
           ) : calendarsQuery.isPending || eventsQuery.isLoading ? (
             <p role="status" className="text-ink-3 p-5 text-center text-sm">
-              加载中…
+              {translate("common.loading")}
             </p>
           ) : (
             <EventListSection

@@ -3,6 +3,8 @@
 // 两个高亮圆都画在数字盒（26px）之外一圈 36px：数字盒固定尺寸才能保证各周行高一致。
 // 格高 62、彩点 mt-8 都跟着 36px 圆走，改圆径必须同步这三个值（外层折叠 max-height 亦然）。
 
+import { useCalendarI18n } from "../i18n";
+import { formatDayHead, weekdayHeaders } from "../format";
 import { memo } from "react";
 import type { CalendarEvent } from "../types";
 import { eventDotsForDay, eventOccursOnDay, getMonthGrid, getWeekStart } from "../utils";
@@ -18,7 +20,6 @@ type MonthGridProps = {
   onSelectDate: (date: number) => void;
 };
 
-const WEEKDAY_HEADERS = ["一", "二", "三", "四", "五", "六", "日"];
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 function MonthGridImpl({
@@ -30,6 +31,7 @@ function MonthGridImpl({
   resolveColor,
   onSelectDate,
 }: MonthGridProps) {
+  const { locale } = useCalendarI18n();
   const cells = getMonthGrid(anchorDate);
   // 折叠态只渲染选中周行；selectedDate 不在当前网格（翻月后）时按周起始差定位并夹回网格，
   // 避免 findIndex = -1 折叠出空白
@@ -48,9 +50,9 @@ function MonthGridImpl({
   return (
     <div id="calendar-month-grid" className="px-3 select-none">
       <div className="grid grid-cols-7">
-        {WEEKDAY_HEADERS.map((label, index) => (
+        {weekdayHeaders(locale).map(({ day, label }, index) => (
           <span
-            key={label}
+            key={day}
             className={`text-ink-3 py-[6px] pb-2 text-center text-[11.5px] font-bold ${
               index >= 5 ? "opacity-75" : ""
             }`}
@@ -72,7 +74,7 @@ function MonthGridImpl({
               key={cell.date}
               type="button"
               onClick={() => onSelectDate(cell.date)}
-              aria-label={`${cell.dayOfMonth}日`}
+              aria-label={formatDayHead(cell.date, locale).day}
               aria-pressed={isSelected}
               className="flex h-[62px] cursor-pointer flex-col items-center pt-1.5"
             >
@@ -116,7 +118,9 @@ function MonthGridImpl({
                 </span>
               ) : null}
               {moreCount > 0 ? (
-                <span className="text-ink-3 mt-[3px] text-[9.5px] font-bold">·{moreCount}</span>
+                <span className="text-ink-3 mt-[3px] text-[9.5px] font-bold">
+                  ·{moreCount.toLocaleString(locale)}
+                </span>
               ) : null}
             </button>
           );

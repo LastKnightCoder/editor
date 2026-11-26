@@ -2,6 +2,8 @@
 // 三类选择统一 BottomSheet（内置返回拦截）；未保存改动经 requestExit 确认，
 // 顶栏取消与系统返回手势走同一入口（对齐闪卡 cardEdit 审查修复项）。
 
+import { calendarColorLabel, formatDateTimeLine } from "./format";
+import { useCalendarI18n, calendarTranslator } from "./i18n";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMobileContentKit } from "../../services/editorKit";
 import { EditorKitPending } from "../../components/EditorKitPending";
@@ -24,17 +26,10 @@ import { DateTimePickerSheet } from "../../components/DateTimePickerSheet";
 import { useBackHandler } from "../../router";
 import { useThemeStore } from "@tau/themes/react";
 import { useEdgeFade } from "../../hooks/useScrollState";
-import { calendarColorLabel, eventColorValue } from "./constants";
+import { eventColorValue } from "./constants";
 import { useCalendars, invalidateCalendarQueries } from "./queries";
 import * as tauri from "../../services/tauri";
-import {
-  atLocalTime,
-  dayStart,
-  formatDateTimeLine,
-  formatMonthDay,
-  formatTime,
-  weekdayLabel,
-} from "./utils";
+import { atLocalTime, dayStart } from "./utils";
 import { CalendarPickerSheet } from "./components/CalendarPickerSheet";
 import { ColorPickerSheet } from "./components/ColorPickerSheet";
 import { summarizeReminders } from "@tau/shared/reminders";
@@ -80,6 +75,7 @@ export function CalendarEventEditPage({
   onSaved,
   onError,
 }: CalendarEventEditPageProps) {
+  const { t: translate, locale } = useCalendarI18n();
   const contentKit = useMobileContentKit("edit");
   const isDark = useThemeStore(s => s.mode === "dark");
   const editorRef = useRef<EditorRef | null>(null);
@@ -157,7 +153,7 @@ export function CalendarEventEditPage({
       .catch(error => {
         if (!cancelled) {
           setLoadFailed(true);
-          onError(error, "日程不存在或已删除");
+          onError(error, calendarTranslator.t("error.eventMissing"));
         }
       });
     return () => {
@@ -251,7 +247,9 @@ export function CalendarEventEditPage({
       const message = typeof error === "string" ? error : "";
       onError(
         error,
-        message.includes("SYSTEM_READONLY") ? "系统日历日程不可在移动端编辑" : "保存日程失败"
+        message.includes("SYSTEM_READONLY")
+          ? calendarTranslator.t("error.systemEdit")
+          : calendarTranslator.t("error.saveEvent")
       );
     } finally {
       setSaving(false);
@@ -265,7 +263,7 @@ export function CalendarEventEditPage({
       invalidateCalendarQueries();
       onSaved();
     } catch (error) {
-      onError(error, "删除日程失败");
+      onError(error, calendarTranslator.t("error.deleteEvent"));
     }
   };
 
@@ -284,18 +282,22 @@ export function CalendarEventEditPage({
   if (isEdit && !loaded) {
     return (
       <div className="mobile-kb-screen bg-page fixed inset-0 z-50 flex flex-col">
-        <PageHeader title="编辑日程" onBack={requestExit} />
+        <PageHeader title={translate("event.edit")} onBack={requestExit} />
         <div className="flex flex-1 flex-col items-center justify-center gap-3 px-8">
           {loadFailed ? (
             <>
               <CalendarX2 size={34} className="text-ink-3" aria-hidden />
-              <div className="text-ink-1 text-[14px] font-extrabold">日程不存在或已被系统更新</div>
+              <div className="text-ink-1 text-[14px] font-extrabold">
+                {translate("event.missing")}
+              </div>
               <div className="text-ink-3 text-center text-[12px] leading-[1.6]">
-                请返回日历后重新打开
+                {translate("event.reopen")}
               </div>
             </>
           ) : (
-            <div className="text-ink-3 text-[13px] font-semibold">加载中…</div>
+            <div className="text-ink-3 text-[13px] font-semibold">
+              {translate("common.loading")}
+            </div>
           )}
         </div>
       </div>
@@ -313,16 +315,16 @@ export function CalendarEventEditPage({
           onClick={requestExit}
           className="text-ink-3 px-1 py-2 text-[14.5px] font-extrabold"
         >
-          取消
+          {translate("common.cancel")}
         </button>
         <h1 className="text-ink-1 absolute left-1/2 -translate-x-1/2 text-center text-[18px] font-extrabold">
-          {isEdit ? "编辑日程" : "新建日程"}
+          {isEdit ? translate("event.edit") : translate("event.new")}
         </h1>
         <div className="ml-auto flex shrink-0 justify-end gap-2">
           {isEdit ? (
             <PageHeaderButton
               icon={<Trash2 size={22} strokeWidth={2.4} />}
-              aria-label="删除日程"
+              aria-label={translate("event.delete")}
               onClick={() => setConfirmDelete(true)}
             />
           ) : (
@@ -340,23 +342,25 @@ export function CalendarEventEditPage({
             <input
               value={draft.title}
               onChange={event => setValue({ title: event.target.value })}
-              placeholder="日程标题…"
+              placeholder={translate("event.title")}
               className="text-ink-1 placeholder:text-ink-3 w-full border-none bg-transparent text-[18px] font-extrabold outline-none"
             />
           </div>
 
           <div className="bg-surface shadow-card mx-[18px] mt-3 rounded-[20px] p-[18px]">
             <div className="text-ink-3 mb-2.5 text-[11.5px] font-extrabold tracking-[1px]">
-              时间
+              {translate("event.time")}
             </div>
             <div className="flex items-center gap-3 border-b border-[var(--tau-line-2)] py-[13px]">
-              <span className="text-ink-2 w-[62px] flex-none text-[14px] font-bold">全天</span>
+              <span className="text-ink-2 w-[62px] flex-none text-[14px] font-bold">
+                {translate("event.allDay")}
+              </span>
               <span className="flex-1" />
               <button
                 type="button"
                 role="switch"
                 aria-checked={draft.allDay}
-                aria-label="全天"
+                aria-label={translate("event.allDay")}
                 // 全天与定时的提醒基准不同，切换后旧提醒失去含义；新建日程换成对应的默认提醒
                 onClick={() => {
                   const allDay = !draft.allDay;
@@ -380,46 +384,52 @@ export function CalendarEventEditPage({
               </button>
             </div>
             <FormRow
-              label="开始"
-              value={formatDateTimeLine(draft.startDate, draft.startTime, draft.allDay)}
+              label={translate("event.start")}
+              value={formatDateTimeLine(draft.startDate, draft.startTime, draft.allDay, {
+                locale,
+                t: translate,
+              })}
               onClick={() => setPicker("start")}
             />
             <FormRow
-              label="结束"
+              label={translate("event.end")}
               value={
                 draft.endDate !== null && draft.endDate !== draft.startDate
-                  ? `${formatMonthDay(draft.endDate)} ${weekdayLabel(draft.endDate)}${
-                      draft.allDay
-                        ? " · 全天"
-                        : draft.endTime !== null
-                          ? ` · ${formatTime(draft.endTime)}`
-                          : ""
-                    }`
-                  : formatDateTimeLine(draft.startDate, draft.endTime, draft.allDay)
+                  ? formatDateTimeLine(
+                      draft.endDate,
+                      draft.endTime,
+                      draft.allDay,
+                      { locale, t: translate },
+                      "omit"
+                    )
+                  : formatDateTimeLine(draft.startDate, draft.endTime, draft.allDay, {
+                      locale,
+                      t: translate,
+                    })
               }
               onClick={() => setPicker("end")}
               danger={error}
             />
             <FormRow
-              label="提醒"
-              value={summarizeReminders(draft.reminders, draft.allDay)}
+              label={translate("event.reminder")}
+              value={summarizeReminders(draft.reminders, draft.allDay, { locale })}
               placeholder={!draft.reminders.length}
               onClick={() => setPicker("reminder")}
             />
             {error ? (
               <div className="pt-2 text-[11.5px] font-semibold text-[var(--tau-tag-5)]">
-                结束时间早于开始时间，保存前请调整
+                {translate("event.invalidTime")}
               </div>
             ) : null}
           </div>
 
           <div className="bg-surface shadow-card mx-[18px] mt-3 rounded-[20px] p-[18px]">
             <div className="text-ink-3 mb-2.5 text-[11.5px] font-extrabold tracking-[1px]">
-              归属与外观
+              {translate("event.ownerAppearance")}
             </div>
             <FormRow
-              label="日历"
-              value={selectedCalendar?.title ?? "选择日历"}
+              label={translate("calendar")}
+              value={selectedCalendar?.title ?? translate("event.chooseCalendar")}
               dotColor={
                 selectedCalendar ? eventColorValue(null, selectedCalendar.color, isDark) : undefined
               }
@@ -428,12 +438,18 @@ export function CalendarEventEditPage({
             {calendars.length > 0 &&
             !calendars.some(calendar => !calendar.isInSystemGroup && !calendar.archived) ? (
               <p className="text-ink-3 pt-2 text-[11.5px] leading-[1.6]">
-                系统日历不可新建日程：请先到「日历管理」新建一个自己的日历。
+                {translate("event.userCalendarRequired")}
               </p>
             ) : null}
             <FormRow
-              label="颜色"
-              value={draft.color ? `${calendarColorLabel(draft.color)}（自定义）` : "跟随日历"}
+              label={translate("event.color")}
+              value={
+                draft.color
+                  ? translate("color.custom", {
+                      color: calendarColorLabel(draft.color, { t: translate }),
+                    })
+                  : translate("event.inheritColor")
+              }
               dotColor={draft.color ? displayColor : undefined}
               placeholder={!draft.color}
               onClick={() => setPicker("color")}
@@ -442,7 +458,7 @@ export function CalendarEventEditPage({
 
           <div className="bg-surface shadow-card mx-[18px] mt-3 mb-1 rounded-[20px] p-[18px]">
             <div className="text-ink-3 mb-2.5 text-[11.5px] font-extrabold tracking-[1px]">
-              详情
+              {translate("event.description")}
             </div>
             {contentKit ? (
               <Editor
@@ -450,7 +466,7 @@ export function CalendarEventEditPage({
                 ref={editorRef}
                 initValue={draft.detailContent}
                 readonly={saving}
-                placeHolder="添加日程详情..."
+                placeHolder={translate("event.notePlaceholder")}
                 className="mobile-card-editor-content min-h-[180px] outline-none"
                 onFocus={toolbarController.handleEditorFocus}
                 onBlur={toolbarController.handleEditorBlur}
@@ -478,7 +494,11 @@ export function CalendarEventEditPage({
             className="shadow-lift text-ink-inverse h-[50px] w-full rounded-[17px] text-[15.5px] font-extrabold disabled:opacity-50"
             style={{ background: "var(--tau-accent)" }}
           >
-            {saving ? "保存中…" : isEdit ? "保存修改" : "保存日程"}
+            {saving
+              ? translate("common.saving")
+              : isEdit
+                ? translate("event.saveChanges")
+                : translate("event.save")}
           </button>
         </div>
       </div>
@@ -507,7 +527,7 @@ export function CalendarEventEditPage({
       />
       <DateTimePickerSheet
         open={picker === "start"}
-        title="开始时间"
+        title={translate("event.startTime")}
         value={atLocalTime(draft.startDate, draft.startTime)}
         onConfirm={timestamp => {
           setValue({ startDate: dayStart(timestamp), startTime: minuteOf(timestamp) });
@@ -517,7 +537,7 @@ export function CalendarEventEditPage({
       />
       <DateTimePickerSheet
         open={picker === "end"}
-        title="结束时间"
+        title={translate("event.endTime")}
         value={atLocalTime(draft.endDate ?? draft.startDate, draft.endTime)}
         onConfirm={timestamp => {
           setValue({ endDate: dayStart(timestamp), endTime: minuteOf(timestamp) });
@@ -533,10 +553,10 @@ export function CalendarEventEditPage({
       />
       <MobileConfirmDialog
         open={confirmExit}
-        title="放弃修改？"
-        description="当前改动尚未保存。"
-        cancelText="继续编辑"
-        confirmText="放弃"
+        title={translate("event.discardTitle")}
+        description={translate("event.unsaved")}
+        cancelText={translate("event.continueEditing")}
+        confirmText={translate("event.discard")}
         danger={true}
         onCancel={() => setConfirmExit(false)}
         onConfirm={() => {
@@ -546,10 +566,10 @@ export function CalendarEventEditPage({
       />
       <MobileConfirmDialog
         open={confirmDelete}
-        title="删除日程？"
-        description="此操作无法撤销。"
-        cancelText="取消"
-        confirmText="删除"
+        title={translate("event.confirmDelete")}
+        description={translate("common.irreversible")}
+        cancelText={translate("common.cancel")}
+        confirmText={translate("common.delete")}
         danger={true}
         onCancel={() => setConfirmDelete(false)}
         onConfirm={handleDelete}

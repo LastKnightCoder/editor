@@ -4,7 +4,7 @@ import { buildCalendarKinds, buildCalendarRoles, type CalendarRole } from "../ev
 import {
   absorbFocus,
   buildDayTimeline,
-  focusLabel,
+  focusMinutes,
   spanPercent,
   eventPhase,
   isMarker,
@@ -222,15 +222,15 @@ describe("absorbFocus", () => {
   });
 });
 
-it("focusLabel / spanPercent", () => {
-  expect(focusLabel([{ start: 0, end: 45 }])).toBe("专注 45m");
+it("focusMinutes / spanPercent", () => {
+  expect(focusMinutes([{ start: 0, end: 45 }])).toBe(45);
   expect(
-    focusLabel([
+    focusMinutes([
       { start: 0, end: 50 },
       { start: 60, end: 90 },
     ])
-  ).toBe("专注 1h20m");
-  expect(focusLabel([{ start: 0, end: 120 }])).toBe("专注 2h");
+  ).toBe(80);
+  expect(focusMinutes([{ start: 0, end: 120 }])).toBe(120);
   expect(spanPercent({ start: 570, end: 600 }, 540, 660)).toEqual({ offset: 25, size: 25 });
   expect(spanPercent({ start: 500, end: 560 }, 540, 660).offset).toBe(0);
 });

@@ -9,6 +9,7 @@
  * 删除不二次确认，走 pendingDeleteStore 的 Toast 撤销。
  */
 
+import { scheduleText, scheduleValue, useScheduleI18n } from "../../i18n";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getContentKit } from "@/services/editorKit";
 import dayjs from "dayjs";
@@ -63,6 +64,8 @@ export function useEventForm(
   onDone: () => void,
   { autoFocusTitle = false }: { autoFocusTitle?: boolean } = {}
 ) {
+  const { locale } = useScheduleI18n();
+
   const { calendars } = useCalendarCatalog();
   const { createEvent, updateEvent, deleteEvent, setEventReminders } = useScheduleMutations();
   const { commands, assertCurrentDatabase } = useScheduleCommands();
@@ -190,7 +193,7 @@ export function useEventForm(
     const endKey = (endDateTs ?? startDateTs) * 1 + (endTimeMinutes ?? 0) * 60000;
     const startKey = startDateTs + (startTimeMinutes ?? 0) * 60000;
     if (endKey < startKey) {
-      toast.warning("结束时间不能早于开始时间");
+      toast.warning(scheduleText("validation.endBeforeStart"));
       return;
     }
 
@@ -229,7 +232,7 @@ export function useEventForm(
       onDone();
     } catch (error) {
       console.error("Failed to save event:", error);
-      toast.error("保存失败");
+      toast.error(scheduleText("feedback.saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -262,7 +265,12 @@ export function useEventForm(
     if (total <= 0) return null;
     const hours = Math.floor(total / 60);
     const mins = total % 60;
-    return [hours && `${hours} 小时`, mins && `${mins} 分钟`].filter(Boolean).join(" ");
+    return [
+      hours && scheduleText("duration.hours", { hours: scheduleValue(hours) }),
+      mins && scheduleText("duration.minutes", { minutes: scheduleValue(mins) }),
+    ]
+      .filter(Boolean)
+      .join(" ");
   })();
 
   /** 删除不二次确认：先隐藏 + Toast 撤销，到时才落库（pendingDeleteStore） */
@@ -278,9 +286,9 @@ export function useEventForm(
     <div className="flex flex-col gap-1">
       {needsContent && contentQuery.isError && (
         <div role="alert" className="text-danger flex items-center gap-2">
-          备注加载失败，请重试后保存。
+          {scheduleText("error.notesLoad")}
           <Button variant="secondary" size="sm" onClick={() => void contentQuery.refetch()}>
-            重试
+            {scheduleText("action.retry")}
           </Button>
         </div>
       )}
@@ -289,24 +297,20 @@ export function useEventForm(
           data-autofocus={autoFocusTitle || undefined}
           value={title}
           onChange={e => setTitle(e.target.value)}
-          placeholder="日程标题"
+          placeholder={scheduleText("event.titlePlaceholder")}
           disabled={isTodoEvent}
         />
       </div>
       {isSystemCalendarEvent && (
         <p className="bg-warn-soft text-warn text-tau-meta rounded-tau-sm mb-2 px-3 py-1.5">
-          {isTodoEvent
-            ? "来自待办：标题、时间与日历归属请在待办中修改"
-            : "系统日历日程：时间、日历归属与颜色不可修改"}
+          {isTodoEvent ? scheduleText("event.todoReadonly") : scheduleText("event.systemReadonly")}
         </p>
       )}
       {!isSystemCalendarEvent && isTodoEvent && (
-        <p className="text-ink-3 text-tau-meta mb-2">
-          这是待办的一次安排：标题跟随待办，时间可在这里调整
-        </p>
+        <p className="text-ink-3 text-tau-meta mb-2">{scheduleText("event.todoScheduled")}</p>
       )}
 
-      <FieldRow icon={AlarmClock} label="时间">
+      <FieldRow icon={AlarmClock} label={scheduleText("field.time")}>
         <div className="flex flex-wrap items-center gap-2">
           <DatePicker
             size="sm"
@@ -314,7 +318,7 @@ export function useEventForm(
             value={startValue}
             disabled={isSystemCalendarEvent}
             onValueChange={v => splitPicked(v, setStartDate, setStartTime)}
-            placeholder="开始"
+            placeholder={scheduleText("field.start")}
           />
           <span className="text-ink-3">→</span>
           <DatePicker
@@ -324,13 +328,13 @@ export function useEventForm(
             clearable
             disabled={isSystemCalendarEvent}
             onValueChange={v => splitPicked(v, setEndDate, setEndTime)}
-            placeholder="结束（可选）"
+            placeholder={scheduleText("field.endOptional")}
           />
           {durationHint && <span className="text-ink-3 text-tau-meta">{durationHint}</span>}
         </div>
       </FieldRow>
 
-      <FieldRow icon={Sun} label="全天">
+      <FieldRow icon={Sun} label={scheduleText("time.allDay")}>
         <Switch
           size="sm"
           checked={allDay}
@@ -340,12 +344,12 @@ export function useEventForm(
             setAllDay(next);
             setReminders([]);
           }}
-          aria-label="全天"
+          aria-label={scheduleText("time.allDay")}
         />
       </FieldRow>
 
       {remindable && (
-        <FieldRow icon={Bell} label="提醒">
+        <FieldRow icon={Bell} label={scheduleText("field.reminders")}>
           <ReminderMenu
             allDay={allDay}
             value={reminders}
@@ -353,7 +357,7 @@ export function useEventForm(
             trigger={
               <Button variant="secondary" size="sm">
                 <span className={cn(!reminders.length && "text-ink-3")}>
-                  {summarizeReminders(reminders, allDay)}
+                  {summarizeReminders(reminders, allDay, { locale })}
                 </span>
                 <ChevronDown className="text-ink-3 size-[13px]" strokeWidth={1.75} />
               </Button>
@@ -362,7 +366,7 @@ export function useEventForm(
         </FieldRow>
       )}
 
-      <FieldRow icon={CalendarDays} label="日历">
+      <FieldRow icon={CalendarDays} label={scheduleText("field.calendar")}>
         <Select
           size="sm"
           className="w-[220px]"
@@ -371,15 +375,15 @@ export function useEventForm(
           onValueChange={setCalendarId}
           disabled={isSystemCalendarEvent}
           searchable={calendarOptions.length > 8}
-          placeholder="选择日历"
+          placeholder={scheduleText("field.chooseCalendar")}
         />
       </FieldRow>
 
-      <FieldRow icon={Palette} label="颜色">
+      <FieldRow icon={Palette} label={scheduleText("field.color")}>
         <div className="flex flex-wrap items-center gap-1.5">
           <button
             type="button"
-            title="跟随日历"
+            title={scheduleText("color.inherit")}
             aria-pressed={color === null}
             disabled={isSystemCalendarEvent}
             onClick={() => setColor(null)}
@@ -389,14 +393,14 @@ export function useEventForm(
               color === null && "border-accent text-accent-text"
             )}
           >
-            跟随日历
+            {scheduleText("color.inherit")}
           </button>
           {PROJECT_COLORS.map(c => (
             <button
               key={c.name}
               type="button"
-              title={c.label}
-              aria-label={c.label}
+              title={scheduleText(`color.${c.name}`)}
+              aria-label={scheduleText(`color.${c.name}`)}
               aria-pressed={color === c.name}
               disabled={isSystemCalendarEvent}
               onClick={() => setColor(c.name)}
@@ -413,7 +417,7 @@ export function useEventForm(
         </div>
       </FieldRow>
 
-      <FieldRow icon={NotebookText} label="备注" alignTop>
+      <FieldRow icon={NotebookText} label={scheduleText("field.notes")} alignTop>
         <div
           className={cn(
             "border-line-1 bg-surface rounded-tau-md min-h-[140px] border px-3 py-2",
@@ -434,7 +438,7 @@ export function useEventForm(
               !editingEvent.detailContent &&
               contentQuery.data === undefined
             )}
-            placeHolder="添加备注…"
+            placeHolder={scheduleText("field.addNotes")}
           />
         </div>
       </FieldRow>
@@ -468,6 +472,8 @@ function FieldRow({
   alignTop?: boolean;
   children: React.ReactNode;
 }) {
+  useScheduleI18n();
+
   return (
     <div
       className={cn(

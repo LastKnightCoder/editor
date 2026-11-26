@@ -1,0 +1,22 @@
+{
+  "noun": "project",
+  "placeholder": "e.g. Editor refactoring",
+  "enterName": "Enter a name for the {{noun}}",
+  "saveFailed": "Could not save",
+  "createFailed": "Could not create the {{noun}}",
+  "edit": "Edit {{noun}}",
+  "new": "New {{noun}}",
+  "cancel": "Cancel",
+  "save": "Save",
+  "create": "Create",
+  "name": "Name",
+  "color": "Color",
+  "groupColor": "{{noun}} color",
+  "tone.rose": "Red",
+  "tone.orange": "Orange",
+  "tone.yellow": "Yellow",
+  "tone.green": "Green",
+  "tone.blue": "Blue",
+  "tone.purple": "Purple",
+  "tone.gray": "Gray"
+}

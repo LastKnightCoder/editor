@@ -1,3 +1,4 @@
+import { scheduleText, scheduleFormat, useScheduleI18n } from "../../i18n";
 import { useMemo } from "react";
 import dayjs from "dayjs";
 import { CalendarRange } from "lucide-react";
@@ -9,8 +10,6 @@ import type { CalendarEvent } from "@/types";
 import { usePeekStore } from "../../peekStore";
 import { AgendaRow } from "../AgendaRow";
 import { useEventDecor } from "../EventTitle";
-
-const WEEKDAYS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 
 /** 当月按天分组：全天与跨天日程在其覆盖的每一天出现（legacy 只列单日定时日程） */
 function groupEventsByDay(events: CalendarEvent[], year: number, month: number) {
@@ -34,6 +33,8 @@ function groupEventsByDay(events: CalendarEvent[], year: number, month: number) 
 }
 
 const AgendaView = () => {
+  useScheduleI18n();
+
   const currentDate = useScheduleStore(s => s.currentDate);
   const { calendars } = useCalendarCatalog();
   const peek = usePeekStore(s => s.peek);
@@ -53,8 +54,8 @@ const AgendaView = () => {
           <div className="bg-hover mx-auto mb-3 grid size-12 place-items-center rounded-[14px]">
             <CalendarRange className="size-6" strokeWidth={1.5} />
           </div>
-          <p className="text-ink-1 text-tau-title font-semibold">本月没有日程</p>
-          <p className="text-tau-meta mt-1">在周视图拖拽时间段、双击月视图格子，或用右栏快速添加</p>
+          <p className="text-ink-1 text-tau-title font-semibold">{scheduleText("agenda.empty")}</p>
+          <p className="text-tau-meta mt-1">{scheduleText("agenda.emptyHint")}</p>
         </div>
       </div>
     );
@@ -62,7 +63,7 @@ const AgendaView = () => {
 
   // 离纸底留 16px，滚动条不贴纸缘；外层 8px + FadeScroll 右侧 6px 透明边 + pr-[18px] = 内容离右栏 32px
   return (
-    <FadeScroll className="mb-4 h-[calc(100%-16px)] pb-2.5 pl-1.5 pr-[18px] pt-1">
+    <FadeScroll className="mb-4 h-[calc(100%-16px)] pt-1 pr-[18px] pb-2.5 pl-1.5">
       {days.map(({ key, date: day, events: dayEvents }, index) => {
         const isToday = day.isSame(today, "day");
         return (
@@ -80,11 +81,11 @@ const AgendaView = () => {
                   isToday && "text-accent-text"
                 )}
               >
-                {day.month() + 1}/{day.date()}
+                {scheduleFormat.shortDate(day.valueOf())}
               </b>
               <span className={cn("text-ink-3 text-tau-sm mt-0.5", isToday && "text-accent-text")}>
-                {WEEKDAYS[day.day()]}
-                {isToday && " · 今天"}
+                {scheduleFormat.weekday(day.valueOf())}
+                {isToday && scheduleText("date.todaySuffix")}
               </span>
             </div>
             <div className="flex flex-col gap-0.5">

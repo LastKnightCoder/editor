@@ -1,0 +1,14 @@
+{
+  "day.today": "今天",
+  "day.tomorrow": "明天",
+  "month.previous": "上個月",
+  "month.next": "下個月",
+  "time.minusHour": "減一小時",
+  "time.plusHour": "加一小時",
+  "time.minusMinutes": "減 {{count}} 分鐘",
+  "time.plusMinutes": "加 {{count}} 分鐘",
+  "unit.hour": "時",
+  "unit.minute": "分",
+  "clear": "清除",
+  "confirm": "確認"
+}

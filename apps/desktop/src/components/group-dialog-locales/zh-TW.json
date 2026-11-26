@@ -1,0 +1,22 @@
+{
+  "noun": "專案",
+  "placeholder": "例如：編輯器重構",
+  "enterName": "請輸入{{noun}}名稱",
+  "saveFailed": "儲存失敗",
+  "createFailed": "建立{{noun}}失敗",
+  "edit": "編輯{{noun}}",
+  "new": "新增{{noun}}",
+  "cancel": "取消",
+  "save": "儲存",
+  "create": "建立",
+  "name": "名稱",
+  "color": "顏色",
+  "groupColor": "{{noun}}顏色",
+  "tone.rose": "紅",
+  "tone.orange": "橙",
+  "tone.yellow": "黃",
+  "tone.green": "綠",
+  "tone.blue": "藍",
+  "tone.purple": "紫",
+  "tone.gray": "灰"
+}

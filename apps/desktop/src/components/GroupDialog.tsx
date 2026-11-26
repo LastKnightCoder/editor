@@ -1,5 +1,6 @@
+import { useGroupDialogI18n } from "./GroupDialog.i18n";
 /**
- * 新建 / 编辑分组（待办项目、问题分组共用；名称 ≤ 120 字 + 颜色），tau Dialog 皮。
+ * 新建 / 编辑分组（默认称为待办项目；名称 ≤ 120 字 + 颜色），tau Dialog 皮。
  * 颜色只提供 7 色设计板（utils/groupTone.ts）；编辑 legacy 色名的分组时按收敛后的色调回显。
  */
 
@@ -10,42 +11,48 @@ import { TONE_DOT, TONE_OPTIONS, groupTone } from "@/utils/groupTone";
 export function GroupDialog({
   open,
   group,
-  noun = "项目",
-  placeholder = "例如：编辑器重构",
+  noun,
+  placeholder,
   onClose,
   onSubmit,
 }: {
   open: boolean;
   /** 编辑态传入；新建为 null */
-  group: { title: string; color?: string | null } | null;
-  /** 分组的称呼：待办为「项目」，问题为「分组」 */
+  group: { id: number; title: string; color?: string | null } | null;
+  /** 分组的称呼，默认「项目」 */
   noun?: string;
   placeholder?: string;
   onClose(): void;
   onSubmit(title: string, color: string): Promise<void>;
 }) {
+  const { t } = useGroupDialogI18n();
+  const groupNoun = noun ?? t("noun");
+  const groupId = group?.id;
+  const initialTitle = group?.title;
+  const initialColor = group?.color;
+  const editing = group !== null;
   const [title, setTitle] = useState("");
   const [color, setColor] = useState<string>(TONE_OPTIONS[4].color);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    setTitle(group?.title ?? "");
-    const tone = group ? groupTone(group.color) : "blue";
+    setTitle(initialTitle ?? "");
+    const tone = editing ? groupTone(initialColor) : "blue";
     const option = TONE_OPTIONS.find(o => o.tone === tone);
     setColor(option ? option.color : TONE_OPTIONS[4].color);
-  }, [open, group]);
+  }, [open, groupId, initialTitle, initialColor, editing]);
 
   const save = () => {
     const name = title.trim();
     if (!name) {
-      toast.warning(`请输入${noun}名称`);
+      toast.warning(t("enterName", { noun: groupNoun }));
       return;
     }
     setSaving(true);
     onSubmit(name, color)
       .then(onClose)
-      .catch(() => toast.error(group ? "保存失败" : `创建${noun}失败`))
+      .catch(() => toast.error(group ? t("saveFailed") : t("createFailed", { noun: groupNoun })))
       .finally(() => setSaving(false));
   };
 
@@ -57,16 +64,16 @@ export function GroupDialog({
       onOpenChange={next => {
         if (!next) onClose();
       }}
-      title={group ? `编辑${noun}` : `新建${noun}`}
+      title={t(group ? "edit" : "new", { noun: groupNoun })}
       locked={saving}
       width={420}
       footer={
         <>
           <Button variant="secondary" size="sm" disabled={saving} onClick={onClose}>
-            取消
+            {t("cancel")}
           </Button>
           <Button variant="primary" size="sm" loading={saving} onClick={save}>
-            {group ? "保存" : "创建"}
+            {t(group ? "save" : "create")}
           </Button>
         </>
       }
@@ -74,7 +81,7 @@ export function GroupDialog({
       <DialogBody>
         <div className="flex flex-col gap-3.5">
           <label className="flex flex-col gap-1.5">
-            <span className="text-ink-2 text-[12px]">名称</span>
+            <span className="text-ink-2 text-[12px]">{t("name")}</span>
             <Input
               data-autofocus
               value={title}
@@ -83,20 +90,24 @@ export function GroupDialog({
               onKeyDown={e => {
                 if (e.key === "Enter" && !e.nativeEvent.isComposing) save();
               }}
-              placeholder={placeholder}
+              placeholder={placeholder ?? t("placeholder")}
             />
           </label>
           <div className="flex flex-col gap-1.5">
-            <span className="text-ink-2 text-[12px]">颜色</span>
-            <div role="radiogroup" aria-label={`${noun}颜色`} className="flex gap-2">
+            <span className="text-ink-2 text-[12px]">{t("color")}</span>
+            <div
+              role="radiogroup"
+              aria-label={t("groupColor", { noun: groupNoun })}
+              className="flex gap-2"
+            >
               {TONE_OPTIONS.map(option => (
                 <button
                   key={option.tone}
                   type="button"
                   role="radio"
                   aria-checked={activeTone === option.tone}
-                  aria-label={option.label}
-                  title={option.label}
+                  aria-label={t(`tone.${option.tone}`)}
+                  title={t(`tone.${option.tone}`)}
                   onClick={() => setColor(option.color)}
                   className={cn(
                     "relative size-[22px] rounded-[7px] outline-none focus-visible:shadow-[var(--tau-focus-ring)]",

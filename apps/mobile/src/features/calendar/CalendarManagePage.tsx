@@ -1,6 +1,7 @@
 // 日历管理页（分区列表管理式）：系统分区只读（仅可见性开关）、我的日历、
 // 已归档；⋯ 菜单经 ActionSheet，删除二次确认并展示连带事件数；新建/编辑日历用 Sheet。
 
+import { useCalendarI18n, calendarTranslator } from "./i18n";
 import { useRef, useState } from "react";
 import { Archive, ArchiveRestore, Check, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import { PageHeader, PageHeaderButton } from "../../components/PageHeader";
@@ -20,6 +21,7 @@ type CalendarManagePageProps = {
 };
 
 export function CalendarManagePage({ onBack, onError }: CalendarManagePageProps) {
+  const { t: translate, locale } = useCalendarI18n();
   const isDark = useThemeStore(s => s.mode === "dark");
   const { data: calendars = [] } = useCalendars();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -37,7 +39,7 @@ export function CalendarManagePage({ onBack, onError }: CalendarManagePageProps)
       await tauri.calendarUpdate({ id: calendar.id, visible: !calendar.visible });
       invalidateCalendarQueries();
     } catch (error) {
-      onError(error, "切换可见性失败");
+      onError(error, calendarTranslator.t("error.visibility"));
     }
   };
 
@@ -52,7 +54,12 @@ export function CalendarManagePage({ onBack, onError }: CalendarManagePageProps)
       invalidateCalendarQueries();
     } catch (error) {
       const message = typeof error === "string" ? error : "";
-      onError(error, message.includes("SYSTEM_READONLY") ? "系统日历不可删除" : "删除日历失败");
+      onError(
+        error,
+        message.includes("SYSTEM_READONLY")
+          ? calendarTranslator.t("error.systemDelete")
+          : calendarTranslator.t("error.deleteCalendar")
+      );
     }
   };
 
@@ -71,13 +78,18 @@ export function CalendarManagePage({ onBack, onError }: CalendarManagePageProps)
         {calendar.title}
       </span>
       <span className="text-ink-3 flex-none text-[11.5px] font-bold tabular-nums">
-        {calendar.eventCount > 0 ? `${calendar.eventCount} 件` : "—"}
+        {calendar.eventCount > 0
+          ? translate("count.events", {
+              count: calendar.eventCount,
+              amount: calendar.eventCount.toLocaleString(locale),
+            })
+          : "—"}
       </span>
       <button
         type="button"
         role="switch"
         aria-checked={calendar.visible}
-        aria-label={`显示${calendar.title}`}
+        aria-label={translate("manage.show", { title: calendar.title })}
         onClick={() => toggleVisible(calendar)}
         className={`relative h-[30px] w-[50px] flex-none rounded-full transition-colors ${
           calendar.visible ? "bg-[var(--tau-accent)]" : "bg-[var(--ring-track)]"
@@ -94,7 +106,7 @@ export function CalendarManagePage({ onBack, onError }: CalendarManagePageProps)
       {!calendar.isInSystemGroup ? (
         <button
           type="button"
-          aria-label={`${calendar.title} 操作`}
+          aria-label={translate("manage.actions", { title: calendar.title })}
           onClick={() => setSheetTarget(calendar)}
           className="text-ink-3 grid h-9 w-9 flex-none place-items-center rounded-full"
         >
@@ -107,13 +119,13 @@ export function CalendarManagePage({ onBack, onError }: CalendarManagePageProps)
   return (
     <div className="mobile-kb-screen bg-page fixed inset-0 z-50 flex flex-col">
       <PageHeader
-        title="日历管理"
+        title={translate("manage.title")}
         onBack={onBack}
         actions={
           <PageHeaderButton
             variant="brand"
             icon={<Plus size={22} strokeWidth={2.4} />}
-            aria-label="新建日历"
+            aria-label={translate("manage.new")}
             onClick={() => setFormTarget("new")}
           />
         }
@@ -124,35 +136,47 @@ export function CalendarManagePage({ onBack, onError }: CalendarManagePageProps)
           ref={scrollRef}
           className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto overscroll-contain"
         >
-          <GroupLabel label="系统" hint="只读 · 仅可切换显示" />
+          <GroupLabel label={translate("system")} hint={translate("manage.readonly")} />
           <div className="bg-surface shadow-card mx-[18px] rounded-[20px] px-[18px] py-1">
             {systemCalendars.map(calendar => renderRow(calendar))}
           </div>
 
-          <GroupLabel label="我的日历" hint={`${myCalendars.length} 个`} />
+          <GroupLabel
+            label={translate("manage.mine")}
+            hint={translate("count.calendars", {
+              count: myCalendars.length,
+              amount: myCalendars.length.toLocaleString(locale),
+            })}
+          />
           <div className="bg-surface shadow-card mx-[18px] rounded-[20px] px-[18px] py-1">
             {myCalendars.length > 0 ? (
               myCalendars.map(calendar => renderRow(calendar))
             ) : (
               <div className="text-ink-3 py-4 text-center text-[12.5px] font-semibold">
-                还没有自建日历，点右上 ＋ 新建
+                {translate("manage.none")}
               </div>
             )}
           </div>
 
           {archivedCalendars.length > 0 ? (
             <>
-              <GroupLabel label="已归档" hint={`${archivedCalendars.length} 个`} />
+              <GroupLabel
+                label={translate("manage.archived")}
+                hint={translate("count.calendars", {
+                  count: archivedCalendars.length,
+                  amount: archivedCalendars.length.toLocaleString(locale),
+                })}
+              />
               <div className="bg-surface shadow-card mx-[18px] rounded-[20px] px-[18px] py-1">
                 {archivedCalendars.map(calendar => renderRow(calendar, true))}
               </div>
               <p className="text-ink-3 px-[22px] pt-2.5 text-[11.5px] leading-[1.7]">
-                归档日历不参与主页展示与查询，事件保留；取消归档即可恢复。
+                {translate("manage.archiveHint")}
               </p>
             </>
           ) : null}
           <p className="text-ink-3 px-[22px] pt-2.5 text-[11.5px] leading-[1.7]">
-            可见性开关作用于首页「今日日程」卡与默认勾选；日历主页顶部的过滤条单独记忆，互不影响。
+            {translate("manage.visibilityHint")}
           </p>
           <div className="h-6" />
         </div>
@@ -161,13 +185,19 @@ export function CalendarManagePage({ onBack, onError }: CalendarManagePageProps)
       <ActionSheet
         open={sheetTarget !== null}
         title={
-          sheetTarget ? `日历「${sheetTarget.title}」· ${sheetTarget.eventCount} 件日程` : undefined
+          sheetTarget
+            ? translate("manage.summary", {
+                title: sheetTarget.title,
+                count: sheetTarget.eventCount,
+                amount: sheetTarget.eventCount.toLocaleString(locale),
+              })
+            : undefined
         }
         items={
           sheetTarget
             ? [
                 {
-                  label: "编辑名称 / 颜色",
+                  label: translate("manage.rename"),
                   icon: <Pencil size={16} />,
                   onClick: () => {
                     const target = sheetTarget;
@@ -177,7 +207,7 @@ export function CalendarManagePage({ onBack, onError }: CalendarManagePageProps)
                 },
                 sheetTarget.archived
                   ? {
-                      label: "取消归档",
+                      label: translate("manage.unarchive"),
                       icon: <ArchiveRestore size={16} />,
                       onClick: () => {
                         const target = sheetTarget;
@@ -185,11 +215,11 @@ export function CalendarManagePage({ onBack, onError }: CalendarManagePageProps)
                         tauri
                           .calendarUpdate({ id: target.id, archived: false })
                           .then(() => invalidateCalendarQueries())
-                          .catch(error => onError(error, "取消归档失败"));
+                          .catch(error => onError(error, calendarTranslator.t("error.unarchive")));
                       },
                     }
                   : {
-                      label: "归档此日历",
+                      label: translate("manage.archive"),
                       icon: <Archive size={16} />,
                       onClick: () => {
                         const target = sheetTarget;
@@ -197,16 +227,19 @@ export function CalendarManagePage({ onBack, onError }: CalendarManagePageProps)
                         tauri
                           .calendarUpdate({ id: target.id, archived: true, visible: false })
                           .then(() => invalidateCalendarQueries())
-                          .catch(error => onError(error, "归档失败"));
+                          .catch(error => onError(error, calendarTranslator.t("error.archive")));
                       },
                     },
                 {
-                  label: `删除日历`,
+                  label: translate("manage.delete"),
                   icon: <Trash2 size={16} />,
                   danger: true,
                   desc:
                     sheetTarget.eventCount > 0
-                      ? `将同时删除 ${sheetTarget.eventCount} 件日程`
+                      ? translate("manage.deleteDesc", {
+                          count: sheetTarget.eventCount,
+                          amount: sheetTarget.eventCount.toLocaleString(locale),
+                        })
                       : undefined,
                   onClick: () => {
                     const target = sheetTarget;
@@ -230,14 +263,17 @@ export function CalendarManagePage({ onBack, onError }: CalendarManagePageProps)
 
       <MobileConfirmDialog
         open={deleteTarget !== null}
-        title={`删除日历「${deleteTarget?.title ?? ""}」？`}
+        title={translate("manage.deleteTitle", { title: deleteTarget?.title ?? "" })}
         description={
           deleteTarget && deleteTarget.eventCount > 0
-            ? `将同时删除该日历下的 ${deleteTarget.eventCount} 件日程，此操作无法撤销。`
-            : "此操作无法撤销。"
+            ? translate("manage.deleteConfirm", {
+                count: deleteTarget.eventCount,
+                amount: deleteTarget.eventCount.toLocaleString(locale),
+              })
+            : translate("common.irreversible")
         }
-        cancelText="取消"
-        confirmText="删除"
+        cancelText={translate("common.cancel")}
+        confirmText={translate("common.delete")}
         danger={true}
         onCancel={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
@@ -268,6 +304,7 @@ function CalendarFormSheet({
   onSaved: () => void;
   onError: (error: unknown, fallback: string) => void;
 }) {
+  const { t: translate, locale } = useCalendarI18n();
   const isDark = useThemeStore(s => s.mode === "dark");
   const [name, setName] = useState("");
   const [color, setColor] = useState<string>("orange");
@@ -299,22 +336,31 @@ function CalendarFormSheet({
       onSaved();
       onClose();
     } catch (error) {
-      onError(error, target ? "保存日历失败" : "新建日历失败");
+      onError(
+        error,
+        target
+          ? calendarTranslator.t("error.saveCalendar")
+          : calendarTranslator.t("error.createCalendar")
+      );
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <BottomSheet open={open} title={target ? "编辑日历" : "新建日历"} onClose={onClose}>
+    <BottomSheet
+      open={open}
+      title={target ? translate("manage.edit") : translate("manage.new")}
+      onClose={onClose}
+    >
       <input
         value={name}
         onChange={event => setName(event.target.value)}
-        placeholder="日历名称，如：工作、生活…"
+        placeholder={translate("manage.name")}
         className="input-base mt-1 w-full px-3.5 py-3 font-bold"
       />
       <div className="text-ink-3 pt-4 pb-2 text-[11.5px] font-extrabold">
-        颜色 · 与桌面端同一套 17 色
+        {translate("color.formHint", { amount: CALENDAR_COLORS.length.toLocaleString(locale) })}
       </div>
       <div className="grid grid-cols-6 gap-3.5 px-0.5">
         {CALENDAR_COLORS.map(entry => {
@@ -324,7 +370,7 @@ function CalendarFormSheet({
             <button
               key={entry.name}
               type="button"
-              aria-label={entry.label}
+              aria-label={translate(entry.message)}
               aria-pressed={selected}
               onClick={() => setColor(entry.name)}
               // 与日程颜色面板同一套选中态：品牌色 ring + 面板底色间隙
@@ -345,7 +391,7 @@ function CalendarFormSheet({
           onClick={onClose}
           className="bg-page text-ink-2 h-[46px] flex-1 rounded-[15px] text-[14px] font-extrabold"
         >
-          取消
+          {translate("common.cancel")}
         </button>
         <button
           type="button"
@@ -354,7 +400,11 @@ function CalendarFormSheet({
           className="shadow-lift text-ink-inverse h-[46px] flex-1 rounded-[15px] text-[14px] font-extrabold disabled:opacity-50"
           style={{ background: "var(--tau-accent)" }}
         >
-          {saving ? "保存中…" : target ? "保存" : "创建"}
+          {saving
+            ? translate("common.saving")
+            : target
+              ? translate("common.save")
+              : translate("common.create")}
         </button>
       </div>
     </BottomSheet>

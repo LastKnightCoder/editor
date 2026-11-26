@@ -1,3 +1,4 @@
+import { todosTranslator, useTodosI18n } from "@/features/todos/i18n";
 /**
  * 待办域小件：圆形勾选（一次性任务 = 完成；周期任务虚线圈 = 今日打卡，打卡后 ok 绿）、
  * 项目色点、类型图标（截止 warn 旗 / 周期 ok 循环）。
@@ -7,6 +8,7 @@ import { Check, Flag, Repeat, type LucideIcon } from "lucide-react";
 import { cn } from "@tau/ui";
 import type { TodoItemType } from "@/types";
 import { groupDotClass } from "@/utils/groupTone";
+const t = todosTranslator.t;
 
 export function TodoCheck({
   checked,
@@ -81,12 +83,19 @@ const TYPE_ICON: Partial<Record<TodoItemType, { icon: LucideIcon; className: str
 };
 
 const TYPE_LABEL: Record<TodoItemType, string> = {
-  normal: "普通",
-  deadline: "截止",
-  recurring: "周期",
+  get normal() {
+    return t("kind.normal");
+  },
+  get deadline() {
+    return t("kind.deadline");
+  },
+  get recurring() {
+    return t("kind.recurring");
+  },
 };
 
 export function TypeIcon({ type, className }: { type: TodoItemType; className?: string }) {
+  useTodosI18n();
   const meta = TYPE_ICON[type];
   if (!meta) return null;
   const Icon = meta.icon;

@@ -1,6 +1,8 @@
+import { todosTranslator } from "@/features/todos/i18n";
 /** 打卡格状态 → 样式 / 说明（右板周打卡点与详情热力格共用；待打卡 / 跳过用 track 轨道色，不用 sunken——它在深色主题近黑） */
 
 import type { HabitCellState } from "../types";
+const t = todosTranslator.t;
 
 export const CELL_CLASS: Record<HabitCellState, string> = {
   done: "bg-ok",
@@ -12,10 +14,22 @@ export const CELL_CLASS: Record<HabitCellState, string> = {
 };
 
 export const CELL_TITLE: Record<HabitCellState, string> = {
-  done: "已打卡",
-  skip: "已跳过",
-  miss: "缺卡",
-  off: "非计划日",
-  today: "今天 · 待打卡",
-  future: "",
+  get done() {
+    return t("cell.done");
+  },
+  get skip() {
+    return t("cell.skip");
+  },
+  get miss() {
+    return t("cell.miss");
+  },
+  get off() {
+    return t("cell.off");
+  },
+  get today() {
+    return t("cell.today");
+  },
+  get future() {
+    return t("cell.future");
+  },
 };

@@ -1,10 +1,9 @@
 /**
- * 自然日口径的日期文案（纯函数，显式接收 now）：待办议程与编辑器里的日期胶囊共用。
+ * 自然日口径的日期分类（纯函数，显式接收 now）：待办议程与编辑器里的日期胶囊共用。
  * 本周 = 周一至周日。
  */
 
 export const DAY_MS = 86_400_000;
-export const WEEKDAY_CN = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"] as const;
 
 export function startOfDay(ts: number): number {
   const d = new Date(ts);
@@ -28,28 +27,14 @@ export function daysLeftInWeek(now: number): number {
   return wd === 0 ? 0 : 7 - wd;
 }
 
-export function monthDay(ts: number): string {
-  const d = new Date(ts);
-  return `${d.getMonth() + 1}月${d.getDate()}日`;
-}
-
-/** 相对日期词：今天 / 明天 / 后天 / 昨天 / 本周内用周几 / 其余用月日 */
-export function dayWord(ts: number, now: number): string {
+/** 日期标签类别；展示语言不参与自然日与周一边界判断。 */
+export function dayLabelKind(ts: number, now: number): "relative" | "weekday" | "date" {
   const diff = dayDiff(ts, now);
-  if (diff === 0) return "今天";
-  if (diff === 1) return "明天";
-  if (diff === 2) return "后天";
-  if (diff === -1) return "昨天";
-  if (diff > 0 && diff <= daysLeftInWeek(now)) return WEEKDAY_CN[new Date(ts).getDay()];
-  return monthDay(ts);
+  if (diff === 0 || diff === 1 || diff === 2 || diff === -1) return "relative";
+  return diff > 0 && diff <= daysLeftInWeek(now) ? "weekday" : "date";
 }
 
-/** 过去的日期：今天 / 昨天 / N 天前（一周内）/ M月D日（跨年带年份） */
-export function pastDayWord(ts: number, now: number): string {
-  const diff = -dayDiff(ts, now);
-  if (diff <= 0) return "今天";
-  if (diff === 1) return "昨天";
-  if (diff < 7) return `${diff} 天前`;
-  const sameYear = new Date(ts).getFullYear() === new Date(now).getFullYear();
-  return `${sameYear ? "" : `${new Date(ts).getFullYear()}年`}${monthDay(ts)}`;
+/** 周一在前、周日在后，保留重复值且不修改原列表。 */
+export function mondayFirstWeekdays(days: readonly number[]): number[] {
+  return [...days].sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7));
 }

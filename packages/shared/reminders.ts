@@ -1,3 +1,15 @@
+import {
+  getReminderTranslator,
+  type ReminderMessageKey,
+  type ReminderTranslator,
+} from "./reminders.i18n.ts";
+export {
+  reminderMessages,
+  getReminderTranslator,
+  type ReminderMessageKey,
+  type ReminderTranslator,
+} from "./reminders.i18n.ts";
+
 /**
  * 待办与日程提醒的共享口径：预设、文案与「首个 + 追加」的拆合。
  *
@@ -9,6 +21,8 @@
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
+const TWO_DAYS_BEFORE_AT_NINE = 39 * HOUR;
+const WEEK_BEFORE_AT_NINE = 6 * DAY + 15 * HOUR;
 
 export const MAX_REMINDERS = 3;
 
@@ -20,49 +34,79 @@ export type ReminderOpenTarget = { databaseName: string } & (
 
 export interface ReminderPreset {
   offset: number;
-  label: string;
 }
 
 /** 截止任务与定时日程 */
 export const TIMED_REMINDER_PRESETS: ReminderPreset[] = [
-  { offset: 0, label: "准时" },
-  { offset: 5 * MINUTE, label: "5 分钟前" },
-  { offset: 15 * MINUTE, label: "15 分钟前" },
-  { offset: 30 * MINUTE, label: "30 分钟前" },
-  { offset: HOUR, label: "1 小时前" },
-  { offset: 2 * HOUR, label: "2 小时前" },
-  { offset: DAY, label: "1 天前" },
-  { offset: 2 * DAY, label: "2 天前" },
+  { offset: 0 },
+  { offset: 5 * MINUTE },
+  { offset: 15 * MINUTE },
+  { offset: 30 * MINUTE },
+  { offset: HOUR },
+  { offset: 2 * HOUR },
+  { offset: DAY },
+  { offset: 2 * DAY },
 ];
 
 /** 全天日程：以当天零点为基准 */
 export const ALL_DAY_REMINDER_PRESETS: ReminderPreset[] = [
-  { offset: -9 * HOUR, label: "当天 9:00" },
-  { offset: 15 * HOUR, label: "前一天 9:00" },
-  { offset: 4 * HOUR, label: "前一天 20:00" },
-  { offset: 39 * HOUR, label: "前两天 9:00" },
-  { offset: 6 * DAY + 15 * HOUR, label: "一周前 9:00" },
+  { offset: -9 * HOUR },
+  { offset: 15 * HOUR },
+  { offset: 4 * HOUR },
+  { offset: TWO_DAYS_BEFORE_AT_NINE },
+  { offset: WEEK_BEFORE_AT_NINE },
 ];
 
 export function reminderPresets(allDay = false): ReminderPreset[] {
   return allDay ? ALL_DAY_REMINDER_PRESETS : TIMED_REMINDER_PRESETS;
 }
 
-const pad = (value: number) => String(value).padStart(2, "0");
+export interface ReminderFormatOptions {
+  locale?: string;
+  t?: ReminderTranslator["t"];
+  /** 只改变提前量展示，不改 offset 或全天时刻。 */
+  compact?: boolean;
+}
 
-export function reminderLabel(offset: number, allDay = false): string {
-  const preset = reminderPresets(allDay).find(item => item.offset === offset);
-  if (preset) return preset.label;
+function formatOptions(options: ReminderFormatOptions) {
+  const locale = options.locale ?? "zh-CN";
+  const numbers = new Intl.NumberFormat(locale, { useGrouping: false });
+  return {
+    locale,
+    t: options.t ?? getReminderTranslator(locale).t,
+    number: (value: number) => numbers.format(value),
+  };
+}
+
+export function reminderLabel(
+  offset: number,
+  allDay = false,
+  options: ReminderFormatOptions = {}
+): string {
+  const { locale, t, number } = formatOptions(options);
   if (allDay) {
     const days = Math.max(0, Math.ceil(offset / DAY));
-    const clock = days * DAY - offset;
-    const time = `${Math.floor(clock / HOUR)}:${pad(Math.floor((clock % HOUR) / MINUTE))}`;
-    return days === 0 ? `当天 ${time}` : days === 1 ? `前一天 ${time}` : `前 ${days} 天 ${time}`;
+    const value = days * DAY - offset;
+    const hour = Math.floor(value / HOUR);
+    const minute = Math.floor((value % HOUR) / MINUTE);
+    const time = `${number(hour)}:${new Intl.NumberFormat(locale, { minimumIntegerDigits: 2, useGrouping: false }).format(minute)}`;
+    const key: ReminderMessageKey =
+      days === 0
+        ? "allDay.today"
+        : days === 1
+          ? "allDay.previousDay"
+          : offset === TWO_DAYS_BEFORE_AT_NINE
+            ? "allDay.previousTwo"
+            : offset === WEEK_BEFORE_AT_NINE
+              ? "allDay.previousWeek"
+              : "allDay.previousDays";
+    return t(key, { time, count: days, amount: number(days) });
   }
-  if (offset <= 0) return "准时";
-  if (offset % DAY === 0) return `${offset / DAY} 天前`;
-  if (offset % HOUR === 0) return `${offset / HOUR} 小时前`;
-  return `${Math.round(offset / MINUTE)} 分钟前`;
+  if (offset <= 0) return t("timed.onTime");
+  const unit = offset % DAY === 0 ? "days" : offset % HOUR === 0 ? "hours" : "minutes";
+  const count =
+    unit === "days" ? offset / DAY : unit === "hours" ? offset / HOUR : Math.round(offset / MINUTE);
+  return t(`offset.${unit}${options.compact ? "Compact" : ""}`, { count, amount: number(count) });
 }
 
 /** 去重、升序、截断到上限；首个即最靠近基准的提醒 */
@@ -88,27 +132,43 @@ export function splitTodoReminders(offsets: readonly number[]): {
   return { first, extras };
 }
 
-export function summarizeReminders(offsets: readonly number[], allDay = false): string {
+export function summarizeReminders(
+  offsets: readonly number[],
+  allDay = false,
+  options: ReminderFormatOptions = {}
+): string {
+  const { t, number } = formatOptions(options);
   const list = normalizeReminders(offsets);
-  if (!list.length) return "不提醒";
-  const labels = list.map(offset => reminderLabel(offset, allDay));
-  return labels.length > 2 ? `${labels[0]} +${labels.length - 1}` : labels.join(" · ");
+  if (!list.length) return t("none");
+  const labels = list.map(offset => reminderLabel(offset, allDay, options));
+  return labels.length > 2
+    ? t("summary.more", { first: labels[0], amount: number(labels.length - 1) })
+    : labels.join(" · ");
 }
 
-function clock(time: number) {
-  const date = new Date(time);
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+function clock(time: number, locale: string) {
+  return new Intl.DateTimeFormat(locale, {
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(time);
 }
 
-function dayWord(time: number, now: number) {
+function dayDifference(time: number, now: number) {
   const start = (value: number) => new Date(value).setHours(0, 0, 0, 0);
-  const days = Math.round((start(time) - start(now)) / DAY);
-  if (days === 0) return "今天";
-  if (days === 1) return "明天";
-  if (days === 2) return "后天";
-  const date = new Date(time);
-  const week = "日一二三四五六"[date.getDay()];
-  return `${date.getMonth() + 1}月${date.getDate()}日 周${week}`;
+  return Math.round((start(time) - start(now)) / DAY);
+}
+
+function dayWord(time: number, now: number, options: ReminderFormatOptions) {
+  const { locale, t } = formatOptions(options);
+  const days = dayDifference(time, now);
+  if (days === 0) return t("day.today");
+  if (days === 1) return t("day.tomorrow");
+  if (days === 2) return t("day.afterTomorrow");
+  return t("day.date", {
+    date: new Intl.DateTimeFormat(locale, { month: "long", day: "numeric" }).format(time),
+    weekday: new Intl.DateTimeFormat(locale, { weekday: "short" }).format(time),
+  });
 }
 
 export interface ReminderText {
@@ -120,40 +180,58 @@ export interface ReminderText {
 }
 
 /** 不含倒计时的时间描述，供「稍后提醒」重写正文：「明天 18:00 截止」「14:00 – 15:30」「明天 · 全天」 */
-export function reminderDetail(input: ReminderText & { now: number }): string {
+export function reminderDetail(
+  input: ReminderText & { now: number },
+  options: ReminderFormatOptions = {}
+): string {
   const { kind, anchor, now } = input;
   if (anchor == null) return "";
-  const day = dayWord(anchor, now);
-  if (input.allDay) return kind === "todo" ? `${day}到期` : `${day} · 全天`;
+  const { locale, t } = formatOptions(options);
+  const day = dayWord(anchor, now, options);
+  if (input.allDay) return t(kind === "todo" ? "detail.todoDate" : "detail.eventDate", { day });
   const range =
     kind === "event" && input.end != null && input.end > anchor
-      ? `${clock(anchor)} – ${clock(input.end)}`
-      : clock(anchor);
-  const prefix = day === "今天" ? "" : `${day} `;
-  return kind === "todo" ? `${prefix}${range} 截止` : `${prefix}${range}`;
+      ? `${clock(anchor, locale)} – ${clock(input.end, locale)}`
+      : clock(anchor, locale);
+  const today = dayDifference(anchor, now) === 0;
+  if (kind === "event" && today) return range;
+  return t(kind === "todo" ? (today ? "detail.todoToday" : "detail.todoAt") : "detail.eventAt", {
+    day,
+    range,
+  });
 }
 
-/**
- * 通知正文（标题用事项本身）：remindAt 为通知送达时刻，文案以送达时视角书写。
- * - 待办：「15 分钟后截止 · 18:00」「明天 18:00 截止」「已逾期 10 分钟」「今天到期」「待办提醒」
- * - 日程：「15 分钟后开始 · 14:00 – 15:30」「明天 14:00 – 15:30」「明天 · 全天」
- */
-export function reminderBody(input: ReminderText & { remindAt: number }): string {
+/** 通知文案以送达时刻为准，内容语言由调用方显式选择。 */
+export function reminderBody(
+  input: ReminderText & { remindAt: number },
+  options: ReminderFormatOptions = {}
+): string {
   const { kind, anchor, remindAt } = input;
-  if (anchor == null) return "待办提醒";
-  if (input.allDay) return reminderDetail({ ...input, now: remindAt });
+  const { locale, t, number } = formatOptions(options);
+  if (anchor == null) return t("body.todo");
+  if (input.allDay) return reminderDetail({ ...input, now: remindAt }, options);
   const range =
     kind === "event" && input.end != null && input.end > anchor
-      ? `${clock(anchor)} – ${clock(input.end)}`
-      : clock(anchor);
+      ? `${clock(anchor, locale)} – ${clock(input.end, locale)}`
+      : clock(anchor, locale);
   const diff = anchor - remindAt;
-  const verb = kind === "todo" ? "截止" : "开始";
   if (diff < 0) {
     const late = Math.max(1, Math.round(-diff / MINUTE));
-    return kind === "todo" ? `已逾期 ${late} 分钟` : `已开始 ${late} 分钟 · ${range}`;
+    return t(kind === "todo" ? "body.todoLate" : "body.eventStarted", {
+      count: late,
+      amount: number(late),
+      range,
+    });
   }
-  if (diff < MINUTE) return `现在${verb} · ${range}`;
-  if (diff < HOUR) return `${Math.round(diff / MINUTE)} 分钟后${verb} · ${range}`;
-  const day = dayWord(anchor, remindAt);
-  return kind === "todo" ? `${day} ${range} 截止` : `${day} ${range}`;
+  if (diff < MINUTE) return t(kind === "todo" ? "body.todoNow" : "body.eventNow", { range });
+  if (diff < HOUR) {
+    const minutes = Math.round(diff / MINUTE);
+    return t(kind === "todo" ? "body.todoSoon" : "body.eventSoon", {
+      count: minutes,
+      amount: number(minutes),
+      range,
+    });
+  }
+  const day = dayWord(anchor, remindAt, options);
+  return t(kind === "todo" ? "detail.todoAt" : "detail.eventAt", { day, range });
 }

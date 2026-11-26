@@ -3,6 +3,7 @@
  * mono 时间 | 色块 | 标题 + 备注摘要 | 日历名。备注只取纯文本摘要，不再嵌只读编辑器。
  */
 
+import { scheduleText, useScheduleI18n } from "../i18n";
 import { cn } from "@tau/ui";
 import { formatTime } from "@/utils/calendar";
 import { clampText, richTextPlainText } from "@tau/shared/rich-text-text";
@@ -11,7 +12,7 @@ import { TONE, eventToneStyle } from "../eventTone";
 import { EventTitle, type EventDecor } from "./EventTitle";
 
 export function eventTimeLabel(event: CalendarEvent) {
-  if (event.allDay || event.startTime === null) return "全天";
+  if (event.allDay || event.startTime === null) return scheduleText("time.allDay");
   return event.endTime !== null
     ? `${formatTime(event.startTime)} – ${formatTime(event.endTime)}`
     : formatTime(event.startTime);
@@ -28,6 +29,8 @@ export function AgendaRow({
   decor: EventDecor;
   onClick: (anchor: HTMLElement) => void;
 }) {
+  useScheduleI18n();
+
   const calendar = calendars.find(c => c.id === event.calendarId);
   const excerpt = event.detailContent ? clampText(richTextPlainText(event.detailContent), 120) : "";
   return (

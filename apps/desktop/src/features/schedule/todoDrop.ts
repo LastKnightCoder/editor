@@ -3,6 +3,7 @@
  * 放下即建不弹窗，Toast 回执带「撤销」（撤销 = 删掉刚建的这条）。
  */
 
+import { scheduleText, scheduleFormat } from "./i18n";
 import type { DragEvent } from "react";
 import { toast } from "@tau/ui";
 import { TODO_DRAG_TYPE } from "@/features/todos/model";
@@ -45,19 +46,29 @@ export function useScheduleTodo() {
               endTime: Math.min(startTime + minutes, DAY_END),
             }
       );
-      const d = new Date(startDate);
+
       toast.success(
-        `已安排「${event.title}」· ${d.getMonth() + 1}月${d.getDate()}日 ${startTime === null ? "全天" : formatTime(startTime)}`,
+        scheduleText("feedback.scheduledDate", {
+          title: event.title,
+          date: scheduleFormat.monthDay(startDate),
+          time: startTime === null ? scheduleText("time.allDay") : formatTime(startTime),
+        }),
         {
           action: {
-            label: "撤销",
+            get label() {
+              return scheduleText("action.undo");
+            },
             onClick: () => void deleteEvent(event.id).catch(() => undefined),
           },
         }
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
-      toast.error(message.includes("NO_USER_CALENDAR") ? "请先创建一个日历" : "安排失败");
+      toast.error(
+        message.includes("NO_USER_CALENDAR")
+          ? scheduleText("feedback.createCalendarFirst")
+          : scheduleText("feedback.scheduleFailed")
+      );
     }
   };
 }

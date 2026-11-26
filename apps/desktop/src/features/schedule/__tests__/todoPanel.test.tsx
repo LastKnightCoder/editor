@@ -1,3 +1,4 @@
+import { desktopLocaleSource } from "@/app/i18n/runtime";
 import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -124,4 +125,41 @@ it("搜索过滤", () => {
     input.dispatchEvent(new Event("input", { bubbles: true }));
   });
   expect(rows().map(r => r.textContent)).toEqual([expect.stringContaining("换灯泡")]);
+});
+
+it("换语保留筛选草稿、焦点与任务行，完成动作仍指向原任务", async () => {
+  const original = desktopLocaleSource.getSnapshot();
+  act(() => root.render(<TodoPanel onClose={vi.fn()} />));
+  const input = host.querySelector("input");
+  if (!input) throw new Error("筛选未挂载");
+  try {
+    act(() => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(
+        input,
+        "报告"
+      );
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.focus();
+    });
+    input.setSelectionRange(0, 1);
+    const row = rows()[0];
+    if (!row) throw new Error("任务行未挂载");
+    const label = row.textContent;
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(host.querySelector("input")).toBe(input);
+      expect(input.value).toBe("报告");
+      expect(document.activeElement).toBe(input);
+      expect([input.selectionStart, input.selectionEnd]).toEqual([0, 1]);
+      expect(rows()[0]).toBe(row);
+      expect(mocks.setCompleted).not.toHaveBeenCalled();
+    }
+    expect(row.textContent).not.toBe(label);
+    const complete = row.querySelector<HTMLElement>('[role="checkbox"]');
+    if (!complete) throw new Error("完成入口未挂载");
+    act(() => complete.click());
+    expect(mocks.setCompleted).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }), true);
+  } finally {
+    await act(async () => desktopLocaleSource.setLocale(original));
+  }
 });

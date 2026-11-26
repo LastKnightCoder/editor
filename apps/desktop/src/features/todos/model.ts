@@ -1,11 +1,11 @@
 /**
- * 待办页纯派生层（无 React、无 IPC）：时间分段 / 排序 / 日期文案 / 周期打卡统计。
+ * 待办页纯派生层（无 React、无 IPC）：时间分段 / 排序 / 周期打卡统计。
  * 所有函数显式接收 now（毫秒时间戳），便于单测固定「今天」。
  *
  * 时间口径：
  *  - 截止任务「只到日期」= dueAt 落在当日 0 点（与日历同步的全天事件同口径：时间部分为 0 即全天）；
  *  - 逾期按自然日判断（昨天及更早未完成），不按时刻——今天 17:00 到期的任务整天都在「今天」段；
- *  - 本周 = 周一至周日（中文习惯），「本周稍后」= 后天起至本周日；
+ *  - 本周 = 周一至周日，「本周稍后」= 后天起至本周日；
  *  - 周期任务无时刻字段（TodoRecurrence 只有日期规则），议程里按「打卡」全天项呈现。
  */
 
@@ -16,15 +16,13 @@ import { isDateScheduledForRecurrence } from "@/utils/recurrence";
 import {
   DAY_MS,
   dayDiff,
-  dayWord,
   daysLeftInWeek,
   isDateOnlyTs as isDateOnly,
   startOfDay,
 } from "@/utils/dayWords";
 import type { BucketKey, HabitCell, HabitCellState, TodoEntry, TodoSnapshot } from "./types";
 
-/* 日期基础与文案归 utils/dayWords（编辑器日期胶囊共用），这里转出保持域内导入不变 */
-export { DAY_MS, WEEKDAY_CN, dayDiff, dayWord, monthDay, startOfDay } from "@/utils/dayWords";
+export { DAY_MS, dayDiff, startOfDay } from "@/utils/dayWords";
 
 /** 本周一 0 点 */
 export function startOfWeek(now: number): number {
@@ -38,11 +36,6 @@ export function hm(ts: number): string {
 }
 
 export { isDateOnly };
-
-/** 日期 + 时刻（只到日期时省略时刻） */
-export function dateTimeWord(ts: number, now: number): string {
-  return isDateOnly(ts) ? dayWord(ts, now) : `${dayWord(ts, now)} ${hm(ts)}`;
-}
 
 /* ---------- 周期规则 ---------- */
 
@@ -75,31 +68,6 @@ export function scheduledToday(entry: TodoEntry, now: number): boolean {
 /** 今天是否已打卡 */
 export function doneToday(entry: TodoEntry, now: number): boolean {
   return entry.occurrences.get(startOfDay(now)) === "done";
-}
-
-const WEEKDAY_SHORT = ["日", "一", "二", "三", "四", "五", "六"];
-
-export function recurrenceText(recurrence: TodoRecurrence): string {
-  const n = Math.max(1, recurrence.interval || 1);
-  const start = new Date(recurrence.startDate);
-  switch (recurrence.type) {
-    case "daily":
-      return n === 1 ? "每天" : `每 ${n} 天`;
-    case "weekdays":
-      return "工作日";
-    case "weekly": {
-      const days = recurrence.weekdays?.length ? recurrence.weekdays : [start.getDay()];
-      // 周一在前、周日殿后
-      const sorted = [...days].sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7));
-      return `${n === 1 ? "每周" : `每 ${n} 周的周`}${sorted.map(d => WEEKDAY_SHORT[d]).join("、")}`;
-    }
-    case "monthly":
-      return `${n === 1 ? "每月" : `每 ${n} 个月的`} ${recurrence.monthDay ?? start.getDate()} 日`;
-    case "yearly":
-      return `每年 ${recurrence.yearMonth ?? start.getMonth() + 1} 月 ${recurrence.yearDay ?? start.getDate()} 日`;
-    default:
-      return `每 ${n} 天`;
-  }
 }
 
 /* ---------- 完成态 ---------- */

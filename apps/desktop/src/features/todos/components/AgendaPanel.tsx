@@ -1,3 +1,5 @@
+import { todosTranslator, todosNumber, todosCount, useTodosI18n } from "@/features/todos/i18n";
+import { dayWord, monthDay, recurrenceText, weekday } from "@/utils/date-format";
 /**
  * 议程面板（B3「两块板」左板）：时间主轴分段 —— 已逾期 / 今天 / 明天 / 本周稍后 / 以后 / 无日期，
  * 或按项目分段。段头 sticky（surface 实底 + 底缘渐透），段内零横线、行左侧「时间槽」列，
@@ -25,26 +27,23 @@ import type { DocTaskItem, DocTaskSource } from "@/types/doc-tasks";
 import {
   bucketOf,
   dayDiff,
-  dayWord,
   doneToday,
   hm,
   isDateOnly,
   isOpen,
   isOverdue,
-  monthDay,
   nextOccurrence,
-  recurrenceText,
   scheduledToday,
   sortKey,
   todoReminders,
   streakOf,
-  WEEKDAY_CN,
   DAY_MS,
 } from "../model";
 import { summarizeReminders } from "@tau/shared/reminders";
 import type { BucketKey, TodoEntry, TodoSnapshot } from "../types";
 import { GroupDot, TodoCheck, TypeIcon } from "./TodoBits";
 import { DocTaskRow, docTaskBucket } from "./DocTaskBits";
+const t = todosTranslator.t;
 
 export type AgendaMode = "date" | "group";
 
@@ -54,21 +53,45 @@ const DONE_PAGE = 20;
 /** 让位动画：短促、无回弹（生产力工具不要弹簧晃动） */
 export const LAYOUT_TRANSITION: Transition = { duration: 0.22, ease: [0.22, 1, 0.36, 1] };
 
-const BUCKETS: { key: BucketKey; label: string; hint?(now: number): string }[] = [
-  { key: "overdue", label: "已逾期" },
+const BUCKETS: { key: BucketKey; label: string; hint?(now: number, locale: string): string }[] = [
+  {
+    key: "overdue",
+    get label() {
+      return t("bucket.overdue");
+    },
+  },
   {
     key: "today",
-    label: "今天",
-    hint: now => `${monthDay(now)} · ${WEEKDAY_CN[new Date(now).getDay()]}`,
+    get label() {
+      return t("bucket.today");
+    },
+    hint: (now, locale) => `${monthDay(now, locale)} · ${weekday(now, locale)}`,
   },
   {
     key: "tomorrow",
-    label: "明天",
-    hint: now => `${monthDay(now + DAY_MS)} · ${WEEKDAY_CN[new Date(now + DAY_MS).getDay()]}`,
+    get label() {
+      return t("bucket.tomorrow");
+    },
+    hint: (now, locale) => `${monthDay(now + DAY_MS, locale)} · ${weekday(now + DAY_MS, locale)}`,
   },
-  { key: "week", label: "本周稍后" },
-  { key: "later", label: "以后" },
-  { key: "none", label: "无日期" },
+  {
+    key: "week",
+    get label() {
+      return t("bucket.week");
+    },
+  },
+  {
+    key: "later",
+    get label() {
+      return t("bucket.later");
+    },
+  },
+  {
+    key: "none",
+    get label() {
+      return t("bucket.none");
+    },
+  },
 ];
 
 interface Section {
@@ -119,6 +142,7 @@ export function AgendaPanel({
   renderMenu(entry: TodoEntry): ReactNode;
   docTasks?: AgendaDocTasks;
 }) {
+  const { locale } = useTodosI18n();
   const [foldOpen, setFoldOpen] = useState<Set<string>>(() => new Set());
   const [doneShown, setDoneShown] = useState<Record<string, number>>({});
   const docItems = docTasks?.items;
@@ -141,7 +165,7 @@ export function AgendaPanel({
           key,
           bucket: key,
           label,
-          hint: hint?.(now),
+          hint: hint?.(now, locale),
           danger: key === "overdue",
           open: inBucket.filter(e => isOpen(e, now)).sort(byTime),
           done: inBucket.filter(completedToday),
@@ -171,7 +195,7 @@ export function AgendaPanel({
         };
       })
       .filter(s => s.open.length || s.done.length || s.docs.length || groups.length <= 1);
-  }, [entries, groups, mode, now, docItems]);
+  }, [entries, groups, mode, now, docItems, locale]);
 
   const toggleFold = (key: string) =>
     setFoldOpen(prev => {
@@ -210,8 +234,8 @@ export function AgendaPanel({
     <FadeScroll layoutScroll className="relative mb-4 min-h-0 min-w-0 flex-1 pr-2 pb-6 pl-[22px]">
       {sections.length === 0 && (
         <div className="text-ink-3 flex flex-col items-center gap-1.5 py-20 text-center text-[12.5px]">
-          <p className="text-ink-2 text-[15px] font-medium">这里很清爽</p>
-          <p>用上方输入框添加一条任务</p>
+          <p className="text-ink-2 text-[15px] font-medium">{t("agenda.clear")}</p>
+          <p>{t("agenda.clearHint")}</p>
         </div>
       )}
       {sections.map(section => {
@@ -245,8 +269,8 @@ export function AgendaPanel({
               </span>
               {section.hint && <span className="text-ink-3 text-[11.5px]">{section.hint}</span>}
               <span className="text-ink-3 ml-auto text-[11.5px] tabular-nums">
-                {section.open.length + section.docs.length} 项
-                {section.done.length > 0 && ` · ${section.done.length} 已完成`}
+                {todosCount("count.tasks", section.open.length + section.docs.length)}
+                {section.done.length > 0 && ` · ${todosCount("count.done", section.done.length)}`}
               </span>
             </header>
             <div className="-mx-1.5">
@@ -256,7 +280,7 @@ export function AgendaPanel({
                   transition={LAYOUT_TRANSITION}
                   className="text-ink-3 px-3.5 py-2.5 text-[12.5px]"
                 >
-                  {section.bucket === "today" ? "今天的任务都完成了" : "暂无待办"}
+                  {section.bucket === "today" ? t("agenda.todayDone") : t("agenda.empty")}
                 </motion.p>
               )}
               {section.open.map((entry, index) => (
@@ -309,7 +333,7 @@ export function AgendaPanel({
                       )}
                       strokeWidth={1.75}
                     />
-                    已完成 {section.done.length}
+                    {todosCount("count.doneLabel", section.done.length)}
                   </motion.button>
                   <div
                     className={cn(
@@ -333,7 +357,9 @@ export function AgendaPanel({
                             noSlot ? "pl-5" : "pl-3.5"
                           )}
                         >
-                          再显示 {Math.min(hiddenDone, DONE_PAGE)} 条（共 {section.done.length}）
+                          {todosCount("count.showMore", Math.min(hiddenDone, DONE_PAGE), {
+                            total: todosNumber(section.done.length),
+                          })}
                         </button>
                       )}
                     </div>
@@ -349,6 +375,7 @@ export function AgendaPanel({
 }
 
 function NowLine({ now }: { now: number }) {
+  useTodosI18n();
   return (
     <motion.div
       layout="position"
@@ -356,7 +383,7 @@ function NowLine({ now }: { now: number }) {
       aria-hidden
       className="text-accent-text after:bg-accent mx-2.5 my-px flex items-center gap-1.5 text-[10.5px] tabular-nums after:h-[1.5px] after:flex-1 after:rounded-[1px] after:opacity-55 after:content-['']"
     >
-      现在 {hm(now)}
+      {t("agenda.now", { time: hm(now) })}
     </motion.div>
   );
 }
@@ -389,6 +416,7 @@ function AgendaRow({
   onToggle(entry: TodoEntry): void;
   menu: ReactNode;
 }) {
+  const { locale } = useTodosI18n();
   const recurring = entry.type === "recurring";
   const checked = recurring ? doneToday(entry, now) : entry.isCompleted;
   const overdue = isOverdue(entry, now);
@@ -397,7 +425,7 @@ function AgendaRow({
     .filter((c): c is TodoEntry => Boolean(c));
   const parent = entry.parentId != null ? snapshot.byId.get(entry.parentId) : undefined;
   const streak = recurring ? streakOf(entry, now) : 0;
-  const slot = slotOf(entry, bucket, mode, now);
+  const slot = slotOf(entry, bucket, mode, now, locale);
 
   return (
     <ContextMenu content={menu}>
@@ -430,7 +458,9 @@ function AgendaRow({
           checked={checked}
           recurring={recurring}
           overdue={overdue}
-          label={recurring ? "今日打卡" : checked ? "标记未完成" : "完成"}
+          label={
+            recurring ? t("habit.today") : checked ? t("common.uncheck") : t("common.complete")
+          }
           onToggle={() => onToggle(entry)}
         />
         <span className="flex min-w-0 flex-col">
@@ -440,7 +470,7 @@ function AgendaRow({
               !recurring && checked && "text-ink-3 line-through"
             )}
           >
-            {entry.title || "未命名任务"}
+            {entry.title || t("common.untitled")}
           </span>
           <Meta
             items={[
@@ -476,13 +506,13 @@ function AgendaRow({
               !checked && entry.remindBefore != null && entry.type !== "normal" && !recurring && (
                 <>
                   <Bell strokeWidth={1.75} />
-                  {summarizeReminders(todoReminders(entry)).replaceAll("前", "")}
+                  {summarizeReminders(todoReminders(entry), false, { locale, compact: true })}
                 </>
               ),
               streak > 0 && (
                 <>
                   <Flame strokeWidth={1.75} />
-                  连续 {streak}
+                  {todosCount("count.streak", streak)}
                 </>
               ),
             ]}
@@ -527,7 +557,8 @@ function slotOf(
   entry: TodoEntry,
   bucket: BucketKey | undefined,
   mode: AgendaMode,
-  now: number
+  now: number,
+  locale: string
 ): SlotInfo | null {
   const far = mode === "group" || bucket === "week" || bucket === "later";
   let main: string;
@@ -537,26 +568,28 @@ function slotOf(
   if (entry.type === "deadline" && entry.dueAt != null) {
     const dateOnly = isDateOnly(entry.dueAt);
     if (bucket === "overdue" || (mode === "group" && isOverdue(entry, now))) {
-      main = monthDay(entry.dueAt);
-      sub = `逾期 ${-dayDiff(entry.dueAt, now)} 天`;
+      main = monthDay(entry.dueAt, locale);
+      sub = todosCount("count.overdueDays", -dayDiff(entry.dueAt, now));
       tone = "overdue";
     } else if (far) {
-      main = dayWord(entry.dueAt, now);
-      sub = dateOnly ? "截止" : `${hm(entry.dueAt)} 截止`;
+      main = dayWord(entry.dueAt, now, locale);
+      sub = dateOnly ? t("kind.deadline") : t("agenda.deadlineTime", { time: hm(entry.dueAt) });
     } else {
-      main = dateOnly ? "全天" : hm(entry.dueAt);
-      sub = "截止";
+      main = dateOnly ? t("agenda.allDay") : hm(entry.dueAt);
+      sub = t("kind.deadline");
       if (bucket === "today") tone = "now";
     }
   } else if (entry.type === "recurring" && entry.recurrence) {
     if (mode === "group") {
-      main = "周期";
-      sub = recurrenceText(entry.recurrence);
+      main = t("kind.recurring");
+      sub = recurrenceText(entry.recurrence, locale);
     } else {
       const next = nextOccurrence(entry.recurrence, now);
       main =
-        bucket === "today" || bucket === "tomorrow" || next == null ? "全天" : dayWord(next, now);
-      sub = "打卡";
+        bucket === "today" || bucket === "tomorrow" || next == null
+          ? t("agenda.allDay")
+          : dayWord(next, now, locale);
+      sub = t("agenda.checkIn");
     }
   } else {
     return null;

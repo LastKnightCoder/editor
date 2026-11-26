@@ -1,3 +1,4 @@
+import { useDatepickerI18n } from "./i18n";
 /**
  * DateRangePicker 基础件 —— 范围形态。
  *
@@ -121,6 +122,7 @@ export function DateRangePickerPanel({
   className,
   ref,
 }: DateRangePickerPanelProps) {
+  const { t, locale } = useDatepickerI18n();
   const rootRef = useRef<HTMLDivElement | null>(null);
   const value = valueProp ? ordered(valueProp[0], valueProp[1]) : null;
   const minute = precision === "minute";
@@ -235,14 +237,18 @@ export function DateRangePickerPanel({
   };
 
   const summary = !rangeStart
-    ? "选择起始日期…"
+    ? t("range.start")
     : !rangeEnd
-      ? `起 ${formatDisplay(toDateKey(rangeStart))} · 再选终止日期`
+      ? t("range.chooseEnd", { date: formatDisplay(toDateKey(rangeStart), locale) })
       : timeInvalid
-        ? "结束时刻早于开始时刻"
+        ? t("range.invalidTime")
         : minute
-          ? formatRangeDisplay(toValue(rangeStart, startTime), toValue(rangeEnd, endTime))
-          : `${formatRangeDisplay(toDateKey(rangeStart), toDateKey(rangeEnd))} · 共 ${daysBetween(rangeStart, rangeEnd)} 天`;
+          ? formatRangeDisplay(toValue(rangeStart, startTime), toValue(rangeEnd, endTime), locale)
+          : t("range.complete", {
+              range: formatRangeDisplay(toDateKey(rangeStart), toDateKey(rangeEnd), locale),
+              count: daysBetween(rangeStart, rangeEnd),
+              amount: daysBetween(rangeStart, rangeEnd).toLocaleString(locale),
+            });
 
   /** 预设高亮回显：动态预设调用时求值比对（升序化后端点相等） */
   const presetMatches = (preset: DateRangePreset) => {
@@ -263,7 +269,9 @@ export function DateRangePickerPanel({
       <div className="flex gap-2.5">
         {presets && presets.length > 0 && (
           <div className="border-line-2 w-[128px] flex-none pr-2.5">
-            <div className="text-ink-3 px-2 pt-1 pb-1.5 text-[11px] font-[600]">常用范围</div>
+            <div className="text-ink-3 px-2 pt-1 pb-1.5 text-[11px] font-[600]">
+              {t("range.presets")}
+            </div>
             <div className="flex flex-col gap-0.5">
               {presets.map((preset, i) => (
                 <button
@@ -297,7 +305,7 @@ export function DateRangePickerPanel({
             />
             {minute && (
               <TimeRow
-                label="开始时刻"
+                label={t("time.start")}
                 value={startTime}
                 onValueChange={changeStartTime}
                 step={timeStep}
@@ -320,7 +328,7 @@ export function DateRangePickerPanel({
             />
             {minute && (
               <TimeRow
-                label="结束时刻"
+                label={t("time.end")}
                 value={endTime}
                 onValueChange={changeEndTime}
                 step={timeStep}
@@ -348,7 +356,7 @@ export function DateRangePickerPanel({
           onClick={clear}
           className="text-ink-2 hover:bg-hover hover:text-ink-1 h-[28px] cursor-pointer rounded-[8px] px-3 text-[12px] outline-none focus-visible:shadow-[var(--tau-focus-ring)] disabled:pointer-events-none disabled:opacity-50"
         >
-          清空
+          {t("common.clear")}
         </button>
         <button
           type="button"
@@ -356,7 +364,7 @@ export function DateRangePickerPanel({
           onClick={apply}
           className="bg-accent text-ink-inverse hover:bg-accent-hover h-[28px] cursor-pointer rounded-[8px] px-4 text-[12px] font-[550] outline-none focus-visible:shadow-[var(--tau-focus-ring)] disabled:pointer-events-none disabled:opacity-50"
         >
-          确定
+          {t("common.confirm")}
         </button>
       </div>
     </div>
@@ -416,7 +424,7 @@ export function DateRangePicker({
   precision = "day",
   timeStep,
   presets,
-  placeholder = "日期范围",
+  placeholder,
   size = "md",
   clearable = false,
   isDateDisabled,
@@ -427,6 +435,7 @@ export function DateRangePicker({
   className,
   ref,
 }: DateRangePickerProps) {
+  const { t, locale } = useDatepickerI18n();
   const portalContainer = usePortalContainer();
   const rootRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -504,15 +513,18 @@ export function DateRangePicker({
     // Enter 由面板内 onRootKeyDown 提交
   };
 
+  const committed = value == null ? null : ordered(value[0], value[1]);
   const committedDisplay =
-    value == null ? null : formatRangeDisplay(...ordered(value[0], value[1]));
+    committed == null ? null : formatRangeDisplay(committed[0], committed[1], locale);
   const previewDisplay =
     open && preview
       ? preview[1]
-        ? formatRangeDisplay(preview[0], preview[1])
-        : `${formatDisplay(preview[0])} – …`
+        ? formatRangeDisplay(preview[0], preview[1], locale)
+        : t("range.pending", { date: formatDisplay(preview[0], locale) })
       : null;
-  const pending = previewDisplay != null && previewDisplay !== committedDisplay;
+  const pending = Boolean(
+    open && preview && (!committed || preview[0] !== committed[0] || preview[1] !== committed[1])
+  );
   const display = pending ? previewDisplay : committedDisplay;
 
   const panel = createPortal(
@@ -520,7 +532,7 @@ export function DateRangePicker({
       ref={panelRef}
       id={panelId}
       role="dialog"
-      aria-label="选择日期范围"
+      aria-label={t("range.choose")}
       inert={!open}
       data-open={open}
       onKeyDown={onPanelKeyDown}
@@ -594,12 +606,12 @@ export function DateRangePicker({
             pending && "text-accent-text"
           )}
         >
-          {display ?? placeholder}
+          {display ?? placeholder ?? t("range.placeholder")}
         </span>
         {clearable && committedDisplay != null && (
           <span
             role="button"
-            aria-label="清空"
+            aria-label={t("common.clear")}
             tabIndex={-1}
             onClick={(e: ReactMouseEvent) => {
               e.stopPropagation();

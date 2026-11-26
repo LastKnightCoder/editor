@@ -1,6 +1,7 @@
 // 日历选择 BottomSheet：系统日历展示但禁选（徽章标注），
 // 用户日历带事件归属分组排序；选中项打勾。
 
+import { useCalendarI18n } from "../i18n";
 import { BottomSheet } from "../../../components/BottomSheet";
 import { useThemeStore } from "@tau/themes/react";
 import { calendarColorValue } from "../constants";
@@ -21,10 +22,11 @@ export function CalendarPickerSheet({
   onSelect,
   onClose,
 }: CalendarPickerSheetProps) {
+  const { t: translate } = useCalendarI18n();
   const isDark = useThemeStore(s => s.mode === "dark");
   const selectable = calendars.filter(calendar => !calendar.archived);
   return (
-    <BottomSheet open={open} title="选择日历" onClose={onClose}>
+    <BottomSheet open={open} title={translate("event.chooseCalendar")} onClose={onClose}>
       <div className="max-h-[380px] overflow-y-auto pb-2">
         {selectable.map(calendar => {
           const selected = calendar.id === selectedId;
@@ -54,7 +56,7 @@ export function CalendarPickerSheet({
               </span>
               {calendar.isInSystemGroup ? (
                 <span className="bg-page text-ink-3 rounded-full px-2 py-0.5 text-[10px] font-extrabold">
-                  系统
+                  {translate("system")}
                 </span>
               ) : null}
               {selected ? <span className="text-accent text-[16px] font-extrabold">✓</span> : null}

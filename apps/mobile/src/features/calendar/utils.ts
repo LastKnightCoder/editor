@@ -70,66 +70,6 @@ export function formatTime(minutes: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
-const WEEKDAY_LABELS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
-
-export function weekdayLabel(date: number): string {
-  return WEEKDAY_LABELS[new Date(date).getDay()];
-}
-
-export function formatDayHead(date: number): { day: string; weekday: string } {
-  const d = new Date(date);
-  return { day: `${d.getDate()}日`, weekday: weekdayLabel(date) };
-}
-
-const MONTH_LABELS = [
-  "一月",
-  "二月",
-  "三月",
-  "四月",
-  "五月",
-  "六月",
-  "七月",
-  "八月",
-  "九月",
-  "十月",
-  "十一月",
-  "十二月",
-];
-
-export function formatMonthNav(anchorDate: number): { main: string; sub: string } {
-  const d = new Date(anchorDate);
-  return { main: `${d.getFullYear()}年${d.getMonth() + 1}月`, sub: MONTH_LABELS[d.getMonth()] };
-}
-
-/** 「9月15日 周二」 */
-export function formatMonthDay(date: number): string {
-  const d = new Date(date);
-  return `${d.getMonth() + 1}月${d.getDate()}日`;
-}
-
-/** 「9月15日 周二 · 14:00」/「9月15日 周二 · 全天」 */
-export function formatDateTimeLine(date: number, minutes: number | null, allDay: boolean): string {
-  return `${formatMonthDay(date)} ${weekdayLabel(date)} · ${allDay || minutes === null ? "全天" : formatTime(minutes)}`;
-}
-
-/** 时长人类可读：30 → 「30 分钟」，90 → 「1.5 小时」，125 → 「2 小时 5 分钟」 */
-export function durationLabel(startMinutes: number, endMinutes: number): string {
-  const total = Math.max(0, endMinutes - startMinutes);
-  if (total % 60 === 0) {
-    const hours = total / 60;
-    return hours === 1 ? "1 小时" : `${hours} 小时`;
-  }
-  if (total < 60) {
-    return `${total} 分钟`;
-  }
-  if (total % 30 === 0) {
-    return `${total / 60} 小时`;
-  }
-  const hours = Math.floor(total / 60);
-  const minutes = total % 60;
-  return `${hours} 小时 ${minutes} 分钟`;
-}
-
 const MAX_MINUTES = Number.MAX_SAFE_INTEGER;
 
 /**

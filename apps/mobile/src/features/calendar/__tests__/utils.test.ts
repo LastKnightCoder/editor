@@ -1,7 +1,10 @@
 // 日历域纯函数单测：排序/跨天/周起始语义以桌面 apps/desktop/src/utils/calendar.ts
 // 与 MonthView 筛选逻辑为金标准（修改任何常量前先同步桌面端）。
 
-import { describe, expect, it } from "vitest";
+import { createI18nRuntime, createLocaleStore } from "@tau/i18n";
+import { calendarMessages } from "../i18n";
+import { durationLabel } from "../format";
+import { afterAll, describe, expect, it } from "vitest";
 import type { CalendarEvent } from "../types";
 import {
   atLocalTime,
@@ -10,7 +13,6 @@ import {
   getMonthGrid,
   getWeekStart,
   sortEventsForDay,
-  durationLabel,
   summarizeToday,
 } from "../utils";
 
@@ -32,6 +34,10 @@ function event(partial: Partial<CalendarEvent>): CalendarEvent {
     ...partial,
   };
 }
+
+const runtime = createI18nRuntime({ localeSource: createLocaleStore("zh-CN") });
+const displayContext = { locale: "zh-CN", t: runtime.get(calendarMessages).t };
+afterAll(() => runtime.dispose());
 
 describe("calendar utils", () => {
   it("按墙钟设置时刻，在夏令时切换日仍保持中午十二点", () => {
@@ -87,10 +93,10 @@ describe("calendar utils", () => {
   });
 
   it("durationLabel 时长人类可读", () => {
-    expect(durationLabel(0, 30)).toBe("30 分钟");
-    expect(durationLabel(0, 60)).toBe("1 小时");
-    expect(durationLabel(0, 90)).toBe("1.5 小时");
-    expect(durationLabel(600, 725)).toBe("2 小时 5 分钟");
+    expect(durationLabel(0, 30, displayContext)).toBe("30 分钟");
+    expect(durationLabel(0, 60, displayContext)).toBe("1 小时");
+    expect(durationLabel(0, 90, displayContext)).toBe("1.5 小时");
+    expect(durationLabel(600, 725, displayContext)).toBe("2 小时 5 分钟");
   });
 
   describe("summarizeToday", () => {

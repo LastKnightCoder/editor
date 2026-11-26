@@ -1,3 +1,4 @@
+import { desktopLocaleSource } from "@/app/i18n/runtime";
 import { act, createRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -250,4 +251,34 @@ describe("文档待办编辑器扩展", () => {
       expect(absolutizeDateBeforeCursor(editor, now)).toBe(false);
     });
   });
+});
+
+it("换语只刷新日期胶囊附注，原文节点、选区与正文数据保持原样", async () => {
+  const original = desktopLocaleSource.getSnapshot();
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date(2026, 10, 27, 12));
+  const raw = "整理 2026年11月28日 原始正文";
+  try {
+    const { container, editor } = await mount([item(raw) as never]);
+    await act(async () => Transforms.select(editor, SlateEditor.end(editor, [])));
+    const capsule = container.querySelector('[data-doc-task-token="date"]');
+    const source = capsule?.querySelector("[data-slate-string]");
+    if (!capsule || !source) throw new Error("原文日期胶囊未挂载");
+    const before = JSON.stringify(editor.children),
+      selection = structuredClone(editor.selection);
+    const beforeLabel = capsule.textContent;
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(container.querySelector('[data-doc-task-token="date"]')).toBe(capsule);
+      expect(capsule.querySelector("[data-slate-string]")).toBe(source);
+      expect(source.textContent).toBe("2026年11月28日");
+      expect(Node.string(editor)).toBe(raw);
+      expect(JSON.stringify(editor.children)).toBe(before);
+      expect(editor.selection).toEqual(selection);
+    }
+    expect(capsule.textContent).not.toBe(beforeLabel);
+  } finally {
+    await act(async () => desktopLocaleSource.setLocale(original));
+    vi.useRealTimers();
+  }
 });

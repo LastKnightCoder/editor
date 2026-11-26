@@ -8,6 +8,7 @@
  * 数据按数据库和日期窗口查询；界面偏好与编辑状态归日程域。
  */
 
+import { scheduleText, useScheduleI18n } from "../i18n";
 import { useEffect } from "react";
 import { Drawer, cn } from "@tau/ui";
 import { ErrorState } from "@/components/ErrorState";
@@ -29,6 +30,8 @@ import { useAppContextProvider } from "@/hooks/useAppContextProvider";
 const DRAWER_BESIDE_PANEL = "right-[260px] max-w-[calc(100%-272px)]";
 
 export function ScheduleView() {
+  useScheduleI18n();
+
   const { error, retry } = useCalendarEvents();
   const showDayPanel = useScheduleStore(s => s.showDayPanel);
   const showTodoPanel = useScheduleStore(s => s.showTodoPanel);
@@ -40,7 +43,7 @@ export function ScheduleView() {
   useOverlayDismiss(closeDayPanel, showDayPanel && !peeking);
 
   // AI 上下文：详情抽屉当前查看的日程（pull 模式读取 store，抽屉关闭时为 null）
-  useAppContextProvider("schedule-peek", "日程详情", () => {
+  useAppContextProvider("schedule-peek", scheduleText("event.details"), () => {
     const event = usePeekStore.getState().event;
     if (!event) return null;
     return {
@@ -84,10 +87,17 @@ export function ScheduleView() {
           <div className="flex min-h-0 flex-1 flex-col pr-2 pl-[26px]">
             {error ? (
               <ErrorState
-                title="日程加载失败"
+                title={scheduleText("error.loadTitle")}
                 error={error}
-                description="请重试加载日历与日程。"
-                actions={[{ label: "重试", onClick: () => void retry() }]}
+                description={scheduleText("error.loadDescription")}
+                actions={[
+                  {
+                    get label() {
+                      return scheduleText("action.retry");
+                    },
+                    onClick: () => void retry(),
+                  },
+                ]}
               />
             ) : (
               <CalendarView />
@@ -101,7 +111,7 @@ export function ScheduleView() {
           modal={false}
           open={showDayPanel && !peeking}
           onOpenChange={open => !open && closeDayPanel()}
-          label="当日时间线"
+          label={scheduleText("day.timeline")}
           width={360}
           fill
           className={cn(showTodoPanel && DRAWER_BESIDE_PANEL)}

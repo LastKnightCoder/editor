@@ -43,8 +43,8 @@ describe("calendarEngine 值协议", () => {
   });
 
   it("formatDisplay：触发器显示格式（minute 追加时刻）", () => {
-    expect(formatDisplay("2026-09-19")).toBe("2026年9月19日");
-    expect(formatDisplay("2026-09-19 15:00")).toBe("2026年9月19日 15:00");
+    expect(formatDisplay("2026-09-19", "zh-CN")).toBe("2026年9月19日");
+    expect(formatDisplay("2026-09-19 15:00", "zh-CN")).toBe("2026年9月19日 15:00");
   });
 });
 

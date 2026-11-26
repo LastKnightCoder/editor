@@ -1,0 +1,12 @@
+{
+  "sheet.title": "Reminders",
+  "permission.disabled": "Notifications are off.",
+  "permission.disabledHint": "Reminders are saved but will not sound.",
+  "permission.settings": "Turn on",
+  "permission.title": "Get reminders on time",
+  "permission.explanation": "Allow notifications to get reminders before tasks are due or events begin, even when the app is closed.",
+  "permission.allow": "Allow notifications",
+  "permission.later": "Not now",
+  "selection.count": "Selected: {{amount}} · Up to {{limit}}",
+  "sheet.done": "Done"
+}

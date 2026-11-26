@@ -7,6 +7,7 @@
  * 全天 / 跨天画软底条，单日定时画色点行；放不下的收进「还有 N 项」。
  */
 
+import { scheduleText, scheduleValue, scheduleFormat, useScheduleI18n } from "../../i18n";
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { Dialog, DialogBody, cn, toast } from "@tau/ui";
 import { useScheduleStore } from "../../uiStore";
@@ -26,7 +27,7 @@ const DATE_AREA = 32;
 const LEVEL_HEIGHT = 22;
 /** 「还有 N 项」行高 */
 const MORE_HEIGHT = 20;
-const WEEKDAYS = ["一", "二", "三", "四", "五", "六", "日"];
+const WEEKDAYS = [0, 1, 2, 3, 4, 5, 6];
 
 type SpanType = MonthEventSpan["spanType"];
 type GridSpan = Omit<MonthEventSpan, "eventId">;
@@ -53,6 +54,8 @@ function spansBetween(startIndex: number, endIndex: number) {
 }
 
 const MonthView = () => {
+  useScheduleI18n();
+
   const currentDate = useScheduleStore(s => s.currentDate);
   const { calendars } = useCalendarCatalog();
   const editingEvent = useScheduleStore(s => s.editingEvent);
@@ -166,7 +169,7 @@ const MonthView = () => {
   const createAllDay = (start: number, end: number) => {
     const target = calendars.find(c => !c.isInSystemGroup && !c.archived);
     if (!target) {
-      toast.warning("请先创建一个日历");
+      toast.warning(scheduleText("feedback.createCalendarFirst"));
       return;
     }
     setPending({ start, end });
@@ -232,7 +235,7 @@ const MonthView = () => {
       <div className="grid flex-none grid-cols-7 pt-2 pb-1.5">
         {WEEKDAYS.map(day => (
           <span key={day} className="text-ink-3 pl-2.5 text-[12px]">
-            周{day}
+            {scheduleFormat.weekdayFromMonday(day)}
           </span>
         ))}
       </div>
@@ -317,7 +320,7 @@ const MonthView = () => {
                   }}
                   onMouseDown={e => e.stopPropagation()}
                 >
-                  还有 {moreCount} 项
+                  {scheduleText("more.items", { count: moreCount })}
                 </button>
               )}
             </div>
@@ -372,12 +375,8 @@ const MonthView = () => {
         onOpenChange={next => {
           if (!next) setMoreDay(null);
         }}
-        title={
-          moreDay !== null
-            ? `${new Date(moreDay).getMonth() + 1} 月 ${new Date(moreDay).getDate()} 日`
-            : ""
-        }
-        subtitle={`${moreList.length} 项日程`}
+        title={moreDay !== null ? scheduleFormat.monthDay(moreDay) : ""}
+        subtitle={scheduleText("summary.events", { count: scheduleValue(moreList.length) })}
         size="lg"
       >
         <DialogBody>

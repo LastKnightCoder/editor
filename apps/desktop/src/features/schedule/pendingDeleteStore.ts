@@ -5,6 +5,7 @@
  * 视图过滤在 useCalendarEvents 里统一做。
  */
 
+import { scheduleText, scheduleValue } from "./i18n";
 import { create } from "zustand";
 import { toast } from "@tau/ui";
 import type { CalendarEvent } from "@/types";
@@ -31,7 +32,7 @@ function flush(id: number) {
   if (!run) return;
   pending.delete(id);
   run()
-    .catch(() => toast.error("删除日程失败"))
+    .catch(() => toast.error(scheduleText("feedback.deleteFailed")))
     .finally(() => drop(id));
 }
 
@@ -47,11 +48,21 @@ export function scheduleEventDelete(event: CalendarEvent, commit: () => Promise<
   if (pending.has(event.id)) return;
   usePendingDeletes.setState(state => ({ ids: new Set(state.ids).add(event.id) }));
   pending.set(event.id, commit);
-  toast.info(`已删除「${event.title || "日程"}」`, {
-    duration: UNDO_MS,
-    onClose: () => flush(event.id),
-    action: { label: "撤销", onClick: () => undo(event.id) },
-  });
+  toast.info(
+    scheduleText("feedback.deleted", {
+      title: scheduleValue(event.title || scheduleText("fallback.event")),
+    }),
+    {
+      duration: UNDO_MS,
+      onClose: () => flush(event.id),
+      action: {
+        get label() {
+          return scheduleText("action.undo");
+        },
+        onClick: () => undo(event.id),
+      },
+    }
+  );
 }
 
 export function flushEventDeletes() {

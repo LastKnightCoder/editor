@@ -1,3 +1,5 @@
+import { todosTranslator, todosNumber, todosCount, useTodosI18n } from "@/features/todos/i18n";
+import { monthDay, weekday } from "@/utils/date-format";
 /**
  * 待办页视图 · 议程流「两块板」：
  * 一整张纸：纸顶固定工具栏（标题 + 今日摘要 + 按日期/按项目分段切换）与自然语言快速添加，
@@ -11,7 +13,7 @@
  * 带日期的子任务按自己的日期进议程（行尾标父任务），不再只藏在父任务抽屉里。
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, Fragment } from "react";
 import {
   ArchiveRestore,
   ArrowRightLeft,
@@ -39,7 +41,6 @@ import {
   liveEntries,
   scheduledToday,
   startOfDay,
-  WEEKDAY_CN,
 } from "../model";
 import { useNow, useTodoMutations, useTodoSnapshot } from "../queries";
 import type { QuickAddResult } from "../quickAdd";
@@ -64,12 +65,14 @@ import { DocTasksPanel } from "../components/DocTasksPanel";
 import { DocTaskDrawer } from "../components/DocTaskDrawer";
 import { docTaskBucket } from "../components/DocTaskBits";
 import { DOC_TASKS_NAV_ID } from "../types";
+const t = todosTranslator.t;
 
 const docTaskKey = (task: DocTaskItem) => `${task.contentId}:${task.taskId}`;
 
 const UNDO_MS = 5000;
 
 export function TodosView() {
+  const { locale } = useTodosI18n();
   const { navigator } = usePage();
   const { snapshot, loading } = useTodoSnapshot();
   const mutations = useTodoMutations();
@@ -119,7 +122,7 @@ export function TodosView() {
     if (!pendingCommits.current.has(id)) return;
     pendingCommits.current.delete(id);
     mutations.remove(id).catch(() => {
-      toast.error("删除失败");
+      toast.error(t("common.deleteFailed"));
       setPendingDelete(prev => {
         const next = new Set(prev);
         next.delete(id);
@@ -141,22 +144,29 @@ export function TodosView() {
     setPendingDelete(prev => new Set(prev).add(entry.id));
     pendingCommits.current.add(entry.id);
     const children = entry.childIds.length;
-    toast.info(`已删除「${entry.title}」${children ? `及 ${children} 个子任务` : ""}`, {
-      duration: UNDO_MS,
-      onClose: () => commitRef.current(entry.id),
-      action: {
-        label: "撤销",
-        onClick: () => {
-          // 撤销先于 onClose 触发：摘掉待落库条目后，随后的 onClose 空转
-          pendingCommits.current.delete(entry.id);
-          setPendingDelete(prev => {
-            const next = new Set(prev);
-            next.delete(entry.id);
-            return next;
-          });
+    toast.info(
+      children
+        ? todosCount("toast.deletedWithChildren", children, { title: entry.title })
+        : t("toast.deleted", { title: entry.title }),
+      {
+        duration: UNDO_MS,
+        onClose: () => commitRef.current(entry.id),
+        action: {
+          get label() {
+            return t("common.undo");
+          },
+          onClick: () => {
+            // 撤销先于 onClose 触发：摘掉待落库条目后，随后的 onClose 空转
+            pendingCommits.current.delete(entry.id);
+            setPendingDelete(prev => {
+              const next = new Set(prev);
+              next.delete(entry.id);
+              return next;
+            });
+          },
         },
-      },
-    });
+      }
+    );
   };
 
   /* 外部带 selectedId 进入（今日页待办卡等）：选中并滚到该行；目标不在当前项目筛选内时回到全部。
@@ -231,7 +241,7 @@ export function TodosView() {
   }, [snapshot, pendingDelete, groupFilter, now]);
 
   // AI 上下文：当前打开的待办详情（selectedId 经 ref 保鲜，详情抽屉关闭时返回 null）
-  useAppContextProvider("todo-detail", "待办详情", () => {
+  useAppContextProvider("todo-detail", t("context.details"), () => {
     if (selectedId == null || !snapshot) return null;
     const entry = snapshot.byId.get(selectedId);
     if (!entry) return null;
@@ -270,7 +280,11 @@ export function TodosView() {
     setSelectedDocKey(docTaskKey(task));
   };
   const toggleDoc = (task: DocTaskItem) =>
-    void toggleDocTask(task, !task.checked, docSources.get(task.contentId)?.title ?? "原文");
+    void toggleDocTask(
+      task,
+      !task.checked,
+      docSources.get(task.contentId)?.title ?? t("common.source")
+    );
   // 议程只并入当前项目筛选内的文档条目
   const agendaDocs = groupFilter ? docOpen.filter(t => t.groupId === groupFilter) : docOpen;
   const docToday = agendaDocs.filter(t => docTaskBucket(t, now) === "today").length;
@@ -281,22 +295,32 @@ export function TodosView() {
   const toggle = (entry: TodoEntry) => {
     if (entry.type === "recurring") {
       if (!scheduledToday(entry, now)) {
-        toast.info("今天不是计划打卡日——可在详情的打卡格里补打过去的日子");
+        toast.info(t("habit.notScheduled"));
         return;
       }
       const done = doneToday(entry, now);
       void mutations.setOccurrence(entry, now, done ? null : "done");
       if (!done)
-        toast.success(`已打卡「${entry.title}」`, {
-          action: { label: "撤销", onClick: () => void mutations.setOccurrence(entry, now, null) },
+        toast.success(t("toast.checked", { title: entry.title }), {
+          action: {
+            get label() {
+              return t("common.undo");
+            },
+            onClick: () => void mutations.setOccurrence(entry, now, null),
+          },
         });
       return;
     }
     const next = !entry.isCompleted;
     void mutations.setCompleted(entry, next);
     if (next)
-      toast.success(`已完成「${entry.title}」`, {
-        action: { label: "撤销", onClick: () => void mutations.setCompleted(entry, false) },
+      toast.success(t("toast.completed", { title: entry.title }), {
+        action: {
+          get label() {
+            return t("common.undo");
+          },
+          onClick: () => void mutations.setCompleted(entry, false),
+        },
       });
   };
 
@@ -314,9 +338,9 @@ export function TodosView() {
   const createFromQuickAdd = async (parsed: QuickAddResult, groupId: number) => {
     try {
       const item = await mutations.createFromQuickAdd(parsed, groupId);
-      toast.success(`已添加「${item.title}」`);
+      toast.success(t("toast.added", { title: item.title }));
     } catch {
-      toast.error("添加失败");
+      toast.error(t("common.addFailed"));
       throw new Error("create failed");
     }
   };
@@ -333,47 +357,47 @@ export function TodosView() {
         >
           {entry.type === "recurring"
             ? doneToday(entry, now)
-              ? "撤销今日打卡"
-              : "今日打卡"
+              ? t("habit.undoToday")
+              : t("habit.today")
             : entry.isCompleted
-              ? "标记未完成"
-              : "完成"}
+              ? t("common.uncheck")
+              : t("common.complete")}
         </Menu.Item>
         <Menu.Item
           icon={<PanelRightOpen className="size-[15px]" strokeWidth={1.75} />}
           kbd="⏎"
           onSelect={() => setSelectedId(entry.id)}
         >
-          打开详情
+          {t("common.details")}
         </Menu.Item>
         {entry.type !== "recurring" && (
           <Menu.Submenu
-            label="改期"
+            label={t("action.reschedule")}
             icon={<CalendarClock className="size-[15px]" strokeWidth={1.75} />}
           >
             <Menu.Item
               icon={<Sun className="size-[15px]" strokeWidth={1.75} />}
               onSelect={() => reschedule(entry, today)}
             >
-              今天
+              {t("bucket.today")}
             </Menu.Item>
             <Menu.Item
               icon={<Sunrise className="size-[15px]" strokeWidth={1.75} />}
               onSelect={() => reschedule(entry, today + DAY_MS)}
             >
-              明天
+              {t("bucket.tomorrow")}
             </Menu.Item>
             <Menu.Item
               icon={<CalendarDays className="size-[15px]" strokeWidth={1.75} />}
               onSelect={() => reschedule(entry, nextMonday)}
             >
-              下周一
+              {t("action.nextMonday")}
             </Menu.Item>
           </Menu.Submenu>
         )}
         {groups.length > 1 && (
           <Menu.Submenu
-            label="移动到"
+            label={t("action.move")}
             icon={<ArrowRightLeft className="size-[15px]" strokeWidth={1.75} />}
           >
             {groups
@@ -395,7 +419,7 @@ export function TodosView() {
           icon={<Trash2 className="size-[15px]" strokeWidth={1.75} />}
           onSelect={() => scheduleDelete(entry)}
         >
-          删除
+          {t("common.delete")}
         </Menu.Item>
       </>
     );
@@ -435,13 +459,18 @@ export function TodosView() {
         setSelectedDocKey(null);
         // 转好的待办在项目视图里，回到全部再打开它
         navigator.push("todos", { id: "", selectedId: todoId });
-        toast.success(`已转为独立待办「${task.title}」，原文保持不变`);
+        toast.success(t("toast.promoted", { title: task.title }));
       }}
       onExclude={async source => {
         if (!(await setExcluded(source.contentId, true))) return;
         setSelectedDocKey(null);
-        toast.info(`《${source.title}》不再收集`, {
-          action: { label: "撤销", onClick: () => void setExcluded(source.contentId, false) },
+        toast.info(t("toast.excluded", { title: source.title }), {
+          action: {
+            get label() {
+              return t("common.undo");
+            },
+            onClick: () => void setExcluded(source.contentId, false),
+          },
         });
       }}
     />
@@ -456,23 +485,21 @@ export function TodosView() {
             {/* 工具栏：计数摘要在此（不注册状态栏）；分段方式切换 */}
             <div className="mb-3 flex h-10 flex-none items-center gap-3">
               <h1 className="text-tau-title-lg shrink-0 font-semibold tracking-[-0.01em] whitespace-nowrap">
-                {docView ? "文档中" : currentGroup ? currentGroup.title : "待办"}
+                {docView ? t("nav.docs") : currentGroup ? currentGroup.title : t("nav.todos")}
               </h1>
               <span className="text-ink-2 text-tau-meta w-0 flex-1 truncate whitespace-nowrap tabular-nums">
                 {docView ? (
                   <>
-                    来自 <b className="text-ink-1 font-semibold">{docSources.size}</b> 篇文档 ·
-                    勾选会同步回原文
+                    <SummaryMessage message="count.sourceDocs" count={docSources.size} />
                   </>
                 ) : (
                   <>
-                    今天 <b className="text-ink-1 font-semibold">{derived.todayCount + docToday}</b>{" "}
-                    项
+                    <SummaryMessage message="count.today" count={derived.todayCount + docToday} />
                     {derived.overdueCount + docOverdue > 0 && (
                       <>
                         {" · "}
                         <span className="text-danger font-medium">
-                          {derived.overdueCount + docOverdue} 项逾期
+                          {todosCount("count.overdueTasks", derived.overdueCount + docOverdue)}
                         </span>
                       </>
                     )}
@@ -480,10 +507,11 @@ export function TodosView() {
                 )}
                 {derived.habitsToday.length > 0 && (
                   <>
-                    {" · "}打卡{" "}
-                    <b className="text-ink-1 font-semibold">
-                      {habitsDone}/{derived.habitsToday.length}
-                    </b>
+                    {" · "}
+                    <SummaryMessage
+                      message="view.habitProgress"
+                      highlight={`${todosNumber(habitsDone)}/${todosNumber(derived.habitsToday.length)}`}
+                    />
                   </>
                 )}
               </span>
@@ -493,7 +521,7 @@ export function TodosView() {
                   size="sm"
                   icon={ListChecks}
                   aria-pressed={todayOpen}
-                  title="今日打卡 · 本周负荷 · 最近完成"
+                  title={t("view.todayHint")}
                   className="shrink-0 whitespace-nowrap"
                   onClick={() => {
                     setTodayOpen(open => !open);
@@ -501,20 +529,20 @@ export function TodosView() {
                     setSelectedDocKey(null);
                   }}
                 >
-                  今日
+                  {t("view.today")}
                 </Button>
               )}
               {!docView && (
                 <Segmented
-                  label="分段方式"
+                  label={t("view.segment")}
                   value={mode}
                   onValueChange={(v: AgendaMode) => {
                     setMode(v);
                     saveMode(v);
                   }}
                 >
-                  <Segmented.Item value="date" icon={CalendarDays} label="按日期" />
-                  <Segmented.Item value="group" icon={Folder} label="按项目" />
+                  <Segmented.Item value="date" icon={CalendarDays} label={t("view.byDate")} />
+                  <Segmented.Item value="group" icon={Folder} label={t("view.byGroup")} />
                 </Segmented>
               )}
             </div>
@@ -583,7 +611,7 @@ export function TodosView() {
               <TodayDrawer
                 open={todayOpen && selected === null && selectedDoc === null}
                 onClose={() => setTodayOpen(false)}
-                subtitle={`${new Date(now).getMonth() + 1}月${new Date(now).getDate()}日 ${WEEKDAY_CN[new Date(now).getDay()]}`}
+                subtitle={`${monthDay(now, locale)} ${weekday(now, locale)}`}
                 roots={derived.timed}
                 completed={derived.completed}
                 now={now}
@@ -614,11 +642,11 @@ export function TodosView() {
           onSubmit={async (title, color) => {
             if (groupDialog?.group) {
               await mutations.updateGroup(groupDialog.group.id, title, color);
-              toast.success("项目已更新");
+              toast.success(t("group.updated"));
             } else {
               const created = await mutations.createGroup(title, color);
               setGroupFilter(created.id);
-              toast.success(`已创建项目「${title}」`);
+              toast.success(t("toast.createdGroup", { title: title }));
             }
           }}
         />
@@ -636,19 +664,20 @@ function EmptyGroups({
   onCreate(): void;
   onRestore(group: TodoGroup): void;
 }) {
+  useTodosI18n();
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-2 pb-16 text-center">
-      <p className="text-ink-2 text-[15px] font-medium">还没有进行中的项目</p>
-      <p className="text-ink-3 text-[12.5px]">任务归属于项目——先建一个，比如「工作」「生活」</p>
+      <p className="text-ink-2 text-[15px] font-medium">{t("group.empty")}</p>
+      <p className="text-ink-3 text-[12.5px]">{t("group.emptyHint")}</p>
       <div className="mt-3 flex gap-2">
         <Button variant="primary" size="sm" icon={Plus} onClick={onCreate}>
-          新建项目
+          {t("nav.newGroup")}
         </Button>
         {archivedGroups.length > 0 && (
           <Menu
             trigger={
               <Button variant="secondary" size="sm" icon={ArchiveRestore}>
-                恢复已归档（{archivedGroups.length}）
+                {todosCount("count.restore", archivedGroups.length)}
               </Button>
             }
           >
@@ -665,5 +694,29 @@ function EmptyGroups({
         )}
       </div>
     </div>
+  );
+}
+
+function SummaryMessage({
+  message,
+  count = 0,
+  highlight,
+}: {
+  message: Parameters<typeof todosTranslator.t>[0];
+  count?: number;
+  highlight?: string;
+}) {
+  useTodosI18n();
+  const value = highlight ?? todosNumber(count);
+  const parts = t(message, { count, amount: "\uFFFC", progress: "\uFFFC" }).split("\uFFFC");
+  return (
+    <>
+      {parts.map((part, index) => (
+        <Fragment key={index}>
+          {index > 0 && <b className="text-ink-1 font-semibold">{value}</b>}
+          {part}
+        </Fragment>
+      ))}
+    </>
   );
 }

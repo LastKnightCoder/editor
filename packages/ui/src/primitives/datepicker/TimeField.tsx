@@ -1,3 +1,4 @@
+import { useDatepickerI18n } from "./i18n";
 /**
  * TimeField —— minute 精度的时刻区：可自由键入的时刻框 + 步长网格（快捷通道）。
  *
@@ -34,8 +35,10 @@ export function TimeField({
   onSubmit,
   nowMark = true,
   disabled = false,
-  "aria-label": ariaLabel = "时刻",
+  "aria-label": ariaLabel,
 }: TimeFieldProps) {
+  const { t } = useDatepickerI18n();
+  const label = ariaLabel ?? t("time.label");
   const [draft, setDraft] = useState<string | null>(null);
   const [gridOpen, setGridOpen] = useState(false);
   const gridRef = useRef<HTMLDivElement | null>(null);
@@ -114,7 +117,7 @@ export function TimeField({
           inputMode="numeric"
           maxLength={5}
           spellCheck={false}
-          aria-label={ariaLabel}
+          aria-label={label}
           disabled={disabled}
           value={shown}
           onChange={e => setDraft(e.target.value)}
@@ -124,7 +127,7 @@ export function TimeField({
         />
         <button
           type="button"
-          aria-label="时刻网格"
+          aria-label={t("time.grid")}
           aria-expanded={gridOpen}
           disabled={disabled}
           onClick={() => (gridOpen ? setGridOpen(false) : openGrid())}
@@ -137,7 +140,7 @@ export function TimeField({
         <div
           ref={gridRef}
           role="listbox"
-          aria-label={`${ariaLabel}网格`}
+          aria-label={t("time.gridFor", { label })}
           className="bg-surface border-line-1 shadow-float rounded-tau-md absolute bottom-[38px] left-0 z-[5] max-h-[184px] w-[216px] overflow-y-auto border p-1.5"
         >
           <div className="grid grid-cols-4 gap-[2px]">

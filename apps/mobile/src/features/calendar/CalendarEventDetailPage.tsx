@@ -1,6 +1,7 @@
 // 日程详情页（全屏页面式）：日历归属行 + 大标题 + 信息卡（时间/日历/数值）
 // + 富文本详情卡（真实 Editor 只读）+ 底部操作条；系统日程只读并提供来源模块入口。
 
+import { useCalendarI18n } from "./i18n";
 import { useMemo, useRef, useState } from "react";
 import { useMobileContentKit } from "../../services/editorKit";
 import type { Descendant } from "slate";
@@ -25,7 +26,8 @@ import { useEdgeFade } from "../../hooks/useScrollState";
 import { eventColorValue } from "./constants";
 import { useCalendarEventById, useCalendars } from "./queries";
 import type { CalendarEvent } from "./types";
-import { durationLabel, formatDateTimeLine, dayStart } from "./utils";
+import { dayStart } from "./utils";
+import { durationLabel, formatDateTimeLine } from "./format";
 
 type CalendarEventDetailPageProps = {
   eventId: number;
@@ -44,6 +46,7 @@ export function CalendarEventDetailPage({
   onOpenPomodoroHistory,
   onOpenTodo,
 }: CalendarEventDetailPageProps) {
+  const { t: translate, locale } = useCalendarI18n();
   const contentKit = useMobileContentKit("read");
   const isDark = useThemeStore(s => s.mode === "dark");
   const { data: event, isError } = useCalendarEventById(eventId);
@@ -71,18 +74,22 @@ export function CalendarEventDetailPage({
   if (!event) {
     return (
       <div className="mobile-kb-screen bg-page fixed inset-0 z-50 flex flex-col">
-        <PageHeader title="日程详情" onBack={onBack} />
+        <PageHeader title={translate("event.detail")} onBack={onBack} />
         <div className="flex flex-1 flex-col items-center justify-center gap-3 px-8">
           {isError ? (
             <>
               <CalendarX2 size={34} className="text-ink-3" aria-hidden />
-              <div className="text-ink-1 text-[14px] font-extrabold">日程不存在或已被系统更新</div>
+              <div className="text-ink-1 text-[14px] font-extrabold">
+                {translate("event.missing")}
+              </div>
               <div className="text-ink-3 text-center text-[12px] leading-[1.6]">
-                请返回日历后重新打开
+                {translate("event.reopen")}
               </div>
             </>
           ) : (
-            <div className="text-ink-3 text-[13px] font-semibold">加载中…</div>
+            <div className="text-ink-3 text-[13px] font-semibold">
+              {translate("common.loading")}
+            </div>
           )}
         </div>
       </div>
@@ -91,34 +98,50 @@ export function CalendarEventDetailPage({
 
   const isPomodoroEvent = event.isInSystemEvent && calendarTitle === "番茄钟";
   const isTodoEvent = event.isInSystemEvent && ["截止任务", "周期任务"].includes(calendarTitle);
+  const calendarDisplayTitle = isPomodoroEvent
+    ? translate("source.pomodoro")
+    : isTodoEvent
+      ? translate(calendarTitle === "截止任务" ? "source.todoDeadline" : "source.todoRecurring")
+      : calendarTitle;
   const hasDetail = !isEditorContentEmpty(event.detailContent);
   const crossDay = event.endDate !== null && event.endDate !== event.startDate;
   const timeMain = crossDay
-    ? `${formatDateTimeLine(event.startDate, event.startTime, event.allDay)} – ${formatDateTimeLine(
+    ? `${formatDateTimeLine(event.startDate, event.startTime, event.allDay, { locale, t: translate })} – ${formatDateTimeLine(
         event.endDate as number,
         event.endTime,
-        event.allDay
+        event.allDay,
+        { locale, t: translate }
       )}`
-    : formatDateTimeLine(event.startDate, event.startTime, event.allDay);
+    : formatDateTimeLine(event.startDate, event.startTime, event.allDay, { locale, t: translate });
   // 跨天定时事件的时刻只对首日有效，按时长差计算会得到「0 分钟」这类错乱值
   const durationSub = crossDay
-    ? `跨 ${Math.round((dayStart(event.endDate as number) - dayStart(event.startDate)) / 86_400_000) + 1} 天`
+    ? translate("event.crossDays", {
+        count:
+          Math.round((dayStart(event.endDate as number) - dayStart(event.startDate)) / 86_400_000) +
+          1,
+        amount: (
+          Math.round((dayStart(event.endDate as number) - dayStart(event.startDate)) / 86_400_000) +
+          1
+        ).toLocaleString(locale),
+      })
     : !event.allDay && event.startTime !== null && event.endTime !== null
-      ? `时长 ${durationLabel(event.startTime, event.endTime)}`
+      ? translate("event.duration", {
+          duration: durationLabel(event.startTime, event.endTime, { locale, t: translate }),
+        })
       : event.allDay
-        ? "全天"
+        ? translate("event.allDay")
         : null;
 
   return (
     <div className="mobile-kb-screen bg-page fixed inset-0 z-50 flex flex-col">
       <PageHeader
-        title="日程详情"
+        title={translate("event.detail")}
         onBack={onBack}
         actions={
           event.isInSystemEvent ? undefined : (
             <PageHeaderButton
               icon={<MoreHorizontal size={22} strokeWidth={2.4} />}
-              aria-label="日程操作"
+              aria-label={translate("event.actions")}
               onClick={() => setMenuOpen(true)}
             />
           )
@@ -133,10 +156,10 @@ export function CalendarEventDetailPage({
           <div className="px-5 pt-1.5">
             <div className="text-ink-2 flex items-center gap-2 text-[12.5px] font-bold">
               <i className="h-[9px] w-[9px] rounded-full" style={{ background: color }} />
-              {calendarTitle}
+              {calendarDisplayTitle}
               {event.isInSystemEvent ? (
                 <span className="bg-page text-ink-3 ml-1 rounded-full px-2.5 py-0.5 text-[10px] font-extrabold">
-                  系统日程
+                  {translate("event.system")}
                 </span>
               ) : null}
             </div>
@@ -164,7 +187,9 @@ export function CalendarEventDetailPage({
                 <CalendarDays size={17} strokeWidth={2} />
               </span>
               <span className="min-w-0">
-                <span className="text-ink-1 block text-[13.5px] font-bold">{calendarTitle}</span>
+                <span className="text-ink-1 block text-[13.5px] font-bold">
+                  {calendarDisplayTitle}
+                </span>
               </span>
             </div>
           </div>
@@ -183,12 +208,11 @@ export function CalendarEventDetailPage({
                 ) : (
                   <ListTodo size={17} strokeWidth={2.3} />
                 )}
-                {isPomodoroEvent ? "查看番茄钟专注记录" : "前往待办"}
+                {isPomodoroEvent ? translate("event.openPomodoro") : translate("event.openTodo")}
                 <ChevronRight size={16} strokeWidth={2.6} className="ml-auto opacity-70" />
               </button>
               <p className="text-ink-3 pt-3 text-[11.5px] leading-[1.7]">
-                系统日程由{isPomodoroEvent ? "番茄钟自动记录" : "待办自动同步"}
-                ，时间与归属不可在日历中修改。
+                {translate(isPomodoroEvent ? "source.pomodoroHint" : "source.todoHint")}
               </p>
             </div>
           ) : null}
@@ -196,7 +220,7 @@ export function CalendarEventDetailPage({
           {hasDetail || !event.isInSystemEvent ? (
             <>
               <div className="text-ink-3 px-[22px] pt-4 pb-2 text-[12px] font-extrabold tracking-[1px]">
-                详情
+                {translate("event.description")}
               </div>
               <div className="px-[18px] pb-8">
                 <div className="bg-surface shadow-card rounded-[20px] px-5 py-[18px]">
@@ -208,7 +232,9 @@ export function CalendarEventDetailPage({
                       className="text-ink-1 w-full text-[13.5px] leading-[1.85] font-medium outline-none"
                     />
                   ) : (
-                    <p className="text-ink-3 text-[13.5px] leading-[1.85]">暂无描述</p>
+                    <p className="text-ink-3 text-[13.5px] leading-[1.85]">
+                      {translate("event.noDescription")}
+                    </p>
                   )}
                 </div>
               </div>
@@ -226,7 +252,7 @@ export function CalendarEventDetailPage({
               onClick={() => setConfirmDelete(true)}
               className="bg-surface shadow-card text-ink-1 h-12 flex-1 rounded-2xl text-[14.5px] font-extrabold"
             >
-              删除
+              {translate("common.delete")}
             </button>
             <button
               type="button"
@@ -234,7 +260,7 @@ export function CalendarEventDetailPage({
               className="shadow-lift text-ink-inverse h-12 flex-1 rounded-2xl text-[14.5px] font-extrabold"
               style={{ background: "var(--tau-accent)" }}
             >
-              编辑
+              {translate("common.edit")}
             </button>
           </div>
         ) : null}
@@ -242,10 +268,10 @@ export function CalendarEventDetailPage({
 
       <ActionSheet
         open={menuOpen}
-        title="日程操作"
+        title={translate("event.actions")}
         items={[
           {
-            label: "编辑日程",
+            label: translate("event.edit"),
             icon: <Pencil size={16} />,
             onClick: () => {
               setMenuOpen(false);
@@ -253,7 +279,7 @@ export function CalendarEventDetailPage({
             },
           },
           {
-            label: "删除日程",
+            label: translate("event.delete"),
             icon: <Trash2 size={16} />,
             danger: true,
             onClick: () => {
@@ -267,10 +293,10 @@ export function CalendarEventDetailPage({
 
       <MobileConfirmDialog
         open={confirmDelete}
-        title="删除日程？"
-        description="此操作无法撤销。"
-        cancelText="取消"
-        confirmText="删除"
+        title={translate("event.confirmDelete")}
+        description={translate("common.irreversible")}
+        cancelText={translate("common.cancel")}
+        confirmText={translate("common.delete")}
         danger={true}
         onCancel={() => setConfirmDelete(false)}
         onConfirm={() => {

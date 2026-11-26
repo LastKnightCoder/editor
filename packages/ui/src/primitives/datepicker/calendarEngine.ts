@@ -8,9 +8,6 @@
  * 六周固定 42 格：面板高度不随月跳变，界外日参与导航与点选（跨月自动接管视图）。
  */
 
-export const WEEKDAY_LABELS = ["一", "二", "三", "四", "五", "六", "日"] as const;
-export const WEEKDAY_NAMES = ["日", "一", "二", "三", "四", "五", "六"] as const;
-
 export type DatePrecision = "day" | "minute";
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -113,29 +110,43 @@ export function nearestStep(time: string, step = 15): string {
   return `${pad(h)}:${pad(Math.floor(m / step) * step)}`;
 }
 
-/** 触发器显示格式："2026年9月19日"（minute 追加 " 15:00"） */
-export function formatDisplay(value: string): string {
+/** 周一起始的标题，身份使用星期数字而非译文。 */
+export function weekdayLabels(locale: string): { day: number; label: string }[] {
+  const formatter = new Intl.DateTimeFormat(locale, { weekday: "short" });
+  return [1, 2, 3, 4, 5, 6, 0].map(day => ({
+    day,
+    label: formatter.format(new Date(2023, 0, day + 1)),
+  }));
+}
+
+const displayDate = (date: Date, locale: string, includeYear: boolean) =>
+  new Intl.DateTimeFormat(locale, {
+    year: includeYear ? "numeric" : undefined,
+    month: "long",
+    day: "numeric",
+  }).format(date);
+const displayTime = (date: Date, locale: string) =>
+  new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(
+    date
+  );
+
+/** 只格式化显示，不改写原值；无效值原样保留。 */
+export function formatDisplay(value: string, locale: string): string {
   const date = parseValue(value);
   if (!date) return value;
-  const day = `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+  const day = displayDate(date, locale, true);
   return value.includes(" ") ? `${day} ${value.slice(11)}` : day;
 }
 
-/**
- * 范围显示格式：同年省年份（"9月12日 – 9月19日"），跨年两端补全；
- * minute 值追加时刻，同日只写一次日期（"9月12日 09:00 – 18:00"）
- */
-export function formatRangeDisplay(start: string, end: string): string {
+/** 同年省年份，跨年补全；同日 minute 范围只写一次日期。 */
+export function formatRangeDisplay(start: string, end: string, locale: string): string {
   const s = parseValue(start);
   const e = parseValue(end);
   if (!s || !e) return `${start} – ${end}`;
-  const timeOf = (value: string, date: Date) =>
-    /\s/.test(value.trim()) ? ` ${formatValue(date, "minute").slice(11)}` : "";
-  const startTime = timeOf(start, s);
-  const endTime = timeOf(end, e);
-  const md = (d: Date) => `${d.getMonth() + 1}月${d.getDate()}日`;
-  if (sameDay(s, e) && startTime && endTime) return `${md(s)}${startTime} –${endTime}`;
-  return s.getFullYear() === e.getFullYear()
-    ? `${md(s)}${startTime} – ${md(e)}${endTime}`
-    : `${s.getFullYear()}年${md(s)}${startTime} – ${e.getFullYear()}年${md(e)}${endTime}`;
+  const startTime = /\s/.test(start.trim()) ? ` ${displayTime(s, locale)}` : "";
+  const endTime = /\s/.test(end.trim()) ? ` ${displayTime(e, locale)}` : "";
+  const includeYear = s.getFullYear() !== e.getFullYear();
+  const from = displayDate(s, locale, includeYear);
+  if (sameDay(s, e) && startTime && endTime) return `${from}${startTime} –${endTime}`;
+  return `${from}${startTime} – ${displayDate(e, locale, includeYear)}${endTime}`;
 }

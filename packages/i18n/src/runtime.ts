@@ -1,5 +1,5 @@
 import { createInstance } from "i18next";
-import { resolveLocale, type LocaleSource } from "./locale";
+import { resolveLocale, type LocaleSource } from "./locale.ts";
 import {
   assertMessageKey,
   snapshotDisplayText,
@@ -7,7 +7,7 @@ import {
   type DisplayText,
   type I18nDefinition,
   type TranslationValues,
-} from "./messages";
+} from "./messages.ts";
 
 export interface Translator<Key extends string = string> {
   t(key: Key, values?: TranslationValues): string;

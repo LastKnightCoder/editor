@@ -1,3 +1,4 @@
+import { useTodoI18n, todoTranslator } from "./i18n";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMobileContentKit } from "../../services/editorKit";
 import {
@@ -69,18 +70,34 @@ type HeatmapCell = {
 };
 
 const TYPE_LABELS: Record<TodoItem["type"], string> = {
-  normal: "普通任务",
-  deadline: "截止任务",
-  planned: "计划任务",
-  recurring: "周期任务",
+  get normal() {
+    return todoTranslator.t("type.full.normal");
+  },
+  get deadline() {
+    return todoTranslator.t("type.full.deadline");
+  },
+  get planned() {
+    return todoTranslator.t("type.full.planned");
+  },
+  get recurring() {
+    return todoTranslator.t("type.full.recurring");
+  },
 };
 
-function formatShortDateTime(ts?: number | null, withYear = false): string {
+function formatShortDateTime(
+  ts: number | null | undefined,
+  locale: string,
+  withYear = false
+): string {
   if (!ts) return "";
-  const date = new Date(ts);
-  const hour = `${date.getHours()}`.padStart(2, "0");
-  const minute = `${date.getMinutes()}`.padStart(2, "0");
-  return `${withYear ? `${date.getFullYear()}/` : ""}${date.getMonth() + 1}/${date.getDate()} ${hour}:${minute}`;
+  return new Intl.DateTimeFormat(locale, {
+    year: withYear ? "numeric" : undefined,
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(ts);
 }
 
 function buildHeatmap(
@@ -112,15 +129,16 @@ function buildHeatmap(
 }
 
 function recurrenceTypeLabel(type: RecurrenceType): string {
-  if (type === "daily") return "每天";
-  if (type === "weekdays") return "工作日";
-  if (type === "weekly") return "每周";
-  if (type === "monthly") return "每月";
-  if (type === "yearly") return "每年";
-  return "自定义";
+  if (type === "daily") return todoTranslator.t("recurrence.daily");
+  if (type === "weekdays") return todoTranslator.t("recurrence.weekdays");
+  if (type === "weekly") return todoTranslator.t("recurrence.weekly");
+  if (type === "monthly") return todoTranslator.t("recurrence.monthly");
+  if (type === "yearly") return todoTranslator.t("recurrence.yearly");
+  return todoTranslator.t("recurrence.custom");
 }
 
 export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailPageProps) {
+  const { t: translate, locale } = useTodoI18n();
   const contentKit = useMobileContentKit("edit");
   const store = useTodoStore();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -207,7 +225,7 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
 
   useEffect(() => {
     if (current || !itemsQuery.error) return;
-    onError(itemsQuery.error, "加载任务详情失败");
+    onError(itemsQuery.error, todoTranslator.t("error.detail"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current, itemsQuery.error]);
 
@@ -247,7 +265,7 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
         setRecurrenceCompletions(completions);
         setHeatmap(buildHeatmap(recurrence, completions));
       } catch (error) {
-        if (!cancelled) onErrorRef.current(error, "加载周期任务记录失败");
+        if (!cancelled) onErrorRef.current(error, todoTranslator.t("error.records"));
       }
     };
     void loadCompletions();
@@ -266,7 +284,7 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
     try {
       await store.updateItem({ id: current.id, title: trimmed });
     } catch (error) {
-      onError(error, "更新任务标题失败");
+      onError(error, todoTranslator.t("error.title"));
       setTitle(current.title);
     }
   };
@@ -283,7 +301,7 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
     try {
       await store.updateItem({ id: current.id, ...patch });
     } catch (error) {
-      onError(error, "更新任务信息失败");
+      onError(error, todoTranslator.t("error.update"));
     }
   };
 
@@ -307,7 +325,7 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
       });
       setDescriptionContentId(contentId);
     } catch (error) {
-      onError(error, "创建任务描述失败");
+      onError(error, todoTranslator.t("error.note"));
     }
   };
 
@@ -355,7 +373,7 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
       getQueryClient().invalidateQueries({ queryKey: ["todo"] });
       await reloadRecurrence();
     } catch (error) {
-      onError(error, "更新周期任务打卡失败");
+      onError(error, todoTranslator.t("error.checkin"));
     }
   };
 
@@ -370,7 +388,7 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
       getQueryClient().invalidateQueries({ queryKey: ["todo"] });
       await reloadRecurrence();
     } catch (error) {
-      onError(error, "更新周期热力记录失败");
+      onError(error, todoTranslator.t("error.heatmap"));
     }
   };
 
@@ -389,7 +407,7 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
       setDeleteTarget(null);
       onBack();
     } catch (error) {
-      onError(error, "删除任务失败");
+      onError(error, todoTranslator.t("error.delete"));
     } finally {
       setDeleteLoading(false);
     }
@@ -398,7 +416,7 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
   const moreSheetItems: ActionSheetItem[] = current
     ? [
         {
-          label: "删除任务",
+          label: translate("action.delete"),
           danger: true,
           icon: <Trash2 size={18} />,
           onClick: () => setDeleteTarget(current),
@@ -408,14 +426,14 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
 
   const reminderOffsets =
     current?.remindBefore != null ? (reminders.data ?? [current.remindBefore]) : [];
-  const reminderLabel = summarizeReminders(reminderOffsets);
+  const reminderLabel = summarizeReminders(reminderOffsets, false, { locale });
 
   if (!current) {
     return (
       <div className="mobile-kb-screen bg-page fixed inset-0 z-50 flex flex-col">
-        <PageHeader title="编辑任务" onBack={onBack} />
+        <PageHeader title={translate("detail.title")} onBack={onBack} />
         <div className="text-ink-3 flex flex-1 items-center justify-center text-sm">
-          任务不存在或已被删除
+          {translate("detail.missing")}
         </div>
       </div>
     );
@@ -429,11 +447,11 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
   const mainLabel =
     current.type === "recurring"
       ? mainDone
-        ? "取消今日打卡"
-        : "今日打卡"
+        ? translate("action.undoToday")
+        : translate("action.today")
       : mainDone
-        ? "撤销完成"
-        : "标记完成";
+        ? translate("action.undoComplete")
+        : translate("action.markComplete");
 
   const handleToggleMain = () => {
     if (current.type === "recurring") {
@@ -449,12 +467,12 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
   return (
     <div className="mobile-kb-screen bg-page fixed inset-0 z-50 flex flex-col">
       <PageHeader
-        title="编辑任务"
+        title={translate("detail.title")}
         onBack={onBack}
         actions={
           <PageHeaderButton
             icon={<MoreHorizontal />}
-            aria-label="更多操作"
+            aria-label={translate("action.more")}
             onClick={() => setMoreSheetOpen(true)}
           />
         }
@@ -473,7 +491,7 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
               type="button"
               role="checkbox"
               aria-checked={mainDone}
-              aria-label={mainDone ? "标记为未完成" : "标记为已完成"}
+              aria-label={mainDone ? translate("action.uncomplete") : translate("action.complete")}
               onClick={handleToggleMain}
               className={`mt-0.5 grid h-[27px] w-[27px] shrink-0 place-items-center rounded-full border-[2.5px] transition-all duration-200 ${
                 mainDone ? "border-accent bg-accent shadow-lift" : "border-ink-3/50 bg-surface"
@@ -495,7 +513,7 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
                   event.currentTarget.blur();
                 }
               }}
-              placeholder="任务标题"
+              placeholder={translate("detail.taskTitle")}
               className="text-ink-1 placeholder:text-ink-3 min-h-[27px] flex-1 resize-none border-none bg-transparent py-0 text-[18px] leading-[1.5] font-extrabold outline-none"
             />
           </div>
@@ -522,7 +540,9 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
                   }`}
                 >
                   <CalendarDays size={12} />
-                  {current.startAt ? formatShortDateTime(current.startAt) : "设置开始"}
+                  {current.startAt
+                    ? formatShortDateTime(current.startAt, locale)
+                    : translate("start.set")}
                 </button>
                 <button
                   type="button"
@@ -537,8 +557,12 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
                 >
                   <Clock size={12} />
                   {current.dueAt
-                    ? `${formatShortDateTime(current.dueAt)}${isOverdue ? " · 逾期" : ""}`
-                    : "设置截止"}
+                    ? isOverdue
+                      ? translate("due.overdue", {
+                          date: formatShortDateTime(current.dueAt, locale),
+                        })
+                      : formatShortDateTime(current.dueAt, locale)
+                    : translate("due.set")}
                 </button>
                 <button
                   type="button"
@@ -557,17 +581,21 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
             {current.type === "recurring" && recurringStatus.recurrence && (
               <span className={`${chipBaseClass} bg-tag-1-soft text-tag-1`}>
                 <RefreshCw size={12} />
-                {recurrenceTypeLabel(recurringStatus.recurrence.type)} · 间隔{" "}
-                {Math.max(1, recurringStatus.recurrence.interval)}
+                {translate("recurrence.summary", {
+                  type: recurrenceTypeLabel(recurringStatus.recurrence.type),
+                  amount: Math.max(1, recurringStatus.recurrence.interval).toLocaleString(locale),
+                })}
               </span>
             )}
           </div>
 
           {/* 元信息小字：创建/完成时间，与胶囊行左对齐（非交互，弱化为辅助信息） */}
           <div className="text-ink-3 pt-1.5 pr-4 pl-[55px] text-[10.5px] leading-4">
-            创建于 {formatShortDateTime(current.createTime, true) || "-"}
+            {translate("date.created", {
+              date: formatShortDateTime(current.createTime, locale, true) || "-",
+            })}
             {current.completedAt
-              ? ` · 完成于 ${formatShortDateTime(current.completedAt, true)}`
+              ? ` · ${translate("date.completed", { date: formatShortDateTime(current.completedAt, locale, true) })}`
               : ""}
           </div>
 
@@ -575,11 +603,16 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
             <section className="card mx-4 mt-3 p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-ink-1 text-sm font-bold">周期打卡</div>
+                  <div className="text-ink-1 text-sm font-bold">
+                    {translate("recurrence.title")}
+                  </div>
                   <div className="text-ink-2 text-xs">
                     {recurringStatus.recurrence
-                      ? `近 60 天记录：${recurrenceCompletions.length} 条`
-                      : "尚未配置周期规则"}
+                      ? translate("recurrence.records", {
+                          count: recurrenceCompletions.length,
+                          amount: recurrenceCompletions.length.toLocaleString(locale),
+                        })
+                      : translate("recurrence.none")}
                   </div>
                 </div>
                 <button
@@ -593,16 +626,23 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
                       : "bg-accent shadow-lift text-ink-inverse"
                   }`}
                 >
-                  {recurringStatus.isTodayCompleted ? "取消今日打卡" : "今日打卡"}
+                  {recurringStatus.isTodayCompleted
+                    ? translate("action.undoToday")
+                    : translate("action.today")}
                 </button>
               </div>
               {recurringStatus.isLoading ? (
-                <div className="text-ink-2 mt-3 text-xs">正在加载周期状态...</div>
+                <div className="text-ink-2 mt-3 text-xs">{translate("recurrence.loading")}</div>
               ) : (
                 <div className="text-ink-2 mt-2 text-xs">
-                  今日{recurringStatus.isTodayScheduled ? "" : "不"}
-                  在周期范围内，状态：
-                  {recurringStatus.isTodayCompleted ? "已完成" : "未完成"}
+                  {translate(
+                    recurringStatus.isTodayScheduled ? "recurrence.scheduled" : "recurrence.off",
+                    {
+                      status: translate(
+                        recurringStatus.isTodayCompleted ? "recurrence.done" : "recurrence.open"
+                      ),
+                    }
+                  )}
                 </div>
               )}
               {heatmap.length > 0 && (
@@ -636,7 +676,7 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
                                 ? "bg-tag-5"
                                 : "bg-line-1"
                         }`}
-                        title={new Date(cell.date).toLocaleDateString()}
+                        title={new Date(cell.date).toLocaleDateString(locale)}
                       />
                     ))}
                   </div>
@@ -652,9 +692,11 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
             仅在有状态要表达（保存中/失败）时出现一行轻提示 */}
           <section className="px-4">
             {descriptionSaveError ? (
-              <div className="text-tag-5 pb-1 text-xs font-bold">保存失败，稍后自动重试</div>
+              <div className="text-tag-5 pb-1 text-xs font-bold">
+                {translate("detail.saveRetry")}
+              </div>
             ) : descriptionSaving ? (
-              <div className="text-ink-3 pb-1 text-xs font-bold">保存中…</div>
+              <div className="text-ink-3 pb-1 text-xs font-bold">{translate("detail.saving")}</div>
             ) : null}
             <div className="min-h-[200px]">
               {descriptionEditorReady && contentKit ? (
@@ -665,7 +707,7 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
                   initValue={normalizeEditorContent(content ?? EMPTY_EDITOR_CONTENT)}
                   readonly={deleteLoading}
                   showDragHandle={false}
-                  placeHolder="添加备注…"
+                  placeHolder={translate("detail.note")}
                   onChange={next => {
                     void handleDescriptionChange(next);
                     descriptionToolbar.syncSelection();
@@ -674,7 +716,7 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
                 />
               ) : (
                 <div className="text-ink-3 grid h-[200px] place-items-center text-[13px]">
-                  正在加载描述...
+                  {translate("detail.loadingNote")}
                 </div>
               )}
             </div>
@@ -704,7 +746,7 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
       {/* 类型选择 */}
       <ActionSheet
         open={typeSheetOpen}
-        title="选择任务类型"
+        title={translate("type.choose")}
         items={typeSheetItems}
         onClose={() => setTypeSheetOpen(false)}
       />
@@ -716,7 +758,7 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
         anchor={current.dueAt ?? null}
         onChange={offsets =>
           void saveReminders("todo", current.id, offsets).catch(error =>
-            onError(error, "更新提醒失败")
+            onError(error, todoTranslator.t("error.reminder"))
           )
         }
         onClose={() => setReminderSheetOpen(false)}
@@ -726,15 +768,15 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
       <ActionSheet
         open={moreSheetOpen}
         title={current.title}
-        kind="任务"
+        kind={translate("task")}
         items={moreSheetItems}
         onClose={() => setMoreSheetOpen(false)}
       />
 
       <MobileConfirmDialog
         open={deleteTarget !== null}
-        title="删除任务"
-        description={`「${clampText(deleteTarget?.title ?? "", 18)}」及其全部子任务将被删除。`}
+        title={translate("action.delete")}
+        description={translate("delete.tree", { title: clampText(deleteTarget?.title ?? "", 18) })}
         danger
         loading={deleteLoading}
         onCancel={() => {
@@ -749,7 +791,7 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
       {/* 开始时间（未设置时默认落到今天 09:00） */}
       <DateTimePickerSheet
         open={startTimeSheetOpen}
-        title="开始时间"
+        title={translate("date.start")}
         value={current.startAt ?? null}
         defaultHour={9}
         onConfirm={timestamp => {
@@ -766,7 +808,7 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
       {/* 截止时间（未设置时默认落到今天 18:00） */}
       <DateTimePickerSheet
         open={dueTimeSheetOpen}
-        title="截止时间"
+        title={translate("date.due")}
         value={current.dueAt ?? null}
         defaultHour={18}
         onConfirm={timestamp => {

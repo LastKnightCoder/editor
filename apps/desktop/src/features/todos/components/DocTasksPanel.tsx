@@ -1,3 +1,4 @@
+import { todosTranslator, todosCount, useTodosI18n } from "@/features/todos/i18n";
 /**
  * 「文档中」视图：按文档分组列出正文里的勾选项，顺序与层级同原文。
  * 已完成默认收起，展开时才取该篇全部条目。
@@ -9,13 +10,24 @@ import { FadeScroll, cn } from "@tau/ui";
 import type { DocTaskItem, DocTaskSnapshot, DocTaskSource } from "@/types/doc-tasks";
 import { useDocTasksOf } from "@/hooks/useDocTasks";
 import { DocTaskRow, openDocTask } from "./DocTaskBits";
+const t = todosTranslator.t;
 
 const KIND_LABEL: Record<DocTaskSource["ref"]["kind"], string> = {
-  card: "卡片",
-  article: "文章",
-  "project-item": "项目文档",
-  "diary-moment": "日记",
-  "plugin-entity": "插件内容",
+  get card() {
+    return t("kind.card");
+  },
+  get article() {
+    return t("kind.article");
+  },
+  get "project-item"() {
+    return t("kind.project-item");
+  },
+  get "diary-moment"() {
+    return t("kind.diary-moment");
+  },
+  get "plugin-entity"() {
+    return t("kind.plugin-entity");
+  },
 };
 
 export function DocTasksPanel({
@@ -31,13 +43,14 @@ export function DocTasksPanel({
   onToggle(task: DocTaskItem): void;
   onOpen(task: DocTaskItem): void;
 }) {
+  useTodosI18n();
   const sources = snapshot.sources.filter(s => s.openCount > 0 || s.doneCount > 0);
   return (
-    <FadeScroll className="relative mb-4 min-h-0 min-w-0 flex-1 pb-6 pl-[22px] pr-2">
+    <FadeScroll className="relative mb-4 min-h-0 min-w-0 flex-1 pr-2 pb-6 pl-[22px]">
       {sources.length === 0 ? (
         <div className="text-ink-3 flex flex-col items-center gap-1.5 py-20 text-center text-[12.5px]">
-          <p className="text-ink-2 text-[15px] font-medium">文档里还没有待办</p>
-          <p>在任意卡片、文章、日记里输入 [] 加空格创建勾选项，就会出现在这里</p>
+          <p className="text-ink-2 text-[15px] font-medium">{t("doc.empty")}</p>
+          <p>{t("doc.emptyHint")}</p>
         </div>
       ) : (
         sources.map(source => (
@@ -71,6 +84,7 @@ function DocSection({
   onToggle(task: DocTaskItem): void;
   onOpen(task: DocTaskItem): void;
 }) {
+  useTodosI18n();
   const [showDone, setShowDone] = useState(false);
   const all = useDocTasksOf(showDone ? source.contentId : null).data;
   const rows = (showDone && all ? all : open).filter(task => !task.promoted);
@@ -79,7 +93,7 @@ function DocSection({
 
   return (
     <section className="group/doc relative mb-[18px]">
-      <header className="sticky top-0 z-[2] -mx-1.5 flex items-baseline gap-2.5 bg-[linear-gradient(180deg,var(--tau-bg-surface)_calc(100%_-_10px),transparent)] px-2.5 pb-2 pt-1.5">
+      <header className="sticky top-0 z-[2] -mx-1.5 flex items-baseline gap-2.5 bg-[linear-gradient(180deg,var(--tau-bg-surface)_calc(100%_-_10px),transparent)] px-2.5 pt-1.5 pb-2">
         <button
           type="button"
           onClick={() => openDocTask(source)}
@@ -92,11 +106,11 @@ function DocSection({
           {source.meta && ` · ${source.meta}`}
         </span>
         <span className="text-ink-3 ml-auto shrink-0 text-[11.5px] tabular-nums">
-          {source.openCount} 项
+          {todosCount("count.tasks", source.openCount)}
         </span>
         <button
           type="button"
-          title="打开原文"
+          title={t("doc.open")}
           onClick={() => openDocTask(source)}
           className="text-ink-3 hover:text-ink-1 opacity-0 transition-opacity group-hover/doc:opacity-100"
         >
@@ -121,7 +135,7 @@ function DocSection({
           <button
             type="button"
             onClick={() => setShowDone(v => !v)}
-            className="text-ink-3 hover:text-ink-2 flex items-center gap-1.5 pb-1 pl-5 pr-3.5 pt-1.5 text-[11.5px]"
+            className="text-ink-3 hover:text-ink-2 flex items-center gap-1.5 pt-1.5 pr-3.5 pb-1 pl-5 text-[11.5px]"
           >
             <ChevronDown
               className={cn(
@@ -130,7 +144,7 @@ function DocSection({
               )}
               strokeWidth={1.75}
             />
-            {showDone ? "隐藏已完成" : `显示 ${source.doneCount} 项已完成`}
+            {showDone ? t("doc.hideDone") : todosCount("count.showDone", source.doneCount)}
           </button>
         )}
       </div>
