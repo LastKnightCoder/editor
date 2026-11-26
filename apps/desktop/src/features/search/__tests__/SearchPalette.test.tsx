@@ -1,3 +1,4 @@
+import { desktopLocaleSource } from "@/app/i18n/runtime";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -29,6 +30,7 @@ vi.mock("../queries", () => ({
   }),
   resultDisplay: () => ({ title: "", snippet: "" }),
   relativeTime: () => "",
+  searchErrorText: (error: unknown) => (error instanceof Error ? error.message : ""),
 }));
 vi.mock("@/features/todos/queries", () => ({
   useTodoGroups: () => [{ id: 1, title: "工作" }],
@@ -155,6 +157,9 @@ it.each([
   { prefix: "PDF", type: "pdf" as const, page: "pdf-detail", params: { pdfId: 17 } },
   { prefix: "数据库", type: "database" as const, page: "database-detail", params: { id: 17 } },
   { prefix: "闪卡", type: "flashcard" as const, page: "review", params: { cardId: 17 } },
+  { prefix: "待辦", type: "todo" as const, page: "todos", params: { id: "", selectedId: 17 } },
+  { prefix: "Tasks", type: "todo" as const, page: "todos", params: { id: "", selectedId: 17 } },
+  { prefix: "專案", type: "project" as const, page: "project-detail", params: { id: 17 } },
 ])("$prefix 前缀查找已有条目，回车打开目标而不新建", async ({ prefix, type, page, params }) => {
   // 用户曾把待办前缀当搜索，却只看到添加行；同名条目必须可被找到和打开。
   search.results = [
@@ -182,7 +187,7 @@ it("待办筛选同时展示文档里的任务，并定位到原文中的具体�
       id: "80:task-a",
       title: "复盘",
       snippet: "工作记录",
-      meta: "",
+      completed: false,
       sourceRef: { kind: "article", id: 8 },
       taskId: "task-a",
     },
@@ -193,47 +198,50 @@ it("待办筛选同时展示文档里的任务，并定位到原文中的具体�
   expect(createTodoFromQuickAdd).not.toHaveBeenCalled();
 });
 
-it("显式添加仍创建待办，切换搜索类型后退出添加模式", async () => {
-  vi.mocked(createTodoFromQuickAdd).mockResolvedValue({
-    id: 18,
-    groupId: 1,
-    parentId: null,
-    title: "交周报",
-    type: "normal",
-    isCompleted: false,
-    isArchived: false,
-    sortIndex: 0,
-    createTime: 1,
-    updateTime: 1,
-  });
-  await typeQuery("添加待办: 交周报");
-  await key("Enter");
-  expect(createTodoFromQuickAdd).toHaveBeenCalledWith(
-    expect.objectContaining({ title: "交周报" }),
-    1
-  );
-  await act(async () => useSearchStore.setState({ open: true }));
-  await typeQuery("添加待办: 2026年");
-  search.results = [
-    {
-      type: "todo",
-      id: 17,
-      snippet: "",
-      title: "2026年度复盘",
-
-      meta: "工作",
+it.each(["添加待办", "新增待辦", "add task"])(
+  "%s 显式添加仍创建待办，切换搜索类型后退出添加模式",
+  async prefix => {
+    vi.mocked(createTodoFromQuickAdd).mockResolvedValue({
+      id: 18,
+      groupId: 1,
+      parentId: null,
+      title: "交周报",
+      type: "normal",
+      isCompleted: false,
+      isArchived: false,
+      sortIndex: 0,
+      createTime: 1,
       updateTime: 1,
-    },
-  ];
-  const todoScope = [...container.querySelectorAll("button")].find(
-    button => button.textContent === "待办"
-  );
-  if (!todoScope) throw new Error("待办搜索入口缺失");
-  await act(async () => todoScope.click());
-  await key("Enter");
-  expect(usePage().navigator.push).toHaveBeenCalledWith("todos", { id: "", selectedId: 17 });
-  expect(createTodoFromQuickAdd).toHaveBeenCalledTimes(1);
-});
+    });
+    await typeQuery(`${prefix}: 交周报`);
+    await key("Enter");
+    expect(createTodoFromQuickAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "交周报" }),
+      1
+    );
+    await act(async () => useSearchStore.setState({ open: true }));
+    await typeQuery(`${prefix}: 2026年`);
+    search.results = [
+      {
+        type: "todo",
+        id: 17,
+        snippet: "",
+        title: "2026年度复盘",
+
+        meta: "工作",
+        updateTime: 1,
+      },
+    ];
+    const todoScope = [...container.querySelectorAll("button")].find(
+      button => button.textContent === "待办"
+    );
+    if (!todoScope) throw new Error("待办搜索入口缺失");
+    await act(async () => todoScope.click());
+    await key("Enter");
+    expect(usePage().navigator.push).toHaveBeenCalledWith("todos", { id: "", selectedId: 17 });
+    expect(createTodoFromQuickAdd).toHaveBeenCalledTimes(1);
+  }
+);
 afterEach(async () => {
   await act(async () => root.unmount());
   await runtime.dispose();
@@ -334,4 +342,37 @@ it("插件的文字动作排在「记录」组末尾，回车把输入的文字�
   await act(async () => new Promise(resolve => setTimeout(resolve, 0)));
   expect(run).toHaveBeenCalledWith({ kind: "text", text: "渲染为什么会卡" });
   expect(useSearchStore.getState().open).toBe(false);
+});
+
+it("切换语言保留查询、范围、选中结果及输入节点，不执行动作", async () => {
+  const originalLocale = desktopLocaleSource.getSnapshot();
+  search.results = [17, 18].map(id => ({
+    type: "todo" as const,
+    id,
+    title: `用户的结果 ${id}`,
+    snippet: "",
+    meta: "原始项目名",
+    updateTime: 1,
+  }));
+  await typeQuery("待办: 2026年");
+  await act(async () => input().focus());
+  await key("ArrowDown");
+  const field = input();
+  field.setSelectionRange(1, 3);
+  const selected = rows().find(row => row.getAttribute("aria-selected") === "true");
+  expect(selected?.textContent).toContain("用户的结果 18");
+  try {
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(input()).toBe(field);
+      expect(field.value).toBe("2026年");
+      expect([field.selectionStart, field.selectionEnd]).toEqual([1, 3]);
+      expect(rows().find(row => row.getAttribute("aria-selected") === "true")).toBe(selected);
+      expect(createTodoFromQuickAdd).not.toHaveBeenCalled();
+    }
+    await key("Enter");
+    expect(usePage().navigator.push).toHaveBeenCalledWith("todos", { id: "", selectedId: 18 });
+  } finally {
+    await act(async () => desktopLocaleSource.setLocale(originalLocale));
+  }
 });

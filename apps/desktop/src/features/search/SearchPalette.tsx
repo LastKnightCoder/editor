@@ -1,4 +1,6 @@
-import { useAppI18n } from "@/app/i18n/react";
+import { useSearchI18n } from "./i18n";
+import scopePrefixes from "./scope-prefixes.json";
+import capturePrefixes from "./capture-prefixes.json";
 /**
  * SearchPalette —— 全局命令面板。
  *
@@ -56,7 +58,13 @@ import {
   type PaletteCommand,
   type PaletteScope,
 } from "./searchMeta";
-import { useSearchContent, resultDisplay, relativeTime, type PaletteSearchResult } from "./queries";
+import {
+  useSearchContent,
+  resultDisplay,
+  relativeTime,
+  searchErrorText,
+  type PaletteSearchResult,
+} from "./queries";
 import { openSearchResult } from "./openResult";
 import { useSettingsStore } from "@/app/settingsStore";
 import { useFeatures } from "@/app/featureQueries";
@@ -85,45 +93,18 @@ import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 
 // 面板退场动画时长之后再截图
 const CAPTURE_DELAY_MS = 260;
-const WORD_TO_SCOPE: Record<string, PaletteScope> = {
-  卡片: "card",
-  文章: "article",
-  项目: "project",
-  项目文档: "project-item",
-  日记: "diary-moment",
-  待办: "todo",
-  任务: "todo",
-  日程: "calendar-event",
-  白板: "whiteboard",
-  notebook: "notebook",
-  pdf: "pdf",
-  对话: "chat-session",
-  数据库: "database",
-  闪卡: "flashcard",
-  命令: "cmd",
-};
+const WORD_TO_SCOPE: Record<string, PaletteScope> = scopePrefixes as Record<string, PaletteScope>;
 const TYPE_WORDS = Object.keys(WORD_TO_SCOPE);
 const PREFIX_RE = new RegExp(
   `^(${TYPE_WORDS.join("|")})((?:[,、]\\s*(?:${TYPE_WORDS.join("|")}))*)[:：]\\s*(.*)$`,
   "i"
 );
 /** 添加动作与搜索类型前缀分开，避免把查找误当成新建。 */
-const CAPTURE_RE = /^添加(待办|任务|日程)[:：]\s*(.*)$/;
+const CAPTURE_RE = new RegExp(`^(${Object.keys(capturePrefixes).join("|")})[:：]\\s*(.*)$`, "i");
 
 type CaptureKind = "todo" | "event";
-const CAPTURE_META: Record<CaptureKind, { chip: string; group: string; placeholder: string }> = {
-  todo: {
-    chip: "添加待办",
-    group: "添加待办",
-    placeholder: "明天 17:00 交周报 #项目、每周一、四 周会、周末 洗车…",
-  },
-  event: {
-    chip: "添加日程",
-    group: "添加日程",
-    placeholder: "明天下午3点到5点 评审 #日历、下周六 爬山…",
-  },
-};
-const captureKindOf = (word: string): CaptureKind => (word === "日程" ? "event" : "todo");
+const captureKindOf = (word: string): CaptureKind =>
+  (capturePrefixes as Record<string, CaptureKind>)[word.toLowerCase()];
 
 /* ---------- 面板行模型（分组渲染 + 扁平导航共用） ---------- */
 
@@ -161,7 +142,7 @@ function Highlighted({ text, q }: { text: string; q: string }) {
 }
 
 export function SearchPalette() {
-  useAppI18n();
+  const { t, locale } = useSearchI18n();
   const open = useSearchStore(s => s.open);
   const closePalette = useSearchStore(s => s.closePalette);
   const togglePalette = useSearchStore(s => s.togglePalette);
@@ -201,7 +182,7 @@ export function SearchPalette() {
     () => (plugins ? pluginPaletteCommands(plugins.host) : []),
     // 宿主实例不变时仍须按修订号更新命令快照。
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [plugins, pluginRevision]
+    [plugins, pluginRevision, t]
   );
   // 关掉的功能不出现在页面跳转里；页面本身仍可经内容结果打开
   const { isEnabled } = useFeatures();
@@ -235,7 +216,9 @@ export function SearchPalette() {
       closeAnd(() => {
         void Promise.resolve()
           .then(run)
-          .catch(error => toast.error(error instanceof Error ? error.message : "插件命令执行失败"));
+          .catch(error =>
+            toast.error(error instanceof Error ? error.message : t("plugin.commandFailed"))
+          );
       });
     } else if (pageKey) {
       closeAnd(() => navigator.push(pageKey));
@@ -244,7 +227,7 @@ export function SearchPalette() {
       const next = mode === "dark" ? "light" : "dark";
       closeAnd(() => {
         setAppearance(next);
-        toast.success(`已切换到${next === "dark" ? "深色" : "浅色"}模式`);
+        toast.success(t(next === "dark" ? "theme.dark" : "theme.light"));
       });
     } else if (action === "open-settings") {
       closeAnd(() => useSettingsStore.getState().openSettings());
@@ -271,7 +254,7 @@ export function SearchPalette() {
       closeAnd(() =>
         setTimeout(() => {
           openFeedbackWindow({ page: currentPageKey ?? null, capture: true }).catch(error =>
-            toast.error(error instanceof Error ? error.message : "截图失败")
+            toast.error(error instanceof Error ? error.message : t("capture.failed"))
           );
         }, CAPTURE_DELAY_MS)
       );
@@ -279,7 +262,7 @@ export function SearchPalette() {
       // 快照路径由主进程统一发系统通知（与托盘入口同一提示通道）
       closeAnd(() => {
         exportPerfSnapshot().catch(error =>
-          toast.error(error instanceof Error ? error.message : "导出性能快照失败")
+          toast.error(error instanceof Error ? error.message : t("perf.failed"))
         );
       });
     }
@@ -299,8 +282,10 @@ export function SearchPalette() {
       key: `capture:plugin:${action.id}`,
       icon: props => <Icon {...props} aria-hidden="true" />,
       title: `${action.definition.title}：${text}`,
-      sub: `来自「${pluginNames.get(action.context.pluginId) ?? action.context.pluginId}」`,
-      tag: { label: "插件", cls: "bg-hover text-ink-2" },
+      sub: t("plugin.from", {
+        name: pluginNames.get(action.context.pluginId) ?? action.context.pluginId,
+      }),
+      tag: { label: t("section.plugin"), cls: "bg-hover text-ink-2" },
       run: () => closeAnd(() => textActions.run(action)),
     };
   };
@@ -314,29 +299,29 @@ export function SearchPalette() {
     return {
       key: "capture:todo",
       icon: ListPlus,
-      title: title ? `添加待办：${title}` : "输入待办，回车添加到待办页",
+      title: title ? t("capture.todo", { title }) : t("capture.todoEmpty"),
       sub: parsed
-        ? `${describeQuickAdd(parsed, now)} · ${group ? `#${group.title}` : "还没有待办项目"}`
-        : "明天 17:00 / 下周三 / 每周一 / #项目",
-      tag: { label: "待办", cls: "bg-warn-soft text-warn" },
+        ? `${describeQuickAdd(parsed, now)} · ${group ? `#${group.title}` : t("capture.groupMissing")}`
+        : t("capture.todoExample"),
+      tag: { label: t("type.todo"), cls: "bg-warn-soft text-warn" },
       hint: !title,
       run: () => {
         if (!parsed || !title) return;
         if (!group) {
-          toast.warning("先在待办页新建一个项目");
+          toast.warning(t("capture.createGroup"));
           return;
         }
         closeAnd(() => {
           createTodoFromQuickAdd(parsed, group.id)
             .then(item =>
-              toast.success(`已添加「${item.title}」到 ${group.title}`, {
+              toast.success(t("capture.todoAdded", { title: item.title, group: group.title }), {
                 action: {
-                  label: "查看",
+                  label: t("view"),
                   onClick: () => navigator.push("todos", { id: String(group.id) }),
                 },
               })
             )
-            .catch(() => toast.error("添加待办失败"));
+            .catch(() => toast.error(t("capture.todoFailed")));
         });
       },
     };
@@ -353,22 +338,22 @@ export function SearchPalette() {
       ? `${dayWord(parsed.date, now)} ${
           parsed.startTime !== null && parsed.endTime !== null
             ? `${formatTime(parsed.startTime)}–${formatTime(parsed.endTime)}`
-            : "全天"
+            : t("capture.allDay")
         }`
       : "";
     return {
       key: "capture:event",
       icon: CalendarPlus,
-      title: title ? `添加日程：${title}` : "输入日程，回车添加到日历",
+      title: title ? t("capture.event", { title }) : t("capture.eventEmpty"),
       sub: parsed
-        ? `${when} · ${calendar ? calendar.title : "还没有日历"}`
-        : "明天下午3点 / 周末 / 10月1日 / #日历",
-      tag: { label: "日程", cls: "bg-info-soft text-info" },
+        ? `${when} · ${calendar ? calendar.title : t("capture.calendarMissing")}`
+        : t("capture.eventExample"),
+      tag: { label: t("type.calendar-event"), cls: "bg-info-soft text-info" },
       hint: !title,
       run: () => {
         if (!parsed || !title) return;
         if (!calendar) {
-          toast.warning("先在日程页创建一个日历");
+          toast.warning(t("capture.createCalendar"));
           return;
         }
         const timed = parsed.startTime !== null;
@@ -386,11 +371,20 @@ export function SearchPalette() {
           })
             .then(() => {
               const d = new Date(parsed.date);
-              toast.success(`已添加到 ${d.getMonth() + 1}月${d.getDate()}日 · ${calendar.title}`, {
-                action: { label: "查看", onClick: () => navigator.push("schedule") },
-              });
+              toast.success(
+                t("capture.eventAdded", {
+                  date: new Intl.DateTimeFormat(locale, {
+                    month: "numeric",
+                    day: "numeric",
+                  }).format(d),
+                  calendar: calendar.title,
+                }),
+                {
+                  action: { label: t("view"), onClick: () => navigator.push("schedule") },
+                }
+              );
             })
-            .catch(() => toast.error("添加日程失败"));
+            .catch(() => toast.error(t("capture.eventFailed")));
         });
       },
     };
@@ -402,9 +396,9 @@ export function SearchPalette() {
   // 检索失败反馈（isError 翻真时触发一次；重试成功自动复位）
   useEffect(() => {
     if (!contentQuery.isError) return;
-    const reason = contentQuery.error instanceof Error ? contentQuery.error.message : "";
-    toast.error(`搜索失败${reason ? `：${reason}` : "，请稍后重试"}`, {
-      action: { label: "重试", onClick: () => void contentQuery.refetch() },
+    const reason = searchErrorText(contentQuery.error);
+    toast.error(t(reason ? "error.reason" : "error.retry", { reason }), {
+      action: { label: t("retry"), onClick: () => void contentQuery.refetch() },
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contentQuery.isError, contentQuery.error]);
@@ -414,9 +408,10 @@ export function SearchPalette() {
   useEffect(() => {
     if (searchWarning)
       toast.warning(searchWarning, {
-        action: { label: "重试", onClick: () => void refetchSearch() },
+        action: { label: t("retry"), onClick: () => void refetchSearch() },
       });
-  }, [searchWarning, refetchSearch]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contentQuery.warningKey, refetchSearch]);
 
   /* ---------- 行构造 ---------- */
 
@@ -431,7 +426,7 @@ export function SearchPalette() {
       key: `recent:${v.key}`,
       icon: page?.icon ?? CircleDashed,
       title: page?.label ?? v.key,
-      sub: "上次访问",
+      sub: t("visit.last"),
       run: () => closeAnd(() => navigator.push(v.key)),
     };
   };
@@ -443,14 +438,33 @@ export function SearchPalette() {
         key: `entity:${r.type}:${"sessionId" in r ? (r.sessionId ?? r.id) : r.id}`,
         icon: meta.icon,
         title: r.title,
-        sub: [r.meta, r.snippet].filter(Boolean).join(" · "),
+        sub: [
+          r.type === "document-task"
+            ? r.completed
+              ? t("status.completed")
+              : ""
+            : r.type === "chat-session"
+              ? t(
+                  r.chatScope === "pdf-chat"
+                    ? "chat.pdf"
+                    : r.chatScope === "vibe-learning-chat"
+                      ? "chat.notebook"
+                      : "chat.main"
+                )
+              : r.meta,
+          r.snippet,
+        ]
+          .filter(Boolean)
+          .join(" · "),
         tag: { label: meta.label, cls: meta.tag },
-        meta: "updateTime" in r ? relativeTime(r.updateTime) : undefined,
+        meta: "updateTime" in r ? relativeTime(r.updateTime, locale) : undefined,
         run: () =>
           closeAnd(() => {
             void Promise.resolve()
               .then(() => openSearchResult(r, navigator))
-              .catch(error => toast.error(error instanceof Error ? error.message : "打开失败"));
+              .catch(error =>
+                toast.error(error instanceof Error ? error.message : t("open.failed"))
+              );
           }),
       };
     }
@@ -463,18 +477,20 @@ export function SearchPalette() {
         title: material.title,
         sub: r.section ? `${material.meta} · ${resultDisplay(r).snippet}` : material.meta,
         tag: { label: meta.label, cls: meta.tag },
-        meta: relativeTime(r.updateTime),
+        meta: relativeTime(r.updateTime, locale),
         run: () =>
           closeAnd(() => {
             if (!material.open) {
               if (meta.navKey) navigator.push(meta.navKey);
-              else toast.error(material.deleted ? "原划线已删除" : "无法打开到原处");
+              else toast.error(material.deleted ? t("material.deleted") : t("material.openFailed"));
               return;
             }
             openMaterialTarget(
               material.open,
               r.section && locatesSection(r.type) ? { block: r.section.blockStart } : undefined
-            ).catch(error => toast.error(error instanceof Error ? error.message : "打开失败"));
+            ).catch(error =>
+              toast.error(error instanceof Error ? error.message : t("open.failed"))
+            );
           }),
       };
     }
@@ -487,7 +503,7 @@ export function SearchPalette() {
       title,
       sub: snippet,
       tag: { label, cls: meta.tag },
-      meta: relativeTime(r.updateTime),
+      meta: relativeTime(r.updateTime, locale),
       run: () =>
         closeAnd(() => {
           const kind = normalizeEntityRefKind(r.type);
@@ -495,7 +511,7 @@ export function SearchPalette() {
           void openEntity(
             { kind, id: r.id },
             r.section && locatesSection(r.type) ? { at: { block: r.section.blockStart } } : {}
-          ).catch(error => toast.error(error instanceof Error ? error.message : "打开失败"));
+          ).catch(error => toast.error(error instanceof Error ? error.message : t("open.failed")));
         }),
     };
   };
@@ -514,14 +530,19 @@ export function SearchPalette() {
     const out: Group[] = [];
 
     if (capture) {
-      return [{ label: CAPTURE_META[capture].group, rows: [captureRowOf(capture, trimmedQ)] }];
+      return [
+        {
+          label: t(capture === "todo" ? "command.capture-todo" : "command.capture-event"),
+          rows: [captureRowOf(capture, trimmedQ)],
+        },
+      ];
     }
 
     if (!trimmedQ && scopes.size === 0) {
       // 二级页（card-detail/article-detail 等）只存 key 无法回跳，存量持久化记录同此过滤
       const replayable = visits.filter(v => isReplayableVisit(v.key) && isEnabled(v.key));
       const recent = replayable.slice(0, 5).map(recentRow);
-      if (recent.length) out.push({ label: "最近访问", rows: recent });
+      if (recent.length) out.push({ label: t("group.recent"), rows: recent });
       const recentKeys = new Set(recent.map(r => r.key));
       // replayable 为局部新数组，就地排序不影响上面的 recent
       const frequent = replayable
@@ -529,7 +550,7 @@ export function SearchPalette() {
         .slice(0, 5)
         .filter(v => !recentKeys.has(`recent:${v.key}`))
         .map(recentRow);
-      if (frequent.length) out.push({ label: "常用", rows: frequent });
+      if (frequent.length) out.push({ label: t("group.frequent"), rows: frequent });
       if (!out.length) {
         out.push({
           label: "",
@@ -537,7 +558,7 @@ export function SearchPalette() {
             {
               key: "hint:empty",
               icon: Search,
-              title: "暂无访问记录——输入即搜全部内容与命令",
+              title: t("hint.empty"),
               hint: true,
               run: () => undefined,
             },
@@ -550,7 +571,11 @@ export function SearchPalette() {
     if (!trimmedQ) {
       // 有筛选无查询：命令筛选展示全部命令；内容筛选给出输入引导
       if (scopes.has("cmd")) {
-        out.push({ label: "页面与命令", count: commands.length, rows: commands.map(commandRow) });
+        out.push({
+          label: t("group.commands"),
+          count: commands.length,
+          rows: commands.map(commandRow),
+        });
       }
       const contentScopes = SCOPE_ORDER.filter(s => s !== "cmd" && scopes.has(s));
       if (contentScopes.length) {
@@ -560,7 +585,7 @@ export function SearchPalette() {
             {
               key: "hint:type",
               icon: Search,
-              title: `输入关键词，将在「${contentScopes.map(scopeLabel).join(" + ")}」中检索…`,
+              title: t("hint.scopes", { scopes: contentScopes.map(scopeLabel).join(" + ") }),
               hint: true,
               run: () => inputRef.current?.focus(),
             },
@@ -575,7 +600,11 @@ export function SearchPalette() {
     const wantContent = scopes.size === 0 || SCOPE_ORDER.some(s => s !== "cmd" && scopes.has(s));
 
     if (wantCmd && commands.length) {
-      out.push({ label: "页面与命令", count: commands.length, rows: commands.map(commandRow) });
+      out.push({
+        label: t("group.commands"),
+        count: commands.length,
+        rows: commands.map(commandRow),
+      });
     }
 
     if (wantContent) {
@@ -585,7 +614,11 @@ export function SearchPalette() {
         return scopes.size === 0 || (scope != null && scopes.has(scope));
       });
       if (filtered.length) {
-        out.push({ label: "搜索结果", count: filtered.length, rows: filtered.map(contentRow) });
+        out.push({
+          label: t("group.results"),
+          count: filtered.length,
+          rows: filtered.map(contentRow),
+        });
       }
     }
 
@@ -595,7 +628,7 @@ export function SearchPalette() {
       const { date, startTime } = extractDateTime(trimmedQ);
       if (date !== null || startTime !== null) rows.push(eventRow(trimmedQ));
       out.push({
-        label: "记录",
+        label: t("group.capture"),
         rows: [...rows, ...textActions.actions.map(action => pluginTextRow(action, trimmedQ))],
       });
     }
@@ -607,7 +640,7 @@ export function SearchPalette() {
           {
             key: "hint:loading",
             icon: () => <Spinner className="text-ink-3" />,
-            title: "正在检索…",
+            title: t("hint.searching"),
             hint: true,
             run: () => undefined,
           },
@@ -631,6 +664,8 @@ export function SearchPalette() {
     mode,
     pluginEntityMeta,
     textActions.actions,
+    t,
+    locale,
   ]);
 
   const flat = useMemo(() => groups.flatMap(g => g.rows), [groups]);
@@ -816,7 +851,7 @@ export function SearchPalette() {
       >
         <div
           role="dialog"
-          aria-label="搜索或跳转"
+          aria-label={t("title")}
           inert={!open}
           className={clsx(
             "bg-surface border-line-1 shadow-float rounded-tau-lg ease-tau-out pointer-events-auto flex max-h-[66vh] w-[680px] max-w-[calc(100vw-48px)] flex-col overflow-hidden border transition-[opacity,transform] duration-200",
@@ -831,14 +866,14 @@ export function SearchPalette() {
             {capture && (
               <button
                 type="button"
-                title="退出收集"
+                title={t("capture.exit")}
                 onClick={() => {
                   setCapture(null);
                   inputRef.current?.focus();
                 }}
                 className="bg-accent-soft text-accent-text hover:bg-press text-tau-sm flex h-6 flex-none items-center gap-1.5 rounded-lg px-2.5 font-medium"
               >
-                {CAPTURE_META[capture].chip}
+                {t(capture === "todo" ? "command.capture-todo" : "command.capture-event")}
                 <X size={12} strokeWidth={2} />
               </button>
             )}
@@ -846,7 +881,7 @@ export function SearchPalette() {
               <button
                 key={s}
                 type="button"
-                title="移除该筛选"
+                title={t("filter.remove")}
                 onClick={() =>
                   setScopes(prev => {
                     const next = new Set(prev);
@@ -866,8 +901,8 @@ export function SearchPalette() {
               className="text-ink-1 placeholder:text-ink-3 min-w-0 flex-1 bg-transparent text-[15px] leading-relaxed outline-none"
               placeholder={
                 capture
-                  ? CAPTURE_META[capture].placeholder
-                  : "搜索名称或内容；「添加待办:」「添加日程:」快速记录…"
+                  ? t(capture === "todo" ? "capture.todoPlaceholder" : "capture.eventPlaceholder")
+                  : t("placeholder")
               }
               autoComplete="off"
               spellCheck={false}
@@ -880,7 +915,7 @@ export function SearchPalette() {
             {(query || scopes.size > 0 || capture) && (
               <button
                 type="button"
-                title="清空"
+                title={t("clear")}
                 onClick={() => {
                   setQuery("");
                   setScopes(new Set());
@@ -898,7 +933,7 @@ export function SearchPalette() {
           {/* 类型筛选 chips：点击单选 / Ctrl+点击多选 / Shift+←→ 循环 */}
           <div className="flex flex-wrap items-center gap-1.5 px-4 pb-2.5">
             <ScopeChip
-              label="全部"
+              label={t("all")}
               active={scopes.size === 0}
               count={
                 scopes.size === 0 && trimmedQ
@@ -916,7 +951,7 @@ export function SearchPalette() {
                 label={scopeLabel(s)}
                 icon={scopeIcon(s)}
                 active={scopes.has(s)}
-                title="Ctrl+点击多选"
+                title={t("filter.multi")}
                 count={trimmedQ ? typeCounts.get(s) : undefined}
                 onClick={e => toggleScope(s, e.ctrlKey || e.metaKey)}
               />
@@ -929,12 +964,11 @@ export function SearchPalette() {
               <div className="text-ink-3 py-9 text-center">
                 <Search size={26} strokeWidth={1.5} className="mx-auto mb-2" />
                 <div className="text-tau-sm">
-                  没有匹配「{trimmedQ}」的结果
-                  {scopes.size > 0 && `（当前筛选：${[...scopes].map(scopeLabel).join(" + ")}）`}
+                  {t("empty.title", { query: trimmedQ })}
+                  {scopes.size > 0 &&
+                    t("empty.scopes", { scopes: [...scopes].map(scopeLabel).join(" + ") })}
                 </div>
-                <div className="text-ink-3 text-tau-micro mt-1">
-                  试试其他关键词，Shift+←→ 换类型，或 Ctrl+点击 chips 多选几类
-                </div>
+                <div className="text-ink-3 text-tau-micro mt-1">{t("empty.hint")}</div>
               </div>
             ) : (
               groups.map((g, gi) => (
@@ -943,7 +977,9 @@ export function SearchPalette() {
                     <div className="text-ink-3 text-tau-tiny flex items-center gap-2 px-2.5 pt-2.5 pb-1 tracking-wide select-none">
                       {g.label}
                       {g.count !== undefined && (
-                        <span className="ml-auto tabular-nums">{g.count}</span>
+                        <span className="ml-auto tabular-nums">
+                          {g.count.toLocaleString(locale)}
+                        </span>
                       )}
                     </div>
                   )}
@@ -1026,19 +1062,19 @@ export function SearchPalette() {
           {/* 底栏快捷键提示 */}
           <div className="text-ink-2 text-tau-tiny flex flex-none flex-wrap items-center gap-3.5 px-3.5 py-2 select-none">
             <span>
-              <Kbd>↑↓</Kbd> 选择
+              <Kbd>↑↓</Kbd> {t("key.select")}
             </span>
             <span>
-              <Kbd>↵</Kbd> 打开
+              <Kbd>↵</Kbd> {t("key.open")}
             </span>
             <span>
-              <Kbd>Shift ←→</Kbd> 筛类型
+              <Kbd>Shift ←→</Kbd> {t("key.filter")}
             </span>
             <span>
-              <Kbd>Ctrl 点击</Kbd> 多选
+              <Kbd>{t("key.click")}</Kbd> {t("key.multi")}
             </span>
             <span className="ml-auto">
-              <Kbd>Esc</Kbd> 关闭
+              <Kbd>Esc</Kbd> {t("key.close")}
             </span>
           </div>
         </div>
@@ -1062,6 +1098,7 @@ function ScopeChip({
   title?: string;
   onClick: (e: ReactMouseEvent<HTMLButtonElement>) => void;
 }) {
+  const { locale } = useSearchI18n();
   return (
     <button
       type="button"
@@ -1083,7 +1120,7 @@ function ScopeChip({
             active ? "text-accent-text opacity-75" : "text-ink-3"
           )}
         >
-          {count}
+          {count.toLocaleString(locale)}
         </span>
       )}
     </button>

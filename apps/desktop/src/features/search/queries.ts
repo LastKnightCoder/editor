@@ -6,6 +6,10 @@
  * + 截断；卡片无 title 字段时正文开头作标题、余文作摘要，空内容兜底「类型 #id」。
  */
 
+import { useMemo } from "react";
+import type { Translator } from "@tau/i18n";
+import { useSearchI18n, searchTranslator, type SearchMessageKey } from "./i18n";
+import { desktopLocaleSource } from "@/app/i18n/runtime";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { searchHybridContent } from "@/commands/fts";
 import { searchCatalog } from "@/commands/entity";
@@ -28,12 +32,40 @@ export type PaletteSearchResult = SearchResult | CatalogSearchResult | DocumentT
 interface SearchBatch {
   items: PaletteSearchResult[];
   warnings: string[];
+  failures?: SearchFailure[];
+}
+
+export interface SearchFailure {
+  source: "content" | "catalog" | "document-task";
+  reason: string | null;
+}
+class SearchFailureError extends Error {
+  constructor(readonly failures: SearchFailure[]) {
+    super(failures.map(failure => `${failure.source}: ${failure.reason ?? ""}`).join("; "));
+  }
+}
+export function searchFailureText(
+  failure: SearchFailure,
+  t: Translator<SearchMessageKey>["t"] = searchTranslator.t
+): string {
+  return t("source.failed", {
+    source: t(`source.${failure.source}`),
+    reason: failure.reason ?? t("source.retry"),
+  });
+}
+export function searchErrorText(error: unknown): string {
+  return error instanceof SearchFailureError
+    ? error.failures.map(failure => searchFailureText(failure)).join("; ")
+    : error instanceof Error
+      ? error.message
+      : "";
 }
 
 const RESULT_LIMIT = 24;
 const SEARCH_COMMANDS = { searchHybridContent, searchCatalog, taskAssistantRequest };
 
 export function useSearchContent(query: string, types?: PaletteSearchType[], enabled = true) {
+  const { t } = useSearchI18n();
   const database = useSettingStore(state => state.setting.database.active);
   const { commands, connectionId } = useDatabaseCommands(SEARCH_COMMANDS, database);
   const result = useQuery({
@@ -46,11 +78,12 @@ export function useSearchContent(query: string, types?: PaletteSearchType[], ena
         (type): type is IndexType => type !== "document-task" && !isCatalogSearchType(type)
       );
       const catalogTypes = types?.filter(isCatalogSearchType);
-      const requests: Array<{ label: string; promise: Promise<SearchBatch> }> = [];
+      const requests: Array<{ source: SearchFailure["source"]; promise: Promise<SearchBatch> }> =
+        [];
       if (!contentTypes || contentTypes.length) {
         const modelInfo = resolveEmbeddingModelInfoFromSetting(useSettingStore.getState().setting);
         requests.push({
-          label: "正文",
+          source: "content",
           promise: commands
             .searchHybridContent({
               query,
@@ -63,7 +96,7 @@ export function useSearchContent(query: string, types?: PaletteSearchType[], ena
       }
       if (!catalogTypes || catalogTypes.length) {
         requests.push({
-          label: "名称",
+          source: "catalog",
           promise: commands
             .searchCatalog({
               keyword: query,
@@ -75,7 +108,7 @@ export function useSearchContent(query: string, types?: PaletteSearchType[], ena
       }
       if (!types || types.includes("document-task")) {
         requests.push({
-          label: "文档待办",
+          source: "document-task",
           promise: commands
             .taskAssistantRequest<AssistantQueryResult<AssistantTask>>(
               "task-assistant:read",
@@ -100,7 +133,7 @@ export function useSearchContent(query: string, types?: PaletteSearchType[], ena
                         id: `${task.taskRef.contentId}:${task.taskRef.taskId}`,
                         title: task.title,
                         snippet: task.sourceTitle ?? "",
-                        meta: task.completed ? "已完成" : "",
+                        completed: task.completed,
                         sourceRef: task.sourceRef,
                         taskId: task.taskRef.taskId,
                       },
@@ -113,21 +146,23 @@ export function useSearchContent(query: string, types?: PaletteSearchType[], ena
       }
       const settled = await Promise.allSettled(requests.map(request => request.promise));
       const batches: SearchBatch[] = [];
-      const failures: string[] = [];
+      const failures: SearchFailure[] = [];
       settled.forEach((response, index) => {
         if (response.status === "fulfilled") batches.push(response.value);
         else
-          failures.push(
-            `${requests[index].label}搜索失败：${response.reason instanceof Error ? response.reason.message : "请重试"}`
-          );
+          failures.push({
+            source: requests[index].source,
+            reason: response.reason instanceof Error ? response.reason.message : null,
+          });
       });
-      if (requests.length && !batches.length) throw new Error(failures.join("；"));
+      if (requests.length && !batches.length) throw new SearchFailureError(failures);
       // 名称与任务命中优先，正文保留检索管线给出的相关性顺序。
       return {
         items: batches
           .flatMap(batch => batch.items)
           .sort((a, b) => Number("content" in a) - Number("content" in b)),
-        warnings: [...failures, ...batches.flatMap(batch => batch.warnings)],
+        warnings: batches.flatMap(batch => batch.warnings),
+        failures,
       };
     },
     enabled: enabled && query.trim().length > 0,
@@ -143,7 +178,15 @@ export function useSearchContent(query: string, types?: PaletteSearchType[], ena
         : undefined;
     },
   });
-  return { ...result, data: result.data?.items, warnings: result.data?.warnings ?? [] };
+  const warnings = useMemo(
+    () => [
+      ...(result.data?.failures ?? []).map(failure => searchFailureText(failure, t)),
+      ...(result.data?.warnings ?? []),
+    ],
+    [result.data, t]
+  );
+  const warningKey = JSON.stringify([result.data?.failures, result.data?.warnings]);
+  return { ...result, data: result.data?.items, warnings, warningKey };
 }
 
 /** 无 title 字段时正文开头作标题、余文作摘要（对齐移动端 excerpt 派生） */
@@ -172,23 +215,27 @@ export function resultDisplay(
   }
   const plain = richTextPlainText(result.content);
   if (!plain) {
-    const label = CONTENT_TYPES[result.type]?.label ?? "内容";
-    return { title: `${label} #${result.contentId}`, snippet: "" };
+    const label = CONTENT_TYPES[result.type]?.label ?? searchTranslator.t("type.content");
+    return {
+      title: searchTranslator.t("result.fallback", { type: label, id: result.contentId }),
+      snippet: "",
+    };
   }
   const title = clampText(plain, maxTitle);
   const rest = plain.length > maxTitle ? plain.slice(maxTitle).trim() : "";
   return { title, snippet: clampText(rest, maxSnippet) };
 }
 
-export function relativeTime(ts: number): string {
+export function relativeTime(ts: number, locale = desktopLocaleSource.getSnapshot()): string {
   const days = Math.floor(
     (new Date(new Date().toDateString()).getTime() -
       new Date(new Date(ts).toDateString()).getTime()) /
       86_400_000
   );
-  if (days <= 0) return "今天";
-  if (days === 1) return "昨天";
-  if (days < 30) return `${days} 天前`;
-  if (days < 365) return `${Math.floor(days / 30)} 个月前`;
-  return `${Math.floor(days / 365)} 年前`;
+  const relative = new Intl.RelativeTimeFormat(locale, { numeric: days <= 1 ? "auto" : "always" });
+  if (days <= 0) return relative.format(0, "day");
+  if (days === 1) return relative.format(-1, "day");
+  if (days < 30) return relative.format(-days, "day");
+  if (days < 365) return relative.format(-Math.floor(days / 30), "month");
+  return relative.format(-Math.floor(days / 365), "year");
 }

@@ -1,6 +1,7 @@
 // 搜索页：查询条件/结果/加载态全部页面私有（keep-alive 跨进出保留），
 // 搜索请求自包含（原先 isSearching/请求序号提升在 AppShell）。
 
+import { searchTranslator } from "../i18n";
 import { getBaseDateFromDiaryKey } from "../../diary/dateKey";
 import { useMemoizedFn } from "ahooks";
 import { useRef, useState } from "react";
@@ -36,7 +37,7 @@ function SearchScreen() {
         query,
       });
     } catch (error) {
-      app.presentError(error, "搜索失败");
+      app.presentError(error, searchTranslator.t("search.failed"));
       return EMPTY_SEARCH_RESULT;
     } finally {
       if (requestSeqRef.current === requestSeq) {
@@ -51,7 +52,7 @@ function SearchScreen() {
         void openMobilePluginEntity(result.id, {
           expectedContentId: result.contentId ?? undefined,
           expectedCreatedAt: result.pluginEntity?.createdAt,
-        }).catch(error => app.presentError(error, "插件内容打开失败"));
+        }).catch(error => app.presentError(error, searchTranslator.t("plugin.openFailed")));
         break;
       case "card":
         navigator.push("contentDetail", { cardId: result.id });

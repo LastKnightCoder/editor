@@ -1,3 +1,4 @@
+import { desktopLocaleSource } from "@/app/i18n/runtime";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -176,4 +177,31 @@ it("切库时不展示前库结果，前库的迟到查询也不能覆盖当前�
   await settle();
   await act(async () => finishOld([task]));
   expect(current.data).toEqual([]);
+});
+
+it("切换语言只更新来源失败提示，不重复查询或替换结果", async () => {
+  const originalLocale = desktopLocaleSource.getSnapshot();
+  vi.mocked(searchHybridContent).mockRejectedValue(new Error("原始索引错误"));
+  await render();
+  await settle();
+  const data = current.data;
+  const warning = current.warnings.join(" ");
+  const calls = [
+    vi.mocked(searchHybridContent).mock.calls.length,
+    vi.mocked(searchCatalog).mock.calls.length,
+    vi.mocked(taskAssistantRequest).mock.calls.length,
+  ];
+  try {
+    await act(async () => desktopLocaleSource.setLocale("en-US"));
+    expect(current.data).toBe(data);
+    expect(current.warnings.join(" ")).toContain("原始索引错误");
+    expect(current.warnings.join(" ")).not.toBe(warning);
+    expect([
+      vi.mocked(searchHybridContent).mock.calls.length,
+      vi.mocked(searchCatalog).mock.calls.length,
+      vi.mocked(taskAssistantRequest).mock.calls.length,
+    ]).toEqual(calls);
+  } finally {
+    await act(async () => desktopLocaleSource.setLocale(originalLocale));
+  }
 });

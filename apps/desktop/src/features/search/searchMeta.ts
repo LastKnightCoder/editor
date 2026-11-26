@@ -6,6 +6,8 @@
  * 内容详情页（card-detail 等）迁移前，内容命中跳对应模块列表页。
  */
 
+import { searchMessages, searchTranslator } from "./i18n";
+import { appMessages } from "@/app/i18n/messages";
 import {
   Layers,
   FileText,
@@ -48,66 +50,150 @@ export const CONTENT_TYPES: Record<
   PaletteSearchType,
   { label: string; navKey?: string; tag: string; icon: LucideIcon }
 > = {
-  card: { label: "卡片", navKey: "cards", tag: "bg-ok-soft text-ok", icon: Layers },
-  article: { label: "文章", navKey: "articles", tag: "bg-info-soft text-info", icon: FileText },
+  card: {
+    get label() {
+      return searchTranslator.t("type.card");
+    },
+    navKey: "cards",
+    tag: "bg-ok-soft text-ok",
+    icon: Layers,
+  },
+  article: {
+    get label() {
+      return searchTranslator.t("type.article");
+    },
+    navKey: "articles",
+    tag: "bg-info-soft text-info",
+    icon: FileText,
+  },
   "project-item": {
-    label: "项目文档",
+    get label() {
+      return searchTranslator.t("type.project-item");
+    },
     navKey: "projects",
     tag: "bg-tag-4-soft text-tag-4",
     icon: FolderKanban,
   },
-  "diary-moment": { label: "日记", navKey: "diary", tag: "bg-warn-soft text-warn", icon: PenLine },
+  "diary-moment": {
+    get label() {
+      return searchTranslator.t("type.diary-moment");
+    },
+    navKey: "diary",
+    tag: "bg-warn-soft text-warn",
+    icon: PenLine,
+  },
   // 外部材料：命中后经 openMaterialTarget 打开到原处，navKey 只在无法定位时兜底；摘录没有固定入口
-  excerpt: { label: "划线", tag: "bg-tag-2-soft text-tag-2", icon: Highlighter },
+  excerpt: {
+    get label() {
+      return searchTranslator.t("type.excerpt");
+    },
+    tag: "bg-tag-2-soft text-tag-2",
+    icon: Highlighter,
+  },
   "pdf-annotation": {
-    label: "PDF 标注",
+    get label() {
+      return searchTranslator.t("type.pdf-annotation");
+    },
     navKey: "pdfs",
     tag: "bg-tag-1-soft text-tag-1",
     icon: FileText,
   },
-  "web-clip": { label: "剪藏", navKey: "projects", tag: "bg-tag-3-soft text-tag-3", icon: Globe },
+  "web-clip": {
+    get label() {
+      return searchTranslator.t("type.web-clip");
+    },
+    navKey: "projects",
+    tag: "bg-tag-3-soft text-tag-3",
+    icon: Globe,
+  },
   // 插件自建的内容：类型名取插件声明，这里是兜底；不设范围 chip，只出现在「全部」
-  "plugin-entity": { label: "插件内容", tag: "bg-tag-5-soft text-tag-5", icon: Puzzle },
-  todo: { label: "待办", navKey: "todos", tag: "bg-warn-soft text-warn", icon: ListTodo },
+  "plugin-entity": {
+    get label() {
+      return searchTranslator.t("type.plugin-entity");
+    },
+    tag: "bg-tag-5-soft text-tag-5",
+    icon: Puzzle,
+  },
+  todo: {
+    get label() {
+      return searchTranslator.t("type.todo");
+    },
+    navKey: "todos",
+    tag: "bg-warn-soft text-warn",
+    icon: ListTodo,
+  },
   "calendar-event": {
-    label: "日程",
+    get label() {
+      return searchTranslator.t("type.calendar-event");
+    },
     navKey: "schedule",
     tag: "bg-info-soft text-info",
     icon: CalendarDays,
   },
   "document-task": {
-    label: "文档待办",
+    get label() {
+      return searchTranslator.t("type.document-task");
+    },
     navKey: "todos",
     tag: "bg-warn-soft text-warn",
     icon: ListTodo,
   },
   project: {
-    label: "项目",
+    get label() {
+      return searchTranslator.t("type.project");
+    },
     navKey: "projects",
     tag: "bg-tag-4-soft text-tag-4",
     icon: FolderKanban,
   },
   whiteboard: {
-    label: "白板",
+    get label() {
+      return searchTranslator.t("type.whiteboard");
+    },
     navKey: "whiteboard",
     tag: "bg-info-soft text-info",
     icon: Presentation,
   },
   notebook: {
-    label: "Notebook",
+    get label() {
+      return searchTranslator.t("type.notebook");
+    },
     navKey: "vibe-learning",
     tag: "bg-tag-2-soft text-tag-2",
     icon: FlaskConical,
   },
-  pdf: { label: "PDF", navKey: "pdfs", tag: "bg-tag-1-soft text-tag-1", icon: BookOpen },
+  pdf: {
+    get label() {
+      return searchTranslator.t("type.pdf");
+    },
+    navKey: "pdfs",
+    tag: "bg-tag-1-soft text-tag-1",
+    icon: BookOpen,
+  },
   "chat-session": {
-    label: "对话",
+    get label() {
+      return searchTranslator.t("type.chat-session");
+    },
     navKey: "chat",
     tag: "bg-tag-3-soft text-tag-3",
     icon: MessageCircle,
   },
-  database: { label: "数据库", navKey: "databases", tag: "bg-tag-4-soft text-tag-4", icon: Table },
-  flashcard: { label: "闪卡", navKey: "review", tag: "bg-ok-soft text-ok", icon: Repeat },
+  database: {
+    get label() {
+      return searchTranslator.t("type.database");
+    },
+    navKey: "databases",
+    tag: "bg-tag-4-soft text-tag-4",
+    icon: Table,
+  },
+  flashcard: {
+    get label() {
+      return searchTranslator.t("type.flashcard");
+    },
+    navKey: "review",
+    tag: "bg-ok-soft text-ok",
+    icon: Repeat,
+  },
 };
 
 /** 「摘录」一个范围覆盖三类外部材料 */
@@ -151,8 +237,8 @@ export function isCatalogSearchType(type: PaletteSearchType): type is CatalogSea
 }
 
 export function scopeLabel(scope: PaletteScope): string {
-  if (scope === "cmd") return "命令与页面";
-  return scope === "material" ? "摘录" : CONTENT_TYPES[scope].label;
+  if (scope === "cmd") return searchTranslator.t("scope.cmd");
+  return scope === "material" ? searchTranslator.t("scope.material") : CONTENT_TYPES[scope].label;
 }
 
 export function scopeIcon(scope: PaletteScope): LucideIcon {
@@ -196,8 +282,12 @@ export function pluginPaletteCommands(
   return host.listCommands().map(command => ({
     id: `plugin:${command.id}`,
     label: command.title,
-    section: "插件",
-    sub: `来自「${command.pluginName}」`,
+    get section() {
+      return searchTranslator.t("section.plugin");
+    },
+    get sub() {
+      return searchTranslator.t("plugin.from", { name: command.pluginName });
+    },
     keywords: command.pluginName,
     icon: Command,
     kind: "plugin",
@@ -211,8 +301,12 @@ export function paletteCommands(): PaletteCommand[] {
     ...NAV_SECTIONS.flatMap(section =>
       section.items.map(item => ({
         id: `page:${item.key}`,
-        label: item.label,
-        section: section.label,
+        get label() {
+          return item.label;
+        },
+        get section() {
+          return section.label;
+        },
         icon: item.icon,
         kind: "page" as const,
         pageKey: item.key,
@@ -222,8 +316,12 @@ export function paletteCommands(): PaletteCommand[] {
       item.opensWindow === "feedback"
         ? {
             id: "action:send-feedback",
-            label: "发送反馈",
-            section: "工具",
+            get label() {
+              return searchTranslator.t("command.send-feedback");
+            },
+            get section() {
+              return searchTranslator.t("section.tools");
+            },
             icon: item.icon,
             keywords: "feedback bug report issue suggest 反馈 问题 建议 报错 截图",
             kind: "action" as const,
@@ -232,8 +330,12 @@ export function paletteCommands(): PaletteCommand[] {
         : item.opensOverlay === "settings"
           ? {
               id: "action:open-settings",
-              label: item.label,
-              section: "工具",
+              get label() {
+                return item.label;
+              },
+              get section() {
+                return searchTranslator.t("section.tools");
+              },
               icon: item.icon,
               keywords: "settings preferences 设置 偏好 配置",
               kind: "action" as const,
@@ -241,8 +343,12 @@ export function paletteCommands(): PaletteCommand[] {
             }
           : {
               id: `page:${item.key}`,
-              label: item.label,
-              section: "工具",
+              get label() {
+                return item.label;
+              },
+              get section() {
+                return searchTranslator.t("section.tools");
+              },
               icon: item.icon,
               kind: "page" as const,
               pageKey: item.key,
@@ -255,8 +361,12 @@ export function paletteCommands(): PaletteCommand[] {
       ? [
           {
             id: "page:plugin-workbench",
-            label: "插件开发台",
-            section: "开发",
+            get label() {
+              return searchTranslator.t("command.plugin-workbench");
+            },
+            get section() {
+              return searchTranslator.t("section.dev");
+            },
             icon: Command,
             keywords: "plugin 插件 开发 启用 停用",
             kind: "page" as const,
@@ -267,8 +377,12 @@ export function paletteCommands(): PaletteCommand[] {
     {
       // 知识地图入口在标题栏，不在侧边栏
       id: "page:knowledge-map",
-      label: "知识地图",
-      section: "知识",
+      get label() {
+        return searchTranslator.t("command.knowledge-map");
+      },
+      get section() {
+        return searchTranslator.t("section.knowledge");
+      },
       icon: MapIcon,
       keywords: "map graph 图谱 地图 关联 主题",
       kind: "page",
@@ -276,8 +390,12 @@ export function paletteCommands(): PaletteCommand[] {
     },
     {
       id: "action:cycle-theme",
-      label: "切换深浅模式",
-      section: "动作",
+      get label() {
+        return searchTranslator.t("command.cycle-theme");
+      },
+      get section() {
+        return searchTranslator.t("section.action");
+      },
       icon: SunMoon,
       keywords: "theme dark light 外观",
       kind: "action",
@@ -285,8 +403,12 @@ export function paletteCommands(): PaletteCommand[] {
     },
     {
       id: "action:toggle-assist",
-      label: "开合 AI 对话栏",
-      section: "动作",
+      get label() {
+        return searchTranslator.t("command.toggle-assist");
+      },
+      get section() {
+        return searchTranslator.t("section.action");
+      },
       icon: MessageCircle,
       keywords: "ai chat assistant dock 对话 助手 停靠 ctrl+j",
       kind: "action",
@@ -294,8 +416,12 @@ export function paletteCommands(): PaletteCommand[] {
     },
     {
       id: "action:capture-todo",
-      label: "添加待办",
-      section: "动作",
+      get label() {
+        return searchTranslator.t("command.capture-todo");
+      },
+      get section() {
+        return searchTranslator.t("section.action");
+      },
       icon: ListPlus,
       keywords: "todo task add 待办 任务 新建",
       kind: "action",
@@ -303,8 +429,12 @@ export function paletteCommands(): PaletteCommand[] {
     },
     {
       id: "action:capture-event",
-      label: "添加日程",
-      section: "动作",
+      get label() {
+        return searchTranslator.t("command.capture-event");
+      },
+      get section() {
+        return searchTranslator.t("section.action");
+      },
       icon: CalendarPlus,
       keywords: "event schedule calendar add 日程 日历 新建",
       kind: "action",
@@ -312,8 +442,12 @@ export function paletteCommands(): PaletteCommand[] {
     },
     {
       id: "action:open-markdown",
-      label: "打开 Markdown 文件 / 文件夹",
-      section: "动作",
+      get label() {
+        return searchTranslator.t("command.open-markdown");
+      },
+      get section() {
+        return searchTranslator.t("section.action");
+      },
       icon: FileDown,
       keywords: "markdown md open folder file 打开 本地 文件夹 typora",
       kind: "action",
@@ -321,8 +455,12 @@ export function paletteCommands(): PaletteCommand[] {
     },
     {
       id: "action:import-batch",
-      label: "批量导入文件夹 / 压缩包…",
-      section: "动作",
+      get label() {
+        return searchTranslator.t("command.import-batch");
+      },
+      get section() {
+        return searchTranslator.t("section.action");
+      },
       icon: FolderInput,
       keywords:
         "import folder zip markdown obsidian typora migrate 导入 批量 文件夹 压缩包 迁移 迁入 笔记",
@@ -331,8 +469,12 @@ export function paletteCommands(): PaletteCommand[] {
     },
     {
       id: "action:export-markdown",
-      label: "导出为 Markdown 压缩包…",
-      section: "动作",
+      get label() {
+        return searchTranslator.t("command.export-markdown");
+      },
+      get section() {
+        return searchTranslator.t("section.action");
+      },
       icon: PackageOpen,
       keywords:
         "export zip markdown obsidian backup migrate 导出 打包 压缩包 备份 迁移 迁出 项目 文章 卡片 全部 资源 图片",
@@ -341,8 +483,12 @@ export function paletteCommands(): PaletteCommand[] {
     },
     {
       id: "action:export-perf-snapshot",
-      label: "导出性能快照",
-      section: "动作",
+      get label() {
+        return searchTranslator.t("command.export-perf-snapshot");
+      },
+      get section() {
+        return searchTranslator.t("section.action");
+      },
       icon: Activity,
       keywords: "perf performance lag jank snapshot diagnose 卡顿 性能 诊断 日志",
       kind: "action",
@@ -350,14 +496,38 @@ export function paletteCommands(): PaletteCommand[] {
     },
     {
       id: "action:capture-feedback",
-      label: "截取当前窗口并反馈",
-      section: "工具",
+      get label() {
+        return searchTranslator.t("command.capture-feedback");
+      },
+      get section() {
+        return searchTranslator.t("section.tools");
+      },
       icon: Camera,
       keywords: "feedback screenshot capture bug report 反馈 截图 截屏 问题",
       kind: "action",
       action: "capture-feedback",
     },
   ];
+  for (const command of cached) {
+    const key = command.id.replace(/^(?:action|page):/, "command.");
+    const label = command.pageKey ? getPageMeta(command.pageKey)?.label : undefined;
+    const navKey =
+      typeof label === "object" && label.kind === "i18n"
+        ? label.key
+        : command.id === "action:open-settings"
+          ? "nav.settings"
+          : undefined;
+    const aliases = Object.values(searchMessages.resources)
+      .map(resource => resource[key])
+      .filter(Boolean);
+    if (navKey)
+      aliases.push(
+        ...Object.values(appMessages.resources)
+          .map(resource => resource[navKey])
+          .filter(Boolean)
+      );
+    command.keywords = [command.keywords, command.id, ...aliases].filter(Boolean).join(" ");
+  }
   return cached;
 }
 

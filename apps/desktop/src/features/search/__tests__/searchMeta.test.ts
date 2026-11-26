@@ -1,3 +1,6 @@
+import { desktopLocaleSource } from "@/app/i18n/runtime";
+import { searchTranslator } from "../i18n";
+import { paletteCommands, matchCommands } from "../searchMeta";
 /**
  * 访问记录可回跳判据守护：二级页（match: params/multi）不得进搜索面板的
  * 「最近访问/常用」——visits 只存 page key，缺 id 的 push 被 sanitizeParams
@@ -35,4 +38,22 @@ describe("isReplayableVisit", () => {
   it("未注册 key 拒绝", () => {
     expect(isReplayableVisit("not-registered-key")).toBe(false);
   });
+});
+
+it("缓存命令的标签随语言更新，命令身份与跨语言检索别名保留", () => {
+  const originalLocale = desktopLocaleSource.getSnapshot();
+  const commands = paletteCommands();
+  const command = commands.find(item => item.id === "action:cycle-theme");
+  if (!command) throw new Error("主题命令缺失");
+  try {
+    for (const locale of ["zh-TW", "en-US"]) {
+      desktopLocaleSource.setLocale(locale);
+      expect(paletteCommands().find(item => item.id === command.id)).toBe(command);
+      expect(command.label).toBe(searchTranslator.t("command.cycle-theme"));
+      expect(matchCommands(commands, "切换深浅模式")).toContain(command);
+      expect(command.action).toBe("cycle-theme");
+    }
+  } finally {
+    desktopLocaleSource.setLocale(originalLocale);
+  }
 });

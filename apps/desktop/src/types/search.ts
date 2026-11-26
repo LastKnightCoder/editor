@@ -34,7 +34,7 @@ export interface DocumentTaskSearchResult {
   id: string;
   title: string;
   snippet: string;
-  meta: string;
+  completed: boolean;
   sourceRef: EntityRef;
   taskId: string;
 }

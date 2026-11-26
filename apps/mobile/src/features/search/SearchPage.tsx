@@ -1,3 +1,4 @@
+import { useSearchI18n, type MobileSearchKey } from "./i18n";
 import { useState, useRef, useEffect } from "react";
 import { Search, SearchX, Trash2 } from "lucide-react";
 import { useSearchHistory } from "../../hooks/useSearchHistory";
@@ -15,30 +16,34 @@ type SearchPageProps = {
   isSearching: boolean;
 };
 
-function relativeTime(ts: number): string {
+function relativeTime(ts: number, locale: string, justNow: string): string {
   if (!ts) return "";
   const normalized = ts > 0 && ts < 1_000_000_000_000 ? ts * 1000 : ts;
-  const diff = Date.now() - normalized;
-  const minutes = Math.floor(diff / 60_000);
-  if (minutes < 1) return "刚刚";
-  if (minutes < 60) return `${minutes}分钟前`;
+  const minutes = Math.floor((Date.now() - normalized) / 60_000);
+  if (minutes < 1) return justNow;
+  const relative = new Intl.RelativeTimeFormat(locale, { numeric: "always" });
+  if (minutes < 60) return relative.format(-minutes, "minute");
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}小时前`;
+  if (hours < 24) return relative.format(-hours, "hour");
   const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}天前`;
-  return new Date(normalized).toLocaleDateString();
+  if (days < 30) return relative.format(-days, "day");
+  return new Intl.DateTimeFormat(locale).format(normalized);
 }
 
-const RESULT_TYPE_LABEL: Record<string, string> = {
-  card: "卡片",
-  article: "文章",
-  "project-item": "项目文档",
-  "diary-daily": "日记",
-  flashcard: "闪卡",
-  "plugin-entity": "插件内容",
+const RESULT_TYPE_KEYS: Record<string, MobileSearchKey> = {
+  card: "type.card",
+  article: "type.article",
+  "project-item": "type.project-item",
+  "diary-daily": "type.diary-daily",
+  flashcard: "type.flashcard",
+  "plugin-entity": "type.plugin-entity",
 };
 
 function SearchResultItem({ item, onClick }: { item: UnifiedSearchResult; onClick: () => void }) {
+  const { t, locale } = useSearchI18n();
+  const label =
+    item.pluginEntity?.label ||
+    (RESULT_TYPE_KEYS[item.type] ? t(RESULT_TYPE_KEYS[item.type]) : item.type);
   return (
     <button
       type="button"
@@ -50,7 +55,7 @@ function SearchResultItem({ item, onClick }: { item: UnifiedSearchResult; onClic
           {item.type === "plugin-entity" && (
             <EntityKindIcon svg={item.pluginEntity?.icon} fallback={Puzzle} size={13} />
           )}
-          {item.pluginEntity?.label || RESULT_TYPE_LABEL[item.type] || item.type}
+          {label}
         </span>
         {item.containerTitle && item.type !== "diary-daily" ? (
           <span className="text-ink-3 max-w-[45%] truncate text-[11.5px]">
@@ -58,11 +63,15 @@ function SearchResultItem({ item, onClick }: { item: UnifiedSearchResult; onClic
           </span>
         ) : null}
         {item.updateTime && (
-          <span className="text-ink-3 ml-auto text-[11.5px]">{relativeTime(item.updateTime)}</span>
+          <span className="text-ink-3 ml-auto text-[11.5px]">
+            {relativeTime(item.updateTime, locale, t("time.justNow"))}
+          </span>
         )}
       </div>
       <p className="text-ink-1 mt-2 line-clamp-1 text-[14px] font-bold">
-        {item.title || item.excerpt || `${RESULT_TYPE_LABEL[item.type] ?? "内容"} #${item.id}`}
+        {item.title ||
+          item.excerpt ||
+          t("result.fallback", { type: label || t("type.content"), id: item.id })}
       </p>
       {item.excerpt && (
         <p className="text-ink-2 mt-1 line-clamp-2 text-[12.5px] leading-relaxed">{item.excerpt}</p>
@@ -72,6 +81,7 @@ function SearchResultItem({ item, onClick }: { item: UnifiedSearchResult; onClic
 }
 
 export function SearchPage({ onClose, onSearch, onOpenResult, isSearching }: SearchPageProps) {
+  const { t, locale } = useSearchI18n();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<UnifiedSearchResponse | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
@@ -159,7 +169,7 @@ export function SearchPage({ onClose, onSearch, onOpenResult, isSearching }: Sea
           value={query}
           onValueChange={setQuery}
           onKeyDown={handleKeyDown}
-          placeholder="搜索所有内容"
+          placeholder={t("placeholder")}
           className="flex-1"
         />
         <button
@@ -167,7 +177,7 @@ export function SearchPage({ onClose, onSearch, onOpenResult, isSearching }: Sea
           onClick={onClose}
           className="text-ink-2 active:text-ink-1 shrink-0 text-[14px] font-semibold"
         >
-          取消
+          {t("cancel")}
         </button>
       </div>
 
@@ -179,12 +189,12 @@ export function SearchPage({ onClose, onSearch, onOpenResult, isSearching }: Sea
           {!hasSearched && history.length > 0 ? (
             <div className="p-4">
               <div className="mb-3 flex items-center justify-between px-1">
-                <h3 className="text-ink-1 text-[14px] font-extrabold">搜索历史</h3>
+                <h3 className="text-ink-1 text-[14px] font-extrabold">{t("history")}</h3>
                 <button
                   type="button"
                   onClick={clearHistory}
                   className="text-ink-3 active:text-ink-1 p-1 transition-colors"
-                  aria-label="清空历史"
+                  aria-label={t("history.clear")}
                 >
                   <Trash2 size={18} aria-hidden="true" />
                 </button>
@@ -214,12 +224,15 @@ export function SearchPage({ onClose, onSearch, onOpenResult, isSearching }: Sea
               {isSearching && !loadingMore ? (
                 <div className="py-12 text-center">
                   <div className="border-accent mx-auto h-7 w-7 animate-spin rounded-full border-2 border-t-transparent" />
-                  <p className="text-ink-3 mt-3 text-sm">搜索中...</p>
+                  <p className="text-ink-3 mt-3 text-sm">{t("searching")}</p>
                 </div>
               ) : results?.items.length ? (
                 <div className="space-y-3">
                   <p className="text-ink-3 px-1 text-[12.5px] font-semibold">
-                    共 {results.total} 条结果
+                    {t("results", {
+                      count: results.total,
+                      amount: results.total.toLocaleString(locale),
+                    })}
                   </p>
                   {results.items.map(item => (
                     <SearchResultItem
@@ -235,14 +248,14 @@ export function SearchPage({ onClose, onSearch, onOpenResult, isSearching }: Sea
                       onClick={() => void loadMore()}
                       className="text-accent w-full rounded-xl py-3 text-sm disabled:opacity-50"
                     >
-                      {loadingMore ? "加载中…" : moreError ? "加载失败，点按重试" : "加载更多"}
+                      {t(loadingMore ? "loading" : moreError ? "more.error" : "more")}
                     </button>
                   )}
                 </div>
               ) : (
                 <div className="py-12 text-center">
                   <SearchX size={34} className="text-ink-3 mx-auto" aria-hidden="true" />
-                  <p className="text-ink-3 mt-3 text-sm">未找到相关内容</p>
+                  <p className="text-ink-3 mt-3 text-sm">{t("empty")}</p>
                 </div>
               )}
             </div>
@@ -251,7 +264,7 @@ export function SearchPage({ onClose, onSearch, onOpenResult, isSearching }: Sea
           {!hasSearched && history.length === 0 && (
             <div className="py-20 text-center">
               <Search size={34} className="text-ink-3 mx-auto" aria-hidden="true" />
-              <p className="text-ink-3 mt-3 text-sm">输入关键词搜索内容</p>
+              <p className="text-ink-3 mt-3 text-sm">{t("hint")}</p>
             </div>
           )}
         </div>
