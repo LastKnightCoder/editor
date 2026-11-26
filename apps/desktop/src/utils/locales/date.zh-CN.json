@@ -8,5 +8,6 @@
   "recurrence.yearly": "每年 {{month}}{{day}}日",
   "recurrence.everyDays": "每 {{amount}} 天",
   "recurrence.everyWeeks": "每 {{amount}} 周的周{{days}}",
-  "recurrence.everyMonths": "每 {{amount}} 个月的 {{day}} 日"
+  "recurrence.everyMonths": "每 {{amount}} 个月的 {{day}} 日",
+  "date.justNow": "刚刚"
 }

@@ -1,0 +1,13 @@
+{
+  "status.updating": "正在更新",
+  "status.querying": "正在查询…",
+  "status.errorRecent": "查询出错 · 显示刚才的结果",
+  "status.errorStale": "查询出错 · 显示{{ago}}的结果",
+  "status.error": "查询出错",
+  "status.unsaved": "查询未保存",
+  "status.count": "{{number}} 条",
+  "status.countRecent": "{{number}} 条 · 刚刚更新",
+  "status.countStale": "{{number}} 条 · {{ago}}更新",
+  "status.refresh": "立即刷新",
+  "status.refreshLabel": "{{status}}，立即刷新"
+}

@@ -13,7 +13,8 @@ import {
 } from "lucide-react";
 import { Button, Menu, Tooltip, cn } from "@tau/ui";
 import type { QueryDefinition, QueryValue } from "@tau/shared/query-database";
-import { formatAgo } from "@/utils/formatAgo";
+import { formatAgo, relativeAge } from "@/utils/formatAgo";
+import { useQueryStatusI18n } from "./status.i18n";
 import type { QueryAssistState } from "./useQueryAssist";
 
 export type QueryStatusKind = "live" | "running" | "error" | "unsaved";
@@ -37,31 +38,42 @@ export function QueryStatusPill({
   /** 窄宽度下收起文字，只留状态点与刷新图标 */
   labelClassName?: string;
 }) {
+  const { t, locale } = useQueryStatusI18n();
   const [, tick] = useState(0);
   useEffect(() => {
     const timer = window.setInterval(() => tick(value => value + 1), 30_000);
     return () => window.clearInterval(timer);
   }, []);
-  const ago = updatedAt ? formatAgo(updatedAt) : undefined;
+  const now = Date.now();
+  const ago = updatedAt ? formatAgo(updatedAt, locale, now) : undefined;
+  const recent = updatedAt ? relativeAge(updatedAt, now).unit === "now" : false;
+  const countValue = count ?? 0;
   const text =
     kind === "running"
-      ? hasResult
-        ? "正在更新"
-        : "正在查询…"
+      ? t(hasResult ? "status.updating" : "status.querying")
       : kind === "error"
         ? hasResult && ago
-          ? `查询出错 · 显示${ago === "刚刚" ? "刚才" : ago}的结果`
-          : "查询出错"
+          ? t(recent ? "status.errorRecent" : "status.errorStale", { ago })
+          : t("status.error")
         : kind === "unsaved"
-          ? "查询未保存"
-          : compact
-            ? `${count ?? 0} 条`
-            : `${count ?? 0} 条${ago ? ` · ${ago === "刚刚" ? "刚刚更新" : `${ago}更新`}` : ""}`;
+          ? t("status.unsaved")
+          : t(
+              compact || !ago
+                ? "status.count"
+                : recent
+                  ? "status.countRecent"
+                  : "status.countStale",
+              {
+                count: countValue,
+                number: countValue.toLocaleString(locale),
+                ago: ago ?? "",
+              }
+            );
   return (
-    <Tooltip content="立即刷新">
+    <Tooltip content={t("status.refresh")}>
       <button
         type="button"
-        aria-label={`${text}，立即刷新`}
+        aria-label={t("status.refreshLabel", { status: text })}
         disabled={kind === "running"}
         onClick={onRefresh}
         className={cn(

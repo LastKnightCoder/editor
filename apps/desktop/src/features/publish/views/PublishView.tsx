@@ -1,3 +1,4 @@
+import { useDesktopLocale } from "@/app/i18n/react";
 /**
  * 发布页（从设置弹窗抽出的独立页面），外壳为一整张纸（同 MCP / 协作页）。
  *
@@ -26,6 +27,7 @@ function targetChip(config: PublishConfig) {
 }
 
 export function PublishView() {
+  const locale = useDesktopLocale();
   const config = usePublishConfig();
   const runner = usePublishRun(config);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -52,11 +54,11 @@ export function PublishView() {
   const isLocal = config.active === EPublishProvider.Local;
 
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pt-1 pb-4">
       {/* 一整张纸：页头固定在纸顶，内容选择与右栏在纸内（同 MCP / 协作页） */}
       <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
         {/* ── 页头：站点身份 ── */}
-        <header className="border-line-1 flex flex-none items-center gap-3.5 border-b px-8 pb-4 pt-5">
+        <header className="border-line-1 flex flex-none items-center gap-3.5 border-b px-8 pt-5 pb-4">
           <span className="bg-hover text-ink-3 grid size-11 flex-none place-items-center overflow-hidden rounded-[12px]">
             {publish.site.favicon ? (
               <LocalImage
@@ -93,7 +95,7 @@ export function PublishView() {
               </span>
               <span>
                 {runner.lastPublishedAt
-                  ? `上次发布 ${formatAgo(runner.lastPublishedAt)}`
+                  ? `上次发布 ${formatAgo(runner.lastPublishedAt, locale)}`
                   : "从未发布"}
               </span>
             </div>

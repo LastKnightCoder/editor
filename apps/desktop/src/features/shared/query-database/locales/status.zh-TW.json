@@ -1,0 +1,13 @@
+{
+  "status.updating": "正在更新",
+  "status.querying": "正在查詢…",
+  "status.errorRecent": "查詢出錯 · 顯示剛才的結果",
+  "status.errorStale": "查詢出錯 · 顯示{{ago}}的結果",
+  "status.error": "查詢出錯",
+  "status.unsaved": "查詢未儲存",
+  "status.count": "{{number}} 筆",
+  "status.countRecent": "{{number}} 筆 · 剛剛更新",
+  "status.countStale": "{{number}} 筆 · {{ago}}更新",
+  "status.refresh": "立即重新整理",
+  "status.refreshLabel": "{{status}}，立即重新整理"
+}

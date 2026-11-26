@@ -1,3 +1,4 @@
+import { useDesktopLocale } from "@/app/i18n/react";
 /** 发布计划、执行反馈及站点摘要共用同一份提供方配置。 */
 
 import clsx from "clsx";
@@ -190,6 +191,7 @@ export function PlanCard({
   isLocal: boolean;
   onRefresh: () => void;
 }) {
+  const locale = useDesktopLocale();
   const upload = plan?.upload.length ?? 0;
   const remove = isLocal ? 0 : (plan?.remove.length ?? 0);
 
@@ -236,7 +238,9 @@ export function PlanCard({
         </div>
       )}
       {plan && (
-        <div className="text-tau-tiny text-ink-3 mt-2 px-1.5">{formatAgo(plan.computedAt)}计算</div>
+        <div className="text-tau-tiny text-ink-3 mt-2 px-1.5">
+          {formatAgo(plan.computedAt, locale)}计算
+        </div>
       )}
       <ImageWarnings warnings={plan?.imageWarnings} />
     </RailSection>
@@ -315,6 +319,7 @@ export function ActionCard({
   onOpenSettings: () => void;
   onVisit?: () => void;
 }) {
+  const locale = useDesktopLocale();
   const isLocal = config.active === EPublishProvider.Local;
   const verb = isLocal ? "导出" : "发布";
   const hint = targetHint(config);
@@ -400,7 +405,7 @@ export function ActionCard({
           {run.kind === "error" ? `${verb}未完成` : `${verb}完成`}
           {run.kind !== "error" && (
             <PanelNote>
-              {formatAgo(run.finishedAt)} · 用时 {formatDuration(run.duration)}
+              {formatAgo(run.finishedAt, locale)} · 用时 {formatDuration(run.duration)}
             </PanelNote>
           )}
           <PanelAction onClick={onReset}>收起</PanelAction>

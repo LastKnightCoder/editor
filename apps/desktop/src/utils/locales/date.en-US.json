@@ -11,5 +11,6 @@
   "recurrence.everyWeeks_one": "Every {{amount}} week on {{days}}",
   "recurrence.everyWeeks_other": "Every {{amount}} weeks on {{days}}",
   "recurrence.everyMonths_one": "Every {{amount}} month on day {{day}}",
-  "recurrence.everyMonths_other": "Every {{amount}} months on day {{day}}"
+  "recurrence.everyMonths_other": "Every {{amount}} months on day {{day}}",
+  "date.justNow": "Just now"
 }

@@ -1,3 +1,4 @@
+import { useDesktopLocale } from "@/app/i18n/react";
 /**
  * 聊天引用的悬停预览卡：这一轮的提问 + 回答。摘录块的预览把摘录原文在回答里高亮出来。
  */
@@ -61,6 +62,7 @@ const Header = ({
 );
 
 export const ChatRefPreview = memo((props: ChatRefPreviewProps) => {
+  const locale = useDesktopLocale();
   const { title, target, error, wholeSession, unshared, quote } = props;
   const { isDark } = useTheme();
   const markdownComponents = useChatMarkdownComponents({ isDark, idPrefix: "chat-ref-block" });
@@ -108,8 +110,8 @@ export const ChatRefPreview = memo((props: ChatRefPreviewProps) => {
 
   const turn = target.turn;
   const meta = turn
-    ? `第 ${turn.turn} / ${turn.turns} 轮 · ${formatAgo(turn.time)}`
-    : `${target.session.messageCount} 轮 · ${formatAgo(target.session.updateTime)}`;
+    ? `第 ${turn.turn} / ${turn.turns} 轮 · ${formatAgo(turn.time, locale)}`
+    : `${target.session.messageCount} 轮 · ${formatAgo(target.session.updateTime, locale)}`;
 
   return (
     <PanelHasHeaderContext.Provider value>

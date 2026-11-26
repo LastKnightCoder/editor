@@ -1,3 +1,4 @@
+import { useDesktopLocale } from "@/app/i18n/react";
 /**
  * 对话里的修改卡：Agent 在某篇正文留下的一组改动，不打开文章也能逐条接受、退回、回复。
  * 每处一行直接显示差异；多处全部处理完后收起成一行摘要，可展开回看或整体撤销。
@@ -63,6 +64,7 @@ export function SuggestionProposalCard({
   /** 发起它的工具调用还在等逐条结果 */
   waiting: boolean;
 }) {
+  const locale = useDesktopLocale();
   const active = useSettingStore(state => state.setting.database.active);
   const database = databaseName ?? active;
   const { data: items } = useProposalSuggestions(proposalId, database);
@@ -148,7 +150,7 @@ export function SuggestionProposalCard({
               />
             ) : (
               <span className="text-tau-micro text-ink-3 shrink-0 tabular-nums">
-                {formatAgo(items[0].createdAt)}
+                {formatAgo(items[0].createdAt, locale)}
               </span>
             )}
           </>
@@ -164,7 +166,7 @@ export function SuggestionProposalCard({
           </span>
         ) : (
           <span className="text-tau-micro text-ink-3 shrink-0 tabular-nums">
-            {formatAgo(items[0].createdAt)}
+            {formatAgo(items[0].createdAt, locale)}
           </span>
         )}
       </div>

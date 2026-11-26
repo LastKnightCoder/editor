@@ -1,3 +1,4 @@
+import { useDesktopLocale } from "@/app/i18n/react";
 /**
  * 对话里的提问卡：Agent 在某篇正文的一段原句上问你，给几个可点的答案；
  * 作答留在发起提问的对话中。
@@ -29,6 +30,7 @@ const parseError = (output?: string) => {
 };
 
 const ContentQuestionRenderer = ({ execution, isDark }: ToolCallCustomRendererProps) => {
+  const locale = useDesktopLocale();
   const database = useSettingStore(state => state.setting.database.active);
   const { data: items } = useProposalSuggestions(
     questionProposalId(execution.toolCallId),
@@ -73,7 +75,7 @@ const ContentQuestionRenderer = ({ execution, isDark }: ToolCallCustomRendererPr
           </button>
           <span className="text-ink-3">{item.status === "pending" ? "问你" : "问过你"}</span>
           <span className="text-tau-micro text-ink-3 ml-auto tabular-nums">
-            {formatAgo(item.createdAt)}
+            {formatAgo(item.createdAt, locale)}
           </span>
         </div>
       </ToolCardHeader>

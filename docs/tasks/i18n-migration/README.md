@@ -266,6 +266,8 @@ P5手机消息与引用：12路径工程完成；真实router/引用直接2文�
 
 P6A3-C2白板演示：9路径工程完成；3文件48例、包type、白板边界、三语56语义key/参数/复数与范围格式/静态通过。真实创建草稿/帧/视口、放映中当前帧/激光/全屏单次与原3秒提示计时换语契约通过。sketchLevelLabel全仓消费归零退休，原SKETCH常量数据与演示manager/plugin/算法不改；只保留2个原effect lint warning。
 
+P6B相对时间联动：16源码/测试加Room单调用联动完成；纯边界11例及导出往返/内容导出/日历展示直接3文件14例通过，三语/参数/复数和范围静态格式通过。relativeAge锁定原取整阈值与未来最近态，QueryStatusPill按unit判断最近结果，原30秒tick不重置；所有formatAgo消费者显式locale，不留默认中文接口。Room其余UI由协作Agent另批提交，源码精确hunk隔离保留。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

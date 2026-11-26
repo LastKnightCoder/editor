@@ -371,7 +371,7 @@ export function CollaborationRoom({
       <footer className="text-ink-3 text-tau-sm flex h-[38px] flex-none items-center gap-3.5 px-8 pb-1">
         <SessionStatus session={session} />
         <span className="flex-1" />
-        <span>更新于 {formatAgo(session.updatedAt)}</span>
+        <span>更新于 {formatAgo(session.updatedAt, context.locale)}</span>
       </footer>
 
       <LeaveDialog session={session} open={leaving} onOpenChange={setLeaving} onLeft={onLeft} />

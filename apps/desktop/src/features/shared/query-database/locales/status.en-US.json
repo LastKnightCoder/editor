@@ -1,0 +1,16 @@
+{
+  "status.updating": "Updating",
+  "status.querying": "Querying…",
+  "status.errorRecent": "Query failed · Showing the most recent result",
+  "status.errorStale": "Query failed · Showing results from {{ago}}",
+  "status.error": "Query failed",
+  "status.unsaved": "Query not saved",
+  "status.refresh": "Refresh now",
+  "status.refreshLabel": "{{status}}, refresh now",
+  "status.count_one": "{{number}} result",
+  "status.count_other": "{{number}} results",
+  "status.countRecent_one": "{{number}} result · Just updated",
+  "status.countRecent_other": "{{number}} results · Just updated",
+  "status.countStale_one": "{{number}} result · Updated {{ago}}",
+  "status.countStale_other": "{{number}} results · Updated {{ago}}"
+}
