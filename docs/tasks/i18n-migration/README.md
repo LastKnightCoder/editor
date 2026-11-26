@@ -346,6 +346,8 @@ P6 Native媒体进度：41路径加Root ASR/desktop文档2完成；桌面12文�
 
 工具卡R2C八路径完成；3文件6例、desktop type/33key三语/原parse/query/state/request/write/invalidation/receipt/key及共享日期body对照通过。真实QueryClient/任务传输边界验证pending换语不重query/write/UUID，已有同toast更新语言不重push；纯日期helper原生Node导入与非法原值透出通过，Calendar仅提取helper/import。
 
+项目视频十一源完成；原10+新真实观看/笔记3共13例、desktop type/三语/范围检查与协议AST通过。同VideoPlayer/video/track实例保currentTime/volume/rate且不重转录，标题焦点/选区/Editor不卸载不重查保存；英文摘录仍空title+原句/秒时间戳。empty/user/默认title矩阵证明导出/AI数据与旧值一致，全部原effect/Controller memo/字幕序列化/quoteContent/range保持；共享观看与白板独立继续。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

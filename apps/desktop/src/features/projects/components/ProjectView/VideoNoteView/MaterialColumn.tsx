@@ -5,6 +5,8 @@
  * 转录 / AI 断句进行中就地显示进度与流式结果。
  */
 
+import { useProjectVideoI18n } from "./i18n";
+import { projectVideoT } from "./binding";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Captions, Copy, LocateFixed, NotebookPen, Play, Sparkles } from "lucide-react";
 import { Button, Spinner, cn, toast } from "@tau/ui";
@@ -60,6 +62,7 @@ export function MaterialColumn({
   onQuote,
   onAsk,
 }: MaterialColumnProps) {
+  const { t, locale } = useProjectVideoI18n();
   const segments = videoNote.transcriptSegments;
   const mediaRef = useRef<HTMLVideoElement | HTMLAudioElement | null>(null);
   const {
@@ -153,7 +156,7 @@ export function MaterialColumn({
       kind="subtitles"
       src={subtitleTrackUrl}
       srcLang={subtitleLanguage}
-      label="转录字幕"
+      label={t("transcript.subtitle")}
       default
     />
   ) : null;
@@ -197,14 +200,18 @@ export function MaterialColumn({
       </div>
 
       <div className="text-tau-sm text-ink-3 flex h-9 shrink-0 items-center gap-1.5 px-6">
-        <span className="text-tau-body text-ink-1 font-semibold">转录</span>
+        <span className="text-tau-body text-ink-1 font-semibold">{t("transcript.title")}</span>
         {hasSegments && !isTranscribing && (
           <span>
-            · {segments?.length ?? 0} 段
+            ·{" "}
+            {t("transcript.segments", {
+              count: segments?.length ?? 0,
+              number: (segments?.length ?? 0).toLocaleString(locale),
+            })}
             {chaptersGenerating
-              ? " · 正在分章节…"
+              ? ` · ${t("transcript.chaptersGenerating")}`
               : chapters.length
-                ? ` · ${chapters.length} 章`
+                ? ` · ${t("transcript.chapters", { count: chapters.length, number: chapters.length.toLocaleString(locale) })}`
                 : ""}
           </span>
         )}
@@ -221,7 +228,7 @@ export function MaterialColumn({
             onClick={transcription.cancelOptimization}
             className="text-ink-2 hover:text-ink-1 cursor-pointer"
           >
-            取消优化
+            {t("transcript.cancel")}
           </button>
         )}
       </div>
@@ -264,7 +271,7 @@ export function MaterialColumn({
           {selection && (
             <div
               role="toolbar"
-              aria-label="转录选区"
+              aria-label={t("transcript.selection")}
               className="bg-surface shadow-float rounded-tau-md absolute z-20 flex h-9 items-center gap-0.5 px-1.5"
               style={{
                 left: `clamp(8px, ${selection.left}px, calc(100% - 300px))`,
@@ -274,28 +281,28 @@ export function MaterialColumn({
             >
               <SelectionButton
                 accent
-                label="摘到笔记"
+                label={t("transcript.quote")}
                 icon={<NotebookPen {...ICON} />}
                 onClick={() => {
                   onQuote(selection.text, selection.segment);
                   finishSelection();
                 }}
               >
-                摘到笔记
+                {t("transcript.quote")}
               </SelectionButton>
               <SelectionButton
-                label="问 AI"
+                label={t("transcript.ask")}
                 icon={<Sparkles {...ICON} />}
                 onClick={() => {
                   onAsk(selection.text, selection.segment);
                   finishSelection();
                 }}
               >
-                问 AI
+                {t("transcript.ask")}
               </SelectionButton>
               <span aria-hidden className="bg-line-1 mx-1 h-4 w-px shrink-0" />
               <SelectionButton
-                label="从这句播放"
+                label={t("transcript.play")}
                 icon={<Play {...ICON} />}
                 onClick={() => {
                   handleSegmentClick(selection.segment);
@@ -303,12 +310,12 @@ export function MaterialColumn({
                 }}
               />
               <SelectionButton
-                label="复制"
+                label={t("transcript.copy")}
                 icon={<Copy {...ICON} />}
                 onClick={() => {
                   void navigator.clipboard
                     .writeText(selection.text)
-                    .then(() => toast.success("已复制"));
+                    .then(() => toast.success(projectVideoT("transcript.copied")));
                   finishSelection();
                 }}
               />
@@ -321,7 +328,7 @@ export function MaterialColumn({
               className="bg-surface shadow-lift text-tau-sm text-ink-1 absolute right-4 bottom-3 z-10 flex h-[30px] cursor-pointer items-center gap-1.5 rounded-full px-3"
             >
               <LocateFixed className="text-accent-text size-3.5" strokeWidth={1.75} />
-              回到当前播放
+              {t("transcript.current")}
             </button>
           )}
         </div>
@@ -331,21 +338,21 @@ export function MaterialColumn({
         </FadeScroll>
       ) : isTranscribing ? (
         <div className="text-tau-meta text-ink-3 flex flex-1 flex-col items-center justify-center gap-1 px-6 text-center">
-          <span>转录完成后，字幕会出现在这里</span>
-          <span className="text-tau-sm">可以先开始记笔记，时间戳和截帧不依赖转录</span>
+          <span>{t("transcript.pending")}</span>
+          <span className="text-tau-sm">{t("transcript.pendingHint")}</span>
         </div>
       ) : (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 pb-10 text-center">
           <Captions className="text-ink-3 size-6" strokeWidth={1.5} />
           <p className="text-tau-meta text-ink-2">
-            还没有转录。转录后能跟着字幕读、划句子摘到笔记，
+            {t("transcript.empty")}
             <br />
-            也能让 AI 基于视频内容回答
+            {t("transcript.emptyAi")}
           </p>
           <Button size="sm" variant="primary" onClick={() => void transcription.transcribe()}>
-            开始转录
+            {t("transcript.start")}
           </Button>
-          <p className="text-tau-sm text-ink-3">自动识别语言，需要指定语言可在右上角 ⋯ 中选择</p>
+          <p className="text-tau-sm text-ink-3">{t("transcript.languageHint")}</p>
         </div>
       )}
     </div>

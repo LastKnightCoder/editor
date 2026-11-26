@@ -14,6 +14,7 @@ export interface NoteMarker {
   text: string;
   noteId: number;
   noteTitle: string;
+  noteIndex?: number;
 }
 
 const SNIPPET_MAX = 80;
@@ -29,7 +30,7 @@ type MarkerNode = { type?: string; time?: unknown; caption?: unknown; children?:
 
 export function extractNoteMarkers(
   content: Descendant[] | undefined,
-  note: { id: number; title: string }
+  note: { id: number; title: string; index?: number }
 ): NoteMarker[] {
   const markers: NoteMarker[] = [];
   const walk = (
@@ -50,6 +51,7 @@ export function extractNoteMarkers(
           text: snippet(block ? Node.string(block) : ""),
           noteId: note.id,
           noteTitle: note.title,
+          noteIndex: note.index,
         });
         return;
       }
@@ -61,6 +63,7 @@ export function extractNoteMarkers(
           text: snippet(typeof element.caption === "string" ? element.caption : ""),
           noteId: note.id,
           noteTitle: note.title,
+          noteIndex: note.index,
         });
         return;
       }

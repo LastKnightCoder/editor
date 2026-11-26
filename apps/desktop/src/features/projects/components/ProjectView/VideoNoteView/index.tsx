@@ -6,6 +6,9 @@
  * 会话与工具跟视频走（useScopedChat / 视频专属工具），与壳层全局 AI 栏无关。
  */
 
+import { useProjectVideoI18n } from "./i18n";
+import { projectVideoT, projectVideoNoteTitle } from "./binding";
+import { transcriptionLanguageText } from "@/components/VideoNotePanel/i18n-transcription";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocalStorageState, useSize } from "ahooks";
 import {
@@ -58,11 +61,6 @@ import { MaterialColumn } from "./MaterialColumn";
 import { NotesStage, type NotesStageHandle } from "./NotesStage";
 import { quotedSegmentIndexes, type NoteMarker } from "./noteMarkers";
 
-const SOURCE_LABELS: Record<string, string> = {
-  local: "本地视频",
-  remote: "远程视频",
-};
-
 /** 左栏（看）与右栏（记）的最小宽度 */
 const WATCH_MIN = 440;
 const NOTES_MIN = 360;
@@ -77,17 +75,12 @@ const readTreeWidth = () => {
   }
 };
 
-const MARKER_LABEL: Record<NoteMarker["kind"], string> = {
-  timestamp: "时间戳",
-  quote: "摘录",
-  screenshot: "截帧",
-};
-
 interface VideoNoteViewProps {
   videoNoteId: number;
 }
 
 const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
+  const { t } = useProjectVideoI18n();
   const mainDbName = useSettingStore(state => state.setting.database.active);
   const { itemId: activeProjectItemId, containerWidth } = useProjectContext();
   const uploadResource = useUploadResource();
@@ -150,12 +143,12 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
     getVideoNoteById(videoNoteId)
       .then(note => {
         if (cancelled) return;
-        if (!note) toast.error("视频笔记不存在");
+        if (!note) toast.error(projectVideoT("video.missing"));
         setVideoNote(note ?? null);
       })
       .catch(error => {
         console.error("Failed to load video note:", error);
-        toast.error("加载失败");
+        toast.error(projectVideoT("error.load"));
       })
       .finally(() => !cancelled && setLoading(false));
     return () => {
@@ -222,7 +215,7 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
     toggle: toggleChat,
     quickChat: () => ({
       chatScope: `video-note-chat:${videoNoteId}`,
-      placeholder: "问这段视频，回答会在旁边的对话栏继续",
+      placeholder: projectVideoT("chat.placeholder"),
       toolScope,
       customSystemPrompt: buildVideoNoteSystemPrompt({ transcript: transcriptText }),
       show: id => {
@@ -251,14 +244,15 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
         kind: marker.kind,
         content: (
           <>
-            {marker.text || MARKER_LABEL[marker.kind]}
+            {marker.text || t(`marker.${marker.kind}`)}
             <span className="text-ink-3 text-tau-micro mt-0.5 block">
-              {MARKER_LABEL[marker.kind]} · {marker.noteTitle}
+              {t(`marker.${marker.kind}`)} ·{" "}
+              {projectVideoNoteTitle(marker.noteTitle, marker.noteIndex ?? 0)}
             </span>
           </>
         ),
       })),
-    [noteMarkers]
+    [noteMarkers, t]
   );
   const quotedIndexes = useMemo(
     () => quotedSegmentIndexes(noteMarkers, videoNote?.transcriptSegments),
@@ -296,21 +290,22 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
     return (
       <div className="flex h-full w-full flex-col items-center justify-center gap-2 px-8 text-center">
         <Video className="text-ink-3 size-6" strokeWidth={1.5} />
-        <p className="text-tau-body text-ink-1 font-medium">视频笔记不存在</p>
-        <p className="text-tau-meta text-ink-3">该笔记可能已被删除或加载异常</p>
+        <p className="text-tau-body text-ink-1 font-medium">{t("video.missing")}</p>
+        <p className="text-tau-meta text-ink-3">{t("video.missingHint")}</p>
       </div>
     );
   }
 
   const hasSegments = !!videoNote.transcriptSegments?.length;
-  const displayTitle = title || videoNote.description || "未命名视频";
+  const displayTitle = title || videoNote.description || t("video.untitled");
+  const exportTitle = title || videoNote.description || "未命名视频";
 
   const moreMenuItems: MenuEntryList = [
-    { key: "options", label: "本次转录设置…", disabled: transcription.isTranscribing },
+    { key: "options", label: t("menu.options"), disabled: transcription.isTranscribing },
   ];
   moreMenuItems.push({
     key: "retranscribe",
-    label: hasSegments ? "重新转录" : "指定语言转录",
+    label: hasSegments ? t("menu.retranscribe") : t("menu.language"),
     icon: <RefreshCw className="size-4" strokeWidth={1.75} />,
     // 子菜单不支持 disabled：转录进行中退化为禁用的普通项
     disabled: transcription.isTranscribing,
@@ -318,13 +313,13 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
       ? undefined
       : TRANSCRIPTION_LANGUAGES.map(option => ({
           key: `retranscribe:${option.value}`,
-          label: option.label,
+          label: transcriptionLanguageText(option.value, option.label),
         })),
   });
   if (transcription.canOptimize) {
     moreMenuItems.push({
       key: "optimize",
-      label: "AI 优化断句",
+      label: t("menu.optimize"),
       icon: <Zap className="size-4" strokeWidth={1.75} />,
       disabled: transcription.isTranscribing,
     });
@@ -332,7 +327,7 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
   if (chapterState.canRegenerate) {
     moreMenuItems.push({
       key: "chapters",
-      label: chapterState.generating ? "正在生成章节…" : "重新生成章节",
+      label: chapterState.generating ? t("menu.chaptersGenerating") : t("menu.chapters"),
       icon: <ListTree className="size-4" strokeWidth={1.75} />,
       disabled: chapterState.generating || transcription.isTranscribing,
     });
@@ -340,14 +335,14 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
   if (hasSegments) {
     moreMenuItems.push({
       key: "subtitle",
-      label: subtitleMounted ? "取消挂载字幕" : "挂载字幕",
+      label: subtitleMounted ? t("menu.subtitleRemove") : t("menu.subtitleMount"),
       icon: <Subtitles className="size-4" strokeWidth={1.75} />,
     });
   }
   if (moreMenuItems.length) moreMenuItems.push({ key: "divider", label: "", divider: true });
   moreMenuItems.push({
     key: "ebook",
-    label: "AI 导出电子书",
+    label: t("menu.ebook"),
     icon: <BookText className="size-4" strokeWidth={1.75} />,
     disabled: !transcriptText,
   });
@@ -369,8 +364,16 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
     cn(on && "bg-selected text-accent-text enabled:hover:bg-selected");
 
   const meta = [
-    SOURCE_LABELS[videoNote.metaInfo.type] ?? providerName,
-    transcription.isTranscribing ? "转录中…" : hasSegments ? "已转录" : "未转录",
+    videoNote.metaInfo.type === "local"
+      ? t("source.local")
+      : videoNote.metaInfo.type === "remote"
+        ? t("source.remote")
+        : providerName,
+    transcription.isTranscribing
+      ? t("status.transcribing")
+      : hasSegments
+        ? t("status.transcribed")
+        : t("status.notTranscribed"),
   ].join(" · ");
 
   return (
@@ -382,11 +385,11 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
         actions={
           <>
             <Tooltip
-              content={chatOpen ? "收起对话 (Ctrl/⌘ J)" : "展开对话 (Ctrl/⌘ J)"}
+              content={chatOpen ? t("chat.collapseShortcut") : t("chat.expandShortcut")}
               placement="bottom"
             >
               <IconButton
-                aria-label={chatOpen ? "收起对话" : "展开对话"}
+                aria-label={chatOpen ? t("chat.collapse") : t("chat.expand")}
                 aria-pressed={!!chatOpen}
                 onClick={toggleChat}
                 className={toggleClass(!!chatOpen)}
@@ -400,8 +403,8 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
               trigger={
                 <button
                   type="button"
-                  title="更多操作"
-                  aria-label="更多操作"
+                  title={t("menu.more")}
+                  aria-label={t("menu.more")}
                   className="text-ink-2 hover:bg-hover hover:text-ink-1 rounded-tau-sm grid size-[30px] cursor-pointer place-items-center transition-colors"
                 >
                   <MoreHorizontal className="size-4" strokeWidth={1.75} />
@@ -466,7 +469,7 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
               <div
                 role="separator"
                 aria-orientation="vertical"
-                aria-label="调整对话栏宽度"
+                aria-label={t("chat.resize")}
                 onPointerDown={startDockResize}
                 className="hover:bg-accent/30 absolute inset-y-0 -left-[3px] z-10 w-[6px] cursor-col-resize transition-colors"
               />
@@ -495,7 +498,7 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
         onOpenChange={open => !open && transcription.dismissLlmConfirm()}
         title={transcription.llmConfirm?.title ?? ""}
         description={transcription.llmConfirm?.description ?? ""}
-        confirmText="打开设置"
+        confirmText={t("settings.open")}
         onConfirm={() => {
           transcription.dismissLlmConfirm();
           openLLMSettingsSection();
@@ -506,7 +509,7 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
         onClose={() => setEbookOpen(false)}
         videoNoteId={videoNoteId}
         transcript={transcriptText}
-        videoTitle={displayTitle}
+        videoTitle={exportTitle}
         videoDescription={videoNote.description || ""}
         provider={ebookLLM.provider}
         model={ebookLLM.model}

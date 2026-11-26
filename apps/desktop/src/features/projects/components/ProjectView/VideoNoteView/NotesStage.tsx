@@ -4,6 +4,8 @@
  * 对外暴露 insertQuote（转录摘录插到光标处），并汇报全部笔记里的时间点（进度条刻度）。
  */
 
+import { useProjectVideoI18n } from "./i18n";
+import { projectVideoT, projectVideoNoteTitle } from "./binding";
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { Camera, Clock3, MoreHorizontal, Plus, Trash2 } from "lucide-react";
 import { useLocalStorageState, useMemoizedFn, useThrottleFn } from "ahooks";
@@ -36,8 +38,6 @@ import { extractNoteMarkers, type NoteMarker } from "./noteMarkers";
 const emptyContent = (): Descendant[] => [
   { type: "paragraph", children: [{ type: "formatted", text: "" }] } as Descendant,
 ];
-
-const noteTitle = (item: VideoNoteItem, index: number) => item.title || `笔记 ${index + 1}`;
 
 interface NotesStageProps {
   videoNoteId: number;
@@ -72,6 +72,7 @@ export const NotesStage = forwardRef<NotesStageHandle, NotesStageProps>(function
   { videoNoteId, videoController, onMarkersChange },
   ref
 ) {
+  const { t } = useProjectVideoI18n();
   const editorRef = useRef<EditorRef>(null);
 
   const [items, setItems] = useState<VideoNoteItem[]>([]);
@@ -102,7 +103,7 @@ export const NotesStage = forwardRef<NotesStageHandle, NotesStageProps>(function
       })
       .catch(error => {
         console.error("Failed to load video note items:", error);
-        toast.error("加载笔记失败");
+        toast.error(projectVideoT("error.notesLoad"));
       })
       .finally(() => !cancelled && setLoading(false));
     return () => {
@@ -145,7 +146,8 @@ export const NotesStage = forwardRef<NotesStageHandle, NotesStageProps>(function
         .flatMap((item, index) =>
           extractNoteMarkers(contentsRef.current.get(item.id), {
             id: item.id,
-            title: noteTitle(item, index),
+            title: item.title,
+            index,
           })
         )
         .sort((a, b) => a.time - b.time)
@@ -179,7 +181,7 @@ export const NotesStage = forwardRef<NotesStageHandle, NotesStageProps>(function
       setActiveId(item.id);
     } catch (error) {
       console.error("Failed to create note item:", error);
-      toast.error("创建笔记失败");
+      toast.error(projectVideoT("error.noteCreate"));
     }
   });
 
@@ -188,7 +190,7 @@ export const NotesStage = forwardRef<NotesStageHandle, NotesStageProps>(function
       const editor = active && initValue ? editorRef.current?.getEditor() : null;
       if (editor) insertTranscriptQuote(editor, text, timeSec);
       else if (!active) void createNote(quoteContent(text, timeSec));
-      else toast.info("笔记还在加载，稍后再试");
+      else toast.info(projectVideoT("error.noteLoading"));
     },
   }));
 
@@ -201,7 +203,7 @@ export const NotesStage = forwardRef<NotesStageHandle, NotesStageProps>(function
       setItems(prev => prev.map(item => (item.id === updated.id ? updated : item)));
     } catch (error) {
       console.error("Failed to update note title:", error);
-      toast.error("保存标题失败");
+      toast.error(projectVideoT("error.titleSave"));
     }
   });
 
@@ -219,7 +221,7 @@ export const NotesStage = forwardRef<NotesStageHandle, NotesStageProps>(function
       });
     } catch (error) {
       console.error("Failed to delete note item:", error);
-      toast.error("删除失败");
+      toast.error(projectVideoT("error.noteDelete"));
     }
   });
 
@@ -235,10 +237,10 @@ export const NotesStage = forwardRef<NotesStageHandle, NotesStageProps>(function
   if (!active) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 px-8 text-center">
-        <p className="text-tau-title text-ink-1 font-semibold">还没有笔记</p>
-        <p className="text-tau-meta text-ink-3">边看边记，时间戳和截帧都能一键插入</p>
+        <p className="text-tau-title text-ink-1 font-semibold">{t("note.empty")}</p>
+        <p className="text-tau-meta text-ink-3">{t("note.emptyHint")}</p>
         <Button size="sm" variant="primary" icon={Plus} onClick={() => void createNote()}>
-          新建笔记
+          {t("note.create")}
         </Button>
       </div>
     );
@@ -254,7 +256,7 @@ export const NotesStage = forwardRef<NotesStageHandle, NotesStageProps>(function
               type="button"
               aria-pressed={item.id === active.id}
               onClick={() => setActiveId(item.id)}
-              title={noteTitle(item, index)}
+              title={projectVideoNoteTitle(item.title, index)}
               className={cn(
                 "text-tau-sm ease-tau-out h-[26px] max-w-[180px] shrink-0 cursor-pointer truncate rounded-full px-2.5 transition-colors duration-[160ms]",
                 item.id === active.id
@@ -262,12 +264,12 @@ export const NotesStage = forwardRef<NotesStageHandle, NotesStageProps>(function
                   : "text-ink-2 hover:bg-hover hover:text-ink-1"
               )}
             >
-              {noteTitle(item, index)}
+              {projectVideoNoteTitle(item.title, index)}
             </button>
           ))}
-          <Tooltip content="新建笔记" placement="bottom">
+          <Tooltip content={t("note.create")} placement="bottom">
             <IconButton
-              aria-label="新建笔记"
+              aria-label={t("note.create")}
               className="size-[26px] shrink-0"
               onClick={() => void createNote()}
             >
@@ -275,13 +277,19 @@ export const NotesStage = forwardRef<NotesStageHandle, NotesStageProps>(function
             </IconButton>
           </Tooltip>
         </div>
-        <Tooltip content="插入当前时间戳（⌘⇧T）" placement="bottom">
-          <IconButton aria-label="插入时间戳" onClick={() => void insertAtCursor("timestamp")}>
+        <Tooltip content={t("note.timestampShortcut")} placement="bottom">
+          <IconButton
+            aria-label={t("note.timestamp")}
+            onClick={() => void insertAtCursor("timestamp")}
+          >
             <Clock3 className="size-4" strokeWidth={1.75} />
           </IconButton>
         </Tooltip>
-        <Tooltip content="截取当前帧（⌘⇧S）" placement="bottom">
-          <IconButton aria-label="截取当前帧" onClick={() => void insertAtCursor("screenshot")}>
+        <Tooltip content={t("note.screenshotShortcut")} placement="bottom">
+          <IconButton
+            aria-label={t("note.screenshot")}
+            onClick={() => void insertAtCursor("screenshot")}
+          >
             <Camera className="size-4" strokeWidth={1.75} />
           </IconButton>
         </Tooltip>
@@ -290,8 +298,8 @@ export const NotesStage = forwardRef<NotesStageHandle, NotesStageProps>(function
           trigger={
             <button
               type="button"
-              title="笔记操作"
-              aria-label="笔记操作"
+              title={t("note.actions")}
+              aria-label={t("note.actions")}
               className="text-ink-2 hover:bg-hover hover:text-ink-1 rounded-tau-sm grid size-[30px] cursor-pointer place-items-center transition-colors"
             >
               <MoreHorizontal className="size-4" strokeWidth={1.75} />
@@ -303,7 +311,7 @@ export const NotesStage = forwardRef<NotesStageHandle, NotesStageProps>(function
             icon={<Trash2 className="size-4" strokeWidth={1.75} />}
             onSelect={() => setPendingDelete(active)}
           >
-            删除笔记
+            {t("note.delete")}
           </Menu.Item>
         </Menu>
       </div>
@@ -321,7 +329,7 @@ export const NotesStage = forwardRef<NotesStageHandle, NotesStageProps>(function
                 editorRef.current?.focus();
               }
             }}
-            placeholder="无标题笔记"
+            placeholder={t("note.untitled")}
             className="text-tau-title-lg text-ink-1 placeholder:text-ink-3 mb-3 w-full border-none bg-transparent p-0 font-semibold outline-none"
           />
           {initValue ? (
@@ -337,7 +345,7 @@ export const NotesStage = forwardRef<NotesStageHandle, NotesStageProps>(function
                 contentsRef.current.set(active.id, value);
                 reportMarkersSoon();
               }}
-              placeHolder="边看边记…"
+              placeHolder={t("note.placeholder")}
             />
           ) : (
             <Loading minHeight={120} />
@@ -349,9 +357,13 @@ export const NotesStage = forwardRef<NotesStageHandle, NotesStageProps>(function
         open={pendingDelete != null}
         onOpenChange={open => !open && setPendingDelete(null)}
         danger
-        title="删除笔记"
-        description={`确定删除「${pendingDelete ? noteTitle(pendingDelete, items.indexOf(pendingDelete)) : ""}」吗？`}
-        confirmText="删除"
+        title={t("note.delete")}
+        description={t("note.deleteConfirm", {
+          title: pendingDelete
+            ? projectVideoNoteTitle(pendingDelete.title, items.indexOf(pendingDelete))
+            : "",
+        })}
+        confirmText={t("note.deleteAction")}
         onConfirm={() => void confirmDelete()}
       />
     </div>
