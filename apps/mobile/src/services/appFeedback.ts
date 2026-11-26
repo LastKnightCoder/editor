@@ -16,7 +16,8 @@ export class MobileFeedbackError extends Error {
   constructor(
     readonly status: number,
     readonly code: string,
-    message: string
+    message: string,
+    readonly params?: Record<string, string | number | boolean>
   ) {
     super(message);
     this.name = "MobileFeedbackError";
@@ -28,8 +29,13 @@ async function command<T>(name: string, args?: Record<string, unknown>): Promise
     return await invoke<T>(name, args);
   } catch (error) {
     if (error && typeof error === "object" && "code" in error && "message" in error) {
-      const issue = error as { status: number; code: string; message: string };
-      throw new MobileFeedbackError(issue.status, issue.code, issue.message);
+      const issue = error as {
+        status: number;
+        code: string;
+        message: string;
+        params?: Record<string, string | number | boolean>;
+      };
+      throw new MobileFeedbackError(issue.status, issue.code, issue.message, issue.params);
     }
     throw error;
   }
@@ -58,6 +64,8 @@ export type FeedbackSubmitResult =
       ok: false;
       reason: "network" | "limit" | "invalid" | "forbidden" | "server";
       message: string;
+      code?: string;
+      params?: Record<string, string | number | boolean>;
     };
 
 // Android 保留字符串 IPC，每次只编码当前块（与 uploadResource 同一模式）

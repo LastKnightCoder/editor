@@ -4,6 +4,8 @@
  * 不阻塞其它窗口，用户可以一边复现问题一边截图；关窗时有内容先确认是否放弃。
  */
 
+import { feedbackTranslator, useFeedbackI18n, feedbackText, feedbackIssueText } from "../i18n";
+import { FeedbackHostError, type FeedbackIssue } from "../errors";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, CircleAlert, Pin, PinOff } from "lucide-react";
 import { Button, IconButton, ToastHost, Tooltip, initScrollbarAutoHide } from "@tau/ui";
@@ -21,7 +23,11 @@ import {
   submitFeedback,
   takePendingCaptures,
 } from "@/commands/feedback";
-import type { FeedbackCapture, FeedbackCaptureSource } from "@/types/app-feedback";
+import {
+  APP_FEEDBACK_LIMITS,
+  type FeedbackCapture,
+  type FeedbackCaptureSource,
+} from "@/types/app-feedback";
 import { AnnotateView } from "../AnnotateView";
 import { FeedbackForm } from "../FeedbackForm";
 import { useFeedbackDraft } from "../useFeedbackDraft";
@@ -35,18 +41,20 @@ const pngBlob = (capture: FeedbackCapture) =>
   new Blob([new Uint8Array(capture.png)], { type: "image/png" });
 
 export default function FeedbackWindow() {
+  const { locale } = useFeedbackI18n();
   useThemeRuntime();
   useEffect(() => initScrollbarAutoHide(), []);
   useEffect(() => {
-    document.title = "发送反馈";
-  }, []);
+    document.title = feedbackTranslator.t("window.title");
+  }, [locale]);
 
   const draft = useFeedbackDraft();
   const { addImage, reset } = draft;
   const [view, setView] = useState<View>({ name: "form" });
   const [pinned, setPinned] = useState(true);
   const [sending, setSending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [issue, setError] = useState<FeedbackIssue | null>(null);
+  const error = issue ? feedbackIssueText(issue) : null;
   const [confirmClose, setConfirmClose] = useState(false);
   const submission = useRef(0);
   const dirty = useRef(false);
@@ -56,7 +64,11 @@ export default function FeedbackWindow() {
     async (captures: FeedbackCapture[]) => {
       for (const capture of captures)
         if (!(await addImage(pngBlob(capture), capture.source)))
-          setError("最多附带 3 张截图，多出的截图没有加入");
+          setError({
+            kind: "message",
+            key: "error.extraImages",
+            values: { count: APP_FEEDBACK_LIMITS.images },
+          });
     },
     [addImage]
   );
@@ -77,7 +89,15 @@ export default function FeedbackWindow() {
       event.preventDefault();
       setView({ name: "form" });
       for (const file of files)
-        void addImage(file, "剪贴板").then(ok => ok || setError("最多附带 3 张截图"));
+        void addImage(file, "剪贴板", "origin.clipboard").then(
+          ok =>
+            ok ||
+            setError({
+              kind: "message",
+              key: "error.maxImages",
+              values: { count: APP_FEEDBACK_LIMITS.images },
+            })
+        );
     };
     window.addEventListener("paste", onPaste);
     return () => window.removeEventListener("paste", onPaste);
@@ -106,10 +126,10 @@ export default function FeedbackWindow() {
     setError(null);
     try {
       const target = source ?? (await listCaptureSources())[0];
-      if (!target) throw new Error("没有可截取的窗口");
+      if (!target) throw new FeedbackHostError("FEEDBACK_NO_CAPTURE_SOURCE", "没有可截取的窗口");
       await addCaptures([await captureWindow(target.id)]);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "截图失败");
+      setError({ kind: "cause", cause, fallback: "error.captureFallback" });
     }
   };
 
@@ -131,10 +151,10 @@ export default function FeedbackWindow() {
       const result = await submitFeedback(draft.toInput(`${theme} · ${mode}`));
       if (current !== submission.current) return;
       if (result.ok) setView({ name: "done" });
-      else setError(result.message);
+      else setError({ kind: "response", response: result });
     } catch (cause) {
       if (current === submission.current)
-        setError(cause instanceof Error ? cause.message : "发送失败，请重试");
+        setError({ kind: "cause", cause, fallback: "error.send" });
     } finally {
       if (current === submission.current) setSending(false);
     }
@@ -154,12 +174,23 @@ export default function FeedbackWindow() {
       <AuxWindowTitlebar
         leading={
           <span className="text-tau-body text-ink-1 font-semibold">
-            {annotating ? "标注截图" : "发送反馈"}
+            {annotating
+              ? feedbackTranslator.t("annotate.title")
+              : feedbackTranslator.t("window.title")}
           </span>
         }
         actions={
-          <Tooltip content={pinned ? "取消置顶" : "窗口置顶"}>
-            <IconButton aria-label={pinned ? "取消置顶" : "窗口置顶"} onClick={togglePin}>
+          <Tooltip
+            content={
+              pinned ? feedbackTranslator.t("window.unpin") : feedbackTranslator.t("window.pin")
+            }
+          >
+            <IconButton
+              aria-label={
+                pinned ? feedbackTranslator.t("window.unpin") : feedbackTranslator.t("window.pin")
+              }
+              onClick={togglePin}
+            >
               {pinned ? <Pin size={15} className="text-accent-text" /> : <PinOff size={15} />}
             </IconButton>
           </Tooltip>
@@ -172,17 +203,20 @@ export default function FeedbackWindow() {
         >
           <CircleAlert size={16} className="text-warn mt-0.5 shrink-0" />
           <div className="min-w-0 flex-1">
-            <p className="text-tau-body text-ink-1">放弃这条反馈？</p>
+            <p className="text-tau-body text-ink-1">{feedbackTranslator.t("discard.title")}</p>
             <p className="text-tau-sm text-ink-2">
-              文字{draft.screenshots.length ? `和 ${draft.screenshots.length} 张截图` : ""}
-              都会丢弃。
+              {feedbackTranslator.t("discard.description", {
+                images: draft.screenshots.length
+                  ? feedbackText("discard.images", { count: draft.screenshots.length })
+                  : "",
+              })}
             </p>
           </div>
           <Button size="sm" onClick={() => setConfirmClose(false)}>
-            继续编辑
+            {feedbackTranslator.t("discard.continue")}
           </Button>
           <Button size="sm" variant="danger-soft" onClick={closeWindow}>
-            放弃
+            {feedbackTranslator.t("discard.action")}
           </Button>
         </div>
       )}
@@ -191,8 +225,10 @@ export default function FeedbackWindow() {
           <span className="bg-ok-soft text-ok grid size-11 place-items-center rounded-full">
             <Check size={22} />
           </span>
-          <h1 className="text-tau-title text-ink-1 font-semibold">反馈已发送，谢谢你</h1>
-          <p className="text-tau-sm text-ink-2">我们会逐条看。</p>
+          <h1 className="text-tau-title text-ink-1 font-semibold">
+            {feedbackTranslator.t("done.title")}
+          </h1>
+          <p className="text-tau-sm text-ink-2">{feedbackTranslator.t("done.description")}</p>
           <div className="mt-3 flex gap-2">
             <Button
               onClick={() => {
@@ -200,10 +236,10 @@ export default function FeedbackWindow() {
                 setView({ name: "form" });
               }}
             >
-              再写一条
+              {feedbackTranslator.t("done.another")}
             </Button>
             <Button variant="primary" onClick={closeWindow}>
-              关闭
+              {feedbackTranslator.t("action.close")}
             </Button>
           </div>
         </div>

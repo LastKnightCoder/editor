@@ -1,0 +1,17 @@
+{
+  "default.title": "發生了一點問題",
+  "default.description": "這部分內容顯示時發生了非預期錯誤。你的資料沒有遺失，可以重試或換個地方繼續。",
+  "details": "技術詳細資訊",
+  "copied": "已複製",
+  "copy": "複製錯誤資訊",
+  "report.sent": "已傳送，謝謝",
+  "report.hint": "附上錯誤詳細資訊、版本與系統資訊、本次執行記錄",
+  "report.sending": "傳送中…",
+  "report.retry": "傳送失敗，重試",
+  "report.send": "傳送錯誤報告",
+  "route.title": "應用程式遇到了非預期錯誤",
+  "route.description.electron": "目前視窗無法繼續顯示。你的資料已儲存在本機，重新載入通常即可恢復；如果反覆發生，請點下方「傳送錯誤報告」告訴我們。",
+  "route.description.web": "目前視窗無法繼續顯示。你的資料已儲存在本機，重新載入通常即可恢復；如果反覆發生，請複製錯誤資訊回報給我們。",
+  "route.reload": "重新載入",
+  "route.home": "回到首頁"
+}

@@ -1,3 +1,13 @@
+import {
+  feedbackTranslator,
+  useFeedbackI18n,
+  feedbackText,
+  feedbackIssueText,
+  feedbackDisplayContext,
+  type FeedbackMessageKey,
+} from "./i18n";
+import { formatFeedbackSize } from "./format";
+import type { FeedbackIssue } from "./errors";
 import { useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -31,10 +41,10 @@ import {
 } from "@/types/app-feedback";
 import type { FeedbackDraft } from "./useFeedbackDraft";
 
-const KINDS: { kind: AppFeedbackKind; label: string; icon: typeof Bug }[] = [
-  { kind: "bug", label: "遇到问题", icon: Bug },
-  { kind: "idea", label: "功能建议", icon: Lightbulb },
-  { kind: "other", label: "其他", icon: MessageCircle },
+const KINDS: { kind: AppFeedbackKind; label: FeedbackMessageKey; icon: typeof Bug }[] = [
+  { kind: "bug", label: "kind.bug", icon: Bug },
+  { kind: "idea", label: "kind.idea", icon: Lightbulb },
+  { kind: "other", label: "kind.other", icon: MessageCircle },
 ];
 const PLATFORM_LABELS: Record<string, string> = {
   darwin: "macOS",
@@ -43,11 +53,6 @@ const PLATFORM_LABELS: Record<string, string> = {
 };
 const TILE = "rounded-tau-sm h-[62px] w-[92px] shrink-0";
 
-const formatSize = (bytes: number) =>
-  bytes < 1024 * 1024
-    ? `${Math.max(1, Math.round(bytes / 1024))} KB`
-    : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-
 function CaptureButton({
   disabled,
   onCapture,
@@ -55,6 +60,7 @@ function CaptureButton({
   disabled: boolean;
   onCapture: (source?: FeedbackCaptureSource) => void;
 }) {
+  useFeedbackI18n();
   const [open, setOpen] = useState(false);
   const sources = useQuery({
     queryKey: ["feedback", "capture-sources"],
@@ -76,7 +82,7 @@ function CaptureButton({
         className="hover:bg-hover text-tau-micro flex flex-1 flex-col items-center justify-center gap-1 transition-colors"
       >
         <Camera size={16} strokeWidth={1.75} className="text-ink-3" />
-        截取窗口
+        {feedbackTranslator.t("capture.action")}
       </button>
       <Menu
         open={open}
@@ -85,14 +91,14 @@ function CaptureButton({
         trigger={
           <button
             type="button"
-            aria-label="选择要截取的窗口"
+            aria-label={feedbackTranslator.t("capture.choose")}
             className="border-line-1 hover:bg-hover text-ink-3 grid w-5 place-items-center border-l border-dashed transition-colors"
           >
             <ChevronDown size={12} />
           </button>
         }
       >
-        <Menu.Group>截取哪个窗口</Menu.Group>
+        <Menu.Group>{feedbackTranslator.t("capture.title")}</Menu.Group>
         {sources.data?.length ? (
           sources.data.map(source => (
             <Menu.Item key={source.id} icon={<AppWindow />} onSelect={() => onCapture(source)}>
@@ -100,7 +106,11 @@ function CaptureButton({
             </Menu.Item>
           ))
         ) : (
-          <Menu.Item disabled>{sources.isPending ? "读取中…" : "没有可截取的窗口"}</Menu.Item>
+          <Menu.Item disabled>
+            {sources.isPending
+              ? feedbackTranslator.t("capture.loading")
+              : feedbackTranslator.t("capture.empty")}
+          </Menu.Item>
         )}
       </Menu>
     </div>
@@ -116,16 +126,20 @@ function Screenshots({
   draft: FeedbackDraft;
   onCapture: (source?: FeedbackCaptureSource) => void;
   onAnnotate: (id: string) => void;
-  onError: (message: string) => void;
+  onError: (issue: FeedbackIssue) => void;
 }) {
+  useFeedbackI18n();
   const fileInput = useRef<HTMLInputElement>(null);
   const full = draft.screenshots.length >= APP_FEEDBACK_LIMITS.images;
   return (
     <div className="flex flex-col gap-1.5">
       <p className="text-tau-sm text-ink-3 flex items-center gap-1.5">
-        截图 · {draft.screenshots.length} / {APP_FEEDBACK_LIMITS.images}
+        {feedbackText("images.count", {
+          count: draft.screenshots.length,
+          max: APP_FEEDBACK_LIMITS.images,
+        })}
         <span className="ml-auto">
-          系统截图后可直接粘贴 <kbd className="font-tau-mono">{isMac ? "⌘V" : "Ctrl+V"}</kbd>
+          {feedbackTranslator.t("images.pasteHint", { shortcut: isMac ? "⌘V" : "Ctrl+V" })}
         </span>
       </p>
       <div className="flex flex-wrap gap-2.5">
@@ -135,18 +149,24 @@ function Screenshots({
               {shot.previewUrl ? (
                 <img
                   src={shot.previewUrl}
-                  alt={`截图：${shot.origin}`}
+                  alt={feedbackTranslator.t("image.alt", {
+                    origin: shot.originMessage
+                      ? feedbackTranslator.t(shot.originMessage)
+                      : shot.origin,
+                  })}
                   className="size-full object-cover object-top"
                 />
               ) : (
                 <span className="text-tau-micro text-ink-3 px-1 text-center">
-                  {shot.error ?? "处理中…"}
+                  {shot.error
+                    ? feedbackIssueText(shot.error)
+                    : feedbackTranslator.t("image.processing")}
                 </span>
               )}
             </div>
             <button
               type="button"
-              aria-label="移除截图"
+              aria-label={feedbackTranslator.t("image.remove")}
               onClick={() => draft.removeImage(shot.id)}
               className="bg-ink-1 text-ink-inverse shadow-card absolute -top-1.5 -right-1.5 grid size-5 place-items-center rounded-full"
             >
@@ -158,7 +178,7 @@ function Screenshots({
               className="bg-surface text-ink-2 hover:text-ink-1 shadow-card text-tau-micro absolute bottom-1 left-1 flex h-5 items-center gap-1 rounded-[6px] px-1.5"
             >
               <PenLine size={11} />
-              标注
+              {feedbackTranslator.t("image.annotate")}
             </button>
           </div>
         ))}
@@ -173,7 +193,7 @@ function Screenshots({
           )}
         >
           <ImagePlus size={16} strokeWidth={1.75} className="text-ink-3" />
-          选择图片
+          {feedbackTranslator.t("image.choose")}
         </button>
         <input
           ref={fileInput}
@@ -186,7 +206,15 @@ function Screenshots({
             event.target.value = "";
             for (const file of files)
               if (!(await draft.addImage(file, file.name)))
-                onError(full ? "最多附带 3 张截图" : `无法读取图片：${file.name}`);
+                onError(
+                  full
+                    ? {
+                        kind: "message",
+                        key: "error.maxImages",
+                        values: { count: APP_FEEDBACK_LIMITS.images },
+                      }
+                    : { kind: "message", key: "error.readImage", values: { name: file.name } }
+                );
           }}
         />
       </div>
@@ -195,6 +223,7 @@ function Screenshots({
 }
 
 function Environment({ draft }: { draft: FeedbackDraft }) {
+  useFeedbackI18n();
   const environment = useQuery({
     queryKey: ["feedback", "environment"],
     queryFn: getFeedbackEnvironment,
@@ -203,47 +232,54 @@ function Environment({ draft }: { draft: FeedbackDraft }) {
   const env = environment.data;
   const rows = env
     ? [
-        ["版本", `${env.appVersion} (${env.arch})`],
-        ["系统", `${PLATFORM_LABELS[env.platform] ?? env.platform} ${env.osVersion}`],
-        ["当前页面", env.page ?? "—"],
-        ["语言", env.locale],
+        ["version", feedbackTranslator.t("environment.version"), `${env.appVersion} (${env.arch})`],
+        [
+          "os",
+          feedbackTranslator.t("environment.os"),
+          `${PLATFORM_LABELS[env.platform] ?? env.platform} ${env.osVersion}`,
+        ],
+        ["page", feedbackTranslator.t("environment.page"), env.page ?? "—"],
+        ["language", feedbackTranslator.t("environment.locale"), env.locale],
       ]
     : [];
   return (
     <details className="border-line-1 rounded-tau-sm group border px-3 py-2">
       <summary className="text-tau-sm text-ink-2 flex cursor-pointer list-none items-center gap-2 [&::-webkit-details-marker]:hidden">
         <MonitorSmartphone size={14} strokeWidth={1.75} />
-        附带环境信息
+        {feedbackTranslator.t("environment.include")}
         <span className="text-ink-3 min-w-0 flex-1 truncate">
           {env && draft.fields.includeContext
             ? `${env.appVersion} · ${PLATFORM_LABELS[env.platform] ?? env.platform}${env.page ? ` · ${env.page}` : ""}`
-            : "不附带"}
+            : feedbackTranslator.t("environment.excluded")}
         </span>
         <Switch
           size="sm"
-          aria-label="附带环境信息"
+          aria-label={feedbackTranslator.t("environment.include")}
           checked={draft.fields.includeContext}
           onCheckedChange={includeContext => draft.update({ includeContext })}
           onClick={event => event.stopPropagation()}
         />
       </summary>
       <dl className="border-line-1 text-tau-sm mt-2 grid grid-cols-[64px_1fr] gap-x-3 gap-y-0.5 border-t pt-2">
-        {rows.map(([label, value]) => (
-          <div key={label} className="contents">
+        {rows.map(([id, label, value]) => (
+          <div key={id} className="contents">
             <dt className="text-ink-3">{label}</dt>
             <dd className="text-ink-2 font-tau-mono text-tau-micro self-center break-all">
               {value}
             </dd>
           </div>
         ))}
-        <dt className="text-ink-3">外观</dt>
-        <dd className="text-ink-3 text-tau-micro self-center">当前主题与明暗</dd>
+        <dt className="text-ink-3">{feedbackTranslator.t("environment.appearance")}</dt>
+        <dd className="text-ink-3 text-tau-micro self-center">
+          {feedbackTranslator.t("environment.theme")}
+        </dd>
       </dl>
     </details>
   );
 }
 
 function Logs({ draft }: { draft: FeedbackDraft }) {
+  useFeedbackI18n();
   const info = useQuery({
     queryKey: ["feedback", "log-info"],
     queryFn: getFeedbackLogInfo,
@@ -254,24 +290,31 @@ function Logs({ draft }: { draft: FeedbackDraft }) {
     <div className="border-line-1 rounded-tau-sm flex flex-col gap-1.5 border px-3 py-2">
       <p className="text-tau-sm text-ink-2 flex items-center gap-2">
         <ScrollText size={14} strokeWidth={1.75} />
-        附带日志
+        {feedbackTranslator.t("logs.include")}
         <button
           type="button"
           onClick={() => void revealFeedbackLogs()}
           className="text-ink-3 hover:text-ink-1 text-tau-micro ml-auto flex items-center gap-1 transition-colors"
         >
           <FolderOpen size={12} />
-          在文件夹中查看
+          {feedbackTranslator.t("logs.reveal")}
         </button>
       </p>
       <Checkbox
         label={
           <span className="text-tau-sm text-ink-1">
-            普通日志
+            {feedbackTranslator.t("logs.app")}
             <span className="text-ink-3">
               {" "}
-              · 本次与上次运行
-              {info.data ? `，约 ${formatSize(info.data.appLogBytes)}` : ""}
+              {feedbackTranslator.t("logs.appHint")}
+              {info.data
+                ? feedbackTranslator.t("logs.size", {
+                    size: formatFeedbackSize(
+                      info.data.appLogBytes,
+                      feedbackDisplayContext().locale
+                    ),
+                  })
+                : ""}
             </span>
           </span>
         }
@@ -281,16 +324,15 @@ function Logs({ draft }: { draft: FeedbackDraft }) {
       <Checkbox
         label={
           <span className="text-tau-sm text-ink-1">
-            性能日志<span className="text-ink-3"> · 近 1 小时的卡顿诊断数据</span>
+            {feedbackTranslator.t("logs.perf")}
+            <span className="text-ink-3"> {feedbackTranslator.t("logs.perfHint")}</span>
           </span>
         }
         checked={logs.perf}
         onChange={event => draft.update({ logs: { ...logs, perf: event.target.checked } })}
       />
       {(logs.app || logs.perf) && (
-        <p className="text-tau-micro text-ink-3">
-          日志可能包含文件名和笔记标题，只用于排查问题，压缩后上传。
-        </p>
+        <p className="text-tau-micro text-ink-3">{feedbackTranslator.t("logs.privacy")}</p>
       )}
     </div>
   );
@@ -310,9 +352,10 @@ export function FeedbackForm({
   error: string | null;
   onCapture: (source?: FeedbackCaptureSource) => void;
   onAnnotate: (id: string) => void;
-  onError: (message: string) => void;
+  onError: (issue: FeedbackIssue) => void;
   onSubmit: () => void;
 }) {
+  useFeedbackI18n();
   const { fields } = draft;
   return (
     <>
@@ -322,7 +365,7 @@ export function FeedbackForm({
             <FilterPill
               key={item.kind}
               active={fields.kind === item.kind}
-              label={item.label}
+              label={feedbackTranslator.t(item.label)}
               icon={<item.icon size={13} strokeWidth={1.75} />}
               onClick={() => draft.update({ kind: item.kind })}
             />
@@ -330,14 +373,14 @@ export function FeedbackForm({
         </div>
         <div className="flex flex-col gap-1">
           <Textarea
-            aria-label="反馈内容"
+            aria-label={feedbackTranslator.t("message.label")}
             autoFocus
             rows={5}
             maxLength={APP_FEEDBACK_LIMITS.message}
             placeholder={
               fields.kind === "idea"
-                ? "想要什么功能？在什么场景下会用到？"
-                : "发生了什么？如果方便，写一下怎么操作能复现。"
+                ? feedbackTranslator.t("message.ideaPlaceholder")
+                : feedbackTranslator.t("message.problemPlaceholder")
             }
             value={fields.message}
             onChange={event => draft.update({ message: event.target.value })}
@@ -361,7 +404,7 @@ export function FeedbackForm({
         <div className="flex items-center gap-2">
           <span className="text-tau-micro text-ink-3 mr-auto flex items-center gap-1.5">
             <Lock size={12} />
-            截图和日志只有开发者能看到
+            {feedbackTranslator.t("privacy.desktop")}
           </span>
           <Button
             variant="primary"
@@ -370,7 +413,7 @@ export function FeedbackForm({
             disabled={!draft.ready}
             onClick={onSubmit}
           >
-            发送
+            {feedbackTranslator.t("action.send")}
           </Button>
         </div>
       </footer>

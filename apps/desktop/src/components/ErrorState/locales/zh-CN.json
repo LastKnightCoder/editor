@@ -1,0 +1,17 @@
+{
+  "default.title": "出了点问题",
+  "default.description": "这部分内容渲染时发生了意外错误。你的数据没有丢失，可以重试或换个地方继续。",
+  "details": "技术详情",
+  "copied": "已复制",
+  "copy": "复制错误信息",
+  "report.sent": "已发送，谢谢",
+  "report.hint": "附带错误详情、版本与系统信息、本次运行日志",
+  "report.sending": "发送中…",
+  "report.retry": "发送失败，重试",
+  "report.send": "发送错误报告",
+  "route.title": "应用遇到了意外错误",
+  "route.description.electron": "当前窗口无法继续显示。你的数据已保存在本地，重新加载通常即可恢复；如果反复出现，请点下方「发送错误报告」告诉我们。",
+  "route.description.web": "当前窗口无法继续显示。你的数据已保存在本地，重新加载通常即可恢复；如果反复出现，请复制错误信息反馈给我们。",
+  "route.reload": "重新加载",
+  "route.home": "回到首页"
+}

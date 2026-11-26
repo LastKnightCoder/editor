@@ -29,7 +29,13 @@ export type AppFeedbackFailure = "network" | "limit" | "invalid" | "forbidden" |
 
 export type AppFeedbackResult =
   | { ok: true; id: string }
-  | { ok: false; reason: AppFeedbackFailure; message: string };
+  | {
+      ok: false;
+      reason: AppFeedbackFailure;
+      message: string;
+      code?: string;
+      params?: Record<string, string | number | boolean>;
+    };
 
 export interface AppFeedbackEnvironment {
   appVersion: string;
@@ -60,4 +66,11 @@ export interface AppFeedbackOpenOptions {
   page?: string | null;
   /** 先截取发起窗口，再打开反馈窗口 */
   capture?: boolean;
+}
+
+export interface FeedbackCommandFailure {
+  feedbackCommandError: true;
+  code: string;
+  message: string;
+  params?: Record<string, string | number | boolean>;
 }

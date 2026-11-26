@@ -19,6 +19,8 @@ import {
 import { API_ORIGIN } from "../services/plugin-center";
 import { visitorHeaders } from "../services/plugin-center-visitor";
 import {
+  FeedbackCommandError,
+  feedbackResult,
   collectAppLog,
   compressPerfSnapshot,
   encodeFeedback,
@@ -68,7 +70,11 @@ function capturable(): BrowserWindow[] {
 
 async function capture(win: BrowserWindow): Promise<FeedbackCapture> {
   const image = await win.webContents.capturePage();
-  if (image.isEmpty()) throw new Error("没能截取这个窗口，请确认它没有最小化");
+  if (image.isEmpty())
+    throw new FeedbackCommandError(
+      "FEEDBACK_CAPTURE_FAILED",
+      "没能截取这个窗口，请确认它没有最小化"
+    );
   return { png: new Uint8Array(image.toPNG()), source: labelOf(win) };
 }
 
@@ -144,7 +150,12 @@ async function submit(input: AppFeedbackSubmitInput): Promise<AppFeedbackResult>
   try {
     headers = await visitorHeaders(API_ORIGIN, true);
   } catch {
-    return { ok: false, reason: "network", message: "没能连上反馈服务，请检查网络后重试" };
+    return {
+      ok: false,
+      reason: "network",
+      message: "没能连上反馈服务，请检查网络后重试",
+      code: "FEEDBACK_NETWORK_UNAVAILABLE",
+    };
   }
   let response: Response;
   try {
@@ -159,6 +170,7 @@ async function submit(input: AppFeedbackSubmitInput): Promise<AppFeedbackResult>
       ok: false,
       reason: "network",
       message: "没能连上服务器，内容已保留，联网后再发一次就行",
+      code: "FEEDBACK_NETWORK_UNAVAILABLE",
     };
   }
   const result = await readFeedbackResponse(response);
@@ -171,7 +183,7 @@ const senderWindow = (event: IpcMainInvokeEvent) => BrowserWindow.fromWebContent
 
 const init = async () => {
   ipcMain.handle("app-feedback:open", (event, options?: AppFeedbackOpenOptions) =>
-    openFeedback(senderWindow(event), options)
+    feedbackResult(() => openFeedback(senderWindow(event), options))
   );
   ipcMain.handle("app-feedback:take-pending", () => pendingCaptures.splice(0));
   ipcMain.handle("app-feedback:hide", event => {
@@ -186,11 +198,14 @@ const init = async () => {
       .sort((a, b) => Number(mains.includes(b)) - Number(mains.includes(a)))
       .map(win => ({ id: win.id, label: labelOf(win) }));
   });
-  ipcMain.handle("app-feedback:capture", async (_event, windowId: number) => {
-    const win = capturable().find(item => item.id === windowId);
-    if (!win) throw new Error("这个窗口已经关闭或最小化");
-    return capture(win);
-  });
+  ipcMain.handle("app-feedback:capture", (_event, windowId: number) =>
+    feedbackResult(async () => {
+      const win = capturable().find(item => item.id === windowId);
+      if (!win)
+        throw new FeedbackCommandError("FEEDBACK_WINDOW_UNAVAILABLE", "这个窗口已经关闭或最小化");
+      return capture(win);
+    })
+  );
   ipcMain.handle("app-feedback:environment", environment);
   ipcMain.handle("app-feedback:log-info", async (): Promise<AppFeedbackLogInfo> => {
     const { logDir, sessionLogPath } = setupLogger();
@@ -203,7 +218,9 @@ const init = async () => {
     const win = senderWindow(event);
     if (win && win === findFeedbackWindow()) setAnnotating(win, annotating);
   });
-  ipcMain.handle("app-feedback:submit", (_event, input: AppFeedbackSubmitInput) => submit(input));
+  ipcMain.handle("app-feedback:submit", (_event, input: AppFeedbackSubmitInput) =>
+    feedbackResult(() => submit(input))
+  );
   log.info("[app-feedback] 反馈模块已初始化");
 };
 

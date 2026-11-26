@@ -1,3 +1,4 @@
+import { feedbackTranslator, useFeedbackI18n } from "./i18n";
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { EyeOff, Info, Square, Undo2 } from "lucide-react";
 import { Button, cn } from "@tau/ui";
@@ -5,8 +6,8 @@ import { annotationColors, drawAnnotations, rectFromDrag, type Annotation } from
 import type { Screenshot } from "./useFeedbackDraft";
 
 const TOOLS = [
-  { kind: "box", label: "框选", icon: Square },
-  { kind: "mask", label: "打码", icon: EyeOff },
+  { kind: "box", label: "annotate.box", icon: Square },
+  { kind: "mask", label: "annotate.mask", icon: EyeOff },
 ] as const;
 
 /**
@@ -22,6 +23,7 @@ export function AnnotateView({
   onDone: (annotations: Annotation[]) => void;
   onCancel: () => void;
 }) {
+  useFeedbackI18n();
   const [tool, setTool] = useState<Annotation["kind"]>("box");
   const [annotations, setAnnotations] = useState<Annotation[]>(shot.annotations);
   const [draft, setDraft] = useState<Annotation | null>(null);
@@ -89,7 +91,7 @@ export function AnnotateView({
               )}
             >
               <item.icon size={14} strokeWidth={1.75} />
-              {item.label}
+              {feedbackTranslator.t(item.label)}
             </button>
           ))}
           <span className="bg-line-1 mx-1 h-4 w-px" />
@@ -100,15 +102,17 @@ export function AnnotateView({
             className="text-tau-sm text-ink-2 hover:text-ink-1 flex h-7 items-center gap-1.5 rounded-[7px] px-2.5 transition-colors disabled:opacity-40"
           >
             <Undo2 size={14} strokeWidth={1.75} />
-            撤销
+            {feedbackTranslator.t("annotate.undo")}
           </button>
         </div>
-        <span className="text-tau-micro text-ink-3 ml-auto">在截图上拖动画出区域</span>
+        <span className="text-tau-micro text-ink-3 ml-auto">
+          {feedbackTranslator.t("annotate.hint")}
+        </span>
       </div>
       <div ref={frame} className="grid min-h-0 flex-1 place-items-center">
         <canvas
           ref={canvas}
-          aria-label="标注画布"
+          aria-label={feedbackTranslator.t("annotate.canvas")}
           style={{ width: size.width, height: size.height }}
           className="border-line-1 cursor-crosshair touch-none rounded-[8px] border"
           onPointerDown={event => {
@@ -129,11 +133,11 @@ export function AnnotateView({
       <div className="flex items-center gap-2">
         <span className="text-tau-micro text-ink-3 mr-auto flex items-center gap-1.5">
           <Info size={13} />
-          打码在本机直接涂实，发送的是处理后的图片，原图不上传
+          {feedbackTranslator.t("annotate.privacy")}
         </span>
-        <Button onClick={onCancel}>取消</Button>
+        <Button onClick={onCancel}>{feedbackTranslator.t("action.cancel")}</Button>
         <Button variant="primary" onClick={() => onDone(annotations)}>
-          完成
+          {feedbackTranslator.t("action.done")}
         </Button>
       </div>
     </div>

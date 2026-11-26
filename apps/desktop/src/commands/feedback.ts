@@ -1,5 +1,7 @@
+import { FeedbackHostError } from "@/features/feedback/errors";
 import { invoke, off, on } from "@/electron";
 import type {
+  FeedbackCommandFailure,
   AppFeedbackEnvironment,
   AppFeedbackLogInfo,
   AppFeedbackOpenOptions,
@@ -9,9 +11,22 @@ import type {
   FeedbackCaptureSource,
 } from "@/types/app-feedback";
 
+async function feedbackInvoke<T>(channel: string, ...args: unknown[]): Promise<T> {
+  const value = await invoke<T | FeedbackCommandFailure>(channel, ...args);
+  if (
+    value &&
+    typeof value === "object" &&
+    "feedbackCommandError" in value &&
+    value.feedbackCommandError === true
+  ) {
+    throw new FeedbackHostError(value.code, value.message, value.params);
+  }
+  return value as T;
+}
+
 /** 打开（或聚焦）独立反馈窗口；capture 时先截取发起窗口作为第一张截图 */
 export function openFeedbackWindow(options: AppFeedbackOpenOptions = {}) {
-  return invoke<void>("app-feedback:open", options);
+  return feedbackInvoke<void>("app-feedback:open", options);
 }
 
 export function hideFeedbackWindow() {
@@ -38,7 +53,7 @@ export function listCaptureSources() {
 }
 
 export function captureWindow(windowId: number) {
-  return invoke<FeedbackCapture>("app-feedback:capture", windowId);
+  return feedbackInvoke<FeedbackCapture>("app-feedback:capture", windowId);
 }
 
 export function getFeedbackEnvironment() {
@@ -59,5 +74,5 @@ export function setFeedbackAnnotating(annotating: boolean) {
 }
 
 export function submitFeedback(input: AppFeedbackSubmitInput) {
-  return invoke<AppFeedbackResult>("app-feedback:submit", input);
+  return feedbackInvoke<AppFeedbackResult>("app-feedback:submit", input);
 }

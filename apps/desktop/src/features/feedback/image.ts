@@ -1,3 +1,4 @@
+import { FeedbackHostError } from "./errors";
 import { APP_FEEDBACK_LIMITS } from "@/types/app-feedback";
 
 /** 标注：框选（描边）与打码（实心遮盖）；坐标按原图宽高归一化到 0..1，与显示尺寸无关 */
@@ -86,7 +87,7 @@ export async function exportScreenshot(
   const { width, height } = exportSize(source.width, source.height);
   const canvas = new OffscreenCanvas(width, height);
   const context = canvas.getContext("2d");
-  if (!context) throw new Error("无法处理截图");
+  if (!context) throw new FeedbackHostError("FEEDBACK_IMAGE_CONTEXT", "无法处理截图");
   context.drawImage(source, 0, 0, width, height);
   drawAnnotations(context, annotations, width, height, annotationColors());
   for (const quality of QUALITIES) {
@@ -94,5 +95,7 @@ export async function exportScreenshot(
     if (blob.size <= APP_FEEDBACK_LIMITS.imageBytes)
       return new Uint8Array(await blob.arrayBuffer());
   }
-  throw new Error("截图过大，压缩后仍超过 1.5 MB");
+  throw new FeedbackHostError("FEEDBACK_IMAGE_COMPRESS_LIMIT", "截图过大，压缩后仍超过 1.5 MB", {
+    limitBytes: APP_FEEDBACK_LIMITS.imageBytes,
+  });
 }

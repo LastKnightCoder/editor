@@ -2,6 +2,7 @@
 // 图片压缩后暂存到 Rust（提交失败重试直接复用，成功即清除）。
 // clientRequestId 按草稿签名生成：内容变化换新 ID，原样重试复用同一 ID（服务端据此幂等）。
 
+import type { FeedbackIssue } from "./errors";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   APP_FEEDBACK_LIMITS,
@@ -58,7 +59,7 @@ export function useFeedbackDraft() {
   const [fields, setFields] = useState<FeedbackFields>(loadFields);
   const [images, setImages] = useState<FeedbackImage[]>([]);
   const [processing, setProcessing] = useState(0);
-  const [imageError, setImageError] = useState<string | null>(null);
+  const [imageError, setImageError] = useState<FeedbackIssue | null>(null);
   const imagesRef = useRef(images);
   imagesRef.current = images;
   const request = useRef<{ signature: string; id: string } | null>(null);
@@ -80,7 +81,11 @@ export function useFeedbackDraft() {
   /** 返回 false 表示已达上限、无法解码或暂存失败（imageError 带原因） */
   const addImage = useCallback(async (file: Blob) => {
     if (imagesRef.current.length >= APP_FEEDBACK_LIMITS.images) {
-      setImageError(`最多附带 ${APP_FEEDBACK_LIMITS.images} 张截图`);
+      setImageError({
+        kind: "message",
+        key: "error.maxImages",
+        values: { count: APP_FEEDBACK_LIMITS.images },
+      });
       return false;
     }
     setProcessing(count => count + 1);
@@ -97,9 +102,7 @@ export function useFeedbackDraft() {
       setImageError(null);
       return true;
     } catch (error) {
-      setImageError(
-        error instanceof Error && error.message ? error.message : "截图处理失败，请换一张试试"
-      );
+      setImageError({ kind: "cause", cause: error, fallback: "error.imageProcess" });
       return false;
     } finally {
       setProcessing(count => count - 1);

@@ -1,3 +1,7 @@
+import { useErrorStateI18n } from "./i18n";
+import { feedbackIssueText } from "@/features/feedback/i18n";
+import type { FeedbackIssue } from "@/features/feedback/errors";
+import type { AppFeedbackSubmitInput } from "@/types/app-feedback";
 /**
  * 错误态 + 可恢复错误边界（三层兜底：路由 errorElement / 页面栈每页 / 局部区域如块预览）。
  *
@@ -16,6 +20,7 @@ import { submitFeedback } from "@/commands/feedback";
 import { APP_FEEDBACK_LIMITS } from "@/types/app-feedback";
 
 export interface ErrorAction {
+  key?: string;
   label: string;
   onClick: () => void;
   variant?: "primary" | "secondary" | "ghost";
@@ -62,7 +67,9 @@ export function errorReportMessage(title: string, summary: string, detail: strin
     : head.slice(0, APP_FEEDBACK_LIMITS.message);
 }
 
-type ReportState = { phase: "idle" | "sending" | "sent" } | { phase: "failed"; message: string };
+type ReportState =
+  | { phase: "idle" | "sending" | "sent" }
+  | { phase: "failed"; issue: FeedbackIssue };
 
 const LINK_CLASS =
   "text-tau-sm text-ink-3 hover:text-ink-1 flex items-center gap-1 rounded-[6px] outline-none focus-visible:shadow-[var(--tau-focus-ring)] disabled:pointer-events-none";
@@ -77,13 +84,15 @@ function ReportButton({
   summary: string;
   detail: string;
 }) {
+  const { t } = useErrorStateI18n();
+  const payload = useRef<AppFeedbackSubmitInput | null>(null);
   const [state, setState] = useState<ReportState>({ phase: "idle" });
   const requestId = useRef(crypto.randomUUID());
   const send = async () => {
     setState({ phase: "sending" });
     try {
       const { theme, mode } = useThemeStore.getState();
-      const result = await submitFeedback({
+      payload.current ??= {
         kind: "bug",
         message: errorReportMessage(title, summary, detail),
         clientRequestId: requestId.current,
@@ -92,25 +101,26 @@ function ReportButton({
         page: null,
         images: [],
         logs: { app: true, perf: false },
-      });
-      setState(result.ok ? { phase: "sent" } : { phase: "failed", message: result.message });
+      };
+      const result = await submitFeedback(payload.current);
+      setState(
+        result.ok
+          ? { phase: "sent" }
+          : { phase: "failed", issue: { kind: "response", response: result } }
+      );
     } catch (error) {
-      setState({ phase: "failed", message: error instanceof Error ? error.message : "发送失败" });
+      setState({ phase: "failed", issue: { kind: "cause", cause: error, fallback: "error.send" } });
     }
   };
   if (state.phase === "sent")
     return (
       <span className="text-tau-sm text-ok flex items-center gap-1">
         <Check size={13} strokeWidth={2} />
-        已发送，谢谢
+        {t("report.sent")}
       </span>
     );
   return (
-    <Tooltip
-      content={
-        state.phase === "failed" ? state.message : "附带错误详情、版本与系统信息、本次运行日志"
-      }
-    >
+    <Tooltip content={state.phase === "failed" ? feedbackIssueText(state.issue) : t("report.hint")}>
       <button
         type="button"
         disabled={state.phase === "sending"}
@@ -119,10 +129,10 @@ function ReportButton({
       >
         <Send size={13} strokeWidth={1.75} />
         {state.phase === "sending"
-          ? "发送中…"
+          ? t("report.sending")
           : state.phase === "failed"
-            ? "发送失败，重试"
-            : "发送错误报告"}
+            ? t("report.retry")
+            : t("report.send")}
       </button>
     </Tooltip>
   );
@@ -130,12 +140,15 @@ function ReportButton({
 
 export function ErrorState({
   error,
-  title = "出了点问题",
-  description = "这部分内容渲染时发生了意外错误。你的数据没有丢失，可以重试或换个地方继续。",
+  title,
+  description,
   actions = [],
   size = "panel",
   className,
 }: ErrorStateProps) {
+  const { t } = useErrorStateI18n();
+  const shownTitle = title === undefined ? t("default.title") : title;
+  const shownDescription = description === undefined ? t("default.description") : description;
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
   const { summary, detail } = describeError(error);
@@ -182,15 +195,15 @@ export function ErrorState({
             size === "page" ? "text-[18px]" : "text-[15px]"
           )}
         >
-          {title}
+          {shownTitle}
         </h2>
-        <p className="text-tau-sm text-ink-2 mt-1.5 leading-relaxed">{description}</p>
+        <p className="text-tau-sm text-ink-2 mt-1.5 leading-relaxed">{shownDescription}</p>
 
         {actions.length > 0 && (
           <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
             {actions.map((a, i) => (
               <Button
-                key={a.label}
+                key={a.key ?? i}
                 size={size === "page" ? "md" : "sm"}
                 variant={a.variant ?? (i === 0 ? "primary" : "secondary")}
                 onClick={a.onClick}
@@ -218,17 +231,19 @@ export function ErrorState({
                     expanded && "rotate-90"
                   )}
                 />
-                技术详情
+                {t("details")}
               </button>
               <span className="ml-auto" />
-              {isElectron && <ReportButton title={title} summary={summary} detail={detail} />}
+              {isElectron && (
+                <ReportButton title={title ?? "出了点问题"} summary={summary} detail={detail} />
+              )}
               <button type="button" onClick={copy} className={LINK_CLASS}>
                 {copied ? (
                   <Check size={13} strokeWidth={2} />
                 ) : (
                   <Copy size={13} strokeWidth={1.75} />
                 )}
-                {copied ? "已复制" : "复制错误信息"}
+                {copied ? t("copied") : t("copy")}
               </button>
             </div>
             {expanded && (

@@ -1,3 +1,5 @@
+import type { FeedbackIssue } from "./errors";
+import type { FeedbackMessageKey } from "./i18n";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   APP_FEEDBACK_LIMITS,
@@ -13,9 +15,10 @@ export interface Screenshot {
   annotations: Annotation[];
   /** 来源说明：主窗口 / 剪贴板 / 文件名 */
   origin: string;
+  originMessage?: FeedbackMessageKey;
   webp: Uint8Array | null;
   previewUrl: string | null;
-  error: string | null;
+  error: FeedbackIssue | null;
 }
 
 export interface FeedbackFields {
@@ -72,7 +75,7 @@ export function useFeedbackDraft() {
       setScreenshots(current =>
         current.map(item =>
           item.id === id
-            ? { ...item, error: error instanceof Error ? error.message : "截图处理失败" }
+            ? { ...item, error: { kind: "cause", cause: error, fallback: "error.imageProcess" } }
             : item
         )
       );
@@ -81,7 +84,7 @@ export function useFeedbackDraft() {
 
   /** 返回 false 表示已达上限或无法解码 */
   const addImage = useCallback(
-    async (blob: Blob, origin: string) => {
+    async (blob: Blob, origin: string, originMessage?: FeedbackMessageKey) => {
       if (shotsRef.current.length >= APP_FEEDBACK_LIMITS.images) return false;
       let source: ImageBitmap;
       try {
@@ -98,6 +101,7 @@ export function useFeedbackDraft() {
         source,
         annotations: [],
         origin,
+        originMessage,
         webp: null,
         previewUrl: null,
         error: null,

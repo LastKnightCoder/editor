@@ -1,6 +1,14 @@
 // 反馈页：类型 + 正文 + 截图（压缩后暂存 Rust）+ 环境/日志开关。
 // 失败保留草稿原样重试（同一 clientRequestId 服务端幂等）；成功后清空草稿。
 
+import {
+  feedbackTranslator,
+  useFeedbackI18n,
+  feedbackText,
+  feedbackIssueText,
+  type FeedbackMessageKey,
+} from "./i18n";
+import type { FeedbackIssue } from "./errors";
 import { useRef, useState } from "react";
 import { ImagePlus, MonitorSmartphone, ScrollText, X } from "lucide-react";
 import { getTheme } from "@tau/themes";
@@ -12,7 +20,6 @@ import { APPEARANCE_LABELS } from "../components/OverviewSection";
 import { toast } from "../../../components/toast";
 import {
   APP_FEEDBACK_LIMITS,
-  MobileFeedbackError,
   type AppFeedbackKind,
   submitFeedback,
 } from "../../../services/appFeedback";
@@ -20,10 +27,10 @@ import { osVersionFromUserAgent } from "./environment";
 import type { FeedbackImage } from "./useFeedbackDraft";
 import { useFeedbackDraft } from "./useFeedbackDraft";
 
-const KINDS: { kind: AppFeedbackKind; label: string }[] = [
-  { kind: "bug", label: "遇到问题" },
-  { kind: "idea", label: "功能建议" },
-  { kind: "other", label: "其他" },
+const KINDS: { kind: AppFeedbackKind; label: FeedbackMessageKey }[] = [
+  { kind: "bug", label: "kind.bug" },
+  { kind: "idea", label: "kind.idea" },
+  { kind: "other", label: "kind.other" },
 ];
 
 function ScreenshotTile({
@@ -33,12 +40,17 @@ function ScreenshotTile({
   image: FeedbackImage;
   onRemove: (id: string) => void;
 }) {
+  useFeedbackI18n();
   return (
     <div className="border-line-1 bg-page relative h-[72px] w-[72px] shrink-0 overflow-hidden rounded-xl border">
-      <img src={image.previewUrl} alt="已选截图" className="h-full w-full object-cover" />
+      <img
+        src={image.previewUrl}
+        alt={feedbackTranslator.t("image.selected")}
+        className="h-full w-full object-cover"
+      />
       <button
         type="button"
-        aria-label="移除截图"
+        aria-label={feedbackTranslator.t("image.remove")}
         onClick={() => onRemove(image.id)}
         className="bg-ink-1 text-ink-inverse shadow-card absolute -top-1.5 -right-1.5 grid h-5 w-5 place-items-center rounded-full"
       >
@@ -49,12 +61,14 @@ function ScreenshotTile({
 }
 
 export function FeedbackSection() {
+  useFeedbackI18n();
   const draft = useFeedbackDraft();
   const appVersion = useAppVersion();
   const themeName = useThemeStore(state => getTheme(state.theme)?.name ?? "");
   const appearance = useThemeStore(state => state.appearance);
   const [sending, setSending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [issue, setError] = useState<FeedbackIssue | null>(null);
+  const error = issue ? feedbackIssueText(issue) : null;
   const fileInput = useRef<HTMLInputElement>(null);
 
   const submit = async () => {
@@ -72,13 +86,13 @@ export function FeedbackSection() {
         })
       );
       if (result.ok) {
-        toast.success("反馈已发送，谢谢你");
+        toast.success(feedbackTranslator.t("done.title"));
         draft.reset();
       } else {
-        setError(result.message);
+        setError({ kind: "response", response: result });
       }
     } catch (issue) {
-      setError(issue instanceof MobileFeedbackError ? issue.message : "发送失败，请稍后再试");
+      setError({ kind: "cause", cause: issue, fallback: "error.send" });
     } finally {
       setSending(false);
     }
@@ -107,18 +121,18 @@ export function FeedbackSection() {
               fields.kind === item.kind ? "bg-accent text-ink-inverse" : "text-ink-2"
             }`}
           >
-            {item.label}
+            {feedbackTranslator.t(item.label)}
           </button>
         ))}
       </div>
 
       <textarea
-        aria-label="反馈内容"
+        aria-label={feedbackTranslator.t("message.label")}
         maxLength={APP_FEEDBACK_LIMITS.message}
         placeholder={
           fields.kind === "idea"
-            ? "想要什么功能？在什么场景下会用到？"
-            : "发生了什么？如果方便，写一下怎么操作能复现。"
+            ? feedbackTranslator.t("message.ideaPlaceholder")
+            : feedbackTranslator.t("message.problemPlaceholder")
         }
         value={fields.message}
         onChange={event => draft.update({ message: event.target.value })}
@@ -127,10 +141,13 @@ export function FeedbackSection() {
 
       <div className="px-[15px]">
         <p className="text-ink-2 text-[13px] font-medium">
-          截图
+          {feedbackTranslator.t("images.title")}
           <span className="text-ink-3">
             {" "}
-            · 选填 {draft.images.length} / {APP_FEEDBACK_LIMITS.images}
+            {feedbackText("images.optionalCount", {
+              count: draft.images.length,
+              max: APP_FEEDBACK_LIMITS.images,
+            })}
           </span>
         </p>
         <div className="mt-2.5 flex flex-wrap gap-2.5">
@@ -145,11 +162,17 @@ export function FeedbackSection() {
               className="border-line-1 text-ink-3 flex h-[72px] w-[72px] flex-col items-center justify-center gap-1 rounded-xl border border-dashed transition-opacity disabled:opacity-40"
             >
               <ImagePlus size={16} strokeWidth={1.9} aria-hidden="true" />
-              <span className="text-[11px]">{draft.processing > 0 ? "处理中…" : "添加"}</span>
+              <span className="text-[11px]">
+                {draft.processing > 0
+                  ? feedbackTranslator.t("image.processing")
+                  : feedbackTranslator.t("image.add")}
+              </span>
             </button>
           )}
         </div>
-        {draft.imageError && <p className="text-warn mt-2 text-[12px]">{draft.imageError}</p>}
+        {draft.imageError && (
+          <p className="text-warn mt-2 text-[12px]">{feedbackIssueText(draft.imageError)}</p>
+        )}
         <input
           ref={fileInput}
           type="file"
@@ -170,9 +193,13 @@ export function FeedbackSection() {
             <MonitorSmartphone size={17} strokeWidth={1.9} aria-hidden="true" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="text-ink-1 block text-[14.5px] font-medium">附带环境信息</span>
+            <span className="text-ink-1 block text-[14.5px] font-medium">
+              {feedbackTranslator.t("environment.include")}
+            </span>
             <span className="text-ink-3 block truncate text-[11.5px]">
-              {fields.includeContext && environmentSummary ? environmentSummary : "不附带"}
+              {fields.includeContext && environmentSummary
+                ? environmentSummary
+                : feedbackTranslator.t("environment.excluded")}
             </span>
           </span>
           <span onClick={event => event.stopPropagation()}>
@@ -187,9 +214,11 @@ export function FeedbackSection() {
             <ScrollText size={17} strokeWidth={1.9} aria-hidden="true" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="text-ink-1 block text-[14.5px] font-medium">附带日志</span>
+            <span className="text-ink-1 block text-[14.5px] font-medium">
+              {feedbackTranslator.t("logs.include")}
+            </span>
             <span className="text-ink-3 block truncate text-[11.5px]">
-              本次与上次运行，压缩后上传
+              {feedbackTranslator.t("logs.mobileHint")}
             </span>
           </span>
           <span onClick={event => event.stopPropagation()}>
@@ -200,13 +229,13 @@ export function FeedbackSection() {
           </span>
         </GroupRow>
       </GroupCard>
-      {fields.includeLogs && (
-        <GroupNote>日志可能包含文件名和笔记标题，只用于排查问题，压缩后上传。</GroupNote>
-      )}
+      {fields.includeLogs && <GroupNote>{feedbackTranslator.t("logs.privacy")}</GroupNote>}
 
       <div className="flex pt-1">
         <ActionButton
-          label={sending ? "正在发送" : "发送反馈"}
+          label={
+            sending ? feedbackTranslator.t("action.sending") : feedbackTranslator.t("window.title")
+          }
           emphasis
           busy={sending}
           disabled={!draft.ready}
@@ -218,7 +247,7 @@ export function FeedbackSection() {
           {error}
         </p>
       )}
-      <GroupNote>截图和日志只有开发者能看到。</GroupNote>
+      <GroupNote>{feedbackTranslator.t("privacy.mobile")}</GroupNote>
     </div>
   );
 }

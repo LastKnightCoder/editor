@@ -6,6 +6,7 @@ import {
   APP_FEEDBACK_LIMITS,
   type AppFeedbackFailure,
   type AppFeedbackResult,
+  type FeedbackCommandFailure,
   type AppFeedbackSubmitInput,
 } from "@/types/app-feedback";
 
@@ -107,14 +108,35 @@ export interface FeedbackRequestParts {
   perf: Uint8Array | null;
 }
 
+export class FeedbackCommandError extends Error {
+  constructor(
+    readonly code: string,
+    message: string,
+    readonly params?: Record<string, string | number | boolean>
+  ) {
+    super(message);
+    this.name = "FeedbackCommandError";
+  }
+}
+
 export function validateInput(input: AppFeedbackSubmitInput) {
   const message = input.message.trim();
   if (!message || message.length > APP_FEEDBACK_LIMITS.message)
-    throw new Error(`反馈内容需要 1 至 ${APP_FEEDBACK_LIMITS.message} 字`);
+    throw new FeedbackCommandError(
+      "FEEDBACK_MESSAGE_INVALID",
+      `反馈内容需要 1 至 ${APP_FEEDBACK_LIMITS.message} 字`,
+      { min: 1, max: APP_FEEDBACK_LIMITS.message }
+    );
   if (input.images.length > APP_FEEDBACK_LIMITS.images)
-    throw new Error(`最多附带 ${APP_FEEDBACK_LIMITS.images} 张截图`);
+    throw new FeedbackCommandError(
+      "FEEDBACK_TOO_MANY_IMAGES",
+      `最多附带 ${APP_FEEDBACK_LIMITS.images} 张截图`,
+      { count: APP_FEEDBACK_LIMITS.images }
+    );
   if (input.images.some(image => image.byteLength > APP_FEEDBACK_LIMITS.imageBytes))
-    throw new Error("截图过大，请重新截取");
+    throw new FeedbackCommandError("FEEDBACK_IMAGE_TOO_LARGE", "截图过大，请重新截取", {
+      limitBytes: APP_FEEDBACK_LIMITS.imageBytes,
+    });
   return { message };
 }
 
@@ -165,5 +187,25 @@ export async function readFeedbackResponse(response: Response): Promise<AppFeedb
     ok: false,
     reason,
     message: body?.error?.message || `反馈服务暂时不可用（${response.status}）`,
+    ...(!body?.error?.message
+      ? { code: "FEEDBACK_SERVICE_UNAVAILABLE", params: { status: response.status } }
+      : {}),
   };
+}
+
+export async function feedbackResult<T>(
+  run: () => T | Promise<T>
+): Promise<T | FeedbackCommandFailure> {
+  try {
+    return await run();
+  } catch (error) {
+    if (error instanceof FeedbackCommandError)
+      return {
+        feedbackCommandError: true,
+        code: error.code,
+        message: error.message,
+        ...(error.params ? { params: error.params } : {}),
+      };
+    throw error;
+  }
 }

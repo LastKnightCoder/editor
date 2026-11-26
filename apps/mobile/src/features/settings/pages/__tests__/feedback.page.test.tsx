@@ -1,3 +1,5 @@
+import { mobileLocaleSource } from "../../../../services/i18n";
+import { feedbackTranslator } from "../../feedback/i18n";
 import { createStorageRuntime } from "../../__tests__/storageProviders";
 import { MobilePluginsContext } from "../../../../app/plugins/context";
 let storageRuntime: Awaited<ReturnType<typeof createStorageRuntime>>;
@@ -22,7 +24,8 @@ const toastSuccess = vi.hoisted(() => vi.fn());
 vi.mock("../../../../components/toast", () => ({
   toast: { success: toastSuccess, info: vi.fn(), warning: vi.fn(), error: vi.fn() },
 }));
-vi.mock("@tauri-apps/api/app", () => ({ getVersion: async () => "0.2.8" }));
+const getVersion = vi.hoisted(() => vi.fn(async () => "0.2.8"));
+vi.mock("@tauri-apps/api/app", () => ({ getVersion }));
 
 const appStub = {
   syncSettings: {
@@ -184,5 +187,45 @@ describe("反馈页", () => {
     expect(activeButton("发送反馈")).toBeTruthy();
     expect(activeButton("发送反馈")!.hasAttribute("disabled")).toBe(true);
     expect(submitFeedback).not.toHaveBeenCalled();
+  });
+
+  it("切换语言保留正文、焦点、草稿和重试请求ID，环境上传元数据原样", async () => {
+    const original = mobileLocaleSource.getSnapshot();
+    submitFeedback.mockResolvedValue({ ok: false, reason: "server", message: "服务端原始诊断" });
+    try {
+      await act(async () => mobileLocaleSource.setLocale("zh-CN"));
+      await openFeedbackPage();
+      await submitWithMessage("用户反馈原文");
+      const first = submitFeedback.mock.calls[0][0],
+        field = activeTextarea(),
+        draft = localStorage.getItem("tau-feedback-draft"),
+        reads = getVersion.mock.calls.length;
+      expect(first.uiContext.locale).toBe(navigator.language);
+      await act(async () => {
+        field.focus();
+        field.setSelectionRange(1, 4);
+      });
+      for (const locale of ["zh-TW", "en-US"]) {
+        await act(async () => mobileLocaleSource.setLocale(locale));
+        expect(activeTextarea()).toBe(field);
+        expect(field.value).toBe("用户反馈原文");
+        expect(document.activeElement).toBe(field);
+        expect([field.selectionStart, field.selectionEnd]).toEqual([1, 4]);
+        expect(localStorage.getItem("tau-feedback-draft")).toBe(draft);
+        expect(getVersion).toHaveBeenCalledTimes(reads);
+        expect(submitFeedback).toHaveBeenCalledTimes(1);
+      }
+      const retry = activeButton(feedbackTranslator.t("window.title"));
+      if (!retry) throw new Error("反馈提交入口未挂载");
+      await act(async () => retry.click());
+      expect(submitFeedback).toHaveBeenCalledTimes(2);
+      const second = submitFeedback.mock.calls[1][0];
+      expect(second.message).toBe(first.message);
+      expect(second.clientRequestId).toBe(first.clientRequestId);
+      expect(second.uiContext).toEqual(first.uiContext);
+      expect(second.imageIds).toEqual(first.imageIds);
+    } finally {
+      await act(async () => mobileLocaleSource.setLocale(original));
+    }
   });
 });

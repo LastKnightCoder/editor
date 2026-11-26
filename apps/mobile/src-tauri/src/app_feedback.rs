@@ -35,6 +35,8 @@ pub struct FeedbackError {
     status: u16,
     code: String,
     message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    params: Option<Value>,
 }
 
 fn error(status: u16, code: &str, message: &str) -> FeedbackError {
@@ -42,11 +44,20 @@ fn error(status: u16, code: &str, message: &str) -> FeedbackError {
         status,
         code: code.into(),
         message: message.into(),
+        params: None,
     }
 }
 
 fn invalid(message: &str) -> FeedbackError {
     error(400, "INVALID_INPUT", message)
+}
+
+fn invalid_issue(message: &str, issue: &str, extra: Value) -> FeedbackError {
+    let mut value = invalid(message);
+    let mut params = extra.as_object().cloned().unwrap_or_default();
+    params.insert("issue".into(), json!(issue));
+    value.params = Some(Value::Object(params));
+    value
 }
 
 impl From<CenterError> for FeedbackError {
@@ -55,6 +66,7 @@ impl From<CenterError> for FeedbackError {
             status: value.status,
             code: value.code,
             message: value.message,
+            params: None,
         }
     }
 }
@@ -80,28 +92,34 @@ pub fn app_feedback_image_write(
     chunk: String,
 ) -> Result<usize, FeedbackError> {
     if !is_token_like(&id, 1, 64) {
-        return Err(invalid("截图标识无效"));
+        return Err(invalid_issue("截图标识无效", "image-id", json!({})));
     }
     let bytes = STANDARD
         .decode(chunk)
-        .map_err(|_| invalid("截图数据无效"))?;
+        .map_err(|_| invalid_issue("截图数据无效", "image-data", json!({})))?;
     let mut store = images();
     if offset == 0 {
         if !store.contains_key(&id) && store.len() >= IMAGE_LIMIT {
-            return Err(invalid(&format!("最多附带 {IMAGE_LIMIT} 张截图")));
+            return Err(invalid_issue(
+                &format!("最多附带 {IMAGE_LIMIT} 张截图"),
+                "image-count",
+                json!({"count": IMAGE_LIMIT}),
+            ));
         }
         store.insert(id.clone(), Vec::new());
     }
     let buffer = store
         .get_mut(&id)
-        .ok_or_else(|| invalid("截图尚未开始写入"))?;
+        .ok_or_else(|| invalid_issue("截图尚未开始写入", "image-not-started", json!({})))?;
     if buffer.len() != offset {
         store.remove(&id);
-        return Err(invalid("截图数据顺序错误"));
+        return Err(invalid_issue("截图数据顺序错误", "image-order", json!({})));
     }
     if buffer.len() + bytes.len() > IMAGE_BYTES_LIMIT {
         store.remove(&id);
-        return Err(error(413, "UPLOAD_TOO_LARGE", "单张截图超过大小限制"));
+        let mut issue = error(413, "UPLOAD_TOO_LARGE", "单张截图超过大小限制");
+        issue.params = Some(json!({"issue":"image-size","limitBytes":IMAGE_BYTES_LIMIT}));
+        return Err(issue);
     }
     buffer.extend_from_slice(&bytes);
     Ok(buffer.len())
@@ -146,17 +164,25 @@ struct Validated {
 
 fn validate(input: &FeedbackInput) -> Result<Validated, FeedbackError> {
     if !["bug", "idea", "other"].contains(&input.kind.as_str()) {
-        return Err(invalid("反馈类型无效"));
+        return Err(invalid_issue("反馈类型无效", "kind", json!({})));
     }
     let message = input.message.trim();
     if message.is_empty() || message.chars().count() > MESSAGE_LIMIT {
-        return Err(invalid(&format!("反馈内容需要 1 至 {MESSAGE_LIMIT} 字")));
+        return Err(invalid_issue(
+            &format!("反馈内容需要 1 至 {MESSAGE_LIMIT} 字"),
+            "message-length",
+            json!({"min":1,"max":MESSAGE_LIMIT}),
+        ));
     }
     if !is_token_like(&input.client_request_id, 16, 80) {
-        return Err(invalid("反馈请求 ID 无效"));
+        return Err(invalid_issue("反馈请求 ID 无效", "request-id", json!({})));
     }
     if input.image_ids.len() > IMAGE_LIMIT {
-        return Err(invalid(&format!("最多附带 {IMAGE_LIMIT} 张截图")));
+        return Err(invalid_issue(
+            &format!("最多附带 {IMAGE_LIMIT} 张截图"),
+            "image-count",
+            json!({"count": IMAGE_LIMIT}),
+        ));
     }
     Ok(Validated {
         kind: input.kind.clone(),
@@ -185,11 +211,12 @@ fn collect_images(ids: &[String]) -> Result<Vec<Attachment>, FeedbackError> {
     let store = images();
     ids.iter()
         .map(|id| {
-            let bytes = store
-                .get(id)
-                .ok_or_else(|| invalid("截图数据缺失，请重新选择图片"))?;
-            let (mime, extension) =
-                image_mime(bytes).ok_or_else(|| invalid("截图只支持 PNG、JPEG 或 WebP"))?;
+            let bytes = store.get(id).ok_or_else(|| {
+                invalid_issue("截图数据缺失，请重新选择图片", "image-missing", json!({}))
+            })?;
+            let (mime, extension) = image_mime(bytes).ok_or_else(|| {
+                invalid_issue("截图只支持 PNG、JPEG 或 WebP", "image-type", json!({}))
+            })?;
             Ok((bytes.clone(), mime, extension))
         })
         .collect()
@@ -263,14 +290,17 @@ async fn ensure_visitor_token(
     client: &reqwest::Client,
     origin: &Url,
     file: &Path,
-) -> Result<String, String> {
+) -> Result<String, TransportFailure> {
     let origin_name = origin.origin().ascii_serialization();
     if let Some(token) = saved_visitor(file, &origin_name) {
         return Ok(token);
     }
     let url = origin
         .join("/v1/visitor-session")
-        .map_err(|_| "匿名身份地址无效".to_string())?;
+        .map_err(|_| TransportFailure {
+            message: "匿名身份地址无效".into(),
+            code: Some("FEEDBACK_ADDRESS_INVALID"),
+        })?;
     let response = client
         .post(url)
         .header("X-Tau-Visitor", "1")
@@ -278,17 +308,27 @@ async fn ensure_visitor_token(
         .json(&json!({ "client": "mobile" }))
         .send()
         .await
-        .map_err(|_| OFFLINE_MESSAGE.to_string())?;
+        .map_err(|_| TransportFailure {
+            message: OFFLINE_MESSAGE.into(),
+            code: Some("FEEDBACK_NETWORK_UNAVAILABLE"),
+        })?;
     let status = response.status();
     let body: Value = response.json().await.unwrap_or(Value::Null);
     let token = body["data"]["token"].as_str().unwrap_or_default();
     if !status.is_success() || !is_token_like(token, 64, 128) {
-        return Err(body["error"]["message"]
-            .as_str()
-            .map(str::to_string)
-            .unwrap_or_else(|| format!("匿名身份申请失败（{}）", status.as_u16())));
+        let message = body["error"]["message"].as_str();
+        return Err(TransportFailure {
+            message: message
+                .map(str::to_string)
+                .unwrap_or_else(|| format!("匿名身份申请失败（{}）", status.as_u16())),
+            code: if message.is_none() {
+                Some("FEEDBACK_VISITOR_UNAVAILABLE")
+            } else {
+                None
+            },
+        });
     }
-    save_visitor(file, &origin_name, token)?;
+    save_visitor(file, &origin_name, token).map_err(TransportFailure::raw)?;
     Ok(token.to_string())
 }
 
@@ -310,10 +350,28 @@ fn read_response(status: u16, body: &Value) -> Value {
         _ => "server",
     };
     let fallback = format!("反馈服务暂时不可用（{status}）");
-    failure(
-        reason,
-        body["error"]["message"].as_str().unwrap_or(&fallback),
-    )
+    let message = body["error"]["message"].as_str();
+    let mut result = failure(reason, message.unwrap_or(&fallback));
+    if message.is_none() {
+        result["code"] = json!("FEEDBACK_SERVICE_UNAVAILABLE");
+        result["params"] = json!({"status": status});
+    }
+    result
+}
+
+#[derive(Debug)]
+struct TransportFailure {
+    message: String,
+    code: Option<&'static str>,
+}
+
+impl TransportFailure {
+    fn raw(message: String) -> Self {
+        Self {
+            message,
+            code: None,
+        }
+    }
 }
 
 async fn post_feedback(
@@ -323,23 +381,26 @@ async fn post_feedback(
     meta: Value,
     images: Vec<Attachment>,
     log: Option<Vec<u8>>,
-) -> Result<Value, String> {
+) -> Result<Value, TransportFailure> {
     let url = origin
         .join("/v1/app-feedback")
-        .map_err(|_| "反馈地址无效".to_string())?;
+        .map_err(|_| TransportFailure {
+            message: "反馈地址无效".into(),
+            code: Some("FEEDBACK_ADDRESS_INVALID"),
+        })?;
     let mut form = Form::new().text("meta", meta.to_string());
     for (bytes, mime, extension) in images {
         let part = Part::bytes(bytes)
             .file_name(format!("screenshot.{extension}"))
             .mime_str(mime)
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| TransportFailure::raw(e.to_string()))?;
         form = form.part("image", part);
     }
     if let Some(bytes) = log {
         let part = Part::bytes(bytes)
             .file_name("app.log.gz")
             .mime_str("application/gzip")
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| TransportFailure::raw(e.to_string()))?;
         form = form.part("log", part);
     }
     let response = client
@@ -349,7 +410,10 @@ async fn post_feedback(
         .multipart(form)
         .send()
         .await
-        .map_err(|_| OFFLINE_MESSAGE.to_string())?;
+        .map_err(|_| TransportFailure {
+            message: OFFLINE_MESSAGE.into(),
+            code: Some("FEEDBACK_NETWORK_UNAVAILABLE"),
+        })?;
     let status = response.status().as_u16();
     let body: Value = response.json().await.unwrap_or(Value::Null);
     Ok(read_response(status, &body))
@@ -367,11 +431,9 @@ pub async fn app_feedback_submit(
         .as_ref()
         .is_some_and(|bytes| bytes.len() > LOG_BYTES_LIMIT)
     {
-        return Err(error(
-            413,
-            "UPLOAD_TOO_LARGE",
-            "日志过大，请取消勾选后再发送",
-        ));
+        let mut issue = error(413, "UPLOAD_TOO_LARGE", "日志过大，请取消勾选后再发送");
+        issue.params = Some(json!({"issue":"log-size","limitBytes":LOG_BYTES_LIMIT}));
+        return Err(issue);
     }
     let origin = crate::plugin_center::center_origin()?;
     let visitor_file = visitor_path(&app)?;
@@ -391,7 +453,13 @@ pub async fn app_feedback_submit(
         post_feedback(&client, &origin, &token, meta, attachments, log).await
     }
     .await;
-    let result = outcome.unwrap_or_else(|message| failure("network", &message));
+    let result = outcome.unwrap_or_else(|issue| {
+        let mut result = failure("network", &issue.message);
+        if let Some(code) = issue.code {
+            result["code"] = json!(code);
+        }
+        result
+    });
     if result["ok"] == true {
         let mut store = images();
         for id in &input.image_ids {
@@ -630,7 +698,7 @@ mod tests {
         let file = temp_file();
         let result = ensure_visitor_token(&http_client().unwrap(), &origin, &file).await;
         thread.join().unwrap();
-        assert_eq!(result.unwrap_err(), "匿名会话客户端类型无效");
+        assert_eq!(result.unwrap_err().message, "匿名会话客户端类型无效");
         assert!(!file.exists());
     }
 
@@ -699,6 +767,8 @@ mod tests {
             None,
         )
         .await;
-        assert_eq!(result.unwrap_err(), OFFLINE_MESSAGE);
+        let issue = result.unwrap_err();
+        assert_eq!(issue.message, OFFLINE_MESSAGE);
+        assert_eq!(issue.code, Some("FEEDBACK_NETWORK_UNAVAILABLE"));
     }
 }

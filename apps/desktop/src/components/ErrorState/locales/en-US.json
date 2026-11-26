@@ -1,0 +1,17 @@
+{
+  "default.title": "Something went wrong",
+  "default.description": "An unexpected error occurred while displaying this content. Your data is preserved. Try again or continue elsewhere.",
+  "details": "Technical details",
+  "copied": "Copied",
+  "copy": "Copy error information",
+  "report.sent": "Sent, thank you",
+  "report.hint": "Includes error details, version and system information, and logs from this session",
+  "report.sending": "Sending…",
+  "report.retry": "Send failed. Retry",
+  "report.send": "Send error report",
+  "route.title": "The app encountered an unexpected error",
+  "route.description.electron": "This window cannot continue displaying. Your data is saved locally; reloading usually restores it. If this keeps happening, use Send error report below.",
+  "route.description.web": "This window cannot continue displaying. Your data is saved locally; reloading usually restores it. If this keeps happening, copy the error information and send us feedback.",
+  "route.reload": "Reload",
+  "route.home": "Go to home"
+}

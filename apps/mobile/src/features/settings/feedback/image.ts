@@ -1,6 +1,7 @@
 // 反馈截图压缩：长边压到 1920，WebP 质量逐级下调直到不超过单张上限；
 // WebView 不支持 WebP 编码时回退 JPEG。
 
+import { FeedbackHostError } from "./errors";
 import { APP_FEEDBACK_LIMITS } from "../../../services/appFeedback";
 
 const MAX_EDGE = 1920;
@@ -27,7 +28,7 @@ export async function compressImage(file: Blob): Promise<CompressedImage> {
     canvas.width = width;
     canvas.height = height;
     const context = canvas.getContext("2d");
-    if (!context) throw new Error("无法处理图片");
+    if (!context) throw new FeedbackHostError("FEEDBACK_IMAGE_CONTEXT", "无法处理图片");
     context.drawImage(bitmap, 0, 0, width, height);
     for (const type of ["image/webp", "image/jpeg"]) {
       for (const quality of QUALITIES) {
@@ -43,7 +44,9 @@ export async function compressImage(file: Blob): Promise<CompressedImage> {
         }
       }
     }
-    throw new Error("截图过大，压缩后仍超过 1.5 MB");
+    throw new FeedbackHostError("FEEDBACK_IMAGE_COMPRESS_LIMIT", "截图过大，压缩后仍超过 1.5 MB", {
+      limitBytes: APP_FEEDBACK_LIMITS.imageBytes,
+    });
   } finally {
     bitmap.close();
   }
