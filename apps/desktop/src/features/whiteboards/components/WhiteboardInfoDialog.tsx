@@ -7,6 +7,7 @@
 import { useEffect, useState } from "react";
 import { Hash, Plus, X } from "lucide-react";
 import { Button, Dialog, DialogBody, Input, Textarea, toast } from "@tau/ui";
+import { useWhiteboardI18n, whiteboardTranslator } from "../i18n";
 import { normalizeTags } from "../model";
 import type { WhiteboardInfo } from "../queries";
 
@@ -29,10 +30,11 @@ export function WhiteboardInfoDialog({
   initial,
   presetTags = [],
   knownTags,
-  createLabel = "创建并打开",
+  createLabel,
   onClose,
   onSubmit,
 }: WhiteboardInfoDialogProps) {
+  const { t } = useWhiteboardI18n();
   const editing = initial !== null;
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -64,7 +66,7 @@ export function WhiteboardInfoDialog({
     setSaving(true);
     onSubmit({ title, description, tags: normalizeTags([...tags, draft]) })
       .then(onClose)
-      .catch(() => toast.error(editing ? "保存失败" : "创建失败"))
+      .catch(() => toast.error(whiteboardTranslator.t(editing ? "saveFailed" : "createFailed")))
       .finally(() => setSaving(false));
   };
 
@@ -72,15 +74,15 @@ export function WhiteboardInfoDialog({
     <Dialog
       open={open}
       onOpenChange={next => !next && onClose()}
-      title={editing ? "编辑信息" : "新建白板"}
+      title={t(editing ? "edit" : "create")}
       locked={saving}
       footer={
         <>
           <Button variant="secondary" size="sm" disabled={saving} onClick={onClose}>
-            取消
+            {t("cancel")}
           </Button>
           <Button variant="primary" size="sm" loading={saving} onClick={submit}>
-            {editing ? "保存" : createLabel}
+            {editing ? t("save") : (createLabel ?? t("createOpen"))}
           </Button>
         </>
       }
@@ -88,7 +90,7 @@ export function WhiteboardInfoDialog({
       <DialogBody>
         <div className="flex flex-col gap-3.5">
           <label className="flex flex-col gap-1.5">
-            <span className="text-ink-2 text-[12px]">标题</span>
+            <span className="text-ink-2 text-[12px]">{t("form.title")}</span>
             <Input
               data-autofocus
               value={title}
@@ -96,30 +98,30 @@ export function WhiteboardInfoDialog({
               onKeyDown={e => {
                 if (e.key === "Enter" && !e.nativeEvent.isComposing) submit();
               }}
-              placeholder="未命名白板"
+              placeholder={t("untitled")}
             />
           </label>
           <label className="flex flex-col gap-1.5">
             <span className="text-ink-2 text-[12px]">
-              描述 <span className="text-ink-3">· 可选</span>
+              {t("form.description")} <span className="text-ink-3">{t("form.optional")}</span>
             </span>
             <Textarea
               rows={3}
               value={description}
               onChange={e => setDescription(e.target.value)}
-              placeholder="这块白板用来做什么"
+              placeholder={t("form.descriptionHint")}
             />
           </label>
           <div className="flex flex-col gap-1.5">
             <span className="text-ink-2 text-[12px]">
-              标签 <span className="text-ink-3">· 可选，出现在侧栏「白板」下面</span>
+              {t("form.tags")} <span className="text-ink-3">{t("form.tagsHint")}</span>
             </span>
             <div className="flex flex-wrap items-center gap-1.5">
               {tags.map(name => (
                 <button
                   key={name}
                   type="button"
-                  aria-label={`移除标签 ${name}`}
+                  aria-label={t("form.removeTag", { tag: name })}
                   onClick={() => remove(name)}
                   className="text-tau-meta bg-selected text-accent-text group inline-flex h-[26px] items-center gap-1 rounded-full px-2.5 font-medium"
                 >
@@ -131,7 +133,7 @@ export function WhiteboardInfoDialog({
                   />
                 </button>
               ))}
-              <label className="border-line-1 focus-within:border-accent text-ink-3 inline-flex h-[26px] items-center gap-1 rounded-full border border-dashed pl-2 pr-2.5 focus-within:border-solid">
+              <label className="border-line-1 focus-within:border-accent text-ink-3 inline-flex h-[26px] items-center gap-1 rounded-full border border-dashed pr-2.5 pl-2 focus-within:border-solid">
                 <Plus className="size-[12px]" strokeWidth={1.75} />
                 <input
                   value={draft}
@@ -144,14 +146,14 @@ export function WhiteboardInfoDialog({
                     }
                   }}
                   onBlur={addDraft}
-                  placeholder="新标签"
+                  placeholder={t("form.newTag")}
                   className="text-tau-meta text-ink-1 placeholder:text-ink-3 w-[72px] bg-transparent outline-none"
                 />
               </label>
             </div>
             {candidates.length > 0 && (
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-ink-3 mr-0.5 text-[11px]">已有标签</span>
+                <span className="text-ink-3 mr-0.5 text-[11px]">{t("form.existingTags")}</span>
                 {candidates.map(name => (
                   <button
                     key={name}

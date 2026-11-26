@@ -24,7 +24,7 @@ import {
   WHITEBOARD_PAGE_HOST,
 } from "@/features/shared/whiteboard/components/Document/DocumentHostContext";
 import { WhiteboardInfoDialog } from "../components/WhiteboardInfoDialog";
-import { displayTitle, parseTrail, rankTags, type TrailStep, type WhiteboardItem } from "../model";
+import { parseTrail, rankTags, type TrailStep, type WhiteboardItem } from "../model";
 import {
   WhiteboardNavContext,
   requestReveal,
@@ -38,6 +38,9 @@ import {
   useWhiteboards,
 } from "../queries";
 
+import { displayTitle } from "../format";
+import { useWhiteboardI18n, type WhiteboardTranslator } from "../i18n";
+
 const PAGE_KEY = "whiteboard-detail";
 
 export function WhiteboardDetailView() {
@@ -46,6 +49,7 @@ export function WhiteboardDetailView() {
 }
 
 function Detail({ id, page, trailParam }: { id: number; page?: number; trailParam?: string }) {
+  const { t } = useWhiteboardI18n();
   const { navigator } = usePage();
   const { board, loading } = useWhiteboardDetail(id);
   const pageMutations = useWhiteboardPageMutations(id);
@@ -187,7 +191,7 @@ function Detail({ id, page, trailParam }: { id: number; page?: number; trailPara
           <TrailCrumbs trail={trail} itemById={itemById} onSelect={backTo} />
           <button
             type="button"
-            title="编辑信息"
+            title={t("edit")}
             onClick={() => {
               infoTitle.current =
                 canvasRef.current?.document?.snapshot().title ?? board?.title ?? "";
@@ -195,17 +199,17 @@ function Detail({ id, page, trailParam }: { id: number; page?: number; trailPara
             }}
             className="text-ink-1 hover:bg-hover min-w-0 truncate rounded-[6px] px-1.5 py-0.5 font-medium"
           >
-            {board.title.trim() || "未命名白板"}
+            {displayTitle(board, t)}
           </button>
           {pages.length > 1 && activePage && (
             <>
               <span className="text-ink-3">/</span>
-              <span className="text-ink-2 min-w-0 truncate">{activePage.name || "未命名"}</span>
+              <span className="text-ink-2 min-w-0 truncate">{activePage.name || t("unnamed")}</span>
             </>
           )}
         </span>
       ) : null,
-    [board, pages.length, activePage, trail, itemById, backTo]
+    [board, pages.length, activePage, trail, itemById, backTo, t]
   );
   usePageBreadcrumb(PAGE_KEY, breadcrumb);
 
@@ -378,12 +382,16 @@ function Detail({ id, page, trailParam }: { id: number; page?: number; trailPara
 /** 链上最多平铺的上级数，多出的中间级折进「…」菜单（保留第一级与最近两级） */
 const MAX_CRUMBS = 3;
 
-function stepLabel(step: TrailStep, item: WhiteboardItem | undefined) {
-  if (!item) return "白板";
-  const title = displayTitle(item);
+function stepLabel(
+  step: TrailStep,
+  item: WhiteboardItem | undefined,
+  t: WhiteboardTranslator["t"]
+) {
+  if (!item) return t("title");
+  const title = displayTitle(item, t);
   if (item.pages.length <= 1) return title;
   const page = item.pages.find(p => p.id === step.pageId);
-  return page ? `${title} · ${page.name || "未命名"}` : title;
+  return page ? `${title} · ${page.name || t("unnamed")}` : title;
 }
 
 /** 上级白板面包屑：点击回到那一级当时的页 */
@@ -396,6 +404,7 @@ function TrailCrumbs({
   itemById: Map<number, WhiteboardItem>;
   onSelect(index: number): void;
 }) {
+  const { t } = useWhiteboardI18n();
   if (!trail.length) return null;
   const indexes = trail.map((_, i) => i);
   const folded = trail.length > MAX_CRUMBS ? indexes.slice(1, trail.length - (MAX_CRUMBS - 1)) : [];
@@ -405,7 +414,7 @@ function TrailCrumbs({
   return (
     <>
       {shown.map((index, n) => {
-        const label = stepLabel(trail[index], itemById.get(trail[index].boardId));
+        const label = stepLabel(trail[index], itemById.get(trail[index].boardId), t);
         return (
           <span key={index} className="flex min-w-0 shrink items-center gap-1.5">
             {n === 1 && folded.length > 0 && (
@@ -414,7 +423,7 @@ function TrailCrumbs({
                   trigger={
                     <button
                       type="button"
-                      title="更多上级白板"
+                      title={t("trail.more")}
                       className="text-ink-2 hover:bg-hover shrink-0 rounded-[6px] px-1.5 py-0.5"
                     >
                       …
@@ -423,7 +432,7 @@ function TrailCrumbs({
                 >
                   {folded.map(i => (
                     <Menu.Item key={i} onSelect={() => onSelect(i)}>
-                      {stepLabel(trail[i], itemById.get(trail[i].boardId))}
+                      {stepLabel(trail[i], itemById.get(trail[i].boardId), t)}
                     </Menu.Item>
                   ))}
                 </Menu>
@@ -432,7 +441,7 @@ function TrailCrumbs({
             )}
             <button
               type="button"
-              title={`回到「${label}」`}
+              title={t("trail.back", { title: label })}
               onClick={() => onSelect(index)}
               className="text-ink-2 hover:text-ink-1 hover:bg-hover max-w-[160px] min-w-0 truncate rounded-[6px] px-1.5 py-0.5"
             >

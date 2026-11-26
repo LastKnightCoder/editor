@@ -7,6 +7,8 @@
  * 点卡片进入白板详情（whiteboard-detail）；多页白板悬停扫到哪页就打开哪页。
  */
 
+import { displayTitle } from "../format";
+import { useWhiteboardI18n, whiteboardTranslator } from "../i18n";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Plus, Presentation, Search, SearchX, X } from "lucide-react";
 import { Button, ConfirmDialog, Input, Loading, Segmented, toast } from "@tau/ui";
@@ -20,7 +22,6 @@ import {
   rankTags,
   scopeId,
   sortItems,
-  displayTitle,
   type WhiteboardItem,
   type WhiteboardScope,
   type WhiteboardSort,
@@ -30,6 +31,7 @@ import { WhiteboardCard } from "../components/WhiteboardCard";
 import { WhiteboardInfoDialog } from "../components/WhiteboardInfoDialog";
 
 export function WhiteboardsView() {
+  const { t } = useWhiteboardI18n();
   const { navigator } = usePage();
   const params = usePageParams<{ id?: string }>();
   const scope = parseScope(params.id);
@@ -76,7 +78,7 @@ export function WhiteboardsView() {
     (item: WhiteboardItem, pageIndex?: number) => {
       const target = openTarget(item, pageIndex);
       if (target === null) {
-        toast.error("这块白板没有可打开的页");
+        toast.error(whiteboardTranslator.t("list.noPage"));
         return;
       }
       navigator.push("whiteboard-detail", { id: item.id, page: target });
@@ -95,36 +97,28 @@ export function WhiteboardsView() {
         {/* 工具栏：标题 / 当前标签 + 摘要 + 标题过滤 + 排序 + 新建 */}
         <div className="mt-5 mb-3 flex h-10 flex-none items-center gap-3 px-8">
           <h1 className="text-tau-title-lg shrink-0 font-semibold tracking-[-0.01em] whitespace-nowrap">
-            白板
+            {t("title")}
           </h1>
           {scope.kind !== "all" && (
             <button
               type="button"
-              title="清除标签筛选"
+              title={t("list.clearScope")}
               onClick={() => setScope({ kind: "all" })}
               className="bg-selected text-accent-text inline-flex h-6 max-w-[180px] shrink-0 items-center gap-1 rounded-full pr-1.5 pl-2.5 text-[12px] font-medium"
             >
-              <span className="truncate">{scope.kind === "tag" ? scope.tag : "无标签"}</span>
+              <span className="truncate">
+                {scope.kind === "tag" ? scope.tag : t("tags.untagged")}
+              </span>
               <X className="size-3 shrink-0" strokeWidth={2} />
             </button>
           )}
           <span className="text-tau-meta text-ink-2 w-0 flex-1 truncate whitespace-nowrap tabular-nums">
             {all.length > 0 &&
-              (filtering ? (
-                <>
-                  找到 <b className="text-ink-1 font-semibold">{visible.length}</b> /{" "}
-                  {inRange.length} 个白板
-                </>
-              ) : scope.kind === "all" ? (
-                <>
-                  共 <b className="text-ink-1 font-semibold">{all.length}</b> 个白板 ·{" "}
-                  <b className="text-ink-1 font-semibold">{pageTotal}</b> 页
-                </>
-              ) : (
-                <>
-                  共 <b className="text-ink-1 font-semibold">{inRange.length}</b> 个白板
-                </>
-              ))}
+              (filtering
+                ? t("list.found", { visible: visible.length, count: inRange.length })
+                : scope.kind === "all"
+                  ? t("list.totalPages", { count: all.length, pages: pageTotal })
+                  : t("list.total", { count: inRange.length }))}
           </span>
           {all.length > 0 && (
             <>
@@ -140,21 +134,21 @@ export function WhiteboardsView() {
                     setQuery("");
                   }
                 }}
-                placeholder="搜索白板标题"
+                placeholder={t("list.search")}
                 // 输入框自身不贡献最小宽度，窄窗口下随标题栏收缩
                 className="w-0"
                 wrapperClassName="w-auto max-w-[240px] flex-[0_1_240px]"
               />
               <Segmented
-                label="排序"
+                label={t("list.sort")}
                 size="sm"
                 value={sort}
                 onValueChange={(v: WhiteboardSort) => setSort(v)}
                 className="shrink-0"
               >
-                <Segmented.Item value="updated" label="最近更新" />
-                <Segmented.Item value="created" label="创建时间" />
-                <Segmented.Item value="title" label="名称" />
+                <Segmented.Item value="updated" label={t("list.updated")} />
+                <Segmented.Item value="created" label={t("list.created")} />
+                <Segmented.Item value="title" label={t("list.name")} />
               </Segmented>
             </>
           )}
@@ -165,7 +159,7 @@ export function WhiteboardsView() {
             className="shrink-0 whitespace-nowrap"
             onClick={() => setDialog({ mode: "create" })}
           >
-            新建白板
+            {t("create")}
           </Button>
         </div>
 
@@ -175,8 +169,8 @@ export function WhiteboardsView() {
           {all.length === 0 ? (
             <Empty
               icon={Presentation}
-              title="还没有白板"
-              text="白板适合画结构、贴想法、做演示。一块白板可以有多页。"
+              title={t("list.empty")}
+              text={t("list.emptyDescription")}
               action={
                 <Button
                   variant="soft"
@@ -184,7 +178,7 @@ export function WhiteboardsView() {
                   icon={Plus}
                   onClick={() => setDialog({ mode: "create" })}
                 >
-                  新建白板
+                  {t("create")}
                 </Button>
               }
             />
@@ -192,21 +186,21 @@ export function WhiteboardsView() {
             filtering ? (
               <Empty
                 icon={SearchX}
-                title="没有匹配的白板"
-                text={`没有标题包含「${query.trim()}」的白板${scope.kind === "all" ? "" : "（当前标签内）"}。`}
+                title={t("list.noMatch")}
+                text={t(scope.kind === "all" ? "list.noMatchDescription" : "list.noMatchInScope", {
+                  query: query.trim(),
+                })}
                 action={
                   <Button variant="secondary" size="sm" onClick={() => setQuery("")}>
-                    清除过滤
+                    {t("list.clearFilter")}
                   </Button>
                 }
               />
             ) : (
               <Empty
                 icon={Presentation}
-                title="这里还没有白板"
-                text={
-                  scope.kind === "tag" ? "在这里新建，会自动带上这个标签。" : "所有白板都带着标签。"
-                }
+                title={t("list.scopeEmpty")}
+                text={t(scope.kind === "tag" ? "list.createTagged" : "list.allTagged")}
                 action={
                   scope.kind === "tag" ? (
                     <Button
@@ -215,7 +209,7 @@ export function WhiteboardsView() {
                       icon={Plus}
                       onClick={() => setDialog({ mode: "create" })}
                     >
-                      在这里新建
+                      {t("list.createHere")}
                     </Button>
                   ) : undefined
                 }
@@ -234,14 +228,14 @@ export function WhiteboardsView() {
                   onPickCover={it =>
                     void mutations
                       .pickCover(it.id)
-                      .then(done => done && toast.success("封面已更新"))
-                      .catch(() => toast.error("封面上传失败"))
+                      .then(done => done && toast.success(whiteboardTranslator.t("cover.updated")))
+                      .catch(() => toast.error(whiteboardTranslator.t("cover.failed")))
                   }
                   onRemoveCover={it =>
                     void mutations
                       .removeCover(it.id)
-                      .then(() => toast.success("已改用画布缩略图"))
-                      .catch(() => toast.error("操作失败"))
+                      .then(() => toast.success(whiteboardTranslator.t("cover.thumbnail")))
+                      .catch(() => toast.error(whiteboardTranslator.t("operationFailed")))
                   }
                   onDelete={it => {
                     setDeleteTarget(it);
@@ -263,7 +257,7 @@ export function WhiteboardsView() {
         onSubmit={async info => {
           if (dialog?.mode === "edit") {
             await mutations.saveInfo(dialog.item.id, info);
-            toast.success("已保存");
+            toast.success(whiteboardTranslator.t("saved"));
             return;
           }
           const board = await mutations.create(info);
@@ -277,7 +271,9 @@ export function WhiteboardsView() {
         onClose={() => setDeleteOpen(false)}
         onConfirm={async item => {
           await mutations.remove(item);
-          toast.success(`已删除「${displayTitle(item)}」`);
+          toast.success(
+            whiteboardTranslator.t("deleted", { title: displayTitle(item, whiteboardTranslator.t) })
+          );
         }}
       />
     </div>
@@ -296,6 +292,7 @@ function DeleteDialog({
   onClose(): void;
   onConfirm(item: WhiteboardItem): Promise<void>;
 }) {
+  const { t } = useWhiteboardI18n();
   const [deleting, setDeleting] = useState(false);
   const refs = useWhiteboardRefs(open && item ? item.id : null);
   const projects = refs.data ?? [];
@@ -305,19 +302,23 @@ function DeleteDialog({
     <ConfirmDialog
       open={open}
       onOpenChange={next => !next && onClose()}
-      title="删除白板"
-      context={shown ? displayTitle(shown) : undefined}
+      title={t("remove.title")}
+      context={shown ? displayTitle(shown, t) : undefined}
       description={
         <div className="flex flex-col gap-2.5">
           <p>
-            {shown?.pages.length ?? 0} 页、共 {shown?.elementCount ?? 0}{" "}
-            个元素会一起删除，删除后无法恢复。
+            {t("remove.description", {
+              pages: shown?.pages.length ?? 0,
+              elements: shown?.elementCount ?? 0,
+            })}
           </p>
           {refs.isPending && open ? (
-            <p className="text-ink-3 text-tau-meta">正在检查项目引用…</p>
+            <p className="text-ink-3 text-tau-meta">{t("remove.checking")}</p>
           ) : projects.length > 0 ? (
             <div className="bg-warn-soft text-tau-meta rounded-[10px] px-3 py-2.5">
-              <p className="text-warn font-medium">被 {projects.length} 个项目引用</p>
+              <p className="text-warn font-medium">
+                {t("remove.references", { count: projects.length })}
+              </p>
               <ul className="text-ink-1 mt-1 space-y-0.5">
                 {projects.map(name => (
                   <li key={name} className="truncate">
@@ -325,13 +326,13 @@ function DeleteDialog({
                   </li>
                 ))}
               </ul>
-              <p className="text-ink-2 mt-1.5">删除后，这些项目里的白板条目会解除关联。</p>
+              <p className="text-ink-2 mt-1.5">{t("remove.unlink")}</p>
             </div>
           ) : null}
         </div>
       }
       danger
-      confirmText="删除"
+      confirmText={t("delete")}
       loading={deleting}
       onConfirm={async () => {
         if (!item) return;
@@ -340,7 +341,7 @@ function DeleteDialog({
           await onConfirm(item);
           onClose();
         } catch {
-          toast.error("删除失败");
+          toast.error(whiteboardTranslator.t("deleteFailed"));
         } finally {
           setDeleting(false);
         }

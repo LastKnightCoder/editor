@@ -25,8 +25,10 @@ import LocalImage from "@/components/LocalImage";
 import { DesktopPageSchematic as PageSchematic } from "../../DesktopPageSchematic";
 import { openPage } from "@/services/page-navigation";
 import { useWhiteboardDetail, useWhiteboardOwner } from "@/features/whiteboards/queries";
-import { displayTitle, enterBoard, formatTrail, toItem } from "@/features/whiteboards/model";
+import { enterBoard, formatTrail, toItem } from "@/features/whiteboards/model";
 import { WhiteboardNavContext, requestReveal } from "@/features/whiteboards/navigation";
+import { displayTitle } from "@/features/whiteboards/format";
+import { useWhiteboardI18n, whiteboardTranslator } from "@/features/whiteboards/i18n";
 import { handTextClass } from "@tau/whiteboard";
 
 interface WhiteboardCardProps {
@@ -42,6 +44,7 @@ const CANVAS_BG =
   "bg-surface-hover bg-[radial-gradient(color-mix(in_srgb,var(--tau-ink-1)_13%,transparent)_1px,transparent_1.2px)] bg-[length:10px_10px]";
 
 const WhiteboardCard = memo((props: WhiteboardCardProps) => {
+  const { t } = useWhiteboardI18n();
   const { element, board } = props;
   const sketch = useSketch(element);
   const nav = useContext(WhiteboardNavContext);
@@ -118,28 +121,30 @@ const WhiteboardCard = memo((props: WhiteboardCardProps) => {
       } else if (legacyPageId !== null) {
         openPage("whiteboard-content", { id: legacyPageId });
       } else {
-        toast.error("白板已删除");
+        toast.error(whiteboardTranslator.t("reference.deleted"));
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "打开白板失败");
+      toast.error(
+        error instanceof Error ? error.message : whiteboardTranslator.t("reference.openFailed")
+      );
     }
   });
 
-  const title = item ? displayTitle(item) : name || "未命名白板";
+  const title = item ? displayTitle(item, t) : name || t("untitled");
   const meta = loading
-    ? "加载中…"
+    ? t("reference.loading")
     : missing
-      ? "白板已删除"
+      ? t("reference.deleted")
       : item
-        ? `${item.pages.length} 页 · ${item.elementCount} 个元素`
-        : "独立画布";
+        ? t("reference.meta", { pages: item.pages.length, elements: item.elementCount })
+        : t("reference.standalone");
 
   return (
     <>
       <foreignObject x={x} y={y} width={width} height={height} className="overflow-visible">
         <div
           onDoubleClick={handleDoubleClick}
-          title="双击打开白板"
+          title={t("reference.open")}
           className={cn(
             "bg-surface border-line-1 flex size-full cursor-move items-center gap-2.5 overflow-hidden rounded-[12px] border p-2",
             "ease-tau-out transition-[box-shadow,border-color] duration-300",

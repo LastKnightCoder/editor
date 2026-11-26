@@ -70,11 +70,11 @@ export function sortItems(items: WhiteboardItem[], sort: WhiteboardSort): Whiteb
   const list = items.slice();
   if (sort === "updated") list.sort((a, b) => b.updateTime - a.updateTime);
   else if (sort === "created") list.sort((a, b) => b.createTime - a.createTime);
-  else list.sort((a, b) => displayTitle(a).localeCompare(displayTitle(b), "zh-CN"));
+  else list.sort((a, b) => titleSearchText(a).localeCompare(titleSearchText(b), "zh-CN"));
   return list;
 }
 
-export const displayTitle = (item: Pick<WhiteboardItem, "id" | "title">) =>
+export const titleSearchText = (item: Pick<WhiteboardItem, "id" | "title">) =>
   item.title.trim() || "未命名白板";
 
 /* ───────── 范围（侧栏标签子项）与标题过滤 ───────── */
@@ -100,7 +100,7 @@ export function inScope(item: WhiteboardItem, scope: WhiteboardScope): boolean {
 /** 标题过滤（不区分大小写）；空串 = 不过滤 */
 export function matchTitle(item: WhiteboardItem, query: string): boolean {
   const q = query.trim().toLowerCase();
-  return !q || displayTitle(item).toLowerCase().includes(q);
+  return !q || titleSearchText(item).toLowerCase().includes(q);
 }
 
 /** 标题里命中的区间 [start, end)，用于高亮；未命中返回 null */
@@ -144,32 +144,6 @@ export function openTarget(item: WhiteboardItem, pageIndex?: number): number | n
   if (item.activePageId !== null && item.pages.some(p => p.id === item.activePageId))
     return item.activePageId;
   return item.pages[0]?.id ?? null;
-}
-
-/* ───────── 展示 ───────── */
-
-const MIN = 60_000;
-const HOUR = 3_600_000;
-const DAY = 86_400_000;
-
-/** 相对时间：刚刚 / N 分钟前 / N 小时前 / 昨天 / N 天前 / 9月17日 / 2025年9月17日 */
-export function relativeTime(ts: number, now: number): string {
-  const diff = now - ts;
-  if (diff < MIN) return "刚刚";
-  if (diff < HOUR) return `${Math.floor(diff / MIN)} 分钟前`;
-  if (diff < DAY) return `${Math.floor(diff / HOUR)} 小时前`;
-  if (diff < 2 * DAY) return "昨天";
-  if (diff < 7 * DAY) return `${Math.floor(diff / DAY)} 天前`;
-  const d = new Date(ts);
-  return d.getFullYear() === new Date(now).getFullYear()
-    ? `${d.getMonth() + 1}月${d.getDate()}日`
-    : `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
-}
-
-export function fullTime(ts: number): string {
-  const d = new Date(ts);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 /* ───────── 跳转链 ───────── */

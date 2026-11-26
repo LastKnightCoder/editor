@@ -19,16 +19,11 @@ import {
   Presentation,
   Trash2,
 } from "lucide-react";
+import { displayTitle, fullTime, relativeTime } from "../format";
+import { useWhiteboardI18n } from "../i18n";
 import LocalImage from "@/components/LocalImage";
 import { IconButton, Menu, cn } from "@tau/ui";
-import {
-  displayTitle,
-  fullTime,
-  relativeTime,
-  titleHit,
-  type WhiteboardItem,
-  type WhiteboardPage,
-} from "../model";
+import { titleHit, type WhiteboardItem, type WhiteboardPage } from "../model";
 import { DesktopPageSchematic as PageSchematic } from "@/features/shared/whiteboard/DesktopPageSchematic";
 
 function MenuIcon({ icon: Icon }: { icon: LucideIcon }) {
@@ -61,6 +56,7 @@ export interface WhiteboardCardProps {
 }
 
 export function WhiteboardCard(props: WhiteboardCardProps) {
+  const { t, locale } = useWhiteboardI18n();
   const { item, now, query } = props;
   const multi = item.pages.length > 1;
   // null = 未在扫页（显示封面或第一页）
@@ -93,23 +89,23 @@ export function WhiteboardCard(props: WhiteboardCardProps) {
   const menu = (
     <>
       <Menu.Item icon={<MenuIcon icon={CornerDownLeft} />} onSelect={() => props.onOpen(item)}>
-        打开
+        {t("open")}
       </Menu.Item>
       <Menu.Separator />
       <Menu.Item icon={<MenuIcon icon={PencilLine} />} onSelect={() => props.onEdit(item)}>
-        编辑信息
+        {t("edit")}
       </Menu.Item>
       <Menu.Item icon={<MenuIcon icon={ImagePlus} />} onSelect={() => props.onPickCover(item)}>
-        {item.snapshot ? "更换封面" : "设置封面"}
+        {t(item.snapshot ? "cover.replace" : "cover.set")}
       </Menu.Item>
       {item.snapshot && (
         <Menu.Item icon={<MenuIcon icon={ImageMinus} />} onSelect={() => props.onRemoveCover(item)}>
-          移除封面
+          {t("cover.remove")}
         </Menu.Item>
       )}
       <Menu.Separator />
       <Menu.Item danger icon={<MenuIcon icon={Trash2} />} onSelect={() => props.onDelete(item)}>
-        删除
+        {t("delete")}
       </Menu.Item>
     </>
   );
@@ -179,13 +175,13 @@ export function WhiteboardCard(props: WhiteboardCardProps) {
               )}
             >
               <Files className="size-[11px]" strokeWidth={1.75} />
-              {item.pages.length} 页
+              {t("pages", { count: item.pages.length })}
             </span>
             <span className="text-tau-tiny text-ink-2 bg-surface/90 shadow-lift ease-tau-out pointer-events-none absolute top-2 left-2 inline-flex h-[22px] max-w-[calc(100%-60px)] items-center gap-1.5 rounded-[7px] px-2 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
               <b className="font-tau-mono text-ink-3 text-[11px] font-medium">
                 {shownIndex + 1}/{item.pages.length}
               </b>
-              <span className="truncate">{shownPage?.name || "未命名"}</span>
+              <span className="truncate">{shownPage?.name || t("unnamed")}</span>
             </span>
             <div className="ease-tau-out pointer-events-none absolute right-2.5 bottom-2 left-2.5 flex gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
               {item.pages.map((p, i) => (
@@ -211,7 +207,7 @@ export function WhiteboardCard(props: WhiteboardCardProps) {
           align="end"
           trigger={
             <IconButton
-              title="更多操作"
+              title={t("more")}
               className="bg-surface shadow-lift enabled:hover:bg-surface-hover size-[26px] rounded-[8px]"
             >
               <MoreHorizontal className="size-[14px]" strokeWidth={1.75} />
@@ -225,22 +221,24 @@ export function WhiteboardCard(props: WhiteboardCardProps) {
       {/* 主体 */}
       <div className="flex min-w-0 flex-1 flex-col px-2 pt-2.5 pb-1.5">
         <h3 className="text-ink-1 truncate text-[14px] leading-[1.45] font-semibold">
-          <Highlight text={displayTitle(item)} query={query} />
+          <Highlight text={displayTitle(item, t)} query={query} />
         </h3>
         <p className="text-tau-meta text-ink-2 mt-px h-5 truncate">{item.description}</p>
         <p className="text-ink-3 mt-1.5 flex items-center gap-1.5 text-[12px] whitespace-nowrap tabular-nums">
-          <span>{item.pages.length} 页</span>
+          <span>{t("pages", { count: item.pages.length })}</span>
           <Dot />
-          <span>{item.elementCount} 个元素</span>
+          <span>{t("elements", { count: item.elementCount })}</span>
           <Dot />
-          <span title={fullTime(item.updateTime)}>{relativeTime(item.updateTime, now)}更新</span>
+          <span title={fullTime(item.updateTime, locale)}>
+            {t("time.updated", { time: relativeTime(item.updateTime, now, locale, t) })}
+          </span>
           {item.sequences > 0 && (
             <span
               className="text-accent-text ml-auto inline-flex items-center gap-[3px]"
-              title={`有 ${item.sequences} 个演示序列`}
+              title={t("sequences", { count: item.sequences })}
             >
               <Play className="size-[11px]" strokeWidth={1.75} />
-              可演示
+              {t("presentable")}
             </span>
           )}
         </p>
@@ -250,6 +248,7 @@ export function WhiteboardCard(props: WhiteboardCardProps) {
 }
 
 function PageThumb({ page }: { page?: WhiteboardPage }) {
+  const { t } = useWhiteboardI18n();
   if (page && page.elementCount > 0)
     return (
       <PageSchematic
@@ -261,7 +260,7 @@ function PageThumb({ page }: { page?: WhiteboardPage }) {
   return (
     <div className="text-ink-3 absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-[12px]">
       <Presentation className="size-5" strokeWidth={1.5} />
-      <span>空白画布</span>
+      <span>{t("blank")}</span>
     </div>
   );
 }

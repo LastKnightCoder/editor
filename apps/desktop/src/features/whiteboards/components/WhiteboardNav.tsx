@@ -4,6 +4,7 @@
  * 再点当前项回到全部。右键标签可清理（从所有白板上摘掉）。页内因此不放标签栏。
  */
 
+import { useWhiteboardI18n, whiteboardTranslator } from "../i18n";
 import { useMemo, useState } from "react";
 import { CircleDashed, Eraser, Hash } from "lucide-react";
 import { ConfirmDialog, ContextMenu, Menu, cn, toast } from "@tau/ui";
@@ -17,6 +18,7 @@ export function WhiteboardNavTags({
   selectedId?: string;
   onSelect: (id: string) => void;
 }) {
+  const { t } = useWhiteboardI18n();
   const { items } = useWhiteboards();
   const mutations = useWhiteboardMutations();
   const [clearing, setClearing] = useState<string | null>(null);
@@ -29,7 +31,7 @@ export function WhiteboardNavTags({
     onSelect(scopeId(scope) === scopeId(current) ? "" : scopeId(scope));
 
   return (
-    <div className="mt-0.5 mb-1 space-y-px" role="group" aria-label="白板标签">
+    <div className="mt-0.5 mb-1 space-y-px" role="group" aria-label={t("tags.group")}>
       {tags.map(tag => (
         <ContextMenu
           key={tag.name}
@@ -39,7 +41,7 @@ export function WhiteboardNavTags({
               icon={<Eraser className="size-[15px]" strokeWidth={1.75} />}
               onSelect={() => setClearing(tag.name)}
             >
-              清理这个标签…
+              {t("tags.clearMenu")}
             </Menu.Item>
           }
         >
@@ -55,7 +57,7 @@ export function WhiteboardNavTags({
       {untagged > 0 && (
         <NavChild
           active={current.kind === "untagged"}
-          label="无标签"
+          label={t("tags.untagged")}
           count={untagged}
           glyph={<CircleDashed className="text-ink-3 size-[13px]" strokeWidth={1.75} />}
           onClick={() => select({ kind: "untagged" })}
@@ -64,12 +66,14 @@ export function WhiteboardNavTags({
       <ConfirmDialog
         open={clearing !== null}
         onOpenChange={open => !open && setClearing(null)}
-        title="清理标签"
+        title={t("tags.clear")}
         context={clearing ?? undefined}
-        description="从所有白板上摘掉这个标签，白板本身不受影响。"
-        impact={`${tags.find(t => t.name === clearing)?.count ?? 0} 个白板会失去这个标签`}
+        description={t("tags.clearDescription")}
+        impact={t("tags.clearImpact", {
+          count: tags.find(tag => tag.name === clearing)?.count ?? 0,
+        })}
         danger
-        confirmText="清理"
+        confirmText={t("tags.clearConfirm")}
         loading={busy}
         onConfirm={async () => {
           if (!clearing) return;
@@ -77,10 +81,10 @@ export function WhiteboardNavTags({
           try {
             await mutations.clearTag(clearing, items);
             if (current.kind === "tag" && current.tag === clearing) onSelect("");
-            toast.success(`已清理标签「${clearing}」`);
+            toast.success(whiteboardTranslator.t("tags.cleared", { tag: clearing }));
             setClearing(null);
           } catch {
-            toast.error("清理失败");
+            toast.error(whiteboardTranslator.t("tags.clearFailed"));
           } finally {
             setBusy(false);
           }
@@ -103,6 +107,7 @@ function NavChild({
   glyph: React.ReactNode;
   onClick: () => void;
 }) {
+  const { t } = useWhiteboardI18n();
   return (
     // 让出父项图标列（按 body 字号折算）放在按钮外：高亮只盖图标起的一段，图标落在父项文字列
     <div className="flex gap-2.5">
@@ -111,7 +116,7 @@ function NavChild({
         type="button"
         onClick={onClick}
         aria-current={active ? "page" : undefined}
-        title={active ? "再点一次回到全部" : `只看「${label}」`}
+        title={active ? t("tags.backAll") : t("tags.only", { tag: label })}
         className={cn(
           "text-tau-meta ease-tau-out flex h-[calc(1.5em+10px)] min-w-0 flex-1 items-center gap-2.5 rounded-[9px] px-2.5 text-left transition-[background,color] duration-[160ms]",
           active

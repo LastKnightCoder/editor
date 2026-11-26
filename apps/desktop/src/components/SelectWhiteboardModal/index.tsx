@@ -14,13 +14,10 @@ import { Whiteboard } from "@/types";
 import { FadeScroll } from "@tau/ui";
 import LocalImage from "@/components/LocalImage";
 import { DesktopPageSchematic as PageSchematic } from "@/features/shared/whiteboard/DesktopPageSchematic";
-import {
-  displayTitle,
-  fullTime,
-  relativeTime,
-  toItem,
-  type WhiteboardItem,
-} from "@/features/whiteboards/model";
+import { titleSearchText, toItem, type WhiteboardItem } from "@/features/whiteboards/model";
+
+import { displayTitle, fullTime, relativeTime } from "@/features/whiteboards/format";
+import { useWhiteboardI18n } from "@/features/whiteboards/i18n";
 
 interface ISelectWhiteboardModalProps {
   open: boolean;
@@ -47,13 +44,14 @@ function matchKeyword(item: WhiteboardItem, keyword: string) {
   const q = keyword.trim().toLowerCase();
   if (!q) return true;
   return (
-    displayTitle(item).toLowerCase().includes(q) ||
+    titleSearchText(item).toLowerCase().includes(q) ||
     item.description.toLowerCase().includes(q) ||
     item.tags.some(tag => tag.toLowerCase().includes(q))
   );
 }
 
 const SelectWhiteboardModal = (props: ISelectWhiteboardModalProps) => {
+  const { t } = useWhiteboardI18n();
   const {
     open,
     multiple = false,
@@ -149,7 +147,7 @@ const SelectWhiteboardModal = (props: ISelectWhiteboardModalProps) => {
     <Dialog
       open={open}
       onOpenChange={next => !next && close()}
-      title={title || "选择关联白板"}
+      title={title ?? t("select.title")}
       locked={saving}
       width={880}
       height={640}
@@ -157,11 +155,13 @@ const SelectWhiteboardModal = (props: ISelectWhiteboardModalProps) => {
         <>
           {multiple && (
             <span className="text-ink-2 mr-auto text-[12.5px] tabular-nums">
-              {selectedWhiteboards.length ? `已选 ${selectedWhiteboards.length} 个白板` : "未选择"}
+              {selectedWhiteboards.length
+                ? t("select.selected", { count: selectedWhiteboards.length })
+                : t("select.none")}
             </span>
           )}
           <Button variant="secondary" size="sm" disabled={saving} onClick={close}>
-            取消
+            {t("cancel")}
           </Button>
           {multiple && (
             <Button
@@ -171,7 +171,7 @@ const SelectWhiteboardModal = (props: ISelectWhiteboardModalProps) => {
               disabled={!selectedWhiteboards.length}
               onClick={() => void confirm(selectedWhiteboards)}
             >
-              确定
+              {t("confirm")}
             </Button>
           )}
         </>
@@ -190,16 +190,15 @@ const SelectWhiteboardModal = (props: ISelectWhiteboardModalProps) => {
               setKeyword("");
             }
           }}
-          placeholder="搜索白板标题、描述或标签"
-          aria-label="搜索白板"
+          placeholder={t("select.search")}
+          aria-label={t("select.searchLabel")}
           wrapperClassName="flex-1"
         />
         {!loading && candidates.length > 0 && (
           <span className="text-tau-meta text-ink-3 shrink-0 tabular-nums">
             {keyword.trim()
-              ? `${visible.length} / ${candidates.length}`
-              : `共 ${candidates.length}`}{" "}
-            个白板
+              ? t("list.found", { visible: visible.length, count: candidates.length })
+              : t("list.total", { count: candidates.length })}
           </span>
         )}
       </div>
@@ -214,11 +213,11 @@ const SelectWhiteboardModal = (props: ISelectWhiteboardModalProps) => {
               <Presentation className="size-6" strokeWidth={1.5} />
             </span>
             <p className="text-ink-1 text-[15px] font-semibold">
-              {keyword.trim() ? "没有匹配的白板" : "没有可选择的白板"}
+              {t(keyword.trim() ? "list.noMatch" : "select.unavailable")}
             </p>
             {keyword.trim() && (
               <Button variant="secondary" size="sm" className="mt-2" onClick={() => setKeyword("")}>
-                清除搜索
+                {t("select.clear")}
               </Button>
             )}
           </div>
@@ -264,6 +263,7 @@ function BoardOption({
   disabled: boolean;
   onClick(): void;
 }) {
+  const { t, locale } = useWhiteboardI18n();
   const [failedCover, setFailedCover] = useState(false);
   const cover = item.snapshot && !failedCover ? item.snapshot : "";
   const firstPage = item.pages[0];
@@ -306,13 +306,13 @@ function BoardOption({
         ) : (
           <div className="text-ink-3 absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-[12px]">
             <Presentation className="size-5" strokeWidth={1.5} />
-            <span>空白画布</span>
+            <span>{t("blank")}</span>
           </div>
         )}
         {item.pages.length > 1 && (
           <span className="text-tau-tiny text-ink-2 bg-surface/90 absolute right-2 bottom-2 inline-flex h-5 items-center gap-1 rounded-[6px] px-[7px] tabular-nums">
             <Files className="size-[11px]" strokeWidth={1.75} />
-            {item.pages.length} 页
+            {t("pages", { count: item.pages.length })}
           </span>
         )}
         {(multiple || selected) && (
@@ -330,14 +330,14 @@ function BoardOption({
       </div>
       <div className="flex w-full min-w-0 flex-col px-1.5 pt-2 pb-1">
         <span className="text-ink-1 truncate text-[13px] leading-[1.45] font-semibold">
-          {displayTitle(item)}
+          {displayTitle(item, t)}
         </span>
         <span
           className="text-ink-3 mt-0.5 truncate text-[12px] tabular-nums"
-          title={fullTime(item.updateTime)}
+          title={fullTime(item.updateTime, locale)}
         >
           {item.tags.length > 0 && `#${item.tags[0]} · `}
-          {relativeTime(item.updateTime, now)}更新
+          {t("time.updated", { time: relativeTime(item.updateTime, now, locale, t) })}
         </span>
       </div>
     </button>

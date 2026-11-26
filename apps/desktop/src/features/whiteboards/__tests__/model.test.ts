@@ -7,7 +7,6 @@ import {
   openTarget,
   parseScope,
   rankTags,
-  relativeTime,
   scopeId,
   sortItems,
   titleHit,
@@ -135,19 +134,6 @@ describe("openTarget", () => {
     expect(openTarget(item)).toBe(12);
     expect(openTarget({ ...item, activePageId: 99 })).toBe(11);
     expect(openTarget({ ...item, pages: [] })).toBeNull();
-  });
-});
-
-describe("relativeTime", () => {
-  const now = new Date(2026, 8, 25, 15, 20).getTime();
-  it("分档", () => {
-    expect(relativeTime(now - 10_000, now)).toBe("刚刚");
-    expect(relativeTime(now - 5 * 60_000, now)).toBe("5 分钟前");
-    expect(relativeTime(now - 3 * 3_600_000, now)).toBe("3 小时前");
-    expect(relativeTime(now - 30 * 3_600_000, now)).toBe("昨天");
-    expect(relativeTime(now - 4 * 86_400_000, now)).toBe("4 天前");
-    expect(relativeTime(new Date(2026, 7, 26).getTime(), now)).toBe("8月26日");
-    expect(relativeTime(new Date(2025, 0, 2).getTime(), now)).toBe("2025年1月2日");
   });
 });
 
