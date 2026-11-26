@@ -1,0 +1,4 @@
+{
+  "upload.failed": "圖片未能上傳：{{reason}}",
+  "upload.settings": "前往設定"
+}

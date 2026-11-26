@@ -1,6 +1,13 @@
 // 引用内容选择器：空词列最近内容，有词按同一类型范围搜索，插件候选须声明可引用。
 // 从选中文字进入时顶部提示这段文字会变成引用；「更换」进入时提示正在改哪个引用。
 
+import {
+  mobileEditorTranslator,
+  useMobileEditorI18n,
+  EditorText,
+  editorTime,
+} from "../editorToolbar/i18n";
+import { getContentLinkDisplayMeta } from "./contentLinkDisplay";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { keepPreviousData, useInfiniteQuery } from "@tanstack/react-query";
 import { useDebounce } from "ahooks";
@@ -19,13 +26,14 @@ import {
 } from "../../../services/pluginEntities";
 import { EntityKindIcon } from "../../context/EntityKindIcon";
 import { toast } from "../../../components/toast";
-import { formatTimeDisplay } from "../../../utils/formatTime";
 import {
   CONTENT_LINK_SEARCH_TYPES,
   getContentLinkKindMeta,
   type ContentLinkPickerIntent,
   type ContentLinkTarget,
 } from "./contentLinkModel";
+
+const t = mobileEditorTranslator.t;
 
 const PAGE_SIZE = 20;
 const STALE_MS = 10_000;
@@ -56,8 +64,13 @@ export function mapSearchResultToContentLinkResult(
   };
 }
 
-function optionMeta(contentType: string, updateTime: number, container?: string | null): string {
-  return [getContentLinkKindMeta(contentType).label, container, formatTimeDisplay(updateTime)]
+function optionMeta(
+  contentType: string,
+  updateTime: number,
+  locale: string,
+  container?: string | null
+): string {
+  return [getContentLinkDisplayMeta(contentType).label, container, editorTime(updateTime, locale)]
     .filter(Boolean)
     .join(" · ");
 }
@@ -83,9 +96,14 @@ function IntentHint({ intent }: { intent: ContentLinkPickerIntent }) {
     <p className="bg-page text-ink-2 text-tau-sm mx-4 mb-2 flex items-center gap-1.5 rounded-xl px-3 py-2.5">
       <FileSymlink size={15} className="text-accent-text shrink-0" aria-hidden />
       <span className="min-w-0 truncate">
-        {intent.mode === "replace" ? "更换" : "把"}
-        <b className="text-ink-1 font-semibold">「{intent.text}」</b>
-        {intent.mode === "replace" ? "引用的内容" : "链接到…"}
+        {t(intent.mode === "replace" ? "link.replaceHint" : "link.insertHint", { text: "\uFFFC" })
+          .split("\uFFFC")
+          .map((part, index) => (
+            <span key={index}>
+              {index > 0 && <b className="text-ink-1 font-semibold">{intent.text}</b>}
+              {part}
+            </span>
+          ))}
       </span>
     </p>
   );
@@ -99,6 +117,7 @@ type ContentLinkPickerSheetProps = {
 };
 
 export function ContentLinkPickerSheet(props: ContentLinkPickerSheetProps) {
+  const { locale } = useMobileEditorI18n();
   const { open, intent = { mode: "insert", text: "" }, onClose, onSelect } = props;
 
   const [panelState, setPanelState] = useState<"normal" | "full">("normal");
@@ -160,7 +179,7 @@ export function ContentLinkPickerSheet(props: ContentLinkPickerSheetProps) {
               result,
               meta: [
                 item.pluginEntity?.label,
-                optionMeta(item.type, item.updateTime, item.containerTitle),
+                optionMeta(item.type, item.updateTime, locale, item.containerTitle),
               ]
                 .filter(Boolean)
                 .join(" · "),
@@ -169,7 +188,7 @@ export function ContentLinkPickerSheet(props: ContentLinkPickerSheetProps) {
         : [];
     });
     return [...new Map(linked.map(item => [item.key, item])).values()];
-  }, [search.data]);
+  }, [search.data, locale]);
 
   const loading = search.isPending || search.isPlaceholderData;
   const error = search.isError;
@@ -198,7 +217,7 @@ export function ContentLinkPickerSheet(props: ContentLinkPickerSheetProps) {
             kind => kind.pluginId === metadata.pluginId && kind.kind === metadata.entityKind
           )
         ) {
-          throw new Error("插件内容已变化或当前不可引用，请重新选择");
+          throw new Error(t("link.referenceChanged"));
         }
       }
       if (
@@ -215,7 +234,7 @@ export function ContentLinkPickerSheet(props: ContentLinkPickerSheetProps) {
       )
         toast({
           type: "warning",
-          text: error instanceof Error ? error.message : "引用内容读取失败",
+          text: error instanceof Error ? error.message : t("link.referenceReadFailed"),
         });
     } finally {
       setSelecting(false);
@@ -232,11 +251,7 @@ export function ContentLinkPickerSheet(props: ContentLinkPickerSheetProps) {
         <>
           <SearchX size={30} className="text-ink-3 mx-auto" aria-hidden="true" />
           <p className="text-ink-3 text-tau-meta mt-3">
-            {error
-              ? "内容读取失败，请稍后重试"
-              : keyword
-                ? "未找到相关内容"
-                : "暂无最近内容，输入关键词搜索文章或项目文档"}
+            {error ? t("link.loadFailed") : keyword ? t("link.noResults") : t("link.noRecent")}
           </p>
         </>
       );
@@ -266,11 +281,11 @@ export function ContentLinkPickerSheet(props: ContentLinkPickerSheetProps) {
               inputRef={inputRef}
               value={query}
               onValueChange={setQuery}
-              placeholder="搜索卡片、文章、项目文档或插件内容"
+              placeholder={t("link.search")}
               className="flex-1"
             />
             <button type="button" onClick={onClose} className="text-ink-2 text-tau-body shrink-0">
-              取消
+              <EditorText message="common.cancel" />
             </button>
           </div>
         </header>
@@ -278,7 +293,9 @@ export function ContentLinkPickerSheet(props: ContentLinkPickerSheetProps) {
 
         <SnapSheet.Scroll ref={scrollRef} className="px-3 pt-1">
           {!keyword && options.length > 0 ? (
-            <p className="text-ink-3 text-tau-micro px-2 pt-1.5 pb-1 font-bold">最近可引用内容</p>
+            <p className="text-ink-3 text-tau-micro px-2 pt-1.5 pb-1 font-bold">
+              <EditorText message="link.recent" />
+            </p>
           ) : null}
           {options.length > 0 ? (
             <ul className={cn("transition-opacity", typing && "opacity-60")}>
@@ -323,10 +340,10 @@ export function ContentLinkPickerSheet(props: ContentLinkPickerSheetProps) {
               className="text-accent-text w-full rounded-xl py-3 text-sm disabled:opacity-50"
             >
               {search.isFetchingNextPage
-                ? "加载中…"
+                ? t("common.loading")
                 : search.isFetchNextPageError
-                  ? "加载失败，点按重试"
-                  : "加载更多"}
+                  ? t("common.loadFailed")
+                  : t("common.more")}
             </button>
           )}
         </SnapSheet.Scroll>

@@ -1,3 +1,4 @@
+import { mobileEditorTranslator } from "./i18n";
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import type { EditorRef } from "@tau/editor";
 import {
@@ -17,6 +18,8 @@ import {
   type TtsInsertTarget,
 } from "../tts/ttsInsertTarget";
 import { getEditorFromRef } from "./useToolbarSelectionState";
+
+const t = mobileEditorTranslator.t;
 
 type TtsActionsOptions = {
   editorRef: RefObject<EditorRef | null>;
@@ -45,7 +48,7 @@ export function useTtsActions({
     (editor: SlateEditor, intent: TtsInsertIntent) => {
       const target = captureTtsInsertTarget(editor, intent);
       if (!target) {
-        toast.warning("当前位置无法插入音频，请把光标放到正文空行后重试");
+        toast.warning(t("record.insertUnsupported"));
         return;
       }
       ttsTargetRef.current?.dispose();
@@ -95,8 +98,13 @@ export function useTtsActions({
       markSelectionDirty();
       toast({
         type: "success",
-        text: kind === "replace" ? "已替换音频" : "已插入音频",
-        action: { label: "撤销", onClick: () => undoRef.current() },
+        text: t(kind === "replace" ? "record.replaced" : "record.inserted"),
+        action: {
+          get label() {
+            return t("common.undo");
+          },
+          onClick: () => undoRef.current(),
+        },
       });
     },
     [closeTts, editorRef, markSelectionDirty]

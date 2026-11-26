@@ -1,3 +1,4 @@
+import { useEditorI18n, EditorText } from "../../../../i18n";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowUpRight, Check, Copy, Link2, Link2Off, Pencil } from "lucide-react";
 import { cn } from "@tau/ui";
@@ -5,7 +6,6 @@ import { EditorTooltip } from "@tau/editor/api";
 import { isInvalidLinkUrl, splitLinkUrl } from "../url";
 
 const MOD = typeof navigator !== "undefined" && /Mac|iP/.test(navigator.platform) ? "⌘" : "Ctrl+";
-const INVALID_HINT = "看起来不是有效地址";
 const COPIED_DURATION = 1200;
 
 const Kbd = ({ children }: { children: ReactNode }) => (
@@ -63,6 +63,7 @@ interface LinkViewProps {
 
 /** 查看态：域名加粗、路径弱化，复制反馈在地址原位显示。 */
 export const LinkView = ({ url, onOpen, onCopy, onEdit, onUnlink }: LinkViewProps) => {
+  const { t } = useEditorI18n();
   const { host, rest } = splitLinkUrl(url);
   const isWeb = /^https?:/i.test(url);
   const [copied, setCopied] = useState(false);
@@ -85,7 +86,7 @@ export const LinkView = ({ url, onOpen, onCopy, onEdit, onUnlink }: LinkViewProp
             copied && "-translate-y-1 opacity-0"
           )}
         >
-          <span className="font-medium text-[var(--ed-text)]">{host || "未填写地址"}</span>
+          <span className="font-medium text-[var(--ed-text)]">{host || t("link.empty")}</span>
           <span className="text-[var(--ed-text-tertiary)]">{rest}</span>
         </span>
         <span
@@ -99,7 +100,7 @@ export const LinkView = ({ url, onOpen, onCopy, onEdit, onUnlink }: LinkViewProp
           {copied && (
             <>
               <Check size={13} strokeWidth={2} />
-              已复制
+              <EditorText message="link.copied" />
             </>
           )}
         </span>
@@ -107,20 +108,20 @@ export const LinkView = ({ url, onOpen, onCopy, onEdit, onUnlink }: LinkViewProp
       <span aria-hidden className="mx-0.5 h-4 w-px shrink-0 bg-[var(--ed-border)]" />
       <PanelButton
         icon={ArrowUpRight}
-        label="打开"
-        keys={`${MOD}点击`}
+        label={t("link.open")}
+        keys={t("link.openKeys", { modifier: MOD })}
         url={url}
         onClick={onOpen}
       />
       <PanelButton
         icon={Copy}
-        label="复制链接"
+        label={t("link.copy")}
         onClick={() => {
           onCopy().then(ok => ok && setCopied(true));
         }}
       />
-      <PanelButton icon={Pencil} label="编辑" keys={`${MOD}L`} onClick={onEdit} />
-      <PanelButton icon={Link2Off} label="取消链接" danger onClick={onUnlink} />
+      <PanelButton icon={Pencil} label={t("link.edit")} keys={`${MOD}L`} onClick={onEdit} />
+      <PanelButton icon={Link2Off} label={t("link.unlink")} danger onClick={onUnlink} />
     </div>
   );
 };
@@ -157,7 +158,11 @@ const formKeyHandler = (onSubmit: () => void, onCancel: () => void) => (e: React
 };
 
 const ErrorHint = ({ show }: { show: boolean }) =>
-  show ? <div className="px-1 text-[12px] text-[var(--ed-danger)]">{INVALID_HINT}</div> : null;
+  show ? (
+    <div className="px-1 text-[12px] text-[var(--ed-danger)]">
+      <EditorText message="link.invalid" />
+    </div>
+  ) : null;
 
 export interface LinkFormHandle {
   /** 点外面完成时取当前输入 */
@@ -175,6 +180,7 @@ interface LinkEditProps {
 }
 
 export const LinkEdit = ({ url, text, handleRef, onSubmit, onCancel, onUnlink }: LinkEditProps) => {
+  const { t } = useEditorI18n();
   const [draftUrl, setDraftUrl] = useState(url);
   const [draftText, setDraftText] = useState(text ?? "");
   const [invalid, setInvalid] = useState(false);
@@ -200,21 +206,21 @@ export const LinkEdit = ({ url, text, handleRef, onSubmit, onCancel, onUnlink }:
   return (
     <div className="flex w-[360px] flex-col gap-1.5 p-2" onKeyDown={onKeyDown}>
       {text !== undefined && (
-        <Field label="文字">
+        <Field label={t("link.text")}>
           <input
             className={inputClass}
             value={draftText}
-            placeholder="链接文字"
+            placeholder={t("link.textPlaceholder")}
             onChange={e => setDraftText(e.target.value)}
           />
         </Field>
       )}
-      <Field label="地址">
+      <Field label={t("link.address")}>
         <input
           ref={urlRef}
           className={inputClass}
           value={draftUrl}
-          placeholder="清空后完成即取消链接"
+          placeholder={t("link.clearHint")}
           spellCheck={false}
           onChange={e => {
             setDraftUrl(e.target.value);
@@ -230,11 +236,13 @@ export const LinkEdit = ({ url, text, handleRef, onSubmit, onCancel, onUnlink }:
           className="flex items-center gap-1.5 rounded-[6px] px-1.5 py-[3px] text-[12px] transition-colors hover:bg-[var(--ed-danger-soft)] hover:text-[var(--ed-danger)]"
         >
           <Link2Off size={13} strokeWidth={1.75} />
-          取消链接
+          <EditorText message="link.unlink" />
         </button>
         <span className="flex-1" />
-        <Kbd>↵</Kbd>完成
-        <Kbd>Esc</Kbd>还原
+        <Kbd>↵</Kbd>
+        <EditorText message="link.done" />
+        <Kbd>Esc</Kbd>
+        <EditorText message="link.revert" />
       </div>
     </div>
   );
@@ -247,6 +255,7 @@ interface LinkCreateProps {
 }
 
 export const LinkCreate = ({ handleRef, onSubmit, onCancel }: LinkCreateProps) => {
+  const { t } = useEditorI18n();
   const [draft, setDraft] = useState("");
   const [invalid, setInvalid] = useState(false);
   handleRef.current = { read: () => ({ url: draft }) };
@@ -268,7 +277,7 @@ export const LinkCreate = ({ handleRef, onSubmit, onCancel }: LinkCreateProps) =
           autoFocus
           className={inputClass}
           value={draft}
-          placeholder="粘贴或输入链接地址"
+          placeholder={t("link.urlPlaceholder")}
           spellCheck={false}
           onChange={e => {
             setDraft(e.target.value);
@@ -279,7 +288,7 @@ export const LinkCreate = ({ handleRef, onSubmit, onCancel }: LinkCreateProps) =
       </label>
       {invalid && (
         <div className="px-2.5 pb-1.5 pl-[34px] text-[12px] text-[var(--ed-danger)]">
-          {INVALID_HINT}
+          <EditorText message="link.invalid" />
         </div>
       )}
     </div>
@@ -288,13 +297,13 @@ export const LinkCreate = ({ handleRef, onSubmit, onCancel }: LinkCreateProps) =
 
 export const LinkNotice = ({ onUndo }: { onUndo: () => void }) => (
   <div className="flex items-center gap-2.5 py-[5px] pr-[5px] pl-3 text-[12.5px] whitespace-nowrap text-[var(--ed-text-secondary)]">
-    已取消链接
+    <EditorText message="link.unlinked" />
     <button
       type="button"
       onClick={onUndo}
       className="rounded-[6px] px-2.5 py-[3px] font-medium text-[var(--ed-accent-text)] transition-colors hover:bg-[var(--ed-accent-soft)]"
     >
-      撤销
+      <EditorText message="link.undo" />
     </button>
   </div>
 );

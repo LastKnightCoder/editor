@@ -1,3 +1,4 @@
+import { mobileEditorTranslator } from "./i18n";
 import { captureInsertionSubmission, createParagraph, notifierOf } from "@tau/editor/api";
 import { getMediaWidthControl, matchMediaWidthPreset } from "@tau/editor/extensions/media/runtime";
 import type { AudioElement, InlineImageElement } from "@tau/editor/extensions/media";
@@ -19,27 +20,74 @@ import { ReactEditor } from "slate-react";
 
 import type { MediaEditingContext } from "./editingContext";
 
+const t = mobileEditorTranslator.t;
+
 export type MediaAlign = "left" | "center" | "right";
 
 /** 图片 / 视频宽度三档（占编辑区可用宽度的比例），与桌面端吸附档位一致 */
 export const MEDIA_WIDTH_PRESETS: Array<{ ratio: number; label: string }> = [
-  { ratio: 0.5, label: "小 · 50%" },
-  { ratio: 0.75, label: "中 · 75%" },
-  { ratio: 1, label: "满宽" },
+  {
+    ratio: 0.5,
+    get label() {
+      return t("media.smallWidth");
+    },
+  },
+  {
+    ratio: 0.75,
+    get label() {
+      return t("media.mediumWidth");
+    },
+  },
+  {
+    ratio: 1,
+    get label() {
+      return t("media.fullWidth");
+    },
+  },
 ];
 
 /** 行内图片三档高度（em），宽度按原图比例 */
 export const INLINE_IMAGE_SIZES: Array<{ em: number; label: string }> = [
-  { em: 1.25, label: "小" },
-  { em: 2, label: "中" },
-  { em: 3, label: "大" },
+  {
+    em: 1.25,
+    get label() {
+      return t("media.small");
+    },
+  },
+  {
+    em: 2,
+    get label() {
+      return t("media.medium");
+    },
+  },
+  {
+    em: 3,
+    get label() {
+      return t("media.large");
+    },
+  },
 ];
 
 /** 网页视图三档高度（px），落在桌面端拖拽范围 200–800 内 */
 export const WEBVIEW_HEIGHTS: Array<{ height: number; label: string }> = [
-  { height: 240, label: "矮 · 240" },
-  { height: 400, label: "中 · 400" },
-  { height: 640, label: "高 · 640" },
+  {
+    height: 240,
+    get label() {
+      return t("media.lowHeight");
+    },
+  },
+  {
+    height: 400,
+    get label() {
+      return t("media.mediumHeight");
+    },
+  },
+  {
+    height: 640,
+    get label() {
+      return t("media.highHeight");
+    },
+  },
 ];
 
 const ALIGN_ORDER: MediaAlign[] = ["left", "center", "right"];
@@ -288,10 +336,14 @@ export async function editWebviewUrl(
   context: MediaEditingContext
 ): Promise<void> {
   const value = await notifierOf(editor).prompt({
-    title: "网页地址",
+    get title() {
+      return t("media.webAddress");
+    },
     placeholder: "https://example.com",
     defaultValue: fieldsOf(context.element).url ?? "",
-    confirmText: "保存",
+    get confirmText() {
+      return t("common.save");
+    },
     inputMode: "url",
   });
   const url = value ? normalizeWebviewUrl(value) : "";
@@ -313,9 +365,13 @@ export async function promptInsertWebview(editor: SlateEditor): Promise<void> {
     if (anchor.check()) return;
     const value = await notifierOf(editor).prompt({
       signal: anchor.signal,
-      title: "插入网页",
+      get title() {
+        return t("media.insertWeb");
+      },
       placeholder: "https://example.com",
-      confirmText: "插入",
+      get confirmText() {
+        return t("insert.title");
+      },
       inputMode: "url",
     });
     const url = value ? normalizeWebviewUrl(value) : "";
@@ -336,10 +392,16 @@ export async function renameAudio(
   context: MediaEditingContext
 ): Promise<void> {
   const value = await notifierOf(editor).prompt({
-    title: "重命名音频",
-    placeholder: "音频标题",
+    get title() {
+      return t("media.renameAudio");
+    },
+    get placeholder() {
+      return t("media.audioTitle");
+    },
     defaultValue: fieldsOf(context.element).title ?? "",
-    confirmText: "完成",
+    get confirmText() {
+      return t("common.done");
+    },
   });
   if (value == null) return;
   const path = currentPathOf(editor, context);

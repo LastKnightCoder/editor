@@ -1,3 +1,4 @@
+import { mobileEditorTranslator, useMobileEditorI18n, EditorText } from "./i18n";
 import { type ReactNode, type SyntheticEvent } from "react";
 import { AlignCenter, AlignLeft, AlignRight } from "lucide-react";
 import type { ImageAppearanceConfig } from "@tau/editor/extensions/media";
@@ -19,6 +20,8 @@ import {
 } from "./mediaActions";
 import type { MobileEditorToolbarController } from "./useMobileEditorToolbarController";
 
+const t = mobileEditorTranslator.t;
+
 type MediaPanelProps = {
   controller: MobileEditorToolbarController;
   context: MediaEditingContext;
@@ -30,17 +33,23 @@ const ICON_STROKE = 2.2;
 const ALIGN_OPTIONS: Array<{ align: MediaAlign; label: string; icon: ReactNode }> = [
   {
     align: "left",
-    label: "左对齐",
+    get label() {
+      return t("media.alignLeft");
+    },
     icon: <AlignLeft size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
   },
   {
     align: "center",
-    label: "居中",
+    get label() {
+      return t("media.alignCenter");
+    },
     icon: <AlignCenter size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
   },
   {
     align: "right",
-    label: "右对齐",
+    get label() {
+      return t("media.alignRight");
+    },
     icon: <AlignRight size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
   },
 ];
@@ -145,13 +154,16 @@ function SegmentButton(props: {
 
 /** 媒体尺寸面板：图片 / 视频为宽度三档 + 对齐（图片另有外观），网页视图为高度三档 */
 export function MediaPanel(props: MediaPanelProps) {
+  useMobileEditorI18n();
   const { controller, context } = props;
 
   if (context.mediaType === "webview") {
     const height = getWebviewHeight(context);
     return (
       <div className="px-3.5 pt-3" data-media-panel="webview">
-        <GroupTitle>高度</GroupTitle>
+        <GroupTitle>
+          <EditorText message="media.height" />
+        </GroupTitle>
         <div className="mb-3 flex gap-2">
           {WEBVIEW_HEIGHTS.map(option => (
             <PresetCard
@@ -187,7 +199,9 @@ export function MediaPanel(props: MediaPanelProps) {
 
   return (
     <div className="px-3.5 pt-3" data-media-panel={context.mediaType}>
-      <GroupTitle>宽度</GroupTitle>
+      <GroupTitle>
+        <EditorText message="media.width" />
+      </GroupTitle>
       <div className="mb-3 flex gap-2">
         {MEDIA_WIDTH_PRESETS.map(option => (
           <PresetCard
@@ -202,7 +216,9 @@ export function MediaPanel(props: MediaPanelProps) {
           </PresetCard>
         ))}
       </div>
-      <GroupTitle hint={fullWidth ? "满宽时不可用" : undefined}>对齐</GroupTitle>
+      <GroupTitle hint={fullWidth ? t("media.fullWidthHint") : undefined}>
+        <EditorText message="media.align" />
+      </GroupTitle>
       <SegmentGroup disabled={fullWidth}>
         {ALIGN_OPTIONS.map(option => (
           <SegmentButton
@@ -220,10 +236,12 @@ export function MediaPanel(props: MediaPanelProps) {
       </SegmentGroup>
       {appearance ? (
         <>
-          <GroupTitle>外观</GroupTitle>
+          <GroupTitle>
+            <EditorText message="media.appearance" />
+          </GroupTitle>
           <SegmentGroup>
             <SegmentButton
-              label="圆角"
+              label={t("media.radius")}
               active={appearance.rounded}
               onPress={() =>
                 controller.runMediaEdit(editor =>
@@ -233,10 +251,10 @@ export function MediaPanel(props: MediaPanelProps) {
                 )
               }
             >
-              圆角
+              <EditorText message="media.radius" />
             </SegmentButton>
             <SegmentButton
-              label="阴影"
+              label={t("media.shadow")}
               active={appearance.shadow}
               onPress={() =>
                 controller.runMediaEdit(editor =>
@@ -244,16 +262,16 @@ export function MediaPanel(props: MediaPanelProps) {
                 )
               }
             >
-              阴影
+              <EditorText message="media.shadow" />
             </SegmentButton>
             <SegmentButton
-              label="跟随设置"
+              label={t("media.inherit")}
               active={appearance.followsDefault}
               onPress={() =>
                 controller.runMediaEdit(editor => setImageAppearance(editor, context, "default"))
               }
             >
-              跟随设置
+              <EditorText message="media.inherit" />
             </SegmentButton>
           </SegmentGroup>
         </>

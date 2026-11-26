@@ -1,3 +1,4 @@
+import { mobileLocaleSource } from "../../../services/i18n";
 import { describe, expect, it } from "vitest";
 import type { UnifiedSearchResult } from "../../../types";
 import { mapSearchResultToContentLinkResult } from "../editorExtensions/ContentLinkPickerSheet";
@@ -98,5 +99,18 @@ describe("contentLink picker mapping", () => {
         containerTitle: null,
       })
     ).toBeNull();
+  });
+  it("界面语言不改变写入引用节点的兜底标题与来源身份", () => {
+    const originalLocale = mobileLocaleSource.getSnapshot();
+    const item = createCardItem({ excerpt: "", title: "" });
+    const initial = mapSearchResultToContentLinkResult(item);
+    try {
+      for (const locale of ["zh-TW", "en-US"]) {
+        mobileLocaleSource.setLocale(locale);
+        expect(mapSearchResultToContentLinkResult(item)).toEqual(initial);
+      }
+    } finally {
+      mobileLocaleSource.setLocale(originalLocale);
+    }
   });
 });

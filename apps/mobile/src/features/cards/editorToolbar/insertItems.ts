@@ -1,3 +1,4 @@
+import { mobileEditorTranslator, editorAliases, type MobileEditorMessageKey } from "./i18n";
 import {
   Camera,
   ChevronDown,
@@ -48,18 +49,50 @@ export type InsertGroup = {
 };
 
 export const INSERT_GROUPS: InsertGroup[] = [
-  { key: "basic", title: "基础", tone: 1 },
-  { key: "media", title: "媒体", tone: 2 },
-  { key: "advanced", title: "高级", tone: 4 },
-  { key: "inline", title: "行内", tone: 5 },
-  { key: "plugin", title: "插件", tone: 3 },
+  {
+    key: "basic",
+    get title() {
+      return mobileEditorTranslator.t("insert.basic");
+    },
+    tone: 1,
+  },
+  {
+    key: "media",
+    get title() {
+      return mobileEditorTranslator.t("media.title");
+    },
+    tone: 2,
+  },
+  {
+    key: "advanced",
+    get title() {
+      return mobileEditorTranslator.t("insert.advanced");
+    },
+    tone: 4,
+  },
+  {
+    key: "inline",
+    get title() {
+      return mobileEditorTranslator.t("insert.inline");
+    },
+    tone: 5,
+  },
+  {
+    key: "plugin",
+    get title() {
+      return mobileEditorTranslator.t("insert.plugin");
+    },
+    tone: 3,
+  },
 ];
 
 // 需要展开选区的行内包裹（批注 / 样式文本 / 快捷键）不放插入面板：「+」只在折叠选区时可见，入口在格式模式与 Aa 面板
 export const INSERT_ITEMS: InsertItem[] = [
   {
     kind: "check-list",
-    label: "待办",
+    get label() {
+      return mobileEditorTranslator.t("block.todo");
+    },
     keywords: ["任务列表", "daiban", "db", "renwuliebiao", "rwlb", "todo", "task", "checklist"],
     group: "basic",
     icon: SquareCheck,
@@ -67,7 +100,9 @@ export const INSERT_ITEMS: InsertItem[] = [
   },
   {
     kind: "callout",
-    label: "提示块",
+    get label() {
+      return mobileEditorTranslator.t("block.callout");
+    },
     keywords: ["提示", "tishikuai", "tsk", "callout", "info", "tip"],
     group: "basic",
     icon: Info,
@@ -75,7 +110,9 @@ export const INSERT_ITEMS: InsertItem[] = [
   },
   {
     kind: "divider",
-    label: "分割线",
+    get label() {
+      return mobileEditorTranslator.t("block.divider");
+    },
     keywords: ["分隔线", "fengexian", "fgx", "divider", "hr", "line"],
     group: "basic",
     icon: Minus,
@@ -83,7 +120,9 @@ export const INSERT_ITEMS: InsertItem[] = [
   },
   {
     kind: "details",
-    label: "折叠块",
+    get label() {
+      return mobileEditorTranslator.t("block.details");
+    },
     keywords: ["折叠", "zhediekuai", "zdk", "details", "toggle", "collapse"],
     group: "basic",
     icon: ChevronDown,
@@ -91,7 +130,9 @@ export const INSERT_ITEMS: InsertItem[] = [
   },
   {
     kind: "highlight-block",
-    label: "高亮块",
+    get label() {
+      return mobileEditorTranslator.t("block.highlight");
+    },
     keywords: ["gaoliangkuai", "glk", "highlight"],
     group: "basic",
     icon: Highlighter,
@@ -99,7 +140,9 @@ export const INSERT_ITEMS: InsertItem[] = [
   },
   {
     kind: "tabs",
-    label: "标签页",
+    get label() {
+      return mobileEditorTranslator.t("block.tabs");
+    },
     keywords: ["biaoqianye", "bqy", "tabs"],
     group: "basic",
     icon: PanelsTopLeft,
@@ -107,7 +150,9 @@ export const INSERT_ITEMS: InsertItem[] = [
   },
   {
     kind: "image",
-    label: "照片",
+    get label() {
+      return mobileEditorTranslator.t("media.photo");
+    },
     keywords: ["相册", "图片", "zhaopian", "zp", "xiangce", "tupian", "tp", "photo", "image"],
     group: "media",
     icon: ImageIcon,
@@ -115,7 +160,9 @@ export const INSERT_ITEMS: InsertItem[] = [
   },
   {
     kind: "camera",
-    label: "拍照",
+    get label() {
+      return mobileEditorTranslator.t("media.camera");
+    },
     keywords: ["相机", "paizhao", "pz", "xiangji", "camera"],
     group: "media",
     icon: Camera,
@@ -123,7 +170,9 @@ export const INSERT_ITEMS: InsertItem[] = [
   },
   {
     kind: "video",
-    label: "视频",
+    get label() {
+      return mobileEditorTranslator.t("media.video");
+    },
     keywords: ["shipin", "sp", "video"],
     group: "media",
     icon: Video,
@@ -131,7 +180,9 @@ export const INSERT_ITEMS: InsertItem[] = [
   },
   {
     kind: "record",
-    label: "录音",
+    get label() {
+      return mobileEditorTranslator.t("media.record");
+    },
     keywords: ["录制", "录音笔", "luyin", "ly", "luzhi", "record", "recording", "voice memo"],
     group: "media",
     icon: CircleDot,
@@ -139,7 +190,9 @@ export const INSERT_ITEMS: InsertItem[] = [
   },
   {
     kind: "audio",
-    label: "音频文件",
+    get label() {
+      return mobileEditorTranslator.t("media.audioFile");
+    },
     keywords: ["音频", "yinpin", "yp", "yinpinwenjian", "audio", "file"],
     group: "media",
     icon: FileAudio,
@@ -147,7 +200,9 @@ export const INSERT_ITEMS: InsertItem[] = [
   },
   {
     kind: "tts",
-    label: "文字转语音",
+    get label() {
+      return mobileEditorTranslator.t("media.tts");
+    },
     keywords: [
       "朗读",
       "配音",
@@ -165,7 +220,9 @@ export const INSERT_ITEMS: InsertItem[] = [
   },
   {
     kind: "image-url",
-    label: "网络图片",
+    get label() {
+      return mobileEditorTranslator.t("media.imageUrl");
+    },
     keywords: ["wangluotupian", "wltp", "url", "image", "link"],
     group: "media",
     icon: Link2,
@@ -173,7 +230,9 @@ export const INSERT_ITEMS: InsertItem[] = [
   },
   {
     kind: "video-url",
-    label: "网络视频",
+    get label() {
+      return mobileEditorTranslator.t("media.videoUrl");
+    },
     keywords: ["wangluoshipin", "wlsp", "url", "video", "link"],
     group: "media",
     icon: Link2,
@@ -181,7 +240,9 @@ export const INSERT_ITEMS: InsertItem[] = [
   },
   {
     kind: "audio-url",
-    label: "网络音频",
+    get label() {
+      return mobileEditorTranslator.t("media.audioUrl");
+    },
     keywords: ["wangluoyinpin", "wlyp", "url", "audio", "link"],
     group: "media",
     icon: Link2,
@@ -189,7 +250,9 @@ export const INSERT_ITEMS: InsertItem[] = [
   },
   {
     kind: "table",
-    label: "表格",
+    get label() {
+      return mobileEditorTranslator.t("table.title");
+    },
     keywords: ["biaoge", "bg", "table"],
     group: "advanced",
     icon: TableIcon,
@@ -197,7 +260,9 @@ export const INSERT_ITEMS: InsertItem[] = [
   },
   {
     kind: "code-block",
-    label: "代码块",
+    get label() {
+      return mobileEditorTranslator.t("block.code");
+    },
     keywords: ["代码", "daimakuai", "dmk", "code"],
     group: "advanced",
     icon: SquareCode,
@@ -205,7 +270,9 @@ export const INSERT_ITEMS: InsertItem[] = [
   },
   {
     kind: "math",
-    label: "公式",
+    get label() {
+      return mobileEditorTranslator.t("block.math");
+    },
     keywords: ["数学", "gongshi", "gs", "math", "latex", "tex"],
     group: "advanced",
     icon: Sigma,
@@ -213,7 +280,9 @@ export const INSERT_ITEMS: InsertItem[] = [
   },
   {
     kind: "mermaid",
-    label: "流程图",
+    get label() {
+      return mobileEditorTranslator.t("block.mermaid");
+    },
     keywords: ["图表", "liuchengtu", "lct", "mermaid", "diagram", "flowchart"],
     group: "advanced",
     icon: Workflow,
@@ -221,7 +290,9 @@ export const INSERT_ITEMS: InsertItem[] = [
   },
   {
     kind: "webview",
-    label: "网页",
+    get label() {
+      return mobileEditorTranslator.t("block.web");
+    },
     keywords: ["网页视图", "网站", "wangye", "wy", "wangzhan", "webview", "web", "iframe"],
     group: "advanced",
     icon: Globe,
@@ -229,7 +300,9 @@ export const INSERT_ITEMS: InsertItem[] = [
   },
   {
     kind: "annotation",
-    label: "注解",
+    get label() {
+      return mobileEditorTranslator.t("block.annotation");
+    },
     keywords: ["注释", "zhujie", "zj", "zhushi", "annotation", "note"],
     group: "inline",
     icon: Superscript,
@@ -237,7 +310,9 @@ export const INSERT_ITEMS: InsertItem[] = [
   },
   {
     kind: "content-link",
-    label: "引用内容",
+    get label() {
+      return mobileEditorTranslator.t("link.content");
+    },
     keywords: [
       "关联内容",
       "关联卡片",
@@ -316,4 +391,33 @@ export function pushRecentInsertKind(kind: InsertSheetItemKind): InsertSheetItem
     // 存储不可用时只影响最近使用的持久化
   }
   return next;
+}
+
+const INSERT_LABEL_KEYS: Partial<Record<InsertSheetItemKind, MobileEditorMessageKey>> = {
+  "check-list": "block.todo",
+  callout: "block.callout",
+  divider: "block.divider",
+  details: "block.details",
+  "highlight-block": "block.highlight",
+  tabs: "block.tabs",
+  image: "media.photo",
+  camera: "media.camera",
+  video: "media.video",
+  record: "media.record",
+  audio: "media.audioFile",
+  tts: "media.tts",
+  "image-url": "media.imageUrl",
+  "video-url": "media.videoUrl",
+  "audio-url": "media.audioUrl",
+  table: "table.title",
+  "code-block": "block.code",
+  math: "block.math",
+  mermaid: "block.mermaid",
+  webview: "block.web",
+  annotation: "block.annotation",
+  "content-link": "link.content",
+};
+for (const item of INSERT_ITEMS) {
+  const key = INSERT_LABEL_KEYS[item.kind];
+  if (key) item.keywords.push(...editorAliases(key));
 }

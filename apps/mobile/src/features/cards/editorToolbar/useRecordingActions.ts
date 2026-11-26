@@ -1,3 +1,4 @@
+import { mobileEditorTranslator } from "./i18n";
 import { useCallback, useRef, useState, type RefObject } from "react";
 import type { EditorRef } from "@tau/editor";
 import { Editor as SlateEditor, Element as SlateElement, type Path } from "slate";
@@ -6,6 +7,8 @@ import { toast } from "../../../components/toast";
 import { startEditorRecording } from "../recording/recordingSession";
 import { getEditorFromRef } from "./useToolbarSelectionState";
 import type { EditorRecordingHost } from "./useMobileEditorToolbarController";
+
+const t = mobileEditorTranslator.t;
 
 type RecordingActionsOptions = {
   editorRef: RefObject<EditorRef | null>;
@@ -24,7 +27,7 @@ export function useRecordingActions({ editorRef, recordingHost }: RecordingActio
       const host = recordingHostRef.current;
       const document = host?.document();
       if (!host || !document) {
-        toast.warning("这里暂不支持录音");
+        toast.warning(t("record.unsupported"));
         return;
       }
       try {
@@ -37,7 +40,7 @@ export function useRecordingActions({ editorRef, recordingHost }: RecordingActio
           onPermissionDenied: () => setRecordingPermissionDenied(true),
         });
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "当前正文不可录音");
+        toast.error(error instanceof Error ? error.message : t("record.readonly"));
       }
     },
     []

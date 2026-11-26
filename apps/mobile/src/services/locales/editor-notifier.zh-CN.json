@@ -1,0 +1,4 @@
+{
+  "upload.failed": "图片没传上去：{{reason}}",
+  "upload.settings": "去设置"
+}

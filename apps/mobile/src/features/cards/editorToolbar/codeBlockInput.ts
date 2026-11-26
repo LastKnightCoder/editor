@@ -1,3 +1,4 @@
+import { mobileEditorTranslator } from "./i18n";
 import { getCodeBlockController } from "@tau/editor/extensions/code-block/runtime";
 import { CODE_BLOCK_LANGUAGE_OPTIONS, normalizeCodeBlockLanguageDisplayName } from "@tau/shared";
 import { Element as SlateElement, Node as SlateNode, type Editor as SlateEditor } from "slate";
@@ -75,7 +76,7 @@ const PLAIN_TEXT_LANGUAGE = "Plain Text";
 /** 语言标签文字：空或纯文本显示「纯文本」 */
 export function getCodeLanguageLabel(language: unknown): string {
   const name = normalizeCodeBlockLanguageDisplayName(language);
-  return !name || name === PLAIN_TEXT_LANGUAGE ? "纯文本" : name;
+  return !name || name === PLAIN_TEXT_LANGUAGE ? mobileEditorTranslator.t("code.plainText") : name;
 }
 
 const COMMON_LANGUAGE_VALUES = [
@@ -96,7 +97,9 @@ const COMMON_LANGUAGE_VALUES = [
 export type CodeLanguageOption = { label: string; value: string };
 
 const toLanguageOption = (value: string): CodeLanguageOption => ({
-  label: value === PLAIN_TEXT_LANGUAGE ? "纯文本" : value,
+  get label() {
+    return value === PLAIN_TEXT_LANGUAGE ? mobileEditorTranslator.t("code.plainText") : value;
+  },
   value,
 });
 

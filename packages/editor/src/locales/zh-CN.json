@@ -1,0 +1,20 @@
+{
+  "link.invalid": "看起来不是有效地址",
+  "link.empty": "未填写地址",
+  "link.copied": "已复制",
+  "link.open": "打开",
+  "link.copy": "复制链接",
+  "link.edit": "编辑",
+  "link.unlink": "取消链接",
+  "link.text": "文字",
+  "link.textPlaceholder": "链接文字",
+  "link.address": "地址",
+  "link.clearHint": "清空后完成即取消链接",
+  "link.done": "完成",
+  "link.revert": "还原",
+  "link.urlPlaceholder": "粘贴或输入链接地址",
+  "link.unlinked": "已取消链接",
+  "link.undo": "撤销",
+  "link.copyFailed": "复制失败",
+  "link.openKeys": "{{modifier}}点击"
+}

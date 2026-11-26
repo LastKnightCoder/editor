@@ -1,6 +1,8 @@
 // 内容引用的底部预览面板：阅读态点引用、编辑态配件栏「预览」共用。
 // 头部是类型、标题与更新时间，中间只读预览正文（上拉全屏可读完），底部「打开」跳到对应详情页。
 
+import { mobileEditorTranslator, useMobileEditorI18n, editorTime } from "../editorToolbar/i18n";
+import { getContentLinkDisplayMeta } from "./contentLinkDisplay";
 import { useEffect, useState, type CSSProperties, type ComponentType, type ReactNode } from "react";
 import { ArrowUpRight, Lock, Unlink, type LucideIcon } from "lucide-react";
 import { cn } from "@tau/ui";
@@ -8,17 +10,17 @@ import type { EditorKit } from "@tau/editor";
 import { useThemeStore } from "@tau/themes/react";
 
 import { SnapSheet, type SnapSheetState } from "../../../components/SnapSheet";
-import { formatTimeDisplay } from "../../../utils/formatTime";
 import { EntityKindIcon } from "../../context/EntityKindIcon";
 import {
   canOpenContentLink,
-  getContentLinkKindMeta,
   openContentLink,
   useContentLinkDetail,
   useContentLinkEntity,
   useIsUnsharedContentLink,
   type ContentLinkTarget,
 } from "./contentLinkModel";
+
+const t = mobileEditorTranslator.t;
 
 type PreviewEditorProps = {
   initValue: unknown;
@@ -131,6 +133,7 @@ export function ContentLinkPreviewSheet(props: ContentLinkPreviewSheetProps) {
 }
 
 function PreviewSheet(props: ContentLinkPreviewSheetProps & { target: ContentLinkTarget }) {
+  const { locale } = useMobileEditorI18n();
   const { open, target, onClose } = props;
   const [panelState, setPanelState] = useState<SnapSheetState>("normal");
   const theme = useThemeStore(s => s.mode);
@@ -148,8 +151,8 @@ function PreviewSheet(props: ContentLinkPreviewSheetProps & { target: ContentLin
     if (!open) setPanelState("normal");
   }, [open]);
 
-  const kind = getContentLinkKindMeta(target.contentType);
-  const label = entity.data?.label || kind.label;
+  const kind = getContentLinkDisplayMeta(target.contentType);
+  const label = pluginEntity ? entity.data?.label || kind.label : kind.label;
   const title = entity.data?.title || target.contentTitle || label;
   const broken =
     !unshared && (contentId <= 0 || detail.data === null || (pluginEntity && entity.data === null));
@@ -169,28 +172,32 @@ function PreviewSheet(props: ContentLinkPreviewSheetProps & { target: ContentLin
   let header: ReactNode;
   if (unshared) {
     header = (
-      <Header
-        icon={Lock}
-        tone="bg-warn-soft text-warn"
-        title={title}
-        meta="内容未共享，只保存在创建者本机"
-      />
+      <Header icon={Lock} tone="bg-warn-soft text-warn" title={title} meta={t("link.localOnly")} />
     );
   } else if (broken) {
     header = (
       <Header
         icon={Unlink}
         tone="bg-hover text-ink-3"
-        title="引用已失效"
-        meta="引用的内容不存在或已被删除"
+        title={t("link.invalid")}
+        meta={t("link.deleted")}
       />
     );
   } else {
-    let meta = "正在载入…";
-    if (detail.isError || entity.isError) meta = "预览加载失败";
+    let meta = t("link.loading");
+    if (detail.isError || entity.isError) meta = t("link.previewFailed");
     else if (detail.data) {
-      const parts = [label, `更新于 ${formatTimeDisplay(detail.data.updateTime)}`];
-      if (detail.data.count > 0) parts.push(`约 ${detail.data.count} 字`);
+      const parts = [
+        label,
+        t("link.updated", { date: editorTime(detail.data.updateTime, locale) }),
+      ];
+      if (detail.data.count > 0)
+        parts.push(
+          t("link.words", {
+            count: detail.data.count,
+            amount: detail.data.count.toLocaleString(locale),
+          })
+        );
       meta = parts.join(" · ");
     }
     header = (
@@ -267,7 +274,7 @@ function PreviewSheet(props: ContentLinkPreviewSheetProps & { target: ContentLin
                   className="bg-accent text-ink-inverse text-tau-body flex h-[46px] w-full items-center justify-center gap-1.5 rounded-[14px] font-semibold transition-transform active:scale-[0.98]"
                 >
                   <ArrowUpRight size={18} strokeWidth={2.2} aria-hidden />
-                  打开{label}
+                  {t("link.open", { type: label })}
                 </button>
               </footer>
             ) : null}

@@ -1,3 +1,5 @@
+import { createI18nRuntime, createLocaleStore, type I18nRuntime } from "@tau/i18n";
+import { I18nRuntimeProvider } from "@tau/i18n/react";
 // 链接浮层：新建 / 编辑 / 点外面完成 / Esc 还原 / 取消后撤销，均在真实编辑器里走一遍
 import { act, createRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -27,17 +29,20 @@ afterEach(async () => {
   cleanup = null;
 });
 
-const mount = async (initValue: Descendant[], readonly = false) => {
+const mount = async (initValue: Descendant[], readonly = false, runtime?: I18nRuntime) => {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root: Root = createRoot(container);
   const ref = createRef<EditorRef>();
   const kit = createEditorKit({ extensions: [extension] });
   await act(async () => {
-    root.render(
+    const content = (
       <DndProvider backend={HTML5Backend}>
         <EditorComponent ref={ref} kit={kit} readonly={readonly} initValue={initValue} />
       </DndProvider>
+    );
+    root.render(
+      runtime ? <I18nRuntimeProvider runtime={runtime}>{content}</I18nRuntimeProvider> : content
     );
   });
   cleanup = async () => {
@@ -45,7 +50,12 @@ const mount = async (initValue: Descendant[], readonly = false) => {
     container.remove();
   };
   const editor = ref.current!.getEditor();
-  return { container, editor, controller: linkPanelOf(editor) };
+  return {
+    container,
+    editor,
+    controller: linkPanelOf(editor),
+    getCurrentEditor: () => ref.current?.getEditor(),
+  };
 };
 
 const links = (editor: Editor) =>
@@ -186,4 +196,36 @@ describe("链接浮层", () => {
     await act(async () => controller.openEdit(links(editor)[0]));
     expect(panelInputs()).toHaveLength(0);
   });
+});
+
+it("切换语言保留链接输入和编辑器身份，回车前不修改正文", async () => {
+  const source = createLocaleStore("zh-CN");
+  const runtime = createI18nRuntime({ localeSource: source });
+  const { editor, controller, getCurrentEditor } = await mount(
+    [paragraph(link("https://original.example", text("原始文字")))],
+    false,
+    runtime
+  );
+  const before = JSON.stringify(editor.children);
+  await act(async () => controller.openEdit(links(editor)[0]));
+  const field = panelInputs().find(input => input.value === "https://original.example");
+  if (!field) throw new Error("链接输入未挂载");
+  await type(field, "https://draft.example/path");
+  field.setSelectionRange(3, 8);
+  try {
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => source.setLocale(locale));
+      expect(panelInputs().find(input => input.value === "https://draft.example/path")).toBe(field);
+      expect([field.selectionStart, field.selectionEnd]).toEqual([3, 8]);
+      expect(JSON.stringify(editor.children)).toBe(before);
+      expect(getCurrentEditor()).toBe(editor);
+    }
+    await press(field, "Enter");
+    expect(links(editor)[0].url).toBe("https://draft.example/path");
+    expect(Node.string(editor)).toBe("原始文字");
+  } finally {
+    await cleanup?.();
+    cleanup = null;
+    runtime.dispose();
+  }
 });

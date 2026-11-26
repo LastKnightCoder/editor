@@ -1,0 +1,20 @@
+{
+  "link.invalid": "This does not look like a valid address",
+  "link.empty": "No address",
+  "link.copied": "Copied",
+  "link.open": "Open",
+  "link.copy": "Copy link",
+  "link.edit": "Edit",
+  "link.unlink": "Unlink",
+  "link.text": "Text",
+  "link.textPlaceholder": "Link text",
+  "link.address": "Address",
+  "link.clearHint": "Clear the address and finish to unlink",
+  "link.done": "Done",
+  "link.revert": "Revert",
+  "link.urlPlaceholder": "Paste or enter a URL",
+  "link.unlinked": "Link removed",
+  "link.undo": "Undo",
+  "link.copyFailed": "Could not copy",
+  "link.openKeys": "{{modifier}}click"
+}

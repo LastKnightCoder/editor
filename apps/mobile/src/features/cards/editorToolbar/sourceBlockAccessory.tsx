@@ -1,3 +1,4 @@
+import { mobileEditorTranslator, useMobileEditorI18n } from "./i18n";
 import { useRef, useState, type ReactNode } from "react";
 import { Copy, Ellipsis, Keyboard, Layers, SquarePen, Trash2 } from "lucide-react";
 
@@ -6,6 +7,8 @@ import { AccessoryButton, ContextChip, LabeledButton } from "./accessoryControls
 import type { SourceBlockEditingContext } from "./editingContext";
 import { deleteBlock, placeCaretAfterBlock } from "./mediaActions";
 import type { MobileEditorToolbarController } from "./useMobileEditorToolbarController";
+
+const t = mobileEditorTranslator.t;
 
 const ICON_SIZE = 18;
 const ICON_STROKE = 2.1;
@@ -22,6 +25,7 @@ type UseSourceBlockAccessoryOptions = {
  * 右端「⋯」（块操作、删除）与「键盘」。块名、图标与动作都取块自己登记的，不认具体块类型。
  */
 export function useSourceBlockAccessory({ controller, context }: UseSourceBlockAccessoryOptions) {
+  useMobileEditorI18n();
   const [sheet, setSheet] = useState<SourceBlockEditingContext | null>(null);
   const pendingRef = useRef<(() => void) | null>(null);
 
@@ -43,8 +47,12 @@ export function useSourceBlockAccessory({ controller, context }: UseSourceBlockA
   const buildMoreGroups = (target: SourceBlockEditingContext): ActionSheetItem[][] => [
     [
       {
-        label: "块操作",
-        desc: "移动、复制、转换",
+        get label() {
+          return t("source.actions");
+        },
+        get desc() {
+          return t("source.description");
+        },
         icon: <Layers size={MENU_ICON_SIZE} />,
         onClick: afterSheet(() => controller.requestBlockSelection(target.path[0])),
       },
@@ -52,7 +60,9 @@ export function useSourceBlockAccessory({ controller, context }: UseSourceBlockA
         ? []
         : [
             {
-              label: `删除${target.actions.title}`,
+              get label() {
+                return t("media.delete", { type: target.actions.title });
+              },
               icon: <Trash2 size={MENU_ICON_SIZE} />,
               danger: true,
               onClick: afterSheet(() =>
@@ -78,25 +88,28 @@ export function useSourceBlockAccessory({ controller, context }: UseSourceBlockA
         : [
             <LabeledButton
               key="edit"
-              label="编辑"
+              label={t("common.edit")}
               icon={<SquarePen size={ICON_SIZE} strokeWidth={ICON_STROKE} />}
               onPress={actions.edit}
             />,
           ]),
       <LabeledButton
         key="copy"
-        label="复制"
+        label={t("common.copy")}
         icon={<Copy size={ICON_SIZE} strokeWidth={ICON_STROKE} />}
         onPress={actions.copySource}
       />,
     ];
     rightNode = (
       <>
-        <AccessoryButton label={`${actions.title}菜单`} onPress={() => openSheet(context)}>
+        <AccessoryButton
+          label={t("media.menu", { type: actions.title })}
+          onPress={() => openSheet(context)}
+        >
           <Ellipsis size={ICON_SIZE} strokeWidth={ICON_STROKE} />
         </AccessoryButton>
         <AccessoryButton
-          label="键盘"
+          label={t("common.keyboard")}
           onPress={() => controller.focusAfterVoid(editor => placeCaretAfterBlock(editor, context))}
         >
           <Keyboard size={ICON_SIZE} strokeWidth={ICON_STROKE} />

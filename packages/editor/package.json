@@ -199,6 +199,7 @@
     "zustand": "^4.3.8",
     "react-dnd": "^16.0.1",
     "react-dnd-html5-backend": "^16.0.1",
-    "react-dom": "19.1.x"
+    "react-dom": "19.1.x",
+    "@tau/i18n": "workspace:*"
   }
 }

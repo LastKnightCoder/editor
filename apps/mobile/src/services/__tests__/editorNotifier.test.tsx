@@ -1,5 +1,6 @@
 // mobile 的编辑器提示服务：提示进统一的 @tau/ui toast，确认走 MobileConfirmDialog，输入走 BottomSheet（返回手势见 router 集成测试）。
 import { act } from "react";
+import { mobileLocaleSource, mobileTranslator } from "../i18n";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { toastQueue } from "../../components/toast";
@@ -187,6 +188,44 @@ describe("mobileEditorNotifier", () => {
       act(() => button("插入").click());
       expect(document.querySelector('[role="alert"]')?.textContent).toBe("该地址属于特殊内容源");
       expect(useEditorPromptStore.getState().pending).not.toBeNull();
+    });
+
+    it("语言切换刷新动态标题并保留未提交草稿与请求", async () => {
+      const original = mobileLocaleSource.getSnapshot();
+      let result!: Promise<string | null>;
+      const settled = vi.fn();
+      act(() => {
+        result = mobileEditorNotifier.prompt({
+          get title() {
+            return mobileTranslator.t("language");
+          },
+          get confirmText() {
+            return mobileTranslator.t("common.confirm");
+          },
+        });
+        void result.then(settled);
+      });
+      const pending = useEditorPromptStore.getState().pending;
+      type("https://draft.example");
+      const field = input();
+      act(() => field.focus());
+      field.setSelectionRange(2, 7);
+      try {
+        for (const locale of ["zh-TW", "en-US"]) {
+          act(() => mobileLocaleSource.setLocale(locale));
+          expect(document.body.textContent).toContain(mobileTranslator.t("language"));
+          expect(input()).toBe(field);
+          expect(field.value).toBe("https://draft.example");
+          expect(document.activeElement).toBe(field);
+          expect([field.selectionStart, field.selectionEnd]).toEqual([2, 7]);
+          expect(useEditorPromptStore.getState().pending).toBe(pending);
+          expect(settled).not.toHaveBeenCalled();
+        }
+        act(() => button(mobileTranslator.t("common.confirm")).click());
+        await expect(result).resolves.toBe("https://draft.example");
+      } finally {
+        act(() => mobileLocaleSource.setLocale(original));
+      }
     });
 
     it("点取消 resolve null", async () => {

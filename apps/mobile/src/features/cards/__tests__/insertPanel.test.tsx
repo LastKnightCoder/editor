@@ -1,3 +1,4 @@
+import { mobileLocaleSource } from "../../../services/i18n";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { Puzzle } from "lucide-react";
@@ -282,5 +283,40 @@ describe("InsertPanel", () => {
     expect(getSection("inline")).toBeNull();
     expect(getItem("image", getSection("media") as HTMLElement)).toBeTruthy();
     expect(getSection("recent")?.querySelectorAll("button")).toHaveLength(1);
+  });
+  it("切换语言保留搜索词和插入目标，点击后仍插入同一种块", () => {
+    const initialLocale = mobileLocaleSource.getSnapshot();
+    const controller = createControllerStub();
+    render(controller);
+    const input = host.querySelector("input");
+    if (!input) throw new Error("插入搜索未挂载");
+    act(() => {
+      input.focus();
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(
+        input,
+        "表格"
+      );
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    input.setSelectionRange(1, 2);
+    const item = [...host.querySelectorAll("button")].find(node =>
+      node.textContent?.includes("表格")
+    );
+    if (!item) throw new Error("插入结果未挂载");
+    try {
+      for (const locale of ["zh-TW", "en-US"]) {
+        act(() => mobileLocaleSource.setLocale(locale));
+        expect(host.querySelector("input")).toBe(input);
+        expect(input.value).toBe("表格");
+        expect(document.activeElement).toBe(input);
+        expect([input.selectionStart, input.selectionEnd]).toEqual([1, 2]);
+        expect([...host.querySelectorAll("button")]).toContain(item);
+        expect(controller.handleSelectInsertItem).not.toHaveBeenCalled();
+      }
+      act(() => item.click());
+      expect(controller.handleSelectInsertItem).toHaveBeenCalledExactlyOnceWith("table");
+    } finally {
+      act(() => mobileLocaleSource.setLocale(initialLocale));
+    }
   });
 });

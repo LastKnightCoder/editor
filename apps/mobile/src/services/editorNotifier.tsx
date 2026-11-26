@@ -4,6 +4,8 @@
  * （AGENTS.md 移动端浮层规范），所以注册自己的实现。
  */
 import { useState } from "react";
+import { useMobileI18n } from "./i18n-react";
+import { editorNotifierTranslator } from "./editorNotifier.i18n";
 import { create } from "zustand";
 import type { EditorConfirmOptions, EditorNotifier, EditorPromptOptions } from "@tau/editor";
 import { BottomSheet } from "../components/BottomSheet";
@@ -33,13 +35,15 @@ function createPendingRequestStore<TOptions extends object, TResult>(cancelled: 
         const abort = () => {
           if (get().pending === pending) get().settle(cancelled);
         };
-        const pending = {
-          ...options,
-          resolve: (result: TResult) => {
-            options.signal?.removeEventListener("abort", abort);
-            resolve(result);
+        const pending = Object.defineProperties(
+          {
+            resolve: (result: TResult) => {
+              options.signal?.removeEventListener("abort", abort);
+              resolve(result);
+            },
           },
-        };
+          Object.getOwnPropertyDescriptors(options)
+        ) as TOptions & { resolve: (result: TResult) => void };
         options.signal?.addEventListener("abort", abort, { once: true });
         set({ pending });
       }),
@@ -68,10 +72,10 @@ function notifyError(message: string) {
   }
   toast({
     type: "error",
-    text: `图片没传上去：${failure.message}`,
+    text: editorNotifierTranslator.t("upload.failed", { reason: failure.message }),
     duration: 6000,
     action: {
-      label: "去设置",
+      label: editorNotifierTranslator.t("upload.settings"),
       onClick: () => getNavigator().push("settingsModule", { module: "resource" }),
     },
   });
@@ -94,6 +98,7 @@ export const mobileEditorNotifier: EditorNotifier = {
 
 /** 编辑器确认框的挂载点：AppShell 挂一次 */
 export function EditorConfirmHost() {
+  useMobileI18n();
   const pending = useEditorConfirmStore(state => state.pending);
   const settle = useEditorConfirmStore(state => state.settle);
   return (
@@ -115,6 +120,7 @@ export function EditorConfirmHost() {
  * BottomSheet 内置返回拦截：返回手势、遮罩、下拉都等同取消；校验不通过时保持打开并就地提示。
  */
 export function EditorPromptHost() {
+  const { t } = useMobileI18n();
   const pending = useEditorPromptStore(state => state.pending);
   const settle = useEditorPromptStore(state => state.settle);
   const [shown, setShown] = useState(pending);
@@ -175,7 +181,7 @@ export function EditorPromptHost() {
           onClick={cancel}
           className="bg-page text-ink-2 flex-1 rounded-xl py-3 text-[14px] font-semibold transition-transform active:scale-[0.98]"
         >
-          {shown?.cancelText ?? "取消"}
+          {shown?.cancelText ?? t("common.cancel")}
         </button>
         <button
           type="button"
@@ -183,7 +189,7 @@ export function EditorPromptHost() {
           disabled={!trimmed}
           className="bg-accent text-ink-inverse flex-1 rounded-xl py-3 text-[14px] font-semibold transition-transform active:scale-[0.98] disabled:opacity-40"
         >
-          {shown?.confirmText ?? "确定"}
+          {shown?.confirmText ?? t("common.confirm")}
         </button>
       </div>
     </BottomSheet>

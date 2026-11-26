@@ -1,0 +1,20 @@
+{
+  "link.invalid": "看起來不是有效網址",
+  "link.empty": "未填寫網址",
+  "link.copied": "已複製",
+  "link.open": "開啟",
+  "link.copy": "複製連結",
+  "link.edit": "編輯",
+  "link.unlink": "取消連結",
+  "link.text": "文字",
+  "link.textPlaceholder": "連結文字",
+  "link.address": "網址",
+  "link.clearHint": "清除後按完成即可取消連結",
+  "link.done": "完成",
+  "link.revert": "還原",
+  "link.urlPlaceholder": "貼上或輸入連結網址",
+  "link.unlinked": "已取消連結",
+  "link.undo": "復原",
+  "link.copyFailed": "複製失敗",
+  "link.openKeys": "{{modifier}}點按"
+}

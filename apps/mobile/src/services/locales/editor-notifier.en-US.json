@@ -1,0 +1,4 @@
+{
+  "upload.failed": "Could not upload image: {{reason}}",
+  "upload.settings": "Open settings"
+}

@@ -1,3 +1,4 @@
+import { mobileEditorTranslator, useMobileEditorI18n, EditorText } from "./i18n";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Z_INDEX } from "../../../router/zIndex";
 import { useSheetBackDismiss } from "../../../router/useSheetBackDismiss";
@@ -98,6 +99,8 @@ import type {
   EditorPanelKind,
   MobileEditorToolbarController,
 } from "./useMobileEditorToolbarController";
+
+const t = mobileEditorTranslator.t;
 
 /** 可裁剪条目 id：配件栏通用 / 格式模式条目、上下文模式开关，及 Aa 面板的「转换为」、颜色、高亮、更多样式条目 */
 export type AccessoryItemId =
@@ -211,39 +214,105 @@ const FORMAT_MIDDLE_ITEMS: FormatItemId[] = [
 ];
 
 const ITEM_LABELS: Record<AccessoryItemId, string> = {
-  "context-media": "媒体",
-  "context-table": "表格",
-  "context-code": "代码块",
-  "context-math": "公式",
-  "context-source-block": "源码块",
-  plus: "插入",
-  style: "样式",
-  "check-list": "待办",
-  "bulleted-list": "无序列表",
-  outdent: "反缩进",
-  indent: "缩进",
-  "content-link": "引用内容",
-  image: "图片",
-  undo: "撤销",
-  dictation: "语音输入",
-  bold: "加粗",
-  italic: "斜体",
-  underline: "下划线",
-  strikethrough: "删除线",
-  highlight: "高亮",
-  link: "链接",
-  comment: "批注",
-  tts: "转语音",
-  code: "行内代码",
-  "block-paragraph": "正文",
-  "block-heading": "标题",
-  "block-check-list": "待办",
-  "block-bulleted-list": "无序",
-  "block-numbered-list": "编号",
-  "block-quote": "引用",
-  "text-color": "文字颜色",
-  "highlight-color": "高亮颜色",
-  "more-styles": "更多文本样式",
+  get "context-media"() {
+    return t("media.title");
+  },
+  get "context-table"() {
+    return t("table.title");
+  },
+  get "context-code"() {
+    return t("block.code");
+  },
+  get "context-math"() {
+    return t("block.math");
+  },
+  get "context-source-block"() {
+    return t("source.title");
+  },
+  get plus() {
+    return t("insert.title");
+  },
+  get style() {
+    return t("style.title");
+  },
+  get "check-list"() {
+    return t("block.todo");
+  },
+  get "bulleted-list"() {
+    return t("block.bullet");
+  },
+  get outdent() {
+    return t("format.outdent");
+  },
+  get indent() {
+    return t("format.indent");
+  },
+  get "content-link"() {
+    return t("link.content");
+  },
+  get image() {
+    return t("media.image");
+  },
+  get undo() {
+    return t("common.undo");
+  },
+  get dictation() {
+    return t("media.dictation");
+  },
+  get bold() {
+    return t("format.bold");
+  },
+  get italic() {
+    return t("format.italic");
+  },
+  get underline() {
+    return t("format.underline");
+  },
+  get strikethrough() {
+    return t("format.strike");
+  },
+  get highlight() {
+    return t("format.highlight");
+  },
+  get link() {
+    return t("link.title");
+  },
+  get comment() {
+    return t("format.comment");
+  },
+  get tts() {
+    return t("media.speak");
+  },
+  get code() {
+    return t("format.inlineCode");
+  },
+  get "block-paragraph"() {
+    return t("block.paragraph");
+  },
+  get "block-heading"() {
+    return t("block.heading");
+  },
+  get "block-check-list"() {
+    return t("block.todo");
+  },
+  get "block-bulleted-list"() {
+    return t("block.bulletShort");
+  },
+  get "block-numbered-list"() {
+    return t("block.numberedShort");
+  },
+  get "block-quote"() {
+    return t("block.quote");
+  },
+  get "text-color"() {
+    return t("format.textColor");
+  },
+  get "highlight-color"() {
+    return t("format.highlightColor");
+  },
+  get "more-styles"() {
+    return t("format.more");
+  },
 };
 
 const ITEM_ICONS: Partial<Record<AccessoryItemId, ReactNode>> = {
@@ -348,14 +417,34 @@ type CodeLanguageSheetState = {
   context: CodeEditingContext;
 };
 
-const LANGUAGE_MORE_LABEL = "更多语言…";
+const languageMoreLabel = () => t("code.moreLanguages");
 
 /** 表格模式中段的文字按钮 */
 const TABLE_TEXT_ACTIONS: Array<{ id: TableActionId; label: string }> = [
-  { id: "insert-row-below", label: "下方插行" },
-  { id: "insert-column-right", label: "右侧插列" },
-  { id: "delete-row", label: "删行" },
-  { id: "delete-column", label: "删列" },
+  {
+    id: "insert-row-below",
+    get label() {
+      return t("table.insertRow");
+    },
+  },
+  {
+    id: "insert-column-right",
+    get label() {
+      return t("table.insertColumn");
+    },
+  },
+  {
+    id: "delete-row",
+    get label() {
+      return t("table.deleteRow");
+    },
+  },
+  {
+    id: "delete-column",
+    get label() {
+      return t("table.deleteColumn");
+    },
+  },
 ];
 
 const TABLE_TEXT_BUTTON_CLASS = "px-[9px] text-[13.5px] font-semibold";
@@ -366,7 +455,17 @@ const ALIGN_ICONS = {
   right: AlignRight,
 } as const;
 
-const ALIGN_LABELS = { left: "左对齐", center: "居中", right: "右对齐" } as const;
+const ALIGN_LABELS = {
+  get left() {
+    return t("media.alignLeft");
+  },
+  get center() {
+    return t("media.alignCenter");
+  },
+  get right() {
+    return t("media.alignRight");
+  },
+} as const;
 
 const MENU_ICON_SIZE = 18;
 
@@ -376,18 +475,50 @@ function buildTableMenuItems(
   run: (id: TableActionId) => void
 ): ActionSheetItem[][] {
   const moveItems: Array<{ id: TableActionId; label: string; icon: ReactNode }> = [
-    { id: "move-row-up", label: "上移此行", icon: <ArrowUp size={MENU_ICON_SIZE} /> },
-    { id: "move-row-down", label: "下移此行", icon: <ArrowDown size={MENU_ICON_SIZE} /> },
-    { id: "move-column-left", label: "左移此列", icon: <ArrowLeft size={MENU_ICON_SIZE} /> },
-    { id: "move-column-right", label: "右移此列", icon: <ArrowRight size={MENU_ICON_SIZE} /> },
+    {
+      id: "move-row-up",
+      get label() {
+        return t("table.moveRowUp");
+      },
+      icon: <ArrowUp size={MENU_ICON_SIZE} />,
+    },
+    {
+      id: "move-row-down",
+      get label() {
+        return t("table.moveRowDown");
+      },
+      icon: <ArrowDown size={MENU_ICON_SIZE} />,
+    },
+    {
+      id: "move-column-left",
+      get label() {
+        return t("table.moveColumnLeft");
+      },
+      icon: <ArrowLeft size={MENU_ICON_SIZE} />,
+    },
+    {
+      id: "move-column-right",
+      get label() {
+        return t("table.moveColumnRight");
+      },
+      icon: <ArrowRight size={MENU_ICON_SIZE} />,
+    },
   ];
   return [
     moveItems
       .filter(item => !isTableActionDisabled(item.id, context))
-      .map(item => ({ label: item.label, icon: item.icon, onClick: () => run(item.id) })),
+      .map(item => ({
+        get label() {
+          return item.label;
+        },
+        icon: item.icon,
+        onClick: () => run(item.id),
+      })),
     [
       {
-        label: "删除表格",
+        get label() {
+          return t("table.delete");
+        },
         icon: <Trash2 size={MENU_ICON_SIZE} />,
         danger: true,
         onClick: () => run("delete-table"),
@@ -402,10 +533,15 @@ function buildLanguageItems(
   context: CodeEditingContext,
   select: (context: CodeEditingContext, language: string) => void
 ): ActionSheetItem[] {
-  const currentLabel = getCodeLanguageLabel(context.language);
   return options.map(option => ({
-    label: option.label,
-    trailing: option.label === currentLabel ? "当前" : undefined,
+    get label() {
+      return option.label;
+    },
+    get trailing() {
+      return option.label === getCodeLanguageLabel(context.language)
+        ? t("common.current")
+        : undefined;
+    },
     onClick: () => select(context, option.value),
   }));
 }
@@ -424,6 +560,7 @@ function resolveSourceContext(
 }
 
 export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps) {
+  useMobileEditorI18n();
   const {
     controller,
     portalContainer,
@@ -640,7 +777,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
       )),
       <AccessoryButton
         key="cycle-align"
-        label={`对齐：${ALIGN_LABELS[currentAlign ?? "left"]}`}
+        label={t("media.alignment", { alignment: ALIGN_LABELS[currentAlign ?? "left"] })}
         active={currentAlign !== null}
         onPress={() => controller.runTableAction("cycle-align")}
       >
@@ -703,19 +840,19 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
   const renderContentLinkItems = () => [
     <LabeledButton
       key="preview"
-      label="预览"
+      label={t("common.preview")}
       icon={<Eye size={18} strokeWidth={2.1} />}
       onPress={controller.openContentLinkPreview}
     />,
     <LabeledButton
       key="retarget"
-      label="更换"
+      label={t("common.change")}
       icon={<Replace size={18} strokeWidth={2.1} />}
       onPress={controller.retargetContentLink}
     />,
     <LabeledButton
       key="remove"
-      label="移除"
+      label={t("common.remove")}
       icon={<Unlink size={18} strokeWidth={2.1} />}
       // 光标在引用内时「引用内容」动作即解除引用、保留文字
       onPress={() => controller.executeAction("content-link")}
@@ -751,14 +888,14 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
     coach.dismiss();
     if (voiceOpen) returnToKeyboard();
     // 录音与语音输入共用麦克风，一次只能开一个
-    else if (recordingActive) toast.info("正在录音，暂停或完成录音后再用语音输入");
+    else if (recordingActive) toast.info(t("record.busy"));
     else controller.openPanel("voice", resolvePanelHeight(keyboardViewport));
   };
   const voiceModeNode = showVoiceMode ? (
     <div className="relative shrink-0">
       <button
         type="button"
-        aria-label={voiceOpen ? "切换到键盘" : ITEM_LABELS.dictation}
+        aria-label={voiceOpen ? t("common.switchKeyboard") : ITEM_LABELS.dictation}
         aria-pressed={voiceOpen}
         className={cn(
           "flex h-10 w-10 items-center justify-center rounded-[11px] transition-colors",
@@ -785,7 +922,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
     leftNode = (
       <ContextChip
         label={languageLabel}
-        ariaLabel={`代码语言：${languageLabel}`}
+        ariaLabel={t("code.languageLabel", { language: languageLabel })}
         trailing={<ChevronDown size={13} strokeWidth={ICON_STROKE} className="shrink-0" />}
         onPress={() => openLanguageSheet(codeContext)}
       />
@@ -806,7 +943,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
       <ContextChip
         icon={<FileSymlink size={14} strokeWidth={ICON_STROKE} />}
         label={SlateNode.string(linkContext.element) || ITEM_LABELS["content-link"]}
-        ariaLabel="引用内容"
+        ariaLabel={t("link.content")}
         onPress={controller.dismissEditingContext}
       />
     );
@@ -814,7 +951,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
     leftNode = (
       <ContextChip
         icon={<TextSelect size={14} strokeWidth={ICON_STROKE} />}
-        label="格式"
+        label={t("style.format")}
         onPress={controller.collapseSelectionToFocus}
       />
     );
@@ -832,7 +969,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
       <>
         <button
           type="button"
-          aria-label={insertOpen ? "关闭插入面板" : "插入"}
+          aria-label={t(insertOpen ? "insert.close" : "insert.title")}
           className={cn(
             "text-ink-inverse mr-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors",
             insertOpen ? "bg-ink-1" : "bg-accent"
@@ -860,14 +997,17 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
   if (codeContext) {
     keyboardExit = () => closeCodeKeyboard(codeContext);
     rightNode = (
-      <AccessoryButton label="收起键盘" onPress={() => closeCodeKeyboard(codeContext)}>
+      <AccessoryButton
+        label={t("common.hideKeyboard")}
+        onPress={() => closeCodeKeyboard(codeContext)}
+      >
         <KeyboardOff size={ICON_SIZE} strokeWidth={ICON_STROKE} />
       </AccessoryButton>
     );
   } else if (sourceContext) {
     keyboardExit = closeSourceKeyboard;
     rightNode = (
-      <AccessoryButton label="收起键盘" onPress={closeSourceKeyboard}>
+      <AccessoryButton label={t("common.hideKeyboard")} onPress={closeSourceKeyboard}>
         <KeyboardOff size={ICON_SIZE} strokeWidth={ICON_STROKE} />
       </AccessoryButton>
     );
@@ -879,27 +1019,27 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
     rightNode = isVisible("style") ? renderItem("style") : null;
   } else if (tableContext) {
     rightNode = (
-      <AccessoryButton label="表格菜单" onPress={controller.openTableMenu}>
+      <AccessoryButton label={t("table.menu")} onPress={controller.openTableMenu}>
         <Ellipsis size={ICON_SIZE} strokeWidth={ICON_STROKE} />
       </AccessoryButton>
     );
   } else if (voiceOpen) {
     keyboardExit = exitVoiceEditing;
     rightNode = (
-      <AccessoryButton label="收起" onPress={exitVoiceEditing}>
+      <AccessoryButton label={t("common.closePanel")} onPress={exitVoiceEditing}>
         <KeyboardOff size={ICON_SIZE} strokeWidth={ICON_STROKE} />
       </AccessoryButton>
     );
   } else if (activePanel) {
     rightNode = (
-      <AccessoryButton label="键盘" onPress={returnToKeyboard}>
+      <AccessoryButton label={t("common.keyboard")} onPress={returnToKeyboard}>
         <Keyboard size={ICON_SIZE} strokeWidth={ICON_STROKE} />
       </AccessoryButton>
     );
   } else {
     keyboardExit = exitEditing;
     rightNode = (
-      <AccessoryButton label="收起键盘" onPress={exitEditing}>
+      <AccessoryButton label={t("common.hideKeyboard")} onPress={exitEditing}>
         <KeyboardOff size={ICON_SIZE} strokeWidth={ICON_STROKE} />
       </AccessoryButton>
     );
@@ -910,14 +1050,16 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
     doneNode = (
       <button
         type="button"
-        aria-label="完成"
+        aria-label={t("common.done")}
         className="bg-ink-1 text-surface ml-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-transform active:scale-90"
         onPointerDown={keepEditorFocus}
         onMouseDown={keepEditorFocus}
         onClick={keyboardExit ?? exitEditing}
       >
         <Check size={20} strokeWidth={2.6} aria-hidden />
-        <span className="sr-only">完成</span>
+        <span className="sr-only">
+          <EditorText message="common.done" />
+        </span>
       </button>
     );
   }
@@ -1032,7 +1174,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
       <TranscriptionUnavailableSheet />
       <ActionSheet
         open={controller.isTableMenuOpen}
-        title="表格"
+        title={t("table.title")}
         groups={
           editingContext.kind === "table"
             ? buildTableMenuItems(editingContext, controller.runTableAction)
@@ -1042,14 +1184,16 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
       />
       <ActionSheet
         open={languageSheet?.mode === "common"}
-        title="代码语言"
+        title={t("code.language")}
         groups={
           languageSheet
             ? [
                 buildLanguageItems(COMMON_CODE_LANGUAGES, languageSheet.context, selectLanguage),
                 [
                   {
-                    label: LANGUAGE_MORE_LABEL,
+                    get label() {
+                      return languageMoreLabel();
+                    },
                     onClick: () => {
                       openAllLanguagesRef.current = true;
                     },
@@ -1062,7 +1206,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
       />
       <ActionSheet
         open={languageSheet?.mode === "all"}
-        title="全部语言"
+        title={t("code.allLanguages")}
         groups={
           languageSheet
             ? [buildLanguageItems(ALL_CODE_LANGUAGES, languageSheet.context, selectLanguage)]

@@ -1,3 +1,4 @@
+import { mobileEditorTranslator, useMobileEditorI18n, EditorText } from "./i18n";
 import { useState, type ReactNode, type SyntheticEvent } from "react";
 import {
   Bold,
@@ -32,6 +33,8 @@ import {
   type UnderlineStylePayload,
 } from "./toolbarActions";
 import type { MobileEditorToolbarController } from "./useMobileEditorToolbarController";
+
+const t = mobileEditorTranslator.t;
 
 type StylePanelProps = {
   controller: MobileEditorToolbarController;
@@ -75,81 +78,151 @@ const BLOCK_OPTIONS: BlockOption[] = [
   {
     itemId: "block-paragraph",
     kind: "paragraph",
-    label: "正文",
-    preview: <span className="text-ink-1 text-[15px] leading-tight">正文</span>,
+    get label() {
+      return t("block.paragraph");
+    },
+    preview: (
+      <span className="text-ink-1 text-[15px] leading-tight">
+        <EditorText message="block.paragraph" />
+      </span>
+    ),
   },
   {
     itemId: "block-heading",
     kind: "h1",
-    label: "一级标题",
-    preview: <span className="text-ink-1 text-[17px] font-extrabold leading-tight">标题</span>,
+    get label() {
+      return t("block.heading1");
+    },
+    preview: (
+      <span className="text-ink-1 text-[17px] leading-tight font-extrabold">
+        <EditorText message="block.heading" />
+      </span>
+    ),
     caption: "H1",
   },
   {
     itemId: "block-heading",
     kind: "h2",
-    label: "二级标题",
-    preview: <span className="text-ink-1 text-[15px] font-bold leading-tight">标题</span>,
+    get label() {
+      return t("block.heading2");
+    },
+    preview: (
+      <span className="text-ink-1 text-[15px] leading-tight font-bold">
+        <EditorText message="block.heading" />
+      </span>
+    ),
     caption: "H2",
   },
   {
     itemId: "block-heading",
     kind: "h3",
-    label: "三级标题",
-    preview: <span className="text-ink-1 text-[13px] font-bold leading-tight">标题</span>,
+    get label() {
+      return t("block.heading3");
+    },
+    preview: (
+      <span className="text-ink-1 text-[13px] leading-tight font-bold">
+        <EditorText message="block.heading" />
+      </span>
+    ),
     caption: "H3",
   },
   {
     itemId: "block-check-list",
     kind: "check-list",
-    label: "待办",
+    get label() {
+      return t("block.todo");
+    },
     preview: <SquareCheck size={ICON_SIZE} strokeWidth={ICON_STROKE} className="text-ink-1" />,
-    caption: "待办",
+    get caption() {
+      return t("block.todo");
+    },
   },
   {
     itemId: "block-bulleted-list",
     kind: "bulleted-list",
-    label: "无序列表",
+    get label() {
+      return t("block.bullet");
+    },
     preview: <List size={ICON_SIZE} strokeWidth={ICON_STROKE} className="text-ink-1" />,
-    caption: "无序",
+    get caption() {
+      return t("block.bulletShort");
+    },
   },
   {
     itemId: "block-numbered-list",
     kind: "numbered-list",
-    label: "编号列表",
+    get label() {
+      return t("block.numbered");
+    },
     preview: <ListOrdered size={ICON_SIZE} strokeWidth={ICON_STROKE} className="text-ink-1" />,
-    caption: "编号",
+    get caption() {
+      return t("block.numberedShort");
+    },
   },
   {
     itemId: "block-quote",
     kind: "quote",
-    label: "引用",
+    get label() {
+      return t("block.quote");
+    },
     preview: <Quote size={ICON_SIZE} strokeWidth={ICON_STROKE} className="text-ink-1" />,
-    caption: "引用",
+    get caption() {
+      return t("block.quote");
+    },
   },
 ];
 
 const INLINE_MARK_OPTIONS: InlineOption[] = [
-  { id: "bold", label: "加粗", icon: <Bold size={ICON_SIZE} strokeWidth={ICON_STROKE} /> },
-  { id: "italic", label: "斜体", icon: <Italic size={ICON_SIZE} strokeWidth={ICON_STROKE} /> },
+  {
+    id: "bold",
+    get label() {
+      return t("format.bold");
+    },
+    icon: <Bold size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
+  },
+  {
+    id: "italic",
+    get label() {
+      return t("format.italic");
+    },
+    icon: <Italic size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
+  },
   {
     id: "underline",
-    label: "下划线",
+    get label() {
+      return t("format.underline");
+    },
     icon: <Underline size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
   },
   {
     id: "strikethrough",
-    label: "删除线",
+    get label() {
+      return t("format.strike");
+    },
     icon: <Strikethrough size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
   },
-  { id: "code", label: "行内代码", icon: <Code size={ICON_SIZE} strokeWidth={ICON_STROKE} /> },
+  {
+    id: "code",
+    get label() {
+      return t("format.inlineCode");
+    },
+    icon: <Code size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
+  },
 ];
 
 const INLINE_POPUP_OPTIONS: InlineOption[] = [
-  { id: "link", label: "链接", icon: <Link2 size={ICON_SIZE} strokeWidth={ICON_STROKE} /> },
+  {
+    id: "link",
+    get label() {
+      return t("link.title");
+    },
+    icon: <Link2 size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
+  },
   {
     id: "comment",
-    label: "批注",
+    get label() {
+      return t("format.comment");
+    },
     icon: <MessageSquarePlus size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
   },
 ];
@@ -267,6 +340,7 @@ function TextButton(props: {
 }
 
 export function StylePanel(props: StylePanelProps) {
+  useMobileEditorI18n();
   const { controller, visibleButtons } = props;
   const [view, setView] = useState<"main" | "more">("main");
   const [underlinePalette, setUnderlinePalette] = useState(readUnderlinePaletteState);
@@ -340,16 +414,18 @@ export function StylePanel(props: StylePanelProps) {
           onClick={() => setView("main")}
         >
           <ChevronLeft size={18} strokeWidth={ICON_STROKE} />
-          更多文本样式
+          <EditorText message="format.more" />
         </button>
 
-        <GroupTitle>下划线</GroupTitle>
-        <SwatchRow label="颜色">
+        <GroupTitle>
+          <EditorText message="format.underline" />
+        </GroupTitle>
+        <SwatchRow label={t("format.color")}>
           {UNDERLINE_COLOR_OPTIONS.map(option => (
             <button
               key={option.value}
               type="button"
-              aria-label={`下划线颜色 ${option.label}`}
+              aria-label={t("palette.underlineColor", { color: option.label })}
               aria-pressed={underlinePalette.color === option.value}
               className={cn(
                 SWATCH_CLASS,
@@ -366,7 +442,7 @@ export function StylePanel(props: StylePanelProps) {
           {UNDERLINE_LINE_TYPE_OPTIONS.map(option => (
             <SegmentButton
               key={option.value}
-              label={`下划线线型 ${option.label}`}
+              label={t("palette.underlineType", { type: option.label })}
               active={underlinePalette.lineType === option.value}
               disabled={false}
               onPress={() => applyUnderline({ lineType: option.value })}
@@ -376,13 +452,15 @@ export function StylePanel(props: StylePanelProps) {
           ))}
         </div>
 
-        <GroupTitle>渐变文字</GroupTitle>
-        <SwatchRow label="渐变" className="mb-3">
+        <GroupTitle>
+          <EditorText message="format.gradientText" />
+        </GroupTitle>
+        <SwatchRow label={t("format.gradient")} className="mb-3">
           {TEXT_GRADIENT_OPTIONS.map(option => (
             <button
               key={option.preset}
               type="button"
-              aria-label={`渐变文字 ${option.label}`}
+              aria-label={t("palette.gradientLabel", { name: option.label })}
               aria-pressed={marks?.textGradient === option.preset}
               className={cn(
                 SWATCH_CLASS,
@@ -396,16 +474,18 @@ export function StylePanel(props: StylePanelProps) {
           ))}
         </SwatchRow>
 
-        <GroupTitle>行内元素</GroupTitle>
+        <GroupTitle>
+          <EditorText message="block.inline" />
+        </GroupTitle>
         <div className="mb-3 flex gap-1.5">
           <TextButton
-            label="样式文本"
+            label={t("format.styled")}
             active={controller.isActionActive("styled-text")}
             disabled={controller.isActionDisabled("styled-text")}
             onPress={() => controller.executeAction("styled-text")}
           />
           <TextButton
-            label="快捷键"
+            label={t("format.kbd")}
             active={controller.isActionActive("kbd")}
             disabled={controller.isActionDisabled("kbd")}
             onPress={() => controller.executeAction("kbd")}
@@ -424,7 +504,9 @@ export function StylePanel(props: StylePanelProps) {
     <div className="px-3.5 pt-3" data-style-panel-view="main">
       {blockOptions.length > 0 ? (
         <>
-          <GroupTitle>转换为</GroupTitle>
+          <GroupTitle>
+            <EditorText message="style.convert" />
+          </GroupTitle>
           <div className="scrollbar-hide mb-3 flex gap-[7px] overflow-x-auto">
             {blockOptions.map(option => {
               const active = currentBlockKind === option.kind;
@@ -454,7 +536,9 @@ export function StylePanel(props: StylePanelProps) {
 
       {markGroup || popupGroup ? (
         <>
-          <GroupTitle>行内样式</GroupTitle>
+          <GroupTitle>
+            <EditorText message="block.styles" />
+          </GroupTitle>
           <div className="mb-3 flex gap-1.5">
             {markGroup}
             {popupGroup}
@@ -463,7 +547,7 @@ export function StylePanel(props: StylePanelProps) {
       ) : null}
 
       {isVisible("text-color") ? (
-        <SwatchRow label="文字">
+        <SwatchRow label={t("link.text")}>
           {TEXT_COLOR_OPTIONS.map(option => {
             const isDefault = !option.lightColor;
             const selected = marks
@@ -474,9 +558,9 @@ export function StylePanel(props: StylePanelProps) {
             const color = isDark ? option.darkColor : option.lightColor;
             return (
               <button
-                key={option.label}
+                key={option.lightColor ?? "default"}
                 type="button"
-                aria-label={`文字颜色 ${option.label}`}
+                aria-label={t("palette.textLabel", { color: option.label })}
                 aria-pressed={selected}
                 className={cn(
                   SWATCH_CLASS,
@@ -497,7 +581,7 @@ export function StylePanel(props: StylePanelProps) {
       ) : null}
 
       {isVisible("highlight-color") ? (
-        <SwatchRow label="高亮">
+        <SwatchRow label={t("format.highlight")}>
           {HIGHLIGHT_OPTIONS.map(option => {
             const isDefault = option.value === undefined;
             const selected = marks
@@ -507,9 +591,9 @@ export function StylePanel(props: StylePanelProps) {
               : false;
             return (
               <button
-                key={option.label}
+                key={option.value ?? "default"}
                 type="button"
-                aria-label={`高亮颜色 ${option.label}`}
+                aria-label={t("palette.highlightLabel", { color: option.label })}
                 aria-pressed={selected}
                 className={cn(
                   SWATCH_CLASS,
@@ -533,11 +617,11 @@ export function StylePanel(props: StylePanelProps) {
       {isVisible("more-styles") ? (
         <button
           type="button"
-          className="bg-page text-ink-1 mb-3 mt-1 flex h-11 w-full items-center justify-between rounded-xl px-3 text-[13.5px]"
+          className="bg-page text-ink-1 mt-1 mb-3 flex h-11 w-full items-center justify-between rounded-xl px-3 text-[13.5px]"
           {...pressHandlers}
           onClick={() => setView("more")}
         >
-          更多文本样式
+          <EditorText message="format.more" />
           <ChevronRight size={16} strokeWidth={ICON_STROKE} className="text-ink-3" />
         </button>
       ) : null}

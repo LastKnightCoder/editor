@@ -1,3 +1,5 @@
+import { mobileLocaleSource } from "../../../services/i18n";
+import { mobileEditorTranslator } from "../editorToolbar/i18n";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -256,5 +258,29 @@ describe("StylePanel", () => {
     expect(document.querySelectorAll('button[aria-label^="文字颜色"]')).toHaveLength(0);
     expect(document.querySelectorAll('button[aria-label^="高亮颜色"]')).toHaveLength(0);
     expect(getButtonByText("更多文本样式")).toBeNull();
+  });
+  it("切换语言保留高亮选项节点，提交的标记仍是原始颜色值", () => {
+    const initialLocale = mobileLocaleSource.getSnapshot();
+    const controller = createControllerStub({ getCurrentMarks: () => ({ highlight: "green" }) });
+    render(controller);
+    const label = mobileEditorTranslator.t("palette.highlightLabel", {
+      color: mobileEditorTranslator.t("palette.yellow"),
+    });
+    const yellow = getButton(label);
+    if (!yellow) throw new Error("高亮选项未挂载");
+    try {
+      for (const locale of ["zh-TW", "en-US"]) {
+        act(() => mobileLocaleSource.setLocale(locale));
+        const nextLabel = mobileEditorTranslator.t("palette.highlightLabel", {
+          color: mobileEditorTranslator.t("palette.yellow"),
+        });
+        expect(getButton(nextLabel)).toBe(yellow);
+        expect(controller.applyHighlightMark).not.toHaveBeenCalled();
+      }
+      click(yellow);
+      expect(controller.applyHighlightMark).toHaveBeenCalledExactlyOnceWith("yellow");
+    } finally {
+      act(() => mobileLocaleSource.setLocale(initialLocale));
+    }
   });
 });

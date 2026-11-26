@@ -1,3 +1,4 @@
+import { mobileEditorTranslator, useMobileEditorI18n, EditorText } from "./i18n";
 import { useRef, useState, type ReactNode } from "react";
 import {
   AlignCenter,
@@ -53,16 +54,28 @@ import type { MobileEditorToolbarController } from "./useMobileEditorToolbarCont
 import { transcribeAudioBlock } from "../recording/transcription";
 import { useMobilePlugins } from "../../../app/plugins/context";
 
+const t = mobileEditorTranslator.t;
+
 const ICON_SIZE = 18;
 const ICON_STROKE = 2.1;
 const MENU_ICON_SIZE = 18;
 
 const MEDIA_LABELS: Record<MediaElementType, string> = {
-  image: "图片",
-  "inline-image": "行内图片",
-  video: "视频",
-  audio: "音频",
-  webview: "网页",
+  get image() {
+    return t("media.image");
+  },
+  get "inline-image"() {
+    return t("media.inlineImage");
+  },
+  get video() {
+    return t("media.video");
+  },
+  get audio() {
+    return t("media.audio");
+  },
+  get webview() {
+    return t("block.web");
+  },
 };
 
 const MEDIA_ICONS: Record<MediaElementType, typeof ImageIcon> = {
@@ -94,6 +107,7 @@ type UseMediaAccessoryOptions = {
  * 弹出输入框的项待动作面板退场后执行。
  */
 export function useMediaAccessory(options: UseMediaAccessoryOptions) {
+  useMobileEditorI18n();
   const { controller, context, toggleMediaPanel } = options;
   const [sheet, setSheet] = useState<{ kind: MediaSheetKind; context: MediaEditingContext } | null>(
     null
@@ -124,8 +138,12 @@ export function useMediaAccessory(options: UseMediaAccessoryOptions) {
     target.mediaType === "inline-image"
       ? null
       : {
-          label: "块操作",
-          desc: "移动、复制、转换",
+          get label() {
+            return t("source.actions");
+          },
+          get desc() {
+            return t("source.description");
+          },
           icon: menuIcon(Layers),
           onClick: afterSheet(() => {
             controller.requestBlockSelection(target.path[0]);
@@ -133,7 +151,9 @@ export function useMediaAccessory(options: UseMediaAccessoryOptions) {
         };
 
   const deleteItem = (target: MediaEditingContext): ActionSheetItem => ({
-    label: `删除${MEDIA_LABELS[target.mediaType]}`,
+    get label() {
+      return t("media.delete", { type: MEDIA_LABELS[target.mediaType] });
+    },
     icon: menuIcon(Trash2),
     danger: true,
     onClick: afterSheet(() => run(editor => deleteMedia(editor, target))),
@@ -144,22 +164,30 @@ export function useMediaAccessory(options: UseMediaAccessoryOptions) {
     if (target.mediaType === "image") {
       groups.push([
         {
-          label: "查看大图",
+          get label() {
+            return t("media.viewImage");
+          },
           icon: menuIcon(Maximize2),
           onClick: afterSheet(() =>
             run(editor => runMediaCommand(editor, target, "tau.image.fullscreen"))
           ),
         },
         {
-          label: "替代文本",
+          get label() {
+            return t("media.alt");
+          },
           icon: menuIcon(ScanText),
-          trailing: (target.element as { alt?: string }).alt ? "已设置" : "未设置",
+          get trailing() {
+            return t((target.element as { alt?: string }).alt ? "media.set" : "media.unset");
+          },
           onClick: afterSheet(() =>
             run(editor => runMediaCommand(editor, target, "tau.image.edit-alt"))
           ),
         },
         {
-          label: "复制图片",
+          get label() {
+            return t("media.copyImage");
+          },
           icon: menuIcon(Copy),
           onClick: () => run(editor => runMediaCommand(editor, target, "tau.image.copy-image")),
         },
@@ -174,18 +202,24 @@ export function useMediaAccessory(options: UseMediaAccessoryOptions) {
     if (target.mediaType === "image") {
       return [
         {
-          label: "从相册选择",
+          get label() {
+            return t("media.album");
+          },
           icon: menuIcon(Images),
           onClick: () => run(editor => runMediaCommand(editor, target, "tau.image.replace")),
         },
         {
-          label: "拍照",
+          get label() {
+            return t("media.camera");
+          },
           icon: menuIcon(Camera),
           onClick: () =>
             run(editor => runMediaCommand(editor, target, "tau.image.replace", { capture: true })),
         },
         {
-          label: "网络地址",
+          get label() {
+            return t("media.url");
+          },
           icon: menuIcon(Link2),
           onClick: afterSheet(() =>
             run(editor => runMediaCommand(editor, target, "tau.image.replace-url"))
@@ -199,19 +233,25 @@ export function useMediaAccessory(options: UseMediaAccessoryOptions) {
         ...(controller.recordingEnabled
           ? [
               {
-                label: "重新录制",
+                get label() {
+                  return t("media.recordAgain");
+                },
                 icon: menuIcon(CircleDot),
                 onClick: afterSheet(() => controller.rerecordAudio(target.element, target.path)),
               },
             ]
           : []),
         {
-          label: "选择文件",
+          get label() {
+            return t("media.selectFile");
+          },
           icon: menuIcon(FileAudio),
           onClick: () => run(editor => openLocalMediaPicker(editor, "audio", element)),
         },
         {
-          label: "用文字生成",
+          get label() {
+            return t("media.generate");
+          },
           icon: menuIcon(Volume2),
           onClick: afterSheet(() => openTtsForAudio(target)),
         },
@@ -219,12 +259,16 @@ export function useMediaAccessory(options: UseMediaAccessoryOptions) {
     }
     return [
       {
-        label: "从相册选择",
+        get label() {
+          return t("media.album");
+        },
         icon: menuIcon(Images),
         onClick: () => run(editor => openLocalMediaPicker(editor, "video", element)),
       },
       {
-        label: "拍摄",
+        get label() {
+          return t("media.shoot");
+        },
         icon: menuIcon(Camera),
         onClick: () =>
           run(editor => openLocalMediaPicker(editor, "video", element, { capture: true })),
@@ -244,7 +288,7 @@ export function useMediaAccessory(options: UseMediaAccessoryOptions) {
     return (
       <LabeledButton
         key="align"
-        label="对齐"
+        label={t("media.align")}
         icon={icon(AlignIcon)}
         onPress={() => run(editor => cycleMediaAlign(editor, target))}
       />
@@ -254,7 +298,7 @@ export function useMediaAccessory(options: UseMediaAccessoryOptions) {
   const sizeButton = (
     <LabeledButton
       key="size"
-      label="尺寸"
+      label={t("media.size")}
       icon={icon(Scaling)}
       active={controller.activePanel === "media"}
       onPress={toggleMediaPanel}
@@ -264,7 +308,7 @@ export function useMediaAccessory(options: UseMediaAccessoryOptions) {
   const replaceButton = (target: MediaEditingContext) => (
     <LabeledButton
       key="replace"
-      label="替换"
+      label={t("common.replace")}
       icon={icon(Replace)}
       onPress={() => openSheet("replace", target)}
     />
@@ -278,13 +322,13 @@ export function useMediaAccessory(options: UseMediaAccessoryOptions) {
           renderAlignButton(target),
           <LabeledButton
             key="crop"
-            label="裁剪"
+            label={t("media.crop")}
             icon={icon(Crop)}
             onPress={() => run(editor => runMediaCommand(editor, target, "tau.image.crop"))}
           />,
           <LabeledButton
             key="caption"
-            label="说明"
+            label={t("media.caption")}
             icon={icon(Captions)}
             onPress={() =>
               run(editor => runMediaCommand(editor, target, "tau.image.edit-description"))
@@ -300,7 +344,7 @@ export function useMediaAccessory(options: UseMediaAccessoryOptions) {
             ? [
                 <LabeledButton
                   key="regenerate"
-                  label="重新生成"
+                  label={t("media.regenerate")}
                   icon={icon(RefreshCw)}
                   onPress={() => openTtsForAudio(target)}
                 />,
@@ -308,14 +352,14 @@ export function useMediaAccessory(options: UseMediaAccessoryOptions) {
             : []),
           <LabeledButton
             key="rename"
-            label="重命名"
+            label={t("media.rename")}
             icon={icon(PenLine)}
             onPress={() => run(editor => void renameAudio(editor, target))}
           />,
           replaceButton(target),
           <LabeledButton
             key="transcribe"
-            label="转文字"
+            label={t("media.transcribe")}
             icon={icon(Captions)}
             onPress={() =>
               run(editor => void transcribeAudioBlock(editor, asrRegistry, target.element))
@@ -327,8 +371,8 @@ export function useMediaAccessory(options: UseMediaAccessoryOptions) {
         return [
           ...INLINE_IMAGE_SIZES.map(option => (
             <AccessoryButton
-              key={option.label}
-              label={`${option.label}尺寸`}
+              key={option.em}
+              label={t("media.sizeLabel", { size: option.label })}
               active={size === option.em}
               className="px-[9px] text-[13.5px] font-semibold"
               onPress={() => run(editor => setInlineImageSize(editor, target, option.em))}
@@ -339,13 +383,13 @@ export function useMediaAccessory(options: UseMediaAccessoryOptions) {
           <span key="sep" aria-hidden="true" className="bg-line-1 mx-1 h-[22px] w-px shrink-0" />,
           <LabeledButton
             key="view"
-            label="查看"
+            label={t("common.view")}
             icon={icon(Maximize2)}
             onPress={() => run(editor => openImageLightbox(editor, target.element))}
           />,
           <LabeledButton
             key="to-block"
-            label="转为大图"
+            label={t("media.toBlock")}
             icon={icon(RectangleHorizontal)}
             onPress={() => run(editor => convertInlineImageToBlock(editor, target))}
           />,
@@ -355,26 +399,26 @@ export function useMediaAccessory(options: UseMediaAccessoryOptions) {
         return [
           <LabeledButton
             key="url"
-            label="地址"
+            label={t("media.address")}
             icon={icon(Link2)}
             onPress={() => run(editor => void editWebviewUrl(editor, target))}
           />,
           <LabeledButton
             key="height"
-            label="高度"
+            label={t("media.height")}
             icon={icon(MoveVertical)}
             active={controller.activePanel === "media"}
             onPress={toggleMediaPanel}
           />,
           <LabeledButton
             key="refresh"
-            label="刷新"
+            label={t("media.refresh")}
             icon={icon(RefreshCw)}
             onPress={() => run(editor => runMediaCommand(editor, target, "tau.webview.refresh"))}
           />,
           <LabeledButton
             key="fullscreen"
-            label="全屏"
+            label={t("media.fullscreen")}
             icon={icon(Expand)}
             onPress={() => run(editor => runMediaCommand(editor, target, "tau.webview.fullscreen"))}
           />,
@@ -392,15 +436,18 @@ export function useMediaAccessory(options: UseMediaAccessoryOptions) {
   let rightNode: ReactNode = null;
   if (context?.captionEditing) {
     leftNode = (
-      <ContextChip icon={<Captions size={14} strokeWidth={ICON_STROKE} />} label="图片说明" />
+      <ContextChip
+        icon={<Captions size={14} strokeWidth={ICON_STROKE} />}
+        label={t("media.captionTitle")}
+      />
     );
     rightNode = (
       <AccessoryButton
-        label="完成"
+        label={t("common.done")}
         className="text-accent-text px-[9px] text-[13.5px] font-semibold"
         onPress={finishCaption}
       >
-        完成
+        <EditorText message="common.done" />
       </AccessoryButton>
     );
   } else if (context) {
@@ -416,21 +463,21 @@ export function useMediaAccessory(options: UseMediaAccessoryOptions) {
       <>
         {context.mediaType === "inline-image" ? (
           <AccessoryButton
-            label="删除行内图片"
+            label={t("media.deleteInline")}
             onPress={() => run(editor => deleteMedia(editor, context))}
           >
             <Trash2 size={ICON_SIZE} strokeWidth={ICON_STROKE} />
           </AccessoryButton>
         ) : (
           <AccessoryButton
-            label={`${MEDIA_LABELS[context.mediaType]}菜单`}
+            label={t("media.menu", { type: MEDIA_LABELS[context.mediaType] })}
             onPress={() => openSheet("more", context)}
           >
             <Ellipsis size={ICON_SIZE} strokeWidth={ICON_STROKE} />
           </AccessoryButton>
         )}
         <AccessoryButton
-          label="键盘"
+          label={t("common.keyboard")}
           onPress={() => controller.focusAfterVoid(editor => placeCaretAfterMedia(editor, context))}
         >
           <Keyboard size={ICON_SIZE} strokeWidth={ICON_STROKE} />
@@ -449,7 +496,11 @@ export function useMediaAccessory(options: UseMediaAccessoryOptions) {
       />
       <ActionSheet
         open={sheet?.kind === "replace"}
-        title={sheet ? `替换${MEDIA_LABELS[sheet.context.mediaType]}` : undefined}
+        title={
+          sheet
+            ? t("media.replaceTitle", { type: MEDIA_LABELS[sheet.context.mediaType] })
+            : undefined
+        }
         groups={sheet?.kind === "replace" ? [buildReplaceItems(sheet.context)] : []}
         onClose={closeSheet}
       />

@@ -1,3 +1,4 @@
+import { useEditorI18n } from "../../../../i18n";
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { Node, Range, Transforms, type BaseSelection, type Path } from "slate";
@@ -77,6 +78,7 @@ type HighlightRegistry = { set(name: string, value: unknown): void; delete(name:
 type HighlightCtor = new (...ranges: globalThis.Range[]) => unknown;
 
 export default function LinkPanelLayer({ readOnly }: ExtensionLayerProps) {
+  const { t } = useEditorI18n();
   const editor = useSlateStatic();
   const selection = useSlateSelection();
   const controller = linkPanelOf(editor);
@@ -386,7 +388,7 @@ export default function LinkPanelLayer({ readOnly }: ExtensionLayerProps) {
               navigator.clipboard.writeText(element.url).then(
                 () => true,
                 () => {
-                  notifier.error("复制失败");
+                  notifier.error(t("link.copyFailed"));
                   return false;
                 }
               )

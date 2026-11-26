@@ -1915,6 +1915,9 @@ importers:
       '@tau/editor-source-view':
         specifier: workspace:*
         version: link:../editor-source-view
+      '@tau/i18n':
+        specifier: workspace:*
+        version: link:../i18n
       '@tau/markdown':
         specifier: workspace:*
         version: link:../markdown

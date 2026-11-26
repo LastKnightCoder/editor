@@ -1,3 +1,4 @@
+import { mobileEditorTranslator } from "./i18n";
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import type { EditorRef } from "@tau/editor";
 import {
@@ -23,6 +24,8 @@ import { resolveContentLinkContext } from "./editingContext";
 import { toast } from "../../../components/toast";
 import { restoreSelectionAndFocus } from "./toolbarActions";
 import { getEditorFromRef } from "./useToolbarSelectionState";
+
+const t = mobileEditorTranslator.t;
 
 const INSERT_PICKER_INTENT: ContentLinkPickerIntent = { mode: "insert", text: "" };
 
@@ -97,7 +100,13 @@ export function useContentLinkController({
         mentionRef.current = null;
         const applied = mention.select(result);
         setIsContentLinkPickerOpen(false);
-        if (!applied) toast({ type: "warning", text: "引用位置已变化，请重新输入 @" });
+        if (!applied)
+          toast({
+            type: "warning",
+            get text() {
+              return t("reference.changed");
+            },
+          });
         else {
           const editor = getEditorFromRef(editorRef);
           if (editor) {

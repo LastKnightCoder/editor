@@ -1,3 +1,4 @@
+import { mobileEditorTranslator } from "./i18n";
 import { openLinkPanel } from "@tau/editor/extensions/link";
 import { wrapComment, unwrapComment } from "@tau/editor/extensions/comment";
 import { wrapKbd, unwrapKbd } from "@tau/editor/extensions/kbd";
@@ -9,6 +10,8 @@ import {
 } from "@tau/editor/extensions/text-formatting/palette";
 import { Editor, Element, Node, Path, Range, Transforms, type BaseSelection } from "slate";
 import { ReactEditor } from "slate-react";
+
+const t = mobileEditorTranslator.t;
 
 export type MarkActionId = "bold" | "italic" | "strikethrough" | "code";
 export type InlineWrapActionId = "underline" | "link" | "styled-text";
@@ -73,24 +76,84 @@ export type UnderlineLineTypeOption = {
 };
 
 export const TEXT_STYLE_ACTIONS: ToolbarActionItem[] = [
-  { id: "bold", label: "加粗" },
-  { id: "italic", label: "斜体" },
-  { id: "strikethrough", label: "删除线" },
-  { id: "code", label: "代码" },
-  { id: "kbd", label: "快捷键" },
+  {
+    id: "bold",
+    get label() {
+      return t("format.bold");
+    },
+  },
+  {
+    id: "italic",
+    get label() {
+      return t("format.italic");
+    },
+  },
+  {
+    id: "strikethrough",
+    get label() {
+      return t("format.strike");
+    },
+  },
+  {
+    id: "code",
+    get label() {
+      return t("format.code");
+    },
+  },
+  {
+    id: "kbd",
+    get label() {
+      return t("format.kbd");
+    },
+  },
 ];
 
 export const MORE_ACTIONS: ToolbarActionItem[] = [
-  { id: "comment", label: "批注" },
-  { id: "content-link", label: "引用内容" },
+  {
+    id: "comment",
+    get label() {
+      return t("format.comment");
+    },
+  },
+  {
+    id: "content-link",
+    get label() {
+      return t("link.content");
+    },
+  },
 ];
 
 export const PRIMARY_ACTIONS: ToolbarActionItem[] = [
-  { id: "underline", label: "下划线" },
-  { id: "styled-text", label: "样式文本" },
-  { id: "link", label: "链接" },
-  { id: "color", label: "颜色" },
-  { id: "highlight", label: "高亮" },
+  {
+    id: "underline",
+    get label() {
+      return t("format.underline");
+    },
+  },
+  {
+    id: "styled-text",
+    get label() {
+      return t("format.styled");
+    },
+  },
+  {
+    id: "link",
+    get label() {
+      return t("link.title");
+    },
+  },
+  {
+    id: "color",
+    get label() {
+      return t("format.color");
+    },
+  },
+  {
+    id: "highlight",
+    get label() {
+      return t("format.highlight");
+    },
+  },
 ];
 
 /** 判断块级 id */
@@ -315,19 +378,69 @@ export function insertDividerBlock(editor: Editor): void {
 }
 
 export const TEXT_COLOR_OPTIONS: TextColorOption[] = [
-  { label: "默认", lightColor: undefined, darkColor: undefined },
-  { label: "灰色", lightColor: "#8f959e", darkColor: "#757575" },
-  { label: "红色", lightColor: "#e33a32", darkColor: "#fa7873" },
-  { label: "橙色", lightColor: "#e57d05", darkColor: "#f5a54a" },
-  { label: "黄色", lightColor: "#dc9b04", darkColor: "#fcd456" },
-  { label: "绿色", lightColor: "#2ea121", darkColor: "#6dd162" },
-  { label: "蓝色", lightColor: "#245bdb", darkColor: "#70a0ff" },
-  { label: "紫色", lightColor: "#6425d0", darkColor: "#a472fc" },
+  {
+    get label() {
+      return t("common.default");
+    },
+    lightColor: undefined,
+    darkColor: undefined,
+  },
+  {
+    get label() {
+      return t("palette.gray");
+    },
+    lightColor: "#8f959e",
+    darkColor: "#757575",
+  },
+  {
+    get label() {
+      return t("palette.red");
+    },
+    lightColor: "#e33a32",
+    darkColor: "#fa7873",
+  },
+  {
+    get label() {
+      return t("palette.orange");
+    },
+    lightColor: "#e57d05",
+    darkColor: "#f5a54a",
+  },
+  {
+    get label() {
+      return t("palette.yellow");
+    },
+    lightColor: "#dc9b04",
+    darkColor: "#fcd456",
+  },
+  {
+    get label() {
+      return t("palette.green");
+    },
+    lightColor: "#2ea121",
+    darkColor: "#6dd162",
+  },
+  {
+    get label() {
+      return t("palette.blue");
+    },
+    lightColor: "#245bdb",
+    darkColor: "#70a0ff",
+  },
+  {
+    get label() {
+      return t("palette.purple");
+    },
+    lightColor: "#6425d0",
+    darkColor: "#a472fc",
+  },
 ];
 
 export const TEXT_GRADIENT_OPTIONS: TextGradientOption[] = Object.values(TEXT_GRADIENT_PRESETS).map(
   preset => ({
-    label: preset.label,
+    get label() {
+      return mobileEditorTranslator.t(`gradient.${preset.id}`);
+    },
     preset: preset.id,
     previewLight: preset.light,
     previewDark: preset.dark,
@@ -335,28 +448,120 @@ export const TEXT_GRADIENT_OPTIONS: TextGradientOption[] = Object.values(TEXT_GR
 );
 
 export const HIGHLIGHT_OPTIONS: HighlightOption[] = [
-  { label: "默认", value: undefined, previewColor: "transparent" },
-  { label: "黄色", value: "yellow", previewColor: "rgba(255, 212, 0, 0.6)" },
-  { label: "绿色", value: "green", previewColor: "rgba(42, 157, 143, 0.6)" },
-  { label: "蓝色", value: "blue", previewColor: "rgba(162, 210, 255, 0.8)" },
-  { label: "紫色", value: "purple", previewColor: "rgba(157, 148, 200, 0.6)" },
-  { label: "红色", value: "red", previewColor: "rgba(239, 35, 60, 0.5)" },
+  {
+    get label() {
+      return t("common.default");
+    },
+    value: undefined,
+    previewColor: "transparent",
+  },
+  {
+    get label() {
+      return t("palette.yellow");
+    },
+    value: "yellow",
+    previewColor: "rgba(255, 212, 0, 0.6)",
+  },
+  {
+    get label() {
+      return t("palette.green");
+    },
+    value: "green",
+    previewColor: "rgba(42, 157, 143, 0.6)",
+  },
+  {
+    get label() {
+      return t("palette.blue");
+    },
+    value: "blue",
+    previewColor: "rgba(162, 210, 255, 0.8)",
+  },
+  {
+    get label() {
+      return t("palette.purple");
+    },
+    value: "purple",
+    previewColor: "rgba(157, 148, 200, 0.6)",
+  },
+  {
+    get label() {
+      return t("palette.red");
+    },
+    value: "red",
+    previewColor: "rgba(239, 35, 60, 0.5)",
+  },
 ];
 
 export const UNDERLINE_COLOR_OPTIONS: UnderlineColorOption[] = [
-  { label: "默认", value: "default", previewColor: "#94a3b8" },
-  { label: "黄色", value: "yellow", previewColor: "#facc15" },
-  { label: "绿色", value: "green", previewColor: "#22c55e" },
-  { label: "蓝色", value: "blue", previewColor: "#3b82f6" },
-  { label: "紫色", value: "purple", previewColor: "#a855f7" },
-  { label: "红色", value: "red", previewColor: "#ef4444" },
+  {
+    get label() {
+      return t("common.default");
+    },
+    value: "default",
+    previewColor: "#94a3b8",
+  },
+  {
+    get label() {
+      return t("palette.yellow");
+    },
+    value: "yellow",
+    previewColor: "#facc15",
+  },
+  {
+    get label() {
+      return t("palette.green");
+    },
+    value: "green",
+    previewColor: "#22c55e",
+  },
+  {
+    get label() {
+      return t("palette.blue");
+    },
+    value: "blue",
+    previewColor: "#3b82f6",
+  },
+  {
+    get label() {
+      return t("palette.purple");
+    },
+    value: "purple",
+    previewColor: "#a855f7",
+  },
+  {
+    get label() {
+      return t("palette.red");
+    },
+    value: "red",
+    previewColor: "#ef4444",
+  },
 ];
 
 export const UNDERLINE_LINE_TYPE_OPTIONS: UnderlineLineTypeOption[] = [
-  { label: "实线", value: "solid" },
-  { label: "虚线", value: "dashed" },
-  { label: "点线", value: "dotted" },
-  { label: "波浪", value: "wavy" },
+  {
+    get label() {
+      return t("palette.solid");
+    },
+    value: "solid",
+  },
+  {
+    get label() {
+      return t("palette.dashed");
+    },
+    value: "dashed",
+  },
+  {
+    get label() {
+      return t("palette.dotted");
+    },
+    value: "dotted",
+  },
+  {
+    get label() {
+      return t("palette.wavy");
+    },
+    value: "wavy",
+  },
 ];
 
 export function isMarkAction(actionId: ToolbarActionId): actionId is MarkActionId {

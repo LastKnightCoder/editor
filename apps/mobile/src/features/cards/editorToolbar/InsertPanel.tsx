@@ -1,3 +1,4 @@
+import { mobileEditorTranslator, useMobileEditorI18n, EditorText } from "./i18n";
 import { useEffect, useMemo, useRef, useState, type SyntheticEvent } from "react";
 
 import {
@@ -21,6 +22,8 @@ import type {
   InsertSheetItemKind,
   MobileEditorToolbarController,
 } from "./useMobileEditorToolbarController";
+
+const t = mobileEditorTranslator.t;
 
 type InsertPanelProps = {
   controller: MobileEditorToolbarController;
@@ -50,9 +53,10 @@ const TONE_CLASS: Record<InsertTone, string> = {
   5: "bg-tag-5-soft text-tag-5",
 };
 
-const GROUP_TITLES = Object.fromEntries(
-  INSERT_GROUPS.map(group => [group.key, group.title])
-) as Record<InsertGroupKey, string>;
+const GROUP_META = Object.fromEntries(INSERT_GROUPS.map(group => [group.key, group])) as Record<
+  InsertGroupKey,
+  (typeof INSERT_GROUPS)[number]
+>;
 
 /** 按下时阻止按钮抢焦点，动作在 click 执行 */
 function preventFocusSteal(event: SyntheticEvent) {
@@ -68,6 +72,7 @@ const pressHandlers = {
 const SEARCH_RESULTS_HEIGHT = 220;
 
 export function InsertPanel(props: InsertPanelProps) {
+  useMobileEditorI18n();
   const { controller, allowedKinds, items = INSERT_ITEMS, onSearchingChange } = props;
   const [query, setQuery] = useState("");
   const [recentKinds, setRecentKinds] = useState(readRecentInsertKinds);
@@ -175,7 +180,11 @@ export function InsertPanel(props: InsertPanelProps) {
 
   const renderResults = () => {
     if (results.length === 0) {
-      return <div className="text-ink-3 py-8 text-center text-[13px]">没有匹配的块</div>;
+      return (
+        <div className="text-ink-3 py-8 text-center text-[13px]">
+          <EditorText message="insert.empty" />
+        </div>
+      );
     }
     return (
       <div className="flex flex-col" data-insert-section="results">
@@ -196,7 +205,9 @@ export function InsertPanel(props: InsertPanelProps) {
                 <Icon className="size-[18px]" />
               </span>
               <span className="text-ink-1 text-[14.5px]">{item.label}</span>
-              <span className="text-ink-3 ml-auto text-[12px]">{GROUP_TITLES[item.group]}</span>
+              <span className="text-ink-3 ml-auto text-[12px]">
+                {GROUP_META[item.group]?.title}
+              </span>
             </button>
           );
         })}
@@ -250,7 +261,7 @@ export function InsertPanel(props: InsertPanelProps) {
         inputRef={searchInputRef}
         value={query}
         onValueChange={setQuery}
-        placeholder="搜索块"
+        placeholder={t("insert.search")}
         onFocus={handleSearchFocus}
         onBlur={handleSearchBlur}
         className="mb-2.5"
