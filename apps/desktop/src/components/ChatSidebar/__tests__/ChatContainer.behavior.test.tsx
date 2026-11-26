@@ -944,6 +944,26 @@ it("快捷输入提交失败可保留原文重试，首条消息被接收时切�
   });
   expect(callsOf("pi-session:prompt")).toHaveLength(0);
 
+  act(() => useSettingStore.getState().updateLLMUsageSetting("chat", null));
+  await act(async () => submit());
+  const configAlert = document.querySelector('[role="alert"]');
+  expect(configAlert?.textContent).not.toBe("");
+  const configText = configAlert?.textContent;
+  field.setSelectionRange(1, 3);
+  for (const locale of ["en-US", "zh-TW"] as const) {
+    await act(async () => desktopLocaleSource.setLocale(locale));
+    expect(document.querySelector('[role="alert"]')).toBe(configAlert);
+    expect(configAlert?.textContent).not.toBe(configText);
+    expect(document.activeElement).toBe(field);
+    expect(field.value).toBe("解释这一页");
+    expect([field.selectionStart, field.selectionEnd]).toEqual([1, 3]);
+    expect(callsOf("pi-session:create")).toHaveLength(0);
+    expect(callsOf("pi-session:prompt")).toHaveLength(0);
+  }
+  act(() =>
+    useSettingStore.getState().updateLLMUsageSetting("chat", { providerId: "p1", modelId: "m1" })
+  );
+
   ipc.overrides.set("pi-session:prompt", () => ({ ok: false, error: "暂时不可用" }));
   await act(async () => {
     submit();
@@ -952,6 +972,9 @@ it("快捷输入提交失败可保留原文重试，首条消息被接收时切�
   expect(useChatSessionStore.getState().currentIds["pdf-chat|42"]).toBe("previous");
   expect(useChatSessionStore.getState().buckets["pdf-chat|42"]?.rows ?? []).toEqual([]);
   expect(document.activeElement).toBe(field);
+  await act(async () => desktopLocaleSource.setLocale("en-US"));
+  expect(document.querySelector('[role="alert"]')?.textContent).toBe("暂时不可用");
+  expect(promptPayloads()).toHaveLength(1);
 
   const reply = Promise.withResolvers<{ ok: boolean }>();
   ipc.overrides.set("pi-session:prompt", () => reply.promise);
@@ -966,6 +989,10 @@ it("快捷输入提交失败可保留原文重试，首条消息被接收时切�
   const created = callsOf("pi-session:create").at(-1)?.args[0];
   expect(created).toMatchObject({ chatScope: "pdf-chat:42", toolScope: "pdf-42" });
   expect(useChatSessionStore.getState().currentIds["pdf-chat|42"]).toBe("previous");
+  await act(async () => desktopLocaleSource.setLocale("zh-TW"));
+  expect(document.activeElement).toBe(field);
+  expect(field.readOnly).toBe(true);
+  expect(promptPayloads()).toEqual(prompts);
   emitPiEvent(sessionId, { type: "agent_start" });
   emitPiEvent(sessionId, {
     type: "message_start",

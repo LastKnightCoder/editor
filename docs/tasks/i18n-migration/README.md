@@ -256,6 +256,8 @@ P6A3-B属性面板：22源码加Root5上下文/guard工程完成；集成后4文
 
 P5手机对话工作区：23路径工程完成，真实页面/输入/Skill共25例通过；mobile类型、三语参数/复数、native无DOM binding、范围静态/格式通过。真实换语保留录音连接/流式run与listener、输入焦点选区、异步图片和引用schema、Skill选择/目录次数、rename草稿与history查询次数；6个content prompt及10个home建议payload原字节审计通过。loadError空message维持无错误态，外部未知诊断保留；消息卡和实际speech工作台另批。
 
+P5快捷对话与配置错误：7路径工程完成；真实发送流水线既有17例通过，desktop类型、三语key/插值/复数与范围静态/格式通过。原快捷输入用例扩为实际缺配置失败/切语/恢复配置/重试/在途发送，验证同alert与输入DOM、草稿选区、原diagnostic、原prompt及创建/发送次数；prepareChatSession稳定码保留原中文diagnostic，UI不按文案推断。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

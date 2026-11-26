@@ -7,6 +7,7 @@ import {
 import { resolveChatCwd } from "@/stores/useChatSessionStore";
 import type { ChatMessage, Skill } from "@/types";
 import type { LLMModelSetting, LLMProviderSetting, PiThinkingLevel } from "@/types/pi-llm";
+import { SidebarError } from "../sidebar-errors";
 
 /**
  * 每个对话的基础 system prompt（含会话时间上下文）在本次运行内固定：时间精确到分钟，
@@ -47,7 +48,8 @@ export async function prepareChatSession(
     toolContext,
   }: ChatSessionSetup
 ) {
-  if (!chatProviderConfig || !chatModelConfig) throw new Error("请先在设置中配置对话功能的大模型");
+  if (!chatProviderConfig || !chatModelConfig)
+    throw new SidebarError("config.required", "请先在设置中配置对话功能的大模型");
   const baseSystem = sessionSystemPromptOf(chat.id, customSystemPrompt || DEFAULT_SYSTEM_PROMPT);
   const systemPrompt = buildPiChatSystemPrompt(
     baseSystem,

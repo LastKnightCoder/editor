@@ -104,5 +104,15 @@
   "group.deleteHint": "确定要删除这个分组吗？分组下的对话将移到未分组。",
   "chat.delete": "删除对话",
   "chat.deleteHint": "对话里的所有版本会一起删除，此操作不可恢复。",
-  "chat.create": "新建对话"
+  "chat.create": "新建对话",
+  "error.create": "新对话未能创建",
+  "error.cleanup": "清理未发送的对话失败",
+  "quick.label": "快捷对话",
+  "quick.input": "新对话消息",
+  "quick.placeholder": "问点什么，回答会在右栏的新对话里继续",
+  "quick.sending": "正在发送…",
+  "quick.send": "发送",
+  "quick.close": "关闭",
+  "quick.dismiss": "关闭快捷输入",
+  "quick.closeShortcut": "关闭 (Esc)"
 }

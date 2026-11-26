@@ -2,7 +2,14 @@ import { sidebarT } from "./sidebar.binding";
 import type { SidebarMessageKey } from "./sidebar.messages";
 export class SidebarError extends Error {
   constructor(
-    public readonly code: "error.send" | "error.busy" | "error.compact" | "error.tree",
+    public readonly code:
+      | "error.send"
+      | "error.busy"
+      | "error.compact"
+      | "error.tree"
+      | "config.required"
+      | "error.create"
+      | "error.cleanup",
     message: string
   ) {
     super(message);

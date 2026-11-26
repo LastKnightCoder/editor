@@ -107,5 +107,15 @@
   "date.minutes_other": "{{number}} minutes ago",
   "date.days_one": "{{number}} day ago",
   "date.days_other": "{{number}} days ago",
-  "chat.create": "New chat"
+  "chat.create": "New chat",
+  "error.create": "Unable to create the new chat",
+  "error.cleanup": "Failed to clean up the unsent chat",
+  "quick.label": "Quick chat",
+  "quick.input": "New chat message",
+  "quick.placeholder": "Ask something. The reply will continue in a new chat in the side panel",
+  "quick.sending": "Sending…",
+  "quick.send": "Send",
+  "quick.close": "Close",
+  "quick.dismiss": "Close quick input",
+  "quick.closeShortcut": "Close (Esc)"
 }

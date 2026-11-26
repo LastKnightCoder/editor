@@ -104,5 +104,15 @@
   "group.deleteHint": "確定要刪除此分組嗎？分組中的對話將移至未分組。",
   "chat.delete": "刪除對話",
   "chat.deleteHint": "對話中的所有版本將一併刪除，此操作無法復原。",
-  "chat.create": "新增對話"
+  "chat.create": "新增對話",
+  "error.create": "新對話未能建立",
+  "error.cleanup": "清理未傳送的對話失敗",
+  "quick.label": "快捷對話",
+  "quick.input": "新對話訊息",
+  "quick.placeholder": "問點什麼，回答會在右欄的新對話裡繼續",
+  "quick.sending": "正在傳送…",
+  "quick.send": "傳送",
+  "quick.close": "關閉",
+  "quick.dismiss": "關閉快捷輸入",
+  "quick.closeShortcut": "關閉 (Esc)"
 }

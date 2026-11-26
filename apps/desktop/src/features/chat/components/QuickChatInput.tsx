@@ -19,7 +19,12 @@ import useChatSessionStore, {
 import { prepareChatSession } from "@/components/ChatSidebar/hooks/prepareChatSession";
 import { useChatModelConfig } from "@/components/ChatSidebar/hooks/useChatModelConfig";
 import { useChatRuntime } from "@/components/ChatSidebar/hooks/useChatRuntime";
+import { useSidebarI18n } from "@/components/ChatSidebar/sidebar.i18n";
+import { SidebarError, sidebarErrorText } from "@/components/ChatSidebar/sidebar-errors";
 import { submitQuickChatPrompt } from "../quickChatPrompt";
+
+const errorText = (error: Error | null) =>
+  error instanceof SidebarError ? sidebarErrorText(error) : (error?.message ?? "");
 
 export default function QuickChatInput({
   target,
@@ -30,6 +35,7 @@ export default function QuickChatInput({
   input: RefObject<HTMLTextAreaElement | null>;
   onClose(): void;
 }) {
+  const { t } = useSidebarI18n();
   const bucket = bucketOfChatScope(target.chatScope);
   const [draft, setDraft] = useState(() => createDraftChat(bucket));
   if (draft.scope !== bucket.scope || draft.domainRef !== bucket.domainRef) {
@@ -43,7 +49,8 @@ export default function QuickChatInput({
     chatScope: target.chatScope,
   });
   const [text, setText] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState<Error | null>(null);
+  const displayedError = errorText(error);
   const [busy, setBusy] = useState(false);
   const submitting = useRef(false);
   const portal = usePortalContainer();
@@ -65,7 +72,7 @@ export default function QuickChatInput({
     const stillHere = () => active.current === draft.id && draft.databaseName === getChatDatabase();
     submitting.current = true;
     setBusy(true);
-    setError("");
+    setError(null);
     let prepared = false;
     let registered = false;
     let accepted = false;
@@ -81,7 +88,7 @@ export default function QuickChatInput({
       });
       prepared = true;
       if (!stillHere()) return;
-      if (!session.sessionFile) throw new Error("新对话未能创建");
+      if (!session.sessionFile) throw new SidebarError("error.create", "新对话未能创建");
       const row = await useChatSessionStore.getState().registerChat(draft, session.sessionFile);
       actualChatRef.current = { ...draft, sessionFile: row.sessionFile };
       registered = true;
@@ -104,8 +111,8 @@ export default function QuickChatInput({
         }
       });
     } catch (cause) {
-      const reason = cause instanceof Error ? cause.message : "发送失败";
-      if (accepted) toast.error(reason);
+      const reason = cause instanceof Error ? cause : new SidebarError("error.send", "发送失败");
+      if (accepted) toast.error(errorText(reason));
       else if (stillHere()) {
         setError(reason);
         input.current?.focus();
@@ -118,7 +125,13 @@ export default function QuickChatInput({
           if (registered)
             await useChatSessionStore.getState().deleteChat(draft.id, draft.databaseName);
         } catch (cause) {
-          toast.error(cause instanceof Error ? cause.message : "清理未发送的对话失败");
+          toast.error(
+            errorText(
+              cause instanceof Error
+                ? cause
+                : new SidebarError("error.cleanup", "清理未发送的对话失败")
+            )
+          );
         }
         piChatRuntime.disposeConversation(sessionKey);
         if (stillHere()) setDraft(createDraftChat(bucket));
@@ -143,7 +156,7 @@ export default function QuickChatInput({
   return createPortal(
     <form
       ref={form}
-      aria-label="快捷对话"
+      aria-label={t("quick.label")}
       aria-busy={busy}
       onSubmit={event => {
         event.preventDefault();
@@ -153,8 +166,8 @@ export default function QuickChatInput({
     >
       <textarea
         ref={input}
-        aria-label="新对话消息"
-        placeholder={target.placeholder ?? "问点什么，回答会在右栏的新对话里继续"}
+        aria-label={t("quick.input")}
+        placeholder={target.placeholder ?? t("quick.placeholder")}
         value={text}
         readOnly={busy}
         rows={1}
@@ -175,23 +188,23 @@ export default function QuickChatInput({
         className="text-ink-1 placeholder:text-ink-3 text-tau-body block field-sizing-content max-h-[40vh] min-h-[44px] w-full resize-none bg-transparent px-2 py-1 outline-none"
       />
       <div className="text-tau-meta text-ink-3 mt-1 flex items-center gap-2 pl-2">
-        {error ? (
-          <span role="alert" className="text-danger min-w-0 truncate" title={error}>
-            {error}
+        {displayedError ? (
+          <span role="alert" className="text-danger min-w-0 truncate" title={displayedError}>
+            {displayedError}
           </span>
         ) : busy ? (
-          <span>正在发送…</span>
+          <span>{t("quick.sending")}</span>
         ) : (
           <span className="flex items-center gap-2.5">
-            <Hint keys={isMac ? "⌘↵" : "Ctrl Enter"} label="发送" />
-            <Hint keys="Esc" label="关闭" />
+            <Hint keys={isMac ? "⌘↵" : "Ctrl Enter"} label={t("quick.send")} />
+            <Hint keys="Esc" label={t("quick.close")} />
           </span>
         )}
         <div className="flex-1" />
         <IconButton
           type="button"
-          aria-label="关闭快捷输入"
-          title="关闭 (Esc)"
+          aria-label={t("quick.dismiss")}
+          title={t("quick.closeShortcut")}
           disabled={busy}
           onClick={dismiss}
         >
@@ -199,8 +212,8 @@ export default function QuickChatInput({
         </IconButton>
         <IconButton
           type="submit"
-          aria-label="发送"
-          title="发送"
+          aria-label={t("quick.send")}
+          title={t("quick.send")}
           disabled={!text.trim() || busy}
           className="bg-accent text-ink-inverse enabled:hover:bg-accent-hover enabled:hover:text-ink-inverse"
         >
