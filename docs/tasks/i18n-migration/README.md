@@ -356,6 +356,8 @@ P6 Native媒体进度：41路径加Root ASR/desktop文档2完成；桌面12文�
 
 Markdown F1十二源加Root copy-service1完成；原3文件35至4文件36例、desktop type/44key三语/协议AST通过。实际CodeMirror/useTextFileSession仅隔离IO，保CRLF草稿/history/selection/冲突按钮，原2read/1watch不多save/rebind，keepMine原path+draft一次写。copy既有传输/真实往返11例过；MarkdownFileView仅4 action补id，后续正文UI另F3继续。
 
+项目WebView十一源完成；既有Hook/runner5例、desktop type/build与三语参数/范围静态通过。实际Hook语言订阅回归保progress/complete handler引用、pending与status读取次数，无重复start且原HTML/URL/title/translateToChinese=false完整；原节流尾帧/取消迟到消息仍被丢弃。独立AST证明所有持久/解析/AI数据调用、effect/memo/callback依赖与webview/editor身份props原样；确认仅换展示kind，不改action/目标，原解析文档/笔记n默认数据和aborted哨兵保留。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

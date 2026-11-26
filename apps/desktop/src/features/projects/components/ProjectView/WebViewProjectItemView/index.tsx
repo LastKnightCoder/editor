@@ -1,3 +1,6 @@
+import { useProjectWebI18n } from "./i18n";
+import { projectWebT, projectWebFailureText } from "./binding";
+import { ProjectWebFailure } from "@/services/project-web-failure";
 /**
  * 网页型项目条目视图。
  *
@@ -118,6 +121,7 @@ const hasCommentNode = (nodes: Descendant[]): boolean =>
   });
 
 const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
+  const { t } = useProjectWebI18n();
   const { projectItemId } = props;
   const locationParams = usePageParams<{ itemId?: number; at?: string }>();
   const [projectItem, setProjectItem] = useState<ProjectItem | null>(null);
@@ -138,10 +142,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   const projectItemEventBus = defaultProjectItemEventBus.createEditor();
   /* 命令式 modal.confirm → 声明式：待确认动作（重新解析覆盖 ×2 / 删除笔记） */
   const [pendingConfirm, setPendingConfirm] = useState<null | {
-    title: string;
-    description: string;
-    danger?: boolean;
-    confirmText?: string;
+    kind: "reparse" | "delete-note";
     action: () => void | Promise<void>;
   }>(null);
   useProjectContext(); // Keep context active
@@ -173,7 +174,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   const [isLocalClipping, setIsLocalClipping] = useState(false);
   const [clipCompleting, setClipCompleting] = useState(false);
   const clipRun = useRef(0);
-  const [localClipError, setLocalClipError] = useState<string | null>(null);
+  const [localClipError, setLocalClipError] = useState<Error | null>(null);
   const localClipAbortRef = useRef<AbortController | null>(null);
   useEffect(
     () => () => {
@@ -333,15 +334,16 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
           if (run !== clipRun.current) return;
           if (updatedWebClip) setSavedWebClip(updatedWebClip);
         }
-        toast.success("网页解析完成");
+        toast.success(projectWebT("clip.done"));
       } catch (error) {
-        if (run === clipRun.current) toast.error(`载入解析结果失败: ${String(error)}`);
+        if (run === clipRun.current)
+          toast.error(projectWebT("error.loadResult", { reason: String(error) }));
       } finally {
         if (run === clipRun.current) setClipCompleting(false);
       }
     },
     onError: error => {
-      toast.error(`解析失败: ${error}`);
+      toast.error(projectWebT("error.parse", { reason: projectWebFailureText(error) }));
     },
   });
 
@@ -352,7 +354,9 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   useEffect(() => {
     if (!editorContentId) clipDocument.updateContent(clipInput, "external");
   }, [clipDocument, editorContentId, clipInput]);
-  const currentClipError = localClipError || clipError;
+  const currentClipError =
+    (localClipError ? projectWebFailureText(localClipError) : "") ||
+    (clipError ? projectWebFailureText(clipError) : "");
 
   const cancelLocalClip = useMemoizedFn(() => {
     if (localClipAbortRef.current) {
@@ -373,7 +377,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
 
   const saveLocalClipResult = useMemoizedFn(async (content: Descendant[]) => {
     if (!currentUrl) {
-      throw new Error("无法获取网页 URL");
+      throw new ProjectWebFailure("missingUrl");
     }
 
     const existingWebClipId = await findClippedWebClipId(projectItemId);
@@ -394,7 +398,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
 
     const contentId = await createContent(content, getContentLength(content));
     if (!contentId) {
-      throw new Error("创建内容失败");
+      throw new ProjectWebFailure("createContent");
     }
 
     const createdWebClip = await createWebClip({
@@ -409,7 +413,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
 
   const doStartLocalClip = useMemoizedFn(async (mode: "smart" | "full") => {
     if (!currentUrl) {
-      toast.error("无法获取网页 URL");
+      toast.error(projectWebT("error.missingUrl"));
       return;
     }
 
@@ -429,7 +433,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       const html = await webviewRef.current?.getHTML();
       if (abortController.signal.aborted || localClipAbortRef.current !== abortController) return;
       if (!html) {
-        toast.error("获取网页内容失败");
+        toast.error(projectWebT("error.getHtml"));
         return;
       }
 
@@ -450,7 +454,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
 
       const parsed = importFromMarkdown(markdown, ["yaml"]);
       if (!parsed || parsed.length === 0) {
-        throw new Error("解析结果为空");
+        throw new ProjectWebFailure("empty");
       }
 
       if (abortController.signal.aborted || localClipAbortRef.current !== abortController) return;
@@ -458,7 +462,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       await saveLocalClipResult(parsed);
       if (abortController.signal.aborted || localClipAbortRef.current !== abortController) return;
       setParsedContent(parsed);
-      toast.success("网页解析完成");
+      toast.success(projectWebT("clip.done"));
     } catch (error) {
       if (
         abortController.signal.aborted ||
@@ -467,9 +471,9 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       ) {
         return;
       }
-      const errorMessage = error instanceof Error ? error.message : "解析失败";
+      const errorMessage = error instanceof Error ? error : new ProjectWebFailure("generic");
       setLocalClipError(errorMessage);
-      toast.error(`解析失败: ${errorMessage}`);
+      toast.error(projectWebT("error.parse", { reason: projectWebFailureText(errorMessage) }));
     } finally {
       if (localClipAbortRef.current === abortController) {
         localClipAbortRef.current = null;
@@ -480,7 +484,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
 
   const doStartClip = useMemoizedFn(async () => {
     if (!currentUrl) {
-      toast.error("无法获取网页 URL");
+      toast.error(projectWebT("error.missingUrl"));
       return;
     }
 
@@ -493,7 +497,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       const html = await webviewRef.current?.getHTML();
       if (run !== clipRun.current) return;
       if (!html) {
-        toast.error("获取网页内容失败");
+        toast.error(projectWebT("error.getHtml"));
         return;
       }
 
@@ -505,7 +509,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       void startClip(contentHTML, currentUrl, title || "", false);
     } catch (error) {
       console.error("Start clip error:", error);
-      toast.error("开始解析失败");
+      toast.error(projectWebT("error.start"));
     }
   });
 
@@ -515,9 +519,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     const run = () => (mode === "llm" ? doStartClip() : doStartLocalClip("smart"));
     if (savedWebClip) {
       setPendingConfirm({
-        title: "重新解析网页",
-        description: "已存在解析文档，重新解析将覆盖现有内容。确定要继续吗？",
-        confirmText: "确定",
+        kind: "reparse",
         action: run,
       });
       return;
@@ -548,7 +550,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       return note;
     } catch (error) {
       console.error("Failed to create note:", error);
-      toast.error("创建笔记失败，请重试");
+      toast.error(projectWebT("note.createFailed"));
       return null;
     } finally {
       setCreatingDocument(false);
@@ -562,10 +564,10 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       await deleteWebNote(noteId);
       setNotes(prev => prev.filter(item => item.id !== noteId));
       await persistPreferredNote(null);
-      toast.success("笔记已删除");
+      toast.success(projectWebT("note.deleted"));
     } catch (error) {
       console.error("Failed to delete note:", error);
-      toast.error("删除笔记失败，请重试");
+      toast.error(projectWebT("note.deleteFailed"));
     }
   });
 
@@ -586,10 +588,10 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
         title: trimmed,
       });
       setNotes(prev => prev.map(item => (item.id === updated.id ? updated : item)));
-      toast.success("笔记标题已更新");
+      toast.success(projectWebT("note.renamed"));
     } catch (error) {
       console.error("Failed to rename note:", error);
-      toast.error("重命名笔记失败，请重试");
+      toast.error(projectWebT("note.renameFailed"));
     } finally {
       setRenamingNote(null);
     }
@@ -679,7 +681,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     projectItemEventBus.publishProjectItemEvent("project-item:updated", updatedProjectItem);
 
     setEditTitleModalOpen(false);
-    toast.success("标题已更新");
+    toast.success(projectWebT("title.updated"));
   });
 
   const handleEditorChange = useMemoizedFn((content: Descendant[]) => {
@@ -706,17 +708,17 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   if (isAnyClipping) {
     moreMenuItems.push({
       key: "cancel-parse",
-      label: "取消解析",
+      label: t("parse.cancel"),
       icon: <X className="size-[15px]" strokeWidth={1.75} />,
     });
   } else if (hasClipResult) {
     moreMenuItems.push({
       key: "reparse",
-      label: "重新解析",
+      label: t("parse.again"),
       icon: <RefreshCcw className="size-[15px]" strokeWidth={1.75} />,
       children: [
-        { key: "reparse-llm", label: "LLM 转录" },
-        { key: "reparse-smart", label: "剪藏网页" },
+        { key: "reparse-llm", label: t("parse.llm") },
+        { key: "reparse-smart", label: t("parse.smart") },
       ],
     });
   }
@@ -726,17 +728,17 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   moreMenuItems.push(
     {
       key: "refresh",
-      label: "刷新网页",
+      label: t("page.reload"),
       icon: <RotateCw className="size-[15px]" strokeWidth={1.75} />,
     },
     {
       key: "browser",
-      label: "在浏览器中打开",
+      label: t("page.browser"),
       icon: <ExternalLink className="size-[15px]" strokeWidth={1.75} />,
     },
     {
       key: "new-tab",
-      label: "在应用内打开",
+      label: t("page.app"),
       icon: <AppWindow className="size-[15px]" strokeWidth={1.75} />,
     }
   );
@@ -767,12 +769,12 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   const noteMenuItems: MenuEntryList = [
     {
       key: "note-rename",
-      label: "重命名笔记",
+      label: t("note.rename"),
       icon: <PenLine className="size-[15px]" strokeWidth={1.75} />,
     },
     {
       key: "note-delete",
-      label: "删除笔记",
+      label: t("note.delete"),
       icon: <Trash2 className="size-[15px]" strokeWidth={1.75} />,
       danger: true,
     },
@@ -785,10 +787,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     } else if (key === "note-delete") {
       const noteId = activeNote.id;
       setPendingConfirm({
-        title: "删除笔记",
-        description: "删除后无法恢复，确定删除这篇笔记吗？",
-        danger: true,
-        confirmText: "删除",
+        kind: "delete-note",
         action: () => handleDeleteNote(noteId),
       });
     }
@@ -810,12 +809,12 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     <div className="flex h-full items-center justify-center px-6">
       <div className="flex max-w-[380px] flex-col items-center text-center">
         <FileText className="text-ink-3 size-8" strokeWidth={1.5} />
-        <p className="text-ink-1 mt-4 text-[15px] font-medium">这个网页还没有转成文档</p>
-        <p className="text-ink-3 text-tau-sm mt-1.5 leading-relaxed">
-          转成文档后可以编辑、批注，并用目录快速跳转。
-        </p>
+        <p className="text-ink-1 mt-4 text-[15px] font-medium">{t("parse.emptyTitle")}</p>
+        <p className="text-ink-3 text-tau-sm mt-1.5 leading-relaxed">{t("parse.emptyHint")}</p>
         {currentClipError && (
-          <p className="text-tau-sm mt-3 text-red-600">上次解析失败：{currentClipError}</p>
+          <p className="text-tau-sm mt-3 text-red-600">
+            {t("parse.previousFailure", { reason: currentClipError })}
+          </p>
         )}
         <div className="mt-5 flex gap-2">
           <Button
@@ -824,7 +823,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
             icon={Sparkles}
             onClick={() => void handleStartParse("llm")}
           >
-            LLM 转录
+            {t("parse.llm")}
           </Button>
           <Button
             size="sm"
@@ -832,7 +831,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
             icon={Scissors}
             onClick={() => void handleStartParse("smart")}
           >
-            剪藏网页
+            {t("parse.smart")}
           </Button>
         </div>
       </div>
@@ -853,9 +852,9 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
               {isAnyClipping && (
                 <div className="border-line-1 bg-hover text-ink-1 mx-20 mb-4 flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm">
                   <Loader2 className="size-4 animate-spin" strokeWidth={1.75} />
-                  <span className="flex-1">正在解析网页内容，请稍候…</span>
+                  <span className="flex-1">{t("parse.running")}</span>
                   <Button size="sm" variant="ghost" onClick={() => void cancelAnyClip()}>
-                    取消
+                    {t("action.cancel")}
                   </Button>
                 </div>
               )}
@@ -911,7 +910,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
               showTitle={false}
             />
           ) : (
-            <p className="text-ink-3 text-tau-sm pt-2">解析后显示文档目录</p>
+            <p className="text-ink-3 text-tau-sm pt-2">{t("outline.empty")}</p>
           )}
         </FadeScroll>
       );
@@ -920,7 +919,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       return (
         <div className="flex h-full flex-col items-center justify-center px-6 text-center">
           <NotebookPen className="text-ink-3 size-7" strokeWidth={1.5} />
-          <p className="text-ink-2 text-tau-sm mt-3">边读边记，笔记与这个网页放在一起</p>
+          <p className="text-ink-2 text-tau-sm mt-3">{t("note.empty")}</p>
           <Button
             size="sm"
             variant="secondary"
@@ -928,7 +927,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
             disabled={creatingDocument}
             onClick={() => void createNote()}
           >
-            {creatingDocument ? "正在创建…" : "新建笔记"}
+            {t(creatingDocument ? "note.creating" : "note.create")}
           </Button>
         </div>
       );
@@ -951,10 +950,10 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       <div className="border-line-1 flex items-center gap-3 border-b px-4 py-2.5">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <h1 className="m-0 truncate text-lg leading-snug font-semibold">{title}</h1>
-          <Tooltip content="编辑标题" delay={500}>
+          <Tooltip content={t("title.edit")} delay={500}>
             <IconButton
               className="text-ink-3 size-7 shrink-0"
-              aria-label="编辑标题"
+              aria-label={t("title.edit")}
               onClick={() => setEditTitleModalOpen(true)}
             >
               <Pencil className="size-4" strokeWidth={1.75} />
@@ -963,23 +962,23 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
         </div>
 
         <Segmented
-          label="阅读视图"
+          label={t("view.label")}
           value={mainView}
           onValueChange={(v: MainView) => handleSwitchMainView(v)}
         >
-          <Segmented.Item value="web" label="网页" icon={Globe} />
-          <Segmented.Item value="parsed" label="文档" icon={FileText} />
+          <Segmented.Item value="web" label={t("view.web")} icon={Globe} />
+          <Segmented.Item value="parsed" label={t("view.document")} icon={FileText} />
         </Segmented>
 
         <div className="flex items-center gap-0.5">
           <Tooltip
-            content={
-              railVisible ? "收起侧栏" : mainView === "web" ? "展开笔记" : "展开侧栏（目录 / 笔记）"
-            }
+            content={t(
+              railVisible ? "rail.close" : mainView === "web" ? "rail.openNotes" : "rail.openDetail"
+            )}
             delay={500}
           >
             <IconButton
-              aria-label={railVisible ? "收起侧栏" : "展开侧栏"}
+              aria-label={t(railVisible ? "rail.close" : "rail.open")}
               aria-pressed={railVisible}
               className={railVisible ? "text-ink-1" : undefined}
               onClick={handleToggleRail}
@@ -995,8 +994,8 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
             trigger={
               <button
                 type="button"
-                title="更多操作"
-                aria-label="更多操作"
+                title={t("action.more")}
+                aria-label={t("action.more")}
                 className="text-ink-2 hover:bg-hover hover:text-ink-1 rounded-tau-sm grid size-[30px] cursor-pointer place-items-center border-none bg-transparent transition-colors"
               >
                 <MoreHorizontal className="size-4" strokeWidth={1.75} />
@@ -1054,15 +1053,15 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
             <div className="flex h-11 shrink-0 items-center gap-2 px-3">
               {mainView === "parsed" ? (
                 <Segmented
-                  label="侧栏内容"
+                  label={t("rail.label")}
                   value={railTab}
                   onValueChange={(v: RailTab) => handleSwitchRailTab(v)}
                 >
-                  <Segmented.Item value="outline" label="目录" />
-                  <Segmented.Item value="note" label="笔记" />
+                  <Segmented.Item value="outline" label={t("rail.outline")} />
+                  <Segmented.Item value="note" label={t("rail.note")} />
                 </Segmented>
               ) : (
-                <span className="text-ink-2 text-tau-sm px-1 font-medium">笔记</span>
+                <span className="text-ink-2 text-tau-sm px-1 font-medium">{t("rail.note")}</span>
               )}
               {activeRailTab === "note" && activeNote && (
                 <>
@@ -1074,8 +1073,8 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
                     trigger={
                       <button
                         type="button"
-                        title="笔记操作"
-                        aria-label="笔记操作"
+                        title={t("note.actions")}
+                        aria-label={t("note.actions")}
                         className="text-ink-3 hover:bg-hover hover:text-ink-1 rounded-tau-sm grid size-[26px] cursor-pointer place-items-center border-none bg-transparent transition-colors"
                       >
                         <MoreHorizontal className="size-[15px]" strokeWidth={1.75} />
@@ -1098,18 +1097,18 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
         onCancel={() => setEditTitleModalOpen(false)}
         onConfirm={handleConfirmEditTitle}
         initialTitle={title}
-        modalTitle="编辑网页标题"
-        modalDescription="修改当前网页的显示标题"
-        placeholder="请输入标题"
+        modalTitle={t("title.editPage")}
+        modalDescription={t("title.editHint")}
+        placeholder={t("title.placeholder")}
       />
       <EditTitleModal
         open={!!renamingNote}
         onCancel={() => setRenamingNote(null)}
         onConfirm={handleConfirmRenameNote}
         initialTitle={renamingNote?.title || ""}
-        modalTitle="重命名笔记"
-        modalDescription="修改当前笔记的名称"
-        placeholder="请输入笔记标题"
+        modalTitle={t("note.rename")}
+        modalDescription={t("note.renameHint")}
+        placeholder={t("note.placeholder")}
       />
 
       <ConfirmDialog
@@ -1117,10 +1116,18 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
         onOpenChange={next => {
           if (!next) setPendingConfirm(null);
         }}
-        title={pendingConfirm?.title ?? ""}
-        description={pendingConfirm?.description ?? ""}
-        danger={pendingConfirm?.danger}
-        confirmText={pendingConfirm?.confirmText ?? "确定"}
+        title={
+          pendingConfirm
+            ? t(pendingConfirm.kind === "reparse" ? "parse.overwriteTitle" : "note.delete")
+            : ""
+        }
+        description={
+          pendingConfirm
+            ? t(pendingConfirm.kind === "reparse" ? "parse.overwriteHint" : "note.deleteHint")
+            : ""
+        }
+        danger={pendingConfirm?.kind === "delete-note"}
+        confirmText={t(pendingConfirm?.kind === "delete-note" ? "action.delete" : "action.confirm")}
         onConfirm={async () => {
           const pending = pendingConfirm;
           setPendingConfirm(null);

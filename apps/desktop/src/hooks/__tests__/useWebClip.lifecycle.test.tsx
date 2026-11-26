@@ -2,6 +2,9 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
 import { useWebClip } from "../useWebClip";
+import { useProjectWebI18n } from "@/features/projects/components/ProjectView/WebViewProjectItemView/i18n";
+import { desktopLocaleSource } from "@/app/i18n/runtime";
+import { startWebClip } from "@/services/web-clip";
 import type { WebClipProgressData, WebClipCompleteData } from "@/services/web-clip";
 
 const api = vi.hoisted(() => ({
@@ -40,6 +43,7 @@ it("网页生成丢弃旧状态读取、完成前的节流尾帧及取消后的�
   const progress = vi.fn(),
     complete = vi.fn();
   function Harness() {
+    useProjectWebI18n();
     current = useWebClip({ projectItemId: 1, onProgress: progress, onComplete: complete });
     return null;
   }
@@ -48,6 +52,24 @@ it("网页生成丢弃旧状态读取、完成前的节流尾帧及取消后的�
   try {
     await act(async () => root.render(<Harness />));
     await act(async () => current?.startClip("html", "https://example.test", "标题"));
+    const handlers = { progress: api.progress, complete: api.complete };
+    const calls = vi.mocked(startWebClip).mock.calls.length;
+    const reads = api.status.mock.calls.length;
+    for (const locale of ["en-US", "zh-TW"] as const) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(current?.isClipping).toBe(true);
+      expect(api.progress).toBe(handlers.progress);
+      expect(api.complete).toBe(handlers.complete);
+      expect(vi.mocked(startWebClip).mock.calls.length).toBe(calls);
+      expect(api.status.mock.calls.length).toBe(reads);
+    }
+    expect(vi.mocked(startWebClip).mock.lastCall?.[0]).toMatchObject({
+      projectItemId: 1,
+      html: "html",
+      url: "https://example.test",
+      title: "标题",
+      translateToChinese: false,
+    });
     await act(async () => status({ status: "processing", markdown: "上次任务的旧状态" }));
     expect(current?.markdown).toBe("");
     await act(async () => {
@@ -70,6 +92,7 @@ it("网页生成丢弃旧状态读取、完成前的节流尾帧及取消后的�
     expect(current?.isClipping).toBe(false);
   } finally {
     await act(async () => root.unmount());
+    desktopLocaleSource.setLocale("zh-CN");
     host.remove();
     vi.useRealTimers();
   }

@@ -1,3 +1,4 @@
+import { ProjectWebFailure } from "@/services/project-web-failure";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useThrottleFn, useMemoizedFn } from "ahooks";
 import { Descendant } from "slate";
@@ -23,14 +24,14 @@ interface UseWebClipOptions {
     webClipId?: number,
     contentId?: number
   ) => void;
-  onError?: (error: string) => void;
+  onError?: (error: string | ProjectWebFailure) => void;
 }
 
 interface UseWebClipReturn {
   isClipping: boolean;
   markdown: string;
   content: Descendant[];
-  error: string | null;
+  error: string | ProjectWebFailure | null;
   startClip: (
     html: string,
     url: string,
@@ -54,7 +55,7 @@ export const useWebClip = (options: UseWebClipOptions): UseWebClipReturn => {
   const [isClipping, setIsClipping] = useState(false);
   const [markdown, setMarkdown] = useState("");
   const [content, setContent] = useState<Descendant[]>(DEFAULT_CONTENT);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | ProjectWebFailure | null>(null);
 
   const requestVersion = useRef(0);
   const accepting = useRef(true);
@@ -99,8 +100,9 @@ export const useWebClip = (options: UseWebClipOptions): UseWebClipReturn => {
       }
     } catch (err) {
       console.warn("Final parse markdown error:", err);
-      setError("解析内容失败");
-      onError?.("解析内容失败");
+      const failure = new ProjectWebFailure("parseContent");
+      setError(failure);
+      onError?.(failure);
     }
   });
 
@@ -164,7 +166,7 @@ export const useWebClip = (options: UseWebClipOptions): UseWebClipReturn => {
       } catch (err) {
         if (request !== requestVersion.current) return;
         setIsClipping(false);
-        const errorMessage = err instanceof Error ? err.message : "开始解析失败";
+        const errorMessage = err instanceof Error ? err.message : new ProjectWebFailure("start");
         setError(errorMessage);
         onError?.(errorMessage);
       }
