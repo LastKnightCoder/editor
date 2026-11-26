@@ -1,5 +1,7 @@
+import { pluginTranslator, usePluginI18n } from "../i18n";
 import type { ReactNode } from "react";
 import { Button, Loading } from "@tau/ui";
+const t = pluginTranslator.t;
 
 /** 插件列表（商店与已安装）的加载、失败、空态与加载更多；宽屏两列。 */
 export function PluginListState({
@@ -30,15 +32,16 @@ export function PluginListState({
   onLoadMore?: () => void;
   children: ReactNode;
 }) {
-  if (status === "loading") return <Loading minHeight={240} label="正在读取插件…" />;
+  usePluginI18n();
+  if (status === "loading") return <Loading minHeight={240} label={t("center.loading")} />;
   if (status === "error")
     return (
       <div role="alert" className="flex flex-col items-center gap-3 px-6 py-12 text-center">
-        <p className="text-ink-1 text-[15px] font-semibold">插件列表暂时打不开</p>
-        {error && <p className="text-ink-2 break-words text-[13px]">{error}</p>}
+        <p className="text-ink-1 text-[15px] font-semibold">{t("center.listFailed")}</p>
+        {error && <p className="text-ink-2 text-[13px] break-words">{error}</p>}
         {onRetry && (
           <Button className="min-h-11" loading={retrying} onClick={onRetry}>
-            重试
+            {t("common.retry")}
           </Button>
         )}
       </div>
@@ -55,13 +58,13 @@ export function PluginListState({
       <ul className="bg-surface overflow-hidden rounded-[18px]">{children}</ul>
       {loadMoreError && (
         <p role="alert" className="text-danger text-center text-[13px]">
-          加载更多失败：{loadMoreError}
+          {t("center.moreFailed", { error: loadMoreError })}
         </p>
       )}
       {hasMore && onLoadMore && (
         <div className="flex justify-center">
           <Button className="min-h-11" loading={loadingMore} onClick={onLoadMore}>
-            加载更多
+            {t("center.loadMore")}
           </Button>
         </div>
       )}

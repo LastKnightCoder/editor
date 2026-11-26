@@ -1,7 +1,9 @@
+import { pluginTranslator, usePluginI18n } from "../i18n";
 import { ChevronRight } from "lucide-react";
 import { Switch, cn } from "@tau/ui";
 import { PluginIcon } from "./PluginIcon";
 import { STATUS_DISPLAY, TONE_CLASS, type PluginLifecycleView } from "./pluginStatus";
+const t = pluginTranslator.t;
 
 /** 已安装列表行：状态 + 版本 + 启停开关；管理动作统一在详情页，整行（开关除外）进详情。 */
 export function InstalledPluginRow({
@@ -29,11 +31,12 @@ export function InstalledPluginRow({
   onOpen: () => void;
   onToggle: () => void;
 }) {
+  usePluginI18n();
   const display = STATUS_DISPLAY[status.kind];
   return (
-    <li className="relative flex items-center gap-3 py-3 pl-3.5 pr-3.5" data-plugin-id={id}>
+    <li className="relative flex items-center gap-3 py-3 pr-3.5 pl-3.5" data-plugin-id={id}>
       {divider && (
-        <span aria-hidden className="bg-line-2 absolute left-[70px] right-0 top-0 h-px" />
+        <span aria-hidden className="bg-line-2 absolute top-0 right-0 left-[70px] h-px" />
       )}
       <button
         type="button"
@@ -55,7 +58,7 @@ export function InstalledPluginRow({
             </span>
             {update && (
               <span className="bg-accent-soft text-accent-text shrink-0 rounded-full px-1.5 py-px text-[10.5px] font-semibold">
-                可更新 {update}
+                {t("manage.updateAvailable", { version: update })}
               </span>
             )}
             {version && <span className="truncate">v{version}</span>}
@@ -64,7 +67,7 @@ export function InstalledPluginRow({
       </button>
       {toggle ? (
         <Switch
-          aria-label={`${enabled ? "停用" : "启用"} ${name}`}
+          aria-label={t(enabled ? "manage.disableName" : "manage.enableName", { name })}
           checked={enabled}
           disabled={!toggle.allowed}
           onCheckedChange={onToggle}

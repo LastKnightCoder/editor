@@ -1,3 +1,5 @@
+import { pluginTranslator } from "../i18n";
+const t = pluginTranslator.t;
 import type { CenterReason } from "@tau/plugins/center";
 import type { ManagedPluginItem, PluginManagerAction } from "../data/usePluginManager";
 import type { StoreTaskPhase } from "./StoreActionButton";
@@ -34,14 +36,54 @@ export const STATUS_DISPLAY: Record<
   PluginLifecycleView["kind"],
   { label: string; tone: StatusTone }
 > = {
-  downloading: { label: "下载中", tone: "info" },
-  verifying: { label: "校验中", tone: "info" },
-  pending: { label: "待生效", tone: "warn" },
-  running: { label: "运行中", tone: "ok" },
-  inactive: { label: "未运行", tone: "neutral" },
-  disabled: { label: "已停用", tone: "neutral" },
-  failed: { label: "失败", tone: "danger" },
-  revoked: { label: "已撤回", tone: "danger" },
+  downloading: {
+    get label() {
+      return t("status.downloading");
+    },
+    tone: "info",
+  },
+  verifying: {
+    get label() {
+      return t("status.verifying");
+    },
+    tone: "info",
+  },
+  pending: {
+    get label() {
+      return t("status.pending");
+    },
+    tone: "warn",
+  },
+  running: {
+    get label() {
+      return t("status.running");
+    },
+    tone: "ok",
+  },
+  inactive: {
+    get label() {
+      return t("status.inactive");
+    },
+    tone: "neutral",
+  },
+  disabled: {
+    get label() {
+      return t("status.disabled");
+    },
+    tone: "neutral",
+  },
+  failed: {
+    get label() {
+      return t("status.failed");
+    },
+    tone: "danger",
+  },
+  revoked: {
+    get label() {
+      return t("status.revoked");
+    },
+    tone: "danger",
+  },
 };
 
 export const TONE_CLASS: Record<StatusTone, string> = {
@@ -55,23 +97,25 @@ export const TONE_CLASS: Record<StatusTone, string> = {
 export function actionLabel(action: PluginActionView): string {
   switch (action.kind) {
     case "cancelInstall":
-      return "取消下载";
+      return t("install.cancelDownload");
     case "cancelPending":
-      return "取消待生效更新";
+      return t("manage.cancelPending");
     case "retry":
-      return "重试";
+      return t("common.retry");
     case "update":
-      return action.version ? `更新到 v${action.version}` : "更新";
+      return action.version
+        ? t("install.updateVersion", { version: action.version })
+        : t("common.update");
     case "enable":
-      return "启用";
+      return t("common.enable");
     case "disable":
-      return "停用";
+      return t("common.disable");
     case "uninstall":
-      return "卸载";
+      return t("common.uninstall");
     case "clearData":
-      return "清除此工作区数据";
+      return t("manage.clearWorkspace");
     case "restore":
-      return "恢复上一版代码";
+      return t("manage.restoreCode");
   }
 }
 
@@ -79,23 +123,23 @@ export function actionLabel(action: PluginActionView): string {
 export function reasonLabel(reason: CenterReason): string {
   switch (reason.code) {
     case "FORMAT_UNSUPPORTED":
-      return `当前应用不支持包格式 ${reason.formatVersion}`;
+      return t("reason.format", { format: reason.formatVersion });
     case "API_UNSUPPORTED":
-      return `当前应用不支持插件接口版本 ${reason.apiVersion}`;
+      return t("reason.api", { version: reason.apiVersion });
     case "PROFILE_UNSUPPORTED":
-      return `当前应用未接入运行配置 ${reason.profile}`;
+      return t("reason.profile", { profile: reason.profile });
     case "PLATFORM_UNSUPPORTED":
-      return `插件未声明支持${PLATFORM_LABELS[reason.platform]}`;
+      return t("reason.platform", { platform: PLATFORM_LABELS[reason.platform] });
     case "APP_VERSION_TOO_LOW":
-      return `需要将 Tau 更新到 ${reason.minAppVersion} 或更高版本`;
+      return t("reason.appVersion", { version: reason.minAppVersion });
     case "DISTRIBUTION_UNAVAILABLE":
-      return "此平台的插件安装尚未开放";
+      return t("reason.distribution");
     case "REVOKED":
-      return "该版本已撤回";
+      return t("reason.revoked");
     case "PLUGIN_DISABLED":
-      return "插件已被停止公开";
+      return t("reason.disabled");
     case "NO_RELEASE":
-      return "没有已发布的版本";
+      return t("reason.noRelease");
   }
 }
 

@@ -1,4 +1,6 @@
+import { pluginTranslator, usePluginI18n } from "../i18n";
 import { cn } from "@tau/ui";
+const t = pluginTranslator.t;
 
 export interface ReleaseHistoryItem {
   releaseId: string;
@@ -23,10 +25,9 @@ function Mark({ children, className }: { children: string; className: string }) 
 
 function describe(item: ReleaseHistoryItem, platformLabel: string) {
   return [
-    item.publishedAt.slice(0, 10),
-    item.compatible && "可安装",
-    !item.declared && `未声明支持${platformLabel}`,
-    item.requiredAppVersion && `需 Tau ${item.requiredAppVersion} 或更高`,
+    item.compatible && t("version.installable"),
+    !item.declared && t("version.unsupported", { platform: platformLabel }),
+    item.requiredAppVersion && t("version.requireTau", { version: item.requiredAppVersion }),
   ]
     .filter(Boolean)
     .join(" · ");
@@ -40,10 +41,11 @@ export function ReleaseHistoryList({
   platformLabel: string;
   items: readonly ReleaseHistoryItem[];
 }) {
+  const { locale } = usePluginI18n();
   if (!items.length)
-    return <p className="text-ink-3 py-6 text-center text-[13px]">暂无已发布版本</p>;
+    return <p className="text-ink-3 py-6 text-center text-[13px]">{t("version.empty")}</p>;
   return (
-    <ol aria-label="版本历史" className="flex flex-col">
+    <ol aria-label={t("version.history")} className="flex flex-col">
       {items.map(item => (
         <li
           key={item.releaseId}
@@ -59,10 +61,24 @@ export function ReleaseHistoryList({
           />
           <div className="flex items-center gap-1.5">
             <span className="text-ink-1 font-mono text-[14px] font-semibold">v{item.version}</span>
-            {item.latest && <Mark className="bg-accent-soft text-accent-text">最新</Mark>}
-            {item.installed && <Mark className="bg-info-soft text-info">当前</Mark>}
+            {item.latest && (
+              <Mark className="bg-accent-soft text-accent-text">{t("version.latest")}</Mark>
+            )}
+            {item.installed && (
+              <Mark className="bg-info-soft text-info">{t("version.current")}</Mark>
+            )}
           </div>
-          <p className="text-ink-3 text-[12px]">{describe(item, platformLabel)}</p>
+          <p className="text-ink-3 text-[12px]">
+            <time dateTime={item.publishedAt}>
+              {new Intl.DateTimeFormat(locale, {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+                timeZone: "UTC",
+              }).format(new Date(item.publishedAt))}
+            </time>
+            {describe(item, platformLabel) && ` · ${describe(item, platformLabel)}`}
+          </p>
         </li>
       ))}
     </ol>

@@ -1,9 +1,11 @@
+import { pluginTranslator, usePluginI18n, pluginActionReason } from "../i18n";
 import { useState } from "react";
 import { CircleX, Eraser, Trash2, Undo2 } from "lucide-react";
 import { ActionSheet, type ActionSheetItem } from "../../../components/ActionSheet";
 import { MobileConfirmDialog } from "../../../components/MobileConfirmDialog";
 import { toast } from "../../../components/toast";
 import type { ManagedPluginItem, PluginManagerAction } from "../data/usePluginManager";
+const t = pluginTranslator.t;
 
 type ConfirmKind = Extract<PluginManagerAction, "uninstall" | "clearData" | "restore">;
 
@@ -12,22 +14,33 @@ const CONFIRMS: Record<
   { title: (name: string) => string; description: string; confirmText: string; danger: boolean }
 > = {
   uninstall: {
-    title: name => `卸载「${name}」`,
-    description: "只移除插件代码。正文里的插件内容和插件数据都会保留，重新安装后可继续使用。",
-    confirmText: "卸载",
+    title: name => t("manage.uninstallTitle", { name }),
+    get description() {
+      return t("manage.uninstallHint");
+    },
+    get confirmText() {
+      return t("common.uninstall");
+    },
     danger: false,
   },
   clearData: {
-    title: name => `清除「${name}」在此工作区的数据`,
-    description:
-      "清除当前工作区里这个插件的键值存储及已选择内容的标题访问授权，无法撤销；插件内容、结构化记录、正文和其他工作区保留。",
-    confirmText: "清除",
+    title: name => t("manage.clearTitle", { name }),
+    get description() {
+      return t("manage.clearHint");
+    },
+    get confirmText() {
+      return t("manage.clear");
+    },
     danger: true,
   },
   restore: {
-    title: () => "恢复上一版代码",
-    description: "只回退插件代码，不回退插件数据；新版本写入的数据不一定能被旧版本读取。",
-    confirmText: "恢复",
+    title: () => t("manage.restoreCode"),
+    get description() {
+      return t("manage.restoreHint");
+    },
+    get confirmText() {
+      return t("manage.restore");
+    },
     danger: false,
   },
 };
@@ -47,6 +60,7 @@ export function PluginManageSheet({
   onClose: () => void;
   onAction: (kind: PluginManagerAction) => void;
 }) {
+  usePluginI18n();
   const [confirming, setConfirming] = useState<ConfirmKind | null>(null);
   const entry = (
     kind: PluginManagerAction,
@@ -60,10 +74,15 @@ export function PluginManageSheet({
       label,
       icon,
       danger,
-      desc: availability.allowed ? desc : (availability.reason ?? "暂不可用"),
+      desc: availability.allowed
+        ? desc
+        : (pluginActionReason(availability) ?? t("manage.unavailable")),
       onClick: () => {
         if (!availability.allowed) {
-          toast({ type: "info", text: availability.reason ?? "暂不可用" });
+          toast({
+            type: "info",
+            text: pluginActionReason(availability) ?? t("manage.unavailable"),
+          });
           return;
         }
         if (kind in CONFIRMS) setConfirming(kind as ConfirmKind);
@@ -74,13 +93,15 @@ export function PluginManageSheet({
   const groups: ActionSheetItem[][] = [
     [
       ...(item.pending
-        ? [entry("cancelPending", "取消待生效更新", <CircleX />, "保留当前运行的版本")]
+        ? [entry("cancelPending", t("manage.cancelPending"), <CircleX />, t("manage.keepRunning"))]
         : []),
-      ...(item.hasBackup ? [entry("restore", "恢复上一版代码", <Undo2 />, "插件数据不回退")] : []),
+      ...(item.hasBackup
+        ? [entry("restore", t("manage.restoreCode"), <Undo2 />, t("manage.keepData"))]
+        : []),
     ],
     [
-      entry("clearData", "清除此工作区数据", <Eraser />, "无法撤销，正文不受影响", true),
-      entry("uninstall", "卸载", <Trash2 />, "正文里的插件内容与数据保留", true),
+      entry("clearData", t("manage.clearWorkspace"), <Eraser />, t("manage.irreversible"), true),
+      entry("uninstall", t("common.uninstall"), <Trash2 />, t("manage.preserveContent"), true),
     ],
   ];
   const confirm = confirming ? CONFIRMS[confirming] : null;

@@ -1,3 +1,4 @@
+import { PluginUiError, type PluginMessageKey } from "../i18n";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMobilePlugins } from "../../../app/plugins/context";
@@ -22,6 +23,7 @@ export type PluginManagerAction =
 export interface PluginActionAvailability {
   allowed: boolean;
   reason: string | null;
+  reasonCode?: PluginMessageKey;
 }
 export interface ManagedPluginItem {
   permissions?: readonly string[];
@@ -39,28 +41,33 @@ export interface ManagedPluginItem {
   pending: boolean;
   editor: boolean;
   error: string | null;
+  errorCode?: PluginMessageKey;
   hasBackup: boolean;
   settings: { id: string; title: string }[];
   actions: Record<PluginManagerAction, PluginActionAvailability>;
 }
 export const pluginManagerKey = (workspace: string | null) =>
   [...MOBILE_PLUGIN_QUERY, "manager", workspace] as const;
-const permission = (reason: string | null): PluginActionAvailability => ({
-  allowed: reason === null,
-  reason,
+interface PluginActionReason { message: string; code?: PluginMessageKey }
+const reason = (message: string, code?: PluginMessageKey): PluginActionReason => ({ message, code });
+const permission = (value: PluginActionReason | null): PluginActionAvailability => ({
+  allowed: value === null,
+  reason: value?.message ?? null,
+  ...(value?.code ? { reasonCode: value.code } : {}),
 });
 
 export function projectManagedPlugin(
   item: MobilePluginPackage,
   runtime: MobilePluginRuntime | null,
-  blocked: string | null
+  blocked: PluginActionReason | null
 ): ManagedPluginItem {
   const standalone = item.artifact && isSkillPackageManifest(item.artifact.manifest);
   const active = standalone ? (runtime?.isSkillPackageActive(item.id) ?? false) : (runtime?.isPluginActive(item.id) ?? false);
-  const error =
-    item.error || runtime?.errors.get(item.id) || (item.blocked ? "中心版本不可用" : null);
-  const unavailable = !runtime || !runtime.isAvailable ? "插件会话未就绪" : null;
-  const inactive = active ? "请先停用插件并点「立即生效」后再操作" : null;
+  const rawError = item.error || runtime?.errors.get(item.id);
+  const error = rawError || (item.blocked ? "中心版本不可用" : null);
+  const errorCode = !rawError && item.blocked ? "manage.centerBlocked" as const : undefined;
+  const unavailable = !runtime || !runtime.isAvailable ? reason("插件会话未就绪", "manage.sessionUnready") : null;
+  const inactive = active ? reason("请先停用插件并点「立即生效」后再操作", "manage.disableFirst") : null;
   return {
     permissions: item.artifact && !isSkillPackageManifest(item.artifact.manifest) ? (item.artifact.manifest.permissions ?? []) : [],
     pendingVersion: item.pendingVersion ?? null,
@@ -79,19 +86,20 @@ export function projectManagedPlugin(
     pending: !!item.pending,
     editor: (runtime?.contributions(item.id).elements ?? 0) > 0,
     error,
+    errorCode,
     hasBackup: !!item.hasBackup,
     settings: [...(runtime?.settings.entries() ?? [])]
       .filter(([, entry]) => entry.context.pluginId === item.id && entry.definition.target !== "asr" && runtime?.active(entry.context))
       .map(([id, entry]) => ({ id, title: entry.definition.title })),
     actions: {
-      enable: permission(blocked || error || (item.enabled ? "已保存启用意图" : null)),
-      disable: permission(blocked || (!item.enabled && !error ? "已保存停用意图" : null)),
+      enable: permission(blocked || (error ? reason(error, errorCode) : null) || (item.enabled ? reason("已保存启用意图", "manage.enabledIntent") : null)),
+      disable: permission(blocked || (!item.enabled && !error ? reason("已保存停用意图", "manage.disabledIntent") : null)),
       uninstall: permission(blocked || unavailable || inactive),
       restore: permission(
-        blocked || unavailable || inactive || (!item.hasBackup ? "没有备份代码" : null)
+        blocked || unavailable || inactive || (!item.hasBackup ? reason("没有备份代码", "manage.noBackup") : null)
       ),
       clearData: permission(blocked || unavailable || inactive),
-      cancelPending: permission(blocked || (!item.pending ? "没有待生效更新" : null)),
+      cancelPending: permission(blocked || (!item.pending ? reason("没有待生效更新", "manage.noPending") : null)),
     },
   };
 }
@@ -147,8 +155,8 @@ export function usePluginManager() {
   );
   const blockedReason = () => {
     const value = current.current.query;
-    if (!(value.data?.managementEnabled ?? value.data?.development)) return "当前构建未开放插件管理操作";
-    if (value.isError || value.isPending) return "请先刷新插件清单";
+    if (!(value.data?.managementEnabled ?? value.data?.development)) return reason("当前构建未开放插件管理操作", "manage.closed");
+    if (value.isError || value.isPending) return reason("请先刷新插件清单", "manage.refreshFirst");
     return null;
   };
   const mutation = useMutation({
@@ -165,13 +173,13 @@ export function usePluginManager() {
         current.current.runtime !== runtime ||
         (runtime && !runtime.isAvailable)
       )
-        throw new Error("插件会话已失效");
+        throw new PluginUiError("manage.expired", "插件会话已失效");
       const blocked = blockedReason();
-      if (blocked) throw new Error(blocked);
+      if (blocked) throw new PluginUiError(blocked.code, blocked.message);
       if (command.kind === "installDevelopment") {
         if (!import.meta.env.DEV || !current.current.query.data?.development)
-          throw new Error("正式构建不允许任意开发来源安装");
-        if (!runtime) throw new Error("插件宿主未就绪");
+          throw new PluginUiError("manage.devForbidden", "正式构建不允许任意开发来源安装");
+        if (!runtime) throw new PluginUiError("manage.hostUnready", "插件宿主未就绪");
         const source = readDevelopmentPluginSource(command.source);
         const controller = new AbortController();
         activeInstall.current = { id: source.id, owner: runtime, controller };
@@ -190,9 +198,9 @@ export function usePluginManager() {
         return;
       }
       const item = current.current.query.data?.packages.find(value => value.id === command.id);
-      if (!item) throw new Error("插件不在当前清单，请刷新后重试");
+      if (!item) throw new PluginUiError("manage.missingPackage", "插件不在当前清单，请刷新后重试");
       const action = projectManagedPlugin(item, runtime, null).actions[command.kind];
-      if (!action.allowed) throw new Error(action.reason ?? "操作不可用");
+      if (!action.allowed) throw new PluginUiError(action.reasonCode ?? "manage.operationUnavailable", action.reason ?? "操作不可用");
       switch (command.kind) {
         case "enable":
           return setMobilePluginEnabled(item.id, true);
@@ -207,7 +215,7 @@ export function usePluginManager() {
         case "cancelPending":
           return cancelMobilePlugin(item.id);
         case "clearData": {
-          if (!runtime) throw new Error("插件会话未就绪");
+          if (!runtime) throw new PluginUiError("manage.sessionUnready", "插件会话未就绪");
           return clearMobilePluginData(runtime.workspaceId, item.id);
         }
       }
@@ -221,16 +229,16 @@ export function usePluginManager() {
         current.current.runtime !== installation.owner ||
         !installation.owner.isAvailable
       )
-        throw new Error("插件会话已失效");
-      if (activeInstall.current !== installation) throw new Error("安装操作已结束");
+        throw new PluginUiError("manage.expired", "插件会话已失效");
+      if (activeInstall.current !== installation) throw new PluginUiError("manage.installFinished", "安装操作已结束");
       installation.controller.abort();
       await cancelMobilePlugin(installation.id);
     },
     onSettled: () => client.invalidateQueries({ queryKey: MOBILE_PLUGIN_QUERY }),
   });
   async function execute(command: ManagerCommand) {
-    if (!mounted.current || current.current.runtime !== runtime) throw new Error("插件会话已失效");
-    if (lock.current) throw new Error("已有插件操作正在进行");
+    if (!mounted.current || current.current.runtime !== runtime) throw new PluginUiError("manage.expired", "插件会话已失效");
+    if (lock.current) throw new PluginUiError("manage.busy", "已有插件操作正在进行");
     lock.current = true;
     operationRuntime.current = runtime;
     cancellation.reset();
@@ -242,7 +250,7 @@ export function usePluginManager() {
       if (mounted.current) setOperation(null);
     }
   }
-  const blocked = blockedReason() || (operation ? "已有插件操作正在进行" : null);
+  const blocked = blockedReason() || (operation ? reason("已有插件操作正在进行", "manage.busy") : null);
   return {
     managementEnabled: (query.data?.managementEnabled ?? query.data?.development) === true,
     items:
@@ -260,7 +268,7 @@ export function usePluginManager() {
     operation,
     busy: !!operation,
     refresh: query.refetch,
-    developmentInstall: permission(blocked || (!import.meta.env.DEV || !query.data?.development ? "正式构建不允许任意开发来源安装" : null) || (!runtime?.isAvailable ? "插件宿主未就绪" : null)),
+    developmentInstall: permission(blocked || (!import.meta.env.DEV || !query.data?.development ? reason("正式构建不允许任意开发来源安装", "manage.devForbidden") : null) || (!runtime?.isAvailable ? reason("插件宿主未就绪", "manage.hostUnready") : null)),
     canCancelInstall:
       operationRuntime.current === runtime &&
       operation?.kind === "installDevelopment" &&
@@ -273,7 +281,7 @@ export function usePluginManager() {
       cancelInstall: async () => {
         const installation = activeInstall.current;
         if (!installation || installation.owner !== runtime)
-          throw new Error("没有当前会话的安装操作");
+          throw new PluginUiError("manage.noInstall", "没有当前会话的安装操作");
         await cancellation.mutateAsync(installation);
       },
     },

@@ -1,10 +1,22 @@
+import { pluginTranslator, usePluginI18n } from "../i18n";
 import { cn } from "@tau/ui";
+const t = pluginTranslator.t;
 
 export type PluginHubTab = "store" | "installed";
 
 const TABS: { id: PluginHubTab; label: string }[] = [
-  { id: "store", label: "商店" },
-  { id: "installed", label: "已安装" },
+  {
+    id: "store",
+    get label() {
+      return t("center.store");
+    },
+  },
+  {
+    id: "installed",
+    get label() {
+      return t("common.installed");
+    },
+  },
 ];
 
 /** 插件中心的商店/已安装切换（文字标签 + 下划线）；面板由调用方以 `${idPrefix}-panel-${tab}` 标识。 */
@@ -19,8 +31,9 @@ export function PluginHubTabs({
   installedCount?: number;
   idPrefix: string;
 }) {
+  usePluginI18n();
   return (
-    <div role="tablist" aria-label="插件中心" className="flex items-end gap-6 px-1">
+    <div role="tablist" aria-label={t("center.name")} className="flex items-end gap-6 px-1">
       {TABS.map(tab => {
         const active = value === tab.id;
         return (

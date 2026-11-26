@@ -1,3 +1,4 @@
+import { pluginPermission } from "../../i18n";
 import { act, useState, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
@@ -357,7 +358,7 @@ it("版本历史标记最新、当前，并说明可安装、未声明本平台�
   expect(rows[0]).toContain("最新");
   expect(rows[0]).toContain("未声明支持iOS");
   expect(rows[1]).toContain("当前");
-  expect(rows[1]).toContain("2026-10-10 · 可安装");
+  expect(view.querySelectorAll("time")[1].dateTime).toBe("2026-10-10T00:00:00Z");
   expect(rows[1]).not.toContain("Tau");
   expect(rows[2]).toContain("需 Tau 0.9.0 或更高");
 });
@@ -383,7 +384,7 @@ it("安装面板确认步骤显示确切版本、大小与权限", async () => {
   expect(document.body.textContent).toContain("更新 计数器 v1.4.0");
   expect(document.body.textContent).toContain("300 KB");
   expect(document.body.querySelector('[aria-label="插件权限"]')?.textContent).toContain(
-    "cards:read"
+    pluginPermission("cards:read")
   );
   await click(button("更新 v1.4.0"));
   expect(onConfirm).toHaveBeenCalled();

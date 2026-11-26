@@ -1,3 +1,5 @@
+import { mobileLocaleSource } from "../../services/i18n";
+import { pluginTranslator } from "./i18n";
 import { act, useState, type ReactNode } from "react";
 import { useSettingsDraft } from "@tau/plugins";
 import { createRoot, type Root } from "react-dom/client";
@@ -243,7 +245,7 @@ it("主动作：无兼容版不可装，已装不低于候选只显示已安装�
       installed: null,
       installationEnabled: false,
     })
-  ).toMatchObject({ kind: "install", allowed: false, reason: "当前版本的 Tau 暂未开放插件安装" });
+  ).toMatchObject({ kind: "install", allowed: false, reasonCode: "center.installClosed" });
 });
 
 it("主动作：首装待生效（无当前版本）与更新待生效都显示待生效，不再提示安装", () => {
@@ -552,4 +554,41 @@ it("详情：插件设置有修改时显示保存条，换标签前询问", asyn
   await click(button("保存并离开"));
   await vi.waitFor(() => expect(save).toHaveBeenCalled());
   await vi.waitFor(() => expect(button("改名称")).toBeUndefined());
+});
+
+it("换语保留安装面板与任务目标，不重复安装或取消", async () => {
+  const original = mobileLocaleSource.getSnapshot();
+  const release = centerRelease("1.4.0", "original-release");
+  state.catalog = [entry(release, release)];
+  state.resolution = resolution(release);
+  let complete!: () => void;
+  state.install.mockImplementation((pluginId: string, releaseId: string) => {
+    setTask(pluginId, { releaseId, phase: "downloading", status: "pending", error: null });
+    return new Promise<void>(resolve => {
+      complete = resolve;
+    });
+  });
+  try {
+    await mount(<PluginStorePanel q="原始查询" />);
+    await click(button(pluginTranslator.t("center.get")));
+    const panel = document.body.querySelector("[data-sheet-drag-zone]");
+    if (!panel) throw new Error("Install panel did not mount");
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => mobileLocaleSource.setLocale(locale));
+      expect(document.body.querySelector("[data-sheet-drag-zone]")).toBe(panel);
+      expect(document.body.textContent).toContain("计数器");
+      expect(state.install).not.toHaveBeenCalled();
+      expect(state.cancel).not.toHaveBeenCalled();
+    }
+    await click(button(pluginTranslator.t("install.installVersion", { version: "1.4.0" })));
+    const task = state.tasks.map.get("example.counter");
+    await act(async () => mobileLocaleSource.setLocale("zh-CN"));
+    expect(document.body.querySelector("[data-sheet-drag-zone]")).toBe(panel);
+    expect(state.tasks.map.get("example.counter")).toBe(task);
+    expect(state.install).toHaveBeenCalledExactlyOnceWith("example.counter", "original-release");
+    expect(state.cancel).not.toHaveBeenCalled();
+    await act(async () => complete());
+  } finally {
+    await act(async () => mobileLocaleSource.setLocale(original));
+  }
 });

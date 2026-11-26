@@ -1,5 +1,7 @@
+import { pluginTranslator, pluginCount, usePluginI18n, pluginPermission } from "../i18n";
 import { Button } from "@tau/ui";
 import { BottomSheet } from "../../../components/BottomSheet";
+const t = pluginTranslator.t;
 
 export interface UpdateAllEntry {
   id: string;
@@ -23,13 +25,16 @@ export function UpdateAllSheet({
   onConfirm: () => void;
   onClose: () => void;
 }) {
+  usePluginI18n();
   return (
-    <BottomSheet open={open} title={`更新 ${entries.length} 个插件`} onClose={onClose}>
+    <BottomSheet
+      open={open}
+      title={pluginCount("install.updateBatch", entries.length)}
+      onClose={onClose}
+    >
       <div className="flex flex-col gap-4 px-5 pb-4">
-        <p className="text-ink-2 text-[13px] leading-relaxed">
-          从插件中心依次下载并校验，关闭面板不影响下载。全部完成后自动切换到新版本。
-        </p>
-        <ul aria-label="待更新插件" className="flex flex-col gap-2.5">
+        <p className="text-ink-2 text-[13px] leading-relaxed">{t("install.batchHint")}</p>
+        <ul aria-label={t("install.batchList")} className="flex flex-col gap-2.5">
           {entries.map(entry => (
             <li key={entry.id} className="flex flex-col gap-0.5 text-[13px]">
               <span className="flex items-baseline gap-2">
@@ -42,7 +47,9 @@ export function UpdateAllSheet({
               </span>
               {entry.newPermissions.length > 0 && (
                 <span className="text-warn text-[12px]">
-                  新增权限：{entry.newPermissions.join("、")}
+                  {t("install.newPermissions", {
+                    permissions: entry.newPermissions.map(pluginPermission).join("、"),
+                  })}
                 </span>
               )}
             </li>
@@ -50,10 +57,10 @@ export function UpdateAllSheet({
         </ul>
         <div className="grid grid-cols-2 gap-2">
           <Button className="min-h-11" onClick={onClose}>
-            取消
+            {t("common.cancel")}
           </Button>
           <Button variant="primary" className="min-h-11" onClick={onConfirm}>
-            全部更新
+            {t("center.updateAll")}
           </Button>
         </div>
       </div>

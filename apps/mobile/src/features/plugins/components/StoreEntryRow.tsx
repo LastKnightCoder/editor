@@ -1,3 +1,4 @@
+import { usePluginI18n } from "../i18n";
 import type { CenterCatalogEntry } from "@tau/plugins/center";
 import { categoryLabel } from "./centerDisplay";
 import { PluginIcon } from "./PluginIcon";
@@ -26,15 +27,16 @@ export function StoreEntryRow({
   onCancel: () => void;
   onRetry: () => void;
 }) {
+  usePluginI18n();
   const blocker = primary.kind === "unavailable" ? entry.compatibility.reasons[0] : undefined;
   const category = entry.categories[0];
   return (
     <li
-      className="relative flex items-center gap-3 py-3 pl-3.5 pr-3.5"
+      className="relative flex items-center gap-3 py-3 pr-3.5 pl-3.5"
       data-plugin-id={entry.pluginId}
     >
       {divider && (
-        <span aria-hidden className="bg-line-2 absolute left-[70px] right-0 top-0 h-px" />
+        <span aria-hidden className="bg-line-2 absolute top-0 right-0 left-[70px] h-px" />
       )}
       <button
         type="button"

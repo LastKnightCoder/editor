@@ -1,3 +1,10 @@
+import {
+  pluginTranslator,
+  pluginCount,
+  usePluginI18n,
+  pluginActionReason,
+  pluginError,
+} from "./i18n";
 import { useState } from "react";
 import { Button, Textarea } from "@tau/ui";
 import { describeCenterPermissions } from "@tau/plugins/center";
@@ -16,6 +23,7 @@ import {
   useMobileCenterInstall,
   useMobileCenterUpdate,
 } from "./data/center-queries";
+const t = pluginTranslator.t;
 
 const matches = (item: ManagedPluginItem, q: string) => {
   const query = q.toLowerCase();
@@ -31,6 +39,7 @@ function Row({
   manager: ReturnType<typeof usePluginManager>;
   divider: boolean;
 }) {
+  usePluginI18n();
   const navigator = useNavigator();
   const task = useMobileCenterInstall().task(item.id);
   const { update } = useMobileCenterUpdate(item.id, item.version, checksUpdate(item));
@@ -54,6 +63,7 @@ function Row({
 
 /** 有可用更新时提供一键更新：确认后全部进入应用级安装队列，各行就地显示进度。 */
 function UpdateAllBar({ items }: { items: readonly ManagedPluginItem[] }) {
+  usePluginI18n();
   const install = useMobileCenterInstall();
   // 打开时冻结清单：确认后各项进入安装队列会从可更新列表消失，面板仍需完整播完退场
   const [batch, setBatch] = useState<{ open: boolean; entries: UpdateAllEntry[] }>({
@@ -71,7 +81,7 @@ function UpdateAllBar({ items }: { items: readonly ManagedPluginItem[] }) {
         to: release.version,
         newPermissions: describeCenterPermissions(releasePermissions(release), item?.permissions)
           .filter(permission => permission.newlyRequested)
-          .map(permission => permission.label),
+          .map(permission => permission.permission),
       };
     }
   );
@@ -81,7 +91,7 @@ function UpdateAllBar({ items }: { items: readonly ManagedPluginItem[] }) {
       {entries.length > 0 && (
         <div className="bg-accent-soft flex items-center gap-2.5 rounded-[14px] px-3 py-2.5">
           <span className="text-ink-1 min-w-0 flex-1 text-[13px] leading-snug">
-            {entries.length} 个插件可更新
+            {pluginCount("center.updates", entries.length)}
             <span className="text-ink-2 block truncate text-[11.5px]">
               {entries.map(entry => entry.name).join("、")}
             </span>
@@ -91,7 +101,7 @@ function UpdateAllBar({ items }: { items: readonly ManagedPluginItem[] }) {
             onClick={() => setBatch({ open: true, entries })}
             className="bg-accent text-ink-inverse h-[30px] shrink-0 rounded-full px-3 text-[12.5px] font-bold active:scale-95"
           >
-            全部更新
+            {t("center.updateAll")}
           </button>
         </div>
       )}
@@ -111,6 +121,7 @@ function UpdateAllBar({ items }: { items: readonly ManagedPluginItem[] }) {
 
 /** 已安装：开关 + 状态；中心更新下载完自动重建插件会话，启停经横幅「立即生效」，管理动作在详情页；开发构建保留受控开发安装。 */
 export function InstalledPluginsPanel({ q = "" }: { q?: string }) {
+  usePluginI18n();
   const manager = usePluginManager();
   const [source, setSource] = useState("");
   const act = (action: Promise<unknown>) => {
@@ -126,7 +137,7 @@ export function InstalledPluginsPanel({ q = "" }: { q?: string }) {
       <UpdateAllBar items={manager.items} />
       {manager.actionError && (
         <p role="alert" className="bg-danger-soft text-danger rounded-xl px-3 py-2 text-[13px]">
-          {String(manager.actionError)}
+          {pluginError(manager.actionError)}
         </p>
       )}
       <PluginListState
@@ -137,13 +148,13 @@ export function InstalledPluginsPanel({ q = "" }: { q?: string }) {
         onRetry={() => void manager.refresh()}
         retrying={manager.refreshing}
         empty={!items.length}
-        emptyTitle={q ? "没有找到匹配的插件" : "还没有安装插件"}
+        emptyTitle={q ? t("center.noMatches") : t("center.noInstalled")}
         emptyHint={
           q
-            ? "换个关键词试试。"
+            ? t("center.tryKeyword")
             : import.meta.env.DEV
-              ? "可在下方受控开发安装。"
-              : "前往商店查看适用于本机的插件。"
+              ? t("center.devHint")
+              : t("center.storeHint")
         }
       >
         {items.map((item, index) => (
@@ -151,10 +162,10 @@ export function InstalledPluginsPanel({ q = "" }: { q?: string }) {
         ))}
       </PluginListState>
       {!manager.loading && !manager.managementEnabled && manager.items.length > 0 && (
-        <p className="text-ink-3 px-1 text-[12px]">当前构建未开放插件管理操作。</p>
+        <p className="text-ink-3 px-1 text-[12px]">{t("center.managementClosed")}</p>
       )}
       {manager.items.some(item => item.statusStale) && (
-        <p className="text-ink-3 px-1 text-[12px]">发布状态未刷新；已确认撤回的版本仍保持停用。</p>
+        <p className="text-ink-3 px-1 text-[12px]">{t("center.statusStale")}</p>
       )}
       {import.meta.env.DEV && (
         <section
@@ -162,22 +173,22 @@ export function InstalledPluginsPanel({ q = "" }: { q?: string }) {
           className="bg-surface my-2 flex flex-col gap-2 rounded-[18px] p-4"
         >
           <h2 id="plugin-dev-install" className="text-ink-1 text-[15px] font-semibold">
-            受控开发安装
+            {t("center.devInstall")}
           </h2>
-          <p className="text-ink-2 text-[13px]">
-            粘贴包含 id、version、url、sha256、size 的开发包描述。
-          </p>
+          <p className="text-ink-2 text-[13px]">{t("center.devDescription")}</p>
           <Textarea
             value={source}
             onChange={event => setSource(event.target.value)}
-            aria-label="开发包描述"
+            aria-label={t("center.devSource")}
           />
           {!manager.developmentInstall.allowed && manager.developmentInstall.reason && (
-            <p className="text-ink-3 text-[12px]">{manager.developmentInstall.reason}</p>
+            <p className="text-ink-3 text-[12px]">
+              {pluginActionReason(manager.developmentInstall)}
+            </p>
           )}
           {installing && (
             <p role="status" className="text-ink-2 text-[13px]">
-              正在下载并校验…
+              {t("center.devDownloading")}
             </p>
           )}
           <div className="flex flex-wrap gap-2">
@@ -187,11 +198,11 @@ export function InstalledPluginsPanel({ q = "" }: { q?: string }) {
               loading={installing}
               onClick={() => act(manager.actions.installDevelopment(source))}
             >
-              校验并安装
+              {t("center.devSubmit")}
             </Button>
             {manager.canCancelInstall && (
               <Button className="min-h-11" onClick={() => act(manager.actions.cancelInstall())}>
-                取消下载
+                {t("install.cancelDownload")}
               </Button>
             )}
           </div>

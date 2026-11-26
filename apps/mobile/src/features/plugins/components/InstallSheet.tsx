@@ -1,21 +1,35 @@
+import { pluginTranslator, usePluginI18n, pluginPermission } from "../i18n";
 import { Button, Loading } from "@tau/ui";
 import { formatSize, type CenterReason } from "@tau/plugins/center";
 import { BottomSheet } from "../../../components/BottomSheet";
 import { reasonLabel } from "./pluginStatus";
+const t = pluginTranslator.t;
 
 /** 安装面板的展示状态；版本、大小与权限必须取选版返回的确切记录。 */
 export type InstallSheetState =
   | { kind: "resolving" }
   | { kind: "unavailable"; reasons: readonly CenterReason[]; message?: string }
-  | { kind: "confirm"; version: string; size: number; permissions: readonly string[] }
+  | {
+      kind: "confirm";
+      version: string;
+      size: number;
+      permissions: readonly string[];
+      newPermissions?: readonly string[];
+    }
   | { kind: "installing"; phase: "queued" | "downloading" | "checking"; version?: string }
   | { kind: "done"; version: string }
   | { kind: "failed"; version: string; message: string };
 
 const PHASE_LABELS = {
-  queued: "排队中，前面的插件下载完就开始…",
-  downloading: "正在从插件中心下载…",
-  checking: "正在校验包与发布记录…",
+  get queued() {
+    return t("install.queued");
+  },
+  get downloading() {
+    return t("install.downloading");
+  },
+  get checking() {
+    return t("install.verifying");
+  },
 };
 
 export function InstallSheet({
@@ -35,20 +49,29 @@ export function InstallSheet({
   onCancelInstall: () => void;
   onClose: () => void;
 }) {
-  const verb = mode === "install" ? "安装" : "更新";
+  usePluginI18n();
   const version = "version" in state && state.version ? ` v${state.version}` : "";
   const installing = state.kind === "installing";
   return (
-    <BottomSheet open={open} title={`${verb} ${name}${version}`} onClose={onClose}>
+    <BottomSheet
+      open={open}
+      title={t(mode === "install" ? "install.titleInstall" : "install.titleUpdate", {
+        name,
+        version,
+      })}
+      onClose={onClose}
+    >
       <div className="flex flex-col gap-4 px-5 pb-4">
-        {state.kind === "resolving" && <Loading minHeight={96} label="正在选择适合此设备的版本…" />}
+        {state.kind === "resolving" && <Loading minHeight={96} label={t("install.resolving")} />}
         {state.kind === "unavailable" && (
           <div role="alert" className="flex flex-col gap-1.5 text-[13px]">
-            <p className="text-ink-1 font-semibold">暂时不能{verb}</p>
+            <p className="text-ink-1 font-semibold">
+              {t(mode === "install" ? "install.cannotInstall" : "install.cannotUpdate")}
+            </p>
             {state.message && <p className="text-ink-2">{state.message}</p>}
             <ul className="text-ink-2 flex list-disc flex-col gap-0.5 pl-5">
               {state.reasons.map(reason => (
-                <li key={reasonLabel(reason)}>{reasonLabel(reason)}</li>
+                <li key={reason.code}>{reasonLabel(reason)}</li>
               ))}
             </ul>
           </div>
@@ -56,19 +79,26 @@ export function InstallSheet({
         {state.kind === "confirm" && (
           <>
             <p className="text-ink-2 text-[13px] leading-relaxed">
-              从插件中心下载 {formatSize(state.size)}，
-              {mode === "install" ? "校验通过后自动启用。" : "校验通过后自动切换到新版本。"}
+              {t(mode === "install" ? "install.downloadInstall" : "install.downloadUpdate", {
+                size: formatSize(state.size),
+              })}
             </p>
-            <section aria-label="插件权限" className="flex flex-col gap-1.5">
-              <h4 className="text-ink-1 text-[14px] font-semibold">需要的权限</h4>
+            <section aria-label={t("install.permissions")} className="flex flex-col gap-1.5">
+              <h4 className="text-ink-1 text-[14px] font-semibold">
+                {t("install.requiredPermissions")}
+              </h4>
               {state.permissions.length ? (
                 <ul className="text-ink-2 flex list-disc flex-col gap-1 pl-5 text-[13px]">
                   {state.permissions.map(permission => (
-                    <li key={permission}>{permission}</li>
+                    <li key={permission}>
+                      {state.newPermissions?.includes(permission)
+                        ? t("permission.new", { permission: pluginPermission(permission) })
+                        : pluginPermission(permission)}
+                    </li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-ink-3 text-[13px]">不需要额外权限</p>
+                <p className="text-ink-3 text-[13px]">{t("install.noPermissions")}</p>
               )}
             </section>
           </>
@@ -78,52 +108,56 @@ export function InstallSheet({
             <p role="status" className="text-ink-2">
               {PHASE_LABELS[state.phase]}
             </p>
-            <p className="text-ink-3">关闭面板不影响下载，进度可在插件列表里查看。</p>
+            <p className="text-ink-3">{t("install.closeHint")}</p>
           </div>
         )}
         {state.kind === "done" && (
           <p role="status" className="text-ok text-[13px]">
             {mode === "install"
-              ? `已安装 v${state.version}，正在启用。`
-              : `已下载 v${state.version}，正在切换到新版本。`}
+              ? t("install.doneInstall", { version: state.version })
+              : t("install.doneUpdate", { version: state.version })}
           </p>
         )}
         {state.kind === "failed" && (
           <p role="alert" className="text-danger text-[13px] break-words">
-            {verb}失败：{state.message}。已安装的旧版本不受影响。
+            {t(mode === "install" ? "install.failedInstall" : "install.failedUpdate", {
+              error: state.message,
+            })}
           </p>
         )}
         <div className="grid grid-cols-2 gap-2">
           {state.kind === "confirm" ? (
             <>
               <Button className="min-h-11" onClick={onClose}>
-                取消
+                {t("common.cancel")}
               </Button>
               <Button variant="primary" className="min-h-11" onClick={onConfirm}>
-                {verb} v{state.version}
+                {t(mode === "install" ? "install.installVersion" : "install.confirmUpdateVersion", {
+                  version: state.version,
+                })}
               </Button>
             </>
           ) : installing ? (
             <>
               <Button className="min-h-11" onClick={onCancelInstall}>
-                取消下载
+                {t("install.cancelDownload")}
               </Button>
               <Button variant="primary" className="min-h-11" onClick={onClose}>
-                后台下载
+                {t("install.background")}
               </Button>
             </>
           ) : state.kind === "failed" ? (
             <>
               <Button className="min-h-11" onClick={onClose}>
-                关闭
+                {t("common.close")}
               </Button>
               <Button variant="primary" className="min-h-11" onClick={onConfirm}>
-                重试
+                {t("common.retry")}
               </Button>
             </>
           ) : (
             <Button className="col-span-2 min-h-11" onClick={onClose}>
-              {state.kind === "done" ? "完成" : "关闭"}
+              {state.kind === "done" ? t("common.done") : t("common.close")}
             </Button>
           )}
         </div>

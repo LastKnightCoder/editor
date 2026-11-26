@@ -1,3 +1,6 @@
+import { mobileLocaleSource } from "../../services/i18n";
+import { pluginTranslator } from "./i18n";
+import { pluginManagerKey } from "./data/usePluginManager";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -73,7 +76,12 @@ async function renderManager(check: (container: HTMLElement) => Promise<void>, q
       )
     );
     await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 30));
+      await vi.waitFor(() => {
+        expect(client.getQueryState(pluginManagerKey(runtime.workspaceId))?.fetchStatus).toBe(
+          "idle"
+        );
+        expect(container.textContent).not.toContain(pluginTranslator.t("center.loading"));
+      });
     });
     await check(container);
   } finally {
@@ -248,7 +256,9 @@ it("有可用更新时一键更新：确认面板列出版本与新增权限，�
   });
   try {
     await renderManager(async container => {
-      expect(container.textContent).toContain("2 个插件可更新");
+      await act(async () => {
+        await vi.waitFor(() => expect(container.textContent).toContain("2 个插件可更新"));
+      });
       await act(async () => findButton(container, "全部更新")?.click());
       const sheet = document.body.querySelector('[aria-label="待更新插件"]');
       expect(sheet?.textContent).toContain("插件甲v1.0.0 → v1.1.0");
@@ -275,5 +285,48 @@ it("有可用更新时一键更新：确认面板列出版本与新增权限，�
   } finally {
     center.config = null;
     center.resolve.mockReset();
+  }
+});
+
+it("换语保留开发安装草稿和真实管理器会话，不重读清单或发出动作", async () => {
+  const original = mobileLocaleSource.getSnapshot();
+  try {
+    await renderManager(async container => {
+      const input = container.querySelector<HTMLTextAreaElement>(
+        `textarea[aria-label="${pluginTranslator.t("center.devSource")}"]`
+      );
+      if (!input) throw new Error("Development source input did not mount");
+      const draft = '{"id":"raw.plugin","version":"1.2.3","url":"https://example.com/raw.zip"}';
+      await act(async () => {
+        Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set?.call(
+          input,
+          draft
+        );
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.focus();
+      });
+      input.setSelectionRange(2, 7);
+      const sessionRuntime = runtime,
+        reads = vi.mocked(readMobilePlugins).mock.calls.length,
+        writes = vi.mocked(setMobilePluginEnabled).mock.calls.length,
+        reloads = session.reload.mock.calls.length;
+      for (const locale of ["zh-TW", "en-US"]) {
+        await act(async () => mobileLocaleSource.setLocale(locale));
+        expect(
+          container.querySelector(
+            `textarea[aria-label="${pluginTranslator.t("center.devSource")}"]`
+          )
+        ).toBe(input);
+        expect(input.value).toBe(draft);
+        expect([input.selectionStart, input.selectionEnd]).toEqual([2, 7]);
+        expect(document.activeElement).toBe(input);
+        expect(runtime).toBe(sessionRuntime);
+        expect(readMobilePlugins).toHaveBeenCalledTimes(reads);
+        expect(setMobilePluginEnabled).toHaveBeenCalledTimes(writes);
+        expect(session.reload).toHaveBeenCalledTimes(reloads);
+      }
+    });
+  } finally {
+    mobileLocaleSource.setLocale(original);
   }
 });

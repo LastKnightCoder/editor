@@ -1,4 +1,6 @@
+import { pluginTranslator, usePluginI18n } from "../i18n";
 import { cn } from "@tau/ui";
+const t = pluginTranslator.t;
 
 /** 详情页分段标签：文字 + 下划线，滚动时吸顶；面板由调用方以 `${idPrefix}-panel-${key}` 标识。 */
 export function DetailTabs<Key extends string>({
@@ -12,10 +14,11 @@ export function DetailTabs<Key extends string>({
   value: Key;
   onChange: (key: Key) => void;
 }) {
+  usePluginI18n();
   return (
     <div
       role="tablist"
-      aria-label="插件详情"
+      aria-label={t("detail.title")}
       className="bg-page border-line-2 sticky top-0 z-10 -mx-4 flex gap-5 overflow-x-auto border-b px-5 pt-3"
     >
       {items.map(item => {

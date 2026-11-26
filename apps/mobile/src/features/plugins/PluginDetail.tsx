@@ -1,3 +1,4 @@
+import { pluginTranslator, usePluginI18n, pluginPermission, pluginError } from "./i18n";
 import { PluginOperations } from "./PluginOperations";
 import {
   createSettingsDraftController,
@@ -49,7 +50,7 @@ import {
   hasPendingChange,
   lifecycleOf,
 } from "./components/pluginStatus";
-import { storePrimaryAction, storeTaskPhase } from "./components/storeActions";
+import { storePrimaryAction, storeActionReason, storeTaskPhase } from "./components/storeActions";
 import {
   useMobileCenterConfig,
   useMobileCenterInstall,
@@ -58,6 +59,7 @@ import {
   useMobileCenterVersions,
 } from "./data/center-queries";
 import { usePluginManager, type ManagedPluginItem } from "./data/usePluginManager";
+const t = pluginTranslator.t;
 
 type DetailTab = "intro" | "settings" | "permissions" | "versions";
 
@@ -70,6 +72,7 @@ const open = (url: string) => swallow(openUrl(url));
  * 未连上插件中心时（开发安装、离线）只展示本机已安装信息。
  */
 export function PluginDetail() {
+  usePluginI18n();
   const { params } = usePage<{ pluginId: string }>();
   const pluginId = params.pluginId;
   const config = useMobileCenterConfig();
@@ -108,25 +111,25 @@ export function PluginDetail() {
   )
     return (
       <PluginPageShell>
-        <Loading minHeight={240} label="正在读取插件…" />
+        <Loading minHeight={240} label={t("center.loading")} />
       </PluginPageShell>
     );
   if (!installed && (failure || !latest || !center))
     return (
-      <PluginPageShell title="插件详情">
+      <PluginPageShell title={t("detail.title")}>
         <div role="alert" className="flex flex-col items-center gap-3 px-6 py-12 text-center">
           <p className="text-ink-1 text-[15px] font-semibold">
-            {failure ? "插件资料暂时打不开" : "找不到这个插件"}
+            {failure ? t("detail.failed") : t("detail.notFound")}
           </p>
           <p className="text-ink-2 text-[13px] break-words">
-            {failure ? String(failure) : "它可能已下架，或者还没有发布。"}
+            {failure ? String(failure) : t("detail.notFoundHint")}
           </p>
           {failure && (
             <Button
               className="min-h-11"
               onClick={() => void (config.isError ? config.refetch() : versions.refetch())}
             >
-              重试
+              {t("common.retry")}
             </Button>
           )}
         </div>
@@ -146,10 +149,10 @@ export function PluginDetail() {
     installed?.permissions ??
     (manifest && "permissions" in manifest ? (manifest.permissions ?? []) : []);
   const tabs: { key: DetailTab; label: string }[] = [
-    { key: "intro", label: "介绍" },
-    ...(installed ? [{ key: "settings" as const, label: "设置" }] : []),
-    { key: "permissions", label: "权限" },
-    { key: "versions", label: "版本" },
+    { key: "intro", label: t("detail.intro") },
+    ...(installed ? [{ key: "settings" as const, label: t("common.settings") }] : []),
+    { key: "permissions", label: t("detail.permissions") },
+    { key: "versions", label: t("detail.versions") },
   ];
   const activeTab = tabs.some(item => item.key === tab) ? tab : "intro";
 
@@ -159,13 +162,13 @@ export function PluginDetail() {
         <>
           <PageHeaderButton
             icon={<ExternalLink size={19} strokeWidth={2.2} />}
-            aria-label="在插件门户打开"
+            aria-label={t("detail.openPortal")}
             onClick={() => open(pluginPortalUrl(pluginId))}
           />
           {installed && manager.managementEnabled && (
             <PageHeaderButton
               icon={<MoreHorizontal size={22} strokeWidth={2.4} />}
-              aria-label="管理插件"
+              aria-label={t("detail.manage")}
               onClick={() => setManaging(true)}
             />
           )}
@@ -198,18 +201,18 @@ export function PluginDetail() {
             />
           )}
         </div>
-        {"reason" in primary && primary.reason && (
-          <p className="text-ink-3 text-[12px]">{primary.reason}</p>
+        {storeActionReason(primary) && (
+          <p className="text-ink-3 text-[12px]">{storeActionReason(primary)}</p>
         )}
         {installed && hasPendingChange(installed) && <PluginChangesBanner changes={[name]} />}
         {installed?.error && (
           <p role="alert" className="text-danger text-[12.5px] break-words">
-            {installed.error}
+            {installed.errorCode ? t(installed.errorCode) : installed.error}
           </p>
         )}
         {latest && center && <Stats release={center} host={host?.platform ?? null} />}
         {host && resolution.isPending ? (
-          <p className="text-ink-3 px-1 text-[12px]">正在检查此设备能否安装…</p>
+          <p className="text-ink-3 px-1 text-[12px]">{t("detail.checking")}</p>
         ) : resolution.data && latest ? (
           <CompatibilityNote
             latestVersion={latest.version}
@@ -218,10 +221,10 @@ export function PluginDetail() {
           />
         ) : resolution.isError ? (
           <p role="alert" className="text-danger text-[12px]">
-            兼容检查失败：{String(resolution.error)}
+            {t("detail.checkFailed", { error: pluginError(resolution.error) })}
           </p>
         ) : !host && config.data ? (
-          <p className="text-ink-3 px-1 text-[12px]">当前平台不能安装移动插件。</p>
+          <p className="text-ink-3 px-1 text-[12px]">{t("detail.mobileUnsupported")}</p>
         ) : null}
 
         <DetailTabs idPrefix={idPrefix} items={tabs} value={activeTab} onChange={setTab} />
@@ -274,7 +277,7 @@ export function PluginDetail() {
               {history.length > 0 ? (
                 <div className="bg-surface overflow-hidden rounded-2xl">
                   <ReleaseHistoryList
-                    platformLabel={host ? PLATFORM_LABELS[host.platform] : "本平台"}
+                    platformLabel={host ? PLATFORM_LABELS[host.platform] : t("detail.thisPlatform")}
                     items={history.map((item, index) => {
                       const minAppVersion = host && item.targets[host.platform]?.minAppVersion;
                       return {
@@ -297,7 +300,9 @@ export function PluginDetail() {
                 </div>
               ) : (
                 <p className="text-ink-3 px-1 text-[13px]">
-                  {versions.isPending ? "正在读取历史版本…" : "暂时读取不到插件中心的版本记录。"}
+                  {versions.isPending
+                    ? t("detail.loadingVersions")
+                    : t("detail.versionsUnavailable")}
                 </p>
               )}
               {versions.hasNextPage && (
@@ -306,21 +311,19 @@ export function PluginDetail() {
                   loading={versions.isFetchingNextPage}
                   onClick={() => void versions.fetchNextPage()}
                 >
-                  加载更多版本
+                  {t("detail.moreVersions")}
                 </Button>
               )}
-              <p className="text-ink-3 px-1 text-[12px]">
-                切换版本只替换插件代码，不回退已保存的数据；上一版代码可在 ⋯ 菜单中恢复。
-              </p>
+              <p className="text-ink-3 px-1 text-[12px]">{t("detail.versionHint")}</p>
               {center?.content.changelog && (
-                <Group title="更新日志">
+                <Group title={t("detail.changelog")}>
                   <PluginMarkdown source={center.content.changelog} />
                 </Group>
               )}
               {latest && (
                 <details className="bg-surface rounded-2xl px-3.5 py-3">
                   <summary className="text-ink-2 cursor-pointer text-[13px] font-semibold">
-                    兼容性详情
+                    {t("detail.compatibilityDetails")}
                   </summary>
                   <div className="pt-3">
                     <TargetSummary targets={latest.targets} platform={host?.platform ?? null} />
@@ -371,6 +374,7 @@ function Hero({
   taskError: unknown;
   category: Parameters<typeof categoryLabel>[0] | null;
 }) {
+  usePluginI18n();
   const status = installed ? lifecycleOf(installed, phase, taskError) : null;
   return (
     <header className="flex items-center gap-3.5 pt-1">
@@ -409,14 +413,17 @@ function EnableSwitch({
   item: ManagedPluginItem;
   manager: ReturnType<typeof usePluginManager>;
 }) {
+  usePluginI18n();
   const kind = item.enabled ? "disable" : "enable";
   return (
     <label className="bg-surface flex h-11 min-w-0 flex-1 items-center gap-3 rounded-[14px] px-3.5">
       <span className="text-ink-1 flex-1 text-[14px] font-semibold">
-        {item.enabled ? "已启用" : "已停用"}
+        {item.enabled ? t("state.active") : t("state.disabled")}
       </span>
       <Switch
-        aria-label={`${item.enabled ? "停用" : "启用"} ${item.name}`}
+        aria-label={t(item.enabled ? "manage.disableName" : "manage.enableName", {
+          name: item.name,
+        })}
         checked={item.enabled}
         disabled={!item.actions[kind].allowed}
         onCheckedChange={() => swallow(manager.actions.run(kind, item.id))}
@@ -432,12 +439,21 @@ function Stats({
   release: CenterRelease;
   host: keyof CenterRelease["targets"] | null;
 }) {
+  const { locale } = usePluginI18n();
   const minApp = host ? release.targets[host]?.minAppVersion : undefined;
   const cells: [string, string][] = [
-    ["版本", `v${release.version}`],
-    ["大小", formatSize(release.size)],
-    ...(minApp ? ([["需要 Tau", `≥ ${minApp}`]] as [string, string][]) : []),
-    ["发布于", release.publishedAt.slice(0, 10)],
+    [t("detail.version"), `v${release.version}`],
+    [t("detail.size"), formatSize(release.size)],
+    ...(minApp ? ([[t("detail.requireTau"), `≥ ${minApp}`]] as [string, string][]) : []),
+    [
+      t("detail.published"),
+      new Intl.DateTimeFormat(locale, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        timeZone: "UTC",
+      }).format(new Date(release.publishedAt)),
+    ],
   ];
   return (
     <dl
@@ -448,7 +464,7 @@ function Stats({
     >
       {cells.map(([label, value], index) => (
         <div
-          key={label}
+          key={index}
           className={cn(
             "flex min-w-0 flex-col items-center px-1",
             index > 0 && "border-line-2 border-l"
@@ -465,6 +481,7 @@ function Stats({
 }
 
 function Group({ title, children }: { title: string; children: ReactNode }) {
+  usePluginI18n();
   return (
     <section className="flex flex-col gap-1.5">
       <h2 className="text-ink-3 px-1 text-[12px] font-semibold">{title}</h2>
@@ -474,6 +491,7 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
 }
 
 function InfoRow({ label, children }: { label: string; children: ReactNode }) {
+  usePluginI18n();
   return (
     <div className="border-line-2 flex items-center justify-between gap-3 py-2.5 text-[13px] [&+&]:border-t">
       <dt className="text-ink-3 shrink-0">{label}</dt>
@@ -493,6 +511,7 @@ function IntroTab({
   loading: boolean;
   editor: boolean;
 }) {
+  usePluginI18n();
   const manifest = release?.content.manifest;
   return (
     <>
@@ -504,27 +523,25 @@ function IntroTab({
       ) : (
         <p className="text-ink-3 px-1 text-[13px]">
           {loading
-            ? "正在读取说明…"
+            ? t("detail.reading")
             : release
-              ? "此插件没有提供说明。"
-              : "未连上插件中心，暂时读取不到说明。"}
+              ? t("detail.noReadme")
+              : t("detail.offlineReadme")}
         </p>
       )}
-      {editor && (
-        <p className="text-ink-3 px-1 text-[12px]">
-          移动搜索暂不检索插件块内部源码；正文及导出仍保留原内容。
-        </p>
-      )}
-      <Group title="信息">
+      {editor && <p className="text-ink-3 px-1 text-[12px]">{t("detail.searchHint")}</p>}
+      <Group title={t("detail.info")}>
         <dl>
-          <InfoRow label="插件 ID">
+          <InfoRow label={t("detail.pluginId")}>
             <span className="truncate font-mono text-[12px]">{pluginId}</span>
           </InfoRow>
           {manifest?.categories?.length ? (
-            <InfoRow label="分类">{manifest.categories.map(categoryLabel).join("、")}</InfoRow>
+            <InfoRow label={t("category.label")}>
+              {manifest.categories.map(categoryLabel).join("、")}
+            </InfoRow>
           ) : null}
           {release?.repository && (
-            <InfoRow label="源码">
+            <InfoRow label={t("detail.source")}>
               <button
                 type="button"
                 className="text-accent-text flex min-w-0 items-center gap-1"
@@ -557,6 +574,7 @@ function SettingsTab({
   item: ManagedPluginItem;
   draft: SettingsDraftController;
 }) {
+  usePluginI18n();
   const navigator = useNavigator();
   const { phase } = useMobilePluginStatus();
   const sections = [...(runtime?.settings.entries() ?? [])].filter(
@@ -565,20 +583,18 @@ function SettingsTab({
   const [selected, setSelected] = useState<string | null>(null);
   if (!item.active)
     return phase === "starting" ? (
-      <Loading minHeight={160} label="插件加载中…" />
+      <Loading minHeight={160} label={t("center.pluginLoading")} />
     ) : (
-      <p className="text-ink-3 px-1 py-4 text-[13px]">
-        插件设置暂不可用。启用并生效后可修改，已保存的偏好仍然保留。
-      </p>
+      <p className="text-ink-3 px-1 py-4 text-[13px]">{t("detail.settingsUnavailable")}</p>
     );
   if (!sections.length)
-    return <p className="text-ink-3 px-1 py-4 text-[13px]">此插件没有自定义设置。</p>;
+    return <p className="text-ink-3 px-1 py-4 text-[13px]">{t("detail.noSettings")}</p>;
   const [id, active] = sections.find(([key]) => key === selected) ?? sections[0];
   const Component = active.definition.component;
   return (
     <>
       {sections.length > 1 && (
-        <nav aria-label="插件设置分组" className="flex flex-wrap gap-2">
+        <nav aria-label={t("detail.settingsGroups")} className="flex flex-wrap gap-2">
           {sections.map(([key, entry]) => (
             <Button
               key={key}
@@ -608,7 +624,9 @@ function SettingsTab({
               )
             }
           >
-            {active.definition.target === "sync" ? "打开同步配置" : "打开上传配置"}
+            {active.definition.target === "sync"
+              ? t("detail.syncConfig")
+              : t("detail.uploadConfig")}
           </Button>
         ) : Component ? (
           <SettingsDraftProvider controller={draft}>
@@ -629,11 +647,21 @@ function SettingsTab({
 }
 
 const CONTRIBUTION_LABELS = {
-  elements: "正文块",
-  pages: "页面",
-  entries: "功能入口",
-  settings: "设置页",
-  homePanels: "今天页卡片",
+  get elements() {
+    return t("detail.contentBlocks");
+  },
+  get pages() {
+    return t("category.page");
+  },
+  get entries() {
+    return t("contribution.navigation");
+  },
+  get settings() {
+    return t("detail.settingsPage");
+  },
+  get homePanels() {
+    return t("detail.todayCards");
+  },
   skills: "Skill",
   mcp: "MCP",
 } as const;
@@ -651,6 +679,7 @@ function PermissionsTab({
   pluginId: string;
   mcpSourceId?: string;
 }) {
+  usePluginI18n();
   const navigator = useNavigator();
   // Skill 与 MCP 可点：直达对应管理页，其余贡献只展示数量
   const openers: Partial<Record<keyof typeof CONTRIBUTION_LABELS, () => void>> = {
@@ -666,7 +695,7 @@ function PermissionsTab({
     <>
       {installed && (
         <section className="flex flex-col gap-1.5">
-          <h2 className="text-ink-3 px-1 text-[12px] font-semibold">此插件提供</h2>
+          <h2 className="text-ink-3 px-1 text-[12px] font-semibold">{t("detail.provides")}</h2>
           {provided.length ? (
             <ul className="flex flex-wrap gap-2">
               {provided.map(key => {
@@ -696,12 +725,12 @@ function PermissionsTab({
           ) : (
             <p className="text-ink-3 flex items-center gap-2 px-1 text-[12.5px]">
               <Layers size={14} aria-hidden />
-              {contributions ? "没有登记可展示的功能" : "启用并生效后可见"}
+              {contributions ? t("detail.noContributions") : t("detail.enabledVisible")}
             </p>
           )}
         </section>
       )}
-      <Group title="插件声明的权限">
+      <Group title={t("detail.permissionsDeclared")}>
         {permissions.length ? (
           <ul className="flex flex-col">
             {describeCenterPermissions(permissions).map(item => (
@@ -709,19 +738,17 @@ function PermissionsTab({
                 key={item.permission}
                 className="border-line-2 text-ink-1 py-2 text-[13px] [&+&]:border-t"
               >
-                {item.label}
+                {pluginPermission(item.permission)}
               </li>
             ))}
           </ul>
         ) : (
-          <p className="text-ink-3 text-[13px]">不需要额外权限</p>
+          <p className="text-ink-3 text-[13px]">{t("install.noPermissions")}</p>
         )}
       </Group>
       <div className="bg-warn-soft text-ink-2 flex gap-2 rounded-[14px] px-3 py-2.5 text-[11.5px] leading-relaxed">
         <ShieldAlert size={16} className="text-warn mt-0.5 shrink-0" aria-hidden />
-        <span>
-          插件在应用环境中运行，可以读取和修改你的笔记数据。插件中心审核功能与来源，但不保证没有缺陷，请只安装你信任的插件。
-        </span>
+        <span>{t("detail.riskMobile")}</span>
       </div>
     </>
   );

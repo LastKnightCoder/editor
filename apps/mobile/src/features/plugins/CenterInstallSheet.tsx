@@ -1,14 +1,16 @@
+import { pluginTranslator, usePluginI18n, pluginError } from "./i18n";
 import { useState } from "react";
 import { comparePluginVersions } from "@tau/plugins/package";
 import { describeCenterPermissions } from "@tau/plugins/center";
 import { InstallSheet, type InstallSheetState } from "./components/InstallSheet";
 import { releasePermissions } from "./components/centerDisplay";
-import { INSTALL_CLOSED_REASON } from "./components/storeActions";
+import { installClosedReason } from "./components/storeActions";
 import {
   useMobileCenterInstall,
   useMobileCenterResolution,
   useMobileCenterRelease,
 } from "./data/center-queries";
+const t = pluginTranslator.t;
 
 /** 选版 → 确认 → 下载/校验 → 待生效；挂载即打开，由调用方在 onClose 后卸载。下载中关闭面板不影响任务。 */
 export function CenterInstallSheet({
@@ -24,6 +26,7 @@ export function CenterInstallSheet({
   installedPermissions?: readonly string[];
   onClose: () => void;
 }) {
+  usePluginI18n();
   const install = useMobileCenterInstall();
   const { config, query } = useMobileCenterResolution(pluginId);
   const task = install.task(pluginId);
@@ -46,34 +49,36 @@ export function CenterInstallSheet({
     state = {
       kind: "failed",
       version: taskVersion ?? "",
-      message: task.error instanceof Error ? task.error.message : String(task.error),
+      message: pluginError(task.error),
     };
   else if (doneVersion) state = { kind: "done", version: doneVersion };
   else if (config.isError)
     state = { kind: "unavailable", reasons: [], message: String(config.error) };
   else if (config.data && !config.data.host)
-    state = { kind: "unavailable", reasons: [], message: "当前平台不能安装移动插件" };
+    state = { kind: "unavailable", reasons: [], message: t("center.mobileCannotInstall") };
   else if (query.isError)
     state = { kind: "unavailable", reasons: [], message: String(query.error) };
   else if (!query.data) state = { kind: "resolving" };
   else if (!release) state = { kind: "unavailable", reasons: query.data.compatibility.reasons };
   else if (!config.data?.installationEnabled)
-    state = { kind: "unavailable", reasons: [], message: INSTALL_CLOSED_REASON };
+    state = { kind: "unavailable", reasons: [], message: installClosedReason() };
   else if (installedVersion && comparePluginVersions(release.version, installedVersion) <= 0)
     state = {
       kind: "unavailable",
       reasons: [],
-      message: `已安装 v${installedVersion}，没有更高的可用版本`,
+      message: t("center.noHigher", { version: installedVersion }),
     };
   else
     state = {
       kind: "confirm",
       version: release.version,
       size: release.size,
-      permissions: describeCenterPermissions(releasePermissions(release), installedPermissions).map(
-        permission =>
-          `${installedVersion && permission.newlyRequested ? "新增：" : ""}${permission.label}`
-      ),
+      permissions: releasePermissions(release),
+      newPermissions: installedVersion
+        ? describeCenterPermissions(releasePermissions(release), installedPermissions)
+            .filter(permission => permission.newlyRequested)
+            .map(permission => permission.permission)
+        : [],
     };
 
   const start = () => {

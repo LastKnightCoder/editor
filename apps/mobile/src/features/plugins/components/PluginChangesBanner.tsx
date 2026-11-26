@@ -1,11 +1,14 @@
+import { pluginTranslator, pluginCount, usePluginI18n } from "../i18n";
 import { LoaderCircle, RefreshCw, ShieldAlert } from "lucide-react";
 import { useMobilePluginStatus } from "../../../app/plugins/context";
+const t = pluginTranslator.t;
 
 /**
  * 插件中心顶部的会话横幅：启动中显示进度；有已保存未生效的变更（待生效包、启停）时提供「立即生效」，
  * 即重建插件会话而不重启应用；安全模式提供重新加载。
  */
 export function PluginChangesBanner({ changes }: { changes: readonly string[] }) {
+  usePluginI18n();
   const { phase, reload } = useMobilePluginStatus();
   if (phase === "starting")
     return (
@@ -14,7 +17,7 @@ export function PluginChangesBanner({ changes }: { changes: readonly string[] })
         className="bg-surface text-ink-2 flex items-center gap-2.5 rounded-[14px] px-3 py-2.5 text-[13px]"
       >
         <LoaderCircle size={16} className="text-accent animate-spin" aria-hidden />
-        插件加载中…
+        {t("center.pluginLoading")}
       </div>
     );
   const safe = phase === "safe";
@@ -27,9 +30,9 @@ export function PluginChangesBanner({ changes }: { changes: readonly string[] })
         <RefreshCw size={18} className="text-warn shrink-0" aria-hidden />
       )}
       <span className="text-ink-1 min-w-0 flex-1 text-[13px] leading-snug">
-        {safe ? "已跳过插件（安全模式）" : `${changes.length} 个插件变更等待生效`}
+        {safe ? t("center.safe") : pluginCount("center.pendingChanges", changes.length)}
         <span className="text-ink-2 block truncate text-[11.5px]">
-          {safe ? "停用问题插件后重新加载" : changes.join("、")}
+          {safe ? t("center.safeHint") : changes.join("、")}
         </span>
       </span>
       <button
@@ -37,7 +40,7 @@ export function PluginChangesBanner({ changes }: { changes: readonly string[] })
         onClick={reload}
         className="bg-ink-1 text-ink-inverse h-[30px] shrink-0 rounded-full px-3 text-[12.5px] font-bold active:scale-95"
       >
-        {safe ? "重新加载" : "立即生效"}
+        {safe ? t("center.reload") : t("center.apply")}
       </button>
     </div>
   );

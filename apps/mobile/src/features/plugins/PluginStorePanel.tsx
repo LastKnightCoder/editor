@@ -1,3 +1,4 @@
+import { pluginTranslator, usePluginI18n } from "./i18n";
 import { useRef, useState } from "react";
 import { FilterPill } from "@tau/ui";
 import type { PluginCategory } from "@tau/plugins/package";
@@ -6,16 +7,14 @@ import { CenterInstallSheet } from "./CenterInstallSheet";
 import { PLUGIN_CATEGORIES, categoryLabel } from "./components/centerDisplay";
 import { PluginListState } from "./components/PluginListState";
 import { StoreEntryRow } from "./components/StoreEntryRow";
-import {
-  INSTALL_CLOSED_REASON,
-  storePrimaryAction,
-  storeTaskPhase,
-} from "./components/storeActions";
+import { storePrimaryAction, storeTaskPhase } from "./components/storeActions";
 import { useMobileCenterCatalog, useMobileCenterInstall } from "./data/center-queries";
 import { usePluginManager } from "./data/usePluginManager";
+const t = pluginTranslator.t;
 
 /** 商店：按本机平台与真实宿主浏览，关键词来自顶栏搜索，安装只经中心 releaseId。 */
 export function PluginStorePanel({ q }: { q: string }) {
+  usePluginI18n();
   const install = useMobileCenterInstall();
   const navigator = useNavigator();
   const [category, setCategory] = useState<PluginCategory | null>(null);
@@ -40,17 +39,25 @@ export function PluginStorePanel({ q }: { q: string }) {
     <div className="flex flex-col gap-3">
       {config.data && !host && (
         <p className="bg-warn-soft text-warn rounded-xl px-3 py-2 text-[13px]">
-          当前平台不能安装移动插件，只能浏览插件与平台声明。
+          {t("center.mobileUnsupported")}
         </p>
       )}
       {host && !installationEnabled && (
         <p className="bg-warn-soft text-warn rounded-xl px-3 py-2 text-[13px]">
-          {INSTALL_CLOSED_REASON}，可先浏览插件与平台声明。
+          {t("center.closedBrowse")}
         </p>
       )}
       {categories.length > 0 && (
-        <div role="group" aria-label="插件分类" className="-mx-4 flex gap-2 overflow-x-auto px-4">
-          <FilterPill active={!category} onClick={() => setCategory(null)} label="全部" />
+        <div
+          role="group"
+          aria-label={t("center.categories")}
+          className="-mx-4 flex gap-2 overflow-x-auto px-4"
+        >
+          <FilterPill
+            active={!category}
+            onClick={() => setCategory(null)}
+            label={t("center.all")}
+          />
           {categories.map(item => (
             <FilterPill
               key={item.id}
@@ -68,8 +75,8 @@ export function PluginStorePanel({ q }: { q: string }) {
         onRetry={() => void (config.isError ? config.refetch() : query.refetch())}
         retrying={config.isRefetching || query.isRefetching}
         empty={!items.length}
-        emptyTitle={q || category ? "没有找到匹配的插件" : "插件中心还没有可用的插件"}
-        emptyHint={q || category ? "换个关键词或分类试试。" : undefined}
+        emptyTitle={q || category ? t("center.noMatches") : t("center.noAvailable")}
+        emptyHint={q || category ? t("center.changeSearch") : undefined}
         hasMore={query.hasNextPage}
         loadingMore={query.isFetchingNextPage}
         loadMoreError={query.isFetchNextPageError ? String(query.error) : null}

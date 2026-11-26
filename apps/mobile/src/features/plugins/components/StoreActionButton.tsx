@@ -1,5 +1,7 @@
+import { pluginTranslator, usePluginI18n } from "../i18n";
 import { cn } from "@tau/ui";
-import type { StorePrimaryAction } from "./storeActions";
+import { storeActionReason, type StorePrimaryAction } from "./storeActions";
+const t = pluginTranslator.t;
 
 /** 本插件当前的中心安装任务阶段；无任务时为 null。 */
 export type StoreTaskPhase = "queued" | "downloading" | "checking" | "failed" | null;
@@ -18,6 +20,7 @@ const TONE = {
 };
 
 function ProgressRing({ spinning }: { spinning: boolean }) {
+  usePluginI18n();
   return (
     <span className="relative grid size-[30px] place-items-center">
       <svg viewBox="0 0 30 30" className="absolute inset-0 animate-spin" aria-hidden>
@@ -57,6 +60,7 @@ export function StoreActionButton({
   onCancel: () => void;
   onRetry: () => void;
 }) {
+  usePluginI18n();
   const large = size === "lg";
   const base = cn(
     "inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap font-bold transition active:scale-95 disabled:opacity-50 disabled:active:scale-100",
@@ -68,7 +72,7 @@ export function StoreActionButton({
       return (
         <button
           type="button"
-          aria-label={checking ? "正在校验" : "取消下载"}
+          aria-label={checking ? t("install.checking") : t("install.cancelDownload")}
           disabled={checking}
           onClick={onCancel}
           className="shrink-0 disabled:opacity-100"
@@ -86,14 +90,18 @@ export function StoreActionButton({
         <span className="scale-75">
           <ProgressRing spinning={checking} />
         </span>
-        {checking ? "正在校验…" : phase === "queued" ? "等待下载 · 点按取消" : "下载中 · 点按取消"}
+        {checking
+          ? t("install.checkingBusy")
+          : phase === "queued"
+            ? t("install.queuedCancel")
+            : t("install.downloadingCancel")}
       </button>
     );
   }
   if (phase === "failed")
     return (
       <button type="button" onClick={onRetry} className={cn(base, TONE.danger)}>
-        {large ? "安装失败，重试" : "重试"}
+        {large ? t("install.retry") : t("common.retry")}
       </button>
     );
   switch (primary.kind) {
@@ -104,30 +112,40 @@ export function StoreActionButton({
         <button
           type="button"
           disabled={!primary.allowed}
-          title={primary.reason}
+          title={storeActionReason(primary)}
           onClick={onPress}
           className={cn(base, update ? TONE.update : TONE.get)}
         >
-          {large ? `${update ? "更新到" : "安装"} v${primary.version}` : update ? "更新" : "获取"}
+          {large
+            ? t(update ? "install.updateVersion" : "install.installVersion", {
+                version: primary.version,
+              })
+            : update
+              ? t("common.update")
+              : t("center.get")}
         </button>
       );
     }
     case "pending":
       return (
         <span className={cn(base, TONE.pending, "active:scale-100")}>
-          {large && primary.version ? `v${primary.version} 待生效` : "待生效"}
+          {large && primary.version
+            ? t("install.pendingVersion", { version: primary.version })
+            : t("install.pending")}
         </span>
       );
     case "installed":
       return (
         <span className={cn(base, large ? TONE.muted : TONE.plain, "active:scale-100")}>
-          {large ? `已安装 v${primary.version}` : "已安装"}
+          {large
+            ? t("install.installedVersion", { version: primary.version })
+            : t("common.installed")}
         </span>
       );
     case "unavailable":
       return (
         <span className={cn(base, TONE.muted, "active:scale-100")}>
-          {large ? "暂不可安装" : "不可用"}
+          {large ? t("install.unavailable") : t("center.unavailable")}
         </span>
       );
   }

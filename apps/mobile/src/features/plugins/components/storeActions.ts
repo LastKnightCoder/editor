@@ -1,12 +1,19 @@
+import { pluginTranslator } from "../i18n";
 import { comparePluginVersions } from "@tau/plugins/package";
 import type { CenterInstallTask } from "../../../app/plugins/center-install";
 import type { StoreTaskPhase } from "./StoreActionButton";
 
-export const INSTALL_CLOSED_REASON = "当前版本的 Tau 暂未开放插件安装";
+export const installClosedReason = () => pluginTranslator.t("center.installClosed");
 
 /** 商店主动作的展示投影；是否允许与目标版本由逻辑层按已装版本和兼容结果给出。 */
 export type StorePrimaryAction =
-  | { kind: "install" | "update"; version: string; allowed: boolean; reason?: string }
+  | {
+      kind: "install" | "update";
+      version: string;
+      allowed: boolean;
+      reason?: string;
+      reasonCode?: "center.installClosed";
+    }
   | { kind: "installed"; version: string }
   /** 已下载、等待插件会话重载后生效；version 为 null 表示清单不知道待生效版本号。 */
   | { kind: "pending"; version: string | null }
@@ -42,7 +49,7 @@ export function storePrimaryAction(input: {
     kind: installedVersion ? "update" : "install",
     version: compatibleVersion,
     allowed: installationEnabled,
-    ...(installationEnabled ? {} : { reason: INSTALL_CLOSED_REASON }),
+    ...(installationEnabled ? {} : { reasonCode: "center.installClosed" as const }),
   };
 }
 
@@ -58,4 +65,9 @@ export function storeTaskPhase(
         ? "queued"
         : "downloading";
   return task.status === "error" ? "failed" : null;
+}
+
+export function storeActionReason(action: StorePrimaryAction): string | undefined {
+  if (!("reason" in action) && !("reasonCode" in action)) return undefined;
+  return action.reasonCode ? pluginTranslator.t(action.reasonCode) : action.reason;
 }
