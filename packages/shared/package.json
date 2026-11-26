@@ -56,7 +56,8 @@
       ]
     },
     "./language": "./language.ts",
-    "./sync-progress": "./sync-progress.ts"
+    "./sync-progress": "./sync-progress.ts",
+    "./document-media-notice": "./document-media-notice.ts"
   },
   "peerDependencies": {
     "react": "19.1.x",

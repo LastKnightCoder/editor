@@ -246,6 +246,8 @@ P6A3-A公共工具栏：30源码连同@tau/i18n workspace依赖/lock工程完成
 
 P6B共享状态：32路径工程完成，desktop模型/白板10例+remote既有8例、mobile状态/编辑19例通过；两端与collaboration包类型、三语39语义key/参数及范围静态/格式通过。旧label/sessionStatusLabel消费清零退休，原300+300+400ms与中途locale不重计时契约保留；17宿主白板kind和actions/tone/transient不变，不新增白板延迟。EditorStatusBar原400字阅读速率/计数不改，所有othersSummary调用同域UI context。
 
+P7 SDK文档只读展示：18源码工程完成，原文档28例加真实Editor换语契约及中心11例共40例通过；两端类型及SDK纯类型检查、词典参数/静态检查通过。原synthetic中文正文退休，安全节点仅保留类型/原alt，不保留源URL；真实readonlyEditor/notice身份及解析结果跨语言不变，无img/video/audio/iframe/webview。旧固定UI文案断言移为语义媒体/HTML安全契约，原README/fence/链接过滤不变。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

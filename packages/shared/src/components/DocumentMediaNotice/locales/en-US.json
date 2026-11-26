@@ -1,0 +1,8 @@
+{
+  "kind.image": "Image",
+  "kind.video": "Video",
+  "kind.audio": "Audio",
+  "kind.file": "File",
+  "notice": "{{kind}} is not loaded in the app",
+  "withAlt": "{{notice}}: {{alt}}"
+}

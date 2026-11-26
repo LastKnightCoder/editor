@@ -1,0 +1,6 @@
+{
+  "starting.message": "Loading plugin content…",
+  "starting.title": "Content will appear when the plugin is ready",
+  "unavailable.message": "The plugin is not running. The content is preserved.",
+  "unavailable.title": "Check the plugin status in the plugin center"
+}

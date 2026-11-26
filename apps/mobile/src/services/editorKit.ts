@@ -1,3 +1,5 @@
+import { editorKitTranslator } from "./editorKit.i18n";
+import { pluginDocumentNoticeExtension } from "../features/plugins/documentNotice";
 import { useRef, useSyncExternalStore } from "react";
 import {
   isMobilePluginSettled,
@@ -111,9 +113,16 @@ export function getMobileContentKit(): EditorKit {
 /** 未注册节点多半来自插件：按会话阶段说明原因，内容始终原样保留 */
 function describeUnknownElement() {
   const { phase } = mobilePluginState.get();
-  if (phase === "starting") return { message: "插件内容加载中…", title: "插件就绪后自动显示" };
+  if (phase === "starting")
+    return {
+      message: editorKitTranslator.t("starting.message"),
+      title: editorKitTranslator.t("starting.title"),
+    };
   if (phase === "safe" || phase === "failed")
-    return { message: "插件未运行，内容已原样保留", title: "可在插件中心查看插件状态" };
+    return {
+      message: editorKitTranslator.t("unavailable.message"),
+      title: editorKitTranslator.t("unavailable.title"),
+    };
   return undefined;
 }
 
@@ -140,7 +149,7 @@ export function useMobileContentKit(
 
 /** 插件随包资料的只读展示：不含插件扩展，文档已按白名单清洗 */
 export function getMobilePluginDocumentKit(): EditorKit {
-  return createMobileKit();
+  return createMobileKit([pluginDocumentNoticeExtension]);
 }
 
 let flashcardBlank: EditorExtension | null = null;

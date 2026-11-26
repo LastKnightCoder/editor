@@ -41,12 +41,18 @@ const SAFE_ELEMENTS = new Set([
   "emoji",
   "link",
 ]);
-const MEDIA_LABEL: Record<ContentResourceKind, string> = {
-  image: "图片",
-  video: "视频",
-  audio: "音频",
-  file: "文件",
-};
+export const PLUGIN_DOCUMENT_NOTICE_TYPES = Object.freeze({
+  block: "plugin-document-media",
+  inline: "plugin-document-inline-media",
+} as const);
+interface PluginDocumentNoticeData {
+  mediaKind: ContentResourceKind;
+  alt: string;
+  children: Descendant[];
+}
+export type PluginDocumentNoticeElement =
+  | (PluginDocumentNoticeData & { type: typeof PLUGIN_DOCUMENT_NOTICE_TYPES.block })
+  | (PluginDocumentNoticeData & { type: typeof PLUGIN_DOCUMENT_NOTICE_TYPES.inline });
 
 type Loose = Element & Record<string, unknown>;
 
@@ -55,12 +61,21 @@ const paragraph = (value: string): Descendant =>
   ({ type: "paragraph", children: [text(value)] }) as Descendant;
 const isHttp = (url: unknown) => typeof url === "string" && /^https?:\/\//i.test(url);
 
-/** 声明了资源的节点不加载资源，换成说明；替代文字取第一项资源的 alt 字段 */
-function mediaNotice(node: Loose, specs: readonly ContentResourceSpec[]): string {
+/** 只保留类型和原始替代文字，语言由只读场景的展示组件处理。 */
+function mediaNotice(
+  node: Loose,
+  specs: readonly ContentResourceSpec[],
+  inline: boolean
+): Descendant {
   const [slot] = contentResourceSlots(node, specs);
   const value = slot?.spec.alt ? slot.owner[slot.spec.alt] : undefined;
-  const alt = typeof value === "string" && value.trim() ? `：${value.trim()}` : "";
-  return `${MEDIA_LABEL[specs[0].kind]}不在应用内加载${alt}`;
+  const notice: PluginDocumentNoticeElement = {
+    type: inline ? PLUGIN_DOCUMENT_NOTICE_TYPES.inline : PLUGIN_DOCUMENT_NOTICE_TYPES.block,
+    mediaKind: specs[0].kind,
+    alt: typeof value === "string" ? value.trim() : "",
+    children: [text("")],
+  };
+  return notice as unknown as Descendant;
 }
 
 function sanitizeChildren(
@@ -83,8 +98,7 @@ function sanitizeNode(
   const type: string = element.type;
   const specs = resources[type];
   if (specs?.length) {
-    const notice = mediaNotice(element, specs);
-    return [inline ? text(`[${notice}]`) : paragraph(notice)];
+    return [mediaNotice(element, specs, inline)];
   }
   if (type === "link" && !isHttp(element.url)) return sanitizeChildren(element.children, resources);
   if (SAFE_ELEMENTS.has(type))

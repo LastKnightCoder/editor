@@ -328,7 +328,6 @@ it("详情页读取 README 安全子集，卸载默认保留私有数据", async
   await act(async () => navigator?.push(PLUGIN_DETAIL_KEY, { pluginId: ID }));
   await settle();
   expect(page().textContent).toContain("使用说明正文");
-  expect(page().textContent).toContain("图片不在应用内加载");
   expect(page().querySelector("img")).toBeNull();
   expect(page().textContent).toContain("author/center");
   expect(page().textContent).toContain("插件中心");

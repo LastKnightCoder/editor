@@ -1,0 +1,6 @@
+{
+  "starting.message": "插件内容加载中…",
+  "starting.title": "插件就绪后自动显示",
+  "unavailable.message": "插件未运行，内容已原样保留",
+  "unavailable.title": "可在插件中心查看插件状态"
+}

@@ -1,3 +1,11 @@
+import { act, createElement } from "react";
+import { createRoot } from "react-dom/client";
+import { createEditorKit } from "@tau/editor";
+import { I18nRuntimeProvider } from "@tau/i18n/react";
+import { desktopI18n, desktopLocaleSource } from "@/app/i18n/runtime";
+import { pluginDocumentNoticeExtension } from "../documentNotice";
+import { PluginMarkdown } from "../components/PluginMarkdown";
+import * as documentModule from "../pluginDocument";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Node, type Descendant } from "slate";
 import { definePlugin } from "@tau/plugins";
@@ -62,7 +70,19 @@ describe.each([false, true])("插件资料文档化（HTML 插件启用=%s）", 
     expect(found).not.toContain("html-inline");
     expect(found).not.toContain("image");
     expect(found).not.toContain("inline-image");
-    expect(textOf(nodes)).toContain("图片不在应用内加载：截图");
+    const notices: Array<{ mediaKind: unknown; alt: unknown }> = [];
+    const visit = (node: Descendant) => {
+      if ("children" in node) {
+        if ("mediaKind" in node && "alt" in node) notices.push(node as (typeof notices)[number]);
+        node.children.forEach(visit);
+      }
+    };
+    nodes.forEach(visit);
+    expect(notices.map(({ mediaKind, alt }) => ({ mediaKind, alt }))).toEqual([
+      { mediaKind: "image", alt: "截图" },
+      { mediaKind: "image", alt: "图标" },
+    ]);
+    expect(JSON.stringify(notices)).not.toContain("https://example.com/");
     expect(textOf(nodes)).toContain("粗 文本");
     expect(textOf(nodes)).not.toContain("<");
     expect(textOf(nodes)).not.toContain("html");
@@ -202,4 +222,48 @@ describe.each([false, true])("插件资料文档化（HTML 插件启用=%s）", 
       { type: "paragraph", children: [{ type: "formatted", text: "" }] },
     ]);
   });
+});
+
+const readerKit = createEditorKit({ extensions: [pluginDocumentNoticeExtension] });
+vi.mock("@/services/editorKit", async original => ({
+  ...(await original<object>()),
+  getPluginDocumentKit: () => readerKit,
+}));
+
+it("换语只更新媒体占位，保留真实只读编辑器与文档且不加载外部媒体", async () => {
+  const original = desktopLocaleSource.getSnapshot();
+  const convert = vi.spyOn(documentModule, "toPluginDocument");
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const source = "![原始替代文字](https://fixture.invalid/private-image.png)";
+  try {
+    await act(async () =>
+      root.render(
+        createElement(I18nRuntimeProvider, {
+          runtime: desktopI18n,
+          children: createElement(PluginMarkdown, { source }),
+        })
+      )
+    );
+    const editor = container.querySelector("[data-slate-editor]");
+    const notice = container.querySelector('[role="note"]');
+    if (!editor || !notice) throw new Error("真实只读资料未挂载");
+    const parsed = JSON.stringify(convert.mock.results.at(-1)?.value);
+    const reads = convert.mock.calls.length;
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(container.querySelector("[data-slate-editor]")).toBe(editor);
+      expect(container.querySelector('[role="note"]')).toBe(notice);
+      expect(notice.textContent).toContain("原始替代文字");
+      expect(container.querySelector("img,video,audio,iframe,webview")).toBeNull();
+      expect(convert).toHaveBeenCalledTimes(reads);
+      expect(JSON.stringify(convert.mock.results.at(-1)?.value)).toBe(parsed);
+    }
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+    convert.mockRestore();
+    desktopLocaleSource.setLocale(original);
+  }
 });

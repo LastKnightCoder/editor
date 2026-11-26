@@ -1,0 +1,8 @@
+{
+  "kind.image": "图片",
+  "kind.video": "视频",
+  "kind.audio": "音频",
+  "kind.file": "文件",
+  "notice": "{{kind}}不在应用内加载",
+  "withAlt": "{{notice}}：{{alt}}"
+}

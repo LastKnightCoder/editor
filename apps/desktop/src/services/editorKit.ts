@@ -1,3 +1,4 @@
+import { pluginDocumentNoticeExtension } from "../features/plugins/documentNotice";
 /**
  * Desktop 的 EditorKit：**按场景**一个，不是一个应用一份（docs/editor-refactor ER-016）。
  * 每个 kit 只注册该场景的内容实际会包含的扩展，不要求全量覆盖（ER-017）。
@@ -119,7 +120,7 @@ export function getSkillFileKit(): EditorKit {
 
 /** 插件详情的 README / CHANGELOG 只读展示：只有底座，内容先经 `toPluginDocument` 过滤为内置展示节点。 */
 export function getPluginDocumentKit(): EditorKit {
-  return createDesktopKit();
+  return createDesktopKit([pluginDocumentNoticeExtension]);
 }
 
 let flashcardBlank: EditorExtension | null = null;
