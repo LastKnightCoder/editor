@@ -18,6 +18,8 @@ import {
 import { useAppContext } from "../../../app/AppContext";
 import { CheckBubble } from "../../../components/CheckBubble";
 import { GroupRow } from "./ui";
+import { useSettingsShellI18n } from "../shell.i18n";
+import { useAppearanceI18n } from "../appearance/i18n";
 
 // 选项预览：以图片 icon 卡片直接呈现圆角/阴影档位，preset → CSS 值与编辑器渲染同源
 function PresetPreview(props: {
@@ -61,6 +63,8 @@ function PresetGroup(props: {
 }
 
 export function ImageAppearanceSection() {
+  const { t } = useAppearanceI18n();
+  const { t: shellT } = useSettingsShellI18n();
   const app = useAppContext();
   const image = app.syncSettings.safeSetting?.appearance?.image;
   const activeRadius = image?.borderRadius ?? "none";
@@ -86,8 +90,11 @@ export function ImageAppearanceSection() {
   return (
     <div className="space-y-4">
       <PresetGroup
-        title="圆角"
-        options={IMAGE_BORDER_RADIUS_OPTIONS}
+        title={t("image.radius")}
+        options={IMAGE_BORDER_RADIUS_OPTIONS.map(option => ({
+          value: option.value,
+          label: shellT(`image.radius.${option.value}`),
+        }))}
         active={activeRadius}
         onSelect={value =>
           updateImageAppearance({ borderRadius: value as ImageBorderRadiusPreset })
@@ -95,8 +102,11 @@ export function ImageAppearanceSection() {
         renderPreview={value => <PresetPreview borderRadius={value as ImageBorderRadiusPreset} />}
       />
       <PresetGroup
-        title="阴影"
-        options={IMAGE_SHADOW_OPTIONS}
+        title={t("image.shadow")}
+        options={IMAGE_SHADOW_OPTIONS.map(option => ({
+          value: option.value,
+          label: shellT(`image.shadow.${option.value}`),
+        }))}
         active={activeShadow}
         onSelect={value => updateImageAppearance({ shadow: value as ImageShadowPreset })}
         renderPreview={value => <PresetPreview shadow={value as ImageShadowPreset} />}

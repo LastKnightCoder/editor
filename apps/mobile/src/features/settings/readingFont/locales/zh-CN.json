@@ -1,0 +1,22 @@
+{
+  "title": "正文字体",
+  "font.system.label": "系统默认",
+  "font.system.description": "与界面文字一致的黑体",
+  "font.lxgw-wenkai.label": "霞鹜文楷",
+  "font.lxgw-wenkai.description": "温和的楷体，适合日记与随笔",
+  "font.noto-serif-sc.label": "思源宋体",
+  "font.noto-serif-sc.description": "书卷气的宋体，适合文章与长文",
+  "download": "下载{{size}}",
+  "update": "更新{{size}}",
+  "cancel": "{{percent}} · 取消",
+  "hint": "正文字体只影响文档正文与标题，界面文字不变。字体按需下载，存放在本机。",
+  "error.network": "网络连接失败，请稍后重试",
+  "error.manifest": "字体信息暂不可用，请稍后重试",
+  "error.notFound": "该字体暂不可下载",
+  "error.corrupt": "字体文件校验未通过，请重新下载",
+  "error.storage": "无法保存字体，请检查存储空间",
+  "error.busy": "已有字体正在下载",
+  "error.notInstalled": "该字体尚未安装，请重新下载",
+  "error.download": "下载失败，请稍后重试",
+  "error.load": "正文字体加载失败，已改用系统字体"
+}

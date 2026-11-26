@@ -11,13 +11,11 @@ import {
   type ThemeDefinition,
 } from "@tau/themes";
 import { useThemeStore } from "@tau/themes/react";
+import { useSettingsShellI18n } from "../shell.i18n";
+import { themeDisplayName, useAppearanceI18n } from "../appearance/i18n";
 import { GroupLabel } from "../../../components/GroupLabel";
 
-const APPEARANCE_OPTIONS: Array<{ value: Appearance; caption: string }> = [
-  { value: "system", caption: "跟随系统" },
-  { value: "light", caption: "浅色" },
-  { value: "dark", caption: "深色" },
-];
+const APPEARANCE_OPTIONS: Appearance[] = ["system", "light", "dark"];
 
 const pageStyle = (t: SemanticTokens): CSSProperties => ({ background: t["bg-page"] });
 const cardStyle = (t: SemanticTokens): CSSProperties => ({ background: t["bg-surface"] });
@@ -80,6 +78,8 @@ function ChoiceCard(props: {
 }
 
 export function ThemeSection() {
+  const { t } = useAppearanceI18n();
+  const { t: shellT } = useSettingsShellI18n();
   const themeKey = useThemeStore(s => s.theme);
   const appearance = useThemeStore(s => s.appearance);
   const setTheme = useThemeStore(s => s.setTheme);
@@ -88,41 +88,38 @@ export function ThemeSection() {
 
   return (
     <div className="pb-1">
-      <GroupLabel inset="sheet">明暗</GroupLabel>
+      <GroupLabel inset="sheet">{t("theme.mode")}</GroupLabel>
       <div className="grid grid-cols-3 gap-2.5">
         {APPEARANCE_OPTIONS.map(option => (
           <ChoiceCard
-            key={option.value}
-            active={appearance === option.value}
-            caption={option.caption}
-            onSelect={() => setAppearance(option.value)}
+            key={option}
+            active={appearance === option}
+            caption={shellT(`appearance.${option}`)}
+            onSelect={() => setAppearance(option)}
           >
-            {option.value === "system" ? (
+            {option === "system" ? (
               <SplitPreview theme={currentTheme} lit={appearance === "system"} />
             ) : (
-              <ScreenPreview
-                tokens={currentTheme[option.value].tokens}
-                lit={appearance === option.value}
-              />
+              <ScreenPreview tokens={currentTheme[option].tokens} lit={appearance === option} />
             )}
           </ChoiceCard>
         ))}
       </div>
 
-      <GroupLabel inset="sheet">主题</GroupLabel>
+      <GroupLabel inset="sheet">{t("theme.title")}</GroupLabel>
       <div className="grid grid-cols-3 gap-2.5">
         {listThemes().map(theme => (
           <ChoiceCard
             key={theme.key}
             active={theme.key === currentTheme.key}
-            caption={theme.name}
+            caption={themeDisplayName(theme.key, theme.name)}
             onSelect={() => setTheme(theme.key)}
           >
             <SplitPreview theme={theme} lit={theme.key === currentTheme.key} />
           </ChoiceCard>
         ))}
       </div>
-      <p className="text-ink-3 mt-3 text-center text-[12px]">每套主题都包含深浅两套配色</p>
+      <p className="text-ink-3 mt-3 text-center text-[12px]">{t("theme.hint")}</p>
     </div>
   );
 }

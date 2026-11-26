@@ -1,3 +1,5 @@
+import { themeDisplayName } from "../appearance/i18n";
+import { readingFontDisplayName } from "../readingFont/i18n";
 import { useSettingsShellI18n, type SettingsShellKey } from "../shell.i18n";
 import { useMobileI18n } from "../../../services/i18n-react";
 import { APP_LANGUAGES, normalizeLanguagePreference } from "@tau/shared/language";
@@ -49,7 +51,7 @@ import {
   withEditorOpenMode,
   type EditorOpenMode,
 } from "../../../hooks/useEditorOpenMode";
-import { normalizeReadingFontId, readingFontOption } from "../readingFont/fonts";
+import { normalizeReadingFontId } from "../readingFont/fonts";
 import { normalizeHighlightStyle } from "./highlightStyle";
 import { useInstalledReadingFonts } from "../readingFont/queries";
 import type { SettingModule } from "./types";
@@ -91,7 +93,8 @@ function findPresetValue(
 
 export function OverviewSection(props: OverviewSectionProps) {
   const { t, locale } = useSettingsShellI18n();
-  const themeName = useThemeStore(state => getTheme(state.theme)?.name ?? "");
+  const themeKey = useThemeStore(state => state.theme);
+  const themeName = themeDisplayName(themeKey, getTheme(themeKey)?.name ?? "");
   const appearance = useThemeStore(state => state.appearance);
   const navigator = useNavigator();
   const providers = useUploadProviders();
@@ -332,7 +335,7 @@ export function ReadingFontItem() {
           ? t("font.downloadAgain")
           : id === "system"
             ? t("font.system")
-            : readingFontOption(id).label
+            : readingFontDisplayName(id)
       }
       onClick={() => navigator.push("settings-reading-font")}
     />

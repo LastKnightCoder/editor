@@ -1,0 +1,19 @@
+{
+  "theme.title": "Theme",
+  "theme.mode": "Appearance",
+  "theme.hint": "Every theme includes light and dark colors",
+  "theme.paper": "Warm paper",
+  "theme.matcha": "Matcha",
+  "theme.mint": "Mint",
+  "theme.celadon": "Celadon",
+  "theme.ocean": "Sea salt",
+  "theme.wisteria": "Wisteria",
+  "theme.sakura": "Cherry blossom",
+  "theme.ink": "Ink",
+  "theme.mono": "Monochrome",
+  "image.title": "Image appearance",
+  "image.radius": "Corners",
+  "image.shadow": "Shadow",
+  "highlight.title": "Highlight style",
+  "highlight.hint": "The brush style changes how highlights look without changing document content."
+}

@@ -11,6 +11,8 @@ import { useAppContext } from "../../../app/AppContext";
 import { CheckBubble } from "../../../components/CheckBubble";
 import { normalizeHighlightStyle } from "./highlightStyle";
 import { GroupRow } from "./ui";
+import { useSettingsShellI18n } from "../shell.i18n";
+import { useAppearanceI18n } from "../appearance/i18n";
 
 function HighlightSample({ style }: { style: HighlightStyle }) {
   return (
@@ -27,6 +29,8 @@ function HighlightSample({ style }: { style: HighlightStyle }) {
 }
 
 export function HighlightStyleSection() {
+  const { t } = useAppearanceI18n();
+  const { t: shellT } = useSettingsShellI18n();
   const app = useAppContext();
   const active = normalizeHighlightStyle(
     app.syncSettings.safeSetting?.appearance?.highlight?.style
@@ -51,16 +55,16 @@ export function HighlightStyleSection() {
         {HIGHLIGHT_STYLES.map(option => (
           <GroupRow key={option.id} onClick={() => select(option.id)}>
             <span className="min-w-0 flex-1">
-              <span className="text-ink-1 block text-[15px] font-semibold">{option.label}</span>
+              <span className="text-ink-1 block text-[15px] font-semibold">
+                {shellT(`highlight.${option.id}`)}
+              </span>
               <HighlightSample style={option.id} />
             </span>
             {active === option.id && <CheckBubble />}
           </GroupRow>
         ))}
       </div>
-      <p className="text-ink-3 px-1 text-[12px] leading-relaxed">
-        笔触只改变背景高亮的画法，不改动文档内容。
-      </p>
+      <p className="text-ink-3 px-1 text-[12px] leading-relaxed">{t("highlight.hint")}</p>
     </div>
   );
 }

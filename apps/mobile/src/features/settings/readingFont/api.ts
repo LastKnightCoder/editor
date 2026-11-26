@@ -51,19 +51,6 @@ export function fontTotalSize(font: ReadingFontRelease): number {
   return font.files.reduce((sum, file) => sum + file.size, 0);
 }
 
-const ERROR_MESSAGES: Record<string, string> = {
-  READING_FONT_NETWORK: "网络连接失败，请稍后重试",
-  READING_FONT_MANIFEST_INVALID: "字体信息暂不可用，请稍后重试",
-  READING_FONT_NOT_FOUND: "该字体暂不可下载",
-  READING_FONT_CORRUPT: "字体文件校验未通过，请重新下载",
-  READING_FONT_STORAGE: "无法保存字体，请检查存储空间",
-  READING_FONT_BUSY: "已有字体正在下载",
-};
-
-export function readingFontErrorMessage(error: unknown): string {
-  return ERROR_MESSAGES[parseInvokeError(error).code] ?? "下载失败，请稍后重试";
-}
-
 export function isReadingFontCancelled(error: unknown): boolean {
   return parseInvokeError(error).code === "READING_FONT_CANCELLED";
 }

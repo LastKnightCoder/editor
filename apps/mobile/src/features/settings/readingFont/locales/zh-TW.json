@@ -1,0 +1,22 @@
+{
+  "title": "正文字型",
+  "font.system.label": "系統預設",
+  "font.system.description": "與介面文字一致的黑體",
+  "font.lxgw-wenkai.label": "霞鶩文楷",
+  "font.lxgw-wenkai.description": "溫和的楷體，適合日記與隨筆",
+  "font.noto-serif-sc.label": "思源宋體",
+  "font.noto-serif-sc.description": "書卷氣的宋體，適合文章與長文",
+  "download": "下載{{size}}",
+  "update": "更新{{size}}",
+  "cancel": "{{percent}} · 取消",
+  "hint": "正文字型只影響文件正文與標題，介面文字不變。字型按需下載，儲存在本機。",
+  "error.network": "網路連線失敗，請稍後重試",
+  "error.manifest": "字型資訊暫不可用，請稍後重試",
+  "error.notFound": "該字型暫不可下載",
+  "error.corrupt": "字型檔案驗證未通過，請重新下載",
+  "error.storage": "無法儲存字型，請檢查儲存空間",
+  "error.busy": "已有字型正在下載",
+  "error.notInstalled": "該字型尚未安裝，請重新下載",
+  "error.download": "下載失敗，請稍後重試",
+  "error.load": "正文字型載入失敗，已改用系統字型"
+}

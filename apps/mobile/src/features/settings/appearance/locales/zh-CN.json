@@ -1,0 +1,19 @@
+{
+  "theme.title": "主题",
+  "theme.mode": "明暗",
+  "theme.hint": "每套主题都包含深浅两套配色",
+  "theme.paper": "暖纸",
+  "theme.matcha": "抹茶",
+  "theme.mint": "薄荷",
+  "theme.celadon": "青瓷",
+  "theme.ocean": "海盐",
+  "theme.wisteria": "紫藤",
+  "theme.sakura": "樱花",
+  "theme.ink": "水墨",
+  "theme.mono": "黑白",
+  "image.title": "图片渲染",
+  "image.radius": "圆角",
+  "image.shadow": "阴影",
+  "highlight.title": "背景高亮",
+  "highlight.hint": "笔触只改变背景高亮的画法，不改动文档内容。"
+}

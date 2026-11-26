@@ -24,6 +24,7 @@ import {
 } from "../readingFont/queries";
 import { loadReadingFontFaces } from "../readingFont/runtime";
 import { GroupRow } from "./ui";
+import { readingFontErrorText, useReadingFontI18n } from "../readingFont/i18n";
 
 const NO_FONTS: ReadingFontRelease[] = [];
 
@@ -51,6 +52,7 @@ function FontRow(props: {
   onSelect: () => void;
   onDownload: () => void;
 }) {
+  const { t, locale } = useReadingFontI18n();
   const { option, active, installed, latest } = props;
   const downloadingId = useReadingFontDownload(state => state.downloadingId);
   const progress = useReadingFontDownload(state => state.progress);
@@ -59,7 +61,7 @@ function FontRow(props: {
   const isSystem = option.id === "system";
   const ready = isSystem || Boolean(installed);
   const downloading = downloadingId === option.id;
-  const sizeLabel = latest ? ` ${formatFontSize(fontTotalSize(latest))}` : "";
+  const sizeLabel = latest ? ` ${formatFontSize(fontTotalSize(latest), locale)}` : "";
   const hasUpdate = Boolean(installed && latest && installed.version !== latest.version);
   // 已安装的字体直接用自身渲染名称与样张；未下载时只能用系统字体，靠说明文字区分风格
   const fontFamily =
@@ -69,11 +71,15 @@ function FontRow(props: {
   if (downloading) {
     const percent =
       progress && progress.total > 0 ? Math.floor((progress.received / progress.total) * 100) : 0;
-    trailing = <TrailingButton onClick={() => void cancel()}>{percent}% · 取消</TrailingButton>;
+    trailing = (
+      <TrailingButton onClick={() => void cancel()}>
+        {t("cancel", { percent: (percent / 100).toLocaleString(locale, { style: "percent" }) })}
+      </TrailingButton>
+    );
   } else if (!ready) {
     trailing = (
       <TrailingButton disabled={Boolean(downloadingId)} onClick={props.onDownload}>
-        下载{sizeLabel}
+        {t("download", { size: sizeLabel })}
       </TrailingButton>
     );
   } else if (active) {
@@ -81,7 +87,7 @@ function FontRow(props: {
   } else if (hasUpdate) {
     trailing = (
       <TrailingButton disabled={Boolean(downloadingId)} onClick={props.onDownload}>
-        更新{sizeLabel}
+        {t("update", { size: sizeLabel })}
       </TrailingButton>
     );
   }
@@ -90,13 +96,15 @@ function FontRow(props: {
     <GroupRow onClick={downloading ? undefined : ready ? props.onSelect : props.onDownload}>
       <span className="min-w-0 flex-1">
         <span className="text-ink-1 block text-[15px] font-semibold" style={{ fontFamily }}>
-          {option.label}
+          {t(`font.${option.id}.label`)}
         </span>
         <span className="text-ink-2 mt-1 block text-[13px] leading-relaxed" style={{ fontFamily }}>
-          {ready ? READING_FONT_SAMPLE : option.description}
+          {ready ? READING_FONT_SAMPLE : t(`font.${option.id}.description`)}
         </span>
         {error?.id === option.id ? (
-          <span className="text-danger mt-1 block text-[12px] font-medium">{error.message}</span>
+          <span className="text-danger mt-1 block text-[12px] font-medium">
+            {readingFontErrorText(error.cause)}
+          </span>
         ) : null}
       </span>
       {trailing}
@@ -105,6 +113,7 @@ function FontRow(props: {
 }
 
 export function ReadingFontSection() {
+  const { t } = useReadingFontI18n();
   const app = useAppContext();
   const active = normalizeReadingFontId(app.syncSettings.safeSetting?.appearance?.readingFont);
   const installed = useInstalledReadingFonts().data ?? NO_FONTS;
@@ -145,9 +154,7 @@ export function ReadingFontSection() {
           />
         ))}
       </div>
-      <p className="text-ink-3 px-1 text-[12px] leading-relaxed">
-        正文字体只影响文档正文与标题，界面文字不变。字体按需下载，存放在本机。
-      </p>
+      <p className="text-ink-3 px-1 text-[12px] leading-relaxed">{t("hint")}</p>
     </div>
   );
 }

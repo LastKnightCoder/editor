@@ -6,7 +6,6 @@ import {
   cancelReadingFontDownload,
   downloadReadingFont,
   isReadingFontCancelled,
-  readingFontErrorMessage,
   type ReadingFontProgress,
   type ReadingFontRelease,
 } from "./api";
@@ -14,8 +13,8 @@ import {
 type ReadingFontDownloadState = {
   downloadingId: string | null;
   progress: ReadingFontProgress | null;
-  /** 最近一次失败的字体与提示，下次下载或取消时清空 */
-  error: { id: string; message: string } | null;
+  /** 最近一次失败的字体与原始错误，下次下载或取消时清空 */
+  error: { id: string; cause: unknown } | null;
   download: (id: string, onInstalled: (font: ReadingFontRelease) => void) => Promise<void>;
   cancel: () => Promise<void>;
 };
@@ -36,9 +35,7 @@ export const useReadingFontDownload = create<ReadingFontDownloadState>((set, get
       set({
         downloadingId: null,
         progress: null,
-        error: isReadingFontCancelled(error)
-          ? null
-          : { id, message: readingFontErrorMessage(error) },
+        error: isReadingFontCancelled(error) ? null : { id, cause: error },
       });
     }
   },

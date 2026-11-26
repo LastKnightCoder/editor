@@ -1,0 +1,19 @@
+{
+  "theme.title": "主題",
+  "theme.mode": "明暗",
+  "theme.hint": "每套主題都包含深淺兩套配色",
+  "theme.paper": "暖紙",
+  "theme.matcha": "抹茶",
+  "theme.mint": "薄荷",
+  "theme.celadon": "青瓷",
+  "theme.ocean": "海鹽",
+  "theme.wisteria": "紫藤",
+  "theme.sakura": "櫻花",
+  "theme.ink": "水墨",
+  "theme.mono": "黑白",
+  "image.title": "圖片呈現",
+  "image.radius": "圓角",
+  "image.shadow": "陰影",
+  "highlight.title": "背景螢光標記",
+  "highlight.hint": "筆觸只改變背景螢光標記的畫法，不改動文件內容。"
+}

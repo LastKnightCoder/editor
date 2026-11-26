@@ -20,7 +20,10 @@ vi.mock("../../readingFont/runtime", () => ({
 
 import { ReadingFontSection } from "../ReadingFontSection";
 import { useReadingFontDownload } from "../../readingFont/downloadStore";
-import type { ReadingFontRelease } from "../../readingFont/api";
+import type { ReadingFontRelease, ReadingFontProgress } from "../../readingFont/api";
+import { mobileLocaleSource } from "../../../../services/i18n";
+import { readingFontDisplayName, readingFontTranslator } from "../../readingFont/i18n";
+import { loadReadingFontFaces } from "../../readingFont/runtime";
 
 function release(id: string, version: string, size = 10 * 1024 * 1024): ReadingFontRelease {
   return {
@@ -80,6 +83,7 @@ async function render(readingFont?: string) {
       await new Promise(resolve => setTimeout(resolve, 0));
     });
   }
+  return client;
 }
 
 function row(label: string): HTMLElement {
@@ -137,14 +141,39 @@ describe("ReadingFontSection", () => {
     expect(appliedSetting()).toBe("lxgw-wenkai");
   });
 
-  it("下载失败时在该行显示提示，不改设置", async () => {
-    mockCommands({
-      reading_font_download: () => Promise.reject("READING_FONT_NETWORK: offline"),
-    });
-    await render();
-    await act(async () => buttonIn(row("思源宋体"), "下载").click());
-    expect(row("思源宋体").textContent).toContain("网络连接失败");
-    expect(updateSetting).not.toHaveBeenCalled();
+  it("下载失败保留原错误，换语不重下或改设置；未知诊断原样显示", async () => {
+    const original = mobileLocaleSource.getSnapshot();
+    const failure = new Error("READING_FONT_NETWORK: offline");
+    const unknown = new Error("custom transport rejected: trace-42");
+    let currentFailure = failure;
+    mockCommands({ reading_font_download: () => Promise.reject(currentFailure) });
+    try {
+      await render();
+      const target = row(readingFontDisplayName("noto-serif-sc"));
+      await act(async () =>
+        buttonIn(target, readingFontTranslator.t("download", { size: "" })).click()
+      );
+      const error = useReadingFontDownload.getState().error;
+      expect(error?.cause).toBe(failure);
+      expect(error).not.toHaveProperty("message");
+      const calls = [...invoke.mock.calls];
+      for (const locale of ["zh-TW", "en-US"]) {
+        await act(async () => mobileLocaleSource.setLocale(locale));
+        expect(row(readingFontDisplayName("noto-serif-sc"))).toBe(target);
+        expect(useReadingFontDownload.getState().error).toBe(error);
+        expect(invoke.mock.calls).toEqual(calls);
+        expect(updateSetting).not.toHaveBeenCalled();
+      }
+      currentFailure = unknown;
+      await act(async () =>
+        buttonIn(target, readingFontTranslator.t("download", { size: "" })).click()
+      );
+      expect(useReadingFontDownload.getState().error?.cause).toBe(unknown);
+      expect(target.textContent).toContain(unknown.message);
+      expect(updateSetting).not.toHaveBeenCalled();
+    } finally {
+      await act(async () => mobileLocaleSource.setLocale(original));
+    }
   });
 
   it("下载中显示进度并可取消，其他字体的下载按钮不可点", async () => {
@@ -172,6 +201,69 @@ describe("ReadingFontSection", () => {
 
     await act(async () => row("思源宋体").click());
     expect(appliedSetting()).toBe("noto-serif-sc");
+  });
+
+  it("下载中换语保留进度、焦点与查询身份；完成后只安装选择原字体一次", async () => {
+    const original = mobileLocaleSource.getSnapshot();
+    let finish: ((font: ReadingFontRelease) => void) | undefined;
+    let channel: { onmessage(progress: ReadingFontProgress): void } | undefined;
+    mockCommands({
+      reading_font_download: args => {
+        channel = (args as { onProgress: typeof channel }).onProgress;
+        return new Promise<ReadingFontRelease>(resolve => {
+          finish = resolve;
+        });
+      },
+    });
+    try {
+      const client = await render();
+      const target = row(readingFontDisplayName("lxgw-wenkai"));
+      await act(async () =>
+        buttonIn(target, readingFontTranslator.t("download", { size: "" })).click()
+      );
+      if (!channel || !finish) throw new Error("字体下载未启动");
+      const progress = { received: 5, total: 10 };
+      await act(async () => channel?.onmessage(progress));
+      const cancelLabel = () =>
+        readingFontTranslator.t("cancel", {
+          percent: (0.5).toLocaleString(mobileLocaleSource.getSnapshot(), { style: "percent" }),
+        });
+      const cancel = buttonIn(target, cancelLabel());
+      cancel.focus();
+      const queries = [...client.getQueryCache().getAll()];
+      const nativeCalls = [...invoke.mock.calls];
+      const registrations = vi.mocked(loadReadingFontFaces).mock.calls.length;
+      for (const locale of ["zh-TW", "en-US"]) {
+        await act(async () => mobileLocaleSource.setLocale(locale));
+        expect(row(readingFontDisplayName("lxgw-wenkai"))).toBe(target);
+        expect(buttonIn(target, cancelLabel())).toBe(cancel);
+        expect(document.activeElement).toBe(cancel);
+        expect(useReadingFontDownload.getState()).toMatchObject({
+          downloadingId: "lxgw-wenkai",
+          progress,
+          error: null,
+        });
+        expect(client.getQueryCache().getAll()).toEqual(queries);
+        expect(invoke.mock.calls).toEqual(nativeCalls);
+        expect(vi.mocked(loadReadingFontFaces).mock.calls.length).toBe(registrations);
+        expect(updateSetting).not.toHaveBeenCalled();
+      }
+      const font = release("lxgw-wenkai", "1.530");
+      installed = [font];
+      await act(async () => finish?.(font));
+      expect(useReadingFontDownload.getState()).toMatchObject({
+        downloadingId: null,
+        progress: null,
+        error: null,
+      });
+      expect(updateSetting).toHaveBeenCalledTimes(1);
+      expect(appliedSetting()).toBe("lxgw-wenkai");
+      expect(invoke.mock.calls.filter(([command]) => command === "reading_font_download")).toEqual([
+        ["reading_font_download", expect.objectContaining({ id: "lxgw-wenkai" })],
+      ]);
+    } finally {
+      await act(async () => mobileLocaleSource.setLocale(original));
+    }
   });
 
   it("线上有新版本时已下载未选中的字体显示更新", async () => {

@@ -234,6 +234,8 @@ P5A Features/Onboarding：10源码工程完成；原纯模型5例及真实UI换�
 
 P5A Browser宿主：13路径工程完成，直接4文件24例通过，最终Host5例复核通过；desktop类型、三语43语义key参数、范围静态/格式通过。scope显示表清零退役，2原生拒绝点仅追加可选码；换语保留权限/焦点/0042原码与查询、不重拉不裁决。配对主进程通知和扩展独立App语言源仍归后续批。
 
+P5A 手机外观：27源码加RootOverview双helper联动工程完成；4文件20例及最后字体/runtime13例通过，mobile类型、三语38语义key参数、范围静态/格式通过。字体label/description与旧错误显示函数消费者清零退役；真实控件跨语言保留选择/焦点/下载/查询，不写设置、不重取字体；ID/字节/URL/样本与反馈metadata不变。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

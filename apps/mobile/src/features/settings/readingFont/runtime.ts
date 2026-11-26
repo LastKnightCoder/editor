@@ -11,6 +11,7 @@ import {
   type ReadingFontOption,
 } from "./fonts";
 import { useInstalledReadingFonts } from "./queries";
+import { readingFontTranslator } from "./i18n";
 
 type LoadedFont = { version: string; faces: Promise<FontFace[]> };
 
@@ -75,7 +76,7 @@ export function useReadingFontRuntime(selected: ReadingFontId) {
         if (!active) return;
         console.warn("[readingFont] 加载字体失败", error);
         applyReadingFontVars(null);
-        toast.warning({ id: "reading-font-load", text: "正文字体加载失败，已改用系统字体" });
+        toast.warning({ id: "reading-font-load", text: readingFontTranslator.t("error.load") });
       }
     );
     return () => {

@@ -1,0 +1,22 @@
+{
+  "title": "Reading font",
+  "font.system.label": "System default",
+  "font.system.description": "The same sans-serif font as the interface",
+  "font.lxgw-wenkai.label": "LXGW WenKai",
+  "font.lxgw-wenkai.description": "A gentle handwriting style for journals and essays",
+  "font.noto-serif-sc.label": "Source Han Serif",
+  "font.noto-serif-sc.description": "A bookish serif for articles and longer reading",
+  "download": "Download{{size}}",
+  "update": "Update{{size}}",
+  "cancel": "{{percent}} · Cancel",
+  "hint": "Reading fonts apply to document text and titles. Interface text stays the same. Fonts are downloaded as needed and stored on this device.",
+  "error.network": "Connection failed. Try again later",
+  "error.manifest": "Font information is unavailable. Try again later",
+  "error.notFound": "This font is unavailable for download",
+  "error.corrupt": "Font verification failed. Download it again",
+  "error.storage": "Could not save the font. Check available storage",
+  "error.busy": "A font is already downloading",
+  "error.notInstalled": "This font is not installed. Download it again",
+  "error.download": "Download failed. Try again later",
+  "error.load": "Could not load the reading font. Using the system font"
+}
