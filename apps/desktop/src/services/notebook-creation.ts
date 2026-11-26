@@ -16,21 +16,6 @@ import type { MaterialSourceMeta, NotebookPlan } from "@/types/vibe-learning";
 
 export type { NotebookNotePlan, NotebookPlan } from "@/types/vibe-learning";
 
-/** 将带入的资源份数（摘录合并为一份） */
-const plannedResourceCount = (plan: NotebookPlan) =>
-  plan.notes.length + (plan.excerpts.length ? 1 : 0) + plan.clips.length;
-
-/** 确认框的影响行：带入几份、几项带不进去 */
-export const notebookPlanImpact = (plan: NotebookPlan) => {
-  const count = plannedResourceCount(plan);
-  return [
-    count ? `带入 ${count} 份资料` : "没有可带入的资料",
-    plan.skipped ? `${plan.skipped} 项（项目、白板、对话或已删除的内容）不会带入` : "",
-  ]
-    .filter(Boolean)
-    .join("；");
-};
-
 async function addMaterialResource(
   projectId: number,
   mainDbName: string,

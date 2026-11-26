@@ -1,66 +1,261 @@
-import {
-  PLUGIN_AI_CAPABILITIES,
-  type PluginPermission,
-  type PluginAICapability,
-} from "@tau/plugins";
+import type { PluginPermission } from "@tau/plugins";
 import type { PermissionRowState } from "@/app/plugins/permissions";
+import { pluginControlsTranslator } from "../controls.i18n";
+const t = pluginControlsTranslator.t;
 
-/** 权限的界面叫法：弹窗与插件详情页共用 */
 export const PERMISSION_LABELS: Record<PluginPermission, { label: string; detail: string }> = {
-  "cards:read": { label: "读取卡片", detail: "卡片的正文、标签和时间" },
-  "cards:write": { label: "新建和修改卡片", detail: "包括卡片正文、标签和置顶" },
-  "cards:delete": { label: "删除卡片", detail: "删除后 7 天内可在插件详情页恢复" },
-  "articles:read": { label: "读取文章", detail: "文章的标题、正文、标签和时间" },
-  "articles:write": { label: "新建和修改文章", detail: "包括文章标题、正文和标签" },
-  "articles:delete": { label: "删除文章", detail: "删除后 7 天内可在插件详情页恢复" },
-  "documents:read": { label: "读取项目文档", detail: "项目文档的标题、正文和所属项目" },
+  "cards:read": {
+    get label() {
+      return t("permission.label.cards:read");
+    },
+    get detail() {
+      return t("permission.detail.cards:read");
+    },
+  },
+  "cards:write": {
+    get label() {
+      return t("permission.label.cards:write");
+    },
+    get detail() {
+      return t("permission.detail.cards:write");
+    },
+  },
+  "cards:delete": {
+    get label() {
+      return t("permission.label.cards:delete");
+    },
+    get detail() {
+      return t("permission.detail.cards:delete");
+    },
+  },
+  "articles:read": {
+    get label() {
+      return t("permission.label.articles:read");
+    },
+    get detail() {
+      return t("permission.detail.articles:read");
+    },
+  },
+  "articles:write": {
+    get label() {
+      return t("permission.label.articles:write");
+    },
+    get detail() {
+      return t("permission.detail.articles:write");
+    },
+  },
+  "articles:delete": {
+    get label() {
+      return t("permission.label.articles:delete");
+    },
+    get detail() {
+      return t("permission.detail.articles:delete");
+    },
+  },
+  "documents:read": {
+    get label() {
+      return t("permission.label.documents:read");
+    },
+    get detail() {
+      return t("permission.detail.documents:read");
+    },
+  },
   "documents:write": {
-    label: "新建和修改项目文档",
-    detail: "在项目中新建与移动文档，修改标题、标签和正文",
+    get label() {
+      return t("permission.label.documents:write");
+    },
+    get detail() {
+      return t("permission.detail.documents:write");
+    },
   },
-  "documents:delete": { label: "删除项目文档", detail: "删除后 7 天内可在插件详情页恢复" },
-  "whiteboards:read": { label: "读取白板", detail: "白板的标题、说明、标签和页数" },
-  "whiteboards:write": { label: "新建和修改白板", detail: "白板的标题、说明和标签，不含画板内容" },
-  "whiteboards:delete": { label: "删除白板", detail: "删除后 7 天内可在插件详情页恢复" },
-  "projects:read": { label: "读取项目", detail: "项目的标题和文档目录" },
-  "projects:write": { label: "新建和修改项目", detail: "项目的标题、归档和置顶" },
-  "projects:delete": { label: "删除项目", detail: "只能删除空项目，7 天内可在插件详情页恢复" },
-  "todos:read": { label: "读取待办", detail: "独立待办和文档里的勾选项" },
+  "documents:delete": {
+    get label() {
+      return t("permission.label.documents:delete");
+    },
+    get detail() {
+      return t("permission.detail.documents:delete");
+    },
+  },
+  "whiteboards:read": {
+    get label() {
+      return t("permission.label.whiteboards:read");
+    },
+    get detail() {
+      return t("permission.detail.whiteboards:read");
+    },
+  },
+  "whiteboards:write": {
+    get label() {
+      return t("permission.label.whiteboards:write");
+    },
+    get detail() {
+      return t("permission.detail.whiteboards:write");
+    },
+  },
+  "whiteboards:delete": {
+    get label() {
+      return t("permission.label.whiteboards:delete");
+    },
+    get detail() {
+      return t("permission.detail.whiteboards:delete");
+    },
+  },
+  "projects:read": {
+    get label() {
+      return t("permission.label.projects:read");
+    },
+    get detail() {
+      return t("permission.detail.projects:read");
+    },
+  },
+  "projects:write": {
+    get label() {
+      return t("permission.label.projects:write");
+    },
+    get detail() {
+      return t("permission.detail.projects:write");
+    },
+  },
+  "projects:delete": {
+    get label() {
+      return t("permission.label.projects:delete");
+    },
+    get detail() {
+      return t("permission.detail.projects:delete");
+    },
+  },
+  "todos:read": {
+    get label() {
+      return t("permission.label.todos:read");
+    },
+    get detail() {
+      return t("permission.detail.todos:read");
+    },
+  },
   "todos:write": {
-    label: "新建和修改待办",
-    detail: "包括提醒、重复任务，以及待办项目的创建和改名",
+    get label() {
+      return t("permission.label.todos:write");
+    },
+    get detail() {
+      return t("permission.detail.todos:write");
+    },
   },
-  "todos:delete": { label: "删除待办", detail: "删除后 7 天内可在插件详情页恢复" },
-  "calendar:read": { label: "读取日程", detail: "包括提醒、备注，以及日历的创建和改名" },
-  "calendar:write": { label: "新建和修改日程", detail: "日历上的日程安排" },
-  "calendar:delete": { label: "删除日程", detail: "删除后 7 天内可在插件详情页恢复" },
-  "notebooks:read": { label: "读取 Notebook", detail: "Notebook 的标题和资料列表" },
-  "materials:read": { label: "读取摘录与标注", detail: "划线、PDF 标注和剪藏的原文、想法与出处" },
+  "todos:delete": {
+    get label() {
+      return t("permission.label.todos:delete");
+    },
+    get detail() {
+      return t("permission.detail.todos:delete");
+    },
+  },
+  "calendar:read": {
+    get label() {
+      return t("permission.label.calendar:read");
+    },
+    get detail() {
+      return t("permission.detail.calendar:read");
+    },
+  },
+  "calendar:write": {
+    get label() {
+      return t("permission.label.calendar:write");
+    },
+    get detail() {
+      return t("permission.detail.calendar:write");
+    },
+  },
+  "calendar:delete": {
+    get label() {
+      return t("permission.label.calendar:delete");
+    },
+    get detail() {
+      return t("permission.detail.calendar:delete");
+    },
+  },
+  "notebooks:read": {
+    get label() {
+      return t("permission.label.notebooks:read");
+    },
+    get detail() {
+      return t("permission.detail.notebooks:read");
+    },
+  },
+  "materials:read": {
+    get label() {
+      return t("permission.label.materials:read");
+    },
+    get detail() {
+      return t("permission.detail.materials:read");
+    },
+  },
   "chats:read": {
-    label: "读取对话信息",
-    detail: "AI 对话的标题、场景、消息数和时间，不含消息内容",
+    get label() {
+      return t("permission.label.chats:read");
+    },
+    get detail() {
+      return t("permission.detail.chats:read");
+    },
   },
-  "flashcards:read": { label: "读取闪卡卡组", detail: "卡组名称与说明" },
-  "flashcards:write": { label: "创建闪卡", detail: "创建卡组与闪卡，包括 AI 自动保存" },
-  "speech:input": { label: "语音输入", detail: "按住说话时录音，识别方式沿用应用的语音输入设置" },
+  "flashcards:read": {
+    get label() {
+      return t("permission.label.flashcards:read");
+    },
+    get detail() {
+      return t("permission.detail.flashcards:read");
+    },
+  },
+  "flashcards:write": {
+    get label() {
+      return t("permission.label.flashcards:write");
+    },
+    get detail() {
+      return t("permission.detail.flashcards:write");
+    },
+  },
+  "speech:input": {
+    get label() {
+      return t("permission.label.speech:input");
+    },
+    get detail() {
+      return t("permission.detail.speech:input");
+    },
+  },
   "tts:synthesize": {
-    label: "语音合成",
-    detail: "用你在「语音」设置里选的服务朗读文字，费用计入该服务",
+    get label() {
+      return t("permission.label.tts:synthesize");
+    },
+    get detail() {
+      return t("permission.detail.tts:synthesize");
+    },
   },
-  ...(Object.fromEntries(
-    Object.entries(PLUGIN_AI_CAPABILITIES).map(([id, { name }]) => [
-      `ai:${id}`,
-      {
-        label: `使用${name} AI`,
-        detail: "沿用应用对应功能的模型分配，可能产生模型费用，用量计入此插件",
-      },
-    ])
-  ) as Record<`ai:${PluginAICapability}`, { label: string; detail: string }>),
+  "ai:chat": {
+    get label() {
+      return t("permission.label.ai:chat");
+    },
+    get detail() {
+      return t("permission.detail.ai:chat");
+    },
+  },
+  "ai:flashcardGeneration": {
+    get label() {
+      return t("permission.label.ai:flashcardGeneration");
+    },
+    get detail() {
+      return t("permission.detail.ai:flashcardGeneration");
+    },
+  },
 };
-
 export const PERMISSION_STATE_LABELS: Record<PermissionRowState, string> = {
-  always: "始终允许",
-  once: "本次允许",
-  blocked: "已阻止",
-  none: "使用时询问",
+  get always() {
+    return t("permission.always");
+  },
+  get once() {
+    return t("permission.allowedOnce");
+  },
+  get blocked() {
+    return t("permission.blocked");
+  },
+  get none() {
+    return t("permission.ask");
+  },
 };

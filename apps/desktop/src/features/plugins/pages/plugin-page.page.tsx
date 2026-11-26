@@ -1,3 +1,4 @@
+import { pluginControlsMessages } from "../controls.i18n";
 import { definePage } from "@/page/definePage";
 import { paramString } from "@/page/core/paramsSchema";
 import { PLUGIN_PAGE_KEY } from "@/app/plugins/runtime";
@@ -5,7 +6,7 @@ import { PluginPageView } from "../views/PluginPageView";
 
 const pluginPage = definePage({
   key: PLUGIN_PAGE_KEY,
-  label: "插件页面",
+  label: pluginControlsMessages.ref("page.label"),
   match: "params",
   getId: params => JSON.stringify([params.pluginId, params.pageId, params.instanceId]),
   params: {

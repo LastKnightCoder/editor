@@ -1,4 +1,7 @@
-import { act } from "react";
+import { SettingsDraftBar } from "../components/SettingsDraftBar";
+import { pluginControlsTranslator } from "../controls.i18n";
+import { desktopLocaleSource } from "@/app/i18n/runtime";
+import { act, createRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -291,8 +294,24 @@ describe("插件设置分区内交给宿主保存条", () => {
     expect(controller.getSnapshot()).toMatchObject({
       dirty: false,
       phase: "saved",
-      message: "配置已保存",
     });
+    const original = desktopLocaleSource.getSnapshot(),
+      feedback = controller.getSnapshot().feedback;
+    if (!feedback) throw new Error("Structured save feedback was not retained");
+    const writes = mocks.saveUpload.mock.calls.length;
+    let message = feedback.message;
+    try {
+      for (const locale of ["zh-TW", "en-US"]) {
+        await act(async () => desktopLocaleSource.setLocale(locale));
+        expect(controller.getSnapshot().feedback).toBe(feedback);
+        expect(feedback.message).not.toBe(message);
+        message = feedback.message;
+        expect(controller.getSnapshot()).toMatchObject({ dirty: false, phase: "saved" });
+        expect(mocks.saveUpload).toHaveBeenCalledTimes(writes);
+      }
+    } finally {
+      await act(async () => desktopLocaleSource.setLocale(original));
+    }
   });
 
   it("必填为空时拒绝保存并把错误标到字段", async () => {
@@ -319,4 +338,158 @@ describe("插件设置分区内交给宿主保存条", () => {
       "old"
     );
   });
+});
+
+it("换语保留提供方草稿与在途保存，成功后不重复测试连接", async () => {
+  const original = desktopLocaleSource.getSnapshot();
+  let finish!: () => void;
+  mocks.saveSync.mockImplementationOnce(
+    () =>
+      new Promise<undefined>(resolve => {
+        finish = () => resolve(undefined);
+      })
+  );
+  try {
+    render("sync");
+    await type("密钥", "raw-secret");
+    await type("Bucket", "raw-bucket");
+    const field = container.querySelector<HTMLInputElement>('input[aria-label="Bucket"]');
+    if (!field) throw new Error("Provider field did not mount");
+    await act(async () => field.focus());
+    field.setSelectionRange(1, 4);
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(container.querySelector('input[aria-label="Bucket"]')).toBe(field);
+      expect(field.value).toBe("raw-bucket");
+      expect([field.selectionStart, field.selectionEnd]).toEqual([1, 4]);
+      expect(document.activeElement).toBe(field);
+      expect(mocks.saveSync).not.toHaveBeenCalled();
+      expect(mocks.probe).not.toHaveBeenCalled();
+    }
+    await act(async () => button(pluginControlsTranslator.t("provider.saveTest")).click());
+    for (const locale of ["zh-CN", "en-US"]) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(container.querySelector('input[aria-label="Bucket"]')).toBe(field);
+      expect(field.value).toBe("raw-bucket");
+      expect(mocks.saveSync).toHaveBeenCalledExactlyOnceWith("test.s3", {
+        secret: "raw-secret",
+        bucket: "raw-bucket",
+        prefix: "",
+      });
+      expect(mocks.probe).not.toHaveBeenCalled();
+    }
+    await act(async () => finish());
+    await vi.waitFor(() =>
+      expect(mocks.probe).toHaveBeenCalledExactlyOnceWith("test.s3", {
+        secret: "raw-secret",
+        bucket: "raw-bucket",
+        prefix: "",
+      })
+    );
+    const probes = mocks.probe.mock.calls.length;
+    await act(async () => desktopLocaleSource.setLocale("zh-TW"));
+    expect(mocks.probe).toHaveBeenCalledTimes(probes);
+    expect(mocks.saveSync).toHaveBeenCalledTimes(1);
+  } finally {
+    await act(async () => desktopLocaleSource.setLocale(original));
+  }
+});
+
+it.each(["saved", "failed"] as const)(
+  "保存条换语保留%s结果与原反馈，不再次保存或测试连接",
+  async phase => {
+    const original = desktopLocaleSource.getSnapshot(),
+      controller = createSettingsDraftController();
+    const region = createRef<HTMLElement>();
+    const transportFailure = new Error("RAW_CONNECTION_FAILURE");
+    if (phase === "failed") mocks.probe.mockRejectedValueOnce(transportFailure);
+    vi.useFakeTimers();
+    try {
+      await act(async () =>
+        root.render(
+          <UiProvider>
+            <SettingsDraftProvider controller={controller}>
+              <section ref={region}>
+                <PluginSettingsView section={section(definition("sync"))} />
+              </section>
+              <SettingsDraftBar controller={controller} region={region} />
+            </SettingsDraftProvider>
+          </UiProvider>
+        )
+      );
+      await type("密钥", "raw-secret");
+      await type("Bucket", "raw-bucket");
+      await act(async () => {
+        await controller.save();
+      });
+      const snapshot = controller.getSnapshot(),
+        field = container.querySelector('input[aria-label="Bucket"]');
+      const bar = document.querySelector('[role="region"]');
+      expect(snapshot.phase).toBe(phase);
+      if (phase === "saved" && !snapshot.feedback) throw new Error("Save feedback was lost");
+      if (phase === "failed") {
+        if (!(snapshot.failure instanceof Error)) throw new Error("Save cause was lost");
+        expect(snapshot.failure.cause).toBe(transportFailure);
+      }
+      for (const locale of ["zh-TW", "en-US"]) {
+        await act(async () => desktopLocaleSource.setLocale(locale));
+        expect(controller.getSnapshot().phase).toBe(phase);
+        expect(controller.getSnapshot().feedback).toBe(snapshot.feedback);
+        expect(controller.getSnapshot().failure).toBe(snapshot.failure);
+        expect(container.querySelector('input[aria-label="Bucket"]')).toBe(field);
+        expect(document.querySelector('[role="region"]')).toBe(bar);
+        expect(mocks.saveSync).toHaveBeenCalledExactlyOnceWith("test.s3", {
+          secret: "raw-secret",
+          bucket: "raw-bucket",
+          prefix: "",
+        });
+        expect(mocks.probe).toHaveBeenCalledExactlyOnceWith("test.s3", {
+          secret: "raw-secret",
+          bucket: "raw-bucket",
+          prefix: "",
+        });
+      }
+    } finally {
+      await act(async () => {
+        controller.dispose();
+        desktopLocaleSource.setLocale(original);
+      });
+      vi.useRealTimers();
+    }
+  }
+);
+
+it("提供方分组标题换语保留字段节点、密钥显示状态与未保存输入", async () => {
+  const original = desktopLocaleSource.getSnapshot(),
+    configured = definition("upload");
+  if (!configured.form) throw new Error("Provider form fixture is missing");
+  Object.defineProperty(configured.form.groups[0], "title", {
+    get: () => `caller-group/${desktopLocaleSource.getSnapshot()}`,
+  });
+  try {
+    render("upload", configured);
+    await type("密钥", "raw-secret");
+    const field = container.querySelector<HTMLInputElement>('input[aria-label="密钥"]');
+    const reveal = container.querySelector<HTMLButtonElement>(
+      `button[aria-label="${pluginControlsTranslator.t("field.show")}"]`
+    );
+    if (!field || !reveal) throw new Error("Secret field did not mount");
+    await act(async () => {
+      reveal.click();
+      field.focus();
+    });
+    field.setSelectionRange(1, 4);
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(container.querySelector('input[aria-label="密钥"]')).toBe(field);
+      expect(field.type).toBe("text");
+      expect(field.value).toBe("raw-secret");
+      expect(document.activeElement).toBe(field);
+      expect([field.selectionStart, field.selectionEnd]).toEqual([1, 4]);
+      expect(mocks.saveUpload).not.toHaveBeenCalled();
+      expect(mocks.probe).not.toHaveBeenCalled();
+    }
+  } finally {
+    await act(async () => desktopLocaleSource.setLocale(original));
+  }
 });

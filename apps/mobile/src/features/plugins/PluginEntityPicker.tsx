@@ -1,3 +1,8 @@
+import {
+  pluginControlsTranslator,
+  pluginControlsCount,
+  usePluginControlsI18n,
+} from "./controls.i18n";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Z_INDEX } from "../../router/zIndex";
@@ -13,25 +18,44 @@ import type {
 import { SearchField } from "../../components/SearchField";
 import { SnapSheet } from "../../components/SnapSheet";
 import { useNavigator, useRouterContext } from "../../router";
+const t = pluginControlsTranslator.t;
 
 const KIND_LABELS: Record<MobileEntityKind, string> = {
-  card: "卡片",
-  article: "文章",
-  project: "项目",
-  document: "项目文档",
-  diary: "日记",
-  todo: "待办",
-  event: "日程",
-  "plugin-entity": "插件内容",
+  get card() {
+    return t("common.cards");
+  },
+  get article() {
+    return t("common.articles");
+  },
+  get project() {
+    return t("create.project");
+  },
+  get document() {
+    return t("common.documents");
+  },
+  get diary() {
+    return t("common.diary");
+  },
+  get todo() {
+    return t("common.todos");
+  },
+  get event() {
+    return t("common.schedule");
+  },
+  get "plugin-entity"() {
+    return t("common.pluginContent");
+  },
 };
 const itemKey = (item: MobileEntityCandidate) =>
   JSON.stringify([item.ref.kind, item.ref.id, item.identity]);
 
 export function PluginEntityPicker({ request }: { request: MobileEntityPickRequest | null }) {
+  usePluginControlsI18n();
   return request ? <Picker key={request.id} request={request} /> : null;
 }
 
 function Picker({ request }: { request: MobileEntityPickRequest }) {
+  usePluginControlsI18n();
   const kinds = request.options.kinds.filter(
     (kind): kind is MobileEntityKind => kind in KIND_LABELS
   );
@@ -180,19 +204,19 @@ function Picker({ request }: { request: MobileEntityPickRequest }) {
               disabled={submitting}
               className="text-ink-2 text-tau-body shrink-0 disabled:opacity-50"
             >
-              取消
+              {t("common.cancel")}
             </button>
           </div>
           <p className="text-ink-3 text-tau-meta mt-1 mb-3">
-            「{request.plugin.name}」将获得所选内容的引用和标题。
+            {t("picker.notice", { name: request.plugin.name })}
           </p>
           <SearchField
             value={search}
             onValueChange={setSearch}
             disabled={submitting}
-            placeholder={`搜索${KIND_LABELS[kind] ?? "内容"}`}
+            placeholder={t("picker.search", { type: KIND_LABELS[kind] ?? t("picker.content") })}
           />
-          <div aria-label="内容类型" className="mt-3 flex gap-2 overflow-x-auto">
+          <div aria-label={t("picker.kind")} className="mt-3 flex gap-2 overflow-x-auto">
             {kinds.map(value => (
               <button
                 key={value}
@@ -213,7 +237,7 @@ function Picker({ request }: { request: MobileEntityPickRequest }) {
         <SnapSheet.Scroll ref={scrollRef} className="px-4 pb-4">
           {results.isError ? (
             <div role="alert" className="text-ink-2 text-tau-meta py-4">
-              <p>{results.error instanceof Error ? results.error.message : "内容加载失败"}</p>
+              <p>{results.error instanceof Error ? results.error.message : t("picker.failed")}</p>
               <button
                 type="button"
                 onClick={() =>
@@ -221,20 +245,20 @@ function Picker({ request }: { request: MobileEntityPickRequest }) {
                 }
                 className="text-accent-text mt-2 py-2"
               >
-                重新加载
+                {t("picker.reload")}
               </button>
             </div>
           ) : null}
           {results.isPending || typing ? (
             <p role="status" className="text-ink-3 text-tau-meta py-4 text-center">
-              正在查找…
+              {t("picker.searching")}
             </p>
           ) : !results.isError && !items.length ? (
             <p className="text-ink-3 text-tau-meta py-8 text-center">
-              没有可选择的{KIND_LABELS[kind]}
+              {t("picker.empty", { type: KIND_LABELS[kind] })}
             </p>
           ) : null}
-          <ul aria-label="可选内容">
+          <ul aria-label={t("picker.options")}>
             {items.map(item => {
               const checked = selected.has(itemKey(item));
               return (
@@ -267,7 +291,7 @@ function Picker({ request }: { request: MobileEntityPickRequest }) {
               onClick={() => void results.fetchNextPage()}
               className="text-accent-text text-tau-meta w-full py-3 disabled:opacity-50"
             >
-              {results.isFetchingNextPage ? "正在加载…" : "加载更多"}
+              {results.isFetchingNextPage ? t("common.loading") : t("picker.more")}
             </button>
           ) : null}
           {submitError ? (
@@ -282,7 +306,9 @@ function Picker({ request }: { request: MobileEntityPickRequest }) {
               onClick={() => void submit([...selected.values()])}
               className="bg-accent text-ink-inverse text-tau-body mt-3 w-full rounded-xl px-4 py-3 font-semibold disabled:opacity-50"
             >
-              {submitting ? "正在确认…" : `确认选择（${selected.size}）`}
+              {submitting
+                ? t("picker.confirming")
+                : pluginControlsCount("picker.confirm", selected.size)}
             </button>
           ) : null}
         </SnapSheet.Scroll>

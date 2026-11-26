@@ -1,3 +1,4 @@
+import { pluginControlsMessages } from "../controls.i18n";
 /**
  * 插件内容的通用只读页：插件停用或已卸载（宽限期内）时，从检索结果、@ 引用打开它的正文。
  */
@@ -20,7 +21,7 @@ export default definePage({
   key: PLUGIN_ENTITY_PAGE_KEY,
   match: "params",
   getId: params => `plugin-entity-${params.id}`,
-  label: "插件内容",
+  label: pluginControlsMessages.ref("common.pluginContent"),
   params: schema.schema,
   component: PluginEntityView,
 });

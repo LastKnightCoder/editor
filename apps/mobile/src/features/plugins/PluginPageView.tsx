@@ -1,3 +1,4 @@
+import { pluginControlsTranslator, usePluginControlsI18n } from "./controls.i18n";
 import { MobileProviderSettings } from "./ProviderSettings";
 import { useCallback, useMemo, useRef, useEffect, type ReactNode } from "react";
 import { normalizePageParams } from "@tau/plugins/host";
@@ -10,6 +11,7 @@ import { usePageInstanceContext, usePageGuard } from "../../router/pageLifecycle
 import { useMobilePlugins, useMobilePluginStatus } from "../../app/plugins/context";
 import { PluginComponentScope } from "../../app/plugins/component-scope";
 import { PluginPageComponentScope } from "../../app/plugins/component-page-scope";
+const t = pluginControlsTranslator.t;
 
 /** 插件域页面外壳：全站 PageHeader 顶栏；header 传入时整体替换顶栏内容（如搜索展开态）。 */
 export function PluginPageShell({
@@ -23,6 +25,7 @@ export function PluginPageShell({
   header?: ReactNode;
   children: ReactNode;
 }) {
+  usePluginControlsI18n();
   const { navigator, entryId } = usePage();
   const { phase } = usePageInstanceContext();
   const registerDismiss = useCallback(
@@ -53,9 +56,13 @@ export function PluginPageShell({
   );
 }
 
-const PLUGIN_STARTING = <Loading minHeight={240} label="插件加载中…" />;
+function PluginStarting() {
+  const { t } = usePluginControlsI18n();
+  return <Loading minHeight={240} label={t("page.pluginLoading")} />;
+}
 
 export function PluginPageView() {
+  usePluginControlsI18n();
   const runtime = useMobilePlugins();
   const { phase } = useMobilePluginStatus();
   const { params, navigator, entryId } = usePage<{
@@ -127,12 +134,12 @@ export function PluginPageView() {
   const Component = page?.definition.component;
   return (
     <PluginPageShell
-      title={available ? page.definition.title : phase === "starting" ? "" : "插件页面不可用"}
+      title={available ? page.definition.title : phase === "starting" ? "" : t("page.unavailable")}
     >
       {!available && phase === "starting" ? (
-        PLUGIN_STARTING
+        <PluginStarting />
       ) : available && !cleanParams ? (
-        <p role="alert">页面参数无效，请返回后重新打开。</p>
+        <p role="alert">{t("page.invalidParams")}</p>
       ) : available && Component && cleanParams ? (
         <ErrorBoundary key={page.generation}>
           <PluginComponentScope
@@ -150,13 +157,14 @@ export function PluginPageView() {
           </PluginComponentScope>
         </ErrorBoundary>
       ) : (
-        <p className="text-ink-2 py-6 text-[14px]">插件已停用或无法加载，请返回插件中心查看。</p>
+        <p className="text-ink-2 py-6 text-[14px]">{t("page.disabled")}</p>
       )}
     </PluginPageShell>
   );
 }
 
 export function PluginSettingsView() {
+  usePluginControlsI18n();
   const runtime = useMobilePlugins();
   const { phase } = useMobilePluginStatus();
   const { params } = usePage<{ id: string }>();
@@ -164,7 +172,7 @@ export function PluginSettingsView() {
   const setting = registered;
   const Component = setting?.definition.component;
   return (
-    <PluginPageShell title={setting?.definition.title ?? "插件设置"}>
+    <PluginPageShell title={setting?.definition.title ?? t("page.pluginSettings")}>
       {setting && runtime?.active(setting.context) ? (
         <ErrorBoundary>
           {setting.definition.target === "tts" ||
@@ -180,9 +188,9 @@ export function PluginSettingsView() {
           ) : null}
         </ErrorBoundary>
       ) : phase === "starting" ? (
-        PLUGIN_STARTING
+        <PluginStarting />
       ) : (
-        <p className="text-ink-2 py-6 text-[14px]">启用插件并生效后可查看设置。</p>
+        <p className="text-ink-2 py-6 text-[14px]">{t("page.enableSettings")}</p>
       )}
     </PluginPageShell>
   );

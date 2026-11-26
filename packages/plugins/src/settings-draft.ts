@@ -17,6 +17,11 @@ export interface SettingsDraftChange {
   to?: string;
 }
 
+export interface SettingsDraftFeedback {
+  /** 可以声明 getter，在展示时读取所属插件或宿主的当前语言。 */
+  readonly message: string;
+}
+
 export interface SettingsDraftOptions {
   /** 草稿与已保存的值不同 */
   dirty: boolean;
@@ -25,12 +30,12 @@ export interface SettingsDraftOptions {
   /** 修改清单：保存条显示项数，离开确认里逐项列出 */
   changes?: readonly SettingsDraftChange[];
   /** 写入草稿；返回的文字显示在「已保存」旁，抛错时保存条显示错误信息 */
-  save(): Promise<string | void> | string | void;
+  save(): Promise<string | SettingsDraftFeedback | void> | string | SettingsDraftFeedback | void;
   /** 放弃草稿，回到已保存的值 */
   reset(): void;
   /** 有错误时用户仍点了保存，用来把错误标到字段上 */
   onInvalid?(): void;
-  /** 保存按钮文字，默认「保存」 */
+  /** 保存按钮文字；省略时由宿主按界面语言显示。 */
   saveLabel?: string;
   /** 保存中的进度文字，默认「正在保存…」 */
   savingText?: string;
@@ -50,11 +55,13 @@ export interface SettingsDraftSnapshot {
   readonly dirty: boolean;
   readonly errors: number;
   readonly changes: readonly SettingsDraftChange[];
-  readonly saveLabel: string;
+  readonly saveLabel?: string;
   readonly savingText: string;
   readonly phase: SettingsDraftPhase;
   /** saved 时为成功说明，failed 时为错误信息 */
   readonly message: string;
+  readonly feedback?: SettingsDraftFeedback;
+  readonly failure?: unknown;
   /** 正在询问是否离开 */
   readonly leaving: boolean;
   /** 有错误仍点保存时递增，宿主据此定位到错误字段 */
@@ -79,10 +86,12 @@ const IDLE: SettingsDraftSnapshot = Object.freeze({
   dirty: false,
   errors: 0,
   changes: Object.freeze([]),
-  saveLabel: "保存",
+  saveLabel: undefined,
   savingText: "",
   phase: "idle",
   message: "",
+  feedback: undefined,
+  failure: undefined,
   leaving: false,
   invalidAttempts: 0,
 });
@@ -116,7 +125,7 @@ export function createSettingsDraftController({
     const dirty = !!options.dirty;
     const errors = Math.max(0, Math.floor(options.errors ?? 0));
     const changes = dirty ? (options.changes ?? []) : [];
-    const saveLabel = options.saveLabel || "保存";
+    const saveLabel = options.saveLabel || undefined;
     const savingText = options.savingText ?? "";
     if (
       snapshot.attached &&
@@ -128,7 +137,7 @@ export function createSettingsDraftController({
     )
       return;
     // 保存后又改了：「已保存」提示让位给新的修改
-    const phase = dirty && snapshot.phase === "saved" ? "idle" : snapshot.phase;
+    const phase = dirty && !snapshot.dirty && snapshot.phase === "saved" ? "idle" : snapshot.phase;
     set({
       attached: true,
       dirty,
@@ -137,7 +146,7 @@ export function createSettingsDraftController({
       saveLabel,
       savingText,
       phase,
-      ...(phase === "idle" && { message: "" }),
+      ...(phase === "idle" && { message: "", feedback: undefined, failure: undefined }),
     });
   };
   const resolveLeave = (leave: boolean) => {
@@ -183,18 +192,23 @@ export function createSettingsDraftController({
         return Promise.resolve(false);
       }
       clearTimeout(savedTimer);
-      set({ phase: "saving", message: "" });
+      set({ phase: "saving", message: "", feedback: undefined, failure: undefined });
       const task = (async () => {
         try {
           const text = await options.save();
           if (!source) return true;
-          set({ phase: "saved", message: typeof text === "string" ? text : "" });
+          set({
+            phase: "saved",
+            message: typeof text === "string" ? text : "",
+            feedback: typeof text === "object" && text !== null ? text : undefined,
+          });
           savedTimer = setTimeout(() => {
-            if (snapshot.phase === "saved") set({ phase: "idle", message: "" });
+            if (snapshot.phase === "saved")
+              set({ phase: "idle", message: "", feedback: undefined, failure: undefined });
           }, savedDuration);
           return true;
         } catch (error) {
-          if (source) set({ phase: "failed", message: errorText(error) || "保存失败" });
+          if (source) set({ phase: "failed", message: errorText(error), failure: error });
           return false;
         } finally {
           pendingSave = null;
@@ -206,7 +220,7 @@ export function createSettingsDraftController({
     reset() {
       source?.current.reset();
       clearTimeout(savedTimer);
-      set({ phase: "idle", message: "" });
+      set({ phase: "idle", message: "", feedback: undefined, failure: undefined });
     },
     confirmLeave() {
       update();

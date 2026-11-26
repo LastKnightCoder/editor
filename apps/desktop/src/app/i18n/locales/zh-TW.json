@@ -91,5 +91,11 @@
   "shell.fullscreen": "全螢幕",
   "settings.backHint": "返回 (Esc)",
   "page.articleDetail": "文章詳情",
-  "page.projectDetail": "專案詳情"
+  "page.projectDetail": "專案詳情",
+  "assist.fallback": "輔助欄",
+  "assist.width": "右欄寬度",
+  "assist.failed": "{{name}}發生錯誤",
+  "assist.failureDescription": "右欄顯示時發生了非預期錯誤，你的資料沒有遺失。",
+  "assist.retry": "重試",
+  "assist.webLabel": "網頁"
 }

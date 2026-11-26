@@ -1,3 +1,4 @@
+import { pluginControlsTranslator, usePluginControlsI18n } from "../controls.i18n";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Sparkles } from "lucide-react";
@@ -12,8 +13,10 @@ import {
   SettingsCardIcon,
   SettingsCardSection,
 } from "./SettingsCard";
+const t = pluginControlsTranslator.t;
 
 export function PluginAISettings({ pluginId }: { pluginId: string }) {
+  usePluginControlsI18n();
   const client = useQueryClient();
   const query = useQuery({
     queryKey: ["plugin-ai", pluginId],
@@ -35,7 +38,7 @@ export function PluginAISettings({ pluginId }: { pluginId: string }) {
       void client.invalidateQueries({ queryKey: ["plugin-ai", pluginId] });
     },
   });
-  if (query.error) return <p role="alert">无法读取 AI 配置：{query.error.message}</p>;
+  if (query.error) return <p role="alert">{t("ai.readFailed", { error: query.error.message })}</p>;
   if (!query.data || (!query.data.features.length && !query.data.hostFeatures?.length) || !draft)
     return null;
   const options = models.data ?? [];
@@ -45,8 +48,8 @@ export function PluginAISettings({ pluginId }: { pluginId: string }) {
         header={
           <SettingsCardHeader
             icon={<SettingsCardIcon icon={Sparkles} />}
-            title="AI 配置"
-            description="插件调用 AI 时使用的模型与每日额度"
+            title={t("ai.config")}
+            description={t("ai.description")}
             actions={
               <>
                 <Button
@@ -54,7 +57,7 @@ export function PluginAISettings({ pluginId }: { pluginId: string }) {
                   variant="ghost"
                   onClick={() => useSettingsStore.getState().openAIUsage(pluginId)}
                 >
-                  查看用量
+                  {t("ai.usage")}
                 </Button>
                 <Button
                   size="sm"
@@ -67,7 +70,7 @@ export function PluginAISettings({ pluginId }: { pluginId: string }) {
                     })
                   }
                 >
-                  管理模型
+                  {t("ai.manage")}
                 </Button>
               </>
             }
@@ -82,10 +85,10 @@ export function PluginAISettings({ pluginId }: { pluginId: string }) {
                 save.error ? "text-danger" : "text-ink-3"
               )}
             >
-              {save.error?.message ?? "额度按本机自然日统计"}
+              {save.error?.message ?? t("ai.dayHint")}
             </p>
             <Button variant="primary" disabled={save.isPending} onClick={() => save.mutate(draft)}>
-              保存 AI 配置
+              {t("ai.save")}
             </Button>
           </div>
         }
@@ -93,14 +96,14 @@ export function PluginAISettings({ pluginId }: { pluginId: string }) {
         {query.data.hostFeatures?.map(capability => (
           <p key={capability} className="text-tau-meta text-ink-2 px-[18px] pt-3">
             {PLUGIN_AI_CAPABILITIES[capability]?.name ?? capability}
-            沿用应用对应功能的模型分配，无需在此另选模型。使用权限在插件的「权限」页管理，下方额度同时适用于该能力。
+            {t("ai.hostHint")}
           </p>
         ))}
         {query.data.features.length > 0 && (
-          <SettingsCardSection title="模型分配">
-            <SettingRow title="允许此插件调用 AI">
+          <SettingsCardSection title={t("ai.assignment")}>
+            <SettingRow title={t("ai.allowed")}>
               <Switch
-                aria-label="允许此插件调用 AI"
+                aria-label={t("ai.allowed")}
                 checked={draft.enabled}
                 disabled={save.isPending}
                 onCheckedChange={enabled => {
@@ -126,7 +129,7 @@ export function PluginAISettings({ pluginId }: { pluginId: string }) {
                     options={[
                       {
                         value: "",
-                        label: assignment ? "原模型已不可用，请重新分配" : "请选择模型",
+                        label: assignment ? t("ai.modelMissing") : t("ai.chooseModel"),
                       },
                       ...options.map((model, index) => ({
                         value: String(index),
@@ -154,15 +157,12 @@ export function PluginAISettings({ pluginId }: { pluginId: string }) {
             })}
             {models.error && (
               <p role="alert" className="text-tau-meta text-danger px-3 pb-2">
-                无法读取模型列表
+                {t("ai.modelsFailed")}
               </p>
             )}
           </SettingsCardSection>
         )}
-        <SettingsCardSection
-          title="额度"
-          description="每次按模型上下文容量与输出上限预占 Token，完成后按已知用量结算；用量未知时保留预占。关闭 AI 授权取消插件自定义 AI 请求；宿主 AI 能力在「权限」页撤权后取消，已发生的消费无法撤销。"
-        >
+        <SettingsCardSection title={t("ai.limit")} description={t("ai.limitHint")}>
           {LIMITS.map(([key, label]) => (
             <SettingRow key={key} title={label}>
               <Input
@@ -182,7 +182,7 @@ export function PluginAISettings({ pluginId }: { pluginId: string }) {
 }
 
 const LIMITS = [
-  ["dailyRequests", "每日请求次数"],
-  ["dailyTokens", "每日 Token 额度"],
-  ["concurrency", "最大并发"],
+  ["dailyRequests", t("ai.requests")],
+  ["dailyTokens", t("ai.tokens")],
+  ["concurrency", t("ai.concurrency")],
 ] as const;

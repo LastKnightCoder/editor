@@ -1,3 +1,8 @@
+import {
+  pluginControlsTranslator,
+  pluginControlsNumber,
+  usePluginControlsI18n,
+} from "../controls.i18n";
 import { useState, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { PluginPermission } from "@tau/plugins";
@@ -6,6 +11,7 @@ import { usePluginPermissionUi, type DesktopPermissionBroker } from "@/app/plugi
 import type { DesktopDataAdapter } from "@/app/plugins/data";
 import { PluginOperationsSection } from "./PluginOperationsSection";
 import { PERMISSION_LABELS, PERMISSION_STATE_LABELS } from "./labels";
+const t = pluginControlsTranslator.t;
 
 const noop = () => () => undefined;
 
@@ -23,25 +29,31 @@ export function PluginPermissionsTab({
   permissions: readonly PluginPermission[];
   active: boolean;
 }) {
+  usePluginControlsI18n();
   useSyncExternalStore(broker?.subscribe ?? noop, broker?.getRevision ?? (() => 0));
   const pending = usePluginPermissionUi(state => state.pending[pluginId]);
   const [busy, setBusy] = useState<PluginPermission | null>(null);
-  const [error, setError] = useState("");
+  const [failure, setFailure] = useState<{ cause: unknown } | null>(null);
+  const error = failure
+    ? failure.cause instanceof Error
+      ? failure.cause.message
+      : t("permission.changeFailed")
+    : "";
   const usage = useQuery({
     queryKey: ["plugins", "permission-usage", pluginId],
     queryFn: () => (broker ? broker.usage(pluginId) : Promise.resolve(null)),
     enabled: Boolean(broker),
     refetchOnWindowFocus: true,
   });
-  if (!broker) return <p className="text-tau-body text-ink-2">当前环境不支持插件访问业务数据。</p>;
+  if (!broker) return <p className="text-tau-body text-ink-2">{t("permission.unsupported")}</p>;
 
   const act = async (permission: PluginPermission, run: () => Promise<void>) => {
     setBusy(permission);
-    setError("");
+    setFailure(null);
     try {
       await run();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "授权修改失败");
+      setFailure({ cause });
     } finally {
       setBusy(null);
     }
@@ -49,9 +61,7 @@ export function PluginPermissionsTab({
 
   return (
     <div className="min-w-0">
-      <p className="text-tau-meta text-ink-2 mb-4">
-        插件首次使用这些数据时会询问你。插件与应用运行在同一环境中，并且可以联网，请只允许你信任的插件。
-      </p>
+      <p className="text-tau-meta text-ink-2 mb-4">{t("permission.introNotice")}</p>
       <div className="mb-5">
         {permissions.map(permission => {
           const state = broker.rowState(pluginId, permission);
@@ -71,7 +81,7 @@ export function PluginPermissionsTab({
                   waiting ? "text-tau-meta text-accent" : "text-tau-meta text-ink-2 tabular-nums"
                 }
               >
-                {waiting ? "等待你的允许" : PERMISSION_STATE_LABELS[state]}
+                {waiting ? t("permission.waiting") : PERMISSION_STATE_LABELS[state]}
               </span>
               {waiting ? (
                 <>
@@ -81,7 +91,7 @@ export function PluginPermissionsTab({
                     disabled={busy === permission}
                     onClick={() => broker.dismissPending(pluginId, permission)}
                   >
-                    忽略
+                    {t("permission.ignore")}
                   </Button>
                   {active && (
                     <Button
@@ -92,7 +102,7 @@ export function PluginPermissionsTab({
                         act(permission, () => broker.grant(pluginId, permission, "once"))
                       }
                     >
-                      仅这次
+                      {t("permission.once")}
                     </Button>
                   )}
                   <Button
@@ -103,7 +113,7 @@ export function PluginPermissionsTab({
                       act(permission, () => broker.grant(pluginId, permission, "always"))
                     }
                   >
-                    始终允许
+                    {t("permission.always")}
                   </Button>
                 </>
               ) : state === "none" ? (
@@ -115,7 +125,7 @@ export function PluginPermissionsTab({
                     act(permission, () => broker.grant(pluginId, permission, "always"))
                   }
                 >
-                  始终允许
+                  {t("permission.always")}
                 </Button>
               ) : (
                 <Button
@@ -124,7 +134,7 @@ export function PluginPermissionsTab({
                   disabled={busy === permission}
                   onClick={() => act(permission, () => broker.reset(pluginId, permission))}
                 >
-                  {state === "blocked" ? "解除阻止" : "撤销"}
+                  {state === "blocked" ? t("permission.unblock") : t("permission.revoke")}
                 </Button>
               )}
             </div>
@@ -138,8 +148,12 @@ export function PluginPermissionsTab({
       )}
       {usage.data && (
         <p className="text-tau-meta text-ink-3 tabular-nums">
-          最近 {usage.data.days} 天读取 {usage.data.read} 次 · 修改 {usage.data.write} 次 · 删除{" "}
-          {usage.data.delete} 次
+          {t("permission.usage", {
+            days: pluginControlsNumber(usage.data.days),
+            read: pluginControlsNumber(usage.data.read),
+            write: pluginControlsNumber(usage.data.write),
+            delete: pluginControlsNumber(usage.data.delete),
+          })}
         </p>
       )}
       {data && <PluginOperationsSection data={data} pluginId={pluginId} />}

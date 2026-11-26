@@ -1,3 +1,9 @@
+import {
+  pluginControlsTranslator,
+  pluginControlsCount,
+  usePluginControlsI18n,
+  pluginControlsFailure,
+} from "../controls.i18n";
 /* eslint-disable react-refresh/only-export-components -- 保存条与同域的草稿接线 hook 一起导出 */
 /**
  * 手机插件设置的保存条与离开确认：贴在页面滚动区底部、安全区之上。
@@ -10,12 +16,14 @@ import { CircleAlert, CircleCheck, LoaderCircle } from "lucide-react";
 import type { SettingsDraftController } from "@tau/plugins/settings-draft";
 import { Button, cn } from "@tau/ui";
 import { BottomSheet } from "../../../components/BottomSheet";
+const t = pluginControlsTranslator.t;
 
 export function useSettingsDraftSnapshot(controller: SettingsDraftController) {
   return useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
 }
 
 export function SettingsDraftBar({ controller }: { controller: SettingsDraftController }) {
+  usePluginControlsI18n();
   const snapshot = useSettingsDraftSnapshot(controller);
   if (!snapshot.attached) return null;
   const saving = snapshot.phase === "saving";
@@ -24,31 +32,37 @@ export function SettingsDraftBar({ controller }: { controller: SettingsDraftCont
     snapshot.phase === "saving" ? (
       <>
         <LoaderCircle size={15} className="flex-none animate-spin" />
-        {snapshot.savingText || "正在保存…"}
+        {snapshot.savingText || t("common.saving")}
       </>
     ) : snapshot.phase === "saved" ? (
       <span className="text-ok flex min-w-0 items-center gap-1.5">
         <CircleCheck size={15} className="flex-none" />
-        <span className="min-w-0 truncate">{snapshot.message || "已保存"}</span>
+        <span className="min-w-0 truncate">
+          {snapshot.feedback?.message || snapshot.message || t("common.saved")}
+        </span>
       </span>
     ) : snapshot.phase === "failed" ? (
       <span className="text-danger flex min-w-0 items-center gap-1.5">
         <CircleAlert size={15} className="flex-none" />
-        <span className="min-w-0 break-words">{snapshot.message}</span>
+        <span className="min-w-0 break-words">
+          {pluginControlsFailure(snapshot.failure, snapshot.message)}
+        </span>
       </span>
     ) : snapshot.errors > 0 ? (
-      <span className="text-danger">{snapshot.errors} 项填写有误</span>
+      <span className="text-danger">{pluginControlsCount("draft.errors", snapshot.errors)}</span>
     ) : (
       <>
         <span aria-hidden className="bg-accent size-[7px] flex-none rounded-full" />
-        {snapshot.changes.length ? `${snapshot.changes.length} 项修改未保存` : "有未保存的修改"}
+        {snapshot.changes.length
+          ? pluginControlsCount("draft.changes", snapshot.changes.length)
+          : t("draft.dirty")}
       </>
     );
   return (
     <div className="pointer-events-none sticky bottom-0 z-10 -mx-1 pt-4 pb-3">
       <div
         role="region"
-        aria-label="未保存的修改"
+        aria-label={t("draft.region")}
         aria-hidden={shown ? undefined : true}
         inert={!shown}
         className={cn(
@@ -70,7 +84,7 @@ export function SettingsDraftBar({ controller }: { controller: SettingsDraftCont
             disabled={saving}
             onClick={() => controller.reset()}
           >
-            还原
+            {t("common.reset")}
           </Button>
         )}
         {(snapshot.dirty || snapshot.phase === "failed" || saving) && (
@@ -80,7 +94,7 @@ export function SettingsDraftBar({ controller }: { controller: SettingsDraftCont
             loading={saving}
             onClick={() => void controller.save()}
           >
-            {snapshot.saveLabel}
+            {snapshot.saveLabel ?? t("common.save")}
           </Button>
         )}
       </div>
@@ -89,6 +103,7 @@ export function SettingsDraftBar({ controller }: { controller: SettingsDraftCont
 }
 
 export function SettingsLeaveSheet({ controller }: { controller: SettingsDraftController }) {
+  usePluginControlsI18n();
   const snapshot = useSettingsDraftSnapshot(controller);
   const [open, setOpen] = useState(false);
   useEffect(() => {
@@ -102,11 +117,11 @@ export function SettingsLeaveSheet({ controller }: { controller: SettingsDraftCo
   return (
     <BottomSheet
       open={open && snapshot.leaving}
-      title="有修改还没保存"
+      title={t("draft.leaveTitle")}
       onClose={() => answer("stay")}
     >
       <p className="text-ink-2 text-[13.5px]">
-        {invalid ? "有填写错误，修正后才能保存。" : "离开后这些修改会丢失："}
+        {invalid ? t("draft.invalidSentence") : t("draft.leaveHint")}
       </p>
       {snapshot.changes.length > 0 && (
         <ul className="text-ink-2 mt-2 list-disc pl-5 text-[13.5px]">
@@ -115,8 +130,8 @@ export function SettingsLeaveSheet({ controller }: { controller: SettingsDraftCo
               {change.label}
               {change.to !== undefined && (
                 <>
-                  ：{change.from || "未填"} →{" "}
-                  <b className="text-ink-1 font-semibold">{change.to || "未填"}</b>
+                  ：{change.from || t("draft.empty")} →{" "}
+                  <b className="text-ink-1 font-semibold">{change.to || t("draft.empty")}</b>
                 </>
               )}
             </li>
@@ -130,13 +145,13 @@ export function SettingsLeaveSheet({ controller }: { controller: SettingsDraftCo
           disabled={invalid}
           onClick={() => answer("save")}
         >
-          保存并离开
+          {t("draft.saveLeave")}
         </Button>
         <Button variant="secondary" className="min-h-11" onClick={() => answer("stay")}>
-          继续编辑
+          {t("draft.continue")}
         </Button>
         <Button variant="ghost" className="text-danger min-h-11" onClick={() => answer("discard")}>
-          放弃修改
+          {t("draft.discard")}
         </Button>
       </div>
     </BottomSheet>

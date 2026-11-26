@@ -91,5 +91,11 @@
   "shell.fullscreen": "Full screen",
   "settings.backHint": "Back (Esc)",
   "page.articleDetail": "Article details",
-  "page.projectDetail": "Project details"
+  "page.projectDetail": "Project details",
+  "assist.fallback": "Side panel",
+  "assist.width": "Side panel width",
+  "assist.failed": "Something went wrong in {{name}}",
+  "assist.failureDescription": "An unexpected error occurred in the side panel. Your data is preserved.",
+  "assist.retry": "Retry",
+  "assist.webLabel": "Web page"
 }

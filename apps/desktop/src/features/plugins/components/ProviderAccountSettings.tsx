@@ -1,3 +1,9 @@
+import {
+  pluginControlsTranslator,
+  usePluginControlsI18n,
+  pluginControlsFeedback,
+  PluginControlsError,
+} from "../controls.i18n";
 import { useState, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { produce } from "immer";
@@ -34,6 +40,7 @@ import {
   SettingsCardIcon,
   SettingsCardSection,
 } from "./SettingsCard";
+const t = pluginControlsTranslator.t;
 
 type Account = {
   id: string;
@@ -49,6 +56,7 @@ const update = (recipe: (draft: ReturnType<typeof useSettingStore.getState>["set
   }));
 
 export function ProviderAccountSettings({ section }: { section: RegisteredPluginSettings }) {
+  usePluginControlsI18n();
   const { target } = section.definition;
   if (target === "tts" || target === "images")
     return <Accounts key={section.key} section={section} target={target} />;
@@ -62,6 +70,7 @@ function Accounts({
   section: RegisteredPluginSettings;
   target: "tts" | "images";
 }) {
+  usePluginControlsI18n();
   const pluginId = section.context.pluginId;
   const all = useSettingStore(state =>
     target === "tts" ? state.setting.ttsProviders : state.setting.imageGeneration.providers
@@ -99,7 +108,7 @@ function Accounts({
       key={account.id}
       account={account}
       using={usingId === account.id}
-      usage={target === "tts" ? "朗读与播客使用中" : "图片生成使用中"}
+      usage={target === "tts" ? t("account.ttsUsing") : t("account.imagesUsing")}
       summary={
         section.definition.form
           ? providerFormSummary(section.definition.form, account.config as JsonValue)
@@ -118,20 +127,20 @@ function Accounts({
   );
   return (
     <div className="flex flex-col gap-3">
-      <nav aria-label="账号" className="flex flex-wrap items-center gap-1.5">
+      <nav aria-label={t("account.label")} className="flex flex-wrap items-center gap-1.5">
         {accounts.map(item => (
           <FilterPill
             key={item.id}
             active={item.id === account?.id}
-            label={item.name || "未命名账号"}
+            label={item.name || t("account.untitled")}
             icon={usingId === item.id && <span className="bg-ok size-1.5 rounded-full" />}
             onClick={() => item.id !== account?.id && select(item.id)}
           />
         ))}
         <Button size="sm" variant="ghost" icon={Plus} onClick={() => void add()}>
-          添加账号
+          {t("account.add")}
         </Button>
-        <span className="text-tau-meta text-ink-3 ml-auto">添加和保存不会切换当前服务</span>
+        <span className="text-tau-meta text-ink-3 ml-auto">{t("account.noSwitch")}</span>
       </nav>
       {account ? (
         <AccountForm
@@ -142,7 +151,7 @@ function Accounts({
           header={header}
         />
       ) : (
-        <p className="text-tau-meta text-ink-2">添加账号后填写连接信息，再到应用设置中选用。</p>
+        <p className="text-tau-meta text-ink-2">{t("account.addHint")}</p>
       )}
       {account && target === "tts" && "models" in account && (
         <SettingsCard>
@@ -152,11 +161,11 @@ function Accounts({
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={open => !open && setDeleting(undefined)}
-        title="删除账号"
+        title={t("account.delete")}
         context={deleting?.name}
-        description="删除账号及其模型配置；若正在使用，将清空当前选择。"
+        description={t("account.deleteHint")}
         danger
-        confirmText="删除"
+        confirmText={t("common.delete")}
         onConfirm={() => {
           if (!deleting) return;
           update(draft => {
@@ -195,6 +204,7 @@ function AccountHeader({
   onRename(name: string): void;
   onDelete(): void;
 }) {
+  usePluginControlsI18n();
   const [renaming, setRenaming] = useState(false);
   return (
     <SettingsCardHeader
@@ -204,7 +214,7 @@ function AccountHeader({
           <Input
             size="sm"
             wrapperClassName="w-[220px]"
-            aria-label="账号名称"
+            aria-label={t("account.name")}
             autoFocus
             value={account.name}
             onChange={event => onRename(event.target.value)}
@@ -215,10 +225,10 @@ function AccountHeader({
           />
         ) : (
           <>
-            <span className="min-w-0 truncate">{account.name || "未命名账号"}</span>
+            <span className="min-w-0 truncate">{account.name || t("account.untitled")}</span>
             <IconButton
               className="size-6 flex-none"
-              aria-label="重命名账号"
+              aria-label={t("account.rename")}
               onClick={() => setRenaming(true)}
             >
               <Pencil size={13} />
@@ -227,11 +237,13 @@ function AccountHeader({
         )
       }
       status={using && <StatusChip tone="ok">{usage}</StatusChip>}
-      description={summary ? <span className="font-tau-mono">{summary}</span> : "尚未填写连接信息"}
+      description={
+        summary ? <span className="font-tau-mono">{summary}</span> : t("account.notConfigured")
+      }
       actions={
-        <MoreButton label={`${account.name || "账号"} 的更多操作`}>
+        <MoreButton label={t("account.more", { name: account.name || t("account.label") })}>
           <Menu.Item danger onSelect={onDelete}>
-            删除账号…
+            {t("account.deleteMenu")}
           </Menu.Item>
         </MoreButton>
       }
@@ -250,6 +262,7 @@ function AccountForm({
   target: "tts" | "images";
   header: ReactNode;
 }) {
+  usePluginControlsI18n();
   const [client] = useState(
     () =>
       new QueryClient({
@@ -337,7 +350,7 @@ function AccountForm({
         stored,
         persist: config => save(config),
         header,
-        saveLabel: "保存账号",
+        saveLabel: t("account.save"),
       }}
       changed={
         target === "tts"
@@ -350,7 +363,7 @@ function AccountForm({
       }}
     >
       {target === "tts" ? (
-        <SettingsCardSection title="模型" description="朗读与播客可选的模型">
+        <SettingsCardSection title={t("common.model")} description={t("account.ttsModels")}>
           {models.map(model => (
             <SettingRow key={model.id} title={model.label ?? model.id}>
               <Button
@@ -358,17 +371,17 @@ function AccountForm({
                 variant="ghost"
                 onClick={() => setModels(items => items.filter(item => item.id !== model.id))}
               >
-                移除模型
+                {t("account.removeModel")}
               </Button>
             </SettingRow>
           ))}
           <div className="px-3 py-2">
             <Select
-              aria-label="添加模型"
+              aria-label={t("account.addModel")}
               searchable
               creatable
               value={null}
-              placeholder="选择或输入模型 ID"
+              placeholder={t("account.modelId")}
               options={defaults.map(model => ({
                 value: model.id,
                 label: model.label ?? model.id,
@@ -382,18 +395,15 @@ function AccountForm({
           </div>
         </SettingsCardSection>
       ) : (
-        <SettingsCardSection title="模型">
-          <SettingRow
-            title="图片模型"
-            description="生成与修改图片共用；可选择预置项，或展开后输入自定义模型 ID"
-          >
+        <SettingsCardSection title={t("common.model")}>
+          <SettingRow title={t("account.imageModel")} description={t("account.imageHint")}>
             <Select
               className="w-[300px] max-w-full"
-              aria-label="图片模型"
+              aria-label={t("account.imageModel")}
               searchable
               creatable
               value={modelId || null}
-              placeholder="选择或输入模型 ID"
+              placeholder={t("account.modelId")}
               options={defaults.map(model => ({
                 value: model.id,
                 label: model.label ?? model.id,
@@ -412,27 +422,44 @@ const CAPABILITIES: Record<SingleTarget, { icon: LucideIcon; title: string; desc
   {
     asr: {
       icon: Mic,
-      title: "语音识别",
-      description: "在 设置 › 语音 › 语音输入 中选用",
+      get title() {
+        return t("account.asr");
+      },
+      get description() {
+        return t("account.asrHint");
+      },
     },
     video: {
       icon: Clapperboard,
-      title: "视频网站",
-      description: "添加该网站的视频时使用这份配置",
+      get title() {
+        return t("account.video");
+      },
+      get description() {
+        return t("account.videoHint");
+      },
     },
     publish: {
       icon: Send,
-      title: "博客发布",
-      description: "在发布页的站点设置中选择发布目标",
+      get title() {
+        return t("account.publish");
+      },
+      get description() {
+        return t("account.publishHint");
+      },
     },
     embeddings: {
       icon: Layers,
-      title: "嵌入模型",
-      description: "在 设置 › 嵌入模型 中设为当前后用于知识库检索",
+      get title() {
+        return t("account.embedding");
+      },
+      get description() {
+        return t("account.embeddingHint");
+      },
     },
   };
 
 function SingleAccount({ section }: { section: RegisteredPluginSettings }) {
+  usePluginControlsI18n();
   const { target } = section.definition;
   const pluginId = section.context.pluginId;
   const setting = useSettingStore(state => state.setting);
@@ -463,7 +490,7 @@ function SingleAccount({ section }: { section: RegisteredPluginSettings }) {
     <SettingsCardHeader
       icon={<SettingsCardIcon icon={capability.icon} />}
       title={capability.title}
-      status={using && <StatusChip tone="ok">使用中</StatusChip>}
+      status={using && <StatusChip tone="ok">{t("provider.using")}</StatusChip>}
       description={section.definition.description ?? capability.description}
     />
   );
@@ -503,22 +530,26 @@ function SingleAccount({ section }: { section: RegisteredPluginSettings }) {
                 basePath: setting.publish.local.basePath,
                 siteConfig: setting.publish.site,
               });
-              if (!connected) throw new Error("连接失败，请检查账号与目标");
-              return "连接正常";
+              if (!connected)
+                throw new PluginControlsError(
+                  "provider.connectionFailed",
+                  "连接失败，请检查账号与目标"
+                );
+              return pluginControlsFeedback("provider.connected");
             },
-            savingText: "正在保存并测试连接…",
-            saveLabel: "保存并测试",
+            savingText: t("provider.savingTest"),
+            saveLabel: t("provider.saveTest"),
           }),
         }}
         changed={target === "asr" && modelId !== account?.modelId}
         onReset={() => setModelId(account?.modelId || section.definition.models?.[0]?.id || "")}
       >
         {target === "asr" && (
-          <SettingsCardSection title="模型">
-            <SettingRow title="识别模型">
+          <SettingsCardSection title={t("common.model")}>
+            <SettingRow title={t("account.asrModel")}>
               <Select
                 className="w-[300px] max-w-full"
-                aria-label="识别模型"
+                aria-label={t("account.asrModel")}
                 searchable
                 creatable
                 value={modelId || null}

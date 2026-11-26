@@ -1,3 +1,4 @@
+import { pluginControlsTranslator, usePluginControlsI18n } from "./controls.i18n";
 import { useState, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useMobilePlugins } from "../../app/plugins/context";
@@ -9,11 +10,13 @@ import type { FlashcardType } from "../flashcard/types";
 import { PluginPageShell } from "./PluginPageView";
 import { toast } from "../../components/toast";
 import { PluginFlashcardAiCreation } from "./PluginFlashcardAiCreation";
+const t = pluginControlsTranslator.t;
 
 const empty = () => null;
 const subscribeEmpty = () => () => undefined;
 
 export function PluginFlashcardCreate() {
+  usePluginControlsI18n();
   const runtime = useMobilePlugins();
   const { params, navigator, entryId } = usePage<{ requestId: number }>();
   const flashcards = runtime?.flashcards;
@@ -28,14 +31,15 @@ export function PluginFlashcardCreate() {
   };
   if (!selected)
     return (
-      <PluginPageShell title="新建闪卡">
-        <p role="status">建卡请求已结束，请从插件重新打开。</p>
+      <PluginPageShell title={t("flashcard.new")}>
+        <p role="status">{t("flashcard.closed")}</p>
       </PluginPageShell>
     );
   return <Creation key={selected.id} request={selected} onBack={back} />;
 }
 
 function Creation({ request, onBack }: { request: MobileFlashcardRequest; onBack(): void }) {
+  usePluginControlsI18n();
   const [selection, setSelection] = useState<{ deckId: number; type: FlashcardType } | null>(null);
   const prepared = useQuery({
     queryKey: ["plugin-flashcard-create", request.id],
@@ -50,9 +54,9 @@ function Creation({ request, onBack }: { request: MobileFlashcardRequest; onBack
   };
   if (prepared.isPending || prepared.error)
     return (
-      <PluginPageShell title="新建闪卡">
+      <PluginPageShell title={t("flashcard.new")}>
         <p role={prepared.error ? "alert" : "status"}>
-          {prepared.error?.message ?? "正在准备题干与参考资料…"}
+          {prepared.error?.message ?? t("flashcard.preparing")}
         </p>
       </PluginPageShell>
     );

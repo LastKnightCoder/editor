@@ -34,7 +34,6 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/features/chat/chatStart", () => ({ startChat: mocks.startChat }));
 vi.mock("@/services/notebook-creation", () => ({
   createNotebookWithResources: mocks.createNotebook,
-  notebookPlanImpact: () => "带入 2 份资料",
 }));
 vi.mock("@/components/InsertNoteToTreeModal", () => ({
   default: (props: {
@@ -498,7 +497,7 @@ describe("插件选择与打开", () => {
       ).rejects.toThrow("内容不存在");
     });
 
-    it("新建 Notebook：核对来源，确认框带资料计划，确认后返回引用，取消返回 null", async () => {
+    it("新建 Notebook：确认前不创建，确认后传原资料计划并返回引用，取消不创建", async () => {
       const { settle, click, unmount } = await mount();
       const app = createDesktopApp("data.db");
       const plan = {
@@ -521,7 +520,7 @@ describe("插件选择与打开", () => {
         expect(mocks.planNotebook).toHaveBeenCalledWith("data.db", [
           { kind: "material", id: "excerpt:2" },
         ]);
-        expect(document.body.textContent).toContain("带入 2 份资料");
+        expect(mocks.createNotebook).not.toHaveBeenCalled();
         await click("新建");
         expect(await created).toEqual({ kind: "notebook", id: "6" });
         expect(mocks.createNotebook).toHaveBeenCalledWith({
@@ -539,6 +538,7 @@ describe("插件选择与打开", () => {
         await settle();
         await click("取消");
         expect(await cancelled).toBeNull();
+        expect(mocks.createNotebook).toHaveBeenCalledTimes(1);
 
         mocks.exists.mockResolvedValueOnce(false);
         await expect(

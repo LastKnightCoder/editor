@@ -1,7 +1,9 @@
+import { pluginControlsTranslator, usePluginControlsI18n } from "./controls.i18n";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { MobileDataAdapter } from "../../app/plugins/data";
 import { Button } from "@tau/ui";
 import { toast } from "../../components/toast";
+const t = pluginControlsTranslator.t;
 
 export function PluginOperations({
   data,
@@ -12,6 +14,7 @@ export function PluginOperations({
   pluginId: string;
   database: string;
 }) {
+  usePluginControlsI18n();
   const client = useQueryClient();
   const key = ["plugin-operations", database, pluginId];
   const query = useQuery({
@@ -21,16 +24,18 @@ export function PluginOperations({
   });
   return (
     <section className="bg-surface flex flex-col gap-3 rounded-2xl p-4">
-      <h3 className="text-ink-1 text-sm font-semibold">最近删除（七天内）</h3>
+      <h3 className="text-ink-1 text-sm font-semibold">{t("operations.recentSevenDays")}</h3>
       {query.error && (
         <p role="alert" className="text-ink-3 text-sm">
           {String(query.error)}
         </p>
       )}
-      {query.data?.length === 0 && <p className="text-ink-3 text-sm">没有可恢复的删除记录</p>}
+      {query.data?.length === 0 && <p className="text-ink-3 text-sm">{t("operations.empty")}</p>}
       {query.data?.map(operation => (
         <div key={operation.id} className="flex items-center justify-between gap-3">
-          <span className="min-w-0 truncate text-sm">{operation.title || "无标题内容"}</span>
+          <span className="min-w-0 truncate text-sm">
+            {operation.title || t("common.noTitleContent")}
+          </span>
           <Button
             disabled={!!operation.restoredAt || operation.pending}
             onClick={() =>
@@ -40,7 +45,11 @@ export function PluginOperations({
                 .catch(error => toast.error(String(error)))
             }
           >
-            {operation.pending ? "等待确认" : operation.restoredAt ? "已恢复" : "恢复"}
+            {operation.pending
+              ? t("common.pending")
+              : operation.restoredAt
+                ? t("operations.restored")
+                : t("common.restore")}
           </Button>
         </div>
       ))}

@@ -1,38 +1,46 @@
+import { pluginControlsTranslator, usePluginControlsI18n } from "../controls.i18n";
 import { useState } from "react";
 import { Button, Panel } from "@tau/ui";
 import { useDesktopPluginError, useDesktopPlugins } from "@/app/plugins/context";
 import { usePage } from "@/page/PageProvider";
+const t = pluginControlsTranslator.t;
 
 export function PluginWorkbenchView() {
+  usePluginControlsI18n();
   const runtime = useDesktopPlugins();
   const startupError = useDesktopPluginError();
   const { navigator } = usePage();
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [failure, setFailure] = useState<{ cause: unknown } | null>(null);
+  const error = failure
+    ? failure.cause instanceof Error
+      ? failure.cause.message
+      : t("common.actionFailed")
+    : "";
   if (!runtime)
     return (
       <p role={startupError ? "alert" : undefined} className="text-tau-body text-ink-2 p-6">
-        {startupError || "正在准备插件开发台…"}
+        {startupError || t("workbench.preparing")}
       </p>
     );
   const run = async (action: () => Promise<unknown>) => {
     setBusy(true);
-    setError("");
+    setFailure(null);
     try {
       await action();
     } catch (error) {
-      setError(error instanceof Error ? error.message : "操作失败");
+      setFailure({ cause: error });
     } finally {
       setBusy(false);
     }
   };
   return (
     <div className="mx-auto max-w-3xl space-y-4 p-6">
-      <h1 className="text-tau-title text-ink-1">插件开发台</h1>
-      <p className="text-tau-body text-ink-2">
-        这里提供已安装插件的调试命令。请在插件管理中启用需要的插件。
-      </p>
-      <Button onClick={() => navigator.push("plugins", { tab: "installed" })}>打开插件管理</Button>
+      <h1 className="text-tau-title text-ink-1">{t("workbench.title")}</h1>
+      <p className="text-tau-body text-ink-2">{t("workbench.hint")}</p>
+      <Button onClick={() => navigator.push("plugins", { tab: "installed" })}>
+        {t("workbench.manage")}
+      </Button>
       {error && (
         <p role="alert" className="text-danger text-tau-body">
           {error}

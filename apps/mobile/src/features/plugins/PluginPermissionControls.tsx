@@ -1,3 +1,9 @@
+import { pluginPermission } from "./i18n";
+import {
+  pluginControlsTranslator,
+  pluginControlsNumber,
+  usePluginControlsI18n,
+} from "./controls.i18n";
 import { useQuery } from "@tanstack/react-query";
 import { useMobilePluginStatus } from "../../app/plugins/context";
 import { useSyncExternalStore } from "react";
@@ -6,6 +12,7 @@ import type { PluginPermission } from "@tau/plugins";
 import { describeCenterPermissions } from "@tau/plugins/center";
 import { Button } from "@tau/ui";
 import { toast } from "../../components/toast";
+const t = pluginControlsTranslator.t;
 
 export function PluginPermissionControls({
   broker,
@@ -20,6 +27,7 @@ export function PluginPermissionControls({
   pluginName: string;
   permissions: readonly string[];
 }) {
+  usePluginControlsI18n();
   useSyncExternalStore(broker.subscribe, broker.getSnapshot);
   const { reload } = useMobilePluginStatus();
   const usage = useQuery({
@@ -33,12 +41,16 @@ export function PluginPermissionControls({
     <div className="bg-surface flex flex-col gap-3 rounded-2xl p-4">
       {usage.data && (
         <p className="text-ink-3 text-sm">
-          最近七天调用：读取 {usage.data.read} · 写入 {usage.data.write} · 删除 {usage.data.delete}
+          {t("permission.usageSevenDays", {
+            read: pluginControlsNumber(usage.data.read),
+            write: pluginControlsNumber(usage.data.write),
+            delete: pluginControlsNumber(usage.data.delete),
+          })}
         </p>
       )}
       {broker.error != null && (
         <p role="alert" className="text-ink-3 text-sm">
-          授权记录读取失败，未放行业务访问：{String(broker.error)}
+          {t("permission.readFailed", { error: String(broker.error) })}
         </p>
       )}
       {broker.error != null && (
@@ -50,7 +62,7 @@ export function PluginPermissionControls({
               .catch(error => toast.error(String(error)))
           }
         >
-          备份并重置此设备的插件授权
+          {t("permission.reset")}
         </Button>
       )}
       {describeCenterPermissions([...permissions]).map(item => {
@@ -59,17 +71,17 @@ export function PluginPermissionControls({
         return (
           <div key={permission} className="flex items-center justify-between gap-3">
             <div className="min-w-0 text-sm">
-              <div>{item.label}</div>
+              <div>{pluginPermission(item.permission)}</div>
               <div className="text-ink-3">
                 {state === "always"
-                  ? "始终允许"
+                  ? t("permission.always")
                   : state === "once"
-                    ? "本次允许"
+                    ? t("permission.allowedOnce")
                     : state === "blocked"
-                      ? "已阻止"
+                      ? t("permission.blocked")
                       : pending.includes(permission)
-                        ? "返回插件后重新申请"
-                        : "使用时询问"}
+                        ? t("permission.returnToPlugin")
+                        : t("permission.ask")}
               </div>
             </div>
             {!state && pending.includes(permission) && (
@@ -80,7 +92,7 @@ export function PluginPermissionControls({
                     .catch(error => toast.error(String(error)))
                 }
               >
-                处理申请
+                {t("permission.handle")}
               </Button>
             )}
             {state && (
@@ -89,7 +101,7 @@ export function PluginPermissionControls({
                   void broker.reset(pluginId, permission).catch(error => toast.error(String(error)))
                 }
               >
-                {state === "blocked" ? "解除阻止" : "撤销"}
+                {state === "blocked" ? t("permission.unblock") : t("permission.revoke")}
               </Button>
             )}
           </div>

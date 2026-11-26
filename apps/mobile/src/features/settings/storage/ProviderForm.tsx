@@ -473,7 +473,10 @@ export function MobileProviderForm(props: {
         const inline = shown.filter(isInlineChoice);
         if (!shown.length) return null;
         return (
-          <section key={group.title} aria-label={group.title}>
+          <section
+            key={JSON.stringify(group.fields.map(field => field.key))}
+            aria-label={group.title}
+          >
             {rows.length > 0 && (
               <>
                 <GroupLabel>{group.title}</GroupLabel>

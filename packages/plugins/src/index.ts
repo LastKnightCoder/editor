@@ -37,7 +37,12 @@ export type {
   PluginSettingsHandle,
 } from "./settings";
 export { useSettingsDraft } from "./settings-draft";
-export type { SettingsDraft, SettingsDraftChange, SettingsDraftOptions } from "./settings-draft";
+export type {
+  SettingsDraft,
+  SettingsDraftChange,
+  SettingsDraftOptions,
+  SettingsDraftFeedback,
+} from "./settings-draft";
 export * from "./provider-form";
 export * from "./editor";
 export {

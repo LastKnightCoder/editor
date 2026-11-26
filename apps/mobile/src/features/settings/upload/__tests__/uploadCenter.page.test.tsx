@@ -329,7 +329,9 @@ it("切换语言保留账号与手动路径草稿、秘密字段可见性和远�
             form: {
               groups: [
                 {
-                  title: "用户分组原文",
+                  get title() {
+                    return `group-${mobileLocaleSource.getSnapshot()}`;
+                  },
                   fields: [
                     { key: "account", label: "账号原文", type: "secret" },
                     { key: "destination", label: "路径原文", type: "remote-choice", load },

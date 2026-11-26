@@ -1,3 +1,9 @@
+import {
+  pluginControlsTranslator,
+  pluginControlsCount,
+  usePluginControlsI18n,
+  pluginControlsFailure,
+} from "../controls.i18n";
 /* eslint-disable react-refresh/only-export-components -- 保存条与同域的草稿接线 hook 一起导出 */
 /**
  * 插件设置的悬浮保存条与离开确认：读 SettingsDraftController，插件或宿主表单只报告草稿状态。
@@ -18,6 +24,7 @@ import type { SettingsDraftController, SettingsDraftSnapshot } from "@tau/plugin
 import { Button, Dialog, DialogBody, cn, usePortalContainer } from "@tau/ui";
 import { closeWindow } from "@/commands";
 import { usePage } from "@/page/PageProvider";
+const t = pluginControlsTranslator.t;
 
 export function useSettingsDraftSnapshot(controller: SettingsDraftController) {
   return useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
@@ -62,40 +69,43 @@ export function useSettingsDraftGuards(controller: SettingsDraftController) {
 const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
 
 function Status({ snapshot }: { snapshot: SettingsDraftSnapshot }) {
+  usePluginControlsI18n();
   if (snapshot.phase === "saving")
     return (
       <>
         <LoaderCircle size={14} className="text-ink-2 flex-none animate-spin" />
-        {snapshot.savingText || "正在保存…"}
+        {snapshot.savingText || t("common.saving")}
       </>
     );
   if (snapshot.phase === "saved")
     return (
       <span className="text-ok flex min-w-0 items-center gap-1.5">
         <CircleCheck size={14} className="flex-none" />
-        <span className="min-w-0 truncate">{snapshot.message || "已保存"}</span>
+        <span className="min-w-0 truncate">
+          {snapshot.feedback?.message || snapshot.message || t("common.saved")}
+        </span>
       </span>
     );
   if (snapshot.phase === "failed")
     return (
       <span className="text-danger flex min-w-0 items-center gap-1.5">
         <CircleAlert size={14} className="flex-none" />
-        <span className="min-w-0">{snapshot.message}</span>
+        <span className="min-w-0">{pluginControlsFailure(snapshot.failure, snapshot.message)}</span>
       </span>
     );
   if (snapshot.errors > 0)
     return (
       <span className="text-danger flex min-w-0 items-center gap-1.5">
         <span aria-hidden className="bg-danger size-[7px] flex-none rounded-full" />
-        {snapshot.errors} 项填写有误
-        <span className="text-ink-3">· 修正后才能保存</span>
+        {pluginControlsCount("draft.errors", snapshot.errors)}
+        <span className="text-ink-3">{t("draft.correct")}</span>
       </span>
     );
   const count = snapshot.changes.length;
   return (
     <>
       <span aria-hidden className="bg-accent size-[7px] flex-none rounded-full" />
-      {count ? `${count} 项修改未保存` : "有未保存的修改"}
+      {count ? pluginControlsCount("draft.changes", count) : t("draft.dirty")}
     </>
   );
 }
@@ -138,6 +148,7 @@ export function SettingsDraftBar({
   /** 设置分区容器，用于定位第一处错误 */
   region: RefObject<HTMLElement | null>;
 }) {
+  usePluginControlsI18n();
   const snapshot = useSettingsDraftSnapshot(controller);
   const portalContainer = usePortalContainer();
   const anchor = useRef<HTMLDivElement | null>(null);
@@ -175,7 +186,7 @@ export function SettingsDraftBar({
           <div
             ref={bar}
             role="region"
-            aria-label="未保存的修改"
+            aria-label={t("draft.region")}
             aria-hidden={shown ? undefined : true}
             inert={!shown}
             className={cn(
@@ -192,12 +203,12 @@ export function SettingsDraftBar({
             </p>
             {snapshot.dirty && (
               <Button variant="ghost" disabled={saving} onClick={() => controller.reset()}>
-                还原
+                {t("common.reset")}
               </Button>
             )}
             {(snapshot.dirty || snapshot.phase === "failed" || saving) && (
               <Button variant="primary" loading={saving} onClick={() => void controller.save()}>
-                {snapshot.saveLabel}
+                {snapshot.saveLabel ?? t("common.save")}
                 <kbd className="font-tau-mono text-tau-micro opacity-60">
                   {isMac ? "⌘S" : "Ctrl S"}
                 </kbd>
@@ -211,7 +222,7 @@ export function SettingsDraftBar({
   );
 }
 
-/** 离开确认：保存并离开（默认）/ 继续编辑 / 放弃修改 */
+/** 离开确认：{t("draft.saveLeave")}（默认）/ {t("draft.continue")} / {t("draft.discard")} */
 export function SettingsLeaveDialog({
   controller,
   title,
@@ -220,6 +231,7 @@ export function SettingsLeaveDialog({
   /** 设置分区名 */
   title?: string;
 }) {
+  usePluginControlsI18n();
   const snapshot = useSettingsDraftSnapshot(controller);
   // 回答后保存进行中仍显示对话框，失败时保存条给出原因
   const [open, setOpen] = useState(false);
@@ -236,7 +248,7 @@ export function SettingsLeaveDialog({
         setOpen(false);
         controller.answerLeave("stay");
       }}
-      title="有修改还没保存"
+      title={t("draft.leaveTitle")}
       context={title}
       size="sm"
       footer={
@@ -249,7 +261,7 @@ export function SettingsLeaveDialog({
               controller.answerLeave("discard");
             }}
           >
-            放弃修改
+            {t("draft.discard")}
           </Button>
           <Button
             variant="secondary"
@@ -259,27 +271,25 @@ export function SettingsLeaveDialog({
               controller.answerLeave("stay");
             }}
           >
-            继续编辑
+            {t("draft.continue")}
           </Button>
           <Button
             variant="primary"
             disabled={invalid}
-            title={invalid ? "有填写错误，修正后才能保存" : undefined}
+            title={invalid ? t("draft.invalid") : undefined}
             data-autofocus={!invalid || undefined}
             onClick={() => {
               setOpen(false);
               controller.answerLeave("save");
             }}
           >
-            保存并离开
+            {t("draft.saveLeave")}
           </Button>
         </>
       }
     >
       <DialogBody>
-        <p className="text-ink-2">
-          {invalid ? "有填写错误，修正后才能保存。" : "离开后这些修改会丢失："}
-        </p>
+        <p className="text-ink-2">{invalid ? t("draft.invalidSentence") : t("draft.leaveHint")}</p>
         {snapshot.changes.length > 0 && (
           <ul className="text-ink-2 mt-2 list-disc pl-5">
             {snapshot.changes.map((change, index) => (
@@ -287,8 +297,8 @@ export function SettingsLeaveDialog({
                 {change.label}
                 {change.to !== undefined && (
                   <>
-                    ：{change.from || "未填"} →{" "}
-                    <b className="text-ink-1 font-medium">{change.to || "未填"}</b>
+                    ：{change.from || t("draft.empty")} →{" "}
+                    <b className="text-ink-1 font-medium">{change.to || t("draft.empty")}</b>
                   </>
                 )}
               </li>

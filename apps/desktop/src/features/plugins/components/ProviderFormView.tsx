@@ -1,3 +1,11 @@
+import type { SettingsDraftFeedback } from "@tau/plugins/settings-draft";
+import {
+  pluginControlsTranslator,
+  usePluginControlsI18n,
+  pluginControlsFeedback,
+  PluginControlsError,
+  pluginControlsFailure,
+} from "../controls.i18n";
 /* eslint-disable react-refresh/only-export-components -- 表单视图与同域的存储绑定 hook 一起导出 */
 /**
  * 声明式提供方设置（插件详情 › 设置）：渲染为一张设置卡片，字段分组是卡内小节。
@@ -33,9 +41,10 @@ import {
 } from "@/services/storage-providers";
 import { ProviderFormFields } from "./ProviderFormFields";
 import { SettingsCard, SettingsCardHeader, SettingsCardIcon } from "./SettingsCard";
+const t = pluginControlsTranslator.t;
 
 type Values = Record<string, string>;
-type Outcome = { tone: "ok" | "danger"; text: string } | null;
+type Outcome = { tone: "ok" | "danger"; text: string | SettingsDraftFeedback } | null;
 
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
@@ -52,8 +61,9 @@ function describeChanges(form: ProviderForm, baseline: Values, values: Values) {
       const value = source[field.key] ?? "";
       if (field.type === "choice")
         return field.options.find(option => option.value === value)?.label ?? value;
-      if (field.type === "switch") return value === "true" ? "开" : "关";
-      if (field.type === "service-choice") return value ? source[field.labelKey] || value : "默认";
+      if (field.type === "switch") return value === "true" ? t("common.on") : t("common.off");
+      if (field.type === "service-choice")
+        return value ? source[field.labelKey] || value : t("common.default");
       return value;
     };
     changes.push({ label: field.label, from: show(baseline), to: show(values) });
@@ -90,6 +100,7 @@ function CapabilityHeader({
   name: string;
   configured: boolean;
 }) {
+  usePluginControlsI18n();
   const current = useIsCurrent(target, pluginId);
   const switcher = useSyncProviderSwitch();
   const Icon = target === "sync" ? RefreshCw : Image;
@@ -101,16 +112,16 @@ function CapabilityHeader({
           className={target === "sync" ? "bg-tag-2-soft text-tag-2" : "bg-tag-4-soft text-tag-4"}
         />
       }
-      title={target === "sync" ? "同步服务" : "资源存储"}
-      status={current && <StatusChip tone="ok">使用中</StatusChip>}
+      title={target === "sync" ? t("provider.sync") : t("provider.storage")}
+      status={current && <StatusChip tone="ok">{t("provider.using")}</StatusChip>}
       description={
         current
           ? target === "sync"
-            ? "数据库与资源文件正同步到这里"
-            : "新插入的图片与附件上传到这里"
+            ? t("provider.syncUsing")
+            : t("provider.uploadUsing")
           : configured
-            ? "配置已保存，尚未使用"
-            : "填写下方配置并保存后可使用"
+            ? t("provider.savedNotUsing")
+            : t("provider.configure")
       }
       actions={
         <>
@@ -119,14 +130,14 @@ function CapabilityHeader({
               size="sm"
               disabled={!configured}
               loading={switcher.probing === pluginId}
-              loadingText="连接中…"
+              loadingText={t("provider.connecting")}
               onClick={() =>
                 target === "sync"
                   ? void switcher.request(pluginId, name)
                   : selectUploadTarget(pluginId)
               }
             >
-              {target === "sync" ? "设为同步服务" : "设为上传目标"}
+              {target === "sync" ? t("provider.useSync") : t("provider.useUpload")}
             </Button>
           )}
           {switcher.dialog}
@@ -141,7 +152,7 @@ export interface ProviderFormBinding {
   stored: JsonValue | undefined;
   persist(config: JsonValue): Promise<void>;
   /** 保存成功后执行（如连接测试），返回结果行文案；抛错时提示「已保存，但…」 */
-  afterSave?(config: JsonValue): Promise<string>;
+  afterSave?(config: JsonValue): Promise<string | SettingsDraftFeedback>;
   /** 保存中的进度文案 */
   savingText?: string;
   saveLabel?: string;
@@ -170,12 +181,12 @@ export function useStorageBinding(
         ? async config => {
             const remote = await probeRemoteDatabaseVersion(pluginId, config);
             return remote.version > 0
-              ? `连接正常 · 云端已有数据库 v${remote.version}`
-              : "连接正常 · 云端还没有这个数据库，首次同步会上传";
+              ? pluginControlsFeedback("provider.connectedVersion", { version: remote.version })
+              : pluginControlsFeedback("provider.connectedEmpty");
           }
         : undefined,
-    savingText: target === "sync" ? "正在保存并测试连接…" : undefined,
-    saveLabel: target === "sync" ? "保存并测试" : undefined,
+    savingText: target === "sync" ? t("provider.savingTest") : undefined,
+    saveLabel: target === "sync" ? t("provider.saveTest") : undefined,
     header: (
       <CapabilityHeader
         target={target}
@@ -204,13 +215,30 @@ export function ProviderFormView({
   changed?: boolean;
   onReset?(): void;
 }) {
+  usePluginControlsI18n();
   const { stored } = binding;
   const storedKey = JSON.stringify(stored ?? null);
   // 已存配置变化（保存成功、同步回写）后以新值为基线
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const baseline = useMemo(() => readProviderFormValues(form, stored), [form, storedKey]);
   const [values, setValues] = useState<Values>(baseline);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [fieldErrors, setFieldErrors] = useState<
+    Record<string, { message: string } | { required: true }>
+  >({});
+  const errors = Object.fromEntries(
+    Object.entries(fieldErrors).map(([key, value]) => [
+      key,
+      "message" in value
+        ? value.message
+        : t("field.required", {
+            field: providerFormFields(form).find(field => field.key === key)?.label ?? key,
+          }),
+    ])
+  );
+  const setMissing = (missing: Record<string, string>) =>
+    setFieldErrors(
+      Object.fromEntries(Object.keys(missing).map(key => [key, { required: true as const }]))
+    );
   const [saving, setSaving] = useState(false);
   const [outcome, setOutcome] = useState<Outcome>(null);
   const dirty = changed || Object.keys(values).some(key => values[key] !== baseline[key]);
@@ -218,7 +246,12 @@ export function ProviderFormView({
 
   const patch = (key: string, value: string) => {
     setValues(previous => patchProviderFormValues(form, previous, key, value));
-    setErrors(previous => (previous[key] ? { ...previous, [key]: "" } : previous));
+    setFieldErrors(previous => {
+      if (!previous[key]) return previous;
+      const next = { ...previous };
+      delete next[key];
+      return next;
+    });
     setOutcome(null);
   };
 
@@ -229,12 +262,12 @@ export function ProviderFormView({
   valuesRef.current = values;
 
   // 写入并返回结果文案；字段错误标在字段上后抛出，由调用方显示
-  const commit = async (values: Values): Promise<string> => {
+  const commit = async (values: Values): Promise<string | SettingsDraftFeedback> => {
     let prepared: Values;
     try {
       prepared = form.beforeSave ? { ...(await form.beforeSave(values, context.signal)) } : values;
     } catch (error) {
-      if (isProviderFieldError(error)) setErrors({ [error.key]: error.message });
+      if (isProviderFieldError(error)) setFieldErrors({ [error.key]: { message: error.message } });
       throw error;
     }
     context.signal.throwIfAborted();
@@ -243,11 +276,20 @@ export function ProviderFormView({
     context.signal.throwIfAborted();
     // 保存期间用户继续输入时保留输入，基线随已存配置更新
     if (valuesRef.current === values) setValues(readProviderFormValues(form, config));
-    if (!binding.afterSave) return "配置已保存";
+    if (!binding.afterSave) return pluginControlsFeedback("provider.configSaved");
     try {
       return await binding.afterSave(config);
     } catch (error) {
-      throw new Error(`配置已保存，但连接失败：${errorText(error)}`, { cause: error });
+      throw new PluginControlsError(
+        "provider.savedConnectionFailed",
+        `配置已保存，但连接失败：${errorText(error)}`,
+        {
+          get error() {
+            return pluginControlsFailure(error);
+          },
+        },
+        { cause: error }
+      );
     }
   };
 
@@ -259,7 +301,7 @@ export function ProviderFormView({
     const values = valuesRef.current;
     // 自动保存允许保存未填完的草稿，完整性由所在页面的连接检测说明
     const missing = binding.autoSave ? {} : validateProviderFormValues(form, values);
-    setErrors(missing);
+    setMissing(missing);
     if (Object.keys(missing).length > 0) return;
     inFlight.current = true;
     setSaving(true);
@@ -268,7 +310,14 @@ export function ProviderFormView({
       setOutcome({ tone: "ok", text: await commit(values) });
     } catch (error) {
       if (!context.signal.aborted && !isProviderFieldError(error))
-        setOutcome({ tone: "danger", text: errorText(error) });
+        setOutcome({
+          tone: "danger",
+          text: {
+            get message() {
+              return pluginControlsFailure(error);
+            },
+          },
+        });
     } finally {
       inFlight.current = false;
       if (!context.signal.aborted) setSaving(false);
@@ -282,7 +331,7 @@ export function ProviderFormView({
   const reset = () => {
     setValues(baseline);
     onReset?.();
-    setErrors({});
+    setFieldErrors({});
     setOutcome(null);
   };
 
@@ -292,10 +341,13 @@ export function ProviderFormView({
   const draft = useSettingsDraft({
     dirty: !binding.autoSave && dirty,
     errors: errorCount,
-    changes: [...describeChanges(form, baseline, values), ...(changed ? [{ label: "模型" }] : [])],
+    changes: [
+      ...describeChanges(form, baseline, values),
+      ...(changed ? [{ label: t("common.model") }] : []),
+    ],
     saveLabel: binding.saveLabel,
     savingText: binding.savingText,
-    onInvalid: () => setErrors(missing),
+    onInvalid: () => setMissing(missing),
     save: () => commit(valuesRef.current),
     reset,
   });
@@ -340,7 +392,9 @@ export function ProviderFormView({
             className="text-tau-meta text-danger border-line-2 flex items-center gap-1.5 border-t px-3 py-2"
           >
             <CircleAlert size={14} className="flex-none" />
-            <span className="min-w-0">{outcome.text}</span>
+            <span className="min-w-0">
+              {typeof outcome.text === "string" ? outcome.text : outcome.text.message}
+            </span>
           </p>
         )}
       </div>
@@ -356,9 +410,9 @@ export function ProviderFormView({
           !dirty &&
           errorCount === 0 && (
             <div className="flex items-center gap-2">
-              <p className="text-tau-meta text-ink-2 min-w-0 flex-1">尚未保存，保存后即可使用</p>
+              <p className="text-tau-meta text-ink-2 min-w-0 flex-1">{t("provider.unsaved")}</p>
               <Button variant="primary" loading={draft.saving} onClick={() => void draft.save()}>
-                {binding.saveLabel ?? "保存"}
+                {binding.saveLabel ?? t("common.save")}
               </Button>
             </div>
           )
@@ -381,7 +435,7 @@ export function ProviderFormView({
         {saving ? (
           <>
             <LoaderCircle size={14} className="animate-spin" />
-            {binding.savingText ?? "正在保存…"}
+            {binding.savingText ?? t("common.saving")}
           </>
         ) : outcome ? (
           <>
@@ -390,17 +444,19 @@ export function ProviderFormView({
             ) : (
               <CircleAlert size={14} className="flex-none" />
             )}
-            <span className="min-w-0">{outcome.text}</span>
+            <span className="min-w-0">
+              {typeof outcome.text === "string" ? outcome.text : outcome.text.message}
+            </span>
           </>
         ) : dirty ? (
-          "有未保存的修改"
+          t("draft.dirty")
         ) : null}
       </p>
       <Button variant="ghost" disabled={!dirty || saving} onClick={reset}>
-        还原
+        {t("common.reset")}
       </Button>
       <Button variant="primary" disabled={!dirty && configured} loading={saving} onClick={save}>
-        {binding.saveLabel ?? "保存"}
+        {binding.saveLabel ?? t("common.save")}
       </Button>
     </div>
   );

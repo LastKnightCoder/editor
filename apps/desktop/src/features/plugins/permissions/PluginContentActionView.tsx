@@ -1,3 +1,9 @@
+import {
+  pluginControlsTranslator,
+  pluginControlsCount,
+  usePluginControlsI18n,
+  pluginControlsNotebookImpact,
+} from "../controls.i18n";
 import { useEffect, useRef } from "react";
 import ContentExportModal from "@/components/ContentExportModal";
 import { SnapshotImagePreview } from "@/components/ContentExportModal/SnapshotImagePreview";
@@ -10,16 +16,18 @@ import ContentCollaborationControl, {
 import { CreateCardDialog } from "@/features/cards/components/CreateCardDialog";
 import InsertNoteToTreeModal from "@/components/InsertNoteToTreeModal";
 import { ConfirmDialog, toast } from "@tau/ui";
-import { createNotebookWithResources, notebookPlanImpact } from "@/services/notebook-creation";
+import { createNotebookWithResources } from "@/services/notebook-creation";
 import { getContentKit } from "@/services/editorKit";
 import type {
   PluginActionRequest,
   PluginContentActionRequest,
   PluginNotebookCreateRequest,
 } from "@/app/plugins/app";
+const t = pluginControlsTranslator.t;
 
 /** 与卡片详情「导出 / 演示 / 发起协作」、「新建卡片」「插入到项目」同一组宿主组件；关闭即撤下请求 */
 export default function PluginContentActionView({ request }: { request: PluginActionRequest }) {
+  usePluginControlsI18n();
   if (request.action === "card.create")
     return (
       <CreateCardDialog
@@ -79,17 +87,18 @@ export default function PluginContentActionView({ request }: { request: PluginAc
 
 /** 与问题「以此立项」同一口径：说明带入几份资料、几项带不进去，确认后新建 */
 function NotebookCreateAction({ request }: { request: PluginNotebookCreateRequest }) {
+  usePluginControlsI18n();
   return (
     <ConfirmDialog
       open
       onOpenChange={next => {
         if (!next) request.close();
       }}
-      title="新建 Notebook"
+      title={t("notebook.new")}
       context={request.title}
-      description="新建一个 Notebook，以下内容作为资料带入。之后原内容的修改不会自动同步。"
-      impact={notebookPlanImpact(request.plan)}
-      confirmText="新建"
+      description={t("notebook.hint")}
+      impact={pluginControlsNotebookImpact(request.plan)}
+      confirmText={t("common.new")}
       onConfirm={async () => {
         try {
           const { projectId, failed } = await createNotebookWithResources({
@@ -98,11 +107,11 @@ function NotebookCreateAction({ request }: { request: PluginNotebookCreateReques
             ...(request.from ? { from: request.from } : {}),
             mainDbName: request.databaseName,
           });
-          if (failed) toast.warning(`${failed} 份资料带入失败`);
+          if (failed) toast.warning(pluginControlsCount("notebook.resourcesFailed", failed));
           request.settle(projectId);
         } catch (error) {
           console.error("新建 Notebook 失败", error);
-          toast.error("新建 Notebook 失败");
+          toast.error(t("notebook.failed"));
         }
       }}
     />
@@ -110,6 +119,7 @@ function NotebookCreateAction({ request }: { request: PluginNotebookCreateReques
 }
 
 function ShareAction({ request }: { request: PluginContentActionRequest }) {
+  usePluginControlsI18n();
   const control = useRef<ContentCollaborationControlHandle>(null);
   useEffect(() => control.current?.open(), []);
   return (

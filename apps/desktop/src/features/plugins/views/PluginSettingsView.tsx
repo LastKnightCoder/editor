@@ -1,3 +1,4 @@
+import { pluginControlsTranslator, usePluginControlsI18n } from "../controls.i18n";
 import { useState } from "react";
 import { SlidersHorizontal } from "lucide-react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -13,14 +14,14 @@ import {
   SettingsCardHeader,
   SettingsCardIcon,
 } from "../components/SettingsCard";
+const t = pluginControlsTranslator.t;
 
 export function PluginSettingsView({ section }: { section?: RegisteredPluginSettings }) {
+  usePluginControlsI18n();
   if (!section)
     return (
       <Panel>
-        <p className="text-tau-body text-ink-2">
-          插件设置暂不可用。请到插件中心确认已安装并启用对应插件；已保存的设置仍然保留。
-        </p>
+        <p className="text-tau-body text-ink-2">{t("settings.unavailable")}</p>
       </Panel>
     );
   if (section.definition.target === "sync" || section.definition.target === "upload") {
@@ -35,9 +36,7 @@ export function PluginSettingsView({ section }: { section?: RegisteredPluginSett
       );
     return (
       <Panel>
-        <p className="text-tau-body text-ink-2">
-          此插件版本较旧，请更新后在这里修改连接配置；已保存的配置仍然有效。
-        </p>
+        <p className="text-tau-body text-ink-2">{t("settings.legacy")}</p>
       </Panel>
     );
   }
@@ -47,8 +46,8 @@ export function PluginSettingsView({ section }: { section?: RegisteredPluginSett
       fallback={({ error, reset }) => (
         <ErrorState
           error={error}
-          title="插件设置渲染失败"
-          actions={[{ label: "重试", onClick: reset }]}
+          title={t("settings.renderFailed")}
+          actions={[{ label: t("common.retry"), onClick: reset }]}
         />
       )}
     >
@@ -65,12 +64,14 @@ function StorageFormView({
   target: "sync" | "upload";
   form: ProviderForm;
 }) {
+  usePluginControlsI18n();
   const { definition, context } = section;
   const binding = useStorageBinding(target, context.pluginId, definition.title, form);
   return <ProviderFormView form={form} context={context} binding={binding} />;
 }
 
 function SettingsScope({ section }: { section: RegisteredPluginSettings }) {
+  usePluginControlsI18n();
   // 缓存跟随本次挂载，旧请求不能污染重新启用后的分区。
   const [client] = useState(
     () =>

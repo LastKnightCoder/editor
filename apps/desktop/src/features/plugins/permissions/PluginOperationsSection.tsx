@@ -1,23 +1,41 @@
+import { pluginControlsTranslator, usePluginControlsI18n } from "../controls.i18n";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@tau/ui";
 import type { DesktopDataAdapter } from "@/app/plugins/data";
 import type { PluginOperationRecord } from "@/types/plugin-data";
 import { usePluginEntityAppearances } from "@/services/plugin-entity-kinds";
+const t = pluginControlsTranslator.t;
 
 const ENTITY_NAMES: Record<PluginOperationRecord["entity"], string> = {
-  card: "卡片",
-  article: "文章",
-  document: "项目文档",
-  whiteboard: "白板",
-  project: "项目",
-  todo: "待办",
-  event: "日程",
-  "plugin-entity": "插件内容",
+  get card() {
+    return t("common.cards");
+  },
+  get article() {
+    return t("common.articles");
+  },
+  get document() {
+    return t("common.documents");
+  },
+  get whiteboard() {
+    return t("common.whiteboards");
+  },
+  get project() {
+    return t("create.project");
+  },
+  get todo() {
+    return t("common.todos");
+  },
+  get event() {
+    return t("common.schedule");
+  },
+  get "plugin-entity"() {
+    return t("common.pluginContent");
+  },
 };
 
-const timeLabel = (time: number) =>
-  new Date(time).toLocaleString(undefined, {
+const timeLabel = (time: number, locale: string) =>
+  new Date(time).toLocaleString(locale, {
     month: "numeric",
     day: "numeric",
     hour: "2-digit",
@@ -32,6 +50,7 @@ export function PluginOperationsSection({
   data: DesktopDataAdapter;
   pluginId: string;
 }) {
+  const { locale } = usePluginControlsI18n();
   const client = useQueryClient();
   const key = ["plugins", "operations", pluginId];
   const query = useQuery({
@@ -40,17 +59,22 @@ export function PluginOperationsSection({
     refetchOnWindowFocus: true,
   });
   const [busy, setBusy] = useState<number | null>(null);
-  const [error, setError] = useState("");
+  const [failure, setFailure] = useState<{ cause: unknown } | null>(null);
+  const error = failure
+    ? failure.cause instanceof Error
+      ? failure.cause.message
+      : t("operations.restoreFailed")
+    : "";
   const appearanceOf = usePluginEntityAppearances();
   if (!query.data?.length) return null;
 
   const restore = async (operation: PluginOperationRecord) => {
     setBusy(operation.id);
-    setError("");
+    setFailure(null);
     try {
       await data.restore(operation);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "恢复失败");
+      setFailure({ cause });
     } finally {
       setBusy(null);
       await client.invalidateQueries({ queryKey: key });
@@ -58,9 +82,9 @@ export function PluginOperationsSection({
   };
 
   return (
-    <section aria-label="最近删除" className="mt-6">
-      <h3 className="text-tau-body text-ink-1 mb-1 font-semibold">最近删除</h3>
-      <p className="text-tau-meta text-ink-3 mb-2">此插件在 7 天内删除的内容，可以恢复。</p>
+    <section aria-label={t("operations.recent")} className="mt-6">
+      <h3 className="text-tau-body text-ink-1 mb-1 font-semibold">{t("operations.recent")}</h3>
+      <p className="text-tau-meta text-ink-3 mb-2">{t("operations.hint")}</p>
       {query.data.map(operation => (
         <div
           key={operation.id}
@@ -70,13 +94,13 @@ export function PluginOperationsSection({
             {appearanceOf(pluginId, operation.kind)?.label ?? ENTITY_NAMES[operation.entity]}
           </span>
           <span className="text-tau-body text-ink-1 min-w-0 flex-1 truncate">
-            {operation.title || "（无标题）"}
+            {operation.title || t("common.emptyTitle")}
           </span>
           <span className="text-tau-meta text-ink-3 tabular-nums">
-            {timeLabel(operation.createdAt)}
+            {timeLabel(operation.createdAt, locale)}
           </span>
           {operation.restoredAt ? (
-            <span className="text-tau-meta text-ink-3">已恢复</span>
+            <span className="text-tau-meta text-ink-3">{t("operations.restored")}</span>
           ) : (
             <Button
               size="sm"
@@ -84,7 +108,7 @@ export function PluginOperationsSection({
               disabled={busy !== null}
               onClick={() => void restore(operation)}
             >
-              恢复
+              {t("common.restore")}
             </Button>
           )}
         </div>

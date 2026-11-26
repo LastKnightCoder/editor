@@ -1,3 +1,4 @@
+import { useAppI18n } from "./i18n/react";
 /**
  * 右侧辅助栏：位于标题栏之下、正文右侧，承载 assistViews 登记的视图（对话、网页……），
  * 同一时刻只显示一个；shellStore.assistView 是当前视图，assistCovered 是被临时视图盖住的那个。
@@ -26,6 +27,7 @@ import "../assist-views";
 const SLIDE_MS = 220;
 
 export function AssistDock() {
+  const { t } = useAppI18n();
   const { state } = usePage();
   const topId = state.back[state.back.length - 1]?.id;
   const { view, expanded } = useVisibleAssist();
@@ -101,7 +103,9 @@ export function AssistDock() {
 
   return (
     <aside
-      aria-label={(shown?.id === PLUGIN_DOCK_ID ? pluginTitle : shown?.label) ?? "辅助栏"}
+      aria-label={
+        (shown?.id === PLUGIN_DOCK_ID ? pluginTitle : shown?.label) ?? t("assist.fallback")
+      }
       aria-hidden={!visible}
       inert={!visible}
       style={
@@ -132,7 +136,7 @@ export function AssistDock() {
           onChange={setWidth}
           onActiveChange={setResizing}
           side="right"
-          label="右栏宽度"
+          label={t("assist.width")}
           className="absolute top-4 bottom-4 -left-2 z-10"
         />
       )}
@@ -150,11 +154,11 @@ export function AssistDock() {
               fallback={({ error, reset }) => (
                 <ErrorState
                   error={error}
-                  title={`${item.label}出错了`}
-                  description="右栏渲染时发生了意外错误，你的数据没有丢失。"
+                  title={t("assist.failed", { name: item.label })}
+                  description={t("assist.failureDescription")}
                   actions={[
-                    { label: "重试", onClick: reset },
-                    { label: "关闭", onClick: () => closeAssist(item.id) },
+                    { label: t("assist.retry"), onClick: reset },
+                    { label: t("shell.close"), onClick: () => closeAssist(item.id) },
                   ]}
                 />
               )}

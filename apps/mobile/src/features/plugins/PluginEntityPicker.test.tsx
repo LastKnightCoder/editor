@@ -1,3 +1,5 @@
+import { mobileLocaleSource } from "../../services/i18n";
+import { pluginControlsTranslator } from "./controls.i18n";
 import { act, forwardRef, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -191,8 +193,24 @@ it("多选跨类型和分页保留选择，确认时才提交", async () => {
   await settle(() => (container.textContent ?? "").includes(article.title));
   await click(button(container, article.title));
   expect(value.submit).not.toHaveBeenCalled();
-  await click(button(container, "确认选择（3）"));
-  expect(value.submit).toHaveBeenCalledWith([first, second, article]);
+  const original = mobileLocaleSource.getSnapshot(),
+    row = button(container, article.title),
+    input = container.querySelector("input");
+  const queries = vi.mocked(value.query).mock.calls.length;
+  try {
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => mobileLocaleSource.setLocale(locale));
+      expect(button(container, article.title)).toBe(row);
+      expect(row.getAttribute("aria-pressed")).toBe("true");
+      expect(container.querySelector("input")).toBe(input);
+      expect(value.query).toHaveBeenCalledTimes(queries);
+      expect(value.submit).not.toHaveBeenCalled();
+    }
+    await click(button(container, pluginControlsTranslator.t("picker.confirm", { amount: "3" })));
+    expect(value.submit).toHaveBeenCalledWith([first, second, article]);
+  } finally {
+    await act(async () => mobileLocaleSource.setLocale(original));
+  }
 });
 
 it("搜索防抖期间不能选择旧结果，搜索后从新游标开始", async () => {

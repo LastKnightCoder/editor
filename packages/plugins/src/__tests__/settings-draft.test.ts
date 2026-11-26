@@ -15,7 +15,6 @@ describe("设置草稿控制器", () => {
     expect(controller.getSnapshot()).toMatchObject({
       attached: true,
       dirty: true,
-      saveLabel: "保存",
     });
     expect(controller.getSnapshot().changes).toHaveLength(1);
     source.current = { ...source.current, dirty: false };
@@ -90,4 +89,54 @@ describe("设置草稿控制器", () => {
     handle.dispose();
     expect(await leave).toBe(true);
   });
+});
+
+it("保存反馈保留展示时读取的语言，失败保留原始原因且不重复保存", async () => {
+  vi.useFakeTimers();
+  const controller = createSettingsDraftController({ savedDuration: 100 });
+  let language = "first-language";
+  const save = vi.fn(async () => ({
+    get message() {
+      return language;
+    },
+  }));
+  const source = options({ save });
+  const handle = controller.attach(source);
+  try {
+    expect(await controller.save()).toBe(true);
+    const snapshot = controller.getSnapshot();
+    expect(snapshot.phase).toBe("saved");
+    expect(snapshot.feedback?.message).toBe("first-language");
+    language = "next-language";
+    source.current = { ...source.current, saveLabel: "translated action" };
+    handle.update();
+    expect(controller.getSnapshot().phase).toBe("saved");
+    expect(snapshot.feedback?.message).toBe("next-language");
+    expect(controller.getSnapshot().feedback?.message).toBe("next-language");
+    expect(save).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(100);
+    expect(controller.getSnapshot().feedback).toBeUndefined();
+    expect(controller.getSnapshot().phase).toBe("idle");
+    expect(await controller.save()).toBe(true);
+    source.current = { ...source.current, dirty: false };
+    handle.update();
+    expect(controller.getSnapshot().phase).toBe("saved");
+    source.current = { ...source.current, dirty: true };
+    handle.update();
+    expect(controller.getSnapshot().phase).toBe("idle");
+    expect(controller.getSnapshot().feedback).toBeUndefined();
+    const failure = Object.assign(new Error("original diagnostic"), { code: "EXTERNAL_FAILURE" });
+    save.mockRejectedValueOnce(failure);
+    expect(await controller.save()).toBe(false);
+    expect(controller.getSnapshot()).toMatchObject({
+      phase: "failed",
+      message: "original diagnostic",
+      failure,
+    });
+    controller.reset();
+    expect(controller.getSnapshot().failure).toBeUndefined();
+  } finally {
+    controller.dispose();
+    vi.useRealTimers();
+  }
 });

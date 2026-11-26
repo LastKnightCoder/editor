@@ -1,3 +1,4 @@
+import { pluginControlsTranslator, usePluginControlsI18n } from "../controls.i18n";
 /**
  * 声明式提供方表单的字段区：按插件声明的分组渲染为设置卡片的小节（SettingsCardSection），
  * 字段按类型选择控件（密钥 / 文本 / 地址 / 选择 / 远程选择 / 开关）。
@@ -20,6 +21,7 @@ import { createContext, useContext, type ReactNode } from "react";
 import { Button, IconButton, Input, Segmented, Select, SettingRow, Switch, cn } from "@tau/ui";
 import { openExternal } from "@/commands/extra";
 import { SettingsCardSection } from "./SettingsCard";
+const t = pluginControlsTranslator.t;
 
 type Values = Record<string, string>;
 
@@ -44,6 +46,7 @@ function SecretInput(props: {
   placeholder?: string;
   onChange(value: string): void;
 }) {
+  usePluginControlsI18n();
   const [visible, setVisible] = useState(false);
   return (
     <div className={`relative ${useFieldWidth()}`}>
@@ -62,7 +65,7 @@ function SecretInput(props: {
       <div className="absolute inset-y-0 right-1 flex items-center">
         <IconButton
           className="size-6"
-          aria-label={visible ? "隐藏" : "显示"}
+          aria-label={visible ? t("field.hide") : t("field.show")}
           onClick={() => setVisible(value => !value)}
         >
           {visible ? <EyeOff size={14} /> : <Eye size={14} />}
@@ -80,6 +83,7 @@ function RemoteChoice(props: {
   signal: AbortSignal;
   onChange(value: string): void;
 }) {
+  usePluginControlsI18n();
   const [options, setOptions] = useState<readonly ProviderChoiceOption[]>([]);
   const [state, setState] = useState<"idle" | "loading" | "error">("idle");
   const [error, setError] = useState("");
@@ -110,8 +114,14 @@ function RemoteChoice(props: {
       searchable
       creatable
       disabled={props.disabled}
-      placeholder={props.field.placeholder ?? "请选择"}
-      emptyText={state === "loading" ? "正在加载…" : state === "error" ? error : "无可选项"}
+      placeholder={props.field.placeholder ?? t("common.choose")}
+      emptyText={
+        state === "loading"
+          ? t("common.loading")
+          : state === "error"
+            ? error
+            : t("common.noOptions")
+      }
       value={value || null}
       options={merged.map(option => ({
         value: option.value,
@@ -133,6 +143,7 @@ function ServiceChoice(props: {
   context: PluginContext;
   onChange(key: string, value: string): void;
 }) {
+  usePluginControlsI18n();
   const { field } = props;
   const [error, setError] = useState("");
   const value = props.values[field.key] ?? "";
@@ -154,10 +165,10 @@ function ServiceChoice(props: {
         className={`text-tau-meta max-w-[180px] min-w-0 truncate ${value ? "text-ink-1" : "text-ink-3"} ${error ? "text-danger" : ""}`}
         title={error || label || undefined}
       >
-        {error || (value ? label || value : (field.placeholder ?? "默认"))}
+        {error || (value ? label || value : (field.placeholder ?? t("common.default")))}
       </span>
       <Button size="sm" variant="secondary" disabled={props.disabled} onClick={() => void choose()}>
-        选择…
+        {t("field.choose")}
       </Button>
       {value && (
         <Button
@@ -169,7 +180,7 @@ function ServiceChoice(props: {
             props.onChange(field.labelKey, "");
           }}
         >
-          恢复默认
+          {t("field.reset")}
         </Button>
       )}
     </div>
@@ -183,6 +194,7 @@ function ChoiceControl(props: {
   disabled: boolean;
   onChange(value: string): void;
 }) {
+  usePluginControlsI18n();
   const { field } = props;
   const width = useFieldWidth();
   if (prefersSegmented(field))
@@ -229,6 +241,7 @@ function FieldControl(props: {
   onChange(value: string): void;
   onPatch(key: string, value: string): void;
 }) {
+  usePluginControlsI18n();
   const { field } = props;
   const width = useFieldWidth();
   const value = props.values[field.key] ?? "";
@@ -292,6 +305,7 @@ function FieldControl(props: {
 }
 
 function GroupLink({ link }: { link: { label: string; url: string } }) {
+  usePluginControlsI18n();
   return (
     <Button
       size="sm"
@@ -316,6 +330,7 @@ function InlineRow({
   note?: string;
   children: ReactNode;
 }) {
+  usePluginControlsI18n();
   return (
     <div className="border-line-2 grid min-h-[46px] grid-cols-[64px_minmax(0,1fr)] items-center gap-3 border-t px-3 py-2">
       <span className="text-tau-meta text-ink-2 break-words">{field.label}</span>
@@ -338,7 +353,9 @@ function fieldNote(field: ProviderField, value: string) {
       ? field.options.find(item => item.value === value)?.description
       : undefined;
   const optional =
-    field.type !== "switch" && field.type !== "service-choice" && field.optional ? "可选" : "";
+    field.type !== "switch" && field.type !== "service-choice" && field.optional
+      ? t("common.optional")
+      : "";
   return [field.description, option, optional].filter(Boolean).join("，") || undefined;
 }
 
@@ -363,6 +380,7 @@ export function ProviderFormFields({
   layout?: "rows" | "inline";
   onChange(key: string, value: string): void;
 }) {
+  usePluginControlsI18n();
   return (
     <FieldWidthContext.Provider value={layout === "inline" ? "w-full" : "w-[300px] max-w-full"}>
       {form.groups.map(group => {
@@ -390,7 +408,7 @@ export function ProviderFormFields({
           ));
         return (
           <SettingsCardSection
-            key={group.title}
+            key={JSON.stringify(group.fields.map(field => field.key))}
             title={group.title}
             description={group.description}
             action={group.link && <GroupLink link={group.link} />}

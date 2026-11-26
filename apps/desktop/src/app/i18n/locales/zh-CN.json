@@ -91,5 +91,11 @@
   "shell.fullscreen": "全屏",
   "settings.backHint": "返回 (Esc)",
   "page.articleDetail": "文章详情",
-  "page.projectDetail": "项目详情"
+  "page.projectDetail": "项目详情",
+  "assist.fallback": "辅助栏",
+  "assist.width": "右栏宽度",
+  "assist.failed": "{{name}}出错了",
+  "assist.failureDescription": "右栏渲染时发生了意外错误，你的数据没有丢失。",
+  "assist.retry": "重试",
+  "assist.webLabel": "网页"
 }

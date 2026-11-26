@@ -71,6 +71,7 @@ export function PluginManageSheet({
   ): ActionSheetItem => {
     const availability = item.actions[kind];
     return {
+      key: kind,
       label,
       icon,
       danger,

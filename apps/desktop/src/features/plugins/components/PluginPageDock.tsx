@@ -1,3 +1,4 @@
+import { usePluginControlsI18n } from "../controls.i18n";
 import { Activity } from "react";
 import { Maximize2, Minimize2, PanelRightClose } from "lucide-react";
 import { IconButton } from "@tau/ui";
@@ -8,6 +9,7 @@ import { useOverlayDismiss } from "@/page/PageProvider";
 import { PluginPageSurface } from "../views/PluginPageView";
 
 export function PluginPageDock({ open, onClose }: AssistViewProps) {
+  const { t } = usePluginControlsI18n();
   const runtime = useDesktopPlugins();
   const target = useShellStore(s => s.pluginDock);
   const expanded = useShellStore(s => s.assistExpanded);
@@ -15,7 +17,7 @@ export function PluginPageDock({ open, onClose }: AssistViewProps) {
   useOverlayDismiss(() => setExpanded(false), open && expanded);
   const page = target && runtime?.getPage(target.pluginId, target.pageId);
   if (!target || !page || page.mountId !== target.mountId) return null;
-  const expandLabel = expanded ? "收回右栏" : "放大";
+  const expandLabel = expanded ? t("dock.collapse") : t("dock.expand");
   return (
     <Activity mode={open ? "visible" : "hidden"}>
       <div className="flex h-12 flex-none items-center gap-1 px-3">
@@ -27,7 +29,7 @@ export function PluginPageDock({ open, onClose }: AssistViewProps) {
         >
           {expanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
         </IconButton>
-        <IconButton title="关闭右栏" aria-label="关闭右栏" onClick={onClose}>
+        <IconButton title={t("dock.close")} aria-label={t("dock.close")} onClick={onClose}>
           <PanelRightClose size={16} />
         </IconButton>
       </div>

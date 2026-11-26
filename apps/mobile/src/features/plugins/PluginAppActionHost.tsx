@@ -1,3 +1,4 @@
+import { pluginControlsTranslator, usePluginControlsI18n } from "./controls.i18n";
 import { richTextPlainText } from "../../utils/richTextText";
 import { createNodeDocument, NodeTree, type ContentNode } from "@tau/collaboration";
 import { createNodeTreeDocument, type NodeTreeEditor } from "@tau/editor-collab";
@@ -16,6 +17,7 @@ import { MobileEditorBottomToolbar } from "../cards/editorToolbar/MobileEditorBo
 import { useMobileEditorToolbarController } from "../cards/editorToolbar/useMobileEditorToolbarController";
 import { useCollaborationRuntime } from "../collaboration/hooks/useCollaborationRuntime";
 import { toast } from "../../components/toast";
+const t = pluginControlsTranslator.t;
 
 const ShareContentSheet = lazy(() =>
   import("../collaboration/ShareContentSheet").then(module => ({
@@ -30,10 +32,12 @@ const MemberManageSheet = lazy(() =>
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 export function PluginAppActionHost({ actions }: { actions: MobileAppActions }) {
+  usePluginControlsI18n();
   const request = useSyncExternalStore(actions.subscribe, actions.getSnapshot);
   return request ? <Action key={request.id} request={request} /> : null;
 }
 function Action({ request }: { request: MobileAppActionRequest }) {
+  usePluginControlsI18n();
   const navigator = useNavigator();
   useRouterContext();
   const entryId = (navigator.getTopOverlay() ?? navigator.getActiveScreen())?.id;
@@ -67,6 +71,7 @@ function Action({ request }: { request: MobileAppActionRequest }) {
   );
 }
 function Share({ request }: { request: MobileAppActionRequest }) {
+  usePluginControlsI18n();
   const [confirmed, setConfirmed] = useState(false);
   const target = useQuery({
     queryKey: ["plugin-share-action", request.id],
@@ -81,17 +86,20 @@ function Share({ request }: { request: MobileAppActionRequest }) {
         request={request}
         binding={target.data.binding}
         contentId={target.data.document.contentId}
-        title={richTextPlainText(target.data.document.content).trim().slice(0, 40) || "共享内容"}
+        title={
+          richTextPlainText(target.data.document.content).trim().slice(0, 40) || t("share.content")
+        }
       />
     );
   return (
-    <BottomSheet open title="内容协作" onClose={request.close}>
+    <BottomSheet open title={t("share.title")} onClose={request.close}>
       <p className="text-ink-2">
-        {request.plugin.name} 请求打开内容协作。确认后将把这份内容发布到协作服务器。
+        {request.plugin.name}
+        {t("share.hint")}
       </p>
       {target.data && (
         <p className="text-ink-1 mt-3">
-          {richTextPlainText(target.data.document.content).trim().slice(0, 120) || "空白内容"}
+          {richTextPlainText(target.data.document.content).trim().slice(0, 120) || t("share.blank")}
         </p>
       )}
       {target.error && <p role="alert">{errorText(target.error)}</p>}
@@ -104,7 +112,7 @@ function Share({ request }: { request: MobileAppActionRequest }) {
           setConfirmed(true);
         }}
       >
-        开启协作
+        {t("share.start")}
       </button>
     </BottomSheet>
   );
@@ -120,6 +128,7 @@ function SharedContent({
   contentId: number;
   title: string;
 }) {
+  usePluginControlsI18n();
   useCollaborationRuntime();
   const onError = (error: unknown) => {
     if (!request.signal.aborted) toast.error(errorText(error));
@@ -158,6 +167,7 @@ function positions(nodes: PluginProjectNode[], prefix = ""): { id: string; title
   });
 }
 function Create({ request }: { request: MobileAppActionRequest }) {
+  usePluginControlsI18n();
   const input = request.input;
   const isProject = input.action === "project.insertDocument";
   const shared = isProject && "shareOf" in input.content;
@@ -278,14 +288,14 @@ function Create({ request }: { request: MobileAppActionRequest }) {
     <BottomSheet
       open
       dismissible={!saving}
-      title={isProject ? "插入项目文档" : "新建卡片"}
+      title={isProject ? t("create.projectDocument") : t("create.card")}
       onClose={request.close}
     >
-      <p className="text-ink-3 mb-3">来自 {request.plugin.name} · 确认保存后创建</p>
+      <p className="text-ink-3 mb-3">{t("create.source", { name: request.plugin.name })}</p>
       {isProject ? (
         <div className="space-y-3">
           <label className="block">
-            标题
+            {t("create.title")}
             <input
               className="input-base w-full"
               value={title}
@@ -294,7 +304,7 @@ function Create({ request }: { request: MobileAppActionRequest }) {
             />
           </label>
           <label className="block">
-            项目
+            {t("create.project")}
             <select
               className="input-base w-full"
               value={projectId}
@@ -304,7 +314,7 @@ function Create({ request }: { request: MobileAppActionRequest }) {
                 setParentId("");
               }}
             >
-              <option value="">请选择项目</option>
+              <option value="">{t("create.chooseProject")}</option>
               {projects.data?.pages
                 .flatMap(page => page.items)
                 .filter(project => !project.archived)
@@ -321,19 +331,19 @@ function Create({ request }: { request: MobileAppActionRequest }) {
               disabled={projects.isFetchingNextPage}
               onClick={() => void projects.fetchNextPage()}
             >
-              加载更多项目
+              {t("create.moreProjects")}
             </button>
           )}
           {projectId && (
             <label className="block">
-              插入位置
+              {t("create.position")}
               <select
                 className="input-base w-full"
                 value={parentId}
                 disabled={saving || !tree.isSuccess}
                 onChange={event => setParentId(event.target.value)}
               >
-                <option value="">项目根目录末尾</option>
+                <option value="">{t("create.root")}</option>
                 {positions(tree.data ?? []).map((position, index) => (
                   <option key={`${position.id}:${index}`} value={position.id}>
                     {position.title}
@@ -342,16 +352,16 @@ function Create({ request }: { request: MobileAppActionRequest }) {
               </select>
             </label>
           )}
-          {shared && <p className="text-ink-2">与插件内容共用正文，任一处修改都会同步。</p>}
+          {shared && <p className="text-ink-2">{t("create.shared")}</p>}
         </div>
       ) : (
         <label className="block">
-          标签
+          {t("create.tags")}
           <input
             className="input-base w-full"
             value={tags}
             onChange={event => setTags(event.target.value)}
-            placeholder="用逗号分隔"
+            placeholder={t("create.tagsHint")}
             disabled={saving}
           />
         </label>
@@ -387,7 +397,7 @@ function Create({ request }: { request: MobileAppActionRequest }) {
         }
         onClick={() => void save()}
       >
-        {saving ? "正在保存…" : "保存"}
+        {saving ? t("common.saving") : t("common.save")}
       </button>
       {!shared && <MobileEditorBottomToolbar controller={toolbar} />}
     </BottomSheet>
