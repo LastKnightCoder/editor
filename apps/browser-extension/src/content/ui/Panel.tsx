@@ -7,6 +7,7 @@ import { ChatTab } from "./ChatTab";
 import { AnnotationsTab } from "./AnnotationsTab";
 import { NoteTab } from "./NoteTab";
 import { SessionNav } from "./SessionNav";
+import { useConnectionI18n } from "../i18n";
 
 const DEFAULT_WIDTH = 400;
 const MIN_WIDTH = 340;
@@ -20,18 +21,13 @@ interface Frame {
   height: number;
 }
 
-const STATUS_LABEL: Record<string, { label: string; dot: string }> = {
-  ready: { label: "Tau 已连接", dot: "bg-ok" },
-  pairing: { label: "等待授权", dot: "bg-warn" },
-  connecting: { label: "正在连接", dot: "bg-warn" },
-  launching: { label: "正在等待 Tau", dot: "bg-warn" },
+const STATUS_DOT: Record<string, string> = {
+  ready: "bg-ok",
+  pairing: "bg-warn",
+  connecting: "bg-warn",
+  launching: "bg-warn",
 };
-
-const TABS: Array<{ key: PanelTab; label: string }> = [
-  { key: "chat", label: "对话" },
-  { key: "annotations", label: "标注" },
-  { key: "note", label: "笔记" },
-];
+const TABS: PanelTab[] = ["chat", "annotations", "note"];
 
 /** 默认位置：贴着悬浮球那一侧，底边与球对齐 */
 const defaultFrame = (side: "left" | "right", orbRatio: number): Frame => {
@@ -46,6 +42,7 @@ const defaultFrame = (side: "left" | "right", orbRatio: number): Frame => {
 
 /** 浮窗面板：可拖可缩放，页签 对话 / 标注 / 笔记；Esc 关闭 */
 export function Panel() {
+  const { t, locale } = useConnectionI18n();
   const controller = useController();
   const open = useCompanion(state => state.panelOpen);
   const tab = useCompanion(state => state.tab);
@@ -69,7 +66,16 @@ export function Panel() {
 
   if (!open) return null;
   const current = frame ?? defaultFrame(side, orbRatio);
-  const statusInfo = STATUS_LABEL[status] ?? { label: "Tau 未连接", dot: "bg-ink-3" };
+  const statusInfo = {
+    label:
+      status === "ready" ||
+      status === "pairing" ||
+      status === "connecting" ||
+      status === "launching"
+        ? t(`status.${status}`)
+        : t("status.offline"),
+    dot: STATUS_DOT[status] ?? "bg-ink-3",
+  };
 
   const startDrag = (event: React.PointerEvent) => {
     if ((event.target as Element).closest("button")) return;
@@ -126,7 +132,7 @@ export function Panel() {
   return (
     <section
       ref={panelRef}
-      aria-label="Tau 伴读"
+      aria-label={t("panel.name")}
       className="bg-surface shadow-float animate-tau-panel rounded-tau-lg fixed z-[35] flex flex-col overflow-hidden"
       style={current}
     >
@@ -146,15 +152,19 @@ export function Panel() {
           </small>
         </div>
         <IconButton
-          aria-label={pinned ? "取消固定" : "固定面板：切换标签页时保持打开"}
-          title={pinned ? "已固定" : "固定面板"}
+          aria-label={pinned ? t("panel.unpin") : t("panel.pinHint")}
+          title={pinned ? t("panel.pinned") : t("panel.pin")}
           className={cn("size-7", pinned && "bg-accent-soft text-accent-text")}
           onClick={() => setPinned(value => !value)}
         >
           <Pin size={15} strokeWidth={1.8} />
         </IconButton>
         <div className="relative">
-          <IconButton aria-label="更多" className="size-7" onClick={() => setMenu(value => !value)}>
+          <IconButton
+            aria-label={t("panel.more")}
+            className="size-7"
+            onClick={() => setMenu(value => !value)}
+          >
             <MoreHorizontal size={16} strokeWidth={1.8} />
           </IconButton>
           {menu && (
@@ -169,7 +179,7 @@ export function Panel() {
                   controller.openLibrary();
                 }}
               >
-                在伴读库中查看本页
+                {t("panel.library")}
               </MenuItem>
               <MenuItem
                 icon={EyeOff}
@@ -178,7 +188,7 @@ export function Panel() {
                   controller.hideOnSite();
                 }}
               >
-                在此网站隐藏悬浮球
+                {t("panel.hide")}
               </MenuItem>
               <MenuItem
                 icon={RotateCcw}
@@ -187,37 +197,39 @@ export function Panel() {
                   setFrame(null);
                 }}
               >
-                面板回到默认位置
+                {t("panel.reset")}
               </MenuItem>
             </div>
           )}
         </div>
         <IconButton
-          aria-label="关闭"
-          title="关闭 Esc"
+          aria-label={t("panel.close")}
+          title={t("panel.closeEsc")}
           className="size-7"
           onClick={() => controller.closePanel()}
         >
           <X size={16} strokeWidth={1.8} />
         </IconButton>
       </header>
-      <nav className="relative flex gap-[18px] px-4" aria-label="面板页签">
+      <nav className="relative flex gap-[18px] px-4" aria-label={t("panel.tabs")}>
         {TABS.map(item => (
           <button
-            key={item.key}
+            key={item}
             type="button"
-            aria-current={tab === item.key}
-            onClick={() => controller.setTab(item.key)}
+            aria-current={tab === item}
+            onClick={() => controller.setTab(item)}
             className={cn(
               "relative inline-flex h-[34px] items-center gap-1 font-medium",
-              tab === item.key ? "text-ink-1" : "text-ink-3 hover:text-ink-2"
+              tab === item ? "text-ink-1" : "text-ink-3 hover:text-ink-2"
             )}
           >
-            {item.label}
-            {item.key === "annotations" && count > 0 && (
-              <span className="text-tau-micro text-ink-3 tabular-nums">{count}</span>
+            {t(`tab.${item}`)}
+            {item === "annotations" && count > 0 && (
+              <span className="text-tau-micro text-ink-3 tabular-nums">
+                {count.toLocaleString(locale)}
+              </span>
             )}
-            {tab === item.key && (
+            {tab === item && (
               <span className="bg-accent absolute inset-x-0 bottom-1 h-0.5 rounded-full" />
             )}
           </button>

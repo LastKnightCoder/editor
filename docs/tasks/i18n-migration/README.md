@@ -314,6 +314,8 @@ P5共用视频转录：12路径完成；baseline4文件14至final5文件18全绿
 
 P5 Skills目录/详情：11路径加Root平台getter1完成；3文件10例、desktop type、96key三语复数参数与范围检查通过。真实Readonly Editor onInit/DOM/实例、抽屉分区/IPC、agent metadata/tokens跨语言保持；原README/YAML/default name/AI内容不译，SOURCE_LABEL与warning.text消费清零退出。S1删除反馈额外改为getMessage读取当前垃圾桶名称，同一push/任务不变；MODE_OPTIONS尚有S2旧消费者，按分批冻结边界留到S2消费清零后删。
 
+P6浏览器扩展Phase1：26路径加Root lock/架构2完成；扩展7文件43例、desktop Host/module12例、两处type和WXT构建通过，57key三语参数/范围检查通过。metadata更新不重连/握手/onReady/20s心跳，迟到设置/存储快照不覆盖新值，三root/controller/editor/草稿/选区/query身份保持且第三方lang不变。Note旧Markdown fixture按当前原生节点拒旧契约修正，真实Header/保存断言保留；授权happy test由实际pairing后显式推ready去fixture timer竞态，原token/hello断言保留。原实现极快ready先于deriveSas后可能被pairing覆盖的窗口未改认证状态机，未误记已修。依赖offline filtered install仅新增本workspace importer，3处无关peer漂移逐字节核实后回退。正文/库/笔记主体与manifest元数据继续独立批。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

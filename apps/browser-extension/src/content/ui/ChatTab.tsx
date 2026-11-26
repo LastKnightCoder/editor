@@ -38,6 +38,7 @@ import { patchChat, showToast, useCompanion } from "../state/store";
 import { useController } from "./context";
 import { Markdown } from "./Markdown";
 import { relativeDay, sessionTitle } from "./SessionNav";
+import { useConnectionI18n } from "../i18n";
 
 const SUGGESTIONS = [
   { icon: BookOpen, text: "总结本页" },
@@ -421,15 +422,19 @@ function ContextChip({
 
 /** 没连上 Tau 时的说明卡：未找到 / 等待授权（校验码）/ 被拒绝 / 被撤销 */
 function ConnectionCard() {
+  const { t } = useConnectionI18n();
   const controller = useController();
   const status = useCompanion(state => state.status);
   const [help, setHelp] = useState(false);
 
   if (status.state === "pairing")
     return (
-      <StateCard icon={KeyRound} tone="warn" title="在 Tau 中确认连接">
-        <p>Tau 已弹出授权窗口，请核对校验码与下方一致后点「允许」。只需确认一次。</p>
-        <div className="my-1 flex justify-center gap-1.5" aria-label={`校验码 ${status.code}`}>
+      <StateCard icon={KeyRound} tone="warn" title={t("pair.title")}>
+        <p>{t("pair.hint")}</p>
+        <div
+          className="my-1 flex justify-center gap-1.5"
+          aria-label={t("pair.code", { code: status.code ?? "" })}
+        >
           {(status.code ?? "").split("").map((digit, index) => (
             <span
               key={index}
@@ -441,7 +446,7 @@ function ConnectionCard() {
         </div>
         <span className="text-tau-meta text-ink-3 mt-3 inline-flex items-center gap-2">
           <span className="border-line-1 border-t-accent size-[13px] animate-spin rounded-full border-[1.5px]" />
-          等待确认…
+          {t("pair.waiting")}
         </span>
         <div className="text-tau-sm text-ink-3 mt-3.5">
           <button
@@ -449,13 +454,13 @@ function ConnectionCard() {
             className="text-accent-text"
             onClick={() => setHelp(value => !value)}
           >
-            Tau 没有弹出窗口？
+            {t("pair.help")}
           </button>
           {help && (
             <ol className="text-ink-2 mx-auto mt-2 max-w-[260px] list-decimal pl-[18px] text-left">
-              <li>确认 Tau 正在运行且已更新到最新版</li>
-              <li>在 Tau「设置 › 浏览器扩展」打开「接受新的连接请求」</li>
-              <li>多次拒绝后需等待 10 分钟再试</li>
+              <li>{t("pair.running")}</li>
+              <li>{t("pair.accept")}</li>
+              <li>{t("pair.cooldown")}</li>
             </ol>
           )}
         </div>
@@ -464,18 +469,18 @@ function ConnectionCard() {
 
   if (status.state === "connecting")
     return (
-      <StateCard icon={Plug} title="正在连接 Tau…">
-        <p>马上就好。</p>
+      <StateCard icon={Plug} title={t("connect.title")}>
+        <p>{t("connect.soon")}</p>
       </StateCard>
     );
 
   if (status.state === "launching")
     return (
-      <StateCard icon={Plug} title="正在等待 Tau…">
-        <p>如果浏览器询问是否打开 Tau，请选择「打开」。连接成功后会自动进入对话。</p>
+      <StateCard icon={Plug} title={t("launch.title")}>
+        <p>{t("launch.hint")}</p>
         <span className="text-tau-sm text-ink-3 inline-flex items-center gap-2" role="status">
           <span className="border-line-1 border-t-accent size-[13px] animate-spin rounded-full border-[1.5px]" />
-          首次连接需要在 Tau 中确认授权
+          {t("launch.confirm")}
         </span>
       </StateCard>
     );
@@ -484,49 +489,35 @@ function ConnectionCard() {
     return (
       <StateCard
         icon={Plug}
-        title={status.launchTimedOut ? "还没有连上 Tau" : "连接 Tau，开始对话"}
+        title={status.launchTimedOut ? t("offline.timeout") : t("offline.title")}
       >
-        {status.launchTimedOut && (
-          <p>请确认已安装最新版 Tau，并允许浏览器打开应用。也可以手动打开 Tau 后重新检测。</p>
-        )}
+        {status.launchTimedOut && <p>{t("offline.hint")}</p>}
         <Button
           variant="primary"
           icon={ArrowUpRight}
           className="mx-auto mt-1"
           onClick={() => controller.openTau()}
         >
-          {status.launchTimedOut ? "再次打开 Tau" : "打开 Tau 并连接"}
+          {status.launchTimedOut ? t("offline.reopen") : t("offline.open")}
         </Button>
         <Button variant="ghost" size="sm" onClick={() => controller.retryConnect()}>
-          已打开 Tau？重新检测
+          {t("offline.check")}
         </Button>
       </StateCard>
     );
 
-  const variants: Record<string, { title: string; body: string; action: string; tone?: "danger" }> =
-    {
-      denied: {
-        title: "Tau 拒绝了连接",
-        body: "如果是误操作，可以重新发起请求。",
-        action: "重新请求",
-        tone: "danger",
-      },
-      revoked: {
-        title: "授权已在 Tau 中撤销",
-        body: "本机保存的标注与笔记仍在，重新连接后继续同步。",
-        action: "重新连接",
-      },
-      closed: {
-        title: "Tau 暂不接受新连接",
-        body: "在 Tau「设置 › 浏览器扩展」打开「接受新的连接请求」后再试。",
-        action: "重试",
-      },
-      throttled: { title: "请求太频繁了", body: "连续被拒绝后需要等一会儿再试。", action: "重试" },
-    };
-  const variant = variants[status.state] ?? {
-    title: "没有找到 Tau",
-    body: "对话要用 Tau 里配置的模型。打开 Tau 后会自动连接；标注和笔记照常可用，连上后同步。",
-    action: "重新连接",
+  const kind =
+    status.state === "denied" ||
+    status.state === "revoked" ||
+    status.state === "closed" ||
+    status.state === "throttled"
+      ? status.state
+      : "missing";
+  const variant = {
+    title: t(`${kind}.title`),
+    body: t(`${kind}.body`),
+    action: t(`${kind}.action`),
+    tone: kind === "denied" ? ("danger" as const) : undefined,
   };
   return (
     <StateCard icon={Plug} tone={variant.tone} title={variant.title}>

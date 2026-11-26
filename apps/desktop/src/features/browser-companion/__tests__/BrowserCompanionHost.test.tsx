@@ -143,7 +143,11 @@ it("配对中换语保留权限选择、焦点与原始校验码，不重拉或�
       ).toBe(code);
       expect(commands.decidePairPrompt).not.toHaveBeenCalled();
       expect(commands.getPendingPairPrompts).toHaveBeenCalledTimes(1);
-      expect(sent).toEqual(appearance);
+      expect(sent.slice(0, appearance.length)).toEqual(appearance);
+      expect(sent.at(-1)).toEqual([
+        "browser-companion:appearance",
+        { ...(appearance.at(-1)?.[1] as object), locale },
+      ]);
       expect([...listeners.entries()]).toEqual(subscriptions);
     }
     const allow = buttonByText(browserCompanionTranslator.t("pair.allow"));

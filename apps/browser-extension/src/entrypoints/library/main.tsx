@@ -1,5 +1,12 @@
 import { createRoot } from "react-dom/client";
+import { I18nRuntimeProvider } from "@tau/i18n/react";
+import { extensionI18n, bindExtensionLanguage } from "../../shared/i18n";
 import { LibraryApp } from "../../library/LibraryApp";
 import "./style.css";
 
-createRoot(document.getElementById("root")!).render(<LibraryApp />);
+bindExtensionLanguage(document.documentElement);
+createRoot(document.getElementById("root")!).render(
+  <I18nRuntimeProvider runtime={extensionI18n}>
+    <LibraryApp />
+  </I18nRuntimeProvider>
+);

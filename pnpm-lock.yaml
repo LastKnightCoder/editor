@@ -139,6 +139,9 @@ importers:
       '@tau/editor':
         specifier: workspace:*
         version: link:../../packages/editor
+      '@tau/i18n':
+        specifier: workspace:*
+        version: link:../../packages/i18n
       '@tau/markdown':
         specifier: workspace:*
         version: link:../../packages/markdown

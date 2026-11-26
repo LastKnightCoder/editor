@@ -9,6 +9,10 @@ import { queryCachedPages, readCachedPages, readLocalNotes } from "../library/lo
 const store: Record<string, unknown> = {};
 const sent: Array<{ method: string; params: Record<string, unknown> }> = [];
 const created: string[] = [];
+const storageListeners = new Set<
+  (changes: Record<string, { newValue: unknown }>, area: string) => void
+>();
+let stopLanguage: (() => void) | undefined;
 let pages: WebPageSummary[] = [];
 
 const annotation = (id: string, extra: Partial<WebAnnotation> = {}): WebAnnotation => ({
@@ -62,7 +66,10 @@ vi.stubGlobal("chrome", {
       set: async (items: Record<string, unknown>) => Object.assign(store, items),
       remove: async (key: string) => void delete store[key],
     },
-    onChanged: { addListener: () => {}, removeListener: () => {} },
+    onChanged: {
+      addListener: (fn: never) => storageListeners.add(fn),
+      removeListener: (fn: never) => storageListeners.delete(fn),
+    },
   },
   runtime: {
     sendMessage: async (message: { method: string; params: Record<string, unknown> }) => {
@@ -152,7 +159,16 @@ describe("伴读库页", () => {
     history.replaceState(null, "", `/library.html${search}`);
     vi.resetModules();
     const { LibraryApp } = await import("../library/LibraryApp");
-    await act(async () => root.render(<LibraryApp />));
+    const { extensionI18n, bindExtensionLanguage } = await import("../shared/i18n");
+    const { I18nRuntimeProvider } = await import("@tau/i18n/react");
+    stopLanguage = bindExtensionLanguage(document.documentElement);
+    await act(async () =>
+      root.render(
+        <I18nRuntimeProvider runtime={extensionI18n}>
+          <LibraryApp />
+        </I18nRuntimeProvider>
+      )
+    );
     await flush();
   };
 
@@ -160,6 +176,7 @@ describe("伴读库页", () => {
     for (const key of Object.keys(store)) delete store[key];
     sent.length = 0;
     created.length = 0;
+    storageListeners.clear();
     pages = [summary("https://a.com/x", "React v19"), summary("https://b.com/y", "Rust 所有权")];
     container = document.createElement("div");
     document.body.appendChild(container);
@@ -167,6 +184,8 @@ describe("伴读库页", () => {
   });
   afterEach(() => {
     act(() => root.unmount());
+    stopLanguage?.();
+    stopLanguage = undefined;
     container.remove();
   });
 
@@ -198,7 +217,38 @@ describe("伴读库页", () => {
       await flush();
     };
 
-    await type(await startRename(), "不会保存", "Escape");
+    const draft = await startRename();
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(
+        draft,
+        "不会保存"
+      );
+      draft.dispatchEvent(new Event("input", { bubbles: true }));
+      draft.focus();
+      draft.setSelectionRange(1, 3);
+    });
+    const reads = [...sent];
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () =>
+        storageListeners.forEach(listener =>
+          listener(
+            {
+              "companion.status": {
+                newValue: { state: "ready", appearance: { theme: "paper", mode: "light", locale } },
+              },
+            },
+            "local"
+          )
+        )
+      );
+      expect(container.querySelector('input[aria-label="页面名称"]')).toBe(draft);
+      expect(draft.value).toBe("不会保存");
+      expect(document.activeElement).toBe(draft);
+      expect([draft.selectionStart, draft.selectionEnd]).toEqual([1, 3]);
+      expect(sent).toEqual(reads);
+      expect(document.documentElement.lang).toBe(locale);
+    }
+    await type(draft, "不会保存", "Escape");
     expect(methods()).not.toContain("library.rename");
 
     await type(await startRename(), "React 19 新特性", "Enter");

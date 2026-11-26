@@ -69,7 +69,8 @@ const QUICK_PROMPTS: Record<QuickKind, string> = {
   summarize: "用两三句话概括这段话。",
 };
 
-export const QUICK_LABELS: Record<QuickKind, string> = {
+/** 首轮快捷请求的会话文字，界面显示独立翻译。 */
+export const QUICK_REQUEST_LABELS: Record<QuickKind, string> = {
   explain: "解释",
   translate: "翻译",
   summarize: "概括这段",

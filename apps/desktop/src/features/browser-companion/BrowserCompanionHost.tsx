@@ -13,6 +13,7 @@ import { installBrowserBridgeRenderer } from "@/services/browserBridgeRenderer";
 import type { PairPrompt } from "@/types/browser-companion";
 import { companionScopeMeta, clientLabel } from "./labels";
 import { useBrowserCompanionI18n } from "./i18n";
+import { useDesktopLocale } from "@/app/i18n/react";
 
 const usePairPrompts = create<{ prompts: PairPrompt[] }>()(() => ({ prompts: [] }));
 
@@ -61,11 +62,12 @@ export function BrowserCompanionHost() {
     };
   }, []);
 
+  const locale = useDesktopLocale();
   const theme = useThemeStore(state => state.theme);
   const mode = useThemeStore(state => state.mode);
   useEffect(() => {
-    send("browser-companion:appearance", { theme, mode });
-  }, [theme, mode]);
+    send("browser-companion:appearance", { theme, mode, locale });
+  }, [theme, mode, locale]);
 
   const prompt = usePairPrompts(state => state.prompts[0]);
   return <PairingDialog key={prompt?.requestId} prompt={prompt} />;

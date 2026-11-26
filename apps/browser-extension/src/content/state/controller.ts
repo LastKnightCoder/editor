@@ -16,7 +16,7 @@ import { BackgroundBridge } from "../bridge";
 import { readBlocks } from "../page/extract";
 import { PageAnnotations } from "./annotations";
 import { configureToolInteractions, registerInteractionRenderers } from "@tau/chat-ui/conversation";
-import { PageChat, QUICK_LABELS } from "./chat";
+import { PageChat, QUICK_REQUEST_LABELS } from "./chat";
 import { createInteractionHost } from "./interactions";
 import {
   getState,
@@ -379,11 +379,11 @@ export class CompanionController {
     }
     if (kind === "summarize") {
       this.openPanel("chat");
-      await this.chat.ask(QUICK_LABELS[kind], { quote, quick: kind });
+      await this.chat.ask(QUICK_REQUEST_LABELS[kind], { quote, quick: kind });
       return;
     }
     setState({ bubble: { kind, quote, rect: rect!, runId: null, text: "", status: "streaming" } });
-    const runId = await this.chat.ask(QUICK_LABELS[kind], { quote, quick: kind });
+    const runId = await this.chat.ask(QUICK_REQUEST_LABELS[kind], { quote, quick: kind });
     const { bubble, chat } = getState();
     if (bubble?.quote !== quote) return;
     setState({

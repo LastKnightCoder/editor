@@ -1,4 +1,7 @@
 import { createRoot } from "react-dom/client";
+import { I18nRuntimeProvider } from "@tau/i18n/react";
+import { extensionI18n, updateExtensionLocale, bindExtensionLanguage } from "../shared/i18n";
+import { useCompanion } from "./state/store";
 import katexCss from "katex/dist/katex.min.css?raw";
 import { CompanionController } from "./state/controller";
 import { ControllerContext } from "./ui/context";
@@ -63,15 +66,24 @@ export function mountCompanion(cssText: string): () => void {
   shadow.append(container);
   document.documentElement.append(host);
 
+  updateExtensionLocale(useCompanion.getState().status);
+  const stopLocale = useCompanion.subscribe((next, previous) => {
+    if (next.status !== previous.status) updateExtensionLocale(next.status);
+  });
+  const stopLanguage = bindExtensionLanguage(host);
   const controller = new CompanionController(host);
   const root = createRoot(container);
   root.render(
-    <ControllerContext.Provider value={controller}>
-      <App />
-    </ControllerContext.Provider>
+    <I18nRuntimeProvider runtime={extensionI18n}>
+      <ControllerContext.Provider value={controller}>
+        <App />
+      </ControllerContext.Provider>
+    </I18nRuntimeProvider>
   );
   void controller.start();
   return () => {
+    stopLocale();
+    stopLanguage();
     root.unmount();
     controller.dispose();
     host.remove();

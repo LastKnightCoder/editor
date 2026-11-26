@@ -4,15 +4,15 @@
 
 ## 组成
 
-| 端         | 位置                                                                        | 职责                                                                                                                                   |
-| ---------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| 协议       | `packages/shared/src/browser-companion/`                                    | 方法名、scope、帧信封、握手与数据类型，校验码推导（WebCrypto，两端共用）                                                               |
-| 桌面主进程 | `apps/desktop/src-electron/main/modules/browser-companion/`                 | `/browser` 握手、配对、token 校验、按 scope 分发，对话驱动 pi 宿主会话，标注 / 笔记写库                                                |
-| 授权存储   | `apps/desktop/src-electron/main/services/browser-clients.ts`                | `userData/browser-clients.json`：已授权实例、token 哈希、scope、拒绝记录；不进库、不同步                                               |
-| 桌面渲染端 | `apps/desktop/src/features/browser-companion/`、设置分区 `browserExtension` | 壳层挂载的授权弹窗（Esc / 关闭 = 拒绝）、主题上报、打开扩展保存的卡片；设置里管理授权                                                  |
-| 扩展后台   | `apps/browser-extension/src/background/`                                    | 唯一持有 WebSocket；配对状态机、退避重连、20s 心跳；标注本机缓存与发件箱；按标签页路由消息                                             |
-| 扩展页内   | `apps/browser-extension/src/content/`                                       | closed Shadow DOM（`<tau-companion>`）里的全部 UI；正文提取、锚定、高亮渲染、页面工具                                                  |
-| 扩展页面   | `apps/browser-extension/src/note/`、`src/library/`                          | 扩展自己的页面：页面笔记 `note.html`、伴读库 `library.html`；共用 `src/shared/extension-page.ts`（存储、经后台调 Tau、连接状态与主题） |
+| 端         | 位置                                                                        | 职责                                                                                                                                         |
+| ---------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| 协议       | `packages/shared/src/browser-companion/`                                    | 方法名、scope、帧信封、握手与数据类型，校验码推导（WebCrypto，两端共用）                                                                     |
+| 桌面主进程 | `apps/desktop/src-electron/main/modules/browser-companion/`                 | `/browser` 握手、配对、token 校验、按 scope 分发，对话驱动 pi 宿主会话，标注 / 笔记写库                                                      |
+| 授权存储   | `apps/desktop/src-electron/main/services/browser-clients.ts`                | `userData/browser-clients.json`：已授权实例、token 哈希、scope、拒绝记录；不进库、不同步                                                     |
+| 桌面渲染端 | `apps/desktop/src/features/browser-companion/`、设置分区 `browserExtension` | 壳层挂载的授权弹窗（Esc / 关闭 = 拒绝）、外观与界面语言上报、打开扩展保存的卡片；设置里管理授权                                              |
+| 扩展后台   | `apps/browser-extension/src/background/`                                    | 唯一持有 WebSocket；配对状态机、退避重连、20s 心跳；标注本机缓存与发件箱；按标签页路由消息                                                   |
+| 扩展页内   | `apps/browser-extension/src/content/`                                       | closed Shadow DOM（`<tau-companion>`）里的全部 UI；正文提取、锚定、高亮渲染、页面工具                                                        |
+| 扩展页面   | `apps/browser-extension/src/note/`、`src/library/`                          | 扩展自己的页面：页面笔记 `note.html`、伴读库 `library.html`；共用 `src/shared/extension-page.ts`（存储、经后台调 Tau、连接状态、主题与语言） |
 
 ## 连接与授权
 
@@ -31,6 +31,14 @@
 - 频率闸：同一 clientId 10 分钟内被拒 3 次后冷却 10 分钟；同时待裁决的配对至多 3 个；「接受新的连接请求」关闭时直接拒绝不弹窗。
 - 撤销：设置页撤销 → 推 `revoked` 并以 4006 关闭；扩展删除本地 token 回到未配对。hello 收到 `unknown-client` / `bad-token` 同样删 token。
 - 通用路径（`/backendServer` 等）不再放行扩展 Origin，见 `server-access.ts`。
+
+## 外观与界面语言
+
+`AppearanceData.locale` 是可选的实际界面语言，通过 `ready.appearance` 首包及既有 `appearance.changed` 被动通知传递，不发送 `system` 配置值。主进程校验、缓存与去重包含 locale；冷启动只异步读取设置语言并解析系统语言，generation 与 rendererSeen 防止迟到快照覆盖新上报，不等待或修改鉴权。
+
+扩展只在 ready 且宿主 locale 有效时跟随宿主，其余状态及缺字段时使用 `chrome.i18n.getUILanguage()`，统一归一为简体中文、繁体中文与英文，其他语言回退简体中文，不新增与 token 绑定的语言缓存。内容面板、笔记和伴读库各保留固定运行时/Provider，语言不进入 iframe URL、editorKey、QueryClient、重连或心跳身份；内容脚本只设置扩展容器 lang，自有扩展页面设置自身 lang/title，不修改第三方页面。
+
+连接UI词典归扩展 content/locales；请求用的 QUICK_REQUEST_LABELS、QUICK_PROMPTS、PAGE_TOOLS、抓取原文与用户数据保持原值。locale 元数据更新只发布现有状态，不重新进入 ready/onReady，也不触发库数据失效。
 
 ## 唤起与启动等待
 

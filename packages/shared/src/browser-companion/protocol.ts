@@ -171,6 +171,8 @@ export interface PairDeniedData {
 export type HelloRejectReason = "unknown-client" | "bad-token";
 
 export interface AppearanceData {
+  /** 宿主已解析的界面语言；旧宿主未提供时由扩展跟随浏览器。 */
+  locale?: string;
   theme: string;
   mode: "light" | "dark";
 }

@@ -1,6 +1,10 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Descendant } from "slate";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { I18nRuntimeProvider } from "@tau/i18n/react";
+import { extensionI18n, bindExtensionLanguage } from "../shared/i18n";
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const store: Record<string, unknown> = {};
 const listeners = new Set<
@@ -55,7 +59,21 @@ history.replaceState(
 
 let container: HTMLDivElement;
 let root: Root;
-const flush = () => act(async () => new Promise(resolve => setTimeout(resolve, 30)));
+let NoteApp: typeof import("../note/NoteApp").NoteApp;
+beforeAll(async () => {
+  NoteApp = (await import("../note/NoteApp")).NoteApp;
+});
+const flush = () =>
+  act(async () => {
+    await Promise.resolve();
+  });
+const editorReady = () =>
+  vi.waitFor(async () => {
+    await flush();
+    const editor = container.querySelector("[data-slate-editor]");
+    expect(editor).not.toBeNull();
+    return editor;
+  });
 
 beforeEach(() => {
   for (const key of Object.keys(store)) delete store[key];
@@ -71,14 +89,42 @@ afterEach(() => {
 
 describe("笔记页", () => {
   it("载入草稿；内容脚本追加的 Markdown 并入编辑器；保存把编辑器节点交给 Tau", async () => {
-    store[`note:${URL_KEY}`] = "## 旧草稿";
+    const draft: Descendant[] = [
+      { type: "header", level: 2, children: [{ type: "formatted", text: "旧草稿" }] },
+    ];
+    store[`note:${URL_KEY}`] = draft;
     store["companion.status"] = { state: "ready", appearance: { theme: "paper", mode: "light" } };
-    const { NoteApp } = await import("../note/NoteApp");
-    await act(async () => root.render(<NoteApp />));
-    await flush();
+    await act(async () =>
+      root.render(
+        <I18nRuntimeProvider runtime={extensionI18n}>
+          <NoteApp />
+        </I18nRuntimeProvider>
+      )
+    );
+    await editorReady();
     expect(container.querySelector("[data-slate-editor]")?.textContent).toContain("旧草稿");
+    const editor = container.querySelector("[data-slate-editor]");
+    const before = store[`note:${URL_KEY}`];
+    const stopLanguage = bindExtensionLanguage(document.documentElement);
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () =>
+        setLocal({
+          "companion.status": {
+            state: "ready",
+            appearance: { theme: "paper", mode: "light", locale },
+          },
+        })
+      );
+      expect(container.querySelector("[data-slate-editor]")).toBe(editor);
+      expect(store[`note:${URL_KEY}`]).toBe(before);
+      expect(document.documentElement.lang).toBe(locale);
+      expect(sent).toEqual([]);
+    }
+    stopLanguage();
     // 编辑器缺省只读，笔记页必须可编辑
-    expect(container.querySelector("[data-slate-editor]")?.getAttribute("contenteditable")).toBe("true");
+    expect(container.querySelector("[data-slate-editor]")?.getAttribute("contenteditable")).toBe(
+      "true"
+    );
 
     await act(async () => setLocal({ [`note-pending:${URL_KEY}`]: ["> 摘录的一句"] }));
     await flush();
@@ -102,11 +148,20 @@ describe("笔记页", () => {
   });
 
   it("没连上 Tau 时不能保存", async () => {
-    store[`note:${URL_KEY}`] = "内容";
+    const draft: Descendant[] = [
+      { type: "paragraph", children: [{ type: "formatted", text: "内容" }] },
+    ];
+    store[`note:${URL_KEY}`] = draft;
     store["companion.status"] = { state: "offline" };
-    const { NoteApp } = await import("../note/NoteApp");
-    await act(async () => root.render(<NoteApp />));
-    await flush();
+    await act(async () =>
+      root.render(
+        <I18nRuntimeProvider runtime={extensionI18n}>
+          <NoteApp />
+        </I18nRuntimeProvider>
+      )
+    );
+    await editorReady();
+    expect(container.querySelector("[data-slate-editor]")?.textContent).toContain("内容");
     const save = [...container.querySelectorAll("button")].find(
       button => button.textContent === "保存为卡片"
     )!;

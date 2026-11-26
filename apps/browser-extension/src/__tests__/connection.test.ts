@@ -191,14 +191,13 @@ describe("CompanionConnection", () => {
     const { connection, sockets, onReady } = setup(storage, (frame, socket) => {
       if (frame.method === "pair.request") {
         socket.respond(frame, { status: "pending", nonce: "c".repeat(32) });
-        setTimeout(() => {
-          socket.notify("pair.granted", { token: "secret-token", scopes: READY.scopes });
-          socket.notify("ready", READY);
-        }, 0);
       }
     });
     await connection.connect();
-    await vi.waitFor(() => expect(connection.current.state).toBe("ready"));
+    expect(connection.current.state).toBe("pairing");
+    sockets[0].notify("pair.granted", { token: "secret-token", scopes: READY.scopes });
+    sockets[0].notify("ready", READY);
+    expect(connection.current.state).toBe("ready");
     expect(storage.data["companion.token"]).toBe("secret-token");
     expect(onReady).toHaveBeenCalled();
     sockets[0].close();
@@ -234,4 +233,26 @@ describe("CompanionConnection", () => {
     );
     expect(await throttled.connection.connect()).toMatchObject({ state: "throttled", retryAt: 9 });
   });
+});
+
+it("语言单独更新只广播展示状态，不重新握手或重置就绪与心跳", async () => {
+  vi.useFakeTimers();
+  const storage = memory({ "companion.token": "raw-token", "companion.clientId": "a".repeat(24) });
+  const { connection, sockets, onReady } = setup(storage, (frame, socket) => {
+    if (frame.method === "hello")
+      socket.respond(frame, { ...READY, appearance: { ...READY.appearance, locale: "zh-CN" } });
+  });
+  await connection.start();
+  const socket = sockets[0];
+  const requests = socket.sent.filter(frame => frame.type === "JsonRpcRequest");
+  await vi.advanceTimersByTimeAsync(10000);
+  socket.notify("appearance.changed", { ...READY.appearance, locale: "zh-TW" });
+  expect(connection.current).toMatchObject({ state: "ready", appearance: { locale: "zh-TW" } });
+  expect(sockets).toEqual([socket]);
+  expect(onReady).toHaveBeenCalledTimes(1);
+  expect(socket.sent.filter(frame => frame.type === "JsonRpcRequest")).toEqual(requests);
+  await vi.advanceTimersByTimeAsync(10000);
+  expect(socket.sent.filter(frame => frame.method === "ping")).toHaveLength(1);
+  expect(storage.data["companion.token"]).toBe("raw-token");
+  socket.close();
 });

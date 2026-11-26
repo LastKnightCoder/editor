@@ -36,6 +36,7 @@ import {
   type ReadyData,
 } from "@tau/shared/browser-companion";
 import type { AiRunStateResult } from "@tau/shared/chat-core";
+import { APP_LANGUAGES, resolveAppLocale } from "@tau/shared/language";
 import type { LLMProviderSetting } from "@/types/pi-llm";
 import { normalizeWebPageUrl } from "@/entity/excerpt/web";
 import serverModule from "../server";
@@ -115,6 +116,8 @@ class BrowserCompanionModule {
   private readonly runs = new Map<string, Connection>();
   private registry!: BrowserRunRegistry;
   private appearance: AppearanceData = { theme: "paper", mode: "light" };
+  private appearanceGeneration = 0;
+  private rendererAppearanceReceived = false;
   private wss!: WebSocketServer;
 
   init(): void {
@@ -150,6 +153,30 @@ class BrowserCompanionModule {
       this.handleUpgrade(request, socket, head)
     );
     this.registerIpc();
+    const generation = this.appearanceGeneration;
+    void userSettingModule
+      .getSettingSnapshot()
+      .then(setting => {
+        if (this.rendererAppearanceReceived || generation !== this.appearanceGeneration) return;
+        this.publishAppearance({
+          ...this.appearance,
+          locale: resolveAppLocale(setting.language, app.getLocale()),
+        });
+      })
+      .catch(error => log.warn("[browser-companion] 界面语言快照读取失败", error));
+  }
+
+  private publishAppearance(next: AppearanceData): void {
+    if (
+      next.theme === this.appearance.theme &&
+      next.mode === this.appearance.mode &&
+      next.locale === this.appearance.locale
+    )
+      return;
+    this.appearance = next;
+    for (const connection of this.connections) {
+      if (connection.clientId) connection.peer.notify(COMPANION_METHODS.appearanceChanged, next);
+    }
   }
 
   // ———————— 连接 ————————
@@ -613,13 +640,16 @@ class BrowserCompanionModule {
       if (!win || !isMainWindow(win)) return;
       if (typeof appearance?.theme !== "string" || !["light", "dark"].includes(appearance.mode))
         return;
-      if (appearance.theme === this.appearance.theme && appearance.mode === this.appearance.mode)
-        return;
-      this.appearance = { theme: appearance.theme.slice(0, 40), mode: appearance.mode };
-      for (const connection of this.connections) {
-        if (connection.clientId)
-          connection.peer.notify(COMPANION_METHODS.appearanceChanged, this.appearance);
-      }
+      this.rendererAppearanceReceived = true;
+      this.appearanceGeneration++;
+      const locale = APP_LANGUAGES.some(item => item.locale === appearance.locale)
+        ? appearance.locale
+        : this.appearance.locale;
+      this.publishAppearance({
+        theme: appearance.theme.slice(0, 40),
+        mode: appearance.mode,
+        ...(locale ? { locale } : {}),
+      });
     });
   }
 }

@@ -12,6 +12,8 @@ const env = vi.hoisted(() => ({
   handlers: new Map<string, (...args: any[]) => any>(),
   sent: [] as Array<[string, unknown]>,
   startRun: vi.fn(),
+  settingSnapshot: vi.fn(),
+  resolveSeed: undefined as undefined | ((value: unknown) => void),
 }));
 const mainWindow = vi.hoisted(() => ({
   isDestroyed: () => false,
@@ -22,7 +24,7 @@ const mainWindow = vi.hoisted(() => ({
 }));
 
 vi.mock("electron", () => ({
-  app: { getPath: () => env.dir, getVersion: () => "9.9.9" },
+  app: { getPath: () => env.dir, getVersion: () => "9.9.9", getLocale: () => "en-US" },
   ipcMain: {
     handle: (channel: string, handler: (...args: any[]) => any) =>
       env.handlers.set(channel, handler),
@@ -48,10 +50,7 @@ vi.mock("../../windows/notification-router", () => ({
 vi.mock("../../windows", () => ({ getMainWindows: () => [] }));
 vi.mock("../user-setting", () => ({
   default: {
-    getSettingSnapshot: async () => ({
-      llmUsageSettings: { chat: { providerId: "p", modelId: "m" } },
-      llmProviders: [{ id: "p", apiKey: "sk-secret", models: [{ id: "m", name: "模型 M" }] }],
-    }),
+    getSettingSnapshot: () => env.settingSnapshot(),
   },
 }));
 vi.mock("../pi-session-host", () => ({ default: {} }));
@@ -77,6 +76,16 @@ let url: string;
 
 beforeAll(async () => {
   env.dir = mkdtempSync(path.join(tmpdir(), "companion-"));
+  env.settingSnapshot.mockResolvedValue({
+    llmUsageSettings: { chat: { providerId: "p", modelId: "m" } },
+    llmProviders: [{ id: "p", apiKey: "sk-secret", models: [{ id: "m", name: "模型 M" }] }],
+  });
+  env.settingSnapshot.mockImplementationOnce(
+    () =>
+      new Promise(resolve => {
+        env.resolveSeed = resolve;
+      })
+  );
   companion.init();
   server = http.createServer();
   server.on("upgrade", (request, socket, head) =>
@@ -378,4 +387,35 @@ describe("browser-companion 模块", () => {
       await Promise.all([a.closed, b.closed]);
     }
   });
+});
+
+it("已授权连接接收被动语言变化，迟到设置快照不覆盖渲染端外观且不阻塞握手", async () => {
+  const client = await pair("client00000000000009");
+  const appearance = must(env.handlers.get("browser-companion:appearance"), "appearance handler");
+  appearance(event, { theme: "paper", mode: "light", locale: "zh-TW" });
+  appearance(event, { theme: "paper", mode: "light", locale: "en-US" });
+  await vi.waitFor(() =>
+    expect(client.notes.filter(item => item.method === "appearance.changed")).toHaveLength(2)
+  );
+  const before = [...client.notes];
+  if (!env.resolveSeed) throw new Error("语言快照未开始读取");
+  env.resolveSeed({ language: "zh-CN", theme: "mint" });
+  await Promise.resolve();
+  await Promise.resolve();
+  expect(client.notes).toEqual(before);
+  appearance(event, { theme: "paper", mode: "light", locale: "en-US" });
+  expect(client.notes).toEqual(before);
+  const ready = client.notes.find(item => item.method === "ready");
+  expect(ready).toMatchObject({
+    method: "ready",
+    data: { scopes: ["chat", "annotations", "notes"] },
+  });
+  expect(client.notes.filter(item => item.method === "ready")).toHaveLength(1);
+  expect(client.notes.filter(item => item.method === "appearance.changed").at(-1)?.data).toEqual({
+    theme: "paper",
+    mode: "light",
+    locale: "en-US",
+  });
+  client.ws.close();
+  await client.closed;
 });

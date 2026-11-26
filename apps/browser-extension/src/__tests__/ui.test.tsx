@@ -5,6 +5,8 @@ import { ControllerContext } from "../content/ui/context";
 import { SelectionToolbar } from "../content/ui/SelectionToolbar";
 import { Panel } from "../content/ui/Panel";
 import { initialChat, useCompanion } from "../content/state/store";
+import { extensionLocaleSource } from "../shared/i18n";
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const controller = {
   highlight: vi.fn(),
@@ -34,6 +36,7 @@ const button = (label: string) =>
   );
 
 beforeEach(() => {
+  extensionLocaleSource.setLocale("zh-CN");
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);

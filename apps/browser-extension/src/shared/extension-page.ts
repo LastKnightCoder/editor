@@ -6,6 +6,7 @@ import { applyThemeToDom } from "@tau/themes/dom";
 import type { KeyValueStore } from "../background/connection";
 import type { ConnectionStatus, ExtensionPageMessage, ExtensionPageReply } from "./messages";
 import { STATUS_KEY } from "./note-storage";
+import { updateExtensionLocale } from "./i18n";
 
 export const extensionStorage: KeyValueStore = {
   async get<T>(key: string) {
@@ -33,24 +34,34 @@ export function useCompanionStatus(): ConnectionStatus {
   const [status, setStatus] = useState<ConnectionStatus>({ state: "unpaired" });
 
   useEffect(() => {
-    void extensionStorage
-      .get<ConnectionStatus>(STATUS_KEY)
-      .then(value => value && setStatus(value));
+    let disposed = false,
+      revision = 0;
+    const apply = (next: ConnectionStatus) => {
+      setStatus(next);
+      updateExtensionLocale(next);
+    };
     const onChanged = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
       const next = area === "local" && (changes[STATUS_KEY]?.newValue as ConnectionStatus);
-      if (next) setStatus(next);
+      if (next) {
+        revision++;
+        apply(next);
+      }
     };
     chrome.storage.onChanged.addListener(onChanged);
-    return () => chrome.storage.onChanged.removeListener(onChanged);
+    void extensionStorage.get<ConnectionStatus>(STATUS_KEY).then(value => {
+      if (!disposed && revision === 0 && value) apply(value);
+    });
+    return () => {
+      disposed = true;
+      chrome.storage.onChanged.removeListener(onChanged);
+    };
   }, []);
 
+  const theme = status.appearance?.theme;
+  const mode = status.appearance?.mode;
   useEffect(() => {
-    const appearance = status.appearance;
-    applyThemeToDom(
-      appearance?.theme ?? "paper",
-      appearance?.mode ?? (prefersDark() ? "dark" : "light")
-    );
-  }, [status.appearance]);
+    applyThemeToDom(theme ?? "paper", mode ?? (prefersDark() ? "dark" : "light"));
+  }, [theme, mode]);
 
   return status;
 }

@@ -1,6 +1,6 @@
 import { ArrowUpRight, Copy, MessageSquareText, NotebookPen, Sparkles, X } from "lucide-react";
 import { IconButton } from "@tau/ui";
-import { QUICK_LABELS } from "../state/chat";
+import { useConnectionI18n } from "../i18n";
 import { stripCites } from "../state/controller";
 import { showToast, useCompanion } from "../state/store";
 import { useController, useEscLayer } from "./context";
@@ -10,6 +10,7 @@ const WIDTH = 360;
 
 /** 选区快答（解释 / 翻译）：回答贴在原文下方，用完即收；「在面板继续」接着聊 */
 export function QuickBubble() {
+  const { t } = useConnectionI18n();
   const controller = useController();
   const bubble = useCompanion(state => state.bubble);
   const modelLabel = useCompanion(state => state.chat.model?.label);
@@ -28,7 +29,7 @@ export function QuickBubble() {
     >
       <div className="text-tau-sm text-ink-3 mb-1.5 flex items-center gap-1.5">
         <Sparkles size={14} strokeWidth={1.8} className="text-accent-text" />
-        <span>{QUICK_LABELS[bubble.kind]}</span>
+        <span>{t(`quick.${bubble.kind}`)}</span>
         {modelLabel && <span>· {modelLabel}</span>}
         <span className="flex-1" />
         <IconButton aria-label="关闭" className="size-6" onClick={() => controller.closeBubble()}>
