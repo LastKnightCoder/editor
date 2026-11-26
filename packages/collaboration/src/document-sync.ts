@@ -76,6 +76,10 @@ export class DocumentSyncSession {
     }
     return session;
   }
+  confirmedCheckpoint(): DocumentProtocol | undefined {
+    if (this.state.blocked || this.state.pending.length) return undefined;
+    return { ...this.state.confirmed.protocol };
+  }
   snapshot(): DocumentSyncState {
     return structuredClone(this.state);
   }
@@ -167,7 +171,11 @@ export class DocumentSyncSession {
       return request.operationId;
     });
   }
-  private async isolate(reason: string, preserveBaseline = false) {
+  private async isolate(
+    reason: string,
+    preserveBaseline = false,
+    confirmed = this.state.confirmed
+  ) {
     if (!this.state.pending.length && !preserveBaseline) return;
     let retained = this.state.confirmed.state;
     try {
@@ -177,6 +185,7 @@ export class DocumentSyncSession {
     }
     await this.persist({
       ...this.state,
+      confirmed,
       blocked: true,
       pending: [],
       rejected: [
@@ -219,8 +228,8 @@ export class DocumentSyncSession {
         409
       );
     if (!sameBaseline(this.state.confirmed.protocol, confirmed.protocol))
-      await this.isolate("EPOCH_CONFLICT", true);
-    await this.persist({ ...this.state, confirmed });
+      await this.isolate("EPOCH_CONFLICT", true, confirmed);
+    else await this.persist({ ...this.state, confirmed });
   }
   synchronize(): Promise<void> {
     return this.queue.run(this.documentId, 0, () => this.refresh());
@@ -233,6 +242,22 @@ export class DocumentSyncSession {
       await this.refresh();
       await this.persist({ ...this.state, blocked: false });
       return structuredClone(this.state.confirmed);
+    });
+  }
+  /** 宿主已持久安装本代白板后，旧代次的保全材料可由本机离线副本接替。 */
+  acknowledgeWhiteboardCheckpoint(installed: DocumentProtocol): Promise<void> {
+    return this.queue.run(this.documentId, 0, async () => {
+      if (installed.version !== 3 || !sameBaseline(this.state.confirmed.protocol, installed))
+        return;
+      const rejected = this.state.rejected.filter(
+        branch => branch.baseline.protocol.epoch >= installed.epoch
+      );
+      if (rejected.length === this.state.rejected.length) return;
+      await this.persist({
+        ...this.state,
+        rejected,
+        blocked: rejected.length > 0 && this.state.blocked,
+      });
     });
   }
   flush(): Promise<void> {

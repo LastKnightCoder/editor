@@ -1,3 +1,4 @@
+import { toast } from "@tau/ui";
 import { invoke, on, off } from "@/electron";
 import { ensureModule, withModule } from "./module-init";
 import type { WhiteboardDocumentBackend } from "@/services/whiteboard-documents/client";
@@ -35,7 +36,7 @@ export const whiteboardDocumentBackend: WhiteboardDocumentBackend = {
     subscribe<{ leaseId: string }>("whiteboard-document:detached", event =>
       listener(event.leaseId)
     ),
-  drained: (requestId, error) => call("drained", requestId, error),
+  drained: (requestId, error, draft) => call("drained", requestId, error, draft),
 };
 export const readWhiteboardShareStatus = (databaseName: string, documentId: string) =>
   call<WhiteboardShareStatus>("share-status", databaseName, documentId);
@@ -44,6 +45,18 @@ export const whiteboardRemoteBackend: WhiteboardRemoteBackend = {
   onAgentPeers: listener => subscribe("whiteboard-document:agent-peers", listener),
   agentActivity: (lease, activity) => call("agent-activity", lease, activity),
   open: (leaseId, serverUrl) => call<WhiteboardRemoteStatus>("remote-open", leaseId, serverUrl),
+  refreshCheckpoint: async leaseId => {
+    const result = await call<{ restored?: string; keptJournal: boolean }>(
+      "refresh-shared-checkpoint",
+      leaseId
+    );
+    if (result.restored && result.keptJournal)
+      toast.warning("离线副本已加入白板列表。部分草稿仅保留在本机，未能并入副本。");
+    else if (result.restored)
+      toast.info("已加载共享白板的最新内容。离线编辑已另存到白板列表中的「离线副本」。");
+    else if (result.keptJournal)
+      toast.warning("已加载共享白板的最新内容。离线改动已保留在本机日志中，未能生成可编辑副本。");
+  },
   sync: leaseId => call<WhiteboardRemoteStatus>("remote-sync", leaseId),
   presence: (leaseId, value) => call<void>("presence", leaseId, value),
   realtime: listener => subscribe("whiteboard-document:realtime", listener),

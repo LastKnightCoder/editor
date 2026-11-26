@@ -36,7 +36,7 @@ export interface WhiteboardDocumentBackend {
   drains(listener: (event: WhiteboardDocumentFlushRequest) => void): () => void;
   resumes(listener: (event: WhiteboardDocumentResume) => void): () => void;
   detached?(listener: (leaseId: string) => void): () => void;
-  drained(requestId: string, error?: string): Promise<void>;
+  drained(requestId: string, error?: string, offlineDraft?: Uint8Array): Promise<void>;
 }
 export interface WhiteboardSaveState extends WhiteboardDocumentReceipt {
   phase: "loading" | "saving" | "saved" | "error";
@@ -51,6 +51,23 @@ const scopeOf = (opened: WhiteboardDocumentOpen) =>
     opened.identity.baselineId,
     opened.identity.epoch,
   ]);
+
+function earlierDraft(scope: string, opened: WhiteboardDocumentOpen) {
+  try {
+    const old: unknown = JSON.parse(scope);
+    if (
+      !Array.isArray(old) ||
+      old.length !== 5 ||
+      !Number.isSafeInteger(old[4]) ||
+      old[4] < 0 ||
+      old[4] >= opened.identity.epoch
+    )
+      return false;
+    return JSON.stringify([...old.slice(0, 4), opened.identity.epoch]) === scopeOf(opened);
+  } catch {
+    return false;
+  }
+}
 
 /** 会话可独立于 React 组件存活；没有耐久回执的批次一直留在 outbox 或内存。 */
 export class WhiteboardDocumentClient {
@@ -196,9 +213,22 @@ export class WhiteboardDocumentClient {
       if ((await this.model.receive(opened.state)).status !== "applied")
         throw new Error("白板基线不完整");
       this.observedRevision = opened.revision;
-      const stored = await this.outbox.list(this.target.databaseName, opened.identity.documentId);
-      if (stored.some(update => update.scope !== scopeOf(opened)))
+      const drafts = await this.outbox.list(this.target.databaseName, opened.identity.documentId);
+      const stored: PendingWhiteboardUpdate[] = [];
+      const scope = scopeOf(opened);
+      for (const draft of drafts) {
+        if (draft.scope === scope) {
+          stored.push(draft);
+          continue;
+        }
+        if (
+          this.doc.share.has("meta") &&
+          this.doc.getMap("meta").get("version") === 3 &&
+          earlierDraft(draft.scope, opened)
+        )
+          continue;
         throw new Error("发现另一基线的白板草稿，材料已保留，请先处理旧草稿");
+      }
       if (stored.length) {
         if (
           (await this.model.receive(Y.mergeUpdates(stored.map(record => record.update)))).status !==
@@ -461,9 +491,21 @@ export class WhiteboardDocumentClient {
         await this.backend.drained(event.requestId);
     } catch (error) {
       if (this.drains.has(event.requestId) && event.leaseId === this.opened?.leaseId) {
-        this.fail(error);
+        let reason = error;
+        if (event.recoverOffline && this.state.frozen && this.pending.length) {
+          try {
+            await this.preservePending();
+            if (!this.drains.has(event.requestId) || this.closed || this.stale) return;
+            const draft = Y.mergeUpdates(this.pending.map(record => record.update));
+            await this.backend.drained(event.requestId, undefined, draft);
+            return;
+          } catch (failure) {
+            reason = failure;
+          }
+        }
+        this.fail(reason);
         await this.backend
-          .drained(event.requestId, error instanceof Error ? error.message : String(error))
+          .drained(event.requestId, reason instanceof Error ? reason.message : String(reason))
           .catch(() => undefined);
       }
     }

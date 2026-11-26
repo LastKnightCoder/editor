@@ -76,12 +76,6 @@ export function whiteboardSyncStatus(
         tone: "error",
         actions: ["retry"],
       };
-    case "rebind":
-      return {
-        label: "协作端白板基线已变化，同步已暂停",
-        tone: "syncing",
-        actions: ["detach"],
-      };
     case "rejected":
       return {
         label: "协作端没有接受部分改动，同步已暂停",

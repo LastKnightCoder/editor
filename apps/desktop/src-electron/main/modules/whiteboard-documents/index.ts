@@ -1,3 +1,4 @@
+import { WHITEBOARD_LIMITS } from "@tau/collaboration";
 import { WhiteboardAgentPresence } from "./agent-presence";
 import { WhiteboardTransitions } from "./transitions";
 import { WhiteboardInstallation } from "./installation";
@@ -36,7 +37,13 @@ import {
   type WhiteboardUnshareMode,
 } from "./unshare";
 import { registerWhiteboardDocumentIpc } from "./ipc";
-type WhiteboardDrainScope = DocumentDrainScope & { documentId?: string };
+type WhiteboardDrainScope = DocumentDrainScope & {
+  documentId?: string;
+  databaseAlias?: string;
+  recoverOffline?: boolean;
+};
+const inDrainDatabase = (scope: WhiteboardDrainScope, name: string) =>
+  !scope.databaseName || scope.databaseName === name || scope.databaseAlias === name;
 /** 排空时窗口未及回执（不可达、超时、被并发操作取消）；会话本身完好，稍后重试即可。 */
 class DrainInterrupted extends Error {}
 export class WhiteboardDocumentsModule {
@@ -319,13 +326,16 @@ export class WhiteboardDocumentsModule {
       [...this.drains].some(
         scope =>
           (scope.windowId === undefined || scope.windowId === owner) &&
-          (!scope.databaseName || scope.databaseName === databaseName) &&
+          inDrainDatabase(scope, databaseName) &&
           (!scope.documentId || scope.documentId === documentId)
       )
     )
       throw new Error("白板正在关闭或切库，请稍后重试");
   }
-  waiters = new Map<string, { owner: number; resolve: (error?: string) => void }>();
+  waiters = new Map<
+    string,
+    { owner: number; resolve: (error?: string, offlineDraft?: Uint8Array) => void }
+  >();
   owner(event: IpcMainInvokeEvent, databaseName?: string): number {
     const window = BrowserWindow.fromWebContents(event.sender);
     if (!window || window.isDestroyed() || event.sender.isDestroyed())
@@ -374,12 +384,12 @@ export class WhiteboardDocumentsModule {
       projected,
       (name, id, action) =>
         this.blocked(name, id) ||
-        (action === "reclaim" &&
-          (Boolean(this.store.get(`whiteboard-binding:${name}:${id}`, null)) ||
+        (action !== undefined &&
+          ((action === "shared-reclaim") !==
+            Boolean(this.store.get(`whiteboard-binding:${name}:${id}`, null)) ||
             [...this.drains].some(
               scope =>
-                (!scope.databaseName || scope.databaseName === name) &&
-                (!scope.documentId || scope.documentId === id)
+                inDrainDatabase(scope, name) && (!scope.documentId || scope.documentId === id)
             )))
     );
     const { store, assets } = openWhiteboardState(PathUtil.getAppDir(), async url =>
@@ -424,7 +434,7 @@ export class WhiteboardDocumentsModule {
         [...this.preparing].some(
           entry =>
             (scope.windowId === undefined || scope.windowId === entry.owner) &&
-            (!scope.databaseName || scope.databaseName === entry.databaseName)
+            inDrainDatabase(scope, entry.databaseName)
         ),
       prepare: scope => this.drain(scope),
     });
@@ -505,13 +515,23 @@ export class WhiteboardDocumentsModule {
       confirmed = new Y.Doc(),
       doc = new Y.Doc();
     try {
+      if (stateHash(local) === snapshot.confirmed.protocol.revision) return;
       Y.applyUpdate(confirmed, snapshot.confirmed.state);
+      Y.applyUpdate(doc, local);
+      const meta = doc.getMap("meta"),
+        head = snapshot.confirmed.protocol;
+      if (
+        meta.get("documentId") !== head.id ||
+        meta.get("epoch") !== head.epoch ||
+        meta.get("baselineId") !== head.baselineId
+      )
+        throw new Error("EPOCH_CONFLICT: 旧白板需要加载最新共享内容");
       const vector = Y.encodeStateVector(confirmed);
-      Y.applyUpdate(confirmed, local);
+      const update = Y.encodeStateAsUpdate(doc, vector);
+      Y.applyUpdate(confirmed, update);
       if (stateHash(Y.encodeStateAsUpdate(confirmed)) === snapshot.confirmed.protocol.revision)
         return;
-      Y.applyUpdate(doc, local);
-      await session.stage(Y.encodeStateAsUpdate(doc, vector));
+      await session.stage(update);
       await session.flush();
     } finally {
       confirmed.destroy();
@@ -699,7 +719,8 @@ export class WhiteboardDocumentsModule {
   }
   private views(scope: WhiteboardDrainScope) {
     return this.sessions
-      .holders({ owner: scope.windowId, databaseName: scope.databaseName })
+      .holders({ owner: scope.windowId })
+      .filter(view => inDrainDatabase(scope, view.databaseName))
       .filter(
         view =>
           !scope.documentId ||
@@ -713,12 +734,15 @@ export class WhiteboardDocumentsModule {
         .filter(
           entry =>
             (scope.windowId === undefined || scope.windowId === entry.owner) &&
-            (!scope.databaseName || scope.databaseName === entry.databaseName) &&
+            inDrainDatabase(scope, entry.databaseName) &&
             (!scope.documentId || scope.documentId === entry.documentId)
         )
         .map(entry => entry.task)
     );
     const views = this.views(scope).map(view => ({ ...view, requestId: randomUUID() }));
+    const offlineDrafts: Uint8Array[] = [];
+    let draftBytes = 0,
+      unmergedDrafts = false;
     let active = true;
     const cancellations: (() => void)[] = [];
     const resume = () => {
@@ -758,7 +782,7 @@ export class WhiteboardDocumentsModule {
               });
               this.waiters.set(requestId, {
                 owner: view.owner,
-                resolve: error => {
+                resolve: (error, draft) => {
                   clearTimeout(timer);
                   this.waiters.delete(requestId);
                   if (!active) {
@@ -768,6 +792,15 @@ export class WhiteboardDocumentsModule {
                   if (error) reject(new Error(error));
                   else {
                     try {
+                      if (scope.recoverOffline && draft) {
+                        if (
+                          draft instanceof Uint8Array &&
+                          draftBytes + draft.byteLength <= WHITEBOARD_LIMITS.documentBytes * 2
+                        ) {
+                          offlineDrafts.push(draft);
+                          draftBytes += draft.byteLength;
+                        } else unmergedDrafts = true;
+                      }
                       this.sessions.seal(view.leaseId, view.owner, requestId, true);
                       resolve();
                     } catch (cause) {
@@ -780,6 +813,7 @@ export class WhiteboardDocumentsModule {
                 leaseId: view.leaseId,
                 requestId,
                 sealed: true,
+                ...(scope.recoverOffline ? { recoverOffline: true } : {}),
               });
             })
         )
@@ -796,6 +830,8 @@ export class WhiteboardDocumentsModule {
         }
       }
       return {
+        offlineDrafts,
+        unmergedDrafts,
         commit: () => {
           this.drains.delete(scope);
           views.forEach(view => {

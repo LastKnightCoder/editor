@@ -1,11 +1,22 @@
 import Database from "better-sqlite3";
 import { parentPort, workerData } from "node:worker_threads";
-import { compactLocalWhiteboard } from "../modules/whiteboard-documents/compact";
+import type { DocumentProtocol } from "@tau/collaboration";
+import {
+  prepareOfflineCopy,
+  type OfflineCopyInput,
+  compactConfirmedReplica,
+  rebuildWhiteboardCheckpoint,
+} from "@tau/collaboration/whiteboard-checkpoint";
 import { stateHash, type WhiteboardCheckpoint } from "../modules/whiteboard-documents/journal";
 
-export type CompactInput = WhiteboardCheckpoint & ({ file: string } | { state: Uint8Array });
+type StoredInput = WhiteboardCheckpoint & { confirmed?: DocumentProtocol } & (
+    | { file: string }
+    | { state: Uint8Array }
+  );
 
-function read(input: CompactInput): Uint8Array | undefined {
+export type CompactInput = StoredInput | OfflineCopyInput;
+
+function read(input: StoredInput): Uint8Array | undefined {
   if ("state" in input) return input.state;
   const db = new Database(input.file, { readonly: true, fileMustExist: true });
   try {
@@ -28,9 +39,12 @@ function read(input: CompactInput): Uint8Array | undefined {
 }
 
 async function prepare(input: CompactInput) {
+  if ("kind" in input) return prepareOfflineCopy(input);
   const state = read(input);
   if (!state || stateHash(state) !== input.hash) return null;
-  return compactLocalWhiteboard(state);
+  return input.confirmed
+    ? compactConfirmedReplica(state, input.confirmed)
+    : rebuildWhiteboardCheckpoint(state);
 }
 
 void prepare(workerData).then(state => {

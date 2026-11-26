@@ -160,7 +160,8 @@ export class CollaborationService extends DurableObject<Env> {
         this.store.history.seal(documentName, { actorId: device.id });
         return { deviceId: device.id, nickname: device.nickname, protocol };
       },
-      onLoadDocument: async ({ documentName, document }) => {
+      onLoadDocument: async ({ documentName, document, context }) => {
+        if (context?.protocol) this.store.protocols.assertWritable(documentName, context.protocol);
         const occupied = [...(this.hocuspocus?.documents.keys() ?? [])]
           .filter(id => id !== documentName)
           .reduce((bytes, id) => bytes + this.store.documentBytes(id), 0);
@@ -190,6 +191,8 @@ export class CollaborationService extends DurableObject<Env> {
         if (update.byteLength > MAX_DOCUMENT_BYTES + 65_536) throw new Error("协作消息超过限制");
       },
       beforeSync: async ({ type, payload, context, documentName, document }) => {
+        if (type === 0 && context.protocol.version === 3)
+          this.store.protocols.assertWritable(documentName, context.protocol);
         if (type === 1 || type === 2) {
           const memoryBudget = () => {
             const others = [...(this.hocuspocus?.documents.keys() ?? [])]
@@ -226,6 +229,19 @@ export class CollaborationService extends DurableObject<Env> {
             if (!this.store.hashReferenced(digest))
               await this.env.ASSETS?.delete("assets/" + digest);
           });
+      },
+      afterUnloadDocument: async ({ documentName, instance }) => {
+        try {
+          await this.store.reclaimWhiteboard(
+            documentName,
+            () =>
+              this.store.setting("maintenance") !== "1" &&
+              !instance.documents.has(documentName) &&
+              !instance.loadingDocuments.has(documentName)
+          );
+        } catch (error) {
+          console.warn("共享白板历史回收跳过", String(error));
+        }
       },
       connected: async ({ documentName }) => {
         this.presence(documentName);

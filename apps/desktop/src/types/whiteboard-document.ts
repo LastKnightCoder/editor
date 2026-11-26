@@ -30,6 +30,7 @@ export interface WhiteboardDocumentFlushRequest {
   requestId: string;
   leaseId: string;
   sealed: boolean;
+  recoverOffline?: boolean;
 }
 export interface WhiteboardDocumentResume {
   requestId: string;
@@ -55,7 +56,7 @@ export interface WhiteboardShareStatus {
   unshare?: { operationId: string; mode: "close" | "leave" | "detach" };
 }
 /**
- * 远端会话摘要：requiresRebind 时本机副本不能继续发送，reason 区分远端已换代（停止旧副本同步）
+ * 远端会话摘要：requiresRebind 时本机副本不能继续发送，reason 区分远端已换代（重新安装确认内容并保全离线副本）
  * 与同一代次的被拒分支（材料已保留，等待处理）。
  */
 export interface WhiteboardRemoteStatus {

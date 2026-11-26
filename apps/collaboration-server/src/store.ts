@@ -1,3 +1,5 @@
+import { prepareServerCheckpoint } from "./prepare-checkpoint";
+import { reclaimIdleRoom, type RoomCheckpoint } from "@tau/collaboration/whiteboard-checkpoint";
 import Database from "better-sqlite3";
 import { createHash, randomBytes, randomUUID, timingSafeEqual, createHmac } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync, statfsSync, unlinkSync } from "node:fs";
@@ -891,6 +893,38 @@ export class CollaborationStore {
       undefined,
       syncSource
     );
+  }
+
+  private readonly reclaims = new DocumentWriteQueue(0);
+  async reclaimWhiteboard(id: string, roomIdle: () => boolean): Promise<boolean> {
+    const idle = () => roomIdle() && this.document(id).status === "active";
+    if (!idle()) return false;
+    return this.reclaims.run("rooms", 0, async () => {
+      if (!idle()) return false;
+      return reclaimIdleRoom(id, {
+        bytes: (
+          this.db
+            .prepare(
+              "SELECT coalesce((SELECT length(state) FROM snapshots WHERE document_id=?),0) + coalesce((SELECT sum(length(state)) FROM updates WHERE document_id=?),0) AS bytes"
+            )
+            .get(id, id) as { bytes: number }
+        ).bytes,
+        limit: this.config.maxDocumentBytes,
+        idle,
+        protocols: this.protocols,
+        operations: this.operations,
+        writes: this.writes,
+        load: () => this.loadDocument(id),
+        prepare: prepareServerCheckpoint,
+        install: (candidate: RoomCheckpoint) => {
+          this.db
+            .prepare("UPDATE snapshots SET state=? WHERE document_id=?")
+            .run(Buffer.from(candidate.state), id);
+          this.db.prepare("DELETE FROM updates WHERE document_id=?").run(id);
+          this.cachedStorageBytes = -1;
+        },
+      });
+    });
   }
 
   compact(id: string) {

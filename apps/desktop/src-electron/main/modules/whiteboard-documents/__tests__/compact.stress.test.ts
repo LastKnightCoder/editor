@@ -11,7 +11,7 @@ import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
 import { build } from "esbuild";
 import schema from "@tau/db-schema/schema/main.sql?raw";
-import { WhiteboardModel } from "@tau/collaboration";
+import { WhiteboardModel, createWhiteboardDocument } from "@tau/collaboration";
 import {
   fixture,
   create,
@@ -20,7 +20,7 @@ import {
 } from "../../../../../../../packages/collaboration/src/whiteboard-test-utils";
 import { seedGeometryHistory } from "../../../../../e2e/whiteboard-frame/prototype/seedGeometryHistory";
 import { ContentIdentityTable } from "../../tables/content-identity";
-import { WhiteboardJournal, journalKey } from "../journal";
+import { WhiteboardJournal, journalKey, stateHash } from "../journal";
 import {
   WhiteboardDocumentClient,
   type WhiteboardDocumentBackend,
@@ -289,6 +289,65 @@ describe.runIf(process.env.TAU_WHITEBOARD_RECLAIM_STRESS === "1")("本机白板�
     }
   }, 90000);
 
+  it("共享桌面副本清理后与确认快照逐字节一致，远端代次和其它成员的撤销有效", async () => {
+    const f = await setup("shared-copy");
+    const shared = await createWhiteboardDocument(
+      { documentId: "room", epoch: 0, baselineId: "first" },
+      initial
+    );
+    const canonical = new Y.Doc();
+    try {
+      const state = Y.encodeStateAsUpdate(shared);
+      Y.applyUpdate(canonical, state);
+      const serverState = Y.encodeStateAsUpdate(canonical);
+      const head = {
+        id: "room",
+        version: 3,
+        baselineId: "first",
+        epoch: 0,
+        ownerId: "owner",
+        revision: stateHash(serverState),
+      };
+      const created = await f.sessions.create("test", "shared-board", state, "board");
+      const lease = await f.sessions.open("test", created.contentIds[0], 5, "shared");
+      await f.sessions.release(lease.leaseId, 5, true, head);
+      await vi.waitFor(
+        () =>
+          expect(
+            f.db
+              .prepare(
+                "SELECT revision_hash FROM whiteboard_documents WHERE document_id='shared-board'"
+              )
+              .pluck()
+              .get()
+          ).toBe(head.revision),
+        { timeout: 25000 }
+      );
+      const opened = await f.sessions.open("test", created.contentIds[0], 5, "shared-new");
+      expect(Buffer.from(opened.state).equals(Buffer.from(serverState))).toBe(true);
+      const replica = read(opened.state),
+        peer = new WhiteboardModel(shared);
+      try {
+        const history = peer.createUndoManager({ trackedOrigins: new Set(["peer"]) });
+        peer.submit([{ type: "edit_title", edit: { offset: 0, remove: 0, text: "peer" } }], "peer");
+        for (const mode of ["edit", "undo", "redo"] as const) {
+          if (mode !== "edit") history[mode]();
+          const delta = Y.encodeStateAsUpdate(shared, Y.encodeStateVector(replica.doc));
+          await f.sessions.append(opened.leaseId, 5, mode, delta);
+          await replica.receive(delta);
+          expect(replica.read()).toEqual(peer.read());
+        }
+        history.destroy();
+      } finally {
+        replica.doc.destroy();
+      }
+      console.info("共享千元素桌面副本字节", state.length, serverState.length);
+    } finally {
+      shared.destroy();
+      canonical.destroy();
+      f.close();
+    }
+  }, 90000);
   it.each(["prepared", "main-transaction", "main-committed", "journal-transaction"])(
     "进程在 %s 被硬杀后可直接重开并继续修改",
     async point => {

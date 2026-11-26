@@ -239,7 +239,8 @@ export class WhiteboardDocumentRepository {
         data: string;
         title?: string;
       }[];
-    }
+    },
+    revision = 0
   ): StoredWhiteboardDocument {
     return this.db.transaction(() => {
       const library = ContentIdentityTable.library(this.db);
@@ -336,7 +337,7 @@ export class WhiteboardDocumentRepository {
           epoch: target.epoch,
         },
         model,
-        0,
+        revision,
         hash
       );
       // 未进入新投影的旧页仍保有原内容，但不再是可写页面。

@@ -15,6 +15,7 @@ import {
 import { CollaborationAssetService } from "../../collaboration/asset-service";
 import { CollaborationLocalStore } from "../../collaboration/local-store";
 import { ContentIdentityTable } from "../../tables/content-identity";
+import { seedRoomOrderHistory } from "@tau/collaboration/src/testing/whiteboard-checkpoint";
 import { createServer } from "../../../../../../collaboration-server/src/server";
 import { replaceStoredBaseline } from "../../../../../../collaboration-server/src/testing/replace-baseline";
 import { must } from "../../../test-support";
@@ -196,7 +197,7 @@ const call = (side: Side, name: string, ...args: unknown[]) => {
   )({ sender: state.windows.find(w => w.id === side.window).webContents }, ...args);
 };
 /** 渲染端排空回执：模拟窗口冲刷 outbox 后确认。 */
-async function acknowledgeDrains(target: Side) {
+async function acknowledgeDrains(target: Side, draft?: { leaseId: string; update: Uint8Array }) {
   await vi.waitFor(() =>
     expect(
       state.sent.some(event => event.channel === "whiteboard-document:drain" && !event.data.done)
@@ -206,7 +207,13 @@ async function acknowledgeDrains(target: Side) {
     item => item.channel === "whiteboard-document:drain" && !item.data.done
   )) {
     event.data.done = true;
-    await call(target, "drained", event.data.requestId);
+    await call(
+      target,
+      "drained",
+      event.data.requestId,
+      undefined,
+      draft && event.data.leaseId === draft.leaseId ? draft.update : undefined
+    );
   }
 }
 async function edit(target: Side, leaseId: string, text: string) {
@@ -620,6 +627,112 @@ async function joinMember(owner: Side, roomId: string) {
   await call(member, "remote-open", lease.leaseId, URL);
   return { member, installed, lease };
 }
+it("房间回收后离线成员保留独立副本，所有旧视图失效并可在新代次编辑、撤销与保存", async () => {
+  const owner = await side("作者", 1, "A"),
+    { created, room } = await sharedBoard(owner);
+  const { member, lease, installed } = await joinMember(owner, room.documentId);
+  const second = await call(member, "open", "B", installed.contentIds[0], "second");
+  await edit(member, lease.leaseId, "·离线想法");
+  const ownerLease = await call(owner, "open", "A", created.contentIds[0], "author-active");
+  await call(owner, "remote-open", ownerLease.leaseId, URL);
+  await edit(owner, ownerLease.leaseId, "·作者已保存");
+  await call(owner, "remote-sync", ownerLease.leaseId);
+  const seed = server.store.loadDocument(room.documentId),
+    model = new WhiteboardModel(seed),
+    sv = Y.encodeStateVector(seed);
+  const oldHead = server.store.protocols.state(room.documentId);
+  seedRoomOrderHistory(model, model.read().pages[0].id);
+  const delta = Y.encodeStateAsUpdate(seed, sv);
+  const original = server.store.loadDocument(room.documentId);
+  try {
+    await server.store.appendUpdate(room.documentId, owner.device.id, delta, original, oldHead);
+  } finally {
+    seed.destroy();
+    original.destroy();
+  }
+  expect(await server.store.reclaimWhiteboard(room.documentId, () => true)).toBe(true);
+  const head = server.store.protocols.state(room.documentId);
+  expect(head.epoch).toBe(oldHead.epoch + 1);
+  expect(await call(member, "remote-sync", lease.leaseId)).toMatchObject({
+    requiresRebind: true,
+    reason: "epoch",
+  });
+  member.db.exec(
+    "CREATE TEMP TRIGGER fail_handoff BEFORE UPDATE OF epoch ON whiteboard_documents BEGIN SELECT RAISE(ABORT,'写盘中止'); END"
+  );
+  const failed = call(member, "refresh-shared-checkpoint", lease.leaseId);
+  const rejected = expect(failed).rejects.toThrow("写盘中止");
+  await acknowledgeDrains(member);
+  await rejected;
+  expect(localTitle(member, second.leaseId)).toBe("看板·离线想法");
+  expect(member.db.prepare("SELECT count(*) AS n FROM white_boards").get()).toEqual({ n: 1 });
+  member.db.exec("DROP TRIGGER fail_handoff");
+  const unsent = new WhiteboardModel(new Y.Doc({ gc: false }));
+  Y.applyUpdate(unsent.doc, call(member, "snapshot", second.leaseId).state);
+  const vector = Y.encodeStateVector(unsent.doc);
+  unsent.submit(
+    [{ type: "edit_title", edit: { offset: unsent.title.length, remove: 0, text: "·未送达" } }],
+    null
+  );
+  const draft = Y.encodeStateAsUpdate(unsent.doc, vector);
+  unsent.doc.destroy();
+  const switching = call(member, "refresh-shared-checkpoint", lease.leaseId);
+  await acknowledgeDrains(member, { leaseId: second.leaseId, update: draft });
+  const { restored } = await switching;
+  expect(typeof restored).toBe("string");
+  const copyPage = member.db
+    .prepare("SELECT content_id FROM whiteboard_document_pages WHERE document_id=? AND visible=1")
+    .pluck()
+    .get(restored);
+  const copy = await call(member, "open", "B", copyPage, "copy");
+  expect(localTitle(member, copy.leaseId)).toBe("看板·离线想法·未送达（离线副本）");
+  expect(() => call(member, "snapshot", second.leaseId)).toThrow();
+  expect(server.store.protocols.state(room.documentId)).toEqual(head);
+  const current = await call(member, "open", "B", installed.contentIds[0], "again");
+  expect(localTitle(member, current.leaseId)).toBe("看板·作者已保存");
+  expect((await call(member, "remote-open", current.leaseId, URL)).requiresRebind).toBe(false);
+  const editor = new WhiteboardModel(new Y.Doc({ gc: false }));
+  Y.applyUpdate(editor.doc, current.state);
+  const undo = editor.createUndoManager({ trackedOrigins: new Set(["editor"]) });
+  try {
+    for (const step of ["edit", "undo", "redo"]) {
+      const vector = Y.encodeStateVector(editor.doc);
+      if (step === "edit")
+        editor.submit(
+          [{ type: "edit_title", edit: { offset: 0, remove: 0, text: "新-" } }],
+          "editor"
+        );
+      else if (step === "undo") undo.undo();
+      else undo.redo();
+      await call(
+        member,
+        "append",
+        current.leaseId,
+        step,
+        Y.encodeStateAsUpdate(editor.doc, vector)
+      );
+      await call(member, "remote-sync", current.leaseId);
+      expect(remoteTitle(room.documentId)).toBe((step === "undo" ? "" : "新-") + "看板·作者已保存");
+    }
+  } finally {
+    undo.destroy();
+    editor.doc.destroy();
+  }
+  await call(member, "release", current.leaseId);
+  expect(
+    localTitle(
+      member,
+      (await call(member, "open", "B", installed.contentIds[0], "reopened")).leaseId
+    )
+  ).toBe("新-看板·作者已保存");
+  const ownerSwitch = call(owner, "refresh-shared-checkpoint", ownerLease.leaseId);
+  await acknowledgeDrains(owner);
+  expect((await ownerSwitch).restored).toBeUndefined();
+  const ownerNew = await call(owner, "open", "A", created.contentIds[0], "owner-new");
+  expect(localTitle(owner, ownerNew.leaseId)).toBe("新-看板·作者已保存");
+  expect(owner.db.prepare("SELECT count(*) as n FROM white_boards").get()).toEqual({ n: 1 });
+}, 60000);
+
 const firstPage = (target: Side) =>
   (
     target.db.prepare("SELECT content_id FROM whiteboard_document_pages LIMIT 1").get() as {

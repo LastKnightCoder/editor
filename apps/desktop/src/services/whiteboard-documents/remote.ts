@@ -8,6 +8,7 @@ export interface WhiteboardRemoteBackend {
   onAgentPeers?(listener: (event: BoardAgentPeers & { leaseId: string }) => void): () => void;
   agentActivity?(leaseId: string, activity: BoardAgentActivity | null): Promise<void>;
   open(leaseId: string, serverUrl: string): Promise<WhiteboardRemoteStatus>;
+  refreshCheckpoint(leaseId: string): Promise<void>;
   sync(leaseId: string): Promise<WhiteboardRemoteStatus>;
   presence?(leaseId: string, value: WhiteboardPresence | null): Promise<void>;
   realtime?(
@@ -29,7 +30,6 @@ export type WhiteboardRemotePhase =
   | "forbidden"
   | "closed"
   | "incompatible"
-  | "rebind"
   | "rejected"
   | "error";
 export interface WhiteboardRemoteState {
@@ -88,7 +88,7 @@ export function classifyRemoteError(error: unknown): {
     case "CLIENT_UPGRADE_REQUIRED":
       return { phase: "incompatible" };
     case "EPOCH_CONFLICT":
-      return { phase: "rebind" };
+      return { phase: "waiting" };
     case "BRANCH_RETAINED":
       return { phase: "rejected" };
     case "MISSING_DEPENDENCIES":
@@ -200,9 +200,11 @@ export class WhiteboardRemoteSync {
       })
     );
     if (typeof window !== "undefined") {
-      const focus = () => this.retry(false);
-      window.addEventListener("focus", focus);
-      this.cleanup.push(() => window.removeEventListener("focus", focus));
+      const reconnect = () => this.retry(false);
+      for (const event of ["focus", "online"] as const) {
+        window.addEventListener(event, reconnect);
+        this.cleanup.push(() => window.removeEventListener(event, reconnect));
+      }
     }
   }
   confirmationFor(revision: number) {
@@ -287,7 +289,8 @@ export class WhiteboardRemoteSync {
         const opened = await this.backend.open(leaseId, binding.serverUrl);
         if (this.disposed) return;
         if (opened.requiresRebind) {
-          this.set({ phase: opened.reason === "rejected" ? "rejected" : "rebind", unsynced: true });
+          if (opened.reason === "epoch") await this.backend.refreshCheckpoint(leaseId);
+          else this.set({ phase: "rejected", unsynced: true });
           return;
         }
         this.opened = true;
@@ -308,7 +311,8 @@ export class WhiteboardRemoteSync {
       });
       if (this.disposed) return;
       if (result.requiresRebind) {
-        this.set({ phase: result.reason === "rejected" ? "rejected" : "rebind", unsynced: true });
+        if (result.reason === "epoch") await this.backend.refreshCheckpoint(leaseId);
+        else this.set({ phase: "rejected", unsynced: true });
         return;
       }
       this.failures = 0;
@@ -333,11 +337,13 @@ export class WhiteboardRemoteSync {
       this.timer = undefined;
       this.scheduledAt = Infinity;
       if (this.client.getSnapshot().phase === "error") {
-        // 本机保存失败由画布的保存状态提示；本机恢复后再继续同步。
+        // 重试时先读取房间代次，旧草稿阻塞保存时仍能接回新基线。
+        this.opened = false;
         this.schedule(this.backoff());
         return;
       }
       const failure = classifyRemoteError(error);
+      if (splitRemoteError(error).code === "EPOCH_CONFLICT") this.opened = false;
       this.set({ ...failure, unsynced: true });
       if (AUTOMATIC.has(failure.phase)) this.schedule(this.backoff());
     }

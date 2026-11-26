@@ -138,7 +138,8 @@ export async function createServer(overrides: Partial<ServerConfig> = {}) {
       store.history.seal(documentName, { actorId: identity.id });
       return { deviceId: identity.id, nickname: identity.nickname, protocol };
     },
-    async onLoadDocument({ documentName, document }) {
+    async onLoadDocument({ documentName, document, context }) {
+      if (context?.protocol) store.protocols.assertWritable(documentName, context.protocol);
       const loaded = store.loadDocument(documentName);
       Y.applyUpdate(document, Y.encodeStateAsUpdate(loaded));
       loaded.destroy();
@@ -151,6 +152,8 @@ export async function createServer(overrides: Partial<ServerConfig> = {}) {
       messageRates.check(socketId);
     },
     async beforeSync({ type, payload, context, documentName, document }) {
+      if (type === 0 && context.protocol.version === 3)
+        store.protocols.assertWritable(documentName, context.protocol);
       if (type === 1 || type === 2)
         await store.appendUpdate(
           documentName,
@@ -176,6 +179,19 @@ export async function createServer(overrides: Partial<ServerConfig> = {}) {
     },
     async onStoreDocument({ documentName }) {
       store.compact(documentName);
+    },
+    async afterUnloadDocument({ documentName, instance }) {
+      try {
+        await store.reclaimWhiteboard(
+          documentName,
+          () =>
+            !stopping &&
+            !instance.documents.has(documentName) &&
+            !instance.loadingDocuments.has(documentName)
+        );
+      } catch (error) {
+        app.log.warn({ err: error }, "共享白板历史回收跳过");
+      }
     },
     async connected({ documentName }) {
       publishPresence(documentName);

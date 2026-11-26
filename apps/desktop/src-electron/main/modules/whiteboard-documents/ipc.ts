@@ -1,3 +1,4 @@
+import { alternateWhiteboardDatabaseName } from "@/types/whiteboard-document";
 import { BrowserWindow, ipcMain, type IpcMainInvokeEvent } from "electron";
 import { randomUUID } from "node:crypto";
 import * as Y from "yjs";
@@ -21,6 +22,7 @@ import { ContentIdentityTable } from "../tables/content-identity";
 import { CollaborationLocalStore } from "../collaboration/local-store";
 import { stateHash } from "./journal";
 import { WhiteboardDocumentRepository } from "./repository";
+import { recoverOfflineBoard, readPredecessor } from "./shared-checkpoint";
 import { WhiteboardRealtime } from "./realtime";
 import type {
   WhiteboardRemoteStatus,
@@ -77,7 +79,8 @@ export function registerWhiteboardDocumentIpc(
   const transitionContext = async (
     event: IpcMainInvokeEvent,
     leaseId: string,
-    operationId: string
+    operationId: string,
+    recoverOffline = false
   ) => {
     if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(operationId)) throw new Error("共享操作身份无效");
     const owner = module.leaseOwner(event, leaseId);
@@ -92,6 +95,10 @@ export function registerWhiteboardDocumentIpc(
         preparing = module
           .drain({
             databaseName: source.identity.databaseName,
+            recoverOffline,
+            databaseAlias: recoverOffline
+              ? alternateWhiteboardDatabaseName(source.identity.databaseName)
+              : undefined,
             documentId: source.identity.documentId,
             reason: "database-change",
           })
@@ -643,9 +650,17 @@ export function registerWhiteboardDocumentIpc(
   );
   handle("release", (event, leaseId: string, draftsDrained?: boolean) => {
     const owner = module.leaseOwner(event, leaseId);
-    return module.sessions.release(leaseId, owner, draftsDrained === true).then(() => {
-      module.releaseRemoteView(leaseId);
-    });
+    const room = draftsDrained === true && module.remoteViews.get(leaseId);
+    return Promise.resolve(room ? module.remote.get(room.key) : undefined)
+      .then(remote =>
+        module.sessions.release(
+          leaseId,
+          owner,
+          draftsDrained === true,
+          remote?.confirmedCheckpoint()
+        )
+      )
+      .then(() => module.releaseRemoteView(leaseId));
   });
   handle("remote-open", async (event, leaseId: string, serverUrl: string) => {
     const owner = module.leaseOwner(event, leaseId),
@@ -673,10 +688,16 @@ export function registerWhiteboardDocumentIpc(
             const onBaseline = (value: RemoteSnapshot) =>
               meta.get("epoch") === value.confirmed.protocol.epoch &&
               meta.get("baselineId") === value.confirmed.protocol.baselineId;
+            await remote.synchronize().catch(remoteFailure);
             let snapshot = remote.snapshot();
-            // 本机已装新代次（作者升级或采用新版本）而网络会话仍停在旧确认时，先取回最新确认再比较。
-            if (!onBaseline(snapshot)) {
-              await remote.synchronize().catch(remoteFailure);
+            if (
+              onBaseline(snapshot) &&
+              snapshot.rejected.some(
+                branch => branch.baseline.protocol.epoch < snapshot.confirmed.protocol.epoch
+              )
+            ) {
+              store.delete(`whiteboard-remote-clean:${key}`);
+              await remote.acknowledgeWhiteboardCheckpoint(snapshot.confirmed.protocol);
               snapshot = remote.snapshot();
             }
             const clean = stateHash(local.state) === snapshot.confirmed.protocol.revision;
@@ -765,6 +786,83 @@ export function registerWhiteboardDocumentIpc(
       })()
     );
   });
+  handle("refresh-shared-checkpoint", async (event, leaseId: string) => {
+    const owner = module.leaseOwner(event, leaseId);
+    const { identity } = module.sessions.snapshot(leaseId, owner);
+    const bindingKey = `whiteboard-binding:${identity.databaseName}:${identity.documentId}`;
+    const binding = store.get<{ serverUrl: string; documentId: string } | null>(bindingKey, null);
+    if (!binding) throw new Error("白板尚未共享");
+    const { key, session, release } = await module
+      .remoteSession(binding.serverUrl, binding.documentId)
+      .catch(remoteFailure);
+    try {
+      return await module.serialRemote(key, async () => {
+        const operationId = randomUUID();
+        await session.synchronize().catch(remoteFailure);
+        const snapshot = session.snapshot();
+        const source = readPredecessor(
+          module.sessions.snapshot(leaseId, owner).state,
+          snapshot.confirmed.protocol
+        );
+        const context = await transitionContext(event, leaseId, operationId, true);
+        let committed = false;
+        try {
+          module.stopRealtime(key);
+          const barrier = module.transitionDrains.get(operationId);
+          const recovery = await recoverOfflineBoard(
+            context.source.state,
+            snapshot,
+            source,
+            barrier?.offlineDrafts
+          );
+          const keepOriginal = recovery.keepOriginal || Boolean(barrier?.unmergedDrafts);
+          const copy = recovery.copy;
+          const next = new WhiteboardModel(new Y.Doc({ gc: false }));
+          try {
+            await session.synchronize().catch(remoteFailure);
+            const latest = session.snapshot().confirmed;
+            const currentBinding = store.get<typeof binding | null>(bindingKey, null);
+            if (
+              latest.protocol.id !== binding.documentId ||
+              currentBinding?.documentId !== latest.protocol.id ||
+              currentBinding.serverUrl !== binding.serverUrl ||
+              module.blocked(context.name, context.documentId)
+            )
+              throw new Error("原白板的共享绑定已变化");
+            module.owner(event, context.name);
+            Y.applyUpdate(next.doc, latest.state);
+            const restored = module.sessions.installSharedCheckpoint(
+              leaseId,
+              owner,
+              context.source,
+              next,
+              copy,
+              keepOriginal
+            );
+            committed = true;
+            module.transitionDrains.get(operationId)?.commit();
+            projected(context.name, context.documentId);
+            if (restored) projected(context.name, restored);
+            try {
+              store.delete(`whiteboard-remote-clean:${key}`);
+              await session.acknowledgeWhiteboardCheckpoint(latest.protocol);
+            } catch (error) {
+              console.warn("共享检查点已安装，旧分支将在重开时清理", String(error));
+            }
+            return { restored, keptJournal: keepOriginal };
+          } finally {
+            copy?.doc.destroy();
+            next.doc.destroy();
+          }
+        } finally {
+          if (!committed) module.transitionDrains.get(operationId)?.rollback();
+          module.clearTransition(operationId);
+        }
+      });
+    } finally {
+      release();
+    }
+  });
   handle("presence", (event, leaseId: string, value: unknown) => {
     module.leaseOwner(event, leaseId);
     const presence = readWhiteboardPresence(value);
@@ -802,8 +900,19 @@ export function registerWhiteboardDocumentIpc(
           doc.destroy();
         }
       };
-      if (!session.snapshot().blocked) await session.flush().catch(failure);
-      if (!session.snapshot().blocked) await session.synchronize().catch(failure);
+      await session.synchronize().catch(failure);
+      if (!session.snapshot().blocked)
+        await session.flush().catch(async error => {
+          if (!session.snapshot().blocked) return failure(error);
+          await session.synchronize().catch(failure);
+          const result = session.snapshot();
+          if (
+            !result.rejected.some(
+              branch => branch.baseline.protocol.epoch < result.confirmed.protocol.epoch
+            )
+          )
+            return failure(error);
+        });
       let snapshot = session.snapshot();
       const local = module.sessions.snapshot(leaseId, owner),
         doc = new Y.Doc();
@@ -819,7 +928,13 @@ export function registerWhiteboardDocumentIpc(
           meta.get("epoch") !== protocol.epoch
         )
           return rebind(snapshot, meta);
-        await module.pushLocal(session, local.state).catch(failure);
+        try {
+          await module.pushLocal(session, local.state);
+        } catch (error) {
+          const changed = session.snapshot();
+          if (changed.confirmed.protocol.epoch > protocol.epoch) return rebind(changed, meta);
+          return failure(error);
+        }
         snapshot = session.snapshot();
         if (
           snapshot.blocked ||
@@ -863,9 +978,9 @@ export function registerWhiteboardDocumentIpc(
       }
     });
   });
-  handle("drained", (event, requestId: string, error?: string) => {
+  handle("drained", (event, requestId: string, error?: string, offlineDraft?: Uint8Array) => {
     const owner = module.owner(event),
       waiter = module.waiters.get(requestId);
-    if (waiter?.owner === owner) waiter.resolve(error);
+    if (waiter?.owner === owner) waiter.resolve(error, offlineDraft);
   });
 }

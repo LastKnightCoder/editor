@@ -1,7 +1,7 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ["src/index.ts", "src/admin.ts"],
+  entry: ["src/index.ts", "src/admin.ts", "src/checkpoint-worker.ts"],
   format: "esm",
   platform: "node",
   target: "node24",

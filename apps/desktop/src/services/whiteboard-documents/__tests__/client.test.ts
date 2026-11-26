@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
-import { WhiteboardModel } from "@tau/collaboration";
+import { createWhiteboardDocument, WhiteboardModel } from "@tau/collaboration";
 import { WhiteboardDocumentClient } from "../client";
 import type { WhiteboardDocumentEvent } from "@/types/whiteboard-document";
 import { cleanups, cleanupClients, fixture, edit } from "./client-fixture";
@@ -222,6 +222,72 @@ describe("W4 渲染会话与耐久待发送队列", () => {
     await Promise.all([saving, closing]);
     expect(f.outbox.records.size).toBe(0);
     expect(client.getSnapshot()).toMatchObject({ phase: "saved", revision: 2, pending: 0 });
+  });
+  it("安装共享新代次后遗留的旧草稿不能盖过已保存内容或阻塞新的编辑", async () => {
+    const f = await fixture();
+    const local = await f.open(1);
+    const doc = await createWhiteboardDocument(
+      { documentId: "room", epoch: 2, baselineId: "second" },
+      Y.encodeStateAsUpdate(local.doc)
+    );
+    try {
+      const created = await f.sessions.create("A", "shared", Y.encodeStateAsUpdate(doc), "board");
+      f.db.prepare("UPDATE whiteboard_documents SET epoch=2 WHERE document_id='shared'").run();
+      const view = await f.sessions.open("A", created.contentIds[0], 5, "inspect");
+      await f.sessions.release(view.leaseId, 5);
+      const { identity } = view;
+      f.outbox.records.set("old", {
+        batchId: "old",
+        databaseName: "A",
+        documentId: "shared",
+        clientId: "old",
+        sequence: 1,
+        scope: JSON.stringify(["A", "shared", identity.sourceId, identity.baselineId, 1]),
+        update: new Uint8Array([255]),
+      });
+      const client = new WhiteboardDocumentClient(
+        { databaseName: "A", contentId: created.contentIds[0] },
+        f.backend(6).api,
+        f.outbox
+      );
+      cleanups.push(() => client.dispose());
+      await client.ready;
+      edit(client, f.id, "新代次");
+      await client.flush();
+      expect(client.model.text(f.id, "source").toString()).toBe("新代次");
+      expect(f.outbox.records.has("old")).toBe(true);
+    } finally {
+      doc.destroy();
+    }
+  });
+  it("已保存在草稿箱但无法写入旧基线的输入，换代时只交给离线副本", async () => {
+    const f = await fixture(),
+      backend = f.backend(1);
+    backend.api.append = async () => {
+      throw new Error("旧基线拒绝写入");
+    };
+    const client = await f.open(1, backend.api);
+    const base = f.sessions.snapshot(client.leaseId!, 1).state;
+    edit(client, f.id, "离线补存");
+    await expect(client.flush()).rejects.toThrow("旧基线");
+    backend.drains.forEach(drain =>
+      drain({ requestId: "rebind", leaseId: client.leaseId!, sealed: true, recoverOffline: true })
+    );
+    await vi.waitFor(() =>
+      expect(backend.api.drained).toHaveBeenCalledWith("rebind", undefined, expect.any(Uint8Array))
+    );
+    const delta = vi.mocked(backend.api.drained).mock.calls.at(-1)?.[2];
+    if (!delta) throw new Error("未交接旧草稿");
+    const copy = new WhiteboardModel(new Y.Doc());
+    try {
+      Y.applyUpdate(copy.doc, base);
+      expect(copy.text(f.id, "source").toString()).toBe("");
+      Y.applyUpdate(copy.doc, delta);
+      expect(copy.text(f.id, "source").toString()).toBe("离线补存");
+      expect(f.outbox.records.size).toBe(1);
+    } finally {
+      copy.doc.destroy();
+    }
   });
   it("其它基线草稿不自动套入当前文档，记录保留", async () => {
     const f = await fixture();

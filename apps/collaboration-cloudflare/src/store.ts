@@ -1,3 +1,4 @@
+import { reclaimIdleRoom, prepareRoomCheckpoint } from "@tau/collaboration/whiteboard-checkpoint";
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import * as Y from "yjs";
 import {
@@ -767,6 +768,30 @@ export class CollaborationStore {
       undefined,
       syncSource
     );
+  }
+
+  private readonly reclaims = new DocumentWriteQueue(0);
+  async reclaimWhiteboard(id: string, roomIdle: () => boolean): Promise<boolean> {
+    const idle = () => roomIdle() && this.document(id).status === "active";
+    if (!idle()) return false;
+    return this.reclaims.run("rooms", 0, async () => {
+      if (!idle()) return false;
+      return reclaimIdleRoom(id, {
+        bytes: this.documentBytes(id),
+        limit: MAX_DOCUMENT_BYTES,
+        idle,
+        protocols: this.protocols,
+        operations: this.operations,
+        writes: this.writes,
+        load: () => this.load(id),
+        prepare: prepareRoomCheckpoint,
+        install: candidate => {
+          this.writable();
+          this.sql.exec("DELETE FROM chunks WHERE document_id=?", id);
+          this.writeChunks(id, 0, candidate.state);
+        },
+      });
+    });
   }
 
   compact(id: string) {

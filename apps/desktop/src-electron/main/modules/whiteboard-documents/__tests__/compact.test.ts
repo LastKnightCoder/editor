@@ -20,7 +20,7 @@ import {
   model,
   documents,
 } from "../../../../../../../packages/collaboration/src/whiteboard-test-utils";
-import { compactLocalWhiteboard } from "../compact";
+import { rebuildWhiteboardCheckpoint } from "@tau/collaboration/whiteboard-checkpoint";
 
 afterEach(() => documents.splice(0).forEach(doc => doc.destroy()));
 
@@ -89,7 +89,7 @@ it("重建完整检查点保留未归属元素、富文本标记、已删页和�
       null
     );
   const before = Y.encodeStateAsUpdate(board.doc);
-  const next = await compactLocalWhiteboard(before);
+  const next = await rebuildWhiteboardCheckpoint(before);
   expect(next).not.toBeNull();
   const restored = model(must(next));
   expect(restored.read()).toEqual(board.read());
@@ -117,13 +117,13 @@ it("重建完整检查点保留未归属元素、富文本标记、已删页和�
 it("共享房间和没有回收收益的本机检查点保持原样", async () => {
   const { board } = await fixture();
   const state = Y.encodeStateAsUpdate(board.doc);
-  expect(await compactLocalWhiteboard(state)).toBeNull();
+  expect(await rebuildWhiteboardCheckpoint(state)).toBeNull();
   const shared = await createWhiteboardDocument(
     { documentId: "doc", baselineId: "shared", epoch: 3 },
     state
   );
   try {
-    expect(await compactLocalWhiteboard(Y.encodeStateAsUpdate(shared))).toBeNull();
+    expect(await rebuildWhiteboardCheckpoint(Y.encodeStateAsUpdate(shared))).toBeNull();
   } finally {
     shared.destroy();
   }

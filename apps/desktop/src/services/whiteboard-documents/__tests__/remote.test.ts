@@ -43,7 +43,11 @@ const ok = (localRevision: number): WhiteboardRemoteStatus => ({
   pending: 0,
 });
 let client: ReturnType<typeof fakeClient>;
-let backend: { open: ReturnType<typeof vi.fn>; sync: ReturnType<typeof vi.fn> };
+let backend: {
+  refreshCheckpoint: ReturnType<typeof vi.fn>;
+  open: ReturnType<typeof vi.fn>;
+  sync: ReturnType<typeof vi.fn>;
+};
 let sync: WhiteboardRemoteSync;
 const create = () => {
   sync = new WhiteboardRemoteSync(
@@ -59,6 +63,9 @@ beforeEach(() => {
   vi.useFakeTimers();
   client = fakeClient();
   backend = {
+    refreshCheckpoint: vi.fn(async () => {
+      client.needsReopen = true;
+    }),
     open: vi.fn(async () => ({ requiresRebind: false, pending: 0 })),
     sync: vi.fn(async () => ok(client.getSnapshot().revision)),
   };
@@ -150,7 +157,7 @@ it("持续输入不推迟已安排的同步，断网退避也不被输入绕过"
   expect(backend.sync).toHaveBeenCalledTimes(calls + 1);
 });
 
-it("权限拒绝、版本不兼容与换代不自动重投，只在用户操作后重试", async () => {
+it("撤权后等待用户重试，换代自动重开且不会重投旧编辑", async () => {
   backend.sync.mockRejectedValueOnce(new Error("FORBIDDEN: 没有这段内容的访问权限"));
   create();
   await vi.advanceTimersByTimeAsync(0);
@@ -165,10 +172,8 @@ it("权限拒绝、版本不兼容与换代不自动重投，只在用户操作�
   backend.sync.mockResolvedValueOnce({ requiresRebind: true, reason: "epoch", pending: 0 });
   client.edit();
   await vi.advanceTimersByTimeAsync(800);
-  expect(sync.getSnapshot().phase).toBe("rebind");
-  expect(whiteboardSyncStatus(client.getSnapshot(), sync.getSnapshot()).actions).toEqual([
-    "detach",
-  ]);
+  expect(client.needsReopen).toBe(true);
+  expect(backend.refreshCheckpoint).toHaveBeenCalledTimes(1);
   const calls = backend.sync.mock.calls.length;
   client.edit();
   await vi.advanceTimersByTimeAsync(120_000);

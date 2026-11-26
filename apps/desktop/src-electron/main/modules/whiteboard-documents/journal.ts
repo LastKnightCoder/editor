@@ -140,9 +140,37 @@ export class WhiteboardJournal {
       this.hold(journalKey(document), holds);
     })();
   }
-  prepareReclaim(previous: WhiteboardCheckpoint, nextHash: string): boolean {
+  nextSharedEpoch(identity: WhiteboardDocumentIdentity): number {
+    const maximum = this.db
+      .prepare(
+        `SELECT max(json_extract(identity,'$.epoch')) FROM documents
+       WHERE json_extract(identity,'$.databaseName') IN (?,?) AND json_extract(identity,'$.sourceId')=?
+       AND json_extract(identity,'$.baselineId')=? AND json_extract(identity,'$.documentId')=?`
+      )
+      .pluck()
+      .get(
+        identity.databaseName,
+        alternateWhiteboardDatabaseName(identity.databaseName),
+        identity.sourceId,
+        identity.baselineId,
+        identity.documentId
+      ) as number | null;
+    const next = Math.max(identity.epoch, maximum ?? 0) + 1;
+    if (!Number.isSafeInteger(next)) throw new Error("白板本机代次超出范围");
+    return next;
+  }
+  cancelReclaim(previous: WhiteboardCheckpoint): void {
+    this.db
+      .prepare("DELETE FROM checkpoint_reclaims WHERE source_key=? AND source_hash=?")
+      .run(journalKey(previous), previous.hash);
+  }
+  prepareReclaim(
+    previous: WhiteboardCheckpoint,
+    nextHash: string,
+    epoch = previous.epoch + 1
+  ): boolean {
     const key = journalKey(previous);
-    const next = journalKey({ ...previous, epoch: previous.epoch + 1 });
+    const next = journalKey({ ...previous, epoch });
     const row = this.db
       .prepare(
         `INSERT OR REPLACE INTO checkpoint_reclaims
@@ -167,7 +195,8 @@ export class WhiteboardJournal {
 
   /** 主库事务是切换点；崩溃后只按实际落盘的目标摘要完成日志交接。 */
   finishReclaim(
-    current: WhiteboardDocumentIdentity & { state: Uint8Array; hash: string; revision: number }
+    current: WhiteboardDocumentIdentity & { state: Uint8Array; hash: string; revision: number },
+    retained?: () => readonly ContentEntityReference[]
   ): void {
     const key = journalKey(current);
     const job = this.db
@@ -209,6 +238,7 @@ export class WhiteboardJournal {
       this.db
         .prepare("UPDATE holds SET document_id=? WHERE document_id=?")
         .run(key, job.source_key);
+      if (retained) this.hold(key, retained());
     })();
   }
   agentReceipt(documentId: string, prefix: string, batchId: string): number | undefined {

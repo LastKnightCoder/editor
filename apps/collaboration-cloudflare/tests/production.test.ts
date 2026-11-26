@@ -1,5 +1,8 @@
 import { createTestDocument } from "@tau/collaboration/src/testing/node-document";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { WebSocket } from "ws";
+import { HocuspocusProvider, HocuspocusProviderWebsocket } from "@hocuspocus/provider";
+import { seedRoomOrderHistory } from "@tau/collaboration/src/testing/whiteboard-checkpoint";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Miniflare, convertV4MiniflareOptions } from "miniflare";
 import { resolve } from "node:path";
 import { createHash, randomBytes } from "node:crypto";
@@ -102,6 +105,127 @@ async function create(owner: DeviceIdentity) {
 }
 
 describe("正式 Cloudflare 协作能力", () => {
+  it.runIf(process.env.TAU_SHARED_WHITEBOARD_STRESS === "1")(
+    "最后一个真实连接释放后原子换代，旧票据与旧提案不能修改可继续编辑的白板",
+    async () => {
+      await initialize();
+      const owner = await register("owner"),
+        id = await create(owner),
+        route = `/v1/documents/${id}`;
+      const model = new WhiteboardModel(new Y.Doc());
+      const page = model.submit([{ type: "create_page", title: "保留页面" }], null).createdIds[0];
+      seedRoomOrderHistory(model, page);
+      const identity = { documentId: id, baselineId: "before", epoch: 0 };
+      const doc = await createWhiteboardDocument(identity, Y.encodeStateAsUpdate(model.doc));
+      const state = Y.encodeStateAsUpdate(doc);
+      expect(state.length).toBeGreaterThan(4 * 1024 * 1024);
+      try {
+        expect(
+          (
+            await request(
+              route + "/publish",
+              "POST",
+              { state: Buffer.from(state).toString("base64") },
+              owner
+            )
+          ).response.status
+        ).toBe(200);
+        const ticket = async (baselineId: string, epoch: number) =>
+          request(
+            "/v1/tickets",
+            "POST",
+            { documentId: id, protocolVersion: 3, epoch, baselineId },
+            owner
+          );
+        const old = await ticket("before", 0);
+        expect(old.response.status).toBe(200);
+        const socket = new HocuspocusProviderWebsocket({
+          url: url.replace(/^http/, "ws") + "/ws",
+          WebSocketPolyfill: WebSocket,
+        });
+        const provider = new HocuspocusProvider({
+          name: id,
+          document: doc,
+          websocketProvider: socket,
+          token: old.value.ticket,
+        });
+        provider.attach();
+        try {
+          await vi.waitFor(() => expect(provider.synced).toBe(true), { timeout: 18000 });
+          expect((await request(route + "/protocol", "GET", undefined, owner)).value.epoch).toBe(0);
+        } finally {
+          provider.destroy();
+          socket.destroy();
+        }
+        await vi.waitFor(
+          async () =>
+            expect((await request(route + "/protocol", "GET", undefined, owner)).value.epoch).toBe(
+              1
+            ),
+          { timeout: 20000, interval: 150 }
+        );
+        const head = (await request(route + "/protocol", "GET", undefined, owner)).value;
+        expect((await ticket("before", 0)).response.status).toBe(409);
+        const read = () =>
+          fetch(url + route + "/state", {
+            headers: {
+              Authorization: "Bearer " + owner.id + ":" + owner.secret,
+              "x-tau-document-version": "3",
+            },
+          }).then(r => r.json());
+        const stored = await read(),
+          latest = new WhiteboardModel(new Y.Doc({ gc: false }));
+        try {
+          const bytes = Buffer.from(stored.state, "base64");
+          Y.applyUpdate(latest.doc, bytes);
+          expect(bytes.length).toBeLessThan(state.length / 2);
+          expect(latest.read().pages.map(p => p.id)).toEqual([page]);
+          const send = async (epoch: number, baselineId: string, delta: Uint8Array) => {
+            const operationId = crypto.randomUUID();
+            return request(
+              route + "/operations/" + operationId,
+              "POST",
+              {
+                epoch,
+                baselineId,
+                version: 3,
+                operationId,
+                expiresAt: Date.now() + 60000,
+                update: Buffer.from(delta).toString("base64"),
+                updateHash: createHash("sha256").update(delta).digest("hex"),
+              },
+              owner
+            );
+          };
+          expect((await send(0, "before", state)).value.operation.state).toBe("ABORTED");
+          expect(await read()).toEqual(stored);
+          const vector = Y.encodeStateVector(latest.doc);
+          latest.submit(
+            [{ type: "edit_title", edit: { offset: 0, remove: 0, text: "重新编辑" } }],
+            null
+          );
+          expect(
+            (await send(head.epoch, head.baselineId, Y.encodeStateAsUpdate(latest.doc, vector)))
+              .value.operation.state
+          ).toBe("COMMITTED");
+          const reopened = new WhiteboardModel(new Y.Doc());
+          try {
+            Y.applyUpdate(reopened.doc, Buffer.from((await read()).state, "base64"));
+            expect(reopened.read().title).toBe("重新编辑");
+          } finally {
+            reopened.doc.destroy();
+          }
+          console.info("共享白板 Worker 回收字节", state.length, bytes.length);
+        } finally {
+          latest.doc.destroy();
+        }
+      } finally {
+        doc.destroy();
+        model.doc.destroy();
+      }
+    },
+    60000
+  );
   it("编辑历史经实际 HTTP 权限、条件恢复、单次撤销和 R2 备份恢复贯通", async () => {
     await initialize();
     const owner = await register("记录者");

@@ -1,5 +1,9 @@
 import { CollaborationError, type SharedDocumentListing } from "./protocol";
-import { assertCurrentDocumentVersion, NODE_DOCUMENT_VERSION } from "./document-version";
+import {
+  assertCurrentDocumentVersion,
+  NODE_DOCUMENT_VERSION,
+  WHITEBOARD_DOCUMENT_VERSION,
+} from "./document-version";
 
 export interface DocumentProtocol {
   id: string;
@@ -139,6 +143,35 @@ export class DocumentProtocolStore {
       documentId
     );
     this.verified.set(documentId, value);
+  }
+
+  /** 只有后台回收可以换代。快照、序号与协议行在同一事务提交。 */
+  reclaimWhiteboard(
+    expected: DocumentProtocol,
+    baselineId: string,
+    revision: string,
+    install: () => boolean
+  ): boolean {
+    return this.sql.transaction(() => {
+      const current = this.document(expected.id);
+      if (
+        current.version !== WHITEBOARD_DOCUMENT_VERSION ||
+        current.epoch !== expected.epoch ||
+        current.baselineId !== expected.baselineId ||
+        current.revision !== expected.revision ||
+        !Number.isSafeInteger(current.epoch + 1) ||
+        !install()
+      )
+        return false;
+      const value = JSON.stringify({ ...current, epoch: current.epoch + 1, baselineId, revision });
+      this.sql.exec(
+        "UPDATE collaboration_protocol SET value=? WHERE document_id=?",
+        value,
+        current.id
+      );
+      this.verified.set(current.id, value);
+      return true;
+    });
   }
 
   invalidate(documentId?: string): void {
