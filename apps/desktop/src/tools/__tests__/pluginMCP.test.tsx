@@ -1,5 +1,6 @@
 import { webcrypto } from "node:crypto";
 import { act } from "react";
+import { desktopLocaleSource } from "@/app/i18n/runtime";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
@@ -164,6 +165,7 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 afterEach(async () => {
+  act(() => desktopLocaleSource.setLocale("zh-CN"));
   await act(async () => {
     for (const instance of hosts.splice(0)) await instance.dispose();
   });
@@ -191,6 +193,27 @@ it("多个 MCP 直接出现在现有卡片和快捷面板，整项关闭不影�
   expect(new Set(names).size).toBe(2);
   expect(names.every(name => name.length <= 64)).toBe(true);
   const first = items.find(item => item.name === "本地 books")!;
+  const field = container.querySelector("input");
+  if (!field) throw new Error("server search is missing");
+  act(() => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(field, "本地");
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+    field.focus();
+    field.setSelectionRange(0, 1);
+  });
+  const card = container.querySelector("article");
+  const registered = toolRegistry.getRegisteredTools();
+  const preferences = useMCPStore.getState().providerStates;
+  for (const locale of ["en-US", "zh-TW", "zh-CN"] as const) {
+    await act(async () => desktopLocaleSource.setLocale(locale));
+    expect(container.querySelector("article")).toBe(card);
+    expect(document.activeElement).toBe(field);
+    expect(field.value).toBe("本地");
+    expect([field.selectionStart, field.selectionEnd]).toEqual([0, 1]);
+    expect(toolRegistry.getRegisteredTools()).toEqual(registered);
+    expect(useMCPStore.getState().providerStates).toBe(preferences);
+    expect(instance.getState("test.mcp")).toBe("active");
+  }
   await act(async () => {
     (container.querySelector('[aria-label="停用 本地 books"]') as HTMLButtonElement).click();
   });

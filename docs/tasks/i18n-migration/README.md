@@ -286,6 +286,8 @@ P5手机工具展示：19路径工程完成；5文件31例、mobile类型/构建
 
 P6A3-D2B脑图/剪贴板：7路径工程完成；5文件36例、包type/白板边界、menus-structure51key三语runtime及范围静态格式通过。真实概要生成跨locale产物正文相等（不锁默认词值），页面标题getter打开只读一次/ID动作不变；独立AST对照非UI协议/默认正文/算法保持，正规化差异仅显示/反馈和明确Board参数穿透。
 
+P5 MCP列表/快捷入口：11路径加Root Toast4工程完成；插件MCP真实Host/registry/store及配置解析24例、Toast12例通过，desktop/UI类型及desktop构建、三语/插值/复数/范围静态格式通过。已有插件场景新增真实换语契约，保留搜索DOM/焦点/选区、卡片与工具注册集合、providerStates引用，之后原ID启停仍生效。纯statusText旧签名/TSX导出消费者迁完退休，UI不把译文存进MCP模型；详情/表单/内置目录显示继续下一批。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

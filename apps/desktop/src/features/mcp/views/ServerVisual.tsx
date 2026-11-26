@@ -1,3 +1,5 @@
+import { useMcpListI18n } from "../list.i18n";
+import { statusText } from "../statusText";
 /**
  * 服务器的图标与状态行：卡片、详情抽屉、输入框快捷面板共用。
  * 图标一律中性墨色，只按服务器身份区分；颜色只留给状态点。
@@ -81,27 +83,8 @@ export function StatusDot({ status }: { status: McpServerStatus }) {
   return <i className={cn("size-[7px] shrink-0 rounded-full", DOT[status])} />;
 }
 
-export function statusText(item: McpServerItem): string {
-  if (item.locked) return `${item.tools.length} 个工具 · 常开`;
-  switch (item.status) {
-    case "ready":
-      return item.tools.length > 0
-        ? `${item.tools.filter(tool => !item.disabledTools.has(tool.name)).length} / ${item.tools.length} 个工具`
-        : item.kind === "plugin" && !item.server
-          ? "就绪"
-          : "已连接";
-    case "connecting":
-      return "连接中…";
-    case "error":
-      return "连接失败";
-    case "off":
-      return "已停用";
-    case "unavailable":
-      return "需要配置";
-  }
-}
-
 export function StatusLine({ item, className }: { item: McpServerItem; className?: string }) {
+  const context = useMcpListI18n();
   return (
     <span
       className={cn(
@@ -111,7 +94,7 @@ export function StatusLine({ item, className }: { item: McpServerItem; className
       )}
     >
       <StatusDot status={item.status} />
-      <span className="truncate">{statusText(item)}</span>
+      <span className="truncate">{statusText(item, context)}</span>
     </span>
   );
 }

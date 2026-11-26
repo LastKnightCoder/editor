@@ -1,3 +1,5 @@
+import { useMcpListI18n } from "../list.i18n";
+import type { McpListContext } from "../list.messages";
 /**
  * MCP 服务器页：卡片库（自定义 / 内置两段）+ 右侧详情抽屉 + 添加弹窗。
  * 卡片上的开关即时启停；点卡片看工具、改配置、查日志。
@@ -28,10 +30,10 @@ const CARD =
   "hover:shadow-lift hover:border-transparent transition-[box-shadow,border-color] duration-200 " +
   "focus-visible:shadow-[var(--tau-focus-ring)] focus-visible:outline-none";
 
-function subtitle(item: McpServerItem): string {
-  if (item.kind === "plugin") return `来自 ${item.pluginName}`;
-  if (item.kind !== "custom") return "内置";
-  return item.server?.transport.type === "stdio" ? "本地进程 · stdio" : "远程 · HTTP";
+function subtitle(item: McpServerItem, t: McpListContext["t"]): string {
+  if (item.kind === "plugin") return t("source.plugin", { name: item.pluginName ?? "" });
+  if (item.kind !== "custom") return t("source.builtin");
+  return t(item.server?.transport.type === "stdio" ? "source.stdio" : "source.http");
 }
 
 function ServerCard({
@@ -43,6 +45,7 @@ function ServerCard({
   active: boolean;
   onOpen: () => void;
 }) {
+  const { t } = useMcpListI18n();
   return (
     <article
       tabIndex={0}
@@ -56,7 +59,7 @@ function ServerCard({
         <ServerIcon item={item} />
         <div className={cn("min-w-0 flex-1", !item.enabled && "opacity-60")}>
           <div className="truncate text-[13.5px] font-semibold">{item.name}</div>
-          <div className="text-tau-sm text-ink-3">{subtitle(item)}</div>
+          <div className="text-tau-sm text-ink-3">{subtitle(item, t)}</div>
         </div>
         {/* 开关不触发打开详情；常开项（功能工具 / AI 基础工具）只读 */}
         <span onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
@@ -64,10 +67,10 @@ function ServerCard({
             size="sm"
             aria-label={
               item.locked
-                ? `${item.name}（常开）`
+                ? t("toggle.locked", { name: item.name })
                 : item.enabled
-                  ? `停用 ${item.name}`
-                  : `启用 ${item.name}`
+                  ? t("toggle.disable", { name: item.name })
+                  : t("toggle.enable", { name: item.name })
             }
             checked={item.enabled}
             disabled={item.locked || item.status === "unavailable"}
@@ -115,6 +118,7 @@ const matches = (item: McpServerItem, q: string) =>
   item.tools.some(t => t.name.toLowerCase().includes(q));
 
 export function McpView() {
+  const { t, locale } = useMcpListI18n();
   const { builtin, custom } = useMcpServers();
   const scoped = useMemo(() => getScopedServerItems(), []);
   const piBuiltin = useMemo(() => getPiBuiltinServerItem(), []);
@@ -154,7 +158,12 @@ export function McpView() {
 
   const exportAll = async () => {
     await navigator.clipboard.writeText(serversToJson(customServers));
-    toast.success(`已复制 ${customServers.length} 个服务器的 mcpServers JSON`);
+    toast.success(
+      t("list.copied", {
+        count: customServers.length,
+        number: customServers.length.toLocaleString(locale),
+      })
+    );
   };
 
   return (
@@ -164,13 +173,16 @@ export function McpView() {
         <div className="flex flex-none flex-col px-8 pt-5">
           <div className="flex h-10 flex-none items-center gap-3">
             <h1 className="text-tau-title-lg shrink-0 font-semibold tracking-[-0.01em] whitespace-nowrap">
-              MCP 服务器
+              {t("list.title")}
             </h1>
             {/* w-0 + flex-1：填满剩余宽度并截断，不撑大页面的最小宽度 */}
             <span className="text-tau-meta text-ink-2 w-0 flex-1 truncate whitespace-nowrap tabular-nums">
-              已启用 <b className="text-ink-1 font-semibold">{enabledServers.length}</b> 个服务器
+              {t("list.servers", {
+                count: enabledServers.length,
+                number: enabledServers.length.toLocaleString(locale),
+              })}
               <span className="text-ink-3 mx-1.5">·</span>
-              <b className="text-ink-1 font-semibold">{toolCount}</b> 个工具
+              {t("list.tools", { count: toolCount, number: toolCount.toLocaleString(locale) })}
             </span>
             <Input
               size="sm"
@@ -184,14 +196,14 @@ export function McpView() {
                   setQuery("");
                 }
               }}
-              placeholder="搜索服务器或工具"
+              placeholder={t("list.search")}
               // 输入框自身不贡献最小宽度，窄窗口下随标题栏收缩
               className="w-0"
               wrapperClassName="w-auto max-w-[240px] flex-[0_1_240px]"
             />
             {customServers.length > 0 && (
-              <Tooltip content="复制全部自定义服务器为 mcpServers JSON">
-                <IconButton aria-label="导出为 JSON" onClick={() => void exportAll()}>
+              <Tooltip content={t("list.copyHint")}>
+                <IconButton aria-label={t("list.export")} onClick={() => void exportAll()}>
                   <Braces className="size-4" strokeWidth={1.75} />
                 </IconButton>
               </Tooltip>
@@ -203,19 +215,19 @@ export function McpView() {
               className="shrink-0 whitespace-nowrap"
               onClick={() => setAdding(true)}
             >
-              添加服务器
+              {t("list.add")}
             </Button>
           </div>
 
-          <p className="text-tau-meta text-ink-2 mt-1 px-0.5 pb-3">
-            让 AI 调用本机程序或远程服务：读写文件、查
-            GitHub、操作浏览器……启用的服务器在每次对话中都可用。
-          </p>
+          <p className="text-tau-meta text-ink-2 mt-1 px-0.5 pb-3">{t("list.description")}</p>
         </div>
 
         <FadeScroll className="mb-4 min-h-0 flex-1 pt-3 pr-[26px] pb-2 pl-8">
           {(!q || shownCustom.length > 0) && (
-            <Section title="自定义" hint={custom.length > 0 ? String(custom.length) : undefined}>
+            <Section
+              title={t("list.custom")}
+              hint={custom.length > 0 ? custom.length.toLocaleString(locale) : undefined}
+            >
               {shownCustom.map(item => (
                 <ServerCard
                   key={item.id}
@@ -231,9 +243,9 @@ export function McpView() {
                   className="border-line-1 text-ink-3 hover:bg-hover hover:text-ink-1 flex min-h-[132px] flex-col items-center justify-center gap-1.5 rounded-[var(--tau-radius-lg)] border border-dashed transition-[background,color] duration-150"
                 >
                   <Plus className="size-5" strokeWidth={1.5} />
-                  <span className="text-tau-meta">添加服务器</span>
+                  <span className="text-tau-meta">{t("list.add")}</span>
                   {custom.length === 0 && (
-                    <span className="text-tau-sm text-ink-3">手动填写或粘贴 JSON</span>
+                    <span className="text-tau-sm text-ink-3">{t("list.addHint")}</span>
                   )}
                 </button>
               )}
@@ -241,7 +253,7 @@ export function McpView() {
           )}
 
           {shownBuiltin.length > 0 && (
-            <Section title="内置" hint="随应用提供，部分常开不可关">
+            <Section title={t("list.builtin")} hint={t("list.builtinHint")}>
               {shownBuiltin.map(item => (
                 <ServerCard
                   key={item.id}
@@ -259,10 +271,10 @@ export function McpView() {
                 <Plug className="size-6" strokeWidth={1.5} />
               </span>
               <p className="text-ink-1 text-[15px] font-semibold">
-                没有匹配「{query.trim()}」的服务器
+                {t("list.empty", { query: query.trim() })}
               </p>
               <Button variant="secondary" size="sm" className="mt-2" onClick={() => setQuery("")}>
-                清除搜索
+                {t("list.clear")}
               </Button>
             </div>
           )}
@@ -276,10 +288,10 @@ export function McpView() {
       <ConfirmDialog
         open={deleting !== null}
         onOpenChange={open => !open && setDeleting(null)}
-        title="删除 MCP 服务器"
+        title={t("list.deleteTitle")}
         context={deleting?.name}
-        description="删除后 AI 无法再调用它的工具，配置不可恢复。"
-        confirmText="删除"
+        description={t("list.deleteHint")}
+        confirmText={t("list.delete")}
         danger
         onConfirm={async () => {
           if (!deleting) return;

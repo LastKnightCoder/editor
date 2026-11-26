@@ -1,3 +1,4 @@
+import { useMcpListI18n } from "../list.i18n";
 /**
  * 输入框 ＋ 面板里的「MCP 服务器」二级面板：只做启停开关，完整管理跳到 MCP 页。
  * 开关与 MCP 页同源（全局生效，不是按会话）。页面专属工具（Vibe Learning、视频笔记、PDF）
@@ -16,9 +17,12 @@ import {
   getSubagentServerItem,
   type McpServerItem,
 } from "../useMcpServers";
-import { StatusDot, statusText } from "../views/ServerVisual";
+import { StatusDot } from "../views/ServerVisual";
+import { statusText } from "../statusText";
 
 function Row({ item }: { item: McpServerItem }) {
+  const context = useMcpListI18n();
+  const { t } = context;
   return (
     <label
       className={cn(
@@ -30,7 +34,11 @@ function Row({ item }: { item: McpServerItem }) {
       <span
         className="min-w-0 flex-1 truncate"
         title={
-          item.pluginName ? `来自 ${item.pluginName}` : item.locked ? item.description : undefined
+          item.pluginName
+            ? t("source.plugin", { name: item.pluginName })
+            : item.locked
+              ? item.description
+              : undefined
         }
       >
         {item.name}
@@ -42,16 +50,16 @@ function Row({ item }: { item: McpServerItem }) {
             : "text-tau-sm text-ink-3 shrink-0 tabular-nums"
         }
       >
-        {item.enabled ? statusText(item) : ""}
+        {item.enabled ? statusText(item, context) : ""}
       </span>
       <Switch
         size="sm"
         aria-label={
           item.locked
-            ? `${item.name}（常开）`
+            ? t("toggle.locked", { name: item.name })
             : item.enabled
-              ? `停用 ${item.name}`
-              : `启用 ${item.name}`
+              ? t("toggle.disable", { name: item.name })
+              : t("toggle.enable", { name: item.name })
         }
         checked={item.enabled}
         disabled={item.locked || item.status === "unavailable"}
@@ -62,22 +70,27 @@ function Row({ item }: { item: McpServerItem }) {
 }
 
 function ScopedRow({ scene }: { scene: ScopedToolSource }) {
+  const { t, locale } = useMcpListI18n();
   return (
     <div
-      title="当前页面专属，只在这里的对话可用"
+      title={t("quick.scopeHint")}
       className="text-tau-body flex h-[36px] items-center gap-2.5 rounded-[10px] px-2.5"
     >
       <StatusDot status="ready" />
       <span className="min-w-0 flex-1 truncate">{scene.label}</span>
       <span className="text-tau-sm text-ink-3 shrink-0 tabular-nums">
-        {scene.tools.length} 个工具
+        {t("quick.tools", {
+          count: scene.tools.length,
+          number: scene.tools.length.toLocaleString(locale),
+        })}
       </span>
-      <Switch size="sm" aria-label={`${scene.label}（常开）`} checked disabled />
+      <Switch size="sm" aria-label={t("toggle.locked", { name: scene.label })} checked disabled />
     </div>
   );
 }
 
 export function McpQuickPanel({ toolScope, onClose }: { toolScope?: string; onClose: () => void }) {
+  const { t } = useMcpListI18n();
   const { builtin, custom } = useMcpServers();
   const subagentServer = useMemo(() => getSubagentServerItem(), []);
   const scoped = useScopedToolSource(toolScope);
@@ -98,12 +111,12 @@ export function McpQuickPanel({ toolScope, onClose }: { toolScope?: string; onCl
     <>
       {scoped && (
         <>
-          {groupTitle("当前页面")}
+          {groupTitle(t("quick.current"))}
           <ScopedRow scene={scoped} />
         </>
       )}
-      {group("自定义", custom)}
-      {group("内置", [...builtin, subagentServer])}
+      {group(t("quick.custom"), custom)}
+      {group(t("quick.builtin"), [...builtin, subagentServer])}
       <button
         type="button"
         onClick={() => {
@@ -112,7 +125,7 @@ export function McpQuickPanel({ toolScope, onClose }: { toolScope?: string; onCl
         }}
         className="text-tau-body text-accent-text hover:bg-hover mt-1 flex h-[36px] w-full items-center gap-2 rounded-[10px] px-2.5"
       >
-        管理 MCP 服务器
+        {t("quick.manage")}
         <ArrowUpRight className="ml-auto size-3.5" strokeWidth={1.75} />
       </button>
     </>

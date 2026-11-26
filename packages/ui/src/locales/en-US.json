@@ -21,5 +21,6 @@
   "tag.remove": "Remove",
   "input.clear": "Clear",
   "toast.done": "Done",
-  "toast.failed": "Failed"
+  "toast.failed": "Failed",
+  "toast.dismiss": "Click to dismiss"
 }

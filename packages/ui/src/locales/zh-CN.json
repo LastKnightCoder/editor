@@ -19,5 +19,6 @@
   "tag.remove": "移除",
   "input.clear": "清空",
   "toast.done": "完成",
-  "toast.failed": "失败"
+  "toast.failed": "失败",
+  "toast.dismiss": "点击关闭"
 }

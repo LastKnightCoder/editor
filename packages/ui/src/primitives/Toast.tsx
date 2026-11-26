@@ -391,7 +391,7 @@ export function ToastPill({
       onMouseEnter={pause}
       onMouseLeave={resume}
       onClick={close}
-      title="点击关闭"
+      title={t("toast.dismiss")}
       className={clsx(
         "ease-tau-out pointer-events-auto flex min-w-0 cursor-pointer items-center rounded-full transition-[opacity,transform] duration-200",
         VARIANT_PILL[variant],
