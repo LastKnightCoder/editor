@@ -130,5 +130,4 @@ export const handwriteCreateSpec: ElementCreateSpec = {
   gesture: handwriteCreateGesture,
   after: "none",
   stay: true,
-  hint: () => ["按住拖动书写", "画笔会保持选中"],
 };

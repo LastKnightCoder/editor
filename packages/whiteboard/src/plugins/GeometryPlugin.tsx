@@ -1,3 +1,5 @@
+import { menuText } from "../menu-i18n";
+import { geometryMenuText } from "../tool-i18n";
 import { Shapes } from "lucide-react";
 import { Board, ContextMenuContext, PluginContextMenuItem, SketchFillStyle } from "../types";
 import { GEOMETRY_TOOL_ID } from "../constants/tools";
@@ -43,12 +45,12 @@ export class GeometryPlugin extends CommonPlugin {
     if (targetElements.length === 0) {
       items.push({
         key: "create-geometry",
-        label: "形状",
+        ...menuText(context.board, "toolbar.geometry"),
         icon: <Shapes size={14} />,
         priority: 100,
         children: geometryItems.map((item, index) => ({
           key: `create-geometry-${item.geometryType}`,
-          label: item.name,
+          ...geometryMenuText(context.board, item.geometryType, item.name),
           icon: (
             <svg width={14} height={14} viewBox="0 0 16 16" style={{ overflow: "visible" }}>
               {item.paths.map((path, pathIndex) => {

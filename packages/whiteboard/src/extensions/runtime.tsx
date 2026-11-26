@@ -1,3 +1,4 @@
+import ToolPanelFailure from "../components/Toolbar/ToolPanelFailure";
 import { whiteboardAuthorOwner } from "./authorApi";
 import { assertWhiteboardElementVersions } from "./versions";
 import { createElement, Fragment } from "react";
@@ -1280,7 +1281,7 @@ export class ExtensionRuntime {
     return (
       <ErrorBoundary
         key={toolId}
-        fallback={<p role="alert">工具面板加载失败，请返回重试。</p>}
+        fallback={<ToolPanelFailure />}
         onError={error => console.error(`白板扩展 ${entry.id} 的工具面板失败`, error)}
       >
         <APIContext value={entry.api}>

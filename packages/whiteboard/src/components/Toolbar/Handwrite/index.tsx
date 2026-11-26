@@ -1,3 +1,4 @@
+import { useWhiteboardI18n } from "../../../i18n";
 import type { WhiteboardToolProps } from "../../../extensions/api";
 import { memo } from "react";
 import { PenLine } from "lucide-react";
@@ -6,11 +7,12 @@ import { HANDWRITE_TOOL_ID } from "../../../constants/tools";
 import { ChromeButton } from "../../../chrome";
 
 const Handwrite = memo(({ run }: WhiteboardToolProps) => {
+  const { t } = useWhiteboardI18n();
   const active = useActiveTool() === HANDWRITE_TOOL_ID;
 
   return (
     <ChromeButton
-      label="手写"
+      label={t("toolbar.handwrite")}
       active={active}
       // 激活后按钮正下方是笔设置条，提示会挡住它
       hideTooltip={active}

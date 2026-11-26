@@ -1,3 +1,4 @@
+import { useWhiteboardI18n } from "../../../i18n";
 import type { WhiteboardToolProps } from "../../../extensions/api";
 import { memo } from "react";
 import { Columns3 } from "lucide-react";
@@ -7,11 +8,12 @@ import { ChromeButton } from "../../../chrome";
 import { COLUMN_TOOL_ID } from "../../../constants/tools";
 
 const Column = memo(({ run }: WhiteboardToolProps) => {
+  const { t } = useWhiteboardI18n();
   const active = useActiveTool() === COLUMN_TOOL_ID;
 
   return (
     <ChromeButton
-      label="分栏"
+      label={t("toolbar.column")}
       active={active}
       onClick={() => {
         run();

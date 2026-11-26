@@ -1,3 +1,5 @@
+import { useWhiteboardI18n } from "../../../i18n";
+import { geometryLabel } from "../../../tool-i18n";
 import type { WhiteboardToolProps } from "../../../extensions/api";
 import { memo, useEffect, useState } from "react";
 import { Popover } from "@tau/ui";
@@ -30,6 +32,7 @@ function ShapeGlyph({ geometryType }: { geometryType: string }) {
 
 /** 形状：点开是形状图块（每行 5 格），选中后在画布上拖出 */
 const Geometry = memo(({ run }: WhiteboardToolProps) => {
+  const { t } = useWhiteboardI18n();
   const board = useBoard();
   const [open, setOpen] = useState(false);
   const active = useActiveTool() === GEOMETRY_TOOL_ID;
@@ -67,7 +70,7 @@ const Geometry = memo(({ run }: WhiteboardToolProps) => {
       className="min-w-0"
       trigger={
         <ChromeButton
-          label="形状"
+          label={t("toolbar.geometry")}
           sub
           active={active}
           onClick={e => {
@@ -101,7 +104,7 @@ const Geometry = memo(({ run }: WhiteboardToolProps) => {
                 />
               ))}
             </svg>
-            {item.name}
+            {geometryLabel(item.geometryType, item.name, t)}
           </button>
         ))}
       </div>

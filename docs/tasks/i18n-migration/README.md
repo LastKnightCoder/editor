@@ -242,6 +242,8 @@ P5 Chat容器/输入：13源码工程完成；desktop27和chat-ui24共51例通�
 
 P6B桌面加入/昵称：7源码16语义key工程完成，原2例扩为4例通过；desktop类型、参数、范围静态/格式通过。待提交/失败跨语言保留DOM/光标/原邀请码，不重发加入；昵称草稿不自动写入，Esc取消、Enter仅提交trim原文一次。
 
+P6A3-A公共工具栏：30源码连同@tau/i18n workspace依赖/lock工程完成；6文件52例、包类型/纯Node无DOM/JSX入口、白板边界、三语参数/复数与范围静态/格式通过。真实换语保留菜单factory次数/原动作、插件草稿选区、错误fallback及各runtime隔离、raw几何payload。7 creator仅退役固定hint及dead shapeName，build/default/name/手势算法和第三方显式hint原文保留；BoardContent/perf硬排除。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

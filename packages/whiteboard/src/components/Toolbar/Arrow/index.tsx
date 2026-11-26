@@ -1,3 +1,4 @@
+import { useWhiteboardI18n } from "../../../i18n";
 import type { WhiteboardToolProps } from "../../../extensions/api";
 import { memo } from "react";
 import { ArrowUpRight } from "lucide-react";
@@ -6,11 +7,12 @@ import { ARROW_TOOL_ID } from "../../../constants/tools";
 import { ChromeButton } from "../../../chrome";
 
 const Arrow = memo(({ run }: WhiteboardToolProps) => {
+  const { t } = useWhiteboardI18n();
   const active = useActiveTool() === ARROW_TOOL_ID;
 
   return (
     <ChromeButton
-      label="箭头"
+      label={t("toolbar.arrow")}
       active={active}
       onClick={() => {
         run();

@@ -1,3 +1,6 @@
+import { useWhiteboardI18nRuntime } from "./i18n";
+import { bindWhiteboardI18n } from "./i18n-runtime";
+import { menuLabelReader } from "./menu-i18n";
 import { flushSync } from "react-dom";
 import type { WhiteboardDocumentBinding } from "./document";
 import { useWhiteboardPresence, type WhiteboardPresenceOptions } from "./collaboration/presence";
@@ -166,6 +169,7 @@ export interface WhiteboardRef {
  */
 const Whiteboard = memo(
   forwardRef<WhiteboardRef, WhiteboardProps>((props, ref) => {
+    const i18nRuntime = useWhiteboardI18nRuntime();
     const {
       initData,
       initViewPort = DEFAULT_VIEW_PORT,
@@ -196,6 +200,7 @@ const Whiteboard = memo(
       instance.readonlyReason = documentTooNew ? "document-too-new" : null;
       return instance;
     }, []);
+    useLayoutEffect(() => bindWhiteboardI18n(board, i18nRuntime), [board, i18nRuntime]);
     const initialDocument = useRef(props.document);
     if (props.document !== initialDocument.current)
       throw new Error("白板文档绑定必须稳定，换文档请重建画布");
@@ -358,18 +363,23 @@ const WhiteboardCanvas = forwardRef<WhiteboardRef, WhiteboardProps & { board: Bo
         const pluginItems = boardInstance.getContextMenu(context);
 
         // 转换 PluginContextMenuItem 为 ContextMenuItem
-        const convertItem = (item: PluginContextMenuItem): ContextMenuItem => ({
-          key: item.key,
-          label: item.label,
-          icon: item.icon,
-          shortcut: item.shortcut,
-          danger: item.danger,
-          disabled: item.disabled || isReadonly,
-          children: item.children?.map(convertItem),
-          onSelect: () => {
-            item.onSelect({ ...context, board: boardInstance });
-          },
-        });
+        const convertItem = (item: PluginContextMenuItem): ContextMenuItem => {
+          const readLabel = menuLabelReader(boardInstance, item);
+          return {
+            key: item.key,
+            get label() {
+              return readLabel();
+            },
+            icon: item.icon,
+            shortcut: item.shortcut,
+            danger: item.danger,
+            disabled: item.disabled || isReadonly,
+            children: item.children?.map(convertItem),
+            onSelect: () => {
+              item.onSelect({ ...context, board: boardInstance });
+            },
+          };
+        };
 
         return pluginItems.map(convertItem);
       }

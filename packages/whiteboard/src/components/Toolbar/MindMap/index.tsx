@@ -1,3 +1,4 @@
+import { useWhiteboardI18n } from "../../../i18n";
 import type { WhiteboardToolProps } from "../../../extensions/api";
 import { Network } from "lucide-react";
 
@@ -6,11 +7,12 @@ import { MIND_TOOL_ID } from "../../../constants/tools";
 import { ChromeButton } from "../../../chrome";
 
 const MindMap = ({ run }: WhiteboardToolProps) => {
+  const { t } = useWhiteboardI18n();
   const active = useActiveTool() === MIND_TOOL_ID;
 
   return (
     <ChromeButton
-      label="思维导图"
+      label={t("toolbar.mind")}
       active={active}
       onClick={() => {
         run();

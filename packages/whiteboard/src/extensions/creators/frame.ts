@@ -133,5 +133,4 @@ export const frameCreateGesture: CustomCreateGesture = {
 export const frameCreateSpec: ElementCreateSpec = {
   gesture: frameCreateGesture,
   after: "select",
-  hint: () => ["拖拽生成框架", "框内元素会收入框架"],
 };

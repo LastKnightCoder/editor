@@ -62,7 +62,6 @@ export const textCreateSpec = (text: TextExtensionOptions): ElementCreateSpec =>
   after: "none",
   stay: true,
   cursor: "text",
-  hint: () => ["点击空白处写字"],
   build: async (ctx: CreateBuildContext) => {
     const element = await buildRichTextElement(
       ctx.start.x,

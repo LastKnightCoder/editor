@@ -140,5 +140,4 @@ export const arrowCreateGesture: CustomCreateGesture = {
 export const arrowCreateSpec: ElementCreateSpec = {
   gesture: arrowCreateGesture,
   after: "select",
-  hint: () => ["拖拽绘制箭头", "Shift 吸附 45°"],
 };

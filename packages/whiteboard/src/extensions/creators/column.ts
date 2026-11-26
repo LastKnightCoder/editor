@@ -117,5 +117,4 @@ export const columnCreateSpec: ElementCreateSpec = {
   gesture: columnCreateGesture,
   minSize: [COLUMN_CREATE_MIN_WIDTH, 1],
   after: "select",
-  hint: () => ["拖拽绘制分栏"],
 };

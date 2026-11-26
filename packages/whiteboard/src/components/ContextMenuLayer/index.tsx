@@ -1,3 +1,4 @@
+import { useWhiteboardI18n } from "../../i18n";
 import { memo, useMemo, RefObject } from "react";
 import type { ReactNode } from "react";
 import { Menu } from "@tau/ui";
@@ -60,6 +61,7 @@ function renderItems(items: ContextMenuItem[]): ReactNode {
  */
 const ContextMenuLayer = memo(
   ({ board, containerRef, readonly, buildMenuItems }: ContextMenuLayerProps) => {
+    const { t } = useWhiteboardI18n();
     const { context, hide } = useContextMenu(board);
 
     const menuItems = useMemo(() => {
@@ -91,7 +93,7 @@ const ContextMenuLayer = memo(
           {menuItems.length > 0 ? (
             renderItems(menuItems)
           ) : (
-            <Menu.Item disabled>暂无可用操作</Menu.Item>
+            <Menu.Item disabled>{t("menu.empty")}</Menu.Item>
           )}
         </Menu>
       </div>

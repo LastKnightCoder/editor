@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "@tau/editor": "workspace:*",
+    "@tau/i18n": "workspace:*",
     "@tau/markdown": "workspace:*",
     "@tau/shared": "workspace:*",
     "@tau/themes": "workspace:*",

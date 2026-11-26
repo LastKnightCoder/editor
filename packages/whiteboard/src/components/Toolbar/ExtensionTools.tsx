@@ -1,3 +1,4 @@
+import { useWhiteboardI18n } from "../../i18n";
 import { memo, useEffect, useRef, useState } from "react";
 import { ArrowLeft, Blocks } from "lucide-react";
 import { Popover } from "@tau/ui";
@@ -10,6 +11,7 @@ import { useActiveTool, useBoard } from "../../hooks";
  * 菜单项由 label + icon 生成，副行显示来源扩展的展示名。
  */
 const ExtensionTools = memo(() => {
+  const { t } = useWhiteboardI18n();
   const board = useBoard();
   const activeTool = useActiveTool();
   const extensions = board.extensions;
@@ -52,7 +54,7 @@ const ExtensionTools = memo(() => {
         arrow={false}
         className="min-w-0"
         trigger={
-          <ChromeButton label="扩展工具" sub active={!activeTool.startsWith("tau.")}>
+          <ChromeButton label={t("toolbar.extensions")} sub active={!activeTool.startsWith("tau.")}>
             {LastUsedIcon ? <LastUsedIcon /> : <Blocks strokeWidth={1.75} />}
           </ChromeButton>
         }
@@ -61,7 +63,7 @@ const ExtensionTools = memo(() => {
           <div {...stopCanvasEvents} className="max-w-[calc(100vw-32px)] p-1.5">
             <button
               type="button"
-              aria-label="返回扩展工具"
+              aria-label={t("toolbar.back")}
               onClick={() => changePanel(null)}
               className="text-ink-2 hover:bg-hover flex items-center gap-2 rounded-[8px] px-2 py-1.5"
             >
@@ -74,7 +76,9 @@ const ExtensionTools = memo(() => {
           </div>
         ) : (
           <div {...stopCanvasEvents} className="w-[236px] p-1.5">
-            <div className="text-tau-micro text-ink-3 px-2 pt-[3px] pb-[5px]">扩展工具</div>
+            <div className="text-tau-micro text-ink-3 px-2 pt-[3px] pb-[5px]">
+              {t("toolbar.extensions")}
+            </div>
             {tools.map(tool => {
               const ownerId = extensions?.toolOwner(tool.id);
               const name = ownerId ? extensions?.getExtensionName(ownerId) : undefined;
@@ -96,7 +100,9 @@ const ExtensionTools = memo(() => {
                   <span className="min-w-0 flex-1 leading-[1.35]">
                     <span className="text-tau-meta text-ink-1 block truncate">{tool.label}</span>
                     {name && (
-                      <span className="text-tau-micro text-ink-3 block truncate">来自 {name}</span>
+                      <span className="text-tau-micro text-ink-3 block truncate">
+                        {t("toolbar.from", { name })}
+                      </span>
                     )}
                   </span>
                 </button>

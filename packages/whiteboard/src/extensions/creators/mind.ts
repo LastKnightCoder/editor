@@ -62,7 +62,6 @@ export const mindCreateSpec: ElementCreateSpec = {
   defaultSize: [MIND_ROOT_WIDTH, 52],
   after: "none",
   cursor: "crosshair",
-  hint: () => ["点击放置中心主题"],
   build: ctx => {
     const board = resolveBoardAccess(ctx.api);
     const element = buildMindRootElement(ctx.start.x, ctx.start.y, board.getFontSize());

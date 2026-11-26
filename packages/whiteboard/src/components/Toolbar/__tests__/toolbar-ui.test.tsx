@@ -1,6 +1,12 @@
 /**
  * @vitest-environment jsdom
  */
+import { createI18nRuntime, createLocaleStore, type I18nRuntime } from "@tau/i18n";
+import { I18nRuntimeProvider } from "@tau/i18n/react";
+import { whiteboardMessages } from "../../../messages";
+import { standaloneWhiteboardI18n, whiteboardT } from "../../../i18n-runtime";
+import { menuLabelReader, menuText } from "../../../menu-i18n";
+import { geometryItems } from "../Geometry/config";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -31,6 +37,7 @@ import { useWhiteboardAPI } from "../../../extensions/context";
 
 const viewport = { minX: 0, minY: 0, width: 800, height: 600, zoom: 1 };
 const roots: Root[] = [];
+const runtimes: I18nRuntime[] = [];
 
 /** 第三方测试扩展：创建型便签工具（带独立图标）与命令型动作工具 */
 const StickyIcon = () => <i data-acme-sticky-icon />;
@@ -75,7 +82,7 @@ const extToolsCard = () =>
     card.textContent?.includes("来自 Acme 便签")
   )!;
 
-async function mountBoard(extensions: readonly WhiteboardExtension[]) {
+async function mountBoard(extensions: readonly WhiteboardExtension[], runtime?: I18nRuntime) {
   vi.stubGlobal(
     "ResizeObserver",
     class {
@@ -95,21 +102,23 @@ async function mountBoard(extensions: readonly WhiteboardExtension[]) {
   roots.push(root);
   await act(async () => {
     root.render(
-      <Whiteboard
-        extensions={[
-          ...extensions,
-          defineWhiteboardExtension({
-            id: "test.capture",
-            create: () => ({
-              layers: [{ id: "test.capture.layer", position: "canvas", component: Capture }],
+      <I18nRuntimeProvider runtime={runtime ?? standaloneWhiteboardI18n}>
+        <Whiteboard
+          extensions={[
+            ...extensions,
+            defineWhiteboardExtension({
+              id: "test.capture",
+              create: () => ({
+                layers: [{ id: "test.capture.layer", position: "canvas", component: Capture }],
+              }),
             }),
-          }),
-        ]}
-        initData={[]}
-        initViewPort={viewport}
-        showAttributeSetter={false}
-        showStatusBar={false}
-      />
+          ]}
+          initData={[]}
+          initViewPort={viewport}
+          showAttributeSetter={false}
+          showStatusBar={false}
+        />
+      </I18nRuntimeProvider>
     );
   });
   return { board, host, root };
@@ -117,6 +126,7 @@ async function mountBoard(extensions: readonly WhiteboardExtension[]) {
 
 afterEach(async () => {
   for (const root of roots.splice(0)) await act(async () => root.unmount());
+  for (const runtime of runtimes.splice(0)) runtime.dispose();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   document.body.replaceChildren();
@@ -124,6 +134,9 @@ afterEach(async () => {
 
 describe("「扩展工具」入口", () => {
   it("参数面板先选择再执行，返回和关闭不激活工具，重新打开从列表开始", async () => {
+    const localeSource = createLocaleStore("zh-CN");
+    const runtime = createI18nRuntime({ localeSource });
+    runtimes.push(runtime);
     let delayedRun: ((payload?: unknown) => void) | undefined;
     const panelExtension = defineWhiteboardExtension({
       ...acmeExtension,
@@ -134,17 +147,23 @@ describe("「扩展工具」入口", () => {
             delayedRun = run;
             const scoped = useWhiteboardAPI();
             return (
-              <button
-                onClick={() => run({ pose: "wave", sameBoard: scoped.children.length === 0 })}
-              >
-                选择挥手
-              </button>
+              <>
+                <input defaultValue="插件默认值" />
+                <button
+                  onClick={() => run({ pose: "wave", sameBoard: scoped.children.length === 0 })}
+                >
+                  选择挥手
+                </button>
+              </>
             );
           },
         })),
       }),
     });
-    const { board, host } = await mountBoard([createInteractionExtension(), panelExtension]);
+    const { board, host } = await mountBoard(
+      [createInteractionExtension(), panelExtension],
+      runtime
+    );
     const click = async (button: HTMLButtonElement) =>
       act(async () => {
         button.click();
@@ -157,6 +176,22 @@ describe("「扩展工具」入口", () => {
     await click(entry);
     await click(pickTool());
     const closedRun = delayedRun!;
+    const input = document.querySelector("input");
+    if (!input) throw new Error("插件参数输入未挂载");
+    input.value = "用户插件草稿";
+    input.focus();
+    input.setSelectionRange(1, 3);
+    const extensions = board.extensions;
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => localeSource.setLocale(locale));
+      expect(document.querySelector("input")).toBe(input);
+      expect(input.value).toBe("用户插件草稿");
+      expect(document.activeElement).toBe(input);
+      expect([input.selectionStart, input.selectionEnd]).toEqual([1, 3]);
+      expect(board.extensions).toBe(extensions);
+      expect(board.activeTool).toBe(SELECT_TOOL_ID);
+    }
+    await act(async () => localeSource.setLocale("zh-CN"));
     expect(board.activeTool).toBe("tau.select");
     await click(back());
     await act(async () => closedRun({ pose: "stale" }));
@@ -172,6 +207,10 @@ describe("「扩展工具」入口", () => {
     expect(back()).toBeNull();
   });
   it("面板抛错后保留返回入口，不执行工具", async () => {
+    const localeSource = createLocaleStore("zh-CN");
+    const runtime = createI18nRuntime({ localeSource });
+    runtimes.push(runtime);
+    let attempts = 0;
     vi.spyOn(console, "error").mockImplementation(() => {});
     const broken = defineWhiteboardExtension({
       ...acmeExtension,
@@ -179,12 +218,13 @@ describe("「扩展工具」入口", () => {
         tools: acmeExtension.create(api).tools!.map(tool => ({
           ...tool,
           panel: () => {
+            attempts++;
             throw new Error("面板错误");
           },
         })),
       }),
     });
-    const { board, host } = await mountBoard([createInteractionExtension(), broken]);
+    const { board, host } = await mountBoard([createInteractionExtension(), broken], runtime);
     await act(async () =>
       host.querySelector<HTMLButtonElement>('button[aria-label="扩展工具"]')!.click()
     );
@@ -193,7 +233,18 @@ describe("「扩展工具」入口", () => {
         .find(b => b.textContent?.includes("便签"))!
         .click()
     );
-    expect(document.querySelector('[role="alert"]')?.textContent).toContain("工具面板加载失败");
+    const alert = document.querySelector('[role="alert"]');
+    if (!alert) throw new Error("面板失败状态未显示");
+    const failedAttempts = attempts;
+    const label = alert.textContent;
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => localeSource.setLocale(locale));
+      expect(document.querySelector('[role="alert"]')).toBe(alert);
+      expect(attempts).toBe(failedAttempts);
+      expect(board.activeTool).toBe(SELECT_TOOL_ID);
+    }
+    expect(alert.textContent).not.toBe(label);
+    await act(async () => localeSource.setLocale("zh-CN"));
     expect(board.activeTool).toBe("tau.select");
     await act(async () =>
       document.querySelector<HTMLButtonElement>('button[aria-label="返回扩展工具"]')!.click()
@@ -372,4 +423,104 @@ describe("工具元数据装配校验", () => {
     expect(errors[0].message).toContain("label");
     expect(errors[1].message).toContain("icon");
   });
+});
+
+it("继承语言变化保留打开的形状菜单、同一扩展与原始创建参数", async () => {
+  const localeSource = createLocaleStore("zh-CN");
+  const runtime = createI18nRuntime({ localeSource });
+  runtimes.push(runtime);
+  const { t } = runtime.get(whiteboardMessages);
+  const { board, host } = await mountBoard(
+    [createInteractionExtension(), createGeometryExtension()],
+    runtime
+  );
+  const extensions = board.extensions;
+  const selection = board.selection;
+  const children = board.children;
+  const open = host.querySelector<HTMLButtonElement>(
+    `button[aria-label="${t("toolbar.geometry")}"]`
+  );
+  if (!open) throw new Error("形状工具未挂载");
+  await act(async () => open.click());
+  const shape = [...document.querySelectorAll<HTMLButtonElement>("button")].find(
+    button => button.textContent === t("shape.rectangle")
+  );
+  if (!shape) throw new Error("形状选项未挂载");
+  for (const locale of ["zh-TW", "en-US"]) {
+    await act(async () => localeSource.setLocale(locale));
+    expect(board.extensions).toBe(extensions);
+    expect(board.selection).toBe(selection);
+    expect(board.children).toBe(children);
+    expect(board.isDestroyed).toBe(false);
+    expect(
+      [...document.querySelectorAll("button")].find(
+        button => button.textContent === t("shape.rectangle")
+      )
+    ).toBe(shape);
+    expect(board.activeTool).toBe(SELECT_TOOL_ID);
+  }
+  await act(async () => shape.click());
+  expect(board.activeTool).toBe(GEOMETRY_TOOL_ID);
+  expect(board.activeToolOptions).toMatchObject(geometryItems[0]);
+});
+
+it("菜单换语不重跑菜单工厂或失效动作，消息参数固定且各画布运行时互不串用", async () => {
+  const localeSource = createLocaleStore("zh-CN");
+  const runtime = createI18nRuntime({ localeSource });
+  const otherRuntime = createI18nRuntime({ localeSource: createLocaleStore("en-US") });
+  runtimes.push(runtime, otherRuntime);
+  const { t } = runtime.get(whiteboardMessages);
+  const { board } = await mountBoard(
+    [createInteractionExtension(), createGeometryExtension()],
+    runtime
+  );
+  const other = await mountBoard([createInteractionExtension()], otherRuntime);
+  const standalone = await mountBoard([createInteractionExtension()]);
+  const getContextMenu = vi.spyOn(board, "getContextMenu");
+  const context = {
+    clientX: 10,
+    clientY: 10,
+    viewPortPoint: { x: 10, y: 10 },
+    selectedElements: [],
+    hitElements: [],
+    targetElements: [],
+    isHitSelected: false,
+  };
+  await act(async () => board.emit("internal:context-menu", context));
+  expect(getContextMenu).toHaveBeenCalledTimes(1);
+  const menu = document.querySelector('[role="menu"][data-open="true"]');
+  if (!menu) throw new Error("上下文菜单未打开");
+  const firstLabel = menu.textContent;
+  const items = getContextMenu.mock.results[0].value as ReturnType<Board["getContextMenu"]>;
+  const action = items
+    .find(item => item.key === "create-geometry")
+    ?.children?.find(item => item.key === "create-geometry-rectangle");
+  if (!action || !board.extensions) throw new Error("形状菜单动作未注册");
+  const values = { name: "打开时的值" };
+  const [bound] = board.extensions.registerMenu("geometry", [
+    {
+      key: "parameter",
+      ...menuText(board, "toolbar.from", values),
+      priority: 0,
+      onSelect: () => undefined,
+    },
+  ]);
+  const read = menuLabelReader(board, bound);
+  values.name = "之后的值";
+  await act(async () => localeSource.setLocale("zh-TW"));
+  expect(whiteboardT(board, "toolbar.geometry")).toBe(t("toolbar.geometry"));
+  expect(whiteboardT(other.board, "toolbar.geometry")).toBe(
+    otherRuntime.get(whiteboardMessages).t("toolbar.geometry")
+  );
+  expect(whiteboardT(standalone.board, "toolbar.geometry")).toBe(
+    standaloneWhiteboardI18n.get(whiteboardMessages).t("toolbar.geometry")
+  );
+  await act(async () => localeSource.setLocale("en-US"));
+  expect(document.querySelector('[role="menu"][data-open="true"]')).toBe(menu);
+  expect(menu.textContent).not.toBe(firstLabel);
+  expect(getContextMenu).toHaveBeenCalledTimes(1);
+  expect(read()).toBe(t("toolbar.from", { name: "打开时的值" }));
+  await act(async () => action.onSelect({ ...context, board }));
+  expect(board.activeTool).toBe(GEOMETRY_TOOL_ID);
+  expect(board.activeToolOptions).toMatchObject(geometryItems[0]);
 });

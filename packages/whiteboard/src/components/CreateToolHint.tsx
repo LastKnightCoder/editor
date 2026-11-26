@@ -1,23 +1,13 @@
+import { useWhiteboardI18n } from "../i18n";
+import { createHint, toolLabel } from "../tool-i18n";
 import { memo, useEffect, useRef, useState } from "react";
 import { cn } from "@tau/ui";
 import { useBoard, usePresentationState, useReadonly } from "../hooks";
 import { SELECT_TOOL_ID } from "../constants/tools";
 import { detectHotkeyPlatform, formatHotkey } from "../utils/hotkeyFormat";
-import type { ElementCreateSpec } from "../extensions/api";
 
 /** 提示胶囊延迟显示的时长：激活工具后 / Esc 取消后 */
 const HINT_DELAY_MS = 250;
-
-const resolveHint = (
-  spec: ElementCreateSpec,
-  options: Readonly<Record<string, unknown>> | null,
-  fallbackLabel: string
-): readonly string[] => {
-  const hint = typeof spec.hint === "function" ? spec.hint(options) : spec.hint;
-  if (hint?.length) return hint;
-  // 缺省按手势兜底：click = 点击放置，其它（drag / 自定义）= 拖拽绘制
-  return [spec.gesture === "click" ? `点击放置${fallbackLabel}` : `拖拽绘制${fallbackLabel}`];
-};
 
 const Dot = () => <span aria-hidden className="bg-ink-3/70 size-[3px] rounded-full" />;
 
@@ -26,6 +16,7 @@ const Dot = () => <span aria-hidden className="bg-ink-3/70 size-[3px] rounded-fu
  * 组件常驻不卸载，隐藏只把 opacity 置 0；显示/隐藏均有 250ms 延时与位移过渡。
  */
 const CreateToolHint = memo(function CreateToolHint({ visible }: { visible: boolean }) {
+  const { t } = useWhiteboardI18n();
   const board = useBoard();
   const readonly = useReadonly();
   const { isPresentationMode } = usePresentationState();
@@ -82,11 +73,15 @@ const CreateToolHint = memo(function CreateToolHint({ visible }: { visible: bool
 
   if (!visible || readonly || isPresentationMode || !createTool) return null;
 
-  const label = extensions?.tools.find(item => item.id === tool.id)?.label ?? "";
+  const label = toolLabel(
+    tool.id,
+    extensions?.tools.find(item => item.id === tool.id)?.label ?? "",
+    t
+  );
   // getCreateTool 仅在 create 规格存在时返回非空，此处 create 必有
   const create = createTool.definition.create;
   if (!create) return null;
-  const parts = resolveHint(create, tool.options, label);
+  const parts = createHint(create, tool.id, tool.options, label, t);
 
   return (
     <div
@@ -109,7 +104,7 @@ const CreateToolHint = memo(function CreateToolHint({ visible }: { visible: bool
       <kbd className="bg-hover font-tau-mono text-ink-2 rounded-[4px] px-[5px] py-0.5 text-[10.5px] leading-none">
         {formatHotkey("escape", detectHotkeyPlatform())}
       </kbd>
-      退出
+      {t("hint.exit")}
     </div>
   );
 });

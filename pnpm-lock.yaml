@@ -2524,6 +2524,9 @@ importers:
       '@tau/editor-collab':
         specifier: workspace:*
         version: link:../editor-collab
+      '@tau/i18n':
+        specifier: workspace:*
+        version: link:../i18n
       '@tau/markdown':
         specifier: workspace:*
         version: link:../markdown

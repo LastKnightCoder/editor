@@ -1,3 +1,5 @@
+import { useWhiteboardI18n } from "../../i18n";
+import { toolLabel } from "../../tool-i18n";
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { Menu, cn } from "@tau/ui";
@@ -25,6 +27,7 @@ export default function PointerModeButton({
   modes: WhiteboardToolContribution[];
   activeTool: string;
 }) {
+  const { t } = useWhiteboardI18n();
   const board = useBoard();
   const [open, setOpen] = useState(false);
   const arrow = useRef<HTMLButtonElement>(null);
@@ -52,7 +55,7 @@ export default function PointerModeButton({
       )}
     >
       <ChromeButton
-        label={current.label}
+        label={toolLabel(current.id, current.label, t)}
         active={!!activeMode}
         aria-haspopup={split && activeMode ? "menu" : undefined}
         aria-expanded={split && activeMode ? open : undefined}
@@ -75,7 +78,7 @@ export default function PointerModeButton({
           trigger={
             <ChromeButton
               ref={arrow}
-              label="切换指针模式"
+              label={t("toolbar.pointerMode")}
               className={cn(
                 "w-[18px] rounded-l-[4px] [&_svg]:size-3.5",
                 activeMode ? "text-accent-text/70" : "text-ink-3",
@@ -111,7 +114,7 @@ export default function PointerModeButton({
                   icon={<mode.icon className={cn("size-4", checked && "text-accent-text")} />}
                   className={cn(checked && "font-medium")}
                 >
-                  {mode.label}
+                  {toolLabel(mode.id, mode.label, t)}
                 </Menu.RadioItem>
               );
             })}
