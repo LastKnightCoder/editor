@@ -1,3 +1,6 @@
+import type { RecordingMessageKey } from "./recording.messages";
+import { discardConfirmText, formatRecordingTime, formatRecordingSize } from "./recording.format";
+import { useRecordingI18n } from "./recording.i18n";
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, ChevronDown, HardDrive, MapPin, Mic, Pause, Trash2 } from "lucide-react";
@@ -7,30 +10,22 @@ import { MobileConfirmDialog } from "../../../components/MobileConfirmDialog";
 import { Z_INDEX } from "../../../router/zIndex";
 import {
   cancelEditorRecording,
-  discardConfirmText,
   discardNeedsConfirm,
   finishEditorRecording,
-  formatRecordingTime,
   toggleRecordingPause,
   useRecordingState,
   type RecordingPauseReason,
   type RecordingState,
 } from "./recordingSession";
 
-const PAUSE_LABELS: Record<RecordingPauseReason, string> = {
-  user: "已暂停",
-  interruption: "来电或其他应用占用，已自动暂停",
-  route: "耳机已断开，已自动暂停",
+const PAUSE_KEYS: Record<RecordingPauseReason, RecordingMessageKey> = {
+  user: "pause.user",
+  interruption: "pause.interruption",
+  route: "pause.route",
 };
 
 /** AAC 64 kbps ≈ 0.48 MB/分钟 */
 const BYTES_PER_MS = 64_000 / 8 / 1000;
-
-function formatSize(bytes: number) {
-  return bytes >= 1024 * 1024 * 1024
-    ? `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`
-    : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
 
 function LevelBars(props: {
   levels: readonly number[];
@@ -70,6 +65,8 @@ function RecordingPanel(props: {
   onCollapse: () => void;
   onDiscard: () => void;
 }) {
+  const context = useRecordingI18n();
+  const { t, locale } = context;
   const { state } = props;
   const paused = state.phase === "paused";
   const saving = state.phase === "saving";
@@ -80,13 +77,13 @@ function RecordingPanel(props: {
     <div className="pb-2">
       <div className="text-center">
         <div className="text-[44px] leading-tight font-light tracking-wide tabular-nums">
-          {formatRecordingTime(state.elapsedMs)}
+          {formatRecordingTime(state.elapsedMs, locale)}
         </div>
         <div className="text-ink-3 mt-0.5 text-[12.5px]">
           {saving
-            ? "正在保存"
+            ? t("status.saving")
             : paused && state.pauseReason
-              ? PAUSE_LABELS[state.pauseReason]
+              ? t(PAUSE_KEYS[state.pauseReason])
               : state.documentTitle}
         </div>
       </div>
@@ -97,11 +94,11 @@ function RecordingPanel(props: {
         className="text-danger mx-4 mt-4 mb-1.5 h-[72px]"
       />
       <div className="flex items-start justify-around px-7 pt-3.5">
-        <PanelButton label="放弃" disabled={saving} onPress={props.onDiscard}>
+        <PanelButton label={t("action.discard")} disabled={saving} onPress={props.onDiscard}>
           <Trash2 size={20} />
         </PanelButton>
         <PanelButton
-          label={paused ? "继续" : "暂停"}
+          label={paused ? t("action.continue") : t("action.pause")}
           main
           disabled={saving}
           onPress={() => void toggleRecordingPause()}
@@ -109,7 +106,7 @@ function RecordingPanel(props: {
           {paused ? <Mic size={26} /> : <Pause size={26} />}
         </PanelButton>
         <PanelButton
-          label={state.kind === "replace" ? "完成并替换" : "完成并插入"}
+          label={state.kind === "replace" ? t("action.finishReplace") : t("action.finishInsert")}
           accent
           disabled={saving}
           onPress={() => {
@@ -121,12 +118,22 @@ function RecordingPanel(props: {
         </PanelButton>
       </div>
       <div className="bg-surface mx-3.5 mt-9 overflow-hidden rounded-[14px]">
-        <InfoRow icon={<MapPin size={17} />} label={state.kind === "replace" ? "替换" : "插入位置"}>
-          {state.kind === "replace" ? "原音频块" : "正文里的「录音将插入这里」"}
+        <InfoRow
+          icon={<MapPin size={17} />}
+          label={state.kind === "replace" ? t("action.replace") : t("action.insertPosition")}
+        >
+          {state.kind === "replace"
+            ? t("action.originalAudio")
+            : t("action.positionHint", { marker: t("marker.position") })}
         </InfoRow>
-        <InfoRow icon={<HardDrive size={17} />} label="已占用">
-          {formatSize(used)}
-          {remainingHours != null ? ` · 剩余约 ${remainingHours} 小时` : ""}
+        <InfoRow icon={<HardDrive size={17} />} label={t("storage.used")}>
+          {formatRecordingSize(used, locale)}
+          {remainingHours != null
+            ? t("storage.remaining", {
+                count: remainingHours,
+                number: remainingHours.toLocaleString(locale),
+              })
+            : ""}
         </InfoRow>
       </div>
     </div>
@@ -179,6 +186,8 @@ function PanelButton(props: {
  * 点左半边展开录音面板。
  */
 export function RecordingCapsule(props: { aboveToolbar: boolean; portalRoot: HTMLElement | null }) {
+  const context = useRecordingI18n();
+  const { t, locale } = context;
   const state = useRecordingState();
   const [expanded, setExpanded] = useState(false);
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
@@ -208,23 +217,23 @@ export function RecordingCapsule(props: { aboveToolbar: boolean; portalRoot: HTM
     >
       <button
         type="button"
-        aria-label="展开录音面板"
+        aria-label={t("panel.expand")}
         className="flex min-w-0 flex-1 items-center gap-2.5"
         onClick={() => setExpanded(true)}
       >
         <StatusDot paused={paused || starting} />
         <span className="min-w-11 text-[15px] font-semibold tabular-nums">
-          {formatRecordingTime(state.elapsedMs)}
+          {formatRecordingTime(state.elapsedMs, locale)}
         </span>
         {paused || saving || starting ? (
           <span className="min-w-0 flex-1 truncate text-left text-[13px] opacity-80">
             {saving
-              ? "正在保存…"
+              ? t("status.savingDots")
               : starting
-                ? "正在启动麦克风…"
+                ? t("status.starting")
                 : state.pauseReason
-                  ? PAUSE_LABELS[state.pauseReason]
-                  : "已暂停"}
+                  ? t(PAUSE_KEYS[state.pauseReason])
+                  : t("pause.user")}
           </span>
         ) : (
           <LevelBars
@@ -237,7 +246,7 @@ export function RecordingCapsule(props: { aboveToolbar: boolean; portalRoot: HTM
       </button>
       <button
         type="button"
-        aria-label={paused ? "继续录音" : "暂停录音"}
+        aria-label={paused ? t("action.resumeRecording") : t("action.pauseRecording")}
         disabled={saving || starting}
         onClick={() => void toggleRecordingPause()}
         className={cn(
@@ -254,7 +263,7 @@ export function RecordingCapsule(props: { aboveToolbar: boolean; portalRoot: HTM
         className="bg-danger flex h-[38px] shrink-0 items-center gap-1 rounded-full px-3.5 text-[14px] font-semibold text-white disabled:opacity-40"
       >
         <Check size={16} />
-        完成
+        {t("action.finish")}
       </button>
     </div>
   );
@@ -266,14 +275,14 @@ export function RecordingCapsule(props: { aboveToolbar: boolean; portalRoot: HTM
         <div className="flex items-center px-2 pb-1.5">
           <button
             type="button"
-            aria-label="收起录音面板"
+            aria-label={t("panel.collapse")}
             className="text-ink-2 flex size-10 items-center justify-center"
             onClick={() => setExpanded(false)}
           >
             <ChevronDown size={20} />
           </button>
           <span className="flex-1 text-center text-[15px] font-semibold">
-            {paused ? "录音已暂停" : "录音中"}
+            {paused ? t("status.paused") : t("status.recording")}
           </span>
           <span className="size-10" />
         </div>
@@ -285,9 +294,9 @@ export function RecordingCapsule(props: { aboveToolbar: boolean; portalRoot: HTM
       </BottomSheet>
       <MobileConfirmDialog
         open={confirmingDiscard}
-        title="放弃这段录音？"
-        description={discardConfirmText(state)}
-        confirmText="放弃"
+        title={t("discard.title")}
+        description={discardConfirmText(state, context)}
+        confirmText={t("action.discard")}
         danger
         onCancel={() => setConfirmingDiscard(false)}
         onConfirm={() => {

@@ -1,3 +1,8 @@
+import { act, createElement } from "react";
+import { createRoot } from "react-dom/client";
+import { mobileLocaleSource } from "../../../../services/i18n";
+import { TranscriptionStatus } from "../TranscriptionStatus";
+import { useTranscriptionTask, type TranscriptionTask } from "../transcription";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createEditor, Node, Transforms, type Descendant, type Element } from "slate";
 import type { ASRProviderRegistry } from "@tau/plugins/asr-host";
@@ -28,7 +33,10 @@ vi.mock("../../../../services/mobileSettingsBridge", () => ({
 vi.mock("../../../../components/toast", () => ({ toast: { success: vi.fn(), info: vi.fn() } }));
 const reference = "tau-collab-local:00000000-0000-0000-0000-000000000000";
 beforeEach(() => vi.clearAllMocks());
-afterEach(() => dismissTranscriptionError(reference));
+afterEach(() => {
+  dismissTranscriptionError(reference);
+  mobileLocaleSource.setLocale("zh-CN");
+});
 
 function setup(
   src = reference,
@@ -55,9 +63,11 @@ function setup(
         transcribeFile: vi.fn(),
       },
     })),
-    transcribeFile: vi.fn(async () => ({
-      result: Promise.resolve({ text: "识别结果" } as ASRTranscript),
-    })),
+    transcribeFile: vi.fn<(...args: unknown[]) => Promise<{ result: Promise<ASRTranscript> }>>(
+      async () => ({
+        result: Promise.resolve({ text: "识别结果" } as ASRTranscript),
+      })
+    ),
   };
   return { editor, audio: audio as unknown as Element, registry, resolveResource };
 }
@@ -89,8 +99,41 @@ it("音频在转写期间移动后，按文档节点身份定位新位置", asyn
   await vi.waitFor(() => expect(registry.transcribeFile).toHaveBeenCalledOnce());
   Transforms.moveNodes(editor, { at: [0, 0], to: [1] });
   Transforms.setNodes(editor, { title: "录音新标题" }, { at: [1] });
-  finish({ text: "识别结果" });
-  await running;
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  let task: TranscriptionTask | null = null;
+  function Status() {
+    task = useTranscriptionTask(reference);
+    return createElement(TranscriptionStatus, { src: reference });
+  }
+  await act(async () => root.render(createElement(Status)));
+  const currentTask = task;
+  const request = registry.transcribeFile.mock.calls[0];
+  const signal = (request[4] as { signal: AbortSignal }).signal;
+  try {
+    for (const locale of ["en-US", "zh-TW"] as const) {
+      await act(async () => mobileLocaleSource.setLocale(locale));
+      expect(task).toBe(currentTask);
+      expect(registry.create).toHaveBeenCalledTimes(1);
+      expect(registry.transcribeFile).toHaveBeenCalledTimes(1);
+      expect(native.prepareTranscriptAudio).toHaveBeenCalledTimes(1);
+      expect(native.releaseTranscriptAudio).not.toHaveBeenCalled();
+      expect(signal.aborted).toBe(false);
+      expect(request[3]).toMatchObject({
+        language: "zh-CN",
+        audio: { name: "recording.ogg", mimeType: "audio/ogg", sizeBytes: 100 },
+      });
+      expect(Node.get(editor, [1])).toMatchObject({ title: "录音新标题" });
+    }
+    await act(async () => {
+      finish({ text: "识别结果" });
+      await running;
+    });
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+  }
   expect(Node.get(editor, [2])).toMatchObject({ type: "detail", title: "文字稿" });
 });
 

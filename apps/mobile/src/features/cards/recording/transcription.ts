@@ -1,3 +1,5 @@
+import { recordingT } from "./recording.binding";
+import { RecordingFailure } from "./recording-errors";
 import { useSyncExternalStore } from "react";
 import { defaultSpeechInputSetting, type ASRAudioFile, type ASRTranscript } from "@tau/asr";
 import type { ASRProviderRegistry } from "@tau/plugins/asr-host";
@@ -26,11 +28,14 @@ export type TranscriptionTask = {
   /** 0…1；服务不报进度时为 null */
   fraction: number | null;
   stage: "preparing" | "uploading" | "recognizing";
-  error?: string;
+  error?: unknown;
 };
 
 /** 「还不能转文字」面板的原因 */
-export type TranscriptionUnavailable = { title: string; reason: string };
+export type TranscriptionUnavailable =
+  | { kind: "setup" | "streamOnly" | "format" | "service" }
+  | { kind: "reason"; reason: string }
+  | { kind: "diagnostic"; cause: unknown };
 
 const tasks = new Map<string, TranscriptionTask>();
 /** 发起转写的编辑器与识别注册表，失败后「重试」沿用 */
@@ -74,8 +79,8 @@ export function closeTranscriptionUnavailable() {
   emit();
 }
 
-function showUnavailable(title: string, reason: string) {
-  unavailable = { title, reason };
+function showUnavailable(value: TranscriptionUnavailable) {
+  unavailable = value;
   emit();
 }
 
@@ -156,17 +161,6 @@ function insertTranscript(editor: SlateEditor, element: AudioElement, block: Ele
   else insert();
 }
 
-function formatLimit(ms: number) {
-  return ms >= 3_600_000
-    ? `${Math.round((ms / 3_600_000) * 10) / 10} 小时`
-    : `${Math.max(1, Math.round(ms / 60_000))} 分钟`;
-}
-
-function errorText(error: unknown, fallback: string) {
-  const text = error instanceof Error ? error.message : typeof error === "string" ? error : "";
-  return text.replace(/^[A-Z_]+:/, "") || fallback;
-}
-
 function isAbort(error: unknown) {
   return error instanceof DOMException && error.name === "AbortError";
 }
@@ -182,16 +176,13 @@ export async function transcribeAudioBlock(
   if (!src) return;
   if (tasks.get(src)?.status === "running") return;
   if ([...tasks.values()].some(task => task.status === "running")) {
-    toast.info("正在转另一段录音，完成后再试");
+    toast.info(recordingT("transcription.busy"));
     return;
   }
   const setting = getMobileSettingSnapshot()?.speechInput ?? defaultSpeechInputSetting();
   const account = setting.plugin.configurations[setting.plugin.id];
   if (setting.active !== "plugin" || !account || !registry) {
-    showUnavailable(
-      "还不能转文字",
-      "系统识别只支持实时语音输入。在「我的 → 语音 → 语音识别」选一个支持录音转文字的识别服务。"
-    );
+    showUnavailable({ kind: "setup" });
     return;
   }
   let instance;
@@ -202,7 +193,7 @@ export async function transcribeAudioBlock(
       account.modelId
     ).instance;
   } catch (error) {
-    showUnavailable("还不能转文字", errorText(error, "识别插件未启用"));
+    showUnavailable({ kind: "diagnostic", cause: error });
     return;
   }
   const controller = new AbortController();
@@ -218,10 +209,11 @@ export async function transcribeAudioBlock(
     if (availability.state !== "ready" || !instance.transcribeFile) {
       setTask(src, null);
       showUnavailable(
-        "还不能转文字",
         availability.state === "unsupported" || !instance.transcribeFile
-          ? "当前识别服务只支持实时语音输入，不支持识别录好的音频。在「我的 → 语音 → 语音识别」换一个支持录音转文字的服务。"
-          : (availability.reason ?? "识别服务暂时不可用")
+          ? { kind: "streamOnly" }
+          : availability.reason !== undefined && availability.reason !== null
+            ? { kind: "reason", reason: availability.reason }
+            : { kind: "service" }
       );
       return;
     }
@@ -230,7 +222,7 @@ export async function transcribeAudioBlock(
       const resolveResource = editor.getService(IResourceService).remoteResourceToLocal;
       const source = isCollaborationResource(src) ? await resolveResource?.(src) : src;
       if (!source || isCollaborationResource(source))
-        throw new Error("音频资源尚未解析，请稍后重试");
+        throw new RecordingFailure({ code: "RECORDING_AUDIO_UNRESOLVED" });
       controller.signal.throwIfAborted();
       prepared = await prepareTranscriptAudio(
         id,
@@ -240,10 +232,7 @@ export async function transcribeAudioBlock(
     } catch (error) {
       if (!String(error).includes("UNSUPPORTED_FORMAT")) throw error;
       setTask(src, null);
-      showUnavailable(
-        "还不能转文字",
-        "当前识别服务不支持这种音频格式。在「我的 → 语音 → 语音识别」换一个识别服务后重试。"
-      );
+      showUnavailable({ kind: "format" });
       return;
     }
     controller.signal.throwIfAborted();
@@ -253,7 +242,10 @@ export async function transcribeAudioBlock(
       prepared.durationMs !== null &&
       prepared.durationMs > availability.maxDurationMs
     ) {
-      throw new Error(`音频超过识别服务单次上限 ${formatLimit(availability.maxDurationMs)}`);
+      throw new RecordingFailure({
+        code: "RECORDING_AUDIO_TOO_LONG",
+        limitMs: availability.maxDurationMs,
+      });
     }
     const file: ASRAudioFile = {
       name: prepared.name,
@@ -286,12 +278,12 @@ export async function transcribeAudioBlock(
     setTask(src, null);
     if (!block) {
       origins.delete(src);
-      toast.info("没有识别到文字");
+      toast.info(recordingT("transcription.empty"));
       return;
     }
     insertTranscript(editor, audio, block);
     origins.delete(src);
-    toast.success("已插入文字稿");
+    toast.success(recordingT("transcription.inserted"));
   } catch (error) {
     if (isAbort(error) || controller.signal.aborted) {
       origins.delete(src);
@@ -301,7 +293,7 @@ export async function transcribeAudioBlock(
         status: "failed",
         fraction: null,
         stage: "recognizing",
-        error: errorText(error, "转文字失败"),
+        error,
       });
   } finally {
     controllers.delete(src);

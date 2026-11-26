@@ -1,7 +1,8 @@
+import { formatRecordingTime } from "./recording.format";
+import { useRecordingI18n } from "./recording.i18n";
 import { Node as SlateNode, Path, Range, Text, type Editor } from "slate";
 import { defineExtension, type MarkRenderProps } from "@tau/editor/api";
 import {
-  formatRecordingTime,
   recordingDestinationFor,
   subscribeRecordingMarker,
   useRecordingState,
@@ -11,6 +12,7 @@ type MarkerLeaf = Text & { recordingMarker?: "before" | "after" };
 
 /** 计时单独订阅，避免每次电平更新都重算整篇文档的装饰 */
 function MarkerBadge() {
+  const { t, locale } = useRecordingI18n();
   const state = useRecordingState();
   if (!state) return null;
   const paused = state.phase === "paused";
@@ -27,9 +29,13 @@ function MarkerBadge() {
             : "bg-danger size-[7px] animate-pulse rounded-full"
         }
       />
-      {state.phase === "saving" ? "正在保存录音" : paused ? "录音已暂停" : "录音将插入这里"}
+      {state.phase === "saving"
+        ? t("marker.saving")
+        : paused
+          ? t("status.paused")
+          : t("marker.position")}
       <span className="text-ink-3 ml-auto font-normal tabular-nums">
-        {formatRecordingTime(state.elapsedMs)}
+        {formatRecordingTime(state.elapsedMs, locale)}
       </span>
     </span>
   );

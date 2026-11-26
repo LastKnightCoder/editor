@@ -1,3 +1,4 @@
+import { useRecordingI18n } from "./recording.i18n";
 import { useState, type RefObject } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getQueryClient } from "../../../router/query/PageQueryProvider";
@@ -11,17 +12,11 @@ import {
   recoverRecording,
   type PendingRecording,
 } from "../../../services/recording";
-import { formatRecordingTime } from "./recordingSession";
+import { formatRecordingTime, formatRecordingStartedAt } from "./recording.format";
 import { insertRecordingAt, recoveryInsertPath } from "./recordingTarget";
 import { persistRecording, type RecordingPersistence } from "./recordingPersistence";
 
 const pendingKey = (document: string) => ["recording", "pending", document] as const;
-
-function startedLabel(startedAt: number) {
-  const date = new Date(startedAt);
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return `${date.getMonth() + 1} 月 ${date.getDate()} 日 ${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
 
 /** 进程被杀后遗留的录音：重新打开这篇文档时提示插回原位置或删除 */
 export function RecordingRecoveryBanner(props: {
@@ -30,6 +25,7 @@ export function RecordingRecoveryBanner(props: {
   editable: boolean;
   persistence: () => RecordingPersistence;
 }) {
+  const { t, locale } = useRecordingI18n();
   const queryClient = getQueryClient();
   const document = props.document;
   const { data } = useQuery(
@@ -65,9 +61,9 @@ export function RecordingRecoveryBanner(props: {
           pending.title
         );
       });
-      toast.success("已插入找回的录音");
+      toast.success(t("recovery.saved"));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "找回录音失败");
+      toast.error(error instanceof Error ? error.message : t("recovery.failed"));
     } finally {
       setBusy(false);
       void refresh();
@@ -90,12 +86,15 @@ export function RecordingRecoveryBanner(props: {
         <span className="bg-danger-soft text-danger flex size-[30px] items-center justify-center rounded-[10px]">
           <History size={16} />
         </span>
-        有一段录音没有插入
+        {t("recovery.title")}
       </div>
       <p className="text-ink-3 mt-1.5 mb-2.5 ml-[38px]">
-        {startedLabel(pending.startedAt)} 开始
-        {pending.durationMs ? `，已录 ${formatRecordingTime(pending.durationMs)}` : ""}。 App
-        意外退出，录到的部分已保存。
+        {t("recovery.hint", {
+          started: formatRecordingStartedAt(pending.startedAt, locale),
+          duration: pending.durationMs
+            ? t("recovery.duration", { duration: formatRecordingTime(pending.durationMs, locale) })
+            : "",
+        })}
       </p>
       <div className="ml-[38px] flex gap-2">
         {props.editable ? (
@@ -105,7 +104,7 @@ export function RecordingRecoveryBanner(props: {
             className="bg-accent text-ink-inverse h-8 rounded-[10px] px-3 font-semibold disabled:opacity-50"
             onClick={() => void insert()}
           >
-            插入到原位置
+            {t("recovery.insert")}
           </button>
         ) : null}
         <button
@@ -114,7 +113,7 @@ export function RecordingRecoveryBanner(props: {
           className="border-line-1 text-ink-2 h-8 rounded-[10px] border px-3 font-semibold disabled:opacity-50"
           onClick={() => void remove()}
         >
-          删除
+          {t("action.delete")}
         </button>
       </div>
     </div>

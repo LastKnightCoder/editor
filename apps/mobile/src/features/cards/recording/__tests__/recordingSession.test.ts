@@ -1,3 +1,4 @@
+import { mobileLocaleSource } from "../../../../services/i18n";
 import { afterEach, expect, it, vi } from "vitest";
 import { createEditor, Transforms, type Descendant, type Element } from "slate";
 import { withHistory } from "slate-history";
@@ -10,7 +11,9 @@ import {
 import { persistRecording } from "../recordingPersistence";
 
 const native = vi.hoisted(() => ({
-  startRecording: vi.fn(async () => ({ id: "recording-id" })),
+  startRecording: vi.fn<(...args: unknown[]) => Promise<{ id: string }>>(async () => ({
+    id: "recording-id",
+  })),
   stopRecording: vi.fn(async () => ({
     src: "~/.editor/resources/recording.m4a",
     durationMs: 2000,
@@ -31,6 +34,7 @@ vi.mock("../../../../components/toast", () => ({ toast }));
 
 afterEach(async () => {
   await cancelEditorRecording();
+  mobileLocaleSource.setLocale("zh-CN");
   vi.clearAllMocks();
 });
 
@@ -76,6 +80,19 @@ it.each([false, true])(
     expect(block).toMatchObject({ type: "audio", src: reference });
     if (replace) expect(block).toMatchObject({ title: "自定义标题" });
     expect(editor.selection).toEqual(selection);
+    const savingState = getRecordingState();
+    for (const locale of ["en-US", "zh-TW"] as const) {
+      mobileLocaleSource.setLocale(locale);
+      expect(getRecordingState()).toBe(savingState);
+      expect(finishEditorRecording()).toBe(finishing);
+      expect(native.startRecording).toHaveBeenCalledTimes(1);
+      expect(native.stopRecording).toHaveBeenCalledTimes(1);
+      expect(native.discardRecording).not.toHaveBeenCalled();
+      expect(editor.selection).toEqual(selection);
+      expect(block).toMatchObject({
+        title: replace ? "自定义标题" : native.startRecording.mock.calls[0][1],
+      });
+    }
     saved();
     await finishing;
     expect(native.discardRecording).toHaveBeenCalledWith("recording-id");

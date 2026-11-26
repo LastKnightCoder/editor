@@ -1,3 +1,5 @@
+import { useRecordingI18n } from "./recording.i18n";
+import { discardConfirmText, formatRecordingTime } from "./recording.format";
 import { useCallback, useRef, useState, type RefObject } from "react";
 import type { Editor as SlateEditor } from "slate";
 import type { EditorRef } from "@tau/editor";
@@ -5,10 +7,8 @@ import { ActionSheet } from "../../../components/ActionSheet";
 import { MobileConfirmDialog } from "../../../components/MobileConfirmDialog";
 import {
   cancelEditorRecording,
-  discardConfirmText,
   discardNeedsConfirm,
   finishEditorRecording,
-  formatRecordingTime,
   getRecordingState,
   recordingDestinationFor,
 } from "./recordingSession";
@@ -20,6 +20,8 @@ type Choice = "finish" | "discard" | "continue";
  * 录音与文档绑定，离开后落点无处可插；切 App、锁屏不算离开，不经这里。
  */
 export function useRecordingLeaveGuard(editorRef: RefObject<EditorRef | null>) {
+  const context = useRecordingI18n();
+  const { t, locale } = context;
   const [open, setOpen] = useState(false);
   const [confirmingDiscard, setConfirmingDiscardState] = useState(false);
   const resolveRef = useRef<((choice: Choice) => void) | null>(null);
@@ -57,13 +59,18 @@ export function useRecordingLeaveGuard(editorRef: RefObject<EditorRef | null>) {
     <>
       <ActionSheet
         open={open && !confirmingDiscard}
-        title={state ? `正在录音 ${formatRecordingTime(state.elapsedMs)}` : "正在录音"}
-        subtitle="离开文档前要先处理这段录音"
+        title={
+          state
+            ? t("leave.elapsed", { duration: formatRecordingTime(state.elapsedMs, locale) })
+            : t("leave.title")
+        }
+        subtitle={t("leave.hint")}
         groups={[
           [
-            { label: "完成并插入", onClick: () => settle("finish") },
+            { key: "finish", label: t("action.finishInsert"), onClick: () => settle("finish") },
             {
-              label: "放弃录音",
+              key: "discard",
+              label: t("leave.discard"),
               danger: true,
               onClick: () => {
                 const current = getRecordingState();
@@ -72,7 +79,13 @@ export function useRecordingLeaveGuard(editorRef: RefObject<EditorRef | null>) {
               },
             },
           ],
-          [{ label: "继续录音", onClick: () => settle("continue") }],
+          [
+            {
+              key: "continue",
+              label: t("action.resumeRecording"),
+              onClick: () => settle("continue"),
+            },
+          ],
         ]}
         onClose={() => {
           if (!confirmingRef.current) settle("continue");
@@ -80,9 +93,9 @@ export function useRecordingLeaveGuard(editorRef: RefObject<EditorRef | null>) {
       />
       <MobileConfirmDialog
         open={confirmingDiscard}
-        title="放弃这段录音？"
-        description={state ? discardConfirmText(state) : undefined}
-        confirmText="放弃"
+        title={t("discard.title")}
+        description={state ? discardConfirmText(state, context) : undefined}
+        confirmText={t("action.discard")}
         danger
         onCancel={() => settle("continue")}
         onConfirm={() => settle("discard")}

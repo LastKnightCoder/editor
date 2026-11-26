@@ -1,0 +1,6 @@
+{
+  "audioUnresolved": "音频资源尚未解析，请稍后重试",
+  "audioTooLong": "音频超过识别服务单次上限 {{limit}}",
+  "hours": "{{number}} 小时",
+  "minutes": "{{number}} 分钟"
+}

@@ -308,6 +308,8 @@ P6A3-F白板域收口：11路径加Root guard1完成；公开author→owner桥�
 
 P6B协作UI审计收口：13路径完成；mobile32例、双端type、三语参数/范围静态格式通过。真实content组件/guard保binding、issue/cause、2秒调度/清理/授权/一次warning，未带码同文诊断不猜译。全域92生产文件非空AST审计剩88节点均为原诊断/日志/默认昵称/写入标题/带码原诊断，0 JSX自产UI和0待审fallback；未扩服务/models/默认名。
 
+P5手机录音卡：21路径完成；原2文件8例增强后3文件11例全绿，mobile type/构建、三语参数/复数、Node真实标记及范围静态格式通过。真实finishing同Promise/标题/选区/先flush后discard、转录移动节点后单probe/create/transcribe/prepare/不abort、恢复顺序与确认同DOM保持；默认标题/regex/Persistence/正文构造/marker与Native-ASR参数逐字节或AST对账未改。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

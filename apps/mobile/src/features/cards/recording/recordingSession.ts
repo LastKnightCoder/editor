@@ -1,3 +1,5 @@
+import { recordingT, recordingDisplayContext } from "./recording.binding";
+import { formatRecordingTime, recordingErrorText } from "./recording.format";
 import { useSyncExternalStore } from "react";
 import {
   Editor as SlateEditor,
@@ -111,26 +113,8 @@ export function recordingDestinationFor(editor: SlateEditor): RecordingDestinati
   return session && session.editor === editor ? session.destination : null;
 }
 
-export function formatRecordingTime(ms: number): string {
-  const total = Math.floor(ms / 1000);
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
-}
-
-function formatMinutes(ms: number) {
-  return `${Math.max(1, Math.round(ms / 60000))} 分钟`;
-}
-
 function permissionDenied(error: unknown) {
   return String(error).includes("PERMISSION_DENIED");
-}
-
-function errorText(error: unknown, fallback: string) {
-  const text = error instanceof Error ? error.message : typeof error === "string" ? error : "";
-  return text.replace(/^[A-Z_]+:/, "") || fallback;
 }
 
 export type StartRecordingOptions = {
@@ -146,14 +130,14 @@ export type StartRecordingOptions = {
 
 export async function startEditorRecording(options: StartRecordingOptions): Promise<void> {
   if (session) {
-    toast.warning("正在录音，一次只能录一段");
+    toast.warning(recordingT("session.busy"));
     return;
   }
   const destination = options.replace
     ? captureReplaceDestination(options.editor, options.replace)
     : { kind: "insert" as const, anchor: captureRecordingAnchor(options.editor) };
   if (!destination) {
-    toast.warning("这个音频块已不能修改");
+    toast.warning(recordingT("session.targetMissing"));
     return;
   }
   const startedAt = Date.now();
@@ -193,12 +177,12 @@ export async function startEditorRecording(options: StartRecordingOptions): Prom
     }
     update({ phase: "recording", id: started.id, freeBytes: started.freeBytes ?? null });
     if (started.freeBytes != null && started.freeBytes < LOW_SPACE_BEFORE_BYTES) {
-      toast.warning(`手机剩余空间不足 200 MB，长录音可能中途自动结束`);
+      toast.warning(recordingT("session.lowSpace"));
     }
   } catch (error) {
     clear(current);
     if (permissionDenied(error)) options.onPermissionDenied();
-    else toast.error(errorText(error, "无法开始录音"));
+    else toast.error(recordingErrorText(error, "session.startFailed", recordingDisplayContext()));
   }
 }
 
@@ -214,12 +198,12 @@ function handleEvent(owner: Session, event: recording.RecordingEvent) {
       });
       if (!owner.warned && event.elapsedMs >= RECORDING_LIMIT_MS - RECORDING_WARN_BEFORE_MS) {
         owner.warned = true;
-        toast.warning("录音 5 分钟后达到 3 小时上限，届时自动完成并插入");
+        toast.warning(recordingT("session.limitWarning"));
       }
       if (event.elapsedMs >= RECORDING_LIMIT_MS) {
-        void finishEditorRecording("已达到 3 小时上限，录音已自动完成");
+        void finishEditorRecording("limit");
       } else if (event.freeBytes != null && event.freeBytes < LOW_SPACE_STOP_BYTES) {
-        void finishEditorRecording("手机剩余空间不足，录音已自动完成");
+        void finishEditorRecording("low-space");
       }
       break;
     }
@@ -243,7 +227,7 @@ export async function toggleRecordingPause(): Promise<void> {
     if (current.state.phase === "recording") await recording.pauseRecording(current.state.id);
     else if (current.state.phase === "paused") await recording.resumeRecording(current.state.id);
   } catch (error) {
-    toast.error(errorText(error, "操作失败"));
+    toast.error(recordingErrorText(error, "session.operationFailed", recordingDisplayContext()));
   }
 }
 
@@ -280,7 +264,7 @@ function removeInserted(editor: SlateEditor, uuid: string) {
 }
 
 /** 停止并写入文档；`notice` 为自动完成的原因 */
-export function finishEditorRecording(notice?: string): Promise<void> {
+export function finishEditorRecording(notice?: "limit" | "low-space"): Promise<void> {
   const current = session;
   if (!current?.state.id) return Promise.resolve();
   if (current.finishing) return current.finishing;
@@ -292,8 +276,13 @@ export function finishEditorRecording(notice?: string): Promise<void> {
       stored = await recording.stopRecording(id);
     } catch (error) {
       clear(current);
-      if (String(error).includes("RECORDING_TOO_SHORT")) toast.info("录音太短，没有插入");
-      else toast.error(`${errorText(error, "录音保存失败")}，下次打开这篇文档时可以找回`);
+      if (String(error).includes("RECORDING_TOO_SHORT")) toast.info(recordingT("session.tooShort"));
+      else
+        toast.error(
+          recordingT("session.recoverLater", {
+            error: recordingErrorText(error, "session.saveFailed", recordingDisplayContext()),
+          })
+        );
       return;
     }
     const { editor, destination, state } = current;
@@ -305,26 +294,31 @@ export function finishEditorRecording(notice?: string): Promise<void> {
       });
     } catch {
       clear(current);
-      toast.error("录音已保留，但正文尚未保存成功；下次打开这篇文档时可以找回");
+      toast.error(recordingT("session.documentFailed"));
       return;
     }
     clear(current);
-    const duration = formatRecordingTime(stored.durationMs || state.elapsedMs);
+    const context = recordingDisplayContext();
+    const duration = formatRecordingTime(stored.durationMs || state.elapsedMs, context.locale);
+    const noticeText = notice ? recordingT(`notice.${notice}`) : undefined;
     if (destination.kind === "replace") {
-      toast({ type: "success", text: notice ?? `已替换为新录音 ${duration}` });
+      toast({ type: "success", text: noticeText ?? recordingT("session.replaced", { duration }) });
       return;
     }
     if (!uuid) {
-      toast({ type: notice ? "warning" : "success", text: notice ?? `已插入录音 ${duration}` });
+      toast({
+        type: notice ? "warning" : "success",
+        text: noticeText ?? recordingT("session.inserted", { duration }),
+      });
       return;
     }
     const inserted = uuid;
     flashBlock(editor, inserted);
     toast({
       type: notice ? "warning" : "success",
-      text: notice ?? `已插入录音 ${duration}`,
+      text: noticeText ?? recordingT("session.inserted", { duration }),
       duration: 4000,
-      action: { label: "撤销", onClick: () => removeInserted(editor, inserted) },
+      action: { label: recordingT("action.undo"), onClick: () => removeInserted(editor, inserted) },
     });
   })();
   current.finishing = run;
@@ -346,8 +340,4 @@ export function isRecordingActive() {
 /** 放弃确认文案：短录音直接放弃 */
 export function discardNeedsConfirm(state: RecordingState) {
   return state.elapsedMs >= DISCARD_CONFIRM_MS;
-}
-
-export function discardConfirmText(state: RecordingState) {
-  return `${formatMinutes(state.elapsedMs)}的录音将被删除`;
 }
