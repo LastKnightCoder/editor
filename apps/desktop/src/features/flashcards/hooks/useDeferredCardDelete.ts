@@ -1,3 +1,4 @@
+import { flashcardsTranslator } from "../i18n";
 import type { Flashcard } from "@/types";
 import { toast } from "@tau/ui";
 import { useEffect, useRef, useState } from "react";
@@ -16,7 +17,7 @@ export function useDeferredCardDelete(mutations: Pick<FlashcardMutations, "delet
     if (!run) return;
     commits.current.delete(id);
     run()
-      .catch(() => toast.error("删除失败"))
+      .catch(() => toast.error(flashcardsTranslator.t("ui.couldNotDelete")))
       .finally(() =>
         setPendingDelete(prev => {
           const next = new Set(prev);
@@ -37,11 +38,11 @@ export function useDeferredCardDelete(mutations: Pick<FlashcardMutations, "delet
     if (commits.current.has(card.id)) return;
     setPendingDelete(prev => new Set(prev).add(card.id));
     commits.current.set(card.id, () => mutations.deleteCard(card.id));
-    toast.info("已删除闪卡", {
+    toast.info(flashcardsTranslator.t("ui.flashcardDeleted"), {
       duration: UNDO_MS,
       onClose: () => commitRef.current(card.id),
       action: {
-        label: "撤销",
+        label: flashcardsTranslator.t("ui.undo"),
         onClick: () => {
           // 撤销先于 onClose 触发：摘掉待落库条目后，随后的 onClose 空转
           if (!commits.current.has(card.id)) return;

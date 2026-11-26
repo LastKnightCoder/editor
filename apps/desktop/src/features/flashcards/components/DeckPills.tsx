@@ -3,6 +3,7 @@
  * 卡组多时横向滚动，右缘还有内容时渐隐。右键卡组 pill = 卡组菜单。
  */
 
+import { flashcardsTranslator, useFlashcardsI18n } from "../i18n";
 import type { FlashcardDeck } from "@/types";
 import { ContextMenu, FilterPill } from "@tau/ui";
 import { useLayoutEffect, useState, type ReactNode } from "react";
@@ -24,6 +25,7 @@ export function DeckPills({
   onChange(deckId: number | null): void;
   renderDeckMenu(deck: FlashcardDeck): ReactNode;
 }) {
+  useFlashcardsI18n();
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
@@ -61,7 +63,7 @@ export function DeckPills({
           variant="raised"
           active={value === null}
           onClick={() => onChange(null)}
-          label="今日总览"
+          label={flashcardsTranslator.t("ui.todaysOverview")}
           count={totalDue || undefined}
         />
         {decks.map(deck => (

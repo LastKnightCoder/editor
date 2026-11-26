@@ -9,6 +9,7 @@
  * 键位：A–F 选项 · ↵ 提交 · Space 显示答案 / 采用推荐 · 1–4 评分 · E 编辑 · S 暂停本卡 · ⌘Z 撤销上一张 · Esc 结束。
  */
 
+import { flashcardsTranslator, useFlashcardsI18n } from "../i18n";
 import type { Flashcard, FlashcardDeck } from "@/types";
 import { Button, cn } from "@tau/ui";
 import { FadeScroll } from "@tau/ui";
@@ -48,6 +49,7 @@ export function ReviewSession({
   onEdit(card: Flashcard): void;
   onExit(reviewed: number): void;
 }) {
+  useFlashcardsI18n();
   const session = useReviewSession({ queue, cardsById, mutations, onExit });
   const {
     order,
@@ -102,12 +104,12 @@ export function ReviewSession({
   const progress = total ? (Math.min(index, total) / total) * 100 : 100;
 
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pt-1 pb-4">
       <div className="bg-surface shadow-card rounded-tau-lg relative flex min-h-0 flex-1 flex-col overflow-hidden">
         {/* 进度：贴纸顶边的一条细线，被纸的圆角自然裁出 */}
         <div
           role="progressbar"
-          aria-label="复习进度"
+          aria-label={flashcardsTranslator.t("ui.reviewProgress")}
           aria-valuemin={0}
           aria-valuemax={total}
           aria-valuenow={Math.min(index, total)}
@@ -120,9 +122,9 @@ export function ReviewSession({
         </div>
 
         {/* 顶栏：左侧「结束 · 范围」，右侧「评分分布 · 进度」；右侧与页头同为 32px 边距 */}
-        <div className="mt-5 flex h-10 flex-none items-center gap-3 pl-6 pr-8">
+        <div className="mt-5 flex h-10 flex-none items-center gap-3 pr-8 pl-6">
           <Button size="sm" variant="ghost" icon={X} onClick={exit} disabled={busy}>
-            结束
+            {flashcardsTranslator.t("ui.finish")}
           </Button>
           <span className="text-ink-2 text-tau-meta inline-flex min-w-0 items-center gap-1.5 whitespace-nowrap">
             {scope ? (
@@ -133,17 +135,21 @@ export function ReviewSession({
             ) : (
               <>
                 <Layers className="size-[14px]" strokeWidth={1.75} />
-                全部卡组
+                {flashcardsTranslator.t("ui.allDecks")}
               </>
             )}
           </span>
           <span className="flex-1" />
           <span
             className="text-ink-3 flex gap-2.5 text-[11.5px] tabular-nums"
-            aria-label="本轮评分分布"
+            aria-label={flashcardsTranslator.t("ui.ratingDistributionThisSession")}
           >
             {RATINGS.map(r => (
-              <span key={r.value} className="inline-flex items-center gap-1" title={r.label}>
+              <span
+                key={r.value}
+                className="inline-flex items-center gap-1"
+                title={flashcardsTranslator.t(r.message)}
+              >
                 <i className={cn("size-1.5 rounded-full", RATING_BG[r.value])} />
                 {dist[r.value]}
               </span>
@@ -161,7 +167,7 @@ export function ReviewSession({
         </div>
 
         {/* 题目区：flex 列 + 内层 margin:auto，短时垂直居中、超高时退化为顶对齐滚动而不被裁切 */}
-        <FadeScroll className="flex min-h-0 flex-1 flex-col px-8 pb-8 pt-6">
+        <FadeScroll className="flex min-h-0 flex-1 flex-col px-8 pt-6 pb-8">
           <div ref={stageRef} className="m-auto w-full max-w-[720px]">
             {done ? (
               <DoneSummary
@@ -215,7 +221,7 @@ export function ReviewSession({
 
         {/* 操作区：停靠纸底，同底色不加横线；上沿渐隐让题目自然没入（同日记输入条） */}
         {!done && card && (
-          <div className="relative flex-none px-8 pb-5 pt-2 before:pointer-events-none before:absolute before:inset-x-0 before:bottom-full before:h-7 before:bg-gradient-to-t before:from-[var(--tau-bg-surface)] before:to-transparent">
+          <div className="relative flex-none px-8 pt-2 pb-5 before:pointer-events-none before:absolute before:inset-x-0 before:bottom-full before:h-7 before:bg-gradient-to-t before:from-[var(--tau-bg-surface)] before:to-transparent">
             <div className="mx-auto w-full max-w-[720px]">
               {/* 定高槽位：作答按钮行与评分条同高，切换时纸底不跳 */}
               <div className="flex min-h-[54px] flex-col justify-center">

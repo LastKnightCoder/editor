@@ -1,9 +1,17 @@
+import {
+  flashcardsTranslator,
+  flashcardsCount,
+  flashcardsErrorText,
+  useFlashcardsI18n,
+  type FlashcardsMessageKey,
+} from "../i18n";
+import { TYPE_META } from "../model";
 import { useMemo } from "react";
 import { Sparkles, CreditCard, Check, Edit2 } from "lucide-react";
 import type { TagColor } from "@tau/ui";
 import { Button, Checkbox, Dialog, DialogBody, Spinner, Tag } from "@tau/ui";
 import DeckIcon from "@tau/shared/deck-icon";
-import { FLASHCARD_TYPE_META, extractPlainText } from "@/utils/flashcard";
+import { extractPlainText } from "@/utils/flashcard";
 import type { GeneratedFlashcard } from "../hooks/useFlashcardGeneration";
 import type { FlashcardDeck } from "@/types";
 
@@ -24,10 +32,10 @@ interface FlashcardGenerationModalProps {
   isSaving?: boolean;
 }
 
-const difficultyLabels: Record<string, { label: string; color: TagColor }> = {
-  foundation: { label: "基础", color: "green" },
-  standard: { label: "常规", color: "blue" },
-  advanced: { label: "进阶", color: "orange" },
+const difficultyLabels: Record<string, { message: FlashcardsMessageKey; color: TagColor }> = {
+  foundation: { message: "ui.foundation", color: "green" },
+  standard: { message: "ui.standard", color: "blue" },
+  advanced: { message: "ui.advanced", color: "orange" },
 };
 
 const FlashcardGenerationModal = ({
@@ -46,6 +54,7 @@ const FlashcardGenerationModal = ({
   onEditCard,
   isSaving = false,
 }: FlashcardGenerationModalProps) => {
+  useFlashcardsI18n();
   const selectedCount = useMemo(
     () => generatedCards.filter(c => c.selected).length,
     [generatedCards]
@@ -65,7 +74,9 @@ const FlashcardGenerationModal = ({
       return card.data.answer;
     }
     if (card.type === "boolean" && card.data?.booleanAnswer !== undefined) {
-      return card.data.booleanAnswer ? "正确" : "错误";
+      return card.data.booleanAnswer
+        ? flashcardsTranslator.t("ui.true")
+        : flashcardsTranslator.t("ui.false");
     }
     if ((card.type === "single-choice" || card.type === "multiple-choice") && card.data?.options) {
       const correct = card.data.options.filter(opt => opt.isCorrect).map(opt => opt.label);
@@ -83,15 +94,15 @@ const FlashcardGenerationModal = ({
       onOpenChange={next => {
         if (!next) onCancel();
       }}
-      title="AI 生成闪卡"
+      title={flashcardsTranslator.t("ui.generateFlashcardsWithAI")}
       icon={<Sparkles />}
-      subtitle="基于卡片内容智能生成复习卡片"
+      subtitle={flashcardsTranslator.t("ui.generateReviewFlashcardsFromCardContent")}
       width={900}
       locked={isSaving}
       footer={
         <>
           <Button variant="secondary" onClick={onCancel} disabled={isSaving}>
-            取消
+            {flashcardsTranslator.t("ui.cancel")}
           </Button>
           <Button
             variant="primary"
@@ -100,7 +111,7 @@ const FlashcardGenerationModal = ({
             loading={isSaving}
             disabled={isGenerating || isSaving || selectedCount === 0 || !selectedDeck}
           >
-            添加 {selectedCount} 张闪卡
+            {flashcardsCount("creation.addCards", selectedCount)}
           </Button>
         </>
       }
@@ -110,13 +121,15 @@ const FlashcardGenerationModal = ({
         <div className="border-line-1 rounded-tau-md mb-4 flex items-center justify-between border p-3">
           <div className="text-ink-1 flex items-center gap-2">
             <DeckIcon emoji={selectedDeck?.emoji} className="text-ink-2 size-[18px] text-lg" />
-            <span className="text-tau-body font-medium">{selectedDeck?.name || "未选择卡组"}</span>
+            <span className="text-tau-body font-medium">
+              {selectedDeck?.name || flashcardsTranslator.t("ui.noDeckSelected")}
+            </span>
           </div>
           <button
             onClick={onChangeDeck}
             className="text-accent hover:text-accent-hover text-tau-sm transition-colors"
           >
-            更换卡组
+            {flashcardsTranslator.t("ui.changeDeck")}
           </button>
         </div>
 
@@ -124,13 +137,19 @@ const FlashcardGenerationModal = ({
         {isGenerating && (
           <div className="bg-accent-soft text-accent rounded-tau-md text-tau-body mb-4 flex items-center gap-2 p-4">
             <Spinner className="size-4" />
-            <span>{isPending ? "等待模型输出..." : "正在生成闪卡..."}</span>
+            <span>
+              {isPending
+                ? flashcardsTranslator.t("ui.waitingForTheModel")
+                : flashcardsTranslator.t("ui.generatingFlashcards")}
+            </span>
           </div>
         )}
 
         {error && (
           <div className="bg-danger-soft text-danger rounded-tau-md mb-4 p-4">
-            <p className="text-tau-body">生成失败: {error.message}</p>
+            <p className="text-tau-body">
+              {flashcardsTranslator.t("creation.failed", { reason: flashcardsErrorText(error) })}
+            </p>
           </div>
         )}
 
@@ -139,20 +158,23 @@ const FlashcardGenerationModal = ({
           <>
             <div className="mb-3 flex items-center justify-between">
               <span className="text-ink-3 text-tau-body tabular-nums">
-                已生成 {generatedCards.length} 张闪卡，已选择 {selectedCount} 张
+                {flashcardsTranslator.t("creation.selection", {
+                  generated: generatedCards.length,
+                  selected: selectedCount,
+                })}
               </span>
               <div className="flex gap-1">
                 <button
                   onClick={onSelectAll}
                   className="text-accent hover:bg-accent-soft text-tau-sm rounded px-2 py-1 transition-colors"
                 >
-                  全选
+                  {flashcardsTranslator.t("ui.selectAll")}
                 </button>
                 <button
                   onClick={onDeselectAll}
                   className="text-ink-3 hover:bg-hover hover:text-ink-2 text-tau-sm rounded px-2 py-1 transition-colors"
                 >
-                  取消全选
+                  {flashcardsTranslator.t("ui.deselectAll")}
                 </button>
               </div>
             </div>
@@ -173,9 +195,9 @@ const FlashcardGenerationModal = ({
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="mb-2 flex flex-wrap items-center gap-2">
-                        <Tag>{FLASHCARD_TYPE_META[card.type]?.label || card.type}</Tag>
+                        <Tag>{flashcardsTranslator.t(TYPE_META[card.type].labelKey)}</Tag>
                         <Tag color={difficultyLabels[card.difficulty]?.color}>
-                          {difficultyLabels[card.difficulty]?.label || card.difficulty}
+                          {flashcardsTranslator.t(difficultyLabels[card.difficulty].message)}
                         </Tag>
                         {card.tags.length > 0 && (
                           <div className="flex gap-1">
@@ -188,14 +210,16 @@ const FlashcardGenerationModal = ({
                       <p className="text-ink-1 text-tau-body line-clamp-2">{getPromptText(card)}</p>
                       {getAnswerPreview(card) && (
                         <p className="text-ink-3 text-tau-sm mt-1 line-clamp-1">
-                          答案: {getAnswerPreview(card)}
+                          {flashcardsTranslator.t("creation.answer", {
+                            answer: getAnswerPreview(card) ?? "",
+                          })}
                         </p>
                       )}
                     </div>
                     <button
                       onClick={() => onEditCard(card)}
                       className="text-ink-3 hover:bg-hover hover:text-ink-2 rounded-tau-sm p-2 transition-colors"
-                      title="编辑闪卡"
+                      title={flashcardsTranslator.t("ui.editFlashcard")}
                     >
                       <Edit2 className="size-4" strokeWidth={1.75} />
                     </button>
@@ -210,7 +234,9 @@ const FlashcardGenerationModal = ({
         {!isGenerating && !error && generatedCards.length === 0 && (
           <div className="py-12 text-center">
             <CreditCard className="text-ink-3 mx-auto mb-3 size-12 opacity-40" strokeWidth={1.75} />
-            <p className="text-ink-3 text-tau-body">等待生成闪卡...</p>
+            <p className="text-ink-3 text-tau-body">
+              {flashcardsTranslator.t("ui.waitingForFlashcards")}
+            </p>
           </div>
         )}
       </DialogBody>

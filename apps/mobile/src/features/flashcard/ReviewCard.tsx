@@ -1,6 +1,7 @@
 // 复习纸卡的两个面：正面答题态（五题型交互）/ 背面揭示态（判分、答案、解析、参考）。
 // 3D 翻面外壳（flipper + ghost 堆叠）在 FlashcardReviewPage 中，这里只管面内容。
 
+import { flashcardTranslator, flashcardErrorText, useFlashcardI18n } from "./i18n";
 import { ChevronRight, Lightbulb, Paperclip } from "lucide-react";
 import { RichContent } from "./RichContent";
 import { extractBlanks, isBlankCorrect, type ReviewAnswer } from "./reviewFlow";
@@ -25,10 +26,11 @@ const noopBlankHandlers = {
 };
 
 function TypeTag({ card, extra }: { card: Flashcard; extra?: string }) {
+  useFlashcardI18n();
   return (
     <div className="flex items-center justify-between">
       <span className="bg-accent-soft text-accent-text rounded-full px-2.5 py-1 text-[10.5px] font-extrabold">
-        {FLASHCARD_TYPE_META[card.type].label}
+        {flashcardTranslator.t(FLASHCARD_TYPE_META[card.type].labelKey)}
         {extra ? ` · ${extra}` : ""}
       </span>
     </div>
@@ -37,6 +39,7 @@ function TypeTag({ card, extra }: { card: Flashcard; extra?: string }) {
 
 /** 正面：题干 + 题型作答区 */
 export function ReviewCardFront({ card, answer, onAnswerChange }: ReviewCardFaceProps) {
+  useFlashcardI18n();
   const hint = card.data.hint?.trim();
 
   const renderBody = () => {
@@ -117,7 +120,9 @@ export function ReviewCardFront({ card, answer, onAnswerChange }: ReviewCardFace
                   }`}
                 >
                   <span className="block text-[24px] leading-none">{value ? "✓" : "✕"}</span>
-                  <span className="mt-1.5 block text-[13.5px]">{value ? "正确" : "错误"}</span>
+                  <span className="mt-1.5 block text-[13.5px]">
+                    {value ? flashcardTranslator.t("ui.true") : flashcardTranslator.t("ui.false")}
+                  </span>
                 </button>
               );
             })}
@@ -129,7 +134,9 @@ export function ReviewCardFront({ card, answer, onAnswerChange }: ReviewCardFace
             <textarea
               value={answer.qa ?? ""}
               onChange={event => onAnswerChange({ qa: event.target.value })}
-              placeholder="先凭记忆作答，再翻面对照（也可以直接翻面自评）"
+              placeholder={flashcardTranslator.t(
+                "ui.recallYourAnswerThenRevealAndCompareYouCanAlso"
+              )}
               rows={5}
               className="bg-page text-ink-1 placeholder:text-ink-3 focus:border-accent input-text w-full resize-none rounded-[16px] border-2 border-transparent px-4 py-3.5 leading-[1.7] font-medium outline-none"
             />
@@ -163,6 +170,7 @@ export function ReviewCardFront({ card, answer, onAnswerChange }: ReviewCardFace
 
 /** 填空题题干（行内输入态） */
 function ClozeInteractivePrompt({ card, answer, onAnswerChange }: ReviewCardFaceProps) {
+  useFlashcardI18n();
   return (
     <RichContent
       content={card.prompt}
@@ -186,6 +194,7 @@ export function ReviewCardBack({
   isCorrect: boolean | null;
   judgement?: ReturnType<typeof useAnswerJudgement>;
 }) {
+  useFlashcardI18n();
   const explanation = card.data.explanation?.trim();
   // 背面补充按有无实际内容展示（空段落默认值不渲染）
   const detailEmpty = isEditorContentEmpty(card.detail);
@@ -221,18 +230,20 @@ export function ReviewCardBack({
                   <span className="leading-[1.5]">{option.label}</span>
                   {showCorrect ? (
                     <span className="text-tag-1 ml-auto flex-none text-[10.5px] font-extrabold">
-                      正确答案
+                      {flashcardTranslator.t("ui.correctAnswer")}
                     </span>
                   ) : showWrong ? (
                     <span className="text-danger ml-auto flex-none text-[10.5px] font-extrabold">
-                      你的选择
+                      {flashcardTranslator.t("ui.yourChoice")}
                     </span>
                   ) : null}
                 </div>
               );
             })}
             {correctOptions.length === 0 ? (
-              <div className="text-ink-3 text-[12px] font-semibold">该卡片未设置正确选项</div>
+              <div className="text-ink-3 text-[12px] font-semibold">
+                {flashcardTranslator.t("ui.thisCardHasNoCorrectOption")}
+              </div>
             ) : null}
           </div>
         );
@@ -248,7 +259,9 @@ export function ReviewCardBack({
               color: card.data.booleanAnswer ? "var(--tau-tag-1)" : "var(--tau-danger)",
             }}
           >
-            {card.data.booleanAnswer ? "✓ 正确" : "✕ 错误"}
+            {card.data.booleanAnswer
+              ? flashcardTranslator.t("ui.true3")
+              : flashcardTranslator.t("ui.false3")}
           </div>
         );
       case "cloze":
@@ -269,9 +282,12 @@ export function ReviewCardBack({
       case "qa":
         return (
           <div className="bg-page mt-3.5 rounded-[16px] px-4 py-3.5">
-            <div className="text-ink-2 mb-1.5 text-[11.5px] font-extrabold">参考答案</div>
+            <div className="text-ink-2 mb-1.5 text-[11.5px] font-extrabold">
+              {flashcardTranslator.t("ui.referenceAnswer")}
+            </div>
             <div className="text-ink-1 text-[14px] leading-[1.8] font-medium">
-              {card.data.answer?.trim() || "（未设置参考答案，请结合解析自评）"}
+              {card.data.answer?.trim() ||
+                flashcardTranslator.t("ui.noReferenceAnswerUseTheExplanationForSelfAssessment")}
             </div>
           </div>
         );
@@ -294,11 +310,11 @@ export function ReviewCardBack({
       >
         {isCorrect === null
           ? judgement?.status === "loading"
-            ? "AI 正在评判…"
-            : "请对照参考答案自评"
+            ? flashcardTranslator.t("ui.aiIsEvaluating")
+            : flashcardTranslator.t("ui.compareWithTheReferenceAnswerToRateYourself")
           : isCorrect
-            ? "✓ 回答正确"
-            : "✕ 回答错误"}
+            ? flashcardTranslator.t("ui.correctResponse2")
+            : flashcardTranslator.t("ui.incorrectResponse2")}
       </div>
       {/* cloze 的题干在 renderAnswerBlock 里以「逐空判分高亮」形态渲染，顶部跳过以免重复且明文露答案 */}
       {card.type !== "cloze" ? (
@@ -310,22 +326,26 @@ export function ReviewCardBack({
       {card.type === "qa" && judgement && judgement.status !== "idle" && (
         <div className="bg-page rounded-tau-lg text-tau-sm mt-4 space-y-2 p-4" aria-live="polite">
           <div className="text-ink-1 font-semibold">
-            AI 评判{judgement.result ? ` · ${judgement.result.score} / 10` : ""}
+            {flashcardTranslator.t("ui.aiEvaluation")}
+            {judgement.result ? ` · ${judgement.result.score} / 10` : ""}
           </div>
           {judgement.status === "loading" && (
-            <p className="text-ink-2">正在对照参考答案，完成后仍可自行选择复习评分。</p>
+            <p className="text-ink-2">
+              {flashcardTranslator.t("ui.comparingWithTheReferenceAnswerYouCanStillChooseYour")}
+            </p>
           )}
           {judgement.status === "error" && (
             <>
               <p role="alert" className="text-danger">
-                {judgement.error?.message ?? "评判失败，可对照答案自评"}
+                {(judgement.error ? flashcardErrorText(judgement.error) : null) ??
+                  flashcardTranslator.t("ui.evaluationFailedCompareWithTheAnswerToRateYourself")}
               </p>
               <button
                 type="button"
                 onClick={() => void judgement.judge(answer.qa ?? "", card)}
                 className="text-accent-text py-2 font-semibold"
               >
-                重新评判
+                {flashcardTranslator.t("ui.evaluateAgain")}
               </button>
             </>
           )}
@@ -334,9 +354,9 @@ export function ReviewCardBack({
               <p className="text-ink-2">{judgement.result.comment}</p>
               {(
                 [
-                  ["亮点", judgement.result.highlights],
-                  ["遗漏", judgement.result.missingPoints],
-                  ["建议", judgement.result.suggestions],
+                  [flashcardTranslator.t("ui.strengths"), judgement.result.highlights],
+                  [flashcardTranslator.t("ui.missingPoints"), judgement.result.missingPoints],
+                  [flashcardTranslator.t("ui.suggestions"), judgement.result.suggestions],
                 ] as const
               ).map(
                 ([title, items]) =>
@@ -353,13 +373,15 @@ export function ReviewCardBack({
       )}
       {!detailEmpty ? (
         <div className="text-ink-1 mt-3.5 text-[14px] leading-[1.8]">
-          <div className="text-ink-2 mb-1 text-[11.5px] font-extrabold">补充</div>
+          <div className="text-ink-2 mb-1 text-[11.5px] font-extrabold">
+            {flashcardTranslator.t("ui.moreDetails")}
+          </div>
           <RichContent content={card.detail} />
         </div>
       ) : null}
       {explanation ? (
         <div className="border-line-1 text-ink-2 mt-3.5 border-t border-dashed pt-3 text-[13px] leading-[1.75]">
-          <b className="text-ink-1">解析：</b>
+          <b className="text-ink-1">{flashcardTranslator.t("ui.explanation2")}</b>
           {explanation}
         </div>
       ) : null}
@@ -369,6 +391,7 @@ export function ReviewCardBack({
 
 /** 参考资料固定条（页面钉在卡片底部，长内容滚动时始终可见） */
 export function ReferenceEntry({ title, onOpen }: { title: string; onOpen: () => void }) {
+  useFlashcardI18n();
   return (
     <button
       type="button"
@@ -381,7 +404,7 @@ export function ReferenceEntry({ title, onOpen }: { title: string; onOpen: () =>
       <span className="min-w-0 flex-1">
         <span className="text-ink-1 block truncate text-[13px] font-extrabold">{title}</span>
         <span className="text-ink-3 mt-0.5 block text-[10.5px] font-bold">
-          参考资料 · 点击查看原文
+          {flashcardTranslator.t("ui.referencesTapToViewSource")}
         </span>
       </span>
       <ChevronRight size={16} className="text-ink-3 flex-none" />

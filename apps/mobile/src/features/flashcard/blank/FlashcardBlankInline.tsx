@@ -1,6 +1,7 @@
 // flashcard-blank 行内节点的编辑态渲染：填空胶囊 + ✎ 配置入口（BottomSheet，
 // 内置返回手势拦截）。配置写回 Slate 节点按 blankId 全树定位，不依赖选区。
 
+import { flashcardTranslator, useFlashcardI18n } from "../i18n";
 import { useEffect, useState } from "react";
 import { InlineChromiumBugfix } from "@tau/editor";
 import type { RenderElementProps } from "slate-react";
@@ -20,6 +21,7 @@ export function FlashcardBlankInline({
   children: React.ReactNode;
   element: FlashcardBlankElement;
 }) {
+  useFlashcardI18n();
   const [configOpen, setConfigOpen] = useState(false);
 
   return (
@@ -44,7 +46,7 @@ export function FlashcardBlankInline({
         contentEditable={false}
         onClick={() => setConfigOpen(true)}
         style={{ marginLeft: 5, fontSize: 11, opacity: 0.65, userSelect: "none" }}
-        title="配置填空"
+        title={flashcardTranslator.t("ui.configureBlank")}
       >
         ✎
       </span>
@@ -77,6 +79,7 @@ function BlankConfigSheet({
   open: boolean;
   onClose: () => void;
 }) {
+  useFlashcardI18n();
   const editor = useSlateStatic();
   const [placeholder, setPlaceholder] = useState(element.placeholder);
   const [answer, setAnswer] = useState(element.answer);
@@ -115,19 +118,23 @@ function BlankConfigSheet({
   };
 
   return (
-    <BottomSheet open={open} title="配置填空" onClose={onClose}>
+    <BottomSheet open={open} title={flashcardTranslator.t("ui.configureBlank")} onClose={onClose}>
       <div className="flex flex-col gap-3.5 pb-2">
         <div>
-          <div className="text-ink-2 mb-1.5 text-[12px] font-extrabold">正确答案</div>
+          <div className="text-ink-2 mb-1.5 text-[12px] font-extrabold">
+            {flashcardTranslator.t("ui.correctAnswer")}
+          </div>
           <input
             value={answer}
             onChange={event => setAnswer(event.target.value)}
-            placeholder="复习时需输入的答案"
+            placeholder={flashcardTranslator.t("ui.answerToEnterDuringReview")}
             className={inputClass}
           />
         </div>
         <div>
-          <div className="text-ink-2 mb-1.5 text-[12px] font-extrabold">备选答案（选填）</div>
+          <div className="text-ink-2 mb-1.5 text-[12px] font-extrabold">
+            {flashcardTranslator.t("ui.alternativeAnswersOptional")}
+          </div>
           <div className="flex flex-col gap-2">
             {alternatives.map((alternative, index) => (
               <div key={index} className="flex items-center gap-2">
@@ -138,12 +145,12 @@ function BlankConfigSheet({
                       prev.map((item, i) => (i === index ? event.target.value : item))
                     )
                   }
-                  placeholder={`备选答案 ${index + 1}（判为同义）`}
+                  placeholder={flashcardTranslator.t("blank.alternative", { number: index + 1 })}
                   className={`${inputClass} flex-1`}
                 />
                 <button
                   type="button"
-                  aria-label="删除备选答案"
+                  aria-label={flashcardTranslator.t("ui.removeAlternativeAnswer")}
                   onClick={() => setAlternatives(prev => prev.filter((_, i) => i !== index))}
                   className="text-ink-3 active:text-danger flex-none text-[15px] font-bold"
                 >
@@ -157,21 +164,23 @@ function BlankConfigSheet({
                 onClick={() => setAlternatives(prev => [...prev, ""])}
                 className="border-line-1 text-ink-2 active:bg-hover rounded-[14px] border-2 border-dashed py-2 text-[12.5px] font-extrabold"
               >
-                ＋ 添加备选答案
+                {flashcardTranslator.t("ui.addAlternativeAnswer")}
               </button>
             ) : null}
           </div>
         </div>
         <div>
-          <div className="text-ink-2 mb-1.5 text-[12px] font-extrabold">提示文本（选填）</div>
+          <div className="text-ink-2 mb-1.5 text-[12px] font-extrabold">
+            {flashcardTranslator.t("ui.placeholderOptional")}
+          </div>
           <input
             value={placeholder}
             onChange={event => setPlaceholder(event.target.value)}
-            placeholder="如：国家名、人物、年份"
+            placeholder={flashcardTranslator.t("ui.forExampleCountryPersonOrYear")}
             className={inputClass}
           />
           <div className="text-ink-3 mt-1.5 text-[11px] font-semibold">
-            答题时显示在填空框内作提示
+            {flashcardTranslator.t("ui.shownAsAHintInsideTheBlankWhileAnswering")}
           </div>
         </div>
         <button
@@ -180,7 +189,7 @@ function BlankConfigSheet({
           onClick={save}
           className="bg-accent text-ink-inverse rounded-[16px] py-3 text-[14.5px] font-extrabold active:opacity-80 disabled:opacity-45"
         >
-          保存
+          {flashcardTranslator.t("ui.save")}
         </button>
       </div>
     </BottomSheet>

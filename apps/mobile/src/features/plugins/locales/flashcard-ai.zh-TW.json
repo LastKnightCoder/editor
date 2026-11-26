@@ -1,0 +1,13 @@
+{
+  "title": "AI 製作閃卡",
+  "source": "製卡資料",
+  "placeholder": "貼上學習資料，AI 將產生題目、答案與解析",
+  "hint": "使用「AI 模型」中為「閃卡」指派的模型。產生後可逐張編輯儲存。",
+  "generating": "正在產生…",
+  "generate": "產生閃卡",
+  "cancel": "取消產生",
+  "summary": "已產生 {{generated}} 張，已儲存 {{saved}} 張。點按草稿檢閱並儲存。",
+  "saved": "已儲存",
+  "editSave": "編輯並儲存",
+  "done": "完成"
+}

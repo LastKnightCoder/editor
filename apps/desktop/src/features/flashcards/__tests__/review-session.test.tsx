@@ -1,3 +1,5 @@
+import { desktopLocaleSource } from "@/app/i18n/runtime";
+import { useFlashcardsI18n } from "../i18n";
 import type { Flashcard } from "@/types";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -45,6 +47,7 @@ const mutations = {
 const onExit = vi.fn();
 
 function Probe() {
+  useFlashcardsI18n();
   session = useReviewSession({ queue: [1, 2], cardsById: cards, mutations, onExit });
   return null;
 }
@@ -124,4 +127,65 @@ describe("复习会话边界", () => {
     expect(session.card?.id).toBe(1);
     expect(session.history).toHaveLength(0);
   });
+});
+
+it("切换语言保留作答、翻面、队列和会话起点，提交中也不重做评分", async () => {
+  const original = desktopLocaleSource.getSnapshot();
+  const startedAt = session.startedAt.current;
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(startedAt + 120_000);
+  try {
+    await act(async () => {
+      session.setAnswer({ qa: "尚未提交的回答" });
+      session.setHintShown(true);
+      session.setRefId(42);
+    });
+    const order = session.order;
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(session.order).toBe(order);
+      expect(session.card).toBe(first);
+      expect(session.answer.qa).toBe("尚未提交的回答");
+      expect(session.revealed).toBe(false);
+      expect(session.hintShown).toBe(true);
+      expect(session.refId).toBe(42);
+      expect(session.startedAt.current).toBe(startedAt);
+      expect(Date.now() - session.startedAt.current).toBe(120_000);
+      expect(mutations.submitReview).not.toHaveBeenCalled();
+      expect(mutations.setSuspended).not.toHaveBeenCalled();
+      expect(mutations.undoReview).not.toHaveBeenCalled();
+      expect(onExit).not.toHaveBeenCalled();
+    }
+    await act(async () => session.submit());
+    let finish!: (value: typeof receipt) => void;
+    mutations.submitReview.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        })
+    );
+    let pending!: Promise<void>;
+    await act(async () => {
+      pending = session.rate("normal");
+    });
+    await act(async () => desktopLocaleSource.setLocale("zh-TW"));
+    expect(session.busy).toBe(true);
+    expect(session.revealed).toBe(true);
+    expect(session.answer.qa).toBe("尚未提交的回答");
+    expect(session.card).toBe(first);
+    expect(mutations.submitReview).toHaveBeenCalledExactlyOnceWith(first, "normal");
+    await act(async () => {
+      finish(receipt);
+      await pending;
+    });
+    expect(session.card?.id).toBe(2);
+    expect(session.revealed).toBe(false);
+    expect(session.history).toEqual([
+      expect.objectContaining({ cardId: 1, rating: "normal", receipt }),
+    ]);
+    expect(session.startedAt.current).toBe(startedAt);
+  } finally {
+    await act(async () => desktopLocaleSource.setLocale(original));
+    vi.useRealTimers();
+  }
 });

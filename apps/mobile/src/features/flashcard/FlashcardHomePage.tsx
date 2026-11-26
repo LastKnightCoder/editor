@@ -1,5 +1,6 @@
 // 闪卡主页：今日待复习概览（品牌实底主角卡）+ 卡组列表 + 卡组管理入口。
 
+import { flashcardTranslator, flashcardCount, useFlashcardI18n } from "./i18n";
 import { useRef, useState } from "react";
 import { MoreHorizontal, Plus } from "lucide-react";
 import DeckIcon from "@tau/shared/deck-icon";
@@ -35,6 +36,7 @@ export function FlashcardHomePage({
   onOpenStats,
   onError,
 }: FlashcardHomePageProps) {
+  useFlashcardI18n();
   const scrollRef = useRef<HTMLDivElement>(null);
   useEdgeFade(scrollRef);
   const decksQuery = useFlashcardDecks();
@@ -52,7 +54,7 @@ export function FlashcardHomePage({
   const moreItems: ActionSheetItem[] = moreDeck
     ? [
         {
-          label: "开始复习",
+          label: flashcardTranslator.t("ui.startReview"),
           icon: "▶",
           onClick: () => {
             onOpenReview(moreDeck.id);
@@ -60,7 +62,7 @@ export function FlashcardHomePage({
           },
         },
         {
-          label: "编辑卡组",
+          label: flashcardTranslator.t("ui.editDeck"),
           icon: "✎",
           onClick: () => {
             setEditingDeck(moreDeck);
@@ -69,7 +71,7 @@ export function FlashcardHomePage({
           },
         },
         {
-          label: "删除卡组",
+          label: flashcardTranslator.t("ui.deleteDeck"),
           icon: "🗑",
           danger: true,
           onClick: () => {
@@ -85,9 +87,9 @@ export function FlashcardHomePage({
     try {
       await tauri.flashcardDeleteDeck(deletingDeck.id);
       invalidateFlashcardQueries();
-      toast({ type: "success", text: "卡组已删除" });
+      toast({ type: "success", text: flashcardTranslator.t("ui.deckDeleted") });
     } catch (error) {
-      onError(error, "删除卡组失败");
+      onError(error, flashcardTranslator.t("ui.couldNotDeleteDeck"));
     } finally {
       setDeletingDeck(null);
     }
@@ -96,12 +98,12 @@ export function FlashcardHomePage({
   return (
     <div className="mobile-kb-screen bg-page flex h-full flex-col">
       <PageHeader
-        title="闪卡"
+        title={flashcardTranslator.t("ui.flashcards")}
         onBack={onBack}
         actions={
           <button
             type="button"
-            aria-label="新建卡组"
+            aria-label={flashcardTranslator.t("ui.newDeck")}
             onClick={() => {
               setEditingDeck(null);
               setFormOpen(true);
@@ -121,19 +123,27 @@ export function FlashcardHomePage({
           >
             <div className="flex items-start justify-between">
               <div>
-                <div className="text-[12.5px] font-bold opacity-85">今日待复习</div>
+                <div className="text-[12.5px] font-bold opacity-85">
+                  {flashcardTranslator.t("home.dueToday")}
+                </div>
                 <div className="mt-1.5 text-[42px] leading-[1.15] font-extrabold">
-                  {totalDue} <span className="text-[16px] font-bold opacity-85">张</span>
+                  {totalDue}{" "}
+                  <span className="text-[16px] font-bold opacity-85">
+                    {flashcardTranslator.t("unit.cards", { count: totalDue })}
+                  </span>
                 </div>
                 <div className="mt-1 text-[11.5px] font-semibold opacity-80">
                   {decks.length > 0
-                    ? `${decksWithDue} 个卡组有到期卡片 · 今日已复习 ${reviewedToday} 张`
-                    : "还没有卡组，先创建一个"}
+                    ? flashcardTranslator.t("home.summary", {
+                        decks: decksWithDue,
+                        reviewed: reviewedToday,
+                      })
+                    : flashcardTranslator.t("ui.createADeckToGetStarted")}
                 </div>
               </div>
               <button
                 type="button"
-                aria-label="查看复习统计"
+                aria-label={flashcardTranslator.t("ui.viewReviewStatistics")}
                 onClick={onOpenStats}
                 className="grid h-[52px] w-[52px] place-items-center rounded-[18px] bg-white/[0.18] text-[24px] active:scale-90"
               >
@@ -146,11 +156,11 @@ export function FlashcardHomePage({
                 onClick={() => onOpenReview(null)}
                 className="text-accent mt-4 w-full rounded-[17px] bg-white py-3 text-[15px] font-extrabold active:scale-[0.98]"
               >
-                开始复习
+                {flashcardTranslator.t("ui.startReview")}
               </button>
             ) : decks.length > 0 ? (
               <div className="mt-4 rounded-[17px] bg-white/20 py-3 text-center text-[14px] font-bold">
-                今日已清空，明天见 👋
+                {flashcardTranslator.t("ui.allDoneForTodaySeeYouTomorrow")}
               </div>
             ) : null}
           </div>
@@ -159,12 +169,12 @@ export function FlashcardHomePage({
           <div>
             <div className="mb-2.5 flex items-center justify-between px-1">
               <span className="text-ink-2 text-[13px] font-extrabold tracking-wide">
-                卡组 · {decks.length}
+                {flashcardCount("deck.titleCount", decks.length)}
               </span>
             </div>
             {decksQuery.isLoading ? (
               <div className="text-ink-3 px-1 py-6 text-center text-[13px] font-semibold">
-                加载中…
+                {flashcardTranslator.t("ui.loading")}
               </div>
             ) : decks.length === 0 ? (
               <button
@@ -175,7 +185,7 @@ export function FlashcardHomePage({
                 }}
                 className="border-line-1 text-ink-3 active:bg-hover grid min-h-[120px] w-full place-items-center rounded-[20px] border-2 border-dashed text-[13.5px] font-extrabold"
               >
-                ＋ 新建第一个卡组
+                {flashcardTranslator.t("ui.createYourFirstDeck")}
               </button>
             ) : (
               <div className="flex flex-col gap-2.5">
@@ -205,9 +215,11 @@ export function FlashcardHomePage({
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-[15px] font-extrabold">{deck.name}</div>
                         <div className="text-ink-2 mt-0.5 text-[12px] font-semibold">
-                          {total} 张 · 巩固{" "}
-                          {total - (stats?.newCards ?? 0) - (stats?.learningCards ?? 0)} · 学习中{" "}
-                          {stats?.learningCards ?? 0}
+                          {flashcardTranslator.t("deck.composition", {
+                            total,
+                            review: total - (stats?.newCards ?? 0) - (stats?.learningCards ?? 0),
+                            learning: stats?.learningCards ?? 0,
+                          })}
                         </div>
                         <div className="bg-page mt-2 h-[5px] overflow-hidden rounded-full">
                           <div
@@ -218,7 +230,7 @@ export function FlashcardHomePage({
                       </div>
                       <button
                         type="button"
-                        aria-label="卡组操作"
+                        aria-label={flashcardTranslator.t("ui.deckActions")}
                         onClick={event => {
                           event.stopPropagation();
                           setMoreDeck(deck);
@@ -237,7 +249,9 @@ export function FlashcardHomePage({
                       >
                         <div className="text-[16px] leading-none font-extrabold">{due}</div>
                         <div className="mt-0.5 text-[9.5px] font-bold opacity-75">
-                          {due > 0 ? "待复习" : "已清空"}
+                          {due > 0
+                            ? flashcardTranslator.t("ui.due")
+                            : flashcardTranslator.t("ui.allDone")}
                         </div>
                       </div>
                     </div>
@@ -263,10 +277,12 @@ export function FlashcardHomePage({
       />
       <MobileConfirmDialog
         open={deletingDeck !== null}
-        title="删除卡组"
-        description={`将删除「${deletingDeck?.name}」及其中全部卡片与复习历史，不可恢复。`}
+        title={flashcardTranslator.t("ui.deleteDeck")}
+        description={flashcardTranslator.t("deck.deleteWarning", {
+          name: deletingDeck?.name ?? "",
+        })}
         danger
-        confirmText="删除"
+        confirmText={flashcardTranslator.t("ui.delete")}
         onCancel={() => setDeletingDeck(null)}
         onConfirm={() => void confirmDeleteDeck()}
       />

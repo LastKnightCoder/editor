@@ -1,3 +1,4 @@
+import { flashcardsTranslator, useFlashcardsI18n } from "@/features/flashcards/i18n";
 import { Editor, Range, Element as SlateElement } from "slate";
 import { Button, toast } from "@tau/ui";
 import { wrapAsBlank, unwrapBlank } from "./utils";
@@ -8,11 +9,12 @@ interface ClozeEditorToolbarProps {
 }
 
 const ClozeEditorToolbar = ({ editor }: ClozeEditorToolbarProps) => {
+  useFlashcardsI18n();
   const handleToggleBlank = () => {
     const { selection } = editor;
 
     if (!selection || Range.isCollapsed(selection)) {
-      toast.warning("请先选中需要标记为空格的文字");
+      toast.warning(flashcardsTranslator.t("blank.selectText"));
       return;
     }
 
@@ -30,10 +32,10 @@ const ClozeEditorToolbar = ({ editor }: ClozeEditorToolbarProps) => {
   return (
     <div className="border-line-1 flex items-center justify-between border-t px-4 py-3">
       <Button variant="soft" size="sm" onClick={handleToggleBlank}>
-        标记为空格
+        {flashcardsTranslator.t("blank.mark")}
       </Button>
 
-      <span className="text-ink-3 text-tau-sm">提示：选中文字后点击按钮即可标记为空格</span>
+      <span className="text-ink-3 text-tau-sm">{flashcardsTranslator.t("blank.toolbarHint")}</span>
     </div>
   );
 };

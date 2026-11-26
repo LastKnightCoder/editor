@@ -1,9 +1,11 @@
+import { flashcardsDisplayContext, useFlashcardsI18n } from "../i18n";
+import { dueText } from "../format";
 import type { Flashcard } from "@/types";
 import { cn } from "@tau/ui";
-import { dueText } from "../model";
 
 export function DueLabel({ card, now }: { card: Flashcard; now: number }) {
-  const { text, tone } = dueText(card, now);
+  useFlashcardsI18n();
+  const { text, tone } = dueText(card, now, flashcardsDisplayContext());
   return (
     <span
       className={cn(

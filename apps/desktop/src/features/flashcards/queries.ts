@@ -9,6 +9,7 @@
  * 首页（待复习数）与统计页（评分分布）由 invalidateFlashcardViews 一并失效。
  */
 
+import { FlashcardsError } from "./errors";
 import type {
   CreateFlashcardDeckInput,
   CreateFlashcardInput,
@@ -174,7 +175,10 @@ export function useFlashcardMutations() {
   const refresh = () => invalidateFlashcardViews(queryClient, database);
   const assertCurrentDatabase = () => {
     if (databaseId(useSettingStore.getState().setting.database.active) !== databaseId(database)) {
-      throw new Error("数据库已切换，请重新打开闪卡操作");
+      throw new FlashcardsError(
+        "数据库已切换，请重新打开闪卡操作",
+        "ui.theDatabaseChangedReopenTheFlashcardAction"
+      );
     }
   };
 
@@ -188,14 +192,15 @@ export function useFlashcardMutations() {
     async updateCard(input: UpdateFlashcardInput) {
       assertCurrentDatabase();
       const card = await commands.updateFlashcard(input);
-      if (!card) throw new Error("闪卡已不存在");
+      if (!card) throw new FlashcardsError("闪卡已不存在", "ui.thisFlashcardNoLongerExists");
       patchCard(queryClient, database, card, connectionId);
       refresh();
       return card;
     },
     async deleteCard(id: number) {
       assertCurrentDatabase();
-      if (!(await commands.deleteFlashcard(id))) throw new Error("闪卡已不存在");
+      if (!(await commands.deleteFlashcard(id)))
+        throw new FlashcardsError("闪卡已不存在", "ui.thisFlashcardNoLongerExists");
       // 延迟删除在 resolve 后放开 pending（useDeferredCardDelete）：等重拉落地，避免已删卡片闪回
       await refresh();
     },
@@ -203,14 +208,14 @@ export function useFlashcardMutations() {
       assertCurrentDatabase();
       const status = suspended ? "suspended" : resumedStatus(card);
       const updated = await commands.updateFlashcard({ id: card.id, status });
-      if (!updated) throw new Error("闪卡已不存在");
+      if (!updated) throw new FlashcardsError("闪卡已不存在", "ui.thisFlashcardNoLongerExists");
       patchCard(queryClient, database, updated, connectionId);
       refresh();
     },
     async moveToDeck(card: Flashcard, deckId: number) {
       assertCurrentDatabase();
       const updated = await commands.updateFlashcard({ id: card.id, deckId });
-      if (!updated) throw new Error("闪卡已不存在");
+      if (!updated) throw new FlashcardsError("闪卡已不存在", "ui.thisFlashcardNoLongerExists");
       patchCard(queryClient, database, updated, connectionId);
       refresh();
     },
@@ -223,13 +228,14 @@ export function useFlashcardMutations() {
     async updateDeck(input: UpdateFlashcardDeckInput) {
       assertCurrentDatabase();
       const deck = await commands.updateFlashcardDeck(input);
-      if (!deck) throw new Error("卡组已不存在");
+      if (!deck) throw new FlashcardsError("卡组已不存在", "ui.thisDeckNoLongerExists");
       refresh();
       return deck;
     },
     async deleteDeck(id: number) {
       assertCurrentDatabase();
-      if (!(await commands.deleteFlashcardDeck(id))) throw new Error("卡组已不存在");
+      if (!(await commands.deleteFlashcardDeck(id)))
+        throw new FlashcardsError("卡组已不存在", "ui.thisDeckNoLongerExists");
       refresh();
     },
     /** 主进程从落库前的真实排期生成撤销凭据。 */
@@ -240,7 +246,7 @@ export function useFlashcardMutations() {
         deckId: card.deckId,
         rating,
       });
-      if (!updated) throw new Error("闪卡已不存在");
+      if (!updated) throw new FlashcardsError("闪卡已不存在", "ui.thisFlashcardNoLongerExists");
       const { undo, ...updatedCard } = updated;
       patchCard(queryClient, database, updatedCard, connectionId);
       return undo;
@@ -248,7 +254,7 @@ export function useFlashcardMutations() {
     async undoReview(payload: Parameters<typeof flashcardCommands.undoFlashcardReview>[0]) {
       assertCurrentDatabase();
       const restored = await commands.undoFlashcardReview(payload);
-      if (!restored) throw new Error("闪卡已不存在");
+      if (!restored) throw new FlashcardsError("闪卡已不存在", "ui.thisFlashcardNoLongerExists");
       patchCard(queryClient, database, restored, connectionId);
       return restored;
     },

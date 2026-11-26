@@ -10,6 +10,7 @@
  * 键位（本页在栈顶、无浮层、不在输入框时）：N 新建闪卡。
  */
 
+import { flashcardsTranslator, flashcardsErrorText, useFlashcardsI18n } from "../i18n";
 import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
 import { isEditableTarget } from "@tau/ui";
 import type { Flashcard, FlashcardDeck, FlashcardType } from "@/types";
@@ -50,6 +51,7 @@ import { useNow } from "../hooks/useNow";
 const PAGE_KEY = "review";
 
 export function FlashcardsView() {
+  useFlashcardsI18n();
   const { navigator } = usePage();
   const queryClient = useQueryClient();
   const { database, connectionId, snapshot, loading, error, retry } = useFlashcardSnapshot();
@@ -112,7 +114,7 @@ export function FlashcardsView() {
       const card = derived.cardsById.get(params.cardId);
       navigator.push("review", {});
       if (!card) {
-        toast.error("闪卡已不存在");
+        toast.error(flashcardsTranslator.t("ui.thisFlashcardNoLongerExists"));
         return;
       }
       setReview(null);
@@ -137,7 +139,7 @@ export function FlashcardsView() {
     if (!derived) return;
     const queue = reviewQueue(derived.cards, Date.now(), scopeId).map(c => c.id);
     if (!queue.length) {
-      toast.info("这里没有需要复习的卡片");
+      toast.info(flashcardsTranslator.t("ui.thereAreNoCardsToReview"));
       return;
     }
     setReview({ queue, scopeId });
@@ -150,8 +152,8 @@ export function FlashcardsView() {
       const left = reviewQueue(derived.cards, Date.now(), scopeId).length;
       toast.success(
         left
-          ? `已复习 ${reviewed} 张，剩下 ${left} 张留在队列里`
-          : `已复习 ${reviewed} 张，队列清空了`
+          ? flashcardsTranslator.t("review.exitRemaining", { reviewed: reviewed, left: left })
+          : flashcardsTranslator.t("review.exitDone", { reviewed: reviewed })
       );
     }
   };
@@ -159,7 +161,7 @@ export function FlashcardsView() {
   const openNewCard = (targetDeckId: number | null = deckId) => {
     if (!snapshot?.decks.length) {
       setDeckDialog({ deck: null });
-      toast.info("先新建一个卡组");
+      toast.info(flashcardsTranslator.t("ui.createADeckFirst"));
       return;
     }
     setEditor({ card: null, deckId: targetDeckId });
@@ -188,7 +190,7 @@ export function FlashcardsView() {
   const crumbScope = review
     ? review.scopeId != null
       ? (derived?.decksById.get(review.scopeId)?.name ?? "")
-      : "全部卡组"
+      : flashcardsTranslator.t("ui.allDecks")
     : (deck?.name ?? null);
   const breadcrumb = useMemo(() => {
     if (crumbScope == null) return null;
@@ -200,7 +202,7 @@ export function FlashcardsView() {
           onClick={() => setDeckId(null)}
           className="ease-tau-out hover:text-accent-text rounded-tau-sm hover:bg-hover px-1.5 py-0.5 transition-colors disabled:pointer-events-none"
         >
-          闪卡复习
+          {flashcardsTranslator.t("ui.flashcardReview")}
         </button>
         <span className="text-ink-3">/</span>
         <span className="text-ink-1 truncate px-1.5 font-semibold">{crumbScope}</span>
@@ -212,15 +214,16 @@ export function FlashcardsView() {
   if (error && !snapshot) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3">
-        <p className="text-danger">闪卡加载失败</p>
+        <p className="text-danger">{flashcardsTranslator.t("ui.couldNotLoadFlashcards")}</p>
         <p
           role="alert"
           className="text-ink-2 text-tau-body max-w-xl px-6 text-center break-words select-text"
         >
-          {error.message || "无法读取闪卡数据，请重试"}
+          {flashcardsErrorText(error) ||
+            flashcardsTranslator.t("ui.couldNotReadFlashcardsTryAgain")}
         </p>
         <Button variant="secondary" onClick={() => void retry()}>
-          重试
+          {flashcardsTranslator.t("ui.retry")}
         </Button>
       </div>
     );
@@ -303,26 +306,33 @@ export function FlashcardsView() {
           <div className="flex flex-none flex-col px-8 pt-5">
             <div className="mb-1 flex h-10 flex-none items-center gap-3">
               <h1 className="text-tau-title-lg shrink-0 font-semibold tracking-[-0.01em] whitespace-nowrap">
-                闪卡复习
+                {flashcardsTranslator.t("ui.flashcardReview")}
               </h1>
               <span className="text-ink-2 text-tau-meta w-0 flex-1 truncate whitespace-nowrap tabular-nums">
-                今天 <b className="text-ink-1 font-semibold">{derived.queue.length}</b> 张待复习 ·{" "}
-                {derived.cards.length} 张 · {snapshot.decks.length} 个卡组
+                {flashcardsTranslator.t("home.total", {
+                  due: derived.queue.length,
+                  total: derived.cards.length,
+                  decks: snapshot.decks.length,
+                })}
               </span>
               <Button
                 variant={statsOpen ? "soft" : "ghost"}
                 size="sm"
                 icon={BarChart3}
                 aria-pressed={statsOpen}
-                title={deck ? "卡组概况" : "近 7 天评分 · 未来 7 天到期"}
+                title={
+                  deck
+                    ? flashcardsTranslator.t("ui.deckOverview")
+                    : flashcardsTranslator.t("ui.ratingsOver7DaysDueOverTheNext7Days")
+                }
                 className="shrink-0 whitespace-nowrap"
                 onClick={() => setStatsOpen(open => !open)}
               >
-                概况
+                {flashcardsTranslator.t("ui.overview")}
               </Button>
               <IconButton
-                aria-label="新建卡组"
-                title="新建卡组"
+                aria-label={flashcardsTranslator.t("ui.newDeck")}
+                title={flashcardsTranslator.t("ui.newDeck")}
                 onClick={() => setDeckDialog({ deck: null })}
               >
                 <FolderPlus size={16} strokeWidth={1.75} />
@@ -333,7 +343,7 @@ export function FlashcardsView() {
                 className="shrink-0 whitespace-nowrap"
                 onClick={() => openNewCard(deckId)}
               >
-                新建闪卡
+                {flashcardsTranslator.t("ui.newFlashcard")}
               </Button>
             </div>
             {snapshot.decks.length > 0 && (
@@ -354,9 +364,11 @@ export function FlashcardsView() {
 
           {snapshot.decks.length === 0 ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-2 pb-16 text-center">
-              <p className="text-ink-2 text-[15px] font-medium">还没有卡组</p>
+              <p className="text-ink-2 text-[15px] font-medium">
+                {flashcardsTranslator.t("ui.noDecksYet")}
+              </p>
               <p className="text-ink-3 text-[12.5px]">
-                闪卡归属于卡组——先建一个，比如「操作系统」「英语词汇」
+                {flashcardsTranslator.t("ui.createADeckForYourFlashcardsSuchAsOperatingSystems")}
               </p>
               <Button
                 className="mt-3"
@@ -365,7 +377,7 @@ export function FlashcardsView() {
                 icon={FolderPlus}
                 onClick={() => setDeckDialog({ deck: null })}
               >
-                新建卡组
+                {flashcardsTranslator.t("ui.newDeck")}
               </Button>
             </div>
           ) : (
@@ -406,8 +418,16 @@ export function FlashcardsView() {
               <StatsDrawer
                 open={statsOpen}
                 onClose={() => setStatsOpen(false)}
-                title={deck ? "卡组概况" : "近况"}
-                subtitle={deck ? deck.name : "近 7 天评分 · 未来 7 天到期"}
+                title={
+                  deck
+                    ? flashcardsTranslator.t("ui.deckOverview")
+                    : flashcardsTranslator.t("ui.recentActivity")
+                }
+                subtitle={
+                  deck
+                    ? deck.name
+                    : flashcardsTranslator.t("ui.ratingsOver7DaysDueOverTheNext7Days")
+                }
               >
                 {deck ? (
                   <DeckSide

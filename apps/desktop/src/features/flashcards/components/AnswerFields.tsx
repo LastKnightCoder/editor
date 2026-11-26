@@ -1,3 +1,4 @@
+import { flashcardsTranslator, flashcardsCount, useFlashcardsI18n } from "../i18n";
 import type { FlashcardData } from "@/types";
 import { Button, IconButton, Input, Segmented, Textarea, cn } from "@tau/ui";
 import { Plus, Trash2 } from "lucide-react";
@@ -18,6 +19,7 @@ export function AnswerFields({
   form: FormState;
   patchData(next: Partial<FlashcardData>): void;
 }) {
+  useFlashcardsI18n();
   if (form.type === "single-choice" || form.type === "multiple-choice") {
     const options = form.data.options ?? [];
     const single = form.type === "single-choice";
@@ -30,13 +32,20 @@ export function AnswerFields({
         }),
       });
     return (
-      <Field label="选项" aux={`点字母标记${single ? "唯一" : ""}正确答案`}>
+      <Field
+        label={flashcardsTranslator.t("ui.options")}
+        aux={flashcardsTranslator.t(single ? "option.markSingle" : "option.markMultiple")}
+      >
         <div className="flex flex-col gap-1.5">
           {options.map((option, i) => (
             <div key={option.id} className="flex items-center gap-2">
               <button
                 type="button"
-                title={option.isCorrect ? "正确答案" : "标为正确答案"}
+                title={
+                  option.isCorrect
+                    ? flashcardsTranslator.t("ui.correctAnswer")
+                    : flashcardsTranslator.t("ui.markAsCorrect")
+                }
                 aria-pressed={option.isCorrect}
                 onClick={() => update(option.id, { isCorrect: single ? true : !option.isCorrect })}
                 className={cn(
@@ -50,11 +59,11 @@ export function AnswerFields({
                 className="min-w-0 flex-1"
                 value={option.label}
                 onChange={e => update(option.id, { label: e.target.value })}
-                placeholder={`选项 ${i + 1}`}
+                placeholder={flashcardsTranslator.t("option.number", { number: i + 1 })}
               />
               <IconButton
-                aria-label="删除选项"
-                title="删除选项"
+                aria-label={flashcardsTranslator.t("ui.removeOption")}
+                title={flashcardsTranslator.t("ui.removeOption")}
                 disabled={options.length <= 2}
                 className="size-6 disabled:opacity-0"
                 onClick={() => patchData({ options: options.filter(o => o.id !== option.id) })}
@@ -75,7 +84,7 @@ export function AnswerFields({
                 })
               }
             >
-              添加选项
+              {flashcardsTranslator.t("ui.addOption2")}
             </Button>
           )}
         </div>
@@ -84,27 +93,30 @@ export function AnswerFields({
   }
   if (form.type === "boolean") {
     return (
-      <Field label="答案">
+      <Field label={flashcardsTranslator.t("ui.answer")}>
         <Segmented
           size="sm"
-          label="答案"
+          label={flashcardsTranslator.t("ui.answer")}
           value={String(form.data.booleanAnswer ?? true)}
           onValueChange={(v: string) => patchData({ booleanAnswer: v === "true" })}
           className="self-start"
         >
-          <Segmented.Item value="true" label="正确" />
-          <Segmented.Item value="false" label="错误" />
+          <Segmented.Item value="true" label={flashcardsTranslator.t("ui.true")} />
+          <Segmented.Item value="false" label={flashcardsTranslator.t("ui.false")} />
         </Segmented>
       </Field>
     );
   }
   if (form.type === "qa") {
     return (
-      <Field label="参考答案" aux="复习时对照；配置模型后用于 AI 评判">
+      <Field
+        label={flashcardsTranslator.t("ui.referenceAnswer")}
+        aux={flashcardsTranslator.t("ui.compareDuringReviewOrConfigureAModelForAIEvaluation")}
+      >
         <Textarea
           value={form.data.answer ?? ""}
           onChange={e => patchData({ answer: e.target.value })}
-          placeholder="标准答案或要点"
+          placeholder={flashcardsTranslator.t("ui.referenceAnswerOrKeyPoints")}
           rows={3}
         />
       </Field>
@@ -112,22 +124,24 @@ export function AnswerFields({
   }
   const blanks = blanksOf(form.prompt);
   return (
-    <Field label="填空">
+    <Field label={flashcardsTranslator.t("ui.cloze")}>
       {blanks.length ? (
         <p className="text-ink-2 text-[12.5px]">
-          共 {blanks.length} 个空：
+          {flashcardsCount("blank.count", blanks.length)}
           {blanks.map((b, i) => (
             <span
               key={b.blankId}
               className="bg-accent-soft text-accent-text mx-0.5 rounded-[5px] px-1.5 font-medium"
             >
-              {i + 1}. {b.answer || "（未填答案）"}
+              {i + 1}. {b.answer || flashcardsTranslator.t("ui.noAnswerEntered")}
             </span>
           ))}
-          <span className="text-ink-3 block text-[11.5px]">点题干里的空可修改答案与备选答案</span>
+          <span className="text-ink-3 block text-[11.5px]">
+            {flashcardsTranslator.t("ui.clickABlankInThePromptToEditItsAnswer")}
+          </span>
         </p>
       ) : (
-        <p className="text-ink-3 text-[12px]">还没有填空</p>
+        <p className="text-ink-3 text-[12px]">{flashcardsTranslator.t("ui.noBlanksYet")}</p>
       )}
     </Field>
   );

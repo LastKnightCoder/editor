@@ -1,3 +1,4 @@
+import { FlashcardsError } from "./errors";
 import type {
   Flashcard,
   FlashcardData,
@@ -60,29 +61,42 @@ export function formFromCard(card: Flashcard): FormState {
   };
 }
 
-export function validate(form: FormState): string | null {
-  if (isEmptyContent(form.prompt)) return "题干不能为空";
+export function validate(form: FormState): FlashcardsError | null {
+  if (isEmptyContent(form.prompt))
+    return new FlashcardsError("题干不能为空", "ui.thePromptCannotBeEmpty");
   if (form.type === "cloze") {
     const blanks = blanksOf(form.prompt);
-    if (blanks.length === 0) return "填空题至少需要一个填空：在题干里选中文字，用工具栏设为填空";
+    if (blanks.length === 0)
+      return new FlashcardsError(
+        "填空题至少需要一个填空：在题干里选中文字，用工具栏设为填空",
+        "ui.clozeCardsNeedABlankSelectTextInThePrompt"
+      );
     const ids = new Set<string>();
     for (const blank of blanks) {
-      if (typeof blank.blankId !== "string" || !blank.blankId.trim()) return "填空标识不能为空";
-      if (ids.has(blank.blankId)) return "填空标识不能重复";
+      if (typeof blank.blankId !== "string" || !blank.blankId.trim())
+        return new FlashcardsError("填空标识不能为空", "ui.blankIDCannotBeEmpty");
+      if (ids.has(blank.blankId))
+        return new FlashcardsError("填空标识不能重复", "ui.blankIDsMustBeUnique");
       ids.add(blank.blankId);
-      if (typeof blank.answer !== "string" || !blank.answer.trim()) return "填空答案不能为空";
+      if (typeof blank.answer !== "string" || !blank.answer.trim())
+        return new FlashcardsError("填空答案不能为空", "ui.blankAnswerCannotBeEmpty");
       if (
         blank.alternativeAnswers !== undefined &&
         (!Array.isArray(blank.alternativeAnswers) ||
           blank.alternativeAnswers.some(answer => typeof answer !== "string" || !answer.trim()))
       )
-        return "填空备选答案必须是非空文本列表";
+        return new FlashcardsError(
+          "填空备选答案必须是非空文本列表",
+          "ui.alternativeAnswersMustBeAListOfNonemptyStrings"
+        );
     }
   }
   if (form.type === "single-choice" || form.type === "multiple-choice") {
     const options = (form.data.options ?? []).filter(o => o.label.trim());
-    if (options.length < 2) return "至少填写两个选项";
-    if (!options.some(o => o.isCorrect)) return "请标记正确答案";
+    if (options.length < 2)
+      return new FlashcardsError("至少填写两个选项", "ui.enterAtLeastTwoOptions");
+    if (!options.some(o => o.isCorrect))
+      return new FlashcardsError("请标记正确答案", "ui.markTheCorrectAnswer");
   }
   return null;
 }

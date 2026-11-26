@@ -1,3 +1,5 @@
+import { flashcardsTranslator, flashcardsErrorText, useFlashcardsI18n } from "./i18n";
+import { FlashcardsError } from "./errors";
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import type { Flashcard } from "@/types";
 import {
@@ -15,6 +17,7 @@ import FlashcardGenerationDialog from "./components/FlashcardGenerationDialog";
 import GeneratedFlashcardEditDialog from "./components/GeneratedFlashcardEditDialog";
 
 export function FlashcardCreationHost() {
+  useFlashcardsI18n();
   const request = useSyncExternalStore(
     flashcardCreationRequests.subscribe,
     flashcardCreationRequests.getSnapshot
@@ -23,6 +26,7 @@ export function FlashcardCreationHost() {
 }
 
 function CreationSession({ request }: { request: FlashcardCreationRequest }) {
+  useFlashcardsI18n();
   const isDark = useThemeStore(state => state.mode === "dark");
   const created = useRef<Flashcard[]>([]);
   const selected = useRef(false);
@@ -51,7 +55,7 @@ function CreationSession({ request }: { request: FlashcardCreationRequest }) {
           );
           if (!active) return;
           assertFlashcardScope(request.scope);
-          if (!deck) throw new Error("卡组不存在");
+          if (!deck) throw new FlashcardsError("卡组不存在", "ui.thisDeckDoesNotExist");
           flashcard.handleDeckSelect(deck);
         } else {
           if (request.options.mode === "ai") flashcard.openAiFlashcard();
@@ -59,7 +63,11 @@ function CreationSession({ request }: { request: FlashcardCreationRequest }) {
         }
       } catch (error) {
         if (!active) return;
-        toast.error(error instanceof Error ? error.message : "打开制卡窗口失败");
+        toast.error(
+          error instanceof Error
+            ? flashcardsErrorText(error)
+            : flashcardsTranslator.t("ui.couldNotOpenTheFlashcardEditor")
+        );
         request.settle({ status: "cancelled", cards: created.current });
       }
     };
@@ -96,7 +104,11 @@ function CreationSession({ request }: { request: FlashcardCreationRequest }) {
           selected.current = true;
           flashcard.handleDeckSelect(deck);
         }}
-        title={request.options.mode === "ai" ? "选择卡组 - AI 制卡" : "选择卡组 - 手动制卡"}
+        title={
+          request.options.mode === "ai"
+            ? flashcardsTranslator.t("ui.chooseADeckForAIFlashcards")
+            : flashcardsTranslator.t("ui.chooseADeckForManualFlashcards")
+        }
       />
       {flashcard.flashcardEditorOpen && flashcard.selectedDeck && (
         <CreateFlashcardDialog

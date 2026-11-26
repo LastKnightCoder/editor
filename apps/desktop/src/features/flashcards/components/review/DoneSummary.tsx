@@ -1,3 +1,4 @@
+import { flashcardsTranslator, flashcardsCount, useFlashcardsI18n } from "../../i18n";
 import { Button, cn } from "@tau/ui";
 import { Undo2 } from "lucide-react";
 import { RATINGS } from "../../model";
@@ -17,16 +18,23 @@ export function DoneSummary({
   onUndo?: () => void;
   onExit(): void;
 }) {
+  useFlashcardsI18n();
   const remembered = dist.normal + dist.easy;
   return (
-    <div className="px-3 pb-1.5 pt-6 text-center">
+    <div className="px-3 pt-6 pb-1.5 text-center">
       <div className="text-[22px] font-semibold tracking-[-0.01em]">
-        {reviewed ? "这一轮复习完成了" : "没有需要复习的卡片"}
+        {reviewed
+          ? flashcardsTranslator.t("ui.reviewCompleted2")
+          : flashcardsTranslator.t("ui.noCardsToReview")}
       </div>
       <p className="text-ink-2 mt-1.5">
         {reviewed
-          ? `共 ${reviewed} 张 · 记住 ${Math.round((remembered / reviewed) * 100)}% · 用时约 ${minutes} 分钟`
-          : "队列已清空"}
+          ? flashcardsCount("review.summary", reviewed, {
+              reviewed: reviewed,
+              percent: Math.round((remembered / reviewed) * 100),
+              minutes: minutes,
+            })
+          : flashcardsTranslator.t("ui.queueCleared")}
       </p>
       {reviewed > 0 && (
         <div className="mx-auto mt-[22px] grid max-w-[440px] grid-cols-4 gap-2.5">
@@ -35,7 +43,7 @@ export function DoneSummary({
               <b className={cn("block text-[17px] tabular-nums", RATING_TEXT[r.value])}>
                 {dist[r.value]}
               </b>
-              <span className="text-ink-3 text-[11.5px]">{r.label}</span>
+              <span className="text-ink-3 text-[11.5px]">{flashcardsTranslator.t(r.message)}</span>
             </div>
           ))}
         </div>
@@ -43,11 +51,11 @@ export function DoneSummary({
       <div className="mt-[22px] flex justify-center gap-2">
         {onUndo && (
           <Button variant="ghost" icon={Undo2} onClick={onUndo}>
-            撤销最后一张
+            {flashcardsTranslator.t("ui.undoLastCard")}
           </Button>
         )}
         <Button variant="primary" onClick={onExit}>
-          完成
+          {flashcardsTranslator.t("ui.done")}
         </Button>
       </div>
     </div>

@@ -2,6 +2,8 @@
 // 预览与 Rust 侧 flashcard_schedule.rs 的 fsrs 调度同式，经 @tau/shared/fsrs-schedule 对齐
 // （仅用于评分按钮上的「下次间隔」文案，权威调度在 Rust 侧事务内计算）。
 
+import { type FlashcardMessageKey } from "./i18n";
+import type { FlashcardFormatContext } from "./format";
 import {
   fsrsElapsedDays,
   fsrsGradeOf,
@@ -15,12 +17,27 @@ import type {
   FlashcardType,
 } from "./types";
 
-export const FLASHCARD_TYPE_META: Record<FlashcardType, { label: string; description: string }> = {
-  "single-choice": { label: "单选题", description: "设置一个正确答案，其余为干扰项" },
-  "multiple-choice": { label: "多选题", description: "支持多个正确答案，适合概念组合记忆" },
-  cloze: { label: "填空题", description: "题干中挖空作答，考察知识细节" },
-  qa: { label: "问答题", description: "自由作答，适合总结与表述" },
-  boolean: { label: "判断题", description: "快速判断概念正误" },
+export const FLASHCARD_TYPE_META: Record<
+  FlashcardType,
+  { labelKey: FlashcardMessageKey; descriptionKey: FlashcardMessageKey }
+> = {
+  "single-choice": {
+    labelKey: "ui.singleChoiceQuestion",
+    descriptionKey: "ui.setOneCorrectAnswerAndDistractors",
+  },
+  "multiple-choice": {
+    labelKey: "ui.multipleChoiceQuestion",
+    descriptionKey: "ui.setMultipleCorrectAnswersForRelatedConcepts",
+  },
+  cloze: { labelKey: "ui.clozeQuestion", descriptionKey: "ui.addBlanksToRecallSpecificDetails" },
+  qa: {
+    labelKey: "ui.freeResponse",
+    descriptionKey: "ui.answerFreelyToPracticeRecallAndExpression",
+  },
+  boolean: {
+    labelKey: "ui.trueOrFalseQuestion",
+    descriptionKey: "ui.quicklyJudgeWhetherAStatementIsTrue",
+  },
 };
 
 export const FLASHCARD_TYPE_ORDER: FlashcardType[] = [
@@ -43,29 +60,29 @@ export const FLASHCARD_TYPE_TONE: Record<
   boolean: { soft: "var(--tau-tag-4-soft)", color: "var(--tau-tag-4)", icon: "✓" },
 };
 
-export const FLASHCARD_STATUS_LABEL: Record<FlashcardStatus, string> = {
-  new: "新卡",
-  learning: "学习中",
-  review: "巩固",
-  suspended: "暂停",
+export const FLASHCARD_STATUS_MESSAGE: Record<FlashcardStatus, FlashcardMessageKey> = {
+  new: "ui.new",
+  learning: "ui.learning",
+  review: "ui.review",
+  suspended: "ui.suspended2",
 };
 
-export const FLASHCARD_DIFFICULTY_LABEL: Record<FlashcardDifficulty, string> = {
-  foundation: "基础",
-  standard: "标准",
-  advanced: "进阶",
+export const FLASHCARD_DIFFICULTY_MESSAGE: Record<FlashcardDifficulty, FlashcardMessageKey> = {
+  foundation: "ui.foundation",
+  standard: "ui.standard2",
+  advanced: "ui.advanced",
 };
 
 /** 四档评分：语义色对齐移动端令牌（rose/butter/sky/sage），顺序由难到易 */
 export const REVIEW_RATINGS: Array<{
   value: FlashcardReviewRating;
-  label: string;
+  message: FlashcardMessageKey;
   color: string;
 }> = [
-  { value: "hard", label: "吃力", color: "var(--tau-tag-5)" },
-  { value: "struggle", label: "一般", color: "var(--tau-tag-4)" },
-  { value: "normal", label: "还行", color: "var(--tau-tag-2)" },
-  { value: "easy", label: "轻松", color: "var(--tau-tag-1)" },
+  { value: "hard", message: "ui.hard", color: "var(--tau-tag-5)" },
+  { value: "struggle", message: "ui.fair", color: "var(--tau-tag-4)" },
+  { value: "normal", message: "ui.good", color: "var(--tau-tag-2)" },
+  { value: "easy", message: "ui.easy", color: "var(--tau-tag-1)" },
 ];
 
 /** 评分按钮上的「下次间隔」预览：与 Rust flashcard_schedule.rs（fsrs crate）同式，
@@ -76,7 +93,8 @@ export function nextIntervalPreview(
     memoryDifficulty: number | null;
     lastReviewTime: number | null;
   },
-  rating: FlashcardReviewRating
+  rating: FlashcardReviewRating,
+  { locale, t }: FlashcardFormatContext
 ): string {
   const memory: FsrsMemoryState | null =
     card.memoryStability != null && card.memoryDifficulty != null
@@ -88,10 +106,21 @@ export function nextIntervalPreview(
     fsrsGradeOf(rating)
   );
   const minutes = next.intervalDays * 24 * 60;
-  if (minutes < 60) return `${Math.max(1, Math.round(minutes))} 分钟后`;
-  if (minutes < 24 * 60) return `${Math.round(minutes / 60)} 小时后`;
+  if (minutes < 60)
+    return t("interval.minutes", {
+      count: Math.max(1, Math.round(minutes)),
+      amount: Math.max(1, Math.round(minutes)).toLocaleString(locale),
+    });
+  if (minutes < 24 * 60)
+    return t("interval.hours", {
+      count: Math.round(minutes / 60),
+      amount: Math.round(minutes / 60).toLocaleString(locale),
+    });
   const days = minutes / (24 * 60);
-  return `${days >= 10 ? Math.round(days) : Math.round(days * 10) / 10} 天后`;
+  return t("interval.days", {
+    count: days >= 10 ? Math.round(days) : Math.round(days * 10) / 10,
+    amount: (days >= 10 ? Math.round(days) : Math.round(days * 10) / 10).toLocaleString(locale),
+  });
 }
 
 /** 移动端新建卡组调色板：主题语义色系（存储仍为 hex，桌面端色值照常兼容显示） */
@@ -107,13 +136,18 @@ export const DECK_COLORS = [
 ];
 
 /** 到期时间的展示文案（列表行用） */
-export function formatDueTime(dueTime: number): string {
+export function formatDueTime(dueTime: number, { locale, t }: FlashcardFormatContext): string {
   const diff = dueTime - Date.now();
-  if (diff <= 0) return "立即复习";
+  if (diff <= 0) return t("due.now");
   const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return "马上到";
-  if (minutes < 60) return `${minutes} 分钟后`;
+  if (minutes < 1) return t("due.soon");
+  if (minutes < 60)
+    return t("interval.minutes", { count: minutes, amount: minutes.toLocaleString(locale) });
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} 小时后`;
-  return `${Math.floor(hours / 24)} 天后`;
+  if (hours < 24)
+    return t("interval.hours", { count: hours, amount: hours.toLocaleString(locale) });
+  return t("interval.days", {
+    count: Math.floor(hours / 24),
+    amount: Math.floor(hours / 24).toLocaleString(locale),
+  });
 }

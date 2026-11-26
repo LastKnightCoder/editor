@@ -1,7 +1,8 @@
+import type { FlashcardsFormatContext } from "./format";
 import type { Flashcard } from "@/types";
 
 /** 题面纯文本摘要：填空显示为 ＿＿ */
-export function promptSummary(card: Flashcard): string {
+export function promptSummary(card: Flashcard, { t }: Pick<FlashcardsFormatContext, "t">): string {
   const parts: string[] = [];
   const walk = (node: unknown) => {
     const el = node as { type?: string; text?: string; children?: unknown[] };
@@ -10,11 +11,11 @@ export function promptSummary(card: Flashcard): string {
     else el.children?.forEach(walk);
   };
   card.prompt.forEach(walk);
-  return parts.join("").trim() || "（空题干）";
+  return parts.join("").trim() || t("ui.emptyPrompt");
 }
 
 /** 答案摘要（列表右侧辅助列） */
-export function answerSummary(card: Flashcard): string {
+export function answerSummary(card: Flashcard, { t }: Pick<FlashcardsFormatContext, "t">): string {
   switch (card.type) {
     case "single-choice":
     case "multiple-choice":
@@ -23,7 +24,7 @@ export function answerSummary(card: Flashcard): string {
         .map(o => o.label)
         .join("；");
     case "boolean":
-      return (card.data.booleanAnswer ?? true) ? "正确" : "错误";
+      return (card.data.booleanAnswer ?? true) ? t("ui.true") : t("ui.false");
     case "cloze": {
       const out: string[] = [];
       const walk = (node: unknown) => {

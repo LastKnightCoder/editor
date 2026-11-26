@@ -1,5 +1,12 @@
+import { calendarDate } from "../format";
+import {
+  flashcardsTranslator,
+  flashcardsCount,
+  flashcardsDisplayContext,
+  useFlashcardsI18n,
+} from "../i18n";
 import type { FlashcardType } from "@/types";
-import { TYPE_LABEL, TYPE_ORDER, dayDiff, type DeckStats } from "../model";
+import { TYPE_MESSAGE, TYPE_ORDER, dayDiff, type DeckStats } from "../model";
 import { MixBar } from "./FlashcardBits";
 
 import { Block } from "./Block";
@@ -16,25 +23,32 @@ export function DeckSide({
   now: number;
   createTime: number;
 }) {
+  useFlashcardsI18n();
   const maxType = Math.max(1, ...typeCounts.values());
   const lastDays = stats.lastReviewTime == null ? null : -dayDiff(stats.lastReviewTime, now);
   const created = new Date(createTime);
   return (
-    <div className="flex flex-col gap-[22px] px-5 pb-5 pt-[18px]">
-      <Block title="卡片构成" meta={`${stats.total} 张`}>
+    <div className="flex flex-col gap-[22px] px-5 pt-[18px] pb-5">
+      <Block
+        title={flashcardsTranslator.t("ui.cardComposition")}
+        meta={flashcardsCount("count.cards", stats.total)}
+      >
         {stats.total > 0 && <MixBar stats={stats} />}
         <Legend
           items={[
-            ["bg-info", `新卡 ${stats.fresh}`],
-            ["bg-warn", `学习中 ${stats.learning}`],
-            ["bg-ok", `巩固 ${stats.review}`],
+            ["bg-info", flashcardsCount("stats.new", stats.fresh)],
+            ["bg-warn", flashcardsCount("stats.learning", stats.learning)],
+            ["bg-ok", flashcardsCount("stats.review", stats.review)],
             ...(stats.suspended
-              ? ([["bg-ink-3", `已暂停 ${stats.suspended}`]] as [string, string][])
+              ? ([["bg-ink-3", flashcardsCount("stats.suspended", stats.suspended)]] as [
+                  string,
+                  string,
+                ][])
               : []),
           ]}
         />
       </Block>
-      <Block title="题型">
+      <Block title={flashcardsTranslator.t("ui.questionType")}>
         <div className="flex flex-col gap-1.5">
           {TYPE_ORDER.map(type => {
             const n = typeCounts.get(type) ?? 0;
@@ -43,7 +57,7 @@ export function DeckSide({
                 key={type}
                 className="text-ink-2 grid grid-cols-[40px_1fr_24px] items-center gap-2.5 text-[12px]"
               >
-                <span>{TYPE_LABEL[type]}</span>
+                <span>{flashcardsTranslator.t(TYPE_MESSAGE[type])}</span>
                 <span className="bg-track h-1.5 overflow-hidden rounded-full">
                   <i
                     className="bg-ink-3 block h-full rounded-full"
@@ -56,20 +70,26 @@ export function DeckSide({
           })}
         </div>
       </Block>
-      <Block title="未来 7 天到期">
+      <Block title={flashcardsTranslator.t("ui.dueOverTheNext7Days")}>
         <ForecastChart values={stats.forecast} now={now} />
       </Block>
-      <Block title="记录">
+      <Block title={flashcardsTranslator.t("ui.history")}>
         <dl className="grid grid-cols-[auto_1fr] gap-x-3.5 gap-y-1.5 text-[12.5px]">
-          <dt className="text-ink-3">上次复习</dt>
+          <dt className="text-ink-3">{flashcardsTranslator.t("ui.lastReview")}</dt>
           <dd className="text-right tabular-nums">
-            {lastDays == null ? "—" : lastDays <= 0 ? "今天" : `${lastDays} 天前`}
+            {lastDays == null
+              ? "—"
+              : lastDays <= 0
+                ? flashcardsTranslator.t("ui.today")
+                : flashcardsCount("stats.daysAgo", lastDays)}
           </dd>
-          <dt className="text-ink-3">累计复习</dt>
-          <dd className="text-right tabular-nums">{stats.reviewCount} 次</dd>
-          <dt className="text-ink-3">创建于</dt>
+          <dt className="text-ink-3">{flashcardsTranslator.t("ui.totalReviews")}</dt>
           <dd className="text-right tabular-nums">
-            {created.getFullYear()}年{created.getMonth() + 1}月{created.getDate()}日
+            {flashcardsCount("count.reviews", stats.reviewCount)}
+          </dd>
+          <dt className="text-ink-3">{flashcardsTranslator.t("ui.created")}</dt>
+          <dd className="text-right tabular-nums">
+            {calendarDate(created, flashcardsDisplayContext().locale)}
           </dd>
         </dl>
       </Block>

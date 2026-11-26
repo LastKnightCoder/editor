@@ -1,3 +1,4 @@
+import { flashcardsTranslator, useFlashcardsI18n } from "../../i18n";
 import type { Flashcard, FlashcardDeck } from "@/types";
 import { IconButton, Menu } from "@tau/ui";
 import { MoreHorizontal, Pause, Pencil, SkipForward, Undo2 } from "lucide-react";
@@ -23,6 +24,7 @@ export function CardMeta({
   onUndo(): void;
   onSkip(): void;
 }) {
+  useFlashcardsI18n();
   return (
     <div className="text-ink-3 mb-4 flex items-center gap-2.5 text-[12px]">
       {deck && (
@@ -35,8 +37,8 @@ export function CardMeta({
       <StatusDot status={card.status} />
       <span className="flex-1" />
       <IconButton
-        aria-label="编辑 (E)"
-        title="编辑 (E)"
+        aria-label={flashcardsTranslator.t("ui.editE")}
+        title={flashcardsTranslator.t("ui.editE")}
         onClick={onEdit}
         className="size-6"
         disabled={busy}
@@ -46,7 +48,12 @@ export function CardMeta({
       <Menu
         align="end"
         trigger={
-          <IconButton aria-label="更多" title="更多" className="size-6" disabled={busy}>
+          <IconButton
+            aria-label={flashcardsTranslator.t("ui.more2")}
+            title={flashcardsTranslator.t("ui.more2")}
+            className="size-6"
+            disabled={busy}
+          >
             <MoreHorizontal size={14} strokeWidth={1.75} />
           </IconButton>
         }
@@ -56,7 +63,7 @@ export function CardMeta({
           kbd="S"
           onSelect={onSuspend}
         >
-          暂停这张卡片
+          {flashcardsTranslator.t("ui.suspendThisCard")}
         </Menu.Item>
         <Menu.Item
           icon={<Undo2 className="size-[15px]" strokeWidth={1.75} />}
@@ -64,14 +71,14 @@ export function CardMeta({
           disabled={!canUndo}
           onSelect={onUndo}
         >
-          撤销上一张评分
+          {flashcardsTranslator.t("ui.undoPreviousRating")}
         </Menu.Item>
         <Menu.Separator />
         <Menu.Item
           icon={<SkipForward className="size-[15px]" strokeWidth={1.75} />}
           onSelect={onSkip}
         >
-          跳过，放到队尾
+          {flashcardsTranslator.t("ui.skipToTheEnd")}
         </Menu.Item>
       </Menu>
     </div>

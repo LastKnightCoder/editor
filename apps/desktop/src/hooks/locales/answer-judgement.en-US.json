@@ -1,0 +1,5 @@
+{
+  "model": "Configure a flashcard model in Settings first",
+  "failed": "AI judgement failed",
+  "empty": "AI returned an empty response"
+}

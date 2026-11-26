@@ -2,6 +2,7 @@
 // 不引入完整 Slate 编辑器——复习页只需渲染 + 填空交互；未知节点降级为纯文本，
 // 保证桌面端新增节点类型时移动端不白屏（前向兼容）。
 
+import { flashcardTranslator, useFlashcardI18n } from "./i18n";
 import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { BlankNode } from "./reviewFlow";
 
@@ -80,6 +81,7 @@ function BlankInput({
   placeholder: string;
   onChange: (value: string) => void;
 }) {
+  useFlashcardI18n();
   const measureRef = useRef<HTMLSpanElement>(null);
   const [width, setWidth] = useState(0);
   useLayoutEffect(() => {
@@ -174,7 +176,7 @@ function renderInline(
           <BlankInput
             key={key}
             value={blankProps.getBlankValue(blank.blankId)}
-            placeholder={blank.placeholder || "填空"}
+            placeholder={blank.placeholder || flashcardTranslator.t("ui.cloze")}
             onChange={value => blankProps.onBlankChange(blank.blankId, value)}
           />
         );
@@ -295,7 +297,7 @@ function renderBlock(
         />
       ) : (
         <div key={key} style={{ color: "var(--tau-ink-3)", fontSize: 12 }}>
-          ［图片］
+          {flashcardTranslator.t("ui.image")}
         </div>
       );
     }
@@ -319,6 +321,7 @@ export function RichContent({
   content: unknown[];
   blankProps?: BlankRenderProps | null;
 }) {
+  useFlashcardI18n();
   if (!Array.isArray(content) || content.length === 0) return null;
   return (
     <>

@@ -1,3 +1,4 @@
+import { flashcardsTranslator } from "@/features/flashcards/i18n";
 import { Editor, Transforms, Range, Element as SlateElement } from "slate";
 import type { Descendant } from "slate";
 import { toast } from "@tau/ui";
@@ -26,7 +27,7 @@ export const wrapAsBlank = (editor: Editor) => {
   });
 
   if (existingBlank) {
-    toast.warning("选区包含已有空格，请先解除标记");
+    toast.warning(flashcardsTranslator.t("blank.overlap"));
     return;
   }
 

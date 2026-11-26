@@ -43,7 +43,11 @@ const useAnswerJudgement = (): UseAnswerJudgementResult => {
   const judge = useMemoizedFn(async (userAnswer: string, flashcard: Flashcard) => {
     const version = ++requestVersion.current;
     if (!provider || !model) {
-      setError(new Error("请先在设置中配置闪卡模型"));
+      setError(
+        Object.assign(new Error("请先在设置中配置闪卡模型"), {
+          code: "ANSWER_JUDGEMENT_MODEL_MISSING",
+        })
+      );
       setStatus("error");
       return;
     }
@@ -96,12 +100,14 @@ const useAnswerJudgement = (): UseAnswerJudgementResult => {
       if (version !== requestVersion.current) return;
 
       if (!outcome.ok) {
-        throw new Error(outcome.error ?? "AI 评判失败");
+        throw outcome.error
+          ? new Error(outcome.error)
+          : Object.assign(new Error("AI 评判失败"), { code: "ANSWER_JUDGEMENT_FAILED" });
       }
       const response = outcome.text;
 
       if (!response) {
-        throw new Error("AI 返回空响应");
+        throw Object.assign(new Error("AI 返回空响应"), { code: "ANSWER_JUDGEMENT_EMPTY" });
       }
 
       const judgementResult = parseAnswerJudgementResponse(response);

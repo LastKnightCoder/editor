@@ -1,6 +1,7 @@
+import { flashcardsTranslator, useFlashcardsI18n } from "../i18n";
 import type { FlashcardStatus } from "@/types";
 import { cn } from "@tau/ui";
-import { STATUS_LABEL } from "../model";
+import { STATUS_MESSAGE } from "../model";
 
 const STATUS_DOT: Record<FlashcardStatus, string> = {
   new: "bg-info",
@@ -10,6 +11,7 @@ const STATUS_DOT: Record<FlashcardStatus, string> = {
 };
 
 export function StatusDot({ status }: { status: FlashcardStatus }) {
+  useFlashcardsI18n();
   return (
     <span
       className={cn(
@@ -18,7 +20,7 @@ export function StatusDot({ status }: { status: FlashcardStatus }) {
       )}
     >
       <span className={cn("size-1.5 rounded-full", STATUS_DOT[status])} />
-      {STATUS_LABEL[status]}
+      {flashcardsTranslator.t(STATUS_MESSAGE[status])}
     </span>
   );
 }

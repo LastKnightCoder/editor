@@ -1,0 +1,13 @@
+{
+  "title": "Create flashcards with AI",
+  "source": "Source material",
+  "placeholder": "Paste material to generate questions, answers and explanations",
+  "hint": "Uses the model assigned to Flashcards in AI Models. Review and save each draft after generation.",
+  "generating": "Generating…",
+  "generate": "Generate flashcards",
+  "cancel": "Cancel generation",
+  "summary": "Generated: {{generated}}; saved: {{saved}}. Tap a draft to review and save it.",
+  "saved": "Saved",
+  "editSave": "Edit and save",
+  "done": "Done"
+}

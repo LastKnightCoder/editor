@@ -1,3 +1,4 @@
+import { flashcardsTranslator, useFlashcardsI18n } from "../../i18n";
 import useAnswerJudgement from "@/hooks/useAnswerJudgement";
 import type { Flashcard } from "@/types";
 import { cn } from "@tau/ui";
@@ -27,16 +28,17 @@ export function CardBack({
   activeRef: number | null;
   onOpenRef(id: number | null): void;
 }) {
+  useFlashcardsI18n();
   const explanation = card.data.explanation?.trim();
   const qaText = answer.qa?.trim();
 
   const answerValue =
     card.type === "qa"
-      ? card.data.answer?.trim() || "未设置参考答案"
+      ? card.data.answer?.trim() || flashcardsTranslator.t("ui.noReferenceAnswer")
       : card.type === "boolean"
         ? (card.data.booleanAnswer ?? true)
-          ? "正确"
-          : "错误"
+          ? flashcardsTranslator.t("ui.true")
+          : flashcardsTranslator.t("ui.false")
         : null;
 
   return (
@@ -60,15 +62,19 @@ export function CardBack({
               ) : (
                 <XCircle className="size-[15px]" strokeWidth={2} />
               )}
-              {correct ? "回答正确" : "回答有误"}
+              {correct
+                ? flashcardsTranslator.t("ui.correctResponse")
+                : flashcardsTranslator.t("ui.incorrectResponse")}
             </div>
           )}
           {answerValue !== null && (
             <div className={cn(correct !== null && "mt-1")}>
               <div className="text-ink-3 text-[12px]">
-                {card.type === "qa" ? "参考答案" : "答案"}
+                {card.type === "qa"
+                  ? flashcardsTranslator.t("ui.referenceAnswer")
+                  : flashcardsTranslator.t("ui.answer")}
               </div>
-              <p className="text-ink-1 whitespace-pre-wrap text-[16px] font-medium leading-[1.7]">
+              <p className="text-ink-1 text-[16px] leading-[1.7] font-medium whitespace-pre-wrap">
                 {answerValue}
               </p>
             </div>
@@ -76,13 +82,15 @@ export function CardBack({
         </div>
       )}
 
-      {card.type === "qa" && qaText && <Row label="你的回答">{qaText}</Row>}
+      {card.type === "qa" && qaText && (
+        <Row label={flashcardsTranslator.t("ui.yourAnswer")}>{qaText}</Row>
+      )}
       {card.type === "qa" && qaText && judgement.isConfigured && (
         <JudgementBlock judgement={judgement} answer={qaText} card={card} />
       )}
-      {explanation && <Row label="解析">{explanation}</Row>}
+      {explanation && <Row label={flashcardsTranslator.t("ui.explanation")}>{explanation}</Row>}
       {card.references.length > 0 && (
-        <Row label="参考资料">
+        <Row label={flashcardsTranslator.t("ui.references")}>
           <div className="flex flex-wrap gap-1.5">
             {card.references.map(ref => (
               <button
@@ -94,10 +102,16 @@ export function CardBack({
                   "border-line-1 text-ink-2 hover:bg-hover hover:text-ink-1 inline-flex h-7 max-w-full items-center gap-1.5 rounded-[8px] border px-2.5 text-[12.5px] disabled:opacity-60",
                   activeRef === ref.id && "bg-hover text-ink-1"
                 )}
-                title={ref.content ? "在侧边打开" : "原内容已删除"}
+                title={
+                  ref.content
+                    ? flashcardsTranslator.t("ui.openInSidePanel")
+                    : flashcardsTranslator.t("ui.sourceContentDeleted")
+                }
               >
                 <FileText className="size-3.5 flex-none" strokeWidth={1.75} />
-                <span className="truncate">{ref.title || "未命名资料"}</span>
+                <span className="truncate">
+                  {ref.title || flashcardsTranslator.t("ui.untitledReference")}
+                </span>
               </button>
             ))}
           </div>
@@ -109,6 +123,7 @@ export function CardBack({
 
 /** 说明行：左侧定宽灰标签，右侧内容；上沿细线与上一块分开 */
 function Row({ label, children }: { label: string; children: ReactNode }) {
+  useFlashcardsI18n();
   return (
     <section className="border-line-2 grid grid-cols-[72px_minmax(0,1fr)] gap-x-4 border-t pt-4">
       <h4 className="text-ink-3 pt-px text-[12.5px] leading-[1.75]">{label}</h4>

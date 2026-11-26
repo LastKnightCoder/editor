@@ -4,13 +4,19 @@
  * 行点击 = 编辑；右键 = 卡片菜单。
  */
 
+import {
+  flashcardsTranslator,
+  flashcardsCount,
+  flashcardsDisplayContext,
+  useFlashcardsI18n,
+} from "../i18n";
 import type { Flashcard, FlashcardDeck, FlashcardType } from "@/types";
 import { Button, ContextMenu, IconButton, Menu, Segmented, cn } from "@tau/ui";
 import { Check, ChevronDown, MoreHorizontal, Play, Plus, SlidersHorizontal } from "lucide-react";
 import { Fragment, type ReactNode } from "react";
 import {
-  SECTION_LABEL,
-  TYPE_LABEL,
+  SECTION_MESSAGE,
+  TYPE_MESSAGE,
   TYPE_ORDER,
   sectionOf,
   type CardSection,
@@ -53,6 +59,7 @@ export function DeckBoard({
   deckMenu: ReactNode;
   renderCardMenu(card: Flashcard): ReactNode;
 }) {
+  useFlashcardsI18n();
   const filtered = cards.filter(card => {
     if (type !== "all" && card.type !== type) return false;
     if (status === "all") return true;
@@ -71,26 +78,31 @@ export function DeckBoard({
   })).filter(section => section.cards.length > 0);
 
   const segments: [StatusFilter, string, number][] = [
-    ["all", "全部", stats.total],
-    ["due", "待复习", stats.due],
-    ["new", "新卡", stats.fresh],
-    ["learning", "学习中", stats.learning],
-    ["review", "巩固", stats.review],
-    ["suspended", "已暂停", stats.suspended],
+    ["all", flashcardsTranslator.t("ui.all"), stats.total],
+    ["due", flashcardsTranslator.t("ui.due"), stats.due],
+    ["new", flashcardsTranslator.t("ui.new"), stats.fresh],
+    ["learning", flashcardsTranslator.t("ui.learning"), stats.learning],
+    ["review", flashcardsTranslator.t("ui.review"), stats.review],
+    ["suspended", flashcardsTranslator.t("ui.suspended"), stats.suspended],
   ];
 
   return (
-    <div className="pb-3 pl-[22px] pr-4">
-      <div className="flex items-center gap-3.5 px-0.5 pb-2.5 pt-2.5">
+    <div className="pr-4 pb-3 pl-[22px]">
+      <div className="flex items-center gap-3.5 px-0.5 pt-2.5 pb-2.5">
         <DeckMark deck={deck} size="lg" />
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-[17px] font-semibold tracking-[-0.01em]">{deck.name}</h2>
-          <p className="text-ink-2 truncate text-[12.5px]">{deck.description || "没有描述"}</p>
+          <p className="text-ink-2 truncate text-[12.5px]">
+            {deck.description || flashcardsTranslator.t("ui.noDescription")}
+          </p>
         </div>
         <Menu
           align="end"
           trigger={
-            <IconButton aria-label="卡组操作" title="卡组操作">
+            <IconButton
+              aria-label={flashcardsTranslator.t("ui.deckActions")}
+              title={flashcardsTranslator.t("ui.deckActions")}
+            >
               <MoreHorizontal size={16} strokeWidth={1.75} />
             </IconButton>
           }
@@ -99,16 +111,16 @@ export function DeckBoard({
         </Menu>
         {stats.due > 0 && (
           <Button variant="primary" icon={Play} onClick={onStart}>
-            复习 {stats.due} 张
+            {flashcardsTranslator.t("ui.review2")} {flashcardsCount("count.cards", stats.due)}
           </Button>
         )}
       </div>
 
       {/* 始终一行：容器窄于 620px 时分段收紧内距、题型筛选收成图标，不换行也不越界撑出横向滚动 */}
-      <div className="@container/filters flex items-center gap-2 px-0.5 pb-1.5 pt-1">
+      <div className="@container/filters flex items-center gap-2 px-0.5 pt-1 pb-1.5">
         <Segmented
           size="sm"
-          label="状态"
+          label={flashcardsTranslator.t("ui.status")}
           value={status}
           onValueChange={(v: StatusFilter) => onStatusChange(v)}
         >
@@ -137,10 +149,16 @@ export function DeckBoard({
                 "@max-[620px]/filters:px-1.5 ml-auto",
                 type !== "all" && "text-accent-text"
               )}
-              title={type === "all" ? "全部题型" : TYPE_LABEL[type]}
+              title={
+                type === "all"
+                  ? flashcardsTranslator.t("ui.allQuestionTypes")
+                  : flashcardsTranslator.t(TYPE_MESSAGE[type])
+              }
             >
               <span className="@max-[620px]/filters:hidden">
-                {type === "all" ? "全部题型" : TYPE_LABEL[type]}
+                {type === "all"
+                  ? flashcardsTranslator.t("ui.allQuestionTypes")
+                  : flashcardsTranslator.t(TYPE_MESSAGE[type])}
               </span>
               <ChevronDown size={14} strokeWidth={1.75} className="@max-[620px]/filters:hidden" />
             </Button>
@@ -158,7 +176,9 @@ export function DeckBoard({
                 >
                   <span className="flex items-center gap-2">
                     <span className="min-w-0 flex-1 truncate">
-                      {t === "all" ? "全部题型" : TYPE_LABEL[t]}
+                      {t === "all"
+                        ? flashcardsTranslator.t("ui.allQuestionTypes")
+                        : flashcardsTranslator.t(TYPE_MESSAGE[t])}
                     </span>
                     {type === t && <Check className="size-[15px] flex-none" strokeWidth={2} />}
                   </span>
@@ -172,18 +192,22 @@ export function DeckBoard({
 
       {cards.length === 0 ? (
         <div className="text-ink-3 flex flex-col items-center gap-2.5 py-12 text-[12.5px]">
-          这个卡组还没有闪卡
+          {flashcardsTranslator.t("ui.thisDeckHasNoFlashcardsYet")}
           <Button size="sm" variant="soft" icon={Plus} onClick={onAddCard}>
-            添加第一张
+            {flashcardsTranslator.t("ui.addTheFirstCard")}
           </Button>
         </div>
       ) : sections.length === 0 ? (
-        <div className="text-ink-3 py-12 text-center text-[12.5px]">没有符合筛选的闪卡</div>
+        <div className="text-ink-3 py-12 text-center text-[12.5px]">
+          {flashcardsTranslator.t("ui.noFlashcardsMatchTheseFilters")}
+        </div>
       ) : (
         sections.map(section => (
           <section key={section.key} className="mt-1.5">
-            <div className="bg-surface sticky top-0 z-[3] flex items-baseline gap-2.5 px-0.5 pb-2 pt-3">
-              <span className="text-[14px] font-semibold">{SECTION_LABEL[section.key]}</span>
+            <div className="bg-surface sticky top-0 z-[3] flex items-baseline gap-2.5 px-0.5 pt-3 pb-2">
+              <span className="text-[14px] font-semibold">
+                {flashcardsTranslator.t(SECTION_MESSAGE[section.key])}
+              </span>
               <span className="text-ink-3 text-[11.5px] tabular-nums">{section.cards.length}</span>
             </div>
             {section.cards.map(card => (
@@ -204,9 +228,11 @@ export function DeckBoard({
                       card.status === "suspended" && "text-ink-3"
                     )}
                   >
-                    {promptSummary(card)}
+                    {promptSummary(card, flashcardsDisplayContext())}
                   </span>
-                  <span className="text-ink-3 truncate text-[12px]">{answerSummary(card)}</span>
+                  <span className="text-ink-3 truncate text-[12px]">
+                    {answerSummary(card, flashcardsDisplayContext())}
+                  </span>
                   <StatusDot status={card.status} />
                   <DueLabel card={card} now={now} />
                 </div>

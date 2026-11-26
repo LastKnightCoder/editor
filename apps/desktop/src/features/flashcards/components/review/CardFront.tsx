@@ -1,3 +1,4 @@
+import { flashcardsTranslator, useFlashcardsI18n } from "../../i18n";
 import type { Flashcard } from "@/types";
 import { extractPlainText } from "@/utils/flashcard";
 import { Textarea } from "@tau/ui";
@@ -28,13 +29,14 @@ export function CardFront({
   onPick(id: string): void;
   onSubmit(override?: ReviewAnswer): void;
 }) {
+  useFlashcardsI18n();
   const options = card.data.options ?? [];
   const hasDetail = extractPlainText(card.detail ?? []).trim().length > 0;
   const hint = card.data.hint?.trim();
 
   return (
     <>
-      <div className="text-[20px] font-medium leading-[1.8]">
+      <div className="text-[20px] leading-[1.8] font-medium">
         {card.type === "cloze" ? (
           <ClozePrompt
             content={card.prompt}
@@ -55,7 +57,7 @@ export function CardFront({
             hint
           ) : (
             <button type="button" className="text-accent-text" onClick={onShowHint}>
-              显示提示
+              {flashcardsTranslator.t("ui.showHint")}
             </button>
           )}
         </div>
@@ -87,7 +89,7 @@ export function CardFront({
                 onClick={() => onPick(option.id)}
                 note={revealed && (option.isCorrect || chosen) ? option.explanation : undefined}
               >
-                {option.label || "（空选项）"}
+                {option.label || flashcardsTranslator.t("ui.emptyOption")}
               </OptionButton>
             );
           })}
@@ -117,7 +119,7 @@ export function CardFront({
                 center
                 onClick={() => onSubmit({ bool: value })}
               >
-                {value ? "正确" : "错误"}
+                {value ? flashcardsTranslator.t("ui.true") : flashcardsTranslator.t("ui.false")}
               </OptionButton>
             );
           })}
@@ -129,7 +131,7 @@ export function CardFront({
         <div className={hint ? "mt-2" : "mt-4"}>
           <Textarea
             className="min-h-[96px] px-1.5 py-0.5 text-[14px]"
-            placeholder={`先在心里或这里作答，再显示答案（可留空；${MOD}↵ 提交）`}
+            placeholder={flashcardsTranslator.t("review.qaPlaceholder", { mod: MOD })}
             value={answer.qa ?? ""}
             onChange={e => onAnswer({ qa: e.target.value })}
             onKeyDown={e => {

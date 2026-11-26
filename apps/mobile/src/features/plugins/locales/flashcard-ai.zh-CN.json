@@ -1,0 +1,13 @@
+{
+  "title": "AI 制作闪卡",
+  "source": "制卡资料",
+  "placeholder": "粘贴需要学习的资料，AI 将生成题目、答案与解析",
+  "hint": "使用「AI 模型」中为「闪卡」分配的模型。生成后可逐张编辑保存。",
+  "generating": "正在生成…",
+  "generate": "生成闪卡",
+  "cancel": "取消生成",
+  "summary": "已生成 {{generated}} 张，已保存 {{saved}} 张。点按草稿审阅并保存。",
+  "saved": "已保存",
+  "editSave": "编辑并保存",
+  "done": "完成"
+}

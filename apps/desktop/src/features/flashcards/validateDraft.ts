@@ -1,3 +1,4 @@
+import { FlashcardsError } from "./errors";
 import type { CreateFlashcardInput } from "@/types";
 import type { Descendant } from "slate";
 import { emptyForm, validate } from "./editorModel";
@@ -17,27 +18,27 @@ function validNodes(nodes: unknown): nodes is Descendant[] {
 
 export function assertFlashcardDraft(draft: Omit<CreateFlashcardInput, "deckId">) {
   if (!["qa", "boolean", "cloze", "single-choice", "multiple-choice"].includes(draft.type))
-    throw new Error("闪卡题型无效");
+    throw new FlashcardsError("闪卡题型无效", "ui.invalidFlashcardType");
   if (!validNodes(draft.prompt) || (draft.detail !== undefined && !validNodes(draft.detail)))
-    throw new Error("闪卡富文本格式无效");
+    throw new FlashcardsError("闪卡富文本格式无效", "ui.invalidFlashcardRichText");
   if (
     draft.difficulty !== undefined &&
     !["foundation", "standard", "advanced"].includes(draft.difficulty)
   )
-    throw new Error("闪卡难度无效");
+    throw new FlashcardsError("闪卡难度无效", "ui.invalidFlashcardDifficulty");
   if (
     draft.tags !== undefined &&
     (!Array.isArray(draft.tags) || draft.tags.some(tag => typeof tag !== "string"))
   )
-    throw new Error("闪卡标签无效");
+    throw new FlashcardsError("闪卡标签无效", "ui.invalidFlashcardTags");
   if (!draft.data || typeof draft.data !== "object" || Array.isArray(draft.data))
-    throw new Error("闪卡答案格式无效");
+    throw new FlashcardsError("闪卡答案格式无效", "ui.invalidFlashcardAnswerFormat");
   for (const key of ["answer", "explanation", "hint", "referenceNotes"] as const) {
     if (draft.data[key] !== undefined && typeof draft.data[key] !== "string")
-      throw new Error("闪卡答案格式无效");
+      throw new FlashcardsError("闪卡答案格式无效", "ui.invalidFlashcardAnswerFormat");
   }
   if (draft.data.booleanAnswer !== undefined && typeof draft.data.booleanAnswer !== "boolean")
-    throw new Error("判断题答案无效");
+    throw new FlashcardsError("判断题答案无效", "ui.invalidTrueOrFalseAnswer");
   if (
     draft.data.options !== undefined &&
     (!Array.isArray(draft.data.options) ||
@@ -49,7 +50,7 @@ export function assertFlashcardDraft(draft: Omit<CreateFlashcardInput, "deckId">
           typeof option.isCorrect !== "boolean"
       ))
   )
-    throw new Error("闪卡选项无效");
+    throw new FlashcardsError("闪卡选项无效", "ui.invalidFlashcardOptions");
   if (
     draft.data.blanks !== undefined &&
     (!Array.isArray(draft.data.blanks) ||
@@ -66,7 +67,7 @@ export function assertFlashcardDraft(draft: Omit<CreateFlashcardInput, "deckId">
               )))
       ))
   )
-    throw new Error("闪卡填空无效");
+    throw new FlashcardsError("闪卡填空无效", "ui.invalidFlashcardBlank");
   if (
     draft.references !== undefined &&
     (!Array.isArray(draft.references) ||
@@ -82,7 +83,7 @@ export function assertFlashcardDraft(draft: Omit<CreateFlashcardInput, "deckId">
             : reference.refType !== "custom" || !validNodes(reference.customContent))
       ))
   )
-    throw new Error("闪卡参考资料无效");
+    throw new FlashcardsError("闪卡参考资料无效", "ui.invalidFlashcardReferences");
   const error = validate({ ...emptyForm(1, draft.type), ...draft, references: [] });
-  if (error) throw new Error(error);
+  if (error) throw error;
 }

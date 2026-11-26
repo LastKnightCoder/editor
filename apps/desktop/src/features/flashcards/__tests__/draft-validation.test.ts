@@ -32,7 +32,7 @@ describe("填空草稿与表单校验", () => {
     const draft = draftWith([node]);
     expect(() => assertFlashcardDraft(draft)).toThrow("填空");
     expect(() => parseFlashcardResponse(JSON.stringify([draft]))).toThrow("填空");
-    expect(validate({ ...emptyForm(1, "cloze"), prompt: draft.prompt })).toMatch(/填空/);
+    expect(validate({ ...emptyForm(1, "cloze"), prompt: draft.prompt })?.message).toMatch(/填空/);
   });
 
   it("拒绝嵌套在不同段落中的重复填空标识", () => {

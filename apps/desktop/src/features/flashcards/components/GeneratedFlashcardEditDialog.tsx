@@ -1,3 +1,5 @@
+import { flashcardsTranslator, useFlashcardsI18n, type FlashcardsMessageKey } from "../i18n";
+import { TYPE_META } from "../model";
 import { useState, useEffect } from "react";
 import type { Descendant } from "slate";
 import { CreditCard, Trash2 } from "lucide-react";
@@ -5,7 +7,7 @@ import { Button, Checkbox, Dialog, DialogBody, Input, Radio, Textarea } from "@t
 import AddTag from "@/components/AddTag";
 import RichTextEditor from "@/components/FlashcardEditor/components/RichTextEditor";
 import type { GeneratedFlashcard } from "../hooks/useFlashcardGeneration";
-import { FLASHCARD_TYPE_META, textToDescendants } from "@/utils/flashcard";
+import { textToDescendants } from "@/utils/flashcard";
 import type { FlashcardDifficulty, FlashcardData, FlashcardType } from "@/types/flashcard";
 
 interface GeneratedFlashcardEditModalProps {
@@ -24,10 +26,10 @@ const randomId = () =>
     ? crypto.randomUUID()
     : Math.random().toString(36).slice(2, 10);
 
-const difficultyOptions: { value: FlashcardDifficulty; label: string }[] = [
-  { value: "foundation", label: "基础" },
-  { value: "standard", label: "常规" },
-  { value: "advanced", label: "进阶" },
+const difficultyOptions: { value: FlashcardDifficulty; message: FlashcardsMessageKey }[] = [
+  { value: "foundation", message: "ui.foundation" },
+  { value: "standard", message: "ui.standard" },
+  { value: "advanced", message: "ui.advanced" },
 ];
 
 const GeneratedFlashcardEditModal = ({
@@ -37,6 +39,7 @@ const GeneratedFlashcardEditModal = ({
   onCancel,
   isDark = false,
 }: GeneratedFlashcardEditModalProps) => {
+  useFlashcardsI18n();
   const [prompt, setPrompt] = useState<Descendant[]>(textToDescendants(""));
   const [detail, setDetail] = useState<Descendant[]>(textToDescendants(""));
   const [type, setType] = useState<FlashcardType>("qa");
@@ -134,12 +137,12 @@ const GeneratedFlashcardEditModal = ({
               <Input
                 value={option.label}
                 onChange={e => handleOptionChange(option.id, "label", e.target.value)}
-                placeholder={`选项 ${index + 1}`}
+                placeholder={flashcardsTranslator.t("option.number", { number: index + 1 })}
                 className="min-w-0 flex-1"
               />
               <button
                 type="button"
-                aria-label="删除选项"
+                aria-label={flashcardsTranslator.t("ui.removeOption")}
                 onClick={() => removeOption(option.id)}
                 disabled={options.length <= 2}
                 className="text-ink-3/50 hover:text-danger hover:bg-danger-soft rounded-tau-sm grid size-6 shrink-0 place-items-center transition-colors disabled:pointer-events-none disabled:opacity-0"
@@ -153,7 +156,7 @@ const GeneratedFlashcardEditModal = ({
             onClick={addOption}
             className="border-line-2 text-ink-3 hover:bg-hover hover:text-ink-2 rounded-tau-md text-tau-body w-full border border-dashed py-2.5 transition-colors"
           >
-            + 添加选项
+            {flashcardsTranslator.t("ui.addOption")}
           </button>
         </div>
       );
@@ -164,7 +167,7 @@ const GeneratedFlashcardEditModal = ({
         <Textarea
           value={cardData.answer ?? ""}
           onChange={e => setCardData({ ...cardData, answer: e.target.value })}
-          placeholder="标准答案或要点"
+          placeholder={flashcardsTranslator.t("ui.referenceAnswerOrKeyPoints")}
           rows={4}
         />
       );
@@ -175,8 +178,8 @@ const GeneratedFlashcardEditModal = ({
       return (
         <div className="grid grid-cols-2 gap-3">
           {[
-            { value: true, label: "正确 ✓" },
-            { value: false, label: "错误 ✗" },
+            { value: true, label: flashcardsTranslator.t("ui.true2") },
+            { value: false, label: flashcardsTranslator.t("ui.false2") },
           ].map(option => (
             <button
               key={option.value ? "true" : "false"}
@@ -206,17 +209,17 @@ const GeneratedFlashcardEditModal = ({
       onOpenChange={next => {
         if (!next) onCancel();
       }}
-      title="编辑闪卡"
+      title={flashcardsTranslator.t("ui.editFlashcard")}
       icon={<CreditCard />}
-      subtitle="修改 AI 生成的闪卡内容"
+      subtitle={flashcardsTranslator.t("ui.editTheAIGeneratedFlashcard")}
       width={800}
       footer={
         <>
           <Button variant="secondary" onClick={onCancel}>
-            取消
+            {flashcardsTranslator.t("ui.cancel")}
           </Button>
           <Button variant="primary" onClick={handleSave}>
-            保存
+            {flashcardsTranslator.t("ui.save")}
           </Button>
         </>
       }
@@ -226,7 +229,7 @@ const GeneratedFlashcardEditModal = ({
           <div className="space-y-4">
             {/* Prompt */}
             <div className="flex flex-col gap-1.5">
-              <label className={FIELD_LABEL}>题干</label>
+              <label className={FIELD_LABEL}>{flashcardsTranslator.t("ui.prompt")}</label>
               {isEditorReady ? (
                 <RichTextEditor
                   key={`prompt-${editorKey}`}
@@ -245,7 +248,7 @@ const GeneratedFlashcardEditModal = ({
                   }
                   allowBlanks={type === "cloze"}
                   isDark={isDark}
-                  placeholder="闪卡问题或提示"
+                  placeholder={flashcardsTranslator.t("ui.flashcardQuestionOrPrompt")}
                   minHeight="100px"
                 />
               ) : (
@@ -258,7 +261,7 @@ const GeneratedFlashcardEditModal = ({
 
             {/* Detail */}
             <div className="flex flex-col gap-1.5">
-              <label className={FIELD_LABEL}>详细说明 / 提示</label>
+              <label className={FIELD_LABEL}>{flashcardsTranslator.t("ui.detailsHints")}</label>
               {isEditorReady ? (
                 <RichTextEditor
                   key={`detail-${editorKey}`}
@@ -277,7 +280,7 @@ const GeneratedFlashcardEditModal = ({
                   }
                   allowBlanks={false}
                   isDark={isDark}
-                  placeholder="额外的说明或提示信息"
+                  placeholder={flashcardsTranslator.t("ui.additionalDetailsOrHints")}
                   minHeight="80px"
                 />
               ) : (
@@ -290,10 +293,10 @@ const GeneratedFlashcardEditModal = ({
 
             {/* Type Selection */}
             <div className="flex flex-col gap-1.5">
-              <label className={FIELD_LABEL}>问题类型</label>
+              <label className={FIELD_LABEL}>{flashcardsTranslator.t("ui.questionType2")}</label>
               <div className="grid grid-cols-2 gap-3">
-                {(Object.keys(FLASHCARD_TYPE_META) as FlashcardType[]).map(t => {
-                  const meta = FLASHCARD_TYPE_META[t];
+                {(Object.keys(TYPE_META) as FlashcardType[]).map(t => {
+                  const meta = TYPE_META[t];
                   const active = type === t;
                   return (
                     <button
@@ -306,9 +309,11 @@ const GeneratedFlashcardEditModal = ({
                           : "border-line-1 hover:border-ink-3/50"
                       }`}
                     >
-                      <div className="text-ink-1 text-tau-body font-[600]">{meta.label}</div>
+                      <div className="text-ink-1 text-tau-body font-[600]">
+                        {flashcardsTranslator.t(meta.labelKey)}
+                      </div>
                       <p className="text-ink-3 text-tau-sm mt-0.5 line-clamp-2">
-                        {meta.description}
+                        {flashcardsTranslator.t(meta.descriptionKey)}
                       </p>
                     </button>
                   );
@@ -321,10 +326,10 @@ const GeneratedFlashcardEditModal = ({
               <div className="flex flex-col gap-1.5">
                 <label className={FIELD_LABEL}>
                   {type === "single-choice" || type === "multiple-choice"
-                    ? "选项"
+                    ? flashcardsTranslator.t("ui.options")
                     : type === "qa"
-                      ? "参考答案"
-                      : "正确答案"}
+                      ? flashcardsTranslator.t("ui.referenceAnswer")
+                      : flashcardsTranslator.t("ui.correctAnswer")}
                 </label>
                 {renderTypeFields()}
               </div>
@@ -332,7 +337,7 @@ const GeneratedFlashcardEditModal = ({
 
             {/* Difficulty */}
             <div className="flex flex-col gap-1.5">
-              <label className={FIELD_LABEL}>难度</label>
+              <label className={FIELD_LABEL}>{flashcardsTranslator.t("ui.difficulty")}</label>
               <div className="grid grid-cols-3 gap-3">
                 {difficultyOptions.map(opt => (
                   <button
@@ -345,7 +350,7 @@ const GeneratedFlashcardEditModal = ({
                         : "border-line-1 text-ink-2 hover:border-ink-3/50"
                     }`}
                   >
-                    {opt.label}
+                    {flashcardsTranslator.t(opt.message)}
                   </button>
                 ))}
               </div>
@@ -353,7 +358,7 @@ const GeneratedFlashcardEditModal = ({
 
             {/* Tags */}
             <div className="flex flex-col gap-1.5">
-              <label className={FIELD_LABEL}>标签</label>
+              <label className={FIELD_LABEL}>{flashcardsTranslator.t("ui.tags")}</label>
               <AddTag
                 tags={tags}
                 addTag={tag => setTags([...tags, tag])}

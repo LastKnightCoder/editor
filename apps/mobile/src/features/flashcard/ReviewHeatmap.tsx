@@ -2,20 +2,26 @@
 // 数据复用 flashcard_review_stats（按本地时区 dayStarts 聚合）；连续天数由前端推导。
 // 点格在区块内展开当日详情（四种形态）。
 
+import { monthDay, weekday } from "./format";
+import {
+  flashcardTranslator,
+  flashcardCount,
+  flashcardDisplayContext,
+  useFlashcardI18n,
+} from "./i18n";
 import { useMemo, useState } from "react";
 import { REVIEW_RATINGS } from "./constants";
 import type { FlashcardReviewDayStats } from "./types";
 
 const RANGES = [
-  { key: "quarter", label: "3 个月", days: 13 * 7, cell: 17 },
-  { key: "half", label: "半年", days: 26 * 7, cell: 13 },
-  { key: "year", label: "1 年", days: 52 * 7, cell: 9 },
+  { key: "quarter", message: "ui.3Months", days: 13 * 7, cell: 17 },
+  { key: "half", message: "ui.6Months", days: 26 * 7, cell: 13 },
+  { key: "year", message: "ui.1Year", days: 52 * 7, cell: 9 },
 ] as const;
 type RangeKey = (typeof RANGES)[number]["key"];
 
 const GAP = 3;
-const WEEK_LABELS = ["一", "", "三", "", "五", "", "日"];
-const WEEKDAY_CN = ["日", "一", "二", "三", "四", "五", "六"];
+const WEEK_LABELS = [1, null, 3, null, 5, null, 0];
 
 /** 阈值：0 / 1-4 / 5-14 / 15-29 / 30+ */
 function heatClass(count: number): string {
@@ -52,6 +58,7 @@ type ReviewHeatmapProps = {
 };
 
 export function ReviewHeatmap({ stats, dueToday, onOpenReview }: ReviewHeatmapProps) {
+  useFlashcardI18n();
   const [rangeKey, setRangeKey] = useState<RangeKey>("half");
   const [selectedStart, setSelectedStart] = useState<number | null>(null);
   const range = RANGES.find(item => item.key === rangeKey) ?? RANGES[1];
@@ -88,14 +95,20 @@ export function ReviewHeatmap({ stats, dueToday, onOpenReview }: ReviewHeatmapPr
     return (
       <div className="bg-surface shadow-card rounded-[20px] p-4">
         <div className="flex items-baseline justify-between">
-          <span className="text-ink-2 text-[12.5px] font-extrabold">复习热力图</span>
-          <span className="text-ink-2 text-[11.5px] font-bold">连续 0 天</span>
+          <span className="text-ink-2 text-[12.5px] font-extrabold">
+            {flashcardTranslator.t("ui.reviewActivity")}
+          </span>
+          <span className="text-ink-2 text-[11.5px] font-bold">
+            {flashcardTranslator.t("ui.0DayStreak")}
+          </span>
         </div>
         <div className="py-7 text-center">
           <div className="text-[34px]">🌱</div>
-          <div className="text-ink-2 mt-2.5 text-[13.5px] font-extrabold">格子还是空的</div>
+          <div className="text-ink-2 mt-2.5 text-[13.5px] font-extrabold">
+            {flashcardTranslator.t("ui.noReviewsYet")}
+          </div>
           <div className="text-ink-3 mt-1.5 text-[12px] font-semibold">
-            每天复习几张，看着颜色一点点变深
+            {flashcardTranslator.t("ui.reviewAFewCardsEachDayToBuildYourActivity")}
           </div>
           {onOpenReview ? (
             <button
@@ -104,7 +117,7 @@ export function ReviewHeatmap({ stats, dueToday, onOpenReview }: ReviewHeatmapPr
               className="shadow-lift text-ink-inverse mt-4 rounded-[14px] px-[22px] py-2.5 text-[13.5px] font-extrabold"
               style={{ background: "var(--tau-accent)" }}
             >
-              开始第一轮复习
+              {flashcardTranslator.t("ui.startYourFirstReview")}
             </button>
           ) : null}
         </div>
@@ -115,10 +128,17 @@ export function ReviewHeatmap({ stats, dueToday, onOpenReview }: ReviewHeatmapPr
   return (
     <div className="bg-surface shadow-card rounded-[20px] p-4">
       <div className="flex items-baseline justify-between">
-        <span className="text-ink-2 text-[12.5px] font-extrabold">复习热力图</span>
+        <span className="text-ink-2 text-[12.5px] font-extrabold">
+          {flashcardTranslator.t("ui.reviewActivity")}
+        </span>
         <span className="text-ink-2 text-[11.5px] font-bold">
-          连续 <b className="text-accent">{streaks.current}</b> 天 · 最长{" "}
-          <b className="text-accent">{streaks.best}</b> 天
+          {flashcardTranslator.t("stats.streak", {
+            current: flashcardTranslator.t("span.days", {
+              count: streaks.current,
+              amount: streaks.current.toLocaleString(flashcardDisplayContext().locale),
+            }),
+            best: streaks.best,
+          })}
         </span>
       </div>
 
@@ -135,7 +155,7 @@ export function ReviewHeatmap({ stats, dueToday, onOpenReview }: ReviewHeatmapPr
                 : "bg-page text-ink-2"
             }`}
           >
-            {item.label}
+            {flashcardTranslator.t(item.message)}
           </button>
         ))}
       </div>
@@ -156,7 +176,9 @@ export function ReviewHeatmap({ stats, dueToday, onOpenReview }: ReviewHeatmapPr
                 <div key={index} style={{ width: range.cell, flex: "none" }}>
                   {showMonth && first ? (
                     <span className="text-ink-3 text-[10px] font-extrabold whitespace-nowrap">
-                      {new Date(first.dayStart).getMonth() + 1}月
+                      {new Intl.DateTimeFormat(flashcardDisplayContext().locale, {
+                        month: "short",
+                      }).format(first.dayStart)}
                     </span>
                   ) : (
                     <span className="block h-[14px]" />
@@ -173,7 +195,13 @@ export function ReviewHeatmap({ stats, dueToday, onOpenReview }: ReviewHeatmapPr
                   className="text-ink-3 text-[9px] leading-none font-bold"
                   style={{ height: range.cell, lineHeight: `${range.cell}px` }}
                 >
-                  {label}
+                  {label == null
+                    ? ""
+                    : weekday(
+                        new Date(2023, 0, 1 + label),
+                        flashcardDisplayContext().locale,
+                        "narrow"
+                      )}
                 </span>
               ))}
             </div>
@@ -191,7 +219,9 @@ export function ReviewHeatmap({ stats, dueToday, onOpenReview }: ReviewHeatmapPr
                       <button
                         key={row}
                         type="button"
-                        aria-label={`${new Date(day.dayStart).getMonth() + 1}月${new Date(day.dayStart).getDate()}日 复习 ${day.count} 张`}
+                        aria-label={flashcardCount("stats.dayReview", day.count, {
+                          date: monthDay(day.dayStart, flashcardDisplayContext().locale),
+                        })}
                         onClick={() => setSelectedStart(isSelected ? null : day.dayStart)}
                         className={`flex-none rounded-[3.5px] transition-transform active:scale-[0.82] ${
                           isToday
@@ -215,7 +245,9 @@ export function ReviewHeatmap({ stats, dueToday, onOpenReview }: ReviewHeatmapPr
 
       {/* 图例 */}
       <div className="mt-3 flex items-center justify-end gap-1">
-        <span className="text-ink-3 mx-1 text-[10.5px] font-bold">少</span>
+        <span className="text-ink-3 mx-1 text-[10.5px] font-bold">
+          {flashcardTranslator.t("ui.less")}
+        </span>
         {["var(--heat-0)", "var(--heat-1)", "var(--heat-2)", "var(--heat-3)", "var(--heat-4)"].map(
           color => (
             <i
@@ -225,7 +257,9 @@ export function ReviewHeatmap({ stats, dueToday, onOpenReview }: ReviewHeatmapPr
             />
           )
         )}
-        <span className="text-ink-3 mx-1 text-[10.5px] font-bold">多</span>
+        <span className="text-ink-3 mx-1 text-[10.5px] font-bold">
+          {flashcardTranslator.t("ui.more")}
+        </span>
       </div>
 
       {/* 当日详情（峰值/普通/今天进行中/无记录 四形态） */}
@@ -255,26 +289,39 @@ function DayDetail({
   dueToday: number;
   onOpenReview?: () => void;
 }) {
+  useFlashcardI18n();
   const date = new Date(day.dayStart);
   const dateLabel = isToday
-    ? `今天 · ${date.getMonth() + 1} 月 ${date.getDate()} 日`
-    : `${date.getMonth() + 1} 月 ${date.getDate()} 日 · 周${WEEKDAY_CN[date.getDay()]}`;
+    ? flashcardTranslator.t("stats.todayDate", {
+        date: monthDay(date, flashcardDisplayContext().locale),
+      })
+    : flashcardTranslator.t("stats.dateWeekday", {
+        date: monthDay(date, flashcardDisplayContext().locale),
+        weekday: weekday(date, flashcardDisplayContext().locale),
+      });
 
   return (
     <div className="border-line-1 mt-3 border-t-[1.5px] border-dashed pt-3">
       <div className="text-ink-2 flex items-center justify-between text-[12px] font-extrabold">
         <span>{dateLabel}</span>
-        {isPeak ? <span className="text-accent">单日最高 🔥</span> : null}
-        {isToday && day.count > 0 ? <span className="text-accent">进行中</span> : null}
+        {isPeak ? (
+          <span className="text-accent">{flashcardTranslator.t("ui.dailyBest")}</span>
+        ) : null}
+        {isToday && day.count > 0 ? (
+          <span className="text-accent">{flashcardTranslator.t("ui.inProgress")}</span>
+        ) : null}
       </div>
       {day.count === 0 ? (
-        <div className="text-ink-3 mt-2 text-[12.5px] font-semibold">当天没有复习记录</div>
+        <div className="text-ink-3 mt-2 text-[12.5px] font-semibold">
+          {flashcardTranslator.t("ui.noReviewsOnThisDay")}
+        </div>
       ) : (
         <>
           <div className="mt-1.5 flex items-baseline gap-2">
             <b className="text-ink-1 text-[26px] leading-none font-extrabold">{day.count}</b>
             <span className="text-ink-2 text-[12px] font-bold">
-              张{isToday && dueToday > 0 ? ` · 还剩 ${dueToday} 张到期` : ""}
+              {flashcardCount("count.cards", day.count)}
+              {isToday && dueToday > 0 ? flashcardCount("stats.remaining", dueToday) : ""}
             </span>
           </div>
           <div className="mt-2.5 flex flex-col gap-[5px]">
@@ -287,7 +334,7 @@ function DayDetail({
                     className="w-[34px] flex-none text-[11px] font-extrabold"
                     style={{ color: item.color }}
                   >
-                    {item.label}
+                    {flashcardTranslator.t(item.message)}
                   </span>
                   <div className="bg-page h-2 flex-1 overflow-hidden rounded-full">
                     <div
@@ -309,7 +356,7 @@ function DayDetail({
               className="shadow-lift text-ink-inverse mt-3 w-full rounded-[14px] py-2.5 text-[13.5px] font-extrabold"
               style={{ background: "var(--tau-accent)" }}
             >
-              继续复习
+              {flashcardTranslator.t("ui.continueReviewing")}
             </button>
           ) : null}
         </>

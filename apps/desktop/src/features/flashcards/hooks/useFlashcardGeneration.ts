@@ -1,3 +1,4 @@
+import { FlashcardsError } from "../errors";
 import { useState, useRef, useCallback, useEffect } from "react";
 import type { Descendant } from "slate";
 import { useMemoizedFn, useThrottleFn } from "ahooks";
@@ -73,7 +74,7 @@ export const useFlashcardGeneration = (
 
   const startGeneration = useMemoizedFn((content: Descendant[]) => {
     if (!generate && (!provider || !model)) {
-      setError(new Error("未配置闪卡模型"));
+      setError(new FlashcardsError("未配置闪卡模型", "ui.noFlashcardModelConfigured"));
       return;
     }
 
@@ -98,7 +99,11 @@ export const useFlashcardGeneration = (
         })
         .catch(error => {
           if (revision !== generationRevision.current || controller.signal.aborted) return;
-          setError(error instanceof Error ? error : new Error("闪卡生成失败"));
+          setError(
+            error instanceof Error
+              ? error
+              : new FlashcardsError("闪卡生成失败", "ui.couldNotGenerateFlashcards")
+          );
         })
         .finally(() => {
           if (revision !== generationRevision.current) return;
@@ -151,7 +156,9 @@ export const useFlashcardGeneration = (
           setGeneratedCards(cards);
           setRawOutput(result.text);
         } catch (err) {
-          setError(new Error(`解析闪卡失败: ${(err as Error).message}`));
+          setError(
+            new FlashcardsError(`解析闪卡失败: ${(err as Error).message}`, "error.parseFailed", err)
+          );
           setRawOutput(result.text);
         }
         return;

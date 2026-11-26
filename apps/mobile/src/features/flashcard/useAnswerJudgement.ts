@@ -1,3 +1,4 @@
+import { FlashcardError } from "./errors";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AIJudgementResult } from "@tau/ai/flashcards";
 import { useAppContext } from "../../app/AppContext";
@@ -34,7 +35,11 @@ export function useAnswerJudgement() {
       active.current = controller;
       setState({ status: "loading", result: null, error: null });
       try {
-        if (!providerId || !modelId || !databaseName) throw new Error("请先在设置中配置闪卡模型");
+        if (!providerId || !modelId || !databaseName)
+          throw new FlashcardError(
+            "请先在设置中配置闪卡模型",
+            "ui.configureAFlashcardModelInSettingsFirst"
+          );
         const result = await judgeFlashcardAnswer(
           card,
           userAnswer,
@@ -49,7 +54,10 @@ export function useAnswerJudgement() {
           setState({
             status: "error",
             result: null,
-            error: error instanceof Error ? error : new Error("AI 评判失败"),
+            error:
+              error instanceof Error
+                ? error
+                : new FlashcardError("AI 评判失败", "ui.aiEvaluationFailed"),
           });
       } finally {
         if (active.current === controller) active.current = null;

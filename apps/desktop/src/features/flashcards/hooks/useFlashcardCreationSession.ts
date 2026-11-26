@@ -1,3 +1,4 @@
+import { flashcardsTranslator, flashcardsCount } from "../i18n";
 import { useState, useEffect, useRef } from "react";
 import { useMemoizedFn } from "ahooks";
 import { Descendant } from "slate";
@@ -84,7 +85,7 @@ export default function useFlashcardCreation(options: UseFlashcardCreationOption
 
   const openAiFlashcard = useMemoizedFn(() => {
     if (!options.generate && (!flashcardLLMProviderSetting || !flashcardLLMModelSetting)) {
-      toast.error("请先在设置中配置闪卡模型");
+      toast.error(flashcardsTranslator.t("ui.configureAFlashcardModelInSettingsFirst"));
       onFinish(false);
       return;
     }
@@ -109,7 +110,7 @@ export default function useFlashcardCreation(options: UseFlashcardCreationOption
 
     const selectedCards = generatedCards.filter(c => c.selected && !saved.current.has(c.id));
     if (selectedCards.length === 0) {
-      toast.warning("请至少选择一张闪卡");
+      toast.warning(flashcardsTranslator.t("ui.selectAtLeastOneFlashcard"));
       return;
     }
 
@@ -144,16 +145,16 @@ export default function useFlashcardCreation(options: UseFlashcardCreationOption
 
       if (useSettingStore.getState().setting.database.active !== database) return;
       if (successCount !== selectedCards.length) {
-        toast.error(`已保存 ${successCount} 张，其余闪卡保存失败，可重试`);
+        toast.error(flashcardsCount("creation.partial", successCount));
         return;
       }
-      toast.success(`成功创建 ${successCount} 张闪卡`);
+      toast.success(flashcardsCount("creation.saved", successCount));
       setAiGenerationModalOpen(false);
       resetGeneration();
       setSelectedDeck(null);
       onFinish(true);
     } catch (err) {
-      toast.error("创建闪卡失败");
+      toast.error(flashcardsTranslator.t("ui.couldNotCreateFlashcards"));
       console.error(err);
     } finally {
       saving.current = false;
@@ -182,7 +183,7 @@ export default function useFlashcardCreation(options: UseFlashcardCreationOption
       updateCard(editingGeneratedCard.id, updates);
       setGeneratedCardEditModalOpen(false);
       setEditingGeneratedCard(null);
-      toast.success("闪卡已更新");
+      toast.success(flashcardsTranslator.t("ui.flashcardUpdated"));
     }
   );
 

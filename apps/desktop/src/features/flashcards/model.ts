@@ -5,6 +5,7 @@
  * @tau/shared/fsrs-schedule（FSRS-6，与移动端 fsrs crate 逐值对齐）。
  */
 
+import { type FlashcardsMessageKey } from "./i18n";
 import {
   fsrsElapsedDays,
   fsrsGradeOf,
@@ -16,7 +17,6 @@ import type { FlashcardBlankElement } from "@/editor-extensions/flashcard-blank/
 import type { Flashcard, FlashcardReviewRating, FlashcardStatus, FlashcardType } from "@/types";
 import type { Descendant } from "slate";
 
-const MINUTE_MS = 60_000;
 export const HOUR_MS = 3_600_000;
 export const DAY_MS = 86_400_000;
 
@@ -41,34 +41,38 @@ export const TYPE_ORDER: FlashcardType[] = [
   "boolean",
 ];
 
-export const TYPE_LABEL: Record<FlashcardType, string> = {
-  qa: "问答",
-  cloze: "填空",
-  "single-choice": "单选",
-  "multiple-choice": "多选",
-  boolean: "判断",
+export const TYPE_MESSAGE: Record<FlashcardType, FlashcardsMessageKey> = {
+  qa: "ui.questionAndAnswer",
+  cloze: "ui.cloze",
+  "single-choice": "ui.singleChoice",
+  "multiple-choice": "ui.multipleChoice",
+  boolean: "ui.trueOrFalse",
 };
 
-export const STATUS_LABEL: Record<FlashcardStatus, string> = {
-  new: "新卡",
-  learning: "学习中",
-  review: "巩固",
-  suspended: "已暂停",
+export const STATUS_MESSAGE: Record<FlashcardStatus, FlashcardsMessageKey> = {
+  new: "ui.new",
+  learning: "ui.learning",
+  review: "ui.review",
+  suspended: "ui.suspended",
 };
 
 /** 评分四档：文案与统计页一致，键位 1–4 从「忘记」到「轻松」 */
-export const RATINGS: { value: FlashcardReviewRating; label: string; key: string }[] = [
-  { value: "hard", label: "忘记", key: "1" },
-  { value: "struggle", label: "模糊", key: "2" },
-  { value: "normal", label: "记得", key: "3" },
-  { value: "easy", label: "轻松", key: "4" },
+export const RATINGS: {
+  value: FlashcardReviewRating;
+  message: FlashcardsMessageKey;
+  key: string;
+}[] = [
+  { value: "hard", message: "ui.forgot", key: "1" },
+  { value: "struggle", message: "ui.uncertain", key: "2" },
+  { value: "normal", message: "ui.remembered", key: "3" },
+  { value: "easy", message: "ui.easy", key: "4" },
 ];
 
-export const RATING_LABEL: Record<FlashcardReviewRating, string> = {
-  hard: "忘记",
-  struggle: "模糊",
-  normal: "记得",
-  easy: "轻松",
+export const RATING_MESSAGE: Record<FlashcardReviewRating, FlashcardsMessageKey> = {
+  hard: "ui.forgot",
+  struggle: "ui.uncertain",
+  normal: "ui.remembered",
+  easy: "ui.easy",
 };
 
 /* ---------- 排期预估 ---------- */
@@ -87,13 +91,6 @@ export function nextInterval(
   return fsrsIntervalMs(next.intervalDays);
 }
 
-export function formatSpan(ms: number): string {
-  if (ms < HOUR_MS) return `${Math.max(1, Math.round(ms / MINUTE_MS))} 分钟`;
-  if (ms < DAY_MS) return `${Math.round(ms / HOUR_MS)} 小时`;
-  if (ms < 30 * DAY_MS) return `${Math.round(ms / DAY_MS)} 天`;
-  return `${Math.round(ms / (30 * DAY_MS))} 个月`;
-}
-
 /* ---------- 到期与队列 ---------- */
 
 /** 暂停的卡永不到期；新卡创建即到期（主进程 createFlashcard 的 due_time = 创建时刻） */
@@ -110,31 +107,15 @@ export function reviewQueue(cards: Flashcard[], now: number, deckId?: number | n
 
 export type DueTone = "late" | "now" | "later" | "muted";
 
-/** 到期描述：逾期（按日计）/ 现在 / 今天 HH:mm / 明天 HH:mm / N 天后 / M月D日 */
-export function dueText(card: Flashcard, now: number): { text: string; tone: DueTone } {
-  if (card.status === "suspended") return { text: "已暂停", tone: "muted" };
-  if (card.dueTime <= now) {
-    const late = -dayDiff(card.dueTime, now);
-    return late > 0 ? { text: `逾期 ${late} 天`, tone: "late" } : { text: "现在", tone: "now" };
-  }
-  const days = dayDiff(card.dueTime, now);
-  const date = new Date(card.dueTime);
-  const hm = `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
-  if (days === 0) return { text: `今天 ${hm}`, tone: "later" };
-  if (days === 1) return { text: `明天 ${hm}`, tone: "later" };
-  if (days < 7) return { text: `${days} 天后`, tone: "later" };
-  return { text: `${date.getMonth() + 1}月${date.getDate()}日`, tone: "later" };
-}
-
 /** 卡组视图分段：待复习 / 今天稍后 / 未来 7 天 / 更晚 / 已暂停 */
 export type CardSection = "due" | "today" | "week" | "later" | "suspended";
 
-export const SECTION_LABEL: Record<CardSection, string> = {
-  due: "待复习",
-  today: "今天稍后",
-  week: "未来 7 天",
-  later: "更晚",
-  suspended: "已暂停",
+export const SECTION_MESSAGE: Record<CardSection, FlashcardsMessageKey> = {
+  due: "ui.due",
+  today: "ui.laterToday",
+  week: "ui.next7Days",
+  later: "ui.later",
+  suspended: "ui.suspended",
 };
 
 export function sectionOf(card: Flashcard, now: number): CardSection {
@@ -288,3 +269,23 @@ export function scheduleSnapshot(card: Flashcard) {
 export function submitsOnPick(card: Flashcard): boolean {
   return card.type === "single-choice" || card.type === "boolean";
 }
+
+export const TYPE_META = {
+  "single-choice": {
+    labelKey: "ui.singleChoiceQuestion",
+    descriptionKey: "ui.setOneCorrectAnswerAndDistractors",
+  },
+  "multiple-choice": {
+    labelKey: "ui.multipleChoiceQuestion",
+    descriptionKey: "ui.setMultipleCorrectAnswersForRelatedConcepts",
+  },
+  cloze: { labelKey: "ui.clozeQuestion", descriptionKey: "type.clozeDescription" },
+  qa: {
+    labelKey: "ui.freeResponse",
+    descriptionKey: "type.qaDescription",
+  },
+  boolean: {
+    labelKey: "ui.trueOrFalseQuestion",
+    descriptionKey: "type.booleanDescription",
+  },
+} as const;

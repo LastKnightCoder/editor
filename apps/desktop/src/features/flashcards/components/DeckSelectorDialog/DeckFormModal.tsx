@@ -1,3 +1,4 @@
+import { flashcardsTranslator, flashcardsErrorText, useFlashcardsI18n } from "../../i18n";
 import { useEffect, useState } from "react";
 import { Button, Dialog, DialogBody, Input, Textarea, toast } from "@tau/ui";
 import type { FlashcardDeck } from "@/types";
@@ -18,6 +19,7 @@ interface DeckFormModalProps {
 const FIELD_LABEL = "text-ink-1 text-tau-meta font-medium";
 
 const DeckFormModal = ({ state, onClose }: DeckFormModalProps) => {
+  useFlashcardsI18n();
   const { createDeck, updateDeck } = useFlashcardMutations();
 
   const [form, setForm] = useState({
@@ -70,7 +72,11 @@ const DeckFormModal = ({ state, onClose }: DeckFormModalProps) => {
         onClose();
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "保存卡组失败");
+      toast.error(
+        error instanceof Error
+          ? flashcardsErrorText(error)
+          : flashcardsTranslator.t("ui.couldNotSaveDeck")
+      );
     } finally {
       setSubmitting(false);
     }
@@ -82,21 +88,27 @@ const DeckFormModal = ({ state, onClose }: DeckFormModalProps) => {
       onOpenChange={next => {
         if (!next && !submitting) onClose();
       }}
-      title={state.mode === "create" ? "新建卡组" : "编辑卡组"}
-      subtitle="设定卡组的标题、封面与简介"
+      title={
+        state.mode === "create"
+          ? flashcardsTranslator.t("ui.newDeck")
+          : flashcardsTranslator.t("ui.editDeck")
+      }
+      subtitle={flashcardsTranslator.t("ui.setADeckNameCoverAndDescription")}
       width={500}
       locked={submitting}
       footer={
         <>
           <Button variant="secondary" onClick={() => onClose()} disabled={submitting}>
-            取消
+            {flashcardsTranslator.t("ui.cancel")}
           </Button>
           <Button
             variant="primary"
             onClick={() => void handleSubmit()}
             disabled={!form.name.trim() || submitting}
           >
-            {state.mode === "create" ? "创建卡组" : "保存修改"}
+            {state.mode === "create"
+              ? flashcardsTranslator.t("ui.createDeck")
+              : flashcardsTranslator.t("ui.saveChanges")}
           </Button>
         </>
       }
@@ -111,17 +123,17 @@ const DeckFormModal = ({ state, onClose }: DeckFormModalProps) => {
         >
           <div className="flex flex-col gap-1.5">
             <label className={FIELD_LABEL} htmlFor="deck-form-name">
-              卡组名称
+              {flashcardsTranslator.t("ui.deckName")}
             </label>
             <Input
               id="deck-form-name"
               value={form.name}
               onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))}
-              placeholder="例如：算法复习"
+              placeholder={flashcardsTranslator.t("ui.forExampleAlgorithmReview")}
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className={FIELD_LABEL}>描述</label>
+            <label className={FIELD_LABEL}>{flashcardsTranslator.t("ui.description")}</label>
             <Textarea
               value={form.description}
               onChange={e =>
@@ -130,11 +142,11 @@ const DeckFormModal = ({ state, onClose }: DeckFormModalProps) => {
                   description: e.target.value,
                 }))
               }
-              placeholder="为卡组添加一句简介或学习目标"
+              placeholder={flashcardsTranslator.t("ui.addADescriptionOrLearningGoal")}
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className={FIELD_LABEL}>主题颜色</label>
+            <label className={FIELD_LABEL}>{flashcardsTranslator.t("ui.themeColor")}</label>
             <div className="flex flex-wrap gap-2">
               {flashcardDeckColors.map(color => (
                 <button
@@ -142,7 +154,7 @@ const DeckFormModal = ({ state, onClose }: DeckFormModalProps) => {
                   type="button"
                   onClick={() => setForm(prev => ({ ...prev, coverColor: color }))}
                   style={{ backgroundColor: color }}
-                  aria-label={`主题色 ${color}`}
+                  aria-label={flashcardsTranslator.t("color.theme", { color: color })}
                   aria-pressed={form.coverColor === color}
                   className={`size-10 rounded-full border-2 transition ${
                     form.coverColor === color
@@ -154,7 +166,7 @@ const DeckFormModal = ({ state, onClose }: DeckFormModalProps) => {
             </div>
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className={FIELD_LABEL}>封面图标</label>
+            <label className={FIELD_LABEL}>{flashcardsTranslator.t("ui.coverIcon")}</label>
             <div className="flex flex-wrap gap-2">
               {deckIconKeys.map(key => {
                 const Icon = deckIcons[key];

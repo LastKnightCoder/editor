@@ -4,16 +4,18 @@
  * 随 ["flashcards"] 前缀即时失效，窗口聚焦刷新兜底同步等绕过表层的写入。
  */
 
+import { flashcardsCount, useFlashcardsI18n } from "../i18n";
 import { useNavDueCount } from "../queries";
 
 export function ReviewDueBadge({ collapsed }: { collapsed: boolean }) {
+  useFlashcardsI18n();
   const count = useNavDueCount();
   if (!count) return null;
   if (collapsed)
     return <i aria-hidden className="bg-accent absolute top-2 right-2.5 size-1.5 rounded-full" />;
   return (
     <span
-      aria-label={`${count} 张闪卡待复习`}
+      aria-label={flashcardsCount("count.due", count)}
       className="bg-accent text-ink-inverse ml-auto min-w-[18px] shrink-0 rounded-full px-[5px] text-center text-[11px] leading-[18px] font-[600] tabular-nums"
     >
       {count}

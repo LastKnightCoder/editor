@@ -1,3 +1,4 @@
+import { flashcardsTranslator, flashcardsErrorText } from "../i18n";
 import { useMemoizedFn } from "ahooks";
 import type { Descendant } from "slate";
 import type { FlashcardReferenceInput } from "@/types";
@@ -13,7 +14,13 @@ export default function useFlashcardCreation(options: {
       mode,
       content: options.getContent(),
       references: [options.getReference()],
-    }).catch(error => toast.error(error instanceof Error ? error.message : "打开制卡窗口失败"));
+    }).catch(error =>
+      toast.error(
+        error instanceof Error
+          ? flashcardsErrorText(error)
+          : flashcardsTranslator.t("ui.couldNotOpenTheFlashcardEditor")
+      )
+    );
   });
   return {
     openManualFlashcard: () => open("manual"),

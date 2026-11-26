@@ -1,3 +1,4 @@
+import { flashcardsTranslator, useFlashcardsI18n } from "../../i18n";
 import { useOverlayDismiss } from "@/page/PageProvider";
 import type { FlashcardReference } from "@/types";
 import { Drawer, useRetainedValue } from "@tau/ui";
@@ -12,6 +13,7 @@ export function ReferenceDrawer({
   reference: FlashcardReference | null;
   onClose(): void;
 }) {
+  useFlashcardsI18n();
   const open = reference !== null;
   useOverlayDismiss(onClose, open);
   const current = useRetainedValue(reference);
@@ -22,9 +24,9 @@ export function ReferenceDrawer({
       open={open}
       onOpenChange={next => !next && onClose()}
       size="sm"
-      label="参考资料"
+      label={flashcardsTranslator.t("ui.references")}
       icon={<FileText className="text-ink-3 mt-[5px] size-[15px]" strokeWidth={1.75} />}
-      title={current?.title || "未命名资料"}
+      title={current?.title || flashcardsTranslator.t("ui.untitledReference")}
       bodyClassName="text-[14px] leading-[1.75]"
     >
       {current?.content && <RichContent key={current.id} content={current.content.content} />}

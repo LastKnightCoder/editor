@@ -5,6 +5,7 @@
  *    只保留文本与基础行内样式（粗 / 斜 / 行内代码），与 legacy ClozeReviewRenderer 口径一致。
  */
 
+import { flashcardsTranslator, useFlashcardsI18n } from "../i18n";
 import { ErrorBoundary } from "@tau/ui";
 import { getFlashcardKit } from "@/services/editorKit";
 import type { FlashcardBlankElement } from "@/editor-extensions/flashcard-blank/types";
@@ -15,6 +16,7 @@ import type { Descendant } from "slate";
 import { blankCorrect } from "../model";
 
 export function RichContent({ content, className }: { content: Descendant[]; className?: string }) {
+  useFlashcardsI18n();
   // initValue 仅在挂载时生效：内容变化（编辑后）重建只读实例
   const revision = useMemo(() => JSON.stringify(content), [content]);
   return (
@@ -51,6 +53,7 @@ export function ClozePrompt({
   /** 在最后一个空按回车 = 提交；前面的空回车跳到下一个空 */
   onSubmit(): void;
 }) {
+  useFlashcardsI18n();
   const focusNext = (from: HTMLInputElement) => {
     const inputs = [...(from.closest("[data-cloze]")?.querySelectorAll("input") ?? [])];
     const next = inputs[inputs.indexOf(from) + 1];
@@ -77,7 +80,7 @@ export function ClozePrompt({
                 focusNext(e.currentTarget);
               }
             }}
-            aria-label="填空"
+            aria-label={flashcardsTranslator.t("ui.cloze")}
             autoComplete="off"
             style={{ width: `${Math.max(4, blank.answer.length + 2)}em` }}
             className="bg-surface border-line-1 text-accent-text focus:border-accent mx-[3px] inline-block h-8 max-w-full rounded-[8px] border px-2.5 text-center align-[1px] text-[16px] font-medium outline-none focus:shadow-[var(--tau-focus-ring)]"

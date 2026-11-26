@@ -1,3 +1,4 @@
+import { flashcardsTranslator, useFlashcardsI18n } from "../../../../features/flashcards/i18n";
 import { useState } from "react";
 import { Descendant } from "slate";
 import { Trash2 } from "lucide-react";
@@ -15,6 +16,7 @@ interface ReferenceEditorProps {
 }
 
 const ReferenceEditor = ({ reference, onChange, onRemove, isDark }: ReferenceEditorProps) => {
+  useFlashcardsI18n();
   const [showContentSelector, setShowContentSelector] = useState(false);
 
   const handleTypeChange = (newType: "content" | "custom") => {
@@ -79,13 +81,15 @@ const ReferenceEditor = ({ reference, onChange, onRemove, isDark }: ReferenceEdi
                   : "text-ink-3 hover:bg-hover hover:text-ink-2"
               }`}
             >
-              {refType === "content" ? "引用内容" : "自定义内容"}
+              {refType === "content"
+                ? flashcardsTranslator.t("ui.linkedContent")
+                : flashcardsTranslator.t("ui.customContent")}
             </button>
           ))}
         </div>
         <button
           type="button"
-          aria-label="删除此参考"
+          aria-label={flashcardsTranslator.t("ui.removeReference")}
           onClick={onRemove}
           className="text-ink-3 hover:text-danger hover:bg-danger-soft rounded-tau-sm grid size-7 place-items-center transition-colors"
         >
@@ -97,7 +101,7 @@ const ReferenceEditor = ({ reference, onChange, onRemove, isDark }: ReferenceEdi
         type="text"
         value={reference.title}
         onChange={e => handleTitleChange(e.target.value)}
-        placeholder="参考资料标题"
+        placeholder={flashcardsTranslator.t("ui.referenceTitle")}
       />
 
       {/* 内容区域 */}
@@ -106,14 +110,16 @@ const ReferenceEditor = ({ reference, onChange, onRemove, isDark }: ReferenceEdi
           {reference.contentId ? (
             <div className="border-line-1 rounded-tau-sm flex items-center justify-between gap-2 border px-3 py-2">
               <span className="text-ink-2 text-tau-body min-w-0 truncate">
-                已选择：{reference.title || "未命名内容"}
+                {flashcardsTranslator.t("reference.selected", {
+                  title: reference.title || flashcardsTranslator.t("ui.untitledContent"),
+                })}
               </span>
               <button
                 type="button"
                 onClick={() => setShowContentSelector(true)}
                 className="text-accent hover:text-accent-hover text-tau-sm shrink-0 transition-colors"
               >
-                重新选择
+                {flashcardsTranslator.t("ui.chooseAgain")}
               </button>
             </div>
           ) : (
@@ -122,7 +128,7 @@ const ReferenceEditor = ({ reference, onChange, onRemove, isDark }: ReferenceEdi
               onClick={() => setShowContentSelector(true)}
               className="border-line-2 text-ink-3 hover:bg-hover hover:text-ink-2 rounded-tau-md text-tau-body w-full border border-dashed py-2.5 transition-colors"
             >
-              点击选择内容
+              {flashcardsTranslator.t("ui.chooseContent")}
             </button>
           )}
         </div>
@@ -133,7 +139,7 @@ const ReferenceEditor = ({ reference, onChange, onRemove, isDark }: ReferenceEdi
           onChange={handleCustomContentChange}
           allowBlanks={false}
           isDark={isDark}
-          placeholder="输入自定义参考资料内容..."
+          placeholder={flashcardsTranslator.t("ui.enterCustomReferenceContent")}
           minHeight="100px"
         />
       )}
@@ -148,9 +154,9 @@ const ReferenceEditor = ({ reference, onChange, onRemove, isDark }: ReferenceEdi
           }
         }}
         contentType={["card", "article", "project-item", "diary-moment"]}
-        emptyDescription="无可用内容"
+        emptyDescription={flashcardsTranslator.t("ui.noContentAvailable")}
         showTitle={true}
-        title="选择参考内容"
+        title={flashcardsTranslator.t("ui.chooseReferenceContent")}
       />
     </div>
   );

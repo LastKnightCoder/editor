@@ -1,17 +1,25 @@
+import {
+  flashcardsTranslator,
+  flashcardsCount,
+  flashcardsDisplayContext,
+  useFlashcardsI18n,
+  type FlashcardsMessageKey,
+} from "../i18n";
+import { dueText } from "../format";
 import type { Flashcard, FlashcardDeck, FlashcardDifficulty } from "@/types";
 import { Button, Menu, Segmented } from "@tau/ui";
 import { ChevronDown } from "lucide-react";
 import AddTag from "@/components/AddTag";
-import { STATUS_LABEL, dueText, resumedStatus } from "../model";
+import { STATUS_MESSAGE, resumedStatus } from "../model";
 import { DeckMark, StatusDot } from "./FlashcardBits";
 
 import type { FormState } from "../editorModel";
 import { Field } from "./Field";
 
-const DIFFICULTY: [FlashcardDifficulty, string][] = [
-  ["foundation", "基础"],
-  ["standard", "常规"],
-  ["advanced", "进阶"],
+const DIFFICULTY: [FlashcardDifficulty, FlashcardsMessageKey][] = [
+  ["foundation", "ui.foundation"],
+  ["standard", "ui.standard"],
+  ["advanced", "ui.advanced"],
 ];
 
 export function CardEditorProperties({
@@ -27,10 +35,11 @@ export function CardEditorProperties({
   now: number;
   patch(next: Partial<FormState>): void;
 }) {
+  useFlashcardsI18n();
   const deck = decks.find(d => d.id === form.deckId);
   return (
     <div className="flex flex-col gap-4">
-      <Field label="卡组">
+      <Field label={flashcardsTranslator.t("ui.deck")}>
         <Menu
           trigger={
             <Button variant="secondary" className="justify-start">
@@ -40,7 +49,7 @@ export function CardEditorProperties({
                   <span className="min-w-0 flex-1 truncate text-left">{deck.name}</span>
                 </>
               ) : (
-                <span className="flex-1 text-left">选择卡组</span>
+                <span className="flex-1 text-left">{flashcardsTranslator.t("ui.chooseDeck")}</span>
               )}
               <ChevronDown size={14} strokeWidth={1.75} />
             </Button>
@@ -58,20 +67,20 @@ export function CardEditorProperties({
         </Menu>
       </Field>
 
-      <Field label="难度">
+      <Field label={flashcardsTranslator.t("ui.difficulty")}>
         <Segmented
           size="sm"
-          label="难度"
+          label={flashcardsTranslator.t("ui.difficulty")}
           value={form.difficulty}
           onValueChange={(v: FlashcardDifficulty) => patch({ difficulty: v })}
         >
           {DIFFICULTY.map(([value, label]) => (
-            <Segmented.Item key={value} value={value} label={label} />
+            <Segmented.Item key={value} value={value} label={flashcardsTranslator.t(label)} />
           ))}
         </Segmented>
       </Field>
 
-      <Field label="标签">
+      <Field label={flashcardsTranslator.t("ui.tags")}>
         <AddTag
           tags={form.tags}
           addTag={tag => patch({ tags: [...form.tags, tag] })}
@@ -83,23 +92,36 @@ export function CardEditorProperties({
       </Field>
 
       {card && (
-        <Field label="复习信息">
+        <Field label={flashcardsTranslator.t("ui.reviewInformation")}>
           <dl className="text-ink-2 grid grid-cols-[auto_1fr] gap-x-3.5 gap-y-1 text-[12px]">
-            <dt className="text-ink-3">状态</dt>
+            <dt className="text-ink-3">{flashcardsTranslator.t("ui.status")}</dt>
             <dd>
               <StatusDot status={card.status} />
             </dd>
-            <dt className="text-ink-3">下次复习</dt>
-            <dd>{dueText(card, now).text}</dd>
-            <dt className="text-ink-3">已复习</dt>
+            <dt className="text-ink-3">{flashcardsTranslator.t("ui.nextReview")}</dt>
+            <dd>{dueText(card, now, flashcardsDisplayContext()).text}</dd>
+            <dt className="text-ink-3">{flashcardsTranslator.t("ui.reviewed")}</dt>
             <dd className="tabular-nums">
-              {card.reviewCount} 次 · 稳定性{" "}
-              {card.memoryStability == null ? "—" : `${card.memoryStability.toFixed(1)} 天`}
+              {flashcardsTranslator.t("stats.stability", {
+                reviews: flashcardsCount("count.reviews", card.reviewCount),
+                days:
+                  card.memoryStability == null
+                    ? "—"
+                    : flashcardsTranslator.t("span.days", {
+                        count: card.memoryStability,
+                        amount: card.memoryStability.toLocaleString(
+                          flashcardsDisplayContext().locale,
+                          { minimumFractionDigits: 1, maximumFractionDigits: 1 }
+                        ),
+                      }),
+              })}
             </dd>
           </dl>
           {card.status === "suspended" && (
             <p className="text-ink-3 text-[11.5px]">
-              已暂停，恢复后为「{STATUS_LABEL[resumedStatus(card)]}」
+              {flashcardsTranslator.t("stats.resumedStatus", {
+                status: flashcardsTranslator.t(STATUS_MESSAGE[resumedStatus(card)]),
+              })}
             </p>
           )}
         </Field>

@@ -1,3 +1,4 @@
+import { flashcardsTranslator, flashcardsCount, useFlashcardsI18n } from "../../i18n";
 import { useEffect, useState } from "react";
 import { Layers, Plus } from "lucide-react";
 import { Button, Dialog, DialogBody, Spinner } from "@tau/ui";
@@ -18,9 +19,10 @@ const DeckSelectorModal = ({
   open,
   onCancel,
   onSelect,
-  title = "选择卡组",
-  subtitle = "选择要添加闪卡的卡组",
+  title = flashcardsTranslator.t("ui.chooseDeck"),
+  subtitle = flashcardsTranslator.t("ui.chooseADeckForTheFlashcards"),
 }: DeckSelectorModalProps) => {
+  useFlashcardsI18n();
   const { decks, loading: loadingDecks, error, retry } = useFlashcardDecks(open);
 
   const [createDeckModalOpen, setCreateDeckModalOpen] = useState(false);
@@ -80,8 +82,12 @@ const DeckSelectorModal = ({
                     <Plus className="size-5" strokeWidth={1.75} />
                   </div>
                   <div className="flex-1">
-                    <h4 className="text-ink-1 text-tau-body font-medium">创建新卡组</h4>
-                    <p className="text-ink-3 text-tau-sm">为闪卡创建一个新的卡组</p>
+                    <h4 className="text-ink-1 text-tau-body font-medium">
+                      {flashcardsTranslator.t("ui.createANewDeck")}
+                    </h4>
+                    <p className="text-ink-3 text-tau-sm">
+                      {flashcardsTranslator.t("ui.createANewDeckForFlashcards")}
+                    </p>
                   </div>
                 </div>
               </button>
@@ -89,16 +95,16 @@ const DeckSelectorModal = ({
               <div className="max-h-[400px] space-y-2 overflow-y-auto">
                 {error && (
                   <div role="alert" className="text-danger flex items-center gap-2 py-4">
-                    <span>读取卡组失败</span>
+                    <span>{flashcardsTranslator.t("ui.couldNotLoadDecks")}</span>
                     <Button variant="ghost" onClick={() => void retry()}>
-                      重试
+                      {flashcardsTranslator.t("ui.retry")}
                     </Button>
                   </div>
                 )}
                 {loadingDecks && (
                   <div className="text-ink-3 text-tau-body flex items-center justify-center gap-2 py-8">
                     <Spinner className="size-4" />
-                    加载中...
+                    {flashcardsTranslator.t("ui.loading2")}
                   </div>
                 )}
 
@@ -108,8 +114,12 @@ const DeckSelectorModal = ({
                       className="text-ink-3 mx-auto mb-3 size-12 opacity-50"
                       strokeWidth={1.75}
                     />
-                    <p className="text-ink-2 text-tau-body mb-2">还没有任何卡组</p>
-                    <p className="text-ink-3/70 text-tau-sm">点击上方按钮创建第一个卡组</p>
+                    <p className="text-ink-2 text-tau-body mb-2">
+                      {flashcardsTranslator.t("ui.noDecksYet2")}
+                    </p>
+                    <p className="text-ink-3/70 text-tau-sm">
+                      {flashcardsTranslator.t("ui.useTheButtonAboveToCreateYourFirstDeck")}
+                    </p>
                   </div>
                 )}
 
@@ -135,7 +145,7 @@ const DeckSelectorModal = ({
                           )}
                         </div>
                         <div className="text-ink-3 text-tau-sm tabular-nums">
-                          {deck.stats?.totalCards || 0} 张卡
+                          {flashcardsCount("count.cards", deck.stats?.totalCards || 0)}
                         </div>
                       </div>
                     </button>

@@ -3,6 +3,7 @@
  * 删除卡组会连带删除卡片与复习记录，走 ConfirmDialog 并写明张数（卡片删除不确认、可撤销，卡组不可撤销）。
  */
 
+import { flashcardsTranslator, useFlashcardsI18n } from "../i18n";
 import DeckIcon, { deckIconKeys } from "@tau/shared/deck-icon";
 import type { FlashcardDeck } from "@/types";
 import { Button, Dialog, DialogBody, Input, Textarea, cn, toast } from "@tau/ui";
@@ -33,6 +34,7 @@ export function DeckDialog({
   onClose(): void;
   onCreated?(deck: FlashcardDeck): void;
 }) {
+  useFlashcardsI18n();
   const [form, setForm] = useState<DeckForm>({
     name: "",
     description: "",
@@ -68,15 +70,15 @@ export function DeckDialog({
       const payload = { ...form, name, description: form.description.trim() };
       if (deck) {
         await mutations.updateDeck({ id: deck.id, ...payload });
-        toast.success("卡组已更新");
+        toast.success(flashcardsTranslator.t("ui.deckUpdated"));
       } else {
         const created = await mutations.createDeck(payload);
-        toast.success(`已创建卡组「${name}」`);
+        toast.success(flashcardsTranslator.t("deck.created", { name: name }));
         onCreated?.(created);
       }
       onClose();
     } catch {
-      toast.error("保存失败");
+      toast.error(flashcardsTranslator.t("ui.couldNotSave"));
     } finally {
       setSaving(false);
     }
@@ -88,14 +90,14 @@ export function DeckDialog({
     <Dialog
       open={open}
       onOpenChange={next => !next && onClose()}
-      title={deck ? "编辑卡组" : "新建卡组"}
+      title={deck ? flashcardsTranslator.t("ui.editDeck") : flashcardsTranslator.t("ui.newDeck")}
       icon={<Folder />}
       width={440}
       locked={saving}
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={saving}>
-            取消
+            {flashcardsTranslator.t("ui.cancel")}
           </Button>
           <Button
             variant="primary"
@@ -103,7 +105,7 @@ export function DeckDialog({
             disabled={!form.name.trim()}
             loading={saving}
           >
-            {deck ? "保存" : "创建"}
+            {deck ? flashcardsTranslator.t("ui.save") : flashcardsTranslator.t("ui.create")}
           </Button>
         </>
       }
@@ -113,7 +115,9 @@ export function DeckDialog({
           <div className="flex items-end gap-3">
             <DeckMark deck={form} size="lg" />
             <label className="flex flex-1 flex-col gap-1.5">
-              <span className="text-ink-2 text-[12px] font-medium">名称</span>
+              <span className="text-ink-2 text-[12px] font-medium">
+                {flashcardsTranslator.t("ui.name")}
+              </span>
               <Input
                 data-autofocus
                 value={form.name}
@@ -124,12 +128,14 @@ export function DeckDialog({
                     void submit();
                   }
                 }}
-                placeholder="例如：操作系统"
+                placeholder={flashcardsTranslator.t("ui.forExampleOperatingSystems")}
               />
             </label>
           </div>
           <div className="flex flex-col gap-1.5">
-            <span className="text-ink-2 text-[12px] font-medium">图标</span>
+            <span className="text-ink-2 text-[12px] font-medium">
+              {flashcardsTranslator.t("ui.icon")}
+            </span>
             <div className="flex flex-wrap gap-1">
               {deckIconKeys.map(key => (
                 <button
@@ -152,14 +158,17 @@ export function DeckDialog({
           </div>
           <div className="flex flex-col gap-1.5">
             <span className="text-ink-2 flex text-[12px] font-medium">
-              颜色<span className="text-ink-3 ml-auto font-normal">只用于区分卡组</span>
+              {flashcardsTranslator.t("ui.color")}
+              <span className="text-ink-3 ml-auto font-normal">
+                {flashcardsTranslator.t("ui.usedOnlyToDistinguishDecks")}
+              </span>
             </span>
             <div className="flex gap-2.5">
               {TONE_OPTIONS.map(option => (
                 <button
                   key={option.tone}
                   type="button"
-                  aria-label={option.label}
+                  aria-label={flashcardsTranslator.t(option.message)}
                   aria-pressed={tone === option.tone}
                   onClick={() => setForm(f => ({ ...f, coverColor: option.color }))}
                   className={cn(
@@ -172,11 +181,13 @@ export function DeckDialog({
             </div>
           </div>
           <label className="flex flex-col gap-1.5">
-            <span className="text-ink-2 text-[12px] font-medium">描述（可选）</span>
+            <span className="text-ink-2 text-[12px] font-medium">
+              {flashcardsTranslator.t("ui.descriptionOptional2")}
+            </span>
             <Textarea
               value={form.description}
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-              placeholder="这个卡组复习什么"
+              placeholder={flashcardsTranslator.t("ui.whatWillYouReviewWithThisDeck")}
               rows={3}
             />
           </label>

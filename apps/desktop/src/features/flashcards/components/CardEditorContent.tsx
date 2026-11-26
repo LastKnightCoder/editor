@@ -1,9 +1,10 @@
+import { flashcardsTranslator, useFlashcardsI18n } from "../i18n";
 import ReferenceEditor from "@/components/FlashcardEditor/components/ReferenceEditor";
 import RichTextEditor from "@/components/FlashcardEditor/components/RichTextEditor";
 import type { FlashcardData, FlashcardType } from "@/types";
 import { textToDescendants } from "@/utils/flashcard";
 import { Input, Segmented, Textarea } from "@tau/ui";
-import { TYPE_LABEL, TYPE_ORDER } from "../model";
+import { TYPE_MESSAGE, TYPE_ORDER } from "../model";
 import { TYPE_ICON } from "../typeIcons";
 
 import { createFormReference, type FormState } from "../editorModel";
@@ -25,23 +26,33 @@ export function CardEditorContent({
   patchData(next: Partial<FlashcardData>): void;
   changeType(type: FlashcardType): void;
 }) {
+  useFlashcardsI18n();
   return (
     <div className="flex min-w-0 flex-col gap-4">
       <Segmented
         size="sm"
-        label="题型"
+        label={flashcardsTranslator.t("ui.questionType")}
         value={form.type}
         onValueChange={(v: FlashcardType) => changeType(v)}
         className="self-start"
       >
         {TYPE_ORDER.map(type => (
-          <Segmented.Item key={type} value={type} icon={TYPE_ICON[type]} label={TYPE_LABEL[type]} />
+          <Segmented.Item
+            key={type}
+            value={type}
+            icon={TYPE_ICON[type]}
+            label={flashcardsTranslator.t(TYPE_MESSAGE[type])}
+          />
         ))}
       </Segmented>
 
       <Field
-        label="题干"
-        aux={form.type === "cloze" ? "选中文字后用工具栏设为填空，可给每个空设备选答案" : undefined}
+        label={flashcardsTranslator.t("ui.prompt")}
+        aux={
+          form.type === "cloze"
+            ? flashcardsTranslator.t("ui.selectTextAndMarkItAsABlankInThe")
+            : undefined
+        }
       >
         <RichTextEditor
           key={`prompt-${revision}-${form.type === "cloze"}`}
@@ -49,44 +60,57 @@ export function CardEditorContent({
           onChange={value => patch({ prompt: value?.length ? value : textToDescendants("") })}
           allowBlanks={form.type === "cloze"}
           isDark={isDark}
-          placeholder={form.type === "qa" ? "问题，或要记住的词条" : "题目内容"}
+          placeholder={
+            form.type === "qa"
+              ? flashcardsTranslator.t("ui.aQuestionOrTermToRemember")
+              : flashcardsTranslator.t("ui.questionContent")
+          }
           minHeight="84px"
         />
       </Field>
 
-      <Field label="补充说明" aux="可选，复习时显示在题干下方">
+      <Field
+        label={flashcardsTranslator.t("ui.additionalDetails")}
+        aux={flashcardsTranslator.t("ui.optionalShownBelowThePromptDuringReview")}
+      >
         <RichTextEditor
           key={`detail-${revision}`}
           initialValue={form.detail}
           onChange={value => patch({ detail: value?.length ? value : textToDescendants("") })}
           isDark={isDark}
-          placeholder="背景、限定条件等"
+          placeholder={flashcardsTranslator.t("ui.backgroundOrConstraints")}
           minHeight="56px"
         />
       </Field>
 
       <AnswerFields form={form} patchData={patchData} />
 
-      <Field label="提示" aux="可选，复习时点开才显示">
+      <Field
+        label={flashcardsTranslator.t("ui.hint")}
+        aux={flashcardsTranslator.t("ui.optionalShownOnRequestDuringReview")}
+      >
         <Input
           value={form.data.hint ?? ""}
           onChange={e => patchData({ hint: e.target.value })}
-          placeholder="一句话线索"
+          placeholder={flashcardsTranslator.t("ui.aShortClue")}
         />
       </Field>
 
-      <Field label="解析" aux="可选，翻面后显示">
+      <Field
+        label={flashcardsTranslator.t("ui.explanation")}
+        aux={flashcardsTranslator.t("ui.optionalShownAfterRevealingTheAnswer")}
+      >
         <Textarea
           value={form.data.explanation ?? ""}
           onChange={e => patchData({ explanation: e.target.value })}
-          placeholder="为什么是这个答案"
+          placeholder={flashcardsTranslator.t("ui.whyIsThisTheAnswer")}
           rows={3}
         />
       </Field>
 
       <Field
-        label="参考资料"
-        aux="翻面后可展开查看"
+        label={flashcardsTranslator.t("ui.references")}
+        aux={flashcardsTranslator.t("ui.expandAfterRevealingTheAnswer")}
         action={
           <button
             type="button"
@@ -105,12 +129,12 @@ export function CardEditorContent({
               })
             }
           >
-            + 添加
+            {flashcardsTranslator.t("ui.add")}
           </button>
         }
       >
         {form.references.length === 0 ? (
-          <p className="text-ink-3 text-[12px]">还没有参考资料</p>
+          <p className="text-ink-3 text-[12px]">{flashcardsTranslator.t("ui.noReferencesYet")}</p>
         ) : (
           <div className="space-y-4">
             {form.references.map((ref, i) => (

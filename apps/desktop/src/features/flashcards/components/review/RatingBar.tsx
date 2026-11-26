@@ -1,6 +1,8 @@
+import { flashcardsTranslator, flashcardsDisplayContext, useFlashcardsI18n } from "../../i18n";
+import { formatSpan } from "../../format";
 import type { Flashcard, FlashcardReviewRating } from "@/types";
 import { cn } from "@tau/ui";
-import { RATINGS, formatSpan, nextInterval } from "../../model";
+import { RATINGS, nextInterval } from "../../model";
 
 import { RATING_HOVER, RATING_RING, RATING_TEXT } from "../../reviewStyles";
 
@@ -15,6 +17,7 @@ export function RatingBar({
   busy: boolean;
   onRate(rating: FlashcardReviewRating): void;
 }) {
+  useFlashcardsI18n();
   return (
     <div className="grid grid-cols-4 gap-2">
       {RATINGS.map(r => (
@@ -29,12 +32,16 @@ export function RatingBar({
             suggestion === r.value && cn("ring-[1.5px] ring-inset", RATING_RING[r.value])
           )}
         >
-          <kbd className="bg-hover text-ink-2 absolute right-2 top-[7px] rounded-[4px] px-1 font-mono text-[10px] leading-4">
+          <kbd className="bg-hover text-ink-2 absolute top-[7px] right-2 rounded-[4px] px-1 font-mono text-[10px] leading-4">
             {r.key}
           </kbd>
-          <b className={cn("text-[13.5px] font-semibold", RATING_TEXT[r.value])}>{r.label}</b>
+          <b className={cn("text-[13.5px] font-semibold", RATING_TEXT[r.value])}>
+            {flashcardsTranslator.t(r.message)}
+          </b>
           <span className="text-ink-2 text-[11.5px] tabular-nums">
-            {formatSpan(nextInterval(card, r.value))}后
+            {flashcardsTranslator.t("review.after", {
+              span: formatSpan(nextInterval(card, r.value), flashcardsDisplayContext()),
+            })}
           </span>
         </button>
       ))}

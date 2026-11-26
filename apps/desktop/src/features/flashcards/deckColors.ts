@@ -4,6 +4,7 @@
  * 新建 / 编辑卡组时只提供这 6 个代表 hex。
  */
 
+import { type FlashcardsMessageKey } from "./i18n";
 export type DeckTone = "green" | "blue" | "purple" | "yellow" | "rose" | "orange";
 
 const TONE_OF_HEX: Record<string, DeckTone> = {
@@ -38,13 +39,13 @@ export const TONE_SWATCH: Record<DeckTone, string> = {
   orange: "bg-accent",
 };
 
-export const TONE_OPTIONS: { tone: DeckTone; color: string; label: string }[] = [
-  { tone: "blue", color: "#2563eb", label: "蓝" },
-  { tone: "green", color: "#10b981", label: "绿" },
-  { tone: "purple", color: "#8b5cf6", label: "紫" },
-  { tone: "yellow", color: "#f59e0b", label: "黄" },
-  { tone: "rose", color: "#ef4444", label: "红" },
-  { tone: "orange", color: "#f97316", label: "橙" },
+export const TONE_OPTIONS: { tone: DeckTone; color: string; message: FlashcardsMessageKey }[] = [
+  { tone: "blue", color: "#2563eb", message: "ui.blue" },
+  { tone: "green", color: "#10b981", message: "ui.green" },
+  { tone: "purple", color: "#8b5cf6", message: "ui.purple" },
+  { tone: "yellow", color: "#f59e0b", message: "ui.yellow" },
+  { tone: "rose", color: "#ef4444", message: "ui.red" },
+  { tone: "orange", color: "#f97316", message: "ui.orange" },
 ];
 
 export function deckTone(color: string | null | undefined): DeckTone {

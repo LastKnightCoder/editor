@@ -1,3 +1,4 @@
+import { FlashcardError } from "./errors";
 import type { PluginFlashcardDraft } from "@tau/plugins";
 import { assertContentNodes } from "@tau/plugins/content-input";
 import type { Descendant } from "slate";
@@ -47,10 +48,14 @@ export function parseMobileFlashcardResponse(text: string): PluginFlashcardDraft
     .replace(/^```(?:json)?\s*/i, "")
     .replace(/\s*```$/, "");
   const parsed: unknown = JSON.parse(cleaned);
-  if (!Array.isArray(parsed) || !parsed.length) throw new Error("模型未返回有效的闪卡数组");
+  if (!Array.isArray(parsed) || !parsed.length)
+    throw new FlashcardError(
+      "模型未返回有效的闪卡数组",
+      "ui.theModelDidNotReturnAValidFlashcardArray"
+    );
   return parsed.map((value: unknown) => {
     if (!value || typeof value !== "object" || Array.isArray(value))
-      throw new Error("闪卡结果格式无效");
+      throw new FlashcardError("闪卡结果格式无效", "ui.invalidFlashcardResultFormat");
     const card = value as Omit<PluginFlashcardDraft, "prompt" | "detail"> & {
       prompt: unknown;
       detail?: unknown;

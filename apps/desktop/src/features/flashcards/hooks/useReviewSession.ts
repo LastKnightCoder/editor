@@ -1,9 +1,10 @@
+import { flashcardsTranslator } from "../i18n";
 import useAnswerJudgement from "@/hooks/useAnswerJudgement";
 import { useOverlayDismiss } from "@/page/PageProvider";
 import type { Flashcard, FlashcardReviewRating } from "@/types";
 import { toast } from "@tau/ui";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { RATING_LABEL, judgeAnswer, suggestRating, type ReviewAnswer } from "../model";
+import { RATING_MESSAGE, judgeAnswer, suggestRating, type ReviewAnswer } from "../model";
 import type { FlashcardMutations } from "../queries";
 import { EMPTY_DIST } from "../reviewStyles";
 
@@ -92,7 +93,7 @@ export function useReviewSession({
       resetCard();
       setIndex(i => i + 1);
     } catch {
-      toast.error("评分提交失败");
+      toast.error(flashcardsTranslator.t("ui.couldNotSubmitRating"));
     } finally {
       operationPending.current = false;
       setBusy(false);
@@ -102,7 +103,7 @@ export function useReviewSession({
   const undo = async () => {
     const last = history[history.length - 1];
     if (!last || operationPending.current) {
-      if (!last) toast.info("没有可撤销的评分");
+      if (!last) toast.info(flashcardsTranslator.t("ui.thereIsNoRatingToUndo"));
       return;
     }
     operationPending.current = true;
@@ -118,9 +119,13 @@ export function useReviewSession({
       });
       setIndex(Math.min(last.index, order.length));
       resetCard();
-      toast.info(`已撤销「${RATING_LABEL[last.rating]}」评分`);
+      toast.info(
+        flashcardsTranslator.t("review.undoRating", {
+          rating: flashcardsTranslator.t(RATING_MESSAGE[last.rating]),
+        })
+      );
     } catch {
-      toast.error("撤销失败");
+      toast.error(flashcardsTranslator.t("ui.couldNotUndo"));
     } finally {
       operationPending.current = false;
       setBusy(false);
@@ -136,9 +141,9 @@ export function useReviewSession({
       await mutations.setSuspended(card, true);
       setOrder(prev => prev.filter((_, i) => i !== at));
       resetCard();
-      toast.info("已暂停这张卡片，不再进入复习", {
+      toast.info(flashcardsTranslator.t("ui.cardSuspendedAndRemovedFromReview"), {
         action: {
-          label: "撤销",
+          label: flashcardsTranslator.t("ui.undo"),
           onClick: async () => {
             if (operationPending.current) return;
             operationPending.current = true;
@@ -153,7 +158,7 @@ export function useReviewSession({
               setIndex(at);
               resetCard();
             } catch {
-              toast.error("恢复复习失败");
+              toast.error(flashcardsTranslator.t("ui.couldNotResumeReview"));
             } finally {
               operationPending.current = false;
               setBusy(false);
@@ -162,7 +167,7 @@ export function useReviewSession({
         },
       });
     } catch {
-      toast.error("暂停失败");
+      toast.error(flashcardsTranslator.t("ui.couldNotSuspendCard"));
     } finally {
       operationPending.current = false;
       setBusy(false);

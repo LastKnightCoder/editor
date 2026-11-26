@@ -1,5 +1,6 @@
 // 卡组新建/编辑表单（BottomSheet）：名称、描述、图标、调色板。
 
+import { flashcardTranslator, useFlashcardI18n } from "./i18n";
 import { useEffect, useRef, useState } from "react";
 import DeckIcon, { deckIconKeys, toDeckIconKey } from "@tau/shared/deck-icon";
 import { BottomSheet } from "../../components/BottomSheet";
@@ -26,6 +27,7 @@ type DeckFormSheetProps = {
 };
 
 export function DeckFormSheet({ open, deck, onClose, onError, createDeck }: DeckFormSheetProps) {
+  useFlashcardI18n();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [emoji, setEmoji] = useState(deckIconKeys[0]);
@@ -47,7 +49,7 @@ export function DeckFormSheet({ open, deck, onClose, onError, createDeck }: Deck
 
   const submit = async () => {
     if (!name.trim()) {
-      toast({ type: "warning", text: "请填写卡组名称" });
+      toast({ type: "warning", text: flashcardTranslator.t("ui.enterADeckName") });
       return;
     }
     setSaving(true);
@@ -70,7 +72,12 @@ export function DeckFormSheet({ open, deck, onClose, onError, createDeck }: Deck
       invalidateFlashcardQueries();
       onClose();
     } catch (error) {
-      onError(error, deck ? "保存卡组失败" : "新建卡组失败");
+      onError(
+        error,
+        deck
+          ? flashcardTranslator.t("ui.couldNotSaveDeck")
+          : flashcardTranslator.t("ui.couldNotCreateDeck")
+      );
     } finally {
       setSaving(false);
     }
@@ -80,32 +87,38 @@ export function DeckFormSheet({ open, deck, onClose, onError, createDeck }: Deck
     <BottomSheet
       open={open}
       dismissible={!saving}
-      title={deck ? "编辑卡组" : "新建卡组"}
+      title={deck ? flashcardTranslator.t("ui.editDeck") : flashcardTranslator.t("ui.newDeck")}
       onClose={onClose}
     >
       <div className="flex flex-col gap-4 px-5 pb-7">
         <div>
-          <div className="text-ink-2 mb-2 text-[12.5px] font-extrabold">名称</div>
+          <div className="text-ink-2 mb-2 text-[12.5px] font-extrabold">
+            {flashcardTranslator.t("ui.name")}
+          </div>
           <input
             className={inputClass}
             value={name}
             maxLength={30}
-            placeholder="如：算法面试"
+            placeholder={flashcardTranslator.t("ui.forExampleAlgorithmInterviews")}
             onChange={event => setName(event.target.value)}
           />
         </div>
         <div>
-          <div className="text-ink-2 mb-2 text-[12.5px] font-extrabold">描述（选填）</div>
+          <div className="text-ink-2 mb-2 text-[12.5px] font-extrabold">
+            {flashcardTranslator.t("ui.descriptionOptional")}
+          </div>
           <input
             className={inputClass}
             value={description}
             maxLength={60}
-            placeholder="这个卡组用来记什么"
+            placeholder={flashcardTranslator.t("ui.whatWillYouLearnWithThisDeck")}
             onChange={event => setDescription(event.target.value)}
           />
         </div>
         <div>
-          <div className="text-ink-2 mb-2 text-[12.5px] font-extrabold">图标</div>
+          <div className="text-ink-2 mb-2 text-[12.5px] font-extrabold">
+            {flashcardTranslator.t("ui.icon")}
+          </div>
           <div className="grid grid-cols-6 gap-2">
             {deckIconKeys.map(item => (
               <button
@@ -126,13 +139,15 @@ export function DeckFormSheet({ open, deck, onClose, onError, createDeck }: Deck
           </div>
         </div>
         <div>
-          <div className="text-ink-2 mb-2 text-[12.5px] font-extrabold">颜色</div>
+          <div className="text-ink-2 mb-2 text-[12.5px] font-extrabold">
+            {flashcardTranslator.t("ui.color")}
+          </div>
           <div className="flex flex-wrap gap-2.5">
             {DECK_COLORS.map(item => (
               <button
                 key={item}
                 type="button"
-                aria-label={`颜色 ${item}`}
+                aria-label={flashcardTranslator.t("color.named", { color: item })}
                 onClick={() => setColor(item)}
                 className="h-9 w-9 rounded-full transition-transform active:scale-90"
                 style={{
@@ -151,7 +166,9 @@ export function DeckFormSheet({ open, deck, onClose, onError, createDeck }: Deck
           style={{ borderLeft: `4px solid ${color}` }}
         >
           <DeckIcon emoji={emoji} className="size-5 flex-none" />
-          <span className="text-ink-1 text-[14px] font-extrabold">{name.trim() || "卡组预览"}</span>
+          <span className="text-ink-1 text-[14px] font-extrabold">
+            {name.trim() || flashcardTranslator.t("ui.deckPreview")}
+          </span>
         </div>
         <button
           type="button"
@@ -160,7 +177,7 @@ export function DeckFormSheet({ open, deck, onClose, onError, createDeck }: Deck
           className="shadow-lift text-ink-inverse rounded-[17px] py-[15px] text-[15px] font-extrabold disabled:opacity-60"
           style={{ background: "var(--tau-accent)" }}
         >
-          {saving ? "保存中…" : "保存"}
+          {saving ? flashcardTranslator.t("ui.saving") : flashcardTranslator.t("ui.save")}
         </button>
       </div>
     </BottomSheet>

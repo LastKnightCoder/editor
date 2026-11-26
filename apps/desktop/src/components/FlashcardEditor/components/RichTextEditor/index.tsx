@@ -1,3 +1,4 @@
+import { flashcardsTranslator, useFlashcardsI18n } from "../../../../features/flashcards/i18n";
 import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
 import { useTransientContentDocument } from "@/hooks/useContentDocument";
 import { useMemo, useState } from "react";
@@ -22,9 +23,10 @@ const RichTextEditor = ({
   onChange,
   allowBlanks = false,
   isDark,
-  placeholder = "输入内容...",
+  placeholder = flashcardsTranslator.t("ui.enterContent"),
   minHeight = "120px",
 }: RichTextEditorProps) => {
+  useFlashcardsI18n();
   const [editor, setEditor] = useState<ReturnType<EditorRef["getEditor"]> | null>(null);
 
   const kit = useMemo(() => getFlashcardKit({ blanks: allowBlanks }), [allowBlanks]);
@@ -36,7 +38,7 @@ const RichTextEditor = ({
     onChange
   );
   if (contracts && !draft.document)
-    return <p role="status">{draft.error ?? "正在读取参考资料…"}</p>;
+    return <p role="status">{draft.error ?? flashcardsTranslator.t("ui.loadingReference")}</p>;
 
   return (
     <div

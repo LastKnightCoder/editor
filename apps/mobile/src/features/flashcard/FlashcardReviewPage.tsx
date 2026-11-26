@@ -2,6 +2,12 @@
 // 返回手势先经 useBackHandler 弹退出确认（已答部分已实时落库，退出只放弃未答部分）；
 // 复习期间屏幕常亮。队列拉取后持快照，评分逐张实时落库（中途退出不丢进度）。
 
+import {
+  flashcardTranslator,
+  flashcardCount,
+  flashcardDisplayContext,
+  useFlashcardI18n,
+} from "./i18n";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMobileContentKit } from "../../services/editorKit";
 import type { Descendant } from "slate";
@@ -39,6 +45,7 @@ type FlashcardReviewPageProps = {
 };
 
 export function FlashcardReviewPage({ deckId, onRequestClose, onError }: FlashcardReviewPageProps) {
+  useFlashcardI18n();
   const contentKit = useMobileContentKit("read");
   useKeepScreenAwake(true);
 
@@ -84,7 +91,7 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
       })
       .catch(error => {
         setLoadFailed(true);
-        onError(error, "加载复习队列失败");
+        onError(error, flashcardTranslator.t("ui.couldNotLoadReviewQueue"));
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deckId]);
@@ -133,7 +140,7 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
         setStats(prev => prev ?? { ratings: [], startedAt: Date.now() });
         setHasMoreDue(false);
       })
-      .catch(error => onError(error, "加载复习队列失败"))
+      .catch(error => onError(error, flashcardTranslator.t("ui.couldNotLoadReviewQueue")))
       .finally(() => setLoadingMore(false));
   };
 
@@ -197,7 +204,7 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
         );
         goToNext();
       } catch (error) {
-        onError(error, "提交复习结果失败");
+        onError(error, flashcardTranslator.t("ui.couldNotSubmitReviewResult"));
       } finally {
         submittingRef.current = false;
         setSubmitting(false);
@@ -260,7 +267,9 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
     return (
       <div className="bg-page fixed inset-0 z-50 flex flex-col items-center justify-center gap-5 px-10">
         <div className="text-[40px]">🌧️</div>
-        <div className="text-ink-1 text-[17px] font-extrabold">复习队列加载失败</div>
+        <div className="text-ink-1 text-[17px] font-extrabold">
+          {flashcardTranslator.t("ui.couldNotLoadReviewQueue2")}
+        </div>
         <div className="flex gap-3">
           <button
             type="button"
@@ -271,14 +280,14 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
             className="shadow-lift text-ink-inverse rounded-[16px] px-7 py-3 text-[14.5px] font-extrabold"
             style={{ background: "var(--tau-accent)" }}
           >
-            重试
+            {flashcardTranslator.t("ui.retry")}
           </button>
           <button
             type="button"
             onClick={closeReview}
             className="text-ink-2 active:bg-hover rounded-[16px] px-7 py-3 text-[14.5px] font-extrabold"
           >
-            先退出
+            {flashcardTranslator.t("ui.leaveForNow")}
           </button>
         </div>
       </div>
@@ -288,7 +297,9 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
   if (queue === null) {
     return (
       <div className="bg-page fixed inset-0 z-50 grid place-items-center">
-        <div className="text-ink-2 text-[13.5px] font-bold">正在准备卡片…</div>
+        <div className="text-ink-2 text-[13.5px] font-bold">
+          {flashcardTranslator.t("ui.preparingCards")}
+        </div>
       </div>
     );
   }
@@ -300,9 +311,11 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
           🗂️
         </div>
         <div className="text-center">
-          <div className="text-ink-1 text-[18px] font-extrabold">现在没有待复习的卡片</div>
+          <div className="text-ink-1 text-[18px] font-extrabold">
+            {flashcardTranslator.t("ui.noCardsAreDueNow")}
+          </div>
           <div className="text-ink-2 mt-2 text-[13px] font-semibold">
-            到期的卡片会出现在这里，先去干点别的吧
+            {flashcardTranslator.t("ui.cardsWillAppearHereWhenTheyAreDue")}
           </div>
         </div>
         <button
@@ -311,7 +324,7 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
           className="shadow-lift text-ink-inverse rounded-[16px] px-8 py-3 text-[14.5px] font-extrabold"
           style={{ background: "var(--tau-accent)" }}
         >
-          好的
+          {flashcardTranslator.t("ui.ok")}
         </button>
       </div>
     );
@@ -330,11 +343,16 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
           🎉
         </div>
         <div className="text-ink-1 mt-5 text-[21px] font-extrabold">
-          {hasMoreDue || loadingMore ? "这一批复习完成" : "本轮复习完成"}
+          {hasMoreDue || loadingMore
+            ? flashcardTranslator.t("ui.batchCompleted")
+            : flashcardTranslator.t("ui.reviewCompleted")}
         </div>
         <div className="text-ink-2 mt-2 text-[13px] font-semibold">
-          {count} 张 · 用时 {minutes} 分钟 · 正确率{" "}
-          {count > 0 ? Math.round((correctCount / count) * 100) : 0}%
+          {flashcardCount("review.mobileSummary", count, {
+            reviewed: count,
+            minutes,
+            percent: count > 0 ? Math.round((correctCount / count) * 100) : 0,
+          })}
         </div>
         <div className="mt-7 grid w-full grid-cols-4 gap-2.5">
           {REVIEW_RATINGS.map(item => (
@@ -342,7 +360,9 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
               <b className="block text-[19px] font-extrabold" style={{ color: item.color }}>
                 {ratingCounts[item.value]}
               </b>
-              <span className="text-ink-2 mt-0.5 block text-[11px] font-bold">{item.label}</span>
+              <span className="text-ink-2 mt-0.5 block text-[11px] font-bold">
+                {flashcardTranslator.t(item.message)}
+              </span>
             </div>
           ))}
         </div>
@@ -354,7 +374,9 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
             className="shadow-lift text-ink-inverse mt-8 w-full rounded-[17px] py-[15px] text-[15px] font-extrabold disabled:opacity-60"
             style={{ background: "var(--tau-accent)" }}
           >
-            {loadingMore ? "正在准备…" : "还有到期卡片，再来一轮"}
+            {loadingMore
+              ? flashcardTranslator.t("ui.preparing")
+              : flashcardTranslator.t("ui.moreCardsAreDueReviewAnotherBatch")}
           </button>
         ) : (
           <button
@@ -363,7 +385,7 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
             className="shadow-lift text-ink-inverse mt-8 w-full rounded-[17px] py-[15px] text-[15px] font-extrabold"
             style={{ background: "var(--tau-accent)" }}
           >
-            完成
+            {flashcardTranslator.t("ui.done")}
           </button>
         )}
         {hasMoreDue ? (
@@ -372,7 +394,7 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
             onClick={closeReview}
             className="text-ink-3 mt-3 px-4 py-2 text-[13px] font-extrabold"
           >
-            先到这里
+            {flashcardTranslator.t("ui.stopHere")}
           </button>
         ) : null}
       </div>
@@ -392,7 +414,7 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
         <div className="flex items-center justify-between pb-3">
           <button
             type="button"
-            aria-label="退出复习"
+            aria-label={flashcardTranslator.t("ui.endReview")}
             onClick={() => {
               if ((stats?.ratings.length ?? 0) === 0) closeReview();
               else setConfirmExit(true);
@@ -402,9 +424,14 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
             ✕
           </button>
           <span className="text-ink-2 text-[12.5px] font-extrabold">
-            {deckId === -1 ? "全部卡组" : "复习"} · 第 {index + 1} / {total} 张
+            {deckId === -1
+              ? flashcardTranslator.t("ui.allDecks")
+              : flashcardTranslator.t("ui.review2")}{" "}
+            {flashcardTranslator.t("review.position", { current: index + 1, total })}
           </span>
-          <span className="text-ink-3 w-8 text-center text-[11px] font-bold">还剩{remaining}</span>
+          <span className="text-ink-3 w-8 text-center text-[11px] font-bold">
+            {flashcardCount("review.remaining", remaining)}
+          </span>
         </div>
         <div className="bg-page h-1.5 overflow-hidden rounded-full">
           <div
@@ -470,8 +497,8 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
               </div>
               <div className="text-ink-3 flex-none pt-2 text-center text-[11.5px] font-bold">
                 {canSubmitAnswer(current, answer)
-                  ? "下方按钮翻面判分 · 或轻点卡片直接翻面"
-                  : "轻点卡片翻面看答案"}
+                  ? flashcardTranslator.t("ui.useTheButtonBelowOrTapTheCardToReveal")
+                  : flashcardTranslator.t("ui.tapTheCardToRevealTheAnswer")}
               </div>
             </div>
             {/* 背面：参考资料条钉在卡底，长内容滚动时始终可见 */}
@@ -516,9 +543,13 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
         {flipped ? (
           <>
             <div className="flex items-center justify-between pb-2.5 text-[12px] font-extrabold">
-              <span style={{ color: "var(--tau-tag-5)" }}>← 左滑 吃力</span>
-              <span className="text-ink-3">在卡片上滑动</span>
-              <span style={{ color: "var(--tau-tag-1)" }}>轻松 右滑 →</span>
+              <span style={{ color: "var(--tau-tag-5)" }}>
+                {flashcardTranslator.t("ui.swipeLeftForHard")}
+              </span>
+              <span className="text-ink-3">{flashcardTranslator.t("ui.swipeOnTheCard")}</span>
+              <span style={{ color: "var(--tau-tag-1)" }}>
+                {flashcardTranslator.t("ui.swipeRightForEasy")}
+              </span>
             </div>
             <div className="grid grid-cols-4 gap-2.5">
               {REVIEW_RATINGS.map(item => (
@@ -530,9 +561,11 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
                   className="text-ink-inverse flex flex-col items-center gap-0.5 rounded-[17px] py-2.5 active:scale-95 disabled:opacity-60"
                   style={{ background: item.color }}
                 >
-                  <b className="text-[14px] font-extrabold">{item.label}</b>
+                  <b className="text-[14px] font-extrabold">
+                    {flashcardTranslator.t(item.message)}
+                  </b>
                   <small className="text-[9.5px] font-bold opacity-85">
-                    {nextIntervalPreview(current, item.value)}
+                    {nextIntervalPreview(current, item.value, flashcardDisplayContext())}
                   </small>
                 </button>
               ))}
@@ -547,17 +580,17 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
             style={{ background: "var(--tau-accent)" }}
           >
             {current.type === "qa" || current.type === "cloze"
-              ? "想好了，翻面对答案"
-              : "确认回答 · 翻面判分"}
+              ? flashcardTranslator.t("ui.revealTheAnswer")
+              : flashcardTranslator.t("ui.submitAndRevealAnswer")}
           </button>
         )}
       </div>
 
       <MobileConfirmDialog
         open={confirmExit}
-        title="退出复习"
-        description={`已复习 ${stats?.ratings.length ?? 0} 张已保存，未答完的卡片下次继续。确定退出吗？`}
-        confirmText="退出"
+        title={flashcardTranslator.t("ui.endReview")}
+        description={flashcardCount("review.exitConfirm", stats?.ratings.length ?? 0)}
+        confirmText={flashcardTranslator.t("ui.leave")}
         onCancel={() => setConfirmExit(false)}
         onConfirm={() => {
           // 先关弹窗再返回：等弹窗播完 200ms 退场，避免叠在页面退场转场上慢慢消失
@@ -577,7 +610,7 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
         <header className="border-line-1 flex items-center gap-2 border-b border-dashed px-5 pt-1 pb-2.5">
           <Paperclip size={14} className="text-accent flex-none" />
           <span className="text-ink-1 min-w-0 flex-1 truncate text-[14.5px] font-bold">
-            {referenceCard?.references[0]?.title ?? "参考资料"}
+            {referenceCard?.references[0]?.title ?? flashcardTranslator.t("ui.references")}
           </span>
         </header>
         <SnapSheet.FixedFooterScroll className="px-5 pt-2 pb-6">
@@ -591,7 +624,7 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
             />
           ) : (
             <div className="text-ink-3 py-6 text-center text-[13px] font-semibold">
-              原内容已被删除
+              {flashcardTranslator.t("ui.theSourceContentWasDeleted")}
             </div>
           )}
         </SnapSheet.FixedFooterScroll>

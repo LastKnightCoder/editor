@@ -2,6 +2,7 @@
 // 格式集），新建态与编辑态同构——编辑器原生读写 Slate JSON，桌面端富文本可无损往返。
 // cloze：选中文字「设为填空」，填空块的答案/备选答案经 ✎ 配置（BottomSheet）。
 
+import { flashcardTranslator, flashcardCount, useFlashcardI18n } from "./i18n";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { getMobileFlashcardKit } from "../../services/editorKit";
 import { Editor, type EditorRef } from "@tau/editor";
@@ -24,7 +25,7 @@ import {
 import { useMobileEditorToolbarController } from "../cards/editorToolbar/useMobileEditorToolbarController";
 import { createEmptyEditorContent, isEditorContentEmpty } from "../cards/editorContentUtils";
 import {
-  FLASHCARD_DIFFICULTY_LABEL,
+  FLASHCARD_DIFFICULTY_MESSAGE,
   FLASHCARD_TYPE_META,
   FLASHCARD_TYPE_ORDER,
   FLASHCARD_TYPE_TONE,
@@ -90,6 +91,7 @@ export function CardEditPage({
   onSaved,
   onError,
 }: CardEditPageProps) {
+  useFlashcardI18n();
   const scrollRef = useRef<HTMLDivElement>(null);
   useEdgeFade(scrollRef);
   const decksQuery = useFlashcardDecks();
@@ -147,7 +149,7 @@ export function CardEditPage({
         // 用户可能在加载完成前已返回：迟到的 onBack 会多弹一层栈
         if (cancelled) return;
         if (!item) {
-          toast({ type: "warning", text: "卡片不存在" });
+          toast({ type: "warning", text: flashcardTranslator.t("ui.thisCardDoesNotExist") });
           onBack();
           return;
         }
@@ -175,7 +177,7 @@ export function CardEditPage({
         setLoaded(true);
       })
       .catch(error => {
-        if (!cancelled) onError(error, "加载卡片失败");
+        if (!cancelled) onError(error, flashcardTranslator.t("ui.couldNotLoadCard"));
       });
     return () => {
       cancelled = true;
@@ -245,7 +247,7 @@ export function CardEditPage({
     if (!editor) return;
     const result = toggleBlank(editor);
     if (result === "needs-selection") {
-      toast({ type: "info", text: "先选中要挖空的文字" });
+      toast({ type: "info", text: flashcardTranslator.t("ui.selectTextToTurnIntoABlank") });
       return;
     }
     toolbarController.syncSelection();
@@ -264,20 +266,22 @@ export function CardEditPage({
   };
 
   const validate = (): string | null => {
-    if (isEditorContentEmpty(promptValue)) return "请填写题干";
+    if (isEditorContentEmpty(promptValue)) return flashcardTranslator.t("ui.enterAPrompt");
     switch (cardType) {
       case "single-choice":
       case "multiple-choice": {
         const filled = options.filter(option => option.label.trim() !== "");
-        if (filled.length < 2) return "至少填写两个选项";
-        if (!filled.some(option => option.isCorrect)) return "请标记正确答案";
+        if (filled.length < 2) return flashcardTranslator.t("ui.enterAtLeastTwoOptions");
+        if (!filled.some(option => option.isCorrect))
+          return flashcardTranslator.t("ui.markTheCorrectAnswer");
         return null;
       }
       case "cloze":
-        if (clozeBlanks.length === 0) return "题干中至少设置一个填空（选中文字点「设为填空」）";
+        if (clozeBlanks.length === 0)
+          return flashcardTranslator.t("ui.addAtLeastOneBlankBySelectingTextAndChoosing");
         return null;
       case "qa":
-        if (!answerText.trim()) return "请填写参考答案";
+        if (!answerText.trim()) return flashcardTranslator.t("ui.enterAReferenceAnswer");
         return null;
       default:
         return null;
@@ -342,10 +346,15 @@ export function CardEditPage({
         });
       }
       invalidateFlashcardQueries();
-      toast({ type: "success", text: isEditing ? "已保存" : "闪卡已创建" });
+      toast({
+        type: "success",
+        text: isEditing
+          ? flashcardTranslator.t("ui.saved")
+          : flashcardTranslator.t("ui.flashcardCreated2"),
+      });
       onSaved();
     } catch (error) {
-      onError(error, "保存闪卡失败");
+      onError(error, flashcardTranslator.t("ui.couldNotSaveFlashcard"));
     } finally {
       savingRef.current = false;
       setSaving(false);
@@ -355,9 +364,9 @@ export function CardEditPage({
   if (!loaded) {
     return (
       <div className="bg-page flex h-full flex-col">
-        <PageHeader title="编辑闪卡" onBack={onBack} />
+        <PageHeader title={flashcardTranslator.t("ui.editFlashcard")} onBack={onBack} />
         <div className="text-ink-3 grid flex-1 place-items-center text-[13px] font-semibold">
-          加载中…
+          {flashcardTranslator.t("ui.loading")}
         </div>
       </div>
     );
@@ -370,7 +379,12 @@ export function CardEditPage({
   return (
     <div ref={setPageRootEl} className="mobile-kb-screen bg-page flex h-full flex-col">
       <PageHeader
-        title={deckName ?? (isEditing ? "编辑闪卡" : "新建闪卡")}
+        title={
+          deckName ??
+          (isEditing
+            ? flashcardTranslator.t("ui.editFlashcard")
+            : flashcardTranslator.t("ui.newFlashcard"))
+        }
         onBack={requestExit}
         actions={
           <button
@@ -379,7 +393,7 @@ export function CardEditPage({
             onClick={() => void save()}
             className="text-accent text-[14.5px] font-extrabold disabled:opacity-50"
           >
-            {saving ? "保存中" : "保存"}
+            {saving ? flashcardTranslator.t("ui.saving2") : flashcardTranslator.t("ui.save")}
           </button>
         }
       />
@@ -395,7 +409,8 @@ export function CardEditPage({
                   color: FLASHCARD_TYPE_TONE[cardType].color,
                 }}
               >
-                {FLASHCARD_TYPE_TONE[cardType].icon} {FLASHCARD_TYPE_META[cardType].label}
+                {FLASHCARD_TYPE_TONE[cardType].icon}{" "}
+                {flashcardTranslator.t(FLASHCARD_TYPE_META[cardType].labelKey)}
               </span>
             ) : (
               // 新建态：题型在这里切换（各入口直达编辑页时不再绕选题型页；
@@ -414,7 +429,7 @@ export function CardEditPage({
                       }`}
                       style={active ? { background: tone.soft, color: tone.color } : undefined}
                     >
-                      {tone.icon} {FLASHCARD_TYPE_META[type].label}
+                      {tone.icon} {flashcardTranslator.t(FLASHCARD_TYPE_META[type].labelKey)}
                     </button>
                   );
                 })}
@@ -428,7 +443,9 @@ export function CardEditPage({
               // 编辑器 readonly 默认为 true，表单场景必须显式放开
               readonly={false}
               placeHolder={
-                cardType === "cloze" ? "输入题干，选中文字后点「设为填空」" : "输入题目…"
+                cardType === "cloze"
+                  ? flashcardTranslator.t("ui.enterAPromptSelectTextThenChooseMarkAsBlank")
+                  : flashcardTranslator.t("ui.enterAQuestion")
               }
               className={editorClass}
               onFocus={() => {
@@ -455,10 +472,10 @@ export function CardEditPage({
                   }}
                   className="bg-accent-soft text-accent rounded-[12px] px-3 py-2 text-[12px] font-extrabold active:opacity-70"
                 >
-                  ▭ 设为填空
+                  {flashcardTranslator.t("ui.markAsBlank")}
                 </button>
                 <span className="text-ink-3 text-[11px] font-semibold">
-                  再点一次可取消 · 点填空块 ✎ 改答案 · 已设 {clozeBlanks.length} 处
+                  {flashcardCount("blank.editHint", clozeBlanks.length)}
                 </span>
               </div>
             ) : null}
@@ -468,9 +485,12 @@ export function CardEditPage({
           {cardType === "single-choice" || cardType === "multiple-choice" ? (
             <div>
               <SectionLabel
-                aux={`已标 ${options.filter(o => o.isCorrect && o.label.trim()).length} 个正确 · 点行切换`}
+                aux={flashcardCount(
+                  "option.marked",
+                  options.filter(o => o.isCorrect && o.label.trim()).length
+                )}
               >
-                选项
+                {flashcardTranslator.t("ui.options")}
               </SectionLabel>
               <div className="shadow-card bg-surface flex flex-col gap-2.5 rounded-[22px] p-2.5">
                 {options.map((option, index) => (
@@ -510,7 +530,7 @@ export function CardEditPage({
                     }
                     className="text-accent w-full px-4 py-3 text-[13px] font-extrabold"
                   >
-                    ＋ 添加选项
+                    {flashcardTranslator.t("ui.addOption3")}
                   </button>
                 ) : null}
               </div>
@@ -520,7 +540,7 @@ export function CardEditPage({
           {/* 判断题答案 */}
           {cardType === "boolean" ? (
             <div className="px-2">
-              <SectionLabel>答案</SectionLabel>
+              <SectionLabel>{flashcardTranslator.t("ui.answer")}</SectionLabel>
               <div className="grid grid-cols-2 gap-3">
                 {[true, false].map(value => (
                   <button
@@ -536,7 +556,9 @@ export function CardEditPage({
                     }`}
                   >
                     <span className="block text-[24px] leading-none">{value ? "✓" : "✕"}</span>
-                    <span className="mt-1.5 block text-[13.5px]">{value ? "正确" : "错误"}</span>
+                    <span className="mt-1.5 block text-[13.5px]">
+                      {value ? flashcardTranslator.t("ui.true") : flashcardTranslator.t("ui.false")}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -546,22 +568,24 @@ export function CardEditPage({
           {/* 问答参考答案 / 提示：轻纸面裸输入，高度自适应 */}
           {cardType === "qa" ? (
             <div className="px-2">
-              <SectionLabel>参考答案</SectionLabel>
+              <SectionLabel>{flashcardTranslator.t("ui.referenceAnswer")}</SectionLabel>
               <AutoGrowTextarea
                 value={answerText}
                 onChange={setAnswerText}
-                placeholder="复习时先自答再对照"
+                placeholder={flashcardTranslator.t("ui.recallYourAnswerBeforeComparing")}
                 className={`${bareInputClass} leading-[1.7]`}
               />
             </div>
           ) : null}
           {cardType === "qa" || cardType === "cloze" ? (
             <div className="px-2">
-              <SectionLabel aux="选填 · 答题前可见">提示</SectionLabel>
+              <SectionLabel aux={flashcardTranslator.t("ui.optionalVisibleBeforeAnswering")}>
+                {flashcardTranslator.t("ui.hint")}
+              </SectionLabel>
               <AutoGrowTextarea
                 value={hintText}
                 onChange={setHintText}
-                placeholder="给作答方向的提示"
+                placeholder={flashcardTranslator.t("ui.aHintForYourResponse")}
                 className={bareInputClass}
               />
             </div>
@@ -569,14 +593,16 @@ export function CardEditPage({
 
           {/* 背面补充（富文本，保留卡片边界） */}
           <div className="shadow-card bg-surface rounded-[22px] p-4">
-            <div className="text-ink-2 mb-1 text-[12px] font-extrabold">背面补充（选填）</div>
+            <div className="text-ink-2 mb-1 text-[12px] font-extrabold">
+              {flashcardTranslator.t("ui.backSideDetailsOptional")}
+            </div>
             <Editor
               kit={getMobileFlashcardKit({ blanks: false })}
               ref={detailEditorRef}
               key={`detail-${cardId}`}
               initValue={detailValue}
               readonly={false}
-              placeHolder="翻面后与答案、解析一起展示"
+              placeHolder={flashcardTranslator.t("ui.shownWithTheAnswerAndExplanation")}
               className={`${editorClass} min-h-[84px] text-[15px] font-semibold`}
               onFocus={() => {
                 activeEditorRef.current = detailEditorRef.current;
@@ -594,20 +620,22 @@ export function CardEditPage({
 
           {/* 解析：轻纸面裸输入 */}
           <div className="px-2">
-            <SectionLabel aux="选填 · 揭示答案时展示">解析</SectionLabel>
+            <SectionLabel aux={flashcardTranslator.t("ui.optionalShownWithTheAnswer")}>
+              {flashcardTranslator.t("ui.explanation")}
+            </SectionLabel>
             <AutoGrowTextarea
               value={explanation}
               onChange={setExplanation}
-              placeholder="帮助建立记忆锚点"
+              placeholder={flashcardTranslator.t("ui.helpConnectTheIdeaToYourMemory")}
               className={bareInputClass}
             />
           </div>
 
           {/* 难度 + 标签 */}
           <div className="px-2">
-            <SectionLabel>难度</SectionLabel>
+            <SectionLabel>{flashcardTranslator.t("ui.difficulty")}</SectionLabel>
             <div className="flex gap-2">
-              {(Object.keys(FLASHCARD_DIFFICULTY_LABEL) as FlashcardDifficulty[]).map(item => (
+              {(Object.keys(FLASHCARD_DIFFICULTY_MESSAGE) as FlashcardDifficulty[]).map(item => (
                 <button
                   key={item}
                   type="button"
@@ -618,14 +646,16 @@ export function CardEditPage({
                       : "border-line-1 text-ink-2"
                   }`}
                 >
-                  {FLASHCARD_DIFFICULTY_LABEL[item]}
+                  {flashcardTranslator.t(FLASHCARD_DIFFICULTY_MESSAGE[item])}
                 </button>
               ))}
             </div>
           </div>
 
           <div className="px-2">
-            <SectionLabel aux="回车添加 · 点 × 删除">标签</SectionLabel>
+            <SectionLabel aux={flashcardTranslator.t("ui.enterToAddToRemove")}>
+              {flashcardTranslator.t("ui.tags")}
+            </SectionLabel>
             {tags.length > 0 ? (
               <div className="flex flex-wrap gap-[7px] pb-1.5">
                 {tags.map((tag, index) => (
@@ -636,7 +666,7 @@ export function CardEditPage({
                     #{tag}
                     <button
                       type="button"
-                      aria-label={`删除标签 ${tag}`}
+                      aria-label={flashcardTranslator.t("tag.remove", { tag: tag })}
                       onClick={() => setTags(prev => prev.filter((_, i) => i !== index))}
                       className="text-ink-2 hover:text-danger grid h-[18px] w-[18px] place-items-center text-[11px]"
                     >
@@ -657,7 +687,7 @@ export function CardEditPage({
                   setTags(prev => prev.slice(0, -1));
                 }
               }}
-              placeholder="输入后按回车，如：期货"
+              placeholder={flashcardTranslator.t("ui.typeAndPressEnterForExampleFinance")}
               className="text-ink-1 placeholder:text-ink-3 input-text w-full bg-transparent px-1 pt-1.5 pb-1 font-semibold outline-none placeholder:font-medium"
             />
           </div>
@@ -672,10 +702,10 @@ export function CardEditPage({
 
       <MobileConfirmDialog
         open={confirmExit}
-        title="放弃编辑"
-        description="内容尚未保存，确定退出吗？"
+        title={flashcardTranslator.t("ui.discardChanges")}
+        description={flashcardTranslator.t("ui.yourChangesHaveNotBeenSavedLeaveAnyway")}
         danger
-        confirmText="放弃"
+        confirmText={flashcardTranslator.t("ui.discard")}
         onCancel={() => setConfirmExit(false)}
         onConfirm={() => {
           // 先关弹窗再返回：等弹窗播完 200ms 退场（MobileConfirmDialog 的固定时长），
@@ -690,6 +720,7 @@ export function CardEditPage({
 
 /** 轻纸面小节标题：品牌短杠 + 标签，右侧可挂操作提示 */
 function SectionLabel({ children, aux }: { children: ReactNode; aux?: string }) {
+  useFlashcardI18n();
   return (
     <div className="text-ink-2 mb-2 flex items-center gap-2 text-[12px] font-extrabold tracking-wide">
       <span className="bg-accent h-3.5 w-1 rounded-sm" />
@@ -711,6 +742,7 @@ function AutoGrowTextarea({
   placeholder?: string;
   className: string;
 }) {
+  useFlashcardI18n();
   const ref = useRef<HTMLTextAreaElement>(null);
   useLayoutEffect(() => {
     const el = ref.current;
@@ -748,6 +780,7 @@ function OptionRow({
   onToggleCorrect: () => void;
   onDelete: () => void;
 }) {
+  useFlashcardI18n();
   const ref = useRef<HTMLTextAreaElement>(null);
   const [expanded, setExpanded] = useState(false);
   const [foldable, setFoldable] = useState(false);
@@ -794,7 +827,9 @@ function OptionRow({
           ref={ref}
           rows={1}
           value={option.label}
-          placeholder={`选项 ${String.fromCharCode(65 + index)}`}
+          placeholder={flashcardTranslator.t("option.number", {
+            number: String.fromCharCode(65 + index),
+          })}
           onChange={event => onLabelChange(event.target.value)}
           onFocus={() => setExpanded(true)}
           className="text-ink-1 placeholder:text-ink-3 input-text w-full resize-none overflow-hidden border-0 bg-transparent p-0 leading-[1.6] font-semibold outline-none placeholder:font-medium"
@@ -817,7 +852,7 @@ function OptionRow({
             }}
             className="text-accent px-0 pt-1.5 text-[11.5px] font-extrabold"
           >
-            ⋯ 展开全文
+            {flashcardTranslator.t("ui.expandFullText")}
           </button>
         ) : null}
       </div>
@@ -836,7 +871,7 @@ function OptionRow({
       {canDelete ? (
         <button
           type="button"
-          aria-label="删除选项"
+          aria-label={flashcardTranslator.t("ui.removeOption")}
           onClick={event => {
             event.stopPropagation();
             onDelete();

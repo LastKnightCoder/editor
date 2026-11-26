@@ -1,6 +1,8 @@
 // 复习统计页：概览 + 复习热力图（P2）+ 近 7 天趋势 + 评分分布。
 // 一次 365 天查询供全部区块复用（趋势/分布取末 7 天切片）；数据来自 flashcard_reviews。
 
+import { weekday } from "./format";
+import { flashcardTranslator, flashcardDisplayContext, useFlashcardI18n } from "./i18n";
 import { useMemo, useRef } from "react";
 import { PageHeader } from "../../components/PageHeader";
 import { useEdgeFade } from "../../hooks/useScrollState";
@@ -14,7 +16,6 @@ import { ReviewHeatmap } from "./ReviewHeatmap";
 import { REVIEW_RATINGS } from "./constants";
 import type { FlashcardReviewRating } from "./types";
 
-const WEEKDAY_LABEL = ["日", "一", "二", "三", "四", "五", "六"];
 /** 热力图 1 年视图需要的最大天数，趋势/分布取末 7 天切片 */
 const STATS_DAYS = 52 * 7;
 
@@ -24,6 +25,7 @@ type FlashcardStatsPageProps = {
 };
 
 export function FlashcardStatsPage({ onBack, onOpenReview }: FlashcardStatsPageProps) {
+  useFlashcardI18n();
   const scrollRef = useRef<HTMLDivElement>(null);
   useEdgeFade(scrollRef);
   const statsQuery = useFlashcardReviewStats(STATS_DAYS);
@@ -47,7 +49,7 @@ export function FlashcardStatsPage({ onBack, onOpenReview }: FlashcardStatsPageP
 
   return (
     <div className="mobile-kb-screen bg-page flex h-full flex-col">
-      <PageHeader title="复习统计" onBack={onBack} />
+      <PageHeader title={flashcardTranslator.t("ui.reviewStatistics")} onBack={onBack} />
       <div ref={scrollRef} className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto">
         <div className="flex flex-col gap-3.5 px-5 pt-2">
           {/* 概览 */}
@@ -56,29 +58,35 @@ export function FlashcardStatsPage({ onBack, onOpenReview }: FlashcardStatsPageP
               <div className="text-accent text-[19px] font-extrabold">
                 {todayReviewedCount(allStats)}
               </div>
-              <div className="text-ink-2 mt-0.5 text-[11px] font-bold">今日已复习</div>
+              <div className="text-ink-2 mt-0.5 text-[11px] font-bold">
+                {flashcardTranslator.t("ui.reviewedToday")}
+              </div>
             </div>
             <div className="bg-surface shadow-card rounded-[20px] p-4">
               <div className="text-ink-1 text-[19px] font-extrabold">{weekTotal}</div>
-              <div className="text-ink-2 mt-0.5 text-[11px] font-bold">近 7 天合计</div>
+              <div className="text-ink-2 mt-0.5 text-[11px] font-bold">
+                {flashcardTranslator.t("ui.totalOver7Days")}
+              </div>
             </div>
           </div>
 
           {/* 复习热力图 */}
           {statsQuery.isLoading ? (
             <div className="bg-surface shadow-card rounded-[20px] p-4">
-              <div className="text-ink-3 py-6 text-center text-[13px] font-semibold">加载中…</div>
+              <div className="text-ink-3 py-6 text-center text-[13px] font-semibold">
+                {flashcardTranslator.t("ui.loading")}
+              </div>
             </div>
           ) : statsQuery.isError ? (
             <div className="bg-surface shadow-card rounded-[20px] p-4">
               <div className="text-danger py-6 text-center text-[13px] font-semibold">
-                加载失败
+                {flashcardTranslator.t("ui.couldNotLoad")}
                 <button
                   type="button"
                   onClick={() => void statsQuery.refetch()}
                   className="text-accent ml-2 font-extrabold"
                 >
-                  重试
+                  {flashcardTranslator.t("ui.retry")}
                 </button>
               </div>
             </div>
@@ -88,7 +96,9 @@ export function FlashcardStatsPage({ onBack, onOpenReview }: FlashcardStatsPageP
 
           {/* 7 天趋势 */}
           <div className="bg-surface shadow-card rounded-[20px] p-4">
-            <div className="text-ink-2 mb-3 text-[12.5px] font-extrabold">近 7 天趋势</div>
+            <div className="text-ink-2 mb-3 text-[12.5px] font-extrabold">
+              {flashcardTranslator.t("ui.last7Days")}
+            </div>
             <div className="flex h-36 items-end gap-2.5">
               {stats.map(day => {
                 const date = new Date(day.dayStart);
@@ -108,7 +118,7 @@ export function FlashcardStatsPage({ onBack, onOpenReview }: FlashcardStatsPageP
                     <span
                       className={`text-[10.5px] font-bold ${isToday ? "text-accent" : "text-ink-3"}`}
                     >
-                      {WEEKDAY_LABEL[date.getDay()]}
+                      {weekday(date, flashcardDisplayContext().locale, "narrow")}
                     </span>
                   </div>
                 );
@@ -118,7 +128,9 @@ export function FlashcardStatsPage({ onBack, onOpenReview }: FlashcardStatsPageP
 
           {/* 评分分布 */}
           <div className="bg-surface shadow-card rounded-[20px] p-4">
-            <div className="text-ink-2 mb-3 text-[12.5px] font-extrabold">近 7 天评分分布</div>
+            <div className="text-ink-2 mb-3 text-[12.5px] font-extrabold">
+              {flashcardTranslator.t("ui.ratingDistributionOver7Days")}
+            </div>
             <div className="flex flex-col gap-2.5">
               {REVIEW_RATINGS.slice()
                 .reverse()
@@ -131,7 +143,7 @@ export function FlashcardStatsPage({ onBack, onOpenReview }: FlashcardStatsPageP
                         className="w-9 flex-none text-[12px] font-extrabold"
                         style={{ color: item.color }}
                       >
-                        {item.label}
+                        {flashcardTranslator.t(item.message)}
                       </span>
                       <div className="bg-page h-[14px] flex-1 overflow-hidden rounded-full">
                         <div

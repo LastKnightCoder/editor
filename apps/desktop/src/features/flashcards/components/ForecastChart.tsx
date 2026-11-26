@@ -1,7 +1,9 @@
+import { weekday } from "../format";
+import { flashcardsTranslator, flashcardsDisplayContext, useFlashcardsI18n } from "../i18n";
 import { cn } from "@tau/ui";
 
-const WEEK = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 export function ForecastChart({ values, now }: { values: number[]; now: number }) {
+  useFlashcardsI18n();
   const max = Math.max(1, ...values);
   return (
     <>
@@ -22,7 +24,9 @@ export function ForecastChart({ values, now }: { values: number[]; now: number }
       <div className="text-ink-3 mt-1.5 grid grid-cols-7 gap-2 text-center text-[10.5px]">
         {values.map((_, i) => (
           <span key={i} className={cn(i === 0 && "text-accent-text font-semibold")}>
-            {i === 0 ? "今" : WEEK[new Date(now + i * 86_400_000).getDay()].slice(1)}
+            {i === 0
+              ? flashcardsTranslator.t("ui.today2")
+              : weekday(now + i * 86_400_000, flashcardsDisplayContext().locale, "narrow")}
           </span>
         ))}
       </div>

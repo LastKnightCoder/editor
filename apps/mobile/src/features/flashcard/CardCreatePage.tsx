@@ -1,5 +1,6 @@
 // 建卡第一步：选卡组 + 选题型（五题型瓷贴），随后进入 flashcardCardEdit。
 
+import { flashcardTranslator, flashcardCount, flashcardErrorText, useFlashcardI18n } from "./i18n";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Paperclip } from "lucide-react";
 import DeckIcon from "@tau/shared/deck-icon";
@@ -37,6 +38,7 @@ export function CardCreatePage({
   onGenerate,
   createDeck,
 }: CardCreatePageProps) {
+  useFlashcardI18n();
   const scrollRef = useRef<HTMLDivElement>(null);
   useEdgeFade(scrollRef);
   const decksQuery = useFlashcardDecks();
@@ -54,14 +56,14 @@ export function CardCreatePage({
 
   return (
     <div className="mobile-kb-screen bg-page flex h-full flex-col">
-      <PageHeader title="新建闪卡" onBack={onBack} />
+      <PageHeader title={flashcardTranslator.t("ui.newFlashcard")} onBack={onBack} />
       {createDeck && (
         <button
           type="button"
           className="text-accent-text px-5 py-3 text-left"
           onClick={() => setCreateOpen(true)}
         >
-          新建卡组
+          {flashcardTranslator.t("ui.newDeck")}
         </button>
       )}
       {createDeck && (
@@ -70,7 +72,7 @@ export function CardCreatePage({
           deck={null}
           onClose={() => setCreateOpen(false)}
           onError={(error, fallback) =>
-            toast.error(error instanceof Error ? error.message : fallback)
+            toast.error(error instanceof Error ? flashcardErrorText(error) : fallback)
           }
           createDeck={async input => {
             const deck = await createDeck(input);
@@ -81,7 +83,9 @@ export function CardCreatePage({
       <div ref={scrollRef} className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto">
         <div className="flex flex-col gap-3.5 px-5 pt-2">
           <div className="bg-surface shadow-card rounded-[20px] p-4">
-            <div className="text-ink-2 mb-2 text-[12.5px] font-extrabold">归属卡组</div>
+            <div className="text-ink-2 mb-2 text-[12.5px] font-extrabold">
+              {flashcardTranslator.t("ui.deck2")}
+            </div>
             <button
               type="button"
               onClick={() => setPickerOpen(true)}
@@ -92,10 +96,10 @@ export function CardCreatePage({
               </span>
               <span className="flex-1">
                 <span className="text-ink-1 block text-[14.5px] font-extrabold">
-                  {deck?.name ?? "选择卡组"}
+                  {deck?.name ?? flashcardTranslator.t("ui.chooseDeck")}
                 </span>
                 <span className="text-ink-2 mt-0.5 block text-[11px] font-semibold">
-                  与桌面端数据互通
+                  {flashcardTranslator.t("ui.sharesDataWithDesktop")}
                 </span>
               </span>
               <span className="text-ink-3">›</span>
@@ -105,16 +109,18 @@ export function CardCreatePage({
           {referenceTitle ? (
             <div className="bg-tag-3-soft text-tag-3 flex items-center gap-2 rounded-[16px] px-4 py-3 text-[12px] font-bold">
               <Paperclip size={14} className="flex-none" />
-              新卡将携带参考资料：「{referenceTitle}」
+              {flashcardTranslator.t("reference.carried", { title: referenceTitle })}
             </div>
           ) : null}
 
           <div className="text-ink-2 mt-1 px-1 text-[12.5px] font-extrabold">
-            {onGenerate ? "AI 制作" : "选择题型"}
+            {onGenerate
+              ? flashcardTranslator.t("ui.createWithAI")
+              : flashcardTranslator.t("ui.chooseQuestionType")}
           </div>
           {decks.length === 0 ? (
             <div className="border-line-1 text-ink-3 rounded-[16px] border-2 border-dashed py-4 text-center text-[13px] font-semibold">
-              还没有卡组，先回闪卡主页创建一个再来建卡
+              {flashcardTranslator.t("ui.createADeckOnTheFlashcardHomePageBeforeAdding")}
             </div>
           ) : null}
           {onGenerate ? (
@@ -124,7 +130,7 @@ export function CardCreatePage({
               onClick={() => onGenerate(deckId)}
               className="bg-accent text-ink-inverse rounded-tau-lg px-4 py-3 font-semibold disabled:opacity-45"
             >
-              用 AI 制作闪卡
+              {flashcardTranslator.t("ui.createFlashcardsWithAI")}
             </button>
           ) : (
             FLASHCARD_TYPE_ORDER.map(type => {
@@ -145,10 +151,10 @@ export function CardCreatePage({
                   </span>
                   <span className="flex-1">
                     <span className="text-ink-1 block text-[15px] font-extrabold">
-                      {FLASHCARD_TYPE_META[type].label}
+                      {flashcardTranslator.t(FLASHCARD_TYPE_META[type].labelKey)}
                     </span>
                     <span className="text-ink-2 mt-0.5 block text-[11.5px] font-semibold">
-                      {FLASHCARD_TYPE_META[type].description}
+                      {flashcardTranslator.t(FLASHCARD_TYPE_META[type].descriptionKey)}
                     </span>
                   </span>
                   <span className="text-ink-3">›</span>
@@ -159,7 +165,11 @@ export function CardCreatePage({
         </div>
       </div>
 
-      <BottomSheet open={pickerOpen} title="选择卡组" onClose={() => setPickerOpen(false)}>
+      <BottomSheet
+        open={pickerOpen}
+        title={flashcardTranslator.t("ui.chooseDeck")}
+        onClose={() => setPickerOpen(false)}
+      >
         <div className="flex flex-col gap-2 px-5 pb-7">
           {decks.map(item => (
             <button
@@ -176,13 +186,13 @@ export function CardCreatePage({
               <DeckIcon emoji={item.emoji} className="text-ink-2 size-5 flex-none text-[20px]" />
               <span className="text-ink-1 flex-1 text-[14.5px] font-extrabold">{item.name}</span>
               <span className="text-ink-3 text-[11.5px] font-semibold">
-                {item.stats?.totalCards ?? 0} 张
+                {flashcardCount("count.cards", item.stats?.totalCards ?? 0)}
               </span>
             </button>
           ))}
           {decks.length === 0 ? (
             <div className="text-ink-3 py-4 text-center text-[13px] font-semibold">
-              还没有卡组，请先回主页创建
+              {flashcardTranslator.t("ui.createADeckOnTheHomePageFirst")}
             </div>
           ) : null}
         </div>

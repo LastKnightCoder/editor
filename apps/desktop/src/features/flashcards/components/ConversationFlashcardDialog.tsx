@@ -1,3 +1,4 @@
+import { flashcardsTranslator, flashcardsCount, useFlashcardsI18n } from "../i18n";
 import { useState, useEffect, useRef } from "react";
 import { useMemoizedFn } from "ahooks";
 import { toast } from "@tau/ui";
@@ -15,6 +16,7 @@ import { importFromMarkdown } from "@/utils/markdown";
 import type { FlashcardDeck, FlashcardReferenceInput } from "@/types";
 
 const ConversationFlashcardModal = () => {
+  useFlashcardsI18n();
   const { isDark } = useTheme();
 
   // Store 状态
@@ -68,7 +70,7 @@ const ConversationFlashcardModal = () => {
   useEffect(() => {
     if (isModalOpen && conversationContent) {
       if (!provider || !model) {
-        toast.error("请先在设置中配置闪卡模型");
+        toast.error(flashcardsTranslator.t("ui.configureAFlashcardModelInSettingsFirst"));
         reset();
         return;
       }
@@ -99,7 +101,7 @@ const ConversationFlashcardModal = () => {
 
     const selectedCards = generatedCards.filter(c => c.selected);
     if (selectedCards.length === 0) {
-      toast.warning("请至少选择一张闪卡");
+      toast.warning(flashcardsTranslator.t("ui.selectAtLeastOneFlashcard"));
       return;
     }
 
@@ -132,10 +134,10 @@ const ConversationFlashcardModal = () => {
       }
 
       if (useSettingStore.getState().setting.database.active !== database) return;
-      toast.success(`成功创建 ${successCount} 张闪卡`);
+      toast.success(flashcardsCount("creation.saved", successCount));
       handleCloseAll();
     } catch (err) {
-      toast.error("创建闪卡失败");
+      toast.error(flashcardsTranslator.t("ui.couldNotCreateFlashcards"));
       console.error(err);
     }
   });
@@ -174,7 +176,7 @@ const ConversationFlashcardModal = () => {
       updateCard(editingCard.id, updates);
       setEditModalOpen(false);
       setEditingCard(null);
-      toast.success("闪卡已更新");
+      toast.success(flashcardsTranslator.t("ui.flashcardUpdated"));
     }
   );
 
@@ -190,8 +192,8 @@ const ConversationFlashcardModal = () => {
         open={deckSelectorOpen}
         onCancel={handleDeckSelectorCancel}
         onSelect={handleDeckSelect}
-        title="选择卡组"
-        subtitle="选择要保存闪卡的卡组"
+        title={flashcardsTranslator.t("ui.chooseDeck")}
+        subtitle={flashcardsTranslator.t("ui.chooseADeckToSaveTheFlashcards")}
       />
 
       {/* 闪卡生成弹窗 */}

@@ -1,3 +1,4 @@
+import { flashcardsTranslator } from "../i18n";
 import type { Flashcard, FlashcardDeck } from "@/types";
 import { Menu, toast } from "@tau/ui";
 import { ArrowRightLeft, Pause, Pencil, Play, Plus, Trash2 } from "lucide-react";
@@ -29,13 +30,13 @@ export const renderDeckMenu = (
       icon={<Pencil className={menuIcon} strokeWidth={1.75} />}
       onSelect={() => onEdit(target)}
     >
-      编辑卡组
+      {flashcardsTranslator.t("ui.editDeck")}
     </Menu.Item>
     <Menu.Item
       icon={<Plus className={menuIcon} strokeWidth={1.75} />}
       onSelect={() => onAddCard(target.id)}
     >
-      在此卡组新建闪卡
+      {flashcardsTranslator.t("ui.createAFlashcardInThisDeck")}
     </Menu.Item>
     <Menu.Separator />
     <Menu.Item
@@ -43,7 +44,7 @@ export const renderDeckMenu = (
       icon={<Trash2 className={menuIcon} strokeWidth={1.75} />}
       onSelect={() => onDelete(target)}
     >
-      删除卡组
+      {flashcardsTranslator.t("ui.deleteDeck")}
     </Menu.Item>
   </>
 );
@@ -58,7 +59,7 @@ export const renderCardMenu = (
       kbd="⏎"
       onSelect={() => onEdit(card)}
     >
-      编辑
+      {flashcardsTranslator.t("ui.edit")}
     </Menu.Item>
     <Menu.Item
       icon={
@@ -71,14 +72,16 @@ export const renderCardMenu = (
       onSelect={() =>
         void mutations
           .setSuspended(card, card.status !== "suspended")
-          .catch(() => toast.error("更新复习状态失败"))
+          .catch(() => toast.error(flashcardsTranslator.t("ui.couldNotUpdateReviewStatus")))
       }
     >
-      {card.status === "suspended" ? "恢复复习" : "暂停复习"}
+      {card.status === "suspended"
+        ? flashcardsTranslator.t("ui.resumeReview")
+        : flashcardsTranslator.t("ui.suspendReview")}
     </Menu.Item>
     {decks.length > 1 && (
       <Menu.Submenu
-        label="移动到卡组"
+        label={flashcardsTranslator.t("ui.moveToDeck")}
         icon={<ArrowRightLeft className={menuIcon} strokeWidth={1.75} />}
       >
         {decks
@@ -91,17 +94,17 @@ export const renderCardMenu = (
                 const from = card.deckId;
                 try {
                   await mutations.moveToDeck(card, d.id);
-                  toast.success(`已移到「${d.name}」`, {
+                  toast.success(flashcardsTranslator.t("deck.moved", { name: d.name }), {
                     action: {
-                      label: "撤销",
+                      label: flashcardsTranslator.t("ui.undo"),
                       onClick: () =>
                         void mutations
                           .moveToDeck({ ...card, deckId: d.id }, from)
-                          .catch(() => toast.error("撤销移动失败")),
+                          .catch(() => toast.error(flashcardsTranslator.t("ui.couldNotUndoMove"))),
                     },
                   });
                 } catch {
-                  toast.error("移动失败");
+                  toast.error(flashcardsTranslator.t("ui.couldNotMove"));
                 }
               }}
             >
@@ -116,7 +119,7 @@ export const renderCardMenu = (
       icon={<Trash2 className={menuIcon} strokeWidth={1.75} />}
       onSelect={() => onDelete(card)}
     >
-      删除
+      {flashcardsTranslator.t("ui.delete")}
     </Menu.Item>
   </>
 );

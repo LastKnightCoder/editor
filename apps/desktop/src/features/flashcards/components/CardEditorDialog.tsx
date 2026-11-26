@@ -7,6 +7,7 @@
  * 富文本编辑与参考资料编辑复用 components/FlashcardEditor 的子组件（与 AI 生成弹窗共用）。
  */
 
+import { flashcardsTranslator, flashcardsErrorText, useFlashcardsI18n } from "../i18n";
 import useTheme from "@/hooks/useTheme";
 import type {
   Flashcard,
@@ -59,6 +60,7 @@ export function CardEditorDialog({
   initialPrompt?: Descendant[];
   onCreated?(card: Flashcard): void;
 }) {
+  useFlashcardsI18n();
   const { isDark } = useTheme();
   const [form, setForm] = useState<FormState | null>(null);
   // 富文本编辑器的 initValue 只在挂载时生效：换卡 / 连续新建时递增 key 重建
@@ -107,7 +109,7 @@ export function CardEditorDialog({
     if (!form || saving) return;
     const error = validate(form);
     if (error) {
-      toast.warning(error);
+      toast.warning(flashcardsErrorText(error));
       return;
     }
     const data =
@@ -129,25 +131,25 @@ export function CardEditorDialog({
     try {
       if (card) {
         await mutations.updateCard({ ...payload, id: card.id, deckId: form.deckId });
-        toast.success("已保存修改");
+        toast.success(flashcardsTranslator.t("ui.changesSaved"));
         onClose();
       } else {
         const created = await mutations.createCard({ ...payload, deckId: form.deckId });
         onCreated?.(created);
         if (continueNext) {
-          toast.success("已保存，继续新建下一张");
+          toast.success(flashcardsTranslator.t("ui.savedReadyForTheNextCard"));
           setForm({
             ...emptyForm(form.deckId, form.type),
             references: (initialReferences ?? []).map(createFormReference),
           });
           setRevision(r => r + 1);
         } else {
-          toast.success("已新建闪卡");
+          toast.success(flashcardsTranslator.t("ui.flashcardCreated"));
           onClose();
         }
       }
     } catch {
-      toast.error("保存失败");
+      toast.error(flashcardsTranslator.t("ui.couldNotSave"));
     } finally {
       setSaving(false);
     }
@@ -159,10 +161,16 @@ export function CardEditorDialog({
     <Dialog
       open={open && form !== null}
       onOpenChange={next => !next && onClose()}
-      title={card ? "编辑闪卡" : "新建闪卡"}
+      title={
+        card
+          ? flashcardsTranslator.t("ui.editFlashcard")
+          : flashcardsTranslator.t("ui.newFlashcard")
+      }
       icon={<CreditCard />}
       subtitle={
-        card ? `${deck?.name ?? ""} · 修改内容不影响复习进度` : `${MOD}↵ 保存 · ${MOD}⇧↵ 保存并新建`
+        card
+          ? flashcardsTranslator.t("editor.subtitle", { deck: deck?.name ?? "" })
+          : flashcardsTranslator.t("editor.shortcuts", { mod: MOD })
       }
       width={880}
       locked={saving}
@@ -177,7 +185,11 @@ export function CardEditorDialog({
           {card && (
             <Menu
               trigger={
-                <IconButton aria-label="更多操作" title="更多操作" className="mr-auto">
+                <IconButton
+                  aria-label={flashcardsTranslator.t("ui.moreActions")}
+                  title={flashcardsTranslator.t("ui.moreActions")}
+                  className="mr-auto"
+                >
                   <MoreHorizontal size={16} strokeWidth={1.75} />
                 </IconButton>
               }
@@ -195,17 +207,21 @@ export function CardEditorDialog({
                   try {
                     await mutations.setSuspended(card, card.status !== "suspended");
                     toast.success(
-                      card.status === "suspended" ? "已恢复复习" : "已暂停，不再进入复习"
+                      card.status === "suspended"
+                        ? flashcardsTranslator.t("ui.reviewResumed")
+                        : flashcardsTranslator.t("ui.suspendedAndRemovedFromReview")
                     );
                     onClose();
                   } catch {
-                    toast.error("更新复习状态失败");
+                    toast.error(flashcardsTranslator.t("ui.couldNotUpdateReviewStatus"));
                   } finally {
                     setSaving(false);
                   }
                 }}
               >
-                {card.status === "suspended" ? "恢复复习" : "暂停复习"}
+                {card.status === "suspended"
+                  ? flashcardsTranslator.t("ui.resumeReview")
+                  : flashcardsTranslator.t("ui.suspendReview")}
               </Menu.Item>
               <Menu.Separator />
               <Menu.Item
@@ -216,25 +232,25 @@ export function CardEditorDialog({
                   onDelete(card);
                 }}
               >
-                删除闪卡
+                {flashcardsTranslator.t("ui.deleteFlashcard")}
               </Menu.Item>
             </Menu>
           )}
           <Button variant="secondary" onClick={onClose} disabled={saving}>
-            取消
+            {flashcardsTranslator.t("ui.cancel")}
           </Button>
           {!card && (
             <Button variant="soft" onClick={() => void save(true)} disabled={saving}>
-              保存并新建
+              {flashcardsTranslator.t("ui.saveAndCreateAnother")}
             </Button>
           )}
           <Button
             variant="primary"
             onClick={() => void save(false)}
             loading={saving}
-            loadingText="保存中…"
+            loadingText={flashcardsTranslator.t("ui.saving")}
           >
-            保存
+            {flashcardsTranslator.t("ui.save")}
           </Button>
         </>
       }

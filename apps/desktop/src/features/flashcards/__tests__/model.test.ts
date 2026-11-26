@@ -1,11 +1,12 @@
+import { createI18nRuntime, createLocaleStore } from "@tau/i18n";
+import { flashcardsMessages } from "../i18n";
+import { dueText, formatSpan } from "../format";
 import type { Flashcard } from "@/types";
-import { describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it } from "vitest";
 import {
   DAY_MS,
   HOUR_MS,
   deckStats,
-  dueText,
-  formatSpan,
   judgeAnswer,
   nextInterval,
   resumedStatus,
@@ -14,6 +15,10 @@ import {
   sectionOf,
   suggestRating,
 } from "../model";
+
+const runtime = createI18nRuntime({ localeSource: createLocaleStore("zh-CN") });
+const context = { locale: "zh-CN", t: runtime.get(flashcardsMessages).t };
+afterAll(() => runtime.dispose());
 
 const NOW = new Date(2026, 8, 24, 14, 20).getTime();
 
@@ -76,10 +81,10 @@ describe("排期预估（与主进程 calculateSchedule 同式，FSRS-6）", () 
   });
 
   it("间隔文案", () => {
-    expect(formatSpan(6 * 60_000)).toBe("6 分钟");
-    expect(formatSpan(15 * HOUR_MS)).toBe("15 小时");
-    expect(formatSpan(5 * DAY_MS)).toBe("5 天");
-    expect(formatSpan(78 * DAY_MS)).toBe("3 个月");
+    expect(formatSpan(6 * 60_000, context)).toBe("6 分钟");
+    expect(formatSpan(15 * HOUR_MS, context)).toBe("15 小时");
+    expect(formatSpan(5 * DAY_MS, context)).toBe("5 天");
+    expect(formatSpan(78 * DAY_MS, context)).toBe("3 个月");
   });
 });
 
@@ -95,12 +100,14 @@ describe("队列与分段", () => {
   });
 
   it("到期文案与分段", () => {
-    expect(dueText(card({ dueTime: NOW - 2 * DAY_MS, status: "review" }), NOW)).toEqual({
+    expect(dueText(card({ dueTime: NOW - 2 * DAY_MS, status: "review" }), NOW, context)).toEqual({
       text: "逾期 2 天",
       tone: "late",
     });
-    expect(dueText(card({ dueTime: NOW - HOUR_MS, status: "review" }), NOW).text).toBe("现在");
-    expect(dueText(card({ dueTime: NOW + 2 * HOUR_MS, status: "review" }), NOW).text).toBe(
+    expect(dueText(card({ dueTime: NOW - HOUR_MS, status: "review" }), NOW, context).text).toBe(
+      "现在"
+    );
+    expect(dueText(card({ dueTime: NOW + 2 * HOUR_MS, status: "review" }), NOW, context).text).toBe(
       "今天 16:20"
     );
     expect(sectionOf(card({ dueTime: NOW + 2 * HOUR_MS, status: "review" }), NOW)).toBe("today");

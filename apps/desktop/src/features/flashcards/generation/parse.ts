@@ -1,3 +1,4 @@
+import { FlashcardsError } from "../errors";
 import type { Descendant } from "slate";
 import type { GeneratedFlashcard } from "../hooks/useFlashcardGeneration";
 import { textToDescendants, parseTextWithBlanks } from "@/utils/flashcard";
@@ -36,11 +37,12 @@ export const parseFlashcardResponse = (jsonStr: string): GeneratedFlashcard[] =>
   const parsed = JSON.parse(cleaned);
 
   if (!Array.isArray(parsed)) {
-    throw new Error("闪卡结果必须是数组");
+    throw new FlashcardsError("闪卡结果必须是数组", "ui.flashcardResultMustBeAnArray");
   }
 
   return parsed.map(card => {
-    if (!card || typeof card !== "object") throw new Error("闪卡结果格式无效");
+    if (!card || typeof card !== "object")
+      throw new FlashcardsError("闪卡结果格式无效", "ui.invalidFlashcardResultFormat");
     let promptDescendants: Descendant[];
     if (typeof card.prompt === "string") {
       if (card.type === "cloze") {

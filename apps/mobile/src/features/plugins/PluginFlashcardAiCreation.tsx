@@ -1,3 +1,5 @@
+import { usePluginFlashcardAiI18n } from "./PluginFlashcardAiCreation.i18n";
+import { flashcardTranslator } from "../flashcard/i18n";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Node, type Descendant } from "slate";
@@ -22,6 +24,7 @@ export function PluginFlashcardAiCreation({
   onBack(): void;
   onCompleted(): void;
 }) {
+  const { t, locale } = usePluginFlashcardAiI18n();
   const [source, setSource] = useState(() => mobileMarkdown.getMarkdown(content));
   const [drafts, setDrafts] = useState<PluginFlashcardDraft[]>([]);
   const [editing, setEditing] = useState<number | null>(null);
@@ -57,24 +60,22 @@ export function PluginFlashcardAiCreation({
   }
   return (
     <div className="mobile-kb-screen bg-page flex h-full flex-col">
-      <PageHeader title="AI 制作闪卡" onBack={onBack} />
+      <PageHeader title={t("title")} onBack={onBack} />
       <div className="mobile-page-scroll min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-3">
         {!drafts.length ? (
           <>
             <label className="text-ink-2 text-tau-body block space-y-2 font-semibold">
-              <span>制卡资料</span>
+              <span>{t("source")}</span>
               <textarea
-                aria-label="制卡资料"
+                aria-label={t("source")}
                 value={source}
                 disabled={generation.isPending}
                 onChange={event => setSource(event.target.value)}
-                placeholder="粘贴需要学习的资料，AI 将生成题目、答案与解析"
+                placeholder={t("placeholder")}
                 className="bg-surface text-ink-1 border-line-1 rounded-tau-lg min-h-60 w-full border p-4 outline-none"
               />
             </label>
-            <p className="text-ink-3 text-tau-sm">
-              使用「AI 模型」中为「闪卡」分配的模型。生成后可逐张编辑保存。
-            </p>
+            <p className="text-ink-3 text-tau-sm">{t("hint")}</p>
             {generation.error && (
               <p role="alert" className="text-danger text-tau-sm">
                 {generation.error.message}
@@ -86,18 +87,21 @@ export function PluginFlashcardAiCreation({
               onClick={() => generation.mutate()}
               className="bg-accent text-ink-inverse rounded-tau-lg w-full px-4 py-3 font-semibold disabled:opacity-45"
             >
-              {generation.isPending ? "正在生成…" : "生成闪卡"}
+              {t(generation.isPending ? "generating" : "generate")}
             </button>
             {generation.isPending && (
               <button type="button" className="text-ink-2 w-full py-3" onClick={onBack}>
-                取消生成
+                {t("cancel")}
               </button>
             )}
           </>
         ) : (
           <>
             <p role="status" className="text-ink-2 text-tau-body">
-              已生成 {drafts.length} 张，已保存 {saved.length} 张。点按草稿审阅并保存。
+              {t("summary", {
+                generated: drafts.length.toLocaleString(locale),
+                saved: saved.length.toLocaleString(locale),
+              })}
             </p>
             {drafts.map((draft, index) => (
               <button
@@ -108,8 +112,8 @@ export function PluginFlashcardAiCreation({
                 className="bg-surface shadow-card rounded-tau-lg block w-full space-y-2 p-4 text-left disabled:opacity-45"
               >
                 <span className="text-accent-text text-tau-sm block">
-                  {FLASHCARD_TYPE_META[draft.type].label} ·{" "}
-                  {saved.includes(index) ? "已保存" : "编辑并保存"}
+                  {flashcardTranslator.t(FLASHCARD_TYPE_META[draft.type].labelKey)} ·{" "}
+                  {t(saved.includes(index) ? "saved" : "editSave")}
                 </span>
                 <span className="text-ink-1 text-tau-body block whitespace-pre-wrap">
                   {draft.prompt.map(node => Node.string(node)).join("\n")}
@@ -124,7 +128,7 @@ export function PluginFlashcardAiCreation({
               }}
               className="bg-accent text-ink-inverse rounded-tau-lg w-full px-4 py-3 font-semibold"
             >
-              完成
+              {t("done")}
             </button>
           </>
         )}
