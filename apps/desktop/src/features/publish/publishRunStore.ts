@@ -1,3 +1,4 @@
+import { executionTranslator, publishRunErrorText } from "./execution.binding";
 /** 发布运行态与进度订阅由壳层持有，离开发布页后继续运行。 */
 
 import { create } from "zustand";
@@ -21,7 +22,7 @@ export type RunState =
       targetDir: string;
       imageWarnings: PublishImageWarning[];
     }
-  | { kind: "error"; message: string };
+  | { kind: "error"; message: string; issue?: "template-required" };
 
 export interface PublishRunParams {
   active: EPublishProvider;
@@ -41,6 +42,8 @@ interface PublishRunStore {
   reset: () => void;
 }
 
+class MissingPublishTemplateError extends Error {}
+
 /** 最近一次发布参数：失败通知的「重试」按原参数重跑 */
 let lastParams: PublishRunParams | null = null;
 
@@ -55,7 +58,8 @@ export const usePublishRunStore = create<PublishRunStore>()((set, get) => ({
     set({ run: { kind: "running", startedAt, progress: null } });
     let next: RunState;
     try {
-      if (!publish.site.templateId) throw new Error("请先在站点设置中选择模板插件");
+      if (!publish.site.templateId)
+        throw new MissingPublishTemplateError("请先在站点设置中选择模板插件");
       if (active === EPublishProvider.Local) {
         const result = await exportPublishOutput({
           targetDir,
@@ -83,7 +87,13 @@ export const usePublishRunStore = create<PublishRunStore>()((set, get) => ({
         next = { kind: "done", finishedAt, duration: finishedAt - startedAt, result };
       }
     } catch (error) {
-      next = { kind: "error", message: error instanceof Error ? error.message : String(error) };
+      next = {
+        kind: "error",
+        message: error instanceof Error ? error.message : String(error),
+        ...(error instanceof MissingPublishTemplateError
+          ? { issue: "template-required" as const }
+          : {}),
+      };
     }
     set(s => ({ run: next, finishSeq: s.finishSeq + 1 }));
     notifyFinished(next);
@@ -100,13 +110,14 @@ const NOTICE_ID = "publish-run";
  * 连续发布只留最新一条；失败类常驻并可重试，成功类按默认时长自动关。
  */
 function notifyFinished(run: RunState) {
+  const { t } = executionTranslator;
   const view: AppNotifyAction = {
-    label: "查看详情",
+    label: t("notice.view"),
     reveal: true,
     onClick: () => openPage("publish"),
   };
   const retry: AppNotifyAction = {
-    label: "重试",
+    label: t("notice.retry"),
     primary: true,
     onClick: () => {
       if (lastParams) void usePublishRunStore.getState().start(lastParams);
@@ -120,9 +131,11 @@ function notifyFinished(run: RunState) {
     if (failed.length === 0) {
       appNotify({
         id: NOTICE_ID,
-        title: imageCount ? "站点已发布，存在图片缺失" : "站点已发布",
-        body: `${uploaded.length} 个文件已上传 · 用时 ${seconds(run.duration)} 秒${imageCount ? `；${imageCount} 处图片未能发布，请查看详情` : ""}`,
-        source: "发布",
+        title: imageCount ? t("notice.publishedWithImages") : t("notice.published"),
+        body:
+          t("notice.uploaded", { count: uploaded.length, seconds: seconds(run.duration) }) +
+          (imageCount ? t("notice.imageSuffix", { count: imageCount }) : ""),
+        source: t("notice.source"),
         tone: imageCount ? "neutral" : "ok",
         sticky: imageCount > 0,
         actions: [view],
@@ -130,9 +143,9 @@ function notifyFinished(run: RunState) {
     } else {
       appNotify({
         id: NOTICE_ID,
-        title: "发布完成，部分文件失败",
-        body: `${failed.length} 个文件上传失败，其余 ${uploaded.length} 个已上传`,
-        source: "发布",
+        title: t("notice.partial"),
+        body: t("notice.failedFiles", { failed: failed.length, uploaded: uploaded.length }),
+        source: t("notice.source"),
         tone: "danger",
         sticky: true,
         actions: [view, retry],
@@ -142,11 +155,11 @@ function notifyFinished(run: RunState) {
     const imageCount = run.imageWarnings.length;
     appNotify({
       id: NOTICE_ID,
-      title: imageCount ? "静态站点已导出，存在图片缺失" : "静态站点已导出",
+      title: imageCount ? t("notice.exportedWithImages") : t("result.exported"),
       body: imageCount
-        ? `${run.targetDir}；${imageCount} 处图片未能导出，请查看详情`
+        ? t("notice.exportedImages", { path: run.targetDir, count: imageCount })
         : run.targetDir,
-      source: "发布",
+      source: t("notice.source"),
       tone: imageCount ? "neutral" : "ok",
       sticky: imageCount > 0,
       actions: [view],
@@ -154,9 +167,9 @@ function notifyFinished(run: RunState) {
   } else if (run.kind === "error") {
     appNotify({
       id: NOTICE_ID,
-      title: "发布失败",
-      body: run.message,
-      source: "发布",
+      title: t("notice.failed"),
+      body: publishRunErrorText(run),
+      source: t("notice.source"),
       tone: "danger",
       sticky: true,
       actions: [view, retry],

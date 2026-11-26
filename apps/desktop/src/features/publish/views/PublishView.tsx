@@ -1,4 +1,4 @@
-import { useDesktopLocale } from "@/app/i18n/react";
+import { usePublishExecutionI18n } from "../execution.i18n";
 /**
  * 发布页（从设置弹窗抽出的独立页面），外壳为一整张纸（同 MCP / 协作页）。
  *
@@ -27,7 +27,7 @@ function targetChip(config: PublishConfig) {
 }
 
 export function PublishView() {
-  const locale = useDesktopLocale();
+  const { t, locale } = usePublishExecutionI18n();
   const config = usePublishConfig();
   const runner = usePublishRun(config);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -72,7 +72,7 @@ export function PublishView() {
           </span>
           <div className="min-w-0">
             <h1 className="text-tau-title-lg truncate font-semibold tracking-[-0.01em]">
-              {publish.site.title.trim() || "未命名站点"}
+              {publish.site.title.trim() || t("site.unnamed")}
             </h1>
             <div className="text-tau-sm text-ink-3 mt-0.5 flex flex-wrap items-center gap-2.5">
               {siteUrl && !isLocal && (
@@ -91,12 +91,12 @@ export function PublishView() {
                 )}
               >
                 <i className={clsx("size-1.5 rounded-full", chip ? "bg-ok" : "bg-warn")} />
-                {chip ?? "尚未配置发布目标"}
+                {chip ?? t("site.noTarget")}
               </span>
               <span>
                 {runner.lastPublishedAt
-                  ? `上次发布 ${formatAgo(runner.lastPublishedAt, locale)}`
-                  : "从未发布"}
+                  ? t("site.lastPublished", { time: formatAgo(runner.lastPublishedAt, locale) })
+                  : t("site.never")}
               </span>
             </div>
           </div>

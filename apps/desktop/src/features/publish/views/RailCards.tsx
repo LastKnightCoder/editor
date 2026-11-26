@@ -1,4 +1,5 @@
-import { useDesktopLocale } from "@/app/i18n/react";
+import { usePublishExecutionI18n } from "../execution.i18n";
+import { publishRunErrorText } from "../execution.binding";
 /** 发布计划、执行反馈及站点摘要共用同一份提供方配置。 */
 
 import clsx from "clsx";
@@ -28,36 +29,39 @@ export function GuideCard({
   selectionCount: number;
   onOpenSettings: () => void;
 }) {
+  const { t } = usePublishExecutionI18n();
   const isLocal = config.active === EPublishProvider.Local;
-  const credentialLabel = "安装、启用并配置发布插件";
+  const credentialLabel = t("guide.configure");
   const steps = [
     ...(isLocal
       ? []
       : [
           {
+            id: "configure",
             label: credentialLabel,
             done: config.credentialReady,
-            action: { text: "去配置", run: onOpenSettings },
+            action: { text: t("guide.configureAction"), run: onOpenSettings },
           },
         ]),
     {
-      label: "选择发布目标与模板",
+      id: "target",
+      label: t("guide.target"),
       done: config.targetReady && config.templateReady,
-      action: { text: "去设置", run: onOpenSettings },
+      action: { text: t("guide.settingsAction"), run: onOpenSettings },
     },
-    { label: "在左侧勾选要公开的内容", done: selectionCount > 0 },
+    { id: "select", label: t("guide.select"), done: selectionCount > 0 },
   ];
 
   return (
     <RailSection>
-      <PanelTitle>开始之前</PanelTitle>
+      <PanelTitle>{t("guide.title")}</PanelTitle>
       <div className="text-tau-sm text-ink-3 mt-0.5">
-        {steps.length} 步完成首次发布，之后只需勾选内容再点发布。
+        {t("guide.hint", { count: steps.length })}
       </div>
       <ol className="mt-3 flex flex-col gap-2">
         {steps.map((step, i) => (
           <li
-            key={step.label}
+            key={step.id}
             className={clsx(
               "text-tau-meta flex items-center gap-2.5 rounded-[10px] px-3 py-2.5",
               step.done ? "bg-ok-soft" : "border-line-1 border"
@@ -93,13 +97,14 @@ export function GuideCard({
 const FILE_PREVIEW_LIMIT = 6;
 
 function ImageWarnings({ warnings = [] }: { warnings?: PublishImageWarning[] }) {
+  const { t } = usePublishExecutionI18n();
   if (!warnings.length) return null;
   return (
     <details className="bg-warn-soft rounded-tau-sm mt-3 p-3">
       <summary className="text-tau-sm text-warn cursor-pointer font-medium">
-        {warnings.length} 处图片无法发布
+        {t("images.count", { count: warnings.length })}
       </summary>
-      <p className="text-tau-sm text-ink-2 mt-2">不影响继续发布，你可以稍后修复这些图片。</p>
+      <p className="text-tau-sm text-ink-2 mt-2">{t("images.hint")}</p>
       <ul className="text-tau-sm mt-2 flex max-h-64 flex-col gap-3 overflow-auto">
         {warnings.map(warning => (
           <li key={JSON.stringify([warning.content.key, warning.url])} className="min-w-0">
@@ -126,6 +131,7 @@ function PlanRow({
   files: string[];
   muted?: boolean;
 }) {
+  const { t } = usePublishExecutionI18n();
   const [open, setOpen] = useState(false);
   const expandable = files.length > 0;
   return (
@@ -169,7 +175,7 @@ function PlanRow({
           ))}
           {files.length > FILE_PREVIEW_LIMIT && (
             <div className="text-ink-3 font-tau">
-              … 另外 {files.length - FILE_PREVIEW_LIMIT} 个文件
+              {t("plan.more", { count: files.length - FILE_PREVIEW_LIMIT })}
             </div>
           )}
         </div>
@@ -191,23 +197,23 @@ export function PlanCard({
   isLocal: boolean;
   onRefresh: () => void;
 }) {
-  const locale = useDesktopLocale();
+  const { t, locale } = usePublishExecutionI18n();
   const upload = plan?.upload.length ?? 0;
   const remove = isLocal ? 0 : (plan?.remove.length ?? 0);
 
   return (
     <RailSection>
       <PanelTitle>
-        本次发布
-        <PanelNote>{isLocal ? "全量生成静态站点" : "全量生成并推送"}</PanelNote>
+        {t("plan.title")}
+        <PanelNote>{isLocal ? t("plan.export") : t("plan.publish")}</PanelNote>
         <PanelAction onClick={onRefresh} disabled={loading}>
           <RotateCw size={12} strokeWidth={2} className={clsx("mr-1", loading && "animate-spin")} />
-          {loading ? "计算中" : "重新计算"}
+          {loading ? t("plan.calculating") : t("plan.refresh")}
         </PanelAction>
       </PanelTitle>
 
       {stale && !loading && (
-        <div className="text-tau-micro text-warn mt-1.5">内容已变动，点「重新计算」刷新计划</div>
+        <div className="text-tau-micro text-warn mt-1.5">{t("plan.stale")}</div>
       )}
 
       {/* 比例条：上传 accent / 删除 danger，空计划为纯轨道 */}
@@ -220,13 +226,13 @@ export function PlanCard({
         <div className="flex flex-col gap-0.5">
           <PlanRow
             color="bg-accent"
-            label={isLocal ? "生成文件" : "上传文件"}
+            label={isLocal ? t("plan.generate") : t("plan.upload")}
             files={plan.upload}
           />
           {!isLocal && (
             <PlanRow
               color="bg-danger"
-              label="删除（已取消勾选）"
+              label={t("plan.delete")}
               files={plan.remove}
               muted={remove === 0}
             />
@@ -234,12 +240,12 @@ export function PlanCard({
         </div>
       ) : (
         <div className="text-tau-sm text-ink-3 px-1.5">
-          {loading ? "正在按当前勾选生成文件清单…" : "暂无计划"}
+          {loading ? t("plan.loading") : t("plan.empty")}
         </div>
       )}
       {plan && (
         <div className="text-tau-tiny text-ink-3 mt-2 px-1.5">
-          {formatAgo(plan.computedAt, locale)}计算
+          {t("plan.calculated", { time: formatAgo(plan.computedAt, locale) })}
         </div>
       )}
       <ImageWarnings warnings={plan?.imageWarnings} />
@@ -249,16 +255,17 @@ export function PlanCard({
 
 /* ─────────────── 发布动作 ─────────────── */
 
-const PHASES: { key: IPublishProgress["phase"]; label: string }[] = [
-  { key: "preparing", label: "准备" },
-  { key: "uploading", label: "生成" },
-  { key: "pushing", label: "推送" },
-  { key: "deleting", label: "清理" },
-  { key: "finishing", label: "完成" },
+const PHASES: IPublishProgress["phase"][] = [
+  "preparing",
+  "uploading",
+  "pushing",
+  "deleting",
+  "finishing",
 ];
 
 function Steps({ phase }: { phase: IPublishProgress["phase"] | null }) {
-  const current = phase ? PHASES.findIndex(p => p.key === phase) : 0;
+  const { t } = usePublishExecutionI18n();
+  const current = phase ? PHASES.indexOf(phase) : 0;
   return (
     <div className="mt-4 mb-3 flex">
       {PHASES.map((p, i) => {
@@ -266,7 +273,7 @@ function Steps({ phase }: { phase: IPublishProgress["phase"] | null }) {
         const cur = i === current;
         return (
           <div
-            key={p.key}
+            key={p}
             className={clsx(
               "relative flex flex-1 flex-col items-center gap-1.5 text-[11px]",
               done ? "text-ink-2" : cur ? "text-accent-text font-medium" : "text-ink-3"
@@ -288,7 +295,7 @@ function Steps({ phase }: { phase: IPublishProgress["phase"] | null }) {
                 !done && !cur && "bg-track"
               )}
             />
-            {p.label}
+            {t(`phase.${p}`)}
           </div>
         );
       })}
@@ -297,10 +304,6 @@ function Steps({ phase }: { phase: IPublishProgress["phase"] | null }) {
 }
 
 const BIG = "mt-3.5 h-10 w-full justify-center rounded-[11px] text-[14px]";
-
-function targetHint(config: PublishConfig) {
-  return config.active === EPublishProvider.Local ? "点击后选择输出文件夹" : config.providerLabel;
-}
 
 export function ActionCard({
   config,
@@ -319,10 +322,11 @@ export function ActionCard({
   onOpenSettings: () => void;
   onVisit?: () => void;
 }) {
-  const locale = useDesktopLocale();
+  const { t, locale } = usePublishExecutionI18n();
   const isLocal = config.active === EPublishProvider.Local;
-  const verb = isLocal ? "导出" : "发布";
-  const hint = targetHint(config);
+  const mode = isLocal ? "export" : "publish";
+  const verb = t(`action.${mode}`);
+  const hint = isLocal ? t("target.chooseDirectory") : config.providerLabel;
 
   if (run.kind === "running") {
     const { progress } = run;
@@ -333,7 +337,7 @@ export function ActionCard({
     return (
       <RailSection>
         <PanelTitle>
-          正在{verb}
+          {t(`action.${mode}.running`)}
           <PanelNote className="truncate">{hint}</PanelNote>
         </PanelTitle>
         <Steps phase={progress?.phase ?? null} />
@@ -350,8 +354,8 @@ export function ActionCard({
         <div className="text-tau-micro text-ink-3 mt-2 flex justify-between gap-3">
           <span className="font-tau-mono text-ink-2 truncate">
             {pushing
-              ? `推送 ${progress.total} 个文件`
-              : (progress?.currentFile ?? (progress ? "" : "正在准备模板…"))}
+              ? t("progress.pushing", { count: progress.total })
+              : (progress?.currentFile ?? (progress ? "" : t("progress.preparing")))}
           </span>
           {!pushing && progress && progress.total > 0 && (
             <span className="font-tau-mono flex-none">
@@ -359,7 +363,7 @@ export function ActionCard({
             </span>
           )}
         </div>
-        <div className="text-tau-tiny text-ink-3 mt-3">发布进行中，完成前请勿关闭应用</div>
+        <div className="text-tau-tiny text-ink-3 mt-3">{t("progress.keepOpen")}</div>
       </RailSection>
     );
   }
@@ -381,34 +385,37 @@ export function ActionCard({
       tone = result.success && failures.length === 0 && !imageWarnings?.length ? "ok" : "warn";
       title =
         failures.length === 0
-          ? `${result.uploaded.length} 个文件已上传`
-          : `${result.uploaded.length} 个上传成功，${failures.length} 个失败`;
+          ? t("result.uploaded", { count: result.uploaded.length })
+          : t("result.partial", { uploaded: result.uploaded.length, failed: failures.length });
       desc = [
-        result.deleted.length > 0 && `${result.deleted.length} 个旧文件已删除`,
-        result.skipped.length > 0 && `${result.skipped.length} 个跳过`,
+        result.deleted.length > 0 && t("result.deleted", { count: result.deleted.length }),
+        result.skipped.length > 0 && t("result.skipped", { count: result.skipped.length }),
       ]
         .filter(Boolean)
-        .join("，");
+        .join(t("result.separator"));
     } else if (run.kind === "exported") {
       if (imageWarnings?.length) tone = "warn";
-      title = "静态站点已导出";
+      title = t("result.exported");
       desc = <span className="font-tau-mono break-all">{run.targetDir}</span>;
     } else {
       tone = "danger";
-      title = `${verb}失败`;
-      desc = run.message;
+      title = t(`action.${mode}.failed`);
+      desc = publishRunErrorText(run);
     }
 
     return (
       <RailSection>
         <PanelTitle>
-          {run.kind === "error" ? `${verb}未完成` : `${verb}完成`}
+          {run.kind === "error" ? t(`action.${mode}.incomplete`) : t(`action.${mode}.done`)}
           {run.kind !== "error" && (
             <PanelNote>
-              {formatAgo(run.finishedAt, locale)} · 用时 {formatDuration(run.duration)}
+              {t("result.timing", {
+                time: formatAgo(run.finishedAt, locale),
+                duration: formatDuration(run.duration, t),
+              })}
             </PanelNote>
           )}
-          <PanelAction onClick={onReset}>收起</PanelAction>
+          <PanelAction onClick={onReset}>{t("result.collapse")}</PanelAction>
         </PanelTitle>
         <div
           className={clsx(
@@ -457,7 +464,7 @@ export function ActionCard({
             disabled={!canPublish}
             onClick={onPublish}
           >
-            重新{verb}
+            {t(`action.${mode}.retry`)}
           </Button>
           {onVisit && !isLocal && (
             <Button
@@ -467,7 +474,7 @@ export function ActionCard({
               className="flex-1 justify-center"
               onClick={onVisit}
             >
-              访问站点
+              {t("visit")}
             </Button>
           )}
         </div>
@@ -477,7 +484,9 @@ export function ActionCard({
 
   return (
     <RailSection>
-      <PanelTitle>{isLocal ? "导出到本地文件夹" : `发布到 ${config.providerLabel}`}</PanelTitle>
+      <PanelTitle>
+        {isLocal ? t("target.local") : t("target.remote", { provider: config.providerLabel })}
+      </PanelTitle>
       <div className="text-tau-sm text-ink-3 mt-0.5 truncate">{hint}</div>
       <Button
         variant="primary"
@@ -489,14 +498,14 @@ export function ActionCard({
         {verb}
       </Button>
       <div className="text-tau-micro text-ink-3 mt-2.5 flex items-center justify-between">
-        <span>{isLocal ? "生成完整静态站点，自行部署" : "重新生成全部页面并推送"}</span>
+        <span>{isLocal ? t("target.localHint") : t("target.remoteHint")}</span>
         {!isLocal && (
           <button
             type="button"
             className="text-ink-2 hover:text-accent-text"
             onClick={onOpenSettings}
           >
-            测试连接
+            {t("connection.test")}
           </button>
         )}
       </div>
@@ -507,6 +516,7 @@ export function ActionCard({
 /* ─────────────── 站点设置摘要 ─────────────── */
 
 function SiteRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  const { t } = usePublishExecutionI18n();
   return (
     <div className="text-tau-sm flex items-baseline gap-3 py-[3px]">
       <span className="text-ink-3 w-14 flex-none">{label}</span>
@@ -518,32 +528,33 @@ function SiteRow({ label, value, mono }: { label: string; value: string; mono?: 
         )}
         title={value || undefined}
       >
-        {value || "未设置"}
+        {value || t("site.unset")}
       </span>
     </div>
   );
 }
 
 export function SiteCard({ config, onOpen }: { config: PublishConfig; onOpen: () => void }) {
-  const rows: { label: string; value: string; mono?: boolean }[] = [
-    { label: "发布目标", value: config.providerLabel },
-    { label: "访问路径", value: config.basePath, mono: true },
-    { label: "博客模板", value: config.templateName },
+  const { t } = usePublishExecutionI18n();
+  const rows: { id: string; label: string; value: string; mono?: boolean }[] = [
+    { id: "target", label: t("site.target"), value: config.providerLabel },
+    { id: "path", label: t("site.path"), value: config.basePath, mono: true },
+    { id: "template", label: t("site.template"), value: config.templateName },
   ];
 
   return (
     <RailSection>
       <PanelTitle>
-        站点设置
+        {t("site.settings")}
         <PanelNote>{config.providerLabel}</PanelNote>
         <PanelAction onClick={onOpen}>
-          详情
+          {t("details")}
           <ChevronRight size={12} strokeWidth={2} className="ml-0.5" />
         </PanelAction>
       </PanelTitle>
       <div className="mt-2 flex flex-col">
         {rows.map(row => (
-          <SiteRow key={row.label} {...row} />
+          <SiteRow key={row.id} {...row} />
         ))}
       </div>
     </RailSection>

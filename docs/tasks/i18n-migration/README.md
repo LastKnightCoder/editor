@@ -390,6 +390,8 @@ Compose C1九路径完成；原2文件6至3文件8例、desktop type、24key三�
 
 远程影音URL八路径完成；原/迁后4例、desktop type/lint、三语runtime及AST通过。真实表单跨语保URL草稿/焦点/选区、同alert且不submit，确认后仅原trim；HTTP(S)音频和原允许ftp的视频差异契约仍通过，全部真实consumer接口保持。
 
+发布执行十二路径完成；全发布三文件11例通过、store增强后原4至5例通过，desktop最终type/build、实际三语runtime与范围静态通过。真实在途store换语保同run/progress handler且只一次执行、不提前通知；缺模板与外部同文异常分开归属。独立AST对照原发布/导出/目录参数、全部callback/effect依赖、250ms debounce与常驻handler保持；纯耗时函数Node无DOM导入与旧14边界输入默认输出逐一相等。范围warning仅原store测试空函数/unused与useRun cleanup ref四条。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

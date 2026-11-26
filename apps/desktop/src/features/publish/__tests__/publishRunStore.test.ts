@@ -1,5 +1,7 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import { EPublishProvider } from "@/stores/useSettingStore";
+import { desktopLocaleSource } from "@/app/i18n/runtime";
+import { publishRunErrorText } from "../execution.binding";
 
 const mocks = vi.hoisted(() => ({
   handlers: new Map<string, (data: unknown) => void>(),
@@ -61,6 +63,7 @@ const imageWarning = {
 };
 
 beforeEach(() => {
+  desktopLocaleSource.setLocale("zh-CN");
   usePublishRunStore.setState({ run: { kind: "idle" }, finishSeq: 0 });
   mocks.executePublish.mockReset();
   mocks.executePublish.mockImplementation(
@@ -82,6 +85,16 @@ it("发布中再次 start 被忽略，进度经常驻 handler 写入", async () 
   mocks.handlers.get("publish-progress")?.({ phase: "pushing", current: 2, total: 4 });
   const run = usePublishRunStore.getState().run;
   expect(run.kind === "running" && run.progress?.phase).toBe("pushing");
+
+  const progressHandler = mocks.handlers.get("publish-progress");
+  for (const locale of ["en-US", "zh-TW"] as const) {
+    desktopLocaleSource.setLocale(locale);
+    expect(usePublishRunStore.getState().run).toBe(run);
+    expect(mocks.handlers.get("publish-progress")).toBe(progressHandler);
+    expect(mocks.executePublish).toHaveBeenCalledTimes(1);
+    expect(mocks.notify).not.toHaveBeenCalled();
+  }
+  desktopLocaleSource.setLocale("zh-CN");
 
   usePublishRunStore.getState().reset();
   expect(usePublishRunStore.getState().run.kind).toBe("running");
@@ -180,4 +193,29 @@ it("失败通知：重试按上次参数重跑，查看详情打开发布页", a
   );
   await flush();
   expect(lastNotice().title).toBe("站点已发布");
+});
+
+it("缺模板失败携带自身语义码，外部同文错误保留原始原因", async () => {
+  await usePublishRunStore.getState().start({
+    ...params,
+    publish: { ...params.publish, site: { ...params.publish.site, templateId: "" } },
+  });
+  const own = usePublishRunStore.getState().run;
+  if (own.kind !== "error") throw new Error("expected template failure");
+  expect(own.issue).toBe("template-required");
+  expect(mocks.executePublish).not.toHaveBeenCalled();
+
+  mocks.executePublish.mockRejectedValueOnce(new Error(own.message));
+  await usePublishRunStore.getState().start(params);
+  const external = usePublishRunStore.getState().run;
+  if (external.kind !== "error") throw new Error("expected external failure");
+  expect(external.issue).toBeUndefined();
+  try {
+    for (const locale of ["en-US", "zh-TW"] as const) {
+      desktopLocaleSource.setLocale(locale);
+      expect(publishRunErrorText(external)).toBe(own.message);
+    }
+  } finally {
+    desktopLocaleSource.setLocale("zh-CN");
+  }
 });

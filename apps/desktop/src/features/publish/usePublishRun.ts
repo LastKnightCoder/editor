@@ -1,3 +1,4 @@
+import { executionFeedback } from "./execution.binding";
 /**
  * 发布页数据：发布计划预览、上次发布时间、已选内容数；执行与进度委托全局 publishRunStore。
  *
@@ -82,7 +83,7 @@ export function usePublishRun(config: PublishConfig) {
       setPlanStale(false);
     } catch (error) {
       if (seq !== planSeq.current) return;
-      toast.error(`计算发布计划失败: ${error}`);
+      toast.error(...executionFeedback("plan.failed", { error: String(error) }));
     } finally {
       if (seq === planSeq.current) setPlanLoading(false);
     }
@@ -139,7 +140,7 @@ export function usePublishRun(config: PublishConfig) {
         targetDir = paths[0];
       } catch (error) {
         if (error instanceof Error && error.message === "User canceled file selection") return;
-        toast.error(`选择目录失败: ${error}`);
+        toast.error(...executionFeedback("directory.failed", { error: String(error) }));
         return;
       }
     }
