@@ -17,6 +17,8 @@ import type { GraphOverlayApi } from "@/components/LinkGraph";
 import type { KnowledgeMark } from "@/types/knowledge-insights";
 import { MARK_META, endpointKey, markGeometry, topicLabelPoint, type Point } from "./model";
 
+import { useMapInsightsI18n } from "./i18n";
+
 /** 每处标记依次出现的间隔 */
 export const DRAW_STAGGER_MS = 320;
 const DRAW_LEAD_MS = 250;
@@ -83,6 +85,7 @@ export function MapInsightsOverlay({
   onPickTopic,
   onAnchor,
 }: MapInsightsOverlayProps) {
+  const { t } = useMapInsightsI18n();
   useFrame(api);
   const [anchorEl, setAnchorEl] = useState<HTMLDivElement | null>(null);
   useEffect(() => onAnchor(anchorEl), [anchorEl, onAnchor]);
@@ -302,13 +305,13 @@ export function MapInsightsOverlay({
           <button
             key={topic.topicId}
             type="button"
-            title={`看看「${topic.label}」里的发现`}
+            title={t("insights.topicFindings", { label: topic.label })}
             onClick={() => onPickTopic(topic.topicId)}
             className="hover:bg-accent-soft/60 rounded-tau-sm pointer-events-auto absolute h-7"
             style={{ left: at.x - width / 2, top: at.y - 14, width }}
             data-map-topic={topic.topicId}
           >
-            <i className="bg-accent absolute -right-2 top-1/2 size-[5px] -translate-y-1/2 rounded-full opacity-80" />
+            <i className="bg-accent absolute top-1/2 -right-2 size-[5px] -translate-y-1/2 rounded-full opacity-80" />
           </button>
         );
       })}

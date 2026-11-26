@@ -1,4 +1,6 @@
 import { act } from "react";
+import { desktopLocaleSource } from "@/app/i18n/runtime";
+import { knowledgeMapTranslator } from "../i18n";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { KnowledgeMapItem } from "@/knowledge-map/types";
@@ -177,4 +179,39 @@ describe("KnowledgeMapView", () => {
     expect(container.textContent).toContain("还没有可以放上地图的内容");
     expect(mocks.graphProps).toBeNull();
   });
+});
+
+it("换语保留图输入与筛选、焦点和预览内容实例，不改原节点标题或重开内容", () => {
+  const originalLocale = desktopLocaleSource.getSnapshot();
+  desktopLocaleSource.setLocale("zh-CN");
+  mocks.openEntity.mockClear();
+  mocks.params = { focus: "project-item:5" };
+  try {
+    render();
+    act(() => button(knowledgeMapTranslator.t("map.kind.article")).click());
+    if (!mocks.graphProps) throw new Error("Missing graph");
+    act(() => mocks.graphProps?.onClickItem({ key: "article:3" }));
+    const graphItems = mocks.graphProps.items;
+    const hits = mocks.graphProps.filterCardIds;
+    const focus = mocks.graphProps.currentCardIds;
+    const preview = container.querySelector('[data-preview-content="30"]');
+    expect(preview).not.toBeNull();
+    for (const locale of ["zh-TW", "en-US"]) {
+      act(() => desktopLocaleSource.setLocale(locale));
+      expect(mocks.graphProps.items).toBe(graphItems);
+      expect(mocks.graphProps.filterCardIds).toBe(hits);
+      expect(mocks.graphProps.currentCardIds).toBe(focus);
+      expect(mocks.graphProps.focusId).toBe(2);
+      expect(mocks.graphProps.persistKey).toBe("knowledge-map");
+      expect(container.querySelector('[data-preview-content="30"]')).toBe(preview);
+      expect(mocks.openEntity).not.toHaveBeenCalled();
+    }
+    expect(graphItems.map((item: { label: string }) => item.label)).toEqual(
+      ITEMS.map(item => item.title)
+    );
+    act(() => button(knowledgeMapTranslator.t("map.open")).click());
+    expect(mocks.openEntity).toHaveBeenCalledExactlyOnceWith({ kind: "article", id: 3 }, {});
+  } finally {
+    act(() => desktopLocaleSource.setLocale(originalLocale));
+  }
 });

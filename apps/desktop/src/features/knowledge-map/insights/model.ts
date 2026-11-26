@@ -13,18 +13,17 @@ import {
   type KnowledgeMarkKind,
 } from "@/types/knowledge-insights";
 
-export const MARK_META: Record<KnowledgeMarkKind, { label: string; dot: string; stroke: string }> =
-  {
-    bridge: { label: "呼应", dot: "bg-info", stroke: "var(--tau-info)" },
-    asked: { label: "问了没写", dot: "bg-warn", stroke: "var(--tau-warn)" },
-    dup: { label: "重复", dot: "bg-ink-3", stroke: "var(--tau-ink-3)" },
-    conflict: { label: "矛盾", dot: "bg-danger", stroke: "var(--tau-danger)" },
-    chain: { label: "缺一环", dot: "bg-accent", stroke: "var(--tau-ink-2)" },
-    pattern: { label: "同一思路", dot: "bg-tag-3", stroke: "var(--tau-tag-3)" },
-    gap: { label: "还缺", dot: "bg-ink-3", stroke: "var(--tau-ink-3)" },
-    belong: { label: "可能属于这里", dot: "bg-accent", stroke: "var(--tau-accent)" },
-    thin: { label: "还薄", dot: "bg-ink-3", stroke: "var(--tau-ink-3)" },
-  };
+export const MARK_META: Record<KnowledgeMarkKind, { dot: string; stroke: string }> = {
+  bridge: { dot: "bg-info", stroke: "var(--tau-info)" },
+  asked: { dot: "bg-warn", stroke: "var(--tau-warn)" },
+  dup: { dot: "bg-ink-3", stroke: "var(--tau-ink-3)" },
+  conflict: { dot: "bg-danger", stroke: "var(--tau-danger)" },
+  chain: { dot: "bg-accent", stroke: "var(--tau-ink-2)" },
+  pattern: { dot: "bg-tag-3", stroke: "var(--tau-tag-3)" },
+  gap: { dot: "bg-ink-3", stroke: "var(--tau-ink-3)" },
+  belong: { dot: "bg-accent", stroke: "var(--tau-accent)" },
+  thin: { dot: "bg-ink-3", stroke: "var(--tau-ink-3)" },
+};
 
 /** 报告卡里数量签的顺序 */
 export const KIND_ORDER: KnowledgeMarkKind[] = [
@@ -160,9 +159,9 @@ export function focusMarkOf(mark: KnowledgeMark, here: KnowledgeEndpoint): Insig
   };
 }
 
-const stripGapPrefix = (text: string) => text.replace(/^(还缺|这里还薄)[:：]\s*/, "");
+export const stripGapPrefix = (text: string) => text.replace(/^(还缺|这里还薄)[:：]\s*/, "");
 
-/** 气泡开头那一句：直白说出这一处是什么、涉及谁 */
+/** 聊一聊预填提问的摘要，与提问正文使用同一套语言。 */
 export function markSummary(mark: KnowledgeMark): string {
   const [a, b] = mark.ends.map(end => `《${end.title}》`);
   switch (mark.kind) {

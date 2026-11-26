@@ -1,0 +1,15 @@
+{
+  "map.title": "Knowledge map",
+  "map.kind.card": "Cards",
+  "map.kind.article": "Articles",
+  "map.kind.project-item": "Project documents",
+  "map.all": "All",
+  "map.allProjects": "All projects",
+  "map.empty": "There is no content to put on the map yet",
+  "map.preview": "Content preview",
+  "map.untitled": "Untitled",
+  "map.open": "Open",
+  "map.openFailed": "Could not open content",
+  "map.invite_one": "Grown to {{count}} item · See how it grew",
+  "map.invite_other": "Grown to {{count}} items · See how it grew"
+}

@@ -11,7 +11,9 @@ import { ErrorBoundary } from "@tau/ui";
 import { serializeEntityLocation } from "@/entity/locate";
 import type { KnowledgeMapItem } from "@/knowledge-map/types";
 import { useOverlayDismiss } from "@/page/PageProvider";
-import { KIND_LABEL, type MapItemKind } from "../model";
+import { type MapItemKind } from "../model";
+
+import { useKnowledgeMapI18n, mapKindLabel } from "../i18n";
 
 const KIND_ICON: Record<MapItemKind, typeof Layers> = {
   card: Layers,
@@ -25,11 +27,6 @@ export interface MapPreview {
   block?: number;
 }
 
-const formatDay = (ts: number) => {
-  const d = new Date(ts);
-  return `${d.getFullYear()} 年 ${d.getMonth() + 1} 月 ${d.getDate()} 日`;
-};
-
 export function MapItemDrawer({
   preview,
   onClose,
@@ -39,13 +36,20 @@ export function MapItemDrawer({
   onClose(): void;
   onOpen(preview: MapPreview): void;
 }) {
+  const { t, locale } = useKnowledgeMapI18n();
   const open = preview !== null;
   useOverlayDismiss(onClose, open);
   const retained = useRetainedValue(preview);
   const current = retained?.item;
   const Icon = current ? KIND_ICON[current.kind] : Layers;
   const subtitle = current
-    ? [KIND_LABEL[current.kind], current.projectTitle, formatDay(current.createdAt)]
+    ? [
+        mapKindLabel(current.kind, t),
+        current.projectTitle,
+        new Intl.DateTimeFormat(locale, { year: "numeric", month: "long", day: "numeric" }).format(
+          current.createdAt
+        ),
+      ]
         .filter(Boolean)
         .join(" · ")
     : "";
@@ -56,9 +60,9 @@ export function MapItemDrawer({
       open={open}
       onOpenChange={next => !next && onClose()}
       size="md"
-      label="内容预览"
+      label={t("map.preview")}
       icon={<Icon className="text-ink-3 mt-[5px] size-[15px]" strokeWidth={1.75} />}
-      title={current?.title || "未命名"}
+      title={current?.title || t("map.untitled")}
       subtitle={subtitle}
       meta={
         current?.tags.length ? (
@@ -72,7 +76,7 @@ export function MapItemDrawer({
       actions={
         retained && (
           <Button size="sm" variant="primary" icon={ExternalLink} onClick={() => onOpen(retained)}>
-            打开
+            {t("map.open")}
           </Button>
         )
       }

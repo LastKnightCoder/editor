@@ -326,6 +326,8 @@ P6浏览器actions：13路径工程完成；原ui/annotation9至10例、extensio
 
 P7 MCP声明：SDK新增PluginMCPDeclaration，默认PluginMCPDefinition<string>与旧字符串/receiver快照保持；同owner的Ref参数快照、双owner隔离、切语不重新登记与停用后最后展示契约通过。SDK17例/desktop18例通过，SDK类型与desktop构建通过；真实外部MCP界面/readonly名称/URL草稿光标与工具执行身份、连接次数/配置存储保持。Host/index/官网与desktop插件分篇只交本任务hunk，模板作者文档独立提交并同步指针；实际工具描述/参数/调用与授权不变。
 
+知识地图K1/K2共19源码完成；4文件28例、desktop type、12+70key三语复数参数与原AI/几何/动作/hooks/key AST对照通过。真实同graphItems/hits/currentIds/preview、pending分析/同气泡svg/camera/原discussPrompt保持；全15模块审计无自产UI或译文身份残留，合法AI正文/prefix parser保留。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

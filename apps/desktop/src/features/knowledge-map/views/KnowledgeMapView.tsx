@@ -24,11 +24,9 @@ import useSettingStore from "@/stores/useSettingStore";
 import { graphMoment, milestoneOf, useGraphMilestoneStore } from "../milestones";
 import {
   EMPTY_FILTER,
-  KIND_LABEL,
   countByKind,
   filterHits,
   indexOfKey,
-  placeLabel,
   toGraphItems,
   type MapFilter,
   type MapItemKind,
@@ -36,6 +34,8 @@ import {
 import { useMapInsights } from "../insights/useMapInsights";
 import { useKnowledgeMap } from "../queries";
 import { MapItemDrawer, type MapPreview } from "./MapItemDrawer";
+
+import { useKnowledgeMapI18n, knowledgeMapTranslator, mapKindLabel, mapPlaceLabel } from "../i18n";
 
 /** 等地图画出第一帧再自动播：刚挂载时画布尺寸与相机还没就绪 */
 const AUTOPLAY_DELAY = 400;
@@ -49,6 +49,7 @@ const previewOf = (items: KnowledgeMapItem[], key: string): MapPreview | null =>
 };
 
 export function KnowledgeMapView() {
+  const { t } = useKnowledgeMapI18n();
   const params = usePageParams<{ focus?: string; insight?: string }>();
   const query = useKnowledgeMap(true);
   const items = useMemo(() => query.data?.items ?? [], [query.data]);
@@ -85,7 +86,11 @@ export function KnowledgeMapView() {
     const ref = normalizeEntityRefKind(item.kind);
     if (!ref) return;
     openEntity({ kind: ref, id: item.id }, block === undefined ? {} : { at: { block } }).catch(
-      error => toast.error(error instanceof Error ? error.message : "无法打开内容")
+      error => {
+        const getMessage = () =>
+          error instanceof Error ? error.message : knowledgeMapTranslator.t("map.openFailed");
+        toast.error(getMessage(), { getMessage });
+      }
     );
   };
   // 洞见气泡里点笔记：在地图上的进 Drawer 预览并定位到那一节；不在地图上的直接打开
@@ -95,9 +100,11 @@ export function KnowledgeMapView() {
       setPreview({ item, block: end.block });
       return;
     }
-    openEntity(end.ref, { at: { block: end.block } }).catch(error =>
-      toast.error(error instanceof Error ? error.message : "无法打开内容")
-    );
+    openEntity(end.ref, { at: { block: end.block } }).catch(error => {
+      const getMessage = () =>
+        error instanceof Error ? error.message : knowledgeMapTranslator.t("map.openFailed");
+      toast.error(getMessage(), { getMessage });
+    });
   };
 
   // ---- 生长动画的时机（每次进入地图页只判定一次）
@@ -131,7 +138,7 @@ export function KnowledgeMapView() {
     return () => clearTimeout(timer);
   }, [autoplay]);
 
-  const captionHint = invite ? `长到 ${invite} 条了 · 看看它是怎么长出来的` : null;
+  const captionHint = invite ? t("map.invite", { count: invite }) : null;
   const insights = useMapInsights(
     query.data?.map?.topics ?? EMPTY_TOPICS,
     params.insight,
@@ -139,7 +146,7 @@ export function KnowledgeMapView() {
       preview: previewEndpoint,
       placeOf: end => {
         const item = items.find(entry => entry.key === `${end.ref.kind}:${end.ref.id}`);
-        return item ? placeLabel(item) : null;
+        return item ? mapPlaceLabel(item, t) : null;
       },
     },
     query.data?.map?.nodes ?? EMPTY_NODES
@@ -152,10 +159,10 @@ export function KnowledgeMapView() {
       <div className="bg-surface shadow-card rounded-tau-lg relative flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="mt-5 mb-2 flex h-10 flex-none items-center gap-3 px-8">
           <h1 className="text-tau-title-lg shrink-0 font-semibold tracking-[-0.01em] whitespace-nowrap">
-            知识地图
+            {t("map.title")}
           </h1>
           <span className="text-tau-meta text-ink-2 w-0 flex-1 truncate whitespace-nowrap tabular-nums">
-            {KINDS.map(kind => `${KIND_LABEL[kind]} ${counts[kind]}`).join(" · ")}
+            {KINDS.map(kind => `${mapKindLabel(kind, t)} ${counts[kind]}`).join(" · ")}
           </span>
           {query.data?.map && insights.button}
         </div>
@@ -163,14 +170,14 @@ export function KnowledgeMapView() {
           <FilterPill
             active={filter.kind === null}
             onClick={() => setFilter(current => ({ ...current, kind: null }))}
-            label="全部"
+            label={t("map.all")}
           />
           {KINDS.map(kind => (
             <FilterPill
               key={kind}
               active={filter.kind === kind}
               onClick={() => setFilter(current => ({ ...current, kind }))}
-              label={KIND_LABEL[kind]}
+              label={mapKindLabel(kind, t)}
               count={counts[kind]}
             />
           ))}
@@ -192,7 +199,7 @@ export function KnowledgeMapView() {
                 >
                   <FolderKanban className="size-[13px] shrink-0" strokeWidth={1.75} />
                   <span className="max-w-[160px] truncate">
-                    {currentProject?.title ?? "全部项目"}
+                    {currentProject?.title ?? t("map.allProjects")}
                   </span>
                   <ChevronDown className="size-3 shrink-0" strokeWidth={1.75} />
                 </button>
@@ -202,7 +209,7 @@ export function KnowledgeMapView() {
                 onSelect={() => setFilter(current => ({ ...current, projectId: null }))}
                 className={currentProject ? undefined : "text-accent-text font-medium"}
               >
-                全部项目
+                {t("map.allProjects")}
               </Menu.Item>
               {projects.map(project => (
                 <Menu.Item
@@ -225,7 +232,7 @@ export function KnowledgeMapView() {
           <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
             {graphShown && items.length === 0 ? (
               <div className="text-ink-3 text-tau-meta flex h-full items-center justify-center">
-                还没有可以放上地图的内容
+                {t("map.empty")}
               </div>
             ) : (
               graphShown && (

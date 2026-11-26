@@ -1,4 +1,7 @@
 import { act } from "react";
+import { desktopLocaleSource } from "@/app/i18n/runtime";
+import { mapInsightsTranslator } from "../insights/i18n";
+import { discussPrompt } from "../insights/model";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { GraphOverlayApi } from "@/components/LinkGraph";
@@ -6,10 +9,12 @@ import type {
   KnowledgeEndpoint,
   KnowledgeInsightNode,
   KnowledgeInsightsPayload,
+  KnowledgeInsightsPhase,
 } from "@/types/knowledge-insights";
 
 const mocks = vi.hoisted(() => ({
   data: null as KnowledgeInsightsPayload | null,
+  phase: null as KnowledgeInsightsPhase | null,
   analyze: vi.fn(),
   setStatus: vi.fn(),
   discuss: vi.fn(async (..._args: unknown[]) => true),
@@ -51,7 +56,7 @@ vi.mock("../insightsQueries", () => ({
       },
     },
   }),
-  useKnowledgeInsightsPhase: () => null,
+  useKnowledgeInsightsPhase: () => mocks.phase,
 }));
 vi.mock("@/page/PageProvider", () => ({
   useOverlayDismiss: (dismiss: () => void, active: boolean) => {
@@ -211,6 +216,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.clearAllMocks();
   mocks.data = null;
+  mocks.phase = null;
   mocks.dismiss = null;
   view.scale = 1;
   container = document.createElement("div");
@@ -414,4 +420,89 @@ describe("知识地图的洞见视图", () => {
     focus.onResolved("linked");
     expect(mocks.setRemoteStatus).toHaveBeenCalledWith(2, "t1", "linked");
   });
+});
+
+it("分析进行中换语保留原阶段与同一任务，完成回调仍接回报告", async () => {
+  const originalLocale = desktopLocaleSource.getSnapshot();
+  desktopLocaleSource.setLocale("zh-CN");
+  let finish: (() => void) | undefined;
+  mocks.analyze.mockImplementation((_input: unknown, options: { onSuccess(): void }) => {
+    finish = options.onSuccess;
+  });
+  mocks.phase = { phase: "topic", topicId: 5, label: "原始AI主题", index: 2, total: 3 };
+  try {
+    await render();
+    await click(buttonByText(mapInsightsTranslator.t("insights.title")));
+    const report = container.querySelector("aside");
+    let previous = report?.textContent;
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(container.querySelector("aside")).toBe(report);
+      expect(report?.textContent).not.toBe(previous);
+      expect(report?.textContent).toContain("原始AI主题");
+      previous = report?.textContent;
+      expect(mocks.analyze).toHaveBeenCalledTimes(1);
+      expect(api.flyToTopic).not.toHaveBeenCalled();
+      expect(api.flyToItems).not.toHaveBeenCalled();
+      expect(mocks.setStatus).not.toHaveBeenCalled();
+    }
+    await act(async () => {
+      mocks.data = fixture();
+      finish?.();
+    });
+    expect(container.querySelector("[data-map-insights-report]")).not.toBeNull();
+    expect(container.textContent).toContain("版图两三句");
+    expect(mocks.analyze).toHaveBeenCalledTimes(1);
+  } finally {
+    await act(async () => desktopLocaleSource.setLocale(originalLocale));
+  }
+});
+
+it("逐条看换语保留标记、气泡与镜头，聊一聊仍发送原提问和原笔记", async () => {
+  const originalLocale = desktopLocaleSource.getSnapshot();
+  desktopLocaleSource.setLocale("zh-CN");
+  const data = fixture();
+  const conflict = {
+    id: "conflict-raw",
+    kind: "conflict" as const,
+    why: "原始AI理由",
+    claims: ["原始主张甲", "原始主张乙"] as [string, string],
+    ends: [end("card", 1), end("article", 3)],
+    status: "open" as const,
+  };
+  data.global?.result.marks.push(conflict);
+  mocks.data = data;
+  const prompt = discussPrompt(conflict);
+  try {
+    await render();
+    await click(buttonByText(mapInsightsTranslator.t("insights.title")));
+    await click(buttonByText(mapInsightsTranslator.t("insights.walk")));
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp" })));
+    const popover = document.querySelector("[data-map-insight-popover]");
+    const overlay = container.querySelector("[data-map-insights] svg");
+    const cameraCalls = vi.mocked(api.flyToItems).mock.calls.length;
+    expect(popover?.textContent).toContain("原始主张甲");
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(document.querySelector("[data-map-insight-popover]")).toBe(popover);
+      expect(container.querySelector("[data-map-insights] svg")).toBe(overlay);
+      expect(popover?.textContent).toContain("原始AI理由");
+      expect(popover?.textContent).toContain("原始主张乙");
+      expect(vi.mocked(api.flyToItems).mock.calls.length).toBe(cameraCalls);
+      expect(mocks.analyze).not.toHaveBeenCalled();
+      expect(mocks.discuss).not.toHaveBeenCalled();
+      expect(mocks.setStatus).not.toHaveBeenCalled();
+    }
+    await click(buttonByText(mapInsightsTranslator.t("insights.discuss")));
+    expect(mocks.discuss).toHaveBeenCalledExactlyOnceWith(prompt, conflict.ends);
+    expect(mocks.setStatus).toHaveBeenCalledExactlyOnceWith({
+      nodeId: 1,
+      itemId: "conflict-raw",
+      status: "linked",
+    });
+    expect(mocks.writeCard).not.toHaveBeenCalled();
+    expect(mocks.link).not.toHaveBeenCalled();
+  } finally {
+    await act(async () => desktopLocaleSource.setLocale(originalLocale));
+  }
 });

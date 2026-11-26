@@ -23,6 +23,8 @@ import type {
 } from "@/types/knowledge-insights";
 import { KIND_ORDER, MARK_META, openMarks, type FindingTopic } from "./model";
 
+import { useMapInsightsI18n, insightKindLabel, insightPhaseText, insightDate } from "./i18n";
+
 export interface MapInsightsReportProps {
   node: KnowledgeInsightNode | null;
   reading: boolean;
@@ -84,29 +86,11 @@ function TopicMenu({
 const ASIDE =
   "border-line-2 animate-fadeIn flex w-[300px] flex-none flex-col overflow-y-auto border-l px-6 py-5";
 
-function phaseText(phase: KnowledgeInsightsPhase | null) {
-  if (phase?.phase === "reading") {
-    const stale = phase.stale ? `，其中 ${phase.stale} 个有变化要重新读` : "";
-    return `按主题读 ${phase.notes.toLocaleString("zh-CN")} 份笔记的要点（${phase.topics} 个主题${stale}）…`;
-  }
-  if (phase?.phase === "topic") {
-    const count = phase.total > 1 ? `（${phase.index} / ${phase.total}）` : "";
-    return `正在读「${phase.label}」${count}…`;
-  }
-  if (phase?.phase === "global") return "把各个主题放在一起看，判断哪些值得告诉你…";
-  return "正在读…";
-}
-
-const formatTime = (ts: number) => {
-  const d = new Date(ts);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getMonth() + 1} 月 ${d.getDate()} 日 ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-};
-
 const BAR_WIDTH = 252;
 
 /** 每季度新写的笔记数；最近四季着色，最后一季还没过完 */
 function GrowthBars({ counts }: { counts: number[] }) {
+  const { t } = useMapInsightsI18n();
   if (!counts.length) return null;
   const max = Math.max(...counts, 1);
   const width = BAR_WIDTH / counts.length;
@@ -131,7 +115,7 @@ function GrowthBars({ counts }: { counts: number[] }) {
         })}
         <line x1={0} y1={85} x2={BAR_WIDTH} y2={85} stroke="var(--tau-line-2)" />
       </svg>
-      <div className="text-ink-3 mt-1 text-[11.5px]">每季度新写的笔记 · 最近一年 {recent}</div>
+      <div className="text-ink-3 mt-1 text-[11.5px]">{t("insights.growth", { count: recent })}</div>
     </div>
   );
 }
@@ -150,12 +134,13 @@ export function MapInsightsReport({
   onReanalyze,
   onWalk,
 }: MapInsightsReportProps) {
+  const { t, locale } = useMapInsightsI18n();
   if (reading) {
     return (
       <aside className={ASIDE}>
         <div className="text-tau-meta text-ink-3 flex items-start gap-1.5 leading-[1.7]">
           <Loader2 className="mt-[3px] size-[13px] shrink-0 animate-spin" strokeWidth={1.75} />
-          {phaseText(phase)}
+          {insightPhaseText(phase, locale, t)}
         </div>
       </aside>
     );
@@ -171,7 +156,7 @@ export function MapInsightsReport({
         {topicLabel && (
           <div className="text-ink-3 mb-1 flex items-center gap-1 text-[12px]">
             <button type="button" onClick={onBack} className="text-accent-text hover:underline">
-              全部主题
+              {t("insights.allTopics")}
             </button>
             <ChevronRight className="size-3" strokeWidth={1.75} />
             {findingTopics.some(topic => topic.topicId !== currentTopicId) ? (
@@ -182,7 +167,7 @@ export function MapInsightsReport({
                 trigger={
                   <button
                     type="button"
-                    title="切换到其他有发现的主题"
+                    title={t("insights.switchTopic")}
                     className="hover:text-ink-1 inline-flex min-w-0 items-center gap-0.5"
                   >
                     <span className="truncate">{topicLabel}</span>
@@ -196,13 +181,13 @@ export function MapInsightsReport({
           </div>
         )}
         <p className="text-ink-1 text-[14px] leading-[1.8]">
-          {node?.result.lead || (topicLabel ? "这个主题还没有分析结果。" : "还没有分析结果。")}
+          {node?.result.lead || (topicLabel ? t("insights.topicEmpty") : t("insights.empty"))}
         </p>
         <div className="mt-2.5 flex flex-wrap gap-1.5">
           {KIND_ORDER.filter(kind => counts.get(kind)).map(kind => (
             <button key={kind} type="button" onClick={() => onJumpKind(kind)} className={PILL}>
               <i className={cn("size-[7px] rounded-full", MARK_META[kind].dot)} />
-              {MARK_META[kind].label} {counts.get(kind)}
+              {insightKindLabel(kind, t)} {counts.get(kind)}
             </button>
           ))}
           {!topicLabel && findingTopics.length > 0 && (
@@ -213,7 +198,7 @@ export function MapInsightsReport({
               trigger={
                 <button type="button" className={PILL}>
                   <i className="bg-accent size-[7px] rounded-full" />
-                  有发现的主题 {findingTopics.length}
+                  {t("insights.findingTopics", { count: findingTopics.length })}
                   <ChevronDown className="size-3" strokeWidth={1.75} />
                 </button>
               }
@@ -221,13 +206,13 @@ export function MapInsightsReport({
           )}
           {!open.length && !(!topicLabel && findingTopics.length) && (
             <span className="bg-surface-hover text-ink-3 inline-flex h-6 items-center rounded-full px-2.5 text-[12px]">
-              都处理完了
+              {t("insights.processed")}
             </span>
           )}
         </div>
         {asks.length > 0 && (
           <div className="border-line-2 mt-2.5 border-t pt-2">
-            <div className="text-ink-3 mb-0.5 text-[12px]">可以继续想</div>
+            <div className="text-ink-3 mb-0.5 text-[12px]">{t("insights.askMore")}</div>
             {asks.map(ask => (
               <div
                 key={ask.id}
@@ -247,7 +232,7 @@ export function MapInsightsReport({
                     onClick={() => onAsk(ask)}
                     className="text-ink-3 hover:text-accent-text shrink-0 text-[12px] opacity-0 group-hover:opacity-100"
                   >
-                    聊一聊
+                    {t("insights.discuss")}
                   </button>
                 )}
               </div>
@@ -263,7 +248,7 @@ export function MapInsightsReport({
             className="mt-3"
             onClick={onWalk}
           >
-            逐条看
+            {t("insights.walk")}
           </Button>
         )}
       </div>
@@ -275,7 +260,10 @@ export function MapInsightsReport({
       <div className="text-ink-3 mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 pt-4 text-[12px]">
         {node && (
           <span>
-            {formatTime(node.updateTime)} · 读了 {node.result.candidates} 组候选
+            {t("insights.analyzed", {
+              time: insightDate(node.updateTime, locale, true),
+              count: node.result.candidates,
+            })}
           </span>
         )}
         <button
@@ -284,7 +272,7 @@ export function MapInsightsReport({
           className="hover:text-ink-1 inline-flex items-center gap-1"
         >
           <RefreshCw className="size-3" strokeWidth={1.75} />
-          重新分析
+          {t("insights.reanalyze")}
         </button>
       </div>
     </aside>

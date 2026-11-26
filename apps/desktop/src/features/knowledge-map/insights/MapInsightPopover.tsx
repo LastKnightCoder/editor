@@ -1,5 +1,5 @@
 /**
- * 点地图上一处标记后的气泡：开头一句直白说出这一处是什么（markSummary），下面一行 AI 给的理由，涉及谁（呼应 / 重复 / 矛盾并排两端，缺一环一条链，
+ * 点地图上一处标记后的气泡：开头一句直白说出这一处是什么（insightSummary），下面一行 AI 给的理由，涉及谁（呼应 / 重复 / 矛盾并排两端，缺一环一条链，
  * 问了没写列出问过的几次），最多两个按钮。逐条看时附一行快捷键提示。
  */
 
@@ -7,14 +7,16 @@ import { Fragment } from "react";
 import { ArrowRight, ArrowUpRight, Link2, MessageCircle, PenLine, X } from "lucide-react";
 import { AnchoredPanel, Button, IconButton, cn } from "@tau/ui";
 import type { KnowledgeEndpoint, KnowledgeMark } from "@/types/knowledge-insights";
+import { MARK_META, bothCards, connectTarget, primaryAction } from "./model";
+
 import {
-  MARK_META,
-  bothCards,
-  connectTarget,
-  markSummary,
-  primaryAction,
-  type MarkAction,
-} from "./model";
+  useMapInsightsI18n,
+  insightKindLabel,
+  insightRefLabel,
+  insightSummary,
+  insightDate,
+  type InsightsTranslate,
+} from "./i18n";
 
 export interface MapInsightPopoverProps {
   mark: KnowledgeMark;
@@ -32,17 +34,6 @@ export interface MapInsightPopoverProps {
   onClose(): void;
 }
 
-/** 主按钮文案；连接的文案随两端类型变，单独算 */
-const ACTION_LABEL: Partial<Record<MarkAction, string>> = {
-  write: "写成卡片",
-  discuss: "聊一聊",
-};
-
-const day = (time: number) => {
-  const date = new Date(time);
-  return `${date.getMonth() + 1} 月 ${date.getDate()} 日`;
-};
-
 /**
  * 端框顶部那一行：这篇在哪（卡片 / 文章 / 项目文档 · 项目名）。呼应是跨主题的，再加上所属大主题；
  * 其余类型两端在同一主题里，主题名两边一样，不显示。
@@ -50,20 +41,13 @@ const day = (time: number) => {
 function endPlace(
   mark: KnowledgeMark,
   end: KnowledgeEndpoint,
-  placeOf: (end: KnowledgeEndpoint) => string | null
+  placeOf: (end: KnowledgeEndpoint) => string | null,
+  t: InsightsTranslate
 ) {
-  const place = placeOf(end) ?? REF_KIND_LABEL[end.ref.kind];
+  const place = placeOf(end) ?? insightRefLabel(end.ref.kind, t);
   const topic = mark.kind === "bridge" ? end.topic.split(" › ")[0] : "";
   return topic ? `${place} · ${topic}` : place;
 }
-
-const REF_KIND_LABEL: Record<KnowledgeEndpoint["ref"]["kind"], string> = {
-  card: "卡片",
-  article: "文章",
-  "project-item": "项目文档",
-  "diary-moment": "日记",
-  "plugin-entity": "插件内容",
-};
 
 function EndBox({
   end,
@@ -106,16 +90,18 @@ export function MapInsightPopover({
   placeOf,
   onClose,
 }: MapInsightPopoverProps) {
+  const { t, locale } = useMapInsightsI18n();
   const meta = MARK_META[mark.kind];
   const action = primaryAction(mark);
   const direct = action === "connect" && bothCards(mark);
   // 长文那一端的原文片段没核对上时，只能打开看看
-  const connectLabel = direct ? "连接" : connectTarget(mark)?.anchor ? "去连接" : "打开看看";
-  const connectHint = direct
-    ? "在这两张卡片之间加上双向链接"
-    : connectLabel === "去连接"
-      ? "打开那篇，在原文那几个字上连过去"
-      : "打开那篇看看";
+  const anchored = Boolean(connectTarget(mark)?.anchor);
+  const connectLabel = t(
+    direct ? "insights.connect" : anchored ? "insights.goConnect" : "insights.openLook"
+  );
+  const connectHint = t(
+    direct ? "insights.connectHint" : anchored ? "insights.goConnectHint" : "insights.openLookHint"
+  );
   const chain =
     mark.kind === "chain" && mark.missing
       ? [
@@ -134,17 +120,17 @@ export function MapInsightPopover({
       >
         <div className="text-ink-3 -mt-1 -mr-1.5 mb-0.5 flex items-center gap-1.5 text-[11.5px]">
           <i className={cn("size-[7px] rounded-full", meta.dot)} />
-          {meta.label}
+          {insightKindLabel(mark.kind, t)}
           <IconButton
             className="ml-auto size-6"
-            title="关闭 (Esc)"
-            aria-label="关闭"
+            title={t("insights.closeShortcut")}
+            aria-label={t("insights.close")}
             onClick={onClose}
           >
             <X className="size-3.5" strokeWidth={1.75} />
           </IconButton>
         </div>
-        <p className="font-medium">{markSummary(mark)}</p>
+        <p className="font-medium">{insightSummary(mark, t)}</p>
         {mark.why && <p className="text-ink-2 text-tau-meta mt-0.5">{mark.why}</p>}
 
         {(mark.kind === "bridge" || mark.kind === "dup" || mark.kind === "conflict") &&
@@ -154,7 +140,7 @@ export function MapInsightPopover({
                 <EndBox
                   key={index}
                   end={end}
-                  place={endPlace(mark, end, placeOf)}
+                  place={endPlace(mark, end, placeOf, t)}
                   claim={mark.claims?.[index]}
                   onOpen={onOpen}
                 />
@@ -208,7 +194,7 @@ export function MapInsightPopover({
             {mark.prompts.map((prompt, index) => (
               <Fragment key={index}>
                 <span className="text-ink-3 whitespace-nowrap tabular-nums">
-                  {day(prompt.time)}
+                  {insightDate(prompt.time, locale)}
                 </span>
                 <span className="line-clamp-2 min-w-0">{prompt.text}</span>
               </Fragment>
@@ -232,37 +218,38 @@ export function MapInsightPopover({
               size="sm"
               variant="primary"
               icon={PenLine}
-              title={
-                mark.ends.length
-                  ? "新建一张卡片，连上这几篇，用自己的话写下来"
-                  : "新建一张卡片，用自己的话写下来"
-              }
+              title={mark.ends.length ? t("insights.writeLinkedHint") : t("insights.writeHint")}
               onClick={() => onWrite(mark)}
             >
-              写成卡片
+              {t("insights.write")}
             </Button>
           ) : (
             <Button
               size="sm"
               variant="primary"
               icon={MessageCircle}
-              title="带着这两篇开一个对话，想清楚哪边对"
+              title={t("insights.discussHint")}
               onClick={() => onDiscuss(mark)}
             >
-              聊一聊
+              {t("insights.discuss")}
             </Button>
           )}
           <Button
             size="sm"
             variant="ghost"
-            title="这一处不成立，以后重新分析也不再出现"
+            title={t("insights.dismissHint")}
             onClick={() => onDismiss(mark)}
           >
-            不相关
+            {t("insights.dismiss")}
           </Button>
           {walking && (
             <span className="text-ink-3 ml-auto text-[11px]">
-              回车{ACTION_LABEL[action] ?? connectLabel} · ⌫ 不相关
+              {t("insights.walkAction", {
+                action:
+                  action === "connect"
+                    ? connectLabel
+                    : t(action === "write" ? "insights.write" : "insights.discuss"),
+              })}
             </span>
           )}
         </div>

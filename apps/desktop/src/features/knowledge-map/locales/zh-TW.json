@@ -1,0 +1,14 @@
+{
+  "map.title": "知識地圖",
+  "map.kind.card": "卡片",
+  "map.kind.article": "文章",
+  "map.kind.project-item": "專案文件",
+  "map.all": "全部",
+  "map.allProjects": "全部專案",
+  "map.empty": "還沒有可以放上地圖的內容",
+  "map.preview": "內容預覽",
+  "map.untitled": "未命名",
+  "map.open": "開啟",
+  "map.openFailed": "無法開啟內容",
+  "map.invite": "長到 {{count}} 則了 · 看看它是怎麼長出來的"
+}

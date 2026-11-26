@@ -7,18 +7,6 @@ import type { KnowledgeMapItem } from "@/knowledge-map/types";
 
 export type MapItemKind = KnowledgeMapItem["kind"];
 
-export const KIND_LABEL: Record<MapItemKind, string> = {
-  card: "卡片",
-  article: "文章",
-  "project-item": "项目文档",
-};
-
-/** 一篇笔记在哪：「卡片」「文章」「项目文档 · 项目名」 */
-export const placeLabel = (item: KnowledgeMapItem) =>
-  item.kind === "project-item" && item.projectTitle
-    ? `${KIND_LABEL[item.kind]} · ${item.projectTitle}`
-    : KIND_LABEL[item.kind];
-
 export interface MapFilter {
   kind: MapItemKind | null;
   projectId: number | null;

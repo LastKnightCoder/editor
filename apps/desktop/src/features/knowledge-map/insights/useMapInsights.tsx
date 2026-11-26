@@ -47,6 +47,8 @@ import {
   type MapLevel,
 } from "./model";
 
+import { useMapInsightsI18n, insightsFeedback, insightsFailure } from "./i18n";
+
 type ViewState = "off" | "reading" | "on";
 const GLOBAL: MapLevel = { kind: "global" };
 const EMPTY_NODES: KnowledgeMapNode[] = [];
@@ -68,6 +70,7 @@ export function useMapInsights(
   /** 地图节点：读的过程中点亮正在读的主题里的节点 */
   nodes: KnowledgeMapNode[] = EMPTY_NODES
 ) {
+  const { t } = useMapInsightsI18n();
   const { enabled, data, analyze, setStatus } = useKnowledgeInsights();
   const [api, setApi] = useState<GraphOverlayApi | null>(null);
   const [view, setView] = useState<ViewState>("off");
@@ -133,7 +136,7 @@ export function useMapInsights(
       },
       onError: error => {
         setView(data?.global ? "on" : "off");
-        toast.error(error instanceof Error ? error.message : "分析失败");
+        toast.error(...insightsFailure("insights.analyzeFailed", error));
       },
     });
   }, [analyze, data]);
@@ -213,7 +216,7 @@ export function useMapInsights(
 
   const open = (end: KnowledgeEndpoint) => {
     openEntity(end.ref, { at: { block: end.block } }).catch(error =>
-      toast.error(error instanceof Error ? error.message : "无法打开内容")
+      toast.error(...insightsFailure("insights.openFailed", error))
     );
   };
 
@@ -222,10 +225,10 @@ export function useMapInsights(
       const [a, b] = mark.ends;
       linkCardsMutually(a.ref.id, b.ref.id)
         .then(() => {
-          toast.success(`已连接《${a.title}》与《${b.title}》`);
+          toast.success(...insightsFeedback("insights.connected", { a: a.title, b: b.title }));
           resolveTo(mark.id, "linked");
         })
-        .catch(error => toast.error(error instanceof Error ? error.message : "连接失败"));
+        .catch(error => toast.error(...insightsFailure("insights.connectFailed", error)));
       return;
     }
     // 有一端是长文：到那篇里、只画这一处，在那几个字上连（content-link），结果回写到这一条
@@ -253,7 +256,7 @@ export function useMapInsights(
         setWalking(false);
         setCurrent(null);
       })
-      .catch(error => toast.error(error instanceof Error ? error.message : "新建卡片失败"));
+      .catch(error => toast.error(...insightsFailure("insights.writeFailed", error)));
   };
 
   /** 矛盾与「可以继续想」：带着涉及的笔记开一个对话，用户发出后标为已处理 */
@@ -312,7 +315,7 @@ export function useMapInsights(
       type="button"
       onClick={() => (view === "off" ? enter() : exit())}
       disabled={view === "reading"}
-      title={view === "off" ? "让 AI 读一遍你的知识版图" : "退出洞见"}
+      title={view === "off" ? t("insights.enterHint") : t("insights.exit")}
       className={cn(
         "text-tau-meta text-ink-2 hover:bg-hover hover:text-ink-1 inline-flex h-[26px] shrink-0 items-center gap-[5px] rounded-full px-2.5 transition-colors",
         view !== "off" &&
@@ -324,7 +327,11 @@ export function useMapInsights(
       ) : (
         <Sparkles className="size-[13px]" strokeWidth={1.75} />
       )}
-      {view === "reading" ? "正在读" : view === "on" ? "退出洞见" : "AI 洞见"}
+      {view === "reading"
+        ? t("insights.reading")
+        : view === "on"
+          ? t("insights.exit")
+          : t("insights.title")}
       {view === "off" && unseen && <i className="bg-accent size-[5px] rounded-full opacity-75" />}
     </button>
   ) : null;
@@ -396,9 +403,7 @@ export function useMapInsights(
             <span className="text-ink-1 tabular-nums">
               {Math.max(1, order.findIndex(item => item.id === current) + 1)} / {order.length}
             </span>
-            <span className="text-ink-3 text-[11px]">
-              ↑↓ 切换 · 回车 处理 · ⌫ 不相关 · Esc 结束
-            </span>
+            <span className="text-ink-3 text-[11px]">{t("insights.walkKeys")}</span>
             <Button
               size="sm"
               variant="secondary"
@@ -407,7 +412,7 @@ export function useMapInsights(
                 setCurrent(null);
               }}
             >
-              结束
+              {t("insights.end")}
             </Button>
           </div>,
           document.body
