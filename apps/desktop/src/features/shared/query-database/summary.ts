@@ -7,7 +7,6 @@ import {
 
 export interface QuerySummary {
   source?: QuerySource;
-  sourceTitle?: string;
   /** DSL 里引用到的 params.xxx，按出现顺序 */
   paramNames: string[];
   /** 语法错误；JavaScript 不做静态检查 */
@@ -25,7 +24,6 @@ export function summarizeQuery(definition: QueryDefinition): QuerySummary {
     return source && Object.hasOwn(QUERY_SOURCES, source)
       ? {
           source: source as QuerySource,
-          sourceTitle: QUERY_SOURCES[source as QuerySource].title,
           paramNames,
         }
       : { paramNames };
@@ -34,7 +32,6 @@ export function summarizeQuery(definition: QueryDefinition): QuerySummary {
     const plan = parseQuery(definition.code);
     return {
       source: plan.source,
-      sourceTitle: QUERY_SOURCES[plan.source].title,
       paramNames,
     };
   } catch (error) {

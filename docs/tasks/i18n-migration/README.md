@@ -332,6 +332,8 @@ P7 MCP声明：SDK新增PluginMCPDeclaration，默认PluginMCPDefinition<string>
 
 伴读Chat14/Native4/Bootstrap2共20源完成；chat相关22例、bootstrap既有15例、extension type与WXT产物验证通过。真实composer/quote/model与选项跨语不发送、同按钮发原request；原token/Quick/PROMPTS/PAGE_TOOLS/AI/段号数据不变。3资源产物与token三语可解，命令ID/热键/zip/权限/URL保持；最终58文件非空AST无固定中文JSX，49字面量合法data/诊断与2HTML中性回退分类保留。
 
+查询UI9路径完成；原9+新真实参数/AI/写队列3共12例，desktop type/65key三语/范围检查通过。实际QuerySession/Worker/AI在途跨语不重启或取消，原request一次应用、原expectedRevision/definition单保存；12模块AST剩8为AI请求/持久名/带码诊断/运行诊断，无固定中文JSX。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

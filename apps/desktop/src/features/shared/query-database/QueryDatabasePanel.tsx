@@ -1,3 +1,4 @@
+import { queryUiErrorText, queryUiTranslator, useQueryUiI18n } from "./ui.i18n";
 import {
   useEffect,
   useLayoutEffect,
@@ -22,7 +23,6 @@ import { Button, Checkbox, Menu, Popover, Tooltip, cn, toast } from "@tau/ui";
 import { useThemeStore } from "@tau/themes/react";
 import { ShikiOverlayEditor } from "@tau/editor-source-view/overlay";
 import {
-  QUERY_SOURCES,
   type QueryDefinition,
   type QuerySource,
   type QueryValue,
@@ -66,21 +66,22 @@ const entityModel = defineFieldModel({
 const entityPlugin: CellPlugin<unknown> = {
   type: "queryEntity",
   model: entityModel,
-  name: "来源",
+  get name() {
+    return queryUiTranslator.t("entity.source");
+  },
   editable: false,
   valueType: "text",
   Renderer: ({ value }) => {
+    const { t } = useQueryUiI18n();
     if (!value || typeof value !== "object") return null;
     return (
       <button
         type="button"
-        title="打开原文"
+        title={t("entity.open")}
         className="text-ink-1 decoration-line-1 w-full truncate px-2 text-left underline-offset-[3px] hover:underline"
         onClick={event => {
           event.stopPropagation();
-          void openQueryEntity(value).catch(error =>
-            toast.error(error instanceof Error ? error.message : String(error))
-          );
+          void openQueryEntity(value).catch(error => toast.error(queryUiErrorText(error)));
         }}
       >
         {String(value.title ?? value.id)}
@@ -126,7 +127,9 @@ async function openQueryEntity(value: { kind?: unknown; id?: unknown; title?: un
     if (target?.taskRef.kind === "todo")
       return openPage("todos", { selectedId: target.taskRef.todoId });
   }
-  throw new Error("当前来源不支持直接打开");
+  throw Object.assign(new Error("当前来源不支持直接打开"), {
+    code: "QUERY_SOURCE_OPEN_UNSUPPORTED",
+  });
 }
 
 export interface QueryDatabasePanelProps {
@@ -157,6 +160,7 @@ export function QueryDatabasePanel({
   initialSourceOpen,
   initialAssist,
 }: QueryDatabasePanelProps) {
+  const { t } = useQueryUiI18n();
   const block = variant === "block";
   const editable = Boolean(onDefinitionChange);
   const state = useQueryDatabase(definition);
@@ -174,6 +178,7 @@ export function QueryDatabasePanel({
     (databaseProps || onPresentationChange) && presentation ? presentation : localPresentation;
   const mode = useThemeStore(theme => theme.mode);
   const summary = useMemo(() => summarizeQuery(definition), [definition]);
+  const sourceTitle = summary.source ? t(`source.${summary.source}`) : undefined;
   const assist = useQueryAssist({
     definition,
     error: state.error ?? summary.syntaxError,
@@ -405,7 +410,7 @@ export function QueryDatabasePanel({
             trigger={
               <button
                 type="button"
-                aria-label="更多查询设置"
+                aria-label={t("settings.more")}
                 className="text-ink-3 hover:bg-hover hover:text-ink-1 grid size-7 place-items-center rounded-[8px]"
               >
                 <MoreHorizontal className="size-[15px]" strokeWidth={1.75} />
@@ -417,14 +422,14 @@ export function QueryDatabasePanel({
               // 菜单关闭会把焦点还给触发按钮，晚一帧再挂输入框，免得它刚出现就失焦
               onSelect={() => requestAnimationFrame(() => setAddingParam(true))}
             >
-              添加参数
+              {t("param.add")}
             </Menu.Item>
           </Menu>
         )}
-        <Tooltip content="收起查询">
+        <Tooltip content={t("source.collapse")}>
           <button
             type="button"
-            aria-label="收起查询"
+            aria-label={t("source.collapse")}
             onClick={() => setSourceOpen(false)}
             className="text-ink-3 hover:bg-hover hover:text-ink-1 grid size-7 place-items-center rounded-[8px]"
           >
@@ -460,7 +465,7 @@ export function QueryDatabasePanel({
           tone="danger"
           position={
             errorLocation
-              ? `第 ${errorLocation.line} 行 · 第 ${errorLocation.column} 列`
+              ? t("error.position", { line: errorLocation.line, column: errorLocation.column })
               : undefined
           }
           message={syntaxError.replace(/^第 \d+ 字符：/, "")}
@@ -469,7 +474,7 @@ export function QueryDatabasePanel({
       {queryError && (
         <ProblemBar tone="danger" message={queryError}>
           <Button size="sm" variant="ghost" disabled={state.loading} onClick={state.refresh}>
-            重试查询
+            {t("retryQuery")}
           </Button>
         </ProblemBar>
       )}
@@ -497,7 +502,7 @@ export function QueryDatabasePanel({
     <>
       {saveIssue && !block && (
         <Notice tone="warn" actions={saveIssue.actions}>
-          查询改动还没保存。
+          {t("save.unsaved")}
           <span className="text-ink-3">{saveIssue.message}</span>
         </Notice>
       )}
@@ -507,16 +512,16 @@ export function QueryDatabasePanel({
           actions={
             <>
               <Button size="sm" variant="secondary" onClick={() => setSourceOpen(true)}>
-                打开查询
+                {t("source.open")}
               </Button>
               <Button size="sm" variant="ghost" disabled={state.loading} onClick={state.refresh}>
-                重试查询
+                {t("retryQuery")}
               </Button>
             </>
           }
         >
           {queryError}
-          {state.result && <span className="text-ink-3">（显示上次成功的结果）</span>}
+          {state.result && <span className="text-ink-3">{t("result.previous")}</span>}
         </Notice>
       )}
       {showSchemaNotice && (
@@ -525,18 +530,18 @@ export function QueryDatabasePanel({
           actions={
             missingViewFields.length ? (
               <Button size="sm" variant="secondary" onClick={removeMissingFields}>
-                移除失效条件
+                {t("schema.remove")}
               </Button>
             ) : (
               <Button size="sm" variant="ghost" onClick={() => setDismissedSchema(true)}>
-                知道了
+                {t("dismiss")}
               </Button>
             )
           }
         >
           {missingViewFields.length
-            ? `查询里已没有部分列，${missingViewFields.length} 处筛选、排序或分组不再生效。`
-            : "有列的类型变了，筛选、排序和日期设置可能需要调整。"}
+            ? t("schema.missing", { count: missingViewFields.length })
+            : t("schema.changed")}
         </Notice>
       )}
     </>
@@ -555,13 +560,13 @@ export function QueryDatabasePanel({
         )}
       >
         <b className="text-ink-1 text-[14px] font-semibold">
-          没有符合条件的{summary.sourceTitle ?? "数据"}
+          {t("result.empty", { source: sourceTitle ?? t("data") })}
         </b>
-        <span className="text-tau-meta">源数据有变化时，这里会自动出现。</span>
+        <span className="text-tau-meta">{t("result.emptyHint")}</span>
         {editable && (
           <div className="mt-2.5 flex gap-2">
             <Button size="sm" variant="secondary" onClick={() => setSourceOpen(true)}>
-              调整查询
+              {t("source.adjust")}
             </Button>
             {assist.available && (
               <Button
@@ -572,7 +577,7 @@ export function QueryDatabasePanel({
                   void assist.generate("放宽条件，让结果不为空");
                 }}
               >
-                让 AI 放宽条件
+                {t("assist.relax")}
               </Button>
             )}
           </div>
@@ -623,7 +628,7 @@ export function QueryDatabasePanel({
                 flush: true,
                 lead: (
                   <span className="text-ink-1 mr-3 shrink-0 pl-2 text-[15px] font-semibold whitespace-nowrap">
-                    {summary.sourceTitle ?? "查询"}
+                    {sourceTitle ?? t("query")}
                   </span>
                 ),
                 extra: (
@@ -645,14 +650,14 @@ export function QueryDatabasePanel({
           )}
         >
           <i className="border-line-1 border-t-accent size-[13px] animate-spin rounded-full border-[1.5px]" />
-          正在读取{summary.sourceTitle ?? "数据"}…
+          {t("result.loading", { source: sourceTitle ?? t("data") })}
         </div>
       )}
       {empty && <div className={block ? undefined : "absolute inset-x-0 top-20"}>{empty}</div>}
       {!block && state.result && state.result.rows.length > 0 && (
         <div className="text-ink-3 flex h-8 shrink-0 items-center gap-1.5 px-8 text-[12px]">
           <Lock className="size-3" strokeWidth={2} />
-          结果只读，点来源列可打开原文编辑
+          {t("result.readonly")}
         </div>
       )}
     </div>
@@ -700,17 +705,18 @@ function ColumnsMenu({
   view?: QueryPresentation["views"][number];
   onChange(config: QueryPresentation["views"][number]["config"]): void;
 }) {
+  const { t } = useQueryUiI18n();
   const [open, setOpen] = useState(false);
   const button = useRef<HTMLButtonElement>(null);
   if (!view || !data.length) return null;
   const hidden = view.config.hiddenColumnIds ?? [];
   return (
     <>
-      <Tooltip content="显示列">
+      <Tooltip content={t("columns.show")}>
         <button
           ref={button}
           type="button"
-          aria-label="显示列"
+          aria-label={t("columns.show")}
           aria-pressed={hidden.length > 0}
           onClick={() => setOpen(value => !value)}
           className={cn(
@@ -721,7 +727,9 @@ function ColumnsMenu({
           )}
         >
           <Eye className="size-[13px]" strokeWidth={1.75} />
-          <span className="text-tau-meta hidden @min-[560px]/db-toolbar:inline">显示列</span>
+          <span className="text-tau-meta hidden @min-[560px]/db-toolbar:inline">
+            {t("columns.show")}
+          </span>
           {hidden.length > 0 && (
             <span className="text-[10.5px] font-bold tabular-nums">{hidden.length}</span>
           )}
@@ -766,9 +774,10 @@ const QUICK_SOURCES: QuerySource[] = [
 ];
 
 function SourceQuickPicks({ onPick }: { onPick(query: QueryDefinition): void }) {
+  const { t } = useQueryUiI18n();
   return (
     <div className="border-line-2 flex flex-wrap items-center gap-1.5 border-t px-3 py-2.5">
-      <span className="text-ink-3 mr-1 text-[12px]">从来源开始</span>
+      <span className="text-ink-3 mr-1 text-[12px]">{t("source.start")}</span>
       {QUICK_SOURCES.map(source => (
         <button
           key={source}
@@ -776,7 +785,7 @@ function SourceQuickPicks({ onPick }: { onPick(query: QueryDefinition): void }) 
           onClick={() => onPick(starterQuery(source))}
           className="text-ink-2 hover:bg-hover hover:text-ink-1 h-[26px] rounded-[7px] px-2.5 text-[12px] shadow-[inset_0_0_0_1px_var(--tau-line-1)]"
         >
-          {QUERY_SOURCES[source].title}
+          {t(`source.${source}`)}
         </button>
       ))}
     </div>

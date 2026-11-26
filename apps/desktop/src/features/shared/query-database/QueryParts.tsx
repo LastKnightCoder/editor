@@ -1,3 +1,4 @@
+import { useQueryUiI18n } from "./ui.i18n";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   AlertCircle,
@@ -119,6 +120,7 @@ export function QueryToggleButton({
   onClick(): void;
   small?: boolean;
 }) {
+  const { t } = useQueryUiI18n();
   return (
     <button
       type="button"
@@ -133,16 +135,11 @@ export function QueryToggleButton({
       )}
     >
       <Code className="size-[13px]" strokeWidth={1.75} />
-      查询
-      {problem && <span className="bg-danger size-1.5 rounded-full" aria-label="查询有问题" />}
+      {t("query")}
+      {problem && <span className="bg-danger size-1.5 rounded-full" aria-label={t("problem")} />}
     </button>
   );
 }
-
-const LANGUAGE_LABEL: Record<QueryDefinition["language"], string> = {
-  dsl: "查询语言",
-  javascript: "JavaScript",
-};
 
 export function LanguageMenu({
   value,
@@ -153,13 +150,14 @@ export function LanguageMenu({
   disabled?: boolean;
   onChange(language: QueryDefinition["language"]): void;
 }) {
+  const { t } = useQueryUiI18n();
   const trigger = (
     <button
       type="button"
       disabled={disabled}
       className="text-tau-meta text-ink-1 hover:bg-hover inline-flex h-[26px] items-center gap-1 rounded-[7px] px-2 font-medium disabled:cursor-default disabled:hover:bg-transparent"
     >
-      {LANGUAGE_LABEL[value]}
+      {t(`language.${value}`)}
       {!disabled && <ChevronDown className="text-ink-3 size-3" strokeWidth={2} />}
     </button>
   );
@@ -172,7 +170,7 @@ export function LanguageMenu({
           onSelect={() => onChange(language)}
           icon={value === language ? <Check className="text-accent-text" /> : <span />}
         >
-          {LANGUAGE_LABEL[language]}
+          {t(`language.${language}`)}
         </Menu.Item>
       ))}
     </Menu>
@@ -215,6 +213,7 @@ export function ParamChips({
   onAddingChange(adding: boolean): void;
   onChange(params: Record<string, QueryValue>): void;
 }) {
+  const { t } = useQueryUiI18n();
   const keys = [...new Set([...names, ...Object.keys(params)])];
   if (!keys.length && !adding) return null;
   return (
@@ -241,8 +240,8 @@ export function ParamChips({
       {adding && !readOnly && (
         <input
           autoFocus
-          aria-label="参数名"
-          placeholder="参数名"
+          aria-label={t("param.name")}
+          placeholder={t("param.name")}
           className="text-tau-meta text-ink-1 h-6 w-24 rounded-[7px] px-2 font-mono shadow-[inset_0_0_0_1.5px_var(--tau-accent)] outline-none"
           onBlur={event => {
             const name = event.currentTarget.value.trim();
@@ -275,11 +274,12 @@ function ParamChip({
   onCommit(text: string): void;
   onRemove?(): void;
 }) {
+  const { t } = useQueryUiI18n();
   const [draft, setDraft] = useState<string>();
   const editing = draft !== undefined;
   return (
     <span
-      title={unused ? "查询里没有用到这个参数" : undefined}
+      title={unused ? t("param.unused") : undefined}
       className={cn(
         "text-tau-meta inline-flex h-6 items-center overflow-hidden rounded-[7px] shadow-[inset_0_0_0_1px_var(--tau-line-1)]",
         unused && "opacity-60"
@@ -289,7 +289,7 @@ function ParamChip({
       {editing ? (
         <input
           autoFocus
-          aria-label={`参数 ${name}`}
+          aria-label={t("param.value", { name })}
           value={draft}
           onChange={event => setDraft(event.target.value)}
           onBlur={() => {
@@ -310,13 +310,13 @@ function ParamChip({
           onClick={() => setDraft(value)}
           className="text-ink-1 hover:bg-hover flex h-full max-w-60 min-w-9 items-center truncate px-2 shadow-[inset_1px_0_0_var(--tau-line-1)] disabled:cursor-default disabled:hover:bg-transparent"
         >
-          {value || <span className="text-ink-3">空</span>}
+          {value || <span className="text-ink-3">{t("empty")}</span>}
         </button>
       )}
       {onRemove && !readOnly && (
         <button
           type="button"
-          aria-label={`移除参数 ${name}`}
+          aria-label={t("param.remove", { name })}
           onClick={onRemove}
           className="text-ink-3 hover:text-ink-1 grid h-full w-5 place-items-center"
         >
@@ -377,6 +377,7 @@ export function AssistRow({
   autoFocus?: boolean;
   first?: boolean;
 }) {
+  const { t } = useQueryUiI18n();
   const [request, setRequest] = useState("");
   const input = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -404,10 +405,10 @@ export function AssistRow({
         <span className="text-ink-2 min-w-0 flex-1 truncate">{state.request}</span>
         <span className="text-accent-text inline-flex items-center gap-1.5">
           <i className="border-accent-soft border-t-accent size-3 animate-spin rounded-full border-[1.5px]" />
-          正在编写
+          {t("assist.busy")}
         </span>
         <Button size="sm" variant="ghost" icon={Square} onClick={onStop}>
-          停止
+          {t("stop")}
         </Button>
       </div>
     );
@@ -415,13 +416,15 @@ export function AssistRow({
     return (
       <div className={cn(row, "bg-ok-soft rounded-b-[11px]")}>
         <Check className="text-ok size-[15px] shrink-0" strokeWidth={1.75} />
-        <span className="text-ink-1 min-w-0 flex-1 truncate">已按「{state.request}」改写查询</span>
+        <span className="text-ink-1 min-w-0 flex-1 truncate">
+          {t("assist.done", { request: state.request })}
+        </span>
         <Button size="sm" variant="ghost" icon={Undo2} onClick={onUndo}>
-          撤销
+          {t("undo")}
         </Button>
         <button
           type="button"
-          aria-label="关闭"
+          aria-label={t("close")}
           onClick={onDismiss}
           className="text-ink-3 hover:bg-hover hover:text-ink-1 grid size-7 place-items-center rounded-[8px]"
         >
@@ -433,12 +436,12 @@ export function AssistRow({
     return (
       <div className={cn(row, "bg-warn-soft rounded-b-[11px]")}>
         <TriangleAlert className="text-warn size-[15px] shrink-0" strokeWidth={1.75} />
-        <span className="text-ink-1 min-w-0 flex-1">生成期间你改过查询，AI 的版本没有覆盖它</span>
+        <span className="text-ink-1 min-w-0 flex-1">{t("assist.conflict")}</span>
         <Button size="sm" variant="soft" onClick={onAccept}>
-          用 AI 的版本
+          {t("assist.accept")}
         </Button>
         <Button size="sm" variant="ghost" onClick={onDismiss}>
-          丢弃
+          {t("discard")}
         </Button>
       </div>
     );
@@ -457,13 +460,13 @@ export function AssistRow({
         ref={input}
         value={request}
         onChange={event => setRequest(event.target.value)}
-        aria-label="查询需求"
+        aria-label={t("assist.request")}
         placeholder={
           state.status === "error"
-            ? `AI 编写失败：${state.message}`
+            ? t("assist.failed", { message: state.message })
             : hasError
-              ? "描述想看什么，或让 AI 修复上面的错误"
-              : "描述想看什么，AI 帮你写查询。比如「按标签分组统计字数」"
+              ? t("assist.fixHint")
+              : t("assist.hint")
         }
         className={cn(
           "text-ink-1 min-w-0 flex-1 bg-transparent outline-none",
@@ -472,7 +475,7 @@ export function AssistRow({
       />
       {hasError && !request.trim() ? (
         <Button size="sm" variant="soft" icon={Sparkles} onClick={() => onSubmit("修复当前错误")}>
-          让 AI 修复
+          {t("assist.fix")}
         </Button>
       ) : (
         <span className="text-ink-3 rounded-[4px] px-1 font-mono text-[10.5px] shadow-[inset_0_0_0_1px_var(--tau-line-1)]">

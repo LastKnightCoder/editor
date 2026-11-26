@@ -1,3 +1,4 @@
+import { queryUiErrorText, useQueryUiI18n } from "./ui.i18n";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { DataTable } from "@tau/shared/database-types";
 import type { QueryDefinition } from "@tau/shared/query-database";
@@ -22,10 +23,11 @@ export default function StoredQueryDatabase({
   query: NonNullable<DataTable["query"]>;
   reload?: () => Promise<void>;
 }) {
+  const { t } = useQueryUiI18n();
   const databaseName = useSettingStore(state => state.setting.database.active);
   const { commands } = useDatabaseCommands(queryCommands, databaseName);
   const [definition, setDefinition] = useState(query.definition);
-  const [saveError, setSaveError] = useState<string>();
+  const [saveError, setSaveError] = useState<{ cause: unknown; includeName?: boolean }>();
   const [localDraft, setLocalDraft] = useState<QueryDefinition>();
   const initialRevision = useRef(query.revision);
   const live = useRef(true);
@@ -56,7 +58,7 @@ export default function StoredQueryDatabase({
             if (live.current) setSaveError(undefined);
           } catch (error) {
             pending ??= next;
-            if (live.current) setSaveError(error instanceof Error ? error.message : String(error));
+            if (live.current) setSaveError({ cause: error });
             break;
           }
         }
@@ -69,7 +71,10 @@ export default function StoredQueryDatabase({
         void flush();
       },
       reset(value: NonNullable<DataTable["query"]>) {
-        if (running) throw new Error("正在保存，请稍后重新读取");
+        if (running)
+          throw Object.assign(new Error("正在保存，请稍后重新读取"), {
+            code: "QUERY_SAVE_IN_PROGRESS",
+          });
         revision = value.revision;
         pending = undefined;
         setDefinition(value.definition);
@@ -96,7 +101,7 @@ export default function StoredQueryDatabase({
         message.databaseName?.replace(/\.db$/, "") === databaseName.replace(/\.db$/, "")
       )
         void reload?.().catch(error => {
-          if (live.current) setSaveError(String(error));
+          if (live.current) setSaveError({ cause: error, includeName: true });
         });
     };
     on("query-database:changed", changed);
@@ -109,17 +114,21 @@ export default function StoredQueryDatabase({
     void commands
       .getDataTableDetail(tableId)
       .then(detail => {
-        if (!detail.table?.query) throw new Error("查询数据库不存在");
+        if (!detail.table?.query)
+          throw Object.assign(new Error("查询数据库不存在"), { code: "QUERY_DATABASE_NOT_FOUND" });
         setLocalDraft(definition);
         writer.reset(detail.table.query);
       })
-      .catch(error => setSaveError(error instanceof Error ? error.message : String(error)));
+      .catch(error => setSaveError({ cause: error }));
   };
+  const saveMessage = saveError
+    ? queryUiErrorText(saveError.cause, saveError.includeName)
+    : undefined;
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {localDraft && (
         <div className="text-ink-3 text-tau-meta mx-8 mb-2 flex items-center gap-2">
-          已读取保存的版本，你的本地改动另存为草稿。
+          {t("save.loaded")}
           <Button
             size="sm"
             variant="ghost"
@@ -129,10 +138,10 @@ export default function StoredQueryDatabase({
               setLocalDraft(undefined);
             }}
           >
-            恢复本地改动
+            {t("save.restore")}
           </Button>
           <Button size="sm" variant="ghost" onClick={() => setLocalDraft(undefined)}>
-            丢弃
+            {t("discard")}
           </Button>
         </div>
       )}
@@ -145,16 +154,16 @@ export default function StoredQueryDatabase({
         initialSourceOpen={Boolean(intent)}
         initialAssist={intent?.assist}
         saveIssue={
-          saveError
+          saveMessage
             ? {
-                message: saveError,
+                message: saveMessage,
                 actions: (
                   <>
                     <Button size="sm" variant="secondary" onClick={() => writer.retry()}>
-                      重试保存
+                      {t("save.retry")}
                     </Button>
                     <Button size="sm" variant="ghost" onClick={readSaved}>
-                      读取已保存的版本
+                      {t("save.read")}
                     </Button>
                   </>
                 ),
