@@ -1,3 +1,4 @@
+import { usePlatformLabels } from "@/platform/i18n";
 /**
  * Skill 页：卡片库（我的 / 内置 / 关联目录）+ 右侧抽屉 + 添加弹窗；
  * 「编辑」推入整页编辑器（skill-edit）。卡片开关即时生效（停用 ⇄ 恢复原调用方式）。
@@ -7,7 +8,6 @@ import { useMemo, useState } from "react";
 import { FolderSymlink, Plus, Search, Sparkles } from "lucide-react";
 import { Button, ConfirmDialog, FilterPill, Input, Switch, cn, toast } from "@tau/ui";
 import { FadeScroll } from "@tau/ui";
-import { trashName } from "@/platform";
 import useSkillStore from "@/stores/useSkillStore";
 import { useSkillItems, SOURCE_LABEL, type SkillItem } from "../useSkills";
 import { ModeBadge, BudgetBar, SkillIcon, SourceTag, WarningText } from "../components/SkillVisual";
@@ -118,6 +118,7 @@ const FILTERS: Record<Filter, (item: SkillItem) => boolean> = {
 };
 
 export function SkillsView() {
+  const { trashName } = usePlatformLabels();
   const { items, budget, loaded } = useSkillItems();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");

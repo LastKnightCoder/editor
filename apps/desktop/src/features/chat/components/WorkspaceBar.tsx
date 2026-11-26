@@ -1,3 +1,4 @@
+import { usePlatformLabels } from "@/platform/i18n";
 /**
  * 对话工作目录栏：输入框正上方显示 AI 执行命令、读写文件所在的目录，是仓库时显示当前分支。
  * 在这里换目录只影响当前对话（下一轮起生效）；切分支直接作用于该仓库。
@@ -8,7 +9,6 @@ import { useState } from "react";
 import { ChevronDown, ExternalLink, Folder, FolderOpen, GitBranch, RotateCcw } from "lucide-react";
 import { Menu, toast } from "@tau/ui";
 import { selectDirectoryWithDialog, showInFolder } from "@/commands";
-import { revealInFileManagerLabel } from "@/platform";
 import useChatSessionStore, { useChatCwd } from "@/stores/useChatSessionStore";
 import useSettingStore from "@/stores/useSettingStore";
 import { useWorkspaceBranches, useWorkspaceCheckout, useWorkspaceInfo } from "../workspaceQueries";
@@ -20,6 +20,7 @@ const TRIGGER =
 const baseName = (path: string) => path.split(/[\\/]/).filter(Boolean).pop() ?? path;
 
 export function WorkspaceBar({ chatId, busy }: { chatId: string; busy: boolean }) {
+  const { revealInFileManagerLabel } = usePlatformLabels();
   const cwd = useChatCwd(chatId);
   const defaultCwd = useSettingStore(s => s.setting.agentWorkspace?.defaultCwd?.trim() ?? "");
   const { data: info } = useWorkspaceInfo(cwd);

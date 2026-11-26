@@ -1,3 +1,4 @@
+import { usePlatformLabels } from "@/platform/i18n";
 /**
  * 添加 Skill 弹窗：新建（模板）/ 用 AI 创建 / 导入（.zip · 文件夹 · GitHub 链接）/ 关联目录。
  * 新建与 AI 创建落进「我的」后直接推入编辑页；导入先列候选、勾选后复制；关联目录即时生效。
@@ -31,7 +32,6 @@ import {
 } from "@tau/ui";
 import { FadeScroll } from "@tau/ui";
 import { usePage } from "@/page/PageProvider";
-import { trashName } from "@/platform";
 import useSkillStore from "@/stores/useSkillStore";
 import useLLMConfig from "@/hooks/useLLMConfig";
 import { piStreamText, type PiChatHandle } from "@/services/piLLM";
@@ -254,6 +254,7 @@ function ImportPane({
   checked: Set<string>;
   setChecked: (next: Set<string>) => void;
 }) {
+  const { trashName } = usePlatformLabels();
   const [url, setUrl] = useState("");
   const pickZip = async () => {
     const files = await selectFile({

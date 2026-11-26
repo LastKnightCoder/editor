@@ -1,3 +1,4 @@
+import { usePlatformLabels } from "@/platform/i18n";
 import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from "react";
 import {
   ChevronRight,
@@ -26,7 +27,6 @@ import {
   showInFolder,
   trashItem,
 } from "@/commands/file";
-import { revealInFileManagerLabel, trashName } from "@/platform";
 import { getFileCategory } from "../fileTypes";
 import { baseName, dirName, invalidFileName, isWithin, joinPath, splitExtension } from "../paths";
 import type { TreeRow } from "./useFileTree";
@@ -94,6 +94,7 @@ export function FileTree({
   refreshDir(dir: string): Promise<void>;
   handlers: FileTreeHandlers;
 }) {
+  const { trashName, revealInFileManagerLabel } = usePlatformLabels();
   const [editing, setEditing] = useState<Editing | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);

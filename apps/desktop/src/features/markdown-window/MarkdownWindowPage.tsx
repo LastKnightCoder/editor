@@ -1,3 +1,4 @@
+import { usePlatformLabels } from "@/platform/i18n";
 import { useContentTransferI18n } from "@/services/content-transfer.i18n";
 import { exportContentAsWord } from "@/services/content-transfer";
 /**
@@ -48,7 +49,6 @@ import {
   showInFolder,
 } from "@/commands";
 import { on, off } from "@/electron";
-import { revealInFileManagerLabel } from "@/platform";
 import { copyWechatHtmlToClipboard, downloadMarkdown } from "@/utils";
 import { usePageMargin } from "@/hooks/usePageMargin";
 import { outlineFitsInPageMargin } from "@/utils/pageMargin";
@@ -79,6 +79,7 @@ const toastAdapter = {
 type ExportState = { kind: "epub" | "pdf"; content: Descendant[]; title: string } | null;
 
 export default function MarkdownWindowPage() {
+  const { revealInFileManagerLabel } = usePlatformLabels();
   useThemeRuntime();
   useEffect(() => initScrollbarAutoHide(), []);
 

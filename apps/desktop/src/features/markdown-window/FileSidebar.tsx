@@ -1,3 +1,4 @@
+import { usePlatformLabels } from "@/platform/i18n";
 import { useCallback, useState } from "react";
 import {
   ExternalLink,
@@ -14,7 +15,6 @@ import {
 import { IconButton, Menu, ResizeHandle } from "@tau/ui";
 import { FadeScroll } from "@tau/ui";
 import { showInFolder } from "@/commands";
-import { revealInFileManagerLabel } from "@/platform";
 import { baseName } from "./paths";
 import { FileTree, type FileTreeHandlers } from "./fileTree/FileTree";
 import { FILTER_ROW_LIMIT, useFileTree } from "./fileTree/useFileTree";
@@ -50,6 +50,7 @@ export function FileSidebar({
   /** 页面借此在打开文件时展开到该文件 */
   treeApiRef: React.MutableRefObject<{ reveal(path: string): void } | null>;
 }) {
+  const { revealInFileManagerLabel } = usePlatformLabels();
   const showAll = useMarkdownWindowPrefs(s => s.showAllFiles);
   const toggleShowAll = useMarkdownWindowPrefs(s => s.toggleShowAllFiles);
   const sidebarWidth = useMarkdownWindowPrefs(s => s.sidebarWidth);
@@ -68,7 +69,7 @@ export function FileSidebar({
 
   return (
     <aside
-      className="relative flex shrink-0 flex-col pb-2 pl-2.5 pr-1.5"
+      className="relative flex shrink-0 flex-col pr-1.5 pb-2 pl-2.5"
       style={{ width: sidebarWidth }}
     >
       <div className="text-tau-body text-ink-1 flex h-10 items-center gap-1.5 pl-2 font-semibold">
@@ -168,7 +169,7 @@ export function FileSidebar({
         side="left"
         label="侧栏宽度"
         defaultValue={SIDEBAR_DEFAULT_WIDTH}
-        className="absolute -right-1 bottom-0 top-0"
+        className="absolute top-0 -right-1 bottom-0"
       />
     </aside>
   );

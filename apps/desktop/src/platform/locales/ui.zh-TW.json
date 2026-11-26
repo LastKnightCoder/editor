@@ -1,0 +1,8 @@
+{
+  "reveal.mac": "在 Finder 中顯示",
+  "reveal.win": "在檔案總管中顯示",
+  "reveal.other": "在檔案管理員中顯示",
+  "trash.mac": "垃圾桶",
+  "trash.win": "資源回收筒",
+  "trash.other": "回收桶"
+}

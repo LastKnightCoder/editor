@@ -1,0 +1,8 @@
+{
+  "reveal.mac": "Show in Finder",
+  "reveal.win": "Show in File Explorer",
+  "reveal.other": "Show in file manager",
+  "trash.mac": "Trash",
+  "trash.win": "Recycle Bin",
+  "trash.other": "Trash"
+}

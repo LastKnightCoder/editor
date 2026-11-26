@@ -1,3 +1,4 @@
+import { usePlatformLabels } from "@/platform/i18n";
 /**
  * Skill 详情抽屉（通用 Drawer，md 560px）：
  * 概览（AI 看到的描述 + SKILL.md 渲染 + 元信息）/ 设置（调用方式、导出、删除）/ 使用记录。
@@ -31,7 +32,6 @@ import {
 } from "@tau/ui";
 import { Editor } from "@tau/editor";
 import { usePage } from "@/page/PageProvider";
-import { revealInFileManagerLabel, trashName } from "@/platform";
 import useSkillStore from "@/stores/useSkillStore";
 import { importFromMarkdown } from "@/utils/markdown";
 import { splitSkillDocument } from "@/utils/skill-frontmatter";
@@ -167,7 +167,7 @@ function OverviewPane({
           </ul>
         </Meta>
         <Meta label="位置">
-          <span className="font-tau-mono text-ink-2 break-all text-[11.5px]">
+          <span className="font-tau-mono text-ink-2 text-[11.5px] break-all">
             {skill.source === "builtin" ? "随应用内置（只读）" : skill.path}
           </span>
         </Meta>
@@ -207,6 +207,7 @@ function SettingsPane({
   item: SkillItem;
   onDelete: (item: SkillItem) => void;
 }) {
+  const { trashName } = usePlatformLabels();
   const { skill } = item;
   const exportZip = async () => {
     try {
@@ -389,6 +390,7 @@ export function SkillDrawer({
   onClose: () => void;
   onDelete: (item: SkillItem) => void;
 }) {
+  const { revealInFileManagerLabel } = usePlatformLabels();
   const { navigator } = usePage();
   const [tab, setTab] = useState<DrawerTab>("overview");
   const current = useRetainedValue(item);

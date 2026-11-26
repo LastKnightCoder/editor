@@ -1,0 +1,8 @@
+{
+  "reveal.mac": "在访达中显示",
+  "reveal.win": "在资源管理器中显示",
+  "reveal.other": "在文件管理器中显示",
+  "trash.mac": "废纸篓",
+  "trash.win": "回收站",
+  "trash.other": "回收站"
+}

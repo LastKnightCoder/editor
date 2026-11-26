@@ -1,3 +1,4 @@
+import { usePlatformLabels } from "@/platform/i18n";
 /**
  * Skill 整页编辑器：左侧该 Skill 的文件树（透明底，沿用纸面），右侧编辑区。
  * SKILL.md 双视图——「编辑」= front-matter 表单（名称 / 描述 / 仅手动）+ 富文本正文，「源码」= 整份 md；
@@ -39,7 +40,6 @@ import {
 import { Editor } from "@tau/editor";
 import { FadeScroll } from "@tau/ui";
 import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
-import { revealInFileManagerLabel, trashName } from "@/platform";
 import useSkillStore from "@/stores/useSkillStore";
 import { getMarkdown, importFromMarkdown } from "@/utils/markdown";
 import {
@@ -344,6 +344,7 @@ function ReadmeHeader({
 /* ── 页面 ── */
 
 export function SkillEditView() {
+  const { revealInFileManagerLabel, trashName } = usePlatformLabels();
   const { path: skillPath } = usePageParams<{ path: string }>();
   const { navigator } = usePage();
   const skills = useSkillStore(s => s.skills);

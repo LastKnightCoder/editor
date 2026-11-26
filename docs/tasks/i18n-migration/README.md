@@ -274,6 +274,10 @@ P6A3-D1白板提示/预览：11路径工程完成；4文件26例、包type/白�
 
 P6B桌面房间/成员/退出：23路径工程完成，原14基线扩为19例通过；desktop类型、room三语109语义key参数与范围静态/格式通过。5真实契约保留Nav节点/焦点/session对象、成员确认设备与pending单请求、owner pending阻止结束/同步后原id一次退出、邀请码cache/query与code不重读/复制/轮换、同媒体player及资源解析单次；所有Doc/kit/presence依赖不加locale，2外域工厂仅稳定video/audio参数。历史面板另批。
 
+P6系统平台名称：14路径工程完成；desktop类型/构建、启动/插件边界与范围静态/格式通过。独立AST对照证明9个消费者的动作回调与所有effect/memo依赖原样，无memo捕获译文；原常量导入消费者清零退休，不写锁标签或映射的测试。Skill/Markdown/Workspace其余界面文案仍按各域迁移，能力装配不读语言。
+
+存量UI复核：AST初筛4450个生产文件，分别记录JSX/显示属性/反馈候选与数据/诊断，候选需逐项判别，不能据其数量宣称覆盖率。后续仍需收束Skills/MCP、Markdown/浏览器扩展、项目/共享内容工具与独立工作台；showcase/devtools样例与真实产品UI分开评审，默认名/提示词/协议/用户正文不机械替换。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。
