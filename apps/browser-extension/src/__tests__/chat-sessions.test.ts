@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { COMPANION_METHODS as methods } from "@tau/shared/browser-companion";
+import { extensionLocaleSource } from "../shared/i18n";
 import { PageChat } from "../content/state/chat";
 import { getState, patchChat, setState } from "../content/state/store";
 
@@ -136,8 +137,25 @@ describe("扩展会话管理", () => {
       runId: null,
       messages: [],
       sessions: [],
-      error: expect.stringContaining("已删除"),
+      error: { kind: "session-missing" },
     });
     expect(getState().chat.sessionId).not.toBe("latest");
   });
+});
+
+it("请求失败保留原始诊断，切换语言不重新提交", async () => {
+  const { chat, rpc } = setup();
+  await chat.load();
+  patchChat({ usePage: false });
+  const cause = new Error("original backend diagnostic");
+  rpc.mockRejectedValueOnce(cause);
+  expect(await chat.ask("原始问题")).toBeNull();
+  const issue = getState().chat.error;
+  expect(issue).toEqual({ kind: "diagnostic", cause });
+  const requests = rpc.mock.calls.length;
+  for (const locale of ["zh-TW", "en-US"] as const) {
+    extensionLocaleSource.setLocale(locale);
+    expect(getState().chat.error).toBe(issue);
+    expect(rpc.mock.calls).toHaveLength(requests);
+  }
 });

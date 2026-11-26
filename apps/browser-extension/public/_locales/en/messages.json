@@ -1,0 +1,14 @@
+{
+  "extensionName": {
+    "message": "Tau Companion"
+  },
+  "extensionDescription": {
+    "message": "Highlight, annotate, and take notes on web pages, then ask questions using your models in Tau"
+  },
+  "toggleCompanion": {
+    "message": "Open / close the companion panel"
+  },
+  "openLibrary": {
+    "message": "Open the companion library: all annotated pages"
+  }
+}

@@ -393,7 +393,7 @@ export class CompanionController {
     setState({
       bubble: runId
         ? { ...bubble, runId }
-        : { ...bubble, status: "error", error: chat.error ?? "提问失败" },
+        : { ...bubble, status: "error", error: chat.error ?? { kind: "ask-failed" } },
     });
   }
 

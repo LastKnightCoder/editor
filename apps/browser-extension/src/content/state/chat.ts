@@ -3,6 +3,7 @@
  * 会话 id 记在 chrome.storage，刷新后接着用）。回答经 v2 运行协议流式推来；选区快答
  * （解释 / 翻译 / 概括）也走当前这段对话，回答同时显示在选区旁的气泡里，「在面板继续」就是打开面板接着聊。
  */
+import { chatActionErrorText, chatTranslator } from "../chat.i18n";
 import {
   applyChatStreamEvent,
   createAssistantMessage,
@@ -32,6 +33,7 @@ import {
   patchChat,
   setState,
   showToast,
+  type ChatIssue,
   type QuickKind,
   type QuoteContext,
 } from "./store";
@@ -203,7 +205,7 @@ export class PageChat {
   newSession(): void {
     const { chat } = getState();
     if (chat.runId) {
-      patchChat({ error: "上一个回答还没结束" });
+      patchChat({ error: { kind: "busy" } });
       return;
     }
     if (!chat.loaded) void this.load();
@@ -216,7 +218,7 @@ export class PageChat {
     const key = chatSessionKey(this.url);
     const write = sessionId ? storageSet(key, sessionId) : storageRemove(key);
     void write.catch(() => {
-      if (selection === this.selectionVersion) showToast("未能保存当前对话的选择");
+      if (selection === this.selectionVersion) showToast(chatTranslator.t("toast.rememberFailed"));
     });
   }
 
@@ -225,7 +227,7 @@ export class PageChat {
     return ++this.selectionVersion;
   }
 
-  private resetSession(error: string | null = null): void {
+  private resetSession(error: ChatIssue | null = null): void {
     this.changeSelection();
     this.filters.clear();
     const { sessionId, sessionSaved, messages, runId, approvals, questions } = initialChat(
@@ -247,7 +249,7 @@ export class PageChat {
   async switchSession(id: string): Promise<void> {
     const { chat } = getState();
     if (chat.runId) {
-      patchChat({ error: "上一个回答还没结束" });
+      patchChat({ error: { kind: "busy" } });
       return;
     }
     const selection = this.changeSelection();
@@ -256,7 +258,7 @@ export class PageChat {
     const result = await this.readSession(url, id);
     if (selection !== this.selectionVersion) return;
     if (!result?.sessionId) {
-      showToast("这段对话打不开");
+      showToast(chatTranslator.t("toast.openFailed"));
       return;
     }
     await this.selectHistory(url, result, selection, true);
@@ -266,7 +268,7 @@ export class PageChat {
   async deleteSession(id: string): Promise<void> {
     const { chat } = getState();
     if (chat.runId) {
-      patchChat({ error: "上一个回答还没结束" });
+      patchChat({ error: { kind: "busy" } });
       return;
     }
     const url = pageKeyOf(this.url);
@@ -276,13 +278,18 @@ export class PageChat {
         session: { id, pageUrl: url },
       });
     } catch (error) {
-      if (page === this.pageVersion) showToast(error instanceof Error ? error.message : "删除失败");
+      if (page === this.pageVersion)
+        showToast(
+          error instanceof Error
+            ? chatActionErrorText(error)
+            : chatTranslator.t("toast.deleteFailed")
+        );
       return;
     }
     if (page !== this.pageVersion) return;
     this.removeSession(id);
     if (id === getState().chat.sessionId) this.resetSession();
-    showToast("已删除这段对话");
+    showToast(chatTranslator.t("toast.deleted"));
   }
 
   private removeSession(id: string): void {
@@ -325,7 +332,7 @@ export class PageChat {
       questions: snapshot?.interactions.questions ?? [],
     });
     if (remember) this.rememberSession(sessionId);
-    if (state?.running && !snapshot) showToast("这段对话正在另一个标签页或浏览器中回答");
+    if (state?.running && !snapshot) showToast(chatTranslator.t("toast.runningElsewhere"));
   }
 
   private canSelect(sessionId: string, selection: number): boolean {
@@ -361,7 +368,7 @@ export class PageChat {
     }
     const { chat } = getState();
     if (chat.runId) {
-      patchChat({ error: "上一个回答还没结束" });
+      patchChat({ error: { kind: "busy" } });
       return null;
     }
     this.changeSelection();
@@ -399,7 +406,7 @@ export class PageChat {
       if ("missingSession" in result) {
         if (getState().chat.runId === runId) {
           this.removeSession(chat.sessionId);
-          this.resetSession("这段对话已删除，请在新对话中重新发送");
+          this.resetSession({ kind: "session-missing" });
         }
         return null;
       }
@@ -409,7 +416,7 @@ export class PageChat {
       if (getState().chat.runId !== runId) return null;
       patchChat(current => ({
         runId: null,
-        error: error instanceof Error ? error.message : String(error),
+        error: { kind: "diagnostic", cause: error },
         messages: current.messages.slice(0, -2),
       }));
       return null;
@@ -424,13 +431,13 @@ export class PageChat {
   /** 审批与作答经 Tau 交给 pi 宿主；失败抛给交互件提示 */
   async approve(requestId: string, choice: "allow" | "allow-session" | "deny"): Promise<void> {
     const { runId } = getState().chat;
-    if (!runId) throw new Error("这轮回答已结束");
+    if (!runId) throw Object.assign(new Error("这轮回答已结束"), { code: "COMPANION_RUN_ENDED" });
     await this.bridge.rpc(COMPANION_METHODS.runApprove, { runId, requestId, choice });
   }
 
   async answer(requestId: string, answers: unknown): Promise<void> {
     const { runId } = getState().chat;
-    if (!runId) throw new Error("这轮回答已结束");
+    if (!runId) throw Object.assign(new Error("这轮回答已结束"), { code: "COMPANION_RUN_ENDED" });
     await this.bridge.rpc(COMPANION_METHODS.runAnswer, { runId, requestId, answers });
   }
 
@@ -465,7 +472,12 @@ export class PageChat {
         runId: null,
         approvals: [],
         questions: [],
-        error: event.ok || event.aborted ? null : (event.error ?? "回答失败"),
+        error:
+          event.ok || event.aborted
+            ? null
+            : event.error != null
+              ? { kind: "diagnostic", cause: event.error }
+              : { kind: "answer-failed" },
       });
       const { bubble } = getState();
       if (bubble?.runId === notification.runId) {
@@ -473,7 +485,7 @@ export class PageChat {
           bubble: {
             ...bubble,
             status: event.ok || event.aborted ? "done" : "error",
-            error: event.error,
+            error: event.error != null ? { kind: "diagnostic", cause: event.error } : undefined,
             text: bubble.text || event.lastText,
           },
         });
@@ -481,7 +493,7 @@ export class PageChat {
       return;
     }
     if (event.type === "error") {
-      patchChat({ error: event.message });
+      patchChat({ error: { kind: "diagnostic", cause: event.message } });
       return;
     }
     if (

@@ -1,3 +1,4 @@
+import { useContentChatI18n } from "../chat.i18n";
 import { memo, useMemo, type ReactNode } from "react";
 import { MARKDOWN_LINK_CLASS, MarkdownRenderer } from "@tau/chat-ui/conversation";
 import { useController } from "./context";
@@ -13,6 +14,7 @@ export const linkCites = (text: string) =>
  * 另把 [n] 段落引用画成编号徽标，点击滚回原文。
  */
 export const Markdown = memo(function Markdown({ text }: { text: string }) {
+  const { t } = useContentChatI18n();
   const controller = useController();
   const components = useMemo(
     () => ({
@@ -22,7 +24,7 @@ export const Markdown = memo(function Markdown({ text }: { text: string }) {
           return (
             <button
               type="button"
-              title="定位到原文"
+              title={t("cite.locate")}
               onClick={() => controller.scrollToBlock(index)}
               className="bg-accent-soft text-accent-text hover:bg-accent hover:text-ink-inverse mx-px inline-grid h-[17px] min-w-[17px] place-items-center rounded-[5px] px-1 align-[1px] text-[10.5px] leading-none font-semibold"
             >
@@ -37,7 +39,7 @@ export const Markdown = memo(function Markdown({ text }: { text: string }) {
         );
       },
     }),
-    [controller]
+    [controller, t]
   );
   return (
     <MarkdownRenderer

@@ -1,3 +1,4 @@
+import { chatIssueText } from "../chat.i18n";
 import { ArrowUpRight, Copy, MessageSquareText, NotebookPen, Sparkles, X } from "lucide-react";
 import { IconButton } from "@tau/ui";
 import { actionsTranslator, useActionsI18n } from "../actions.i18n";
@@ -42,7 +43,9 @@ export function QuickBubble() {
       </div>
       <div className="max-h-[300px] overflow-y-auto">
         {bubble.status === "error" ? (
-          <p className="text-danger text-tau-body">{bubble.error ?? t("quick.failed")}</p>
+          <p className="text-danger text-tau-body">
+            {bubble.error ? chatIssueText(bubble.error) : t("quick.failed")}
+          </p>
         ) : bubble.text ? (
           <Markdown text={bubble.text} />
         ) : (

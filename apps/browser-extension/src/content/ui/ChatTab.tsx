@@ -37,14 +37,15 @@ import { stripCites } from "../state/controller";
 import { patchChat, showToast, useCompanion } from "../state/store";
 import { useController } from "./context";
 import { Markdown } from "./Markdown";
-import { relativeDay, sessionTitle } from "./SessionNav";
+import { sessionTitle } from "./SessionNav";
+import { chatTranslator, chatIssueText, relativeDay, useContentChatI18n } from "../chat.i18n";
 import { useConnectionI18n } from "../i18n";
 
 const SUGGESTIONS = [
-  { icon: BookOpen, text: "总结本页" },
-  { icon: List, text: "列出要点" },
-  { icon: Search, text: "这篇的论证有哪些可以追问的地方" },
-];
+  { id: "summary", icon: BookOpen, request: "总结本页" },
+  { id: "points", icon: List, request: "列出要点" },
+  { id: "questions", icon: Search, request: "这篇的论证有哪些可以追问的地方" },
+] as const;
 
 export function ChatTab() {
   const status = useCompanion(state => state.status);
@@ -53,6 +54,8 @@ export function ChatTab() {
 }
 
 function Conversation() {
+  const context = useContentChatI18n();
+  const { t } = context;
   const controller = useController();
   const chat = useCompanion(state => state.chat);
   const canUseTools = useCompanion(state => state.status.scopes?.includes("tools") ?? false);
@@ -81,13 +84,11 @@ function Conversation() {
       <div ref={containerRef} className="min-h-0 flex-1 overflow-y-auto px-4 pt-2 pb-3">
         {chat.messages.length === 0 ? (
           <div className="px-0.5 pt-7 pb-2">
-            <h3 className="text-tau-title-lg text-ink-1 mb-1 font-semibold">
-              关于这页，想知道什么？
-            </h3>
-            <p className="text-tau-meta text-ink-3 mb-4">回答会标出原文出处，点编号可跳回原文。</p>
+            <h3 className="text-tau-title-lg text-ink-1 mb-1 font-semibold">{t("empty.title")}</h3>
+            <p className="text-tau-meta text-ink-3 mb-4">{t("empty.hint")}</p>
             {recent.length > 0 && (
               <div className="mb-2">
-                <p className="text-tau-micro text-ink-3 px-2.5 pb-1">最近聊过</p>
+                <p className="text-tau-micro text-ink-3 px-2.5 pb-1">{t("recent")}</p>
                 {recent.map(item => (
                   <button
                     key={item.id}
@@ -98,15 +99,18 @@ function Conversation() {
                     <History size={13} strokeWidth={1.8} className="text-ink-3 flex-none" />
                     <span className="min-w-0 flex-1 truncate">{sessionTitle(item)}</span>
                     <span className="text-tau-micro text-ink-3 flex-none tabular-nums">
-                      {relativeDay(item.updateTime)} · {item.messageCount} 问
+                      {t("history.detail", {
+                        time: relativeDay(item.updateTime, context),
+                        count: item.messageCount,
+                      })}
                     </span>
                   </button>
                 ))}
               </div>
             )}
-            {SUGGESTIONS.map(({ icon: Icon, text }) => (
-              <Suggestion key={text} icon={Icon} onClick={() => send(text)}>
-                {text}
+            {SUGGESTIONS.map(({ id, icon: Icon, request }) => (
+              <Suggestion key={id} icon={Icon} onClick={() => send(request)}>
+                {t(`suggest.${id}`)}
               </Suggestion>
             ))}
             <Suggestion
@@ -114,10 +118,10 @@ function Conversation() {
               onClick={() =>
                 canUseTools
                   ? send("这页的内容和我在 Tau 里的笔记有什么关联？")
-                  : showToast("需要在 Tau 设置 › 浏览器扩展 打开「使用 Tau 里的工具」")
+                  : showToast(chatTranslator.t("toast.toolsDisabled"))
               }
             >
-              和我的笔记有什么关联
+              {t("suggest.related")}
             </Suggestion>
           </div>
         ) : (
@@ -130,7 +134,9 @@ function Conversation() {
             />
           ))
         )}
-        {chat.error && <p className="text-tau-meta text-danger mt-2">{chat.error}</p>}
+        {chat.error && (
+          <p className="text-tau-meta text-danger mt-2">{chatIssueText(chat.error)}</p>
+        )}
       </div>
       <Composer onSend={send} />
     </>
@@ -152,6 +158,7 @@ const ConversationMessage = memo(function ConversationMessage({
   index: number;
   streaming: boolean;
 }) {
+  const { t } = useContentChatI18n();
   const controller = useController();
   const isDark = useCompanion(state => state.status.appearance?.mode === "dark");
   const isUser = message.role === Role.User;
@@ -171,16 +178,20 @@ const ConversationMessage = memo(function ConversationMessage({
         {!PAGE_TOOL_NAMES.has(execution.toolName) && execution.status === "success" && (
           <button
             type="button"
-            onClick={() => void controller.chat.openInTau().catch(() => showToast("Tau 未连接"))}
+            onClick={() =>
+              void controller.chat
+                .openInTau()
+                .catch(() => showToast(chatTranslator.t("toast.offline")))
+            }
             className="text-tau-sm text-ink-3 hover:text-accent-text inline-flex flex-none items-center gap-0.5 opacity-0 transition-opacity group-hover/tool:opacity-100"
           >
-            在 Tau 中查看
+            {t("viewTau")}
             <ArrowUpRight size={12} strokeWidth={1.8} />
           </button>
         )}
       </div>
     ),
-    [controller]
+    [controller, t]
   );
 
   return (
@@ -202,12 +213,12 @@ const ConversationMessage = memo(function ConversationMessage({
             ? undefined
             : text => (
                 <IconButton
-                  aria-label="存为笔记"
-                  title="存为笔记"
+                  aria-label={t("saveNote")}
+                  title={t("saveNote")}
                   className="size-[26px] [&_svg]:size-3.5"
                   onClick={() => {
                     controller.appendToNote(stripCites(text));
-                    showToast("已存入页面笔记");
+                    showToast(chatTranslator.t("toast.noteSaved"));
                   }}
                 >
                   <NotebookPen strokeWidth={1.75} />
@@ -256,6 +267,7 @@ function Suggestion({
 }
 
 function Composer({ onSend }: { onSend: (text: string) => void }) {
+  const { t } = useContentChatI18n();
   const controller = useController();
   const chat = useCompanion(state => state.chat);
   const length = controller.chat.content().length;
@@ -280,10 +292,12 @@ function Composer({ onSend }: { onSend: (text: string) => void }) {
         <ContextChip
           active={chat.usePage}
           icon={BookOpen}
-          title="把本页正文作为上下文"
+          title={t("context.pageHint")}
           onClick={() => patchChat(current => ({ usePage: !current.usePage }))}
         >
-          本页 · {length >= 1000 ? `${(length / 1000).toFixed(1)}k` : length} 字
+          {t("context.page", {
+            length: length >= 1000 ? `${(length / 1000).toFixed(1)}k` : length,
+          })}
         </ContextChip>
         {chat.quote && (
           <span className="bg-accent-soft text-accent-text text-tau-sm inline-flex h-6 max-w-[150px] items-center gap-1 rounded-full pr-1 pl-2.5">
@@ -291,7 +305,7 @@ function Composer({ onSend }: { onSend: (text: string) => void }) {
             <span className="truncate">{chat.quote.text}</span>
             <button
               type="button"
-              aria-label="去掉引用"
+              aria-label={t("context.removeQuote")}
               onClick={() => patchChat({ quote: null })}
               className="hover:bg-press grid size-3.5 flex-none place-items-center rounded"
             >
@@ -302,10 +316,10 @@ function Composer({ onSend }: { onSend: (text: string) => void }) {
         <ContextChip
           active={chat.useAnnotations}
           icon={Highlighter}
-          title="让 AI 参考本页的高亮与批注"
+          title={t("context.annotationsHint")}
           onClick={() => patchChat(current => ({ useAnnotations: !current.useAnnotations }))}
         >
-          我的标注
+          {t("context.annotations")}
         </ContextChip>
         {chat.model && (
           <button
@@ -341,7 +355,9 @@ function Composer({ onSend }: { onSend: (text: string) => void }) {
                     {current && <Check size={14} strokeWidth={2} />}
                   </span>
                   <span className="flex-1 truncate">{model.label}</span>
-                  {model.isDefault && <span className="text-tau-sm text-ink-3">Tau 默认</span>}
+                  {model.isDefault && (
+                    <span className="text-tau-sm text-ink-3">{t("model.default")}</span>
+                  )}
                 </button>
               );
             })}
@@ -353,7 +369,7 @@ function Composer({ onSend }: { onSend: (text: string) => void }) {
           ref={inputRef}
           rows={2}
           value={value}
-          placeholder="问问这页…  ↵ 发送，⇧↵ 换行"
+          placeholder={t("composer.placeholder")}
           onChange={event => setValue(event.target.value)}
           onKeyDown={event => {
             if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
@@ -366,7 +382,7 @@ function Composer({ onSend }: { onSend: (text: string) => void }) {
         {chat.runId ? (
           <button
             type="button"
-            aria-label="停止"
+            aria-label={t("stop")}
             onClick={() => void controller.chat.abort()}
             className="bg-ink-1 text-surface absolute right-2 bottom-2 grid size-7 place-items-center rounded-full"
           >
@@ -375,7 +391,7 @@ function Composer({ onSend }: { onSend: (text: string) => void }) {
         ) : (
           <button
             type="button"
-            aria-label="发送"
+            aria-label={t("send")}
             disabled={!value.trim()}
             onClick={submit}
             className="bg-accent text-ink-inverse hover:bg-accent-hover disabled:bg-press disabled:text-ink-3 absolute right-2 bottom-2 grid size-7 place-items-center rounded-full"

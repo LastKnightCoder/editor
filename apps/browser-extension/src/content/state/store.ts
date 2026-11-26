@@ -48,6 +48,10 @@ export interface QuoteContext {
   block: number | null;
 }
 
+export type ChatIssue =
+  | { kind: "busy" | "session-missing" | "answer-failed" | "ask-failed" }
+  | { kind: "diagnostic"; cause: unknown };
+
 export interface QuickBubble {
   kind: QuickKind;
   quote: QuoteContext;
@@ -55,7 +59,7 @@ export interface QuickBubble {
   runId: string | null;
   text: string;
   status: "streaming" | "done" | "error";
-  error?: string;
+  error?: ChatIssue;
 }
 
 export interface ChatState {
@@ -66,7 +70,7 @@ export interface ChatState {
   /** 本页的全部对话（历史下拉用；打开下拉或 load 时刷新） */
   sessions: ChatSessionSummary[];
   runId: string | null;
-  error: string | null;
+  error: ChatIssue | null;
   quote: QuoteContext | null;
   usePage: boolean;
   useAnnotations: boolean;

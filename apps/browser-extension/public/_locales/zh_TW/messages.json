@@ -1,0 +1,14 @@
+{
+  "extensionName": {
+    "message": "Tau 伴讀"
+  },
+  "extensionDescription": {
+    "message": "在網頁裡螢光標示、批註、記筆記，並用 Tau 裡的模型對網頁提問"
+  },
+  "toggleCompanion": {
+    "message": "開啟 / 關閉伴讀面板"
+  },
+  "openLibrary": {
+    "message": "開啟伴讀庫：所有標註過的網頁"
+  }
+}

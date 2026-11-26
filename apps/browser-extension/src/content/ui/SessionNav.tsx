@@ -1,3 +1,4 @@
+import { useContentChatI18n, relativeDay } from "../chat.i18n";
 import { useState } from "react";
 import { Check, History, SquarePen, Trash2 } from "lucide-react";
 import type { ChatSessionSummary } from "@tau/shared/browser-companion";
@@ -5,15 +6,6 @@ import { cn, IconButton } from "@tau/ui";
 import { splitQuote } from "../state/chat";
 import { useCompanion } from "../state/store";
 import { useController, useEscLayer } from "./context";
-
-/** 相对时间（天粒度，最近聊过与历史下拉共用） */
-export const relativeDay = (time: number): string => {
-  const days = Math.floor((Date.now() - time) / 86_400_000);
-  if (days <= 0) return "今天";
-  if (days === 1) return "昨天";
-  if (days < 30) return `${days} 天前`;
-  return `${Math.floor(days / 30)} 个月前`;
-};
 
 /** 会话标题：快答类以引用块开头，去掉引用只留问题 */
 export const sessionTitle = (summary: ChatSessionSummary): string => {
@@ -26,6 +18,8 @@ export const sessionTitle = (summary: ChatSessionSummary): string => {
  * 定位父级是 Panel 的页签行（relative），下拉铺满面板宽。
  */
 export function SessionNav() {
+  const context = useContentChatI18n();
+  const { t } = context;
   const controller = useController();
   const chat = useCompanion(state => state.chat);
   const [open, setOpen] = useState(false);
@@ -49,8 +43,8 @@ export function SessionNav() {
       {current && (
         <button
           type="button"
-          aria-label="历史对话"
-          title={busy ? "等这轮回答结束" : "历史对话"}
+          aria-label={t("history")}
+          title={busy ? t("history.wait") : t("history")}
           disabled={busy}
           onClick={toggleHistory}
           className={cn(
@@ -62,8 +56,8 @@ export function SessionNav() {
         </button>
       )}
       <IconButton
-        aria-label="历史对话"
-        title={busy ? "等这轮回答结束" : "历史对话"}
+        aria-label={t("history")}
+        title={busy ? t("history.wait") : t("history")}
         disabled={busy}
         className={cn("size-7", open && "bg-hover")}
         onClick={toggleHistory}
@@ -71,8 +65,8 @@ export function SessionNav() {
         <History size={15} strokeWidth={1.8} />
       </IconButton>
       <IconButton
-        aria-label="新对话"
-        title={busy ? "等这轮回答结束" : "新对话"}
+        aria-label={t("history.new")}
+        title={busy ? t("history.wait") : t("history.new")}
         disabled={busy}
         className="size-7"
         onClick={startNew}
@@ -82,7 +76,7 @@ export function SessionNav() {
       {open && (
         <div
           role="menu"
-          aria-label="本页的历史对话"
+          aria-label={t("history.page")}
           className="bg-surface shadow-float rounded-tau-md absolute top-[34px] right-2 left-2 z-20 max-h-[300px] overflow-y-auto p-1"
         >
           <button
@@ -95,13 +89,13 @@ export function SessionNav() {
             <span className="grid w-4 place-items-center">
               {!current && <Check size={14} strokeWidth={2} />}
             </span>
-            <span className="flex-1">新对话</span>
+            <span className="flex-1">{t("history.new")}</span>
           </button>
           {chat.sessions.map(item =>
             confirmingId === item.id ? (
               <div key={item.id} className="flex h-[44px] items-center gap-1 px-2">
                 <span className="text-tau-sm text-ink-2 min-w-0 flex-1 truncate">
-                  删除「{sessionTitle(item)}」？
+                  {t("history.deleteConfirm", { title: sessionTitle(item) })}
                 </span>
                 <button
                   type="button"
@@ -111,14 +105,14 @@ export function SessionNav() {
                   }}
                   className="text-tau-sm text-danger hover:bg-hover rounded-tau-sm flex-none px-1.5 py-1"
                 >
-                  删除
+                  {t("delete")}
                 </button>
                 <button
                   type="button"
                   onClick={() => setConfirmingId(null)}
                   className="text-tau-sm text-ink-3 hover:bg-hover rounded-tau-sm flex-none px-1.5 py-1"
                 >
-                  取消
+                  {t("cancel")}
                 </button>
               </div>
             ) : (
@@ -139,13 +133,16 @@ export function SessionNav() {
                   <span className="min-w-0 flex-1">
                     <span className="block truncate">{sessionTitle(item)}</span>
                     <span className="text-tau-sm text-ink-3 block">
-                      {relativeDay(item.updateTime)} · {item.messageCount} 问
+                      {t("history.detail", {
+                        time: relativeDay(item.updateTime, context),
+                        count: item.messageCount,
+                      })}
                     </span>
                   </span>
                 </button>
                 <IconButton
-                  aria-label="删除这段对话"
-                  title="删除这段对话"
+                  aria-label={t("history.delete")}
+                  title={t("history.delete")}
                   onClick={() => setConfirmingId(item.id)}
                   className="hover:text-danger absolute top-1/2 right-1.5 size-6 -translate-y-1/2 opacity-0 transition-opacity group-hover/session:opacity-100 focus-visible:opacity-100"
                 >
@@ -155,7 +152,7 @@ export function SessionNav() {
             )
           )}
           {chat.sessions.length === 0 && (
-            <p className="text-tau-sm text-ink-3 px-2 py-2">还没有历史对话</p>
+            <p className="text-tau-sm text-ink-3 px-2 py-2">{t("history.empty")}</p>
           )}
         </div>
       )}

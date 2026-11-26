@@ -41,11 +41,12 @@ export default defineConfig({
   srcDir: "src",
   modules: ["@wxt-dev/module-react"],
   manifest: {
-    name: "Tau 伴读",
-    description: "在网页里高亮、批注、记笔记，并用 Tau 里的模型对网页提问",
+    name: "__MSG_extensionName__",
+    default_locale: "zh_CN",
+    description: "__MSG_extensionDescription__",
     permissions: ["storage"],
     host_permissions: ["<all_urls>"],
-    action: { default_title: "Tau 伴读" },
+    action: { default_title: "__MSG_extensionName__" },
     // 公式字体：@font-face 只在页面文档里生效，从扩展资源加载
     web_accessible_resources: [
       { resources: ["katex/fonts/*.woff2"], matches: ["http://*/*", "https://*/*"] },
@@ -55,11 +56,11 @@ export default defineConfig({
     commands: {
       "toggle-companion": {
         suggested_key: { default: "Alt+J" },
-        description: "打开 / 关闭伴读面板",
+        description: "__MSG_toggleCompanion__",
       },
       "open-library": {
         suggested_key: { default: "Alt+Shift+J" },
-        description: "打开伴读库：所有标注过的网页",
+        description: "__MSG_openLibrary__",
       },
     },
     icons: {

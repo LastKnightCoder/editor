@@ -330,6 +330,8 @@ P7 MCP声明：SDK新增PluginMCPDeclaration，默认PluginMCPDefinition<string>
 
 工具卡R1A/R1B/R2A共27源码完成；read3例、activity相关21例、todo3例与各域type/三语/协议AST通过。真实Image→Provider→ChatContainer placeholder→原ref/发送IPC保持同输入/草稿/光标，发送仍原hidden text；研究tab/interval/scroll、知识详情原快照/按需读取、Todo详情ID/刷新与原动作保持。todo/constants.ts被退役且提交验证文件缺失，其余算法不改。
 
+伴读Chat14/Native4/Bootstrap2共20源完成；chat相关22例、bootstrap既有15例、extension type与WXT产物验证通过。真实composer/quote/model与选项跨语不发送、同按钮发原request；原token/Quick/PROMPTS/PAGE_TOOLS/AI/段号数据不变。3资源产物与token三语可解，命令ID/热键/zip/权限/URL保持；最终58文件非空AST无固定中文JSX，49字面量合法data/诊断与2HTML中性回退分类保留。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。
