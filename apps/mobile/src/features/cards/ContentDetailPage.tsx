@@ -1,3 +1,4 @@
+import { readingTranslator, useReadingI18n } from "./reading.i18n";
 import { useMobileCardsI18n, cardsTranslator } from "./i18n";
 import {
   lazy,
@@ -165,6 +166,7 @@ function detailEditMode(hasCollaboration: boolean, mode: CollaborativeEditorMode
 
 export function ContentDetailPage(props: ContentDetailPageProps) {
   const { t, locale } = useMobileCardsI18n();
+  const { t: readingT } = useReadingI18n();
   // 全页只有一个编辑器实例：本机与协作是同谱系的两个文档源，切换即换源（01 §7.3 第 3 层）
   const editorRef = useRef<EditorRef | null>(null);
   const localDocumentRef = useRef<LocalContentDocument | undefined>(undefined);
@@ -291,7 +293,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
     } catch (failure) {
       toast({
         type: "error",
-        text: failure instanceof Error ? failure.message : "输入尚未保存，请保留当前页面",
+        text: failure instanceof Error ? failure.message : readingTranslator.t("detail.unsaved"),
       });
       return false;
     }
@@ -327,7 +329,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
     () => ({
       enterBlockSelection: () => {
         if (!readingMode.canEdit) {
-          toast({ type: "warning", text: "当前内容不可编辑" });
+          toast({ type: "warning", text: readingTranslator.t("detail.readonly") });
           return;
         }
         blockSelection.enter();
@@ -497,14 +499,14 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
       {aiContext && detail && (
         <PageHeaderButton
           icon={<Sparkles size={19} className="text-accent" />}
-          aria-label="问 AI"
+          aria-label={readingT("ask")}
           onClick={() => openAsk()}
         />
       )}
       {localDocument?.editHistory && !props.collaboration && (
         <PageHeaderButton
           icon={<History size={19} />}
-          aria-label="编辑历史"
+          aria-label={readingT("detail.history")}
           onClick={() => setHistoryOpen(true)}
         />
       )}
@@ -605,7 +607,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
               }}
               value={titleDraft}
               rows={1}
-              placeholder="给文档起个标题…"
+              placeholder={readingT("detail.titlePlaceholder")}
               onChange={event => {
                 setTitleDraft(event.target.value);
                 autoGrowTitle(event.target);
@@ -644,7 +646,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
                   strokeWidth={2.4}
                   className={`shrink-0 ${props.sourceRef.toneClass ?? "text-accent"}`}
                 />
-                <span className="shrink-0">来自</span>
+                <span className="shrink-0">{readingT("detail.from")}</span>
                 <span
                   className={`min-w-0 truncate font-semibold ${props.sourceRef.toneClass ?? "text-accent"}`}
                 >
@@ -678,13 +680,13 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
 
         {props.collaborationBinding?.status === "error" ? (
           <div role="alert" className="text-warn mt-4 flex items-center gap-2.5 text-sm">
-            <span className="flex-1">协作绑定读取失败，正文暂为只读</span>
+            <span className="flex-1">{readingT("detail.bindingFailed")}</span>
             <button
               type="button"
               className="text-accent-text"
               onClick={props.collaborationBinding.retry}
             >
-              重试
+              {readingT("retry")}
             </button>
           </div>
         ) : null}
@@ -785,7 +787,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
       </div>
     ) : (
       <div className="py-12 text-center">
-        <p className="text-ink-3 text-sm">无可展示内容</p>
+        <p className="text-ink-3 text-sm">{readingT("detail.empty")}</p>
       </div>
     );
 
@@ -875,7 +877,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
           leading={
             <button
               type="button"
-              aria-label="语音输入，追加到文末"
+              aria-label={readingT("detail.voice")}
               className="bg-accent text-ink-inverse shadow-lift flex h-[50px] w-[50px] items-center justify-center rounded-full transition-transform duration-200 active:scale-95"
               onClick={() => setVoiceSheetOpen(true)}
             >

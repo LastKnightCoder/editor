@@ -7,7 +7,9 @@ export type OutlineRow = {
   type: string;
   /** 标题级别；非标题块为 null */
   level: number | null;
-  label: string;
+  text: string;
+  language?: string;
+  tableRows?: number;
   /** 章节范围终点（不含）：标题为其后第一个同级或更高级标题的位置，非标题为 index + 1 */
   sectionEnd: number;
 };
@@ -24,30 +26,6 @@ export type OutlineUnit = {
 
 const LABEL_MAX_LENGTH = 40;
 
-/** 空文本时的类型描述；未登记的类型统一为「内容块」 */
-const TYPE_LABELS: Record<string, string> = {
-  paragraph: "空段落",
-  header: "空标题",
-  "check-list": "待办",
-  "bulleted-list": "列表",
-  "numbered-list": "有序列表",
-  blockquote: "引用",
-  callout: "提示块",
-  detail: "折叠块",
-  "highlight-block": "高亮块",
-  tabs: "标签页",
-  image: "图片",
-  video: "视频",
-  audio: "音频",
-  webview: "网页",
-  "block-math": "公式",
-  mermaid: "流程图",
-  plantuml: "PlantUML 图",
-  typst: "Typst",
-  "divide-line": "分割线",
-  "front-matter": "文档属性",
-};
-
 type LooseElement = {
   type?: string;
   level?: number;
@@ -60,22 +38,10 @@ function headerLevel(node: Descendant): number | null {
   return element.type === "header" && typeof element.level === "number" ? element.level : null;
 }
 
-function describeEmptyBlock(element: LooseElement): string {
-  if (element.type === "code-block") {
-    return element.language ? `代码块 · ${element.language}` : "代码块";
-  }
-  return TYPE_LABELS[element.type ?? ""] ?? "内容块";
-}
-
-/** 首行摘要：去首尾空白后取第一行、最多 40 字；表格与空文本按类型描述 */
-function resolveLabel(node: Descendant): string {
-  const element = node as LooseElement;
-  // 表格的 Node.string 是各单元格文本首尾相接，不可读，直接给行数
-  if (element.type === "table") {
-    return `表格 · ${element.children?.length ?? 0} 行`;
-  }
+/** 首行正文摘要：去首尾空白后取第一行、最多 40 字；表格保留结构事实供界面描述 */
+function resolveText(node: Descendant): string {
+  if ((node as LooseElement).type === "table") return "";
   const firstLine = Node.string(node).trim().split(/\r?\n/, 1)[0]?.trim() ?? "";
-  if (!firstLine) return describeEmptyBlock(element);
   return Array.from(firstLine).slice(0, LABEL_MAX_LENGTH).join("");
 }
 
@@ -99,7 +65,13 @@ export function buildOutlineRows(children: readonly Descendant[]): OutlineRow[] 
       index,
       type: (node as LooseElement).type ?? "",
       level,
-      label: resolveLabel(node),
+      text: resolveText(node),
+      ...((node as LooseElement).type === "code-block"
+        ? { language: (node as LooseElement).language }
+        : {}),
+      ...((node as LooseElement).type === "table"
+        ? { tableRows: (node as LooseElement).children?.length ?? 0 }
+        : {}),
       sectionEnd,
     };
   });

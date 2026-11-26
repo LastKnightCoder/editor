@@ -1,3 +1,4 @@
+import { useReadingI18n } from "../reading.i18n";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Pencil } from "lucide-react";
 import { cn } from "@tau/ui";
@@ -27,6 +28,7 @@ type ReadingModeFabProps = {
 
 /** 阅读态右下角的「编辑」悬浮按钮；编辑态由配件栏右端的「完成」退出 */
 export function ReadingModeFab(props: ReadingModeFabProps) {
+  const { t } = useReadingI18n();
   const { visible, onEnter, getScrollContainer, leading } = props;
   const [collapsed, setCollapsed] = useState(false);
   const [nearEnd, setNearEnd] = useState(false);
@@ -90,7 +92,7 @@ export function ReadingModeFab(props: ReadingModeFabProps) {
       <button
         ref={buttonRef}
         type="button"
-        aria-label="编辑"
+        aria-label={t("edit")}
         aria-hidden={nearEnd}
         tabIndex={nearEnd ? -1 : undefined}
         onClick={onEnter}
@@ -101,7 +103,7 @@ export function ReadingModeFab(props: ReadingModeFabProps) {
         )}
       >
         <Pencil size={17} strokeWidth={2.4} aria-hidden />
-        {collapsed ? null : <span>编辑</span>}
+        {collapsed ? null : <span>{t("edit")}</span>}
       </button>
     </div>
   );

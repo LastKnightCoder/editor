@@ -1,3 +1,4 @@
+import { readingTranslator, useReadingI18n } from "../reading.i18n";
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -95,10 +96,11 @@ function scrollBlockIntoView(editor: Editor, index: number) {
   });
 }
 
-type MenuSheet = { id: number; title: string; groups: ActionSheetItem[][] };
+type MenuSheet = { id: number; title: () => string; groups: ActionSheetItem[][] };
 
 /** 块选择模式底部操作栏：上移、下移、转换、复制、删除、更多 */
 export function BlockActionBar(props: BlockActionBarProps) {
+  const { t } = useReadingI18n();
   const { editorRef, kit, selection, blockCount, portalContainer, onOpenOutline } = props;
   const { selected, setSelected, exit } = selection;
   const portalRoot = portalContainer ?? (typeof document === "undefined" ? null : document.body);
@@ -111,7 +113,7 @@ export function BlockActionBar(props: BlockActionBarProps) {
   const [sheet, setSheet] = useState<MenuSheet | null>(null);
   const sheetIdRef = useRef(0);
   const pendingRef = useRef<(() => void) | null>(null);
-  const openSheet = (title: string, groups: ActionSheetItem[][]) => {
+  const openSheet = (title: () => string, groups: ActionSheetItem[][]) => {
     sheetIdRef.current += 1;
     setSheet({ id: sheetIdRef.current, title, groups });
   };
@@ -156,9 +158,9 @@ export function BlockActionBar(props: BlockActionBarProps) {
     exit();
     toast({
       type: "success",
-      text: `已删除 ${count} 个块`,
+      text: readingTranslator.t("blocks.deleted", { count }),
       action: {
-        label: "撤销",
+        label: readingTranslator.t("undo"),
         onClick: () => {
           if (HistoryEditor.isHistoryEditor(editor)) editor.undo();
         },
@@ -169,28 +171,36 @@ export function BlockActionBar(props: BlockActionBarProps) {
   const openTransformSheet = () => {
     if (!editor || sharedTransforms.length === 0) return;
     const indices = selected;
-    openSheet("转换为", [
-      sharedTransforms.map(item => ({
-        get label() {
-          return item.label;
-        },
-        icon: item.icon,
-        onClick: later(() => applyTransformToBlocks(kit, editor, indices, item.key)),
-      })),
-    ]);
+    openSheet(
+      () => readingTranslator.t("transformAs"),
+      [
+        sharedTransforms.map(item => ({
+          key: item.key,
+          get label() {
+            return item.label;
+          },
+          icon: item.icon,
+          onClick: later(() => applyTransformToBlocks(kit, editor, indices, item.key)),
+        })),
+      ]
+    );
   };
 
   // 单块命令：块数变化由选择状态自动裁剪越界下标
-  const toSheetItem = (item: ContextMenuItem, desc?: string): ActionSheetItem => ({
+  const toSheetItem = (item: ContextMenuItem, desc?: () => string): ActionSheetItem => ({
+    key: item.key,
     get label() {
       return item.label;
     },
     icon: item.icon,
     danger: item.danger,
-    desc,
+    get desc() {
+      return desc?.();
+    },
     trailing: item.children ? <ChevronRight strokeWidth={2} /> : undefined,
     onClick: later(() => {
-      if (item.children) openSheet(item.label, [item.children.map(child => toSheetItem(child))]);
+      if (item.children)
+        openSheet(() => item.label, [item.children.map(child => toSheetItem(child))]);
       else item.onSelect?.();
     }),
   });
@@ -199,18 +209,20 @@ export function BlockActionBar(props: BlockActionBarProps) {
     if (!editor || selected.length !== 1) return;
     const [index] = selected;
     const groups = buildMoreMenuGroups(resolveBlockMenu(kit, editor, index));
-    const toItem = (item: ContextMenuItem): ActionSheetItem =>
-      item.key === CUT_MENU_KEY
-        ? {
-            ...toSheetItem(item),
-            onClick: later(() => {
-              exit();
-              void cutBlocks(editor, [index]);
-            }),
-          }
-        : toSheetItem(item);
+    const toItem = (item: ContextMenuItem): ActionSheetItem => {
+      const entry = toSheetItem(item);
+      if (item.key === CUT_MENU_KEY)
+        entry.onClick = later(() => {
+          exit();
+          void cutBlocks(editor, [index]);
+        });
+      return entry;
+    };
     const duplicateItem: ActionSheetItem = {
-      label: "创建副本",
+      get label() {
+        return readingTranslator.t("duplicate");
+      },
+      key: "host.block.duplicate",
       icon: <CopyPlus size={MENU_ICON_SIZE} />,
       onClick: later(() => {
         duplicateBlocks(editor, [index]);
@@ -219,7 +231,10 @@ export function BlockActionBar(props: BlockActionBarProps) {
     const hostItems: ActionSheetItem[] = [duplicateItem];
     if (onOpenOutline) {
       hostItems.push({
-        label: "整理结构",
+        get label() {
+          return readingTranslator.t("outline");
+        },
+        key: "host.block.outline",
         icon: <ListTree size={MENU_ICON_SIZE} />,
         onClick: later(() => {
           exit();
@@ -230,11 +245,16 @@ export function BlockActionBar(props: BlockActionBarProps) {
     const builtin = groups.builtin.map(group => group.map(toItem));
     if (builtin.length > 0) builtin[builtin.length - 1].push(...hostItems);
     else builtin.push(hostItems);
-    openSheet("更多", [
-      ...builtin,
-      groups.plugin.map(item => toSheetItem(item, `插件 · ${item.owner}`)),
-      groups.danger.map(toItem),
-    ]);
+    openSheet(
+      () => readingTranslator.t("more"),
+      [
+        ...builtin,
+        groups.plugin.map(item =>
+          toSheetItem(item, () => readingTranslator.t("plugin", { owner: item.owner ?? "" }))
+        ),
+        groups.danger.map(toItem),
+      ]
+    );
   };
 
   if (!portalRoot) return null;
@@ -248,43 +268,43 @@ export function BlockActionBar(props: BlockActionBarProps) {
       {empty ? (
         <p className="text-ink-2 flex h-[54px] flex-1 items-center justify-center gap-2 text-[13.5px] font-semibold">
           <Pointer size={16} aria-hidden />
-          点按段落来选择，可以多选
+          {t("blocks.hint")}
         </p>
       ) : (
         <>
           <ActionButton
-            label="上移"
+            label={t("moveUp")}
             icon={<ArrowUp size={ICON_SIZE} />}
             disabled={!canMoveBlocks(selected, "up", blockCount)}
             onPress={() => move("up")}
           />
           <ActionButton
-            label="下移"
+            label={t("moveDown")}
             icon={<ArrowDown size={ICON_SIZE} />}
             disabled={!canMoveBlocks(selected, "down", blockCount)}
             onPress={() => move("down")}
           />
           <ActionButton
-            label="转换"
+            label={t("transform")}
             icon={<Repeat2 size={ICON_SIZE} />}
             disabled={sharedTransforms.length === 0}
             onPress={openTransformSheet}
           />
           <ActionButton
-            label="复制"
+            label={t("copy")}
             icon={<Copy size={ICON_SIZE} />}
             disabled={empty}
             onPress={copy}
           />
           <ActionButton
-            label="删除"
+            label={t("delete")}
             icon={<Trash2 size={ICON_SIZE} />}
             danger
             disabled={empty}
             onPress={remove}
           />
           <ActionButton
-            label="更多"
+            label={t("more")}
             icon={<Ellipsis size={ICON_SIZE} />}
             disabled={selected.length !== 1}
             onPress={openMoreSheet}
@@ -302,7 +322,7 @@ export function BlockActionBar(props: BlockActionBarProps) {
         <ActionSheet
           key={sheet.id}
           open
-          title={sheet.title}
+          title={sheet.title()}
           groups={sheet.groups}
           onClose={handleSheetClose}
         />

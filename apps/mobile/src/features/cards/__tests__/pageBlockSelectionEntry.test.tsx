@@ -1,3 +1,4 @@
+import { mobileLocaleSource, mobileTranslator } from "../../../services/i18n";
 // 编辑页「⋯」菜单的「选择块」「整理结构」入口：卡片详情、文章编辑、项目文档三个 page 都提供，点击经 actionsRef 调用。
 import { act, useImperativeHandle, type ReactNode, type Ref } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -28,23 +29,6 @@ vi.mock("../../../components/PageHeader", () => ({
     <button type="button" aria-label={props["aria-label"]} onClick={props.onClick} />
   ),
 }));
-
-vi.mock("../../../components/ActionSheet", () => {
-  const ActionSheet = (props: {
-    open: boolean;
-    items?: Array<{ label: string; onClick: () => void }>;
-  }) =>
-    props.open ? (
-      <div data-testid="action-sheet">
-        {(props.items ?? []).map(item => (
-          <button key={item.label} type="button" onClick={item.onClick}>
-            {item.label}
-          </button>
-        ))}
-      </div>
-    ) : null;
-  return { __esModule: true, ActionSheet, default: ActionSheet };
-});
 
 vi.mock("../../../components/MobileConfirmDialog", () => ({ MobileConfirmDialog: () => null }));
 vi.mock("../../../components/BottomSheet", () => ({ BottomSheet: () => null }));
@@ -114,6 +98,7 @@ describe("编辑页「⋯ → 选择块 / 整理结构」入口", () => {
   let client: QueryClient;
 
   beforeEach(() => {
+    mobileLocaleSource.setLocale("zh-CN");
     harness.enterBlockSelection.mockClear();
     harness.openOutline.mockClear();
     host = document.createElement("div");
@@ -124,6 +109,7 @@ describe("编辑页「⋯ → 选择块 / 整理结构」入口", () => {
 
   afterEach(() => {
     act(() => root.unmount());
+    mobileLocaleSource.setLocale("zh-CN");
     client.clear();
     document.body.innerHTML = "";
   });
@@ -146,9 +132,9 @@ describe("编辑页「⋯ → 选择块 / 整理结构」入口", () => {
   }
 
   const findItem = (label: string) =>
-    Array.from(
-      document.querySelectorAll<HTMLButtonElement>('[data-testid="action-sheet"] button')
-    ).find(button => button.textContent === label);
+    Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find(
+      button => button.textContent === label
+    );
 
   it.each(cases)(
     "$name：菜单出现「整理结构」，点击打开大纲",
@@ -169,8 +155,14 @@ describe("编辑页「⋯ → 选择块 / 整理结构」入口", () => {
     async ({ page, params, menuLabel }) => {
       harness.params = params;
       await openMenu(page, menuLabel);
-      const item = findItem("选择块");
+      const item = findItem(mobileTranslator.t("content.selectBlocks"));
       expect(item).toBeDefined();
+      for (const locale of ["zh-TW", "en-US"] as const) {
+        await act(async () => mobileLocaleSource.setLocale(locale));
+        expect(findItem(mobileTranslator.t("content.selectBlocks"))).toBe(item);
+        expect(harness.enterBlockSelection).not.toHaveBeenCalled();
+        expect(harness.openOutline).not.toHaveBeenCalled();
+      }
       await act(async () => {
         item?.click();
       });

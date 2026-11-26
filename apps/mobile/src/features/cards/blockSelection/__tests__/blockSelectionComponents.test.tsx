@@ -1,3 +1,5 @@
+import { mobileLocaleSource } from "../../../../services/i18n";
+import { readingTranslator } from "../../reading.i18n";
 import { act, createRef, type RefObject } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -124,6 +126,7 @@ describe("块选择组件", () => {
   let root: Root;
 
   beforeEach(() => {
+    mobileLocaleSource.setLocale("zh-CN");
     host = document.createElement("div");
     container = document.createElement("div");
     document.body.append(host, container);
@@ -134,6 +137,7 @@ describe("块选择组件", () => {
 
   afterEach(() => {
     act(() => root.unmount());
+    mobileLocaleSource.setLocale("zh-CN");
     document.body.innerHTML = "";
     document.documentElement.style.removeProperty("--mobile-editor-toolbar-occlusion");
     copyNodeToClipboard.mockClear();
@@ -413,6 +417,43 @@ describe("块选择组件", () => {
       Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
         .filter(button => !button.closest('[data-block-action-bar="true"]'))
         .map(button => button.textContent?.trim());
+
+    it("已打开菜单跨语言保留节点、原选择与插件getter，点击后才执行原目标", async () => {
+      const editor = imageDoc();
+      const calls: string[] = [];
+      let pluginLabel = "plugin-original";
+      menus.byType.image = () => [
+        {
+          key: "acme.command",
+          owner: "acme",
+          get label() {
+            return pluginLabel;
+          },
+          onSelect: () => calls.push("original-image-command"),
+        },
+      ];
+      const selection = renderBar(editor, [1]);
+      const original = editor.children;
+      act(() => buttonByLabel(readingTranslator.t("more"))?.click());
+      const duplicate = buttonByText(readingTranslator.t("duplicate"));
+      const plugin = [...document.querySelectorAll("button")].find(node =>
+        node.textContent?.startsWith(pluginLabel)
+      );
+      if (!plugin || !duplicate) throw new Error("block menu missing");
+      for (const locale of ["zh-TW", "en-US"] as const) {
+        pluginLabel = `plugin-${locale}`;
+        await act(async () => mobileLocaleSource.setLocale(locale));
+        expect(buttonByText(readingTranslator.t("duplicate"))).toBe(duplicate);
+        expect(plugin.textContent).toContain(pluginLabel);
+        expect(editor.children).toBe(original);
+        expect(selection.selected).toEqual([1]);
+        expect(selection.exit).not.toHaveBeenCalled();
+        expect(selection.setSelected).not.toHaveBeenCalled();
+        expect(calls).toEqual([]);
+      }
+      act(() => plugin.click());
+      await act(async () => vi.waitFor(() => expect(calls).toEqual(["original-image-command"])));
+    });
 
     it("更多：多选禁用；单选按组列出完整菜单，排除操作栏项与禁用项，插件与危险项分组置后", () => {
       installImageMenu([]);

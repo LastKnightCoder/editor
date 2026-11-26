@@ -3,6 +3,7 @@
 // 解析出的目标经 entity_context_resolve_entities 批量补身份后合并，口径对齐桌面
 // linksOf：显式在前、内联在后，排除自身与共用正文身份，上限 50 条。
 
+import { contextTranslator } from "./i18n";
 import { useEffect, useState } from "react";
 import { extractInlineRefs } from "@tau/shared/inline-refs";
 import * as tauri from "../../services/tauri";
@@ -86,7 +87,7 @@ export function useEntityContextQuery(
       .catch(error => {
         if (!cancelled) {
           setContext(null);
-          onError?.(error, "脉络加载失败");
+          onError?.(error, contextTranslator.t("load.failed"));
         }
       })
       .finally(() => {

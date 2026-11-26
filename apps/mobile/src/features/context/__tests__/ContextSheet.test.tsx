@@ -1,8 +1,9 @@
+import { mobileLocaleSource } from "../../../services/i18n";
 // 脉络面板：插件内容按持久类型名展示，并由统一宿主入口打开。
 
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { EntityContext } from "../types";
 
 const push = vi.fn();
@@ -39,9 +40,14 @@ const context: EntityContext = {
 };
 
 let root: Root | null = null;
+beforeEach(() => {
+  mobileLocaleSource.setLocale("zh-CN");
+  vi.clearAllMocks();
+});
 afterEach(async () => {
   await act(async () => root?.unmount());
   root = null;
+  mobileLocaleSource.setLocale("zh-CN");
   document.body.innerHTML = "";
 });
 
@@ -61,6 +67,15 @@ describe("ContextSheet", () => {
     const button = [...document.querySelectorAll("button")].find(button =>
       button.textContent?.includes("渲染为什么卡")
     );
+    const original = JSON.stringify(context);
+    for (const locale of ["zh-TW", "en-US"] as const) {
+      await act(async () => mobileLocaleSource.setLocale(locale));
+      expect([...document.querySelectorAll("button")]).toContain(button);
+      expect(button?.textContent).toContain("问题");
+      expect(button?.textContent).toContain("渲染为什么卡");
+      expect(JSON.stringify(context)).toBe(original);
+      expect(pluginOpen).not.toHaveBeenCalled();
+    }
     await act(async () => button?.click());
     expect(pluginOpen).toHaveBeenCalledWith(7, {
       expectedContentId: 0,
@@ -84,6 +99,13 @@ describe("ContextSheet", () => {
     const row = [...document.querySelectorAll("button")].find(button =>
       button.textContent?.includes("SIGKILL 与孤儿进程")
     );
+    const original = JSON.stringify(linked);
+    for (const locale of ["zh-TW", "en-US"] as const) {
+      await act(async () => mobileLocaleSource.setLocale(locale));
+      expect([...document.querySelectorAll("button")]).toContain(row);
+      expect(JSON.stringify(linked)).toBe(original);
+      expect(calls).toEqual([]);
+    }
     await act(async () => row?.click());
     expect(calls).toEqual(["close", "push"]);
     expect(push).toHaveBeenCalledWith("contentDetail", { cardId: 5 });

@@ -1,3 +1,4 @@
+import { readingTranslator, useReadingI18n } from "../reading.i18n";
 import { useContext, useEffect, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
@@ -81,6 +82,7 @@ function SelectionBarButton(props: { label: string; icon: ReactNode; onPress: ()
 
 /** 阅读态选中文字后底部浮出的标注条：高亮、批注、摘录成卡片、引用内容 */
 export function ReadingSelectionBar(props: ReadingSelectionBarProps) {
+  const { t } = useReadingI18n();
   const { editorRef, controller, readingMode, range, onClear, onAsk, portalContainer } = props;
   // 可选读取：宿主不在 AppContext 内时摘录后不刷新卡片列表
   const app = useContext(AppContext);
@@ -149,16 +151,18 @@ export function ReadingSelectionBar(props: ReadingSelectionBarProps) {
         });
         toast({
           type: "success",
-          text: "已摘录为卡片",
+          text: readingTranslator.t("excerpt.saved"),
           action: {
-            label: "查看",
+            label: readingTranslator.t("view"),
             onClick: () => getNavigator().push("contentDetail", { cardId: created.id }),
           },
         });
         void app?.refreshCardsSafe({ page: 1 });
       } catch (error) {
         const parsed = parseInvokeError(error);
-        toast.error(mapErrorToMessage(parsed.code, parsed.message || "摘录失败，请稍后重试"));
+        toast.error(
+          mapErrorToMessage(parsed.code, parsed.message || readingTranslator.t("excerpt.failed"))
+        );
       }
     })();
   };
@@ -179,7 +183,7 @@ export function ReadingSelectionBar(props: ReadingSelectionBarProps) {
         <motion.div
           key="reading-selection-bar"
           role="toolbar"
-          aria-label="标注"
+          aria-label={t("annotation")}
           data-reading-selection-bar="true"
           className="bg-surface border-line-1 shadow-float fixed inset-x-3 flex h-14 items-center rounded-2xl border px-1"
           style={{
@@ -193,28 +197,28 @@ export function ReadingSelectionBar(props: ReadingSelectionBarProps) {
         >
           {onAsk ? (
             <SelectionBarButton
-              label="问 AI"
+              label={t("ask")}
               icon={<Sparkles size={ICON_SIZE} className="text-accent" />}
               onPress={handleAsk}
             />
           ) : null}
           <SelectionBarButton
-            label={highlighted ? "取消高亮" : "高亮"}
+            label={highlighted ? t("unhighlight") : t("highlight")}
             icon={<Highlighter size={ICON_SIZE} />}
             onPress={handleHighlight}
           />
           <SelectionBarButton
-            label="批注"
+            label={t("comment")}
             icon={<MessageSquarePlus size={ICON_SIZE} />}
             onPress={() => runInEditing("comment")}
           />
           <SelectionBarButton
-            label="摘录成卡片"
+            label={t("excerpt")}
             icon={<TextQuote size={ICON_SIZE} />}
             onPress={handleExcerpt}
           />
           <SelectionBarButton
-            label="引用内容"
+            label={t("reference")}
             icon={<FileSymlink size={ICON_SIZE} />}
             onPress={() => runInEditing("content-link")}
           />

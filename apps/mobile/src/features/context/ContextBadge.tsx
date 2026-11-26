@@ -1,3 +1,4 @@
+import { useContextI18n } from "./i18n";
 // 脉络入口：详情页元信息行末尾的「脉络 N」胶囊（关联数为 0、加载中或失败时不渲染，对齐桌面
 // KL-015），点击弹出 SnapSheet 浮层。数据在挂载时查询（计数需要全量分区），浮层直接复用。
 
@@ -16,6 +17,7 @@ type ContextBadgeProps = {
 };
 
 export function ContextBadge({ kind, id, refreshKey = 0, onError }: ContextBadgeProps) {
+  const { t } = useContextI18n();
   const [sheetOpen, setSheetOpen] = useState(false);
   const { context } = useEntityContextQuery(kind, id, refreshKey, onError);
   const count = contextCount(context);
@@ -29,12 +31,12 @@ export function ContextBadge({ kind, id, refreshKey = 0, onError }: ContextBadge
     <>
       <button
         type="button"
-        aria-label={`脉络 · ${count}`}
-        className="bg-page text-ink-2 active:bg-press ml-auto inline-flex shrink-0 items-center gap-1 rounded-full py-[3px] pl-2.5 pr-2 text-[12px] font-semibold tabular-nums transition-colors"
+        aria-label={t("title", { count })}
+        className="bg-page text-ink-2 active:bg-press ml-auto inline-flex shrink-0 items-center gap-1 rounded-full py-[3px] pr-2 pl-2.5 text-[12px] font-semibold tabular-nums transition-colors"
         onClick={() => setSheetOpen(true)}
       >
         <Waypoints size={12} aria-hidden />
-        脉络 {count}
+        {t("badge", { count })}
         <ChevronRight size={12} aria-hidden />
       </button>
       {sheetOpen ? (

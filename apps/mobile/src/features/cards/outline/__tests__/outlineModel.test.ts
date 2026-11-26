@@ -58,31 +58,17 @@ describe("buildOutlineRows", () => {
   it("摘要取去空白后的第一行、最多 40 字", () => {
     const long = "字".repeat(50);
     const [first, second] = buildOutlineRows([paragraph("  第一行\n第二行 "), paragraph(long)]);
-    expect(first.label).toBe("第一行");
-    expect(second.label).toBe("字".repeat(40));
+    expect(first.text).toBe("第一行");
+    expect(second.text).toBe("字".repeat(40));
   });
 
-  it("空文本按类型描述", () => {
-    const labels = buildOutlineRows([
-      paragraph(""),
-      voidBlock("image", { url: "a.png" }),
+  it("非文字块保留结构事实，表格不把各单元格拼为正文摘要", () => {
+    const [code, grid] = buildOutlineRows([
       voidBlock("code-block", { language: "ts", code: "", uuid: "1" }),
       table(3),
-      voidBlock("block-math", { tex: "" }),
-      voidBlock("mermaid", { chart: "" }),
-      voidBlock("divide-line"),
-      voidBlock("unknown-void"),
-    ]).map(row => row.label);
-    expect(labels).toEqual([
-      "空段落",
-      "图片",
-      "代码块 · ts",
-      "表格 · 3 行",
-      "公式",
-      "流程图",
-      "分割线",
-      "内容块",
     ]);
+    expect(code).toMatchObject({ type: "code-block", text: "", language: "ts" });
+    expect(grid).toMatchObject({ type: "table", text: "", tableRows: 3 });
   });
 });
 

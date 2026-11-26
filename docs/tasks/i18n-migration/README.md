@@ -350,6 +350,8 @@ P6 Native媒体进度：41路径加Root ASR/desktop文档2完成；桌面12文�
 
 提醒前端10路径完成；既有Sheet1与新增真实生命周期4共5例、mobile type/39key三语/范围检查通过。跨语不request/write/reschedule，权限原reject，排期语言与异步窗口为创建快照；AppContext每render新对象仍不重复listener/drain，完成→cancel_owner顺序保持。Native动作/渠道/稍后文案尚待可选UI快照持久协议，不误记迁完。
 
+手机reading18/context9共27源完成；reading原107至109与入口6共115例，context19例、mobile最终type、70+28key三语/范围检查通过。实际菜单同node/selection且仅点击执行、展开排序不写正文与单步undo、摘录在途不重发，Badge→SnapSheet不重查且先关后按原target跳转；Outline旧label表清零，原data catalog/计数合并/查询deps不改。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

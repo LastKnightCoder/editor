@@ -1,3 +1,4 @@
+import { useReadingI18n } from "../reading.i18n";
 import { PageHeader, PageHeaderTextButton } from "../../../components/PageHeader";
 
 type BlockSelectionHeaderProps = {
@@ -12,6 +13,7 @@ type BlockSelectionHeaderProps = {
 
 /** 块选择模式顶栏：取消 / 已选 N 个块 / 全选（已全选时为取消全选） */
 export function BlockSelectionHeader(props: BlockSelectionHeaderProps) {
+  const { t } = useReadingI18n();
   const {
     selectedCount,
     totalCount,
@@ -25,16 +27,18 @@ export function BlockSelectionHeader(props: BlockSelectionHeaderProps) {
     <PageHeader
       leading={
         <PageHeaderTextButton tone="muted" onClick={onCancel}>
-          取消
+          {t("cancel")}
         </PageHeaderTextButton>
       }
-      title={selectedCount > 0 ? `已选 ${selectedCount} 个块` : "选择块"}
+      title={
+        selectedCount > 0 ? t("blocks.selected", { count: selectedCount }) : t("blocks.select")
+      }
       actions={
         <PageHeaderTextButton
           tone={allSelected ? "muted" : "primary"}
           onClick={allSelected ? onDeselectAll : onSelectAll}
         >
-          {allSelected ? "取消全选" : "全选"}
+          {allSelected ? t("deselectAll") : t("selectAll")}
         </PageHeaderTextButton>
       }
     />

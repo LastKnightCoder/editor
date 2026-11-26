@@ -1,3 +1,5 @@
+import { mobileLocaleSource } from "../../../../services/i18n";
+import { readingTranslator } from "../../reading.i18n";
 import { act, forwardRef, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { createEditor, Node, type Descendant, type Editor } from "slate";
@@ -56,6 +58,7 @@ describe("OutlineSheet", () => {
   const rectSpy = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect");
 
   beforeEach(() => {
+    mobileLocaleSource.setLocale("zh-CN");
     toast.mockClear();
     onClose.mockClear();
     // 行按 DOM 顺序紧挨排列，其余元素视为 800 高的可视区
@@ -73,6 +76,7 @@ describe("OutlineSheet", () => {
 
   afterEach(() => {
     act(() => root.unmount());
+    mobileLocaleSource.setLocale("zh-CN");
     host.remove();
   });
 
@@ -148,15 +152,26 @@ describe("OutlineSheet", () => {
     expect(host.textContent).not.toContain("全部折叠");
   });
 
-  it("拖动折叠的整节后完成，作为一个撤销步写入", () => {
+  it("拖动折叠的整节后切换语言不丢排列，完成仍作为一个撤销步写入", async () => {
     render(sectionDoc());
     clickText("全部折叠");
     // 把「标题丙」拖到「标题甲」之前
     drag(1, -ROW_HEIGHT);
-    clickText("全部展开");
+    const original = editor.children;
+    const staged = rowLabels();
+    const firstRow = host.querySelector("[data-outline-row]");
+    for (const locale of ["zh-TW", "en-US"] as const) {
+      await act(async () => mobileLocaleSource.setLocale(locale));
+      expect(editor.children).toBe(original);
+      expect(editor.history.undos).toHaveLength(0);
+      expect(rowLabels()).toEqual(staged);
+      expect(host.querySelector("[data-outline-row]")).toBe(firstRow);
+      expect(onClose).not.toHaveBeenCalled();
+    }
+    clickText(readingTranslator.t("expandAll"));
     expect(rowLabels()).toEqual(["标题丙", "标题甲", "甲一", "小节乙", "乙一", "乙二"]);
     expect(texts(editor)[0]).toBe("标题甲");
-    clickText("完成");
+    clickText(readingTranslator.t("done"));
     expect(texts(editor)).toEqual(["标题丙", "标题甲", "甲一", "小节乙", "乙一", "乙二"]);
     expect(onClose).toHaveBeenCalledTimes(1);
     editor.undo();

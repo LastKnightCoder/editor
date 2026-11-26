@@ -3,6 +3,7 @@
 // 移动端无「相关」与白板分区。
 // 条目点击先关浮层再跳转（返回时浮层不残留）；无承载页面的类型只读展示。
 
+import { contextKindLabel, useContextI18n } from "./i18n";
 import { useState, type ReactNode } from "react";
 import { ChevronRight, Waypoints } from "lucide-react";
 import { SnapSheet, type SnapSheetState } from "../../components/SnapSheet";
@@ -26,7 +27,7 @@ type ContextSheetProps = {
 };
 
 function kindMetaOf(kind: string) {
-  return LINEAGE_KIND_META[kind] ?? { label: kind, icon: Waypoints };
+  return LINEAGE_KIND_META[kind] ?? { icon: Waypoints };
 }
 
 function SectionHeader({ label, count }: { label: string; count: number }) {
@@ -57,8 +58,8 @@ function EntityLine({
   suffix?: ReactNode;
   onOpen: OpenHandlers["onOpenEntity"];
 }) {
+  const context = useContextI18n();
   const meta = ENTITY_KIND_META[entity.kind] ?? {
-    label: entity.kind,
     icon: Waypoints,
   };
   const Icon = meta.icon;
@@ -71,7 +72,7 @@ function EntityLine({
         className="text-ink-3 shrink-0"
       />
       <span className="text-ink-2 w-[52px] shrink-0 truncate text-[11.5px]">
-        {entity.pluginEntity?.label || entity.kindLabel || meta.label}
+        {entity.pluginEntity?.label || entity.kindLabel || contextKindLabel(entity.kind, context)}
       </span>
       <span className="text-ink-1 min-w-0 flex-1 truncate text-[13.5px] font-medium">
         {entity.title}
@@ -107,13 +108,16 @@ function ContextLinkRow({
   link: ContextLink;
   onOpen: OpenHandlers["onOpenEntity"];
 }) {
+  const { t } = useContextI18n();
   return (
     <EntityLine
       entity={link.entity}
       className="py-3"
       onOpen={onOpen}
       suffix={
-        link.inlineOnly ? <span className="text-ink-3 shrink-0 text-[11px]">内联</span> : null
+        link.inlineOnly ? (
+          <span className="text-ink-3 shrink-0 text-[11px]">{t("inline")}</span>
+        ) : null
       }
     />
   );
@@ -147,11 +151,13 @@ function ContextNodeRow({
   item: ContextLineageItem | ContextUsage;
   onOpen: OpenHandlers["onOpenNode"];
 }) {
+  const context = useContextI18n();
+  const { t } = context;
   const usage = "nodeId" in item ? null : item;
   const meta = usage ? USAGE_KIND_META[usage.kind] : kindMetaOf(item.kind);
   const Icon = meta.icon;
   const missing = "nodeId" in item ? item.missing : false;
-  const title = item.title || (missing ? "已删除" : "未命名条目");
+  const title = item.title || (missing ? t("deleted") : t("untitled"));
   return (
     <button
       type="button"
@@ -159,7 +165,9 @@ function ContextNodeRow({
       onClick={() => onOpen(item)}
     >
       <Icon size={15} className="text-ink-3 shrink-0" aria-hidden />
-      <span className="text-ink-2 w-[52px] shrink-0 text-[11.5px]">{meta.label}</span>
+      <span className="text-ink-2 w-[52px] shrink-0 text-[11.5px]">
+        {contextKindLabel(item.kind, context)}
+      </span>
       <span
         className={`min-w-0 flex-1 truncate text-[13.5px] font-medium ${
           missing ? "text-ink-3" : "text-ink-1"
@@ -173,6 +181,7 @@ function ContextNodeRow({
 }
 
 export function ContextSheet({ open, context, onClose }: ContextSheetProps) {
+  const { t } = useContextI18n();
   const [state, setState] = useState<SnapSheetState>("normal");
   const navigator = useNavigator();
   const openEntity = (entity: ContextEntity) => {
@@ -200,7 +209,7 @@ export function ContextSheet({ open, context, onClose }: ContextSheetProps) {
         <header className="px-4 pb-2">
           <div className="flex items-center gap-2">
             <Waypoints size={15} className="text-ink-3" aria-hidden />
-            <span className="text-ink-1 text-[15px] font-extrabold">脉络 · {count}</span>
+            <span className="text-ink-1 text-[15px] font-extrabold">{t("title", { count })}</span>
           </div>
           <p className="text-ink-2 mt-1 line-clamp-1 text-[12.5px]">
             {context.selfEntity.title}
@@ -215,13 +224,13 @@ export function ContextSheet({ open, context, onClose }: ContextSheetProps) {
         <SnapSheet.Scroll className="px-4 pt-2 pb-8">
           {count === 0 ? (
             <div className="py-12 text-center">
-              <p className="text-ink-3 text-sm">暂无关联</p>
+              <p className="text-ink-3 text-sm">{t("empty")}</p>
             </div>
           ) : (
             <>
               {context.sources.length > 0 ? (
                 <section>
-                  <SectionHeader label="来源" count={context.sources.length} />
+                  <SectionHeader label={t("section.sources")} count={context.sources.length} />
                   {context.sources.map(item => (
                     <ContextNodeRow
                       key={`source:${item.kind}:${item.nodeId}`}
@@ -233,7 +242,7 @@ export function ContextSheet({ open, context, onClose }: ContextSheetProps) {
               ) : null}
               {context.links.length > 0 ? (
                 <section>
-                  <SectionHeader label="连接" count={context.links.length} />
+                  <SectionHeader label={t("section.links")} count={context.links.length} />
                   {context.links.map(link => (
                     <ContextLinkRow
                       key={`link:${link.entity.kind}:${link.entity.id}`}
@@ -245,7 +254,7 @@ export function ContextSheet({ open, context, onClose }: ContextSheetProps) {
               ) : null}
               {context.backlinks.length > 0 ? (
                 <section>
-                  <SectionHeader label="被引用" count={context.backlinkTotal} />
+                  <SectionHeader label={t("section.backlinks")} count={context.backlinkTotal} />
                   {context.backlinks.map(backlink => (
                     <ContextBacklinkRow
                       key={`backlink:${backlink.source.kind}:${backlink.source.id}`}
@@ -257,7 +266,7 @@ export function ContextSheet({ open, context, onClose }: ContextSheetProps) {
               ) : null}
               {projections.length > 0 ? (
                 <section>
-                  <SectionHeader label="也出现在" count={projections.length} />
+                  <SectionHeader label={t("section.projections")} count={projections.length} />
                   {context.projections.map(entity => (
                     <ContextEntityRow
                       key={`projection:${entity.kind}:${entity.id}`}
@@ -272,7 +281,7 @@ export function ContextSheet({ open, context, onClose }: ContextSheetProps) {
               ) : null}
               {context.derived.length > 0 ? (
                 <section>
-                  <SectionHeader label="衍生" count={context.derived.length} />
+                  <SectionHeader label={t("section.derived")} count={context.derived.length} />
                   {context.derived.map(item => (
                     <ContextNodeRow
                       key={`derived:${item.kind}:${item.nodeId}`}
@@ -284,7 +293,7 @@ export function ContextSheet({ open, context, onClose }: ContextSheetProps) {
               ) : null}
               {context.usages.length > 0 ? (
                 <section>
-                  <SectionHeader label="被使用" count={context.usages.length} />
+                  <SectionHeader label={t("section.usages")} count={context.usages.length} />
                   {context.usages.map(usage => (
                     <ContextNodeRow key={usage.key} item={usage} onOpen={openNode} />
                   ))}
@@ -292,7 +301,10 @@ export function ContextSheet({ open, context, onClose }: ContextSheetProps) {
               ) : null}
               {context.pluginLinks.length > 0 ? (
                 <section>
-                  <SectionHeader label="被关联" count={context.pluginLinks.length} />
+                  <SectionHeader
+                    label={t("section.pluginLinks")}
+                    count={context.pluginLinks.length}
+                  />
                   {context.pluginLinks.map(entity => (
                     <ContextEntityRow
                       key={`plugin-link:${entity.id}`}

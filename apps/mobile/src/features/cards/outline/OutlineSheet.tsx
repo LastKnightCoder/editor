@@ -1,3 +1,4 @@
+import { readingTranslator, outlineRowText, useReadingI18n } from "../reading.i18n";
 import { useEffect, useRef, useState, type RefObject } from "react";
 import {
   ChevronDown,
@@ -85,6 +86,8 @@ function shiftFor(index: number, from: number, to: number): number {
 
 /** 「整理结构」：底部全屏 Sheet 中按顶层块重排，标题可折叠整节移动，「完成」时作为一个撤销步写入 */
 export function OutlineSheet(props: OutlineSheetProps) {
+  const context = useReadingI18n();
+  const { t } = context;
   const { open, editorRef, onClose } = props;
   const [session, setSession] = useState<OutlineSession | null>(null);
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
@@ -143,7 +146,7 @@ export function OutlineSheet(props: OutlineSheetProps) {
     if (session && editor) {
       // 打开期间正文被外部改动（如协作）时快照已失效，不应用并关闭
       if (isSnapshotStale(editor, session.snapshot)) {
-        toast({ type: "warning", text: "内容已变化，请重新整理" });
+        toast({ type: "warning", text: readingTranslator.t("outline.stale") });
       } else {
         applyOrder(editor, session.order);
       }
@@ -170,7 +173,7 @@ export function OutlineSheet(props: OutlineSheetProps) {
           rowElsRef.current[position] = node;
         }}
         data-outline-row={unit.key}
-        className={`border-line-2 bg-surface text-ink-1 flex h-[46px] items-center gap-2.5 border-b pl-2.5 pr-1.5 text-[14px] ${
+        className={`border-line-2 bg-surface text-ink-1 flex h-[46px] items-center gap-2.5 border-b pr-1.5 pl-2.5 text-[14px] ${
           isHeading ? "font-bold" : ""
         } ${
           lifted
@@ -187,7 +190,7 @@ export function OutlineSheet(props: OutlineSheetProps) {
         {collapsible ? (
           <button
             type="button"
-            aria-label={collapsed ? "展开" : "折叠"}
+            aria-label={collapsed ? t("expand") : t("collapse")}
             onClick={() => toggleCollapsed(unit.key)}
             className="text-ink-3 active:bg-press -ml-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
           >
@@ -197,16 +200,16 @@ export function OutlineSheet(props: OutlineSheetProps) {
           <Icon size={isHeading ? 17 : 16} className="text-ink-3 shrink-0" aria-hidden />
         )}
         <span className="flex min-w-0 flex-1 items-center">
-          <span className="truncate">{row.label}</span>
+          <span className="truncate">{outlineRowText(row, context)}</span>
           {collapsed ? (
             <span className="bg-page text-ink-3 ml-1.5 shrink-0 rounded-full px-[7px] py-px text-[11px] font-normal">
-              含 {unit.childCount} 个块
+              {t("outline.children", { count: unit.childCount })}
             </span>
           ) : null}
         </span>
         <span
           role="button"
-          aria-label="拖动排序"
+          aria-label={t("outline.drag")}
           data-pan-ignore-drag="true"
           onPointerDown={event => startDrag(position, event)}
           className={`flex h-9 w-9 shrink-0 touch-none items-center justify-center ${
@@ -233,11 +236,11 @@ export function OutlineSheet(props: OutlineSheetProps) {
         <PageHeader
           leading={
             <PageHeaderTextButton tone="muted" onClick={onClose}>
-              取消
+              {t("cancel")}
             </PageHeaderTextButton>
           }
-          title="整理结构"
-          actions={<PageHeaderTextButton onClick={handleDone}>完成</PageHeaderTextButton>}
+          title={t("outline")}
+          actions={<PageHeaderTextButton onClick={handleDone}>{t("done")}</PageHeaderTextButton>}
         />
         <div className="flex h-8 items-center justify-end px-4">
           {collapsibleKeys.length > 0 ? (
@@ -246,7 +249,7 @@ export function OutlineSheet(props: OutlineSheetProps) {
               onClick={() => setCollapsed(allCollapsed ? new Set() : new Set(collapsibleKeys))}
               className="text-ink-2 text-[12.5px]"
             >
-              {allCollapsed ? "全部展开" : "全部折叠"}
+              {allCollapsed ? t("expandAll") : t("collapseAll")}
             </button>
           ) : null}
         </div>

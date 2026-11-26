@@ -1,3 +1,5 @@
+import { mobileLocaleSource } from "../../../../services/i18n";
+import { readingTranslator } from "../../reading.i18n";
 import { act, type ReactNode, type RefObject } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -51,6 +53,7 @@ describe("ReadingSelectionBar", () => {
   let root: Root;
 
   beforeEach(() => {
+    mobileLocaleSource.setLocale("zh-CN");
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);
@@ -61,6 +64,7 @@ describe("ReadingSelectionBar", () => {
 
   afterEach(() => {
     act(() => root.unmount());
+    mobileLocaleSource.setLocale("zh-CN");
     document.body.innerHTML = "";
     vi.restoreAllMocks();
   });
@@ -193,6 +197,38 @@ describe("ReadingSelectionBar", () => {
     expect(readingMode.enterEditingWithSelection).toHaveBeenCalledWith(RANGE);
     expect(controller.executeAction).toHaveBeenCalledWith(actionId);
     expect(calls).toEqual(["enter", "execute"]);
+  });
+
+  it("原选区跨语言保留，摘录在途不重发并保留原片段", async () => {
+    let complete!: (value: { id: number; contentId: number }) => void;
+    tauriMock.createQuickCard.mockReturnValue(
+      new Promise(resolve => {
+        complete = resolve;
+      })
+    );
+    const { editor, onClear, readingMode } = setup();
+    const original = editor.children;
+    const excerpt = button(readingTranslator.t("excerpt"));
+    for (const locale of ["zh-TW", "en-US"] as const) {
+      await act(async () => mobileLocaleSource.setLocale(locale));
+      expect(button(readingTranslator.t("excerpt"))).toBe(excerpt);
+      expect(editor.children).toBe(original);
+      expect(onClear).not.toHaveBeenCalled();
+      expect(readingMode.enterEditingWithSelection).not.toHaveBeenCalled();
+      expect(tauriMock.createQuickCard).not.toHaveBeenCalled();
+    }
+    await act(async () => excerpt.click());
+    const request = tauriMock.createQuickCard.mock.calls[0][0];
+    expect(request).toMatchObject({ content: EXCERPT, count: getContentLength(EXCERPT) });
+    for (const locale of ["zh-TW", "en-US"] as const) {
+      await act(async () => mobileLocaleSource.setLocale(locale));
+      expect(tauriMock.createQuickCard).toHaveBeenCalledOnce();
+      expect(tauriMock.createQuickCard.mock.calls[0][0]).toBe(request);
+    }
+    await act(async () => complete({ id: 57, contentId: 19 }));
+    const message = toastQueue.list().at(-1);
+    message?.action?.onClick();
+    expect(navigatorMock.push).toHaveBeenCalledWith("contentDetail", { cardId: 57 });
   });
 
   it("摘录成卡片：以选中片段建卡、刷新列表、toast 带「查看」", async () => {
