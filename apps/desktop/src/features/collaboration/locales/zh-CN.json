@@ -1,0 +1,18 @@
+{
+  "join.title": "加入协作",
+  "join.sent": "申请已发出",
+  "join.subtitle": "向内容作者要一个 12 位协作码，提交后需要对方同意。",
+  "join.identity": "以「{{nickname}}」的身份申请",
+  "join.cancel": "取消",
+  "join.submit": "申请加入",
+  "join.submitting": "正在提交…",
+  "join.done": "好的",
+  "join.sentHint": "作者同意后，这份内容会出现在侧栏「协作」下的「我加入的」里。可以先关掉这个窗口。",
+  "join.segment": "协作码第 {{position}} 段",
+  "join.pasteHint": "可以直接粘贴整段协作码，会自动分段。",
+  "join.failed": "申请失败",
+  "nickname.input": "协作昵称",
+  "nickname.hint": "你在协作中显示的名字，点击修改",
+  "nickname.updated": "昵称已更新，协作者会看到新名字",
+  "nickname.failed": "修改失败"
+}

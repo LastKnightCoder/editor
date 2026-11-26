@@ -1,0 +1,18 @@
+{
+  "join.title": "加入協作",
+  "join.sent": "申請已送出",
+  "join.subtitle": "向內容作者索取一組 12 位協作碼，提交後需要對方同意。",
+  "join.identity": "以「{{nickname}}」的身分申請",
+  "join.cancel": "取消",
+  "join.submit": "申請加入",
+  "join.submitting": "正在提交…",
+  "join.done": "好的",
+  "join.sentHint": "作者同意後，這份內容會出現在側欄「協作」下的「我加入的」裡。可以先關閉這個視窗。",
+  "join.segment": "協作碼第 {{position}} 段",
+  "join.pasteHint": "可以直接貼上整段協作碼，會自動分段。",
+  "join.failed": "申請失敗",
+  "nickname.input": "協作暱稱",
+  "nickname.hint": "你在協作中顯示的名字，點擊修改",
+  "nickname.updated": "暱稱已更新，協作者會看到新名字",
+  "nickname.failed": "修改失敗"
+}

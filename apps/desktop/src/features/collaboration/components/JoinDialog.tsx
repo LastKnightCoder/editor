@@ -7,6 +7,7 @@ import { useRef, useState, type ClipboardEvent, type KeyboardEvent } from "react
 import { Check } from "lucide-react";
 import { Button, Dialog, DialogBody, Input } from "@tau/ui";
 import { joinCollaboration } from "@/commands";
+import { collaborationFailureText, useCollaborationI18n } from "../i18n";
 
 const SEGMENTS = 3;
 const SEGMENT_LENGTH = 4;
@@ -24,9 +25,10 @@ export function JoinDialog({
   onOpenChange: (open: boolean) => void;
   nickname: string;
 }) {
+  const { t, locale } = useCollaborationI18n();
   const [segments, setSegments] = useState<string[]>(() => Array(SEGMENTS).fill(""));
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string>();
+  const [error, setError] = useState<{ cause: unknown }>();
   const [sent, setSent] = useState(false);
   const inputs = useRef<(HTMLInputElement | null)[]>([]);
   const code = segments.join("");
@@ -54,7 +56,7 @@ export function JoinDialog({
       await joinCollaboration(code);
       setSent(true);
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : "申请失败");
+      setError({ cause: failure });
     } finally {
       setBusy(false);
     }
@@ -85,29 +87,29 @@ export function JoinDialog({
         setSent(false);
       }}
       locked={busy}
-      title={sent ? "申请已发出" : "加入协作"}
-      subtitle={sent ? undefined : "向内容作者要一个 12 位协作码，提交后需要对方同意。"}
+      title={sent ? t("join.sent") : t("join.title")}
+      subtitle={sent ? undefined : t("join.subtitle")}
       footer={
         sent ? (
           <Button variant="primary" data-autofocus onClick={() => onOpenChange(false)}>
-            好的
+            {t("join.done")}
           </Button>
         ) : (
           <>
             <span className="text-ink-3 text-tau-sm mr-auto truncate">
-              以「{nickname}」的身份申请
+              {t("join.identity", { nickname })}
             </span>
             <Button variant="secondary" onClick={() => onOpenChange(false)}>
-              取消
+              {t("join.cancel")}
             </Button>
             <Button
               variant="primary"
               loading={busy}
-              loadingText="正在提交…"
+              loadingText={t("join.submitting")}
               disabled={code.length !== CODE_LENGTH}
               onClick={() => void submit()}
             >
-              申请加入
+              {t("join.submit")}
             </Button>
           </>
         )
@@ -119,9 +121,7 @@ export function JoinDialog({
             <span className="bg-ok-soft text-ok grid size-8 flex-none place-items-center rounded-full">
               <Check className="size-4" strokeWidth={2} />
             </span>
-            <p className="text-ink-2 text-tau-body">
-              作者同意后，这份内容会出现在侧栏「协作」下的「我加入的」里。可以先关掉这个窗口。
-            </p>
+            <p className="text-ink-2 text-tau-body">{t("join.sentHint")}</p>
           </div>
         ) : (
           <div>
@@ -134,14 +134,14 @@ export function JoinDialog({
                       inputs.current[index] = element;
                     }}
                     data-autofocus={index === 0 || undefined}
-                    aria-label={`协作码第 ${index + 1} 段`}
+                    aria-label={t("join.segment", { position: (index + 1).toLocaleString(locale) })}
                     value={value}
                     placeholder={PLACEHOLDERS[index]}
                     maxLength={SEGMENT_LENGTH}
                     spellCheck={false}
                     autoComplete="off"
                     wrapperClassName="h-11 min-w-0 flex-1"
-                    className="font-tau-mono placeholder:text-ink-3/60 text-center text-[17px] uppercase tracking-[0.22em]"
+                    className="font-tau-mono placeholder:text-ink-3/60 text-center text-[17px] tracking-[0.22em] uppercase"
                     onChange={event => fill(event.target.value, index)}
                     onKeyDown={onKeyDown(index)}
                     onPaste={onPaste(index)}
@@ -154,10 +154,10 @@ export function JoinDialog({
                 role="alert"
                 className="bg-danger-soft text-danger text-tau-meta rounded-tau-sm mt-3 px-3 py-2"
               >
-                {error}
+                {collaborationFailureText(error.cause, "join.failed")}
               </p>
             ) : (
-              <p className="text-ink-3 text-tau-sm mt-2">可以直接粘贴整段协作码，会自动分段。</p>
+              <p className="text-ink-3 text-tau-sm mt-2">{t("join.pasteHint")}</p>
             )}
           </div>
         )}

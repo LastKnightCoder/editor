@@ -240,6 +240,8 @@ P5 Chat交互：17源码工程完成；desktop真实host11、chat-ui22、mobile 
 
 P5 Chat容器/输入：13源码工程完成；desktop27和chat-ui24共51例通过，desktop/chat-ui/纯renderer类型与无DOM入口、两套三语参数/复数和范围静态/格式通过。连接延时假时钟、真实输入焦点/选区及异步附件原payload保留，不因locale重排计时/保存；显式空placeholder/model优先。Sidebar队列/分支/编辑与实际会话外壳另批。
 
+P6B桌面加入/昵称：7源码16语义key工程完成，原2例扩为4例通过；desktop类型、参数、范围静态/格式通过。待提交/失败跨语言保留DOM/光标/原邀请码，不重发加入；昵称草稿不自动写入，Esc取消、Enter仅提交trim原文一次。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

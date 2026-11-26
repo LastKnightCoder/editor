@@ -1,0 +1,18 @@
+{
+  "join.title": "Join collaboration",
+  "join.sent": "Request sent",
+  "join.subtitle": "Ask the author for a 12-character collaboration code. Their approval is required to join.",
+  "join.identity": "Request as “{{nickname}}”",
+  "join.cancel": "Cancel",
+  "join.submit": "Request to join",
+  "join.submitting": "Submitting…",
+  "join.done": "OK",
+  "join.sentHint": "Once the author approves, this content will appear under Collaboration › Joined in the sidebar. You can close this window.",
+  "join.segment": "Collaboration code, segment {{position}}",
+  "join.pasteHint": "Paste the full code to fill all segments automatically.",
+  "join.failed": "Request failed",
+  "nickname.input": "Collaboration nickname",
+  "nickname.hint": "Your name in collaboration. Click to edit",
+  "nickname.updated": "Nickname updated. Collaborators will see your new name",
+  "nickname.failed": "Could not update nickname"
+}

@@ -8,8 +8,10 @@ import { PenLine } from "lucide-react";
 import { Input, Tooltip, toast } from "@tau/ui";
 import { setCollaborationNickname } from "@/commands";
 import { Avatar } from "@/components/CollaborationUI";
+import { collaborationFailureText, collaborationTranslator, useCollaborationI18n } from "../i18n";
 
 export function NicknameChip({ deviceId, nickname }: { deviceId?: string; nickname: string }) {
+  const { t } = useCollaborationI18n();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(nickname);
   const [saving, setSaving] = useState(false);
@@ -25,9 +27,9 @@ export function NicknameChip({ deviceId, nickname }: { deviceId?: string; nickna
     setSaving(true);
     try {
       await setCollaborationNickname(value);
-      toast.success("昵称已更新，协作者会看到新名字");
+      toast.success(collaborationTranslator.t("nickname.updated"));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "修改失败");
+      toast.error(collaborationFailureText(error, "nickname.failed"));
     } finally {
       setSaving(false);
     }
@@ -42,7 +44,7 @@ export function NicknameChip({ deviceId, nickname }: { deviceId?: string; nickna
         <Input
           size="sm"
           autoFocus
-          aria-label="协作昵称"
+          aria-label={t("nickname.input")}
           maxLength={40}
           value={draft}
           wrapperClassName="w-[132px]"
@@ -63,7 +65,7 @@ export function NicknameChip({ deviceId, nickname }: { deviceId?: string; nickna
     );
 
   return (
-    <Tooltip content="你在协作中显示的名字，点击修改">
+    <Tooltip content={t("nickname.hint")}>
       <button
         type="button"
         disabled={saving || !nickname}
@@ -72,7 +74,7 @@ export function NicknameChip({ deviceId, nickname }: { deviceId?: string; nickna
           setDraft(nickname);
           setEditing(true);
         }}
-        className="rounded-tau-sm text-ink-2 hover:bg-hover hover:text-ink-1 text-tau-meta group flex h-7 cursor-pointer items-center gap-2 pl-1 pr-0.5 disabled:opacity-60"
+        className="rounded-tau-sm text-ink-2 hover:bg-hover hover:text-ink-1 text-tau-meta group flex h-7 cursor-pointer items-center gap-2 pr-0.5 pl-1 disabled:opacity-60"
       >
         {avatar}
         <span className="max-w-[10em] truncate">{nickname}</span>
