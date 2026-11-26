@@ -8,6 +8,8 @@
  * 取源方式与 legacy 相同：各桶 list 命令 + convertFileSrc(localPath)。
  */
 
+import { cacheTranslator, cacheCount, useCacheI18n, type CacheMessageKey } from "../cache/i18n";
+import { formatCacheBytes } from "../cache/format";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import clsx from "clsx";
 import { Eye, Film, Image as ImageIcon, Music, Trash2 } from "lucide-react";
@@ -61,6 +63,7 @@ type BucketKey = "remoteVideo" | "onlineVideo" | "remoteAudio" | "remoteImage";
 interface RawItem {
   id: string;
   name: string;
+  nameMessage?: CacheMessageKey;
   subtitle: string;
   fileSize: number;
   localPath: string;
@@ -79,7 +82,7 @@ interface Bucket {
   media: Media;
   source: Source;
   /** 「YouTube 视频」——toast 与确认弹窗共用 */
-  label: string;
+  message: CacheMessageKey;
   list: () => Promise<RawItem[]>;
   clear: () => Promise<void>;
 }
@@ -89,7 +92,7 @@ const BUCKETS: Bucket[] = [
     key: "remoteVideo",
     media: "video",
     source: "remote",
-    label: "远程视频",
+    message: "bucket.remoteVideo",
     list: async () =>
       (await listRemoteVideoCache()).map(item => ({
         id: item.id,
@@ -105,12 +108,13 @@ const BUCKETS: Bucket[] = [
     key: "onlineVideo",
     media: "video",
     source: "online",
-    label: "在线视频",
+    message: "bucket.onlineVideo",
     list: async () => {
       const { providers } = getVideoProviders();
       return (await listOnlineVideoCache()).map(item => ({
         id: item.id,
-        name: item.title || "未命名视频",
+        name: item.title || "",
+        nameMessage: item.title ? undefined : "item.untitledVideo",
         subtitle:
           providers.find(provider => provider.id === item.providerId)?.name ?? item.providerId,
         fileSize: item.fileSize,
@@ -124,7 +128,7 @@ const BUCKETS: Bucket[] = [
     key: "remoteAudio",
     media: "audio",
     source: "remote",
-    label: "远程音频",
+    message: "bucket.remoteAudio",
     list: async () =>
       (await listRemoteAudioCache()).map(item => ({
         id: item.id,
@@ -140,7 +144,7 @@ const BUCKETS: Bucket[] = [
     key: "remoteImage",
     media: "image",
     source: "remote",
-    label: "远程图片",
+    message: "bucket.remoteImage",
     list: async () =>
       (await listRemoteImageCache()).map(item => ({
         id: item.id,
@@ -156,24 +160,16 @@ const BUCKETS: Bucket[] = [
 
 const BUCKET_BY_KEY = Object.fromEntries(BUCKETS.map(b => [b.key, b])) as Record<BucketKey, Bucket>;
 
-const MEDIA_LABELS: Record<Media, string> = { video: "视频", audio: "音频", image: "图片" };
-const MEDIA_ICONS = { video: Film, audio: Music, image: ImageIcon } as const;
-const SOURCE_LABELS: Record<SourceFilter, string> = {
-  all: "全部",
-  remote: "远程",
-  online: "在线视频",
+const MEDIA_MESSAGE: Record<Media, CacheMessageKey> = {
+  video: "media.video",
+  audio: "media.audio",
+  image: "media.image",
 };
-
-const formatBytes = (bytes: number) => {
-  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  let value = bytes;
-  let unit = 0;
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024;
-    unit += 1;
-  }
-  return `${value.toFixed(value >= 100 || unit === 0 ? 0 : 1)} ${units[unit]}`;
+const MEDIA_ICONS = { video: Film, audio: Music, image: ImageIcon } as const;
+const SOURCE_MESSAGE: Record<SourceFilter, CacheMessageKey> = {
+  all: "source.all",
+  remote: "source.remote",
+  online: "source.online",
 };
 
 async function loadBucket(bucket: Bucket): Promise<CacheItem[]> {
@@ -184,7 +180,7 @@ async function loadBucket(bucket: Bucket): Promise<CacheItem[]> {
       try {
         previewUrl = await convertFileSrc(item.localPath);
       } catch (error) {
-        console.error(`生成${bucket.label}缓存预览地址失败:`, error);
+        console.error("CACHE_PREVIEW_URL_FAILED", { bucket: bucket.key }, error);
       }
       return { ...item, key: `${bucket.key}:${item.id}`, bucket: bucket.key, previewUrl };
     })
@@ -192,6 +188,7 @@ async function loadBucket(bucket: Bucket): Promise<CacheItem[]> {
 }
 
 export function CacheSection() {
+  const { t, locale } = useCacheI18n();
   const translateToChinese = useSettingStore(s => s.setting.misc.webClip.translateToChinese);
   const autoCacheVideo = useSettingStore(s => s.setting.misc.video.autoCacheRemote);
   const autoCacheAudio = useSettingStore(s => s.setting.misc.audio.autoCacheRemote);
@@ -210,8 +207,10 @@ export function CacheSection() {
       const items = await loadBucket(bucket);
       setCaches(prev => ({ ...prev, [key]: items }));
     } catch (error) {
-      console.error(`加载${bucket.label}缓存失败:`, error);
-      toast.error(`加载${bucket.label}缓存失败`);
+      console.error("CACHE_LIST_FAILED", { bucket: bucket.key }, error);
+      toast.error(
+        cacheTranslator.t("feedback.loadFailed", { bucket: cacheTranslator.t(bucket.message) })
+      );
       setCaches(prev => ({ ...prev, [key]: prev[key] ?? [] }));
     }
   }, []);
@@ -269,12 +268,15 @@ export function CacheSection() {
     });
 
   const handleDeleteRow = async (item: CacheItem) => {
-    const { label } = BUCKET_BY_KEY[item.bucket];
+    const bucket = BUCKET_BY_KEY[item.bucket];
     markDeleting(item.key, true);
     try {
       const removed = await item.remove();
-      if (removed) toast.success(`已删除该${label}缓存`);
-      else toast.warning("缓存记录不存在，可能已被移除");
+      if (removed)
+        toast.success(
+          cacheTranslator.t("feedback.deleted", { bucket: cacheTranslator.t(bucket.message) })
+        );
+      else toast.warning(cacheTranslator.t("feedback.missing"));
       setSelected(prev => {
         if (!prev.has(item.key)) return prev;
         const next = new Set(prev);
@@ -283,8 +285,10 @@ export function CacheSection() {
       });
       await refresh(item.bucket);
     } catch (error) {
-      console.error(`删除${label}缓存失败:`, error);
-      toast.error(`删除${label}缓存失败`);
+      console.error("CACHE_DELETE_FAILED", { bucket: bucket.key }, error);
+      toast.error(
+        cacheTranslator.t("feedback.deleteFailed", { bucket: cacheTranslator.t(bucket.message) })
+      );
     } finally {
       markDeleting(item.key, false);
     }
@@ -303,15 +307,15 @@ export function CacheSection() {
           if (await item.remove()) removed += 1;
         } catch (error) {
           failed += 1;
-          console.error(`删除${BUCKET_BY_KEY[item.bucket].label}缓存失败:`, error);
+          console.error("CACHE_DELETE_FAILED", { bucket: item.bucket }, error);
         }
       }
       await Promise.all([...new Set(targets.map(i => i.bucket))].map(refresh));
       setSelected(new Set());
-      if (failed > 0) toast.error(`${failed} 项删除失败，已删除 ${removed} 项`);
+      if (failed > 0) toast.error(cacheTranslator.t("feedback.batchPartial", { failed, removed }));
       else if (removed < targets.length)
-        toast.warning(`已删除 ${removed} 项，其余记录不存在，可能已被移除`);
-      else toast.success(`已删除 ${removed} 项缓存`);
+        toast.warning(cacheCount("feedback.batchMissing", removed));
+      else toast.success(cacheCount("feedback.batchDeleted", removed));
     } finally {
       setBatchDeleting(false);
     }
@@ -319,24 +323,43 @@ export function CacheSection() {
 
   /* 清除全部：作用于当前筛选涉及的桶 */
   const [clearOpen, setClearOpen] = useState(false);
-  const clearScope = visibleBuckets.map(b => b.label).join("、");
+  const clearScope = visibleBuckets.map(b => t(b.message)).join(t("clear.separator"));
   const handleClearAll = async () => {
     const results = await Promise.allSettled(visibleBuckets.map(b => b.clear()));
     await Promise.all(visibleBuckets.map(b => refresh(b.key)));
     setSelected(new Set());
     const failedLabels = visibleBuckets
       .filter((_, index) => results[index].status === "rejected")
-      .map(b => b.label);
+      .map(b => b.message);
     results.forEach((result, index) => {
       if (result.status === "rejected")
-        console.error(`清除${visibleBuckets[index].label}缓存失败:`, result.reason);
+        console.error("CACHE_CLEAR_FAILED", { bucket: visibleBuckets[index].key }, result.reason);
     });
-    if (failedLabels.length) toast.error(`清除${failedLabels.join("、")}缓存失败`);
-    else toast.success(`已清空${clearScope}缓存`);
+    if (failedLabels.length)
+      toast.error(
+        cacheTranslator.t("feedback.clearFailed", {
+          scope: failedLabels
+            .map(key => cacheTranslator.t(key))
+            .join(cacheTranslator.t("clear.separator")),
+        })
+      );
+    else
+      toast.success(
+        cacheTranslator.t("feedback.cleared", {
+          scope: visibleBuckets
+            .map(b => cacheTranslator.t(b.message))
+            .join(cacheTranslator.t("clear.separator")),
+        })
+      );
   };
 
   /* ── 预览：视频 / 音频走 Dialog 承载原生播放器，图片走 ImagePreview（可左右切换） ── */
-  const [player, setPlayer] = useState<{ kind: "video" | "audio"; title: string; src: string }>();
+  const [player, setPlayer] = useState<{
+    kind: "video" | "audio";
+    title: string;
+    titleMessage?: CacheMessageKey;
+    src: string;
+  }>();
   const [playerOpen, setPlayerOpen] = useState(false);
   const mediaRef = useRef<HTMLVideoElement & HTMLAudioElement>(null);
   const closePlayer = (open: boolean) => {
@@ -367,7 +390,12 @@ export function CacheSection() {
       setImageOpen(true);
       return;
     }
-    setPlayer({ kind: media, title: item.name, src: item.previewUrl });
+    setPlayer({
+      kind: media,
+      title: item.name,
+      titleMessage: item.nameMessage,
+      src: item.previewUrl,
+    });
     setPlayerOpen(true);
   };
 
@@ -375,34 +403,37 @@ export function CacheSection() {
   useEdgeFade(listEl);
 
   const Icon = MEDIA_ICONS[media];
-  const mediaLabel = MEDIA_LABELS[media];
+  const mediaLabel = t(MEDIA_MESSAGE[media]);
 
   return (
     <>
-      <SettingsGroup title="缓存" description="清除只删除本地缓存文件，再次播放或加载时会重新下载">
+      <SettingsGroup
+        title={cacheTranslator.t("title")}
+        description={cacheTranslator.t("description")}
+      >
         <div className="flex flex-wrap items-center gap-2 p-2">
           <Segmented
-            label="媒体类型"
+            label={cacheTranslator.t("filter.media")}
             size="sm"
             value={media}
             onValueChange={v => setMedia(v as Media)}
           >
-            {(Object.keys(MEDIA_LABELS) as Media[]).map(key => (
-              <Segmented.Item key={key} value={key} label={MEDIA_LABELS[key]} />
+            {(Object.keys(MEDIA_MESSAGE) as Media[]).map(key => (
+              <Segmented.Item key={key} value={key} label={t(MEDIA_MESSAGE[key])} />
             ))}
           </Segmented>
           {media !== "image" && (
             <Segmented
-              label="来源筛选"
+              label={cacheTranslator.t("filter.source")}
               size="sm"
               value={source}
               onValueChange={v => setSourceFilter(v as SourceFilter)}
             >
-              {(Object.keys(SOURCE_LABELS) as SourceFilter[]).map(key => (
+              {(Object.keys(SOURCE_MESSAGE) as SourceFilter[]).map(key => (
                 <Segmented.Item
                   key={key}
                   value={key}
-                  label={`${SOURCE_LABELS[key]} ${sourceCount(key)}`}
+                  label={`${t(SOURCE_MESSAGE[key])} ${sourceCount(key).toLocaleString(locale)}`}
                 />
               ))}
             </Segmented>
@@ -416,22 +447,25 @@ export function CacheSection() {
             disabled={items.length === 0}
             onClick={() => setClearOpen(true)}
           >
-            清除全部
+            {cacheTranslator.t("action.clearAll")}
           </Button>
         </div>
 
         {loading && items.length === 0 ? (
-          <div className="text-tau-meta text-ink-2 px-3 py-6 text-center">正在读取缓存…</div>
+          <div className="text-tau-meta text-ink-2 px-3 py-6 text-center">
+            {cacheTranslator.t("list.loading")}
+          </div>
         ) : items.length === 0 ? (
           <div className="text-tau-meta text-ink-2 px-3 py-6 text-center">
-            暂无{source === "all" ? "" : SOURCE_LABELS[source]}
-            {mediaLabel}缓存
+            {source === "all"
+              ? t("list.empty", { media: mediaLabel })
+              : t("list.emptySource", { source: t(SOURCE_MESSAGE[source]), media: mediaLabel })}
           </div>
         ) : (
           <>
             <div className="flex min-h-10 items-center gap-2 px-3 pb-1">
               <Checkbox
-                aria-label="全选"
+                aria-label={cacheTranslator.t("action.selectAll")}
                 checked={allSelected}
                 indeterminate={selectedItems.length > 0 && !allSelected}
                 onChange={toggleAll}
@@ -439,7 +473,7 @@ export function CacheSection() {
               {selectedItems.length > 0 ? (
                 <>
                   <span className="text-tau-meta text-ink-1 tabular-nums">
-                    已选 {selectedItems.length} 项
+                    {cacheCount("list.selected", selectedItems.length)}
                   </span>
                   <span className="flex-1" />
                   <Button
@@ -447,16 +481,17 @@ export function CacheSection() {
                     size="sm"
                     icon={Trash2}
                     loading={batchDeleting}
-                    loadingText="删除中…"
+                    loadingText={cacheTranslator.t("action.deleting")}
                     onClick={() => void handleBatchDelete()}
                   >
-                    批量删除
+                    {cacheTranslator.t("action.batchDelete")}
                   </Button>
                 </>
               ) : (
                 <span className="text-tau-meta text-ink-2 tabular-nums">
-                  共 {items.length} 项 · 占用{" "}
-                  <span className="text-ink-1 font-medium">{formatBytes(totalSize)}</span>
+                  {cacheCount("list.total", items.length, {
+                    size: formatCacheBytes(totalSize, locale),
+                  })}
                 </span>
               )}
             </div>
@@ -470,7 +505,7 @@ export function CacheSection() {
                   item={item}
                   icon={Icon}
                   sourceLabel={
-                    media === "image" ? null : SOURCE_LABELS[BUCKET_BY_KEY[item.bucket].source]
+                    media === "image" ? null : t(SOURCE_MESSAGE[BUCKET_BY_KEY[item.bucket].source])
                   }
                   selected={selected.has(item.key)}
                   deleting={deleting.has(item.key) || batchDeleting}
@@ -484,43 +519,49 @@ export function CacheSection() {
         )}
       </SettingsGroup>
 
-      <SettingsGroup title="自动缓存" description="离线也能打开，会占用本地空间">
+      <SettingsGroup
+        title={cacheTranslator.t("auto.title")}
+        description={cacheTranslator.t("auto.description")}
+      >
         <SettingRow
-          title="远程视频"
-          description="普通网络视频链接播放时自动缓存到本地；Bilibili、YouTube 等在线视频始终先缓存再播放，不受此开关影响"
+          title={cacheTranslator.t("bucket.remoteVideo")}
+          description={cacheTranslator.t("auto.videoHint")}
         >
           <Switch
-            aria-label="自动缓存远程视频"
+            aria-label={cacheTranslator.t("auto.video")}
             checked={autoCacheVideo}
             onCheckedChange={setAutoCacheVideo}
           />
         </SettingRow>
         <SettingRow
-          title="远程音频"
-          description="关闭后播放远程音频直接使用在线链接，不写入本地缓存"
+          title={cacheTranslator.t("bucket.remoteAudio")}
+          description={cacheTranslator.t("auto.audioHint")}
         >
           <Switch
-            aria-label="自动缓存远程音频"
+            aria-label={cacheTranslator.t("auto.audio")}
             checked={autoCacheAudio}
             onCheckedChange={setAutoCacheAudio}
           />
         </SettingRow>
         <SettingRow
-          title="远程图片"
-          description="关闭后加载远程图片直接使用在线链接，不写入本地缓存"
+          title={cacheTranslator.t("bucket.remoteImage")}
+          description={cacheTranslator.t("auto.imageHint")}
         >
           <Switch
-            aria-label="自动缓存远程图片"
+            aria-label={cacheTranslator.t("auto.image")}
             checked={autoCacheImage}
             onCheckedChange={setAutoCacheImage}
           />
         </SettingRow>
       </SettingsGroup>
 
-      <SettingsGroup title="网页剪藏">
-        <SettingRow title="解析时翻译为中文" description="解析网页时尝试将正文自动翻译为中文">
+      <SettingsGroup title={cacheTranslator.t("clip.title")}>
+        <SettingRow
+          title={cacheTranslator.t("clip.translate")}
+          description={cacheTranslator.t("clip.translateHint")}
+        >
           <Switch
-            aria-label="解析时翻译为中文"
+            aria-label={cacheTranslator.t("clip.translate")}
             checked={translateToChinese}
             onCheckedChange={setTranslateToChinese}
           />
@@ -530,12 +571,14 @@ export function CacheSection() {
       <ConfirmDialog
         open={clearOpen}
         onOpenChange={setClearOpen}
-        title="清除缓存"
-        context={`${mediaLabel} · ${source === "all" ? "全部来源" : SOURCE_LABELS[source]}`}
+        title={cacheTranslator.t("clear.title")}
+        context={`${mediaLabel} · ${source === "all" ? t("clear.allSources") : t(SOURCE_MESSAGE[source])}`}
         danger
-        confirmText="清除"
-        description={`将清空${clearScope}缓存。仅删除本地缓存文件，原始内容不受影响，再次播放或加载时会重新下载。`}
-        impact={`共 ${items.length} 项，释放 ${formatBytes(totalSize)}`}
+        confirmText={cacheTranslator.t("clear.action")}
+        description={t("clear.description", { scope: clearScope })}
+        impact={cacheCount("clear.impact", items.length, {
+          size: formatCacheBytes(totalSize, locale),
+        })}
         onConfirm={handleClearAll}
       />
 
@@ -543,7 +586,14 @@ export function CacheSection() {
         open={playerOpen}
         onOpenChange={closePlayer}
         onAfterClose={() => setPlayer(undefined)}
-        title={player?.title || (player?.kind === "audio" ? "音频预览" : "视频预览")}
+        title={
+          player?.title ||
+          (player?.titleMessage
+            ? t(player.titleMessage)
+            : player?.kind === "audio"
+              ? cacheTranslator.t("preview.audio")
+              : cacheTranslator.t("preview.video"))
+        }
         width={player?.kind === "audio" ? 480 : 720}
       >
         <DialogBody>
@@ -591,38 +641,43 @@ function CacheRow({
   onPreview: () => void;
   onDelete: () => void;
 }) {
+  const { t, locale } = useCacheI18n();
+  const name = item.name || (item.nameMessage ? t(item.nameMessage) : "");
   return (
     <div
       className={clsx("rounded-tau-sm flex min-h-[52px] items-center gap-3 px-3 py-2", ROW_DIVIDER)}
     >
-      <Checkbox aria-label={`选择「${item.name}」`} checked={selected} onChange={onToggle} />
+      <Checkbox aria-label={t("row.select", { name })} checked={selected} onChange={onToggle} />
       <span className="bg-hover text-ink-2 rounded-tau-sm grid size-8 shrink-0 place-items-center">
         <Icon size={15} strokeWidth={1.75} />
       </span>
       <div className="min-w-0 flex-1">
-        <div className="text-ink-1 truncate font-medium" title={item.name}>
-          {item.name}
+        <div className="text-ink-1 truncate font-medium" title={name}>
+          {name}
         </div>
-        <div className="text-tau-meta text-ink-2 truncate" title={`缓存路径：${item.localPath}`}>
+        <div
+          className="text-tau-meta text-ink-2 truncate"
+          title={t("row.path", { path: item.localPath })}
+        >
           {sourceLabel ? `${sourceLabel} · ` : ""}
           {item.subtitle}
         </div>
       </div>
       <span className="text-tau-meta text-ink-2 shrink-0 tabular-nums">
-        {formatBytes(item.fileSize)}
+        {formatCacheBytes(item.fileSize, locale)}
       </span>
       <div className="flex shrink-0 gap-0.5">
         <IconButton
-          aria-label={`预览「${item.name}」`}
-          title={item.previewUrl ? "预览" : "暂无可用预览"}
+          aria-label={t("row.preview", { name })}
+          title={item.previewUrl ? t("preview.action") : t("preview.unavailable")}
           disabled={!item.previewUrl}
           onClick={onPreview}
         >
           <Eye size={14} strokeWidth={1.75} />
         </IconButton>
         <IconButton
-          aria-label={`清除「${item.name}」`}
-          title="清除"
+          aria-label={t("row.clear", { name })}
+          title={t("clear.action")}
           disabled={deleting}
           onClick={onDelete}
         >
