@@ -43,5 +43,8 @@
   "subagent.toolDescription": "{{label}}：{{description}}",
   "subagent.childDescription": "{{label}}：仅子 Agent 可调用。{{description}}",
   "availability.image": "需要先配置图片生成服务",
-  "availability.unavailable": "当前不可用"
+  "availability.unavailable": "当前不可用",
+  "source.pdf": "PDF 文档",
+  "source.learning": "学习项目资料",
+  "source.whiteboard": "当前白板"
 }

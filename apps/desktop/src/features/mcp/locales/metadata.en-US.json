@@ -43,5 +43,8 @@
   "subagent.toolDescription": "{{label}}: {{description}}",
   "subagent.childDescription": "{{label}}: Available only to subagents. {{description}}",
   "availability.image": "Configure an image generation service first",
-  "availability.unavailable": "Currently unavailable"
+  "availability.unavailable": "Currently unavailable",
+  "source.pdf": "PDF documents",
+  "source.learning": "Learning project resources",
+  "source.whiteboard": "Current whiteboard"
 }

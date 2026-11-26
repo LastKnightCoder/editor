@@ -1,3 +1,4 @@
+import { mcpMetadataT } from "@/features/mcp/metadata.binding";
 import { useWhiteboardChromeI18n } from "../i18n-chrome";
 import toolRegistry from "@/tools/toolRegistry";
 import { retainWhiteboardToolScope } from "@/services/whiteboard-documents/agent-scope";
@@ -277,7 +278,8 @@ function BoundDocumentCanvas({
     toolRegistry.registerScopedTools(
       scope,
       "当前白板",
-      whiteboardAgentTools(scope, binding, client, remoteSync, lifetime.signal)
+      whiteboardAgentTools(scope, binding, client, remoteSync, lifetime.signal),
+      { getLabel: () => mcpMetadataT("source.whiteboard") }
     );
     const release = retainWhiteboardToolScope(scope);
     return () => {

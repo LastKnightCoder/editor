@@ -380,6 +380,8 @@ Markdown F3十四源加Root Core/README二路径完成；全窗口9文件49例�
 
 发布设置九路径完成；全发布原10例通过，usePublishConfig原1至新增真实在途契约2例通过，desktop type/build、43key三语runtime与范围静态通过。真实QueryClient/setting保同request/providerConfig/配置草稿，跨语不重查模板/目标或重check；完成仍归原请求。独立AST对照全部发布request/存储/连接动作/faviconIO/原生选择参数、模板字段与ProviderFormView binding/自动检测effect保持。
 
+来源标签与手机占位十二源完成；desktop3文件21例/原1skip、mobile2文件14例及双端type/范围lint/三语runtime通过。三注册者AST除getLabel和import全等，原工具身份/effect deps/白板会话性能原样；手机provider id/match/数组不变，已追占位仅用于渲染无写入/导出路径。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

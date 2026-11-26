@@ -1,3 +1,4 @@
+import { mcpMetadataT } from "@/features/mcp/metadata.binding";
 import { useEffect } from "react";
 import toolRegistry from "@/tools";
 import { createUnifiedVibeLearningTool } from "@/tools/vibeLearningSearchTool";
@@ -11,7 +12,9 @@ export const useVibeLearningChat = (projectId: number, mainDbName: string) => {
       createUnifiedVibeLearningTool(projectId, mainDbName),
       ...createVibeLearningProductTools(projectId, mainDbName),
     ];
-    toolRegistry.registerScopedTools(sourceId, "学习项目资料", tools);
+    toolRegistry.registerScopedTools(sourceId, "学习项目资料", tools, {
+      getLabel: () => mcpMetadataT("source.learning"),
+    });
 
     return () => {
       toolRegistry.unregisterSource(sourceId);

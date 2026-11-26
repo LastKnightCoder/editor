@@ -1,3 +1,4 @@
+import { mcpMetadataT } from "@/features/mcp/metadata.binding";
 import { useEffect } from "react";
 import type { Pdf } from "@/types";
 import toolRegistry from "@/tools";
@@ -23,7 +24,9 @@ export function usePdfChatTools(pdfId: number, mainDbName: string) {
       createGetPdfBookmarksTool(pdfId),
     ];
 
-    toolRegistry.registerScopedTools(sourceId, "PDF 文档", tools);
+    toolRegistry.registerScopedTools(sourceId, "PDF 文档", tools, {
+      getLabel: () => mcpMetadataT("source.pdf"),
+    });
     return () => {
       toolRegistry.unregisterSource(sourceId);
     };
