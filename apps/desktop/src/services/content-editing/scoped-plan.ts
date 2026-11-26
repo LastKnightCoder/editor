@@ -2,6 +2,8 @@ import * as Y from "yjs";
 import { Element, Text, type Descendant } from "slate";
 import {
   captureScopedTextEdit,
+  buildScopedContentUpdate,
+  readNodeDocument,
   CollaborationError,
   NodeTree,
   type ContentNode,
@@ -9,8 +11,8 @@ import {
   type ScopedContentEdits,
 } from "@tau/collaboration";
 import { prepareContentContracts, prepareContentMarkdown } from "@/services/editorKit";
+import { getMarkdownWithPositions } from "@/utils/markdown";
 import { offsetToMarkdownPoint } from "./snapshot";
-import { resolveLocatorToRange } from "./locator";
 import { EditEngineError } from "./edit-engine";
 import type { AppliedPatch, ContentSnapshot, EditOperation } from "./types";
 
@@ -73,7 +75,7 @@ export async function compileScopedPlan(
     const roots = tree.snapshot() as (ContentNode & { collabId: string })[];
     const edits: ScopedContentEdit[] = [];
     const contracts = {};
-    let bounds: { start: number; end: number; index: number }[] | undefined;
+    const bounds = snapshot.blockRanges.map((range, index) => ({ ...range, index }));
     for (const [index, patch] of patches.entries()) {
       const operation = operations[index];
       const start = textPoint(snapshot, patch.start);
@@ -122,18 +124,6 @@ export async function compileScopedPlan(
           }
         }
       }
-      bounds ??= roots.flatMap((_node, blockIndex) => {
-        try {
-          const range = resolveLocatorToRange({
-            locator: { kind: "slate-path", path: [blockIndex] },
-            snapshot,
-            selection: null,
-          });
-          return [{ start: range.start, end: range.end, index: blockIndex }];
-        } catch {
-          return [];
-        }
-      });
       let first: number;
       let last: number;
       let markdown: string;
@@ -190,6 +180,24 @@ export async function compileScopedPlan(
     return { edits, contracts };
   } finally {
     tree.dispose();
+    doc.destroy();
+  }
+}
+
+/** 在快照副本上按建议的实际提交顺序预演；包括每条建议的撤销容量校验。 */
+export async function previewScopedPlan(state: Uint8Array, plan: ScopedContentEdits) {
+  const doc = new Y.Doc({ gc: false });
+  try {
+    Y.applyUpdate(doc, state);
+    for (const edit of plan.edits) {
+      const { update } = await buildScopedContentUpdate(doc, {
+        contracts: plan.contracts,
+        edits: [edit],
+      });
+      Y.applyUpdate(doc, update);
+    }
+    return getMarkdownWithPositions(readNodeDocument(doc).content as Descendant[]).markdown;
+  } finally {
     doc.destroy();
   }
 }

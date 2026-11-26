@@ -36,7 +36,20 @@ export async function submitSharedAgentEdit(
   const known = manager.store.get<{ updateHash: string; expiresAt: number } | null>(key, null);
   if (known && known.updateHash !== updateHash) throw new Error("操作身份已被另一请求使用");
   if (!known) {
-    await manager.client.request(url, `/v1/documents/${session.info.id}/protocol`);
+    const protocol = await manager.client.request<{ scopedSubtreeDeletion?: boolean }>(
+      url,
+      `/v1/documents/${session.info.id}/protocol`
+    );
+    if (
+      !protocol.scopedSubtreeDeletion &&
+      request.scope.edits.some(
+        edit =>
+          edit.kind === "blocks" &&
+          (edit.restoreDeletion ||
+            edit.expected.some(node => node.children?.some(child => child.children)))
+      )
+    )
+      return { status: "rejected", reason: "请更新协作服务后再修改包含子节点的正文块" };
     check();
     if (session.info.pending || session.provider?.hasUnsyncedChanges) {
       try {

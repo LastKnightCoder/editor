@@ -19,7 +19,7 @@ import type { ContentLocalState } from "../content-local-state";
 import { CollaborationAssetService } from "../asset-service";
 import type { CollaborationClient } from "../client";
 import type { RuntimeSession } from "../types";
-import { ContentDocumentTable } from "../../tables/content-document";
+import { ContentDocumentTable, type ContentDocumentWrite } from "../../tables/content-document";
 import { ContentIdentityTable } from "../../tables/content-identity";
 import { unregisterContentSession } from "../content-sessions";
 import type { DocumentDrain, DocumentDrainScope } from "../../durable-document-lifecycle";
@@ -60,7 +60,11 @@ export type SharedSessions = {
   startAutoFlush(): void;
 };
 
-export async function setup(realtime = false, paragraphs?: readonly string[]) {
+export async function setup(
+  realtime = false,
+  paragraphs?: readonly string[],
+  document?: ContentDocumentWrite
+) {
   const root = mkdtempSync(join(tmpdir(), "tau-manager-flow-"));
   host.dir = root;
   const db = new Database(join(root, "library.db"));
@@ -181,7 +185,7 @@ export async function setup(realtime = false, paragraphs?: readonly string[]) {
   ContentDocumentTable.commit(
     db,
     7,
-    {
+    document ?? {
       documentId: "test-content",
       contracts: { [paragraph.id]: paragraph.contract },
       content: paragraphs

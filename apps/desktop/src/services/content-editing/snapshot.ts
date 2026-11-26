@@ -63,7 +63,7 @@ export const createContentSnapshot = (
   content: Descendant[],
   source: SnapshotSource
 ): ContentSnapshot => {
-  const { markdown, positionMap } = getMarkdownWithPositions(content);
+  const { markdown, positionMap, blockRanges } = getMarkdownWithPositions(content);
   const lineOffsets = buildLineOffsets(markdown);
   const hash = hashMarkdown(markdown);
   const createdAt = Date.now();
@@ -76,6 +76,7 @@ export const createContentSnapshot = (
     hash,
     lineOffsets,
     positionMap,
+    blockRanges,
     source,
   };
 };

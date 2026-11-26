@@ -2,7 +2,7 @@ import * as Y from "yjs";
 import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
 import { readDocumentIdentity } from "./document-version";
 import { readNodeDocument, validateNodeDocument, type NodeDocumentOptions } from "./node-document";
-import { NodeTree } from "./node-tree";
+import { NodeTree, observedNodeIds } from "./node-tree";
 import { CollaborationError, type ContentNode } from "./protocol";
 import {
   buildScopedContentUpdate,
@@ -54,13 +54,7 @@ function changeMetadata(current: Y.Doc, target: Y.Doc, expected?: Y.Doc): void {
 }
 
 function removeBlocks(tree: NodeTree, blocks: ContentNode[]): void {
-  const ids: string[] = [];
-  const visit = (block: ContentNode) => {
-    if (typeof block.collabId === "string") ids.push(block.collabId);
-    block.children?.forEach(visit);
-  };
-  blocks.forEach(visit);
-  tree.removeNodes(ids, null);
+  tree.removeNodes(observedNodeIds(blocks), null);
 }
 
 function restoreBlocks(tree: NodeTree, desired: ContentNode[]): void {

@@ -1,14 +1,13 @@
+import { prepareEditRequest, resolveEditRequest } from "@/services/content-editing/prepare-edit";
+import { CollaborationError } from "@tau/collaboration";
 import type { ToolParameterSchema } from "@/types";
 import type { MCPProviderDefinition } from "./types";
 import {
-  applyEditOperations,
   autoApplyContentEditProposal,
   createPendingContentEditReview,
   createContentEditProposal,
   EditEngineError,
   findContentRanges,
-  getActiveEditingSessionByContentId,
-  getSnapshot,
   getContentEditProposal,
   askAboutContent,
   applyDirectSuggestions,
@@ -51,6 +50,13 @@ const toToolError = (code: string, message: string, extra?: Record<string, unkno
   };
 };
 
+function editToolError(error: unknown) {
+  if (error instanceof EditEngineError)
+    return toToolError(error.code, error.message, { details: error.details });
+  if (error instanceof CollaborationError) return toToolError(error.code, error.message);
+  return toToolError("EDIT_FAILED", (error as Error).message);
+}
+
 const previewOperationsCore = async (payload: {
   target?: { contentId?: number };
   baseHash?: string;
@@ -60,79 +66,33 @@ const previewOperationsCore = async (payload: {
   context?: ToolExecutionContext;
 }) => {
   const { target, baseHash, snapshotId, operations, dryRun = false, context } = payload;
-  const resolvedTarget = await resolveContentTarget(
-    {
-      contentId: target?.contentId,
-    },
-    context
-  );
-  const captured = snapshotId && getSnapshot(snapshotId);
-  if (
-    snapshotId &&
-    (!captured ||
-      (isElectron && !captured.editState) ||
-      (captured.editState &&
-        (captured.editState.contentId !== resolvedTarget.contentId ||
-          captured.editState.databaseName !==
-            (context?.databaseName ?? getChatDatabase()).replace(/\.db$/, ""))))
-  )
-    return toToolError("SNAPSHOT_EXPIRED", "正文快照已失效，请重新读取");
-  const { snapshot } = captured
-    ? { snapshot: captured }
-    : await loadSnapshotForContent(resolvedTarget.contentId, context);
-  const session =
-    !context?.databaseName || context.databaseName.replace(/\.db$/, "") === getChatDatabase()
-      ? getActiveEditingSessionByContentId(resolvedTarget.contentId)
-      : undefined;
-  const selection = session?.selection || null;
-
-  if (baseHash && baseHash !== snapshot.hash) {
-    return toToolError("CONTENT_CONFLICT", "内容已变化，请先刷新上下文后重试", {
-      currentHash: snapshot.hash,
-      requestedHash: baseHash,
-      snapshotId: snapshot.id,
-    });
-  }
-
-  let editResult;
   try {
-    editResult = applyEditOperations({
-      snapshot,
+    const params = {
+      target,
+      baseHash,
+      snapshotId,
       operations,
-      selection,
-    });
+      dryRun,
+      databaseName: context?.databaseName,
+      signal: context?.signal,
+    };
+    const request = await resolveEditRequest(params);
+    const prepared = await prepareEditRequest(params, request);
+    if (!prepared.success) return prepared;
+    const { snapshot, editResult } = prepared;
+    return {
+      success: true,
+      dryRun,
+      contentId: request.resolvedTarget.contentId,
+      beforeHash: snapshot.hash,
+      afterHash: editResult.hash,
+      snapshotId: snapshot.id,
+      patches: editResult.patches,
+      markdown: editResult.markdown,
+    };
   } catch (error) {
-    if (error instanceof EditEngineError) {
-      return toToolError(error.code, error.message, {
-        details: error.details,
-        debug: {
-          contentId: resolvedTarget.contentId,
-          snapshotId: snapshot.id,
-          documentHash: snapshot.hash,
-          source: snapshot.source,
-        },
-      });
-    }
-    return toToolError("EDIT_FAILED", (error as Error).message, {
-      debug: {
-        contentId: resolvedTarget.contentId,
-        snapshotId: snapshot.id,
-        documentHash: snapshot.hash,
-        source: snapshot.source,
-      },
-    });
+    return editToolError(error);
   }
-
-  return {
-    success: true,
-    dryRun,
-    contentId: resolvedTarget.contentId,
-    beforeHash: snapshot.hash,
-    afterHash: editResult.hash,
-    snapshotId: snapshot.id,
-    patches: editResult.patches,
-    markdown: editResult.markdown,
-  };
 };
 
 const executeOperationsWithReviewPolicy = async (payload: {
@@ -253,12 +213,7 @@ const executeOperationsWithReviewPolicy = async (payload: {
     console.log("[executeOperationsWithReviewPolicy] 用户已完成审核，工具返回结果");
     return result;
   } catch (error) {
-    if (error instanceof EditEngineError) {
-      return toToolError(error.code, error.message, {
-        details: error.details,
-      });
-    }
-    return toToolError("EDIT_FAILED", (error as Error).message);
+    return editToolError(error);
   }
 };
 
@@ -501,7 +456,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
       name: "apply_content_edit_operations",
       risk: "write",
       description:
-        "对正文执行批量编辑（insert/delete/replace），也是全文改写的唯一入口。先用 get_content_markdown 或 find_content_ranges 读取，传入 snapshotId；精确替换使用 match-id，整篇改写使用 full-document。SCOPE_CONFLICT 时用返回的 blockId 调用 get_content_markdown 重读目标，再基于当前正文决定是否生成新操作。COMMIT_PENDING 表示平台尚未确认上次修改，请说明哪些结果待确认，结束本轮重试。下次编辑会自动核对。手动确认模式下工具会等待审阅。",
+        "对正文执行批量编辑（insert/delete/replace），也是全文改写的唯一入口。先用 get_content_markdown 或 find_content_ranges 读取，传入 snapshotId；删除整张正文表格时精确匹配完整 Markdown（从表头首个竖线到末行末尾竖线），重复表格先核对所在章节和 occurrence，再按 match-id 删除。精确替换使用 match-id，整篇改写使用 full-document。SCOPE_CONFLICT 时用返回的 blockId 调用 get_content_markdown 重读目标，再基于当前正文决定是否生成新操作。COMMIT_PENDING 表示平台尚未确认上次修改，请说明哪些结果待确认，结束本轮重试。下次编辑会自动核对。手动确认模式下工具会等待审阅。",
       execution: reviewToolExecution,
       parameters: {
         type: "object",

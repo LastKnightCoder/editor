@@ -50,6 +50,7 @@ const resolveSlatePathRange = (
   snapshot: ContentSnapshot,
   path: number[]
 ): { start: number; end: number } => {
+  if (path.length === 1 && snapshot.blockRanges[path[0]]) return snapshot.blockRanges[path[0]];
   const elementMapping = snapshot.positionMap.getElementMappingBySlatePath(path);
   if (elementMapping) {
     return toOffsetRangeFromPosition(

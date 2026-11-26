@@ -170,9 +170,11 @@ export function registerContentRoutes(
   app.get("/v1/documents/:id/protocol", async (request, reply) => {
     const id = params(request).id;
     store.authorize(id, device(request).id);
-    return reply
-      .header("Cache-Control", "no-store")
-      .send({ ...store.protocols.state(id), sequence: store.operations.sequence(id) });
+    return reply.header("Cache-Control", "no-store").send({
+      ...store.protocols.state(id),
+      scopedSubtreeDeletion: true,
+      sequence: store.operations.sequence(id),
+    });
   });
   app.get("/v1/documents/:id/operations/:operationId", async (request, reply) => {
     const { id, operationId } = params(request),

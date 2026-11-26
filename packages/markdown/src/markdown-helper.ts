@@ -197,6 +197,8 @@ interface SerializationContext {
  * 带位置信息的 Markdown 输出
  */
 export interface MarkdownWithPositions {
+  /** 每个顶层节点的实际输出范围，不含块间空行和文末脚注定义。 */
+  blockRanges: { start: number; end: number }[];
   markdown: string;
   positionMap: PositionMapper;
 }
@@ -222,6 +224,8 @@ const getMarkdownWithPositionsInContext = (value: Descendant[]): MarkdownWithPos
 
   const context: SerializationContext = { line: 0, ch: 0 };
   const parts: string[] = [];
+  const blockRanges: MarkdownWithPositions["blockRanges"] = [];
+  let offset = 0;
 
   value.forEach((element, index) => {
     const isBlock = isBlockElement(element as CustomElement, null);
@@ -234,10 +238,12 @@ const getMarkdownWithPositionsInContext = (value: Descendant[]): MarkdownWithPos
       positionMap
     );
 
+    blockRanges.push({ start: offset, end: offset + str.length });
     if (str) {
       const isLast = index === value.length - 1;
       const output = isBlock ? `${str}${isLast ? "\n" : "\n\n"}` : str;
       parts.push(output);
+      offset += output.length;
 
       // 更新上下文位置
       updateContext(context, output);
@@ -251,6 +257,7 @@ const getMarkdownWithPositionsInContext = (value: Descendant[]): MarkdownWithPos
 
   return {
     markdown: markdown + footnoteDefinitions,
+    blockRanges,
     positionMap,
   };
 };

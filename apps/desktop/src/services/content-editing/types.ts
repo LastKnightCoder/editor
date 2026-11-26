@@ -42,6 +42,7 @@ export interface ContentSnapshot {
   hash: string;
   lineOffsets: number[];
   positionMap: PositionMapper;
+  blockRanges: { start: number; end: number }[];
   source: SnapshotSource;
 }
 

@@ -18,6 +18,16 @@ import {
 import { NODE_TREE_LIMITS } from "./model-limits";
 import { TextSegments } from "./text-segments";
 
+export function observedNodeIds(blocks: readonly ContentNode[]): string[] {
+  const ids: string[] = [];
+  const visit = (node: ContentNode) => {
+    if (typeof node.collabId === "string") ids.push(node.collabId);
+    node.children?.forEach(visit);
+  };
+  blocks.forEach(visit);
+  return ids;
+}
+
 export interface NodePlacement {
   parent: string | null;
   token: string;
@@ -990,7 +1000,7 @@ export class NodeTree {
   }
 
   /** 只删除调用方观察到的集合，不在接收端重新扩展子树。 */
-  removeNodes(ids: readonly string[], origin: unknown): void {
+  removeNodes(ids: readonly string[], origin: unknown): string | undefined {
     const targets = [...new Set(ids)].map(id => {
       const deletions = this.record(id).get("deletions");
       if (!(deletions instanceof Y.Map)) throw new Error("节点删除状态无效");
@@ -1002,6 +1012,19 @@ export class NodeTree {
       for (const target of targets) target.set(deletion, true);
       this.invalidate({ structural: true, nodes: new Set() });
     }, origin);
+    return deletion;
+  }
+
+  /** 只撤回该操作自己的删除标记，并保留其他协作者留下的标记。 */
+  restoreRemoval(ids: readonly string[], deletion: string, origin: unknown): boolean {
+    const marks = ids.map(id => this.nodes.get(id)?.get("deletions"));
+    if (!marks.every((mark): mark is Y.Map<boolean> => mark instanceof Y.Map && mark.has(deletion)))
+      return false;
+    this.doc.transact(() => {
+      for (const mark of marks) mark.delete(deletion);
+      this.invalidate({ structural: true, nodes: new Set() });
+    }, origin);
+    return true;
   }
 
   setProperties(id: string, changes: Record<string, unknown>, origin: unknown): void {

@@ -1,3 +1,4 @@
+import { resolveEditRequest, prepareEditRequest } from "./prepare-edit";
 import { cacheFileExists } from "@/commands/cache";
 import {
   createContentSuggestions,
@@ -8,14 +9,11 @@ import {
 } from "@/commands/content";
 import { getChatDatabase } from "@/services/chatDatabase";
 import { bindDatabaseCommands } from "@/services/command-context";
-import { isElectron } from "@/electron";
 import type {
   AgentPermissionLevel,
   ContentSuggestion,
   ContentSuggestionMode,
 } from "@/types/content-suggestion";
-import { getActiveEditingSessionByContentId } from "./active-editor-session";
-import { applyEditOperations } from "./edit-engine";
 import { persistContentFromMarkdown, persistContentValue } from "./persist";
 import {
   buildConversationKey,
@@ -29,9 +27,7 @@ import {
   readProposalCache,
 } from "./review-session-helpers";
 import { buildRendererPayload, updateSessionContentIfNeeded } from "./review-session-render";
-import { resolveContentTarget, loadSnapshotForContent } from "./resolver";
-import { getRangeByMatchId, getSnapshot } from "./snapshot-store";
-import { compileScopedPlan } from "./scoped-plan";
+import { loadSnapshotForContent } from "./resolver";
 import {
   getContentEditCheckpoint,
   getContentEditProposal,
@@ -91,26 +87,8 @@ interface RejectProposalParams {
 
 export const createContentEditProposal = async (params: CreateProposalParams) => {
   params = { ...params, databaseName: params.databaseName ?? getChatDatabase() };
-  const wholeDocument = params.operations.some(
-    operation => operation.op !== "insert" && operation.locator.kind === "full-document"
-  );
-  if (wholeDocument && params.operations.length !== 1) throw new Error("全文替换必须单独提交");
-  const scoped = isElectron && !wholeDocument;
-  const match = params.operations.find(operation => operation.locator.kind === "match-id")?.locator;
-  const snapshotId =
-    params.snapshotId ??
-    (match?.kind === "match-id" ? getRangeByMatchId(match.matchId)?.snapshotId : undefined);
-  const captured = snapshotId ? getSnapshot(snapshotId) : null;
-  const state = captured?.editState;
-  const databaseName = (params.databaseName ?? "").replace(/\.db$/, "");
-  const resolvedTarget = await resolveContentTarget(
-    {
-      contentId:
-        params.target?.contentId ??
-        (state?.databaseName === databaseName ? state?.contentId : undefined),
-    },
-    params
-  );
+  const request = await resolveEditRequest(params);
+  const { resolvedTarget, databaseName, captured } = request;
   const conversationKey = buildConversationKey(params.conversationKey, resolvedTarget);
   const level = (await params.resolveMode?.(resolvedTarget.contentId)) ?? "suggest";
   if (level === "readonly")
@@ -148,6 +126,7 @@ export const createContentEditProposal = async (params: CreateProposalParams) =>
       params,
       true
     );
+    const state = captured?.editState;
     if (
       !captured ||
       !state ||
@@ -164,66 +143,10 @@ export const createContentEditProposal = async (params: CreateProposalParams) =>
         items: previous.items,
       };
   }
-  if (
-    isElectron &&
-    !snapshotId &&
-    (wholeDocument ||
-      params.operations.some(
-        operation =>
-          operation.locator.kind === "markdown-range" || operation.locator.kind === "slate-path"
-      ))
-  ) {
-    return {
-      success: false as const,
-      errorCode: "SNAPSHOT_REQUIRED",
-      message: "请先读取正文并传入 snapshotId",
-    };
-  }
-  if (
-    snapshotId &&
-    isElectron &&
-    (!state || state.contentId !== resolvedTarget.contentId || state.databaseName !== databaseName)
-  ) {
-    return {
-      success: false as const,
-      errorCode: "SNAPSHOT_EXPIRED",
-      message: "正文快照已失效，请重新读取",
-    };
-  }
-  const { snapshot, source } =
-    captured && state
-      ? { snapshot: captured, source: captured.source }
-      : await (scoped
-          ? loadSnapshotForContent(resolvedTarget.contentId, params, true)
-          : loadSnapshotForContent(resolvedTarget.contentId, params));
-  const selection = snapshot.editState
-    ? (snapshot.editState.selection ?? null)
-    : params.databaseName === getChatDatabase()
-      ? getActiveEditingSessionByContentId(resolvedTarget.contentId)?.selection || null
-      : null;
-
-  if (params.baseHash && params.baseHash !== snapshot.hash) {
-    return {
-      success: false as const,
-      errorCode: "CONTENT_CONFLICT",
-      message: "内容已变化，请先刷新上下文后重试",
-      currentHash: snapshot.hash,
-      requestedHash: params.baseHash,
-      snapshotId: snapshot.id,
-    };
-  }
-
-  const editResult = applyEditOperations({
-    snapshot,
-    operations: params.operations,
-    selection,
-  });
-
+  const prepared = await prepareEditRequest(params, request);
+  if (!prepared.success) return prepared;
+  const { snapshot, source, editResult, scopedPlan } = prepared;
   const proposalId = createProposalId();
-  const scopedPlan =
-    scoped && snapshot.editState
-      ? await compileScopedPlan(snapshot, editResult.patches, params.operations)
-      : undefined;
   const proposalFilePath = await persistProposalCache(proposalId, {
     markdown: editResult.markdown,
     baseline: snapshot.editState?.identity,

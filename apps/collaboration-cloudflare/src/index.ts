@@ -448,6 +448,7 @@ export class CollaborationService extends DurableObject<Env> {
       return Response.json(
         {
           ...this.store.protocols.state(protocolPath[1]),
+          scopedSubtreeDeletion: true,
           sequence: this.store.operations.sequence(protocolPath[1]),
         },
         {

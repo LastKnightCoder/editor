@@ -1,6 +1,6 @@
 import * as Y from "yjs";
 import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
-import { NodeTree } from "./node-tree";
+import { NodeTree, observedNodeIds } from "./node-tree";
 import { NODE_DOCUMENT_VERSION } from "./node-document";
 import { CollaborationError, type ContentNode } from "./protocol";
 import { sharedValueEquals } from "./shared-values";
@@ -27,6 +27,8 @@ type BlockEdit = {
   right: string | null;
   expected: (ContentNode & { collabId: string })[];
   nodes: ContentNode[];
+  /** 已提交删除的标记，撤销时原位恢复同一批节点。 */
+  restoreDeletion?: string;
 };
 export type ScopedContentEdit = TextEdit | BlockEdit;
 export interface ScopedContentEdits {
@@ -240,6 +242,10 @@ export function validateScopedContentEdits(value: ScopedContentEdits): void {
         (edit.right !== null && typeof edit.right !== "string") ||
         !Array.isArray(edit.expected) ||
         !Array.isArray(edit.nodes) ||
+        (edit.restoreDeletion !== undefined &&
+          (typeof edit.restoreDeletion !== "string" ||
+            !edit.restoreDeletion ||
+            !edit.nodes.length)) ||
         edit.expected.some(node => !node || typeof node.collabId !== "string")
       )
         throw invalid();
@@ -312,6 +318,7 @@ export async function buildScopedContentUpdate(
       throw new CollaborationError("OVERLAPPING_OPERATIONS", "同批编辑范围重叠", 400);
 
     await tree.installContracts(request.contracts ?? {}, null);
+    const deletions = new Map<string, string>();
     candidate.transact(() => {
       for (const { edit, start, end } of texts.sort((a, b) => b.start - a.start)) {
         if (end > start) tree.deleteText(edit.blockId, start, end - start, null);
@@ -322,11 +329,20 @@ export async function buildScopedContentUpdate(
         }
       }
       for (const { edit, start } of blocks.sort((a, b) => b.start - a.start)) {
-        tree.removeNodes(
-          edit.expected.map(node => node.collabId),
-          null
-        );
-        edit.nodes.forEach((node, index) => tree.insertNode(node, null, start + index, null));
+        const deletion = tree.removeNodes(observedNodeIds(edit.expected), null);
+        if (deletion) deletions.set(edit.id, deletion);
+        if (edit.restoreDeletion) {
+          if (!undo) throw invalid();
+          if (
+            !tree.restoreRemoval(observedNodeIds(edit.nodes), edit.restoreDeletion, null) ||
+            !sharedValueEquals(tree.snapshot().slice(start, start + edit.nodes.length), edit.nodes)
+          )
+            throw new ScopedContentConflictError([
+              { opId: edit.id, blockId: String(edit.nodes[0].collabId) },
+            ]);
+        } else {
+          edit.nodes.forEach((node, index) => tree.insertNode(node, null, start + index, null));
+        }
       }
     });
     // 撤销回执只确认恢复结果，保留原操作身份即可继续重试。
@@ -385,6 +401,7 @@ export async function buildScopedContentUpdate(
             right: final[index + edit.nodes.length]?.collabId ?? null,
             expected: final.slice(index, index + edit.nodes.length),
             nodes: edit.expected,
+            ...(deletions.has(edit.id) ? { restoreDeletion: deletions.get(edit.id) } : {}),
           };
         }),
       ],
