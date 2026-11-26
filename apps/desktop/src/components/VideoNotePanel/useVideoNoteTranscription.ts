@@ -1,3 +1,12 @@
+import { useVideoTranscriptionI18n } from "./video-transcription.i18n";
+import {
+  createVideoLlmConfirm,
+  videoTranscriptionProgressText,
+  videoTranscriptionT,
+  videoTranscriptionFailureText,
+  type VideoTranscriptionProgress,
+} from "./video-transcription.binding";
+import { VideoTranscriptionFailure } from "./video-transcription-error";
 /**
  * 视频笔记转录流程：取本地视频 → 提取音频 → （长视频分段）转录 → 可选 AI 断句优化 → 落库。
  * 项目条目视频页与白板视频抽屉共用；落库后经 onTranscriptSaved 把新转录回写给宿主。
@@ -63,6 +72,7 @@ export function useVideoNoteTranscription({
   language,
   onTranscriptSaved,
 }: UseVideoNoteTranscriptionOptions) {
+  useVideoTranscriptionI18n();
   const {
     provider,
     model,
@@ -79,7 +89,7 @@ export function useVideoNoteTranscription({
 
   const [isTranscribing, setIsTranscribing] = useState(false);
   const isLoadingCaptions = useVideoNoteCaptions(videoNote, isTranscribing, onTranscriptSaved);
-  const [progress, setProgress] = useState("");
+  const [progress, setProgress] = useState<VideoTranscriptionProgress | null>(null);
   const [pendingWordSegments, setPendingWordSegments] = useState<TranscriptSegment[] | null>(null);
   const [optionsRequest, setOptionsRequest] = useState<{
     language: string;
@@ -98,7 +108,7 @@ export function useVideoNoteTranscription({
 
   const finish = () => {
     setIsTranscribing(false);
-    setProgress("");
+    setProgress(null);
   };
 
   const getVideoLocalPath = useMemoizedFn(async (): Promise<string | null> => {
@@ -109,10 +119,16 @@ export function useVideoNoteTranscription({
       const status = await getRemoteVideoCacheStatus(remoteUrl);
       if (status?.localPath) return status.localPath;
 
-      setProgress("视频尚未缓存，正在下载...");
+      setProgress({ kind: "downloading" });
       const result = await downloadRemoteVideoWithProgress({ url: remoteUrl }, p => {
-        const percent = typeof p.progress === "number" ? ` ${Math.round(p.progress)}%` : "";
-        setProgress(p.message || `视频尚未缓存，正在下载${percent}...`);
+        setProgress(
+          p.message
+            ? { kind: "raw", message: p.message }
+            : {
+                kind: "downloading",
+                percent: typeof p.progress === "number" ? p.progress : undefined,
+              }
+        );
       });
       return result.localPath || null;
     };
@@ -126,8 +142,14 @@ export function useVideoNoteTranscription({
       { providerId: metaInfo.type, ref: onlineVideoRef(metaInfo), title: metaInfo.title },
       {
         onProgress: p => {
-          const percent = typeof p.percent === "number" ? ` ${Math.round(p.percent)}%` : "";
-          setProgress(p.message || `视频尚未缓存，正在下载${percent}...`);
+          setProgress(
+            p.message
+              ? { kind: "raw", message: p.message }
+              : {
+                  kind: "downloading",
+                  percent: typeof p.percent === "number" ? p.percent : undefined,
+                }
+          );
         },
       }
     );
@@ -158,20 +180,17 @@ export function useVideoNoteTranscription({
       const options = { ...localTranscriptionOptions(selection), language: lang };
       const llmRequirement = checkLLMOptimizationConfig();
       if (options.useLLMOptimization && !llmRequirement.isConfigured) {
-        setLlmConfirm({
-          title: "LLM 优化配置不完整",
-          description: `${llmRequirement.message}。是否打开设置页面进行配置？`,
-        });
+        setLlmConfirm(createVideoLlmConfirm(llmRequirement));
         return;
       }
 
       setIsTranscribing(true);
-      setProgress("正在准备视频...");
+      setProgress({ kind: "preparing" });
 
       try {
         const catalog = await getModels();
         if (!catalog.success || !catalog.data)
-          throw new Error(catalog.error || "无法获取本地模型列表");
+          throw catalog.error ? new Error(catalog.error) : new VideoTranscriptionFailure("models");
         const models = catalog.data;
         if (
           requiredModels(selection, models).some(
@@ -184,15 +203,17 @@ export function useVideoNoteTranscription({
         }
         const videoPath = await getVideoLocalPath();
         if (!videoPath) {
-          toast.warning("视频尚未缓存，请等待视频加载完成后再试");
+          toast.warning(videoTranscriptionT("notice.notCached"));
           finish();
           return;
         }
 
-        setProgress("正在提取音频...");
+        setProgress({ kind: "extracting" });
         const extractResult = await extractAudioFromVideo(videoPath);
         if (!extractResult.success || !extractResult.audioPath) {
-          throw new Error(extractResult.error || "提取音频失败");
+          throw extractResult.error
+            ? new Error(extractResult.error)
+            : new VideoTranscriptionFailure("extract");
         }
         const audioPath = extractResult.audioPath;
 
@@ -202,23 +223,28 @@ export function useVideoNoteTranscription({
           true;
         let segmented = false;
         if (enableLongVideoSegmentation) {
-          setProgress("正在检查视频时长...");
+          setProgress({ kind: "checking" });
           const segmentCheck = await shouldSegmentAudio(audioPath);
           if (segmentCheck.success && segmentCheck.shouldSegment) {
             const durationMinutes = Math.round((segmentCheck.duration || 0) / 60);
-            setProgress(`长视频检测到 (${durationMinutes} 分钟)，准备分段转录...`);
+            setProgress({ kind: "segmented", minutes: durationMinutes });
             segmented = true;
           }
         }
-        if (!segmented) setProgress("正在转录 ...");
+        if (!segmented) setProgress({ kind: "transcribing" });
 
-        const run = { onProgress: (data: { message: string }) => setProgress(data.message) };
+        const run = {
+          onProgress: (data: { message: string }) =>
+            setProgress({ kind: "raw", message: data.message }),
+        };
         const result = await (segmented
           ? transcribeAudioSegmented(audioPath, options, run)
           : transcribeAudio(audioPath, options, run));
 
         if (!result.success || !result.data) {
-          throw new Error(result.error || "转录失败");
+          throw result.error
+            ? new Error(result.error)
+            : new VideoTranscriptionFailure("transcribe");
         }
 
         const detected = result.data.language || null;
@@ -226,27 +252,29 @@ export function useVideoNoteTranscription({
         const wordSegments = result.data.wordSegments;
 
         if (options.useLLMOptimization && result.data.text.trim() && !wordSegments?.length)
-          throw new Error("AI 断句需要逐词时间，当前转录未返回逐词时间");
+          throw new VideoTranscriptionFailure("words");
         if (options.useLLMOptimization && wordSegments?.length) {
           retainPendingWords.current = selection.keepWords;
           // 流式优化完成后由下方 effect 落库并结束
-          setProgress("正在使用 AI 优化断句...");
+          setProgress({ kind: "optimizing" });
           setPendingWordSegments(wordSegments);
           startOptimization(wordSegments, resolveVideoNoteOptimizationLanguage(lang, detected));
           return;
         }
 
-        setProgress("正在保存...");
+        setProgress({ kind: "saving" });
         await saveTranscript({
           transcript: result.data.text,
           transcriptSegments: result.data.segments,
           transcriptWordSegments: selection.keepWords ? wordSegments : undefined,
         });
         finish();
-        toast.success("转录完成");
+        toast.success(videoTranscriptionT("notice.complete"));
       } catch (error) {
         console.error("Transcription error:", error);
-        toast.error(`转录失败: ${error}`);
+        toast.error(
+          videoTranscriptionT("error.transcribe", { error: videoTranscriptionFailureText(error) })
+        );
         finish();
       }
     }
@@ -257,17 +285,17 @@ export function useVideoNoteTranscription({
     if (!optimizedFinalSegments || isOptimizing || !pendingWordSegments) return;
     const run = async () => {
       try {
-        setProgress("正在保存...");
+        setProgress({ kind: "saving" });
         await saveTranscript({
           transcript: optimizedFinalSegments.map(s => s.text).join(" "),
           transcriptSegments: optimizedFinalSegments,
           transcriptWordSegments: retainPendingWords.current ? pendingWordSegments : undefined,
         });
-        if (optimizationError) toast.warning("AI 优化出现错误，使用部分结果");
-        else toast.success("转录完成（已使用 AI 优化断句）");
+        if (optimizationError) toast.warning(videoTranscriptionT("notice.partialOptimization"));
+        else toast.success(videoTranscriptionT("notice.optimizedComplete"));
       } catch (error) {
         console.error("Failed to save optimized transcript:", error);
-        toast.error("保存失败");
+        toast.error(videoTranscriptionT("notice.saveFailed"));
       } finally {
         finish();
         setPendingWordSegments(null);
@@ -281,26 +309,23 @@ export function useVideoNoteTranscription({
     stopOptimization();
     finish();
     setPendingWordSegments(null);
-    toast.info("优化已取消");
+    toast.info(videoTranscriptionT("notice.cancelled"));
   });
 
   /** 对已有转录单独重跑 AI 断句（需要词级时间戳） */
   const optimize = useMemoizedFn(() => {
     const wordSegments = videoNote?.transcriptWordSegments;
     if (!wordSegments?.length) {
-      toast.warning("没有可用于优化的词级时间戳数据");
+      toast.warning(videoTranscriptionT("notice.noWords"));
       return;
     }
     const llmRequirement = checkLLMOptimizationConfig();
     if (!llmRequirement.isConfigured) {
-      setLlmConfirm({
-        title: "LLM 优化配置不完整",
-        description: `${llmRequirement.message}。是否打开设置页面进行配置？`,
-      });
+      setLlmConfirm(createVideoLlmConfirm(llmRequirement));
       return;
     }
     setIsTranscribing(true);
-    setProgress("正在使用 AI 优化断句...");
+    setProgress({ kind: "optimizing" });
     setPendingWordSegments(wordSegments);
     retainPendingWords.current = true;
     // 自动模式下无检测结果时回退中文
@@ -312,7 +337,9 @@ export function useVideoNoteTranscription({
 
   return {
     isTranscribing: isTranscribing || isLoadingCaptions,
-    progress: isLoadingCaptions ? "正在读取平台字幕…" : progress,
+    progress: isLoadingCaptions
+      ? videoTranscriptionT("progress.captions")
+      : videoTranscriptionProgressText(progress),
     isOptimizing,
     streamingSegments,
     canOptimize: !!videoNote?.transcriptWordSegments?.length,

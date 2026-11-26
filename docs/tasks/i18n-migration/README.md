@@ -310,6 +310,8 @@ P6B协作UI审计收口：13路径完成；mobile32例、双端type、三语参�
 
 P5手机录音卡：21路径完成；原2文件8例增强后3文件11例全绿，mobile type/构建、三语参数/复数、Node真实标记及范围静态格式通过。真实finishing同Promise/标题/选区/先flush后discard、转录移动节点后单probe/create/transcribe/prepare/不abort、恢复顺序与确认同DOM保持；默认标题/regex/Persistence/正文构造/marker与Native-ASR参数逐字节或AST对账未改。
 
+P5共用视频转录：12路径完成；baseline4文件14至final5文件18全绿，desktop type、三语参数/纯binding实际标记、范围静态格式与协议AST通过。下载/ASR options与ja语言、原raw progress、llmConfirm同对象/DOM/确认目标、optionsRequest、Pi流及保存等待均不因locale重开；原消息/字幕/词时间戳与回调参数不变。4条host自产服务进度尚需稳定DTO闭环，未误记迁完，观看界面另批。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

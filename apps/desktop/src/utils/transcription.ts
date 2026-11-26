@@ -1,3 +1,4 @@
+import diagnostics from "./transcription-diagnostics.json";
 import useSettingStore from "@/stores/useSettingStore";
 import { transcriptionDefaults } from "../../shared/local-transcription";
 
@@ -8,6 +9,7 @@ import { transcriptionDefaults } from "../../shared/local-transcription";
 export function checkLLMOptimizationConfig(setting = useSettingStore.getState().setting): {
   isConfigured: boolean;
   message?: string;
+  reason?: keyof typeof diagnostics;
 } {
   const { llmProviders: llmConfigs, llmUsageSettings } = setting;
 
@@ -16,7 +18,8 @@ export function checkLLMOptimizationConfig(setting = useSettingStore.getState().
   if (!transcriptionOptimization) {
     return {
       isConfigured: false,
-      message: "未配置转录断句优化模型，请在「大语言模型」→「使用配置」中配置",
+      reason: "assignment",
+      message: diagnostics.assignment,
     };
   }
 
@@ -25,7 +28,8 @@ export function checkLLMOptimizationConfig(setting = useSettingStore.getState().
   if (!provider) {
     return {
       isConfigured: false,
-      message: "找不到配置的大模型提供商，请重新配置",
+      reason: "provider",
+      message: diagnostics.provider,
     };
   }
 
@@ -34,7 +38,8 @@ export function checkLLMOptimizationConfig(setting = useSettingStore.getState().
   if (!model) {
     return {
       isConfigured: false,
-      message: "找不到配置的模型，请重新配置",
+      reason: "model",
+      message: diagnostics.model,
     };
   }
 
