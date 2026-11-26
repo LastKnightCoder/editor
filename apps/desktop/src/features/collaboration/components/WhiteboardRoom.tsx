@@ -9,7 +9,8 @@ import { Button, FadeScroll, toast } from "@tau/ui";
 import type { JoinRequest, SharedWhiteboardInfo } from "@tau/collaboration";
 import { SharePanel } from "@/components/CollaborationUI";
 import { openSharedWhiteboard } from "@/services/whiteboard-documents/open-shared";
-import { remoteFailureText } from "@/services/whiteboard-documents/remote";
+import { remoteFailureText } from "../remoteErrors.i18n";
+import { useSharingI18n } from "../sharing.i18n";
 import { whiteboardSession } from "@/features/whiteboards/collaboration";
 
 export function WhiteboardRoom({
@@ -21,14 +22,15 @@ export function WhiteboardRoom({
   requests: JoinRequest[];
   deviceId?: string;
 }) {
+  const { t } = useSharingI18n();
   const [opening, setOpening] = useState(false);
   const owner = room.members.find(member => member.role === "owner");
   const origin =
     room.role === "owner"
-      ? "我发起的白板"
+      ? t("board.mine")
       : owner
-        ? `${owner.nickname} 的共享白板`
-        : "他人的共享白板";
+        ? t("board.owner", { nickname: owner.nickname })
+        : t("board.others");
   const open = () => {
     setOpening(true);
     openSharedWhiteboard(room)
@@ -44,7 +46,7 @@ export function WhiteboardRoom({
         </span>
         <span className="flex-1" />
         <Button variant="secondary" size="sm" loading={opening} onClick={open}>
-          打开白板
+          {t("board.open")}
           <ArrowRight className="size-3.5" strokeWidth={1.75} />
         </Button>
       </header>
@@ -52,12 +54,10 @@ export function WhiteboardRoom({
         <div className="mx-auto flex w-full max-w-[560px] flex-col gap-6">
           <div className="flex flex-col gap-1.5">
             <h2 className="text-tau-title-lg text-ink-1 font-[600] break-words">
-              {room.title || "未命名白板"}
+              {room.title || t("board.untitled")}
             </h2>
             <p className="text-ink-2 text-tau-meta">
-              {room.status === "active"
-                ? "白板在白板页里编辑，改动自动同步给成员。结束共享或退出协作在白板右下角的成员按钮里。"
-                : "这块白板的共享已结束。"}
+              {room.status === "active" ? t("board.activeHint") : t("board.closedHint")}
             </p>
           </div>
           <SharePanel session={whiteboardSession(room)} requests={requests} deviceId={deviceId} />

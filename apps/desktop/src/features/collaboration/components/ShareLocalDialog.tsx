@@ -21,20 +21,24 @@ import { createSharedContent } from "@/commands";
 import { InvitationCode } from "@/components/CollaborationUI";
 import { clampText, richTextPlainText } from "@tau/shared/rich-text-text";
 import type { ContentIndexType, SearchResult } from "@/types";
-import { remoteFailureText } from "@/services/whiteboard-documents/remote";
+import { remoteFailureText } from "../remoteErrors.i18n";
+import { useSharingI18n, sharingFailureText } from "../sharing.i18n";
 import { shareWhiteboardCandidate } from "@/services/whiteboard-documents/share";
 import useSettingStore from "@/stores/useSettingStore";
 import { whiteboardSession } from "@/features/whiteboards/collaboration";
 import { useShareCandidates, useWhiteboardShareCandidates, type ShareType } from "../queries";
 
-const TYPE_META: Record<ContentIndexType, { label: string; icon: LucideIcon; source: SourceType }> =
-  {
-    article: { label: "文章", icon: FileText, source: "article" },
-    card: { label: "卡片", icon: Layers, source: "card" },
-    "project-item": { label: "项目文档", icon: FolderKanban, source: "project-item" },
-    // 日记没有独立的来源类型，按通用内容共享
-    "diary-moment": { label: "日记", icon: PenLine, source: "content" },
-  };
+// 默认标题前缀会写入共享文档，界面类型名另行翻译。
+const TYPE_META: Record<
+  ContentIndexType,
+  { defaultTitlePrefix: string; icon: LucideIcon; source: SourceType }
+> = {
+  article: { defaultTitlePrefix: "文章", icon: FileText, source: "article" },
+  card: { defaultTitlePrefix: "卡片", icon: Layers, source: "card" },
+  "project-item": { defaultTitlePrefix: "项目文档", icon: FolderKanban, source: "project-item" },
+  // 日记没有独立的来源类型，按通用内容共享
+  "diary-moment": { defaultTitlePrefix: "日记", icon: PenLine, source: "content" },
+};
 
 /** 候选只检索 SHAREABLE_TYPES（正文实体），不会出现外部材料 */
 const metaOf = (item: SearchResult) => TYPE_META[item.type as ContentIndexType];
@@ -42,21 +46,21 @@ const metaOf = (item: SearchResult) => TYPE_META[item.type as ContentIndexType];
 const titleOf = (item: SearchResult) =>
   item.title?.trim() ||
   clampText(richTextPlainText(item.content), 40) ||
-  `${metaOf(item).label} #${item.contentId}`;
+  `${metaOf(item).defaultTitlePrefix} #${item.contentId}`;
 
 type Phase =
   | { kind: "pick" }
-  | { kind: "sharing"; title: string }
+  | { kind: "sharing"; title?: string }
   | { kind: "done"; documentId: string };
 
 /** 正文与白板合成同一张候选表；share 返回协作文档 id。 */
 interface Candidate {
   key: string;
-  title: string;
+  title?: string;
   label: string;
   icon: LucideIcon;
   share(): Promise<string>;
-  failureText(error: unknown): string;
+  failureKind: "content" | "remote";
 }
 
 export function ShareLocalDialog({
@@ -73,10 +77,11 @@ export function ShareLocalDialog({
   /** 共享完成（协作码已展示）后跳到这份内容 */
   onShared: (documentId: string) => void;
 }) {
+  const { t, locale } = useSharingI18n();
   const [query, setQuery] = useState("");
   const [type, setType] = useState<ShareType>("all");
   const [phase, setPhase] = useState<Phase>({ kind: "pick" });
-  const [error, setError] = useState<string>();
+  const [error, setError] = useState<{ cause: unknown; kind: Candidate["failureKind"] }>();
   const keyword = useDebounce(query, { wait: 250 });
   const candidates = useShareCandidates(keyword, type);
   const boards = useWhiteboardShareCandidates(keyword, type);
@@ -96,7 +101,7 @@ export function ShareLocalDialog({
         return {
           key: `${item.type}-${item.id}`,
           title,
-          label: meta.label,
+          label: t(`kind.${item.type as ContentIndexType}`),
           icon: meta.icon,
           share: async () =>
             (
@@ -108,17 +113,16 @@ export function ShareLocalDialog({
                 item.type === "card" ? undefined : title
               )
             ).documentId,
-          failureText: (failure: unknown) =>
-            failure instanceof Error ? failure.message : "共享失败",
+          failureKind: "content" as const,
         };
       }),
     ...(type === "whiteboard" || type === "all" ? (boards.data ?? []) : []).map(board => ({
       key: `whiteboard-${board.boardId}`,
-      title: board.title || "未命名白板",
-      label: `白板 · ${board.pages} 页`,
+      title: board.title || undefined,
+      label: t("share.pages", { count: board.pages, amount: board.pages.toLocaleString(locale) }),
       icon: PenTool,
       share: async () => (await shareWhiteboardCandidate(databaseName, board)).documentId,
-      failureText: remoteFailureText,
+      failureKind: "remote" as const,
     })),
   ];
   const sharedSession =
@@ -135,7 +139,7 @@ export function ShareLocalDialog({
     try {
       setPhase({ kind: "done", documentId: await item.share() });
     } catch (failure) {
-      setError(item.failureText(failure));
+      setError({ cause: failure, kind: item.failureKind });
       setPhase({ kind: "pick" });
     }
   };
@@ -159,22 +163,22 @@ export function ShareLocalDialog({
       size="lg"
       title={
         phase.kind === "pick"
-          ? "共享本地内容"
+          ? t("share.title")
           : phase.kind === "sharing"
-            ? `正在共享「${phase.title}」`
-            : `已共享「${shared?.title || "内容"}」`
+            ? t("share.sharing", { title: phase.title ?? t("board.untitled") })
+            : t("share.doneTitle", { title: shared?.title || t("share.content") })
       }
       subtitle={
         phase.kind === "pick"
-          ? "选一段内容发起协作。共享后它仍在原处，编辑会实时同步给成员。"
+          ? t("share.pickHint")
           : phase.kind === "sharing"
-            ? "正在暂停本地编辑、上传附件并创建共享文档，请不要关闭应用。"
-            : "把协作码发给对方。对方申请后，你会在通知和侧栏里看到。"
+            ? t("share.sharingHint")
+            : t("share.doneHint")
       }
       footer={
         phase.kind === "done" ? (
           <Button variant="primary" data-autofocus onClick={close}>
-            完成
+            {t("share.done")}
           </Button>
         ) : undefined
       }
@@ -187,33 +191,38 @@ export function ShareLocalDialog({
               lead={Search}
               clearable
               value={query}
-              placeholder="搜索标题或正文"
+              placeholder={t("share.search")}
               onChange={event => setQuery(event.target.value)}
             />
-            <Segmented label="内容类型" value={type} onValueChange={setType} className="self-start">
-              <Segmented.Item value="all" label="全部" />
+            <Segmented
+              label={t("share.type")}
+              value={type}
+              onValueChange={setType}
+              className="self-start"
+            >
+              <Segmented.Item value="all" label={t("share.all")} />
               {(Object.keys(TYPE_META) as ContentIndexType[]).map(key => (
-                <Segmented.Item key={key} value={key} label={TYPE_META[key].label} />
+                <Segmented.Item key={key} value={key} label={t(`kind.${key}`)} />
               ))}
-              <Segmented.Item value="whiteboard" label="白板" />
+              <Segmented.Item value="whiteboard" label={t("share.whiteboard")} />
             </Segmented>
             {error && (
               <p
                 role="alert"
                 className="bg-danger-soft text-danger text-tau-meta rounded-tau-sm px-3 py-2"
               >
-                {error}
+                {error.kind === "remote"
+                  ? remoteFailureText(error.cause)
+                  : sharingFailureText(error.cause)}
               </p>
             )}
             <div className="-mx-2 h-[280px] overflow-y-auto px-2">
               {!searching ? (
-                <p className="text-ink-3 text-tau-meta pt-16 text-center">
-                  输入关键词，搜索文章、卡片、项目文档、日记或白板
-                </p>
+                <p className="text-ink-3 text-tau-meta pt-16 text-center">{t("share.emptyHint")}</p>
               ) : loading ? (
                 <Loading minHeight={0} />
               ) : list.length === 0 ? (
-                <p className="text-ink-3 text-tau-meta pt-16 text-center">没有找到可共享的内容</p>
+                <p className="text-ink-3 text-tau-meta pt-16 text-center">{t("share.noResults")}</p>
               ) : (
                 <ul className="flex flex-col">
                   {list.map(item => {
@@ -229,7 +238,9 @@ export function ShareLocalDialog({
                             <Icon className="size-[15px]" strokeWidth={1.75} />
                           </span>
                           <span className="min-w-0 flex-1">
-                            <span className="text-tau-body block truncate">{item.title}</span>
+                            <span className="text-tau-body block truncate">
+                              {item.title ?? t("board.untitled")}
+                            </span>
                             <span className="text-ink-3 text-tau-sm">{item.label}</span>
                           </span>
                           <ArrowRight
