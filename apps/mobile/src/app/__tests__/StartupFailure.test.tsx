@@ -1,7 +1,8 @@
 import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
-import { StartupFailure } from "../StartupFailure";
+import { StartupCodeFailure, StartupFailure } from "../StartupFailure";
+import { mobileLocaleSource } from "../../services/i18n";
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -17,6 +18,7 @@ afterEach(async () => {
   container?.remove();
   root = null;
   container = null;
+  mobileLocaleSource.setLocale("zh-CN");
 });
 
 it("展示失败原因与原始错误，点重试回调", async () => {
@@ -48,4 +50,20 @@ it("原始错误与说明相同时不重复展示", async () => {
     />
   );
   expect(view.textContent?.match(/读取设置或打开数据库失败/g)).toHaveLength(1);
+});
+
+it("失败后切换语言保留原始诊断与同一个重试动作", async () => {
+  const onRetry = vi.fn();
+  const detail = "external: 原始诊断 /private/path";
+  const view = await mount(<StartupCodeFailure code="UNKNOWN" detail={detail} onRetry={onRetry} />);
+  const retry = view.querySelector("button");
+  expect(retry).not.toBeNull();
+  for (const locale of ["en-US", "zh-TW"] as const) {
+    await act(async () => mobileLocaleSource.setLocale(locale));
+    expect(view.querySelector("button")).toBe(retry);
+    expect(view.textContent).toContain(detail);
+    expect(onRetry).not.toHaveBeenCalled();
+  }
+  await act(async () => retry?.click());
+  expect(onRetry).toHaveBeenCalledTimes(1);
 });

@@ -1,3 +1,4 @@
+import { useShellI18n } from "../app/shell.i18n";
 // 顶栏搜索展开态：放进 PageHeader 的 children，替换标题与操作按钮；任务中心、插件中心共用。
 
 import { useEffect, useRef } from "react";
@@ -16,6 +17,7 @@ export function PageHeaderSearch({
   /** 收起搜索；调用方负责清空关键词 */
   onCancel: () => void;
 }) {
+  const { t } = useShellI18n();
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     // 等展开动画起步后再聚焦，避免移动端键盘顶起时页面跳动
@@ -44,7 +46,7 @@ export function PageHeaderSearch({
         onClick={onCancel}
         className="text-accent-text ml-1 shrink-0 px-1 text-[14px] font-semibold"
       >
-        取消
+        {t("action.cancel")}
       </button>
     </>
   );

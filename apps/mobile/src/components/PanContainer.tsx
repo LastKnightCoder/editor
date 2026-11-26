@@ -1,3 +1,4 @@
+import { useShellI18n } from "../app/shell.i18n";
 import { type CSSProperties, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Z_INDEX } from "../router/zIndex";
 import { acquireScrollLock, releaseScrollLock } from "../hooks/useScrollLock";
@@ -110,6 +111,7 @@ export function PanContainer(props: PanContainerProps) {
     [enabledStates, props.heights, viewportHeight]
   );
 
+  const { t } = useShellI18n();
   const [shouldRender, setShouldRender] = useState(props.open);
   const [activeState, setActiveState] = useState<PanState>(() =>
     pickInitialState(props.initialState, layout.enabledStates)
@@ -431,7 +433,7 @@ export function PanContainer(props: PanContainerProps) {
     <div className={cn("fixed inset-0", props.className)} style={{ zIndex: Z_INDEX.OVERLAY_SHEET }}>
       <button
         type="button"
-        aria-label="关闭面板"
+        aria-label={t("panel.close")}
         className={cn(
           "bg-overlay absolute inset-0",
           props.open ? "mask-enter" : "mask-exit",

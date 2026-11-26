@@ -28,5 +28,10 @@
   "content.selectBlocks": "選取區塊",
   "content.outline": "整理結構",
   "common.closePanel": "關閉面板",
-  "structure.empty": "還沒有任何節點"
+  "structure.empty": "還沒有任何節點",
+  "feature.todo": "任務",
+  "feature.article": "文章",
+  "feature.project": "專案",
+  "feature.flashcard": "閃卡",
+  "feature.pomodoro": "番茄專注"
 }

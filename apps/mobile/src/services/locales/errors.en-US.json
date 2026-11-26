@@ -84,5 +84,15 @@
   "COLLAB_INVALID_CODE": "The collaboration code is invalid or expired",
   "COLLAB_INVALID_FIELD": "Invalid request parameters",
   "COLLAB_MEMBER_LIMIT": "This room has reached its member limit",
-  "COLLAB_FORBIDDEN": "You do not have permission for this operation"
+  "COLLAB_FORBIDDEN": "You do not have permission for this operation",
+  "DB_NAME_INVALID": "Invalid database name. Use letters, digits, dots, underscores, and hyphens",
+  "CARD_NOT_FOUND": "Card not found; it may have been deleted",
+  "CARD_UPDATE_FAILED": "Failed to update the card. Try again later",
+  "CARD_DELETE_FAILED": "Failed to delete the card. Try again later",
+  "CARD_CONTENT_INVALID": "Invalid card content. Try again",
+  "CONTENT_CREATE_FAILED": "Failed to create content. Try again later",
+  "CONTENT_INVALID": "Invalid content format. Check it and try again",
+  "CONTENT_NOT_FOUND": "Referenced content not found; it may have been deleted",
+  "TAURI_COMMAND_NOT_FOUND": "This mobile runtime is too old and lacks the command. Restart dev and reinstall the app",
+  "FTS_QUERY_FAILED": "FTS search failed; switched to standard search"
 }

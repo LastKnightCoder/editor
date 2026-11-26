@@ -670,7 +670,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
               {typeof props.refId === "number" && props.refId > 0 ? (
                 <>
                   <MetaDot />
-                  <span>Ref #{props.refId}</span>
+                  <span>{t("detail.reference", { id: props.refId })}</span>
                 </>
               ) : null}
             </div>

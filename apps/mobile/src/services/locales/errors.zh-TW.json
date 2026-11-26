@@ -84,5 +84,15 @@
   "COLLAB_INVALID_CODE": "協作碼無效或已過期",
   "COLLAB_INVALID_FIELD": "請求參數不正確",
   "COLLAB_MEMBER_LIMIT": "該房間成員已達上限",
-  "COLLAB_FORBIDDEN": "你沒有該操作的權限"
+  "COLLAB_FORBIDDEN": "你沒有該操作的權限",
+  "DB_NAME_INVALID": "資料庫名稱無效，只支援英文字母、數字、點、底線與連字號",
+  "CARD_NOT_FOUND": "卡片不存在，可能已被刪除",
+  "CARD_UPDATE_FAILED": "更新卡片失敗，請稍後重試",
+  "CARD_DELETE_FAILED": "刪除卡片失敗，請稍後重試",
+  "CARD_CONTENT_INVALID": "卡片內容格式無效，請重試",
+  "CONTENT_CREATE_FAILED": "建立內容失敗，請稍後重試",
+  "CONTENT_INVALID": "內容格式無效，請檢查後重試",
+  "CONTENT_NOT_FOUND": "引用內容不存在，可能已被刪除",
+  "TAURI_COMMAND_NOT_FOUND": "目前行動端核心版本過舊（缺少新命令），請重新啟動 dev 並重新安裝應用程式",
+  "FTS_QUERY_FAILED": "FTS 檢索失敗，已自動切換為一般檢索"
 }

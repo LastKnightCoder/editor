@@ -1,3 +1,5 @@
+import { StartupLoadingText } from "./StartupFailure";
+import { shellT } from "./shell.binding";
 import { cardsTranslator } from "../features/cards/i18n";
 import { MobilePluginProvider } from "./plugins/PluginProvider";
 // AppShell：全局数据编排 + Provider 组装。导航/页面/浮层全部交给 router。
@@ -50,7 +52,7 @@ import {
 } from "../router";
 import { AppContext, type AppContextValue } from "./AppContext";
 import { HomeScreen } from "./HomeScreen";
-import { StartupFailure } from "./StartupFailure";
+import { StartupCodeFailure } from "./StartupFailure";
 import { writeLastSyncTime } from "../features/settings/sync/syncState";
 import { IncomingFileHost } from "../features/markdownImport/IncomingFileHost";
 import { replaceLocalLibrary, setActiveDatabase } from "../services/database-runtime";
@@ -109,7 +111,7 @@ async function withTimeout<T>(
 
 type StartupState =
   | { phase: "starting" }
-  | { phase: "failed"; message: string; detail: string }
+  | { phase: "failed"; code: string; detail: string }
   | { phase: "ready" };
 
 export default function AppShell() {
@@ -147,7 +149,7 @@ function AppShellInner() {
     try {
       await bootstrap.refreshVersions();
     } catch (error) {
-      presentError(error, "同步配置尚未完成", "info");
+      presentError(error, shellT("sync.notConfigured"), "info");
     }
   });
 
@@ -156,7 +158,7 @@ function AppShellInner() {
       try {
         return await cards.refreshCards(overrides);
       } catch (error) {
-        presentError(error, "卡片读取失败");
+        presentError(error, shellT("cards.readFailed"));
         return cards.cards ?? EMPTY_CARDS_FALLBACK;
       }
     }
@@ -190,17 +192,17 @@ function AppShellInner() {
       invalidateCalendarQueries(),
     ]);
     const fallbackMessages = [
-      "刷新设置快照失败",
-      "刷新数据库列表失败",
-      "刷新卡片列表失败",
-      "刷新同步状态失败",
-      "刷新任务数据失败",
-      "刷新日记数据失败",
-      "刷新日历数据失败",
+      shellT("refresh.settings"),
+      shellT("refresh.databases"),
+      shellT("refresh.cards"),
+      shellT("refresh.sync"),
+      shellT("refresh.tasks"),
+      shellT("refresh.diary"),
+      shellT("refresh.calendar"),
     ] as const;
     taskResults.forEach((result, index) => {
       if (result.status === "rejected") {
-        presentError(result.reason, fallbackMessages[index] ?? "数据库变更后刷新失败");
+        presentError(result.reason, fallbackMessages[index] ?? shellT("refresh.failed"));
       }
     });
   });
@@ -223,7 +225,7 @@ function AppShellInner() {
       console.error(`[app] 启动失败 ${parsed.code}`, error);
       setStartupState({
         phase: "failed",
-        message: mapErrorToMessage(parsed.code, "读取设置或打开数据库失败"),
+        code: parsed.code,
         detail: String(error ?? "").replace(/^Error:\s*/, ""),
       });
       return;
@@ -232,7 +234,7 @@ function AppShellInner() {
     try {
       await cards.refreshCards({ page: 1 });
     } catch (error) {
-      presentError(error, "卡片读取失败");
+      presentError(error, shellT("cards.readFailed"));
     }
     try {
       await bootstrap.refreshVersions();
@@ -300,9 +302,9 @@ function AppShellInner() {
         databaseName,
         timestamp: Date.now(),
       });
-      toast.success(`已切换到 ${databaseName}`);
+      toast.success(shellT("database.switched", { name: databaseName }));
     } catch (error) {
-      presentError(error, "切换数据库失败");
+      presentError(error, shellT("database.switchFailed"));
     }
   });
 
@@ -316,9 +318,9 @@ function AppShellInner() {
       } catch {
         // ignore
       }
-      toast.success("设置保存成功");
+      toast.success(shellT("settings.saved"));
     } catch (error) {
-      presentError(error, "保存同步配置失败");
+      presentError(error, shellT("settings.saveFailed"));
     }
   });
 
@@ -465,7 +467,7 @@ function AppShellInner() {
               animation: "spin 1s linear infinite",
             }}
           />
-          <p style={{ fontSize: 14, color: "var(--tau-ink-2)" }}>正在初始化...</p>
+          <StartupLoadingText />
         </div>
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </main>
@@ -474,8 +476,8 @@ function AppShellInner() {
 
   if (startupState.phase === "failed") {
     return (
-      <StartupFailure
-        message={startupState.message}
+      <StartupCodeFailure
+        code={startupState.code}
         detail={startupState.detail}
         onRetry={() => void startup()}
       />

@@ -372,6 +372,8 @@ Native通知十四路径完成；真实前端21例、mobile type/lint、48key三
 
 手机协作设置六路径完成；新2草稿/在途/原值落盘与既有settingsModule1共3例、mobile最终type/lint和22key三语通过。真实useCollaborationRuntime/store/BottomSheet/Router保同输入焦点/光标，跨语不start/retain/release/submit；服务器成功前不persist，成功后只写原trim昵称且保其它设置字段。
 
+手机外壳与导航二十七路径完成；启动/面板8例、详情选择/协作工具栏15例、mobile type与shell构建通过，三语语义key/插值/复数由真实runtime对账通过。失败页跨语保原始路径诊断/同重试按钮且只点击后单执行；ready AppShell无locale Hook，现有业务effect依赖与存量错误解析保持。范围lint仅原AppShell cards与Pan hooks/FastRefresh三warning，未扩大修复。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

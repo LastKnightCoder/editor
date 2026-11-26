@@ -53,5 +53,6 @@
   "capture.pendingDraft": "An unfinished quick capture draft was found. Tap + to continue.",
   "capture.saveFailed": "Could not save quick capture. Please retry.",
   "capture.clearFailed": "Could not clear quick capture. Please retry.",
-  "capture.emptyDeleteFailed": "Could not delete the empty capture card"
+  "capture.emptyDeleteFailed": "Could not delete the empty capture card",
+  "detail.reference": "Ref #{{id}}"
 }

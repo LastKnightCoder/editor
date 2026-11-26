@@ -1,3 +1,5 @@
+import { useMobileI18n } from "../../services/i18n-react";
+import type { MobileMessageKey } from "../../services/i18n";
 // 功能入口清单：内置功能在前、插件入口按启用顺序接在后面，再按用户排序。
 // 「我的」功能宫格与平板左导航条的自选段都从这里取，两处顺序始终一致。
 
@@ -26,7 +28,7 @@ export type FeatureEntry = {
 type BuiltinSpec = {
   key: string;
   page: string;
-  label: string;
+  labelKey: MobileMessageKey;
   icon: Icon;
   tone: string;
   soft: string;
@@ -36,7 +38,7 @@ const BUILTINS: readonly BuiltinSpec[] = [
   {
     key: "todo",
     page: "todo",
-    label: "任务",
+    labelKey: "feature.todo",
     icon: ListChecks,
     tone: "var(--tau-tag-4)",
     soft: "var(--tau-tag-4-soft)",
@@ -44,7 +46,7 @@ const BUILTINS: readonly BuiltinSpec[] = [
   {
     key: "article",
     page: "articles",
-    label: "文章",
+    labelKey: "feature.article",
     icon: Article,
     tone: "var(--tau-accent)",
     soft: "var(--tau-accent-soft)",
@@ -52,7 +54,7 @@ const BUILTINS: readonly BuiltinSpec[] = [
   {
     key: "project",
     page: "projects",
-    label: "项目",
+    labelKey: "feature.project",
     icon: FolderOpen,
     tone: "var(--tau-tag-3)",
     soft: "var(--tau-tag-3-soft)",
@@ -60,7 +62,7 @@ const BUILTINS: readonly BuiltinSpec[] = [
   {
     key: "flashcard",
     page: "flashcardHome",
-    label: "闪卡",
+    labelKey: "feature.flashcard",
     icon: Cards,
     tone: "var(--tau-tag-3)",
     soft: "var(--tau-tag-3-soft)",
@@ -68,7 +70,7 @@ const BUILTINS: readonly BuiltinSpec[] = [
   {
     key: "pomodoro",
     page: "pomodoro",
-    label: "番茄专注",
+    labelKey: "feature.pomodoro",
     icon: Timer,
     tone: "var(--tau-tag-5)",
     soft: "var(--tau-tag-5-soft)",
@@ -76,6 +78,7 @@ const BUILTINS: readonly BuiltinSpec[] = [
 ];
 
 export function useFeatureEntries(): FeatureEntry[] {
+  const { t } = useMobileI18n();
   const navigator = useNavigator();
   const app = useAppContext();
   const plugins = usePluginFeatureEntries();
@@ -85,7 +88,7 @@ export function useFeatureEntries(): FeatureEntry[] {
     const Glyph = spec.icon;
     return {
       key: spec.key,
-      label: spec.label,
+      label: t(spec.labelKey),
       tile: (
         <span
           className="grid h-[46px] w-[46px] place-items-center rounded-[17px]"

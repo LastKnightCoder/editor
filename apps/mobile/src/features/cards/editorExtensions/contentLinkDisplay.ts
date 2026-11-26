@@ -1,17 +1,14 @@
-import type { MobileEditorMessageKey } from "../editorToolbar/i18n";
+import { contextKindLabel, contextTranslator } from "../../context/i18n";
+import { ENTITY_KIND_META } from "../../context/model";
 import { mobileEditorTranslator } from "../editorToolbar/i18n";
 import { getContentLinkKindMeta } from "./contentLinkModel";
 
-const LABEL_KEYS: Record<string, MobileEditorMessageKey> = {
-  card: "kind.card",
-  article: "kind.article",
-  "project-item": "kind.project-item",
-  "plugin-entity": "kind.plugin-entity",
-};
 export function getContentLinkDisplayMeta(contentType: string) {
   const meta = getContentLinkKindMeta(contentType);
   return {
     ...meta,
-    label: LABEL_KEYS[contentType] ? mobileEditorTranslator.t(LABEL_KEYS[contentType]) : meta.label,
+    label: Object.hasOwn(ENTITY_KIND_META, contentType)
+      ? contextKindLabel(contentType, contextTranslator)
+      : mobileEditorTranslator.t("kind.content"),
   };
 }

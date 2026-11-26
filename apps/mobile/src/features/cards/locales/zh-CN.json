@@ -49,5 +49,6 @@
   "capture.pendingDraft": "检测到未完成的快速捕获草稿，可点击 + 继续编辑",
   "capture.saveFailed": "快速捕获保存失败，请稍后重试",
   "capture.clearFailed": "清空快速捕获内容失败，请稍后重试",
-  "capture.emptyDeleteFailed": "删除空白捕获卡片失败"
+  "capture.emptyDeleteFailed": "删除空白捕获卡片失败",
+  "detail.reference": "引用 #{{id}}"
 }

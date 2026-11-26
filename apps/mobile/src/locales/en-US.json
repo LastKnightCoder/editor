@@ -28,5 +28,10 @@
   "content.selectBlocks": "Select blocks",
   "content.outline": "Organize structure",
   "common.closePanel": "Close panel",
-  "structure.empty": "No items yet"
+  "structure.empty": "No items yet",
+  "feature.todo": "Tasks",
+  "feature.article": "Articles",
+  "feature.project": "Projects",
+  "feature.flashcard": "Flashcards",
+  "feature.pomodoro": "Pomodoro"
 }
