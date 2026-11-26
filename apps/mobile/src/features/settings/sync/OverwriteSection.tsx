@@ -1,5 +1,7 @@
 // 整库覆盖：以一侧为准整体上传或下载；覆盖较新一侧时在确认面板里警示。
 
+import { formatDatabaseSyncStatus } from "@tau/shared/sync-progress";
+import { syncTranslator, useSyncI18n, type SyncMessageKey, syncDisplayContext } from "./i18n";
 import { useState } from "react";
 import { ProgressStatus } from "@tau/ui";
 import {
@@ -28,20 +30,24 @@ export type OverwriteSectionProps = {
   onSyncDownload: () => Promise<SyncActionResponse>;
 };
 
-const COPY: Record<Direction, { title: string; confirm: string; loss: string }> = {
+const COPY: Record<
+  Direction,
+  { title: SyncMessageKey; confirm: SyncMessageKey; loss: SyncMessageKey }
+> = {
   upload: {
-    title: "以本机为准？",
-    confirm: "按住覆盖云端",
-    loss: "云端现有的数据库将被本机版本替换，无法撤销。",
+    title: "overwrite.useLocalTitle",
+    confirm: "overwrite.holdRemote",
+    loss: "overwrite.remoteWarning",
   },
   download: {
-    title: "以云端为准？",
-    confirm: "按住覆盖本机",
-    loss: "本机自上次同步后的修改将被云端版本替换，无法撤销。",
+    title: "overwrite.useRemoteTitle",
+    confirm: "overwrite.holdLocal",
+    loss: "overwrite.localWarning",
   },
 };
 
 function Endpoint(props: { kind: "local" | "cloud"; version: number | null; target: boolean }) {
+  useSyncI18n();
   const Icon = props.kind === "local" ? Smartphone : Cloud;
   return (
     <div className="w-[88px] text-center">
@@ -53,7 +59,9 @@ function Endpoint(props: { kind: "local" | "cloud"; version: number | null; targ
         <Icon size={20} aria-hidden="true" />
       </span>
       <span className="text-ink-1 text-tau-meta block font-semibold">
-        {props.kind === "local" ? "本机" : "云端"}
+        {props.kind === "local"
+          ? syncTranslator.t("endpoint.local")
+          : syncTranslator.t("endpoint.cloud")}
       </span>
       <span
         className={`text-tau-sm tabular-nums ${props.target ? "text-danger line-through" : "text-ink-2"}`}
@@ -65,6 +73,7 @@ function Endpoint(props: { kind: "local" | "cloud"; version: number | null; targ
 }
 
 export function OverwriteSection(props: OverwriteSectionProps) {
+  const { locale } = useSyncI18n();
   const [pending, setPending] = useState<Direction | null>(null);
   const [running, setRunning] = useState(false);
   const local = props.versions?.localVersion ?? null;
@@ -75,11 +84,15 @@ export function OverwriteSection(props: OverwriteSectionProps) {
     setPending(null);
     setRunning(true);
     try {
-      const result =
-        direction === "upload" ? await props.onSyncUpload() : await props.onSyncDownload();
-      toast.success(result.message || (direction === "upload" ? "已覆盖云端" : "已覆盖本机"));
+      if (direction === "upload") await props.onSyncUpload();
+      else await props.onSyncDownload();
+      toast.success(
+        syncTranslator.t(
+          direction === "upload" ? "feedback.overwroteRemote" : "feedback.overwroteLocal"
+        )
+      );
     } catch (error) {
-      toast.error(resolveSyncErrorMessage(error, "整库覆盖失败"));
+      toast.error(resolveSyncErrorMessage(error, syncTranslator.t("error.overwrite")));
     } finally {
       setRunning(false);
     }
@@ -88,29 +101,40 @@ export function OverwriteSection(props: OverwriteSectionProps) {
   const rows: Array<{ direction: Direction; label: string; detail: string }> = [
     {
       direction: "upload",
-      label: "以本机为准",
-      detail: `上传 v${local ?? "?"} · 覆盖云端 v${remote ?? "?"}`,
+      label: syncTranslator.t("overwrite.useLocal"),
+      detail: syncTranslator.t("overwrite.uploadDetail", {
+        local: local ?? "?",
+        remote: remote ?? "?",
+      }),
     },
     {
       direction: "download",
-      label: "以云端为准",
-      detail: `下载 v${remote ?? "?"} · 覆盖本机 v${local ?? "?"}`,
+      label: syncTranslator.t("overwrite.useRemote"),
+      detail: syncTranslator.t("overwrite.downloadDetail", {
+        remote: remote ?? "?",
+        local: local ?? "?",
+      }),
     },
   ];
 
   return (
     <div className="page-enter space-y-1">
-      <GroupNote className="pt-1 pb-2">
-        日常使用同步页的主按钮即可。只有一侧数据出了问题、需要强制以另一侧为准时，才使用整库覆盖。
-      </GroupNote>
+      <GroupNote className="pt-1 pb-2">{syncTranslator.t("overwrite.description")}</GroupNote>
       {props.isSyncing && props.syncProgress && (
         <div className="setting-group px-[18px] py-4">
-          <ProgressStatus value={props.syncProgress.value} label={props.syncProgress.status} />
+          <ProgressStatus
+            value={props.syncProgress.value}
+            label={formatDatabaseSyncStatus(props.syncProgress.status, locale)}
+          />
         </div>
       )}
       <GroupCard>
         {rows.map(row => {
-          const availability = overwriteAvailability(props.versions, row.direction);
+          const availability = overwriteAvailability(
+            props.versions,
+            row.direction,
+            syncDisplayContext()
+          );
           const Icon = row.direction === "upload" ? CloudUpload : CloudDownload;
           return (
             <GroupRow
@@ -133,11 +157,11 @@ export function OverwriteSection(props: OverwriteSectionProps) {
           );
         })}
       </GroupCard>
-      <GroupNote>被覆盖一侧未同步的修改会丢失，且无法撤销。</GroupNote>
+      <GroupNote>{syncTranslator.t("overwrite.loss")}</GroupNote>
 
       <BottomSheet
         open={pending !== null}
-        title={pending ? COPY[pending].title : ""}
+        title={pending ? syncTranslator.t(COPY[pending].title) : ""}
         onClose={() => setPending(null)}
       >
         {pending && (
@@ -156,15 +180,15 @@ export function OverwriteSection(props: OverwriteSectionProps) {
               />
             </div>
             <p className="text-ink-2 text-tau-sm pb-4 text-center leading-relaxed">
-              {overwriteAvailability(props.versions, pending).warning && (
+              {overwriteAvailability(props.versions, pending, syncDisplayContext()).warning && (
                 <span className="text-danger block font-semibold">
-                  {overwriteAvailability(props.versions, pending).warning}
+                  {overwriteAvailability(props.versions, pending, syncDisplayContext()).warning}
                 </span>
               )}
-              {COPY[pending].loss}
+              {syncTranslator.t(COPY[pending].loss)}
             </p>
             <HoldToConfirmButton
-              label={COPY[pending].confirm}
+              label={syncTranslator.t(COPY[pending].confirm)}
               disabled={busy}
               onConfirm={() => void run(pending)}
             />
@@ -173,7 +197,7 @@ export function OverwriteSection(props: OverwriteSectionProps) {
               onClick={() => setPending(null)}
               className="text-ink-2 active:bg-hover text-tau-body mt-1.5 h-11 w-full rounded-[14px] font-semibold"
             >
-              取消
+              {syncTranslator.t("action.cancel")}
             </button>
           </div>
         )}

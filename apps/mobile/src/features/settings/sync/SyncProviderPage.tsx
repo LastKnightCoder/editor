@@ -1,6 +1,7 @@
 // 同步服务页：插件声明的连接表单 + 使用状态。顶栏「保存」显式保存，保存后读取一次云端版本作为连接测试；
 // 保存不改变当前选用，「设为同步服务」先探测目标云端，已有数据时再确认。
 
+import { syncTranslator, useSyncI18n } from "./i18n";
 import { useRef, useState } from "react";
 import { Check, CircleAlert, LoaderCircle, RefreshCw } from "lucide-react";
 import { PortalScope } from "@tau/ui";
@@ -15,25 +16,30 @@ import { MobileProviderForm } from "../storage/ProviderForm";
 import { UnsupportedProvider, UseRow, useDiscardGuard } from "../storage/providerPage";
 import { useProviderDraft } from "../storage/useProviderDraft";
 import { useSyncProviders } from "./providers";
-import { resolveSyncErrorMessage } from "./syncErrors";
+import { syncFailureText, syncProviderErrorText } from "./syncErrors";
 import { useSyncSwitch } from "./useSyncSwitch";
 
 type ProbeResult =
   | { status: "ok"; versions: SyncVersionResponse }
-  | { status: "error"; message: string };
+  | { status: "error"; cause: unknown };
 
 function ConnectionRow(props: { probing: boolean; result: ProbeResult | null }) {
+  useSyncI18n();
   if (props.probing)
     return (
       <GroupRow>
         <LoaderCircle size={18} className="text-ink-3 animate-spin" aria-hidden="true" />
-        <span className="text-ink-2 text-tau-body flex-1">正在连接…</span>
+        <span className="text-ink-2 text-tau-body flex-1">
+          {syncTranslator.t("provider.connecting")}
+        </span>
       </GroupRow>
     );
   if (!props.result)
     return (
       <GroupRow>
-        <span className="text-ink-3 text-tau-meta flex-1">保存后会自动测试连接</span>
+        <span className="text-ink-3 text-tau-meta flex-1">
+          {syncTranslator.t("provider.probeHint")}
+        </span>
       </GroupRow>
     );
   if (props.result.status === "error")
@@ -41,7 +47,9 @@ function ConnectionRow(props: { probing: boolean; result: ProbeResult | null }) 
       <GroupRow>
         <CircleAlert size={18} className="text-danger shrink-0" aria-hidden="true" />
         <span className="text-danger text-tau-meta min-w-0 flex-1 leading-snug">
-          {props.result.message}
+          {syncTranslator.t("provider.savedFailed", {
+            reason: syncFailureText({ cause: props.result.cause, fallback: "error.checkConfig" }),
+          })}
         </span>
       </GroupRow>
     );
@@ -50,9 +58,13 @@ function ConnectionRow(props: { probing: boolean; result: ProbeResult | null }) 
     <GroupRow>
       <Check size={18} className="text-ok shrink-0" aria-hidden="true" />
       <span className="min-w-0 flex-1">
-        <span className="text-ink-1 text-tau-body block font-medium">连接正常</span>
+        <span className="text-ink-1 text-tau-body block font-medium">
+          {syncTranslator.t("provider.connected")}
+        </span>
         <span className="text-ink-3 text-tau-sm block">
-          {remote > 0 ? `云端已有数据库 v${remote}` : "云端还没有这个数据库，首次同步会上传"}
+          {remote > 0
+            ? syncTranslator.t("provider.remoteVersion", { version: remote })
+            : syncTranslator.t("provider.remoteEmpty")}
         </span>
       </span>
     </GroupRow>
@@ -60,6 +72,7 @@ function ConnectionRow(props: { probing: boolean; result: ProbeResult | null }) 
 }
 
 export function SyncProviderPage(props: { providerId: string }) {
+  useSyncI18n();
   const app = useAppContext();
   const scrollRef = useRef<HTMLDivElement>(null);
   useEdgeFade(scrollRef);
@@ -69,7 +82,8 @@ export function SyncProviderPage(props: { providerId: string }) {
   const draft = useProviderDraft(
     provider?.form ?? null,
     setting && provider ? provider.stored(setting) : undefined,
-    config => persist(props.providerId, config)
+    config => persist(props.providerId, config),
+    syncProviderErrorText
   );
   const switcher = useSyncSwitch();
   const [probing, setProbing] = useState(false);
@@ -77,7 +91,12 @@ export function SyncProviderPage(props: { providerId: string }) {
   const back = useDiscardGuard(draft.dirty, draft.reset);
 
   if (!provider || !setting || !provider.form)
-    return <UnsupportedProvider title="同步服务" legacy={!!provider && !provider.form} />;
+    return (
+      <UnsupportedProvider
+        title={syncTranslator.t("service.title")}
+        legacy={!!provider && !provider.form}
+      />
+    );
 
   const isActive = setting.sync.active === "plugin" && setting.sync.plugin?.id === provider.id;
   const configured = provider.isConfigured(setting);
@@ -93,7 +112,7 @@ export function SyncProviderPage(props: { providerId: string }) {
     } catch (error) {
       setResult({
         status: "error",
-        message: `配置已保存，但连接失败：${resolveSyncErrorMessage(error, "请检查账号与存储位置")}`,
+        cause: error,
       });
     } finally {
       setProbing(false);
@@ -111,7 +130,7 @@ export function SyncProviderPage(props: { providerId: string }) {
               disabled={(!draft.dirty && configured) || draft.saving || probing}
               onClick={() => void save()}
             >
-              {draft.saving ? "保存中" : "保存"}
+              {draft.saving ? syncTranslator.t("action.saving") : syncTranslator.t("action.save")}
             </PageHeaderTextButton>
           }
         />
@@ -120,15 +139,19 @@ export function SyncProviderPage(props: { providerId: string }) {
           className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto px-4"
         >
           <div className="page-enter space-y-1">
-            <GroupLabel>使用</GroupLabel>
+            <GroupLabel>{syncTranslator.t("provider.use")}</GroupLabel>
             <GroupCard>
               <UseRow
                 icon={<RefreshCw size={17} strokeWidth={1.9} aria-hidden="true" />}
-                title="同步服务"
+                title={syncTranslator.t("service.title")}
                 active={isActive}
-                activeText="数据库与资源文件正同步到这里"
-                idleText={configured ? "配置已保存，尚未使用" : "填写下方配置并保存后可使用"}
-                actionLabel="设为当前"
+                activeText={syncTranslator.t("provider.inUseHint")}
+                idleText={
+                  configured
+                    ? syncTranslator.t("provider.saved")
+                    : syncTranslator.t("provider.configureHint")
+                }
+                actionLabel={syncTranslator.t("provider.activate")}
                 busy={switcher.probing === provider.id}
                 disabled={!configured || draft.dirty}
                 onAction={() => void switcher.request(provider.id, provider.name)}
@@ -147,7 +170,7 @@ export function SyncProviderPage(props: { providerId: string }) {
                 {draft.error}
               </p>
             )}
-            <GroupLabel>连接</GroupLabel>
+            <GroupLabel>{syncTranslator.t("provider.connection")}</GroupLabel>
             <GroupCard>
               <ConnectionRow probing={probing} result={result} />
             </GroupCard>

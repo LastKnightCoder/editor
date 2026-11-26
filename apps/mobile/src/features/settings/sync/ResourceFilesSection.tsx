@@ -1,8 +1,16 @@
 // 资源文件页：resources 目录与同步服务之间的双向镜像。状态卡 + 拇指区一个主按钮（同同步中心），
 // 下方按「需要处理 / 待上传 / 待下载 / 全部」列出文件。进入与返回时静默刷新一次账本。
 
+import { formatSyncFileSize } from "./format";
+import {
+  syncTranslator,
+  useSyncI18n,
+  type SyncMessageKey,
+  syncCount,
+  syncDisplayContext,
+} from "./i18n";
 import { formatRelativeTime } from "../storage/format";
-import { storageDisplayContext, useStorageI18n } from "../storage/i18n";
+import { storageDisplayContext } from "../storage/i18n";
 import { useEffect, useMemo, useState } from "react";
 import {
   CircleCheck,
@@ -34,7 +42,7 @@ import {
   type ResourceFilter,
   type ResourceHeroState,
 } from "./resourceState";
-import { resolveSyncErrorMessage } from "./syncErrors";
+import { syncFailureText, resourceProgressErrorText, type SyncFailure } from "./syncErrors";
 
 const PAGE_SIZE = 30;
 const IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp|svg|bmp|avif|heic)$/i;
@@ -47,14 +55,15 @@ const ORB_TONE: Record<ResourceHeroState["tone"], string> = {
   idle: "bg-accent-soft text-accent-text",
 };
 
-const FILTER_LABELS: Record<ResourceFilter, string> = {
-  error: "需要处理",
-  upload: "待上传",
-  download: "待下载",
-  all: "全部",
+const FILTER_LABELS: Record<ResourceFilter, SyncMessageKey> = {
+  error: "filter.error",
+  upload: "filter.upload",
+  download: "filter.download",
+  all: "filter.all",
 };
 
 function HeroIcon(props: { icon: ResourceHeroState["icon"] }) {
+  useSyncI18n();
   const common = { size: 34, strokeWidth: 1.9, "aria-hidden": true } as const;
   switch (props.icon) {
     case "check":
@@ -68,13 +77,6 @@ function HeroIcon(props: { icon: ResourceHeroState["icon"] }) {
     default:
       return <Cloud {...common} />;
   }
-}
-
-function formatSize(size: number | null): string {
-  if (!size || size <= 0) return "";
-  if (size < 1024) return `${size} B`;
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(0)} KB`;
-  return `${(size / 1024 / 1024).toFixed(1)} MB`;
 }
 
 function baseName(path: string): string {
@@ -94,8 +96,9 @@ export type ResourceFilesProps = {
 };
 
 export function ResourceFilesSection(props: ResourceFilesProps) {
-  useStorageI18n();
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  useSyncI18n();
+  const [failure, setFailure] = useState<SyncFailure | null>(null);
+  const errorMessage = failure ? syncFailureText(failure) : null;
   const [configMissing, setConfigMissing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [filter, setFilter] = useState<ResourceFilter | null>(null);
@@ -109,13 +112,14 @@ export function ResourceFilesSection(props: ResourceFilesProps) {
     [props.statusFile, activeFilter]
   );
 
-  const handleError = (error: unknown, fallback: string, silent: boolean) => {
+  const handleError = (error: unknown, fallback: SyncMessageKey, silent: boolean) => {
     if (parseInvokeError(error).code === "RESOURCE_SYNC_CONFIG_MISSING") {
       setConfigMissing(true);
       return;
     }
-    const message = resolveSyncErrorMessage(error, fallback);
-    setErrorMessage(message);
+    const nextFailure = { cause: error, fallback };
+    const message = syncFailureText(nextFailure);
+    setFailure(nextFailure);
     if (!silent) toast.error(message);
   };
 
@@ -124,10 +128,10 @@ export function ResourceFilesSection(props: ResourceFilesProps) {
     setBusy(true);
     try {
       await props.onRefresh();
-      setErrorMessage(null);
+      setFailure(null);
       setConfigMissing(false);
     } catch (error) {
-      handleError(error, "读取资源同步状态失败", Boolean(options?.silent));
+      handleError(error, "error.readResource", Boolean(options?.silent));
     } finally {
       setBusy(false);
     }
@@ -140,26 +144,31 @@ export function ResourceFilesSection(props: ResourceFilesProps) {
   usePageLifecycle({ onResume: () => void refresh({ silent: true }) });
 
   const lastSyncTime = props.statusFile?.lastSyncTime;
-  const hero = deriveResourceHero({
-    progress: props.progress,
-    counts,
-    errorMessage,
-    configMissing,
-    lastSyncText: lastSyncTime
-      ? formatRelativeTime(lastSyncTime, Date.now(), storageDisplayContext())
-      : null,
-    checked: props.statusFile !== null,
-  });
+  const hero = deriveResourceHero(
+    {
+      progress: props.progress,
+      counts,
+      errorMessage:
+        errorMessage ??
+        resourceProgressErrorText(props.progress, syncTranslator.t("resource.errorHint")),
+      configMissing,
+      lastSyncText: lastSyncTime
+        ? formatRelativeTime(lastSyncTime, Date.now(), storageDisplayContext())
+        : null,
+      checked: props.statusFile !== null,
+    },
+    syncDisplayContext()
+  );
 
   const runAction = async (action: () => Promise<ResourceSyncActionResponse>) => {
     setBusy(true);
     try {
       const result = await action();
       if (!result.ok) throw new Error(`${result.code ?? "RESOURCE_SYNC_FAILED"}:${result.message}`);
-      setErrorMessage(null);
+      setFailure(null);
       setConfigMissing(false);
     } catch (error) {
-      handleError(error, "资源同步执行失败", false);
+      handleError(error, "error.runResource", false);
     } finally {
       setBusy(false);
     }
@@ -202,9 +211,12 @@ export function ResourceFilesSection(props: ResourceFilesProps) {
         </span>
         <h2 className="text-ink-1 text-tau-title-lg font-extrabold tracking-tight">{hero.title}</h2>
         <p className="text-ink-2 text-tau-sm mt-1 leading-relaxed">{hero.description}</p>
-        {props.statusFile && !hero.description.includes(resourceSummary(counts)) && (
-          <p className="text-ink-3 text-tau-sm mt-1">{resourceSummary(counts)}</p>
-        )}
+        {props.statusFile &&
+          !hero.description.includes(resourceSummary(counts, syncDisplayContext())) && (
+            <p className="text-ink-3 text-tau-sm mt-1">
+              {resourceSummary(counts, syncDisplayContext())}
+            </p>
+          )}
         {running && props.progress.currentFile && (
           <p className="text-ink-3 text-tau-sm mt-0.5 truncate">{props.progress.currentFile}</p>
         )}
@@ -247,7 +259,7 @@ export function ResourceFilesSection(props: ResourceFilesProps) {
                     : "bg-surface text-ink-2"
                 }`}
               >
-                {FILTER_LABELS[key]}{" "}
+                {syncTranslator.t(FILTER_LABELS[key])}{" "}
                 <span className="tabular-nums opacity-75">
                   {key === "all" ? counts.total : counts[key]}
                 </span>
@@ -274,18 +286,20 @@ export function ResourceFilesSection(props: ResourceFilesProps) {
                     >
                       {status.syncStatus === "error"
                         ? [
-                            status.errorMessage || "同步失败",
-                            status.retryCount > 0 ? `已重试 ${status.retryCount} 次` : "",
+                            status.errorMessage || syncTranslator.t("error.sync"),
+                            status.retryCount > 0
+                              ? syncCount("resource.retryCount", status.retryCount)
+                              : "",
                           ]
                             .filter(Boolean)
                             .join(" · ")
                         : [
-                            formatSize(status.fileSize),
+                            formatSyncFileSize(status.fileSize, syncDisplayContext().locale),
                             status.syncStatus === "synced"
-                              ? "已同步"
+                              ? syncTranslator.t("status.synced")
                               : status.syncDirection === "download"
-                                ? "待下载"
-                                : "待上传",
+                                ? syncTranslator.t("filter.download")
+                                : syncTranslator.t("filter.upload"),
                           ]
                             .filter(Boolean)
                             .join(" · ")}
@@ -299,16 +313,14 @@ export function ResourceFilesSection(props: ResourceFilesProps) {
                   onClick={() => setLimit(value => value + PAGE_SIZE)}
                   className="text-accent-text active:bg-hover text-tau-body h-12 w-full font-semibold"
                 >
-                  显示更多（还有 {entries.length - limit} 个）
+                  {syncCount("resource.more", entries.length - limit)}
                 </button>
               )}
             </GroupCard>
           </div>
         </>
       )}
-      <GroupNote>
-        同步保存在本机的图片和附件，网络链接不参与。资源同步只增不删：本机删掉的文件不会从云端删除。
-      </GroupNote>
+      <GroupNote>{syncTranslator.t("resource.mirrorHint")}</GroupNote>
     </div>
   );
 }

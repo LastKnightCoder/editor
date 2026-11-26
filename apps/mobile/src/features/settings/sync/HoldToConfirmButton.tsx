@@ -1,5 +1,6 @@
 // 长按确认按钮：按住满时长才执行，松手即取消；用于不可撤销的整库覆盖。
 
+import { syncTranslator, useSyncI18n } from "./i18n";
 import { useEffect, useRef, useState } from "react";
 
 const HOLD_DURATION_MS = 1600;
@@ -9,6 +10,7 @@ export function HoldToConfirmButton(props: {
   disabled?: boolean;
   onConfirm: () => void;
 }) {
+  useSyncI18n();
   const [holding, setHolding] = useState(false);
   const timerRef = useRef<number | null>(null);
 
@@ -53,7 +55,7 @@ export function HoldToConfirmButton(props: {
           transition: holding ? `width ${HOLD_DURATION_MS}ms linear` : "width 150ms ease-out",
         }}
       />
-      <span className="relative">{holding ? "继续按住…" : props.label}</span>
+      <span className="relative">{holding ? syncTranslator.t("hold.continue") : props.label}</span>
     </button>
   );
 }

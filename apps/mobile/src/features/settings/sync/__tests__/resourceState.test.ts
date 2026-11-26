@@ -1,3 +1,6 @@
+import { syncMessages } from "../i18n";
+import { createI18nRuntime, createLocaleStore } from "@tau/i18n";
+import { afterAll } from "vitest";
 // 资源文件状态推导：只看本轮账本，失败优先于待同步，运行中只给「停止」。
 import { describe, expect, it } from "vitest";
 import type { ResourceSyncProgress, ResourceSyncStatusFile } from "../../../../types";
@@ -68,14 +71,14 @@ describe("resourceState", () => {
 
   it("有失败时主按钮重试失败文件，徽标显示失败数", () => {
     const counts = countResources(file);
-    const hero = deriveResourceHero({ ...base, progress: idle, counts });
+    const hero = deriveResourceHero({ ...base, progress: idle, counts }, syncLanguage);
     expect(hero).toMatchObject({ title: "1 个文件同步失败", primaryAction: "retry" });
-    expect(resourceBadge(idle, counts)).toEqual({ tone: "danger", text: "1 个失败" });
+    expect(resourceBadge(idle, counts, syncLanguage)).toEqual({ tone: "danger", text: "1 个失败" });
   });
 
   it("只有待同步时说明两个方向的数量", () => {
     const counts = countResources(ledger({ a: ["upload", "pending"], b: ["download", "pending"] }));
-    const hero = deriveResourceHero({ ...base, progress: idle, counts });
+    const hero = deriveResourceHero({ ...base, progress: idle, counts }, syncLanguage);
     expect(hero.title).toBe("有 2 个文件待同步");
     expect(hero.description).toBe("本机新增 1 个 · 云端新增 1 个");
     expect(hero.primaryAction).toBe("start");
@@ -84,48 +87,61 @@ describe("resourceState", () => {
   it("运行中只给停止；未配置同步时引导去设置", () => {
     const counts = countResources(file);
     const running = { ...idle, status: "syncing" as const, totalFiles: 4, processedFiles: 1 };
-    expect(deriveResourceHero({ ...base, progress: running, counts })).toMatchObject({
+    expect(deriveResourceHero({ ...base, progress: running, counts }, syncLanguage)).toMatchObject({
       title: "正在同步 25%",
       primaryAction: "cancel",
     });
-    expect(resourceBadge(running, counts)?.text).toBe("同步中");
+    expect(resourceBadge(running, counts, syncLanguage)?.text).toBe("同步中");
     expect(
-      deriveResourceHero({ ...base, configMissing: true, progress: idle, counts }).primaryAction
+      deriveResourceHero({ ...base, configMissing: true, progress: idle, counts }, syncLanguage)
+        .primaryAction
     ).toBe("configure");
   });
 
   it("全部同步后明确显示成功，没有文件时只提供检查", () => {
     const synced = countResources(ledger({ a: ["upload", "synced"] }));
-    expect(deriveResourceHero({ ...base, progress: idle, counts: synced })).toMatchObject({
+    expect(
+      deriveResourceHero({ ...base, progress: idle, counts: synced }, syncLanguage)
+    ).toMatchObject({
       title: "已同步",
       primaryEmphasis: false,
     });
-    expect(resourceBadge(idle, synced)).toEqual({ tone: "ok", text: "全部已同步" });
+    expect(resourceBadge(idle, synced, syncLanguage)).toEqual({ tone: "ok", text: "全部已同步" });
     const empty = countResources(null);
-    expect(deriveResourceHero({ ...base, progress: idle, counts: empty }).primaryAction).toBe(
-      "refresh"
-    );
+    expect(
+      deriveResourceHero({ ...base, progress: idle, counts: empty }, syncLanguage).primaryAction
+    ).toBe("refresh");
   });
 
   it("尚未检查、检查失败、后台失败和停止都不能显示全部同步成功", () => {
     const counts = countResources(ledger({ a: ["upload", "synced"] }));
     const empty = countResources(null);
-    expect(resourceBadge(idle, empty, false)?.text).toBe("未检查");
+    expect(resourceBadge(idle, empty, syncLanguage, false)?.text).toBe("未检查");
     expect(
-      deriveResourceHero({ ...base, progress: idle, counts: empty, checked: false }).title
+      deriveResourceHero({ ...base, progress: idle, counts: empty, checked: false }, syncLanguage)
+        .title
     ).toBe("资源文件尚未检查");
     const failed = { ...idle, status: "error" as const, errorMessage: "云端列表读取失败" };
-    expect(resourceBadge(failed, counts)?.text).toBe("同步异常");
-    expect(deriveResourceHero({ ...base, progress: failed, counts }).description).toBe(
-      "云端列表读取失败"
-    );
+    expect(resourceBadge(failed, counts, syncLanguage)?.text).toBe("同步异常");
+    expect(
+      deriveResourceHero({ ...base, progress: failed, counts }, syncLanguage).description
+    ).toBe("云端列表读取失败");
     const stopped = { ...idle, status: "cancelled" as const };
-    expect(resourceBadge(stopped, counts)?.text).toBe("已停止");
-    expect(deriveResourceHero({ ...base, progress: stopped, counts }).title).toBe("资源同步已停止");
+    expect(resourceBadge(stopped, counts, syncLanguage)?.text).toBe("已停止");
+    expect(deriveResourceHero({ ...base, progress: stopped, counts }, syncLanguage).title).toBe(
+      "资源同步已停止"
+    );
   });
 
   it("部分失败时分别列出成功、待上传、待下载与失败数量", () => {
-    const hero = deriveResourceHero({ ...base, progress: idle, counts: countResources(file) });
+    const hero = deriveResourceHero(
+      { ...base, progress: idle, counts: countResources(file) },
+      syncLanguage
+    );
     expect(hero.description).toBe("已同步 1 个 · 待上传 1 个 · 待下载 1 个 · 失败 1 个");
   });
 });
+
+const runtime = createI18nRuntime({ localeSource: createLocaleStore("zh-CN") });
+afterAll(() => runtime.dispose());
+const syncLanguage = { locale: "zh-CN", t: runtime.get(syncMessages).t };

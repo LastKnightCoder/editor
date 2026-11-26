@@ -1,3 +1,5 @@
+import { autoSyncTranslator, useAutoSyncI18n } from "./i18n";
+import { formatDatabaseSyncStatus, type DatabaseSyncStatus } from "@tau/shared/sync-progress";
 import { localDatabaseVersion } from "@tau/db-schema/sync-protocol";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Dialog, DialogBody, toast } from "@tau/ui";
@@ -17,7 +19,7 @@ import { runUsageSync } from "@/services/usageSyncRunner";
 type ProgressState = {
   open: boolean;
   progress: number;
-  status: string;
+  status: DatabaseSyncStatus;
 };
 
 const clampProgress = (value: number) => {
@@ -31,24 +33,30 @@ interface ProgressModalProps extends ProgressState {
 }
 
 /** 同步进行中不可关闭：半途退出会留下不完整的库 */
-const ProgressModal = ({ open, progress, status, title, subtitle }: ProgressModalProps) => (
-  <Dialog open={open} onOpenChange={() => undefined} critical title={title} subtitle={subtitle}>
-    <DialogBody>
-      <div className="text-tau-meta mb-2 flex items-center justify-between gap-3">
-        <span className="text-ink-1 min-w-0 truncate">{status}</span>
-        <span className="text-ink-3 shrink-0 tabular-nums">{Math.round(progress)}%</span>
-      </div>
-      <div className="bg-track h-1.5 overflow-hidden rounded-full">
-        <div
-          className="bg-accent ease-tau-out h-full rounded-full transition-[width] duration-300"
-          style={{ width: `${clampProgress(progress)}%` }}
-        />
-      </div>
-    </DialogBody>
-  </Dialog>
-);
+const ProgressModal = ({ open, progress, status, title, subtitle }: ProgressModalProps) => {
+  const { locale } = useAutoSyncI18n();
+  return (
+    <Dialog open={open} onOpenChange={() => undefined} critical title={title} subtitle={subtitle}>
+      <DialogBody>
+        <div className="text-tau-meta mb-2 flex items-center justify-between gap-3">
+          <span className="text-ink-1 min-w-0 truncate">
+            {formatDatabaseSyncStatus(status, locale)}
+          </span>
+          <span className="text-ink-3 shrink-0 tabular-nums">{Math.round(progress)}%</span>
+        </div>
+        <div className="bg-track h-1.5 overflow-hidden rounded-full">
+          <div
+            className="bg-accent ease-tau-out h-full rounded-full transition-[width] duration-300"
+            style={{ width: `${clampProgress(progress)}%` }}
+          />
+        </div>
+      </DialogBody>
+    </Dialog>
+  );
+};
 
 const AutoSyncManager = () => {
+  const { t } = useAutoSyncI18n();
   const sync = useSettingStore(state => state.setting.sync);
   const database = useSettingStore(state => state.setting.database);
   const isDevMode = process.env.NODE_ENV === "development";
@@ -64,12 +72,12 @@ const AutoSyncManager = () => {
   const [uploadState, setUploadState] = useState<ProgressState>({
     open: false,
     progress: 0,
-    status: "正在准备同步数据...",
+    status: { kind: "prepare-sync" },
   });
   const [downloadState, setDownloadState] = useState<ProgressState>({
     open: false,
     progress: 0,
-    status: "正在检查远程版本...",
+    status: { kind: "check-remote" },
   });
 
   const hasCheckedOnLaunch = useRef(false);
@@ -91,7 +99,7 @@ const AutoSyncManager = () => {
   }, []);
 
   const handleUploadFailureWhileClosing = useCallback(async () => {
-    toast.error("自动同步失败，正在直接关闭应用");
+    toast.error(autoSyncTranslator.t("closeFailed"));
     await closeAfterSync();
   }, [closeAfterSync]);
 
@@ -103,7 +111,7 @@ const AutoSyncManager = () => {
     setUploadState({
       open: true,
       progress: 0,
-      status: "正在准备同步数据...",
+      status: { kind: "prepare-sync" },
     });
     let success = false;
     try {
@@ -126,7 +134,7 @@ const AutoSyncManager = () => {
         ...prev,
         open: true,
         progress: 100,
-        status: "同步完成",
+        status: { kind: "sync-complete" },
       }));
     }
     if (success && pendingCloseRef.current) {
@@ -215,7 +223,7 @@ const AutoSyncManager = () => {
       setDownloadState({
         open: true,
         progress: 10,
-        status: "检测到远程新版本，准备下载...",
+        status: { kind: "prepare-remote-download" },
       });
 
       let success = false;
@@ -255,15 +263,15 @@ const AutoSyncManager = () => {
         open={uploadState.open}
         progress={uploadState.progress}
         status={uploadState.status}
-        title="正在自动同步数据"
-        subtitle="应用将在同步完成后自动关闭，请稍候。"
+        title={t("upload.title")}
+        subtitle={t("upload.description")}
       />
       <ProgressModal
         open={downloadState.open}
         progress={downloadState.progress}
         status={downloadState.status}
-        title="正在下载远程数据"
-        subtitle="检测到云端存在新的数据库版本，正在为你下载并刷新数据。"
+        title={t("download.title")}
+        subtitle={t("download.description")}
       />
     </>
   );

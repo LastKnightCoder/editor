@@ -1,6 +1,7 @@
 // 资源文件同步的状态推导：只看本轮的文件账本（statusFile）与运行中的进度，
 // 翻译成状态卡、主按钮与同步中心那一行的徽标（纯函数，便于单测）。
 
+import type { SyncLocale } from "./i18n";
 import type {
   ResourceFileSyncStatus,
   ResourceSyncProgress,
@@ -68,26 +69,40 @@ export function isResourceSyncRunning(progress: ResourceSyncProgress | null): bo
   return progress?.status === "scanning" || progress?.status === "syncing";
 }
 
-export function resourceSummary(counts: ResourceCounts): string {
+export function resourceSummary(counts: ResourceCounts, language: SyncLocale): string {
+  const { t, locale } = language;
   const synced = counts.total - counts.upload - counts.download - counts.error;
   return [
-    `已同步 ${synced} 个`,
-    counts.upload > 0 ? `待上传 ${counts.upload} 个` : "",
-    counts.download > 0 ? `待下载 ${counts.download} 个` : "",
-    counts.error > 0 ? `失败 ${counts.error} 个` : "",
+    t("summary.synced", { amount: synced.toLocaleString(locale), count: synced }),
+    counts.upload > 0
+      ? t("summary.upload", { amount: counts.upload.toLocaleString(locale), count: counts.upload })
+      : "",
+    counts.download > 0
+      ? t("summary.download", {
+          amount: counts.download.toLocaleString(locale),
+          count: counts.download,
+        })
+      : "",
+    counts.error > 0
+      ? t("summary.failed", { amount: counts.error.toLocaleString(locale), count: counts.error })
+      : "",
   ]
     .filter(Boolean)
     .join(" · ");
 }
 
-export function deriveResourceHero(input: {
-  progress: ResourceSyncProgress | null;
-  counts: ResourceCounts;
-  errorMessage: string | null;
-  configMissing: boolean;
-  lastSyncText: string | null;
-  checked?: boolean;
-}): ResourceHeroState {
+export function deriveResourceHero(
+  input: {
+    progress: ResourceSyncProgress | null;
+    counts: ResourceCounts;
+    errorMessage: string | null;
+    configMissing: boolean;
+    lastSyncText: string | null;
+    checked?: boolean;
+  },
+  language: SyncLocale
+): ResourceHeroState {
+  const { t, locale } = language;
   const { progress, counts } = input;
   if (isResourceSyncRunning(progress) && progress) {
     const percent =
@@ -97,9 +112,15 @@ export function deriveResourceHero(input: {
     return {
       tone: "run",
       icon: "sync",
-      title: progress.status === "scanning" ? "正在比对文件…" : `正在同步 ${percent}%`,
-      description: `已处理 ${progress.processedFiles} / ${progress.totalFiles} · 可以离开此页，同步会在后台继续`,
-      primaryLabel: "停止",
+      title:
+        progress.status === "scanning"
+          ? t("resource.heroScanning")
+          : t("resource.percent", { percent: percent }),
+      description: t("resource.backgroundProgress", {
+        processed: progress.processedFiles,
+        total: progress.totalFiles,
+      }),
+      primaryLabel: t("action.stop"),
       primaryAction: "cancel",
       primaryEmphasis: false,
     };
@@ -108,9 +129,9 @@ export function deriveResourceHero(input: {
     return {
       tone: "idle",
       icon: "cloud",
-      title: "还没有设置同步服务",
-      description: "资源文件跟随数据库同步使用同一个服务",
-      primaryLabel: "设置同步",
+      title: t("resource.noService"),
+      description: t("resource.sharedService"),
+      primaryLabel: t("resource.configure"),
       primaryAction: "configure",
       primaryEmphasis: true,
     };
@@ -120,21 +141,27 @@ export function deriveResourceHero(input: {
     return {
       tone: "error",
       icon: "error",
-      title: "资源同步未完成",
-      description: errorMessage || "资源同步发生异常，请重试；数据库同步结果不受影响",
-      primaryLabel: "重试",
+      title: t("resource.incomplete"),
+      description: errorMessage || t("resource.errorHint"),
+      primaryLabel: t("action.retry"),
       primaryAction: "refresh",
       primaryEmphasis: true,
     };
   }
-  const since = input.lastSyncText ? `上次同步 ${input.lastSyncText}` : "";
+  const since = input.lastSyncText ? t("resource.since", { time: input.lastSyncText }) : "";
   if (counts.error > 0) {
     return {
       tone: "error",
       icon: "error",
-      title: `${counts.error} 个文件同步失败`,
-      description: [resourceSummary(counts), since].filter(Boolean).join(" · "),
-      primaryLabel: `重试 ${counts.error} 个文件`,
+      title: t("resource.failedFiles", {
+        amount: counts.error.toLocaleString(locale),
+        count: counts.error,
+      }),
+      description: [resourceSummary(counts, language), since].filter(Boolean).join(" · "),
+      primaryLabel: t("resource.retryFiles", {
+        amount: counts.error.toLocaleString(locale),
+        count: counts.error,
+      }),
       primaryAction: "retry",
       primaryEmphasis: true,
     };
@@ -143,9 +170,9 @@ export function deriveResourceHero(input: {
     return {
       tone: "warn",
       icon: "cloud",
-      title: "资源同步已停止",
-      description: resourceSummary(counts),
-      primaryLabel: "继续同步",
+      title: t("resource.stopped"),
+      description: resourceSummary(counts, language),
+      primaryLabel: t("resource.continue"),
       primaryAction: "start",
       primaryEmphasis: true,
     };
@@ -154,9 +181,9 @@ export function deriveResourceHero(input: {
     return {
       tone: "idle",
       icon: "cloud",
-      title: "资源文件尚未检查",
-      description: "检查后可确认图片和附件是否已同步",
-      primaryLabel: "检查云端",
+      title: t("resource.notChecked"),
+      description: t("resource.checkHint"),
+      primaryLabel: t("action.checkCloud"),
       primaryAction: "refresh",
       primaryEmphasis: true,
     };
@@ -164,15 +191,27 @@ export function deriveResourceHero(input: {
   const pending = counts.upload + counts.download;
   if (pending > 0) {
     const parts = [
-      counts.upload > 0 ? `本机新增 ${counts.upload} 个` : "",
-      counts.download > 0 ? `云端新增 ${counts.download} 个` : "",
+      counts.upload > 0
+        ? t("resource.localNew", {
+            amount: counts.upload.toLocaleString(locale),
+            count: counts.upload,
+          })
+        : "",
+      counts.download > 0
+        ? t("resource.remoteNew", {
+            amount: counts.download.toLocaleString(locale),
+            count: counts.download,
+          })
+        : "",
     ].filter(Boolean);
     return {
       tone: "warn",
       icon: "upload",
-      title: `有 ${pending} 个文件待同步`,
-      description: [parts.join(" · "), since].filter(Boolean).join("，"),
-      primaryLabel: "开始同步",
+      title: t("resource.pendingFiles", { amount: pending.toLocaleString(locale), count: pending }),
+      description: [parts.join(" · "), since]
+        .filter(Boolean)
+        .join(t("resource.descriptionSeparator")),
+      primaryLabel: t("resource.start"),
       primaryAction: "start",
       primaryEmphasis: true,
     };
@@ -181,9 +220,9 @@ export function deriveResourceHero(input: {
     return {
       tone: "idle",
       icon: "cloud",
-      title: "还没有资源文件",
-      description: "保存在本机的图片和附件会在这里同步",
-      primaryLabel: "检查云端",
+      title: t("resource.empty"),
+      description: t("resource.emptyHint"),
+      primaryLabel: t("action.checkCloud"),
       primaryAction: "refresh",
       primaryEmphasis: false,
     };
@@ -191,9 +230,14 @@ export function deriveResourceHero(input: {
   return {
     tone: "ok",
     icon: "check",
-    title: "已同步",
-    description: [`${counts.total} 个文件`, since].filter(Boolean).join(" · "),
-    primaryLabel: "立即同步",
+    title: t("status.synced"),
+    description: [
+      t("resource.fileCount", { amount: counts.total.toLocaleString(locale), count: counts.total }),
+      since,
+    ]
+      .filter(Boolean)
+      .join(" · "),
+    primaryLabel: t("action.syncNow"),
     primaryAction: "start",
     primaryEmphasis: false,
   };
@@ -203,16 +247,26 @@ export function deriveResourceHero(input: {
 export function resourceBadge(
   progress: ResourceSyncProgress | null,
   counts: ResourceCounts,
+  language: SyncLocale,
   checked = counts.total > 0
 ): { tone: "warn" | "danger" | "info" | "ok"; text: string } {
-  if (isResourceSyncRunning(progress)) return { tone: "info", text: "同步中" };
+  const { t, locale } = language;
+  if (isResourceSyncRunning(progress)) return { tone: "info", text: t("status.syncing") };
   if (progress?.errorMessage || (progress?.status === "error" && counts.error === 0)) {
-    return { tone: "danger", text: "同步异常" };
+    return { tone: "danger", text: t("status.error") };
   }
-  if (counts.error > 0) return { tone: "danger", text: `${counts.error} 个失败` };
-  if (progress?.status === "cancelled") return { tone: "warn", text: "已停止" };
-  if (!checked) return { tone: "info", text: "未检查" };
+  if (counts.error > 0)
+    return {
+      tone: "danger",
+      text: t("count.failed", { amount: counts.error.toLocaleString(locale), count: counts.error }),
+    };
+  if (progress?.status === "cancelled") return { tone: "warn", text: t("status.stopped") };
+  if (!checked) return { tone: "info", text: t("status.unchecked") };
   const pending = counts.upload + counts.download;
-  if (pending > 0) return { tone: "warn", text: `${pending} 个待同步` };
-  return { tone: "ok", text: counts.total > 0 ? "全部已同步" : "无资源文件" };
+  if (pending > 0)
+    return {
+      tone: "warn",
+      text: t("count.pending", { amount: pending.toLocaleString(locale), count: pending }),
+    };
+  return { tone: "ok", text: counts.total > 0 ? t("resource.allSynced") : t("resource.noFiles") };
 }

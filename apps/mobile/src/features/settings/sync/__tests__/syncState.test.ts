@@ -1,3 +1,4 @@
+import { syncMessages } from "../i18n";
 import { createI18nRuntime, createLocaleStore } from "@tau/i18n";
 import { afterAll } from "vitest";
 import { storageMessages } from "../../storage/i18n";
@@ -20,23 +21,23 @@ const base = { versions: null, syncing: false, checking: false, errorMessage: nu
 
 describe("deriveSyncHero", () => {
   it("按版本对比给出用户语言与主按钮方向", () => {
-    expect(deriveSyncHero({ ...base, versions: versions(7, 9) })).toMatchObject({
+    expect(deriveSyncHero({ ...base, versions: versions(7, 9) }, syncLanguage)).toMatchObject({
       title: "云端有更新",
       primaryLabel: "下载更新",
       primaryAction: "download",
     });
-    expect(deriveSyncHero({ ...base, versions: versions(9, 7) })).toMatchObject({
+    expect(deriveSyncHero({ ...base, versions: versions(9, 7) }, syncLanguage)).toMatchObject({
       title: "本机版本更新",
       primaryAction: "upload",
     });
-    expect(deriveSyncHero({ ...base, versions: versions(0, 0) })).toMatchObject({
+    expect(deriveSyncHero({ ...base, versions: versions(0, 0) }, syncLanguage)).toMatchObject({
       title: "尚未同步",
       primaryAction: "upload",
     });
   });
 
   it("版本一致时仍可立即同步，但主按钮降为次级", () => {
-    expect(deriveSyncHero({ ...base, versions: versions(5, 5) })).toMatchObject({
+    expect(deriveSyncHero({ ...base, versions: versions(5, 5) }, syncLanguage)).toMatchObject({
       tone: "ok",
       title: "已是最新",
       primaryAction: "smart",
@@ -45,33 +46,45 @@ describe("deriveSyncHero", () => {
   });
 
   it("同步中与出错优先于版本状态", () => {
-    expect(deriveSyncHero({ ...base, versions: versions(5, 5), syncing: true }).tone).toBe("run");
     expect(
-      deriveSyncHero({ ...base, versions: versions(5, 5), errorMessage: "403 拒绝访问" })
+      deriveSyncHero({ ...base, versions: versions(5, 5), syncing: true }, syncLanguage).tone
+    ).toBe("run");
+    expect(
+      deriveSyncHero(
+        { ...base, versions: versions(5, 5), errorMessage: "403 拒绝访问" },
+        syncLanguage
+      )
     ).toMatchObject({ tone: "error", description: "403 拒绝访问", primaryAction: "check" });
   });
 
   it("未检查过版本时引导检查云端", () => {
-    expect(deriveSyncHero(base)).toMatchObject({ title: "尚未检查", primaryAction: "check" });
-    expect(deriveSyncHero({ ...base, checking: true }).title).toBe("正在检查云端…");
+    expect(deriveSyncHero(base, syncLanguage)).toMatchObject({
+      title: "尚未检查",
+      primaryAction: "check",
+    });
+    expect(deriveSyncHero({ ...base, checking: true }, syncLanguage).title).toBe("正在检查云端…");
   });
 });
 
 describe("overwriteAvailability", () => {
   it("覆盖较新一侧不拦截，只给出警示", () => {
-    expect(overwriteAvailability(versions(3, 5), "upload")).toEqual({
+    expect(overwriteAvailability(versions(3, 5), "upload", syncLanguage)).toEqual({
       enabled: true,
       reason: null,
       warning: "云端版本比本机新，其他设备上传的修改会丢失。",
     });
-    expect(overwriteAvailability(versions(5, 3), "download").warning).toContain("本机版本比云端新");
-    expect(overwriteAvailability(versions(5, 5), "upload").warning).toBeNull();
-    expect(overwriteAvailability(versions(5, 5), "download").enabled).toBe(true);
+    expect(overwriteAvailability(versions(5, 3), "download", syncLanguage).warning).toContain(
+      "本机版本比云端新"
+    );
+    expect(overwriteAvailability(versions(5, 5), "upload", syncLanguage).warning).toBeNull();
+    expect(overwriteAvailability(versions(5, 5), "download", syncLanguage).enabled).toBe(true);
   });
 
   it("未检查或云端为空时不可下载", () => {
-    expect(overwriteAvailability(null, "upload").enabled).toBe(false);
-    expect(overwriteAvailability(versions(0, 0), "download").reason).toBe("云端还没有数据");
+    expect(overwriteAvailability(null, "upload", syncLanguage).enabled).toBe(false);
+    expect(overwriteAvailability(versions(0, 0), "download", syncLanguage).reason).toBe(
+      "云端还没有数据"
+    );
   });
 });
 
@@ -105,3 +118,5 @@ describe("上次同步时间", () => {
 const runtime = createI18nRuntime({ localeSource: createLocaleStore("zh-CN") });
 const language = { locale: "zh-CN", t: runtime.get(storageMessages).t };
 afterAll(() => runtime.dispose());
+
+const syncLanguage = { locale: "zh-CN", t: runtime.get(syncMessages).t };

@@ -1,3 +1,4 @@
+import { syncTranslator, useSyncI18n } from "../sync/i18n";
 import { localDatabaseVersion } from "@tau/db-schema/sync-protocol";
 /**
  * 本地数据库 —— 同步页第三个 Tab（从 legacy AppAbout「数据库管理」迁入：
@@ -34,6 +35,7 @@ const displayName = (name: string) => name.replace(/\.db$/i, "");
 const normalizeName = (name: string) => (name.endsWith(".db") ? name : `${name}.db`);
 
 export function LocalDatabasePanel() {
+  useSyncI18n();
   const { active, databases } = useSettingStore(s => s.setting.database);
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -68,7 +70,7 @@ export function LocalDatabasePanel() {
         draft.database.active = name;
       }),
     }));
-    toast.success(`已创建并切换到 ${displayName(name)}`);
+    toast.success(syncTranslator.t("database.created", { name: displayName(name) }));
     setCreateOpen(false);
   };
 
@@ -84,9 +86,14 @@ export function LocalDatabasePanel() {
       await closeDatabase(name);
       const path = await getDatabasePath(name);
       if (path) await removeFile(path);
-      toast.success(`已删除 ${displayName(name)}`);
+      toast.success(syncTranslator.t("database.deleted", { name: displayName(name) }));
     } catch (error) {
-      toast.error(`删除数据库文件失败：${error instanceof Error ? error.message : String(error)}`);
+      toast.error(
+        syncTranslator.t("error.withReason", {
+          reason: error instanceof Error ? error.message : String(error),
+          message: syncTranslator.t("database.deleteError"),
+        })
+      );
     }
   };
 
@@ -94,30 +101,39 @@ export function LocalDatabasePanel() {
 
   return (
     <>
-      <SettingsGroup title="当前数据库" description="为不同用途维护独立的数据空间">
+      <SettingsGroup
+        title={syncTranslator.t("database.current")}
+        description={syncTranslator.t("database.description")}
+      >
         <SettingRow
-          title="数据库"
+          title={syncTranslator.t("database")}
           description={
             activePath ? <span className="font-tau-mono break-all">{activePath}</span> : active
           }
         >
           <Select
-            aria-label="当前数据库"
+            aria-label={syncTranslator.t("database.current")}
             className="w-[200px]"
             value={active}
             options={databases.map(db => ({ value: db.name, label: displayName(db.name) }))}
             onValueChange={v => switchDatabase(v)}
           />
         </SettingRow>
-        <SettingRow title="新建数据库" description="名称会自动保存为 .db 文件，创建后设为当前">
+        <SettingRow
+          title={syncTranslator.t("database.create")}
+          description={syncTranslator.t("database.createHint")}
+        >
           <Button variant="secondary" size="sm" icon={Plus} onClick={() => setCreateOpen(true)}>
-            新建
+            {syncTranslator.t("action.new")}
           </Button>
         </SettingRow>
       </SettingsGroup>
 
       {others.length > 0 && (
-        <SettingsGroup title="其他数据库" description="非当前数据库可删除，删除后文件无法恢复">
+        <SettingsGroup
+          title={syncTranslator.t("database.others")}
+          description={syncTranslator.t("database.deleteHint")}
+        >
           {others.map(db => (
             <div
               key={db.name}
@@ -130,10 +146,12 @@ export function LocalDatabasePanel() {
                 <div className="text-tau-body-lg text-ink-1 truncate font-medium">
                   {displayName(db.name)}
                 </div>
-                <div className="text-tau-meta text-ink-2">版本 {localDatabaseVersion(db)}</div>
+                <div className="text-tau-meta text-ink-2">
+                  {syncTranslator.t("database.version", { version: localDatabaseVersion(db) })}
+                </div>
               </div>
               <IconButton
-                aria-label={`删除数据库：${displayName(db.name)}`}
+                aria-label={syncTranslator.t("database.deleteAria", { name: displayName(db.name) })}
                 onClick={() => setDeleteTarget(db.name)}
               >
                 <Trash2 size={15} strokeWidth={1.75} />
@@ -144,22 +162,22 @@ export function LocalDatabasePanel() {
       )}
 
       <SettingsNote icon={<Info size={14} strokeWidth={1.75} />}>
-        拉取远程数据库前，原文件会自动备份到 backup 文件夹
+        {syncTranslator.t("database.backupHint")}
       </SettingsNote>
 
       <Dialog
         open={createOpen}
         onOpenChange={setCreateOpen}
         onAfterClose={() => setNewName("")}
-        title="新建数据库"
-        subtitle="系统会自动追加 .db 后缀，如已输入则保持不变"
+        title={syncTranslator.t("database.create")}
+        subtitle={syncTranslator.t("database.suffixHint")}
         footer={
           <>
             <Button variant="secondary" onClick={() => setCreateOpen(false)}>
-              取消
+              {syncTranslator.t("action.cancel")}
             </Button>
             <Button variant="primary" disabled={!trimmed || duplicate} onClick={handleCreate}>
-              创建
+              {syncTranslator.t("action.create")}
             </Button>
           </>
         }
@@ -167,13 +185,13 @@ export function LocalDatabasePanel() {
         <DialogBody>
           <div className="flex flex-col gap-1.5">
             <label className="text-tau-sm text-ink-2" htmlFor="new-database-name">
-              数据库名称
+              {syncTranslator.t("database.name")}
             </label>
             <Input
               id="new-database-name"
               autoFocus
               value={newName}
-              placeholder="例如：work-notes"
+              placeholder={syncTranslator.t("database.placeholder")}
               spellCheck={false}
               aria-invalid={duplicate || undefined}
               onChange={e => setNewName(e.target.value)}
@@ -181,7 +199,11 @@ export function LocalDatabasePanel() {
                 if (e.key === "Enter") handleCreate();
               }}
             />
-            {duplicate && <div className="text-tau-meta text-danger">同名数据库已存在</div>}
+            {duplicate && (
+              <div className="text-tau-meta text-danger">
+                {syncTranslator.t("database.duplicate")}
+              </div>
+            )}
           </div>
         </DialogBody>
       </Dialog>
@@ -191,12 +213,12 @@ export function LocalDatabasePanel() {
         onOpenChange={open => {
           if (!open) setDeleteTarget(null);
         }}
-        title="删除数据库"
+        title={syncTranslator.t("database.delete")}
         context={deleteTarget ? displayName(deleteTarget) : undefined}
         danger
-        description="数据库文件将被删除。"
-        impact="数据无法恢复"
-        confirmText="删除"
+        description={syncTranslator.t("database.deleteWarning")}
+        impact={syncTranslator.t("database.irreversible")}
+        confirmText={syncTranslator.t("action.delete")}
         onConfirm={handleDelete}
       />
     </>

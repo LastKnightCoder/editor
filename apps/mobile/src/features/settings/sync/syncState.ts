@@ -1,6 +1,7 @@
 // 数据库同步中心的状态推导：把版本对比翻译成用户语言与主按钮方向（纯函数，便于单测）。
 // 版本号只反映「谁上传过新快照」，不追踪本机未上传的编辑，因此版本相等时主按钮仍是「立即同步」（上传）。
 
+import type { SyncLocale } from "./i18n";
 import type { SyncVersionResponse } from "../../../types";
 
 export type SyncTone = "ok" | "warn" | "run" | "error" | "idle";
@@ -25,14 +26,15 @@ export type SyncHeroInput = {
   errorMessage: string | null;
 };
 
-export function deriveSyncHero(input: SyncHeroInput): SyncHeroState {
+export function deriveSyncHero(input: SyncHeroInput, language: SyncLocale): SyncHeroState {
+  const { t } = language;
   if (input.syncing) {
     return {
       tone: "run",
       icon: "sync",
-      title: "正在同步…",
-      description: "可以离开此页，完成后会提示",
-      primaryLabel: "同步中",
+      title: t("hero.syncing"),
+      description: t("hero.background"),
+      primaryLabel: t("status.syncing"),
       primaryAction: "smart",
       primaryEmphasis: false,
     };
@@ -41,9 +43,9 @@ export function deriveSyncHero(input: SyncHeroInput): SyncHeroState {
     return {
       tone: "error",
       icon: "error",
-      title: "连接失败",
+      title: t("hero.connectionFailed"),
       description: input.errorMessage,
-      primaryLabel: "重试",
+      primaryLabel: t("action.retry"),
       primaryAction: "check",
       primaryEmphasis: false,
     };
@@ -53,9 +55,9 @@ export function deriveSyncHero(input: SyncHeroInput): SyncHeroState {
     return {
       tone: "idle",
       icon: "cloud",
-      title: input.checking ? "正在检查云端…" : "尚未检查",
-      description: "检查云端是否有其他设备的新版本",
-      primaryLabel: "检查云端",
+      title: input.checking ? t("hero.checking") : t("hero.unchecked"),
+      description: t("hero.checkHint"),
+      primaryLabel: t("action.checkCloud"),
       primaryAction: "check",
       primaryEmphasis: true,
     };
@@ -64,9 +66,9 @@ export function deriveSyncHero(input: SyncHeroInput): SyncHeroState {
     return {
       tone: "idle",
       icon: "upload",
-      title: "尚未同步",
-      description: "云端还没有数据，上传本机数据库后其他设备即可下载",
-      primaryLabel: "上传本机数据库",
+      title: t("hero.notSynced"),
+      description: t("hero.noRemoteHint"),
+      primaryLabel: t("action.uploadLocal"),
       primaryAction: "upload",
       primaryEmphasis: true,
     };
@@ -75,9 +77,9 @@ export function deriveSyncHero(input: SyncHeroInput): SyncHeroState {
     return {
       tone: "warn",
       icon: "download",
-      title: "云端有更新",
-      description: "其他设备上传了新版本，下载后即可看到",
-      primaryLabel: "下载更新",
+      title: t("hero.remoteNewer"),
+      description: t("hero.remoteNewerHint"),
+      primaryLabel: t("action.downloadUpdate"),
       primaryAction: "download",
       primaryEmphasis: true,
     };
@@ -86,9 +88,9 @@ export function deriveSyncHero(input: SyncHeroInput): SyncHeroState {
     return {
       tone: "warn",
       icon: "upload",
-      title: "本机版本更新",
-      description: "上传后其他设备即可看到",
-      primaryLabel: "上传改动",
+      title: t("hero.localNewer"),
+      description: t("hero.localNewerHint"),
+      primaryLabel: t("action.uploadChanges"),
       primaryAction: "upload",
       primaryEmphasis: true,
     };
@@ -96,9 +98,9 @@ export function deriveSyncHero(input: SyncHeroInput): SyncHeroState {
   return {
     tone: "ok",
     icon: "check",
-    title: "已是最新",
-    description: "云端没有其他设备的新版本",
-    primaryLabel: "立即同步",
+    title: t("status.latest"),
+    description: t("hero.latestHint"),
+    primaryLabel: t("action.syncNow"),
     primaryAction: "smart",
     primaryEmphasis: false,
   };
@@ -107,19 +109,21 @@ export function deriveSyncHero(input: SyncHeroInput): SyncHeroState {
 /** 整库覆盖能否执行；覆盖较新一侧时不拦截，只给出确认时的警示 */
 export function overwriteAvailability(
   versions: SyncVersionResponse | null,
-  direction: "upload" | "download"
+  direction: "upload" | "download",
+  language: SyncLocale
 ): { enabled: boolean; reason: string | null; warning: string | null } {
+  const { t } = language;
   if (!versions) {
-    return { enabled: false, reason: "请先检查云端版本", warning: null };
+    return { enabled: false, reason: t("overwrite.checkFirst"), warning: null };
   }
   if (direction === "download" && versions.remoteVersion === 0) {
-    return { enabled: false, reason: "云端还没有数据", warning: null };
+    return { enabled: false, reason: t("overwrite.remoteEmpty"), warning: null };
   }
   if (direction === "upload" && versions.remoteVersion > versions.localVersion) {
-    return { enabled: true, reason: null, warning: "云端版本比本机新，其他设备上传的修改会丢失。" };
+    return { enabled: true, reason: null, warning: t("overwrite.remoteNewerWarning") };
   }
   if (direction === "download" && versions.localVersion > versions.remoteVersion) {
-    return { enabled: true, reason: null, warning: "本机版本比云端新，本机未上传的修改会丢失。" };
+    return { enabled: true, reason: null, warning: t("overwrite.localNewerWarning") };
   }
   return { enabled: true, reason: null, warning: null };
 }

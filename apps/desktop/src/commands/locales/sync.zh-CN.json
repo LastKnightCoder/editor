@@ -1,0 +1,15 @@
+{
+  "configure": "请先配置同步设置",
+  "directory": "请先设置数据库目录",
+  "newerRemote": "云端 v{{version}} 比本机新，已跳过自动上传",
+  "lockFailed": "数据库会话锁定失败",
+  "sessionsReadFailed": "读取对话记录失败",
+  "indexIncomplete": "对话记录索引不完整",
+  "manifestUploadFailed": "对话记录清单上传失败",
+  "versionUploadFailed": "版本信息上传失败",
+  "localSessionsReadFailed": "读取本地会话列表失败",
+  "installFailed": "替换本地数据库失败",
+  "uploadFailed": "上传数据库失败：{{reason}}",
+  "downloadFailed": "下载数据库失败：{{reason}}",
+  "remoteMissing": "云端还没有这个数据库，请先在另一台设备上传"
+}

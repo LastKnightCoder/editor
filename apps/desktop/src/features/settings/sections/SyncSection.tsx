@@ -1,5 +1,7 @@
 /** 同步操作由客户端负责，存储配置由启用的同步插件提供。 */
 
+import { formatDatabaseSyncStatus, type DatabaseSyncStatus } from "@tau/shared/sync-progress";
+import { syncTranslator, useSyncI18n } from "../sync/i18n";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CloudUpload, Database, Download, RefreshCw } from "lucide-react";
@@ -23,6 +25,7 @@ import { useResourceSyncModel, type FileFilter } from "./useResourceSyncModel";
 type SyncTab = "overview" | "database";
 
 export function SyncSection() {
+  const { locale } = useSyncI18n();
   const queryClient = useQueryClient();
   const setting = useSettingStore(s => s.setting);
   const { sync, database } = setting;
@@ -35,7 +38,7 @@ export function SyncSection() {
 
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncPercent, setSyncPercent] = useState(0);
-  const [syncStatus, setSyncStatus] = useState("");
+  const [syncStatus, setSyncStatus] = useState<DatabaseSyncStatus | null>(null);
   const [syncDirection, setSyncDirection] = useState<"upload" | "download" | null>(null);
   const [isChecking, setIsChecking] = useState(false);
   const [downloadConfirmOpen, setDownloadConfirmOpen] = useState(false);
@@ -80,7 +83,7 @@ export function SyncSection() {
     setIsSyncing(true);
     setSyncDirection("upload");
     setSyncPercent(0);
-    setSyncStatus("正在准备上传...");
+    setSyncStatus({ kind: "prepare-upload" });
     try {
       const ok = await upload({
         onProgress: ({ value, status }) => {
@@ -96,14 +99,19 @@ export function SyncSection() {
               .setting.database.databases.find(item => item.name === database.active)
           ),
         });
-        toast.success("同步成功");
+        toast.success(syncTranslator.t("feedback.synced"));
         // 用量记录搭车同步，后台跑、失败只记在用量统计页
         void runUsageSync();
       } else {
-        toast.error("同步失败");
+        toast.error(syncTranslator.t("error.sync"));
       }
     } catch (error) {
-      toast.error(`同步失败：${error instanceof Error ? error.message : String(error)}`);
+      toast.error(
+        syncTranslator.t("error.withReason", {
+          reason: error instanceof Error ? error.message : String(error),
+          message: syncTranslator.t("error.sync"),
+        })
+      );
     } finally {
       setIsSyncing(false);
       setSyncDirection(null);
@@ -128,12 +136,17 @@ export function SyncSection() {
       const originVersion = remote.version;
       queryClient.setQueryData(remoteKey, remote);
       if (localVersion < originVersion) {
-        toast.success(`远程有新版本 v${originVersion}，可下载更新`);
+        toast.success(syncTranslator.t("feedback.remoteVersion", { version: originVersion }));
       } else {
-        toast.success("已是最新版本");
+        toast.success(syncTranslator.t("feedback.latest"));
       }
     } catch (error) {
-      toast.error(`检查失败：${error instanceof Error ? error.message : String(error)}`);
+      toast.error(
+        syncTranslator.t("error.withReason", {
+          reason: error instanceof Error ? error.message : String(error),
+          message: syncTranslator.t("error.check"),
+        })
+      );
     } finally {
       setIsChecking(false);
     }
@@ -144,7 +157,7 @@ export function SyncSection() {
     setIsSyncing(true);
     setSyncDirection("download");
     setSyncPercent(0);
-    setSyncStatus("正在准备下载...");
+    setSyncStatus({ kind: "prepare-download" });
     try {
       const ok = await download({
         onProgress: ({ value, status }) => {
@@ -154,12 +167,17 @@ export function SyncSection() {
       });
       if (ok) {
         queryClient.setQueryData(remoteKey, remoteQuery.data);
-        toast.success("更新成功，已刷新数据库，原文件已备份至 backup 文件夹");
+        toast.success(syncTranslator.t("feedback.downloaded"));
       } else {
-        toast.error("下载失败");
+        toast.error(syncTranslator.t("error.download"));
       }
     } catch (error) {
-      toast.error(`下载失败：${error instanceof Error ? error.message : String(error)}`);
+      toast.error(
+        syncTranslator.t("error.withReason", {
+          reason: error instanceof Error ? error.message : String(error),
+          message: syncTranslator.t("error.download"),
+        })
+      );
     } finally {
       setIsSyncing(false);
       setSyncDirection(null);
@@ -171,34 +189,40 @@ export function SyncSection() {
   const resourceSync = useResourceSyncModel();
 
   const dbChip = !isConfigured ? (
-    <StatusChip tone="warn">未配置</StatusChip>
+    <StatusChip tone="warn">{syncTranslator.t("status.unconfigured")}</StatusChip>
   ) : !isReady ? (
     <StatusChip tone="warn">
-      {pluginState === "failed" || pluginState === "restart-required" ? "插件不可用" : "准备中"}
+      {pluginState === "failed" || pluginState === "restart-required"
+        ? syncTranslator.t("status.pluginUnavailable")
+        : syncTranslator.t("status.preparing")}
     </StatusChip>
   ) : isSyncing ? (
-    <StatusChip tone="accent">{syncDirection === "download" ? "下载中" : "上传中"}</StatusChip>
+    <StatusChip tone="accent">
+      {syncDirection === "download"
+        ? syncTranslator.t("status.downloading")
+        : syncTranslator.t("status.uploading")}
+    </StatusChip>
   ) : remoteQuery.isFetching ? (
-    <StatusChip tone="accent">检查中</StatusChip>
+    <StatusChip tone="accent">{syncTranslator.t("status.checking")}</StatusChip>
   ) : remoteQuery.isError ? (
-    <StatusChip tone="danger">检查失败</StatusChip>
+    <StatusChip tone="danger">{syncTranslator.t("error.check")}</StatusChip>
   ) : !remoteKnown ? (
-    <StatusChip>未检查</StatusChip>
+    <StatusChip>{syncTranslator.t("status.unchecked")}</StatusChip>
   ) : hasUpdate ? (
-    <StatusChip tone="warn">远程有更新</StatusChip>
+    <StatusChip tone="warn">{syncTranslator.t("status.remoteNewer")}</StatusChip>
   ) : (
-    <StatusChip tone="ok">已是最新</StatusChip>
+    <StatusChip tone="ok">{syncTranslator.t("status.latest")}</StatusChip>
   );
 
   return (
     <>
       <SettingsTabs
-        label="同步视图"
+        label={syncTranslator.t("tabs.label")}
         value={tab}
         onChange={setTab}
         items={[
-          { key: "overview", label: "云端存储" },
-          { key: "database", label: "本地数据库" },
+          { key: "overview", label: syncTranslator.t("tabs.cloud") },
+          { key: "database", label: syncTranslator.t("tabs.local") },
         ]}
       />
 
@@ -209,7 +233,7 @@ export function SyncSection() {
               <Panel pad="none" className="flex min-w-0 flex-col rounded-[14px] px-4 pt-4 pb-3.5">
                 <div className="text-tau-body-lg flex items-center gap-2 font-semibold">
                   <Database size={15} strokeWidth={1.75} className="text-ink-2" />
-                  数据库
+                  {syncTranslator.t("database")}
                   <span className="ml-auto font-normal">{dbChip}</span>
                 </div>
                 <div className="text-tau-meta text-ink-2 mt-0.5 truncate">
@@ -222,20 +246,27 @@ export function SyncSection() {
                 </div>
                 <SyncStats
                   items={[
-                    { label: "本地版本", value: localVersion },
+                    { id: "local", label: syncTranslator.t("version.local"), value: localVersion },
                     {
-                      label: "远程版本",
+                      id: "remote",
+                      label: syncTranslator.t("version.remote"),
                       value: remoteKnown ? remoteVersion : "—",
                       valueClassName: hasUpdate ? "text-accent-text" : !remoteKnown && "text-ink-3",
                     },
                   ]}
                 />
                 {isSyncing && (
-                  <ProgressStatus className="mt-4" value={syncPercent} label={syncStatus} />
+                  <ProgressStatus
+                    className="mt-4"
+                    value={syncPercent}
+                    label={syncStatus ? formatDatabaseSyncStatus(syncStatus, locale) : ""}
+                  />
                 )}
                 <SyncActions>
                   {!isConfigured ? (
-                    <span className="text-tau-meta text-ink-2">在下方选择同步服务后即可同步</span>
+                    <span className="text-tau-meta text-ink-2">
+                      {syncTranslator.t("service.chooseHint")}
+                    </span>
                   ) : hasUpdate ? (
                     <>
                       <Button
@@ -245,18 +276,20 @@ export function SyncSection() {
                         disabled={isSyncing || !isReady}
                         onClick={() => setDownloadConfirmOpen(true)}
                       >
-                        拉取远程
+                        {syncTranslator.t("action.pull")}
                       </Button>
                       <Button
                         variant="secondary"
                         size="sm"
                         icon={CloudUpload}
                         loading={syncDirection === "upload"}
-                        loadingText={`上传中 ${Math.floor(syncPercent)}%`}
+                        loadingText={syncTranslator.t("progress.uploadPercent", {
+                          percent: Math.floor(syncPercent),
+                        })}
                         disabled={isSyncing || !isReady}
                         onClick={() => setForceSyncConfirmOpen(true)}
                       >
-                        强制上传
+                        {syncTranslator.t("action.forceUpload")}
                       </Button>
                     </>
                   ) : (
@@ -266,22 +299,24 @@ export function SyncSection() {
                         size="sm"
                         icon={CloudUpload}
                         loading={isSyncing}
-                        loadingText={`同步中 ${Math.floor(syncPercent)}%`}
+                        loadingText={syncTranslator.t("progress.syncPercent", {
+                          percent: Math.floor(syncPercent),
+                        })}
                         disabled={!isReady || isSyncing}
                         onClick={onSyncClick}
                       >
-                        同步到云端
+                        {syncTranslator.t("action.uploadCloud")}
                       </Button>
                       <Button
                         variant="secondary"
                         size="sm"
                         icon={RefreshCw}
                         loading={isChecking}
-                        loadingText="检查中…"
+                        loadingText={syncTranslator.t("action.checking")}
                         disabled={!isReady || isSyncing}
                         onClick={() => void onCheckUpdate()}
                       >
-                        检查
+                        {syncTranslator.t("action.check")}
                       </Button>
                     </>
                   )}
@@ -301,7 +336,7 @@ export function SyncSection() {
                   pad="none"
                   className="text-tau-meta text-ink-2 grid place-items-center rounded-[14px] px-6 text-center"
                 >
-                  资源文件与数据库共用同一个远端，配置同步存储后即可镜像 resources 目录
+                  {syncTranslator.t("resource.serviceHint")}
                 </Panel>
               )}
             </div>
@@ -317,8 +352,8 @@ export function SyncSection() {
           )}
 
           <SettingsGroup
-            title="同步服务"
-            description="同一时间只同步到一个服务，数据库与资源文件共用"
+            title={syncTranslator.t("service.title")}
+            description={syncTranslator.t("service.description")}
           >
             <ProviderChoiceList
               sections={pluginSections}
@@ -327,7 +362,7 @@ export function SyncSection() {
               from="sync"
               disabled={isSyncing || resourceSync.isSyncing || resourceSync.refreshing}
               probing={switcher.probing}
-              addLabel="添加同步服务"
+              addLabel={syncTranslator.t("service.add")}
               onSelect={(pluginId, title) => void switcher.request(pluginId, title)}
             />
           </SettingsGroup>
@@ -340,31 +375,39 @@ export function SyncSection() {
       <ConfirmDialog
         open={downloadConfirmOpen}
         onOpenChange={setDownloadConfirmOpen}
-        title="下载更新"
+        title={syncTranslator.t("action.downloadUpdate")}
         size="lg"
         context={database.active}
         description={
           syncDirection === "download" ? (
-            <ProgressStatus value={syncPercent} label={syncStatus} />
+            <ProgressStatus
+              value={syncPercent}
+              label={syncStatus ? formatDatabaseSyncStatus(syncStatus, locale) : ""}
+            />
           ) : (
-            `远程 v${remoteVersion} 有新版本，下载后将覆盖本地并刷新。`
+            syncTranslator.t("download.description", { version: remoteVersion })
           )
         }
-        impact="本地当前文件会备份至 backup 文件夹"
-        confirmText="下载"
+        impact={syncTranslator.t("download.backup")}
+        confirmText={syncTranslator.t("action.download")}
         confirmDisabled={isSyncing || !isReady}
-        loadingText={`下载中 ${Math.floor(syncPercent)}%`}
+        loadingText={syncTranslator.t("progress.downloadPercent", {
+          percent: Math.floor(syncPercent),
+        })}
         onConfirm={onDownload}
       />
       <ConfirmDialog
         open={forceSyncConfirmOpen}
         onOpenChange={setForceSyncConfirmOpen}
-        title="强制同步"
+        title={syncTranslator.t("action.forceSync")}
         context={database.active}
         danger
-        description={`本地 v${localVersion} 落后于远程 v${remoteVersion}，继续同步将以本地内容覆盖远端。`}
-        impact="远端新版本的变更将丢失"
-        confirmText="强制同步"
+        description={syncTranslator.t("overwrite.forceDescription", {
+          local: localVersion,
+          remote: remoteVersion,
+        })}
+        impact={syncTranslator.t("overwrite.remoteLoss")}
+        confirmText={syncTranslator.t("action.forceSync")}
         confirmDisabled={isSyncing || !isReady}
         onConfirm={doUpload}
       />

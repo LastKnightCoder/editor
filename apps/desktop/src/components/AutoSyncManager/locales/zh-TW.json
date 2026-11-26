@@ -1,0 +1,7 @@
+{
+  "closeFailed": "自動同步失敗，正在直接關閉應用程式",
+  "upload.title": "正在自動同步資料",
+  "upload.description": "應用程式將在同步完成後自動關閉，請稍候。",
+  "download.title": "正在下載遠端資料",
+  "download.description": "偵測到雲端有新的資料庫版本，正在下載並重新載入資料。"
+}

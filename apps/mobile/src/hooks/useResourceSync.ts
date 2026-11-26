@@ -8,7 +8,7 @@ import type {
 import * as tauri from "../services/tauri";
 import { getMobileSettingSnapshot } from "../services/mobileSettingsBridge";
 import { waitForMobilePluginReady } from "../app/plugins/content";
-import { resolveSyncErrorMessage } from "../features/settings/sync/syncErrors";
+import { parseInvokeError } from "../services/errors";
 
 const POLL_INTERVAL_MS = 1000;
 
@@ -57,11 +57,13 @@ export function useResourceSync() {
   });
 
   const recordError = useMemoizedFn((error: unknown) => {
+    const parsed = parseInvokeError(error);
     setProgress(previous => ({
       ...previous,
       status: "error",
       currentFile: null,
-      errorMessage: resolveSyncErrorMessage(error, "资源同步失败，请重试"),
+      errorMessage: parsed.message,
+      errorCode: parsed.code || "RESOURCE_SYNC_FAILED",
     }));
   });
 

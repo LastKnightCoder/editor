@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 use serde_json::{json, Value};
 use tauri::AppHandle;
 
-use crate::models::{SyncActionResponse, SyncProgress, SyncVersionResponse};
+use crate::models::{DatabaseSyncStatus, SyncActionResponse, SyncProgress, SyncVersionResponse};
 use crate::plugin_files::TemporaryFile;
 use crate::setting::{set_database_version, update_setting_value};
 use tauri::ipc::Channel;
@@ -25,16 +25,6 @@ async fn read_remote_version(provider: &SyncProvider, object: &str) -> Result<u6
         )
     })?;
     Ok(info["version"].as_u64().unwrap_or(0))
-}
-
-fn format_transfer_bytes(bytes: u64) -> String {
-    if bytes < 1024 {
-        format!("{bytes} B")
-    } else if bytes < 1048576 {
-        format!("{:.2} KiB", bytes as f64 / 1024.0)
-    } else {
-        format!("{:.2} MiB", bytes as f64 / 1048576.0)
-    }
 }
 
 fn version_payload(version: u64) -> Vec<u8> {
@@ -120,10 +110,10 @@ async fn sync_upload_database_impl(
     app: AppHandle,
     on_progress: Channel<SyncProgress>,
 ) -> SyncActionResponse {
-    let report = |value: f64, status: String| {
+    let report = |value: f64, status: DatabaseSyncStatus| {
         let _ = on_progress.send(SyncProgress { value, status });
     };
-    report(0.0, "正在准备上传...".into());
+    report(0.0, DatabaseSyncStatus::PrepareUpload);
     let started = Instant::now();
     let ctx = match build_sync_context(&app) {
         Ok(ctx) => ctx,
@@ -147,7 +137,7 @@ async fn sync_upload_database_impl(
         Ok(value) => value,
         Err(error) => return fail(0, AppError::new("AI_LIBRARY_BUSY", error)),
     };
-    report(1.0, "正在检查本地对话记录...".into());
+    report(1.0, DatabaseSyncStatus::CheckLocalSessions);
     let sessions = match crate::setting::resolve_app_dir(&app).and_then(|root| {
         crate::ai::store::Store {
             root,
@@ -183,7 +173,7 @@ async fn sync_upload_database_impl(
         );
     }
     let snapshot_started = Instant::now();
-    report(3.0, "正在创建数据库快照...".into());
+    report(3.0, DatabaseSyncStatus::CreateSnapshot);
     crate::logger::info(format!("[sync] snapshot-start db={}", ctx.database_name));
     let snapshot = match TemporaryFile::new(&app)
         .and_then(|snapshot| create_database_snapshot(&ctx.database_path, snapshot))
@@ -222,11 +212,7 @@ async fn sync_upload_database_impl(
                 };
                 report(
                     5.0 + fraction * 55.0,
-                    format!(
-                        "正在上传数据库文件 · {:.1} / {:.1} MiB",
-                        done as f64 / 1048576.0,
-                        total as f64 / 1048576.0
-                    ),
+                    DatabaseSyncStatus::UploadDatabaseProgress { done, total },
                 );
             },
         )
@@ -243,14 +229,13 @@ async fn sync_upload_database_impl(
         &plan,
         &|fraction, done, total| {
             let skipped = sessions.len() - total;
-            let detail = if skipped == 0 {
-                String::new()
-            } else {
-                format!("，已跳过 {skipped} 个未变化文件")
-            };
             report(
                 60.0 + fraction * 30.0,
-                format!("正在上传对话记录 · {done} / {total} 个{detail}"),
+                DatabaseSyncStatus::UploadSessionsProgress {
+                    done: done as u64,
+                    total: total as u64,
+                    skipped: skipped as u64,
+                },
             );
         },
     )
@@ -258,7 +243,7 @@ async fn sync_upload_database_impl(
     {
         return fail(remote_version, AppError::new("SYNC_UPLOAD_FAILED", error));
     }
-    report(92.0, "正在复核云端版本...".into());
+    report(92.0, DatabaseSyncStatus::VerifyRemote);
     match read_remote_version(&ctx.provider, &ctx.version_object_name).await {
         Ok(version) if version == remote_version => {}
         Ok(version) => {
@@ -272,7 +257,7 @@ async fn sync_upload_database_impl(
         }
         Err(error) => return fail(remote_version, error),
     }
-    report(95.0, "正在发布版本信息...".into());
+    report(95.0, DatabaseSyncStatus::PublishVersion);
     if let Err(error) = ctx
         .provider
         .upload(&ctx.version_object_name, &version_payload(next_version))
@@ -280,7 +265,7 @@ async fn sync_upload_database_impl(
     {
         return fail(remote_version, error);
     }
-    report(98.0, "正在保存本机同步状态...".into());
+    report(98.0, DatabaseSyncStatus::SaveState);
     if let Err(error) = save_local_version(&app, &ctx, next_version) {
         return fail(next_version, error);
     }
@@ -295,7 +280,7 @@ async fn sync_upload_database_impl(
         ctx.database_name,
         started.elapsed().as_millis()
     ));
-    report(100.0, "上传完成".into());
+    report(100.0, DatabaseSyncStatus::UploadComplete);
     response_ok(
         &ctx.database_name,
         next_version,
@@ -340,10 +325,10 @@ async fn sync_download_database_impl(
     app: AppHandle,
     on_progress: Channel<SyncProgress>,
 ) -> SyncActionResponse {
-    let report = |value: f64, status: String| {
+    let report = |value: f64, status: DatabaseSyncStatus| {
         let _ = on_progress.send(SyncProgress { value, status });
     };
-    report(0.0, "正在准备下载...".into());
+    report(0.0, DatabaseSyncStatus::PrepareDownload);
     let ctx = match build_sync_context(&app) {
         Ok(ctx) => ctx,
         Err(error) => return response_err(DEFAULT_DB_NAME, 0, 0, error),
@@ -377,7 +362,7 @@ async fn sync_download_database_impl(
             ),
         );
     }
-    report(5.0, "正在读取云端数据库清单...".into());
+    report(5.0, DatabaseSyncStatus::ReadDatabaseManifest);
     let data_object = crate::chunked_sync::database_file_object(&ctx.database_name);
     let downloaded = match ctx
         .provider
@@ -389,11 +374,7 @@ async fn sync_download_database_impl(
             };
             report(
                 5.0 + fraction * 55.0,
-                format!(
-                    "正在下载数据库文件 · {:.1} / {:.1} MiB",
-                    done as f64 / 1048576.0,
-                    total as f64 / 1048576.0
-                ),
+                DatabaseSyncStatus::DownloadDatabase { done, total },
             );
         })
         .await
@@ -401,7 +382,7 @@ async fn sync_download_database_impl(
         Ok(file) => file,
         Err(error) => return fail(remote_version, AppError::new("SYNC_DOWNLOAD_FAILED", error)),
     };
-    report(60.0, "正在读取对话记录清单...".into());
+    report(60.0, DatabaseSyncStatus::ReadSessionsManifest);
     let downloaded_sessions = match crate::ai::sync::download(
         &app,
         &ctx.database_name,
@@ -409,11 +390,12 @@ async fn sync_download_database_impl(
         &|fraction, done, total, reused, downloaded| {
             report(
                 60.0 + fraction * 25.0,
-                format!(
-                    "正在同步对话记录 · 已处理 {done} / {total} 个 · 本地复用 {} · 已下载 {}",
-                    format_transfer_bytes(reused),
-                    format_transfer_bytes(downloaded)
-                ),
+                DatabaseSyncStatus::DownloadSessions {
+                    done: done as u64,
+                    total: total as u64,
+                    reused,
+                    downloaded,
+                },
             );
         },
     )
@@ -422,7 +404,7 @@ async fn sync_download_database_impl(
         Ok(sessions) => sessions,
         Err(error) => return fail(remote_version, AppError::new("SYNC_DOWNLOAD_FAILED", error)),
     };
-    report(85.0, "正在复核云端版本...".into());
+    report(85.0, DatabaseSyncStatus::VerifyRemote);
     match read_remote_version(&ctx.provider, &ctx.version_object_name).await {
         Ok(version) if version == remote_version => {}
         Ok(version) => {
@@ -436,7 +418,7 @@ async fn sync_download_database_impl(
         }
         Err(error) => return fail(remote_version, error),
     }
-    report(90.0, "正在备份并替换本地数据库...".into());
+    report(90.0, DatabaseSyncStatus::BackupReplace);
     if let Err(err) = crate::database::install_download(
         &app,
         &ctx.database_name,
@@ -451,7 +433,7 @@ async fn sync_download_database_impl(
             AppError::new("SYNC_INSTALL_FAILED", format!("替换本地数据库失败: {err}")),
         );
     }
-    report(95.0, "正在更新本地索引与版本...".into());
+    report(95.0, DatabaseSyncStatus::UpdateIndexVersion);
     crate::ai::lifecycle::invalidate_database(&ctx.database_name);
     // 主库已被远端内容替换，本地索引的 ID 空间整体失效，重置后按需全量重建
     if let Err(err) = crate::database::reset_index_database(&app, &ctx.database_name) {
@@ -483,7 +465,7 @@ async fn sync_download_database_impl(
         }
     }
     crate::database::trigger_reconcile_for_database(&app, &ctx.database_name);
-    report(100.0, "下载完成".into());
+    report(100.0, DatabaseSyncStatus::DownloadComplete);
     response_ok(
         &ctx.database_name,
         remote_version,

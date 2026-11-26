@@ -1,8 +1,10 @@
 // 同步中心：状态卡回答「数据库同步了没」，拇指区一个主按钮（同步数据库后顺带同步资源文件），
 // 服务 / 数据库 / 资源文件 / 整库覆盖下沉为普通行。资源文件跟随同一个同步服务。
 
+import { formatDatabaseSyncStatus } from "@tau/shared/sync-progress";
+import { syncTranslator, syncCount, useSyncI18n, syncDisplayContext } from "./i18n";
 import { formatRelativeTime } from "../storage/format";
-import { storageDisplayContext, useStorageI18n } from "../storage/i18n";
+import { storageDisplayContext } from "../storage/i18n";
 import { useEffect, useState } from "react";
 import { ProgressStatus } from "@tau/ui";
 import {
@@ -34,7 +36,7 @@ import { GroupCard, GroupRow, LetterTile } from "../components/ui";
 import { ActionButton } from "../storage/fields";
 import { useSyncProviders } from "./providers";
 import { countResources, resourceBadge, resourceSummary } from "./resourceState";
-import { resolveSyncErrorMessage } from "./syncErrors";
+import { syncFailureText, type SyncFailure } from "./syncErrors";
 import { deriveSyncHero, readLastSyncTime, type SyncHeroState, type SyncTone } from "./syncState";
 
 export type SyncCenterProps = {
@@ -69,6 +71,7 @@ const ORB_TONE: Record<SyncTone, string> = {
 };
 
 function HeroIcon(props: { icon: SyncHeroState["icon"] }) {
+  useSyncI18n();
   const common = { size: 34, strokeWidth: 1.9, "aria-hidden": true } as const;
   switch (props.icon) {
     case "check":
@@ -91,6 +94,7 @@ function SyncHero(props: {
   lastSyncText: string | null;
   versions: SyncVersionResponse | null;
 }) {
+  useSyncI18n();
   return (
     <section className="setting-group px-[18px] pt-6 pb-4 text-center">
       <span
@@ -102,14 +106,20 @@ function SyncHero(props: {
         {props.hero.title}
       </h2>
       <p className="text-ink-2 text-tau-sm mt-1 leading-relaxed">{props.hero.description}</p>
-      <p className="text-ink-3 text-tau-sm mt-1">以上为数据库状态，图片与附件见下方资源文件</p>
+      <p className="text-ink-3 text-tau-sm mt-1">{syncTranslator.t("hero.databaseHint")}</p>
       {props.lastSyncText && (
-        <p className="text-ink-2 text-tau-sm leading-relaxed">上次同步 {props.lastSyncText}</p>
+        <p className="text-ink-2 text-tau-sm leading-relaxed">
+          {syncTranslator.t("hero.lastSync", { time: props.lastSyncText })}
+        </p>
       )}
       {props.versions && (
         <p className="text-ink-3 text-tau-sm mt-3 flex justify-center gap-3.5 tabular-nums">
-          <span>本机 v{props.versions.localVersion}</span>
-          <span>云端 v{props.versions.remoteVersion}</span>
+          <span>
+            {syncTranslator.t("hero.localVersion", { version: props.versions.localVersion })}
+          </span>
+          <span>
+            {syncTranslator.t("hero.remoteVersion", { version: props.versions.remoteVersion })}
+          </span>
           <span className="truncate">{props.versions.databaseName}</span>
         </p>
       )}
@@ -119,6 +129,7 @@ function SyncHero(props: {
 
 /** 当前服务未配置：直接给服务选择，而不是一张空状态卡 */
 function FirstRunView(props: { setting: SettingCompat; onOpenProvider: (id: string) => void }) {
+  useSyncI18n();
   const providers = useSyncProviders();
   const navigator = useNavigator();
   return (
@@ -128,16 +139,16 @@ function FirstRunView(props: { setting: SettingCompat; onOpenProvider: (id: stri
           <Cloud size={34} strokeWidth={1.9} aria-hidden="true" />
         </span>
         <h2 className="text-ink-1 text-tau-title-lg font-extrabold tracking-tight">
-          在多台设备间同步
+          {syncTranslator.t("first.title")}
         </h2>
         <p className="text-ink-2 text-tau-sm mt-1 leading-relaxed">
-          选择一个你自己的存储服务，数据只存在你的空间里
+          {syncTranslator.t("first.description")}
         </p>
       </section>
       {props.setting.sync.plugin?.id && (
-        <p className="text-ink-3 text-tau-meta px-4">原有配置已保留，请安装并启用对应服务。</p>
+        <p className="text-ink-3 text-tau-meta px-4">{syncTranslator.t("first.retained")}</p>
       )}
-      <GroupLabel>选择存储服务</GroupLabel>
+      <GroupLabel>{syncTranslator.t("first.choose")}</GroupLabel>
       <GroupCard>
         {providers.map(provider => (
           <GroupRow key={provider.id} onClick={() => props.onOpenProvider(provider.id)}>
@@ -146,7 +157,7 @@ function FirstRunView(props: { setting: SettingCompat; onOpenProvider: (id: stri
               <span className="text-ink-1 text-tau-body block font-medium">{provider.name}</span>
               <span className="text-ink-3 text-tau-sm block truncate">
                 {provider.isConfigured(props.setting)
-                  ? "已配置，未启用"
+                  ? syncTranslator.t("first.configured")
                   : provider.summary(props.setting)}
               </span>
             </span>
@@ -154,7 +165,7 @@ function FirstRunView(props: { setting: SettingCompat; onOpenProvider: (id: stri
           </GroupRow>
         ))}
         <GroupRow onClick={() => navigator.push("plugins", { tab: "store" })}>
-          去插件中心添加同步服务
+          {syncTranslator.t("first.add")}
         </GroupRow>
       </GroupCard>
     </div>
@@ -162,11 +173,12 @@ function FirstRunView(props: { setting: SettingCompat; onOpenProvider: (id: stri
 }
 
 export function SyncCenterSection(props: SyncCenterProps) {
-  useStorageI18n();
+  const { locale } = useSyncI18n();
   const navigator = useNavigator();
   const [checking, setChecking] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [failure, setFailure] = useState<SyncFailure | null>(null);
+  const errorMessage = failure ? syncFailureText(failure) : null;
 
   const providers = useSyncProviders();
   const provider = providers.find(item => item.id === props.setting?.sync.plugin?.id);
@@ -181,10 +193,11 @@ export function SyncCenterSection(props: SyncCenterProps) {
     void props.onResourceSyncRefresh().catch(() => undefined);
     try {
       await props.onCheckVersions();
-      setErrorMessage(null);
+      setFailure(null);
     } catch (error) {
-      const message = resolveSyncErrorMessage(error, "检查云端失败，请检查网络与服务配置");
-      setErrorMessage(message);
+      const nextFailure: SyncFailure = { cause: error, fallback: "error.checkCloud" };
+      const message = syncFailureText(nextFailure);
+      setFailure(nextFailure);
       if (!options?.silent) toast.error(message);
     } finally {
       setChecking(false);
@@ -198,12 +211,15 @@ export function SyncCenterSection(props: SyncCenterProps) {
   }, [configured, props.setting?.sync.plugin?.id, props.setting?.sync.plugin?.configurations]);
   usePageLifecycle({ onResume: () => void check({ silent: true }) });
 
-  const hero = deriveSyncHero({
-    versions: props.versions,
-    syncing,
-    checking,
-    errorMessage,
-  });
+  const hero = deriveSyncHero(
+    {
+      versions: props.versions,
+      syncing,
+      checking,
+      errorMessage,
+    },
+    syncDisplayContext()
+  );
 
   const runPrimary = async () => {
     if (hero.primaryAction === "check") {
@@ -217,20 +233,25 @@ export function SyncCenterSection(props: SyncCenterProps) {
         const latest = await props.onCheckVersions();
         direction = latest.localVersion >= latest.remoteVersion ? "upload" : "download";
       }
-      const result =
-        direction === "upload" ? await props.onSyncUpload() : await props.onSyncDownload();
-      setErrorMessage(null);
-      toast.success(result.message || (direction === "upload" ? "上传完成" : "下载完成"));
+      if (direction === "upload") await props.onSyncUpload();
+      else await props.onSyncDownload();
+      setFailure(null);
+      toast.success(
+        syncTranslator.t(direction === "upload" ? "feedback.uploaded" : "feedback.downloadComplete")
+      );
       // 数据库完成后顺带同步资源文件；它在后台跑，失败会体现在「资源文件」行上
       void props.onResourceSyncStart().catch(error => {
         toast({
           type: "warning",
-          text: `数据库同步成功，资源文件未能开始同步：${resolveSyncErrorMessage(error, "请重试")}`,
+          text: syncTranslator.t("feedback.resourceStartFailed", {
+            reason: syncFailureText({ cause: error, fallback: "error.retry" }),
+          }),
         });
       });
     } catch (error) {
-      const message = resolveSyncErrorMessage(error, "同步失败");
-      setErrorMessage(message);
+      const nextFailure: SyncFailure = { cause: error, fallback: "error.sync" };
+      const message = syncFailureText(nextFailure);
+      setFailure(nextFailure);
       toast.error(message);
     } finally {
       setSubmitting(false);
@@ -259,6 +280,7 @@ export function SyncCenterSection(props: SyncCenterProps) {
   const badge = resourceBadge(
     props.resourceProgress,
     resourceCounts,
+    syncDisplayContext(),
     props.resourceStatusFile !== null
   );
 
@@ -267,14 +289,17 @@ export function SyncCenterSection(props: SyncCenterProps) {
       <SyncHero hero={hero} lastSyncText={lastSyncText} versions={props.versions} />
       {props.isSyncing && props.syncProgress && (
         <div className="setting-group px-[18px] py-4">
-          <ProgressStatus value={props.syncProgress.value} label={props.syncProgress.status} />
+          <ProgressStatus
+            value={props.syncProgress.value}
+            label={formatDatabaseSyncStatus(props.syncProgress.status, locale)}
+          />
         </div>
       )}
 
       <div className="flex gap-2.5 pt-3">
         {hero.tone === "error" && (
           <ActionButton
-            label={`检查 ${provider.name} 配置`}
+            label={syncTranslator.t("provider.check", { name: provider.name })}
             emphasis={false}
             busy={false}
             disabled={busy}
@@ -290,27 +315,29 @@ export function SyncCenterSection(props: SyncCenterProps) {
         />
       </div>
 
-      <GroupLabel>同步到</GroupLabel>
+      <GroupLabel>{syncTranslator.t("service.syncTo")}</GroupLabel>
       <GroupCard>
         <GroupRow onClick={() => navigator.push("syncProviders", {})} disabled={syncing}>
           <LetterTile letter={provider.tile.letter} className={provider.tile.className} />
           <span className="min-w-0 flex-1">
             <span className="text-ink-1 text-tau-body block font-medium">{provider.name}</span>
             <span className="text-ink-3 text-tau-sm block truncate">
-              {syncing ? "同步中不可切换" : provider.summary(props.setting)}
+              {syncing ? syncTranslator.t("service.cannotSwitch") : provider.summary(props.setting)}
             </span>
           </span>
           <ChevronRight size={16} className="text-ink-3" aria-hidden="true" />
         </GroupRow>
       </GroupCard>
 
-      <GroupLabel>内容</GroupLabel>
+      <GroupLabel>{syncTranslator.t("contents")}</GroupLabel>
       <GroupCard>
         <GroupRow onClick={() => props.onOpenModule("databases")} disabled={syncing}>
           <span className="bg-tag-3-soft text-tag-3 grid h-[34px] w-[34px] shrink-0 place-items-center rounded-xl">
             <Database size={17} strokeWidth={1.9} aria-hidden="true" />
           </span>
-          <span className="text-ink-1 text-tau-body min-w-0 flex-1 font-medium">数据库</span>
+          <span className="text-ink-1 text-tau-body min-w-0 flex-1 font-medium">
+            {syncTranslator.t("database")}
+          </span>
           <span className="text-ink-3 text-tau-meta max-w-[45%] truncate">
             {props.activeDatabase}
           </span>
@@ -321,12 +348,16 @@ export function SyncCenterSection(props: SyncCenterProps) {
             <ImageIcon size={17} strokeWidth={1.9} aria-hidden="true" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="text-ink-1 text-tau-body block font-medium">资源文件</span>
+            <span className="text-ink-1 text-tau-body block font-medium">
+              {syncTranslator.t("resource.title")}
+            </span>
             <span className="text-ink-3 text-tau-sm block truncate">
               {props.resourceProgress?.errorMessage ||
                 (props.resourceStatusFile
-                  ? `${resourceCounts.total} 个 · ${resourceSummary(resourceCounts)}`
-                  : "图片与附件 · 尚未检查")}
+                  ? syncCount("resource.row", resourceCounts.total, {
+                      summary: resourceSummary(resourceCounts, syncDisplayContext()),
+                    })
+                  : syncTranslator.t("resource.uncheckedHint"))}
             </span>
           </span>
           {badge && (
@@ -340,13 +371,15 @@ export function SyncCenterSection(props: SyncCenterProps) {
         </GroupRow>
       </GroupCard>
 
-      <GroupLabel>更多</GroupLabel>
+      <GroupLabel>{syncTranslator.t("more")}</GroupLabel>
       <GroupCard>
         <GroupRow onClick={() => props.onOpenModule("sync-overwrite")} disabled={syncing}>
           <span className="bg-tag-5-soft text-tag-5 grid h-[34px] w-[34px] shrink-0 place-items-center rounded-xl">
             <ShieldAlert size={17} strokeWidth={1.9} aria-hidden="true" />
           </span>
-          <span className="text-ink-1 text-tau-body min-w-0 flex-1 font-medium">整库覆盖</span>
+          <span className="text-ink-1 text-tau-body min-w-0 flex-1 font-medium">
+            {syncTranslator.t("overwrite.title")}
+          </span>
           <ChevronRight size={16} className="text-ink-3" aria-hidden="true" />
         </GroupRow>
       </GroupCard>

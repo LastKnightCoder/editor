@@ -1,0 +1,15 @@
+{
+  "configure": "Configure sync first",
+  "directory": "Set a database directory first",
+  "newerRemote": "Cloud version {{version}} is newer. Automatic upload was skipped.",
+  "lockFailed": "Failed to lock database conversations",
+  "sessionsReadFailed": "Failed to read conversations",
+  "indexIncomplete": "The conversation index is incomplete",
+  "manifestUploadFailed": "Failed to upload the conversation manifest",
+  "versionUploadFailed": "Failed to upload version information",
+  "localSessionsReadFailed": "Failed to read local conversations",
+  "installFailed": "Failed to replace the local database",
+  "uploadFailed": "Database upload failed: {{reason}}",
+  "downloadFailed": "Database download failed: {{reason}}",
+  "remoteMissing": "This database is not in the cloud. Upload it from another device first"
+}

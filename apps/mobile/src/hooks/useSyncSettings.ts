@@ -154,7 +154,7 @@ export function useSyncSettings() {
       setIsSyncing(true);
       setSyncProgress({
         value: 0,
-        status: command === "syncUploadDatabase" ? "正在准备上传..." : "正在准备下载...",
+        status: { kind: command === "syncUploadDatabase" ? "prepare-upload" : "prepare-download" },
       });
       try {
         const result: SyncActionResponse =

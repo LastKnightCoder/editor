@@ -1,5 +1,6 @@
 // 切换同步服务：先读目标云端版本（同时验证连接），云端已有数据时底部面板确认后再切换。
 
+import { syncTranslator, useSyncI18n } from "./i18n";
 import { useState } from "react";
 import type { JsonValue } from "@tau/plugins";
 import type { SyncVersionResponse } from "../../../types";
@@ -23,6 +24,7 @@ interface Pending {
 }
 
 export function useSyncSwitch() {
+  useSyncI18n();
   const app = useAppContext();
   const [probing, setProbing] = useState("");
   const [pending, setPending] = useState<Pending | null>(null);
@@ -53,9 +55,9 @@ export function useSyncSwitch() {
         app.syncSettings.updateSetting(previous => mergeProviderSettings(previous, saved));
       });
       setPending(null);
-      toast.success(`已改为同步到 ${name}`);
+      toast.success(syncTranslator.t("feedback.switched", { name: name }));
     } catch (error) {
-      toast.error(resolveSyncErrorMessage(error, "切换服务失败"));
+      toast.error(resolveSyncErrorMessage(error, syncTranslator.t("error.switch")));
     }
   };
 
@@ -67,7 +69,9 @@ export function useSyncSwitch() {
       if (versions.remoteVersion === 0) await activate(providerId, name, expected);
       else setPending({ providerId, name, expected, versions });
     } catch (error) {
-      toast.error(resolveSyncErrorMessage(error, `无法连接 ${name}，请检查配置`));
+      toast.error(
+        resolveSyncErrorMessage(error, syncTranslator.t("error.connectNamed", { name: name }))
+      );
     } finally {
       setProbing("");
     }
@@ -77,15 +81,19 @@ export function useSyncSwitch() {
   const sheet = (
     <BottomSheet
       open={pending !== null}
-      title={`改为同步到 ${pending?.name ?? ""}？`}
+      title={syncTranslator.t("switch.title", { name: pending?.name ?? "" })}
       onClose={() => setPending(null)}
     >
       {pending && (
         <div className="space-y-3 pb-1">
           <p className="text-ink-2 text-tau-meta text-center leading-relaxed">
-            {pending.name} 上已有一份数据库（v{pending.versions.remoteVersion}），本机为 v
-            {pending.versions.localVersion}。切换后「{newer ? "下载更新" : "立即同步"}」会
-            {newer ? "用云端版本替换本机数据库" : "用本机数据库覆盖云端"}，原服务上的数据会保留。
+            {syncTranslator.t("switch.description", {
+              name: pending.name,
+              remote: pending.versions.remoteVersion,
+              local: pending.versions.localVersion,
+              action: syncTranslator.t(newer ? "action.downloadUpdate" : "action.syncNow"),
+              effect: syncTranslator.t(newer ? "switch.replaceLocal" : "switch.replaceRemote"),
+            })}
           </p>
           <div className="flex gap-2.5">
             <button
@@ -93,14 +101,14 @@ export function useSyncSwitch() {
               onClick={() => setPending(null)}
               className="bg-page text-ink-1 text-tau-body h-12 flex-1 rounded-[14px] font-semibold"
             >
-              取消
+              {syncTranslator.t("action.cancel")}
             </button>
             <button
               type="button"
               onClick={() => void activate(pending.providerId, pending.name, pending.expected)}
               className="bg-accent text-ink-inverse text-tau-body h-12 flex-1 rounded-[14px] font-semibold"
             >
-              切换
+              {syncTranslator.t("action.switch")}
             </button>
           </div>
         </div>

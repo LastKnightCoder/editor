@@ -185,9 +185,46 @@ pub struct SyncActionResponse {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(tag = "kind", rename_all = "kebab-case")]
+pub enum DatabaseSyncStatus {
+    PrepareUpload,
+    PrepareDownload,
+    CheckLocalSessions,
+    CreateSnapshot,
+    VerifyRemote,
+    PublishVersion,
+    SaveState,
+    UploadComplete,
+    ReadDatabaseManifest,
+    ReadSessionsManifest,
+    BackupReplace,
+    UpdateIndexVersion,
+    DownloadComplete,
+    UploadDatabaseProgress {
+        done: u64,
+        total: u64,
+    },
+    DownloadDatabase {
+        done: u64,
+        total: u64,
+    },
+    UploadSessionsProgress {
+        done: u64,
+        total: u64,
+        skipped: u64,
+    },
+    DownloadSessions {
+        done: u64,
+        total: u64,
+        reused: u64,
+        downloaded: u64,
+    },
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct SyncProgress {
     pub value: f64,
-    pub status: String,
+    pub status: DatabaseSyncStatus,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -261,4 +298,37 @@ pub struct SettingWriteResponse {
     pub ok: bool,
     pub code: Option<String>,
     pub message: String,
+}
+
+#[cfg(test)]
+mod sync_progress_contract_tests {
+    use super::{DatabaseSyncStatus, SyncProgress};
+
+    #[test]
+    fn transfer_progress_serializes_identity_and_raw_counts() {
+        let progress = SyncProgress {
+            value: 72.5,
+            status: DatabaseSyncStatus::DownloadSessions {
+                done: 3,
+                total: 7,
+                reused: 1_048_576,
+                downloaded: 17,
+            },
+        };
+        let encoded = serde_json::to_value(progress).unwrap();
+        assert_eq!(
+            encoded,
+            serde_json::json!({
+                "value": 72.5,
+                "status": {
+                    "kind": "download-sessions",
+                    "done": 3,
+                    "total": 7,
+                    "reused": 1_048_576,
+                    "downloaded": 17,
+                }
+            })
+        );
+        println!("SYNC_PROGRESS_PAYLOAD={encoded}");
+    }
 }

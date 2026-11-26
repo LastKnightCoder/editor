@@ -1,5 +1,6 @@
 /** 切换同步服务：先读目标云端版本，云端已有数据时确认后再切换。 */
 
+import { syncTranslator, useSyncI18n } from "../features/settings/sync/i18n";
 import { useState } from "react";
 import { ConfirmDialog, toast } from "@tau/ui";
 import { localDatabaseVersion } from "@tau/db-schema/sync-protocol";
@@ -20,12 +21,13 @@ interface PendingSwitch {
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 export function useSyncProviderSwitch() {
+  useSyncI18n();
   const [probing, setProbing] = useState("");
   const [pending, setPending] = useState<PendingSwitch | null>(null);
 
   const commit = (pluginId: string, name: string) => {
     selectSyncProvider(pluginId);
-    toast.success(`已改为同步到 ${name}`);
+    toast.success(syncTranslator.t("feedback.switched", { name: name }));
   };
 
   const request = async (pluginId: string, name: string) => {
@@ -44,7 +46,9 @@ export function useSyncProviderSwitch() {
       );
       setPending({ pluginId, name, remoteVersion: remote.version, localVersion });
     } catch (error) {
-      toast.error(`无法连接 ${name}：${errorText(error)}`);
+      toast.error(
+        syncTranslator.t("error.connectReason", { name: name, reason: errorText(error) })
+      );
     } finally {
       setProbing("");
     }
@@ -55,15 +59,19 @@ export function useSyncProviderSwitch() {
     <ConfirmDialog
       open={pending !== null}
       onOpenChange={open => !open && setPending(null)}
-      title={`改为同步到 ${pending?.name ?? ""}？`}
+      title={syncTranslator.t("switch.title", { name: pending?.name ?? "" })}
       description={
-        pending &&
-        `${pending.name} 上已有一份数据库（v${pending.remoteVersion}），本机为 v${pending.localVersion}。切换后${
-          newer ? "「拉取远程」会用云端版本替换本机数据库" : "「同步到云端」会用本机数据库覆盖云端"
-        }。`
+        pending
+          ? syncTranslator.t("switch.desktopDescription", {
+              name: pending.name,
+              remote: pending.remoteVersion,
+              local: pending.localVersion,
+              effect: syncTranslator.t(newer ? "switch.pullEffect" : "switch.uploadEffect"),
+            })
+          : ""
       }
-      impact="原服务上的数据会保留"
-      confirmText="切换"
+      impact={syncTranslator.t("switch.retained")}
+      confirmText={syncTranslator.t("action.switch")}
       onConfirm={() => {
         if (pending) commit(pending.pluginId, pending.name);
         setPending(null);

@@ -1,3 +1,4 @@
+import type { DatabaseSyncProgress } from "@tau/shared/sync-progress";
 import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
 import type { Descendant } from "slate";
 import {
@@ -218,10 +219,7 @@ export interface SyncActionResponse {
   remoteVersion: number;
 }
 
-export interface SyncProgress {
-  value: number;
-  status: string;
-}
+export type SyncProgress = DatabaseSyncProgress;
 
 export type ResourceSyncStatus = "pending" | "syncing" | "synced" | "error";
 
@@ -252,6 +250,7 @@ export interface ResourceSyncProgress {
   errorCount: number;
   startTime: number | null;
   errorMessage?: string | null;
+  errorCode?: string | null;
 }
 
 export interface UploadTestResponse {

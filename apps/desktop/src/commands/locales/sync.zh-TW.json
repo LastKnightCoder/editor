@@ -1,0 +1,15 @@
+{
+  "configure": "請先完成同步設定",
+  "directory": "請先設定資料庫目錄",
+  "newerRemote": "雲端 v{{version}} 比本機新，已略過自動上傳",
+  "lockFailed": "資料庫工作階段鎖定失敗",
+  "sessionsReadFailed": "讀取對話記錄失敗",
+  "indexIncomplete": "對話記錄索引不完整",
+  "manifestUploadFailed": "對話記錄清單上傳失敗",
+  "versionUploadFailed": "版本資訊上傳失敗",
+  "localSessionsReadFailed": "讀取本機對話清單失敗",
+  "installFailed": "替換本機資料庫失敗",
+  "uploadFailed": "上傳資料庫失敗：{{reason}}",
+  "downloadFailed": "下載資料庫失敗：{{reason}}",
+  "remoteMissing": "雲端還沒有這個資料庫，請先在另一台裝置上傳"
+}

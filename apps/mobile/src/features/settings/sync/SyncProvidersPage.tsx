@@ -1,5 +1,6 @@
 // 同步服务列表：点已配置的行即切换（先探测云端），点 ⓘ 进服务页修改配置；未配置的行整行进服务页。
 
+import { syncTranslator, useSyncI18n } from "./i18n";
 import { useRef } from "react";
 import { Check, ChevronRight, Info, LoaderCircle, Plus } from "lucide-react";
 import { PortalScope } from "@tau/ui";
@@ -13,6 +14,7 @@ import { useSyncProviders } from "./providers";
 import { useSyncSwitch } from "./useSyncSwitch";
 
 export function SyncProvidersPage() {
+  useSyncI18n();
   const app = useAppContext();
   const navigator = useNavigator();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -26,16 +28,19 @@ export function SyncProvidersPage() {
   return (
     <PortalScope>
       <div className="mobile-kb-screen bg-page fixed inset-0 z-50 flex flex-col">
-        <PageHeader title="同步服务" onBack={() => navigator.goBack("ui")} />
+        <PageHeader
+          title={syncTranslator.t("service.title")}
+          onBack={() => navigator.goBack("ui")}
+        />
         <div
           ref={scrollRef}
           className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto px-4"
         >
           <div className="page-enter space-y-1">
             <p className="text-ink-3 text-tau-sm px-[15px] pt-2 leading-relaxed">
-              同一时间只同步到一个服务。点选切换，点 ⓘ 修改配置。
+              {syncTranslator.t("service.mobileHint")}
             </p>
-            <GroupLabel>已安装</GroupLabel>
+            <GroupLabel>{syncTranslator.t("service.installed")}</GroupLabel>
             <GroupCard>
               {setting &&
                 providers.map(provider => {
@@ -72,12 +77,18 @@ export function SyncProvidersPage() {
                           aria-hidden="true"
                         />
                       ) : isCurrent ? (
-                        <Check size={20} className="text-accent shrink-0" aria-label="当前" />
+                        <Check
+                          size={20}
+                          className="text-accent shrink-0"
+                          aria-label={syncTranslator.t("service.current")}
+                        />
                       ) : null}
                       {configured ? (
                         <button
                           type="button"
-                          aria-label={`${provider.name} 配置`}
+                          aria-label={syncTranslator.t("provider.configAria", {
+                            name: provider.name,
+                          })}
                           className="text-accent-text -mr-1 grid h-9 w-9 shrink-0 place-items-center"
                           onClick={event => {
                             event.stopPropagation();
@@ -100,7 +111,9 @@ export function SyncProvidersPage() {
                 <span className="bg-page text-ink-2 grid h-[34px] w-[34px] shrink-0 place-items-center rounded-xl">
                   <Plus size={17} aria-hidden="true" />
                 </span>
-                <span className="text-accent-text text-tau-body min-w-0 flex-1">添加同步服务</span>
+                <span className="text-accent-text text-tau-body min-w-0 flex-1">
+                  {syncTranslator.t("service.add")}
+                </span>
                 <ChevronRight size={18} className="text-ink-3 shrink-0" aria-hidden="true" />
               </GroupRow>
             </GroupCard>

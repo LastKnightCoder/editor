@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 import clsx from "clsx";
 
 export interface SyncStatItem {
+  id: string;
   label: string;
   value: ReactNode;
   /** 数值着色（远程领先 / 失败数等） */
@@ -17,7 +18,7 @@ export function SyncStats({ items }: { items: SyncStatItem[] }) {
   return (
     <dl className="mt-3.5 grid auto-cols-fr grid-flow-col gap-3">
       {items.map(item => (
-        <div key={item.label} className="min-w-0">
+        <div key={item.id} className="min-w-0">
           <dt className="text-tau-sm text-ink-2">{item.label}</dt>
           <dd
             className={clsx(

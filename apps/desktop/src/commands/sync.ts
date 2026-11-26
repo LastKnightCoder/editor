@@ -1,3 +1,6 @@
+import { desktopI18n } from "@/app/i18n/runtime";
+import { syncCommandTranslator, SyncCommandError, syncCommandErrorText } from "./sync.i18n";
+import type { DatabaseSyncProgress, DatabaseSyncStatus } from "@tau/shared/sync-progress";
 import { queryClient } from "@/queryClient";
 import { isCurrentDatabaseQuery } from "@/services/command-context";
 import {
@@ -48,7 +51,7 @@ import {
 import type { ISyncProvider } from "@/types/sync";
 
 interface SyncCommandOptions {
-  onProgress?: (payload: { value: number; status: string }) => void;
+  onProgress?: (payload: DatabaseSyncProgress) => void;
 }
 
 interface UploadOptions extends SyncCommandOptions {
@@ -56,14 +59,12 @@ interface UploadOptions extends SyncCommandOptions {
   skipWhenRemoteNewer?: boolean;
 }
 
-const emitProgress = (options: SyncCommandOptions | undefined, value: number, status: string) => {
+const emitProgress = (
+  options: SyncCommandOptions | undefined,
+  value: number,
+  status: DatabaseSyncStatus
+) => {
   options?.onProgress?.({ value, status });
-};
-
-const formatTransferBytes = (bytes: number) => {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1048576) return `${(bytes / 1024).toFixed(2)} KiB`;
-  return `${(bytes / 1048576).toFixed(2)} MiB`;
 };
 
 const describeSyncError = (error: unknown) =>
@@ -133,7 +134,7 @@ const setLocalVersion = (databaseName: string, version: number) =>
 const withSyncProvider = async (run: (provider: ISyncProvider) => Promise<boolean>) => {
   const syncProvider = SyncProviderFactory.getSyncProvider();
   if (!syncProvider) {
-    toast.error("请先配置同步设置");
+    toast.error(syncCommandTranslator.t("configure"));
     return false;
   }
   try {
@@ -199,11 +200,11 @@ const uploadWithProvider = async (syncProvider: ISyncProvider, options?: UploadO
       databaseName,
       reason: "database path is not configured",
     });
-    toast.error("请先设置数据库目录");
+    toast.error(syncCommandTranslator.t("directory"));
     return false;
   }
 
-  emitProgress(options, 1, "正在准备同步...");
+  emitProgress(options, 1, { kind: "prepare-sync" });
   const objects = await databaseSyncObjects(databaseName, chunkDigest);
   const remote = await readDatabaseSyncVersion(syncProvider, objects.version);
   console.info("[database-sync] upload version checked", {
@@ -212,7 +213,11 @@ const uploadWithProvider = async (syncProvider: ISyncProvider, options?: UploadO
     remoteVersion: remote.version,
   });
   if (options?.skipWhenRemoteNewer && remote.version > localDatabaseVersion(database)) {
-    toast.warning(`云端 v${remote.version} 比本机新，已跳过自动上传`);
+    toast.warning(
+      syncCommandTranslator.t("newerRemote", {
+        version: remote.version.toLocaleString(desktopI18n.getSnapshot()),
+      })
+    );
     return false;
   }
   const pluginId = sync.plugin?.id;
@@ -224,7 +229,7 @@ const uploadWithProvider = async (syncProvider: ISyncProvider, options?: UploadO
 
   const locked = await piSessionLockLibrary(databaseName);
   if (!locked.ok) {
-    toast.error(locked.error ?? "数据库会话锁定失败");
+    toast.error(locked.error ?? syncCommandTranslator.t("lockFailed"));
     return false;
   }
   try {
@@ -234,7 +239,10 @@ const uploadWithProvider = async (syncProvider: ISyncProvider, options?: UploadO
     await closeDatabase(databaseName);
 
     const prepared = await piSessionSyncFiles(databaseName);
-    if (!prepared.ok || !prepared.files) throw new Error(prepared.error ?? "读取对话记录失败");
+    if (!prepared.ok || !prepared.files)
+      throw prepared.error
+        ? new Error(prepared.error)
+        : new SyncCommandError("sessionsReadFailed", "读取对话记录失败");
     const sessionFiles = prepared.files;
     const remoteIndex = (await syncProvider.fileExists(objects.sessions))
       ? await decodeSessionIndex(await syncProvider.downloadFile(objects.sessions), chunkDigest)
@@ -257,7 +265,7 @@ const uploadWithProvider = async (syncProvider: ISyncProvider, options?: UploadO
     const totalBytes = databaseSize + pending.reduce((sum, file) => sum + file.size, 0);
     let doneBytes = 0;
     let shown = 0;
-    let status = "正在上传数据库文件...";
+    let status: DatabaseSyncStatus = { kind: "upload-database" };
     // 完整分块成功后才累计进度，失败请求重试不重复计数。
     const report = (bytes: number) => {
       doneBytes += bytes;
@@ -267,7 +275,7 @@ const uploadWithProvider = async (syncProvider: ISyncProvider, options?: UploadO
     report(0);
     await uploadChunkedPath(syncProvider, objects.database, databasePath, databaseName, report);
 
-    status = "正在上传对话记录...";
+    status = { kind: "upload-sessions" };
     report(0);
     await runWithConcurrency(pending, SESSION_TRANSFER_CONCURRENCY, async file => {
       const manifest = await uploadChunkedPath(
@@ -283,17 +291,17 @@ const uploadWithProvider = async (syncProvider: ISyncProvider, options?: UploadO
     const names = sessionFiles.map(file => file.name);
     const sessionManifests = names.map(name => {
       const manifest = manifests.get(name);
-      if (!manifest) throw new Error("对话记录索引不完整");
+      if (!manifest) throw new SyncCommandError("indexIncomplete", "对话记录索引不完整");
       return manifest;
     });
     const index = encodeSessionList(names, sessionManifests);
     if (!(await syncProvider.uploadFile(objects.sessions, index)))
-      throw new Error("对话记录清单上传失败");
+      throw new SyncCommandError("manifestUploadFailed", "对话记录清单上传失败");
 
-    emitProgress(options, 98, "正在上传版本信息...");
+    emitProgress(options, 98, { kind: "publish-version" });
     const version = Math.max(localDatabaseVersion(database), remote.version) + 1;
     if (!(await syncProvider.uploadFile(objects.version, encodeDatabaseSyncVersion(version))))
-      throw new Error("版本信息上传失败");
+      throw new SyncCommandError("versionUploadFailed", "版本信息上传失败");
     setLocalVersion(databaseName, version);
     console.info("[database-sync] upload completed", {
       databaseName,
@@ -315,7 +323,7 @@ const uploadWithProvider = async (syncProvider: ISyncProvider, options?: UploadO
       ),
     }).catch(error => console.warn("记录对话上传状态失败，下次上传将全量检查:", error));
 
-    emitProgress(options, 100, "同步完成");
+    emitProgress(options, 100, { kind: "sync-complete" });
     return true;
   } catch (e) {
     console.error("[database-sync] upload failed", {
@@ -323,7 +331,7 @@ const uploadWithProvider = async (syncProvider: ISyncProvider, options?: UploadO
       databasePath,
       error: describeSyncError(e),
     });
-    toast.error("上传数据库失败: " + e);
+    toast.error(syncCommandTranslator.t("uploadFailed", { reason: syncCommandErrorText(e) }));
     return false;
   } finally {
     try {
@@ -347,11 +355,11 @@ const downloadWithProvider = async (syncProvider: ISyncProvider, options?: SyncC
       databaseName,
       reason: "database path is not configured",
     });
-    toast.error("请先设置数据库目录");
+    toast.error(syncCommandTranslator.t("directory"));
     return false;
   }
 
-  emitProgress(options, 5, "正在检查云端版本...");
+  emitProgress(options, 5, { kind: "check-remote" });
   const objects = await databaseSyncObjects(databaseName, chunkDigest);
   const remote = await readDatabaseSyncVersion(syncProvider, objects.version);
   console.info("[database-sync] download version checked", {
@@ -364,7 +372,7 @@ const downloadWithProvider = async (syncProvider: ISyncProvider, options?: SyncC
       databaseName,
       reason: "remote database version is missing",
     });
-    toast.error("云端还没有这个数据库，请先在另一台设备上传");
+    toast.error(syncCommandTranslator.t("remoteMissing"));
     return false;
   }
 
@@ -375,7 +383,7 @@ const downloadWithProvider = async (syncProvider: ISyncProvider, options?: SyncC
       reason: "session lock failed",
       error: locked.error,
     });
-    toast.error(locked.error ?? "数据库会话锁定失败");
+    toast.error(locked.error ?? syncCommandTranslator.t("lockFailed"));
     return false;
   }
   let succeeded = false;
@@ -388,7 +396,7 @@ const downloadWithProvider = async (syncProvider: ISyncProvider, options?: SyncC
     setDatabaseConnectionStatus(databaseName, "reconnecting");
     await closeDatabase(databaseName, true);
 
-    emitProgress(options, 20, "正在备份本地数据库...");
+    emitProgress(options, 20, { kind: "backup-database" });
     const sep = await getSep();
     const backupDir = databasePath.split(sep).slice(0, -1).concat("backup").join(sep);
     if (!(await pathExists(backupDir))) await createDir(backupDir);
@@ -400,18 +408,18 @@ const downloadWithProvider = async (syncProvider: ISyncProvider, options?: SyncC
     const downloadPath = `${databasePath}.download.tmp`;
     const sessionDirectory = `${databasePath}.sessions.download`;
     try {
-      emitProgress(options, 25, "正在读取云端数据库清单...");
+      emitProgress(options, 25, { kind: "read-database-manifest" });
       console.info("[database-sync] downloading database file", {
         databaseName,
         target: downloadPath,
       });
       await downloadChunkedPath(syncProvider, objects.database, downloadPath, {
         onProgress: (done, total) => {
-          emitProgress(
-            options,
-            25 + (total ? done / total : 1) * 35,
-            `正在下载数据库文件 · ${(done / 1048576).toFixed(1)} / ${(total / 1048576).toFixed(1)} MiB`
-          );
+          emitProgress(options, 25 + (total ? done / total : 1) * 35, {
+            kind: "download-database",
+            done,
+            total,
+          });
         },
       });
 
@@ -419,7 +427,7 @@ const downloadWithProvider = async (syncProvider: ISyncProvider, options?: SyncC
       console.info("[database-sync] database file downloaded", { databaseName, hasSessions });
       const reusedSessionFiles: string[] = [];
       if (hasSessions) {
-        emitProgress(options, 60, "正在读取对话记录清单...");
+        emitProgress(options, 60, { kind: "read-sessions-manifest" });
         await removeFile(sessionDirectory).catch(() => undefined);
         await createDir(sessionDirectory);
         const sessionIndex = await decodeSessionIndex(
@@ -436,17 +444,22 @@ const downloadWithProvider = async (syncProvider: ISyncProvider, options?: SyncC
             ? (completedFiles + [...fractions.values()].reduce((sum, value) => sum + value, 0)) /
               sessionNames.length
             : 1;
-          emitProgress(
-            options,
-            60 + fraction * 25,
-            `正在同步对话记录 · 已处理 ${completedFiles} / ${sessionNames.length} 个 · 本地复用 ${formatTransferBytes(totals.reused)} · 已下载 ${formatTransferBytes(totals.downloaded)}`
-          );
+          emitProgress(options, 60 + fraction * 25, {
+            kind: "download-sessions",
+            done: completedFiles,
+            total: sessionNames.length,
+            reused: totals.reused,
+            downloaded: totals.downloaded,
+          });
         };
         reportSessions();
         const localFiles = new Map<string, SessionSyncFile>();
         try {
           const local = await piSessionSyncFiles(databaseName);
-          if (!local.ok || !local.files) throw new Error(local.error ?? "读取本地会话列表失败");
+          if (!local.ok || !local.files)
+            throw local.error
+              ? new Error(local.error)
+              : new SyncCommandError("localSessionsReadFailed", "读取本地会话列表失败");
           for (const file of local.files) localFiles.set(file.name, file);
         } catch (error) {
           console.warn("[database-sync] local session reuse unavailable", {
@@ -504,7 +517,7 @@ const downloadWithProvider = async (syncProvider: ISyncProvider, options?: SyncC
         });
       }
 
-      emitProgress(options, 85, "正在替换本地数据库...");
+      emitProgress(options, 85, { kind: "replace-database" });
       console.info("[database-sync] installing downloaded database", {
         databaseName,
         databasePath,
@@ -516,7 +529,10 @@ const downloadWithProvider = async (syncProvider: ISyncProvider, options?: SyncC
         hasSessions,
         reusedSessionFiles
       );
-      if (!installed.ok) throw new Error(installed.error ?? "替换本地数据库失败");
+      if (!installed.ok)
+        throw installed.error
+          ? new Error(installed.error)
+          : new SyncCommandError("installFailed", "替换本地数据库失败");
     } finally {
       await removeFile(downloadPath).catch(() => undefined);
       await removeFile(sessionDirectory).catch(() => undefined);
@@ -536,12 +552,12 @@ const downloadWithProvider = async (syncProvider: ISyncProvider, options?: SyncC
       remoteVersion: remote.version,
       error: describeSyncError(e),
     });
-    toast.error("下载数据库失败: " + e);
+    toast.error(syncCommandTranslator.t("downloadFailed", { reason: syncCommandErrorText(e) }));
     return false;
   } finally {
     try {
       // 自动同步随后虽会重载窗口，维护升级也必须在释放同步互斥前完成。
-      if (succeeded) emitProgress(options, 95, "正在打开数据库...");
+      if (succeeded) emitProgress(options, 95, { kind: "open-database" });
       await reconnectAfterSync(databaseName, "sync_download_reconnect", {
         mode: "maintenance",
       });
@@ -549,7 +565,7 @@ const downloadWithProvider = async (syncProvider: ISyncProvider, options?: SyncC
         void queryClient.invalidateQueries({
           predicate: query => isCurrentDatabaseQuery(query.queryKey),
         });
-        emitProgress(options, 100, "下载完成");
+        emitProgress(options, 100, { kind: "download-complete" });
       }
     } finally {
       await piSessionUnlockLibrary(databaseName);

@@ -1,0 +1,7 @@
+{
+  "closeFailed": "Automatic sync failed. Closing the app.",
+  "upload.title": "Syncing automatically",
+  "upload.description": "The app will close when sync finishes. Please wait.",
+  "download.title": "Downloading cloud data",
+  "download.description": "A newer database is available in the cloud. Downloading it and refreshing your data."
+}

@@ -55,7 +55,8 @@
         "./src/*/index.tsx"
       ]
     },
-    "./language": "./language.ts"
+    "./language": "./language.ts",
+    "./sync-progress": "./sync-progress.ts"
   },
   "peerDependencies": {
     "react": "19.1.x",

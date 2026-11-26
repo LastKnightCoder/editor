@@ -1,9 +1,14 @@
+import { desktopLocaleSource } from "@/app/i18n/runtime";
+import { syncTranslator } from "../sync/i18n";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
   download,
+  getDatabasePath,
+  closeDatabase,
+  removeFile,
   getRemoteDatabaseVersion,
   upload,
   getResourceSyncSnapshot,
@@ -438,4 +443,128 @@ it("远程有更新时可确认后强制上传", async () => {
   )!;
   await act(async () => confirm.click());
   expect(upload).toHaveBeenCalledOnce();
+});
+
+it("切换语言保留建库草稿、光标和查询身份，主动创建时仍保存原始文件名", async () => {
+  const original = desktopLocaleSource.getSnapshot();
+  const counts = () => ({
+    remote: vi.mocked(getRemoteDatabaseVersion).mock.calls.length,
+    resources: vi.mocked(getResourceSyncSnapshot).mock.calls.length,
+    path: vi.mocked(getDatabasePath).mock.calls.length,
+    upload: vi.mocked(upload).mock.calls.length,
+    download: vi.mocked(download).mock.calls.length,
+    close: vi.mocked(closeDatabase).mock.calls.length,
+    remove: vi.mocked(removeFile).mock.calls.length,
+  });
+  try {
+    await act(async () => desktopLocaleSource.setLocale("zh-CN"));
+    render();
+    await vi.waitFor(() => expect(getRemoteDatabaseVersion).toHaveBeenCalled());
+    const tab = container.querySelector<HTMLButtonElement>('[role="tab"][data-tab="database"]');
+    if (!tab) throw new Error("本地数据库入口未挂载");
+    await act(async () => tab.click());
+    await vi.waitFor(() => expect(getDatabasePath).toHaveBeenCalledWith("data.db"));
+    await act(async () => button(syncTranslator.t("action.new")).click());
+    const field = document.querySelector<HTMLInputElement>("#new-database-name");
+    if (!field) throw new Error("建库草稿未挂载");
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(
+        field,
+        "用户草稿.db"
+      );
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+      field.focus();
+      field.setSelectionRange(1, 4);
+    });
+    const setting = useSettingStore.getState().setting,
+      before = counts(),
+      keys = queryClient
+        .getQueryCache()
+        .getAll()
+        .map(query => query.queryKey);
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(document.querySelector("#new-database-name")).toBe(field);
+      expect(field.value).toBe("用户草稿.db");
+      expect(document.activeElement).toBe(field);
+      expect([field.selectionStart, field.selectionEnd]).toEqual([1, 4]);
+      expect(tab.getAttribute("aria-selected")).toBe("true");
+      expect(useSettingStore.getState().setting).toBe(setting);
+      expect(counts()).toEqual(before);
+      expect(
+        queryClient
+          .getQueryCache()
+          .getAll()
+          .map(query => query.queryKey)
+      ).toEqual(keys);
+    }
+    const create = [...document.querySelectorAll("button")].find(
+      node => node.textContent?.trim() === syncTranslator.t("action.create")
+    );
+    if (!create) throw new Error("创建入口未挂载");
+    await act(async () => create.click());
+    expect(useSettingStore.getState().setting.database.active).toBe("用户草稿.db");
+    expect(useSettingStore.getState().setting.database.databases).toContainEqual({
+      name: "用户草稿.db",
+      version: 1,
+    });
+  } finally {
+    await act(async () => desktopLocaleSource.setLocale(original));
+  }
+});
+
+it("切换语言保留进行中的数据库同步进度，不重发上传或重新检查", async () => {
+  const original = desktopLocaleSource.getSnapshot();
+  let finish: ((value: boolean) => void) | undefined;
+  vi.mocked(upload).mockImplementationOnce(
+    () =>
+      new Promise(resolve => {
+        finish = resolve;
+      })
+  );
+  try {
+    await act(async () => desktopLocaleSource.setLocale("zh-CN"));
+    render();
+    await vi.waitFor(() => expect(getRemoteDatabaseVersion).toHaveBeenCalled());
+    await act(async () => button(syncTranslator.t("action.uploadCloud")).click());
+    await act(async () =>
+      vi.mocked(upload).mock.calls[0][0]?.onProgress?.({
+        value: 31,
+        status: { kind: "upload-database-progress", done: 42, total: 99 },
+      })
+    );
+    const progress = container.querySelector('[role="progressbar"]'),
+      before = {
+        remote: vi.mocked(getRemoteDatabaseVersion).mock.calls.length,
+        resources: vi.mocked(getResourceSyncSnapshot).mock.calls.length,
+      },
+      keys = queryClient
+        .getQueryCache()
+        .getAll()
+        .map(query => query.queryKey);
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(container.querySelector('[role="progressbar"]')).toBe(progress);
+      expect(progress?.getAttribute("aria-valuenow")).toBe("31");
+      expect(button(syncTranslator.t("action.check")).disabled).toBe(true);
+      expect(upload).toHaveBeenCalledTimes(1);
+      expect(download).not.toHaveBeenCalled();
+      expect({
+        remote: vi.mocked(getRemoteDatabaseVersion).mock.calls.length,
+        resources: vi.mocked(getResourceSyncSnapshot).mock.calls.length,
+      }).toEqual(before);
+      expect(
+        queryClient
+          .getQueryCache()
+          .getAll()
+          .map(query => query.queryKey)
+      ).toEqual(keys);
+    }
+  } finally {
+    await act(async () => {
+      finish?.(true);
+      await Promise.resolve();
+      desktopLocaleSource.setLocale(original);
+    });
+  }
 });

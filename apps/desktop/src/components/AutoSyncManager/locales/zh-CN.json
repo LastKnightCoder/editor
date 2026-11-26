@@ -1,0 +1,7 @@
+{
+  "closeFailed": "自动同步失败，正在直接关闭应用",
+  "upload.title": "正在自动同步数据",
+  "upload.description": "应用将在同步完成后自动关闭，请稍候。",
+  "download.title": "正在下载远程数据",
+  "download.description": "检测到云端存在新的数据库版本，正在为你下载并刷新数据。"
+}

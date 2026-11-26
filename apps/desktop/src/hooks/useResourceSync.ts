@@ -1,3 +1,4 @@
+import { SyncOperationError } from "@/features/settings/sync/errors";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -49,7 +50,7 @@ export default function useResourceSync() {
     gcTime: 0,
     enabled: !!options,
     queryFn: () => {
-      if (!options) throw new Error("同步配置不完整");
+      if (!options) throw new SyncOperationError("RESOURCE_SYNC_CONFIG_MISSING", "同步配置不完整");
       return getResourceSyncSnapshot(options);
     },
     refetchInterval: query => {
@@ -83,7 +84,12 @@ export default function useResourceSync() {
         const result = await (next === "retry"
           ? retryFailedResourceSync(options, fileName)
           : startResourceSync(options));
-        if (!result.ok && !result.cancelled) throw new Error(result.message || "资源同步失败");
+        if (!result.ok && !result.cancelled)
+          throw new SyncOperationError(
+            "RESOURCE_SYNC_FAILED",
+            result.message || "资源同步失败",
+            result.message ? { reason: result.message } : undefined
+          );
       }
     } finally {
       try {
@@ -100,7 +106,12 @@ export default function useResourceSync() {
     setStopping(true);
     try {
       const result = await cancelResourceSync();
-      if (!result.ok) throw new Error(result.message || "停止同步失败");
+      if (!result.ok)
+        throw new SyncOperationError(
+          "RESOURCE_SYNC_STOP_FAILED",
+          result.message || "停止同步失败",
+          result.message ? { reason: result.message } : undefined
+        );
     } catch (error) {
       setStopping(false);
       throw error;

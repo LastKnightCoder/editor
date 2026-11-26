@@ -1,3 +1,5 @@
+import { mobileLocaleSource } from "../../../../services/i18n";
+import { syncTranslator } from "../i18n";
 import { createStorageRuntime } from "../../__tests__/storageProviders";
 import { MobilePluginsContext } from "../../../../app/plugins/context";
 let storageRuntime: Awaited<ReturnType<typeof createStorageRuntime>>;
@@ -243,7 +245,7 @@ describe("同步中心", () => {
     await waitFor(() => (app.handleSyncDownload as ReturnType<typeof vi.fn>).mock.calls.length > 0);
     expect(app.handleSyncUpload).not.toHaveBeenCalled();
     await waitFor(() => toastSpies.success.mock.calls.length > 0);
-    expect(toastSpies.success).toHaveBeenCalledWith("下载成功");
+    expect(app.handleSyncDownload).toHaveBeenCalledExactlyOnceWith();
   });
 
   it("版本一致时「立即同步」先查版本再上传", async () => {
@@ -529,5 +531,58 @@ describe("同步中心", () => {
     expect(upload?.getAttribute("aria-disabled")).toBeNull();
     await click(upload);
     await waitFor(() => document.body.textContent?.includes("云端版本比本机新") ?? false);
+  });
+
+  it("切换语言保留同步页与数据库身份，不重复检查、同步、覆盖或资源操作", async () => {
+    const original = mobileLocaleSource.getSnapshot();
+    const versions = { databaseName: "data.db", localVersion: 7, remoteVersion: 7 };
+    const harness = createApp({ setting: makeSetting("s3"), versions }),
+      app = harness.app;
+    const actions = {
+      check: app.handleCheckVersions,
+      upload: app.handleSyncUpload,
+      download: app.handleSyncDownload,
+      resourceRefresh: app.handleResourceSyncRefresh,
+      resourceStart: app.handleResourceSyncStart,
+      retry: app.handleResourceSyncRetryFailed,
+      cancel: app.handleResourceSyncCancel,
+      switchDatabase: app.handleSwitchDatabase,
+      persist: app.syncSettings.persistSetting,
+      update: app.syncSettings.updateSetting,
+    };
+    const calls = () =>
+      Object.fromEntries(
+        Object.entries(actions).map(([key, fn]) => [key, vi.mocked(fn).mock.calls.length])
+      );
+    try {
+      await act(async () => mobileLocaleSource.setLocale("zh-CN"));
+      mount(app);
+      await act(async () => {
+        getNavigator().push("settingsModule", { module: "database" });
+      });
+      await vi.waitFor(async () => {
+        await act(() => Promise.resolve());
+        expect(app.handleCheckVersions).toHaveBeenCalled();
+      });
+      const page = activePage(),
+        setting = harness.setting(),
+        before = calls();
+      for (const locale of ["zh-TW", "en-US"]) {
+        await act(async () => mobileLocaleSource.setLocale(locale));
+        expect(activePage()).toBe(page);
+        expect(harness.setting()).toBe(setting);
+        expect(app.bootstrap.versions).toBe(versions);
+        expect(calls()).toEqual(before);
+        expect(tauriMock.syncCheckVersions).not.toHaveBeenCalled();
+        expect(tauriMock.selectPluginProvider).not.toHaveBeenCalled();
+        expect(tauriMock.savePluginProviderConfig).not.toHaveBeenCalled();
+      }
+      await click(findButton(syncTranslator.t("action.syncNow"), activePage()));
+      expect(app.handleSyncUpload).toHaveBeenCalledExactlyOnceWith();
+      expect(app.handleSyncDownload).not.toHaveBeenCalled();
+      expect(vi.mocked(app.handleCheckVersions).mock.calls.length).toBe(before.check + 1);
+    } finally {
+      await act(async () => mobileLocaleSource.setLocale(original));
+    }
   });
 });

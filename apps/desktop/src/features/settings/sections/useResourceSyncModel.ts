@@ -1,3 +1,4 @@
+import { syncErrorText, useSyncI18n } from "../sync/i18n";
 import { useMemo } from "react";
 import { toast } from "@tau/ui";
 import useResourceSync from "@/hooks/useResourceSync";
@@ -14,6 +15,7 @@ const FILE_STATUS_ORDER: Record<ResourceSyncStatus, number> = {
 export type FileFilter = "all" | "upload" | "download" | "error";
 
 export function useResourceSyncModel() {
+  useSyncI18n();
   const sync = useResourceSync();
   const blacklist = useResourceSyncBlacklist();
   const { progress, statusFile } = sync;
@@ -50,8 +52,7 @@ export function useResourceSyncModel() {
     }
     return result;
   }, [entries]);
-  const reportError = (error: unknown) =>
-    toast.error(error instanceof Error ? error.message : String(error));
+  const reportError = (error: unknown) => toast.error(syncErrorText(error));
 
   return {
     progress,
@@ -62,7 +63,7 @@ export function useResourceSyncModel() {
     isSyncing,
     refreshing: sync.refreshing,
     stopping: sync.stopping,
-    readError: sync.error?.message,
+    readError: sync.error ? syncErrorText(sync.error) : undefined,
     handleSync: (fileName?: string) =>
       sync.run(counts.error ? "retry" : "sync", fileName).catch(reportError),
     handleCancel: () => sync.cancel().catch(reportError),
