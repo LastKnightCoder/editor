@@ -44,8 +44,8 @@ interface StyleOption {
 
 const STYLE_OPTIONS: Partial<Record<GenerateAppKey, StyleOption[]>> = {
   article: ARTICLE_STYLES.map(s => ({
-    label: s.label,
-    description: s.description,
+    label: s.toolLabel,
+    description: s.toolDescription,
     value: s.value,
   })),
   ppt: PPT_TEMPLATES.map(t => ({ label: t.name, description: t.description, value: t.id })),
@@ -69,7 +69,7 @@ const asString = (value: unknown) => (typeof value === "string" ? value.trim() :
 function createGenerateTool(projectId: number, mainDbName: string): ToolDefinition {
   const styleHint = (["article", "ppt", "report"] as const)
     .map(kind => {
-      const label = GENERATE_APPS.find(a => a.key === kind)?.label;
+      const label = GENERATE_APPS.find(a => a.key === kind)?.toolLabel;
       return `${label}：${(STYLE_OPTIONS[kind] ?? []).map(o => o.label).join("、")}`;
     })
     .join("；");
@@ -90,7 +90,7 @@ function createGenerateTool(projectId: number, mainDbName: string): ToolDefiniti
         kind: {
           type: "string",
           enum: GENERATE_APPS.map(a => a.key),
-          description: `产物类型：${GENERATE_APPS.map(a => `${a.key}=${a.label}`).join("，")}`,
+          description: `产物类型：${GENERATE_APPS.map(a => `${a.key}=${a.toolLabel}`).join("，")}`,
         },
         brief: {
           type: "string",
@@ -139,7 +139,7 @@ function createGenerateTool(projectId: number, mainDbName: string): ToolDefiniti
         }
         if (!matched && STYLE_REQUIRED.includes(kind)) {
           return paramError(
-            `生成${app.label}需要先确定风格。请调用 ${ASK_QUESTION_TOOL_NAME} 让用户单选（挑 4~6 个与内容最契合的作为选项，选项文案用风格名称并附一句说明），拿到答案后带上 style 重新调用本工具。可选风格：\n${listStyles(styleOptions)}`
+            `生成${app.toolLabel}需要先确定风格。请调用 ${ASK_QUESTION_TOOL_NAME} 让用户单选（挑 4~6 个与内容最契合的作为选项，选项文案用风格名称并附一句说明），拿到答案后带上 style 重新调用本工具。可选风格：\n${listStyles(styleOptions)}`
           );
         }
         styleValue = matched?.value;
@@ -187,7 +187,7 @@ function createGenerateTool(projectId: number, mainDbName: string): ToolDefiniti
           {
             projectId,
             kind,
-            title: task?.title ?? app.label,
+            title: task?.title ?? app.toolLabel,
             mode: "generate",
             taskId: started.taskId,
             noteId: started.note?.id,

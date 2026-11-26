@@ -1,3 +1,4 @@
+import { NotebookUiError } from "../../../i18n";
 /**
  * Vibe Learning 生成任务执行器（模块级，不随组件卸载）：
  * 建产物占位 → 带本项目的资料检索工具跑模型 → 逐轮记录推理 / 工具 / 正文 → 按类型落库。
@@ -115,7 +116,8 @@ function llmConfig(): {
   const usage = llmUsageSettings.chat;
   const provider = usage ? llmConfigs.find(c => c.id === usage.providerId) : undefined;
   const model = usage ? provider?.models?.find(m => m.id === usage.modelId) : undefined;
-  if (!provider || !model) throw new Error("请先在设置中配置 AI 模型");
+  if (!provider || !model)
+    throw new NotebookUiError("task.modelMissing", "请先在设置中配置 AI 模型");
   return { provider, model, thinkingLevel: usage?.thinkingLevel };
 }
 
@@ -180,7 +182,8 @@ function buildRequest(
       return { ...base, taskType: "article", taskPayload: { style: input.style ?? "magazine" } };
     case "ppt":
     case "ppt_edit":
-      if (!runtime.ppt) throw new Error("演示文稿工作目录未就绪");
+      if (!runtime.ppt)
+        throw new NotebookUiError("task.workspaceMissing", "演示文稿工作目录未就绪");
       return {
         ...base,
         taskType: input.kind,
@@ -200,7 +203,8 @@ function buildRequest(
       return { ...base, taskType: input.kind, taskPayload: { currentHtml: currentHtml ?? "" } };
     case "plugin": {
       const plan = runtime.plan;
-      if (!plan || !input.plugin) throw new Error("插件产物缺少任务说明");
+      if (!plan || !input.plugin)
+        throw new NotebookUiError("task.pluginPlanMissing", "插件产物缺少任务说明");
       return {
         ...base,
         taskType: "plugin",
@@ -222,7 +226,7 @@ async function loadReportHtml(note: VLNote, databaseName: string, signal?: Abort
   const content = await commandsFor(databaseName, signal).getContentById(note.contentId);
   const markdown = content ? getMarkdown(content.content) : "";
   const html = cleanReportHtmlContent(markdown);
-  if (!html.trim()) throw new Error("无法读取当前内容");
+  if (!html.trim()) throw new NotebookUiError("task.currentUnavailable", "无法读取当前内容");
   return html;
 }
 
@@ -258,7 +262,7 @@ export async function startVLTask(
 
   if (input.kind === "plugin") {
     const plugin = input.plugin;
-    if (!plugin) throw new Error("缺少插件输出");
+    if (!plugin) throw new NotebookUiError("task.pluginMissing", "缺少插件输出");
     const { output } = plugin;
     const pluginId = output.context.pluginId;
     if (!plan) {
@@ -276,7 +280,7 @@ export async function startVLTask(
         // 产物须是这个插件声明的那类实体，再挂到 Notebook 上
         const entity = await locatePluginEntity(input.mainDbName, Number(plan.entity));
         if (!entity || entity.pluginId !== pluginId || entity.kind !== output.definition.kind)
-          throw new Error("插件返回的产物无效");
+          throw new NotebookUiError("task.invalidOutput", "插件返回的产物无效");
         await plugin.grantNotebook();
         await addPluginLink(
           input.mainDbName,
@@ -307,7 +311,7 @@ export async function startVLTask(
       label: output.definition.title,
     };
   } else if (input.kind === "ppt_edit" || input.kind === "report_edit") {
-    if (!input.note) throw new Error("缺少要编辑的产物");
+    if (!input.note) throw new NotebookUiError("task.editMissing", "缺少要编辑的产物");
     if (input.kind === "report_edit")
       currentHtml = await loadReportHtml(input.note, input.mainDbName, startSignal);
   } else if (input.kind === "quiz") {
@@ -325,14 +329,17 @@ export async function startVLTask(
     }
   } else {
     const meta = NOTE_KIND[input.kind];
-    if (!meta) throw new Error(`不支持的生成类型：${input.kind}`);
+    if (!meta)
+      throw new NotebookUiError("task.unsupported", `不支持的生成类型：${input.kind}`, {
+        kind: input.kind,
+      });
     title = input.title?.trim() || meta.title;
     if (!reuse?.noteId) {
       const newContentId = await commands.createContent(
         EMPTY_CONTENT,
         getContentLength(EMPTY_CONTENT)
       );
-      if (!newContentId) throw new Error("创建内容失败");
+      if (!newContentId) throw new NotebookUiError("task.contentFailed", "创建内容失败");
       contentId = newContentId;
       note = await commands.createVLNote({
         projectId: input.projectId,
@@ -345,9 +352,9 @@ export async function startVLTask(
 
   let ppt: Runtime["ppt"];
   if (input.kind === "ppt_edit" || input.kind === "ppt") {
-    if (!contentId) throw new Error("无法读取演示文稿");
+    if (!contentId) throw new NotebookUiError("task.pptUnavailable", "无法读取演示文稿");
     const current = await commands.getContentById(contentId);
-    if (!current?.revision) throw new Error("无法确认演示文稿修订");
+    if (!current?.revision) throw new NotebookUiError("task.pptRevision", "无法确认演示文稿修订");
     let files: PPTFiles = {};
     let source: string | undefined;
     let template =
@@ -358,10 +365,15 @@ export async function startVLTask(
       else {
         try {
           source = originalPPTSource(current.content);
-          if (!source) throw new Error("无法定位唯一的 HTML 正文");
+          if (!source)
+            throw new NotebookUiError("task.htmlUnavailable", "无法定位唯一的 HTML 正文");
           files = migratePPT(source, title);
         } catch (error) {
-          throw new Error("已保留旧稿，无法可靠拆页：" + (error as Error).message);
+          throw new NotebookUiError(
+            "task.splitFailed",
+            "已保留旧稿，无法可靠拆页：" + (error as Error).message,
+            { error: (error as Error).message }
+          );
         }
       }
       template = readManifest(files["deck.json"]).template;
@@ -377,7 +389,11 @@ export async function startVLTask(
         startSignal?.throwIfAborted();
       } catch (error) {
         await workspace.close();
-        throw new Error("已保留原稿：" + (error as Error).message);
+        throw new NotebookUiError(
+          "task.originalPreserved",
+          "已保留原稿：" + (error as Error).message,
+          { error: (error as Error).message }
+        );
       }
       if (previous) await previous.workspace.close();
     }
@@ -396,7 +412,8 @@ export async function startVLTask(
     ...(pluginTask ? { plugin: pluginTask } : {}),
     pptProgress: ppt?.workspace.progress,
     status: "running",
-    phase: "分析资料",
+    phase: "analyzing",
+    phaseSource: "builtin",
     startedAt: Date.now(),
     turns: [],
     output: "",
@@ -431,8 +448,8 @@ export function cancelVLTask(taskId: string) {
 export async function retryVLTask(taskId: string) {
   const task = useVLTaskStore.getState().tasks[taskId];
   const runtime = runtimes.get(taskId);
-  if (!task || !runtime) throw new Error("任务已失效，请重新发起");
-  if (task.status === "running") throw new Error("任务仍在运行");
+  if (!task || !runtime) throw new NotebookUiError("task.expired", "任务已失效，请重新发起");
+  if (task.status === "running") throw new NotebookUiError("task.running", "任务仍在运行");
   let plan = runtime.plan;
   if (plan && !(await locatePluginEntity(runtime.input.mainDbName, Number(plan.entity))))
     plan = undefined;
@@ -480,7 +497,7 @@ async function executeInner(
   const finish = (patch: Partial<VLTask>) => {
     if (liveTimer) clearInterval(liveTimer);
     writer.flush();
-    store().patch(taskId, { ...patch, finishedAt: Date.now() });
+    store().patch(taskId, { ...patch, phaseSource: "builtin", finishedAt: Date.now() });
     store().bumpProducts(input.projectId);
   };
 
@@ -515,7 +532,8 @@ async function executeInner(
           onReasoning: (text, turnId) =>
             canReceive() &&
             writer.queue(t => ({
-              phase: "思考中",
+              phase: "reasoning",
+              phaseSource: "builtin",
               turns: upsertTurn(t.turns, turnId, turn => ({
                 ...turn,
                 reasoning: text,
@@ -525,12 +543,13 @@ async function executeInner(
           onToolCallsUpdate: (executions, turnId) =>
             canReceive() &&
             writer.queue(t => ({
+              phaseSource: "builtin",
               phase:
                 runtime.ppt && executions.at(-1)?.toolName === "ppt_check"
-                  ? "检查演示文稿"
+                  ? "checking-presentation"
                   : runtime.ppt && executions.at(-1)?.toolName.startsWith("ppt_")
-                    ? "编排页面"
-                    : "查阅资料",
+                    ? "arranging-pages"
+                    : "reading-resources",
               turns: upsertTurn(t.turns, turnId, turn => ({
                 ...turn,
                 tools: executions,
@@ -540,7 +559,8 @@ async function executeInner(
           onUpdate: (text, turnId) =>
             canReceive() &&
             writer.queue(t => ({
-              phase: "输出中",
+              phase: "writing",
+              phaseSource: "builtin",
               output: text,
               quizPrompts: input.kind === "quiz" ? parsePartialQuizPrompts(text) : t.quizPrompts,
               turns: upsertTurn(t.turns, turnId, turn => ({
@@ -607,20 +627,44 @@ async function executeInner(
       );
     }
     await failPluginOutput(runtime, error);
-    if (runtime.cancelled) finish({ status: "cancelled", phase: "已停止" });
-    else finish({ status: "failed", phase: "失败", error: (error as Error).message || "生成失败" });
+    if (runtime.cancelled) finish({ status: "cancelled", phase: "stopped" });
+    else
+      finish({
+        status: "failed",
+        phase: "failed",
+        error: (error as Error).message || "生成失败",
+        errorCode:
+          error instanceof NotebookUiError
+            ? error.messageKey
+            : (error as Error).message
+              ? undefined
+              : "task.generateFailed",
+        errorValues: error instanceof NotebookUiError ? error.values : undefined,
+      });
     return;
   }
 
   try {
     writer.flush();
-    store().patch(taskId, { output: content, phase: "保存中" });
+    store().patch(taskId, { output: content, phase: "saving", phaseSource: "builtin" });
     await persist(taskId, runtime, content);
-    finish({ status: "succeeded", phase: "已完成" });
+    finish({ status: "succeeded", phase: "completed" });
   } catch (error) {
     await failPluginOutput(runtime, error);
-    if (runtime.cancelled) finish({ status: "cancelled", phase: "已停止" });
-    else finish({ status: "failed", phase: "失败", error: (error as Error).message || "保存失败" });
+    if (runtime.cancelled) finish({ status: "cancelled", phase: "stopped" });
+    else
+      finish({
+        status: "failed",
+        phase: "failed",
+        error: (error as Error).message || "保存失败",
+        errorCode:
+          error instanceof NotebookUiError
+            ? error.messageKey
+            : (error as Error).message
+              ? undefined
+              : "task.saveFailed",
+        errorValues: error instanceof NotebookUiError ? error.values : undefined,
+      });
   }
 }
 
@@ -648,7 +692,7 @@ async function persist(taskId: string, runtime: Runtime, content: string) {
     const { workspace, original, revision } = runtime.ppt;
     const { nodes, title } = workspace.result(original);
     const saved = await commands.replaceContent(contentId, { nodes }, revision);
-    if (!saved) throw new Error("演示文稿已被删除");
+    if (!saved) throw new NotebookUiError("task.pptDeleted", "演示文稿已被删除");
     if (task?.noteId) {
       await commands.updateVLNote({ id: task.noteId, title });
       useVLTaskStore.getState().patch(taskId, { title });
@@ -666,11 +710,11 @@ async function persist(taskId: string, runtime: Runtime, content: string) {
       return;
     case "ppt":
     case "ppt_edit":
-      throw new Error("缺少已检查的演示文稿");
+      throw new NotebookUiError("task.uncheckedPpt", "缺少已检查的演示文稿");
     case "report":
     case "report_edit": {
       const html = cleanReportHtmlContent(content);
-      if (!html.trim()) throw new Error("没有解析出可用的 HTML");
+      if (!html.trim()) throw new NotebookUiError("task.htmlEmpty", "没有解析出可用的 HTML");
       if (!contentId) return;
       await commands.replaceContent(contentId, { markdown: htmlNoteMarkdown(html) });
       const title = htmlTitle(html);
@@ -684,7 +728,7 @@ async function persist(taskId: string, runtime: Runtime, content: string) {
       const quizSetId = task?.quizSetId;
       if (!quizSetId) return;
       const items = parseQuizResponse(content);
-      if (items.length === 0) throw new Error("没有解析出题目");
+      if (items.length === 0) throw new NotebookUiError("task.noQuestions", "没有解析出题目");
       await commands.createVLQuizItemsBatch(
         items.map((item, index) => ({
           quizSetId,
@@ -702,13 +746,14 @@ async function persist(taskId: string, runtime: Runtime, content: string) {
     }
     case "plugin": {
       const { plugin } = input;
-      if (!plugin || !runtime.plan) throw new Error("插件产物缺少任务说明");
+      if (!plugin || !runtime.plan)
+        throw new NotebookUiError("task.pluginPlanMissing", "插件产物缺少任务说明");
       const patch = useVLTaskStore.getState().patch;
       await plugin.output.definition.complete({
         entity: runtime.plan.entity,
         text: content,
         task: {
-          phase: text => patch(taskId, { phase: String(text).slice(0, 60) }),
+          phase: text => patch(taskId, { phase: String(text).slice(0, 60), phaseSource: "plugin" }),
           progress: (done, total) =>
             patch(taskId, {
               progress: total > 0 ? { done: Math.max(0, done), total } : undefined,

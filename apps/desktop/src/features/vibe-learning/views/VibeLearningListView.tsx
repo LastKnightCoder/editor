@@ -1,3 +1,4 @@
+import { notebookTranslator, useNotebookI18n } from "@/features/vibe-learning/i18n";
 /**
  * Notebook 列表视图：共享驾驶舱（features/shared/cockpit）的 Notebook 模块装配。
  * 从「项目」的 vibe-learning 类型拆出为独立顶级模块（原先借用项目列表页），
@@ -10,6 +11,7 @@ import { usePage } from "@/page/PageProvider";
 import { EntityCockpit } from "@/features/shared/cockpit/EntityCockpit";
 import type { CockpitCopy, CockpitItem, CockpitVisual } from "@/features/shared/cockpit/types";
 import { useVibeLearningSnapshot, useVibeLearningMutations } from "../queries";
+const t = notebookTranslator.t;
 
 /* 模块色沿用原 projectTypeMeta 的主题 accent（语义类） */
 const VISUAL: CockpitVisual = {
@@ -22,22 +24,45 @@ const VISUAL: CockpitVisual = {
 const COPY: CockpitCopy = {
   title: "Notebook",
   itemTitle: id => `Notebook #${id}`,
-  entityCount: (_count, amount) => `${amount} 个 Notebook`,
-  metricCount: (_count, amount) => `${amount} 份资料`,
-  metricLabel: "资料",
-  recentHint: "从上次看到的资料继续",
-  createLabel: "新建 Notebook",
-  createTitle: "新建 Notebook",
-  editTitle: "编辑 Notebook",
-  descPlaceholder: "这个 Notebook 想搞懂什么",
-  emptyTitle: "还没有 Notebook",
-  emptyHint: "投入资料，边读边问，产出笔记、测验与播客",
-  deleteTitle: "删除 Notebook",
-  deleteDescription: "Notebook 将被永久删除。",
-  deleteImpact: "Notebook 内的资料、笔记、测验和对话记录将一并删除，不可恢复。",
+  entityCount: (count, amount) => t("list.count", { count, amount }),
+  metricCount: (count, amount) => t("list.resources", { count, amount }),
+  get metricLabel() {
+    return t("list.metric");
+  },
+  get recentHint() {
+    return t("list.recent");
+  },
+  get createLabel() {
+    return t("list.create");
+  },
+  get createTitle() {
+    return t("list.create");
+  },
+  get editTitle() {
+    return t("list.edit");
+  },
+  get descPlaceholder() {
+    return t("list.goal");
+  },
+  get emptyTitle() {
+    return t("list.empty");
+  },
+  get emptyHint() {
+    return t("list.emptyHint");
+  },
+  get deleteTitle() {
+    return t("list.delete");
+  },
+  get deleteDescription() {
+    return t("list.deleteDescription");
+  },
+  get deleteImpact() {
+    return t("list.deleteImpact");
+  },
 };
 
 export function VibeLearningListView() {
+  useNotebookI18n();
   const { navigator } = usePage();
   const { items, loading } = useVibeLearningSnapshot();
   const mutations = useVibeLearningMutations();

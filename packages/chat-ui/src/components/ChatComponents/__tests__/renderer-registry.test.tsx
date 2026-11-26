@@ -1,3 +1,5 @@
+import { createI18nRuntime, createLocaleStore } from "@tau/i18n";
+import { I18nRuntimeProvider } from "@tau/i18n/react";
 import React, { act, lazy, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
@@ -224,23 +226,34 @@ it("渲染崩溃后替换登记会重置错误边界，无关登记不会重挂�
   const root = createRoot(host);
   const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
   const mount = vi.fn();
+  const source = createLocaleStore("zh-CN");
+  const runtime = createI18nRuntime({ localeSource: source });
+  const crashed = vi.fn(() => {
+    throw new Error("组件故障");
+  });
   const toolName = "chat-error-recovery";
   const other = "chat-unrelated-registration";
   try {
-    registerToolCallRenderer(toolName, () => {
-      throw new Error("组件故障");
-    });
+    registerToolCallRenderer(toolName, crashed);
     await act(async () => {
       root.render(
-        <ToolCallDisplay
-          executions={[
-            { toolCallId: "error-call", toolName, input: "{}", status: "success", timestamp: 1 },
-          ]}
-          renderDefaultItem={() => <span>默认</span>}
-        />
+        <I18nRuntimeProvider runtime={runtime}>
+          <ToolCallDisplay
+            executions={[
+              { toolCallId: "error-call", toolName, input: "{}", status: "success", timestamp: 1 },
+            ]}
+            renderDefaultItem={() => <span>默认</span>}
+          />
+        </I18nRuntimeProvider>
       );
     });
     expect(host.textContent).toContain("默认");
+    const failedAttempts = crashed.mock.calls.length;
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => source.setLocale(locale));
+      expect(crashed).toHaveBeenCalledTimes(failedAttempts);
+      expect(host.textContent).toContain("默认");
+    }
     await act(async () => {
       registerToolCallRenderer(toolName, function Fixed() {
         useEffect(() => {
@@ -258,6 +271,7 @@ it("渲染崩溃后替换登记会重置错误边界，无关登记不会重挂�
       unregisterToolCallRenderer(other);
       root.unmount();
     });
+    runtime.dispose();
     log.mockRestore();
   }
 });

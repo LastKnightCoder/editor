@@ -1,3 +1,5 @@
+import type { TranslationValues } from "@tau/i18n";
+import type { NotebookMessageKey } from "../../../i18n";
 /**
  * Vibe Learning 生成任务的运行时状态（本次运行内保留，不落库）。
  * 执行器在组件之外写入；目录、阅读区只读订阅。
@@ -33,11 +35,14 @@ export interface VLTask {
   quizSetId?: number;
   plugin?: { pluginId: string; kind: string; entityId: number; label: string };
   status: VLTaskStatus;
-  /** 当前阶段（执行过程页顶部的一句话） */
+  /** 内置阶段存稳定标识；插件阶段保留插件提供的原文。 */
   phase: string;
+  phaseSource?: "builtin" | "plugin";
   startedAt: number;
   finishedAt?: number;
   error?: string;
+  errorCode?: NotebookMessageKey;
+  errorValues?: TranslationValues;
   turns: VLTaskTurn[];
   /** 最新一轮的正文（产物的流式中间态） */
   output: string;

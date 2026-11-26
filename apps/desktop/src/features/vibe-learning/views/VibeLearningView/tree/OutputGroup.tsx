@@ -1,3 +1,10 @@
+import {
+  notebookTranslator,
+  notebookNumber,
+  notebookCount,
+  useNotebookI18n,
+  notebookError,
+} from "@/features/vibe-learning/i18n";
 /**
  * 目录「产物」组：生成的笔记（大纲 / 重点 / 文章 / 导图 / PPT / 报告）、手写笔记、测验集与插件产物，
  * 按更新时间合成一列。＋ 菜单 = 新建笔记 + 内置生成应用 + 插件的 Notebook 输出（排在内置之后）；
@@ -37,21 +44,25 @@ import {
   useNotebookOutputs,
   type RegisteredPluginNotebookOutput,
 } from "@/app/plugins/notebook-outputs";
-import { formatDate } from "@/utils";
 import QuizTestModal from "../generate/apps/QuizTestModal";
 import QuizEditModal from "../generate/apps/QuizEditModal";
 import { GENERATE_APPS, NOTE_ICONS, type GenerateAppKey } from "../appMeta";
 import { TreeGroupHeader, TreeRow } from "./TreeRow";
 import { useNoteTask, usePluginOutputTask, useQuizTask, type VLTask } from "../tasks/store";
+const t = notebookTranslator.t;
 
 /** 任务状态标记：进行中 accent、失败 danger、停止 ink-3；完成不标 */
 function taskFlag(task: VLTask | undefined) {
   if (!task) return undefined;
   const editing = task.kind === "ppt_edit" || task.kind === "report_edit";
   if (task.status === "running")
-    return <span className="text-accent-text">{editing ? "改写中" : "生成中"}</span>;
-  if (task.status === "failed") return <span className="text-danger">失败</span>;
-  if (task.status === "cancelled") return <span className="text-ink-3">已停止</span>;
+    return (
+      <span className="text-accent-text">
+        {editing ? t("output.rewriting") : t("output.generating")}
+      </span>
+    );
+  if (task.status === "failed") return <span className="text-danger">{t("common.failed")}</span>;
+  if (task.status === "cancelled") return <span className="text-ink-3">{t("common.stopped")}</span>;
   return undefined;
 }
 
@@ -108,13 +119,14 @@ function NoteRow({
   onDelete: () => void;
   onAIEdit?: () => void;
 }) {
+  useNotebookI18n();
   const task = useNoteTask(note.id);
   const generating = task?.status === "running";
   const Icon = NOTE_ICONS[note.type] ?? PenLine;
   return (
     <TreeRow
       icon={generating ? spinner : <Icon className="size-[15px]" strokeWidth={1.75} />}
-      title={task && generating ? task.title : note.title || "无标题笔记"}
+      title={task && generating ? task.title : note.title || t("common.untitledNote")}
       active={active}
       flag={taskFlag(task)}
       onClick={onOpen}
@@ -126,14 +138,14 @@ function NoteRow({
                 icon={<Sparkles className="size-4" strokeWidth={1.75} />}
                 onSelect={onAIEdit}
               >
-                AI 编辑
+                {t("kind.aiEdit")}
               </Menu.Item>
             )}
             <Menu.Item
               icon={<Import className="size-4" strokeWidth={1.75} />}
               onSelect={onAddToResources}
             >
-              加入资料
+              {t("resource.add")}
             </Menu.Item>
             <Menu.Separator />
             <Menu.Item
@@ -141,7 +153,7 @@ function NoteRow({
               icon={<Trash2 className="size-4" strokeWidth={1.75} />}
               onSelect={onDelete}
             >
-              删除
+              {t("common.delete")}
             </Menu.Item>
           </>
         )
@@ -169,6 +181,7 @@ function QuizRow({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  useNotebookI18n();
   const task = useQuizTask(quizSet.id);
   const busy = task?.status === "running";
   // 生成中 / 失败时点行看生成过程；完成后点行即开始测验
@@ -181,7 +194,8 @@ function QuizRow({
       flag={
         taskFlag(task) ?? (
           <span className="text-ink-3">
-            {quizSet.itemCount} 题{best !== null && ` · ${best.toFixed(0)}%`}
+            {notebookCount("stage.questions", quizSet.itemCount)}
+            {best !== null && ` · ${best.toFixed(0)}%`}
           </span>
         )
       }
@@ -194,24 +208,24 @@ function QuizRow({
               disabled={quizSet.itemCount === 0}
               onSelect={onStart}
             >
-              开始测验
+              {t("stage.startQuiz")}
             </Menu.Item>
             {task && (
               <Menu.Item
                 icon={<Sparkles className="size-4" strokeWidth={1.75} />}
                 onSelect={() => onOpenTask(task.id)}
               >
-                生成过程
+                {t("stage.process")}
               </Menu.Item>
             )}
             <Menu.Item
               icon={<History className="size-4" strokeWidth={1.75} />}
               onSelect={onRecords}
             >
-              测验记录
+              {t("output.records")}
             </Menu.Item>
             <Menu.Item icon={<Pencil className="size-4" strokeWidth={1.75} />} onSelect={onEdit}>
-              编辑题目
+              {t("output.editQuestions")}
             </Menu.Item>
             <Menu.Separator />
             <Menu.Item
@@ -219,7 +233,7 @@ function QuizRow({
               icon={<Trash2 className="size-4" strokeWidth={1.75} />}
               onSelect={onDelete}
             >
-              删除
+              {t("common.delete")}
             </Menu.Item>
           </>
         )
@@ -241,6 +255,7 @@ function PluginOutputRow({
   onOpen: () => void;
   onDelete: () => void;
 }) {
+  useNotebookI18n();
   const task = usePluginOutputTask(entity.id);
   const generating = task?.status === "running";
   const Icon = notebookOutputIcon(output);
@@ -258,7 +273,7 @@ function PluginOutputRow({
             icon={<Trash2 className="size-4" strokeWidth={1.75} />}
             onSelect={onDelete}
           >
-            删除
+            {t("common.delete")}
           </Menu.Item>
         )
       }
@@ -273,6 +288,7 @@ export interface OutputGroupRef {
 
 export const OutputGroup = forwardRef<OutputGroupRef, OutputGroupProps>(
   function OutputGroup(props, ref) {
+    useNotebookI18n();
     const { projectId, mainDbName, notes, activeNoteId, onNotesChange } = props;
     const outputs = useNotebookOutputs();
     const [open, setOpen] = useState(true);
@@ -328,20 +344,24 @@ export const OutputGroup = forwardRef<OutputGroupRef, OutputGroupProps>(
         });
         if (result.created) {
           props.onResourcesChange();
-          toast.success("已加入资料");
+          toast.success(t("resource.added"));
         } else {
-          toast.info("已在资料里");
+          toast.info(t("output.alreadyAdded"));
         }
       } catch (error) {
         console.error("Failed to add note to resources:", error);
-        toast.error("加入资料失败");
+        toast.error(t("resource.addFailed"));
       }
     });
 
     const askDeleteNote = (note: VLNote) =>
       setPendingDelete({
-        title: "删除笔记",
-        description: `确定删除「${note.title || "无标题笔记"}」吗？`,
+        get title() {
+          return t("note.delete");
+        },
+        get description() {
+          return t("output.deleteNoteHint", { title: note.title || t("common.untitledNote") });
+        },
         action: async () => {
           try {
             await deleteVLNote(note.id);
@@ -349,20 +369,24 @@ export const OutputGroup = forwardRef<OutputGroupRef, OutputGroupProps>(
             onNotesChange();
           } catch (error) {
             console.error("Failed to delete note:", error);
-            toast.error("删除失败");
+            toast.error(t("common.deleteFailed"));
           }
         },
       });
 
     const askDeleteQuiz = (quizSet: VLQuizSet) =>
       setPendingDelete({
-        title: "删除测验集",
-        description: `确定删除「${quizSet.name}」吗？它的测验记录也会一并删除。`,
+        get title() {
+          return t("output.deleteQuiz");
+        },
+        get description() {
+          return t("output.deleteQuizHint", { title: quizSet.name });
+        },
         action: async () => {
           try {
             await deleteQuizSet(quizSet.id);
           } catch (error) {
-            toast.error("删除失败");
+            toast.error(t("common.deleteFailed"));
             throw error;
           }
         },
@@ -373,22 +397,26 @@ export const OutputGroup = forwardRef<OutputGroupRef, OutputGroupProps>(
       output: RegisteredPluginNotebookOutput
     ) =>
       setPendingDelete({
-        title: `删除${output.definition.title}`,
-        description: `确定删除「${entity.title || output.definition.title}」吗？7 天内可在插件详情页的「最近删除」里恢复。`,
+        get title() {
+          return t("output.deletePluginTitle", { kind: output.definition.title });
+        },
+        get description() {
+          return t("output.deletePluginHint", { title: entity.title || output.definition.title });
+        },
         action: async () => {
           try {
             await deletePluginEntity(mainDbName, entity.pluginId, entity.id, entity.revision);
             props.onPluginOutputDeleted(entity.id);
           } catch (error) {
             console.error("Failed to delete plugin output:", error);
-            toast.error("删除失败");
+            toast.error(t("common.deleteFailed"));
           }
         },
       });
 
     const handleStartTest = useMemoizedFn((quizSet: VLQuizSet) => {
       if (quizSet.itemCount === 0) {
-        toast.info("这个测验集还没有题目");
+        toast.info(t("output.quizEmpty"));
         return;
       }
       setTesting(quizSet);
@@ -408,7 +436,7 @@ export const OutputGroup = forwardRef<OutputGroupRef, OutputGroupProps>(
     return (
       <section>
         <TreeGroupHeader
-          title="产物"
+          title={t("output.title")}
           count={items.length}
           open={open}
           onToggle={() => setOpen(v => !v)}
@@ -417,7 +445,7 @@ export const OutputGroup = forwardRef<OutputGroupRef, OutputGroupProps>(
               align="end"
               fit
               trigger={
-                <IconButton className="size-[24px]" aria-label="新建笔记或生成">
+                <IconButton className="size-[24px]" aria-label={t("output.new")}>
                   <Plus className="size-[15px]" strokeWidth={1.75} />
                 </IconButton>
               }
@@ -426,10 +454,10 @@ export const OutputGroup = forwardRef<OutputGroupRef, OutputGroupProps>(
                 icon={<PenLine className="size-4" strokeWidth={1.75} />}
                 onSelect={props.onCreateNote}
               >
-                新建笔记
+                {t("output.newNote")}
               </Menu.Item>
               <Menu.Separator />
-              <Menu.Group>基于全部资料生成</Menu.Group>
+              <Menu.Group>{t("output.generateAll")}</Menu.Group>
               {GENERATE_APPS.map(app => (
                 <Menu.Item
                   key={app.key}
@@ -456,15 +484,15 @@ export const OutputGroup = forwardRef<OutputGroupRef, OutputGroupProps>(
         />
         {quizQuery.isError && (
           <ErrorState
-            title="测验列表加载失败"
-            error={quizQuery.error}
-            actions={[{ label: "重试", onClick: () => void quizQuery.refetch() }]}
+            title={t("output.quizzesFailed")}
+            error={notebookError(quizQuery.error, "output.quizzesFailed")}
+            actions={[{ label: t("common.retry"), onClick: () => void quizQuery.refetch() }]}
           />
         )}
         {open &&
           (items.length === 0 ? (
             /* 一行够了：能生成什么由标题右侧的生成菜单逐项列着，不在此重复 */
-            <p className="text-tau-sm text-ink-3 m-0 px-3 pt-1 pb-3">生成的内容会放在这里</p>
+            <p className="text-tau-sm text-ink-3 m-0 px-3 pt-1 pb-3">{t("output.empty")}</p>
           ) : (
             <div className="flex flex-col gap-px">
               {items.map(item => {
@@ -535,7 +563,7 @@ export const OutputGroup = forwardRef<OutputGroupRef, OutputGroupProps>(
         <Dialog
           open={recordsOf !== null}
           onOpenChange={next => !next && setRecordsOf(null)}
-          title="测验记录"
+          title={t("output.records")}
           context={recordsOf?.name}
           icon={<History className="size-4" strokeWidth={1.75} />}
           size="sm"
@@ -544,9 +572,11 @@ export const OutputGroup = forwardRef<OutputGroupRef, OutputGroupProps>(
             {recordsOf &&
               (recordsQuery.isError ? (
                 <ErrorState
-                  title="测验记录加载失败"
-                  error={recordsQuery.error}
-                  actions={[{ label: "重试", onClick: () => void recordsQuery.refetch() }]}
+                  title={t("output.recordsFailed")}
+                  error={notebookError(recordsQuery.error, "output.recordsFailed")}
+                  actions={[
+                    { label: t("common.retry"), onClick: () => void recordsQuery.refetch() },
+                  ]}
                 />
               ) : (
                 <QuizRecords records={recordsQuery.records} loading={recordsQuery.isPending} />
@@ -559,7 +589,7 @@ export const OutputGroup = forwardRef<OutputGroupRef, OutputGroupProps>(
           title={pendingDelete?.title ?? ""}
           description={pendingDelete?.description ?? ""}
           danger
-          confirmText="删除"
+          confirmText={t("common.delete")}
           onConfirm={async () => {
             const pending = pendingDelete;
             await pending?.action();
@@ -573,6 +603,7 @@ export const OutputGroup = forwardRef<OutputGroupRef, OutputGroupProps>(
 
 /** 测验记录：分数按及格线着语义色，其余中性 */
 function QuizRecords({ records, loading }: { records: VLQuizRecord[]; loading: boolean }) {
+  const { locale } = useNotebookI18n();
   if (loading)
     return (
       <div className="flex justify-center py-10">
@@ -580,7 +611,7 @@ function QuizRecords({ records, loading }: { records: VLQuizRecord[]; loading: b
       </div>
     );
   if (records.length === 0)
-    return <p className="text-tau-meta text-ink-3 py-10 text-center">还没有测验记录</p>;
+    return <p className="text-tau-meta text-ink-3 py-10 text-center">{t("output.noRecords")}</p>;
   return (
     <div className="flex flex-col">
       {records.map(record => (
@@ -595,14 +626,22 @@ function QuizRecords({ records, loading }: { records: VLQuizRecord[]; loading: b
           </span>
           <div className="text-tau-meta min-w-0 flex-1">
             <div className="text-ink-1">
-              答对 {record.correctCount} / {record.totalCount}
+              {t("output.correct", {
+                correct: notebookNumber(record.correctCount),
+                total: notebookNumber(record.totalCount),
+              })}
             </div>
             <div className="text-ink-3 text-tau-sm">
-              用时 {Math.floor(record.duration / 60)} 分 {record.duration % 60} 秒
+              {t("output.duration", {
+                m: notebookNumber(Math.floor(record.duration / 60)),
+                s: notebookNumber(record.duration % 60),
+              })}
             </div>
           </div>
           <span className="text-tau-sm text-ink-3 shrink-0">
-            {formatDate(record.createTime, true)}
+            {new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "short" }).format(
+              record.createTime
+            )}
           </span>
         </div>
       ))}

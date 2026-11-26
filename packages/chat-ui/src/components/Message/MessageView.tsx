@@ -1,3 +1,4 @@
+import { useChatUiI18n } from "../../i18n";
 /**
  * 单条消息（桌面与浏览器扩展共用）：
  *  - 用户：右对齐气泡（accent-soft 轻染，右下角收尖），附件在气泡上方；
@@ -104,7 +105,7 @@ export const MessageView = memo(function MessageView({
   assistantBlocks = [],
   onDelete,
   onRegenerate,
-  regenerateLabel = "重新生成",
+  regenerateLabel,
   onCreateBranch,
   renderExtraActions,
   onEditUserMessage,
@@ -119,6 +120,7 @@ export const MessageView = memo(function MessageView({
   renderImage,
   renderToolCall,
 }: MessageViewProps) {
+  const { t } = useChatUiI18n();
   const isUser = role === "user";
   const [copied, setCopied] = useState(false);
 
@@ -163,7 +165,7 @@ export const MessageView = memo(function MessageView({
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1600);
     } catch {
-      toast.error("复制失败");
+      toast.error(t("copyFailed"));
     }
   };
 
@@ -172,11 +174,11 @@ export const MessageView = memo(function MessageView({
     isUser && versions && versions.count > 1 ? (
       <div
         role="group"
-        aria-label={`版本 ${versions.index + 1} / ${versions.count}`}
+        aria-label={t("message.version", { index: versions.index + 1, total: versions.count })}
         className="text-tau-meta text-ink-3 flex items-center"
       >
         <IconButton
-          aria-label="上一个版本"
+          aria-label={t("message.previousVersion")}
           className="size-[22px] [&_svg]:size-3.5"
           disabled={!onSwitchVersion || versions.index === 0}
           onClick={() => onSwitchVersion?.(messageIndex, versions.index - 1)}
@@ -187,7 +189,7 @@ export const MessageView = memo(function MessageView({
           {versions.index + 1}/{versions.count}
         </span>
         <IconButton
-          aria-label="下一个版本"
+          aria-label={t("message.nextVersion")}
           className="size-[22px] [&_svg]:size-3.5"
           disabled={!onSwitchVersion || versions.index === versions.count - 1}
           onClick={() => onSwitchVersion?.(messageIndex, versions.index + 1)}
@@ -205,27 +207,30 @@ export const MessageView = memo(function MessageView({
         isUser ? "justify-end" : "-ml-1.5"
       )}
     >
-      <Action label={copied ? "已复制" : "复制"} onClick={() => void copy()}>
+      <Action label={copied ? t("copied") : t("copy")} onClick={() => void copy()}>
         {copied ? <Check className="text-ok" /> : <Copy />}
       </Action>
       {isUser && onEditUserMessage && userText.trim() && (
-        <Action label="编辑" onClick={() => onEditUserMessage(messageIndex, userText)}>
+        <Action label={t("message.edit")} onClick={() => onEditUserMessage(messageIndex, userText)}>
           <Pencil />
         </Action>
       )}
       {isUser && onRegenerate && (
-        <Action label={regenerateLabel} onClick={() => onRegenerate(messageIndex)}>
+        <Action
+          label={regenerateLabel ?? t("message.regenerate")}
+          onClick={() => onRegenerate(messageIndex)}
+        >
           <RefreshCw />
         </Action>
       )}
       {!isUser && onCreateBranch && (
-        <Action label="从这里创建分支" onClick={() => onCreateBranch(messageIndex)}>
+        <Action label={t("message.branch")} onClick={() => onCreateBranch(messageIndex)}>
           <GitBranch />
         </Action>
       )}
       {renderExtraActions?.(copyText)}
       {onDelete && (
-        <Action label="删除" onClick={() => onDelete(messageIndex)}>
+        <Action label={t("message.delete")} onClick={() => onDelete(messageIndex)}>
           <Trash2 />
         </Action>
       )}
@@ -262,7 +267,7 @@ export const MessageView = memo(function MessageView({
                 type="button"
                 key={`${file.path}-${index}`}
                 onClick={() => onOpenFile?.(file)}
-                title="在文件夹中显示"
+                title={t("message.showFile")}
                 className="border-line-1 bg-surface hover:bg-surface-hover rounded-tau-sm group/file flex max-w-full items-center gap-2 border py-1.5 pr-3 pl-2.5 text-left"
               >
                 <FileText size={15} strokeWidth={1.75} className="text-danger shrink-0" />

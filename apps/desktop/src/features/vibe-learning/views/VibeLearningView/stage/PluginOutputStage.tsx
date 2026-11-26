@@ -1,3 +1,4 @@
+import { notebookTranslator, useNotebookI18n } from "@/features/vibe-learning/i18n";
 /**
  * 阅读区 · 插件产物：宿主画标题栏（对话开关、关闭、生成过程入口），正文交给插件注册的 view。
  * 插件停用后找不到对应的输出，显示说明而不是空白。
@@ -13,6 +14,7 @@ import {
   useNotebookOutputFor,
 } from "@/app/plugins/notebook-outputs";
 import { StageHeader } from "@/components/StageHeader";
+const t = notebookTranslator.t;
 
 interface PluginOutputStageProps {
   entity: PluginEntityRecord;
@@ -31,6 +33,7 @@ export function PluginOutputStage({
   onClose,
   onShowTrace,
 }: PluginOutputStageProps) {
+  useNotebookI18n();
   const output = useNotebookOutputFor(entity.pluginId, entity.kind);
   const Icon = notebookOutputIcon(output);
   const View = output?.definition.view;
@@ -38,7 +41,7 @@ export function PluginOutputStage({
     <div className="flex h-full min-h-0 flex-col">
       <StageHeader
         icon={<Icon className="size-4" strokeWidth={1.75} />}
-        title={entity.title || output?.definition.title || "插件产物"}
+        title={entity.title || output?.definition.title || t("plugin.output")}
         meta={output?.definition.title}
         chatOpen={chatOpen}
         onToggleChat={onToggleChat}
@@ -46,7 +49,7 @@ export function PluginOutputStage({
         actions={
           onShowTrace && (
             <Button variant="ghost" size="sm" icon={Sparkles} onClick={onShowTrace}>
-              生成过程
+              {t("stage.process")}
             </Button>
           )
         }
@@ -62,7 +65,7 @@ export function PluginOutputStage({
           </PluginNotebookSlot>
         ) : (
           <p className="text-tau-meta text-ink-3 m-0 px-10 py-10 text-center">
-            生成它的插件已停用，启用后可以在这里查看
+            {t("plugin.disabled")}
           </p>
         )}
       </FadeScroll>

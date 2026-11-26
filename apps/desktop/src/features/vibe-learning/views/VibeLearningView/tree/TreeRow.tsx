@@ -1,3 +1,4 @@
+import { notebookTranslator, useNotebookI18n } from "@/features/vibe-learning/i18n";
 /**
  * 目录行：图标 + 名称 + 尾部状态，悬停在固定槽位淡入「更多」；右键弹出同一份菜单。
  * 槽位常驻占宽，悬停不改变行内布局。
@@ -6,6 +7,7 @@
 import { forwardRef, type ReactNode } from "react";
 import { ChevronDown, MoreHorizontal } from "lucide-react";
 import { ContextMenu, Menu, cn } from "@tau/ui";
+const t = notebookTranslator.t;
 
 interface TreeRowProps {
   icon: ReactNode;
@@ -21,6 +23,7 @@ interface TreeRowProps {
 
 export const TreeRow = forwardRef<HTMLDivElement, TreeRowProps>(
   ({ icon, title, active, flag, menu, onClick, className }, ref) => {
+    useNotebookI18n();
     const row = (
       <div
         ref={ref}
@@ -52,7 +55,7 @@ export const TreeRow = forwardRef<HTMLDivElement, TreeRowProps>(
               trigger={
                 <button
                   type="button"
-                  aria-label="更多"
+                  aria-label={t("common.more")}
                   className={cn(
                     "text-ink-3 hover:bg-hover hover:text-ink-1 grid size-[22px] place-items-center rounded-[6px] opacity-0 outline-none",
                     "focus-visible:opacity-100 group-hover:opacity-100 aria-expanded:opacity-100"
@@ -88,8 +91,9 @@ export function TreeGroupHeader({
   onToggle: () => void;
   action?: ReactNode;
 }) {
+  useNotebookI18n();
   return (
-    <div className="flex h-[30px] items-center gap-1 pl-1 pr-1">
+    <div className="flex h-[30px] items-center gap-1 pr-1 pl-1">
       <button
         type="button"
         onClick={onToggle}

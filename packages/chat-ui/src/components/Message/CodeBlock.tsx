@@ -1,3 +1,4 @@
+import { useChatUiI18n } from "../../i18n";
 /**
  * 对话里的代码块：surface-hover 底 + line-1 描边，与编辑器代码块（--ed-code-bg）同色，
  * 头行 = 语言 + 复制；高亮器按需懒加载，加载前以纯文本等高占位（不闪「Loading」字样）。
@@ -73,6 +74,7 @@ export function CodeBlock({
   language?: string;
   className?: string;
 }) {
+  const { t } = useChatUiI18n();
   const Prism = usePrismHighlighter();
   const [copied, setCopied] = useState(false);
   const lang = normalizeCodeLanguage(language || "text");
@@ -96,12 +98,12 @@ export function CodeBlock({
     >
       <div className="flex h-8 items-center justify-between pr-1 pl-3.5">
         <span className="text-tau-tiny text-ink-3 font-tau-mono">
-          {lang === "text" ? "文本" : lang}
+          {lang === "text" ? t("code.text") : lang}
         </span>
         <IconButton
           className="size-[26px]"
-          title={copied ? "已复制" : "复制代码"}
-          aria-label="复制代码"
+          title={copied ? t("copied") : t("code.copy")}
+          aria-label={t("code.copy")}
           onClick={copy}
         >
           {copied ? (

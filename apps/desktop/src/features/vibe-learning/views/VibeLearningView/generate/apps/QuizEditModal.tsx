@@ -1,3 +1,9 @@
+import {
+  notebookTranslator,
+  notebookCount,
+  useNotebookI18n,
+  notebookError,
+} from "@/features/vibe-learning/i18n";
 import { memo, useState, useEffect, useMemo, useCallback, type ReactNode } from "react";
 import { Pencil, Trash2, Check, X, ChevronDown, Plus, Save, CircleAlert } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
@@ -23,7 +29,8 @@ import { useQuizItems, useQuizMutations } from "../../../../quizQueries";
 import { ErrorState } from "@/components/ErrorState";
 import type { VLQuizSet, VLQuizItem, UpdateVLQuizItemInput } from "@/types";
 import type { FlashcardOption } from "@/types/flashcard";
-import { FLASHCARD_TYPE_META, extractPlainText } from "@/utils/flashcard";
+import { extractPlainText } from "@/utils/flashcard";
+const t = notebookTranslator.t;
 
 interface QuizEditModalProps {
   open: boolean;
@@ -33,9 +40,15 @@ interface QuizEditModalProps {
 
 // 难度显示
 const DIFFICULTY_LABELS: Record<string, string> = {
-  foundation: "基础",
-  standard: "标准",
-  advanced: "进阶",
+  get foundation() {
+    return t("quiz.foundation");
+  },
+  get standard() {
+    return t("quiz.standard");
+  },
+  get advanced() {
+    return t("quiz.advanced");
+  },
 };
 
 const DIFFICULTY_COLORS: Record<string, TagColor> = {
@@ -46,11 +59,22 @@ const DIFFICULTY_COLORS: Record<string, TagColor> = {
 
 // 题型显示名称
 const getTypeLabel = (type: string) => {
-  return FLASHCARD_TYPE_META[type as keyof typeof FLASHCARD_TYPE_META]?.label || type;
+  return (
+    (
+      {
+        "single-choice": t("quiz.single"),
+        "multiple-choice": t("quiz.multiple"),
+        cloze: t("quiz.cloze"),
+        qa: t("quiz.qa"),
+        boolean: t("quiz.boolean"),
+      } as Record<string, string>
+    )[type] || type
+  );
 };
 
 /** 字段标签：12px 淡墨，放在内容上方 */
 function FieldLabel({ children, extra }: { children: string; extra?: ReactNode }) {
+  useNotebookI18n();
   return (
     <div className="mb-1.5 flex items-center gap-2">
       <span className="text-ink-2 text-[12px]">{children}</span>
@@ -61,6 +85,7 @@ function FieldLabel({ children, extra }: { children: string; extra?: ReactNode }
 }
 
 const QuizEditModal = memo((props: QuizEditModalProps) => {
+  useNotebookI18n();
   const { open, quizSet, onClose } = props;
 
   const itemsQuery = useQuizItems(quizSet?.id, open);
@@ -94,10 +119,10 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
     setSavingName(true);
     try {
       await updateQuizSet({ id: quizSet.id, name: quizName.trim() });
-      toast.success("名称已更新");
+      toast.success(t("quiz.nameUpdated"));
       setIsEditingName(false);
     } catch (error) {
-      toast.error("更新失败");
+      toast.error(t("common.updateFailed"));
     } finally {
       setSavingName(false);
     }
@@ -143,8 +168,8 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
     <Dialog
       open={open}
       onOpenChange={next => !next && handleClose()}
-      title="编辑测验"
-      subtitle="修改测验信息和题目内容"
+      title={t("quiz.edit")}
+      subtitle={t("quiz.editHint")}
       icon={<Pencil className="size-4" strokeWidth={1.75} />}
       width={700}
     >
@@ -152,7 +177,7 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
         <div className="flex flex-col gap-5 pt-1">
           {/* 测验名称编辑 */}
           <div>
-            <FieldLabel>测验名称</FieldLabel>
+            <FieldLabel>{t("quiz.name")}</FieldLabel>
             {isEditingName ? (
               <div className="flex items-center gap-1.5">
                 <Input
@@ -179,9 +204,13 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
                   disabled={savingName || !quizName.trim()}
                   onClick={handleSaveName}
                 >
-                  保存
+                  {t("common.save")}
                 </Button>
-                <IconButton aria-label="取消" title="取消" onClick={handleCancelEditName}>
+                <IconButton
+                  aria-label={t("common.cancel")}
+                  title={t("common.cancel")}
+                  onClick={handleCancelEditName}
+                >
                   <X className="size-4" strokeWidth={1.75} />
                 </IconButton>
               </div>
@@ -196,7 +225,7 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
                 )}
               >
                 <span className="text-ink-1 text-tau-body truncate">
-                  {quizSet?.name || "未命名"}
+                  {quizSet?.name || t("common.unnamed")}
                 </span>
                 <Pencil
                   className="text-ink-3 group-hover:text-ink-2 size-3.5 shrink-0"
@@ -209,26 +238,30 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
           {/* 题目列表 */}
           <div>
             <FieldLabel
-              extra={<span className="text-ink-3 text-tau-meta">共 {items.length} 题</span>}
+              extra={
+                <span className="text-ink-3 text-tau-meta">
+                  {notebookCount("stage.questions", items.length)}
+                </span>
+              }
             >
-              题目列表
+              {t("quiz.questions")}
             </FieldLabel>
 
             {itemsQuery.isError ? (
               <ErrorState
-                title="测验题加载失败"
-                error={itemsQuery.error}
-                actions={[{ label: "重试", onClick: () => void itemsQuery.refetch() }]}
+                title={t("quiz.loadFailed")}
+                error={notebookError(itemsQuery.error, "quiz.loadFailed")}
+                actions={[{ label: t("common.retry"), onClick: () => void itemsQuery.refetch() }]}
               />
             ) : loadingItems ? (
               <div className="flex flex-col items-center justify-center gap-3 py-12">
                 <Spinner className="size-5" />
-                <p className="text-ink-3 text-tau-meta m-0">加载题目中...</p>
+                <p className="text-ink-3 text-tau-meta m-0">{t("quiz.loading")}</p>
               </div>
             ) : items.length === 0 ? (
               <div className="border-line-1 rounded-tau-md flex flex-col items-center justify-center gap-2 border border-dashed py-12">
                 <CircleAlert className="text-ink-3 size-6" strokeWidth={1.75} />
-                <p className="text-ink-3 text-tau-meta m-0">暂无题目</p>
+                <p className="text-ink-3 text-tau-meta m-0">{t("quiz.noQuestions")}</p>
               </div>
             ) : (
               <div className="flex flex-col gap-1">
@@ -256,19 +289,19 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
           onOpenChange={next => {
             if (!next) setDeleteItemConfirm(null);
           }}
-          title="删除题目"
-          description="确定要删除这道题目吗？此操作无法撤销。"
+          title={t("quiz.deleteQuestion")}
+          description={t("quiz.deleteQuestionHint")}
           danger
-          confirmText="删除"
+          confirmText={t("common.delete")}
           onConfirm={async () => {
             const item = deleteItemConfirm;
             if (!item) return;
             try {
               await deleteItem(item.id);
               setDeleteItemConfirm(null);
-              toast.success("题目已删除");
+              toast.success(t("quiz.questionDeleted"));
             } catch (error) {
-              toast.error("删除失败");
+              toast.error(t("common.deleteFailed"));
               throw error;
             }
           }}
@@ -294,6 +327,7 @@ interface QuizItemCardProps {
 }
 
 const QuizItemCard = memo((props: QuizItemCardProps) => {
+  useNotebookI18n();
   const {
     item,
     index,
@@ -347,8 +381,8 @@ const QuizItemCard = memo((props: QuizItemCardProps) => {
         </div>
         <div className="flex shrink-0 items-center gap-0.5">
           <IconButton
-            aria-label="编辑"
-            title="编辑"
+            aria-label={t("common.edit")}
+            title={t("common.edit")}
             onClick={e => {
               e.stopPropagation();
               onStartEdit();
@@ -357,8 +391,8 @@ const QuizItemCard = memo((props: QuizItemCardProps) => {
             <Pencil className="size-4" strokeWidth={1.75} />
           </IconButton>
           <IconButton
-            aria-label="删除"
-            title="删除"
+            aria-label={t("common.delete")}
+            title={t("common.delete")}
             className="hover:text-danger"
             onClick={e => {
               e.stopPropagation();
@@ -399,6 +433,7 @@ interface QuizItemPreviewProps {
 }
 
 const QuizItemPreview = memo((props: QuizItemPreviewProps) => {
+  useNotebookI18n();
   const { item } = props;
 
   const renderContent = () => {
@@ -408,7 +443,7 @@ const QuizItemPreview = memo((props: QuizItemPreviewProps) => {
         const options = item.data.options || [];
         return (
           <div>
-            <FieldLabel>选项</FieldLabel>
+            <FieldLabel>{t("quiz.option")}</FieldLabel>
             <div className="flex flex-col gap-1.5">
               {options.map((opt, idx) => (
                 <div
@@ -431,23 +466,23 @@ const QuizItemPreview = memo((props: QuizItemPreviewProps) => {
         const answer = item.data.booleanAnswer;
         return (
           <div className="flex items-center gap-2">
-            <span className="text-ink-2 text-[12px]">正确答案</span>
-            <Tag color={answer ? "green" : "red"}>{answer ? "正确" : "错误"}</Tag>
+            <span className="text-ink-2 text-[12px]">{t("quiz.correctAnswer")}</span>
+            <Tag color={answer ? "green" : "red"}>{answer ? t("quiz.true") : t("quiz.false")}</Tag>
           </div>
         );
       }
       case "qa": {
         return (
           <div>
-            <FieldLabel>参考答案</FieldLabel>
+            <FieldLabel>{t("quiz.reference")}</FieldLabel>
             <p className="border-line-1 rounded-tau-sm text-ink-2 text-tau-body m-0 border px-3 py-2 whitespace-pre-wrap">
-              {item.data.answer || "暂无答案"}
+              {item.data.answer || t("quiz.noAnswer")}
             </p>
           </div>
         );
       }
       case "cloze": {
-        return <p className="text-ink-3 text-tau-meta m-0">填空题（答案已在题干中标记）</p>;
+        return <p className="text-ink-3 text-tau-meta m-0">{t("quiz.clozeHint")}</p>;
       }
       default:
         return null;
@@ -459,7 +494,7 @@ const QuizItemPreview = memo((props: QuizItemPreviewProps) => {
       {renderContent()}
       {item.data.explanation && (
         <div>
-          <FieldLabel>解析</FieldLabel>
+          <FieldLabel>{t("quiz.explanation")}</FieldLabel>
           <p className="text-ink-2 text-tau-body m-0 leading-relaxed">{item.data.explanation}</p>
         </div>
       )}
@@ -477,6 +512,7 @@ interface QuizItemEditFormProps {
 }
 
 const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
+  useNotebookI18n();
   const { item, onSave, onCancel } = props;
 
   const [saving, setSaving] = useState(false);
@@ -494,12 +530,12 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
 
       if (item.type === "single-choice" || item.type === "multiple-choice") {
         if (formData.options.some(opt => !opt.label.trim())) {
-          toast.error("请填写所有选项内容");
+          toast.error(t("quiz.fillOptions"));
           setSaving(false);
           return;
         }
         if (!formData.options.some(opt => opt.isCorrect)) {
-          toast.error("请至少选择一个正确答案");
+          toast.error(t("quiz.pickCorrect"));
           setSaving(false);
           return;
         }
@@ -513,10 +549,10 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
       newData.explanation = formData.explanation;
 
       await onSave({ id: item.id, data: newData });
-      toast.success("保存成功");
+      toast.success(t("common.saveSuccess"));
       onCancel();
     } catch (error) {
-      toast.error("保存失败");
+      toast.error(t("common.saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -581,20 +617,20 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
         return (
           <div>
             <FieldLabel>
-              {isMultiple ? "选项（勾选正确答案，可多选）" : "选项（选中正确答案）"}
+              {isMultiple ? t("quiz.multipleOptions") : t("quiz.singleOptions")}
             </FieldLabel>
             <div className="flex flex-col gap-1.5">
               {formData.options.map((opt, idx) => (
                 <div key={opt.id} className="flex items-center gap-1.5">
                   {isMultiple ? (
                     <Checkbox
-                      aria-label="设为正确答案"
+                      aria-label={t("quiz.setCorrect")}
                       checked={!!opt.isCorrect}
                       onChange={() => toggleCorrectOption(idx)}
                     />
                   ) : (
                     <Radio
-                      aria-label="设为正确答案"
+                      aria-label={t("quiz.setCorrect")}
                       name={`quiz-correct-${item.id}`}
                       value={opt.id}
                       checked={!!opt.isCorrect}
@@ -605,13 +641,13 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
                     size="sm"
                     value={opt.label}
                     onChange={e => updateOption(idx, { label: e.target.value })}
-                    placeholder={`选项 ${String.fromCharCode(65 + idx)}`}
+                    placeholder={t("quiz.optionNamed", { option: String.fromCharCode(65 + idx) })}
                     wrapperClassName="flex-1"
                   />
                   {formData.options.length > 2 && (
                     <IconButton
-                      aria-label="删除选项"
-                      title="删除选项"
+                      aria-label={t("quiz.deleteOption")}
+                      title={t("quiz.deleteOption")}
                       className="hover:text-danger"
                       onClick={() => removeOption(idx)}
                     >
@@ -622,7 +658,7 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
               ))}
             </div>
             <Button variant="ghost" size="sm" icon={Plus} className="mt-1.5" onClick={addOption}>
-              添加选项
+              {t("quiz.addOption")}
             </Button>
           </div>
         );
@@ -630,9 +666,9 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
       case "boolean": {
         return (
           <div>
-            <FieldLabel>正确答案</FieldLabel>
+            <FieldLabel>{t("quiz.correctAnswer")}</FieldLabel>
             <Segmented
-              label="正确答案"
+              label={t("quiz.correctAnswer")}
               value={formData.booleanAnswer ? "true" : "false"}
               onValueChange={v =>
                 setFormData(prev => ({
@@ -641,8 +677,8 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
                 }))
               }
             >
-              <Segmented.Item value="true" label="正确" icon={Check} />
-              <Segmented.Item value="false" label="错误" icon={X} />
+              <Segmented.Item value="true" label={t("quiz.true")} icon={Check} />
+              <Segmented.Item value="false" label={t("quiz.false")} icon={X} />
             </Segmented>
           </div>
         );
@@ -650,22 +686,18 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
       case "qa": {
         return (
           <div>
-            <FieldLabel>参考答案</FieldLabel>
+            <FieldLabel>{t("quiz.reference")}</FieldLabel>
             <Textarea
               value={formData.answer}
               onChange={e => setFormData(prev => ({ ...prev, answer: e.target.value }))}
               rows={4}
-              placeholder="输入参考答案..."
+              placeholder={t("quiz.referencePlaceholder")}
             />
           </div>
         );
       }
       case "cloze": {
-        return (
-          <p className="text-ink-3 text-tau-meta m-0">
-            填空题的答案在题干中编辑，此处暂不支持修改填空内容。
-          </p>
-        );
+        return <p className="text-ink-3 text-tau-meta m-0">{t("quiz.clozeEditHint")}</p>;
       }
       default:
         return null;
@@ -678,22 +710,22 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
 
       {/* 解析 */}
       <div>
-        <FieldLabel>解析（可选）</FieldLabel>
+        <FieldLabel>{t("quiz.optionalExplanation")}</FieldLabel>
         <Textarea
           value={formData.explanation}
           onChange={e => setFormData(prev => ({ ...prev, explanation: e.target.value }))}
           rows={2}
-          placeholder="输入题目解析..."
+          placeholder={t("quiz.explanationPlaceholder")}
         />
       </div>
 
       {/* 操作按钮 */}
       <div className="flex justify-end gap-2">
         <Button variant="secondary" size="sm" disabled={saving} onClick={onCancel}>
-          取消
+          {t("common.cancel")}
         </Button>
         <Button variant="primary" size="sm" icon={Save} loading={saving} onClick={handleSave}>
-          保存
+          {t("common.save")}
         </Button>
       </div>
     </div>

@@ -1,3 +1,10 @@
+import {
+  notebookTranslator,
+  notebookCount,
+  useNotebookI18n,
+  NotebookUiError,
+  notebookError,
+} from "@/features/vibe-learning/i18n";
 import { memo, useState, useEffect, useRef, type ReactNode } from "react";
 import {
   Check,
@@ -26,6 +33,7 @@ import { useOnlineVideoResolver } from "@/hooks/useOnlineVideoResolver";
 import { useVideoProviders } from "@/hooks/useVideoProviders";
 import { buildOnlineVideoMeta } from "@/types/online-video";
 import type { VLResource, VLResourceType, NoteSourceMeta } from "@/types/vibe-learning";
+const t = notebookTranslator.t;
 
 const ACCEPTED_UPLOAD_TYPES =
   ".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.md,.html,.mp3,.wav,.m4a,.ogg,.flac,.aac,.mp4,.webm,.mov,.avi,.mkv,.jpg,.jpeg,.png,.gif,.webp,.bmp";
@@ -132,6 +140,7 @@ const extractTitleFromHtml = (html: string): string | null => {
 };
 
 const AddResourceModal = memo((props: AddResourceModalProps) => {
+  useNotebookI18n();
   const { open, projectId, mainDbName, onClose, onSuccess, resources = [] } = props;
 
   // Tab 状态
@@ -145,7 +154,8 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
   const [url, setUrl] = useState("");
   const [resourceTitle, setResourceTitle] = useState("");
   const [processingStep, setProcessingStep] = useState<ProcessingStep>("idle");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ cause: unknown } | null>(null);
+  const [videoLocalError, setVideoLocalError] = useState<{ cause: unknown } | null>(null);
 
   // 视频相关状态
   const [videoUrl, setVideoUrl] = useState("");
@@ -157,7 +167,10 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
     ? videoSource
     : (videoProviders[0]?.id ?? "");
   const videoResolver = useOnlineVideoResolver(activeVideoSource);
-  const { analyzing: isAnalyzing, error: videoError, resolved: videoInfo } = videoResolver;
+  const { analyzing: isAnalyzing, error: rawVideoError, resolved: videoInfo } = videoResolver;
+  const videoError = videoLocalError
+    ? notebookError(videoLocalError.cause, "resource.videoFailed")
+    : rawVideoError;
   const videoStep = videoPhase !== "idle" ? videoPhase : videoInfo ? "config" : "input";
   const videoInputRef = useRef<HTMLInputElement>(null);
 
@@ -183,6 +196,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
     setVideoUrl("");
     setVideoPhase("idle");
     videoResolver.reset();
+    setVideoLocalError(null);
     // 重置 Webview 状态
     setWebviewUrl(null);
     webviewLoadResolve.current = null;
@@ -202,7 +216,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
         setWebviewUrl(null);
         webviewLoadResolve.current = null;
         webviewLoadReject.current = null;
-        reject(new Error("网页加载超时"));
+        reject(new NotebookUiError("resource.pageTimeout", "网页加载超时"));
       }, 30000); // 30 秒超时
 
       webviewLoadResolve.current = (html: string) => {
@@ -235,11 +249,17 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       if (html && webviewLoadResolve.current) {
         webviewLoadResolve.current(html);
       } else if (webviewLoadReject.current) {
-        webviewLoadReject.current(new Error("无法获取网页内容"));
+        webviewLoadReject.current(
+          new NotebookUiError("resource.pageUnavailable", "无法获取网页内容")
+        );
       }
     } catch (err) {
       if (webviewLoadReject.current) {
-        webviewLoadReject.current(err instanceof Error ? err : new Error("获取网页内容失败"));
+        webviewLoadReject.current(
+          err instanceof Error
+            ? err
+            : new NotebookUiError("resource.pageFailed", "获取网页内容失败")
+        );
       }
     }
   });
@@ -259,7 +279,10 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       const uploadedUrl = await uploadResource(file);
       if (!uploadedUrl) {
         // uploadResource 内部吞掉了异常只返回 null，这里给出可行动的指向
-        throw new Error("图床返回为空，请检查设置里的图床与密钥配置");
+        throw new NotebookUiError(
+          "resource.uploadEmpty",
+          "图床返回为空，请检查设置里的图床与密钥配置"
+        );
       }
 
       // 2. 创建资源记录
@@ -288,8 +311,12 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
     } catch (error) {
       console.error("Upload failed:", error);
       // 带上原因：只说「上传失败」的话，图床配错、网络不通、超时都长一个样
-      const reason = error instanceof Error ? error.message : String(error);
-      toast.error(`${file.name} 上传失败：${reason}`);
+      toast.error(
+        t("resource.uploadFailed", {
+          name: file.name,
+          error: notebookError(error, "resource.addFailed"),
+        })
+      );
     } finally {
       setUploading(false);
     }
@@ -300,12 +327,12 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
   // 网址剪藏处理
   const handleClipUrl = useMemoizedFn(async () => {
     if (!url.trim()) {
-      toast.warning("请输入网址");
+      toast.warning(t("resource.enterUrl"));
       return;
     }
 
     if (!isValidUrl(url.trim())) {
-      toast.error("请输入有效的网址（以 http:// 或 https:// 开头）");
+      toast.error(t("resource.invalidUrl"));
       return;
     }
 
@@ -330,7 +357,9 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
 
         if (!response.ok) {
           await response.body?.cancel();
-          throw new Error(`网页读取失败: ${response.status}`);
+          throw new NotebookUiError("resource.httpFailed", `网页读取失败: ${response.status}`, {
+            status: response.status,
+          });
         }
         const fetchedHtml = await response.text();
         if (fetchedHtml && fetchedHtml.trim().length > 0) {
@@ -359,7 +388,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       }
 
       if (!html || html.trim().length === 0) {
-        throw new Error("网页内容为空");
+        throw new NotebookUiError("resource.pageEmpty", "网页内容为空");
       }
 
       // 确定资源标题：优先使用用户输入，否则从网页提取，最后使用 URL
@@ -384,7 +413,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       );
 
       if (!markdown || markdown.trim().length === 0) {
-        throw new Error("无法提取网页内容");
+        throw new NotebookUiError("resource.extractFailed", "无法提取网页内容");
       }
 
       setProcessingStep("saving");
@@ -398,7 +427,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
 
       const uploadedUrl = await uploadResource(file);
       if (!uploadedUrl) {
-        throw new Error("保存失败");
+        throw new NotebookUiError("common.saveFailed", "保存失败");
       }
 
       // 5. 创建资源记录
@@ -423,7 +452,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       });
 
       setProcessingStep("done");
-      toast.success("网页剪藏成功");
+      toast.success(t("resource.clipSuccess"));
       onSuccess();
 
       // 延迟关闭弹窗
@@ -432,17 +461,17 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       }, 1000);
     } catch (err) {
       console.error("Clip URL failed:", err);
-      const errorMessage = err instanceof Error ? err.message : "剪藏失败，请稍后重试";
-      setError(errorMessage);
+      setError({ cause: err });
       setProcessingStep("idle");
     }
   });
 
   const handleAnalyzeVideo = useMemoizedFn(() => {
     if (!videoUrl.trim()) {
-      videoResolver.setError("请输入视频链接");
+      setVideoLocalError({ cause: new NotebookUiError("resource.enterVideo", "请输入视频链接") });
       return;
     }
+    setVideoLocalError(null);
     void videoResolver.analyze(videoUrl);
   });
 
@@ -451,6 +480,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
     if (!selection) return;
     setVideoPhase("adding");
     videoResolver.setError(null);
+    setVideoLocalError(null);
 
     try {
       const name = `${selection.title}.mp4`;
@@ -479,7 +509,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       });
 
       setVideoPhase("done");
-      toast.success("视频添加成功，正在后台处理...");
+      toast.success(t("resource.videoSuccess"));
       onSuccess();
 
       setTimeout(() => {
@@ -487,7 +517,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       }, 1000);
     } catch (err) {
       console.error("Add video failed:", err);
-      videoResolver.setError(err instanceof Error ? err.message : "添加视频失败，请稍后重试");
+      setVideoLocalError({ cause: err });
       setVideoPhase("idle");
     }
   });
@@ -529,7 +559,9 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       if (result.created) added++;
     }
     onSuccess();
-    toast.success(added > 0 ? `已加入 ${added} 份笔记` : "选中的笔记都已在资料里");
+    toast.success(
+      added > 0 ? notebookCount("resource.notesAdded", added) : t("resource.notesExist")
+    );
   });
 
   const busy =
@@ -572,9 +604,9 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           <UploadIcon className="text-ink-2 size-5" strokeWidth={1.75} />
         )}
         <span className="text-tau-body text-ink-1 font-medium">
-          {uploading ? "上传中…" : "点击或拖入文件"}
+          {uploading ? t("resource.uploading") : t("resource.uploadDrop")}
         </span>
-        <span className="text-tau-sm text-ink-3">PDF、Office、Markdown、音视频、图片</span>
+        <span className="text-tau-sm text-ink-3">{t("resource.formats")}</span>
       </label>
       {uploadedFiles.length > 0 && (
         <div className="flex flex-col gap-0.5">
@@ -584,7 +616,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
               <span className="truncate">{fileName}</span>
             </div>
           ))}
-          <p className="text-tau-sm text-ink-3 m-0 mt-1 px-1">已加入资料，正在后台转换与索引</p>
+          <p className="text-tau-sm text-ink-3 m-0 mt-1 px-1">{t("resource.processing")}</p>
         </div>
       )}
     </div>
@@ -592,20 +624,20 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
 
   const urlTab =
     processingStep === "done" ? (
-      <StatusBlock tone="ok" text="剪藏完成" sub="已加入资料，正在后台索引" />
+      <StatusBlock tone="ok" text={t("resource.clipped")} sub={t("resource.indexing")} />
     ) : processingStep !== "idle" ? (
       <StatusBlock
         text={
           processingStep === "fetching"
-            ? "正在获取网页…"
+            ? t("resource.fetching")
             : processingStep === "extracting"
-              ? "正在提取正文…"
-              : "正在保存…"
+              ? t("resource.extracting")
+              : t("resource.saving")
         }
       />
     ) : (
       <div className="flex flex-col gap-3.5">
-        <FieldRow label="网页地址">
+        <FieldRow label={t("resource.url")}>
           <ResourceSelectInput
             data-autofocus
             type="url"
@@ -615,23 +647,28 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
             onKeyDown={e => e.key === "Enter" && handleClipUrl()}
           />
         </FieldRow>
-        <FieldRow label="标题" hint="可选，留空从网页提取">
+        <FieldRow label={t("resource.title")} hint={t("resource.titleHint")}>
           <ResourceSelectInput
             value={resourceTitle}
             onChange={e => setResourceTitle(e.target.value)}
-            placeholder="网页标题"
+            placeholder={t("resource.webTitle")}
             onKeyDown={e => e.key === "Enter" && handleClipUrl()}
           />
         </FieldRow>
-        {error && <ErrorNote title="剪藏失败" text={error} />}
+        {error && (
+          <ErrorNote
+            title={t("resource.clipFailed")}
+            text={notebookError(error.cause, "resource.clipRetry")}
+          />
+        )}
       </div>
     );
 
   const videoTab =
     videoStep === "done" ? (
-      <StatusBlock tone="ok" text="已加入资料" sub="视频正在后台下载与转录" />
+      <StatusBlock tone="ok" text={t("resource.added")} sub={t("resource.videoBackground")} />
     ) : videoStep === "adding" ? (
-      <StatusBlock text="正在添加视频…" />
+      <StatusBlock text={t("resource.addingVideo")} />
     ) : videoStep === "config" && videoInfo ? (
       <div className="flex flex-col gap-3.5">
         <div className="flex items-center gap-3">
@@ -653,9 +690,9 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           </div>
         </div>
         {videoInfo.variants.length > 1 && (
-          <FieldRow label="清晰度">
+          <FieldRow label={t("resource.resolution")}>
             <Select
-              aria-label="清晰度"
+              aria-label={t("resource.resolution")}
               value={videoResolver.variant}
               onValueChange={v => videoResolver.setVariant(v)}
               options={videoInfo.variants.map((item, index) => ({
@@ -670,18 +707,17 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
     ) : (
       <div className="flex flex-col gap-3.5">
         {videoProviders.length === 0 ? (
-          <p className="text-tau-meta text-ink-2 m-0">
-            在插件中心安装 Bilibili、YouTube 等视频来源后，可以从这里添加视频。
-          </p>
+          <p className="text-tau-meta text-ink-2 m-0">{t("resource.pluginHint")}</p>
         ) : (
           videoProviders.length > 1 && (
-            <FieldRow label="来源">
+            <FieldRow label={t("resource.source")}>
               <Select
-                aria-label="视频来源"
+                aria-label={t("resource.videoSource")}
                 value={activeVideoSource}
                 onValueChange={value => {
                   setVideoSource(value);
                   videoResolver.setError(null);
+                  setVideoLocalError(null);
                 }}
                 options={videoProviders.map(provider => ({
                   value: provider.id,
@@ -691,7 +727,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
             </FieldRow>
           )
         )}
-        <FieldRow label="视频链接">
+        <FieldRow label={t("resource.videoLink")}>
           <ResourceSelectInput
             data-autofocus
             ref={videoInputRef}
@@ -700,8 +736,9 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
             onChange={e => {
               setVideoUrl(e.target.value);
               videoResolver.setError(null);
+              setVideoLocalError(null);
             }}
-            placeholder="粘贴视频链接"
+            placeholder={t("resource.pasteVideo")}
             disabled={isAnalyzing || !activeVideoSource}
             onKeyDown={e => e.key === "Enter" && !isAnalyzing && handleAnalyzeVideo()}
           />
@@ -714,7 +751,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
     <div className="flex flex-col items-center gap-3 px-6 py-6 text-center">
       <NotebookPen className="text-ink-2 size-5" strokeWidth={1.75} />
       <p className="text-tau-meta text-ink-2 m-0 max-w-[34ch] leading-relaxed">
-        从卡片库、文章、项目文档和日记里挑已有的笔记加入资料，可以一次选多篇。
+        {t("resource.pickNotesHint")}
       </p>
       <Button
         variant="secondary"
@@ -724,7 +761,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           setPickerOpen(true);
         }}
       >
-        选择笔记
+        {t("resource.pickNotes")}
       </Button>
     </div>
   );
@@ -734,10 +771,10 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       return (
         <>
           <Button variant="secondary" size="sm" onClick={onClose}>
-            取消
+            {t("common.cancel")}
           </Button>
           <Button variant="primary" size="sm" disabled={!url.trim()} onClick={handleClipUrl}>
-            开始剪藏
+            {t("resource.clip")}
           </Button>
         </>
       );
@@ -745,17 +782,17 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       return (
         <>
           <Button variant="secondary" size="sm" onClick={onClose}>
-            取消
+            {t("common.cancel")}
           </Button>
           <Button
             variant="primary"
             size="sm"
             loading={isAnalyzing}
-            loadingText="正在解析…"
+            loadingText={t("resource.parsing")}
             disabled={!videoUrl.trim() || !activeVideoSource}
             onClick={handleAnalyzeVideo}
           >
-            解析视频
+            {t("resource.parseVideo")}
           </Button>
         </>
       );
@@ -763,18 +800,18 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       return (
         <>
           <Button variant="secondary" size="sm" onClick={handleVideoBack}>
-            返回
+            {t("common.back")}
           </Button>
           <Button variant="primary" size="sm" onClick={handleAddVideo}>
-            加入资料
+            {t("resource.add")}
           </Button>
         </>
       );
     return (
       <Button variant="secondary" size="sm" disabled={busy} onClick={onClose}>
         {uploadedFiles.length > 0 || processingStep === "done" || videoStep === "done"
-          ? "完成"
-          : "取消"}
+          ? t("common.done")
+          : t("common.cancel")}
       </Button>
     );
   })();
@@ -784,7 +821,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       <Dialog
         open={open}
         onOpenChange={next => !next && onClose()}
-        title="添加资料"
+        title={t("resource.addTitle")}
         icon={<Plus className="size-4" strokeWidth={1.75} />}
         width={540}
         locked={busy}
@@ -804,16 +841,16 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           )}
           <div className="flex flex-col gap-4">
             <Segmented
-              label="资料来源"
+              label={t("resource.resourceSource")}
               size="md"
               value={activeTab}
               onValueChange={v => setActiveTab(v as TabType)}
               disabled={busy}
             >
-              <Segmented.Item value="file" icon={FileText} label="文件" />
-              <Segmented.Item value="url" icon={Globe} label="网页" />
-              <Segmented.Item value="video" icon={Clapperboard} label="视频" />
-              <Segmented.Item value="note" icon={NotebookPen} label="笔记" />
+              <Segmented.Item value="file" icon={FileText} label={t("resource.file")} />
+              <Segmented.Item value="url" icon={Globe} label={t("resource.web")} />
+              <Segmented.Item value="video" icon={Clapperboard} label={t("resource.video")} />
+              <Segmented.Item value="note" icon={NotebookPen} label={t("kind.note")} />
             </Segmented>
             {activeTab === "file" && fileTab}
             {activeTab === "url" && urlTab}
@@ -825,15 +862,15 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       <EntityPicker
         open={pickerOpen}
         onClose={() => setPickerOpen(false)}
-        title="把笔记加入资料"
+        title={t("resource.addNotes")}
         kinds={NOTE_KINDS}
         isLinked={c => c.contentId !== null && linkedContentIds.has(c.contentId)}
-        confirmLabel="加入资料"
+        confirmLabel={t("resource.add")}
         onConfirm={async picked => {
           try {
             await handleAddNotes(picked);
           } catch (err) {
-            toast.error(err instanceof Error ? err.message : "加入资料失败");
+            toast.error(notebookError(err, "resource.addFailed"));
             throw err;
           }
         }}
@@ -854,6 +891,7 @@ function FieldRow({
   hint?: string;
   children: ReactNode;
 }) {
+  useNotebookI18n();
   return (
     <label className="flex flex-col gap-1.5">
       <span className="flex items-center gap-2">
@@ -867,6 +905,7 @@ function FieldRow({
 
 /** 处理中 / 完成：居中一枚图标 + 一句话 */
 function StatusBlock({ text, sub, tone }: { text: string; sub?: string; tone?: "ok" }) {
+  useNotebookI18n();
   return (
     <div className="flex flex-col items-center gap-2 py-8 text-center">
       {tone === "ok" ? (
@@ -883,6 +922,7 @@ function StatusBlock({ text, sub, tone }: { text: string; sub?: string; tone?: "
 }
 
 function ErrorNote({ title, text }: { title?: string; text: string }) {
+  useNotebookI18n();
   return (
     <div className="bg-danger-soft text-danger text-tau-meta rounded-tau-sm px-3.5 py-2.5">
       {title && <div className="font-medium">{title}</div>}

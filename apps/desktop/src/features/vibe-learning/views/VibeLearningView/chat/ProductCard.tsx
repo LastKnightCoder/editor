@@ -1,3 +1,9 @@
+import {
+  notebookTranslator,
+  useNotebookI18n,
+  notebookTaskPhase,
+  notebookTaskError,
+} from "@/features/vibe-learning/i18n";
 /**
  * 对话里的产物卡片（vibe_learning_generate / save_note 的结果）：
  * 产物图标 + 标题 + 实时状态（订阅后台任务），一键在阅读区打开。
@@ -11,30 +17,32 @@ import { ToolCard } from "@tau/chat-ui";
 import { GENERATE_APPS } from "../appMeta";
 import { useVLTaskStore, type VLOpenTarget, type VLTask } from "../tasks/store";
 import { VL_PRODUCT_RENDERER_KEY, type VLProductPayload } from "./productPayload";
+const t = notebookTranslator.t;
 
 const getPayload = (metadata?: Record<string, unknown>): VLProductPayload | null => {
   const render = metadata?.render as
-    { rendererKey?: string; payload?: VLProductPayload } | undefined;
+    | { rendererKey?: string; payload?: VLProductPayload }
+    | undefined;
   return render?.rendererKey === VL_PRODUCT_RENDERER_KEY && render.payload ? render.payload : null;
 };
 
 function statusLine(payload: VLProductPayload, task: VLTask | undefined) {
-  if (payload.mode === "save") return { text: "已保存到产物列表", tone: "muted" as const };
-  if (!task) return { text: "已创建", tone: "muted" as const };
+  if (payload.mode === "save") return { text: t("product.saved"), tone: "muted" as const };
+  if (!task) return { text: t("common.created"), tone: "muted" as const };
   switch (task.status) {
     case "running":
       return {
         text: task.progress
-          ? `${task.phase} ${task.progress.done}/${task.progress.total}`
-          : task.phase,
+          ? `${notebookTaskPhase(task)} ${task.progress.done}/${task.progress.total}`
+          : notebookTaskPhase(task),
         tone: "running" as const,
       };
     case "succeeded":
-      return { text: "已生成", tone: "ok" as const };
+      return { text: t("common.generated"), tone: "ok" as const };
     case "cancelled":
-      return { text: "已停止", tone: "muted" as const };
+      return { text: t("common.stopped"), tone: "muted" as const };
     case "failed":
-      return { text: task.error || "生成失败", tone: "danger" as const };
+      return { text: notebookTaskError(task), tone: "danger" as const };
   }
 }
 
@@ -50,6 +58,7 @@ function openTarget(payload: VLProductPayload, task: VLTask | undefined): VLOpen
 }
 
 const VLProductRenderer = ({ execution, renderDefault }: ToolCallCustomRendererProps) => {
+  useNotebookI18n();
   const payload = getPayload(execution.metadata);
   const task = useVLTaskStore(s => (payload?.taskId ? s.tasks[payload.taskId] : undefined));
   const requestOpen = useVLTaskStore(s => s.requestOpen);
@@ -57,11 +66,15 @@ const VLProductRenderer = ({ execution, renderDefault }: ToolCallCustomRendererP
 
   const app = GENERATE_APPS.find(a => a.key === payload.kind);
   const Icon = app?.icon ?? PenLine;
-  const kindLabel = app?.label ?? "笔记";
+  const kindLabel = app?.label ?? t("kind.note");
   const status = statusLine(payload, task);
   const target = openTarget(payload, task);
   const actionLabel =
-    target?.kind === "quiz" ? "开始测验" : target?.kind === "task" ? "查看过程" : "打开";
+    target?.kind === "quiz"
+      ? t("stage.startQuiz")
+      : target?.kind === "task"
+        ? t("product.process")
+        : t("common.open");
 
   return (
     <ToolCard>

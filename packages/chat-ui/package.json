@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@tanstack/react-virtual": "^3.0.0",
+    "@tau/i18n": "workspace:*",
     "@tau/shared": "workspace:*",
     "@tau/ui": "workspace:*",
     "classnames": "^2.3.2",

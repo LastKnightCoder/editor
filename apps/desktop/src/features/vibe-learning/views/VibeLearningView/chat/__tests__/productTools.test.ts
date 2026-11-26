@@ -1,13 +1,20 @@
+import { desktopLocaleSource } from "@/app/i18n/runtime";
+import { ARTICLE_STYLES } from "../../generate/styles";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { startVLTaskMock, getResourcesMock, createContentMock, createVLNoteMock, recordLineageMock } =
-  vi.hoisted(() => ({
-    startVLTaskMock: vi.fn(),
-    getResourcesMock: vi.fn(),
-    createContentMock: vi.fn(),
-    createVLNoteMock: vi.fn(),
-    recordLineageMock: vi.fn(),
-  }));
+const {
+  startVLTaskMock,
+  getResourcesMock,
+  createContentMock,
+  createVLNoteMock,
+  recordLineageMock,
+} = vi.hoisted(() => ({
+  startVLTaskMock: vi.fn(),
+  getResourcesMock: vi.fn(),
+  createContentMock: vi.fn(),
+  createVLNoteMock: vi.fn(),
+  recordLineageMock: vi.fn(),
+}));
 
 vi.mock("../../tasks/runner", () => ({ startVLTask: startVLTaskMock }));
 vi.mock("@/commands", () => ({ createContent: createContentMock }));
@@ -155,4 +162,33 @@ describe("vibe_learning_save_note", () => {
       relation: "saved_from",
     });
   });
+});
+
+it("换语只改变风格显示，工具schema与原风格名称协议保持一致", async () => {
+  const original = desktopLocaleSource.getSnapshot();
+  const before = createVibeLearningProductTools(7, "main").map(tool => ({
+    description: tool.description,
+    parameters: tool.parameters,
+  }));
+  const style = ARTICLE_STYLES.find(item => item.value === "academic");
+  if (!style) throw new Error("Missing article style");
+  const toolName = style.toolLabel;
+  try {
+    for (const locale of ["zh-TW", "en-US"]) {
+      desktopLocaleSource.setLocale(locale);
+      expect(
+        createVibeLearningProductTools(7, "main").map(tool => ({
+          description: tool.description,
+          parameters: tool.parameters,
+        }))
+      ).toEqual(before);
+      expect(style.toolLabel).toBe(toolName);
+      await generate({ kind: "article", brief: "原始生成要求", style: toolName });
+      expect(startVLTaskMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ style: "academic", userPrompt: "原始生成要求" })
+      );
+    }
+  } finally {
+    desktopLocaleSource.setLocale(original);
+  }
 });

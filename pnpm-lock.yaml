@@ -1706,6 +1706,9 @@ importers:
       '@tanstack/react-virtual':
         specifier: ^3.0.0
         version: 3.14.13(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      '@tau/i18n':
+        specifier: workspace:*
+        version: link:../i18n
       '@tau/shared':
         specifier: workspace:*
         version: link:../shared

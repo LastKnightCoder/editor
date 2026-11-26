@@ -1,3 +1,9 @@
+import {
+  notebookTranslator,
+  notebookNumber,
+  useNotebookI18n,
+  notebookTemplate,
+} from "@/features/vibe-learning/i18n";
 /** 生成配置弹窗的表单部件：资料清单、字段、单选卡片、模板选择 */
 
 import { memo, type ReactNode } from "react";
@@ -7,6 +13,7 @@ import { isElectron } from "@/electron";
 import { useHtmlPreviewUrl } from "@/utils/html-preview";
 import type { VLResource } from "@/types/vibe-learning";
 import { resourceIcon } from "../resourceKinds";
+const t = notebookTranslator.t;
 
 /** 字段：12px 淡墨标签 + 可选右侧动作，内容在下 */
 export function Field({
@@ -20,6 +27,7 @@ export function Field({
   action?: ReactNode;
   children: ReactNode;
 }) {
+  useNotebookI18n();
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
       <div className="flex items-center gap-2">
@@ -52,10 +60,18 @@ export function ResourceChecklist({
   /** 可以一份都不选（AI 编辑的参考资料） */
   optional?: boolean;
 }) {
+  useNotebookI18n();
   return (
     <Field
-      label={optional ? "参考资料（可选）" : "资料"}
-      hint={resources.length > 0 ? `已选 ${selectedIds.length} / ${resources.length}` : undefined}
+      label={optional ? t("generate.referenceOptional") : t("list.metric")}
+      hint={
+        resources.length > 0
+          ? t("generate.selected", {
+              selected: notebookNumber(selectedIds.length),
+              total: notebookNumber(resources.length),
+            })
+          : undefined
+      }
       action={
         resources.length > 0 && (
           <button
@@ -63,7 +79,7 @@ export function ResourceChecklist({
             onClick={onToggleAll}
             className="text-accent-text text-[12px] hover:underline"
           >
-            {allSelected ? "全不选" : "全选"}
+            {allSelected ? t("generate.selectNone") : t("generate.selectAll")}
           </button>
         )
       }
@@ -75,7 +91,7 @@ export function ResourceChecklist({
           </div>
         ) : resources.length === 0 ? (
           <p className="text-tau-meta text-ink-3 m-0 px-3 py-5 text-center">
-            还没有处理完成的资料，等资料转换、索引好再来生成
+            {t("generate.noResources")}
           </p>
         ) : (
           resources.map(resource => {
@@ -113,6 +129,7 @@ export function OptionCards<V extends string>({
   value: V;
   onChange: (value: V) => void;
 }) {
+  useNotebookI18n();
   return (
     <Field label={label}>
       <div role="radiogroup" aria-label={label} className="grid grid-cols-2 gap-2">
@@ -151,15 +168,18 @@ interface TemplateLike {
 
 const TemplateCard = memo(function TemplateCard({
   template,
+  kind,
   active,
   partition,
   onClick,
 }: {
   template: TemplateLike;
+  kind: "ppt" | "report";
   active: boolean;
   partition: string;
   onClick: () => void;
 }) {
+  useNotebookI18n();
   const previewUrl = useHtmlPreviewUrl(template.previewHtml);
   return (
     <button
@@ -190,13 +210,13 @@ const TemplateCard = memo(function TemplateCard({
             src={previewUrl}
             className="pointer-events-none h-full w-full border-0"
             sandbox="allow-scripts"
-            title={template.name}
+            title={notebookTemplate(kind, template).name}
             // @ts-expect-error inert 是合法的 HTML 属性
             inert="true"
           />
         )}
         {active && (
-          <span className="bg-accent text-ink-inverse absolute right-1.5 top-1.5 grid size-5 place-items-center rounded-full">
+          <span className="bg-accent text-ink-inverse absolute top-1.5 right-1.5 grid size-5 place-items-center rounded-full">
             <Check className="size-3" strokeWidth={2.5} />
           </span>
         )}
@@ -208,9 +228,11 @@ const TemplateCard = memo(function TemplateCard({
             active ? "text-accent-text" : "text-ink-1"
           )}
         >
-          {template.name}
+          {notebookTemplate(kind, template).name}
         </div>
-        <div className="text-ink-3 truncate text-[11px]">{template.description}</div>
+        <div className="text-ink-3 truncate text-[11px]">
+          {notebookTemplate(kind, template).description}
+        </div>
       </div>
     </button>
   );
@@ -220,16 +242,19 @@ const TemplateCard = memo(function TemplateCard({
 export function TemplatePicker({
   label,
   templates,
+  kind,
   value,
   onChange,
   partition,
 }: {
   label: string;
   templates: TemplateLike[];
+  kind: "ppt" | "report";
   value: string;
   onChange: (id: string) => void;
   partition: string;
 }) {
+  useNotebookI18n();
   return (
     <Field label={label}>
       <div role="radiogroup" aria-label={label} className="grid grid-cols-3 gap-2">
@@ -237,6 +262,7 @@ export function TemplatePicker({
           <TemplateCard
             key={template.id}
             template={template}
+            kind={kind}
             active={template.id === value}
             partition={partition}
             onClick={() => onChange(template.id)}

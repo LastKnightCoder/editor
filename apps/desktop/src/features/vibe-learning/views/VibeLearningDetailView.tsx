@@ -1,3 +1,4 @@
+import { notebookTranslator, useNotebookI18n } from "@/features/vibe-learning/i18n";
 /**
  * Notebook 详情视图（薄壳）：判存在 + 面包屑注入（左栏开关）后渲染 VibeLearningView。
  * 对齐 ProjectDetailView 的职责划分——壳层只管存在性与标题栏，工作台本体不动。
@@ -10,8 +11,12 @@ import { Button, IconButton, Loading, Tooltip } from "@tau/ui";
 import { useVibeLearningDetail } from "../queries";
 import { useVibeLearningPanelStore } from "../panelStore";
 import VibeLearningView from "./VibeLearningView";
+const t = notebookTranslator.t;
 
 export function VibeLearningDetailView() {
+  useNotebookI18n();
+  const expandLabel = t("nav.expand"),
+    collapseLabel = t("nav.collapse");
   const { id, chatId } = usePageParams<{ id: number; chatId?: string }>();
   const { project, loading } = useVibeLearningDetail(id);
   const { navigator } = usePage();
@@ -24,11 +29,11 @@ export function VibeLearningDetailView() {
     () => (
       <span className="flex min-w-0 items-center gap-1">
         {!!project && (
-          <Tooltip content={collapsed ? "展开目录" : "收起目录"} placement="bottom">
+          <Tooltip content={collapsed ? expandLabel : collapseLabel} placement="bottom">
             <IconButton
               className="shrink-0"
               onClick={toggle}
-              aria-label={collapsed ? "展开目录" : "收起目录"}
+              aria-label={collapsed ? expandLabel : collapseLabel}
               aria-expanded={!collapsed}
             >
               <PanelLeft size={17} strokeWidth={1.75} />
@@ -40,7 +45,7 @@ export function VibeLearningDetailView() {
         </span>
       </span>
     ),
-    [project, id, collapsed, toggle]
+    [project, id, collapsed, toggle, expandLabel, collapseLabel]
   );
   usePageBreadcrumb("vibe-learning-detail", breadcrumbNode);
 
@@ -50,7 +55,7 @@ export function VibeLearningDetailView() {
     return (
       <div className="flex h-full items-center justify-center">
         <div className="bg-surface shadow-card mx-auto flex w-[460px] flex-col items-center rounded-[var(--tau-radius-lg)] px-8 py-7 text-center">
-          <p className="text-ink-1 text-[15px] font-medium">Notebook 不存在或已删除</p>
+          <p className="text-ink-1 text-[15px] font-medium">{t("nav.missing")}</p>
           <Button
             variant="secondary"
             size="sm"
@@ -58,7 +63,7 @@ export function VibeLearningDetailView() {
             className="mt-4"
             onClick={() => navigator.back()}
           >
-            返回列表
+            {t("nav.back")}
           </Button>
         </div>
       </div>

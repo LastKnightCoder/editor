@@ -1,3 +1,4 @@
+import { notebookTranslator, useNotebookI18n } from "@/features/vibe-learning/i18n";
 /**
  * 文档类资料的文本阅读：分段读取转换后的 Markdown（每段在空行处切开，不截断段落），
  * 触底自动续读；渲染沿用对话的 Markdown 排版。
@@ -13,6 +14,7 @@ import { useChatMarkdownComponents } from "@/components/ChatUI";
 import { MarkdownProvider } from "@/components/ChatSidebar/MarkdownContext";
 import MarkdownRenderer from "@/components/ChatSidebar/MarkdownRenderer";
 import type { VLResource } from "@/types/vibe-learning";
+const t = notebookTranslator.t;
 
 const CHUNK = 60_000;
 
@@ -33,12 +35,13 @@ interface MarkdownReaderProps {
 }
 
 export function MarkdownReader({ resource, projectId, mainDbName }: MarkdownReaderProps) {
+  useNotebookI18n();
   const { isDark } = useTheme();
   const markdownComponents = useChatMarkdownComponents({ isDark, idPrefix: "vl-reader" });
   const [chunks, setChunks] = useState<string[]>([]);
   const [offset, setOffset] = useState(0);
   const [total, setTotal] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ message?: string } | null>(null);
   const loadingRef = useRef(false);
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -57,7 +60,7 @@ export function MarkdownReader({ resource, projectId, mainDbName }: MarkdownRead
         endOffset: from + CHUNK,
       });
       if (!result.success || result.content === undefined) {
-        setError(result.error || "读取失败");
+        setError({ message: result.error || undefined });
         return;
       }
       const totalChars = result.totalChars ?? from + result.content.length;
@@ -68,7 +71,7 @@ export function MarkdownReader({ resource, projectId, mainDbName }: MarkdownRead
       setOffset(from + cut);
       setChunks(prev => (reset ? [text] : [...prev, text]));
     } catch (e) {
-      setError((e as Error).message || "读取失败");
+      setError({ message: e instanceof Error ? e.message : undefined });
     } finally {
       loadingRef.current = false;
     }
@@ -101,7 +104,7 @@ export function MarkdownReader({ resource, projectId, mainDbName }: MarkdownRead
 
   return (
     <FadeScroll scrollRef={setScrollEl} className="min-h-0 flex-1">
-      <div className="text-tau-body-lg text-ink-1 mx-auto max-w-[760px] px-10 pb-16 pt-2 leading-[1.85]">
+      <div className="text-tau-body-lg text-ink-1 mx-auto max-w-[760px] px-10 pt-2 pb-16 leading-[1.85]">
         <MarkdownProvider isDark={isDark} isVisible>
           {chunks.map((chunk, index) => (
             <MarkdownRenderer
@@ -113,7 +116,9 @@ export function MarkdownReader({ resource, projectId, mainDbName }: MarkdownRead
           ))}
         </MarkdownProvider>
         {error ? (
-          <p className="text-tau-meta text-danger py-6 text-center">文本读取失败：{error}</p>
+          <p className="text-tau-meta text-danger py-6 text-center">
+            {t("reader.error", { error: error.message || t("reader.failed") })}
+          </p>
         ) : (
           !done && (
             <div ref={sentinelRef} className="flex justify-center py-8">

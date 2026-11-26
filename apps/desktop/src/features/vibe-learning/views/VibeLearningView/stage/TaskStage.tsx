@@ -1,3 +1,13 @@
+import {
+  notebookTranslator,
+  notebookNumber,
+  notebookCount,
+  useNotebookI18n,
+  notebookTaskPhase,
+  notebookTaskError,
+  notebookElapsed,
+  notebookError,
+} from "@/features/vibe-learning/i18n";
 /**
  * 阅读区 · 生成过程：一次生成任务的执行过程与输出中间态。
  * 推理、工具调用沿用对话的淡墨折叠行；输出按类型实时呈现（文档直接渲染、导图实时出图、
@@ -9,7 +19,7 @@ import { FileText, RotateCw, Square } from "lucide-react";
 import { useThrottle } from "ahooks";
 import { Button, cn, toast } from "@tau/ui";
 import { FadeScroll } from "@tau/ui";
-import { ReasoningBlock, formatElapsed } from "@tau/chat-ui";
+import { ReasoningBlock } from "@tau/chat-ui";
 import { ToolCallBlock, useChatMarkdownComponents } from "@/components/ChatUI";
 import useTheme from "@/hooks/useTheme";
 import { MarkdownProvider } from "@/components/ChatSidebar/MarkdownContext";
@@ -21,6 +31,7 @@ import { cancelVLTask, retryVLTask } from "../tasks/runner";
 import type { VLTask, VLTaskKind, VLTaskTurn } from "../tasks/store";
 import { StageHeader } from "@/components/StageHeader";
 import { notebookOutputIcon, useNotebookOutputFor } from "@/app/plugins/notebook-outputs";
+const t = notebookTranslator.t;
 
 const DOC_KINDS: VLTaskKind[] = ["outline", "highlights", "article"];
 const HTML_KINDS: VLTaskKind[] = ["ppt", "report", "ppt_edit", "report_edit"];
@@ -29,8 +40,8 @@ const kindLabel = (task: VLTask) =>
   task.plugin
     ? task.plugin.label
     : task.kind === "ppt_edit" || task.kind === "report_edit"
-      ? "AI 编辑"
-      : (GENERATE_APPS.find(a => a.key === task.kind)?.label ?? "生成");
+      ? t("kind.aiEdit")
+      : (GENERATE_APPS.find(a => a.key === task.kind)?.label ?? t("kind.generate"));
 
 const kindIcon = (kind: VLTaskKind) =>
   kind === "ppt_edit"
@@ -39,7 +50,7 @@ const kindIcon = (kind: VLTaskKind) =>
       ? NOTE_ICONS.report
       : (GENERATE_APPS.find(a => a.key === kind)?.icon ?? FileText);
 
-const fmt = (n: number) => n.toLocaleString("zh-CN");
+const fmt = notebookNumber;
 
 /** 运行中每秒刷新的计时 */
 function useElapsed(task: VLTask) {
@@ -54,6 +65,7 @@ function useElapsed(task: VLTask) {
 }
 
 function Markdown({ text, className }: { text: string; className?: string }) {
+  useNotebookI18n();
   const { isDark } = useTheme();
   const components = useChatMarkdownComponents({ isDark, idPrefix: "vl-task" });
   return (
@@ -67,6 +79,7 @@ function Markdown({ text, className }: { text: string; className?: string }) {
 
 /** 输出区的小标题：「正在写」时带一个呼吸点 */
 function OutputTitle({ running, children }: { running: boolean; children: ReactNode }) {
+  useNotebookI18n();
   return (
     <div className="text-tau-sm text-ink-3 mt-5 mb-2 flex items-center gap-1.5">
       {running && <span className="bg-accent size-1.5 animate-pulse rounded-full" />}
@@ -77,6 +90,7 @@ function OutputTitle({ running, children }: { running: boolean; children: ReactN
 
 /** 按产物类型呈现输出的中间态 */
 function OutputView({ task }: { task: VLTask }) {
+  useNotebookI18n();
   const running = task.status === "running";
   // 导图 / 代码尾部重绘成本高，节流到 0.6s
   const throttled = useThrottle(task.output, { wait: 600 });
@@ -86,7 +100,7 @@ function OutputView({ task }: { task: VLTask }) {
     const { done, total } = task.pptProgress;
     return (
       <OutputTitle running={running}>
-        {total ? `已写 ${done} / ${total} 页` : "正在准备演示大纲"}
+        {total ? t("stage.pages", { done: fmt(done), total: fmt(total) }) : t("stage.prepare")}
       </OutputTitle>
     );
   }
@@ -96,13 +110,15 @@ function OutputView({ task }: { task: VLTask }) {
     return (
       <>
         <OutputTitle running={running}>
-          {running ? `已出 ${prompts.length} 题，还在写…` : `共 ${prompts.length} 题`}
+          {running
+            ? notebookCount("stage.quizWriting", prompts.length)
+            : notebookCount("stage.questions", prompts.length)}
         </OutputTitle>
         <ol className="m-0 flex list-none flex-col gap-1 p-0">
           {prompts.map((prompt, i) => (
             <li key={i} className="text-tau-body text-ink-1 flex gap-3 leading-relaxed">
               <span className="text-ink-3 w-6 shrink-0 text-right tabular-nums">{i + 1}.</span>
-              <span className="min-w-0">{prompt || "（题干为空）"}</span>
+              <span className="min-w-0">{prompt || t("stage.emptyPrompt")}</span>
             </li>
           ))}
         </ol>
@@ -119,7 +135,7 @@ function OutputView({ task }: { task: VLTask }) {
   if (task.kind === "mindmap") {
     return (
       <>
-        <OutputTitle running={running}>导图</OutputTitle>
+        <OutputTitle running={running}>{t("stage.map")}</OutputTitle>
         <div className="border-line-1 rounded-tau-md h-[420px] overflow-hidden border">
           <ErrorBoundary>
             <MindMapRenderer code={output} fillContainer />
@@ -135,7 +151,7 @@ function OutputView({ task }: { task: VLTask }) {
     return (
       <>
         <OutputTitle running={running}>
-          HTML 源码 · {fmt(lines.length)} 行{running ? "（显示最新部分）" : ""}
+          {notebookCount(running ? "stage.htmlWriting" : "stage.html", lines.length)}
         </OutputTitle>
         <pre className="border-line-1 rounded-tau-md font-tau-mono text-ink-2 relative m-0 max-h-[360px] overflow-hidden border [mask-image:linear-gradient(to_bottom,transparent,black_48px)] px-3.5 py-3 text-[12px] leading-[1.65] break-all whitespace-pre-wrap">
           {tail}
@@ -148,14 +164,14 @@ function OutputView({ task }: { task: VLTask }) {
     const tail = output.split("\n").slice(-24).join("\n");
     return (
       <>
-        <OutputTitle running={running && !task.progress}>正文</OutputTitle>
+        <OutputTitle running={running && !task.progress}>{t("stage.body")}</OutputTitle>
         <pre className="border-line-1 rounded-tau-md text-ink-2 text-tau-meta relative m-0 max-h-[360px] overflow-hidden border [mask-image:linear-gradient(to_bottom,transparent,black_48px)] px-3.5 py-3 font-[inherit] leading-[1.7] break-words whitespace-pre-wrap">
           {tail}
         </pre>
         {task.progress && (
           <div className="mt-5">
             <div className="text-tau-sm text-ink-2 mb-1.5 flex justify-between">
-              <span>{task.phase}</span>
+              <span>{notebookTaskPhase(task)}</span>
               <span className="tabular-nums">
                 {task.progress.done} / {task.progress.total}
               </span>
@@ -177,6 +193,7 @@ function OutputView({ task }: { task: VLTask }) {
 
 /** 一轮的过程：推理 → 工具调用 → 过渡性正文（最后一轮的正文算产物，交给 OutputView） */
 function TurnView({ turn, isOutputTurn }: { turn: VLTaskTurn; isOutputTurn: boolean }) {
+  useNotebookI18n();
   const { isDark } = useTheme();
   return (
     <>
@@ -197,13 +214,16 @@ function TurnView({ turn, isOutputTurn }: { turn: VLTaskTurn; isOutputTurn: bool
 
 /** 底部计数条：状态点 + 阶段 + 字数 + token + 用时 */
 function LiveBar({ task, elapsed }: { task: VLTask; elapsed: number }) {
+  useNotebookI18n();
   const running = task.status === "running";
   const reasoningChars = task.turns.reduce((n, t) => n + t.reasoning.length, 0);
   const parts = [
-    task.output.length > 0 && `已写 ${fmt(task.output.length)} 字`,
-    task.output.length === 0 && reasoningChars > 0 && `思考 ${fmt(reasoningChars)} 字`,
+    task.output.length > 0 && notebookCount("stage.characters", task.output.length),
+    task.output.length === 0 &&
+      reasoningChars > 0 &&
+      notebookCount("stage.reasoningCharacters", reasoningChars),
     task.outputTokens > 0 && `${fmt(task.outputTokens)} tokens`,
-    formatElapsed(elapsed),
+    notebookElapsed(elapsed),
   ].filter(Boolean);
   return (
     <div className="text-tau-sm flex h-[40px] shrink-0 items-center gap-2 px-5">
@@ -220,7 +240,7 @@ function LiveBar({ task, elapsed }: { task: VLTask; elapsed: number }) {
         )}
       />
       <span className={cn(task.status === "failed" ? "text-danger" : "text-ink-1")}>
-        {task.phase}
+        {notebookTaskPhase(task)}
       </span>
       <span className="text-ink-3 tabular-nums">{parts.join(" · ")}</span>
     </div>
@@ -246,6 +266,7 @@ export function TaskStage({
   onShowProduct,
   onStartQuiz,
 }: TaskStageProps) {
+  useNotebookI18n();
   const pluginOutput = useNotebookOutputFor(task.plugin?.pluginId, task.plugin?.kind);
   const Icon = task.plugin ? notebookOutputIcon(pluginOutput) : kindIcon(task.kind);
   const elapsed = useElapsed(task);
@@ -268,14 +289,15 @@ export function TaskStage({
     if (running && scrollEl && stick.current) scrollEl.scrollTop = scrollEl.scrollHeight;
   });
 
-  const retry = () => void retryVLTask(task.id).catch(e => toast.error((e as Error).message));
+  const retry = () =>
+    void retryVLTask(task.id).catch(e => toast.error(notebookError(e, "generate.startFailed")));
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       <StageHeader
         icon={<Icon className="size-4" strokeWidth={1.75} />}
         title={task.title}
-        meta={`${kindLabel(task)} · 生成过程`}
+        meta={t("stage.meta", { kind: kindLabel(task) })}
         chatOpen={chatOpen}
         onToggleChat={onToggleChat}
         onClose={onClose}
@@ -283,22 +305,22 @@ export function TaskStage({
           <>
             {running && (
               <Button variant="ghost" size="sm" icon={Square} onClick={() => cancelVLTask(task.id)}>
-                停止
+                {t("stage.stop")}
               </Button>
             )}
             {(task.status === "failed" || task.status === "cancelled") && (
               <Button variant="ghost" size="sm" icon={RotateCw} onClick={retry}>
-                重新生成
+                {t("stage.regenerate")}
               </Button>
             )}
             {task.status === "succeeded" && onStartQuiz && (
               <Button variant="soft" size="sm" onClick={onStartQuiz}>
-                开始测验
+                {t("stage.startQuiz")}
               </Button>
             )}
             {!running && onShowProduct && (
               <Button variant="soft" size="sm" onClick={onShowProduct}>
-                查看{task.kind === "quiz" ? "测验" : "产物"}
+                {t(task.kind === "quiz" ? "stage.viewQuiz" : "stage.viewProduct")}
               </Button>
             )}
           </>
@@ -307,11 +329,18 @@ export function TaskStage({
       <FadeScroll scrollRef={setScrollEl} className="min-h-0 flex-1">
         <div className="mx-auto max-w-[760px] px-10 pt-1 pb-10">
           <p className="text-tau-sm text-ink-3 m-0 mb-3 leading-relaxed">
-            基于 {task.resourceNames.length > 0 ? task.resourceNames.join("、") : "已有内容"}
-            {task.userPrompt && <span className="text-ink-2"> · 要求：{task.userPrompt}</span>}
+            {t("stage.basedOn", {
+              resources:
+                task.resourceNames.length > 0 ? task.resourceNames.join("、") : t("stage.existing"),
+            })}
+            {task.userPrompt && (
+              <span className="text-ink-2">
+                {t("stage.requirement", { prompt: task.userPrompt })}
+              </span>
+            )}
           </p>
           {task.turns.length === 0 && running && (
-            <p className="text-tau-meta text-ink-3 m-0">正在连接模型…</p>
+            <p className="text-tau-meta text-ink-3 m-0">{t("stage.connecting")}</p>
           )}
           {task.turns.map(turn => (
             <TurnView key={turn.id} turn={turn} isOutputTurn={turn.id === outputTurnId} />
@@ -319,7 +348,7 @@ export function TaskStage({
           <OutputView task={task} />
           {task.error && (
             <div className="bg-danger-soft text-danger text-tau-meta rounded-tau-sm mt-5 px-4 py-2.5">
-              {task.error}
+              {notebookTaskError(task)}
             </div>
           )}
         </div>

@@ -1,3 +1,4 @@
+import { useNotebookI18n } from "@/features/vibe-learning/i18n";
 /** 目录顶部一行「由「X」立项」（谱系 upgraded_to，来源可以是问题、卡片、插件内容等）；没有或已删除时不渲染 */
 
 import { Sprout } from "lucide-react";
@@ -7,6 +8,7 @@ import { getVibeLearningProjectSource } from "@/commands/vibe-learning-project";
 import { openContextTarget } from "@/features/context/open";
 
 export function SourceRow({ projectId }: { projectId: number }) {
+  const { t } = useNotebookI18n();
   const { data: source } = useQuery({
     queryKey: ["vibe-learning", "source", projectId],
     queryFn: () => getVibeLearningProjectSource(projectId),
@@ -18,7 +20,7 @@ export function SourceRow({ projectId }: { projectId: number }) {
   const label = (
     <>
       <Sprout className="size-[13px] shrink-0" strokeWidth={1.75} />
-      <span className="min-w-0 truncate">由「{source.title}」立项</span>
+      <span className="min-w-0 truncate">{t("source.from", { title: source.title })}</span>
       <span className="text-ink-3 shrink-0">{source.meta}</span>
     </>
   );
@@ -28,7 +30,7 @@ export function SourceRow({ projectId }: { projectId: number }) {
   return (
     <button
       type="button"
-      title="打开来源"
+      title={t("source.open")}
       onClick={() => void openContextTarget(open)}
       className={cn(
         className,

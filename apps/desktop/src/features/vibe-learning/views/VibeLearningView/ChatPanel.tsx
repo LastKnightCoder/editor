@@ -1,3 +1,4 @@
+import { notebookTranslator, useNotebookI18n } from "@/features/vibe-learning/i18n";
 /**
  * 对话面板
  * 基于 Vibe Learning 项目资源进行对话
@@ -26,6 +27,7 @@ import { buildVLGoalSection } from "./chatGoal";
 
 import { useVibeLearningChat } from "./useVibeLearningChat";
 import { IconButton, Loading, cn, toast } from "@tau/ui";
+const t = notebookTranslator.t;
 
 const ChatContainer = lazy(() => import("@/components/ChatSidebar/ChatContainer"));
 
@@ -135,6 +137,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   desc,
   docked,
 }) => {
+  useNotebookI18n();
   const { isDark } = useTheme();
   const editTitleRef = useRef<EditTextHandle>(null);
   const chatContainerRef = useRef<ChatContainerHandle>(null);
@@ -167,7 +170,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     try {
       await rename(currentChat.id, title);
     } catch (error) {
-      toast.error("更新标题失败");
+      toast.error(t("chat.titleFailed"));
       console.error(error);
     }
   });
@@ -181,7 +184,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     try {
       await remove(chatId);
     } catch (error) {
-      toast.error("删除对话失败");
+      toast.error(t("chat.deleteFailed"));
       console.error(error);
       throw error;
     }
@@ -209,7 +212,12 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                 titleRef={editTitleRef}
               />
             </div>
-            <IconButton title="新对话" aria-label="新对话" onClick={newChat} className="size-7">
+            <IconButton
+              title={t("chat.new")}
+              aria-label={t("chat.new")}
+              onClick={newChat}
+              className="size-7"
+            >
               <SquarePen size={15} strokeWidth={1.75} />
             </IconButton>
           </div>

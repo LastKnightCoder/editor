@@ -1,3 +1,9 @@
+import {
+  notebookTranslator,
+  notebookNumber,
+  useNotebookI18n,
+  notebookError,
+} from "@/features/vibe-learning/i18n";
 import { memo, useState, useEffect, useMemo, useCallback } from "react";
 import {
   CheckCircle2,
@@ -31,6 +37,7 @@ import type { VLQuizSet, VLQuizItem, QuizAnswerRecord, VLQuizRecord } from "@/ty
 import type { FlashcardBlankElement } from "@/editor-extensions/flashcard-blank/types";
 import RichTextRenderer from "@/features/vibe-learning/components/quiz/RichTextRenderer";
 import ClozeReviewRenderer from "@/features/vibe-learning/components/quiz/ClozeReviewRenderer";
+const t = notebookTranslator.t;
 
 interface QuizTestModalProps {
   open: boolean;
@@ -63,19 +70,53 @@ const extractBlanksFromContent = (
 
 // 题型显示名称
 const TYPE_LABELS: Record<string, string> = {
-  "single-choice": "单选题",
-  "multiple-choice": "多选题",
-  cloze: "填空题",
-  qa: "问答题",
-  boolean: "判断题",
+  get "single-choice"() {
+    return t("quiz.single");
+  },
+  get "multiple-choice"() {
+    return t("quiz.multiple");
+  },
+  get cloze() {
+    return t("quiz.cloze");
+  },
+  get qa() {
+    return t("quiz.qa");
+  },
+  get boolean() {
+    return t("quiz.boolean");
+  },
 };
 
 // 成绩档位：只用语义色表意
 const LEVEL_CONFIG = {
-  excellent: { text: "text-accent-text", ring: "border-accent", label: "太棒了" },
-  good: { text: "text-info", ring: "border-info", label: "做得不错" },
-  pass: { text: "text-warn", ring: "border-warn", label: "继续加油" },
-  fail: { text: "text-danger", ring: "border-danger", label: "再接再厉" },
+  excellent: {
+    text: "text-accent-text",
+    ring: "border-accent",
+    get label() {
+      return t("quiz.excellent");
+    },
+  },
+  good: {
+    text: "text-info",
+    ring: "border-info",
+    get label() {
+      return t("quiz.good");
+    },
+  },
+  pass: {
+    text: "text-warn",
+    ring: "border-warn",
+    get label() {
+      return t("quiz.pass");
+    },
+  },
+  fail: {
+    text: "text-danger",
+    ring: "border-danger",
+    get label() {
+      return t("quiz.fail");
+    },
+  },
 } as const;
 
 /** 答题选项卡片的状态样式：作答中 accent 选中；揭晓后正确 ok、选错 danger、其余淡出 */
@@ -93,6 +134,7 @@ function optionTone(showResult: boolean, isSelected: boolean, isCorrect: boolean
 }
 
 const QuizTestModal = memo((props: QuizTestModalProps) => {
+  useNotebookI18n();
   const { open, quizSet: requestedQuizSet, onClose } = props;
   const quizSet = useRetainedValue(requestedQuizSet);
   const itemsQuery = useQuizItems(quizSet?.id, open);
@@ -266,7 +308,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
       setQuizRecord(record);
       setStep("result");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "成绩保存失败，请重试");
+      toast.error(error instanceof Error ? error.message : t("quiz.saveFailed"));
     }
   });
 
@@ -365,8 +407,8 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
     return (
       <div className="grid grid-cols-2 gap-3">
         {[
-          { value: true, label: "正确", icon: CheckCircle2 },
-          { value: false, label: "错误", icon: XCircle },
+          { value: true, label: t("quiz.true"), icon: CheckCircle2 },
+          { value: false, label: t("quiz.false"), icon: XCircle },
         ].map(option => {
           const isSelected = currentAnswer === option.value;
           const isCorrect = data.booleanAnswer === option.value;
@@ -407,14 +449,14 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
           disabled={showAnswer}
           value={currentAnswer ?? ""}
           onChange={e => setCurrentAnswer(e.target.value)}
-          placeholder="请输入你的答案..."
+          placeholder={t("quiz.answerPlaceholder")}
           rows={6}
         />
         {showAnswer && data.answer && (
           <div className="border-line-1 rounded-tau-md border px-4 py-3">
             <p className="text-ok text-tau-meta m-0 mb-1.5 flex items-center gap-1.5 font-medium">
               <CheckCircle2 className="size-3.5" strokeWidth={1.75} />
-              参考答案
+              {t("quiz.reference")}
             </p>
             <p className="text-ink-2 text-tau-body m-0 leading-relaxed whitespace-pre-wrap">
               {data.answer}
@@ -440,7 +482,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
       case "cloze":
         return null; // 填空题内容已在题干中渲染
       default:
-        return <p className="text-ink-2 m-0">未知题型</p>;
+        return <p className="text-ink-2 m-0">{t("quiz.unknown")}</p>;
     }
   };
 
@@ -458,28 +500,28 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
           )}
         >
           {currentItem.type === "qa" ? (
-            "自我评估"
+            t("quiz.selfAssess")
           ) : currentAnswerCorrect ? (
             <>
               <Check className="size-4" strokeWidth={1.75} />
-              回答正确
+              {t("quiz.answeredCorrect")}
             </>
           ) : (
             <>
               <X className="size-4" strokeWidth={1.75} />
-              回答错误
+              {t("quiz.answeredWrong")}
             </>
           )}
         </p>
         {currentItem.data.explanation ? (
           <div className="text-ink-2 text-tau-body mt-2 leading-relaxed">
-            <span className="text-ink-3 text-tau-meta mb-0.5 block">解析</span>
+            <span className="text-ink-3 text-tau-meta mb-0.5 block">{t("quiz.explanation")}</span>
             {currentItem.data.explanation}
           </div>
         ) : (
           !currentAnswerCorrect &&
           currentItem.type !== "qa" && (
-            <p className="text-ink-2 text-tau-meta m-0 mt-1">暂无解析，请参考正确答案。</p>
+            <p className="text-ink-2 text-tau-meta m-0 mt-1">{t("quiz.noExplanation")}</p>
           )
         )}
       </div>
@@ -504,14 +546,14 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
       {
         icon: Target,
         value: `${quizRecord.correctCount}/${quizRecord.totalCount}`,
-        label: "正确率",
+        label: t("quiz.accuracy"),
       },
       {
         icon: Clock,
         value: `${Math.floor(quizRecord.duration / 60)}:${String(quizRecord.duration % 60).padStart(2, "0")}`,
-        label: "用时",
+        label: t("quiz.duration"),
       },
-      { icon: Trophy, value: String(quizRecord.totalCount), label: "总题数" },
+      { icon: Trophy, value: String(quizRecord.totalCount), label: t("quiz.total") },
     ];
 
     return (
@@ -526,7 +568,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
           <span className={cn("text-[40px] font-semibold tabular-nums leading-none", config.text)}>
             {quizRecord.score.toFixed(0)}
           </span>
-          <span className="text-ink-3 text-tau-meta mt-1">分</span>
+          <span className="text-ink-3 text-tau-meta mt-1">{t("quiz.points")}</span>
         </div>
 
         {/* 评语 */}
@@ -560,18 +602,18 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
         open={open}
         onOpenChange={next => !next && handleClose()}
         onAfterClose={handleAfterClose}
-        title={quizSet?.name || "测验"}
+        title={quizSet?.name || t("kind.quiz")}
         width={680}
       >
         <DialogBody>
           {itemsQuery.isError ? (
             <ErrorState
-              title="测验题加载失败"
-              error={itemsQuery.error}
-              actions={[{ label: "重试", onClick: () => void itemsQuery.refetch() }]}
+              title={t("quiz.loadFailed")}
+              error={notebookError(itemsQuery.error, "quiz.loadFailed")}
+              actions={[{ label: t("common.retry"), onClick: () => void itemsQuery.refetch() }]}
             />
           ) : itemsQuery.isSuccess && !itemsQuery.isFetching && !itemsQuery.items.length ? (
-            <p className="text-ink-3 text-tau-meta">测验集没有题目</p>
+            <p className="text-ink-3 text-tau-meta">{t("quiz.empty")}</p>
           ) : (
             <Spinner className="mx-auto my-8 size-5" />
           )}
@@ -590,7 +632,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
         disabled={finishing || progress.current <= 1}
         onClick={handlePrev}
       >
-        上一题
+        {t("quiz.previous")}
       </Button>
       {!showAnswer ? (
         <Button
@@ -599,15 +641,15 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
           disabled={!canSubmitAnswer}
           onClick={handleSubmitAnswer}
         >
-          提交答案
+          {t("quiz.submit")}
         </Button>
       ) : isLastQuestion ? (
         <Button variant="primary" size="sm" loading={finishing} onClick={handleFinish}>
-          完成测验
+          {t("quiz.finish")}
         </Button>
       ) : (
         <Button variant="primary" size="sm" onClick={handleNext}>
-          下一题
+          {t("quiz.next")}
           <ChevronRight className="-mr-0.5 size-4" strokeWidth={1.75} />
         </Button>
       )}
@@ -616,7 +658,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
 
   const resultFooter = (
     <Button variant="primary" size="sm" onClick={handleClose}>
-      完成测验
+      {t("quiz.finish")}
     </Button>
   );
 
@@ -625,7 +667,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
       open={open}
       onOpenChange={next => !next && handleClose()}
       onAfterClose={handleAfterClose}
-      title={quizSet?.name || "测验"}
+      title={quizSet?.name || t("kind.quiz")}
       icon={
         quizSet?.emoji ? (
           <span className="text-[14px] leading-none">{quizSet.emoji}</span>
@@ -633,8 +675,12 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
       }
       subtitle={
         step === "testing"
-          ? `第 ${progress.current} / ${progress.total} 题 · ${TYPE_LABELS[currentItem.type] || currentItem.type}`
-          : "测验结果"
+          ? t("quiz.progress", {
+              current: notebookNumber(progress.current),
+              total: notebookNumber(progress.total),
+              type: TYPE_LABELS[currentItem.type] || currentItem.type,
+            })
+          : t("quiz.result")
       }
       width={680}
       locked={finishing}

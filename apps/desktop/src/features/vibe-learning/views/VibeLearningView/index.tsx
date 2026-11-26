@@ -1,3 +1,4 @@
+import { notebookTranslator, useNotebookI18n } from "@/features/vibe-learning/i18n";
 /**
  * Vibe Learning 项目页（「学习台」）：一整张纸——
  * 左 = 纸内目录（资料 + 产物，开关在面包屑），中 = 阅读区（资料 / 笔记），右 = 对话。
@@ -34,6 +35,7 @@ import { ResourceStage } from "./stage/ResourceStage";
 import NoteEditorView from "./stage/NoteEditorView";
 import { PluginOutputStage } from "./stage/PluginOutputStage";
 import { canOpenInStage, openResourceExternally } from "./resourceKinds";
+const t = notebookTranslator.t;
 
 type Opened =
   | { kind: "resource"; id: number }
@@ -51,6 +53,7 @@ interface VibeLearningViewProps {
 }
 
 const VibeLearningView = memo((props: VibeLearningViewProps) => {
+  useNotebookI18n();
   const { projectId, requestedChatId, onChatOpened } = props;
   const mainDbName = useSettingStore(state => state.setting.database.active);
   const treeCollapsed = useVibeLearningPanelStore(s => s.collapsed);
@@ -131,7 +134,7 @@ const VibeLearningView = memo((props: VibeLearningViewProps) => {
       setNotes(notesData);
     } catch (error) {
       console.error("Failed to load VibeLearning data:", error);
-      toast.error("加载项目数据失败");
+      toast.error(t("nav.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -263,7 +266,7 @@ const VibeLearningView = memo((props: VibeLearningViewProps) => {
     return (
       <div className="flex h-full w-full items-center justify-center">
         <div className="bg-surface shadow-card rounded-tau-lg px-8 py-6 text-center">
-          <p className="text-ink-2 text-[14px]">项目不存在或已被删除</p>
+          <p className="text-ink-2 text-[14px]">{t("nav.projectMissing")}</p>
         </div>
       </div>
     );
@@ -421,7 +424,7 @@ const VibeLearningView = memo((props: VibeLearningViewProps) => {
             <div
               role="separator"
               aria-orientation="vertical"
-              aria-label="调整对话栏宽度"
+              aria-label={t("nav.resizeChat")}
               onPointerDown={startDockResize}
               className="hover:bg-accent/30 absolute inset-y-0 -left-[3px] z-10 w-[6px] cursor-col-resize transition-colors"
             />

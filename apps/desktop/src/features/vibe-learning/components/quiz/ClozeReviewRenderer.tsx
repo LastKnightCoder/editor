@@ -1,3 +1,4 @@
+import { useNotebookI18n, notebookNumber } from "../../i18n";
 import { useState, useMemo } from "react";
 import type { Descendant } from "slate";
 import type { FlashcardBlankElement } from "@/editor-extensions/flashcard-blank/types";
@@ -57,6 +58,7 @@ const ClozeReviewRenderer = ({
   interactive = true,
   onBlankChange,
 }: ClozeReviewRendererProps) => {
+  const { t } = useNotebookI18n();
   const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
 
   // Slate 节点的最小递归形状：渲染只读 type/text/children 三类字段
@@ -224,8 +226,11 @@ const ClozeReviewRenderer = ({
             color: isDark ? "#94a3b8" : "#64748b",
           }}
         >
-          正确率：{stats.correct} / {stats.total} ({Math.round((stats.correct / stats.total) * 100)}
-          %)
+          {t("cloze.accuracy", {
+            correct: notebookNumber(stats.correct),
+            total: notebookNumber(stats.total),
+            percent: notebookNumber(Math.round((stats.correct / stats.total) * 100)),
+          })}
         </div>
       )}
     </div>

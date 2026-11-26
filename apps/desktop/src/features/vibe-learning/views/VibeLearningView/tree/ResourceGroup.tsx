@@ -1,3 +1,8 @@
+import {
+  notebookTranslator,
+  type NotebookMessageKey,
+  useNotebookI18n,
+} from "@/features/vibe-learning/i18n";
 /**
  * 目录「资料」组：拖拽排序、处理状态、重新处理 / 索引、重命名、删除。
  * 点行交给页面决定打开方式（阅读区或系统默认程序）。
@@ -20,6 +25,7 @@ import {
 import EditTitleModal, { type EditTitleResult } from "@/components/EditTitleModal";
 import { TreeGroupHeader, TreeRow } from "./TreeRow";
 import { isDocument, openResourceExternally, resourceIcon } from "../resourceKinds";
+const t = notebookTranslator.t;
 
 type DropPlace = "before" | "after";
 type DragItem = { id: number };
@@ -51,18 +57,20 @@ const splitName = (fileName: string) => {
 
 /** 状态标记：完成不标；处理中 accent + 进度，失败 danger，待处理 / 需重建等 warn */
 function StatusFlag({ status, percent }: { status: VLResourceStatus; percent: number | null }) {
+  useNotebookI18n();
   if (status === "completed") return null;
   const config = statusConfig[status];
   if (config.spin)
     return (
       <span className="text-accent-text">
-        {config.text}
+        {t(`status.${status}` as NotebookMessageKey)}
         {percent !== null && ` ${percent}%`}
       </span>
     );
-  if (status === "failed") return <span className="text-danger">失败</span>;
-  if (status === "pending") return <span className="text-ink-3">{config.text}</span>;
-  return <span className="text-warn">{config.text}</span>;
+  if (status === "failed") return <span className="text-danger">{t("common.failed")}</span>;
+  if (status === "pending")
+    return <span className="text-ink-3">{t(`status.${status}` as NotebookMessageKey)}</span>;
+  return <span className="text-warn">{t(`status.${status}` as NotebookMessageKey)}</span>;
 }
 
 interface ResourceRowProps {
@@ -80,6 +88,7 @@ interface ResourceRowProps {
 }
 
 function ResourceRow(props: ResourceRowProps) {
+  useNotebookI18n();
   const { resource, status, percent, active, onMove, onCommitOrder, onCancelOrder } = props;
   const rowRef = useRef<HTMLDivElement>(null);
 
@@ -124,7 +133,7 @@ function ResourceRow(props: ResourceRowProps) {
               icon={<RotateCw className="size-4" strokeWidth={1.75} />}
               onSelect={() => props.onReprocess(resource, status === "completed")}
             >
-              {status === "completed" ? "重新索引" : "重新处理"}
+              {status === "completed" ? t("resource.reindex") : t("resource.reprocess")}
             </Menu.Item>
           )}
           {isDocument(resource) && (
@@ -132,14 +141,14 @@ function ResourceRow(props: ResourceRowProps) {
               icon={<FolderOpen className="size-4" strokeWidth={1.75} />}
               onSelect={() => void openResourceExternally(resource)}
             >
-              用默认程序打开
+              {t("resource.openDefault")}
             </Menu.Item>
           )}
           <Menu.Item
             icon={<Pencil className="size-4" strokeWidth={1.75} />}
             onSelect={() => props.onRename(resource)}
           >
-            重命名
+            {t("resource.rename")}
           </Menu.Item>
           <Menu.Separator />
           <Menu.Item
@@ -147,7 +156,7 @@ function ResourceRow(props: ResourceRowProps) {
             icon={<Trash2 className="size-4" strokeWidth={1.75} />}
             onSelect={() => props.onDelete(resource)}
           >
-            删除
+            {t("common.delete")}
           </Menu.Item>
         </>
       }
@@ -168,6 +177,7 @@ interface ResourceGroupProps {
 }
 
 export function ResourceGroup(props: ResourceGroupProps) {
+  useNotebookI18n();
   const { projectId, mainDbName, resources, activeResourceId, onResourcesChange } = props;
   const [open, setOpen] = useState(true);
   const [ordered, setOrdered] = useState(resources);
@@ -215,14 +225,14 @@ export function ResourceGroup(props: ResourceGroupProps) {
         type: indexOnly || status === "need_index" ? "index_only" : "full",
       });
       if (!result.accepted && result.reason === "already_running") {
-        toast.info("该资源正在处理中");
+        toast.info(t("resource.busy"));
         return;
       }
-      toast.success(indexOnly ? "已添加到索引队列" : "已添加到处理队列");
+      toast.success(indexOnly ? t("resource.indexQueued") : t("resource.processQueued"));
       refreshStatus();
     } catch (error) {
       console.error("Reprocess failed:", error);
-      toast.error("添加处理任务失败");
+      toast.error(t("resource.queueFailed"));
     }
   });
 
@@ -234,12 +244,12 @@ export function ResourceGroup(props: ResourceGroupProps) {
         mainDbName,
         markdownPath: resource.markdownPath || undefined,
       });
-      toast.success("已删除");
+      toast.success(t("resource.deleted"));
       props.onDeleted(resource.id);
       onResourcesChange();
     } catch (error) {
       console.error("Delete failed:", error);
-      toast.error("删除失败");
+      toast.error(t("common.deleteFailed"));
     }
   });
 
@@ -249,7 +259,7 @@ export function ResourceGroup(props: ResourceGroupProps) {
     if (!target) return;
     const base = result.title.trim();
     if (!base) {
-      toast.warning("资源名称不能为空");
+      toast.warning(t("resource.emptyName"));
       return;
     }
     const name = base + splitName(target.name).ext;
@@ -259,7 +269,7 @@ export function ResourceGroup(props: ResourceGroupProps) {
       onResourcesChange();
     } catch (error) {
       console.error("Rename failed:", error);
-      toast.error("重命名失败");
+      toast.error(t("resource.renameFailed"));
     }
   });
 
@@ -277,7 +287,7 @@ export function ResourceGroup(props: ResourceGroupProps) {
       console.error("Failed to reorder resources:", error);
       orderedRef.current = sourceRef.current;
       setOrdered(sourceRef.current);
-      toast.error("保存资源顺序失败");
+      toast.error(t("resource.orderFailed"));
     } finally {
       persistingRef.current = false;
       if (pendingRef.current) void flushOrder();
@@ -306,13 +316,17 @@ export function ResourceGroup(props: ResourceGroupProps) {
   return (
     <section>
       <TreeGroupHeader
-        title="资料"
+        title={t("list.metric")}
         count={ordered.length}
         open={open}
         onToggle={() => setOpen(v => !v)}
         action={
-          <Tooltip content="添加资料" placement="bottom">
-            <IconButton className="size-[24px]" aria-label="添加资料" onClick={props.onAdd}>
+          <Tooltip content={t("resource.addTitle")} placement="bottom">
+            <IconButton
+              className="size-[24px]"
+              aria-label={t("resource.addTitle")}
+              onClick={props.onAdd}
+            >
               <Plus className="size-[15px]" strokeWidth={1.75} />
             </IconButton>
           </Tooltip>
@@ -322,13 +336,13 @@ export function ResourceGroup(props: ResourceGroupProps) {
         (ordered.length === 0 ? (
           /* 空态只留动作一行：分组标题的计数已经说明「空」，支持的资料类型由
              添加弹窗交代（AddResourceModal），侧栏这窄一栏不重复铺开 */
-          <div className="text-tau-sm px-3 pb-3 pt-1">
+          <div className="text-tau-sm px-3 pt-1 pb-3">
             <button
               type="button"
               onClick={props.onAdd}
               className="text-accent-text hover:underline"
             >
-              添加第一份资料
+              {t("resource.addFirst")}
             </button>
           </div>
         ) : (
@@ -357,22 +371,24 @@ export function ResourceGroup(props: ResourceGroupProps) {
         onCancel={() => setRenaming(null)}
         onConfirm={handleRename}
         initialTitle={renaming ? splitName(renaming.name).base : ""}
-        modalTitle="重命名资源"
+        modalTitle={t("resource.renameTitle")}
         modalDescription={
           renaming
-            ? `扩展名 ${splitName(renaming.name).ext || "无"} 会自动保留`
-            : "输入新的资源名称"
+            ? t("resource.extension", {
+                ext: splitName(renaming.name).ext || t("resource.noExtension"),
+              })
+            : t("resource.namePlaceholder")
         }
-        placeholder="资源名称"
+        placeholder={t("resource.name")}
       />
       <ConfirmDialog
         open={deleting !== null}
         onOpenChange={next => !next && setDeleting(null)}
-        title="删除资源"
+        title={t("resource.deleteTitle")}
         context={deleting?.name}
-        description="确定删除此资源吗？转换出的文本与索引会一并删除。"
+        description={t("resource.deleteHint")}
         danger
-        confirmText="删除"
+        confirmText={t("common.delete")}
         onConfirm={() => {
           const target = deleting;
           setDeleting(null);

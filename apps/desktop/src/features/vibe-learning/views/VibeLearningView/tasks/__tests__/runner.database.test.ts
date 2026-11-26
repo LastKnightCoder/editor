@@ -1,3 +1,5 @@
+import { desktopLocaleSource } from "@/app/i18n/runtime";
+import { notebookTaskPhase } from "../../../../i18n";
 import { beforeAll, expect, it, vi } from "vitest";
 const state = vi.hoisted(() => {
   const invoke = vi.fn(async (channel: string): Promise<unknown> => {
@@ -315,5 +317,64 @@ it("插件取消清理完成后才允许重试，已删除的产物重新 prepar
     useVLTaskStore.getState().remove(started.taskId);
   } finally {
     state.invoke.mockImplementation(invoke);
+  }
+});
+
+it("任务换语保留生成和插件阶段，complete/fail不重放且原任务可完成", async () => {
+  const original = desktopLocaleSource.getSnapshot();
+  let complete!: () => void;
+  const { output, prepare, fail, grantNotebook } = pluginOutput(
+    () =>
+      new Promise(resolve => {
+        complete = resolve;
+      })
+  );
+  const started = await startVLTask({
+    kind: "plugin",
+    projectId: 7,
+    mainDbName: "a",
+    resourceIds: [3],
+    resourceNames: ["原始资料"],
+    userPrompt: "原始要求",
+    plugin: { output, options: { minutes: 5 }, notebookTitle: "原始标题", grantNotebook },
+  });
+  try {
+    const task = useVLTaskStore.getState().tasks[started.taskId],
+      finish = state.finish,
+      request = state.request;
+    const calls = state.invoke.mock.calls.length;
+    let phase = notebookTaskPhase(task);
+    for (const locale of ["zh-TW", "en-US"]) {
+      desktopLocaleSource.setLocale(locale);
+      expect(notebookTaskPhase(task)).not.toBe(phase);
+      phase = notebookTaskPhase(task);
+      expect(useVLTaskStore.getState().tasks[started.taskId]).toBe(task);
+      expect(state.finish).toBe(finish);
+      expect(state.request).toBe(request);
+      expect(state.invoke).toHaveBeenCalledTimes(calls);
+      expect(prepare).toHaveBeenCalledTimes(1);
+      expect(output.definition.complete).not.toHaveBeenCalled();
+      expect(fail).not.toHaveBeenCalled();
+    }
+    finishGeneration("原始生成正文");
+    await vi.waitFor(() => expect(output.definition.complete).toHaveBeenCalledTimes(1));
+    const completion = vi.mocked(output.definition.complete).mock.calls[0][0];
+    completion.task.phase("writing");
+    const rawPhase = useVLTaskStore.getState().tasks[started.taskId];
+    for (const locale of ["zh-CN", "en-US"]) {
+      desktopLocaleSource.setLocale(locale);
+      expect(notebookTaskPhase(rawPhase)).toBe("writing");
+      expect(useVLTaskStore.getState().tasks[started.taskId]).toBe(rawPhase);
+      expect(output.definition.complete).toHaveBeenCalledTimes(1);
+      expect(fail).not.toHaveBeenCalled();
+    }
+    complete();
+    await vi.waitFor(() =>
+      expect(useVLTaskStore.getState().tasks[started.taskId].status).toBe("succeeded")
+    );
+    expect(completion.text).toBe("原始生成正文");
+  } finally {
+    desktopLocaleSource.setLocale(original);
+    useVLTaskStore.getState().remove(started.taskId);
   }
 });

@@ -1,3 +1,4 @@
+import { useChatUiI18n } from "../../i18n";
 import React, { Children, cloneElement, isValidElement, useMemo, memo, useCallback } from "react";
 import ReactMarkdown, { type Components, type ExtraProps, type Options } from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -26,12 +27,19 @@ const defaultRemarkPlugins = [
 const defaultRehypePlugins = [rehypeKatex];
 
 // 文档引用类型对应的标签
-const REF_TYPE_LABELS: Record<string, string> = {
-  card: "卡片",
-  article: "文章",
-  "project-item": "项目项",
-  "diary-moment": "日记",
-  default: "引用",
+const REF_TYPE_LABELS: Record<
+  string,
+  | "reference.card"
+  | "reference.article"
+  | "reference.projectItem"
+  | "reference.diary"
+  | "reference.default"
+> = {
+  card: "reference.card",
+  article: "reference.article",
+  "project-item": "reference.projectItem",
+  "diary-moment": "reference.diary",
+  default: "reference.default",
 };
 
 export interface MarkdownRendererProps {
@@ -111,12 +119,13 @@ const createSpanComponent = (
     "data-type"?: string;
     "data-text"?: string;
   }) {
+    const { t } = useChatUiI18n();
     if (className === "document-reference") {
       const id = parseInt(props["data-id"] || "0", 10);
       const type = props["data-type"] || "";
       const text = props["data-text"] || "";
 
-      const refLabel = REF_TYPE_LABELS[type] || REF_TYPE_LABELS.default;
+      const refLabel = t(REF_TYPE_LABELS[type] || REF_TYPE_LABELS.default);
 
       return (
         <span

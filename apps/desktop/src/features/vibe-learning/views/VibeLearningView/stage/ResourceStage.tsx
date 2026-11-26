@@ -1,3 +1,4 @@
+import { notebookTranslator, useNotebookI18n } from "@/features/vibe-learning/i18n";
 /**
  * 阅读区 · 资料：按类型呈现——音视频（带字幕跟读）、网页、图片、笔记（可编辑）、
  * 文档（转换后的文本）。底部一行「基于这份资料」直接起生成，只预选当前这份。
@@ -32,28 +33,51 @@ import {
 import { isDocument, openResourceExternally, resourceIcon } from "../resourceKinds";
 import { MarkdownReader } from "./MarkdownReader";
 import { StageHeader } from "@/components/StageHeader";
+const t = notebookTranslator.t;
 
 const TYPE_LABEL: Record<string, string> = {
   pdf: "PDF",
   doc: "Word",
   docx: "Word",
-  ppt: "PPT",
-  pptx: "PPT",
+  get ppt() {
+    return t("kind.ppt");
+  },
+  get pptx() {
+    return t("kind.ppt");
+  },
   xls: "Excel",
   xlsx: "Excel",
-  txt: "文本",
+  get txt() {
+    return t("resource.text");
+  },
   md: "Markdown",
-  audio: "音频",
-  video: "视频",
-  image: "图片",
-  html: "网页",
-  other: "文件",
+  get audio() {
+    return t("resource.audio");
+  },
+  get video() {
+    return t("resource.video");
+  },
+  get image() {
+    return t("resource.image");
+  },
+  get html() {
+    return t("resource.web");
+  },
+  get other() {
+    return t("resource.file");
+  },
 };
 
 const SOURCE_LABEL: Record<string, string> = {
-  remote: "网页链接",
-  note: "来自笔记",
-  material: "来自摘录",
+  get remote() {
+    return t("resource.link");
+  },
+  get note() {
+    return t("resource.fromNote");
+  },
+  get material() {
+    return t("resource.fromExcerpt");
+  },
 };
 
 /** 在线视频的来源名取自提供方插件，providers 为当前已启用的提供方。 */
@@ -67,7 +91,7 @@ function metaOf(resource: VLResource, providers: readonly { id: string; name: st
           : undefined))) ||
       TYPE_LABEL[resource.resourceType],
   ];
-  if (isDocument(resource)) parts.push("转换后的文本");
+  if (isDocument(resource)) parts.push(t("resource.converted"));
   return parts.filter(Boolean).join(" · ");
 }
 
@@ -81,12 +105,13 @@ function QuickGenerate({
   onGenerate: (key: GenerateAppKey) => void;
   onGenerateOutput: (output: RegisteredPluginNotebookOutput) => void;
 }) {
+  useNotebookI18n();
   const outputs = useNotebookOutputs();
   const quick = GENERATE_APPS.filter(a => QUICK.includes(a.key));
   const rest = GENERATE_APPS.filter(a => !QUICK.includes(a.key));
   return (
     <div className="flex shrink-0 items-center justify-center gap-1 px-4 pt-2 pb-3">
-      <span className="text-tau-sm text-ink-3 mr-1 whitespace-nowrap">基于这份资料</span>
+      <span className="text-tau-sm text-ink-3 mr-1 whitespace-nowrap">{t("resource.basedOn")}</span>
       {quick.map(app => (
         <Button
           key={app.key}
@@ -101,7 +126,7 @@ function QuickGenerate({
       <Menu
         align="end"
         trigger={
-          <IconButton className="size-[28px]" aria-label="更多生成">
+          <IconButton className="size-[28px]" aria-label={t("resource.moreGenerate")}>
             <MoreHorizontal className="size-4" strokeWidth={1.75} />
           </IconButton>
         }
@@ -134,6 +159,7 @@ function QuickGenerate({
 
 /** 来自笔记的资料：就地编辑原笔记（实时保存） */
 function NoteResourceBody({ meta }: { meta: NoteSourceMeta }) {
+  useNotebookI18n();
   const [content, setContent] = useState<Descendant[] | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -144,7 +170,7 @@ function NoteResourceBody({ meta }: { meta: NoteSourceMeta }) {
       .then(data => data && setContent(data.content))
       .catch(err => {
         console.error("Failed to load note content:", err);
-        toast.error("加载笔记内容失败");
+        toast.error(t("resource.loadNoteFailed"));
       })
       .finally(() => setLoading(false));
   }, [meta.contentId]);
@@ -158,7 +184,7 @@ function NoteResourceBody({ meta }: { meta: NoteSourceMeta }) {
   if (!content)
     return (
       <div className="text-tau-meta text-ink-3 flex flex-1 items-center justify-center">
-        原笔记已不存在
+        {t("resource.noteMissing")}
       </div>
     );
   return (
@@ -202,6 +228,7 @@ interface ResourceStageProps {
 }
 
 export function ResourceStage(props: ResourceStageProps) {
+  useNotebookI18n();
   const { resource, projectId, mainDbName } = props;
   const Icon = resourceIcon(resource);
   const noteMeta = parseNoteMeta(resource);
@@ -213,7 +240,7 @@ export function ResourceStage(props: ResourceStageProps) {
         <NoteResourceBody meta={noteMeta} />
       ) : (
         <div className="text-tau-meta text-ink-3 flex flex-1 items-center justify-center">
-          无法解析笔记信息
+          {t("resource.invalidNote")}
         </div>
       );
     switch (resource.resourceType) {
@@ -261,9 +288,9 @@ export function ResourceStage(props: ResourceStageProps) {
         onClose={props.onClose}
         actions={
           isDocument(resource) && (
-            <Tooltip content="用默认程序打开原件" placement="bottom">
+            <Tooltip content={t("resource.openOriginal")} placement="bottom">
               <IconButton
-                aria-label="用默认程序打开原件"
+                aria-label={t("resource.openOriginal")}
                 onClick={() => void openResourceExternally(resource)}
               >
                 <ExternalLink className="size-4" strokeWidth={1.75} />

@@ -1,3 +1,4 @@
+import { chatUiTranslator, resolveChatUiLocale, useChatUiI18n } from "../../i18n";
 /**
  * 思考过程：折叠行「思考中 3 秒 / 思考了 14 秒」，展开为淡墨正文。
  * 思考中实时计时；默认折叠，不抢正文。
@@ -8,14 +9,17 @@ import { Brain } from "lucide-react";
 import { Spinner } from "@tau/ui";
 import { FoldBody, FoldRow } from "./FoldRow";
 
-export const formatElapsed = (ms: number) => {
+export const formatElapsed = (ms: number, locale = "zh-CN") => {
+  locale = resolveChatUiLocale(locale);
+  const t = chatUiTranslator(locale).t;
   const total = Math.max(0, Math.floor(ms / 1000));
   const h = Math.floor(total / 3600);
   const m = Math.floor((total % 3600) / 60);
   const s = total % 60;
-  if (h > 0) return `${h} 小时 ${m} 分`;
-  if (m > 0) return `${m} 分 ${s} 秒`;
-  return `${s} 秒`;
+  const number = (value: number) => value.toLocaleString(locale);
+  if (h > 0) return t("elapsed.hours", { hours: number(h), minutes: number(m) });
+  if (m > 0) return t("elapsed.minutes", { minutes: number(m), seconds: number(s) });
+  return t("elapsed.seconds", { seconds: number(s) });
 };
 
 export function ReasoningBlock({
@@ -30,6 +34,7 @@ export function ReasoningBlock({
   /** 展开后渲染的思考内容（调用方决定 markdown 渲染方式） */
   children: ReactNode;
 }) {
+  const { t, locale } = useChatUiI18n();
   const [expanded, setExpanded] = useState(false);
   const thinking = startTime !== undefined && endTime === undefined;
   const [now, setNow] = useState(() => Date.now());
@@ -42,10 +47,12 @@ export function ReasoningBlock({
 
   const elapsed = duration ?? (startTime !== undefined ? (endTime ?? now) - startTime : undefined);
   const title = thinking
-    ? `思考中${elapsed !== undefined ? ` ${formatElapsed(elapsed)}` : "…"}`
+    ? elapsed !== undefined
+      ? t("reasoning.thinkingElapsed", { elapsed: formatElapsed(elapsed, locale) })
+      : t("reasoning.thinking")
     : elapsed !== undefined
-      ? `思考了 ${formatElapsed(elapsed)}`
-      : "思考过程";
+      ? t("reasoning.thought", { elapsed: formatElapsed(elapsed, locale) })
+      : t("reasoning.title");
 
   return (
     <div className="my-1 first:mt-0">

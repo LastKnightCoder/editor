@@ -1,6 +1,10 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { describe, expect, it, vi } from "vitest";
+import { createI18nRuntime, createLocaleStore } from "@tau/i18n";
+import { I18nRuntimeProvider } from "@tau/i18n/react";
+import { ReasoningBlock } from "../ReasoningBlock";
+import { ToolCallRow } from "../ToolCallRow";
 import { MessageView, type MessageViewProps } from "../MessageView";
 import type { ContentBlock } from "@tau/shared/chat-renderers";
 
@@ -158,4 +162,57 @@ describe("MessageView", () => {
 
     await unmount(root, container);
   });
+});
+
+it("换语保留思考计时、已展开正文与工具折叠状态", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(5_000);
+  const source = createLocaleStore("zh-CN");
+  const runtime = createI18nRuntime({ localeSource: source });
+  const { root, container } = await mount(
+    <I18nRuntimeProvider runtime={runtime}>
+      <ReasoningBlock startTime={1_000}>
+        <span data-raw-reasoning>原始推理内容</span>
+      </ReasoningBlock>
+      <ToolCallRow
+        execution={{
+          toolCallId: "failed",
+          toolName: "raw_tool",
+          status: "failed",
+          input: "{raw}",
+          error: "raw failure",
+          timestamp: 1,
+        }}
+      />
+    </I18nRuntimeProvider>
+  );
+  try {
+    const [reasoning, tool] = Array.from(
+      container.querySelectorAll<HTMLButtonElement>("button[aria-expanded]")
+    );
+    await act(async () => {
+      reasoning.click();
+      tool.click();
+    });
+    const raw = container.querySelector("[data-raw-reasoning]");
+    expect(raw?.textContent).toBe("原始推理内容");
+    expect(tool.getAttribute("aria-expanded")).toBe("false");
+    const timers = vi.getTimerCount();
+    const firstTitle = reasoning.textContent;
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => source.setLocale(locale));
+      expect(container.querySelector("[data-raw-reasoning]")).toBe(raw);
+      expect(container.querySelector("button[aria-expanded]")).toBe(reasoning);
+      expect(reasoning.getAttribute("aria-expanded")).toBe("true");
+      expect(tool.getAttribute("aria-expanded")).toBe("false");
+      expect(vi.getTimerCount()).toBe(timers);
+    }
+    await act(async () => vi.advanceTimersByTime(500));
+    expect(reasoning.textContent).not.toBe(firstTitle);
+    expect(raw?.textContent).toBe("原始推理内容");
+  } finally {
+    await unmount(root, container);
+    runtime.dispose();
+    vi.useRealTimers();
+  }
 });

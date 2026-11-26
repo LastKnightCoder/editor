@@ -1,3 +1,4 @@
+import { notebookTranslator, notebookCount, useNotebookI18n } from "@/features/vibe-learning/i18n";
 import { isElectron } from "@/electron";
 import { useHtmlPreviewUrl } from "@/utils/html-preview";
 import { compilePPT, decodePPTFiles } from "@/services/ppt/document";
@@ -46,6 +47,7 @@ import { usePage } from "@/page/PageProvider";
 import { toast, ConfirmDialog, Button, IconButton, Menu, Spinner } from "@tau/ui";
 import { NOTE_ICONS } from "../appMeta";
 import { StageHeader } from "@/components/StageHeader";
+const t = notebookTranslator.t;
 
 const DEFAULT_CONTENT: Descendant[] = [
   {
@@ -85,6 +87,7 @@ interface NoteEditorViewProps {
 }
 
 const NoteEditorView = memo((props: NoteEditorViewProps) => {
+  useNotebookI18n();
   const {
     projectId,
     mainDbName,
@@ -204,7 +207,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
         }
       } catch (error) {
         console.error("Failed to load note content:", error);
-        toast.error("加载笔记失败");
+        toast.error(t("note.loadFailed"));
       } finally {
         setLoading(false);
       }
@@ -256,7 +259,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
       }
     } catch (error) {
       console.error("Failed to save note:", error);
-      toast.error("保存笔记失败");
+      toast.error(t("note.saveFailed"));
       return null;
     } finally {
       setSaving(false);
@@ -292,18 +295,18 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
     // 先保存笔记
     const savedNote = await saveNote();
     if (!savedNote || !savedNote.contentId) {
-      toast.error("请先保存笔记");
+      toast.error(t("note.saveFirst"));
       return;
     }
 
     try {
       const card = await buildCardFromContent(savedNote.contentId);
       setIsCard(true);
-      toast.success("已创建卡片");
+      toast.success(t("note.cardCreated"));
       navigator.push("card-detail", { id: card.id });
     } catch (error) {
       console.error("Failed to create card:", error);
-      toast.error("创建卡片失败");
+      toast.error(t("note.cardFailed"));
     }
   });
 
@@ -311,18 +314,18 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
   const handleConvertToArticle = useMemoizedFn(async () => {
     const savedNote = await saveNote();
     if (!savedNote || !savedNote.contentId) {
-      toast.error("请先保存笔记");
+      toast.error(t("note.saveFirst"));
       return;
     }
 
     try {
       const article = await buildArticleFromContent(savedNote.contentId);
       setIsArticle(true);
-      toast.success("已创建文章");
+      toast.success(t("note.articleCreated"));
       navigator.push("article-detail", { id: article.id });
     } catch (error) {
       console.error("Failed to create article:", error);
-      toast.error("创建文章失败");
+      toast.error(t("note.articleFailed"));
     }
   });
 
@@ -330,7 +333,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
   const handleInsertToProject = useMemoizedFn(async () => {
     const savedNote = await saveNote();
     if (!savedNote || !savedNote.contentId) {
-      toast.error("请先保存笔记");
+      toast.error(t("note.saveFirst"));
       return;
     }
     setInsertProjectModalOpen(true);
@@ -339,7 +342,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
   const handleAddToResourceList = useMemoizedFn(async () => {
     const savedNote = await saveNote();
     if (!savedNote || !savedNote.contentId) {
-      toast.error("请先保存笔记");
+      toast.error(t("note.saveFirst"));
       return;
     }
 
@@ -354,13 +357,13 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
       });
       if (result.created) {
         onResourcesChange();
-        toast.success("已添加到资源列表");
+        toast.success(t("note.added"));
         return;
       }
-      toast.info("该内容已在资源列表中");
+      toast.info(t("note.alreadyAdded"));
     } catch (resourceError) {
       console.error("Failed to ensure note resource:", resourceError);
-      toast.warning("添加到资源列表失败");
+      toast.warning(t("note.addFailed"));
     }
   });
 
@@ -381,33 +384,33 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
 
   const handleDownloadPPT = useMemoizedFn(() => {
     if (!pptDeckHtml.trim()) {
-      toast.error("没有可下载的 PPT 内容");
+      toast.error(t("note.noPpt"));
       return;
     }
     const filename = `${sanitizeFileName(title, "演示文稿")}.html`;
     downloadTextFile(pptDeckHtml, filename, "text/html;charset=utf-8");
-    toast.success("PPT 已下载");
+    toast.success(t("note.pptDownloaded"));
   });
 
   const handleDownloadReport = useMemoizedFn(() => {
     if (!reportHtmlContent.trim()) {
-      toast.error("没有可下载的报告内容");
+      toast.error(t("note.noReport"));
       return;
     }
     const filename = `${sanitizeFileName(title, "报告")}.html`;
     downloadTextFile(reportHtmlContent, filename, "text/html;charset=utf-8");
-    toast.success("报告已下载");
+    toast.success(t("note.reportDownloaded"));
   });
 
   const handleDownloadMarkdown = useMemoizedFn(() => {
     const markdown = getMarkdown(content);
     if (!markdown.trim()) {
-      toast.error("没有可下载的内容");
+      toast.error(t("note.noContent"));
       return;
     }
     const filename = `${sanitizeFileName(title, "笔记")}.md`;
     downloadTextFile(markdown, filename, "text/markdown;charset=utf-8");
-    toast.success("笔记已下载");
+    toast.success(t("note.downloaded"));
   });
 
   const handleExportEpub = useMemoizedFn(async () => {
@@ -431,17 +434,17 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
 
       if (result.filePath) {
         if (result.warnings.length > 0) {
-          toast.warning(`EPUB 已导出，但有 ${result.warnings.length} 条提示`);
+          toast.warning(notebookCount("note.epubWarnings", result.warnings.length));
         } else {
-          toast.success("EPUB 已导出");
+          toast.success(t("note.epubExported"));
         }
         return;
       }
 
-      toast.error(result.warnings[0] || "EPUB 导出失败");
+      toast.error(result.warnings[0] || t("note.epubFailed"));
     } catch (error) {
       console.error("Export EPUB failed:", error);
-      toast.error("EPUB 导出失败");
+      toast.error(t("note.epubFailed"));
     } finally {
       setExportingDocumentFormat(null);
     }
@@ -468,17 +471,17 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
 
       if (result.filePath) {
         if (result.warnings.length > 0) {
-          toast.warning(`PDF 已导出，但有 ${result.warnings.length} 条提示`);
+          toast.warning(notebookCount("note.pdfWarnings", result.warnings.length));
         } else {
-          toast.success("PDF 已导出");
+          toast.success(t("note.pdfExported"));
         }
         return;
       }
 
-      toast.error(result.warnings[0] || "PDF 导出失败");
+      toast.error(result.warnings[0] || t("note.pdfFailed"));
     } catch (error) {
       console.error("Export PDF failed:", error);
-      toast.error("PDF 导出失败");
+      toast.error(t("note.pdfFailed"));
     } finally {
       setExportingDocumentFormat(null);
     }
@@ -489,7 +492,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
     if (exportingMindMapImage) return;
     const exportElement = mindMapExportRef.current;
     if (!exportElement) {
-      toast.error("未找到可导出的思维导图区域");
+      toast.error(t("note.noMap"));
       return;
     }
 
@@ -503,7 +506,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
 
     const rect = captureTarget.getBoundingClientRect();
     if (!rect.width || !rect.height) {
-      toast.error("思维导图尚未渲染完成，请稍后重试");
+      toast.error(t("note.mapNotReady"));
       return;
     }
 
@@ -564,10 +567,10 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
 
       const filename = `${sanitizeFileName(title, "思维导图")}.png`;
       downloadBlob(blob, filename);
-      toast.success("图片导出成功");
+      toast.success(t("note.imageExported"));
     } catch (e) {
       console.error("Export mindmap image failed:", e);
-      toast.error("导出失败，请重试");
+      toast.error(t("note.exportFailed"));
     } finally {
       setExportingMindMapImage(false);
     }
@@ -592,7 +595,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
             ) : (
               <Maximize className="size-4" strokeWidth={1.75} />
             ),
-            label: isFullscreen ? "退出全屏" : "全屏显示",
+            label: isFullscreen ? t("note.exitFullscreen") : t("note.fullscreen"),
             onClick: handleToggleFullscreen,
           },
           ...(isPPT
@@ -600,13 +603,13 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
                 {
                   key: "add-to-resources",
                   icon: <Import className="size-4" strokeWidth={1.75} />,
-                  label: "添加到资源列表",
+                  label: t("note.addResources"),
                   onClick: handleAddToResourceList,
                 },
                 {
                   key: "download-html",
                   icon: <Download className="size-4" strokeWidth={1.75} />,
-                  label: "下载 HTML",
+                  label: t("note.downloadHtml"),
                   onClick: handleDownloadPPT,
                 },
               ]
@@ -616,13 +619,13 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
                 {
                   key: "add-to-resources",
                   icon: <Import className="size-4" strokeWidth={1.75} />,
-                  label: "添加到资源列表",
+                  label: t("note.addResources"),
                   onClick: handleAddToResourceList,
                 },
                 {
                   key: "download-html",
                   icon: <Download className="size-4" strokeWidth={1.75} />,
-                  label: "下载 HTML",
+                  label: t("note.downloadHtml"),
                   onClick: handleDownloadReport,
                 },
               ]
@@ -632,31 +635,37 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
                 {
                   key: "add-to-resources",
                   icon: <Import className="size-4" strokeWidth={1.75} />,
-                  label: "添加到资源列表",
+                  label: t("note.addResources"),
                   onClick: handleAddToResourceList,
                 },
                 {
                   key: "download-md",
                   icon: <Download className="size-4" strokeWidth={1.75} />,
-                  label: "下载 Markdown",
+                  label: t("note.downloadMarkdown"),
                   onClick: handleDownloadMarkdown,
                 },
                 {
                   key: "export-pdf",
                   icon: <FileText className="size-4" strokeWidth={1.75} />,
-                  label: exportingDocumentFormat === "pdf" ? "导出 PDF 中..." : "导出 PDF",
+                  label:
+                    exportingDocumentFormat === "pdf"
+                      ? t("note.exportingPdf")
+                      : t("note.exportPdf"),
                   onClick: handleExportPdf,
                 },
                 {
                   key: "export-epub",
                   icon: <FileText className="size-4" strokeWidth={1.75} />,
-                  label: exportingDocumentFormat === "epub" ? "导出 EPUB 中..." : "导出 EPUB",
+                  label:
+                    exportingDocumentFormat === "epub"
+                      ? t("note.exportingEpub")
+                      : t("note.exportEpub"),
                   onClick: handleExportEpub,
                 },
                 {
                   key: "export-image",
                   icon: <Image className="size-4" strokeWidth={1.75} />,
-                  label: exportingMindMapImage ? "导出中..." : "导出为图片",
+                  label: exportingMindMapImage ? t("note.exporting") : t("note.exportImage"),
                   onClick: handleExportMindMapImage,
                 },
               ]
@@ -664,7 +673,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
           {
             key: "delete",
             icon: <Trash2 className="size-4" strokeWidth={1.75} />,
-            label: "删除笔记",
+            label: t("note.delete"),
             danger: true,
             onClick: handleDelete,
           },
@@ -675,7 +684,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
                 {
                   key: "convert-to-card",
                   icon: <CreditCard className="size-4" strokeWidth={1.75} />,
-                  label: "转为卡片",
+                  label: t("note.toCard"),
                   onClick: handleConvertToCard,
                 },
               ]
@@ -685,7 +694,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
                 {
                   key: "convert-to-article",
                   icon: <FileText className="size-4" strokeWidth={1.75} />,
-                  label: "转为文章",
+                  label: t("note.toArticle"),
                   onClick: handleConvertToArticle,
                 },
               ]
@@ -693,37 +702,38 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
           {
             key: "add-to-resources",
             icon: <Import className="size-4" strokeWidth={1.75} />,
-            label: "添加到资源列表",
+            label: t("note.addResources"),
             onClick: handleAddToResourceList,
           },
           {
             key: "insert-to-project",
             icon: <Import className="size-4" strokeWidth={1.75} />,
-            label: "插入到项目",
+            label: t("note.insertProject"),
             onClick: handleInsertToProject,
           },
           {
             key: "download-md",
             icon: <Download className="size-4" strokeWidth={1.75} />,
-            label: "下载 Markdown",
+            label: t("note.downloadMarkdown"),
             onClick: handleDownloadMarkdown,
           },
           {
             key: "export-pdf",
             icon: <FileText className="size-4" strokeWidth={1.75} />,
-            label: exportingDocumentFormat === "pdf" ? "导出 PDF 中..." : "导出 PDF",
+            label: exportingDocumentFormat === "pdf" ? t("note.exportingPdf") : t("note.exportPdf"),
             onClick: handleExportPdf,
           },
           {
             key: "export-epub",
             icon: <FileText className="size-4" strokeWidth={1.75} />,
-            label: exportingDocumentFormat === "epub" ? "导出 EPUB 中..." : "导出 EPUB",
+            label:
+              exportingDocumentFormat === "epub" ? t("note.exportingEpub") : t("note.exportEpub"),
             onClick: handleExportEpub,
           },
           {
             key: "delete",
             icon: <Trash2 className="size-4" strokeWidth={1.75} />,
-            label: "删除笔记",
+            label: t("note.delete"),
             danger: true,
             onClick: handleDelete,
           },
@@ -764,22 +774,22 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
               onChange={handleTitleChange}
               onBlur={handleTitleBlur}
               onKeyDown={e => e.key === "Enter" && handleTitleBlur()}
-              placeholder="无标题笔记"
+              placeholder={t("common.untitledNote")}
               autoFocus
               className="text-ink-1 placeholder:text-ink-3 w-[min(420px,40vw)] border-none bg-transparent p-0 font-semibold outline-none"
             />
           ) : (
             <button
               type="button"
-              title="点击修改标题"
+              title={t("note.rename")}
               className="text-ink-1 max-w-full cursor-text truncate text-left font-semibold"
               onClick={() => setIsEditingTitle(true)}
             >
-              {title || "无标题笔记"}
+              {title || t("common.untitledNote")}
             </button>
           )
         }
-        meta={saving ? "保存中…" : undefined}
+        meta={saving ? t("note.saving") : undefined}
         chatOpen={chatOpen}
         onToggleChat={onToggleChat}
         onClose={handleBack}
@@ -787,18 +797,18 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
           <>
             {onShowTrace && (
               <Button variant="ghost" size="sm" icon={History} onClick={onShowTrace}>
-                生成过程
+                {t("stage.process")}
               </Button>
             )}
             {aiEdit && (
               <Button variant="ghost" size="sm" icon={Sparkles} onClick={aiEdit}>
-                AI 编辑
+                {t("kind.aiEdit")}
               </Button>
             )}
             <Menu
               align="end"
               trigger={
-                <IconButton aria-label="更多">
+                <IconButton aria-label={t("common.more")}>
                   <MoreHorizontal className="size-4" strokeWidth={1.75} />
                 </IconButton>
               }
@@ -842,7 +852,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
                   >
                     <div className="text-tau-meta text-ink-2 flex items-center gap-2">
                       <Spinner className="size-4" />
-                      正在导出图片…
+                      {t("note.exportingImage")}
                     </div>
                   </div>
                 )}
@@ -869,7 +879,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
                     src={pptPreviewUrl}
                     className="h-full w-full border-0"
                     sandbox="allow-scripts allow-same-origin"
-                    title="PPT Preview"
+                    title={t("note.pptPreview")}
                   />
                 )}
               </div>
@@ -892,7 +902,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
                     src={reportPreviewUrl}
                     className="h-full w-full border-0"
                     sandbox="allow-scripts allow-same-origin"
-                    title="Report Preview"
+                    title={t("note.reportPreview")}
                   />
                 )}
               </div>
@@ -926,20 +936,20 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
       <ConfirmDialog
         open={deleteConfirmOpen}
         onOpenChange={setDeleteConfirmOpen}
-        title="删除笔记"
-        description="确定要删除该笔记吗？删除后无法恢复。"
+        title={t("note.delete")}
+        description={t("note.deleteDescription")}
         danger
-        confirmText="删除"
+        confirmText={t("common.delete")}
         onConfirm={async () => {
           if (!currentNote) return;
           setDeleteConfirmOpen(false);
           try {
             await deleteVLNote(currentNote.id);
-            toast.success("笔记已删除");
+            toast.success(t("note.deleted"));
             onBack();
           } catch (error) {
             console.error("Failed to delete note:", error);
-            toast.error("删除笔记失败");
+            toast.error(t("note.deleteFailed"));
           }
         }}
       />

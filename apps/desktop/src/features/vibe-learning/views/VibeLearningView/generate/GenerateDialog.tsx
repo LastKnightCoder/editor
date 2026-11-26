@@ -1,10 +1,11 @@
+import { notebookTranslator, useNotebookI18n, notebookError } from "@/features/vibe-learning/i18n";
 /**
  * 生成配置弹窗（内置生成应用、插件的 Notebook 输出与 PPT / 报告的 AI 编辑共用一张）：
  * 选资料、写要求，按类型多出风格 / 模板，插件输出在中间放插件自己的选项区；「开始」后建好产物占位即关闭，
  * 生成在后台进行，过程在阅读区看。
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
 import { Button, Dialog, DialogBody, Input, Textarea, toast } from "@tau/ui";
@@ -27,29 +28,86 @@ import { startVLTask } from "../tasks/runner";
 import type { VLTaskKind } from "../tasks/store";
 import { Field, OptionCards, ResourceChecklist, TemplatePicker } from "./fields";
 import { ARTICLE_STYLES } from "./styles";
+const t = notebookTranslator.t;
 
 const COPY: Record<VLTaskKind, { subtitle: string; placeholder: string }> = {
   outline: {
-    subtitle: "梳理成结构化的学习路径",
-    placeholder: "例如：重点关注核心概念，按难度递进排列",
+    get subtitle() {
+      return t("generate.outlineSubtitle");
+    },
+    get placeholder() {
+      return t("generate.outlinePlaceholder");
+    },
   },
-  highlights: { subtitle: "提取核心知识点", placeholder: "例如：重点关注概念和公式，适合考试复习" },
+  highlights: {
+    get subtitle() {
+      return t("generate.highlightsSubtitle");
+    },
+    get placeholder() {
+      return t("generate.highlightsPlaceholder");
+    },
+  },
   article: {
-    subtitle: "写成一篇可直接阅读的长文",
-    placeholder: "例如：多讲背景动机、实际案例和常见误区",
+    get subtitle() {
+      return t("generate.articleSubtitle");
+    },
+    get placeholder() {
+      return t("generate.articlePlaceholder");
+    },
   },
-  mindmap: { subtitle: "把知识结构画成导图", placeholder: "例如：按主题分类，层级不超过四层" },
-  ppt: { subtitle: "生成一份演示文稿", placeholder: "例如：面向初学者，15 页以内" },
-  report: { subtitle: "生成一份分析报告", placeholder: "例如：侧重对比分析，给出结论建议" },
-  quiz: { subtitle: "出一套自测题", placeholder: "例如：重点考察 XXX 概念，难度适中" },
-  plugin: { subtitle: "", placeholder: "例如：重点讲哪些部分、写给谁看" },
+  mindmap: {
+    get subtitle() {
+      return t("generate.mindmapSubtitle");
+    },
+    get placeholder() {
+      return t("generate.mindmapPlaceholder");
+    },
+  },
+  ppt: {
+    get subtitle() {
+      return t("generate.pptSubtitle");
+    },
+    get placeholder() {
+      return t("generate.pptPlaceholder");
+    },
+  },
+  report: {
+    get subtitle() {
+      return t("generate.reportSubtitle");
+    },
+    get placeholder() {
+      return t("generate.reportPlaceholder");
+    },
+  },
+  quiz: {
+    get subtitle() {
+      return t("generate.quizSubtitle");
+    },
+    get placeholder() {
+      return t("generate.quizPlaceholder");
+    },
+  },
+  plugin: {
+    subtitle: "",
+    get placeholder() {
+      return t("generate.pluginPlaceholder");
+    },
+  },
   ppt_edit: {
-    subtitle: "按你的要求改写这份演示文稿",
-    placeholder: "例如：第 3 页加一个流程图，整体配色更克制",
+    get subtitle() {
+      return t("generate.editPptSubtitle");
+    },
+    get placeholder() {
+      return t("generate.editPptPlaceholder");
+    },
   },
   report_edit: {
-    subtitle: "按你的要求改写这份报告",
-    placeholder: "例如：补一节风险分析，结论更简练",
+    get subtitle() {
+      return t("generate.editReportSubtitle");
+    },
+    get placeholder() {
+      return t("generate.editReportPlaceholder");
+    },
   },
 };
 
@@ -82,6 +140,7 @@ export function GenerateDialog({
   onClose,
   onStarted,
 }: GenerateDialogProps) {
+  useNotebookI18n();
   const isEdit = kind === "ppt_edit" || kind === "report_edit";
   const [open, setOpen] = useState(true);
   const [starting, setStarting] = useState(false);
@@ -109,15 +168,19 @@ export function GenerateDialog({
     : output
       ? notebookOutputIcon(output)
       : (app?.icon ?? Sparkles);
-  const title = isEdit ? "AI 编辑" : `生成${output?.definition.title ?? app?.label ?? ""}`;
+  const title = isEdit
+    ? t("kind.aiEdit")
+    : t("generate.title", { kind: output?.definition.title ?? app?.label ?? "" });
   const subtitle = output ? (output.definition.description ?? "") : COPY[kind].subtitle;
 
-  const blocker = useMemo(() => {
-    if (!isEdit && selection.selectedResourceIds.length === 0) return "至少选择一份资料";
-    if (isEdit && !userPrompt.trim()) return "写下要怎么改";
-    if (output && pluginBlocker) return pluginBlocker;
-    return null;
-  }, [isEdit, output, selection.selectedResourceIds.length, userPrompt, pluginBlocker]);
+  const blocker =
+    !isEdit && selection.selectedResourceIds.length === 0
+      ? t("generate.selectResource")
+      : isEdit && !userPrompt.trim()
+        ? t("generate.writeChange")
+        : output && pluginBlocker
+          ? pluginBlocker
+          : null;
 
   const close = () => setOpen(false);
 
@@ -154,7 +217,7 @@ export function GenerateDialog({
       onStarted(result);
       close();
     } catch (error) {
-      toast.error((error as Error).message || "启动失败");
+      toast.error(notebookError(error, "generate.startFailed"));
       setStarting(false);
     }
   });
@@ -170,11 +233,11 @@ export function GenerateDialog({
       context={isEdit ? note?.title : undefined}
       width={kind === "ppt" || kind === "report" ? 720 : output ? 640 : 560}
       locked={starting}
-      impact={blocker ?? "开始后在后台生成，可以离开这个页面"}
+      impact={blocker ?? t("generate.background")}
       footer={
         <>
           <Button variant="secondary" size="sm" disabled={starting} onClick={close}>
-            取消
+            {t("common.cancel")}
           </Button>
           <Button
             variant="primary"
@@ -184,7 +247,7 @@ export function GenerateDialog({
             disabled={!!blocker}
             onClick={handleStart}
           >
-            {isEdit ? "开始改写" : "开始生成"}
+            {isEdit ? t("generate.rewrite") : t("generate.start")}
           </Button>
         </>
       }
@@ -192,17 +255,17 @@ export function GenerateDialog({
       <DialogBody>
         <div className="flex flex-col gap-4">
           {kind === "quiz" && (
-            <Field label="测验名称" hint="可选，留空按资料命名">
+            <Field label={t("quiz.name")} hint={t("generate.quizNameHint")}>
               <Input
                 value={quizName}
                 onChange={e => setQuizName(e.target.value)}
-                placeholder="例如：第 3 章自测"
+                placeholder={t("generate.quizNamePlaceholder")}
               />
             </Field>
           )}
 
           {isEdit && (
-            <Field label="修改要求">
+            <Field label={t("generate.changes")}>
               <Textarea
                 data-autofocus
                 value={userPrompt}
@@ -225,7 +288,7 @@ export function GenerateDialog({
 
           {kind === "article" && (
             <OptionCards
-              label="文章风格"
+              label={t("generate.articleStyle")}
               options={ARTICLE_STYLES}
               value={style}
               onChange={setStyle}
@@ -233,7 +296,8 @@ export function GenerateDialog({
           )}
           {kind === "ppt" && (
             <TemplatePicker
-              label="风格"
+              kind="ppt"
+              label={t("generate.style")}
               templates={PPT_TEMPLATES}
               value={templateId}
               onChange={setTemplateId}
@@ -242,7 +306,8 @@ export function GenerateDialog({
           )}
           {kind === "report" && (
             <TemplatePicker
-              label="报告风格"
+              kind="report"
+              label={t("generate.reportStyle")}
               templates={REPORT_TEMPLATES}
               value={templateId}
               onChange={setTemplateId}
@@ -268,7 +333,7 @@ export function GenerateDialog({
           )}
 
           {!isEdit && (
-            <Field label="额外要求" hint="可选">
+            <Field label={t("generate.requirements")} hint={t("generate.optional")}>
               <Textarea
                 value={userPrompt}
                 onChange={e => setUserPrompt(e.target.value)}

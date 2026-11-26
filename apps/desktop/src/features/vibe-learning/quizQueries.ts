@@ -1,3 +1,4 @@
+import { NotebookUiError } from "./i18n";
 import { useMemo } from "react";
 import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import * as quizCommands from "@/commands/vl-quiz";
@@ -68,7 +69,7 @@ export function useQuizItems(quizSetId: number | undefined, enabled = true) {
   const query = useQuery({
     queryKey: quizKeys.items(database, quizSetId, connectionId),
     queryFn: () => {
-      if (quizSetId == null) throw new Error("缺少测验 ID");
+      if (quizSetId == null) throw new NotebookUiError("quiz.missingId", "缺少测验 ID");
       return commands.listVLQuizItems(quizSetId);
     },
     enabled: enabled && connected && quizSetId != null,
@@ -84,7 +85,7 @@ export function useQuizRecords(quizSetId: number | undefined, enabled = true) {
   const query = useQuery({
     queryKey: quizKeys.records(database, quizSetId, connectionId),
     queryFn: () => {
-      if (quizSetId == null) throw new Error("缺少测验 ID");
+      if (quizSetId == null) throw new NotebookUiError("quiz.missingId", "缺少测验 ID");
       return commands.listVLQuizRecords({ quizSetId });
     },
     enabled: enabled && connected && quizSetId != null,
@@ -112,7 +113,7 @@ export function useQuizMutations() {
   return useMemo(() => {
     const assertCurrentDatabase = () => {
       if (databaseId(useSettingStore.getState().setting.database.active) !== databaseId(database)) {
-        throw new Error("数据库已切换，请重新打开测验操作");
+        throw new NotebookUiError("quiz.databaseChanged", "数据库已切换，请重新打开测验操作");
       }
     };
     const refresh = () => void invalidateQuizzes(client, database);
@@ -120,7 +121,7 @@ export function useQuizMutations() {
       async updateQuizSet(input: UpdateVLQuizSetInput) {
         assertCurrentDatabase();
         const result = await commands.updateVLQuizSet(input);
-        if (!result) throw new Error("测验集已不存在");
+        if (!result) throw new NotebookUiError("quiz.missingSet", "测验集已不存在");
         client.setQueryData<VLQuizSet[]>(
           quizKeys.sets(database, result.projectId, connectionId),
           previous => previous?.map(item => (item.id === result.id ? result : item))
@@ -130,7 +131,8 @@ export function useQuizMutations() {
       },
       async deleteQuizSet(id: number) {
         assertCurrentDatabase();
-        if (!(await commands.deleteVLQuizSet(id))) throw new Error("测验集已不存在");
+        if (!(await commands.deleteVLQuizSet(id)))
+          throw new NotebookUiError("quiz.missingSet", "测验集已不存在");
         client.removeQueries({ queryKey: quizKeys.items(database, id, connectionId) });
         client.removeQueries({ queryKey: quizKeys.records(database, id, connectionId) });
         refresh();
@@ -138,7 +140,7 @@ export function useQuizMutations() {
       async updateItem(input: UpdateVLQuizItemInput) {
         assertCurrentDatabase();
         const result = await commands.updateVLQuizItem(input);
-        if (!result) throw new Error("测验题已不存在");
+        if (!result) throw new NotebookUiError("quiz.missingItem", "测验题已不存在");
         client.setQueryData<VLQuizItem[]>(
           quizKeys.items(database, result.quizSetId, connectionId),
           previous => previous?.map(item => (item.id === result.id ? result : item))
@@ -148,7 +150,8 @@ export function useQuizMutations() {
       },
       async deleteItem(id: number) {
         assertCurrentDatabase();
-        if (!(await commands.deleteVLQuizItem(id))) throw new Error("测验题已不存在");
+        if (!(await commands.deleteVLQuizItem(id)))
+          throw new NotebookUiError("quiz.missingItem", "测验题已不存在");
         refresh();
       },
       async createRecord(input: CreateVLQuizRecordInput) {

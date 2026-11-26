@@ -1,3 +1,4 @@
+import { notebookTranslator } from "@/features/vibe-learning/i18n";
 import { useState, useMemo } from "react";
 import { useMemoizedFn } from "ahooks";
 import { toast } from "@tau/ui";
@@ -92,7 +93,7 @@ export const useVLResourceSelection = (
       }
     } catch (error) {
       console.error("Failed to load resources:", error);
-      toast.error("加载资源失败");
+      toast.error(notebookTranslator.t("resource.loadFailed"));
     } finally {
       setLoading(false);
     }

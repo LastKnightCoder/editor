@@ -1,3 +1,4 @@
+import { chatUiTranslator, resolveChatUiLocale, useChatUiI18n } from "../../i18n";
 /**
  * 工具调用折叠行：「✓ tool_name · 1.2 秒」，失败 / 重试默认展开；展开看输入 / 输出 / 错误。
  * 也是 ToolCallDisplay 的缺省单项与自定义渲染器 renderDefault() 的落点。
@@ -18,8 +19,18 @@ const formatJson = (value: string) => {
   }
 };
 
-export const formatToolDuration = (ms: number) =>
-  ms < 1000 ? `${Math.round(ms)} 毫秒` : `${(ms / 1000).toFixed(ms < 10_000 ? 1 : 0)} 秒`;
+export const formatToolDuration = (ms: number, locale = "zh-CN") => {
+  locale = resolveChatUiLocale(locale);
+  const t = chatUiTranslator(locale).t;
+  return ms < 1000
+    ? t("elapsed.milliseconds", { milliseconds: Math.round(ms).toLocaleString(locale) })
+    : t("elapsed.seconds", {
+        seconds: (ms / 1000).toLocaleString(locale, {
+          minimumFractionDigits: ms < 10_000 ? 1 : 0,
+          maximumFractionDigits: ms < 10_000 ? 1 : 0,
+        }),
+      });
+};
 
 function statusIcon(execution: ToolCallExecutionState): ReactNode {
   switch (execution.status) {
@@ -44,23 +55,29 @@ function statusIcon(execution: ToolCallExecutionState): ReactNode {
   }
 }
 
-export function toolStatusText(execution: ToolCallExecutionState): string {
+export function toolStatusText(execution: ToolCallExecutionState, locale = "zh-CN"): string {
+  locale = resolveChatUiLocale(locale);
+  const t = chatUiTranslator(locale).t;
   switch (execution.status) {
     case "pending":
-      return "等待中";
+      return t("tool.pending");
     case "awaiting-approval":
-      return "等待确认";
+      return t("tool.approval");
     case "executing":
-      return "执行中…";
+      return t("tool.executing");
     case "retrying":
-      return execution.retryCount ? `重试中（${execution.retryCount}/2）` : "重试中";
+      return execution.retryCount
+        ? t("tool.retryingCount", { count: execution.retryCount })
+        : t("tool.retrying");
     case "cancelled":
-      return execution.metadata?.denied ? "已拒绝" : "已取消";
+      return execution.metadata?.denied ? t("tool.denied") : t("tool.cancelled");
     case "success":
-      return execution.duration ? formatToolDuration(execution.duration) : "完成";
+      return execution.duration ? formatToolDuration(execution.duration, locale) : t("tool.done");
     case "failed":
-      if (execution.errorType === "parameter") return "参数错误";
-      return execution.retryCount ? `重试 ${execution.retryCount} 次后失败` : "失败";
+      if (execution.errorType === "parameter") return t("tool.parameterError");
+      return execution.retryCount
+        ? t("tool.failedRetries", { count: execution.retryCount })
+        : t("tool.failed");
   }
 }
 
@@ -98,6 +115,7 @@ export const ToolCallRow = memo(function ToolCallRow({
   /** 宿主给工具的可读叫法（如「新建待办」）；缺省显示工具名 */
   title?: ReactNode;
 }) {
+  const { t, locale } = useChatUiI18n();
   const [expanded, setExpanded] = useState(
     execution.status === "failed" || execution.status === "retrying"
   );
@@ -108,17 +126,24 @@ export const ToolCallRow = memo(function ToolCallRow({
       <FoldRow
         icon={statusIcon(execution)}
         title={title ?? <span className="font-tau-mono text-[12px]">{execution.toolName}</span>}
-        meta={<span className="tabular-nums">{toolStatusText(execution)}</span>}
+        meta={<span className="tabular-nums">{toolStatusText(execution, locale)}</span>}
         tone={failed ? "danger" : "default"}
         expanded={expanded}
         onToggle={() => setExpanded(v => !v)}
       />
       {expanded && (
         <FoldBody className="space-y-2">
-          {execution.input.trim() && <Section label="输入">{formatJson(execution.input)}</Section>}
-          {execution.output && <Section label="输出">{execution.output}</Section>}
+          {execution.input.trim() && (
+            <Section label={t("tool.input")}>{formatJson(execution.input)}</Section>
+          )}
+          {execution.output && <Section label={t("tool.output")}>{execution.output}</Section>}
           {execution.error && (
-            <Section label={execution.errorType === "parameter" ? "参数错误" : "错误"} danger>
+            <Section
+              label={
+                execution.errorType === "parameter" ? t("tool.parameterError") : t("tool.error")
+              }
+              danger
+            >
               {execution.error}
             </Section>
           )}

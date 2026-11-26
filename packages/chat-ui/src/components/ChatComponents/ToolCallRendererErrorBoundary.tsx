@@ -1,3 +1,4 @@
+import { useChatUiI18n } from "../../i18n";
 import React from "react";
 
 interface ToolCallRendererErrorBoundaryProps {
@@ -8,6 +9,11 @@ interface ToolCallRendererErrorBoundaryProps {
 
 interface ToolCallRendererErrorBoundaryState {
   hasError: boolean;
+}
+
+function RendererFailureNotice() {
+  const { t } = useChatUiI18n();
+  return <div className="text-tau-tiny text-ink-3 px-1 py-1.5">{t("tool.rendererFailed")}</div>;
 }
 
 class ToolCallRendererErrorBoundary extends React.Component<
@@ -30,7 +36,7 @@ class ToolCallRendererErrorBoundary extends React.Component<
     if (this.state.hasError) {
       return (
         <>
-          <div className="text-tau-tiny text-ink-3 px-1 py-1.5">渲染出错，已回退到默认视图</div>
+          <RendererFailureNotice />
           {this.props.fallback}
         </>
       );

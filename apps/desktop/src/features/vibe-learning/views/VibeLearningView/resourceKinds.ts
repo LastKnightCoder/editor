@@ -1,3 +1,4 @@
+import { notebookTranslator } from "../../i18n";
 /** 资料类型 → 图标 / 打开方式（目录与阅读区共用） */
 
 import {
@@ -65,6 +66,6 @@ export async function openResourceExternally(resource: VLResource) {
     await openFileWithDefaultApp(localPath);
   } catch (error) {
     console.error("Open file failed:", error);
-    toast.error("打开文件失败");
+    toast.error(notebookTranslator.t("resource.openFailed"));
   }
 }
