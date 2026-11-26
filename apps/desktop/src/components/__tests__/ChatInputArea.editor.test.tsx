@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import type { Descendant } from "slate";
 
+import { desktopLocaleSource } from "@/app/i18n/runtime";
 import ChatInputArea, { type ChatInputAreaHandle } from "../ChatInputArea";
 import { ChatInputArea as SharedChatInputArea } from "@tau/shared";
 
@@ -178,6 +179,7 @@ const renderChatInputArea = async (ref: React.RefObject<ChatInputAreaHandle | nu
 
 describe("桌面端 ChatInputArea Editor 输入", () => {
   afterEach(async () => {
+    await act(async () => desktopLocaleSource.setLocale("zh-CN"));
     uploadFileMock.mockClear();
     copyFileToLocalMock.mockClear();
     capturedHotkeyConfigs = [];
@@ -301,6 +303,66 @@ describe("桌面端 ChatInputArea Editor 输入", () => {
     ]);
     expect(savedPaths[0]).not.toBe(savedPaths[1]);
     expect(copyFileToLocalMock.mock.calls.map(([file]) => file)).toEqual([screenshot, screenshot]);
+  });
+
+  it("换语不替换编辑器或丢草稿，也不重启在途附件保存与发送", async () => {
+    const ref = { current: null } as React.RefObject<ChatInputAreaHandle | null>;
+    const send = vi.fn();
+    const think = vi.fn();
+    await renderChatInputArea(ref);
+    await act(async () =>
+      root?.render(
+        <ChatInputArea
+          ref={ref}
+          isSupportImage
+          onPressEnter={send}
+          thinkingLevel="high"
+          onThinkingLevelChange={think}
+        />
+      )
+    );
+    await act(async () => ref.current?.setValue("用户草稿 :content[id]"));
+    const editor = container?.querySelector('[data-testid="chat-editor"]');
+    if (!editor) throw new Error("missing editor boundary");
+    let finish!: (path: string) => void;
+    copyFileToLocalMock.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        })
+    );
+    vi.stubGlobal("electron", { getPathForFile: () => "" });
+    const screenshot = new File(["截图"], "image.png", { type: "image/png" });
+    const paste = new Event("paste", { bubbles: true, cancelable: true });
+    Object.defineProperty(paste, "clipboardData", { value: { files: [screenshot] } });
+    await act(async () => editor.dispatchEvent(paste));
+    for (const locale of ["en-US", "zh-TW"] as const) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(container?.querySelector('[data-testid="chat-editor"]')).toBe(editor);
+      expect(ref.current?.getValue()).toEqual([
+        { type: "text", text: "用户草稿 :content[id]", mentions: [] },
+      ]);
+      expect(copyFileToLocalMock).toHaveBeenCalledTimes(1);
+      expect(send).not.toHaveBeenCalled();
+      expect(think).not.toHaveBeenCalled();
+    }
+    await act(async () => finish("~/resources/screenshot.png"));
+    const expected = [
+      {
+        type: "image",
+        path: "/home/test/resources/screenshot.png",
+        image: "file:///home/test/resources/screenshot.png",
+      },
+      { type: "text", text: "用户草稿 :content[id]", mentions: [] },
+    ];
+    expect(ref.current?.getValue()).toEqual(expected);
+    await act(async () => desktopLocaleSource.setLocale("zh-CN"));
+    expect(ref.current?.getValue()).toEqual(expected);
+    expect(copyFileToLocalMock).toHaveBeenCalledTimes(1);
+    const submit = capturedHotkeyConfigs.find(config => config.hotKey === "mod+enter");
+    if (!submit) throw new Error("missing submit hotkey");
+    submit.action({}, { preventDefault: () => undefined } as React.KeyboardEvent<HTMLDivElement>);
+    expect(send).toHaveBeenCalledTimes(1);
   });
 
   it("应使用 Editor 承载正文输入，并避免向用户展示 raw content-link markup", async () => {

@@ -28,7 +28,6 @@ import type { Descendant } from "slate";
 
 import { Editor, type EditorRef, type IHotKeyConfig } from "@tau/editor";
 import {
-  DEFAULT_CHAT_INPUT_PLACEHOLDER,
   resolveChatInputPlaceholder,
   type ChatInputAreaHandle,
   type MentionEntityType,
@@ -45,7 +44,13 @@ import {
 import { DEFAULT_THINKING_LEVEL_OPTIONS, THINKING_LEVEL_OPTIONS } from "@tau/shared/chat-core";
 import { IconButton, ImagePreview, Menu, Tooltip, cn, toast } from "@tau/ui";
 
-import { CHAT_IMAGE_ACCEPT, prepareChatAttachment, type ChatAttachment } from "./attachments";
+import {
+  CHAT_IMAGE_ACCEPT,
+  ChatAttachmentError,
+  prepareChatAttachment,
+  type ChatAttachment,
+} from "./attachments";
+import { useComposerI18n } from "./i18n";
 import { McpQuickPanel } from "@/features/mcp/components/McpQuickPanel";
 import { contentLinkExtension, skillRefExtension } from "@/editor-extensions";
 import { SkillPickerPanel } from "@/editor-extensions/skill-ref/SkillPickerPanel";
@@ -185,7 +190,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       onPressEnter,
       onSteer,
       onStop,
-      placeholder = DEFAULT_CHAT_INPUT_PLACEHOLDER,
+      placeholder,
       sendLoading = false,
       allowSendWhileLoading = false,
       queuedMessageCount = 0,
@@ -210,10 +215,9 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     },
     ref
   ) => {
-    const resolvedPlaceholder = useMemo(
-      () => resolveChatInputPlaceholder(placeholder),
-      [placeholder]
-    );
+    const { t, locale } = useComposerI18n();
+    const number = (value: number) => new Intl.NumberFormat(locale).format(value);
+    const resolvedPlaceholder = resolveChatInputPlaceholder(placeholder ?? t("input.placeholder"));
 
     const editorRef = useRef<EditorRef>(null);
     const rootRef = useRef<HTMLDivElement>(null);
@@ -246,7 +250,13 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
             const item = await prepareChatAttachment(file, source, isSupportImage, isSupportFile);
             if (revision === draftRevision.current) setAttachments(prev => [...prev, item]);
           } catch (error) {
-            toast.error(error instanceof Error ? error.message : "添加附件失败");
+            toast.error(
+              error instanceof ChatAttachmentError
+                ? t(error.code, error.params)
+                : error instanceof Error
+                  ? error.message
+                  : t("attachment.failed")
+            );
           }
         }
       } finally {
@@ -375,7 +385,12 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       typeof thinkingLevel !== "undefined" && typeof onThinkingLevelChange === "function";
     const availableThinkingLevelOptions = THINKING_LEVEL_OPTIONS.filter(option =>
       (thinkingLevelOptions ?? DEFAULT_THINKING_LEVEL_OPTIONS).includes(option.value)
-    );
+    ).map(option => ({
+      value: option.value,
+      label: t(`thinking.${option.value}.label`),
+      short: t(`thinking.${option.value}.short`),
+      description: t(`thinking.${option.value}.description`),
+    }));
     const currentThinkingOption = availableThinkingLevelOptions.find(
       option => option.value === thinkingLevel
     );
@@ -389,10 +404,10 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
         ? [
             {
               key: "image",
-              group: "添加",
+              group: t("group.add"),
               icon: <ImagePlus />,
-              label: "图片",
-              description: "可多选，也可直接粘贴",
+              label: t("add.image"),
+              description: t("add.imageHint"),
               disabled: attachDisabled,
               onSelect: () => imageInputRef.current?.click(),
             },
@@ -402,10 +417,10 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
         ? [
             {
               key: "file",
-              group: "添加",
+              group: t("group.add"),
               icon: <FileText />,
-              label: "文件",
-              description: "AI 会自行读取文件内容",
+              label: t("add.file"),
+              description: t("add.fileHint"),
               disabled: attachDisabled,
               onSelect: () => fileInputRef.current?.click(),
             },
@@ -413,10 +428,10 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
         : []),
       {
         key: "mention",
-        group: "添加",
+        group: t("group.add"),
         icon: <AtSign />,
-        label: "引用内容",
-        description: "卡片、文章、项目文档",
+        label: t("add.mention"),
+        description: t("add.mentionHint"),
         kbd: "@",
         disabled: attachDisabled,
         // 等同于在光标处输入 @：交给 content-link 的 @ 面板
@@ -431,11 +446,11 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
         ? [
             {
               key: "new-chat",
-              group: "对话",
+              group: t("group.chat"),
               icon: <SquarePen />,
-              label: "新建对话",
+              label: t("add.chat"),
               // 不因 sendLoading 禁用：归约运行时是模块级的，上一轮（含等待作答）在后台继续
-              description: "当前对话保留在会话列表里",
+              description: t("add.chatHint"),
               disabled: createMessageLoading,
               onSelect: onCreateNewMessage,
             },
@@ -445,10 +460,10 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
         ? [
             {
               key: "mcp",
-              group: "工具",
+              group: t("group.tools"),
               icon: <Plug />,
-              label: "MCP 服务器",
-              description: "开关外部工具服务",
+              label: t("add.mcp"),
+              description: t("add.mcpHint"),
               disabled: sendLoading,
               panel: (close: () => void) => <McpQuickPanel toolScope={toolScope} onClose={close} />,
             },
@@ -469,10 +484,12 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           trigger={
             <ToolbarChip
               disabled={sendLoading}
-              title={currentModelName || "选择模型"}
+              title={currentModelName ?? t("model.select")}
               className={compact ? "max-w-[120px] shrink" : "max-w-[200px] shrink"}
             >
-              <span className="min-w-0 truncate font-medium">{currentModelName || "选择模型"}</span>
+              <span className="min-w-0 truncate font-medium">
+                {currentModelName ?? t("model.select")}
+              </span>
               <ChipCaret />
             </ToolbarChip>
           }
@@ -510,17 +527,17 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
         // 双行选项 ×5 超出 Menu 默认 300px 上限；选项数固定，放开高度免出滚动条
         className="max-h-none w-[240px]"
         trigger={
-          <ToolbarChip disabled={thinkingControlDisabled} title="思考强度">
+          <ToolbarChip disabled={thinkingControlDisabled} title={t("thinking.title")}>
             <Brain size={15} strokeWidth={1.75} className="text-ink-2" />
             <span className="min-w-0 truncate">
               {(compact ? currentThinkingOption?.short : currentThinkingOption?.label) ??
-                (compact ? "立答" : "立答如流")}
+                (compact ? t("thinking.off.short") : t("thinking.off.label"))}
             </span>
             <ChipCaret />
           </ToolbarChip>
         }
       >
-        <Menu.Group>思考强度</Menu.Group>
+        <Menu.Group>{t("thinking.title")}</Menu.Group>
         <Menu.RadioGroup
           value={thinkingLevel}
           onValueChange={value => onThinkingLevelChange?.(value as ThinkingLevel)}
@@ -538,13 +555,19 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     ) : null;
 
     // 工具权限模式：只在完整对话输入框出现（行内 AI 等不跑需要确认的工具）
-    const currentPermission = TOOL_PERMISSION_MODES.find(m => m.value === permissionMode);
+    const permissionOptions = TOOL_PERMISSION_MODES.map(option => ({
+      value: option.value,
+      label: t(`permission.${option.value}.label`),
+      short: t(`permission.${option.value}.short`),
+      description: t(`permission.${option.value}.description`),
+    }));
+    const currentPermission = permissionOptions.find(m => m.value === permissionMode);
     const permissionMenu = showMcpManager ? (
       <Menu
         align="start"
         className="max-h-none w-[260px]"
         trigger={
-          <ToolbarChip title={`工具权限：${currentPermission?.label ?? ""}`}>
+          <ToolbarChip title={t("permission.current", { label: currentPermission?.label ?? "" })}>
             {permissionMode === "bypass" ? (
               <ShieldOff size={15} strokeWidth={1.75} className="text-warn" />
             ) : (
@@ -555,12 +578,12 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           </ToolbarChip>
         }
       >
-        <Menu.Group>工具权限</Menu.Group>
+        <Menu.Group>{t("permission.title")}</Menu.Group>
         <Menu.RadioGroup
           value={permissionMode}
           onValueChange={value => setPermissionMode(value as ToolPermissionMode)}
         >
-          {TOOL_PERMISSION_MODES.map(option => (
+          {permissionOptions.map(option => (
             <Menu.RadioItem key={option.value} value={option.value} className="h-auto py-1.5">
               <span className="flex min-w-0 flex-col">
                 <span>{option.label}</span>
@@ -592,13 +615,13 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
               <div key={image.id} className="group/att relative size-14">
                 <img
                   src={image.previewUrl}
-                  alt={`预览 ${index + 1}`}
+                  alt={t("preview.image", { number: number(index + 1) })}
                   className="border-line-1 rounded-tau-sm size-14 cursor-zoom-in border object-cover"
                   onClick={() => setPreviewIndex(index)}
                 />
                 <button
                   type="button"
-                  aria-label="移除图片"
+                  aria-label={t("remove.image")}
                   onClick={() => removeAttachment(image.id)}
                   className="bg-ink-1/70 text-ink-inverse absolute -top-1.5 -right-1.5 grid size-[18px] place-items-center rounded-full opacity-0 transition-opacity group-hover/att:opacity-100"
                 >
@@ -614,7 +637,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                 <FileText size={14} strokeWidth={1.75} className="text-danger shrink-0" />
                 <span className="text-tau-sm text-ink-1 min-w-0 truncate">{file.name}</span>
                 <IconButton
-                  aria-label="移除文件"
+                  aria-label={t("remove.file")}
                   className="size-5 [&_svg]:size-3"
                   onClick={() => removeAttachment(file.id)}
                 >
@@ -662,10 +685,10 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           {modelMenu}
           {thinkingMenu}
           {sendLoading && (
-            <Tooltip content="停止生成" placement="top" delay={300}>
+            <Tooltip content={t("action.stop")} placement="top" delay={300}>
               <button
                 type="button"
-                aria-label="停止生成"
+                aria-label={t("action.stop")}
                 onClick={onStop}
                 className="bg-ink-1 text-surface ml-1 grid size-[30px] shrink-0 place-items-center rounded-[10px] hover:opacity-90"
               >
@@ -674,14 +697,10 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
             </Tooltip>
           )}
           {onSteer && (
-            <Tooltip
-              content="插话：当前步骤结束后交给模型（⌘/Ctrl + Shift + Enter）"
-              placement="top"
-              delay={300}
-            >
+            <Tooltip content={t("action.steerHint")} placement="top" delay={300}>
               <button
                 type="button"
-                aria-label="插话"
+                aria-label={t("action.steer")}
                 onClick={onSteer}
                 disabled={!!pendingBatches || (!hasText && !attachments.length)}
                 className={cn(
@@ -695,13 +714,13 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           )}
           {(!sendLoading || allowSendWhileLoading) && (
             <Tooltip
-              content={sendLoading ? "加入发送队列（⌘/Ctrl + Enter）" : "发送（⌘/Ctrl + Enter）"}
+              content={sendLoading ? t("action.queueHint") : t("action.sendHint")}
               placement="top"
               delay={300}
             >
               <button
                 type="button"
-                aria-label={sendLoading ? "加入发送队列" : "发送"}
+                aria-label={sendLoading ? t("action.queue") : t("action.send")}
                 onClick={onPressEnter}
                 disabled={!canSend}
                 className={cn(
@@ -713,7 +732,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                 <ArrowUp size={16} strokeWidth={2.25} />
                 {queuedMessageCount > 0 && (
                   <span className="bg-ink-1 text-ink-inverse absolute -top-1.5 -right-1.5 min-w-4 rounded-full px-1 text-center text-[10px] leading-4 font-semibold tabular-nums">
-                    {queuedMessageCount}
+                    {number(queuedMessageCount)}
                   </span>
                 )}
               </button>
@@ -745,7 +764,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
         <ImagePreview
           images={images.map((image, index) => ({
             src: image.previewUrl,
-            alt: `预览 ${index + 1}`,
+            alt: t("preview.image", { number: number(index + 1) }),
           }))}
           index={previewIndex ?? 0}
           onIndexChange={setPreviewIndex}

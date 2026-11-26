@@ -238,6 +238,8 @@ P5A 手机外观：27源码加RootOverview双helper联动工程完成；4文件2
 
 P5 Chat交互：17源码工程完成；desktop真实host11、chat-ui22、mobile composer/chat18共51例通过，两端类型、纯renderer入口/无DOM直载、三语参数/复数与范围静态/格式通过。真实host换语保留草稿焦点/选区、原问题ID与审批allow-session身份，不重发或重配置；浏览器扩展宿主及手机自有卡外层另批。
 
+P5 Chat容器/输入：13源码工程完成；desktop27和chat-ui24共51例通过，desktop/chat-ui/纯renderer类型与无DOM入口、两套三语参数/复数和范围静态/格式通过。连接延时假时钟、真实输入焦点/选区及异步附件原payload保留，不因locale重排计时/保存；显式空placeholder/model优先。Sidebar队列/分支/编辑与实际会话外壳另批。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

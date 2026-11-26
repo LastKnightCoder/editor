@@ -4,7 +4,6 @@ import React, {
   useEffect,
   useLayoutEffect,
   useCallback,
-  useMemo,
   useImperativeHandle,
   memo,
   type ReactNode,
@@ -24,7 +23,8 @@ import {
   type ChatContextUsage,
 } from "@tau/shared";
 import type { ChatMessageType } from "@tau/shared/chat-renderers";
-import { DEFAULT_CHAT_INPUT_PLACEHOLDER, resolveChatInputPlaceholder } from "@tau/shared";
+import { resolveChatInputPlaceholder } from "@tau/shared";
+import { useChatContainerI18n } from "./container.i18n";
 
 const ITEM_GAP = 16;
 
@@ -186,12 +186,12 @@ export const ChatContainerCore = React.forwardRef<ChatContainerCoreHandle, ChatC
       thinkingLevel,
       thinkingLevelOptions,
       thinkingLevelDisabled = false,
-      currentModelName = "未选择模型",
+      currentModelName,
       contextWindowK,
       contextUsage,
       isSupportImage = false,
       isSupportFile = false,
-      placeholder = DEFAULT_CHAT_INPUT_PLACEHOLDER,
+      placeholder,
       showConnectingDelayMs = 800,
       currentPageUrl,
       hideInput = false,
@@ -221,6 +221,8 @@ export const ChatContainerCore = React.forwardRef<ChatContainerCoreHandle, ChatC
     }: ChatContainerCoreProps,
     ref
   ) {
+    const { t, locale } = useChatContainerI18n();
+    const number = (value: number) => new Intl.NumberFormat(locale).format(value);
     const [showConnectingUI, setShowConnectingUI] = useState(false);
     const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(null);
     const [scrollPadding, setScrollPadding] = useState({ top: 0, bottom: 0 });
@@ -229,10 +231,7 @@ export const ChatContainerCore = React.forwardRef<ChatContainerCoreHandle, ChatC
     const lastScrollTopRef = useRef(0);
     const lastForceScrollToBottomKeyRef = useRef<string | number | undefined>(undefined);
     const resolvedChatInputRef = inputRef || internalChatInputRef;
-    const resolvedPlaceholder = useMemo(
-      () => resolveChatInputPlaceholder(placeholder),
-      [placeholder]
-    );
+    const resolvedPlaceholder = resolveChatInputPlaceholder(placeholder ?? t("input.placeholder"));
 
     useEffect(() => {
       if (!scrollElement) {
@@ -459,7 +458,7 @@ export const ChatContainerCore = React.forwardRef<ChatContainerCoreHandle, ChatC
       onStop: onStopGeneration,
       modelSelectItems,
       onModelSelect,
-      currentModelName,
+      currentModelName: currentModelName ?? t("model.unselected"),
       contextWindowK,
       contextUsage,
       isSupportImage,
@@ -484,8 +483,8 @@ export const ChatContainerCore = React.forwardRef<ChatContainerCoreHandle, ChatC
           <div className="bg-warn-soft text-warn mb-4 grid size-12 place-items-center rounded-full">
             <Unplug size={22} strokeWidth={1.75} />
           </div>
-          <h3 className="text-tau-body text-ink-1 mb-1 font-medium">正在连接 AI 服务...</h3>
-          <p className="text-tau-sm text-ink-3 text-center">请确保桌面端已启动</p>
+          <h3 className="text-tau-body text-ink-1 mb-1 font-medium">{t("connecting.title")}</h3>
+          <p className="text-tau-sm text-ink-3 text-center">{t("connecting.hint")}</p>
         </div>
       );
     }
@@ -508,11 +507,11 @@ export const ChatContainerCore = React.forwardRef<ChatContainerCoreHandle, ChatC
                 <div className="bg-accent-soft text-accent-text mb-4 grid size-12 place-items-center rounded-full">
                   <MessageSquare size={22} strokeWidth={1.75} />
                 </div>
-                <h3 className="text-tau-body text-ink-1 mb-2 font-medium">开始对话</h3>
-                <p className="text-tau-sm text-ink-3 text-center">与 AI 探讨当前网页内容</p>
+                <h3 className="text-tau-body text-ink-1 mb-2 font-medium">{t("empty.title")}</h3>
+                <p className="text-tau-sm text-ink-3 text-center">{t("empty.hint")}</p>
                 {currentPageUrl ? (
                   <p className="text-tau-sm text-ink-3 mt-4 max-w-full truncate px-4">
-                    当前页面: {currentPageUrl}
+                    {t("empty.page", { url: currentPageUrl })}
                   </p>
                 ) : null}
               </div>
@@ -560,7 +559,10 @@ export const ChatContainerCore = React.forwardRef<ChatContainerCoreHandle, ChatC
                 <>
                   <RotateCw size={13} strokeWidth={1.75} className="shrink-0 animate-spin" />
                   <span>
-                    请求失败，正在重试（第 {retryStatus.attempt}/{retryStatus.maxRetries} 次）…
+                    {t("status.retry", {
+                      attempt: number(retryStatus.attempt),
+                      max: number(retryStatus.maxRetries),
+                    })}
                   </span>
                 </>
               ) : (

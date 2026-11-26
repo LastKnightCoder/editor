@@ -1,0 +1,10 @@
+{
+  "input.placeholder": "输入消息，Ctrl/Command + Enter 进行发送",
+  "model.unselected": "未选择模型",
+  "connecting.title": "正在连接 AI 服务...",
+  "connecting.hint": "请确保桌面端已启动",
+  "empty.title": "开始对话",
+  "empty.hint": "与 AI 探讨当前网页内容",
+  "empty.page": "当前页面: {{url}}",
+  "status.retry": "请求失败，正在重试（第 {{attempt}}/{{max}} 次）…"
+}

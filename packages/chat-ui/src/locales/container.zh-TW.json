@@ -1,0 +1,10 @@
+{
+  "input.placeholder": "輸入訊息，Ctrl/Command + Enter 進行傳送",
+  "model.unselected": "未選擇模型",
+  "connecting.title": "正在連線 AI 服務...",
+  "connecting.hint": "請確認桌面端已啟動",
+  "empty.title": "開始對話",
+  "empty.hint": "與 AI 探討目前網頁內容",
+  "empty.page": "目前頁面: {{url}}",
+  "status.retry": "請求失敗，正在重試（第 {{attempt}}/{{max}} 次）…"
+}

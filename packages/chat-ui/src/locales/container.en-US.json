@@ -1,0 +1,10 @@
+{
+  "input.placeholder": "Type a message, Ctrl/Command + Enter to send",
+  "model.unselected": "No model selected",
+  "connecting.title": "Connecting to AI services...",
+  "connecting.hint": "Make sure the desktop app is running",
+  "empty.title": "Start a chat",
+  "empty.hint": "Discuss the current page with AI",
+  "empty.page": "Current page: {{url}}",
+  "status.retry": "Request failed. Retrying ({{attempt}}/{{max}})…"
+}
