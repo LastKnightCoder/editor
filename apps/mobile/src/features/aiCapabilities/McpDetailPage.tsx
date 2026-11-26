@@ -1,5 +1,6 @@
 // 工具来源详情：总开关、逐个工具开关（只读 / 会修改 / 执行操作）、连接失败的原因与修复入口。
 
+import { mcpTranslator, sourceDisplayName, sourceDisplayDescription, useMcpI18n } from "./mcp.i18n";
 import { ChevronRight, CircleAlert, RefreshCw, Settings2 } from "lucide-react";
 import type { AiToolSpec } from "@tau/ai/contracts";
 import { GroupLabel } from "../../components/GroupLabel";
@@ -19,12 +20,14 @@ import { sourceStatus, useSourceEnabled } from "./sources";
 import { Banner, CapabilityPage, StatusText, Tag, TitleLine } from "./ui";
 
 const RISK = {
-  read: { label: "只读", tone: "muted" },
-  write: { label: "会修改", tone: "warn" },
-  execute: { label: "执行操作", tone: "danger" },
+  read: "muted",
+  write: "warn",
+  execute: "danger",
 } as const;
 
 export function McpDetailPage(props: { sourceId: string }) {
+  const context = useMcpI18n();
+  const { t } = context;
   const navigator = useNavigator();
   const runtime = useMobilePlugins();
   const { databaseName, service, all } = useToolSources();
@@ -35,15 +38,13 @@ export function McpDetailPage(props: { sourceId: string }) {
 
   if (!source) {
     return (
-      <CapabilityPage title="MCP 服务器">
-        <p className="text-ink-3 text-tau-meta px-8 py-16 text-center">
-          这个服务器已不可用，可能已删除或来源插件已停用。
-        </p>
+      <CapabilityPage title={t("title")}>
+        <p className="text-ink-3 text-tau-meta px-8 py-16 text-center">{t("detail.unavailable")}</p>
       </CapabilityPage>
     );
   }
   const enabled = isEnabled(source);
-  const status = sourceStatus(source, enabled);
+  const status = sourceStatus(source, enabled, context);
   const toolOn = (tool: AiToolSpec) => !preferences.disabledTools.includes(tool.id);
   const enabledCount = source.tools.filter(toolOn).length;
   const settingsId =
@@ -56,9 +57,9 @@ export function McpDetailPage(props: { sourceId: string }) {
     if (!service || !source.custom) return;
     try {
       await connectCustomMcp(service, databaseName, source.custom);
-      toast.success("已重新连接");
+      toast.success(mcpTranslator.t("reconnected"));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "重新连接失败");
+      toast.error(error instanceof Error ? error.message : mcpTranslator.t("error.reconnect"));
     }
   };
 
@@ -69,7 +70,7 @@ export function McpDetailPage(props: { sourceId: string }) {
           <PageHeaderTextButton
             onClick={() => navigator.push("aiMcpServer", { serverId: source.custom?.id })}
           >
-            编辑
+            {t("edit")}
           </PageHeaderTextButton>
         ) : undefined
       }
@@ -78,14 +79,10 @@ export function McpDetailPage(props: { sourceId: string }) {
         <SourceIcon source={source} large />
         <span className="min-w-0 flex-1">
           <span className="text-ink-1 block truncate text-[19px] font-extrabold">
-            {source.name}
+            {sourceDisplayName(source, context)}
           </span>
           <StatusText tone={status.tone}>
-            {source.kind === "custom"
-              ? "远程 · "
-              : source.kind === "plugin"
-                ? "插件 · "
-                : "Tau 自带 · "}
+            {t(`kind.${source.kind}`)}
             {status.text}
           </StatusText>
         </span>
@@ -95,7 +92,7 @@ export function McpDetailPage(props: { sourceId: string }) {
       </div>
       {source.description && (
         <p className="text-ink-2 text-tau-sm px-1 leading-relaxed break-all">
-          {source.description}
+          {sourceDisplayDescription(source, context)}
         </p>
       )}
 
@@ -103,13 +100,13 @@ export function McpDetailPage(props: { sourceId: string }) {
         <Banner
           tone="info"
           icon={<Settings2 size={16} className="mt-0.5 shrink-0" aria-hidden="true" />}
-          title="需要先选用图片服务"
+          title={t("setup.title")}
           action={{
-            label: "去设置",
+            label: t("setup.action"),
             onClick: () => navigator.push("settingsModule", { module: "image-generation" }),
           }}
         >
-          在「我的 › 图片生成」里添加并选用账号后，对话就能生成和编辑图片。
+          {t("setup.hint")}
         </Banner>
       )}
 
@@ -118,9 +115,9 @@ export function McpDetailPage(props: { sourceId: string }) {
           <Banner
             tone="error"
             icon={<CircleAlert size={16} className="mt-0.5 shrink-0" aria-hidden="true" />}
-            title="连接失败"
+            title={t("connection.failed")}
           >
-            {source.error ?? "服务器拒绝了连接或网络不可用。"}
+            {source.error ?? t("connection.fallback")}
           </Banner>
           <div className="flex gap-2 px-1 pt-2.5">
             {source.kind === "custom" && (
@@ -130,7 +127,7 @@ export function McpDetailPage(props: { sourceId: string }) {
                 onClick={() => void reconnect()}
               >
                 <RefreshCw size={15} aria-hidden="true" />
-                重新连接
+                {t("reconnect")}
               </button>
             )}
             {settingsId && (
@@ -140,7 +137,7 @@ export function McpDetailPage(props: { sourceId: string }) {
                 onClick={() => navigator.push("pluginSettings", { id: settingsId })}
               >
                 <Settings2 size={15} aria-hidden="true" />
-                打开插件设置
+                {t("plugin.settings")}
               </button>
             )}
           </div>
@@ -150,7 +147,7 @@ export function McpDetailPage(props: { sourceId: string }) {
       {source.tools.length > 0 && (
         <>
           <GroupLabel>
-            工具 · 已启用 {enabledCount} / {source.tools.length}
+            {t("tools.enabled", { enabled: enabledCount, total: source.tools.length })}
           </GroupLabel>
           <GroupCard>
             {source.tools.map(tool => {
@@ -161,7 +158,7 @@ export function McpDetailPage(props: { sourceId: string }) {
                     <TitleLine
                       mono
                       title={tool.name}
-                      tags={<Tag tone={risk.tone}>{risk.label}</Tag>}
+                      tags={<Tag tone={risk}>{t(`risk.${tool.risk}`)}</Tag>}
                     />
                     <span className="text-ink-3 text-tau-sm mt-0.5 line-clamp-2 block">
                       {tool.description}
@@ -173,7 +170,9 @@ export function McpDetailPage(props: { sourceId: string }) {
                       onChange={() => {
                         setToolsEnabled(databaseName, [tool.id], !toolOn(tool));
                         toast.success(
-                          `已${toolOn(tool) ? "关闭" : "打开"} ${tool.name}，下一条消息起生效`
+                          mcpTranslator.t(toolOn(tool) ? "tool.disabled" : "tool.enabled", {
+                            name: tool.name,
+                          })
                         );
                       }}
                     />
@@ -182,25 +181,25 @@ export function McpDetailPage(props: { sourceId: string }) {
               );
             })}
           </GroupCard>
-          <GroupNote>会修改或执行操作的工具，每次运行前都会在对话里请你确认。</GroupNote>
+          <GroupNote>{t("tools.safety")}</GroupNote>
         </>
       )}
       {source.tools.length === 0 && source.status !== "error" && !source.needsSetup && (
         <p className="text-ink-3 text-tau-sm px-1 py-6 text-center">
-          {source.status === "connecting" ? "连接成功后显示工具列表" : "暂无工具"}
+          {source.status === "connecting" ? t("tools.wait") : t("tools.empty")}
         </p>
       )}
 
       {source.pluginId && (
         <>
-          <GroupLabel>来源</GroupLabel>
+          <GroupLabel>{t("source.title")}</GroupLabel>
           <GroupCard>
             <GroupRow onClick={() => navigator.push("pluginDetail", { pluginId: source.pluginId })}>
               <span className="min-w-0 flex-1">
                 <span className="text-ink-1 text-tau-body block font-medium">
                   {source.pluginName}
                 </span>
-                <span className="text-ink-3 text-tau-sm block">插件</span>
+                <span className="text-ink-3 text-tau-sm block">{t("plugin")}</span>
               </span>
               <ChevronRight size={16} className="text-ink-3 shrink-0" aria-hidden="true" />
             </GroupRow>

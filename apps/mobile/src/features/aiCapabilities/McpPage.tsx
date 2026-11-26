@@ -1,6 +1,7 @@
 // MCP 管理：我添加的远程服务器 / Tau 自带工具组 / 插件提供的服务器，行尾整组开关；
 // 有连接失败时顶部提示。stdio 不受支持，插件声明时显示为失败并说明原因。
 
+import { sourceDisplayName, useMcpI18n } from "./mcp.i18n";
 import {
   BookOpen,
   ChevronRight,
@@ -48,6 +49,8 @@ export function SourceIcon(props: { source: ToolSource; large?: boolean }) {
 }
 
 export function McpPage() {
+  const context = useMcpI18n();
+  const { t } = context;
   const navigator = useNavigator();
   const { databaseName, host, plugin, custom, all } = useToolSources();
   const { isEnabled, setEnabled } = useSourceEnabled(databaseName);
@@ -56,14 +59,16 @@ export function McpPage() {
 
   const row = (source: ToolSource) => {
     const enabled = isEnabled(source);
-    const status = sourceStatus(source, enabled);
+    const status = sourceStatus(source, enabled, context);
     return (
       <GroupRow key={source.id} onClick={() => open(source)}>
         <span className={enabled ? undefined : "opacity-50"}>
           <SourceIcon source={source} />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="text-ink-1 text-tau-body block truncate font-medium">{source.name}</span>
+          <span className="text-ink-1 text-tau-body block truncate font-medium">
+            {sourceDisplayName(source, context)}
+          </span>
           <StatusText tone={status.tone}>{status.text}</StatusText>
         </span>
         {source.needsSetup ? (
@@ -79,10 +84,10 @@ export function McpPage() {
 
   return (
     <CapabilityPage
-      title="MCP 服务器"
+      title={t("title")}
       actions={
         <PageHeaderButton
-          aria-label="添加远程 MCP"
+          aria-label={t("addRemote")}
           icon={<Plus />}
           onClick={() => navigator.push("aiMcpServer", {})}
         />
@@ -92,24 +97,26 @@ export function McpPage() {
         <Banner
           tone="error"
           icon={<CircleAlert size={16} className="mt-0.5 shrink-0" aria-hidden="true" />}
-          title={`${failed.length} 个服务器连接失败`}
-          action={{ label: "查看", onClick: () => open(failed[0]) }}
+          title={t("failedCount", { count: failed.length })}
+          action={{ label: t("view"), onClick: () => open(failed[0]) }}
         >
-          对话里暂时用不了它的工具
+          {t("list.failedHint")}
         </Banner>
       )}
       {custom.length > 0 && (
         <>
-          <GroupLabel>我添加的</GroupLabel>
+          <GroupLabel>{t("list.mine")}</GroupLabel>
           <GroupCard>{custom.map(row)}</GroupCard>
         </>
       )}
       <GroupLabel>
-        Tau 自带<span className="text-ink-3 ml-2">随应用提供</span>
+        {t("list.host")}
+        <span className="text-ink-3 ml-2">{t("list.hostHint")}</span>
       </GroupLabel>
       <GroupCard>{host.map(row)}</GroupCard>
       <GroupLabel>
-        插件提供<span className="text-ink-3 ml-2">随插件启停</span>
+        {t("list.plugins")}
+        <span className="text-ink-3 ml-2">{t("list.pluginHint")}</span>
       </GroupLabel>
       <GroupCard>
         {plugin.map(row)}
@@ -117,18 +124,12 @@ export function McpPage() {
           <Tile tone="muted">
             <Store size={16} aria-hidden="true" />
           </Tile>
-          <span className="text-accent-text text-tau-body min-w-0 flex-1">找更多工具</span>
+          <span className="text-accent-text text-tau-body min-w-0 flex-1">{t("list.more")}</span>
           <ChevronRight size={16} className="text-ink-3 shrink-0" aria-hidden="true" />
         </GroupRow>
       </GroupCard>
-      <GroupNote>
-        会修改数据或执行操作的工具，每次运行前都会在对话里请你确认。插件停用后，它的服务器会从这里消失。
-      </GroupNote>
-      {!custom.length && (
-        <GroupNote className="pt-1">
-          手机端可以添加远程 Streamable HTTP 服务器，不能启动本地命令。
-        </GroupNote>
-      )}
+      <GroupNote>{t("list.safety")}</GroupNote>
+      {!custom.length && <GroupNote className="pt-1">{t("list.remoteHint")}</GroupNote>}
     </CapabilityPage>
   );
 }
