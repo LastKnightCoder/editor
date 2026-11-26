@@ -1,3 +1,4 @@
+import { useMediaUrlSelectorI18n } from "@/services/media-url-selector.i18n";
 import React, { useState, useEffect } from "react";
 import { useMemoizedFn } from "ahooks";
 import { Music } from "lucide-react";
@@ -21,8 +22,9 @@ const RemoteAudioSelectModal: React.FC<RemoteAudioSelectModalProps> = ({
   onConfirm,
   initialUrl = "",
 }) => {
+  const { t } = useMediaUrlSelectorI18n();
   const [url, setUrl] = useState(initialUrl);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<"empty" | "protocol" | "invalid" | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -33,18 +35,18 @@ const RemoteAudioSelectModal: React.FC<RemoteAudioSelectModalProps> = ({
 
   const handleSubmit = useMemoizedFn(() => {
     if (!url.trim()) {
-      setError("请输入音频链接");
+      setError("empty");
       return;
     }
 
     try {
       const parsed = new URL(url);
       if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-        setError("仅支持 http/https 协议的音频链接");
+        setError("protocol");
         return;
       }
     } catch {
-      setError("请输入有效的音频链接");
+      setError("invalid");
       return;
     }
 
@@ -55,23 +57,23 @@ const RemoteAudioSelectModal: React.FC<RemoteAudioSelectModalProps> = ({
     <Dialog
       open={open}
       onOpenChange={next => !next && onCancel()}
-      title="添加在线音频"
-      subtitle="输入可直接访问的音频地址"
+      title={t("audio.title")}
+      subtitle={t("audio.hint")}
       icon={<Music className="size-4" strokeWidth={1.75} />}
       footer={
         <>
           <Button variant="secondary" size="sm" onClick={onCancel}>
-            取消
+            {t("cancel")}
           </Button>
           <Button variant="primary" size="sm" disabled={!url.trim()} onClick={handleSubmit}>
-            确认添加
+            {t("confirm")}
           </Button>
         </>
       }
     >
       <DialogBody>
         <div className="flex flex-col gap-3.5">
-          <ResourceSelectField label="音频地址" hint="MP3 / WAV / OGG / AAC 等浏览器支持的格式">
+          <ResourceSelectField label={t("audio.url")} hint={t("audio.formats")}>
             <ResourceSelectInput
               data-autofocus
               type="url"
@@ -90,9 +92,9 @@ const RemoteAudioSelectModal: React.FC<RemoteAudioSelectModalProps> = ({
             />
           </ResourceSelectField>
           {error ? (
-            <ResourceSelectError text={error} />
+            <ResourceSelectError text={t(`audio.error.${error}`)} />
           ) : (
-            <p className="text-tau-sm text-ink-3">需要无需登录即可直接访问的链接。</p>
+            <p className="text-tau-sm text-ink-3">{t("publicLink")}</p>
           )}
         </div>
       </DialogBody>

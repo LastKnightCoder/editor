@@ -1,0 +1,18 @@
+{
+  "cancel": "取消",
+  "confirm": "确认添加",
+  "publicLink": "需要无需登录即可直接访问的链接。",
+  "audio.title": "添加在线音频",
+  "audio.hint": "输入可直接访问的音频地址",
+  "audio.url": "音频地址",
+  "audio.formats": "MP3 / WAV / OGG / AAC 等浏览器支持的格式",
+  "audio.error.empty": "请输入音频链接",
+  "audio.error.protocol": "仅支持 http/https 协议的音频链接",
+  "audio.error.invalid": "请输入有效的音频链接",
+  "video.title": "添加在线视频",
+  "video.hint": "输入可直接访问的视频地址",
+  "video.url": "视频地址",
+  "video.formats": "MP4 / WebM / OGG 等浏览器支持的格式",
+  "video.error.empty": "请输入视频链接",
+  "video.error.invalid": "请输入有效的视频链接"
+}

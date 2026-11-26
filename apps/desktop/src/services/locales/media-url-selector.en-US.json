@@ -1,0 +1,18 @@
+{
+  "cancel": "Cancel",
+  "confirm": "Add media",
+  "publicLink": "Use a link that can be accessed without signing in.",
+  "audio.title": "Add audio from a URL",
+  "audio.hint": "Enter a direct audio URL",
+  "audio.url": "Audio URL",
+  "audio.formats": "MP3 / WAV / OGG / AAC and other browser-supported formats",
+  "audio.error.empty": "Enter an audio URL",
+  "audio.error.protocol": "Only http/https audio URLs are supported",
+  "audio.error.invalid": "Enter a valid audio URL",
+  "video.title": "Add video from a URL",
+  "video.hint": "Enter a direct video URL",
+  "video.url": "Video URL",
+  "video.formats": "MP4 / WebM / OGG and other browser-supported formats",
+  "video.error.empty": "Enter a video URL",
+  "video.error.invalid": "Enter a valid video URL"
+}

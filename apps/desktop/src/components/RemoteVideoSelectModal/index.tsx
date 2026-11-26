@@ -1,3 +1,4 @@
+import { useMediaUrlSelectorI18n } from "@/services/media-url-selector.i18n";
 import React, { useState, useEffect } from "react";
 import { useMemoizedFn } from "ahooks";
 import { Link2 } from "lucide-react";
@@ -25,8 +26,9 @@ const RemoteVideoSelectModal: React.FC<RemoteVideoSelectModalProps> = ({
   onConfirm,
   initialUrl = "",
 }) => {
+  const { t } = useMediaUrlSelectorI18n();
   const [url, setUrl] = useState(initialUrl);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<"empty" | "invalid" | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -37,14 +39,14 @@ const RemoteVideoSelectModal: React.FC<RemoteVideoSelectModalProps> = ({
 
   const handleSubmit = useMemoizedFn(() => {
     if (!url.trim()) {
-      setError("请输入视频链接");
+      setError("empty");
       return;
     }
 
     try {
       new URL(url);
     } catch {
-      setError("请输入有效的视频链接");
+      setError("invalid");
       return;
     }
 
@@ -55,23 +57,23 @@ const RemoteVideoSelectModal: React.FC<RemoteVideoSelectModalProps> = ({
     <Dialog
       open={open}
       onOpenChange={next => !next && onCancel()}
-      title="添加在线视频"
-      subtitle="输入可直接访问的视频地址"
+      title={t("video.title")}
+      subtitle={t("video.hint")}
       icon={<Link2 className="size-4" strokeWidth={1.75} />}
       footer={
         <>
           <Button variant="secondary" size="sm" onClick={onCancel}>
-            取消
+            {t("cancel")}
           </Button>
           <Button variant="primary" size="sm" disabled={!url.trim()} onClick={handleSubmit}>
-            确认添加
+            {t("confirm")}
           </Button>
         </>
       }
     >
       <DialogBody>
         <div className="flex flex-col gap-3.5">
-          <ResourceSelectField label="视频地址" hint="MP4 / WebM / OGG 等浏览器支持的格式">
+          <ResourceSelectField label={t("video.url")} hint={t("video.formats")}>
             <ResourceSelectInput
               data-autofocus
               type="url"
@@ -90,9 +92,9 @@ const RemoteVideoSelectModal: React.FC<RemoteVideoSelectModalProps> = ({
             />
           </ResourceSelectField>
           {error ? (
-            <ResourceSelectError text={error} />
+            <ResourceSelectError text={t(`video.error.${error}`)} />
           ) : (
-            <p className="text-tau-sm text-ink-3">需要无需登录即可直接访问的链接。</p>
+            <p className="text-tau-sm text-ink-3">{t("publicLink")}</p>
           )}
         </div>
       </DialogBody>

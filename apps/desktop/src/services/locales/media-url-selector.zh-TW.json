@@ -1,0 +1,18 @@
+{
+  "cancel": "取消",
+  "confirm": "確認新增",
+  "publicLink": "請使用不需登入即可直接存取的連結。",
+  "audio.title": "新增線上音訊",
+  "audio.hint": "輸入可直接存取的音訊位址",
+  "audio.url": "音訊位址",
+  "audio.formats": "MP3 / WAV / OGG / AAC 等瀏覽器支援的格式",
+  "audio.error.empty": "請輸入音訊連結",
+  "audio.error.protocol": "僅支援 http/https 協定的音訊連結",
+  "audio.error.invalid": "請輸入有效的音訊連結",
+  "video.title": "新增線上影片",
+  "video.hint": "輸入可直接存取的影片位址",
+  "video.url": "影片位址",
+  "video.formats": "MP4 / WebM / OGG 等瀏覽器支援的格式",
+  "video.error.empty": "請輸入影片連結",
+  "video.error.invalid": "請輸入有效的影片連結"
+}

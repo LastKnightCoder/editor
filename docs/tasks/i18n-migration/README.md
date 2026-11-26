@@ -388,6 +388,8 @@ Markdown F3十四源加Root Core/README二路径完成；全窗口9文件49例�
 
 Compose C1九路径完成；原2文件6至3文件8例、desktop type、24key三语与原kinds/order/handlers/query/action/keys/模型AI静态对照通过。真实IntentCard/Popover跨语保同草稿/光标/焦点/选中kind，不start/skip/save；显式提交仍原trim intent与EntityRefKind，Layout原宽度prefs及正文白板不变。
 
+远程影音URL八路径完成；原/迁后4例、desktop type/lint、三语runtime及AST通过。真实表单跨语保URL草稿/焦点/选区、同alert且不submit，确认后仅原trim；HTTP(S)音频和原允许ftp的视频差异契约仍通过，全部真实consumer接口保持。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。
