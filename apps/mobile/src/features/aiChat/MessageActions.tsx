@@ -1,3 +1,4 @@
+import { useConversationI18n } from "./conversation.i18n";
 // 消息操作：回答下方的常显按钮与长按菜单共用一套处理——复制、选择文字、存为卡片、重新生成、删除。
 // 重新生成只对最后一条回答开放；删除先确认。
 
@@ -19,6 +20,7 @@ import type { ChatMessageAction } from "./ChatMessages";
 type Target = { index: number; text: string };
 
 export function useMessageActions(sessionId: string, thinkingLevel?: ThinkingLevel) {
+  const { t } = useConversationI18n();
   const app = useAppContext();
   const [menu, setMenu] = useState<Target | null>(null);
   const [selecting, setSelecting] = useState<string | null>(null);
@@ -34,14 +36,14 @@ export function useMessageActions(sessionId: string, thinkingLevel?: ThinkingLev
       void app.refreshCardsSafe({ page: 1 });
       toast({
         type: "success",
-        text: "已存为卡片",
+        text: t("feedback.saved"),
         action: {
-          label: "查看",
+          label: t("action.view"),
           onClick: () => getNavigator().push("contentDetail", { cardId: card.id }),
         },
       });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "存为卡片失败");
+      toast.error(error instanceof Error ? error.message : t("feedback.saveFailed"));
     }
   };
 
@@ -49,8 +51,8 @@ export function useMessageActions(sessionId: string, thinkingLevel?: ThinkingLev
     if (action === "copy")
       void navigator.clipboard
         .writeText(text)
-        .then(() => toast.success("已复制"))
-        .catch(() => toast.error("复制失败"));
+        .then(() => toast.success(t("feedback.copied")))
+        .catch(() => toast.error(t("feedback.copyFailed")));
     else if (action === "select") setSelecting(text);
     else if (action === "card") void saveAsCard(text);
     else if (action === "regenerate") void regenerateLast(sessionId, thinkingLevel);
@@ -70,13 +72,13 @@ export function useMessageActions(sessionId: string, thinkingLevel?: ThinkingLev
       onClick: () => run(action, target.index, target.text),
     });
     return [
-      item("copy", "复制", <Copy size={18} />),
-      item("select", "选择文字", <TextSelect size={18} />),
-      item("card", "存为卡片", <BookmarkPlus size={18} />),
+      item("copy", t("action.copy"), <Copy size={18} />),
+      item("select", t("action.select"), <TextSelect size={18} />),
+      item("card", t("action.card"), <BookmarkPlus size={18} />),
       ...(isLastAnswer && !chat?.runId
-        ? [item("regenerate", "重新生成", <RefreshCw size={18} />)]
+        ? [item("regenerate", t("action.regenerate"), <RefreshCw size={18} />)]
         : []),
-      ...(chat?.runId ? [] : [item("delete", "删除", <Trash2 size={18} />)]),
+      ...(chat?.runId ? [] : [item("delete", t("action.delete"), <Trash2 size={18} />)]),
     ];
   };
 
@@ -87,7 +89,11 @@ export function useMessageActions(sessionId: string, thinkingLevel?: ThinkingLev
         items={menu ? menuItems(menu) : []}
         onClose={() => setMenu(null)}
       />
-      <BottomSheet open={selecting !== null} title="选择文字" onClose={() => setSelecting(null)}>
+      <BottomSheet
+        open={selecting !== null}
+        title={t("action.select")}
+        onClose={() => setSelecting(null)}
+      >
         <p
           data-allow-touchmove="true"
           className="text-ink-1 text-tau-body max-h-[60vh] overflow-y-auto px-5 pb-6 leading-relaxed whitespace-pre-wrap select-text"
@@ -97,9 +103,9 @@ export function useMessageActions(sessionId: string, thinkingLevel?: ThinkingLev
       </BottomSheet>
       <MobileConfirmDialog
         open={deleting !== null}
-        title="删除这条消息？"
-        description="删除后模型也不会再看到这条内容。"
-        confirmText="删除"
+        title={t("delete.title")}
+        description={t("delete.hint")}
+        confirmText={t("action.delete")}
         danger
         onCancel={() => setDeleting(null)}
         onConfirm={() => {
@@ -108,9 +114,11 @@ export function useMessageActions(sessionId: string, thinkingLevel?: ThinkingLev
           if (index === null) return;
           deleteMessage(sessionId, index)
             .then(done =>
-              done ? toast.success("已删除") : toast.info("这条消息还没保存，暂时不能删除")
+              done ? toast.success(t("feedback.deleted")) : toast.info(t("feedback.unsaved"))
             )
-            .catch(error => toast.error(error instanceof Error ? error.message : "删除失败"));
+            .catch(error =>
+              toast.error(error instanceof Error ? error.message : t("feedback.deleteFailed"))
+            );
         }}
       />
     </>

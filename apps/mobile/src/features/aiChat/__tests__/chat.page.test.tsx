@@ -4,6 +4,7 @@
 import { act } from "react";
 import { mobileLocaleSource } from "../../../services/i18n";
 import { workspaceT } from "../workspace.binding";
+import { conversationT } from "../conversation.binding";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import { Role } from "@tau/shared/chat-core";
@@ -501,14 +502,56 @@ it("回答操作：文字胶囊「存为卡片 / 复制」，⋯ 打开操作面
   expect(pressable("存为卡片")?.textContent).toBe("存为卡片");
   expect(pressable("复制")?.textContent).toBe("复制");
 
-  await click(pressable("日记：10 月 29 日"));
+  const reference = pressable("日记：10 月 29 日");
+  const messageState = useChatStore.getState().chats.s4;
+  const loadCalls = service.sessions.get.mock.calls.length;
+  for (const locale of ["en-US", "zh-TW"] as const) {
+    await act(async () => mobileLocaleSource.setLocale(locale));
+    expect(
+      pressable(
+        conversationT("reference.label", {
+          kind: conversationT("reference.diary-daily"),
+          text: "10 月 29 日",
+        })
+      )
+    ).toBe(reference);
+    expect(useChatStore.getState().chats.s4).toBe(messageState);
+    expect(service.sessions.get).toHaveBeenCalledTimes(loadCalls);
+    expect(sql).not.toHaveBeenCalled();
+  }
+  await click(reference);
   await waitFor(() => !!document.querySelector('[data-testid="ref-preview"]'));
   expect(sql.mock.calls[0][1].params).toEqual({ id: 5 });
   expect(document.body.textContent).toContain("预览：2026-10-29");
 
-  await click(pressable("更多操作"));
-  await waitFor(() => !!pressable("选择文字", document.body));
-  expect(pressable("删除", document.body)).toBeTruthy();
+  await click(pressable(conversationT("action.more")));
+  await waitFor(() => !!pressable(conversationT("action.select"), document.body));
+  expect(pressable(conversationT("action.delete"), document.body)).toBeTruthy();
+  const selectAction = pressable(conversationT("action.select"), document.body);
+  for (const locale of ["en-US", "zh-TW"] as const) {
+    await act(async () => mobileLocaleSource.setLocale(locale));
+    expect(pressable(conversationT("action.select"), document.body)).toBe(selectAction);
+    expect(service.sessions.editHistory).not.toHaveBeenCalled();
+    expect(service.runs.start).not.toHaveBeenCalled();
+  }
+  await click(selectAction);
+  const selectedText = "见 :ref[10 月 29 日]{id=5 type=diary-daily}";
+  await vi.waitFor(() =>
+    expect(
+      [...document.querySelectorAll("p")].some(node => node.textContent === selectedText)
+    ).toBe(true)
+  );
+  const selection = [...document.querySelectorAll("p")].find(
+    node => node.textContent === selectedText
+  );
+  for (const locale of ["en-US", "zh-TW"] as const) {
+    await act(async () => mobileLocaleSource.setLocale(locale));
+    expect(
+      [...document.querySelectorAll("p")].find(node => node.textContent === selectedText)
+    ).toBe(selection);
+    expect(useChatStore.getState().chats.s4).toBe(messageState);
+    expect(service.runs.start).not.toHaveBeenCalled();
+  }
 });
 
 it("重新生成：会话先回退到最后一个问题之前，再原样发出", async () => {

@@ -1,3 +1,5 @@
+import { conversationT } from "./conversation.binding";
+import { useConversationI18n } from "./conversation.i18n";
 import { useWorkspaceI18n } from "./workspace.i18n";
 import type { WorkspaceMessageKey } from "./workspace.messages";
 // 消息列表：与桌面、浏览器扩展同一套 MessageView（用户气泡、助手通栏、思考与工具按原序）。
@@ -186,6 +188,7 @@ const ChatMessage = memo(function ChatMessage(props: {
   onMenu?(index: number, text: string): void;
   onReference?(id: number, type: string, text: string): void;
 }) {
+  const { t } = useConversationI18n();
   const { message, index, streaming, isDark, onAction } = props;
   const isUser = message.role === Role.User;
   const blocks = useMemo(
@@ -267,7 +270,7 @@ const ChatMessage = memo(function ChatMessage(props: {
             className={cn(ANSWER_PILL, "bg-accent-soft text-accent-text gap-1.5 pr-3.5 pl-3")}
           >
             <BookmarkPlus size={15} aria-hidden="true" />
-            存为卡片
+            {t("action.card")}
           </button>
           <button
             type="button"
@@ -275,11 +278,11 @@ const ChatMessage = memo(function ChatMessage(props: {
             className={cn(ANSWER_PILL, "gap-1.5 pr-3.5 pl-3")}
           >
             <Copy size={15} aria-hidden="true" />
-            复制
+            {t("action.copy")}
           </button>
           <button
             type="button"
-            aria-label="重新生成"
+            aria-label={t("action.regenerate")}
             onClick={() => onAction("regenerate", index, plainText)}
             className={cn(ANSWER_PILL, "w-[34px]")}
           >
@@ -288,7 +291,7 @@ const ChatMessage = memo(function ChatMessage(props: {
           {props.onMenu && (
             <button
               type="button"
-              aria-label="更多操作"
+              aria-label={t("action.more")}
               onClick={() => props.onMenu?.(index, plainText)}
               className={cn(ANSWER_PILL, "w-[34px]")}
             >
@@ -321,6 +324,7 @@ export function ChatMessages(props: {
   onAction?(action: ChatMessageAction, index: number, text: string): void;
   onMenu?(index: number, text: string): void;
 }) {
+  const { t } = useConversationI18n();
   const scrollRef = useRef<HTMLDivElement>(null);
   const followRef = useRef(true);
   const [detached, setDetached] = useState(false);
@@ -330,8 +334,10 @@ export function ChatMessages(props: {
   const openReference = useCallback(
     (id: number, type: string, text: string) => {
       resolveChatReference(databaseName, id, type, text)
-        .then(target => (target ? setPreview(target) : toast.info("引用的内容不存在或已被删除")))
-        .catch(() => toast.error("引用读取失败"));
+        .then(target =>
+          target ? setPreview(target) : toast.info(conversationT("reference.missing"))
+        )
+        .catch(() => toast.error(conversationT("reference.failed")));
     },
     [databaseName]
   );
@@ -396,7 +402,7 @@ export function ChatMessages(props: {
             className="bg-surface text-ink-2 shadow-float text-tau-sm absolute bottom-3 left-1/2 flex h-8 -translate-x-1/2 items-center gap-1 rounded-full px-3 font-semibold"
           >
             <ArrowDown size={13} aria-hidden="true" />
-            {props.running ? "回到最新" : "回到底部"}
+            {props.running ? t("scroll.latest") : t("scroll.bottom")}
           </button>
         )}
         <ContentLinkPreviewSheet

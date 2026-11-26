@@ -1,3 +1,4 @@
+import { useConversationI18n } from "../conversation.i18n";
 // 详情面板里各内置工具的结果：按手机端对应页面的样子画（搜索结果、待办列表、日程列表、查询表格）。
 // 结果行点按打开预览或跳到详情页；没有专门展示的工具只给原始数据。
 
@@ -42,6 +43,7 @@ function Footer(props: { children: ReactNode }) {
 }
 
 function SearchBody(props: { output: Data; close(): void }) {
+  const { t } = useConversationI18n();
   const host = useChatToolHost();
   const results = list(props.output.results);
   if (!results.length) return <Empty>没有找到相关内容</Empty>;
@@ -66,7 +68,7 @@ function SearchBody(props: { output: Data; close(): void }) {
                   {title}
                 </span>
                 <span className="text-tau-sm text-ink-3 mt-px block truncate">
-                  {[kind.label, container, excerpt].filter(Boolean).join(" · ")}
+                  {[t(kind.labelKey), container, excerpt].filter(Boolean).join(" · ")}
                 </span>
               </span>
               {openable && <ChevronRight size={16} aria-hidden className="text-ink-3 shrink-0" />}

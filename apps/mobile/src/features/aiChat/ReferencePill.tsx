@@ -3,6 +3,7 @@
 
 import { memo, type ReactNode } from "react";
 import { cn } from "@tau/ui";
+import { useConversationI18n } from "./conversation.i18n";
 import { FALLBACK_REFERENCE_KIND, referenceKindOf } from "./referenceKinds";
 
 type SpanProps = {
@@ -15,6 +16,7 @@ type SpanProps = {
 
 export function createReferenceSpan(onOpen: (id: number, type: string, text: string) => void) {
   return memo(function ReferenceSpan({ className, children, ...props }: SpanProps) {
+    const { t } = useConversationI18n();
     if (className !== "document-reference")
       return (
         <span className={className} {...props}>
@@ -29,7 +31,7 @@ export function createReferenceSpan(onOpen: (id: number, type: string, text: str
     return (
       <button
         type="button"
-        aria-label={`${kind.label}：${text}`}
+        aria-label={t("reference.label", { kind: t(kind.labelKey), text })}
         onClick={() => onOpen(id, type, text)}
         className={cn(
           "mx-px inline-flex h-[22px] max-w-full items-center gap-[3px] rounded-[7px] pr-[7px] pl-[5px] align-[1px] text-[13px] leading-none font-medium transition-transform active:scale-95",
