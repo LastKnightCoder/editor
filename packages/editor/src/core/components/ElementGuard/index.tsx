@@ -1,3 +1,4 @@
+import { useEditorI18n } from "../../../i18n";
 import { Component, type ErrorInfo, type ReactElement, type ReactNode } from "react";
 import { useSlateStatic, type RenderElementProps } from "slate-react";
 import { IUnknownElementNotice } from "../../services/unknownElementNotice";
@@ -42,14 +43,26 @@ function ElementPlaceholder({ props, message, title }: PlaceholderProps) {
 /** kit 没注册该类型时的只读占位 */
 /** 不露出节点类型名：用户不必知道这块内容来自哪个插件 */
 export function UnknownElement(props: RenderElementProps) {
+  const { t } = useEditorI18n();
   const notice = useSlateStatic()
     .tryGetService?.(IUnknownElementNotice)
     ?.describe(props.element.type);
   return (
     <ElementPlaceholder
       props={props}
-      message={notice?.message ?? "此处的内容在当前编辑器中无法显示"}
-      title={notice?.title ?? "内容已原样保留，在支持该类型的编辑器中打开即可查看"}
+      message={notice?.message ?? t("core.unknown.message")}
+      title={notice?.title ?? t("core.unknown.title")}
+    />
+  );
+}
+
+function FailedElement({ props }: { props: RenderElementProps }) {
+  const { t } = useEditorI18n();
+  return (
+    <ElementPlaceholder
+      props={props}
+      message={t("core.renderFailed.message", { type: props.element.type })}
+      title={t("core.renderFailed.title")}
     />
   );
 }
@@ -108,13 +121,7 @@ export class ElementErrorBoundary extends Component<BoundaryProps, BoundaryState
   render(): ReactNode {
     const { props, render } = this.props;
     if (this.state.failed) {
-      return (
-        <ElementPlaceholder
-          props={props}
-          message={`「${props.element.type}」渲染失败，内容已保留`}
-          title="该扩展渲染出错，数据未受影响"
-        />
-      );
+      return <FailedElement props={props} />;
     }
     return <RenderByExtension props={props} render={render} />;
   }

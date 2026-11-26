@@ -1,3 +1,4 @@
+import { useEditorI18n } from "../../../i18n";
 import React, { forwardRef, useImperativeHandle } from "react";
 import type { Element } from "slate";
 import { useSlateStatic, useReadOnly } from "slate-react";
@@ -16,6 +17,7 @@ export interface AddParagraphRef {
 
 const AddParagraph = forwardRef<AddParagraphRef, IAddParagraphProps>((props, ref) => {
   const { element, onAddParagraph } = props;
+  const { t } = useEditorI18n();
   const editor = useSlateStatic();
   const readOnly = useReadOnly();
 
@@ -40,6 +42,8 @@ const AddParagraph = forwardRef<AddParagraphRef, IAddParagraphProps>((props, ref
   return (
     <div
       contentEditable={false}
+      title={readOnly ? undefined : t("core.addParagraph")}
+      aria-label={readOnly ? undefined : t("core.addParagraph")}
       style={{ userSelect: "none" }}
       onClick={handleAddParagraph}
       className={`h-(--block-distance) select-none ${readOnly ? "cursor-default" : "cursor-pointer"}`}

@@ -1,3 +1,4 @@
+import { editorT, type EditorMessageKey } from "../../i18n-runtime";
 import { useState, useCallback, type RefCallback } from "react";
 import { Editor, Element, Node, Path, Transforms } from "slate";
 import { useDrag, useDrop } from "react-dnd";
@@ -34,6 +35,15 @@ interface IDragItem {
 
 const pendingMoves = new WeakSet<Element>();
 
+class BlockMoveError extends Error {
+  constructor(
+    readonly messageKey: EditorMessageKey,
+    diagnostic: string
+  ) {
+    super(diagnostic);
+  }
+}
+
 async function moveBetweenEditors(
   item: IDragItem,
   editor: Editor,
@@ -56,7 +66,9 @@ async function moveBetweenEditors(
   try {
     from?.flushInputs();
   } catch (error) {
-    notifierOf(editor).error(error instanceof Error ? error.message : "源块输入尚未保存");
+    notifierOf(editor).error(
+      error instanceof Error ? error.message : editorT(editor, "core.move.unsaved")
+    );
     return;
   } finally {
     blockPath = sourceRef.unref();
@@ -101,18 +113,26 @@ async function moveBetweenEditors(
       return undefined;
     });
     if (result.status === "discarded") return;
-    if (!inserted?.current) throw new Error("目标未插入该块，源块已保留");
+    if (!inserted?.current)
+      throw new BlockMoveError("core.move.notInserted", "目标未插入该块，源块已保留");
     const confirmation = to?.flushWrites?.();
     if (confirmation) await confirmation;
-    if (!inserted.current || targetScope?.aborted) throw new Error("目标块已失效，源块已保留");
+    if (!inserted.current || targetScope?.aborted)
+      throw new BlockMoveError("core.move.targetGone", "目标块已失效，源块已保留");
     const removed = source.commit(({ path }) => {
       Transforms.removeNodes(sourceEditor, { at: path });
       return undefined;
     });
     if (removed.status === "discarded")
-      notifierOf(editor).warning("源块已变化或不可编辑，目标已保留副本");
+      notifierOf(editor).warning(editorT(editor, "core.move.copied"));
   } catch (error) {
-    notifierOf(editor).error(error instanceof Error ? error.message : "移动失败，源块已保留");
+    notifierOf(editor).error(
+      error instanceof BlockMoveError
+        ? editorT(editor, error.messageKey)
+        : error instanceof Error
+          ? error.message
+          : editorT(editor, "core.move.failed")
+    );
   } finally {
     inserted?.unref();
     source.dispose();

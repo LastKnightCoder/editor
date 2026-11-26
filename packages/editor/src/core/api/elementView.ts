@@ -1,3 +1,4 @@
+import { editorT } from "../../i18n-runtime";
 import { useMemo, useSyncExternalStore } from "react";
 import type { Editor, Element } from "slate";
 import { ReactEditor, useSlateStatic } from "slate-react";
@@ -49,7 +50,7 @@ export function elementView(editor: Editor, element: Element): Entry {
           })
           .catch(failure =>
             notifierOf(editor).error(
-              failure instanceof Error ? failure.message : "本机视图尚未保存"
+              failure instanceof Error ? failure.message : editorT(editor, "core.view.unsaved")
             )
           );
       },

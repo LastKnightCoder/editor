@@ -17,7 +17,7 @@ import {
 
 const EditorContextMenu = memo(
   ({ visible, position, items, onClose, readonly }: EditorContextMenuProps) => {
-    useEditorI18n();
+    const { t } = useEditorI18n();
     const menuRef = useRef<HTMLDivElement>(null);
     const portalContainer = usePortalContainer();
     useEffect(() => {
@@ -319,7 +319,7 @@ const EditorContextMenu = memo(
           renderMenu(items)
         ) : (
           <div className="p-[12px] text-center text-[13px] text-[var(--ed-text-tertiary)]">
-            暂无可用操作
+            {t("core.menuEmpty")}
           </div>
         )}
       </div>,

@@ -1,3 +1,6 @@
+import coreEnUS from "./locales/core.en-US.json";
+import coreZhTW from "./locales/core.zh-TW.json";
+import coreZhCN from "./locales/core.zh-CN.json";
 import commonEnUS from "./locales/common.en-US.json";
 import commonZhTW from "./locales/common.zh-TW.json";
 import commonZhCN from "./locales/common.zh-CN.json";
@@ -18,9 +21,9 @@ import enUS from "./locales/en-US.json";
 export const editorMessages = defineI18n({
   fallbackLocale: "zh-CN",
   resources: {
-    "zh-CN": { ...zhCN, ...codeZhCN, ...imageZhCN, ...avZhCN, ...commonZhCN },
-    "zh-TW": { ...zhTW, ...codeZhTW, ...imageZhTW, ...avZhTW, ...commonZhTW },
-    "en-US": { ...enUS, ...codeEnUS, ...imageEnUS, ...avEnUS, ...commonEnUS },
+    "zh-CN": { ...zhCN, ...codeZhCN, ...imageZhCN, ...avZhCN, ...commonZhCN, ...coreZhCN },
+    "zh-TW": { ...zhTW, ...codeZhTW, ...imageZhTW, ...avZhTW, ...commonZhTW, ...coreZhTW },
+    "en-US": { ...enUS, ...codeEnUS, ...imageEnUS, ...avEnUS, ...commonEnUS, ...coreEnUS },
   },
 });
 export type EditorMessageKey = Parameters<typeof editorMessages.ref>[0];

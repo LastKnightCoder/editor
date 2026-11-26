@@ -1,3 +1,6 @@
+import { createI18nRuntime, createLocaleStore } from "@tau/i18n";
+import { I18nRuntimeProvider } from "@tau/i18n/react";
+import { ReactEditor } from "slate-react";
 // P8 验收：扩展的 render / behavior 抛错时编辑器不崩、数据不丢；缺扩展的类型保存再打开一致（ER-006）。
 import { act, createRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -166,13 +169,92 @@ describe("扩展错误隔离与未知节点", () => {
 
     expect(host.textContent).toContain("前面的段落");
     expect(host.textContent).toContain("后面的段落");
-    expect(host.querySelector('[data-element-placeholder="exploding"]')?.textContent).toContain(
-      "渲染失败"
-    );
+    expect(host.querySelector('[data-element-placeholder="exploding"]')).not.toBeNull();
     expect(ref.current!.getEditor().children[1]).toEqual(initValue[1]);
     expect(events).toContainEqual(
       expect.objectContaining({ extension: "test.exploding", phase: "render" })
     );
+  });
+
+  it("换语更新失败与未知占位，保留实例、映射和选区，不重试或重复上报", async () => {
+    vi.spyOn(console, "error").mockImplementation(vi.fn());
+    const calls = vi.fn((): never => {
+      throw new Error("renderer failure");
+    });
+    const { kit, events } = createKit([
+      defineExtension({
+        id: "test.locale-failure",
+        elements: [{ type: "locale-failure", kind: "block", render: calls }],
+      }),
+    ]);
+    const source = createLocaleStore("zh-CN");
+    const runtime = createI18nRuntime({ localeSource: source });
+    const ref = createRef<EditorRef>();
+    const initialized = vi.fn(),
+      changed = vi.fn();
+    const value: Descendant[] = [
+      paragraph("原始正文"),
+      ...valueWithUnknown.slice(1),
+      { type: "locale-failure", payload: "保留数据", children: [text("")] } as unknown as Element,
+    ];
+    try {
+      const host = await render(
+        <I18nRuntimeProvider runtime={runtime}>
+          <Editor
+            ref={ref}
+            kit={kit}
+            initValue={value}
+            readonly={false}
+            placeHolder=""
+            ariaLabel=""
+            onInit={initialized}
+            onChange={changed}
+          />
+        </I18nRuntimeProvider>
+      );
+      const editor = ref.current?.getEditor();
+      if (!editor) throw new Error("Editor did not mount");
+      await act(async () => Transforms.select(editor, { path: [0, 0], offset: 2 }));
+      const content = JSON.stringify(editor.children),
+        selection = structuredClone(editor.selection);
+      const failed = host.querySelector<HTMLElement>('[data-element-placeholder="locale-failure"]');
+      const unknown = host.querySelector<HTMLElement>(
+        '[data-element-placeholder="mystery-container"]'
+      );
+      const editable = host.querySelector("[data-slate-editor]");
+      if (!failed || !unknown || !editable) throw new Error("Missing editor placeholders");
+      let failureTitle = failed.title,
+        unknownTitle = unknown.title;
+      const renders = calls.mock.calls.length,
+        reports = events.length,
+        changes = changed.mock.calls.length;
+      for (const locale of ["zh-TW", "en-US"]) {
+        await act(async () => source.setLocale(locale));
+        expect(failed.title).not.toBe(failureTitle);
+        expect(unknown.title).not.toBe(unknownTitle);
+        failureTitle = failed.title;
+        unknownTitle = unknown.title;
+        expect(host.querySelector('[data-element-placeholder="locale-failure"]')).toBe(failed);
+        expect(host.querySelector('[data-element-placeholder="mystery-container"]')).toBe(unknown);
+        expect(host.querySelector("[data-slate-editor]")).toBe(editable);
+        expect(editable.getAttribute("aria-label")).toBe("");
+        expect(ref.current?.getEditor()).toBe(editor);
+        expect(initialized).toHaveBeenCalledTimes(1);
+        expect(calls).toHaveBeenCalledTimes(renders);
+        expect(events).toHaveLength(reports);
+        expect(changed).toHaveBeenCalledTimes(changes);
+        expect(JSON.stringify(editor.children)).toBe(content);
+        expect(editor.selection).toEqual(selection);
+        expect(ReactEditor.findPath(editor, editor.children[1])).toEqual([1]);
+        const failedNode = editor.children.at(-1);
+        if (!failedNode) throw new Error("Failed node was removed");
+        expect(ReactEditor.toDOMNode(editor, failedNode)).toBe(failed);
+      }
+    } finally {
+      await act(async () => root?.unmount());
+      root = null;
+      runtime.dispose();
+    }
   });
 
   it("behavior 抛错：回退默认行为，连续出错后熔断停用", async () => {

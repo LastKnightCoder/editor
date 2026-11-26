@@ -1,3 +1,4 @@
+import { editorT } from "../../i18n-runtime";
 import { Editor, Transforms, Node, Path } from "slate";
 import { ReactEditor } from "slate-react";
 import type { EditorFeedback } from "../services/notifier";
@@ -53,25 +54,25 @@ export async function copyNodeToClipboard(
       }),
     ]);
     if (options.signal?.aborted) return false;
-    message?.success("复制成功");
+    message?.success(editorT(editor, "core.copy.success"));
     return true;
   } catch (error) {
     if (options.signal?.aborted) return false;
     console.error("复制失败:", error);
     if (options.allowPlainTextFallback === false) {
-      message?.error("复制失败，原内容已保留");
+      message?.error(editorT(editor, "core.copy.preserved"));
       return false;
     }
     // 降级方案：使用旧的 API
     try {
       await navigator.clipboard.writeText(plainText);
       if (options.signal?.aborted) return false;
-      message?.success("复制成功");
+      message?.success(editorT(editor, "core.copy.success"));
       return true;
     } catch (fallbackError) {
       if (options.signal?.aborted) return false;
       console.error("降级复制也失败:", fallbackError);
-      message?.error("复制失败，请稍后重试");
+      message?.error(editorT(editor, "core.copy.failed"));
       return false;
     }
   }

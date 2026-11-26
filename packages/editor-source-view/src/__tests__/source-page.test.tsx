@@ -1,3 +1,5 @@
+import ShikiOverlayEditor from "../overlay/ShikiOverlayEditor";
+import { Field } from "./fixtures/textField";
 import { createI18nRuntime, createLocaleStore, type I18nRuntime } from "@tau/i18n";
 import { I18nRuntimeProvider } from "@tau/i18n/react";
 import { Activity, act, createRef, useState, type ReactNode } from "react";
@@ -229,6 +231,72 @@ describe("触屏源码页", () => {
     } finally {
       await act(async () => root?.unmount());
       runtime.dispose();
+    }
+  });
+
+  it("已有源码失败在换语时更新提示，保留草稿、选区与绑定，不重报错误", async () => {
+    const locale = createLocaleStore("zh-CN"),
+      runtime = createI18nRuntime({ localeSource: locale });
+    const field = Object.assign(new Field("原始正文"), { preserveDraft: vi.fn() });
+    const subscribe = vi.spyOn(field, "subscribe"),
+      edit = vi.spyOn(field, "editBatch");
+    const change = vi.fn();
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    try {
+      await act(async () =>
+        root.render(
+          <I18nRuntimeProvider runtime={runtime}>
+            <ShikiOverlayEditor
+              value="原始正文"
+              textBinding={field}
+              language="text"
+              isDark={false}
+              onChange={change}
+            />
+          </I18nRuntimeProvider>
+        )
+      );
+      const input = host.querySelector("textarea");
+      if (!input) throw new Error("Source textarea did not mount");
+      field.writable = false;
+      await act(async () => {
+        input.value = "未提交草稿";
+        input.setSelectionRange(1, 3);
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+      const alert = host.querySelector('[role="alert"]');
+      if (!alert) throw new Error("Source failure did not render");
+      const snapshot = field.getSnapshot(),
+        subscriptions = subscribe.mock.calls.length,
+        edits = edit.mock.calls.length,
+        drafts = field.preserveDraft.mock.calls.length,
+        changes = change.mock.calls.length;
+      expect(field.preserveDraft).toHaveBeenCalledWith({
+        value: "未提交草稿",
+        revision: snapshot.revision,
+      });
+      let message = alert.textContent;
+      for (const next of ["zh-TW", "en-US"]) {
+        await act(async () => locale.setLocale(next));
+        expect(alert.textContent).not.toBe(message);
+        message = alert.textContent;
+        expect(host.querySelector("textarea")).toBe(input);
+        expect(host.querySelector('[role="alert"]')).toBe(alert);
+        expect(input.value).toBe("未提交草稿");
+        expect(input.readOnly).toBe(true);
+        expect([input.selectionStart, input.selectionEnd]).toEqual([1, 3]);
+        expect(field.getSnapshot()).toBe(snapshot);
+        expect(subscribe).toHaveBeenCalledTimes(subscriptions);
+        expect(edit).toHaveBeenCalledTimes(edits);
+        expect(field.preserveDraft).toHaveBeenCalledTimes(drafts);
+        expect(change).toHaveBeenCalledTimes(changes);
+      }
+    } finally {
+      await act(async () => root.unmount());
+      runtime.dispose();
+      vi.restoreAllMocks();
     }
   });
 

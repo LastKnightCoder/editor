@@ -1,7 +1,13 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { cn } from "@tau/ui";
-import { bindTextFieldTextarea, type EditorTextField } from "@tau/editor/api";
+import {
+  bindTextFieldTextarea,
+  formatTextFieldInputFailure,
+  type TextFieldInputFailure,
+  type EditorTextField,
+} from "@tau/editor/api";
+import { useSourceI18n } from "../i18n";
 import type { InlineSuggestionProvider } from "@tau/editor/api";
 import { codeWithSuggestionAnchor, useSourceInlineSuggestion } from "./inlineSuggestion";
 import { ShikiMagicMove } from "shiki-magic-move/react";
@@ -190,7 +196,8 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
   onContextMenu,
 }) => {
   const [boundValue, setBoundValue] = useState(propValue);
-  const [bindingError, setBindingError] = useState<string | null>(null);
+  const { locale } = useSourceI18n();
+  const [bindingError, setBindingError] = useState<TextFieldInputFailure | null>(null);
   const value = textBinding ? boundValue : propValue;
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const boundInput = useRef<ReturnType<typeof bindTextFieldTextarea> | null>(null);
@@ -201,7 +208,7 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
       textareaRef.current,
       textBinding,
       setBoundValue,
-      setBindingError
+      (_message, failure) => setBindingError(failure)
     );
     boundInput.current = binding;
     return () => {
@@ -730,7 +737,7 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
           />
         )}
       </div>
-      {bindingError && <div role="alert">{bindingError}</div>}
+      {bindingError && <div role="alert">{formatTextFieldInputFailure(bindingError, locale)}</div>}
       <textarea
         // 绑定就绪前（textBinding 为 null）按受控值显示，就绪后由绑定直接写入
         ref={textareaRef}

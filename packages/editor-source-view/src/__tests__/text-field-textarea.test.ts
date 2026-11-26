@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { bindTextFieldTextarea } from "../textFieldTextarea";
+import { bindTextFieldTextarea, formatTextFieldInputFailure } from "../textFieldTextarea";
 import { Field } from "./fixtures/textField";
 
 function setup(value: string) {
@@ -69,6 +69,11 @@ describe("原生源码输入增量绑定", () => {
     expect(input.value).toBe("未提交草稿");
     expect(input.readOnly).toBe(true);
     expect(errors).toHaveBeenCalledOnce();
+    const [message, failure] = errors.mock.calls[0];
+    expect(failure).toMatchObject({ code: "draft-preserved", cause: expect.any(Error) });
+    expect(message).toContain(failure.cause.message);
+    expect(formatTextFieldInputFailure(failure, "en-US")).not.toBe(message);
+    expect(formatTextFieldInputFailure(failure, "en-US")).toContain(failure.cause.message);
     binding.dispose();
     field.writable = true;
     input.dispatchEvent(new CompositionEvent("compositionend"));

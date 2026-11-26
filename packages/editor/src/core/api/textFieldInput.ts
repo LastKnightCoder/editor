@@ -1,3 +1,7 @@
+import {
+  formatTextFieldInputFailure,
+  type TextFieldInputFailure,
+} from "./textFieldInputFailure.ts";
 import type { EditorTextField, TextFieldDelta } from "../../../text-field-contract";
 
 interface Edit {
@@ -80,7 +84,7 @@ export function bindTextFieldTextarea(
   input: HTMLTextAreaElement | HTMLInputElement,
   field: EditorTextField,
   onValue: (value: string) => void,
-  onError: (message: string) => void
+  onError: (message: string, failure: TextFieldInputFailure) => void
 ) {
   let snapshot = field.getSnapshot();
   let writing = false,
@@ -99,9 +103,8 @@ export function bindTextFieldTextarea(
     }
     failed = true;
     input.readOnly = true;
-    onError(
-      `${error instanceof Error ? error.message : "源码同步失败"}；输入框保留了未提交草稿，请先复制。`
-    );
+    const failure: TextFieldInputFailure = { code: "draft-preserved", cause: error };
+    onError(formatTextFieldInputFailure(failure), failure);
     onValue(input.value);
   };
   const write = (next: string) => {

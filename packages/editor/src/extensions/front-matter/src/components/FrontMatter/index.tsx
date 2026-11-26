@@ -1,4 +1,10 @@
-import { useTextFieldBinding, canEditElement } from "@tau/editor/api";
+import { useEditorI18n } from "../../../../../i18n";
+import {
+  useTextFieldBinding,
+  canEditElement,
+  formatTextFieldInputFailure,
+  type TextFieldInputFailure,
+} from "@tau/editor/api";
 import { IEditorTextFields, type EditorTextField } from "@tau/editor/api";
 import { bindTextFieldTextarea } from "@tau/editor-source-view";
 import { isHotkey } from "is-hotkey";
@@ -235,8 +241,11 @@ function BoundDescription({
   field: EditorTextField;
   initialValue: string;
 }) {
+  const { t, locale } = useEditorI18n();
   const input = useRef<HTMLTextAreaElement>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<
+    { failure: TextFieldInputFailure } | { cause: unknown } | null
+  >(null);
   useLayoutEffect(() => {
     if (!input.current) return;
     setError(null);
@@ -244,9 +253,14 @@ function BoundDescription({
     let inputBinding: ReturnType<typeof bindTextFieldTextarea> | undefined;
     try {
       scalar = createYamlScalarField(field, "description");
-      inputBinding = bindTextFieldTextarea(input.current, scalar, () => {}, setError);
+      inputBinding = bindTextFieldTextarea(
+        input.current,
+        scalar,
+        () => {},
+        (_message, failure) => setError({ failure })
+      );
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "元数据编辑不可用");
+      setError({ cause });
     }
     return () => {
       inputBinding?.dispose();
@@ -279,7 +293,15 @@ function BoundDescription({
           }
         }}
       />
-      {error && <div role="alert">{error}</div>}
+      {error && (
+        <div role="alert">
+          {"failure" in error
+            ? formatTextFieldInputFailure(error.failure, locale)
+            : error.cause instanceof Error
+              ? error.cause.message
+              : t("core.source.metadataUnavailable")}
+        </div>
+      )}
     </div>
   );
 }

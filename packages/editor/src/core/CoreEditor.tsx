@@ -1,5 +1,5 @@
 import { bindEditorI18n } from "../i18n-runtime";
-import { useEditorI18nRuntime } from "../i18n";
+import { useEditorI18n, useEditorI18nRuntime } from "../i18n";
 import { IEditorTextFields } from "../../source-contracts";
 import { createLocalTextFields } from "./kit/localTextFields";
 import { bindElementDefinitions } from "./api/elementVersions";
@@ -198,6 +198,7 @@ const Index = memo(
     useDocumentRevision(documentProp);
 
     const i18nRuntime = useEditorI18nRuntime();
+    const { t } = useEditorI18n();
     const resolvedKit = useResolvedKit(kitProp);
     // 文档源可以覆盖服务（如共享模式的资源上传），作用域限于本编辑器
     const baseKit = useMemo(
@@ -646,7 +647,7 @@ const Index = memo(
                 }
               >
                 <Editable
-                  aria-label={props.ariaLabel}
+                  aria-label={props.ariaLabel ?? t("core.editorLabel")}
                   className={cn(EDITABLE_CLASS, focusMode && FOCUS_MODE_CLASS, props.className)}
                   style={props.style}
                   readOnly={readonly}

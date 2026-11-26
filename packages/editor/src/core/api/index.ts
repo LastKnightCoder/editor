@@ -187,3 +187,5 @@ export {
   type InlineSuggestionProvider,
   type InlineSuggestionPreview,
 } from "../inlineSuggestion/controller";
+
+export { formatTextFieldInputFailure, type TextFieldInputFailure } from "./textFieldInputFailure";

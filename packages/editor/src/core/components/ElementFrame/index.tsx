@@ -1,3 +1,4 @@
+import { useEditorI18n } from "../../../i18n";
 import {
   createContext,
   useContext,
@@ -60,6 +61,7 @@ export function ElementFrame({
   options,
   content,
 }: RenderElementProps & { options: ElementFrameOptions; content: ReactNode }) {
+  const { t } = useEditorI18n();
   const editor = useSlateStatic();
   const editorReadOnly = useReadOnly();
   const touch = useTouchInteraction();
@@ -147,13 +149,13 @@ export function ElementFrame({
           {!readOnly && touch && (
             <Button
               variant="ghost"
-              aria-label="块操作"
+              aria-label={t("core.blockActions")}
               onClick={event => {
                 const rect = event.currentTarget.getBoundingClientRect();
                 state.openMenu({ x: rect.left, y: rect.bottom });
               }}
             >
-              块操作
+              {t("core.blockActions")}
             </Button>
           )}
         </div>

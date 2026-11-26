@@ -1,3 +1,5 @@
+import { useEditorI18n } from "../../i18n";
+import type { EditorMessageKey } from "../../i18n-runtime";
 import { useCallback, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { Element } from "slate";
 import { ReactEditor, useReadOnly, useSlateStatic } from "slate-react";
@@ -9,6 +11,7 @@ const emptySnapshot = () => EMPTY;
 
 export function useTextFieldBinding(element: Element | undefined, field: string) {
   const editor = useSlateStatic();
+  const { t } = useEditorI18n();
   const contextReadOnly = useReadOnly();
   const readOnly = contextReadOnly || !element || !canEditElement(editor, element);
   const service = editor.tryGetService(IEditorTextFields);
@@ -38,13 +41,13 @@ export function useTextFieldBinding(element: Element | undefined, field: string)
     opened.handle === live.current
       ? opened.handle
       : null;
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ key: EditorMessageKey } | { message: string } | null>(null);
   useLayoutEffect(() => {
     setOpened(null);
     setError(null);
     if (readOnly || !current.current) return;
     if (!service) {
-      setError("当前文档不支持源码字段编辑");
+      setError({ key: "core.source.unsupported" });
       return;
     }
     try {
@@ -57,7 +60,9 @@ export function useTextFieldBinding(element: Element | undefined, field: string)
         handle.dispose();
       };
     } catch (error) {
-      setError(error instanceof Error ? error.message : "源码字段不可用");
+      setError(
+        error instanceof Error ? { message: error.message } : { key: "core.source.unavailable" }
+      );
     }
   }, [editor, service, identity, contract, field, readOnly]);
   const subscribe = useCallback(
@@ -78,6 +83,6 @@ export function useTextFieldBinding(element: Element | undefined, field: string)
     value: binding ? snapshot.value : typeof fallback === "string" ? fallback : "",
     revision: snapshot.revision,
     readOnly: readOnly || !binding,
-    error,
+    error: error && ("key" in error ? t(error.key) : error.message),
   };
 }

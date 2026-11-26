@@ -14,7 +14,12 @@ import { motion, useReducedMotion } from "motion/react";
 import { useMemoizedFn } from "ahooks";
 import { cn, mergeRefs } from "@tau/ui";
 import { InlineChromiumBugfix, OverlayBackDismiss } from "@tau/editor/api";
-import { useTextFieldBinding, canEditElement } from "@tau/editor/api";
+import {
+  useTextFieldBinding,
+  canEditElement,
+  formatTextFieldInputFailure,
+  type TextFieldInputFailure,
+} from "@tau/editor/api";
 import { IEditorTextFields } from "@tau/editor/api";
 import { bindTextFieldTextarea } from "@tau/editor-source-view";
 import { isHotkey } from "is-hotkey";
@@ -27,7 +32,7 @@ interface InlineMathProps {
 }
 
 const InlineMath: React.FC<PropsWithChildren<InlineMathProps>> = props => {
-  const { t } = useEditorI18n();
+  const { t, locale } = useEditorI18n();
   const { attributes, element, children } = props;
   const editor = useSlateStatic();
   const bound = Boolean(editor.tryGetService(IEditorTextFields));
@@ -38,7 +43,7 @@ const InlineMath: React.FC<PropsWithChildren<InlineMathProps>> = props => {
   const reduceMotion = useReducedMotion();
   const [isOpen, setIsOpen] = useState(false);
   const [draft, setDraft] = useState(element.tex);
-  const [bindingError, setBindingError] = useState<string | null>(null);
+  const [bindingError, setBindingError] = useState<TextFieldInputFailure | null>(null);
   const tex = bound ? (isOpen ? draft : source.value) : element.tex;
   const elementRef = useRef<HTMLElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -50,7 +55,7 @@ const InlineMath: React.FC<PropsWithChildren<InlineMathProps>> = props => {
       inputRef.current,
       source.binding,
       setDraft,
-      setBindingError
+      (_message, failure) => setBindingError(failure)
     );
     return () => binding.dispose();
   }, [isOpen, source.binding]);
@@ -282,7 +287,7 @@ const InlineMath: React.FC<PropsWithChildren<InlineMathProps>> = props => {
       </span>
       {(source.error || bindingError) && (
         <span role="alert" contentEditable={false}>
-          {source.error || bindingError}
+          {source.error || (bindingError && formatTextFieldInputFailure(bindingError, locale))}
         </span>
       )}
       <OverlayBackDismiss open={isOpen && !readOnly} onDismiss={() => closeInline("right")} />
