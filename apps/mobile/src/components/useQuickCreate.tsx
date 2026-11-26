@@ -1,13 +1,13 @@
 // 全局新建入口的动作与「长按直接说」：底部 Dock 与左侧导航条共用，
 // 两处只负责各自的按钮与菜单形态。
 
+import { diaryTranslator } from "../features/diary/i18n";
 import { useEffect, useRef } from "react";
 import type { Icon } from "@phosphor-icons/react";
 import { useRouterContext } from "../router";
 import { useAppContext } from "../app/AppContext";
 import { useDiaryStore } from "../features/diary/store/useDiaryStore";
 import { getTodayDateKey } from "../features/diary/feedUtils";
-import { describeDiaryPeriod } from "../features/diary/dateKey";
 import { useInvalidateArticles } from "../features/articles/queries";
 import * as tauri from "../services/tauri";
 import { useHoldGesture } from "../features/speechInput/useHoldGesture";
@@ -74,10 +74,10 @@ export function useQuickCreate(options: QuickCreateOptions) {
           contentId,
           contentTitle: "",
           fromDiary: true,
-          diaryDate: describeDiaryPeriod("daily", baseDate),
+          diaryDate: { mode: "daily", baseDate: baseDate },
         });
       } catch (error) {
-        app.presentError(error, "打开日记失败");
+        app.presentError(error, diaryTranslator.t("open.failed"));
       }
     })();
   };

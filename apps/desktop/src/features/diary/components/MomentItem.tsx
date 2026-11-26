@@ -7,6 +7,8 @@
  * 悬停操作（标签 / 更多）占固定槽位原位淡入，不顶开布局。
  */
 
+import { formatTime, shortDate } from "../format";
+import { useDiaryI18n } from "../i18n";
 import { forwardRef, memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { getContentKit } from "@/services/editorKit";
 import { Editor as SlateEditor, Transforms, type BasePoint, type Descendant } from "slate";
@@ -17,15 +19,7 @@ import { Editor, type EditorRef } from "@tau/editor";
 import { IconButton, Menu, Tag, cn, toast, type TagColor } from "@tau/ui";
 import ContentEditor from "@/components/ContentEditor";
 import { ErrorBoundary } from "@tau/ui";
-import {
-  dayKey,
-  formatTime,
-  isBackfill,
-  plainText,
-  shortDate,
-  type DiaryMoment,
-  type DiaryTag,
-} from "../model";
+import { dayKey, isBackfill, plainText, type DiaryMoment, type DiaryTag } from "../model";
 import type { DiaryMutations } from "../queries";
 import { TagPicker } from "./TagPicker";
 import { parseEntityLocation, resolveLocationNode } from "@/entity/locate";
@@ -58,6 +52,7 @@ export const MomentItem = memo(function MomentItem({
   onDelete,
   onClearTag,
 }: MomentItemProps) {
+  const { t, locale } = useDiaryI18n();
   const [mode, setMode] = useState<"reading" | "opening" | "editing">("reading");
   const bodyRef = useRef<HTMLDivElement>(null);
   const readerRef = useRef<EditorRef | null>(null);
@@ -142,7 +137,7 @@ export const MomentItem = memo(function MomentItem({
   const handleOpenError = (error: string) => {
     if (mode !== "opening") return;
     setMode("reading");
-    toast.error(`无法打开日记编辑器：${error}`);
+    toast.error(t("moment.openFailed", { error: String(error) }));
   };
 
   const backfill = isBackfill(moment);
@@ -164,13 +159,16 @@ export const MomentItem = memo(function MomentItem({
       <div className="mb-2.5 flex h-[22px] items-center gap-2">
         <span
           className="text-tau-meta text-ink-3 font-tau-mono font-medium tabular-nums"
-          title={`写于 ${shortDate(dayKey(moment.createTime), today)} ${formatTime(moment.createTime)}`}
+          title={t("moment.written", {
+            date: shortDate(dayKey(moment.createTime), today, locale),
+            time: formatTime(moment.createTime, locale),
+          })}
         >
-          {formatTime(moment.createTime)}
+          {formatTime(moment.createTime, locale)}
         </span>
         {backfill && (
           <span className="text-tau-sm text-ink-3">
-            · 补记于 {shortDate(dayKey(moment.createTime), today)}
+            · {t("moment.backfill", { date: shortDate(dayKey(moment.createTime), today, locale) })}
           </span>
         )}
         <div className="ml-auto flex gap-0.5 opacity-0 transition-opacity duration-[160ms] group-hover/moment:opacity-100 focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100">
@@ -183,7 +181,7 @@ export const MomentItem = memo(function MomentItem({
             onRecolor={(name, color) => void mutations.recolor(name, color)}
             onClear={onClearTag}
             trigger={
-              <IconButton title="标签" className="size-6 rounded-[7px]">
+              <IconButton title={t("tag.label")} className="size-6 rounded-[7px]">
                 <Hash {...ICON} />
               </IconButton>
             }
@@ -191,7 +189,7 @@ export const MomentItem = memo(function MomentItem({
           <Menu
             align="end"
             trigger={
-              <IconButton title="更多" className="size-6 rounded-[7px]">
+              <IconButton title={t("moment.more")} className="size-6 rounded-[7px]">
                 <MoreHorizontal {...ICON} />
               </IconButton>
             }
@@ -201,14 +199,14 @@ export const MomentItem = memo(function MomentItem({
               onSelect={() => {
                 void navigator.clipboard
                   .writeText(plainText(moment.content))
-                  .then(() => toast.success("已复制"));
+                  .then(() => toast.success(t("moment.copied")));
               }}
             >
-              复制文本
+              {t("moment.copy")}
             </Menu.Item>
             <Menu.Separator />
             <Menu.Item danger icon={<Trash2 {...ICON} />} onSelect={() => onDelete(moment)}>
-              删除
+              {t("moment.delete")}
             </Menu.Item>
           </Menu>
         </div>
@@ -276,7 +274,7 @@ export const MomentItem = memo(function MomentItem({
             <button
               key={name}
               type="button"
-              title={`只看「${name}」`}
+              title={t("tag.only", { name })}
               onClick={() => onOpenTag(name)}
               className="rounded-full hover:brightness-[0.97]"
             >

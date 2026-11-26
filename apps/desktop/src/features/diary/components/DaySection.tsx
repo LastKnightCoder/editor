@@ -3,8 +3,10 @@
  * 右侧当天条目。同一张纸内分组只靠留白与日期列，不画分隔线、不拆日卡（PREFERENCES）。
  */
 
+import { monthLabel, weekdayOf, relativeDay } from "../format";
+import { useDiaryI18n } from "../i18n";
 import { memo } from "react";
-import { keyDate, relativeDay, weekdayOf, type DayGroup } from "../model";
+import { keyDate, type DayGroup } from "../model";
 import { MomentItem, type MomentItemProps } from "./MomentItem";
 
 type ItemProps = Omit<MomentItemProps, "moment" | "fresh">;
@@ -14,8 +16,9 @@ export const DaySection = memo(function DaySection({
   freshIds,
   ...item
 }: ItemProps & { group: DayGroup; freshIds: ReadonlySet<number> }) {
+  const { t, locale } = useDiaryI18n();
   const d = keyDate(group.day);
-  const rel = relativeDay(group.day, item.today);
+  const rel = relativeDay(group.day, item.today, locale);
   const otherYear = d.getFullYear() !== keyDate(item.today).getFullYear();
   return (
     <section
@@ -25,18 +28,21 @@ export const DaySection = memo(function DaySection({
       <div className="sticky top-[18px] self-start pt-2">
         {otherYear && (
           <div className="text-tau-tiny text-ink-3 font-tau-mono mb-1.5 leading-none">
-            {d.getFullYear()}
+            {d.getFullYear().toLocaleString(locale, { useGrouping: false })}
           </div>
         )}
         {rel && <div className="text-tau-meta text-accent-text mb-1.5 font-medium">{rel}</div>}
         <div className="text-[32px] leading-none font-semibold tracking-[-0.02em] tabular-nums">
-          {d.getDate()}
+          {d.getDate().toLocaleString(locale)}
         </div>
         <div className="text-tau-meta text-ink-2 mt-1.5">
-          {d.getMonth() + 1}月 · {weekdayOf(group.day)}
+          {monthLabel(group.day.slice(0, 7), locale)} · {weekdayOf(group.day, locale)}
         </div>
         <div className="text-tau-tiny text-ink-3 mt-[3px] whitespace-nowrap tabular-nums">
-          {group.moments.length} 条 · {group.words} 字
+          {t("summary.day", {
+            entries: group.moments.length.toLocaleString(locale),
+            words: group.words.toLocaleString(locale),
+          })}
         </div>
       </div>
       <div className="min-w-0 space-y-0.5">

@@ -8,6 +8,8 @@
  * 删除不二次确认：立即消失 + Toast 撤销，5 秒后才落库；离开页面立即落库。
  */
 
+import { shortDate } from "../format";
+import { useDiaryI18n } from "../i18n";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { History, Loader2, PenLine, Search, SearchX, X } from "lucide-react";
@@ -27,7 +29,6 @@ import {
   presetRanges,
   rankTags,
   scopeId,
-  shortDate,
   streak,
   tagCounts,
   type DayGroup,
@@ -46,6 +47,7 @@ const UNDO_MS = 5000;
 const OTD_DISMISS_KEY = "diary:otd-dismissed";
 
 export function DiaryView() {
+  const { t, locale } = useDiaryI18n();
   const { navigator } = usePage();
   const params = usePageParams<{ id?: string; date?: string; moment?: string; at?: string }>();
   const [locationTarget, setLocationTarget] = useState<{ moment: string; at: string } | null>(null);
@@ -97,7 +99,7 @@ export function DiaryView() {
     pendingCommits.current.delete(id);
     mutations
       .remove(id)
-      .catch(() => toast.error("删除失败"))
+      .catch(() => toast.error(t("delete.failed")))
       .finally(() =>
         setPendingDelete(prev => {
           const next = new Set(prev);
@@ -113,26 +115,29 @@ export function DiaryView() {
       for (const id of [...armed]) commit(id);
     };
   }, []);
-  const scheduleDelete = useCallback((moment: DiaryMoment) => {
-    setPendingDelete(prev => new Set(prev).add(moment.id));
-    pendingCommits.current.add(moment.id);
-    toast.info("已删除 1 条碎碎念", {
-      duration: UNDO_MS,
-      onClose: () => commitDelete.current(moment.id),
-      action: {
-        label: "撤销",
-        onClick: () => {
-          // 撤销先于 onClose 触发：摘掉待落库条目后，随后的 onClose 空转
-          pendingCommits.current.delete(moment.id);
-          setPendingDelete(prev => {
-            const next = new Set(prev);
-            next.delete(moment.id);
-            return next;
-          });
+  const scheduleDelete = useCallback(
+    (moment: DiaryMoment) => {
+      setPendingDelete(prev => new Set(prev).add(moment.id));
+      pendingCommits.current.add(moment.id);
+      toast.info(t("delete.done"), {
+        duration: UNDO_MS,
+        onClose: () => commitDelete.current(moment.id),
+        action: {
+          label: t("undo"),
+          onClick: () => {
+            // 撤销先于 onClose 触发：摘掉待落库条目后，随后的 onClose 空转
+            pendingCommits.current.delete(moment.id);
+            setPendingDelete(prev => {
+              const next = new Set(prev);
+              next.delete(moment.id);
+              return next;
+            });
+          },
         },
-      },
-    });
-  }, []);
+      });
+    },
+    [t]
+  );
 
   /* ---------- 派生 ---------- */
   const live = useMemo(
@@ -303,11 +308,11 @@ export function DiaryView() {
         setFreshIds(new Set([moment.id]));
         scrollEl?.scrollTo({ top: 0, behavior: "smooth" });
       } catch {
-        toast.error("发布失败");
+        toast.error(t("publish.failed"));
         throw new Error("发布失败");
       }
     },
-    [mutations, today, scrollEl]
+    [mutations, today, scrollEl, t]
   );
 
   const openTag = useCallback((name: string) => setScope({ kind: "tag", tag: name }), [setScope]);
@@ -327,14 +332,14 @@ export function DiaryView() {
 
   const showTease = echoes.length > 0 && !otdDismissed && !filtering && scope.kind === "all";
   const presetLabel =
-    range &&
-    presetRanges(today).find(p => p.range[0] === range[0] && p.range[1] === range[1])?.label;
+    range && presetRanges(today).find(p => p.range[0] === range[0] && p.range[1] === range[1])?.key;
   const rangeLabel =
     range &&
-    (presetLabel ??
-      (range[0] === range[1]
-        ? shortDate(range[0], today)
-        : `${shortDate(range[0], today)} – ${shortDate(range[1], today)}`));
+    (presetLabel
+      ? t(`range.${presetLabel}`)
+      : range[0] === range[1]
+        ? shortDate(range[0], today, locale)
+        : `${shortDate(range[0], today, locale)} – ${shortDate(range[1], today, locale)}`);
 
   return (
     <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pt-1 pb-4">
@@ -343,7 +348,7 @@ export function DiaryView() {
         {/* 工具栏 */}
         <div className="mt-5 flex h-10 flex-none items-center gap-3 px-8">
           <h1 className="text-tau-title-lg flex shrink-0 items-center gap-2 font-semibold tracking-[-0.01em] whitespace-nowrap">
-            日记
+            {t("title")}
             {scope.kind !== "all" && (
               <>
                 <span className="text-ink-3 font-normal">/</span>
@@ -355,7 +360,7 @@ export function DiaryView() {
                     {scope.tag}
                   </Tag>
                 ) : (
-                  <Tag onRemove={() => setScope({ kind: "all" })}>无标签</Tag>
+                  <Tag onRemove={() => setScope({ kind: "all" })}>{t("untagged")}</Tag>
                 )}
               </>
             )}
@@ -363,31 +368,22 @@ export function DiaryView() {
           <div className="text-tau-meta text-ink-2 flex min-w-0 items-center gap-2">
             {live.length > 0 &&
               (filtering ? (
-                <span>
-                  <b className="text-ink-1 font-semibold tabular-nums">{filtered.length}</b> 条
-                </span>
+                <DiaryMetric message="summary.count" count={filtered.length} />
               ) : (
                 <>
-                  <span>
-                    本月{" "}
-                    <b className="text-ink-1 font-semibold tabular-nums">
-                      {live.filter(m => m.day.startsWith(today.slice(0, 7))).length}
-                    </b>{" "}
-                    条
-                  </span>
+                  <DiaryMetric
+                    message="summary.month"
+                    count={live.filter(m => m.day.startsWith(today.slice(0, 7))).length}
+                  />
                   <span className="text-ink-3">·</span>
-                  <span>
-                    连续记录{" "}
-                    <b className="text-ink-1 font-semibold tabular-nums">{streak(live, today)}</b>{" "}
-                    天
-                  </span>
+                  <DiaryMetric message="summary.streak" count={streak(live, today)} />
                 </>
               ))}
             {range && (
               <span className="bg-surface border-line-1 text-ink-1 inline-flex h-6 items-center gap-1.5 rounded-[8px] border pr-1 pl-2.5">
                 {rangeLabel}
                 <IconButton
-                  title="清除时间筛选"
+                  title={t("clear.range")}
                   className="size-[18px] rounded-[5px]"
                   onClick={() => setRange(null)}
                 >
@@ -400,7 +396,7 @@ export function DiaryView() {
           {echoes.length > 0 && (
             <IconButton
               data-otd-keep
-              title="那年今日"
+              title={t("otd.title")}
               onClick={() => setDrawerOpen(o => !o)}
               className={cn(drawerOpen && "bg-accent-soft text-accent-text hover:bg-accent-soft")}
             >
@@ -424,12 +420,12 @@ export function DiaryView() {
                   setQuery("");
                 }
               }}
-              placeholder="搜索"
+              placeholder={t("search")}
               className="text-tau-meta placeholder:text-ink-3 min-w-0 flex-1 bg-transparent outline-none"
             />
             {query && (
               <IconButton
-                title="清除搜索"
+                title={t("clear.search")}
                 className="size-[18px] rounded-[5px]"
                 onClick={() => setQuery("")}
               >
@@ -450,21 +446,19 @@ export function DiaryView() {
             >
               <div className="mx-auto max-w-[860px] px-14 pb-2">
                 {live.length === 0 ? (
-                  <Empty
-                    icon={PenLine}
-                    title="写下第一条碎碎念"
-                    text="不用凑成一篇日记。想到什么就在下面写一句，回车就记下了，一天写几条都行。"
-                  />
+                  <Empty icon={PenLine} title={t("empty.first")} text={t("empty.firstHint")} />
                 ) : filtered.length === 0 ? (
                   <Empty
                     icon={query ? SearchX : History}
-                    title={searching ? "搜索中…" : query ? "没有匹配的碎碎念" : "这里还没有记录"}
+                    title={t(
+                      searching ? "empty.searching" : query ? "empty.matches" : "empty.records"
+                    )}
                     text={
                       query
-                        ? "换个关键词试试。"
+                        ? t("empty.queryHint")
                         : scope.kind === "tag"
-                          ? "在下面写一条，会自动带上这个标签。"
-                          : "清除筛选再看看。"
+                          ? t("empty.tagHint")
+                          : t("empty.filterHint")
                     }
                     action={
                       filtering && !searching ? (
@@ -477,7 +471,7 @@ export function DiaryView() {
                             if (scope.kind !== "all") setScope({ kind: "all" });
                           }}
                         >
-                          清除筛选
+                          {t("clear.filters")}
                         </Button>
                       ) : null
                     }
@@ -514,9 +508,10 @@ export function DiaryView() {
                       })}
                     </div>
                     <p className="text-tau-sm text-ink-3 py-7 text-center">
-                      {filtering
-                        ? `共 ${filtered.length} 条`
-                        : `已经到最早的一条了 · 共 ${filtered.length} 条`}
+                      {t(filtering ? "feed.total" : "feed.end", {
+                        count: filtered.length,
+                        amount: filtered.length.toLocaleString(locale),
+                      })}
                     </p>
                   </>
                 )}
@@ -551,7 +546,7 @@ export function DiaryView() {
                       onDismiss={() => {
                         localStorage.setItem(OTD_DISMISS_KEY, today);
                         setOtdDismissed(true);
-                        toast.info("今天不再提示，工具栏里还能打开");
+                        toast.info(t("otd.dismissed"));
                       }}
                     />
                   ) : null
@@ -578,7 +573,7 @@ export function DiaryView() {
         onConfirm={async name => {
           await mutations.clearTag(name);
           if (scope.kind === "tag" && scope.tag === name) setScope({ kind: "all" });
-          toast.success(`已清理标签「${name}」`);
+          toast.success(t("tag.cleared", { name }));
         }}
       />
     </div>
@@ -665,4 +660,30 @@ function estimateDay(group: DayGroup) {
     height += 56 + Math.max(1, lines) * 27 + (moment.tags.length ? 30 : 0);
   }
   return Math.max(height, 130);
+}
+
+function DiaryMetric({
+  message,
+  count,
+}: {
+  message: "summary.count" | "summary.month" | "summary.streak";
+  count: number;
+}) {
+  const { t, locale } = useDiaryI18n();
+  return (
+    <span>
+      {t(message, { count, amount: "\uFFFC" })
+        .split("\uFFFC")
+        .map((part, index) => (
+          <span key={index}>
+            {index > 0 && (
+              <b className="text-ink-1 font-semibold tabular-nums">
+                {count.toLocaleString(locale)}
+              </b>
+            )}
+            {part}
+          </span>
+        ))}
+    </span>
+  );
 }

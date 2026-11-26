@@ -11,8 +11,6 @@ import { TAG_COLORS, type TagColor } from "@tau/ui";
 import type { DiarySegmentItem, DiaryTagSetting } from "@/types/diary";
 import { dayKey, normalizeDiaryDay } from "@/utils/diary-day";
 
-const DAY_MS = 86_400_000;
-
 export interface DiaryMoment {
   id: number;
   diaryId: number;
@@ -34,8 +32,6 @@ export interface DiaryTag {
 
 /* ───────── 日期 ───────── */
 
-const pad = (n: number) => String(n).padStart(2, "0");
-
 export { dayKey };
 
 export function keyDate(key: string): Date {
@@ -50,44 +46,18 @@ function addDays(key: string, n: number): string {
   return dayKey(d.getTime());
 }
 
-function diffDays(a: string, b: string): number {
-  return Math.round((keyDate(a).getTime() - keyDate(b).getTime()) / DAY_MS);
-}
-
-/** 旧格式 YYYY-Www / YYYY-MM 归一到首日（实现与主进程共用，见 utils/diary-day） */
+/** 旧格式 YYYY-Www / YYYY-MM 归一到首日。 */
 export const normalizeDay = normalizeDiaryDay;
 
-const WEEK = ["日", "一", "二", "三", "四", "五", "六"];
-export const weekdayOf = (key: string) => `周${WEEK[keyDate(key).getDay()]}`;
-
-export function formatTime(ts: number): string {
-  const d = new Date(ts);
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-/** 今天 / 昨天 / N 天前（一周内），其余为空——日期列的相对日标 */
-export function relativeDay(key: string, today: string): string {
-  const off = diffDays(today, key);
-  if (off === 0) return "今天";
-  if (off === 1) return "昨天";
-  if (off > 1 && off < 7) return `${off} 天前`;
-  return "";
-}
-
-/** 9月21日；跨年补年份 */
-export function shortDate(key: string, today: string): string {
-  const d = keyDate(key);
-  const md = `${d.getMonth() + 1}月${d.getDate()}日`;
-  return d.getFullYear() === keyDate(today).getFullYear() ? md : `${d.getFullYear()}年${md}`;
-}
-
 /** 按日期查看的快捷范围（日历浮层与工具栏范围标签共用） */
-export function presetRanges(today: string): Array<{ label: string; range: [string, string] }> {
+export function presetRanges(
+  today: string
+): Array<{ key: "days7" | "days30" | "month" | "year"; range: [string, string] }> {
   return [
-    { label: "近 7 天", range: [addDays(today, -6), today] },
-    { label: "近 30 天", range: [addDays(today, -29), today] },
-    { label: "本月", range: [`${today.slice(0, 8)}01`, today] },
-    { label: "今年", range: [`${today.slice(0, 5)}01-01`, today] },
+    { key: "days7", range: [addDays(today, -6), today] },
+    { key: "days30", range: [addDays(today, -29), today] },
+    { key: "month", range: [`${today.slice(0, 8)}01`, today] },
+    { key: "year", range: [`${today.slice(0, 5)}01-01`, today] },
   ];
 }
 
@@ -313,16 +283,6 @@ export function toTagColor(color: string | undefined): TagColor {
 export function toTags(settings: DiaryTagSetting[]): DiaryTag[] {
   return settings.map(s => ({ name: s.name, color: toTagColor(s.color), sort: s.sort }));
 }
-
-export const COLOR_LABEL: Record<TagColor, string> = {
-  red: "红",
-  orange: "橙",
-  yellow: "黄",
-  green: "绿",
-  gray: "灰",
-  blue: "蓝",
-  purple: "紫",
-};
 
 /** 新标签取色：按已有标签数在六色（不含 gray）中轮转，与 legacy 预设轮转同口径 */
 export function nextTagColor(existing: number): TagColor {

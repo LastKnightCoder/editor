@@ -4,6 +4,7 @@
 // 产品设计：标签与具体 segment 绑定，一天的多条日记各自独立打标签；
 // 落库走 diary_update_tags(segmentId)，不要改回按 entry 更新（旧模型会整天共享标签）。
 
+import { useDiaryI18n, diaryTranslator } from "./i18n";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useMemoizedFn } from "ahooks";
 import { Check, Palette, Plus, TagIcon, Trash2 } from "lucide-react";
@@ -101,15 +102,16 @@ export function DiaryTagChip({
 }
 
 function ColorPalette({ value, onChange }: { value: string; onChange: (color: string) => void }) {
+  const { t } = useDiaryI18n();
   return (
     <div className="flex flex-wrap gap-2.5">
       {PRESET_TAG_COLORS.map(color => (
         <button
           key={color}
           type="button"
-          aria-label={`颜色 ${color}`}
+          aria-label={t("tag.color", { color })}
           onClick={() => onChange(color)}
-          className={`active:scale-88 grid h-[30px] w-[30px] place-items-center rounded-full transition-transform ${
+          className={`grid h-[30px] w-[30px] place-items-center rounded-full transition-transform active:scale-88 ${
             value.toLowerCase() === color
               ? "ring-accent ring-offset-surface ring-2 ring-offset-2"
               : ""
@@ -148,6 +150,7 @@ export function DiaryTagEditorSheet({
   onOpenManage,
   onError,
 }: DiaryTagEditorSheetProps) {
+  const { t } = useDiaryI18n();
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
   // 连续增删必须串行落库：并发写会互相用旧列表覆盖新结果
@@ -167,7 +170,7 @@ export function DiaryTagEditorSheet({
 
   const enqueue = (task: () => Promise<void>) => {
     const next = queueRef.current.then(task).catch(error => {
-      onErrorRef.current(error, "标签保存失败");
+      onErrorRef.current(error, diaryTranslator.t("tag.saveFailed"));
     });
     queueRef.current = next.then(
       () => undefined,
@@ -262,10 +265,10 @@ export function DiaryTagEditorSheet({
   );
 
   return (
-    <BottomSheet open={open} title="编辑标签" onClose={onClose}>
+    <BottomSheet open={open} title={t("entry.tags")} onClose={onClose}>
       {segment ? (
         <>
-          <p className="text-ink-3 text-[12.5px]">点击标签为这篇日记添加或移除</p>
+          <p className="text-ink-3 text-[12.5px]">{t("tag.hint")}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {allTagNames.map(name => {
               const selected = segment.tags.includes(name);
@@ -281,7 +284,7 @@ export function DiaryTagEditorSheet({
               );
             })}
             {allTagNames.length === 0 ? (
-              <p className="text-ink-3 text-[12.5px]">还没有标签，先在下面创建一个</p>
+              <p className="text-ink-3 text-[12.5px]">{t("tag.empty")}</p>
             ) : null}
           </div>
 
@@ -299,7 +302,7 @@ export function DiaryTagEditorSheet({
                   submitDraft();
                 }
               }}
-              placeholder="新标签名"
+              placeholder={t("tag.newName")}
               enterKeyHint="done"
               className="text-ink-1 caret-accent placeholder:text-ink-3 input-text min-w-0 flex-1 bg-transparent outline-none"
             />
@@ -310,7 +313,7 @@ export function DiaryTagEditorSheet({
               className="border-accent text-accent ml-1 inline-flex items-center gap-[3px] rounded-full border-[1.5px] border-solid px-2.5 py-[4px] text-[12px] font-semibold disabled:opacity-40"
             >
               <Plus size={12.5} strokeWidth={2.5} />
-              添加
+              {t("tag.add")}
             </button>
           </div>
 
@@ -320,7 +323,7 @@ export function DiaryTagEditorSheet({
             className="bg-page text-ink-2 mt-4 flex w-full items-center justify-center gap-1.5 rounded-2xl py-2.5 text-[13px] font-semibold transition-transform active:scale-[0.98]"
           >
             <TagIcon size={15} strokeWidth={2} aria-hidden />
-            管理标签库
+            {t("tag.library")}
           </button>
         </>
       ) : null}
@@ -352,6 +355,7 @@ export function DiaryTagManageSheet({
   onClose,
   onError,
 }: DiaryTagManageSheetProps) {
+  const { t, locale } = useDiaryI18n();
   const [edit, setEdit] = useState<EditState>({
     editing: null,
     draftName: "",
@@ -394,7 +398,7 @@ export function DiaryTagManageSheet({
     });
 
   const submitCreate = () =>
-    run("新增标签失败", async () => {
+    run(t("tag.addFailed"), async () => {
       const name = edit.draftName.trim().replace(/^#/, "");
       if (!name) return;
       const settings = await tauri.diaryUpsertTagSetting({
@@ -414,7 +418,7 @@ export function DiaryTagManageSheet({
     });
 
   const submitRename = () =>
-    run("标签修改失败", async () => {
+    run(t("tag.updateFailed"), async () => {
       const current = edit.editing;
       const name = edit.draftName.trim().replace(/^#/, "");
       if (!current || !name || name === current) {
@@ -444,7 +448,7 @@ export function DiaryTagManageSheet({
     });
 
   const submitRecolor = (color: string) =>
-    run("标签修改失败", async () => {
+    run(t("tag.updateFailed"), async () => {
       const current = edit.editing;
       if (!current) return;
       setEdit(prev => ({ ...prev, draftColor: color }));
@@ -453,7 +457,7 @@ export function DiaryTagManageSheet({
     });
 
   const submitDelete = () =>
-    run("标签删除失败", async () => {
+    run(t("tag.deleteFailed"), async () => {
       const target = deleteTarget;
       setDeleteTarget(null);
       if (!target) return;
@@ -483,7 +487,7 @@ export function DiaryTagManageSheet({
   );
 
   return (
-    <BottomSheet open={open} title="管理标签" onClose={onClose}>
+    <BottomSheet open={open} title={t("tag.manage")} onClose={onClose}>
       <div className="space-y-2.5">
         {tagSettings.map(setting => {
           if (editingSetting?.name === setting.name) {
@@ -502,22 +506,22 @@ export function DiaryTagManageSheet({
                         submitRename();
                       }
                     }}
-                    placeholder="标签名"
+                    placeholder={t("tag.name")}
                     enterKeyHint="done"
                     className="input-base bg-surface min-w-0 flex-1 px-3 font-semibold"
                   />
                   <button
                     type="button"
                     onClick={() => setDeleteTarget(setting.name)}
-                    aria-label={`删除标签 ${setting.name}`}
-                    className="bg-surface text-tag-5 active:scale-88 grid h-9 w-9 shrink-0 place-items-center rounded-xl transition-transform"
+                    aria-label={t("tag.remove", { name: setting.name })}
+                    className="bg-surface text-tag-5 grid h-9 w-9 shrink-0 place-items-center rounded-xl transition-transform active:scale-88"
                   >
                     <Trash2 size={16} strokeWidth={2} aria-hidden />
                   </button>
                 </div>
                 <div className="text-ink-3 mt-3 flex items-center gap-2 text-[11.5px] font-semibold">
                   <Palette size={13} strokeWidth={2} aria-hidden />
-                  颜色
+                  {t("tag.colors")}
                 </div>
                 <div className="mt-2">
                   <ColorPalette
@@ -531,7 +535,7 @@ export function DiaryTagManageSheet({
                     onClick={resetEdit}
                     className="bg-surface text-ink-2 flex-1 rounded-xl py-2.5 text-[13px] font-semibold transition-transform active:scale-[0.98]"
                   >
-                    取消
+                    {t("cancel")}
                   </button>
                   <button
                     type="button"
@@ -539,7 +543,7 @@ export function DiaryTagManageSheet({
                     disabled={busy || !edit.draftName.trim()}
                     className="bg-accent text-ink-inverse flex-1 rounded-xl py-2.5 text-[13px] font-semibold transition-transform active:scale-[0.98] disabled:opacity-40"
                   >
-                    保存
+                    {t("save")}
                   </button>
                 </div>
               </div>
@@ -561,7 +565,10 @@ export function DiaryTagManageSheet({
                 {setting.name}
               </span>
               <span className="text-ink-3 shrink-0 text-[12px] tabular-nums">
-                {usageCount(setting.name)} 篇
+                {t("tag.usage", {
+                  count: usageCount(setting.name),
+                  amount: usageCount(setting.name).toLocaleString(locale),
+                })}
               </span>
             </button>
           );
@@ -580,14 +587,14 @@ export function DiaryTagManageSheet({
                     submitCreate();
                   }
                 }}
-                placeholder="新标签名"
+                placeholder={t("tag.newName")}
                 enterKeyHint="done"
                 className="input-base bg-surface min-w-0 flex-1 px-3 font-semibold"
               />
             </div>
             <div className="text-ink-3 mt-3 flex items-center gap-2 text-[11.5px] font-semibold">
               <Palette size={13} strokeWidth={2} aria-hidden />
-              颜色
+              {t("tag.colors")}
             </div>
             <div className="mt-2">
               <ColorPalette
@@ -601,7 +608,7 @@ export function DiaryTagManageSheet({
                 onClick={resetEdit}
                 className="bg-surface text-ink-2 flex-1 rounded-xl py-2.5 text-[13px] font-semibold transition-transform active:scale-[0.98]"
               >
-                取消
+                {t("cancel")}
               </button>
               <button
                 type="button"
@@ -609,7 +616,7 @@ export function DiaryTagManageSheet({
                 disabled={busy || !edit.draftName.trim()}
                 className="bg-accent text-ink-inverse flex-1 rounded-xl py-2.5 text-[13px] font-semibold transition-transform active:scale-[0.98] disabled:opacity-40"
               >
-                添加
+                {t("tag.add")}
               </button>
             </div>
           </div>
@@ -620,21 +627,23 @@ export function DiaryTagManageSheet({
             className="border-line-1 text-ink-3 flex w-full items-center justify-center gap-1.5 rounded-2xl border-[1.5px] border-dashed py-3 text-[13px] font-semibold transition-transform active:scale-[0.98]"
           >
             <Plus size={15} strokeWidth={2.2} aria-hidden />
-            新增标签
+            {t("tag.new")}
           </button>
         )}
 
         {tagSettings.length === 0 && !edit.creating ? (
-          <p className="text-ink-3 pb-1 text-center text-[12.5px]">
-            还没有标签；也可以在编辑日记标签时输入新名字自动创建
-          </p>
+          <p className="text-ink-3 pb-1 text-center text-[12.5px]">{t("tag.libraryEmpty")}</p>
         ) : null}
       </div>
 
       <MobileConfirmDialog
         open={deleteTarget !== null}
-        title="删除标签"
-        description={`「${deleteTarget ?? ""}」将从标签库和 ${deleteTarget ? usageCount(deleteTarget) : 0} 篇日记中移除。`}
+        title={t("tag.deleteTitle")}
+        description={t("tag.deleteDescription", {
+          name: deleteTarget ?? "",
+          count: deleteTarget ? usageCount(deleteTarget) : 0,
+          amount: (deleteTarget ? usageCount(deleteTarget) : 0).toLocaleString(locale),
+        })}
         danger
         loading={busy}
         onCancel={() => setDeleteTarget(null)}

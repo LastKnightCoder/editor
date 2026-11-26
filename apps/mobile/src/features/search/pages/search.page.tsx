@@ -1,6 +1,7 @@
 // 搜索页：查询条件/结果/加载态全部页面私有（keep-alive 跨进出保留），
 // 搜索请求自包含（原先 isSearching/请求序号提升在 AppShell）。
 
+import { getBaseDateFromDiaryKey } from "../../diary/dateKey";
 import { useMemoizedFn } from "ahooks";
 import { useRef, useState } from "react";
 import { SearchPage } from "../SearchPage";
@@ -73,8 +74,16 @@ function SearchScreen() {
             contentId: result.contentId,
             fromDiary: true,
             diaryDate: {
-              title: result.date ?? result.title,
-              sub: result.containerTitle ?? undefined,
+              mode:
+                result.containerTitle === "weekly" || result.containerTitle === "monthly"
+                  ? result.containerTitle
+                  : "daily",
+              baseDate: getBaseDateFromDiaryKey(
+                result.containerTitle === "weekly" || result.containerTitle === "monthly"
+                  ? result.containerTitle
+                  : "daily",
+                result.date ?? result.title
+              ),
             },
           });
         } else {

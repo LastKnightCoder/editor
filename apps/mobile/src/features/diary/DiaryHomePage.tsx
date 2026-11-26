@@ -14,6 +14,7 @@
 // 2. 标签与具体 segment 绑定，同一天的多条日记各自独立打标签；
 //    数据库 entry 上遗留的 tags 列只是旧模型的历史数据，不再读写。
 
+import { useDiaryI18n, diaryTranslator } from "./i18n";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import { useEdgeFade, useEdgeFadeX } from "../../hooks/useScrollState";
@@ -34,7 +35,9 @@ import {
   getTodayDateKey,
   hasDiaryContent,
 } from "./feedUtils";
-import DiaryCardItem, { describeEntry, segmentTagsBrief } from "./DiaryCardItem";
+import { describeDiaryPeriod, monthLabel, weekLabels } from "./format";
+import { getBaseDateFromDiaryKey } from "./dateKey";
+import DiaryCardItem, { segmentTagsBrief } from "./DiaryCardItem";
 import {
   DiaryTagEditorSheet,
   DiaryTagManageSheet,
@@ -67,7 +70,7 @@ const ENTRY_ROW_ESTIMATE = 168;
 
 /** 虚拟行：月份分组头或片段卡片 */
 type DiaryFeedRow =
-  | { kind: "month"; key: string; label: string; count: number; wordTotal: number }
+  | { kind: "month"; key: string; month: string; count: number; wordTotal: number }
   | { kind: "segment"; key: string; entry: DiaryEntry; segment: DiarySegment };
 
 export function DiaryHomePage({
@@ -76,6 +79,7 @@ export function DiaryHomePage({
   onOpenSegment,
   onError,
 }: DiaryHomePageProps) {
+  const { t, locale } = useDiaryI18n();
   const mode = useDiaryStore(state => state.mode);
   const baseDate = useDiaryStore(state => state.baseDate);
   const entriesQuery = useDiaryEntries();
@@ -108,7 +112,7 @@ export function DiaryHomePage({
 
   useEffect(() => {
     void initialize().catch(error => {
-      onErrorRef.current(error, "日记数据加载失败");
+      onErrorRef.current(error, diaryTranslator.t("load.failed"));
     });
   }, [initialize]);
 
@@ -180,7 +184,7 @@ export function DiaryHomePage({
       rows.push({
         kind: "month",
         key: `month-${group.monthKey}`,
-        label: group.monthLabel,
+        month: group.monthKey,
         count: displayEntries.reduce((sum, item) => sum + item.segments.length, 0),
         wordTotal: displayEntries.reduce(
           (sum, item) => sum + item.segments.reduce((acc, seg) => acc + seg.wordCount, 0),
@@ -281,7 +285,7 @@ export function DiaryHomePage({
         return { ...item, segments: mergedSegments };
       });
     });
-    toast({ type: "info", text: "已恢复日记" });
+    toast({ type: "info", text: t("restored") });
   });
 
   const commitDelete = useMemoizedFn(async (entry: DiaryEntry, segment: DiarySegment) => {
@@ -296,7 +300,7 @@ export function DiaryHomePage({
           : prev.filter(item => item.id !== entry.id)
       );
     } catch (error) {
-      onErrorRef.current(error, "删除日记失败");
+      onErrorRef.current(error, t("delete.failed"));
       // 落库失败说明数据仍在数据库，把片段放回列表
       restoreEntry(entry);
     }
@@ -312,10 +316,10 @@ export function DiaryHomePage({
     }, UNDO_WINDOW_MS);
     toast({
       type: "success",
-      text: "已删除日记",
+      text: t("deleted"),
       duration: UNDO_WINDOW_MS,
       action: {
-        label: "撤销",
+        label: t("undo"),
         onClick: () => {
           window.clearTimeout(commitTimer);
           restoreEntry(target.entry);
@@ -382,16 +386,16 @@ export function DiaryHomePage({
     <div className="bg-page relative flex h-full flex-col">
       <header className="flex items-center justify-between px-[18px] pt-[calc(20px+var(--mobile-safe-top))]">
         <div>
-          <h1 className="text-ink-1 text-2xl font-extrabold tracking-tight">日记</h1>
+          <h1 className="text-ink-1 text-2xl font-extrabold tracking-tight">{t("title")}</h1>
           <p className="text-ink-2 mt-1 text-[12.5px]">
-            {streak > 0 ? `连续记录 ${streak} 天` : "开始今天的记录"}
+            {streak > 0 ? t("streak", { amount: streak.toLocaleString(locale) }) : t("start")}
           </p>
         </div>
         <button
           type="button"
           onClick={() => setCalendarOpen(true)}
-          aria-label="按日期查找"
-          className="bg-surface text-ink-2 shadow-card active:scale-88 grid h-[42px] w-[42px] place-items-center rounded-[15px] transition-transform duration-200"
+          aria-label={t("calendar.title")}
+          className="bg-surface text-ink-2 shadow-card grid h-[42px] w-[42px] place-items-center rounded-[15px] transition-transform duration-200 active:scale-88"
         >
           <CalendarDays size={20} strokeWidth={1.9} aria-hidden="true" />
         </button>
@@ -408,7 +412,7 @@ export function DiaryHomePage({
             className="bg-surface text-ink-3 shadow-card mt-3 flex h-[46px] w-full items-center gap-2.5 rounded-[16px] px-4 text-[14px] transition-transform duration-150 active:scale-[0.985]"
           >
             <PenLine size={16} strokeWidth={2} aria-hidden="true" />
-            记下今天的想法…
+            {t("compose")}
             <span
               className="text-ink-inverse ml-auto grid h-[30px] w-[30px] place-items-center rounded-[11px]"
               style={{ background: "var(--tau-accent)", boxShadow: "var(--tau-shadow-lift)" }}
@@ -417,7 +421,7 @@ export function DiaryHomePage({
             </span>
           </button>
 
-          <nav className="mt-3 flex items-center gap-2 py-0.5" aria-label="日记标签筛选">
+          <nav className="mt-3 flex items-center gap-2 py-0.5" aria-label={t("tag.filter")}>
             <div
               ref={tagFilterRef}
               className="edge-fade-x-scroll scrollbar-hide flex flex-1 gap-2 overflow-x-auto"
@@ -429,7 +433,7 @@ export function DiaryHomePage({
                   selectedTags.length === 0 ? "bg-accent-soft text-ink-1" : "bg-surface text-ink-2"
                 }`}
               >
-                全部
+                {t("all")}
               </button>
               {tagSettings.map(setting => {
                 const selected = selectedTags.includes(setting.name);
@@ -465,8 +469,8 @@ export function DiaryHomePage({
             <button
               type="button"
               onClick={() => setManageTagsOpen(true)}
-              aria-label="管理标签"
-              className="bg-surface text-ink-2 shadow-card active:scale-88 grid h-[38px] w-[38px] shrink-0 place-items-center rounded-full transition-transform duration-200"
+              aria-label={t("tag.manage")}
+              className="bg-surface text-ink-2 shadow-card grid h-[38px] w-[38px] shrink-0 place-items-center rounded-full transition-transform duration-200 active:scale-88"
             >
               <Settings2 size={17} strokeWidth={2} aria-hidden="true" />
             </button>
@@ -484,8 +488,8 @@ export function DiaryHomePage({
             </div>
           ) : feedRows.length === 0 ? (
             <div className="py-16 text-center">
-              <p className="text-ink-2 text-[15px] font-semibold">这里还是空的</p>
-              <p className="text-ink-3 mt-1.5 text-[13px]">从上面的输入条开始，写下第一条日记</p>
+              <p className="text-ink-2 text-[15px] font-semibold">{t("empty.title")}</p>
+              <p className="text-ink-3 mt-1.5 text-[13px]">{t("empty.hint")}</p>
             </div>
           ) : (
             <div
@@ -510,10 +514,13 @@ export function DiaryHomePage({
                     }}
                   >
                     {row?.kind === "month" ? (
-                      <div className="text-ink-3 mb-2.5 mt-5 flex items-center gap-2.5 text-[12px] font-bold">
-                        <span>{row.label}</span>
+                      <div className="text-ink-3 mt-5 mb-2.5 flex items-center gap-2.5 text-[12px] font-bold">
+                        <span>{monthLabel(row.month, locale)}</span>
                         <span className="font-mono text-[11px] font-medium">
-                          {row.count} 条 · {row.wordTotal} 字
+                          {t("summary", {
+                            entries: row.count.toLocaleString(locale),
+                            words: row.wordTotal.toLocaleString(locale),
+                          })}
                         </span>
                         <span className="bg-line-1 h-[1.5px] flex-1" />
                       </div>
@@ -537,45 +544,63 @@ export function DiaryHomePage({
 
       <MobileConfirmDialog
         open={deleteTarget !== null}
-        title="删除日记"
-        description={`「${clampText(
-          deleteTarget
-            ? [describeEntry(deleteTarget.entry).title, segmentTagsBrief(deleteTarget.segment)]
-                .filter(Boolean)
-                .join(" · ")
-            : "",
-          18
-        )}」将被删除。`}
+        title={t("delete.title")}
+        description={t("delete.description", {
+          title: clampText(
+            deleteTarget
+              ? [
+                  describeDiaryPeriod(
+                    {
+                      mode: deleteTarget.entry.type,
+                      baseDate: getBaseDateFromDiaryKey(
+                        deleteTarget.entry.type,
+                        deleteTarget.entry.date
+                      ),
+                    },
+                    { t, locale }
+                  ).title,
+                  segmentTagsBrief(deleteTarget.segment),
+                ]
+                  .filter(Boolean)
+                  .join(" · ")
+              : "",
+            18
+          ),
+        })}
         danger
         onCancel={() => setDeleteTarget(null)}
         onConfirm={handleDeleteSegment}
       />
 
-      <BottomSheet open={calendarOpen} title="按日期查找" onClose={() => setCalendarOpen(false)}>
+      <BottomSheet
+        open={calendarOpen}
+        title={t("calendar.title")}
+        onClose={() => setCalendarOpen(false)}
+      >
         <div className="mb-3 flex items-center">
           <button
             type="button"
             onClick={() => shiftCalendarMonth(-1)}
-            aria-label="上一月"
-            className="bg-page text-ink-2 active:scale-88 grid h-9 w-9 place-items-center rounded-xl transition-transform duration-150"
+            aria-label={t("calendar.previous")}
+            className="bg-page text-ink-2 grid h-9 w-9 place-items-center rounded-xl transition-transform duration-150 active:scale-88"
           >
             <ChevronLeft size={16} aria-hidden="true" />
           </button>
           <p className="text-ink-1 flex-1 text-center text-[15px] font-bold tabular-nums">
-            {calendarMonth.year}年{calendarMonth.month + 1}月
+            {monthLabel(`${calendarMonth.year}-${pad2(calendarMonth.month + 1)}`, locale)}
           </p>
           <button
             type="button"
             onClick={() => shiftCalendarMonth(1)}
-            aria-label="下一月"
-            className="bg-page text-ink-2 active:scale-88 grid h-9 w-9 place-items-center rounded-xl transition-transform duration-150"
+            aria-label={t("calendar.next")}
+            className="bg-page text-ink-2 grid h-9 w-9 place-items-center rounded-xl transition-transform duration-150 active:scale-88"
           >
             <ChevronRight size={16} aria-hidden="true" />
           </button>
         </div>
         <div className="grid grid-cols-7 gap-1">
-          {["一", "二", "三", "四", "五", "六", "日"].map(w => (
-            <div key={w} className="text-ink-3 pb-1.5 text-center text-[10.5px] font-semibold">
+          {weekLabels(locale).map((w, index) => (
+            <div key={index} className="text-ink-3 pb-1.5 text-center text-[10.5px] font-semibold">
               {w}
             </div>
           ))}
@@ -590,7 +615,7 @@ export function DiaryHomePage({
                 }`}
                 style={cell.isToday ? { background: "var(--tau-accent)" } : undefined}
               >
-                {cell.day}
+                {Number(cell.day).toLocaleString(locale)}
                 {cell.hasEntry && !cell.isToday ? (
                   <span className="bg-tag-1 absolute bottom-[4px] h-[4px] w-[4px] rounded-full" />
                 ) : null}

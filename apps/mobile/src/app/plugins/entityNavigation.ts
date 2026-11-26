@@ -1,10 +1,6 @@
 import type { Navigator } from "../../router/navigatorTypes";
 import type { MobileEntityOpenOptions, MobileEntityOpenTarget } from "./app-types";
-import {
-  describeDiaryPeriod,
-  getBaseDateFromDiaryKey,
-  getDiaryDateKey,
-} from "../../features/diary/dateKey";
+import { getBaseDateFromDiaryKey, getDiaryDateKey } from "../../features/diary/dateKey";
 
 function positiveId(value: number): number {
   if (!Number.isSafeInteger(value) || value <= 0) throw new Error("内容打开目标无效");
@@ -39,7 +35,7 @@ export function navigateMobileEntity(
         contentId: positiveId(target.contentId),
         contentTitle: "",
         fromDiary: true,
-        diaryDate: describeDiaryPeriod(target.diaryType, baseDate),
+        diaryDate: { mode: target.diaryType, baseDate: baseDate },
         ...location,
       });
       return;

@@ -4,6 +4,7 @@
  * 条目上的标签编辑与输入条的「# 标签」按钮共用本件。
  */
 
+import { useDiaryI18n } from "../i18n";
 import { useMemo, useState, type ReactElement } from "react";
 import { Check, ChevronLeft, Eraser, Hash, MoreHorizontal, Plus } from "lucide-react";
 import {
@@ -16,7 +17,7 @@ import {
   type PopoverProps,
   type TagColor,
 } from "@tau/ui";
-import { COLOR_LABEL, type DiaryTag } from "../model";
+import { type DiaryTag } from "../model";
 import { TagDot } from "./bits";
 
 export interface TagPickerProps {
@@ -55,6 +56,7 @@ function TagPickerPanel({
   onRecolor,
   onClear,
 }: Omit<TagPickerProps, "trigger" | "placement">) {
+  const { t, locale } = useDiaryI18n();
   const [query, setQuery] = useState("");
   const [highlight, setHighlight] = useState(0);
   const [managing, setManaging] = useState<string | null>(null);
@@ -94,7 +96,7 @@ function TagPickerPanel({
         <input
           data-autofocus
           value={query}
-          placeholder="搜索或新建标签…"
+          placeholder={t("tag.search")}
           onChange={e => {
             setQuery(e.target.value);
             setHighlight(0);
@@ -134,11 +136,13 @@ function TagPickerPanel({
             </span>
             <TagDot color={tag.color} />
             <span className="min-w-0 flex-1 truncate">{tag.name}</span>
-            <span className="text-tau-sm text-ink-3 tabular-nums">{counts.get(tag.name) ?? 0}</span>
+            <span className="text-tau-sm text-ink-3 tabular-nums">
+              {(counts.get(tag.name) ?? 0).toLocaleString(locale)}
+            </span>
             {/* 固定槽位原位淡入：悬停不改变行宽（PREFERENCES） */}
             <IconButton
-              title="颜色与清理"
-              className="size-6 rounded-[7px] opacity-0 transition-opacity focus-visible:opacity-100 group-hover/row:opacity-100"
+              title={t("tag.manage")}
+              className="size-6 rounded-[7px] opacity-0 transition-opacity group-hover/row:opacity-100 focus-visible:opacity-100"
               onClick={e => {
                 e.stopPropagation();
                 setManaging(tag.name);
@@ -160,21 +164,21 @@ function TagPickerPanel({
             )}
           >
             <Plus className="size-[14px] shrink-0" strokeWidth={1.75} />
-            <span className="truncate">创建「{creatable}」</span>
+            <span className="truncate">{t("tag.create", { name: creatable })}</span>
           </div>
         )}
-        {!total && <p className="text-tau-meta text-ink-3 px-2 py-2.5">还没有标签，输入名称创建</p>}
+        {!total && <p className="text-tau-meta text-ink-3 px-2 py-2.5">{t("tag.empty")}</p>}
       </div>
-      <div className="text-tau-sm text-ink-3 mt-1.5 flex items-center gap-3 px-2 pb-0.5 pt-1.5">
-        <span>↑↓ 选择</span>
-        <span>↵ 添加</span>
+      <div className="text-tau-sm text-ink-3 mt-1.5 flex items-center gap-3 px-2 pt-1.5 pb-0.5">
+        <span>{t("tag.selectKey")}</span>
+        <span>{t("tag.addKey")}</span>
         {selected.length > 0 && (
           <button
             type="button"
             className="text-accent-text ml-auto hover:underline"
             onClick={() => onChange([])}
           >
-            清空已选
+            {t("tag.clearSelected")}
           </button>
         )}
       </div>
@@ -195,14 +199,17 @@ function TagManagePanel({
   onRecolor: (color: TagColor) => void;
   onClear: () => void;
 }) {
+  const { t, locale } = useDiaryI18n();
   return (
     <div className="p-2">
       <div className="mb-2.5 flex items-center gap-2">
-        <IconButton title="返回" className="size-6 rounded-[7px]" onClick={onBack}>
+        <IconButton title={t("back")} className="size-6 rounded-[7px]" onClick={onBack}>
           <ChevronLeft className="size-[14px]" strokeWidth={1.75} />
         </IconButton>
         <Tag color={tag.color}>{tag.name}</Tag>
-        <span className="text-tau-sm text-ink-3 ml-auto">{count} 条</span>
+        <span className="text-tau-sm text-ink-3 ml-auto">
+          {t("summary.count", { count, amount: count.toLocaleString(locale) })}
+        </span>
       </div>
       <ColorRow value={tag.color} onChange={onRecolor} />
       <button
@@ -211,7 +218,7 @@ function TagManagePanel({
         className="text-tau-body text-danger hover:bg-danger-soft mt-2.5 flex h-8 w-full items-center gap-2 rounded-[8px] px-2"
       >
         <Eraser className="size-[14px]" strokeWidth={1.75} />
-        清理这个标签…
+        {t("tag.clearMenu")}
       </button>
     </div>
   );
@@ -225,16 +232,17 @@ export function ColorRow({
   value: TagColor;
   onChange: (c: TagColor) => void;
 }) {
+  const { t } = useDiaryI18n();
   return (
-    <div role="radiogroup" aria-label="标签颜色" className="flex gap-2 px-1">
+    <div role="radiogroup" aria-label={t("tag.colorLabel")} className="flex gap-2 px-1">
       {TAG_COLORS.map(color => (
         <button
           key={color}
           type="button"
           role="radio"
           aria-checked={value === color}
-          aria-label={COLOR_LABEL[color]}
-          title={COLOR_LABEL[color]}
+          aria-label={t(`color.${color}`)}
+          title={t(`color.${color}`)}
           onClick={() => onChange(color)}
           className={cn(
             "ring-offset-surface grid size-5 place-items-center rounded-full ring-offset-2 focus-visible:shadow-[var(--tau-focus-ring)]",
@@ -260,15 +268,18 @@ export function ClearTagDialog({
   onOpenChange: (open: boolean) => void;
   onConfirm: (name: string) => Promise<unknown>;
 }) {
+  const { t, locale } = useDiaryI18n();
   return (
     <ConfirmDialog
       open={name != null}
       onOpenChange={onOpenChange}
-      title="清理标签"
+      title={t("tag.clearTitle")}
       context={name ?? undefined}
-      description="标签会从标签列表里删除，并从所有碎碎念上移除；碎碎念本身不受影响。"
-      impact={count ? `${count} 条碎碎念会失去这个标签` : undefined}
-      confirmText="清理"
+      description={t("tag.clearDescription")}
+      impact={
+        count ? t("tag.clearImpact", { count, amount: count.toLocaleString(locale) }) : undefined
+      }
+      confirmText={t("tag.clearConfirm")}
       danger
       onConfirm={() => (name ? onConfirm(name) : undefined)}
     />

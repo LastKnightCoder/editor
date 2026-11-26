@@ -14,7 +14,7 @@ import { useEdgeFade } from "../hooks/useScrollState";
 import { useRootScrollLock } from "../router/useRootScrollLock";
 import { useRouterContext, switchTabScreen } from "../router";
 import { useAppContext } from "./AppContext";
-import { describeDiaryPeriod, getBaseDateFromDiaryKey } from "../features/diary/dateKey";
+import { getBaseDateFromDiaryKey } from "../features/diary/dateKey";
 import { getTodayDateKey } from "../features/diary/feedUtils";
 import { useDiaryStore } from "../features/diary/store/useDiaryStore";
 import type { DiaryEntry, DiarySegment } from "../types";
@@ -63,7 +63,7 @@ export function HomeScreen() {
       contentId: segment.contentId,
       contentTitle: "",
       fromDiary: true,
-      diaryDate: describeDiaryPeriod(entry.type, baseDate),
+      diaryDate: { mode: entry.type, baseDate: baseDate },
     });
   });
   const onOpenArticle = useMemoizedFn((articleId: number) =>
@@ -99,7 +99,7 @@ export function HomeScreen() {
           contentId,
           contentTitle: "",
           fromDiary: true,
-          diaryDate: describeDiaryPeriod("daily", today),
+          diaryDate: { mode: "daily", baseDate: today },
         });
       } catch (error) {
         app.presentError(error, t("error.diaryOpen"));

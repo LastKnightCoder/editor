@@ -5,10 +5,11 @@
  * 页内因此不再放标签栏——全局只剩一条侧栏（PREFERENCES「页内不再放第二条侧栏」）。
  */
 
+import { useDiaryI18n } from "../i18n";
 import { useMemo, useState } from "react";
 import { Eraser, Hash } from "lucide-react";
 import { ContextMenu, Menu, cn, toast, TAG_COLORS } from "@tau/ui";
-import { COLOR_LABEL, parseScope, rankTags, scopeId, tagCounts, type DiaryScope } from "../model";
+import { parseScope, rankTags, scopeId, tagCounts, type DiaryScope } from "../model";
 import { useDiaryMutations, useDiarySnapshot } from "../queries";
 import { TagDot } from "./bits";
 import { ClearTagDialog } from "./TagPicker";
@@ -20,6 +21,7 @@ export function DiaryNavTags({
   selectedId?: string;
   onSelect: (id: string) => void;
 }) {
+  const { t } = useDiaryI18n();
   const { snapshot } = useDiarySnapshot();
   const mutations = useDiaryMutations();
   const [clearing, setClearing] = useState<string | null>(null);
@@ -32,13 +34,13 @@ export function DiaryNavTags({
     onSelect(scopeId(scope) === scopeId(current) ? "" : scopeId(scope));
 
   return (
-    <div className="mt-0.5 mb-1 space-y-px" role="group" aria-label="日记标签">
+    <div className="mt-0.5 mb-1 space-y-px" role="group" aria-label={t("tag.diary")}>
       {tags.map(tag => (
         <ContextMenu
           key={tag.name}
           content={
             <>
-              <Menu.Group>颜色</Menu.Group>
+              <Menu.Group>{t("tag.colors")}</Menu.Group>
               <Menu.RadioGroup
                 value={tag.color}
                 onValueChange={color =>
@@ -47,7 +49,7 @@ export function DiaryNavTags({
               >
                 {TAG_COLORS.map(color => (
                   <Menu.RadioItem key={color} value={color} icon={<TagDot color={color} />}>
-                    {COLOR_LABEL[color]}
+                    {t(`color.${color}`)}
                   </Menu.RadioItem>
                 ))}
               </Menu.RadioGroup>
@@ -57,7 +59,7 @@ export function DiaryNavTags({
                 icon={<Eraser className="size-[15px]" strokeWidth={1.75} />}
                 onSelect={() => setClearing(tag.name)}
               >
-                清理这个标签…
+                {t("tag.clearMenu")}
               </Menu.Item>
             </>
           }
@@ -74,7 +76,7 @@ export function DiaryNavTags({
       {untagged > 0 && (
         <NavChild
           active={current.kind === "untagged"}
-          label="无标签"
+          label={t("untagged")}
           count={untagged}
           glyph={<Hash className="text-ink-3 size-[13px]" strokeWidth={1.75} />}
           onClick={() => select({ kind: "untagged" })}
@@ -87,7 +89,7 @@ export function DiaryNavTags({
         onConfirm={async name => {
           await mutations.clearTag(name);
           if (current.kind === "tag" && current.tag === name) onSelect("");
-          toast.success(`已清理标签「${name}」`);
+          toast.success(t("tag.cleared", { name }));
         }}
       />
     </div>
@@ -107,6 +109,7 @@ function NavChild({
   glyph: React.ReactNode;
   onClick: () => void;
 }) {
+  const { t, locale } = useDiaryI18n();
   return (
     // 让出父项图标列（按 body 字号折算）放在按钮外：高亮只盖色点起的一段，色点落在父项文字列
     <div className="flex gap-2.5">
@@ -115,7 +118,7 @@ function NavChild({
         type="button"
         onClick={onClick}
         aria-current={active ? "page" : undefined}
-        title={active ? "再点一次回到全部" : `只看「${label}」`}
+        title={active ? t("tag.all") : t("tag.only", { name: label })}
         className={cn(
           "text-tau-meta ease-tau-out flex h-[calc(1.5em+10px)] min-w-0 flex-1 items-center gap-2.5 rounded-[9px] px-2.5 text-left transition-[background,color] duration-[160ms]",
           // 子项选中 = 当前频道：accent 淡底（父项此时降为「所在区」样式，同协作页）
@@ -126,7 +129,9 @@ function NavChild({
       >
         <span className="grid w-[13px] shrink-0 place-items-center">{glyph}</span>
         <span className="min-w-0 flex-1 truncate">{label}</span>
-        <span className="text-tau-tiny text-ink-3 font-normal tabular-nums">{count}</span>
+        <span className="text-tau-tiny text-ink-3 font-normal tabular-nums">
+          {count.toLocaleString(locale)}
+        </span>
       </button>
     </div>
   );

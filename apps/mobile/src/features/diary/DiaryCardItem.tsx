@@ -1,3 +1,5 @@
+import { useDiaryI18n } from "./i18n";
+import { describeDiaryPeriod } from "./format";
 import { isContentEmpty } from "@tau/db-schema/content-metrics";
 // 日记信息流卡片（v2 模板）：一个片段一张卡，独立预览、独立编辑、独立删除。
 // 只读 Editor 渲染前两段做预览（对齐卡片库，不做文本摘要提取）；
@@ -25,32 +27,6 @@ const PREVIEW_BLOCK_COUNT = 2;
 /** 卡片头部最多展示的标签数，超出折叠为 +n */
 const HEADER_TAG_LIMIT = 2;
 
-/** 卡片头部的主/副标题：9月10日 · 周三（今天）/ 第 37 周 · 9.7 - 9.13 / 9月 · 2026年 */
-export function describeEntry(entry: DiaryEntry): { title: string; sub: string } {
-  if (entry.type === "daily") {
-    const [year, month, day] = entry.date.split("-");
-    const date = new Date(Number(year), Number(month) - 1, Number(day));
-    const weekday = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"][date.getDay()];
-    const isToday = entry.date === getTodayDateKey();
-    return {
-      title: `${Number(month)}月${Number(day)}日`,
-      sub: `${weekday}${isToday ? " · 今天" : ""}`,
-    };
-  }
-  if (entry.type === "weekly") {
-    const base = getBaseDateFromDiaryKey("weekly", entry.date);
-    const [y, m, d] = base.split("-").map(Number);
-    const start = new Date(y, m - 1, d);
-    const end = new Date(start.getTime() + 6 * 24 * 60 * 60 * 1000);
-    return {
-      title: `第 ${entry.date.replace(/^.*W/, "")} 周`,
-      sub: `${m}.${d} - ${end.getMonth() + 1}.${end.getDate()}`,
-    };
-  }
-  const [year, month] = entry.date.split("-");
-  return { title: `${Number(month)}月`, sub: `${year}年` };
-}
-
 /** 删除确认等上下文用的标签摘要：无标签时回退为空串（取 segment 自身标签） */
 export function segmentTagsBrief(segment: DiarySegment): string {
   return segment.tags.join(" / ");
@@ -74,26 +50,34 @@ const DiaryCardItem = memo(
     onEditTags,
     onDeleteSegment,
   }: DiaryCardItemProps) => {
+    const { t, locale } = useDiaryI18n();
     const contentKit = useMobileContentKit("read");
-    const desc = useMemo(() => describeEntry(entry), [entry]);
+    const desc = useMemo(
+      () =>
+        describeDiaryPeriod(
+          { mode: entry.type, baseDate: getBaseDateFromDiaryKey(entry.type, entry.date) },
+          { t, locale }
+        ),
+      [entry, t, locale]
+    );
     const [menuOpen, setMenuOpen] = useState(false);
     const [menuAnchor, setMenuAnchor] = useState<HTMLButtonElement | null>(null);
 
     const menuItems = useMemo<PopoverItem[]>(
       () => [
         {
-          label: "编辑标签",
+          label: t("entry.tags"),
           icon: <Tags size={17} strokeWidth={2} aria-hidden="true" />,
           onClick: () => onEditTags(entry, segment),
         },
         {
-          label: "删除",
+          label: t("entry.delete"),
           icon: <Trash2 size={17} strokeWidth={2} aria-hidden="true" />,
           danger: true,
           onClick: () => onDeleteSegment(entry, segment),
         },
       ],
-      [entry, segment, onEditTags, onDeleteSegment]
+      [entry, segment, onEditTags, onDeleteSegment, t]
     );
 
     const closeMenu = useCallback(() => setMenuOpen(false), []);
@@ -143,7 +127,7 @@ const DiaryCardItem = memo(
           <button
             ref={setMenuAnchor}
             type="button"
-            aria-label="日记操作"
+            aria-label={t("entry.actions")}
             className="text-ink-3 active:bg-page ml-auto grid h-[30px] w-[30px] flex-shrink-0 place-items-center rounded-full transition-colors"
             onClick={event => {
               event.stopPropagation();
@@ -163,11 +147,18 @@ const DiaryCardItem = memo(
               document={document}
             />
           ) : (
-            <p className="text-ink-3 text-[13px]">空白</p>
+            <p className="text-ink-3 text-[13px]">{t("entry.empty")}</p>
           )}
         </div>
         <div className="text-ink-3 mt-2.5 flex items-center gap-3 text-[11.5px] tabular-nums">
-          <span>{isContentEmpty(segment.content) ? "空白" : `${segment.wordCount} 字`}</span>
+          <span>
+            {isContentEmpty(segment.content)
+              ? t("entry.empty")
+              : t("entry.words", {
+                  count: segment.wordCount,
+                  amount: segment.wordCount.toLocaleString(locale),
+                })}
+          </span>
           {entry.mood?.type === "emoji" ? (
             <span className="ml-auto text-[13px]">{entry.mood.value}</span>
           ) : null}

@@ -5,6 +5,8 @@
  * 抽屉盖在纸上不挤压（同闪卡 ReferenceDrawer 形制），Esc 走浮层注册表。
  */
 
+import { shortDate, weekdayOf, formatTime } from "../format";
+import { useDiaryI18n } from "../i18n";
 import { useEffect, useState } from "react";
 import { getContentKit } from "@/services/editorKit";
 import { History, X } from "lucide-react";
@@ -12,17 +14,7 @@ import { Editor } from "@tau/editor";
 import { IconButton, Tag, cn, useEdgeFade } from "@tau/ui";
 import { ErrorBoundary } from "@tau/ui";
 import { useOverlayDismiss } from "@/page/PageProvider";
-import {
-  firstLine,
-  formatTime,
-  keyDate,
-  weekdayOf,
-  type DiaryMoment,
-  type DiaryTag,
-  type YearEcho,
-} from "../model";
-
-const agoText = (n: number) => (n === 1 ? "一年前的今天" : `${n} 年前的今天`);
+import { firstLine, type DiaryMoment, type DiaryTag, type YearEcho } from "../model";
 
 export function OnThisDayTease({
   echoes,
@@ -33,6 +25,7 @@ export function OnThisDayTease({
   onOpen: () => void;
   onDismiss: () => void;
 }) {
+  const { t, locale } = useDiaryI18n();
   const first = echoes[0];
   const total = echoes.reduce((n, e) => n + e.moments.length, 0);
   return (
@@ -44,11 +37,17 @@ export function OnThisDayTease({
       className="text-tau-meta text-ink-2 hover:bg-hover hover:text-ink-1 group/tease flex h-[30px] cursor-pointer items-center gap-2 rounded-[9px] pr-1.5 pl-3"
     >
       <History className="text-accent-text size-[13px] shrink-0" strokeWidth={1.75} />
-      <b className="text-accent-text shrink-0 font-medium">{agoText(first.ago)}</b>
+      <b className="text-accent-text shrink-0 font-medium">
+        {t("otd.ago", { count: first.ago, amount: first.ago.toLocaleString(locale) })}
+      </b>
       <span className="min-w-0 flex-1 truncate">{firstLine(first.moments[0].content)}</span>
-      {total > 1 && <span className="text-tau-sm text-ink-3 shrink-0">还有 {total - 1} 条</span>}
+      {total > 1 && (
+        <span className="text-tau-sm text-ink-3 shrink-0">
+          {t("otd.more", { count: total - 1, amount: (total - 1).toLocaleString(locale) })}
+        </span>
+      )}
       <IconButton
-        title="今天不再提示"
+        title={t("otd.dismiss")}
         className="size-[22px] shrink-0 rounded-[6px]"
         onClick={e => {
           e.stopPropagation();
@@ -76,10 +75,10 @@ export function OnThisDayDrawer({
   onClose: () => void;
   onLocate: (moment: DiaryMoment) => void;
 }) {
+  const { t, locale } = useDiaryI18n();
   useOverlayDismiss(onClose, open);
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
   useEdgeFade(scrollEl);
-  const d = keyDate(today);
 
   // 抽屉打开时纸面其余部分让位：点纸面空白处关闭
   useEffect(() => {
@@ -96,7 +95,7 @@ export function OnThisDayDrawer({
   return (
     <aside
       data-otd-drawer
-      aria-label="那年今日"
+      aria-label={t("otd.title")}
       aria-hidden={!open}
       inert={!open}
       className={cn(
@@ -106,12 +105,15 @@ export function OnThisDayDrawer({
     >
       <div className="flex h-[52px] flex-none items-center gap-2 pr-2.5 pl-[18px]">
         <History className="text-accent-text size-[15px]" strokeWidth={1.75} />
-        <b className="text-tau-body-lg font-semibold">那年今日</b>
-        <span className="text-tau-meta text-ink-3">
-          {d.getMonth() + 1}月{d.getDate()}日
-        </span>
+        <b className="text-tau-body-lg font-semibold">{t("otd.title")}</b>
+        <span className="text-tau-meta text-ink-3">{shortDate(today, today, locale)}</span>
         <span className="flex-1" />
-        <IconButton aria-label="关闭" title="关闭 (Esc)" className="size-7" onClick={onClose}>
+        <IconButton
+          aria-label={t("close")}
+          title={t("close.esc")}
+          className="size-7"
+          onClick={onClose}
+        >
           <X className="size-4" strokeWidth={1.75} />
         </IconButton>
       </div>
@@ -122,9 +124,12 @@ export function OnThisDayDrawer({
         {echoes.map(echo => (
           <section key={echo.year}>
             <div className="mb-1.5 flex items-baseline gap-2">
-              <b className="font-tau-mono text-[15px] font-semibold">{echo.year}</b>
+              <b className="font-tau-mono text-[15px] font-semibold">
+                {echo.year.toLocaleString(locale, { useGrouping: false })}
+              </b>
               <span className="text-tau-meta text-ink-3">
-                {echo.ago === 1 ? "一年前" : `${echo.ago} 年前`} · {weekdayOf(echo.day)}
+                {t("otd.yearAgo", { count: echo.ago, amount: echo.ago.toLocaleString(locale) })} ·{" "}
+                {weekdayOf(echo.day, locale)}
               </span>
             </div>
             {echo.moments.map(m => (
@@ -146,17 +151,18 @@ function EchoItem({
   tags: DiaryTag[];
   onClick: () => void;
 }) {
+  const { t, locale } = useDiaryI18n();
   return (
     <div
       role="button"
       tabIndex={0}
-      title="在流里看这一条"
+      title={t("otd.locate")}
       onClick={onClick}
       onKeyDown={e => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), onClick())}
       className="hover:bg-hover -mx-2.5 grid cursor-pointer grid-cols-[42px_minmax(0,1fr)] gap-2 rounded-[10px] py-2 pr-2.5 pl-1"
     >
       <span className="text-tau-meta text-ink-3 font-tau-mono pt-1 tabular-nums">
-        {formatTime(moment.createTime)}
+        {formatTime(moment.createTime, locale)}
       </span>
       <div className="min-w-0">
         <ErrorBoundary>

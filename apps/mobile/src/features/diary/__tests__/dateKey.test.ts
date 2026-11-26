@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDiaryPeriodLabel, getDiaryDateKey, shiftDiaryBaseDate } from "../dateKey";
+import { getDiaryDateKey, shiftDiaryBaseDate } from "../dateKey";
 
 describe("diary/dateKey", () => {
   it("daily 模式应使用 YYYY-MM-DD key，并支持按天偏移", () => {
@@ -19,14 +19,5 @@ describe("diary/dateKey", () => {
     expect(getDiaryDateKey("monthly", "2025-12-10")).toBe("2025-12");
     expect(shiftDiaryBaseDate("monthly", "2025-12-10", 1)).toBe("2026-01-10");
     expect(shiftDiaryBaseDate("monthly", "2026-01-10", -1)).toBe("2025-12-10");
-  });
-
-  it("格式化标题应返回可读中文文本", () => {
-    const dailyLabel = formatDiaryPeriodLabel("daily", "2026-02-22");
-    const weeklyLabel = formatDiaryPeriodLabel("weekly", "2024-12-30");
-    const monthlyLabel = formatDiaryPeriodLabel("monthly", "2026-02-22");
-    expect(dailyLabel).toContain("2026年02月22日");
-    expect(weeklyLabel).toContain("2025年 第1周");
-    expect(monthlyLabel).toBe("2026年02月");
   });
 });

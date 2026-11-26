@@ -3,9 +3,10 @@
 // segment。顶部输入条「记下今天的想法…」是发新日记的入口——即使当天已有日记，
 // 也必须新建 segment（当天最新片段为空时由 store 复用空片段，避免连发空日记），
 // 绝不能打开当天已有那篇继续写；日历选日期才是「查看/续写那天」的入口。
+import { diaryTranslator } from "../i18n";
 import { DiaryHomePage } from "../DiaryHomePage";
 import { useDiaryStore } from "../store/useDiaryStore";
-import { describeDiaryPeriod, getBaseDateFromDiaryKey } from "../dateKey";
+import { getBaseDateFromDiaryKey } from "../dateKey";
 import { getTodayDateKey } from "../feedUtils";
 import type { DiaryType } from "../../../types";
 import { useAppContext } from "../../../app/AppContext";
@@ -23,7 +24,7 @@ function DiaryHomeScreen() {
       contentId,
       contentTitle: "",
       fromDiary: true,
-      diaryDate: describeDiaryPeriod(mode, baseDate),
+      diaryDate: { mode: mode, baseDate: baseDate },
     });
   };
 
@@ -37,7 +38,7 @@ function DiaryHomeScreen() {
             const contentId = await useDiaryStore.getState().startNewSegment("daily", today);
             openContentDetail(contentId, "daily", today);
           } catch (error) {
-            app.presentError(error, "打开日记失败");
+            app.presentError(error, diaryTranslator.t("open.failed"));
           }
         })();
       }}
@@ -47,7 +48,7 @@ function DiaryHomeScreen() {
             const contentId = await useDiaryStore.getState().openAt(mode, baseDate);
             openContentDetail(contentId, mode, baseDate);
           } catch (error) {
-            app.presentError(error, "打开日记失败");
+            app.presentError(error, diaryTranslator.t("open.failed"));
           }
         })();
       }}
@@ -58,10 +59,10 @@ function DiaryHomeScreen() {
           contentId: segment.contentId,
           contentTitle: "",
           fromDiary: true,
-          diaryDate: describeDiaryPeriod(
-            entry.type,
-            getBaseDateFromDiaryKey(entry.type, entry.date)
-          ),
+          diaryDate: {
+            mode: entry.type,
+            baseDate: getBaseDateFromDiaryKey(entry.type, entry.date),
+          },
         });
       }}
       onError={(error, fallback) => {

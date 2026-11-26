@@ -5,6 +5,8 @@
  * 右缘视觉上是空的，刻度压在其上才点得到）。月份多于一屏时刻度自身可滚（隐藏滚动条、边缘渐隐），当前月始终滚进可见区。
  */
 
+import { monthLabel } from "../format";
+import { useDiaryI18n } from "../i18n";
 import { useEffect, useState } from "react";
 import { cn, useEdgeFade } from "@tau/ui";
 
@@ -20,6 +22,7 @@ export function MonthRail({
   thisYear: string;
   onJump: (month: string) => void;
 }) {
+  const { t, locale } = useDiaryI18n();
   const [railEl, setRailEl] = useState<HTMLElement | null>(null);
   useEdgeFade(railEl);
 
@@ -38,7 +41,7 @@ export function MonthRail({
   return (
     <nav
       ref={setRailEl}
-      aria-label="按月跳转"
+      aria-label={t("calendar.jump")}
       className="edge-fade-scroll scrollbar-hide absolute top-3.5 right-2.5 bottom-3.5 z-[5] flex w-14 flex-col items-end gap-0.5 overflow-y-auto overscroll-contain pb-2"
     >
       {months.map(month => {
@@ -63,7 +66,7 @@ export function MonthRail({
                 on ? "text-accent-text font-semibold opacity-100" : "text-ink-3 opacity-55"
               )}
             >
-              {Number(month.slice(5))}月
+              {monthLabel(month, locale)}
             </button>
           </div>
         );

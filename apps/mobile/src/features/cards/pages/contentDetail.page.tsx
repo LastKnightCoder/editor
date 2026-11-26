@@ -1,3 +1,5 @@
+import { useDiaryI18n } from "../../diary/i18n";
+import { describeDiaryPeriod } from "../../diary/format";
 import { useMobileCardsI18n, cardsTranslator } from "../i18n";
 import { useMobilePluginActionItems } from "../../../app/plugins/action-menu";
 import { useEffect, useRef, useState } from "react";
@@ -21,6 +23,7 @@ import {
   paramBoolean,
   paramNumber,
   paramObject,
+  paramOneOf,
   paramOptional,
   paramString,
   useNavigator,
@@ -41,8 +44,8 @@ const contentDetailSchema = createPageSchema({
   fromDiary: paramOptional(paramBoolean()),
   diaryDate: paramOptional(
     paramObject({
-      title: paramString(""),
-      sub: paramOptional(paramString("")),
+      mode: paramOneOf("daily", "weekly", "monthly"),
+      baseDate: paramString(""),
     })
   ),
 });
@@ -255,6 +258,8 @@ function CardEntryScreen(props: {
 
 function ContentDetailScreen() {
   const { params } = usePage<ContentDetailParams>();
+  const language = useDiaryI18n();
+  const diaryDate = params.diaryDate ? describeDiaryPeriod(params.diaryDate, language) : undefined;
   const navigator = useNavigator();
   const app = useAppContext();
   // 从下层页面返回时重拉详情：双向关联在对侧卡片上写入时，本页缓存无感知
@@ -287,14 +292,14 @@ function ContentDetailScreen() {
       contentTitle={params.contentTitle}
       contentType={params.contentType}
       refId={params.refId}
-      diaryDate={params.diaryDate}
+      diaryDate={diaryDate}
       // 按 contentId 直入的只有日记能确定身份；正文待办跳转等其他来源不挂就近提问
       aiContext={
         params.contentId && params.diaryDate
           ? {
               entityType: "diary",
               entityId: params.contentId,
-              title: [params.diaryDate.title, params.diaryDate.sub].filter(Boolean).join(" "),
+              title: [diaryDate?.title, diaryDate?.sub].filter(Boolean).join(" "),
             }
           : undefined
       }

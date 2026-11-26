@@ -1,7 +1,6 @@
 import { expect, it, vi } from "vitest";
 import type { MobileEntityOpenOptions, MobileEntityOpenTarget } from "./app-types";
 import { navigateMobileEntity } from "./entityNavigation";
-import { describeDiaryPeriod, getBaseDateFromDiaryKey } from "../../features/diary/dateKey";
 
 it.each([
   [{ kind: "card", id: 1 }, "contentDetail", { cardId: 1 }],
@@ -76,10 +75,10 @@ it("非正文类型不接受块定位", () => {
   expect(navigator.push).not.toHaveBeenCalled();
 });
 it.each([
-  ["daily", "2026-10-29"],
-  ["weekly", "2026-W44"],
-  ["monthly", "2026-10"],
-] as const)("%s 日记打开原片段正文，不创建新日记", (diaryType, date) => {
+  ["daily", "2026-10-29", "2026-10-29"],
+  ["weekly", "2026-W44", "2026-10-26"],
+  ["monthly", "2026-10", "2026-10-01"],
+] as const)("%s 日记打开原片段正文，不创建新日记", (diaryType, date, baseDate) => {
   const navigator = { push: vi.fn() };
   navigateMobileEntity(
     navigator,
@@ -90,7 +89,7 @@ it.each([
     contentId: 99,
     contentTitle: "",
     fromDiary: true,
-    diaryDate: describeDiaryPeriod(diaryType, getBaseDateFromDiaryKey(diaryType, date)),
+    diaryDate: { mode: diaryType, baseDate },
   });
 });
 it("日记沿用正文块定位，非法日期不导航", () => {

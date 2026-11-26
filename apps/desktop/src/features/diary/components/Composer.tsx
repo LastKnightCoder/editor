@@ -5,6 +5,8 @@
  * 纯文本快写——富文本在发出后点正文用完整编辑器补。
  */
 
+import { formatTime } from "../format";
+import { useDiaryI18n } from "../i18n";
 import {
   forwardRef,
   useEffect,
@@ -16,7 +18,7 @@ import {
 } from "react";
 import { Hash, Plus, SendHorizontal } from "lucide-react";
 import { IconButton, Tag, cn, type TagColor } from "@tau/ui";
-import { formatTime, hashQueryAt, type DiaryTag } from "../model";
+import { hashQueryAt, type DiaryTag } from "../model";
 import { TagPicker } from "./TagPicker";
 import { TagDot } from "./bits";
 
@@ -43,6 +45,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   { now, tags, counts, scopeTag, onSubmit, onRecolor, onClearTag, above },
   ref
 ) {
+  const { t, locale } = useDiaryI18n();
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [text, setText] = useState("");
   const [chosen, setChosen] = useState<string[]>(scopeTag ? [scopeTag] : []);
@@ -124,9 +127,9 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
   return (
     <div className="grid grid-cols-[92px_minmax(0,1fr)] gap-x-[22px]">
       <div className={cn(above ? "pt-[46px]" : "pt-2.5")}>
-        <b className="text-tau-body block font-semibold">此刻</b>
+        <b className="text-tau-body block font-semibold">{t("composer.now")}</b>
         <span className="text-tau-meta text-ink-3 font-tau-mono tabular-nums">
-          {formatTime(now)}
+          {formatTime(now, locale)}
         </span>
       </div>
       <div className="min-w-0">
@@ -141,10 +144,10 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
           {suggestOpen && (
             <div
               role="listbox"
-              aria-label="标签联想"
+              aria-label={t("composer.suggestions")}
               className="bg-surface border-line-1 shadow-float rounded-tau-md absolute bottom-full left-0 z-10 mb-2 min-w-[200px] p-1.5"
             >
-              <div className="text-tau-sm text-ink-3 px-2 pt-0.5 pb-1">标签</div>
+              <div className="text-tau-sm text-ink-3 px-2 pt-0.5 pb-1">{t("tag.label")}</div>
               {suggestions.map((s, i) => (
                 <div
                   key={s.name + s.create}
@@ -167,11 +170,11 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
                     <TagDot color={s.color} />
                   )}
                   <span className="min-w-0 flex-1 truncate">
-                    {s.create ? `创建「${s.name}」` : s.name}
+                    {s.create ? t("tag.create", { name: s.name }) : s.name}
                   </span>
                   {!s.create && (
                     <span className="text-tau-sm text-ink-3 tabular-nums">
-                      {counts.get(s.name) ?? 0}
+                      {(counts.get(s.name) ?? 0).toLocaleString(locale)}
                     </span>
                   )}
                 </div>
@@ -182,8 +185,8 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
             ref={inputRef}
             rows={1}
             value={text}
-            aria-label="写一条碎碎念"
-            placeholder="此刻在想什么？"
+            aria-label={t("composer.input")}
+            placeholder={t("composer.placeholder")}
             onChange={e => {
               setText(e.target.value);
               setCaret(e.target.selectionStart);
@@ -245,14 +248,18 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
                     className="text-tau-sm text-ink-3 border-line-1 hover:text-ink-1 hover:border-ink-3 inline-flex h-[22px] shrink-0 items-center gap-1 rounded-[7px] border border-dashed px-2"
                   >
                     <Hash className="size-3" strokeWidth={1.75} />
-                    标签
+                    {t("tag.label")}
                   </button>
                 }
               />
             </div>
-            {count > 0 && <span className="text-tau-sm text-ink-3 tabular-nums">{count} 字</span>}
+            {count > 0 && (
+              <span className="text-tau-sm text-ink-3 tabular-nums">
+                {t("summary.words", { count, amount: count.toLocaleString(locale) })}
+              </span>
+            )}
             <IconButton
-              title="发送 (↵)"
+              title={t("composer.send")}
               disabled={!canSend}
               onClick={() => void submit()}
               className={cn(
@@ -265,7 +272,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
           </div>
         </div>
         <div className="text-tau-sm text-ink-3 -mx-3.5 px-0.5 pt-1.5">
-          <span>↵ 发送 · ⇧↵ 换行 · # 标签</span>
+          <span>{t("composer.hint")}</span>
         </div>
       </div>
     </div>

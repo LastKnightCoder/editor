@@ -3,12 +3,12 @@
  * 热力月历（底色深浅 = 当天字数），点一天只看那天、Shift 连选一段；下方快捷范围。
  */
 
+import { monthLabel, shortDate, weekLabels } from "../format";
+import { useDiaryI18n } from "../i18n";
 import { useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { IconButton, Popover, cn } from "@tau/ui";
-import { dayKey, keyDate, presetRanges, type DayStat } from "../model";
-
-const WEEK = ["一", "二", "三", "四", "五", "六", "日"];
+import { dayKey, presetRanges, type DayStat } from "../model";
 
 export function CalendarPopover({
   today,
@@ -21,6 +21,7 @@ export function CalendarPopover({
   range: [string, string] | null;
   onRange: (range: [string, string] | null) => void;
 }) {
+  const { t } = useDiaryI18n();
   const [open, setOpen] = useState(false);
   return (
     <Popover
@@ -31,7 +32,7 @@ export function CalendarPopover({
       className="w-[276px]"
       trigger={
         <IconButton
-          title="按日期查看"
+          title={t("calendar.title")}
           className={cn(range && "bg-accent-soft text-accent-text hover:bg-accent-soft")}
         >
           <CalendarDays className="size-4" strokeWidth={1.75} />
@@ -54,6 +55,7 @@ function CalendarPanel({
   range: [string, string] | null;
   onRange: (range: [string, string] | null) => void;
 }) {
+  const { t, locale } = useDiaryI18n();
   const [month, setMonth] = useState(() => (range ? range[1] : today).slice(0, 7));
   const [anchor, setAnchor] = useState<string | null>(range?.[0] ?? null);
   const [y, m] = month.split("-").map(Number);
@@ -66,14 +68,16 @@ function CalendarPanel({
   return (
     <div className="p-3">
       <div className="mb-2 flex items-center gap-1">
-        <b className="text-tau-body flex-1 font-semibold">
-          {y}年{m}月
-        </b>
-        <IconButton title="上个月" className="size-6 rounded-[7px]" onClick={() => shift(-1)}>
+        <b className="text-tau-body flex-1 font-semibold">{monthLabel(month, locale, true)}</b>
+        <IconButton
+          title={t("calendar.previous")}
+          className="size-6 rounded-[7px]"
+          onClick={() => shift(-1)}
+        >
           <ChevronLeft className="size-[14px]" strokeWidth={1.75} />
         </IconButton>
         <IconButton
-          title="下个月"
+          title={t("calendar.next")}
           className="size-6 rounded-[7px]"
           disabled={month >= today.slice(0, 7)}
           onClick={() => shift(1)}
@@ -82,8 +86,8 @@ function CalendarPanel({
         </IconButton>
       </div>
       <div className="grid grid-cols-7 gap-1">
-        {WEEK.map(w => (
-          <span key={w} className="text-tau-tiny text-ink-3 text-center">
+        {weekLabels(locale).map((w, index) => (
+          <span key={index} className="text-tau-tiny text-ink-3 text-center">
             {w}
           </span>
         ))}
@@ -101,7 +105,15 @@ function CalendarPanel({
               key={key}
               type="button"
               disabled={key > today}
-              title={`${keyDate(key).getMonth() + 1}月${i + 1}日 · ${stat ? `${stat.count} 条 · ${stat.words} 字` : "没有记录"}`}
+              title={t("calendar.day", {
+                date: shortDate(key, today, locale),
+                summary: stat
+                  ? t("summary.day", {
+                      entries: stat.count.toLocaleString(locale),
+                      words: stat.words.toLocaleString(locale),
+                    })
+                  : t("calendar.empty"),
+              })}
               onClick={e => {
                 if (e.shiftKey && anchor) {
                   onRange(anchor < key ? [anchor, key] : [key, anchor]);
@@ -125,7 +137,7 @@ function CalendarPanel({
                 inRange && "shadow-[inset_0_0_0_2px_var(--tau-accent-text)]"
               )}
             >
-              {i + 1}
+              {(i + 1).toLocaleString(locale)}
               {key === today && (
                 <i
                   className={cn(
@@ -143,7 +155,7 @@ function CalendarPanel({
           const on = range?.[0] === p.range[0] && range?.[1] === p.range[1];
           return (
             <button
-              key={p.label}
+              key={p.key}
               type="button"
               onClick={() => onRange(on ? null : p.range)}
               className={cn(
@@ -153,7 +165,7 @@ function CalendarPanel({
                   : "bg-hover text-ink-2 hover:bg-press"
               )}
             >
-              {p.label}
+              {t(`range.${p.key}`)}
             </button>
           );
         })}
@@ -163,11 +175,11 @@ function CalendarPanel({
             onClick={() => onRange(null)}
             className="text-tau-sm text-ink-2 hover:bg-hover h-6 rounded-[7px] px-2.5"
           >
-            全部时间
+            {t("calendar.all")}
           </button>
         )}
       </div>
-      <p className="text-tau-tiny text-ink-3 mt-2">点一天只看那天，Shift 连选一段</p>
+      <p className="text-tau-tiny text-ink-3 mt-2">{t("calendar.hint")}</p>
     </div>
   );
 }
