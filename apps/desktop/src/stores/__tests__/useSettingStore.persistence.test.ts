@@ -5,6 +5,18 @@ import useSettingStore, {
 } from "../useSettingStore";
 
 describe("useSettingStore persistence snapshot", () => {
+  it.each([
+    { backdrop: undefined, enabled: true, motion: true },
+    { backdrop: { motion: false }, enabled: true, motion: false },
+    { backdrop: { enabled: false }, enabled: false, motion: true },
+    { backdrop: { enabled: true, motion: false }, enabled: true, motion: false },
+  ])("升级后保留旧背景效果 $backdrop", ({ backdrop, enabled, motion }) => {
+    const setting = mergeSettingWithDefaults({ appearance: { backdrop } });
+    expect(setting.appearance?.backdrop).toEqual({ enabled, motion });
+    const reloaded = mergeSettingWithDefaults(buildPersistedSettingSnapshot(setting));
+    expect(reloaded.appearance?.backdrop).toEqual({ enabled, motion });
+  });
+
   it("模型能力缺失时恢复为仅文字，保留已配置的能力且不编造费用和容量", () => {
     // 现场错误：不完整模型进入设置页后，能力标签读取 input.includes 导致整窗崩溃。
     const setting = JSON.parse(

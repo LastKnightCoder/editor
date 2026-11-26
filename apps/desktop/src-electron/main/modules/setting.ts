@@ -9,6 +9,7 @@ import {
   updateBackgroundPreferences,
 } from "../services/background-preferences";
 import PathUtil from "../utils/PathUtil";
+import { NEW_USER_SETTING } from "../../../shared/new-user-setting";
 import { Module } from "../types/module";
 
 class SettingModule implements Module {
@@ -38,7 +39,7 @@ class SettingModule implements Module {
     const appDir = PathUtil.getAppDir();
     const settingPath = join(appDir, "setting.json");
     if (!(await fsExtra.pathExists(settingPath))) {
-      await this.writeSetting("{}");
+      await this.writeSetting(JSON.stringify(NEW_USER_SETTING));
     }
     return await fs.readFile(settingPath, "utf-8");
   }

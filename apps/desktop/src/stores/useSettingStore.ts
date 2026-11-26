@@ -1,5 +1,6 @@
 import { normalizeLanguagePreference, type LanguagePreference } from "@tau/shared/language";
 import { DEFAULT_WINDOW_FONT, type WindowFont } from "../../shared/window-font";
+import { NEW_USER_SETTING } from "../../shared/new-user-setting";
 import { create } from "zustand";
 import { produce } from "immer";
 import { merge } from "lodash";
@@ -124,7 +125,7 @@ export interface ISetting {
     highlight?: {
       style?: HighlightStyle;
     };
-    /** 壳层极光渐变背景；缺省视为开启 */
+    /** 壳层极光渐变背景；旧设置缺少开关时沿用开启状态 */
     backdrop?: {
       enabled?: boolean;
       /** 色团缓慢漂移；系统开启「减少动态效果」时始终静止 */
@@ -473,10 +474,7 @@ const initialState: IState = {
 };
 
 const defaultSetting = structuredClone(initialState.setting);
-const cachedSetting = loadCachedSetting();
-if (cachedSetting) {
-  initialState.setting = mergeSettingWithDefaults(cachedSetting);
-}
+initialState.setting = mergeSettingWithDefaults(loadCachedSetting() ?? NEW_USER_SETTING);
 
 let registeredSettingNotificationClient:
   | ReturnType<typeof useBackendWebsocketStore.getState>["client"]

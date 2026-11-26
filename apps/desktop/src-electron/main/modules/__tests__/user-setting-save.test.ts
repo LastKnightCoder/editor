@@ -3,8 +3,12 @@
  * 产出「完整 JSON + 旧内容尾巴」的坏文件，并伴随大量 rename ENOENT。
  * 这里覆盖抢救函数：坏文件必须能取回开头那个完整对象，而不是被当成空设置清空用户配置。
  */
-import { describe, expect, it } from "vitest";
-import { salvageLeadingJsonObject } from "../user-setting";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { describe, expect, it, vi } from "vitest";
+import PathUtil from "../../utils/PathUtil";
+import settings, { salvageLeadingJsonObject } from "../user-setting";
 
 describe("损坏设置文件的抢救", () => {
   it("并发写残留（完整 JSON + 旧尾巴）能取回完整对象", () => {
@@ -35,4 +39,18 @@ describe("损坏设置文件的抢救", () => {
     expect(salvageLeadingJsonObject("")).toBeNull();
     expect(salvageLeadingJsonObject("[1,2]")).toBeNull();
   });
+});
+
+it("首次启动将关闭渐变背景的选择写入设置文件", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "tau-user-setting-"));
+  const appDir = vi.spyOn(PathUtil, "getAppDir").mockReturnValue(dir);
+  try {
+    const snapshot = await settings.getSettingSnapshot();
+    const persisted = JSON.parse(await readFile(join(dir, "setting.json"), "utf-8"));
+    expect(snapshot.appearance.backdrop.enabled).toBe(false);
+    expect(persisted.appearance.backdrop.enabled).toBe(false);
+  } finally {
+    appDir.mockRestore();
+    await rm(dir, { recursive: true, force: true });
+  }
 });

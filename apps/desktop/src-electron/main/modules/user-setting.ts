@@ -1,6 +1,7 @@
 import { RpcMessageType, RpcRequestMessage, RpcResponseMessage } from "@/types";
 import BackendWebSocketServer from "../utils/BackendWebSocketServer";
 import PathUtil from "../utils/PathUtil";
+import { NEW_USER_SETTING } from "../../../shared/new-user-setting";
 import isEqual from "lodash/isEqual";
 import fs from "node:fs/promises";
 import fsExtra from "fs-extra/esm";
@@ -360,7 +361,7 @@ class UserSettingModule {
     const appDir = PathUtil.getAppDir();
     const settingPath = join(appDir, "setting.json");
     if (!(await fsExtra.pathExists(settingPath))) {
-      await this.saveSetting("{}");
+      await this.saveSetting(JSON.stringify(NEW_USER_SETTING));
     }
     const setting = await fs.readFile(settingPath, "utf-8");
     try {
