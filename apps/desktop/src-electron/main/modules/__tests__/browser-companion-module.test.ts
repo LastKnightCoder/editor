@@ -268,6 +268,17 @@ describe("browser-companion 模块", () => {
       )(event, prompt.requestId, false, []);
       await client.closed;
     }
+    const snapshot = await must(
+      env.handlers.get("browser-companion:snapshot"),
+      "snapshot handler"
+    )(event);
+    expect(
+      snapshot.rejections.filter((item: { clientId: string }) => item.clientId === id)
+    ).toEqual(
+      Array.from({ length: 3 }, () =>
+        expect.objectContaining({ clientId: id, reasonCode: "denied", reason: expect.any(String) })
+      )
+    );
     env.sent.length = 0;
     const client = await connect();
     const result = await client.call("pair.request", {
@@ -277,6 +288,35 @@ describe("browser-companion 模块", () => {
     });
     expect(result.status).toBe("throttled");
     expect(env.sent.some(([channel]) => channel === "browser-companion:pair-prompt")).toBe(false);
+  });
+
+  it("关闭新连接时拒绝记录携带稳定原因，且不进入配对弹窗", async () => {
+    const setAccept = must(
+      env.handlers.get("browser-companion:set-accept-new"),
+      "accept-new handler"
+    );
+    const id = "client00000000000005";
+    await setAccept(event, false);
+    try {
+      env.sent.length = 0;
+      const client = await connect();
+      await expect(
+        client.call("pair.request", { clientId: id, info: INFO, nonce: "e".repeat(32) })
+      ).resolves.toEqual({ status: "closed" });
+      expect(await client.closed).toBe(4004);
+      expect(env.sent.some(([channel]) => channel === "browser-companion:pair-prompt")).toBe(false);
+      const snapshot = await must(
+        env.handlers.get("browser-companion:snapshot"),
+        "snapshot handler"
+      )(event);
+      expect(snapshot.rejections[0]).toMatchObject({
+        clientId: id,
+        reasonCode: "closed",
+        reason: expect.any(String),
+      });
+    } finally {
+      await setAccept(event, true);
+    }
   });
 
   it("同一会话的启动和删除互斥，删除后拒绝继续旧会话", async () => {

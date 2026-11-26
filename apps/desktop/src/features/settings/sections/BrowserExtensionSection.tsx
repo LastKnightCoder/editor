@@ -15,20 +15,22 @@ import {
   setBrowserClientScopes,
 } from "@/commands/browser-companion";
 import type { BrowserClientView } from "@/types/browser-companion";
-import { SCOPE_LABELS, clientLabel } from "@/features/browser-companion/labels";
+import {
+  companionScopeMeta,
+  clientLabel,
+  formatClientTime,
+  rejectionText,
+} from "@/features/browser-companion/labels";
+import {
+  browserCompanionTranslator,
+  useBrowserCompanionI18n,
+} from "@/features/browser-companion/i18n";
 import { SettingsGroup } from "../components/SettingsGroup";
 
 const QUERY_KEY = ["browser-companion", "snapshot"];
 
-const formatTime = (time: number) => {
-  const minutes = Math.round((Date.now() - time) / 60_000);
-  if (minutes < 1) return "刚刚";
-  if (minutes < 60) return `${minutes} 分钟前`;
-  if (minutes < 60 * 24) return `${Math.round(minutes / 60)} 小时前`;
-  return new Date(time).toLocaleDateString();
-};
-
 export function BrowserExtensionSection() {
+  const { t, locale } = useBrowserCompanionI18n();
   const queryClient = useQueryClient();
   const { data } = useQuery({ queryKey: QUERY_KEY, queryFn: getBrowserCompanionSnapshot });
 
@@ -44,32 +46,27 @@ export function BrowserExtensionSection() {
   return (
     <>
       <SettingsGroup>
-        <SettingRow
-          title="接受新的连接请求"
-          description="关闭后，未授权的浏览器发起连接会被直接拒绝，不弹窗"
-        >
+        <SettingRow title={t("settings.accept")} description={t("settings.acceptHint")}>
           <Switch
-            aria-label="接受新的连接请求"
+            aria-label={t("settings.accept")}
             checked={data.acceptNew}
             onCheckedChange={accept => void setAcceptNewBrowserClients(accept)}
           />
         </SettingRow>
       </SettingsGroup>
 
-      <SettingsGroup title="已授权">
+      <SettingsGroup title={t("settings.authorized")}>
         {data.clients.length ? (
           data.clients.map(client => (
             <ClientRow key={client.clientId} client={client} online={online.has(client.clientId)} />
           ))
         ) : (
-          <p className="text-tau-meta text-ink-3 px-4 py-3.5">
-            还没有授权的浏览器。装好「Tau 伴读」扩展后，打开任意网页的面板即可发起连接。
-          </p>
+          <p className="text-tau-meta text-ink-3 px-4 py-3.5">{t("settings.empty")}</p>
         )}
       </SettingsGroup>
 
       {data.rejections.length > 0 && (
-        <SettingsGroup title="最近拒绝">
+        <SettingsGroup title={t("settings.rejections")}>
           <ul className="px-4 py-2">
             {data.rejections.map(item => (
               <li
@@ -77,9 +74,11 @@ export function BrowserExtensionSection() {
                 className="text-tau-meta text-ink-2 flex items-center gap-3 py-1.5"
               >
                 <span className="min-w-0 flex-1 truncate">
-                  {item.label} · {item.reason}
+                  {item.label} · {rejectionText(item, t)}
                 </span>
-                <time className="text-tau-sm text-ink-3 font-mono">{formatTime(item.at)}</time>
+                <time className="text-tau-sm text-ink-3 font-mono">
+                  {formatClientTime(item.at, locale, t)}
+                </time>
               </li>
             ))}
           </ul>
@@ -90,13 +89,16 @@ export function BrowserExtensionSection() {
 }
 
 function ClientRow({ client, online }: { client: BrowserClientView; online: boolean }) {
+  const { t, locale } = useBrowserCompanionI18n();
   const toggleTools = () => {
     const optional: CompanionScope[] = client.scopes.includes("tools") ? [] : ["tools"];
     void setBrowserClientScopes(client.clientId, [...REQUIRED_SCOPES, ...optional]);
   };
   const revoke = async () => {
     await revokeBrowserClient(client.clientId);
-    toast.success(`已撤销 ${clientLabel(client.info)} 的授权，连接已断开`);
+    toast.success(
+      browserCompanionTranslator.t("settings.revoked", { client: clientLabel(client.info) })
+    );
   };
   return (
     <div className="flex items-center gap-3 px-4 py-3">
@@ -106,17 +108,27 @@ function ClientRow({ client, online }: { client: BrowserClientView; online: bool
       <div className="min-w-0 flex-1">
         <div className="text-ink-1 font-medium">{clientLabel(client.info)}</div>
         <div className="text-tau-meta text-ink-3">
-          {online ? "在线" : `${formatTime(client.lastSeenAt)}活跃`} · 授权于{" "}
-          {new Date(client.createdAt).toLocaleDateString()}
+          {online
+            ? t("settings.online")
+            : t("settings.active", { time: formatClientTime(client.lastSeenAt, locale, t) })}{" "}
+          ·{" "}
+          {t("settings.authorizedAt", {
+            date: new Date(client.createdAt).toLocaleDateString(locale),
+          })}
         </div>
         <div className="text-tau-meta text-ink-2 mt-1.5 flex items-center gap-2">
           <span className="min-w-0 flex-1 truncate">
-            {REQUIRED_SCOPES.map(scope => SCOPE_LABELS[scope].label).join("、")}
+            {REQUIRED_SCOPES.map(scope => companionScopeMeta(scope, t).label).join(
+              t("list.separator")
+            )}
           </span>
           <label className="flex flex-none items-center gap-2">
-            {SCOPE_LABELS.tools.label}
+            {companionScopeMeta("tools", t).label}
             <Switch
-              aria-label={`${clientLabel(client.info)}：${SCOPE_LABELS.tools.label}`}
+              aria-label={t("settings.clientTools", {
+                client: clientLabel(client.info),
+                scope: companionScopeMeta("tools", t).label,
+              })}
               checked={client.scopes.includes("tools")}
               onCheckedChange={toggleTools}
             />
@@ -124,7 +136,7 @@ function ClientRow({ client, online }: { client: BrowserClientView; online: bool
         </div>
       </div>
       <Button variant="secondary" onClick={() => void revoke()}>
-        撤销
+        {t("settings.revoke")}
       </Button>
     </div>
   );

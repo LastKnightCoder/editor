@@ -240,6 +240,7 @@ class BrowserCompanionModule {
         clientId,
         label: `${info.browser}${info.os ? ` · ${info.os}` : ""}`,
         reason,
+        reasonCode: "closed",
       });
       this.broadcastChanged();
     };
@@ -315,6 +316,7 @@ class BrowserCompanionModule {
         clientId: pair.clientId,
         label: `${pair.info.browser}${pair.info.os ? ` · ${pair.info.os}` : ""}`,
         reason: "用户拒绝",
+        reasonCode: "denied",
       });
       connection.peer.notify(COMPANION_METHODS.pairDenied, { reason: "denied" });
       setTimeout(() => connection.peer.close(4005, "denied"), 50);

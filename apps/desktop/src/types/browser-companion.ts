@@ -14,6 +14,7 @@ export interface BrowserClientRejection {
   clientId: string;
   label: string;
   reason: string;
+  reasonCode?: "closed" | "denied";
   at: number;
 }
 
