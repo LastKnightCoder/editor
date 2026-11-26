@@ -17,5 +17,6 @@
   "ui.unknown.disabled.title": "Extension disabled",
   "ui.unknown.disabled.description": "The extension conflicts with another extension. All data is preserved.",
   "ui.unknown.error.title": "Cannot display",
-  "ui.unknown.error.description": "This element failed to render. All data is preserved."
+  "ui.unknown.error.description": "This element failed to render. All data is preserved.",
+  "ui.imageDescription": "Add a description…"
 }

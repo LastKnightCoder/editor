@@ -17,5 +17,6 @@
   "ui.unknown.disabled.title": "擴充功能已停用",
   "ui.unknown.disabled.description": "所屬擴充功能與其他擴充功能衝突，資料已完整保留",
   "ui.unknown.error.title": "無法顯示",
-  "ui.unknown.error.description": "此元素呈現時發生錯誤，資料已完整保留"
+  "ui.unknown.error.description": "此元素呈現時發生錯誤，資料已完整保留",
+  "ui.imageDescription": "新增描述…"
 }

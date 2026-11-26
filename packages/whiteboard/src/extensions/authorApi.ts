@@ -1,3 +1,4 @@
+import { copyExtensionDisplay } from "./extension-display";
 import { IWhiteboardAuthorPermission } from "./authorAccess";
 import { useWhiteboardAPI as useHostAPI } from "./context";
 import { defineWhiteboardExtension as defineHostExtension } from "./api";
@@ -334,11 +335,12 @@ export function defineWhiteboardExtension(
     };
     return { ...hostElement, create };
   });
-  const extension = defineHostExtension({
-    ...definition,
-    elements,
-    create: api => adapt(definition.create(authorAPI(api))),
-  });
+  const extension = defineHostExtension(
+    Object.assign(copyExtensionDisplay(definition), {
+      elements,
+      create: (api: HostAPI) => adapt(definition.create(authorAPI(api))),
+    })
+  );
   authorExtensions.set(extension, definition.id);
   return extension as unknown as WhiteboardExtension;
 }
@@ -351,7 +353,7 @@ export function hostWhiteboardExtensions(
       ? extension
       : defineWhiteboardExtension(extension);
     if (owner && authorExtensions.get(value) !== owner) {
-      const scoped = Object.freeze({ ...value });
+      const scoped = Object.freeze(copyExtensionDisplay(value));
       authorExtensions.set(scoped, owner);
       return scoped as unknown as HostExtension;
     }

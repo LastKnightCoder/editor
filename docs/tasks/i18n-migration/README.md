@@ -304,6 +304,8 @@ P5 MCP显示目录：10路径工程完成；真实MCP/配置/表单3文件26例�
 
 P6A3-E2节点/字段：20源码加Root editor4路径工程完成；4文件20例、包type/作者边界、nodes24key三语复数参数与范围静态格式通过。真实草稿/revision/单报/选区/订阅、NotePeek observer不重读、外框输入不重建且失焦才提交通过；旧Column显示3例4断言随helper退役，其余16布局算法例保留通过。Root纯公开路径用原生Node实际无DOM导入并格式化EN/TW保原diagnostic，统一core JSON import attributes，原实现不复制。Audio吞掉的reject/RichText readiness异常与默认正文不改。
 
+P6A3-F白板域收口：11路径加Root guard1完成；公开author→owner桥→runtime→panel真实3文件39例及原1个预览benchmark门控skip，包type/作者边界/20key三语与范围检查通过。name getter原receiver/无提前读、普通值快照、create getter时点/单激活及输入实例保持；图片同img/resource/data。全组件136文件与全生产AST审计已分类合法默认name/概要/诊断/日志/导出像素/原取消哨兵，未发现自产UI漏项或标题身份key。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

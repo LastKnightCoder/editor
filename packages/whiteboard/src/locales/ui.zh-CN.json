@@ -17,5 +17,6 @@
   "ui.unknown.disabled.title": "扩展已停用",
   "ui.unknown.disabled.description": "所属扩展与其他扩展冲突，数据已完整保留",
   "ui.unknown.error.title": "无法显示",
-  "ui.unknown.error.description": "此元素渲染出错，数据已完整保留"
+  "ui.unknown.error.description": "此元素渲染出错，数据已完整保留",
+  "ui.imageDescription": "添加描述..."
 }

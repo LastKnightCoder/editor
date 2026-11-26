@@ -27,9 +27,6 @@ export const IMAGE_DESCRIPTION_LIGHT_COLOR = "#666666";
 // 描述文字颜色（暗色主题）
 export const IMAGE_DESCRIPTION_DARK_COLOR = "#aaaaaa";
 
-// 描述文字占位符
-export const IMAGE_DESCRIPTION_PLACEHOLDER = "添加描述...";
-
 // 默认描述文字
 export const DEFAULT_DESCRIPTION = "";
 

@@ -147,7 +147,7 @@ export class ExtensionRuntime {
   /** 工具 id → 所属扩展 id（「扩展工具」菜单显示"来自 {name}"用） */
   private readonly toolOwners = new Map<string, string>();
   /** 扩展 id → 展示名（WhiteboardExtension.name） */
-  private readonly extensionNames = new Map<string, string>();
+  private readonly extensionNames = new Map<string, Pick<WhiteboardExtension, "name">>();
   /** create 成功后被拒的扩展声明的元素 type → 扩展 id（用于占位原因 "disabled"） */
   private readonly rejectedTypeOwners = new Map<string, string>();
   /** 快捷键条目：tau 扩展在前（内置键优先），其余按装配顺序，同一扩展内按声明顺序 */
@@ -163,7 +163,7 @@ export class ExtensionRuntime {
 
   /** 扩展展示名（未声明或已禁用的扩展返回 undefined） */
   getExtensionName(id: string): string | undefined {
-    return this.extensionNames.get(id);
+    return this.extensionNames.get(id)?.name || undefined;
   }
 
   ownerOf(type: string) {
@@ -722,7 +722,7 @@ export class ExtensionRuntime {
       }
       extensionIds.add(id);
       if (authorOwner) this.authorOwners.set(id, authorOwner);
-      if (extension.name) this.extensionNames.set(id, extension.name);
+      this.extensionNames.set(id, extension);
       for (const type of ownedTypes) elementTypeOwners.set(type, id);
       for (const command of ownedCommands) commandOwners.set(command, id);
       for (const contribution of ownedContributions) contributionOwners.set(contribution, id);

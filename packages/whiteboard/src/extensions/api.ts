@@ -1,3 +1,4 @@
+import { copyExtensionDisplay } from "./extension-display";
 import type { PreviousDataVersion } from "@tau/db-schema/data-versions";
 import type { ContentResourceSpec } from "@tau/db-schema/content-resources";
 import type { ComponentType, ReactNode } from "react";
@@ -343,7 +344,7 @@ export function defineWhiteboardExtension(
   definition: Omit<WhiteboardExtension, "apiVersion">
 ): WhiteboardExtension {
   if (!definition.id.includes(".")) throw new Error("白板扩展 ID 必须包含命名空间");
-  return Object.freeze({ ...definition, apiVersion: 1 as const });
+  return Object.freeze(Object.assign(copyExtensionDisplay(definition), { apiVersion: 1 as const }));
 }
 
 export interface WhiteboardOutline {

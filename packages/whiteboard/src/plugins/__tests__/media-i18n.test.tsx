@@ -29,7 +29,7 @@ afterEach(async () => {
 });
 const viewport = { minX: 0, minY: 0, width: 800, height: 600, zoom: 1 };
 
-async function previewFixture(description: string) {
+async function previewFixture(description: string, showDescription = false) {
   vi.stubGlobal(
     "ResizeObserver",
     class {
@@ -67,6 +67,7 @@ async function previewFixture(description: string) {
     type: "image",
     src: "resource://original-image",
     description,
+    showDescription,
     x: 10,
     y: 10,
     width: 100,
@@ -124,7 +125,7 @@ async function previewFixture(description: string) {
   const modal = close?.parentElement;
   const image = modal?.querySelector("img");
   if (!close || !modal || !image) throw new Error("真实预览事件未打开图片");
-  return { board, source, runtime, t, close, modal, image, loads };
+  return { board, source, runtime, t, close, modal, image, loads, host };
 }
 
 it("真实预览事件的默认说明随语言更新，图片、任务和画布数据保持同一实例", async () => {
@@ -234,4 +235,27 @@ it("拖放上传等待中换语只刷新原Toast，不重复读取或上传，�
   });
   expect(dismiss).toHaveBeenCalledWith(loadingId);
   expect(file.name).toBe("用户图片.png");
+});
+
+it("空图片描述占位换语只改显示，不写描述或重新读取图片资源", async () => {
+  const { board, source, t, loads, host } = await previewFixture("", true);
+  const hint = [...host.querySelectorAll("span")].find(
+    span => span.textContent === t("ui.imageDescription")
+  );
+  const image = host.querySelector("img");
+  if (!hint || !image) throw new Error("图片描述占位未挂载");
+  const children = board.children,
+    requests = loads.length,
+    original = hint.textContent;
+  for (const locale of ["zh-TW", "en-US"]) {
+    await act(async () => source.setLocale(locale));
+    expect(
+      [...host.querySelectorAll("span")].find(span => span.textContent === t("ui.imageDescription"))
+    ).toBe(hint);
+    expect(host.querySelector("img")).toBe(image);
+    expect(loads.length).toBe(requests);
+    expect(board.children).toBe(children);
+    expect(board.children[0].description).toBe("");
+  }
+  expect(hint.textContent).not.toBe(original);
 });

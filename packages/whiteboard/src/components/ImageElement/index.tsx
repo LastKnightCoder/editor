@@ -1,3 +1,4 @@
+import { useWhiteboardUiI18n } from "../../ui-i18n";
 import { memo, useMemo, useState, useEffect, useRef } from "react";
 import { useMemoizedFn } from "ahooks";
 import { If as If } from "@tau/ui";
@@ -26,7 +27,6 @@ import {
   IMAGE_DESCRIPTION_MARGIN,
   IMAGE_DESCRIPTION_LIGHT_COLOR,
   IMAGE_DESCRIPTION_DARK_COLOR,
-  IMAGE_DESCRIPTION_PLACEHOLDER,
   EDescriptionPosition,
   DEFAULT_DESCRIPTION,
   DEFAULT_DESCRIPTION_POSITION,
@@ -69,6 +69,11 @@ interface ImageElementProps {
     startPoint: Point,
     endPoint: Point
   ) => void;
+}
+
+function ImageDescriptionHint() {
+  const { t } = useWhiteboardUiI18n();
+  return <>{t("ui.imageDescription")}</>;
 }
 
 const ImageElementComponent = memo((props: ImageElementProps) => {
@@ -292,7 +297,7 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
             />
             {!isEditingDescription && !description.trim() && (
               <span className={handTextClass(sketch)} style={descriptionTextStyle}>
-                {IMAGE_DESCRIPTION_PLACEHOLDER}
+                <ImageDescriptionHint />
               </span>
             )}
           </div>

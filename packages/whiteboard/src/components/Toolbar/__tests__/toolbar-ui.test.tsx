@@ -1,3 +1,6 @@
+import { hostWhiteboardExtensions } from "../../../extensions/authorApi";
+import { useEffect } from "react";
+import { defineWhiteboardExtension as defineAuthorExtension } from "../../../author";
 /**
  * @vitest-environment jsdom
  */
@@ -523,4 +526,103 @@ it("菜单换语不重跑菜单工厂或失效动作，消息参数固定且各�
   await act(async () => action.onSelect({ ...context, board }));
   expect(board.activeTool).toBe(GEOMETRY_TOOL_ID);
   expect(board.activeToolOptions).toMatchObject(geometryItems[0]);
+});
+
+it("公开作者声明的name getter保原receiver，换语不重新创建扩展或卸载参数面板", async () => {
+  const source = createLocaleStore("zh-CN");
+  const runtime = createI18nRuntime({ localeSource: source });
+  runtimes.push(runtime);
+  const { t } = runtime.get(whiteboardMessages);
+  let names = 0,
+    createReads = 0,
+    creates = 0,
+    panels = 0,
+    unmounts = 0;
+  function Panel() {
+    useEffect(() => {
+      panels++;
+      return () => {
+        unmounts++;
+      };
+    }, []);
+    return <input defaultValue="作者默认值" />;
+  }
+  const declaration = {
+    id: "acme.localized",
+    get name() {
+      names++;
+      expect(this).toBe(declaration);
+      return this.id + ":" + source.getSnapshot();
+    },
+    get create() {
+      createReads++;
+      return () => {
+        creates++;
+        return {
+          tools: [
+            {
+              id: "acme.author.tool",
+              command: "acme.author.run",
+              order: 1,
+              group: "acme",
+              label: "作者工具",
+              icon: StickyIcon,
+              panel: Panel,
+            },
+          ],
+          commands: [{ id: "acme.author.run", execute: () => undefined }],
+        };
+      };
+    },
+  };
+  const extension = defineAuthorExtension(declaration);
+  const staticDeclaration = { id: "acme.static", name: "原始静态名字", create: () => ({}) };
+  const staticExtension = defineAuthorExtension(staticDeclaration);
+  staticDeclaration.name = "定义后修改的普通值";
+  expect(names).toBe(0);
+  expect(createReads).toBe(1);
+  expect(creates).toBe(0);
+  const { board, host } = await mountBoard(
+    [
+      createInteractionExtension(),
+      ...hostWhiteboardExtensions([extension, staticExtension], "acme.author"),
+    ],
+    runtime
+  );
+  const installed = board.extensions;
+  const entry = host.querySelector<HTMLButtonElement>(
+    `button[aria-label="${t("toolbar.extensions")}"]`
+  );
+  if (!entry) throw new Error("作者工具入口未挂载");
+  await act(async () => entry.click());
+  const pick = [...document.querySelectorAll("button")].find(button =>
+    button.textContent?.includes("作者工具")
+  );
+  if (!pick) throw new Error("作者工具条目未挂载");
+  await act(async () => pick.click());
+  const input = document.querySelector("input");
+  if (!input) throw new Error("作者参数面板未挂载");
+  input.value = "用户草稿";
+  input.focus();
+  input.setSelectionRange(1, 3);
+  for (const locale of ["zh-TW", "en-US"]) {
+    await act(async () => source.setLocale(locale));
+    expect(board.extensions).toBe(installed);
+    expect(board.extensions?.getExtensionName(declaration.id)).toBe(declaration.id + ":" + locale);
+    expect(board.extensions?.getExtensionName(staticDeclaration.id)).toBe("原始静态名字");
+    expect(document.querySelector("input")).toBe(input);
+    expect(input.value).toBe("用户草稿");
+    expect(document.activeElement).toBe(input);
+    expect([input.selectionStart, input.selectionEnd]).toEqual([1, 3]);
+    expect(creates).toBe(1);
+    expect(createReads).toBe(2);
+    expect(panels).toBe(1);
+    expect(unmounts).toBe(0);
+  }
+  const back = document.querySelector<HTMLButtonElement>(
+    `button[aria-label="${t("toolbar.back")}"]`
+  );
+  if (!back) throw new Error("面板返回入口未挂载");
+  await act(async () => back.click());
+  expect(document.body.textContent).toContain(declaration.id + ":" + source.getSnapshot());
 });

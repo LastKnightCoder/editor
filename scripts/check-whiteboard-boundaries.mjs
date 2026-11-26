@@ -238,6 +238,7 @@ const authorFiles = new Set([
   "extensions/authorTypes.ts",
   "extensions/authorAccess.ts",
   "extensions/authorApi.ts",
+  "extensions/extension-display.ts",
   "extensions/versions.ts",
   "extensions/context.ts",
   "extensions/authorHooks.ts",
