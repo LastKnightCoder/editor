@@ -1,9 +1,12 @@
 /**
  * @vitest-environment jsdom
  */
-import React, { act } from "react";
+import { createI18nRuntime, createLocaleStore, type I18nRuntime } from "@tau/i18n";
+import { I18nRuntimeProvider } from "@tau/i18n/react";
+import { attributeMessages } from "../../../../attributes-i18n";
+import React, { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { customColorOption, inferMode, mixWithWhite, StyleSetter } from "../setters/StyleSetter";
 import type { GeometryElement } from "../../../../plugins";
@@ -70,6 +73,7 @@ describe("customColorOption", () => {
 /* ───────── 组件行为 ───────── */
 
 const roots: Root[] = [];
+const runtimes: I18nRuntime[] = [];
 
 function makeElement(overrides: Partial<GeometryElement> = {}): GeometryElement {
   return {
@@ -114,6 +118,8 @@ function mountSetter(initial: GeometryElement) {
 
 afterEach(async () => {
   for (const root of roots.splice(0)) await act(async () => root.unmount());
+  for (const runtime of runtimes.splice(0)) runtime.dispose();
+  vi.useRealTimers();
   document.body.replaceChildren();
 });
 
@@ -164,4 +170,84 @@ describe("StyleSetter 组件", () => {
     const pressed = document.querySelectorAll('button.rounded-full[aria-pressed="true"]');
     expect(pressed).toHaveLength(1);
   });
+});
+
+it("样式面板换语保留精确输入草稿和选区，不重复写入元素属性", async () => {
+  vi.useFakeTimers({ toFake: ["requestAnimationFrame", "cancelAnimationFrame"] });
+  const source = createLocaleStore("zh-CN");
+  const runtime = createI18nRuntime({ localeSource: source });
+  runtimes.push(runtime);
+  const { t } = runtime.get(attributeMessages);
+  const initial = makeElement({
+    fill: "#B8D9FF",
+    stroke: "#3F71FB",
+    strokeWidth: 2,
+    extraInfo: { cornerRadius: 8 },
+  });
+  const Component = new StyleSetter().getComponent();
+  const received: GeometryElement[] = [];
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  roots.push(root);
+  function Harness() {
+    const [element, setElement] = useState(initial);
+    return (
+      <Component
+        element={element}
+        onChange={next => {
+          received.push(next);
+          setElement(next);
+        }}
+      />
+    );
+  }
+  await act(async () =>
+    root.render(
+      <I18nRuntimeProvider runtime={runtime}>
+        <Harness />
+      </I18nRuntimeProvider>
+    )
+  );
+  const open = document.querySelector<HTMLButtonElement>(
+    `button[aria-label="${t("attributes.style")}"]`
+  );
+  if (!open) throw new Error("样式面板未挂载");
+  await act(async () => open.click());
+  await act(async () => vi.advanceTimersToNextFrame());
+  const input = document.querySelector<HTMLInputElement>(
+    `input[aria-label="${t("attributes.width")}"]`
+  );
+  if (!input) throw new Error("精确输入未挂载");
+  await act(async () => {
+    input.focus();
+    const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    if (!setValue) throw new Error("原生输入 setter 不存在");
+    setValue.call(input, "3.");
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  expect(received.map(element => element.strokeWidth)).toEqual([3]);
+  input.setSelectionRange(0, 2);
+  for (const locale of ["zh-TW", "en-US"]) {
+    await act(async () => source.setLocale(locale));
+    expect(document.querySelector(`input[aria-label="${t("attributes.width")}"]`)).toBe(input);
+    expect(input.value).toBe("3.");
+    expect(document.activeElement).toBe(input);
+    expect([input.selectionStart, input.selectionEnd]).toEqual([0, 2]);
+    expect(received.map(element => element.strokeWidth)).toEqual([3]);
+    expect(received[0]).toMatchObject({
+      fill: initial.fill,
+      stroke: initial.stroke,
+      extraInfo: initial.extraInfo,
+    });
+  }
+  const plus = document.querySelector<HTMLButtonElement>(
+    `button[aria-label="${t("attributes.increase", { label: t("attributes.width") })}"]`
+  );
+  if (!plus) throw new Error("步进按钮未挂载");
+  await act(async () => plus.focus());
+  expect(received.map(element => element.strokeWidth)).toEqual([3]);
+  await act(async () => plus.click());
+  expect(received.map(element => element.strokeWidth)).toEqual([3, 4]);
+  expect(initial.strokeWidth).toBe(2);
 });

@@ -1,15 +1,9 @@
-import {
-  createI18nRuntime,
-  createLocaleStore,
-  type I18nRuntime,
-  type TranslationValues,
-} from "@tau/i18n";
-import { whiteboardMessages, type WhiteboardMessageKey } from "./messages.ts";
+import { standaloneWhiteboardI18n } from "./locale-runtime.ts";
+export { standaloneWhiteboardI18n } from "./locale-runtime.ts";
 import type Board from "./Board";
+import { type I18nRuntime, type TranslationValues } from "@tau/i18n";
+import { whiteboardMessages, type WhiteboardMessageKey } from "./messages.ts";
 
-export const standaloneWhiteboardI18n = createI18nRuntime({
-  localeSource: createLocaleStore("zh-CN"),
-});
 const boardRuntimes = new WeakMap<Board, I18nRuntime>();
 export function bindWhiteboardI18n(board: Board, runtime: I18nRuntime): void {
   boardRuntimes.set(board, runtime);

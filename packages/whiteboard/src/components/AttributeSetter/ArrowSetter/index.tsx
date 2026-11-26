@@ -1,3 +1,5 @@
+import { attributeColor } from "../../../attribute-labels";
+import { useAttributeI18n, type AttributeTranslate } from "../../../attributes-i18n";
 import { produce } from "immer";
 import { Waves } from "lucide-react";
 
@@ -27,48 +29,50 @@ interface ArrowSetterProps {
   onChange: (element: ArrowElement) => void;
 }
 
-const LINE_TYPES = [
-  { label: "直线", type: EArrowLineType.STRAIGHT },
-  { label: "曲线", type: EArrowLineType.CURVE },
-  { label: "正交线", type: EArrowLineType.ORTHOGONAL },
-] as const;
+const LINE_TYPES = (t: AttributeTranslate) =>
+  [
+    { label: t("attributes.line.straight"), type: EArrowLineType.STRAIGHT },
+    { label: t("attributes.line.curve"), type: EArrowLineType.CURVE },
+    { label: t("attributes.line.orthogonal"), type: EArrowLineType.ORTHOGONAL },
+  ] as const;
 
-const MARKERS = [
-  { label: "无箭头", type: EMarkerType.None },
-  { label: "标准箭头", type: EMarkerType.Arrow },
-  { label: "开放式箭头", type: EMarkerType.OpenArrow },
-  { label: "闭合式箭头", type: EMarkerType.ClosedArrow },
-  { label: "菱形箭头", type: EMarkerType.Diamond },
-  { label: "圆形箭头", type: EMarkerType.Circle },
-] as const;
+const MARKERS = (t: AttributeTranslate) =>
+  [
+    { label: t("attributes.marker.none"), type: EMarkerType.None },
+    { label: t("attributes.marker.standard"), type: EMarkerType.Arrow },
+    { label: t("attributes.marker.open"), type: EMarkerType.OpenArrow },
+    { label: t("attributes.marker.closed"), type: EMarkerType.ClosedArrow },
+    { label: t("attributes.marker.diamond"), type: EMarkerType.Diamond },
+    { label: t("attributes.marker.circle"), type: EMarkerType.Circle },
+  ] as const;
 
-const DASH_PATTERNS = [
-  { label: "标准虚线", value: [5, 5] },
-  { label: "点线", value: [2, 2] },
-  { label: "长虚线", value: [10, 5] },
-  { label: "点划线", value: [10, 3, 2, 3] },
-  { label: "密集虚线", value: [3, 3] },
+const DASH_PATTERNS = (t: AttributeTranslate) => [
+  { label: t("attributes.dash.standard"), value: [5, 5] },
+  { label: t("attributes.dottedLine"), value: [2, 2] },
+  { label: t("attributes.dash.long"), value: [10, 5] },
+  { label: t("attributes.dash.dotDash"), value: [10, 3, 2, 3] },
+  { label: t("attributes.dash.dense"), value: [3, 3] },
 ];
 
-const LINE_WIDTH_OPTIONS: OptionItem<string>[] = [
-  { value: "1", label: "细", glyph: <LineWeightGlyph width={1} /> },
-  { value: "2", label: "标准", glyph: <LineWeightGlyph width={2} /> },
-  { value: "4", label: "粗", glyph: <LineWeightGlyph width={4} /> },
-  { value: "6", label: "特粗", glyph: <LineWeightGlyph width={6} /> },
+const LINE_WIDTH_OPTIONS = (t: AttributeTranslate): OptionItem<string>[] => [
+  { value: "1", label: t("attributes.thin"), glyph: <LineWeightGlyph width={1} /> },
+  { value: "2", label: t("attributes.standard"), glyph: <LineWeightGlyph width={2} /> },
+  { value: "4", label: t("attributes.thick"), glyph: <LineWeightGlyph width={4} /> },
+  { value: "6", label: t("attributes.extraThick"), glyph: <LineWeightGlyph width={6} /> },
 ];
 
 /** 线条档：实线 + 原虚线 5 档，value 复用原 dashArray key */
-const LINE_STYLE_OPTIONS: OptionItem<string>[] = [
+const LINE_STYLE_OPTIONS = (t: AttributeTranslate): OptionItem<string>[] => [
   {
     value: "solid",
-    label: "实线",
+    label: t("attributes.solidLine"),
     glyph: (
       <Glyph>
         <path d="M2 7H26" />
       </Glyph>
     ),
   },
-  ...DASH_PATTERNS.map(p => ({
+  ...DASH_PATTERNS(t).map(p => ({
     value: p.value.join(","),
     label: p.label,
     glyph: (
@@ -79,10 +83,10 @@ const LINE_STYLE_OPTIONS: OptionItem<string>[] = [
   })),
 ];
 
-const SPEED_OPTIONS: OptionItem<string>[] = [
-  { value: "1", label: "慢" },
-  { value: "3", label: "中" },
-  { value: "6", label: "快" },
+const SPEED_OPTIONS = (t: AttributeTranslate): OptionItem<string>[] => [
+  { value: "1", label: t("attributes.slow") },
+  { value: "3", label: t("attributes.medium") },
+  { value: "6", label: t("attributes.fast") },
 ];
 
 /** 图示：直接用画布的 Arrow 画法，墨色随 currentColor */
@@ -123,11 +127,12 @@ function ArrowGlyph({
 function markerGrid(
   end: "source" | "target",
   marker: EMarkerType,
-  onChange: (v: EMarkerType) => void
+  onChange: (v: EMarkerType) => void,
+  t: AttributeTranslate
 ) {
   return (
     <OptionGrid
-      options={MARKERS.map(m => ({
+      options={MARKERS(t).map(m => ({
         value: m.type,
         label: m.label,
         glyph: end === "target" ? <ArrowGlyph target={m.type} /> : <ArrowGlyph source={m.type} />,
@@ -142,6 +147,7 @@ const gridValue = (options: OptionItem<string>[], value: number): string | null 
   options.some(o => o.value === String(value)) ? String(value) : null;
 
 const ArrowSetter = ({ element, onChange }: ArrowSetterProps) => {
+  const { t } = useAttributeI18n();
   const { isDark } = useTheme();
   const set = (recipe: (draft: ArrowElement) => void) => {
     const next = produce(element, recipe);
@@ -156,9 +162,13 @@ const ArrowSetter = ({ element, onChange }: ArrowSetterProps) => {
 
   return (
     <>
-      <AttrPopover label="线型" icon={<ArrowGlyph lineType={element.lineType} />} width={264}>
+      <AttrPopover
+        label={t("attributes.lineType")}
+        icon={<ArrowGlyph lineType={element.lineType} />}
+        width={264}
+      >
         <OptionGrid
-          options={LINE_TYPES.map(t => ({
+          options={LINE_TYPES(t).map(t => ({
             value: t.type,
             label: t.label,
             glyph: <ArrowGlyph lineType={t.type} />,
@@ -168,34 +178,48 @@ const ArrowSetter = ({ element, onChange }: ArrowSetterProps) => {
           onChange={v => set(d => void (d.lineType = v))}
         />
       </AttrPopover>
-      <AttrPopover label="端点" icon={<MarkerEndIcon />} width={264}>
-        <Field label="起点">
-          {markerGrid("source", element.source.marker, v => set(d => void (d.source.marker = v)))}
+      <AttrPopover label={t("attributes.endpoints")} icon={<MarkerEndIcon />} width={264}>
+        <Field label={t("attributes.start")}>
+          {markerGrid(
+            "source",
+            element.source.marker,
+            v => set(d => void (d.source.marker = v)),
+            t
+          )}
         </Field>
-        <Field label="终点">
-          {markerGrid("target", element.target.marker, v => set(d => void (d.target.marker = v)))}
+        <Field label={t("attributes.end")}>
+          {markerGrid(
+            "target",
+            element.target.marker,
+            v => set(d => void (d.target.marker = v)),
+            t
+          )}
         </Field>
       </AttrPopover>
-      <AttrPopover label="样式" swatch={{ fill: color, stroke: color }} width={288}>
-        <Field label="颜色">
+      <AttrPopover
+        label={t("attributes.style")}
+        swatch={{ fill: color, stroke: color }}
+        width={288}
+      >
+        <Field label={t("attributes.color")}>
           {/* 主题色随深浅色模式取对应色值（数据色，保留现状 12 色） */}
           <SwatchRow
             options={THEME_COLORS.map(c => ({
               key: c.id,
-              label: c.label,
+              label: attributeColor(c.id, c.label, t),
               fill: isDark ? c.dark : c.light,
               stroke: isDark ? c.dark : c.light,
             }))}
             value={element.themeColorId || getDefaultThemeColorId()}
             onChange={id => set(d => void (d.themeColorId = id))}
           />
-          <div className="text-ink-3 mt-2.5 text-[11px]">主题颜色会随深浅色模式自动调整</div>
+          <div className="text-ink-3 mt-2.5 text-[11px]">{t("attributes.themeColorHint")}</div>
         </Field>
         <Field
-          label="粗细"
+          label={t("attributes.width")}
           value={
             <Stepper
-              label="粗细"
+              label={t("attributes.width")}
               min={1}
               max={10}
               step={1}
@@ -205,15 +229,15 @@ const ArrowSetter = ({ element, onChange }: ArrowSetterProps) => {
           }
         >
           <OptionGrid
-            options={LINE_WIDTH_OPTIONS}
-            value={gridValue(LINE_WIDTH_OPTIONS, lineWidth)}
+            options={LINE_WIDTH_OPTIONS(t)}
+            value={gridValue(LINE_WIDTH_OPTIONS(t), lineWidth)}
             onChange={v => set(d => void (d.lineWidth = Number(v)))}
           />
         </Field>
-        <Field label="线条">
+        <Field label={t("attributes.line")}>
           <OptionGrid
             cols={6}
-            options={LINE_STYLE_OPTIONS}
+            options={LINE_STYLE_OPTIONS(t)}
             value={element.dashed ? dashKey : "solid"}
             onChange={v =>
               set(d => {
@@ -230,25 +254,25 @@ const ArrowSetter = ({ element, onChange }: ArrowSetterProps) => {
       </AttrPopover>
       {element.animated ? (
         <AttrPopover
-          label="流动动画"
+          label={t("attributes.flow")}
           icon={<Waves strokeWidth={1.75} />}
           width={240}
           toggle={{ checked: true, onChange: v => set(d => void (d.animated = v)) }}
         >
-          <Field label="速度">
+          <Field label={t("attributes.speed")}>
             <OptionGrid
-              options={SPEED_OPTIONS}
-              value={gridValue(SPEED_OPTIONS, animationSpeed)}
+              options={SPEED_OPTIONS(t)}
+              value={gridValue(SPEED_OPTIONS(t), animationSpeed)}
               onChange={v => set(d => void (d.animationSpeed = Number(v)))}
             />
             <div className="text-ink-3 mt-1.5 text-[11px]">
-              {element.dashed ? "虚线将显示流动效果" : "实线将显示流动点"}
+              {element.dashed ? t("attributes.flow.dashes") : t("attributes.flow.dots")}
             </div>
           </Field>
         </AttrPopover>
       ) : (
         <AttrToggle
-          label="流动动画"
+          label={t("attributes.flow")}
           icon={<Waves strokeWidth={1.75} />}
           checked={false}
           onChange={v => set(d => void (d.animated = v))}

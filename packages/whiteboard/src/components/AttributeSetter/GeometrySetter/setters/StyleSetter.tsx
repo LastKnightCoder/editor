@@ -1,3 +1,4 @@
+import { useAttributeI18n, type AttributeTranslate } from "../../../../attributes-i18n";
 import React from "react";
 import { Palette } from "lucide-react";
 import { produce } from "immer";
@@ -191,20 +192,28 @@ const MODE_COLORS: Record<StyleMode, ColorOption[]> = {
   outline: transparentFillColors,
 };
 
-const NAMES = ["红", "橙", "黄", "绿", "蓝", "紫", "粉", "灰"];
-const MODE_SWATCH_PREFIX: Record<StyleMode, string> = {
-  soft: "浅",
-  solid: "实心",
-  outline: "描边",
-};
+const NAMES = (t: AttributeTranslate) => [
+  t("attributes.color.red"),
+  t("attributes.color.orange"),
+  t("attributes.color.yellow"),
+  t("attributes.color.green"),
+  t("attributes.color.blue"),
+  t("attributes.color.purple"),
+  t("attributes.color.pink"),
+  t("attributes.color.gray"),
+];
 /** 色相与基色都不可知时的兜底档位（蓝色） */
 const DEFAULT_HUE_INDEX = 4;
 
 const keyOf = (c: Pick<ColorOption, "fill" | "stroke">) => `${c.fill}|${c.stroke}`;
-const toSwatches = (colors: ColorOption[], group: string): SwatchOption[] =>
+const toSwatches = (
+  colors: ColorOption[],
+  mode: StyleMode,
+  t: AttributeTranslate
+): SwatchOption[] =>
   colors.map((c, i) => ({
     key: keyOf(c),
-    label: `${group}${NAMES[i] ?? ""}`,
+    label: t(`attributes.swatch.${mode}`, { color: NAMES(t)[i] ?? "" }),
     fill: c.fill === "transparent" ? "var(--tau-bg-surface)" : c.fill,
     stroke: c.stroke === "transparent" ? c.fill : c.stroke,
   }));
@@ -246,21 +255,32 @@ function baseColorOf(el: GeometryElement, mode: StyleMode): string | null {
   return null;
 }
 
-const strokeWidthOptions: OptionItem<string>[] = [
-  { value: "1", label: "细", glyph: <LineWeightGlyph width={1} /> },
-  { value: "2", label: "标准", glyph: <LineWeightGlyph width={2} /> },
-  { value: "4", label: "粗", glyph: <LineWeightGlyph width={4} /> },
-  { value: "8", label: "特粗", glyph: <LineWeightGlyph width={8} /> },
+const strokeWidthOptions = (t: AttributeTranslate): OptionItem<string>[] => [
+  { value: "1", label: t("attributes.thin"), glyph: <LineWeightGlyph width={1} /> },
+  { value: "2", label: t("attributes.standard"), glyph: <LineWeightGlyph width={2} /> },
+  { value: "4", label: t("attributes.thick"), glyph: <LineWeightGlyph width={4} /> },
+  { value: "8", label: t("attributes.extraThick"), glyph: <LineWeightGlyph width={8} /> },
 ];
 
-const cornerRadiusOptions: OptionItem<string>[] = [
-  { value: "0", label: "直角", glyph: <CornerGlyph radius={0} />, showLabel: true },
-  { value: "8", label: "小", glyph: <CornerGlyph radius={8} />, showLabel: true },
-  { value: "20", label: "大", glyph: <CornerGlyph radius={20} />, showLabel: true },
+const cornerRadiusOptions = (t: AttributeTranslate): OptionItem<string>[] => [
+  {
+    value: "0",
+    label: t("attributes.rightAngle"),
+    glyph: <CornerGlyph radius={0} />,
+    showLabel: true,
+  },
+  { value: "8", label: t("attributes.small"), glyph: <CornerGlyph radius={8} />, showLabel: true },
+  {
+    value: "20",
+    label: t("attributes.large"),
+    glyph: <CornerGlyph radius={20} />,
+    showLabel: true,
+  },
 ];
 
 /** 样式：颜色（填充方式 + 色板）、边框粗细、圆角（矩形）合一弹层，数据写入与本地记忆沿用原三个设置器 */
 const StyleSetterComponent: React.FC<GeometrySetterComponentProps> = ({ element, onChange }) => {
+  const { t } = useAttributeI18n();
   const apply = useMemoizedFn((color: ColorOption) => {
     const newElement = produce(element, draft => {
       draft.stroke = color.stroke;
@@ -341,21 +361,21 @@ const StyleSetterComponent: React.FC<GeometrySetterComponentProps> = ({ element,
     options.some(o => o.value === String(value)) ? String(value) : null;
 
   return (
-    <AttrPopover label="样式" swatch={swatch} width={288}>
-      <Field label="颜色">
+    <AttrPopover label={t("attributes.style")} swatch={swatch} width={288}>
+      <Field label={t("attributes.color")}>
         <Seg<StyleMode>
-          label="填充方式"
+          label={t("attributes.fillMode")}
           value={mode}
           onChange={switchMode}
           options={[
-            { value: "soft", label: "浅底" },
-            { value: "solid", label: "实心" },
-            { value: "outline", label: "线框" },
+            { value: "soft", label: t("attributes.soft") },
+            { value: "solid", label: t("attributes.solid") },
+            { value: "outline", label: t("attributes.outline") },
           ]}
         />
         <div className="mt-2.5">
           <SwatchRow
-            options={toSwatches(MODE_COLORS[mode], MODE_SWATCH_PREFIX[mode])}
+            options={toSwatches(MODE_COLORS[mode], mode, t)}
             value={hueIndex >= 0 ? swatchKey : null}
             onChange={pick}
             custom={{
@@ -366,10 +386,10 @@ const StyleSetterComponent: React.FC<GeometrySetterComponentProps> = ({ element,
         </div>
       </Field>
       <Field
-        label="粗细"
+        label={t("attributes.width")}
         value={
           <Stepper
-            label="粗细"
+            label={t("attributes.width")}
             min={1}
             max={20}
             step={1}
@@ -379,17 +399,17 @@ const StyleSetterComponent: React.FC<GeometrySetterComponentProps> = ({ element,
         }
       >
         <OptionGrid
-          options={strokeWidthOptions}
-          value={gridValue(strokeWidthOptions, strokeWidth)}
+          options={strokeWidthOptions(t)}
+          value={gridValue(strokeWidthOptions(t), strokeWidth)}
           onChange={v => handleStrokeWidth(Number(v))}
         />
       </Field>
       {isRectangle && (
         <Field
-          label="圆角"
+          label={t("attributes.corner")}
           value={
             <Stepper
-              label="圆角"
+              label={t("attributes.corner")}
               min={0}
               max={50}
               step={2}
@@ -399,8 +419,8 @@ const StyleSetterComponent: React.FC<GeometrySetterComponentProps> = ({ element,
           }
         >
           <OptionGrid
-            options={cornerRadiusOptions}
-            value={gridValue(cornerRadiusOptions, cornerRadius)}
+            options={cornerRadiusOptions(t)}
+            value={gridValue(cornerRadiusOptions(t), cornerRadius)}
             onChange={v => handleCornerRadius(Number(v))}
           />
         </Field>

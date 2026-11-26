@@ -252,6 +252,8 @@ P5桌面Sidebar/Toast联动：22源码及RootToast5工程完成，7文件36例�
 
 P6B手机加入：12源码工程完成；真实生产route/Router/Overlay回归2例和相关router基线3例通过，mobile类型、18语义key与20既有协作错误码字典对账/静态/格式通过。换语保留原码/焦点/草稿/失败及pending状态、剪贴板仅1读、runtime仅1retain/start，unrelated session不跳转，approved仅按原response.documentId一次replace；20中文错误原值机械对账，parse/fallback逐字节不变。
 
+P6A3-B属性面板：22源码加Root5上下文/guard工程完成；集成后4文件27例、包type与作者边界均通过。属性161key三语参数/复数、范围静态/格式通过；真实输入/滑杆与Popover用fake RAF确定交互时点，换语保留草稿/选区/实例、不写属性。原颜色/主题/枚举/default/name和算法不变，不存在的SourceReadonly字段未人为制造。Root分离纯fallback/context后author闭包不加载Board或tools资源。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

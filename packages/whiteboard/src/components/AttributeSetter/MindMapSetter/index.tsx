@@ -1,3 +1,5 @@
+import { attributeOption } from "../../../attribute-labels";
+import { useAttributeI18n, type AttributeTranslate } from "../../../attributes-i18n";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { produce } from "immer";
 import { useMemoizedFn } from "ahooks";
@@ -28,6 +30,7 @@ interface MindMapSetterProps {
 
 /** 笔记：新建 / 选择由节点自身响应（弹窗挂在 MindNode 上），取消关联走画布的确认框 */
 function NoteSetter({ element }: { element: MindNodeElement }) {
+  const { t } = useAttributeI18n();
   const board = useBoard();
   const { side } = useContext(AttrBarContext);
   const linked = !!element.contentId;
@@ -37,7 +40,11 @@ function NoteSetter({ element }: { element: MindNodeElement }) {
   return (
     <Menu
       trigger={
-        <ChromeButton label={linked ? "笔记" : "关联笔记"} active={linked} tooltipPlacement={side}>
+        <ChromeButton
+          label={linked ? t("attributes.note") : t("attributes.note.link")}
+          active={linked}
+          tooltipPlacement={side}
+        >
           <StickyNote strokeWidth={1.75} />
         </ChromeButton>
       }
@@ -48,13 +55,13 @@ function NoteSetter({ element }: { element: MindNodeElement }) {
             icon={<ExternalLink />}
             onSelect={() => board.emit("tau.note.open", element.contentId, element.contentTitle)}
           >
-            打开笔记
+            {t("attributes.note.open")}
           </Menu.Item>
           <Menu.Item
             icon={<FileSearch />}
             onSelect={() => board.emit("tau.mind.select-note", element.id)}
           >
-            更换笔记
+            {t("attributes.note.replace")}
           </Menu.Item>
           <Menu.Separator />
           <Menu.Item
@@ -62,7 +69,7 @@ function NoteSetter({ element }: { element: MindNodeElement }) {
             icon={<Unlink />}
             onSelect={() => board.emit("tau.mind.confirm-unlink-note", element.id)}
           >
-            取消关联
+            {t("attributes.note.unlink")}
           </Menu.Item>
         </>
       ) : (
@@ -71,13 +78,13 @@ function NoteSetter({ element }: { element: MindNodeElement }) {
             icon={<FilePlus />}
             onSelect={() => board.emit("tau.mind.create-note", element.id)}
           >
-            新建笔记
+            {t("attributes.note.create")}
           </Menu.Item>
           <Menu.Item
             icon={<FileSearch />}
             onSelect={() => board.emit("tau.mind.select-note", element.id)}
           >
-            选择笔记
+            {t("attributes.note.select")}
           </Menu.Item>
         </>
       )}
@@ -85,11 +92,11 @@ function NoteSetter({ element }: { element: MindNodeElement }) {
   );
 }
 
-const LAYOUT_OPTIONS: Array<{ value: MindLayoutId; label: string }> = [
-  { value: "mind", label: "思维导图" },
-  { value: "logic", label: "逻辑图" },
-  { value: "org", label: "组织结构图" },
-  { value: "tree", label: "树状图" },
+const LAYOUT_OPTIONS = (t: AttributeTranslate): Array<{ value: MindLayoutId; label: string }> => [
+  { value: "mind", label: t("attributes.layout.mind") },
+  { value: "logic", label: t("attributes.layout.logic") },
+  { value: "org", label: t("attributes.layout.org") },
+  { value: "tree", label: t("attributes.layout.tree") },
 ];
 
 const optionClass = (on: boolean) =>
@@ -100,6 +107,7 @@ const optionClass = (on: boolean) =>
   );
 
 function StyleSetter({ element, onChange }: MindMapSetterProps) {
+  const { t } = useAttributeI18n();
   const board = useBoard();
   const root = useMemo(() => MindUtil.getRoot(board, element), [board, element]);
   const mode = useMindMode();
@@ -168,10 +176,14 @@ function StyleSetter({ element, onChange }: MindMapSetterProps) {
   );
 
   return (
-    <AttrPopover label="导图样式" icon={<Palette strokeWidth={1.75} />} width={300}>
-      <Field label="布局">
+    <AttrPopover
+      label={t("attributes.mind.style")}
+      icon={<Palette strokeWidth={1.75} />}
+      width={300}
+    >
+      <Field label={t("attributes.layout")}>
         <div className="grid grid-cols-2 gap-1.5" onPointerLeave={() => previewLayout(null)}>
-          {LAYOUT_OPTIONS.map(option => {
+          {LAYOUT_OPTIONS(t).map(option => {
             const on = option.value === layoutId;
             return (
               <button
@@ -194,15 +206,18 @@ function StyleSetter({ element, onChange }: MindMapSetterProps) {
           })}
         </div>
       </Field>
-      <Field label="风格">
+      <Field label={t("attributes.themeStyle")}>
         <Seg
-          label="风格"
-          options={MIND_THEME_STYLES}
+          label={t("attributes.themeStyle")}
+          options={MIND_THEME_STYLES.map(option => ({
+            ...option,
+            label: attributeOption("mindStyle", option.value, option.label, t),
+          }))}
           value={style}
           onChange={v => apply({ themeStyle: v })}
         />
       </Field>
-      <Field label="配色">
+      <Field label={t("attributes.palette")}>
         <div className="grid grid-cols-2 gap-1.5" onPointerLeave={() => preview(null)}>
           {MIND_PALETTES.map(palette => {
             const on = palette.id === paletteId;
@@ -219,7 +234,9 @@ function StyleSetter({ element, onChange }: MindMapSetterProps) {
                 className={optionClass(on)}
               >
                 <ThemeThumbnail themeId={palette.id} themeStyle={style} mode={mode} />
-                <span className="truncate">{palette.label}</span>
+                <span className="truncate">
+                  {attributeOption("mindPalette", palette.id, palette.label, t)}
+                </span>
               </button>
             );
           })}
@@ -227,7 +244,7 @@ function StyleSetter({ element, onChange }: MindMapSetterProps) {
       </Field>
       <Field className="border-line-1 mt-3 border-t pt-2.5">
         <Checkbox
-          label="设为新导图默认"
+          label={t("attributes.mind.default")}
           checked={asDefault}
           onChange={e => {
             const on = e.target.checked;

@@ -1,3 +1,4 @@
+import { useAttributeI18n } from "../attributes-i18n";
 /**
  * 画布 chrome 公共件：
  * 工具条 / 属性浮动条 / 状态栏 / 元素树等浮动件共用一套主题语言——
@@ -347,6 +348,7 @@ export function SwatchRow({
   /** 末尾「自定义颜色」 */
   custom?: { value?: string; onChange: (hex: string) => void };
 }) {
+  const { t } = useAttributeI18n();
   return (
     <div className="flex flex-wrap gap-1.5">
       {/* 现状色板里有同色值的条目（如「粉」「红」共用描边色），key 带序号 */}
@@ -363,14 +365,14 @@ export function SwatchRow({
         </Tooltip>
       ))}
       {custom && (
-        <Tooltip content="自定义颜色" placement="top" arrow={false}>
+        <Tooltip content={t("attributes.customColor")} placement="top" arrow={false}>
           <label
             className="ring-line-2 relative size-[22px] cursor-pointer overflow-hidden rounded-full ring-1"
             style={{ background: RAINBOW_RING }}
           >
             <input
               type="color"
-              aria-label="自定义颜色"
+              aria-label={t("attributes.customColor")}
               value={
                 custom.value && /^#[0-9a-f]{6}$/i.test(custom.value)
                   ? custom.value
@@ -467,11 +469,12 @@ export function Stepper({
   /** 输入框右侧紧贴的单位字（如 "%"） */
   unit?: string;
 }) {
+  const { t } = useAttributeI18n();
   return (
     <span className="bg-hover inline-flex h-[22px] items-center rounded-[7px]">
       <button
         type="button"
-        aria-label={`减小${label}`}
+        aria-label={t("attributes.decrease", { label })}
         disabled={value <= min}
         onClick={() => onChange(snapStep(value - step, min, max, step))}
         className="text-ink-2 hover:text-ink-1 flex h-full w-5 cursor-pointer items-center justify-center text-[13px] disabled:pointer-events-none disabled:opacity-35"
@@ -492,7 +495,7 @@ export function Stepper({
       {unit && <span className="text-ink-3 pr-0.5 text-[11px]">{unit}</span>}
       <button
         type="button"
-        aria-label={`增大${label}`}
+        aria-label={t("attributes.increase", { label })}
         disabled={value >= max}
         onClick={() => onChange(snapStep(value + step, min, max, step))}
         className="text-ink-2 hover:text-ink-1 flex h-full w-5 cursor-pointer items-center justify-center text-[13px] disabled:pointer-events-none disabled:opacity-35"

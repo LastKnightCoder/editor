@@ -1,3 +1,4 @@
+import { useAttributeI18n } from "../../../../attributes-i18n";
 import React from "react";
 import { AlignCenter, AlignLeft, AlignRight } from "lucide-react";
 import { produce } from "immer";
@@ -13,6 +14,7 @@ const ALIGN_ICON = { left: AlignLeft, center: AlignCenter, right: AlignRight } a
 
 // 文本对齐设置器组件
 const AlignSetterComponent: React.FC<GeometrySetterComponentProps> = ({ element, onChange }) => {
+  const { t } = useAttributeI18n();
   const handleSelect = useMemoizedFn((value: Align) => {
     const newElement = produce(element, draft => {
       if (draft.text) draft.text.align = value;
@@ -27,15 +29,15 @@ const AlignSetterComponent: React.FC<GeometrySetterComponentProps> = ({ element,
   const Icon = ALIGN_ICON[current] ?? AlignCenter;
 
   return (
-    <AttrPopover label="文字对齐" icon={<Icon strokeWidth={1.75} />} width={220}>
+    <AttrPopover label={t("attributes.textAlign")} icon={<Icon strokeWidth={1.75} />} width={220}>
       <Seg<Align>
-        label="文字对齐"
+        label={t("attributes.textAlign")}
         value={current}
         onChange={handleSelect}
         options={[
-          { value: "left", label: "左对齐" },
-          { value: "center", label: "居中" },
-          { value: "right", label: "右对齐" },
+          { value: "left", label: t("attributes.align.left") },
+          { value: "center", label: t("attributes.align.center") },
+          { value: "right", label: t("attributes.align.right") },
         ]}
       />
     </AttrPopover>

@@ -1,3 +1,5 @@
+import { attributeOption } from "../attribute-labels";
+import { useAttributeI18n } from "../attributes-i18n";
 import { memo, useMemo } from "react";
 import { produce } from "immer";
 import { Dices, PenLine } from "lucide-react";
@@ -46,17 +48,27 @@ interface SketchFieldsProps {
 
 /** 单选与多选共用的「笔触」弹层内容 */
 export function SketchFields(props: SketchFieldsProps) {
+  const { t } = useAttributeI18n();
   const { page, mode, level, levelFollowsPage, enabled, seed, fill, hint } = props;
-  const pageModeLabel = page.mode === "sketch" ? "手绘" : "普通";
+  const pageModeLabel =
+    page.mode === "sketch"
+      ? t("attributes.sketch.mode.sketch")
+      : t("attributes.sketch.mode.normal");
   const modeOptions = [
-    { value: "inherit" as ModeChoice, label: `跟随页面 · ${pageModeLabel}` },
-    ...SKETCH_MODE_OPTIONS,
+    {
+      value: "inherit" as ModeChoice,
+      label: t("attributes.sketch.pageMode", { mode: pageModeLabel }),
+    },
+    ...SKETCH_MODE_OPTIONS.map(option => ({
+      ...option,
+      label: attributeOption("mode", option.value, option.label, t),
+    })),
   ];
   const glyphLevel = level ?? page.level;
 
   return (
     <>
-      <Field label="画风">
+      <Field label={t("attributes.sketch.mode")}>
         <OptionGrid<ModeChoice>
           cols={3}
           options={modeOptions.map(o => ({ value: o.value, label: o.label }))}
@@ -66,13 +78,16 @@ export function SketchFields(props: SketchFieldsProps) {
       </Field>
       {enabled ? (
         <>
-          <Field label="笔触" value={levelFollowsPage ? "跟随页面" : undefined}>
+          <Field
+            label={t("attributes.sketch.stroke")}
+            value={levelFollowsPage ? t("attributes.sketch.inherit") : undefined}
+          >
             <OptionGrid<SketchLevel>
               cols={3}
               tall
               options={SKETCH_LEVEL_OPTIONS.map(o => ({
                 value: o.value,
-                label: o.label,
+                label: attributeOption("level", o.value, o.label, t),
                 glyph: <SketchGlyph level={o.value} seed={seed} />,
               }))}
               value={level}
@@ -80,13 +95,13 @@ export function SketchFields(props: SketchFieldsProps) {
             />
           </Field>
           {fill && (
-            <Field label="填充">
+            <Field label={t("attributes.fill")}>
               <OptionGrid<SketchFillStyle>
                 cols={4}
                 tall
                 options={SKETCH_FILL_OPTIONS.map(o => ({
                   value: o.value,
-                  label: o.label,
+                  label: attributeOption("fill", o.value, o.label, t),
                   glyph: (
                     <SketchGlyph
                       level={glyphLevel}
@@ -103,16 +118,16 @@ export function SketchFields(props: SketchFieldsProps) {
           )}
           <div className="border-line-2 mt-3 flex items-center gap-2.5 border-t pt-3">
             <Button variant="soft" size="sm" icon={Dices} onClick={props.onReseed}>
-              换一笔
+              {t("attributes.sketch.reseed")}
             </Button>
             <span className="text-ink-3 text-tau-tiny leading-snug">
-              {hint ?? "笔迹固定存在元素上，拖动、缩放不会重抖"}
+              {hint ?? t("attributes.sketch.stableHint")}
             </span>
           </div>
         </>
       ) : (
         <p className="text-ink-3 text-tau-micro mt-2 leading-relaxed">
-          普通模式按原样渲染：直线、实色填充、正文字体。
+          {t("attributes.sketch.normalHint")}
         </p>
       )}
     </>
@@ -136,6 +151,7 @@ interface SketchPopoverProps<T extends BoardElement> {
  * 未单独设置的字段跟随页面，选「跟随页面」即删除覆盖。
  */
 function SketchPopover<T extends BoardElement>({ target, onChange, fill }: SketchPopoverProps<T>) {
+  const { t } = useAttributeI18n();
   const page = usePageSketch();
   const sketch = useSketch(target);
   const own = target.sketch ?? {};
@@ -148,7 +164,11 @@ function SketchPopover<T extends BoardElement>({ target, onChange, fill }: Sketc
     );
 
   return (
-    <AttrPopover label="笔触" icon={<PenLine strokeWidth={1.75} />} width={292}>
+    <AttrPopover
+      label={t("attributes.sketch.stroke")}
+      icon={<PenLine strokeWidth={1.75} />}
+      width={292}
+    >
       <SketchFields
         page={page}
         mode={own.mode ?? "inherit"}
@@ -167,7 +187,7 @@ function SketchPopover<T extends BoardElement>({ target, onChange, fill }: Sketc
         onReseed={() => update({ seed: randomSeed() })}
         hint={
           !sketch.enabled && page.mode === "sketch"
-            ? "页面是手绘，这个元素单独设成了普通。"
+            ? t("attributes.sketch.overrideHint")
             : undefined
         }
       />

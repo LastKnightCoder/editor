@@ -1,3 +1,4 @@
+import { useAttributeI18n } from "../../../attributes-i18n";
 import { memo } from "react";
 import { useMemoizedFn } from "ahooks";
 import {
@@ -33,6 +34,7 @@ interface MultiSelectSetterProps {
 }
 
 const MultiSelectSetter = memo((props: MultiSelectSetterProps) => {
+  const { t } = useAttributeI18n();
   const { elements, sketchTargets, onChange } = props;
   const canAlign = elements.length > 1;
 
@@ -45,22 +47,22 @@ const MultiSelectSetter = memo((props: MultiSelectSetterProps) => {
 
   const handleMergeHandwrite = useMemoizedFn(() => {
     if (!canMergeHandwrite) {
-      toast.warning("仅支持对两个及以上手写元素进行合并");
+      toast.warning(t("attributes.handwrite.mergeUnavailable"));
       return;
     }
     const mergedElements = applyHandwriteGroupIdPatch(elements, getUuid());
     onChange(mergedElements);
-    toast.success(`已合并 ${mergedElements.length} 条手写`);
+    toast.success(t("attributes.handwrite.merged", { count: mergedElements.length }));
   });
 
   const handleSplitHandwriteGroup = useMemoizedFn(() => {
     if (!canSplitHandwrite) {
-      toast.warning("当前选择不满足拆分手写组条件");
+      toast.warning(t("attributes.handwrite.splitUnavailable"));
       return;
     }
     const splitElements = applyHandwriteGroupIdPatch(elements, null);
     onChange(splitElements);
-    toast.success(`已拆分 ${splitElements.length} 条手写`);
+    toast.success(t("attributes.handwrite.splitResult", { count: splitElements.length }));
   });
 
   // 左对齐，按照最左边的元素，设置相同的 x
@@ -206,32 +208,32 @@ const MultiSelectSetter = memo((props: MultiSelectSetterProps) => {
       {canAlign && (
         <>
           <AttrAction
-            label="左对齐"
+            label={t("attributes.align.left")}
             icon={<AlignStartVertical strokeWidth={1.75} />}
             onClick={handleAlignLeft}
           />
           <AttrAction
-            label="右对齐"
+            label={t("attributes.align.right")}
             icon={<AlignEndVertical strokeWidth={1.75} />}
             onClick={handleAlignRight}
           />
           <AttrAction
-            label="顶部对齐"
+            label={t("attributes.align.top")}
             icon={<AlignStartHorizontal strokeWidth={1.75} />}
             onClick={handleAlignTop}
           />
           <AttrAction
-            label="底部对齐"
+            label={t("attributes.align.bottom")}
             icon={<AlignEndHorizontal strokeWidth={1.75} />}
             onClick={handleAlignBottom}
           />
           <AttrAction
-            label="横向均分"
+            label={t("attributes.distribute.horizontal")}
             icon={<AlignHorizontalDistributeCenter strokeWidth={1.75} />}
             onClick={handleDistributeHorizontal}
           />
           <AttrAction
-            label="纵向均分"
+            label={t("attributes.distribute.vertical")}
             icon={<AlignVerticalDistributeCenter strokeWidth={1.75} />}
             onClick={handleDistributeVertical}
           />
@@ -241,14 +243,14 @@ const MultiSelectSetter = memo((props: MultiSelectSetterProps) => {
       {(canMergeHandwrite || canSplitHandwrite) && <ChromeGap />}
       {canMergeHandwrite && (
         <AttrAction
-          label="合并手写"
+          label={t("attributes.handwrite.merge")}
           icon={<Link2 strokeWidth={1.75} />}
           onClick={handleMergeHandwrite}
         />
       )}
       {canSplitHandwrite && (
         <AttrAction
-          label="拆分手写组"
+          label={t("attributes.handwrite.split")}
           icon={<Ungroup strokeWidth={1.75} />}
           onClick={handleSplitHandwriteGroup}
         />

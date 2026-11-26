@@ -1,3 +1,5 @@
+import { attributeColor } from "../../../attribute-labels";
+import { useAttributeI18n, type AttributeTranslate } from "../../../attributes-i18n";
 import { useMemo, useEffect } from "react";
 import { useTextExtension } from "../../../extensions/text";
 import { DOMSizeMeasurer } from "../../../extensions/DOMSizeMeasurer";
@@ -62,22 +64,39 @@ const option = (style: TextStyle, label: string): SwatchOption => ({
   ...lookOf(style),
 });
 
-const STYLE_GROUPS = [
+const STYLE_GROUPS = (t: AttributeTranslate) => [
   {
-    label: "基础",
-    options: [option({ variant: "none" }, "透明"), option({ variant: "plain" }, "白卡")],
+    key: "basic",
+    label: t("attributes.text.basic"),
+    options: [
+      option({ variant: "none" }, t("attributes.transparent")),
+      option({ variant: "plain" }, t("attributes.text.plain")),
+    ],
   },
   {
-    label: "色带",
-    options: TEXT_TONES.map(t => option({ variant: "band", tone: t.value }, `${t.label}色带`)),
+    key: "band",
+    label: t("attributes.text.band"),
+    options: TEXT_TONES.map(tone =>
+      option(
+        { variant: "band", tone: tone.value },
+        t("attributes.text.bandColor", { color: attributeColor(tone.value, tone.label, t) })
+      )
+    ),
   },
   {
-    label: "柔色",
-    options: TEXT_TONES.map(t => option({ variant: "tinted", tone: t.value }, `柔${t.label}`)),
+    key: "tinted",
+    label: t("attributes.text.tinted"),
+    options: TEXT_TONES.map(tone =>
+      option(
+        { variant: "tinted", tone: tone.value },
+        t("attributes.text.softColor", { color: attributeColor(tone.value, tone.label, t) })
+      )
+    ),
   },
 ];
 
 const RichTextSetter = (props: RichTextSetterProps) => {
+  const { t } = useAttributeI18n();
   const board = useBoard();
   const textBinding = useTextExtension();
   const measurer = useMemo(() => new DOMSizeMeasurer(board, textBinding.kit), [board, textBinding]);
@@ -156,20 +175,20 @@ const RichTextSetter = (props: RichTextSetterProps) => {
 
   return (
     <>
-      <AttrPopover label="样式" swatch={lookOf(current)} width={220}>
-        {STYLE_GROUPS.map(g => (
-          <Field key={g.label} label={g.label}>
+      <AttrPopover label={t("attributes.style")} swatch={lookOf(current)} width={220}>
+        {STYLE_GROUPS(t).map(g => (
+          <Field key={g.key} label={g.label}>
             <SwatchRow options={g.options} value={keyOf(current)} onChange={handleStyleChange} />
           </Field>
         ))}
       </AttrPopover>
       <AttrAction
-        label="适应高度"
+        label={t("attributes.fitHeight")}
         icon={<FoldVertical strokeWidth={1.75} />}
         onClick={handleFitHeight}
       />
       <AttrAction
-        label="适应宽度"
+        label={t("attributes.fitWidth")}
         icon={<FoldHorizontal strokeWidth={1.75} />}
         onClick={handleFitWidth}
       />

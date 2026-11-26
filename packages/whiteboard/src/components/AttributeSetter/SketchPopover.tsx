@@ -1,3 +1,4 @@
+import { useAttributeI18n } from "../../attributes-i18n";
 import { useMemo } from "react";
 import type { BoardElement, ElementSketch, SketchFillStyle, SketchMode } from "../../types";
 import { useBoard, usePageSketch } from "../../hooks";
@@ -17,6 +18,7 @@ function common<T>(values: T[]): T | null {
  * 不走多选的平移写回。思维导图节点归到根节点（覆盖存在根上），重复的根只改一次。
  */
 export function MultiSketchPopover({ elements }: { elements: BoardElement[] }) {
+  const { t } = useAttributeI18n();
   const board = useBoard();
   const page = usePageSketch();
 
@@ -40,7 +42,7 @@ export function MultiSketchPopover({ elements }: { elements: BoardElement[] }) {
   const ownModes = targets.map(t => t.sketch?.mode ?? "inherit");
   return (
     <AttrPopover
-      label={`笔触 · ${targets.length} 个`}
+      label={t("attributes.sketch.multiple", { count: targets.length })}
       icon={<PenLine strokeWidth={1.75} />}
       width={292}
     >
@@ -65,7 +67,7 @@ export function MultiSketchPopover({ elements }: { elements: BoardElement[] }) {
           apply(el => (el.type === "geometry" && isPaintedFill(el.fill) ? { fillStyle: v } : null))
         }
         onReseed={() => updateSketch(() => ({ seed: randomSeed() }))}
-        hint="每个元素各换一笔"
+        hint={t("attributes.sketch.each")}
       />
     </AttrPopover>
   );

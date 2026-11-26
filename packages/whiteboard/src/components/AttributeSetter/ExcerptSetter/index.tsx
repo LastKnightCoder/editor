@@ -1,3 +1,4 @@
+import { useAttributeI18n } from "../../../attributes-i18n";
 import { memo, useContext } from "react";
 import { Undo2 } from "lucide-react";
 import type { BoardElement } from "../../../types";
@@ -13,13 +14,14 @@ interface ExcerptSetterProps {
 
 /** 摘录：回到原文（同卡面底部的来源条）+ 笔触 */
 const ExcerptSetter = memo(({ element, onChange }: ExcerptSetterProps) => {
+  const { t } = useAttributeI18n();
   const board = useBoard();
   const { side } = useContext(AttrBarContext);
   return (
     <>
       {element.source && (
         <ChromeButton
-          label="回到原文"
+          label={t("attributes.source")}
           tooltipPlacement={side}
           onClick={() => board.emit(EXCERPT_OPEN_SOURCE_EVENT, element.id)}
         >

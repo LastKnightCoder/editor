@@ -1,3 +1,4 @@
+import { useAttributeI18n, type AttributeTranslate } from "../../../attributes-i18n";
 import { memo } from "react";
 import { useMemoizedFn } from "ahooks";
 import { BoxSelect, PanelTop, Scan, Ungroup } from "lucide-react";
@@ -20,15 +21,29 @@ interface FrameSetterProps {
   onChange: (element: FrameElement) => void;
 }
 
-const STYLE_NAMES = ["蓝", "绿", "黄", "橙", "红", "紫", "粉", "灰", "青", "靛"];
+const STYLE_NAMES = (t: AttributeTranslate) => [
+  t("attributes.color.blue"),
+  t("attributes.color.green"),
+  t("attributes.color.yellow"),
+  t("attributes.color.orange"),
+  t("attributes.color.red"),
+  t("attributes.color.purple"),
+  t("attributes.color.pink"),
+  t("attributes.color.gray"),
+  t("attributes.color.cyan"),
+  t("attributes.color.indigo"),
+];
 
-const BORDER_STYLES: { value: FrameBorderStyle; label: string; dash?: string }[] = [
-  { value: "solid", label: "实线" },
-  { value: "dashed", label: "虚线", dash: "4 4" },
-  { value: "dotted", label: "点线", dash: "0 3.6" },
+const BORDER_STYLES = (
+  t: AttributeTranslate
+): { value: FrameBorderStyle; label: string; dash?: string }[] => [
+  { value: "solid", label: t("attributes.solidLine") },
+  { value: "dashed", label: t("attributes.dashedLine"), dash: "4 4" },
+  { value: "dotted", label: t("attributes.dottedLine"), dash: "0 3.6" },
 ];
 
 const FrameSetter = memo(({ element, onChange }: FrameSetterProps) => {
+  const { t } = useAttributeI18n();
   const board = useBoard();
   const currentStyleIndex = FRAME_DEFAULT_STYLES.findIndex(
     s => s.backgroundColor === element.backgroundColor && s.borderColor === element.borderColor
@@ -75,14 +90,14 @@ const FrameSetter = memo(({ element, onChange }: FrameSetterProps) => {
   return (
     <>
       <AttrPopover
-        label="画框样式"
+        label={t("attributes.frame.style")}
         swatch={{ fill: element.backgroundColor, stroke: element.borderColor }}
         width={264}
       >
         <SwatchRow
           options={FRAME_DEFAULT_STYLES.map((s, i) => ({
             key: String(i),
-            label: STYLE_NAMES[i] ?? `样式 ${i + 1}`,
+            label: STYLE_NAMES(t)[i] ?? t("attributes.styleNumber", { number: i + 1 }),
             fill: s.backgroundColor,
             stroke: s.borderColor,
           }))}
@@ -90,9 +105,13 @@ const FrameSetter = memo(({ element, onChange }: FrameSetterProps) => {
           onChange={k => handleStyleChange(Number(k))}
         />
       </AttrPopover>
-      <AttrPopover label="边框" icon={<BoxSelect strokeWidth={1.75} />} width={240}>
+      <AttrPopover
+        label={t("attributes.border")}
+        icon={<BoxSelect strokeWidth={1.75} />}
+        width={240}
+      >
         <OptionGrid<FrameBorderStyle>
-          options={BORDER_STYLES.map(s => ({
+          options={BORDER_STYLES(t).map(s => ({
             value: s.value,
             label: s.label,
             glyph: (
@@ -106,20 +125,28 @@ const FrameSetter = memo(({ element, onChange }: FrameSetterProps) => {
           onChange={handleBorderStyleChange}
         />
       </AttrPopover>
-      <AttrPopover label="标题位置" icon={<PanelTop strokeWidth={1.75} />} width={220}>
+      <AttrPopover
+        label={t("attributes.titlePosition")}
+        icon={<PanelTop strokeWidth={1.75} />}
+        width={220}
+      >
         <Seg<FrameTitlePosition>
-          label="标题位置"
+          label={t("attributes.titlePosition")}
           value={element.titlePosition ?? "top"}
           onChange={handleTitlePositionChange}
           options={[
-            { value: "top", label: "上方" },
-            { value: "inline", label: "内嵌" },
+            { value: "top", label: t("attributes.top") },
+            { value: "inline", label: t("attributes.inline") },
           ]}
         />
       </AttrPopover>
-      <AttrAction label="适应内容" icon={<Scan strokeWidth={1.75} />} onClick={handleFitContent} />
       <AttrAction
-        label="解散画框"
+        label={t("attributes.fit")}
+        icon={<Scan strokeWidth={1.75} />}
+        onClick={handleFitContent}
+      />
+      <AttrAction
+        label={t("attributes.frame.dissolve")}
         icon={<Ungroup strokeWidth={1.75} />}
         onClick={() => FrameUtil.unwrapFrame(board, element)}
       />

@@ -214,6 +214,13 @@ const authorGraph = ts.createProgram([resolve(packageRoot, "src/author.ts")], {
 const authorFiles = new Set([
   "author.ts",
   "authorSketch.ts",
+  "locale-runtime.ts",
+  "i18n-context.ts",
+  "attributes-i18n.ts",
+  "attribute-labels.ts",
+  "locales/attributes.zh-CN.json",
+  "locales/attributes.zh-TW.json",
+  "locales/attributes.en-US.json",
   "components/SketchPaths/index.tsx",
   "components/SketchPopover.tsx",
   "chrome/index.tsx",

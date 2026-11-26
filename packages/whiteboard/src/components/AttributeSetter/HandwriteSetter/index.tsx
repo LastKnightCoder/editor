@@ -1,3 +1,5 @@
+import { attributeColor } from "../../../attribute-labels";
+import { useAttributeI18n, type AttributeTranslate } from "../../../attributes-i18n";
 import { memo } from "react";
 import { useMemoizedFn } from "ahooks";
 import { Gauge, SlidersHorizontal } from "lucide-react";
@@ -31,12 +33,12 @@ interface HandwriteSetterProps {
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 
-const SIZE_OPTIONS: OptionItem<string>[] = [
+const SIZE_OPTIONS = (t: AttributeTranslate): OptionItem<string>[] => [
   // 笔迹线宽跨度大（默认 8），图示按 1/4 缩放，避免粗档都顶到图示 8px 封顶
-  { value: "4", label: "细", glyph: <LineWeightGlyph width={1} /> },
-  { value: "8", label: "标准", glyph: <LineWeightGlyph width={2} /> },
-  { value: "16", label: "粗", glyph: <LineWeightGlyph width={4} /> },
-  { value: "32", label: "特粗", glyph: <LineWeightGlyph width={8} /> },
+  { value: "4", label: t("attributes.thin"), glyph: <LineWeightGlyph width={1} /> },
+  { value: "8", label: t("attributes.standard"), glyph: <LineWeightGlyph width={2} /> },
+  { value: "16", label: t("attributes.thick"), glyph: <LineWeightGlyph width={4} /> },
+  { value: "32", label: t("attributes.extraThick"), glyph: <LineWeightGlyph width={8} /> },
 ];
 
 const OPACITY_OPTIONS: OptionItem<string>[] = [25, 50, 75, 100].map(n => ({
@@ -61,6 +63,7 @@ interface HandwriteStyleControlsProps {
 
 /** 笔迹样式控件组：选中笔迹时改元素，画笔激活时改下一笔的默认样式 */
 export const HandwriteStyleControls = memo(({ style, onChange }: HandwriteStyleControlsProps) => {
+  const { t } = useAttributeI18n();
   const { isDark } = useTheme();
   const updateStyle = (patch: Partial<HandwriteStyle>) => onChange({ ...style, ...patch });
 
@@ -70,25 +73,29 @@ export const HandwriteStyleControls = memo(({ style, onChange }: HandwriteStyleC
 
   return (
     <>
-      <AttrPopover label="样式" swatch={{ fill: colorValue, stroke: colorValue }} width={288}>
-        <Field label="颜色">
+      <AttrPopover
+        label={t("attributes.style")}
+        swatch={{ fill: colorValue, stroke: colorValue }}
+        width={288}
+      >
+        <Field label={t("attributes.color")}>
           <SwatchRow
             options={THEME_COLORS.map(c => ({
               key: c.id,
-              label: c.label,
+              label: attributeColor(c.id, c.label, t),
               fill: isDark ? c.dark : c.light,
               stroke: isDark ? c.dark : c.light,
             }))}
             value={colorId}
             onChange={id => updateStyle({ themeColorId: id })}
           />
-          <div className="text-ink-3 mt-2.5 text-[11px]">主题颜色会随深浅色模式自动调整</div>
+          <div className="text-ink-3 mt-2.5 text-[11px]">{t("attributes.themeColorHint")}</div>
         </Field>
         <Field
-          label="粗细"
+          label={t("attributes.width")}
           value={
             <Stepper
-              label="粗细"
+              label={t("attributes.width")}
               min={1}
               max={64}
               step={1}
@@ -98,16 +105,16 @@ export const HandwriteStyleControls = memo(({ style, onChange }: HandwriteStyleC
           }
         >
           <OptionGrid
-            options={SIZE_OPTIONS}
-            value={gridValue(SIZE_OPTIONS, style.size)}
+            options={SIZE_OPTIONS(t)}
+            value={gridValue(SIZE_OPTIONS(t), style.size)}
             onChange={v => updateStyle({ size: Number(v) })}
           />
         </Field>
         <Field
-          label="不透明度"
+          label={t("attributes.opacity")}
           value={
             <Stepper
-              label="不透明度"
+              label={t("attributes.opacity")}
               min={10}
               max={100}
               step={5}
@@ -124,10 +131,14 @@ export const HandwriteStyleControls = memo(({ style, onChange }: HandwriteStyleC
           />
         </Field>
       </AttrPopover>
-      <AttrPopover label="笔刷参数" icon={<SlidersHorizontal strokeWidth={1.75} />} width={248}>
-        <Field label="细化">
+      <AttrPopover
+        label={t("attributes.brush")}
+        icon={<SlidersHorizontal strokeWidth={1.75} />}
+        width={248}
+      >
+        <Field label={t("attributes.thinning")}>
           <Slider
-            label="细化"
+            label={t("attributes.thinning")}
             min={0}
             max={1}
             step={0.01}
@@ -136,9 +147,9 @@ export const HandwriteStyleControls = memo(({ style, onChange }: HandwriteStyleC
             onChange={v => updateStyle({ thinning: v })}
           />
         </Field>
-        <Field label="平滑">
+        <Field label={t("attributes.smoothing")}>
           <Slider
-            label="平滑"
+            label={t("attributes.smoothing")}
             min={0}
             max={1}
             step={0.01}
@@ -147,9 +158,9 @@ export const HandwriteStyleControls = memo(({ style, onChange }: HandwriteStyleC
             onChange={v => updateStyle({ smoothing: v })}
           />
         </Field>
-        <Field label="跟随">
+        <Field label={t("attributes.streamline")}>
           <Slider
-            label="跟随"
+            label={t("attributes.streamline")}
             min={0}
             max={1}
             step={0.01}
@@ -160,7 +171,7 @@ export const HandwriteStyleControls = memo(({ style, onChange }: HandwriteStyleC
         </Field>
       </AttrPopover>
       <AttrToggle
-        label="压感模拟"
+        label={t("attributes.pressure")}
         icon={<Gauge strokeWidth={1.75} />}
         checked={!!style.simulatePressure}
         onChange={v => updateStyle({ simulatePressure: v })}

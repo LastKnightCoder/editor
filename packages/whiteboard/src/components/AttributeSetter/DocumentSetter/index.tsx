@@ -1,3 +1,4 @@
+import { useAttributeI18n } from "../../../attributes-i18n";
 import { memo, useContext } from "react";
 import { ChevronLeft, ChevronRight, Maximize2, Sparkles } from "lucide-react";
 import type { BoardElement } from "../../../types";
@@ -13,6 +14,7 @@ interface DocumentSetterProps {
 
 /** 文档卡：展开（同双击 / ↵）、相关（同 R，宿主装配了放入入口才有）、PDF 卡翻页（同 [ ]）+ 笔触；纸面统一 surface，没有配色项 */
 const DocumentSetter = memo(({ element, onChange }: DocumentSetterProps) => {
+  const { t } = useAttributeI18n();
   const board = useBoard();
   const { side } = useContext(AttrBarContext);
   const api = board.extensions?.api;
@@ -20,7 +22,7 @@ const DocumentSetter = memo(({ element, onChange }: DocumentSetterProps) => {
   return (
     <>
       <ChromeButton
-        label="展开"
+        label={t("attributes.expand")}
         kbd={board.extensions?.api.getShortcut("tau.document.open") ?? undefined}
         tooltipPlacement={side}
         onClick={() => requestOpenDocument(board, element.id)}
@@ -30,8 +32,8 @@ const DocumentSetter = memo(({ element, onChange }: DocumentSetterProps) => {
       {element.entityRef?.kind === "pdf" &&
         (
           [
-            ["上一页", "tau.document.page-prev", ChevronLeft],
-            ["下一页", "tau.document.page-next", ChevronRight],
+            [t("attributes.previous"), "tau.document.page-prev", ChevronLeft],
+            [t("attributes.next"), "tau.document.page-next", ChevronRight],
           ] as const
         ).map(([label, command, Icon]) => (
           <ChromeButton
@@ -46,7 +48,7 @@ const DocumentSetter = memo(({ element, onChange }: DocumentSetterProps) => {
         ))}
       {relatedShortcut && !board.readonly && element.entityRef?.kind !== "pdf" && (
         <ChromeButton
-          label="相关"
+          label={t("attributes.related")}
           kbd={relatedShortcut}
           tooltipPlacement={side}
           onClick={() => void api?.execute("tau.document.related").catch(() => {})}

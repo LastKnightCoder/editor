@@ -1,3 +1,5 @@
+import { attributeOption } from "../../../attribute-labels";
+import { useAttributeI18n, type AttributeTranslate } from "../../../attributes-i18n";
 import { memo } from "react";
 import { useMemoizedFn } from "ahooks";
 import { Captions } from "lucide-react";
@@ -70,11 +72,21 @@ const DESCRIPTION_COLORS: DescriptionColor[] = [
   },
 ];
 
-const COLOR_NAMES = ["无", "蓝", "绿", "黄", "橙", "红", "紫", "灰"];
+const COLOR_NAMES = (t: AttributeTranslate) => [
+  t("attributes.none"),
+  t("attributes.color.blue"),
+  t("attributes.color.green"),
+  t("attributes.color.yellow"),
+  t("attributes.color.orange"),
+  t("attributes.color.red"),
+  t("attributes.color.purple"),
+  t("attributes.color.gray"),
+];
 const colorKey = (c: { backgroundColor?: string; borderColor?: string }) =>
   `${c.backgroundColor ?? "transparent"}|${c.borderColor ?? "transparent"}`;
 
 const ImageSetter = memo((props: ImageSetterProps) => {
+  const { t } = useAttributeI18n();
   const { element, onChange } = props;
   const { isDark } = useTheme();
   const { showDescription = false } = element;
@@ -97,11 +109,11 @@ const ImageSetter = memo((props: ImageSetterProps) => {
 
   return (
     <>
-      <AttrPopover label="阴影" icon={<ShadowIcon />} width={220}>
+      <AttrPopover label={t("attributes.shadow")} icon={<ShadowIcon />} width={220}>
         <OptionGrid
           options={SHADOW_SIZE_OPTIONS.map(o => ({
             value: o.value,
-            label: o.label,
+            label: attributeOption("shadow", o.value, o.label, t),
             showLabel: true,
             glyph: (
               <span
@@ -116,41 +128,41 @@ const ImageSetter = memo((props: ImageSetterProps) => {
         />
       </AttrPopover>
       <AttrPopover
-        label="描述"
+        label={t("attributes.description")}
         icon={<Captions strokeWidth={1.75} />}
         width={260}
         toggle={{ checked: showDescription, onChange: v => set(d => void (d.showDescription = v)) }}
       >
         {showDescription && (
           <>
-            <Field label="位置">
+            <Field label={t("attributes.position")}>
               <Seg<EDescriptionPosition>
-                label="描述位置"
+                label={t("attributes.description.position")}
                 value={element.descriptionPosition ?? DEFAULT_DESCRIPTION_POSITION}
                 onChange={v => set(d => void (d.descriptionPosition = v))}
                 options={[
-                  { value: EDescriptionPosition.TOP, label: "上方" },
-                  { value: EDescriptionPosition.BOTTOM, label: "下方" },
+                  { value: EDescriptionPosition.TOP, label: t("attributes.top") },
+                  { value: EDescriptionPosition.BOTTOM, label: t("attributes.bottom") },
                 ]}
               />
             </Field>
-            <Field label="对齐">
+            <Field label={t("attributes.align")}>
               <Seg<EDescriptionAlignment>
-                label="描述对齐"
+                label={t("attributes.description.align")}
                 value={element.descriptionAlignment ?? DEFAULT_DESCRIPTION_ALIGNMENT}
                 onChange={v => set(d => void (d.descriptionAlignment = v))}
                 options={[
-                  { value: EDescriptionAlignment.LEFT, label: "左对齐" },
-                  { value: EDescriptionAlignment.CENTER, label: "居中" },
-                  { value: EDescriptionAlignment.RIGHT, label: "右对齐" },
+                  { value: EDescriptionAlignment.LEFT, label: t("attributes.align.left") },
+                  { value: EDescriptionAlignment.CENTER, label: t("attributes.align.center") },
+                  { value: EDescriptionAlignment.RIGHT, label: t("attributes.align.right") },
                 ]}
               />
             </Field>
-            <Field label="背景">
+            <Field label={t("attributes.background")}>
               <SwatchRow
                 options={DESCRIPTION_COLORS.map((c, i) => ({
                   key: colorKey(c),
-                  label: COLOR_NAMES[i] ?? "",
+                  label: COLOR_NAMES(t)[i] ?? "",
                   fill: c.backgroundColor,
                   stroke: c.borderColor,
                   kind: c.backgroundColor === "transparent" ? "none" : undefined,

@@ -1,3 +1,5 @@
+import { attributeColor } from "../../../attribute-labels";
+import { useAttributeI18n } from "../../../attributes-i18n";
 import { memo } from "react";
 import { useMemoizedFn } from "ahooks";
 import { ChevronsDownUp, ChevronsUpDown, Ungroup } from "lucide-react";
@@ -18,6 +20,7 @@ interface ColumnSetterProps {
 const NO_COLOR = "none";
 
 const ColumnSetter = memo(({ element, onChange }: ColumnSetterProps) => {
+  const { t } = useAttributeI18n();
   const board = useBoard();
   const current = COLUMN_COLOR_OPTIONS.find(o => o.value === element.color);
 
@@ -45,21 +48,25 @@ const ColumnSetter = memo(({ element, onChange }: ColumnSetterProps) => {
   return (
     <>
       <AttrPopover
-        label="列颜色"
+        label={t("attributes.column.color")}
         swatch={current ? { fill: current.token } : { fill: "transparent", kind: "none" }}
         width={220}
       >
         <SwatchRow
           options={[
-            { key: NO_COLOR, label: "无", fill: "transparent", kind: "none" },
-            ...COLUMN_COLOR_OPTIONS.map(o => ({ key: o.value, label: o.label, fill: o.token })),
+            { key: NO_COLOR, label: t("attributes.none"), fill: "transparent", kind: "none" },
+            ...COLUMN_COLOR_OPTIONS.map(o => ({
+              key: o.value,
+              label: attributeColor(o.value, o.label, t),
+              fill: o.token,
+            })),
           ]}
           value={element.color ?? NO_COLOR}
           onChange={handleColorChange}
         />
       </AttrPopover>
       <AttrAction
-        label={element.collapsed ? "展开" : "折叠"}
+        label={element.collapsed ? t("attributes.expand") : t("attributes.collapse")}
         icon={
           element.collapsed ? (
             <ChevronsUpDown strokeWidth={1.75} />
@@ -69,7 +76,11 @@ const ColumnSetter = memo(({ element, onChange }: ColumnSetterProps) => {
         }
         onClick={() => ColumnUtil.toggleCollapsed(board, element)}
       />
-      <AttrAction label="解散分栏" icon={<Ungroup strokeWidth={1.75} />} onClick={handleDissolve} />
+      <AttrAction
+        label={t("attributes.column.dissolve")}
+        icon={<Ungroup strokeWidth={1.75} />}
+        onClick={handleDissolve}
+      />
       <SketchPopover target={element} onChange={onChange} />
     </>
   );
