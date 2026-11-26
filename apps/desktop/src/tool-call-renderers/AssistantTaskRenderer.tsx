@@ -20,10 +20,13 @@ import { TodoCheck } from "@/features/todos/components/TodoBits";
 import type { ToolCallCustomRendererProps } from "./types";
 import TodoToolRenderer from "./TodoToolRenderer";
 import { ToolCard, ToolCardBody, ToolCardHeader, ToolMutedText } from "@tau/chat-ui";
-const displayTime = (value: string) =>
+import { useAssistantToolI18n, assistantFeedback, assistantFailure } from "./assistant.i18n";
+import { toolDateLabel } from "./date-format";
+
+const displayTime = (value: string, locale: string) =>
   value.length === 10
-    ? value
-    : new Date(value).toLocaleString("zh-CN", {
+    ? toolDateLabel(value, locale)
+    : new Date(value).toLocaleString(locale, {
         year: "numeric",
         month: "2-digit",
         day: "2-digit",
@@ -61,12 +64,6 @@ function parse(props: ToolCallCustomRendererProps): Display | null {
     return null;
   }
 }
-const statusText = {
-  succeeded: "已完成",
-  failed: "失败",
-  pending: "等待回执",
-  notExecuted: "未执行",
-};
 
 export default function AssistantTaskRenderer(props: ToolCallCustomRendererProps) {
   const initial = parse(props);
@@ -79,6 +76,7 @@ function AssistantResult({
   parsedInput,
   execution,
 }: ToolCallCustomRendererProps & { initial: Display }) {
+  const { t, locale } = useAssistantToolI18n();
   const active = useSettingStore(state => state.setting.database.active);
   const sameDatabase = active.replace(/\.db$/, "") === initial.databaseName.replace(/\.db$/, "");
   const [busy, setBusy] = useState(false);
@@ -151,13 +149,20 @@ function AssistantResult({
         initial.databaseName
       );
       setReceipt(result);
-      if (result.status === "failed") toast.error(result.error?.message ?? "操作失败");
-      else if (result.status === "pending") toast.info("操作尚未完成，请查询执行回执");
+      if (result.status === "failed")
+        toast.error(...assistantFailure("assistant.failed", result.error?.message));
+      else if (result.status === "pending")
+        toast.info(...assistantFeedback("assistant.pendingFeedback"));
       await queryClient.invalidateQueries({
         queryKey: ["task-assistant", initial.databaseName.replace(/\.db$/, "")],
       });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "未收到执行回执");
+      toast.error(
+        ...assistantFailure(
+          "assistant.receiptFailed",
+          error instanceof Error ? error.message : undefined
+        )
+      );
     } finally {
       setBusy(false);
     }
@@ -167,8 +172,8 @@ function AssistantResult({
       <div className="text-tau-sm text-ink-2 flex items-center justify-between gap-2">
         <span>
           {item.result && typeof item.result === "object" && "undone" in item.result
-            ? "已撤销"
-            : statusText[item.status]}
+            ? t("assistant.undone")
+            : t(`assistant.status.${item.status}`)}
           {item.result && typeof item.result === "object" && "title" in item.result
             ? ` · ${String(item.result.title)}`
             : ""}
@@ -179,7 +184,7 @@ function AssistantResult({
             disabled={!sameDatabase || busy}
             onClick={() => void write("undo_task_operation", { operationId: item.operationId })}
           >
-            撤销
+            {t("assistant.undo")}
           </Button>
         ) : null}
       </div>
@@ -194,17 +199,36 @@ function AssistantResult({
           )
             .filter(([key]) => ["todo_item", "calendar_event", "document_task"].includes(key))
             .map(([key, effect]) => {
-              const label =
-                key === "todo_item" ? "待办" : key === "calendar_event" ? "日程" : "正文待办";
+              const entity =
+                key === "todo_item"
+                  ? "assistant.entity.todo_item"
+                  : key === "calendar_event"
+                    ? "assistant.entity.calendar_event"
+                    : "assistant.entity.document_task";
               return [
-                effect.created ? `新增 ${effect.created} 项${label}` : null,
-                effect.updated ? `修改 ${effect.updated} 项${label}` : null,
-                effect.deleted ? `删除 ${effect.deleted} 项${label}` : null,
+                effect.created
+                  ? t("assistant.effect.created", {
+                      count: effect.created,
+                      entity: t(entity, { count: effect.created }),
+                    })
+                  : null,
+                effect.updated
+                  ? t("assistant.effect.updated", {
+                      count: effect.updated,
+                      entity: t(entity, { count: effect.updated }),
+                    })
+                  : null,
+                effect.deleted
+                  ? t("assistant.effect.deleted", {
+                      count: effect.deleted,
+                      entity: t(entity, { count: effect.deleted }),
+                    })
+                  : null,
               ]
                 .filter(Boolean)
-                .join("，");
+                .join(t("assistant.effect.join"));
             })
-            .join("；")}
+            .join(t("assistant.effect.groupJoin"))}
         </ToolMutedText>
       ) : null}
     </div>
@@ -214,17 +238,19 @@ function AssistantResult({
       <ToolCardHeader>
         <div className="text-tau-body text-ink-1 font-medium">
           {data.type === "assistant-tasks"
-            ? "待办"
+            ? t("assistant.tasks")
             : data.type === "assistant-calendar"
-              ? "日程"
-              : "操作结果"}
+              ? t("assistant.calendar")
+              : t("assistant.operations")}
         </div>
       </ToolCardHeader>
       <ToolCardBody>
-        {!sameDatabase ? (
-          <ToolMutedText>这是其他数据库的结果，请切回原数据库后操作。</ToolMutedText>
+        {!sameDatabase ? <ToolMutedText>{t("assistant.differentDatabase")}</ToolMutedText> : null}
+        {query.isError ? (
+          <ToolMutedText>
+            {t("assistant.refreshFailed", { reason: String(query.error) })}
+          </ToolMutedText>
         ) : null}
-        {query.isError ? <ToolMutedText>刷新失败：{String(query.error)}</ToolMutedText> : null}
         {data.type === "assistant-task-operation" ? (
           data.items.map(operation)
         ) : (
@@ -234,7 +260,7 @@ function AssistantResult({
             ))}
             {data.items.length === 0 ? (
               <ToolMutedText>
-                {data.incomplete ? "当前来源尚未完整加载。" : "没有符合条件的结果。"}
+                {data.incomplete ? t("assistant.incomplete") : t("assistant.empty")}
               </ToolMutedText>
             ) : null}
             {data.type === "assistant-tasks"
@@ -252,7 +278,9 @@ function AssistantResult({
                         !task.writable ||
                         (!!task.recurrence?.length && !task.occurrence)
                       }
-                      label={task.completed ? "恢复待办" : "完成待办"}
+                      label={
+                        task.completed ? t("assistant.restoreTask") : t("assistant.completeTask")
+                      }
                       onToggle={() =>
                         void write("set_todo_completed", {
                           taskRef: task.taskRef,
@@ -282,14 +310,18 @@ function AssistantResult({
                       <ToolMutedText>
                         {[
                           task.taskRef.kind === "document"
-                            ? (task.sourceTitle ?? "正文待办")
-                            : "独立待办",
-                          task.dueAt ? displayTime(task.dueAt) : null,
-                          task.reminderAt ? `提醒 ${displayTime(task.reminderAt)}` : null,
+                            ? (task.sourceTitle ?? t("assistant.documentTask"))
+                            : t("assistant.standaloneTask"),
+                          task.dueAt ? displayTime(task.dueAt, locale) : null,
+                          task.reminderAt
+                            ? t("assistant.reminder", {
+                                time: displayTime(task.reminderAt, locale),
+                              })
+                            : null,
                           task.occurrence
-                            ? "周期实例"
+                            ? t("assistant.occurrence")
                             : task.recurrence?.length
-                              ? "周期任务（先查询具体日期再完成）"
+                              ? t("assistant.recurring")
                               : null,
                         ]
                           .filter(Boolean)
@@ -308,8 +340,8 @@ function AssistantResult({
                     >
                       <div className="text-tau-body text-ink-1">{event.title}</div>
                       <ToolMutedText>
-                        {displayTime(event.start)} — {displayTime(event.end)}
-                        {event.taskRef ? " · 待办安排" : ""}
+                        {displayTime(event.start, locale)} — {displayTime(event.end, locale)}
+                        {event.taskRef ? t("assistant.scheduledTask") : ""}
                       </ToolMutedText>
                     </div>
                   ))
@@ -329,12 +361,12 @@ function AssistantResult({
                             void write("undo_task_operation", { operationId: item.operationId })
                           }
                         >
-                          撤销
+                          {t("assistant.undo")}
                         </Button>
                       ) : null}
                     </div>
                   ))}
-            {data.hasMore ? <ToolMutedText>还有更多结果，可继续查询下一页。</ToolMutedText> : null}
+            {data.hasMore ? <ToolMutedText>{t("assistant.more")}</ToolMutedText> : null}
           </>
         )}
         {receipt ? operation(receipt) : null}

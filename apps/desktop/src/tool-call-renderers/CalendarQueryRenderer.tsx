@@ -39,6 +39,8 @@ import {
   type CalendarToolMessageKey,
 } from "./calendar.i18n";
 
+import { toolDateLabel } from "./date-format";
+
 type CalendarRendererData =
   | CalendarDashboardResult
   | CalendarQueryListResult<CalendarGroupListItem | CalendarListItem | CalendarEventListItem>
@@ -68,20 +70,9 @@ const formatMinutes = (value: number | null | undefined) => {
   return `${hours}:${minutes}`;
 };
 
-const formatCalendarDate = (value: string, locale: string) => {
-  const date = new Date(`${value}T00:00:00Z`);
-  if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== value) return value;
-  return new Intl.DateTimeFormat(locale, {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    timeZone: "UTC",
-  }).format(date);
-};
-
 const formatEventTime = (item: CalendarEventListItem, locale: string, t: CalendarToolTranslate) => {
-  const startDate = formatCalendarDate(item.startDate, locale);
-  const endDate = item.endDate ? formatCalendarDate(item.endDate, locale) : null;
+  const startDate = toolDateLabel(item.startDate, locale);
+  const endDate = item.endDate ? toolDateLabel(item.endDate, locale) : null;
   if (item.allDay) {
     return item.endDate && item.endDate !== item.startDate
       ? `${startDate} - ${endDate} · ${t("calendar.allDay")}`

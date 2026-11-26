@@ -344,6 +344,8 @@ P6 Native媒体进度：41路径加Root ASR/desktop文档2完成；桌面12文�
 
 手机MCP9路径完成；原协议/生命周期17例至真实form2共19例、mobile type/80key三语/范围检查通过。真实Router/guard/表单/写队列保原input/caret/name/url/headers，保存/连接各单次且原id/transport保持，未知诊断不清草稿；删除confirm同node/目标，空headers继续省略不覆旧值。全aiCapabilities15模块AST固定中文JSX0，剩1为保原message的typed失败诊断，SDK工具数据不译。
 
+工具卡R2C八路径完成；3文件6例、desktop type/33key三语/原parse/query/state/request/write/invalidation/receipt/key及共享日期body对照通过。真实QueryClient/任务传输边界验证pending换语不重query/write/UUID，已有同toast更新语言不重push；纯日期helper原生Node导入与非法原值透出通过，Calendar仅提取helper/import。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。
