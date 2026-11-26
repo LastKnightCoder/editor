@@ -4,6 +4,8 @@ import { cn } from "@tau/ui";
 import { getRecentProjects, type RecentProject } from "@/commands/recent-projects";
 import { dirName } from "./paths";
 
+import { useMarkdownChromeI18n } from "./chrome.i18n";
+
 export interface OpenActions {
   openFolder(): void;
   openFile(): void;
@@ -40,6 +42,7 @@ function ActionCard({
 
 /** 欢迎页：打开文件夹 / 打开文件 / 新建文件 + 最近打开 */
 export function WelcomeView({ actions }: { actions: OpenActions }) {
+  const { t } = useMarkdownChromeI18n();
   const [recent, setRecent] = useState<RecentProject[]>([]);
   useEffect(() => {
     getRecentProjects().then(setRecent, () => setRecent([]));
@@ -48,36 +51,36 @@ export function WelcomeView({ actions }: { actions: OpenActions }) {
   return (
     <div className="grid min-h-0 flex-1 place-items-center overflow-auto p-8">
       <div className="w-[440px] max-w-full">
-        <h1 className="text-tau-title-lg text-ink-1 font-semibold">打开 Markdown</h1>
-        <p className="text-tau-meta text-ink-3 mb-5 mt-1">
-          编辑本地的 .md 文件，或把整个文件夹当作一个文档库。
-        </p>
+        <h1 className="text-tau-title-lg text-ink-1 font-semibold">{t("chrome.welcome.title")}</h1>
+        <p className="text-tau-meta text-ink-3 mt-1 mb-5">{t("chrome.welcome.hint")}</p>
         <div className="mb-6 grid grid-cols-3 gap-2.5">
           <ActionCard
             icon={Folder}
-            title="打开文件夹"
-            hint="侧栏显示目录树"
+            title={t("chrome.openFolder")}
+            hint={t("chrome.folderHint")}
             kbd="⌘⇧O"
             onClick={actions.openFolder}
           />
           <ActionCard
             icon={FileText}
-            title="打开文件"
+            title={t("chrome.openFile")}
             hint=".md / .markdown"
             kbd="⌘O"
             onClick={actions.openFile}
           />
           <ActionCard
             icon={FilePlus}
-            title="新建文件"
-            hint="选择保存位置"
+            title={t("chrome.newFile")}
+            hint={t("chrome.saveHint")}
             kbd="⌘N"
             onClick={actions.newFile}
           />
         </div>
         {recent.length > 0 && (
           <>
-            <h2 className="text-tau-tiny text-ink-3 mb-1.5 font-medium tracking-wide">最近打开</h2>
+            <h2 className="text-tau-tiny text-ink-3 mb-1.5 font-medium tracking-wide">
+              {t("chrome.recent")}
+            </h2>
             {recent.map(item => {
               const Icon = item.isDirectory ? FolderOpen : FileText;
               return (
@@ -105,9 +108,10 @@ export function WelcomeView({ actions }: { actions: OpenActions }) {
 
 /** 已打开文件夹、还没选文件 */
 export function NoFileView({ onNewFile }: { onNewFile(): void }) {
+  const { t } = useMarkdownChromeI18n();
   return (
     <div className="text-tau-meta text-ink-3 flex min-h-0 flex-1 flex-col items-center justify-center gap-3">
-      <span>从左侧选择一个文件</span>
+      <span>{t("chrome.noFile")}</span>
       <button
         type="button"
         onClick={onNewFile}
@@ -116,7 +120,7 @@ export function NoFileView({ onNewFile }: { onNewFile(): void }) {
         )}
       >
         <FilePlus className="size-3.5" strokeWidth={1.75} />
-        新建文件
+        {t("chrome.newFile")}
         <kbd className="text-tau-tiny text-ink-3 font-mono">⌘N</kbd>
       </button>
     </div>

@@ -1,5 +1,9 @@
 import { usePlatformLabels } from "@/platform/i18n";
-import { useContentTransferI18n } from "@/services/content-transfer.i18n";
+import type { CopyFeedbackOptions } from "@/utils/copy-service";
+import {
+  contentTransferTranslator,
+  useContentTransferI18n,
+} from "@/services/content-transfer.i18n";
 import { exportContentAsWord } from "@/services/content-transfer";
 /**
  * Markdown 文件窗口（路由 /markdown-window?filePath= | rootPath=）：编辑磁盘上的文件 / 文件夹。
@@ -64,6 +68,8 @@ import { NoFileView, WelcomeView } from "./WelcomeView";
 import type { FileTreeHandlers } from "./fileTree/FileTree";
 import type { FileViewHandle, FileViewStatus, MarkdownViewHandle } from "./types";
 
+import { useMarkdownChromeI18n } from "./chrome.i18n";
+
 /** 当前视图句柄：Markdown 视图多出源码切换与导出取数 */
 type ViewHandle = FileViewHandle & Partial<Omit<MarkdownViewHandle, "flush">>;
 
@@ -72,13 +78,14 @@ const rootClass =
 const MENU_ICON = "size-[15px] shrink-0";
 const MARKDOWN_FILTERS = [{ name: "Markdown", extensions: ["md", "markdown"] }];
 const toastAdapter = {
-  success: (msg: string) => toast.success(msg),
-  error: (msg: string) => toast.error(msg),
+  success: (msg: string, options?: CopyFeedbackOptions) => toast.success(msg, options),
+  error: (msg: string, options?: CopyFeedbackOptions) => toast.error(msg, options),
 };
 
 type ExportState = { kind: "epub" | "pdf"; content: Descendant[]; title: string } | null;
 
 export default function MarkdownWindowPage() {
+  const { t } = useMarkdownChromeI18n();
   const { revealInFileManagerLabel } = usePlatformLabels();
   useThemeRuntime();
   useEffect(() => initScrollbarAutoHide(), []);
@@ -289,8 +296,8 @@ export default function MarkdownWindowPage() {
   const outlineButton = (
     <IconButton
       onClick={prefs.toggleOutline}
-      title={prefs.outlineOpen ? "隐藏大纲" : "显示大纲"}
-      aria-label="大纲"
+      title={prefs.outlineOpen ? t("chrome.hideOutline") : t("chrome.showOutline")}
+      aria-label={t("chrome.outline")}
       aria-pressed={prefs.outlineOpen}
       className={prefs.outlineOpen ? "bg-selected text-accent-text hover:bg-selected" : undefined}
     >
@@ -303,7 +310,7 @@ export default function MarkdownWindowPage() {
       align="end"
       fit
       trigger={
-        <IconButton title="更多" aria-label="更多">
+        <IconButton title={t("chrome.more")} aria-label={t("chrome.more")}>
           <MoreHorizontal size={17} strokeWidth={1.75} />
         </IconButton>
       }
@@ -315,7 +322,7 @@ export default function MarkdownWindowPage() {
           checked={Boolean(status.sourceMode)}
           onCheckedChange={() => viewRef.current?.toggleSource?.()}
         >
-          源码模式
+          {t("chrome.sourceMode")}
         </Menu.CheckboxItem>
       )}
       <Menu.Item
@@ -328,7 +335,7 @@ export default function MarkdownWindowPage() {
           )
         }
       >
-        查找
+        {t("chrome.find")}
       </Menu.Item>
       {isMarkdown && (
         <>
@@ -342,7 +349,10 @@ export default function MarkdownWindowPage() {
               onSelect={() =>
                 void navigator.clipboard
                   .writeText(viewRef.current?.getMarkdown?.() ?? "")
-                  .then(() => toast.success(transferT("copyMarkdown.done")))
+                  .then(() => {
+                    const getMessage = () => contentTransferTranslator.t("copyMarkdown.done");
+                    toast.success(getMessage(), { getMessage });
+                  })
               }
             >
               {transferT("menu.copyMarkdown")}
@@ -407,28 +417,28 @@ export default function MarkdownWindowPage() {
         kbd="⌘N"
         onSelect={newFile}
       >
-        新建文件
+        {t("chrome.newFile")}
       </Menu.Item>
       <Menu.Item
         icon={<FileText className={MENU_ICON} strokeWidth={1.75} />}
         kbd="⌘O"
         onSelect={() => void openFileDialog()}
       >
-        打开文件…
+        {t("chrome.openFileDialog")}
       </Menu.Item>
       <Menu.Item
         icon={<FolderInput className={MENU_ICON} strokeWidth={1.75} />}
         kbd="⌘⇧O"
         onSelect={() => void openFolder()}
       >
-        打开文件夹…
+        {t("chrome.openFolderDialog")}
       </Menu.Item>
       <Menu.Separator />
       <Menu.Item
         icon={<X className={MENU_ICON} strokeWidth={1.75} />}
         onSelect={() => void closeWindow()}
       >
-        关闭窗口
+        {t("chrome.closeWindow")}
       </Menu.Item>
     </Menu>
   );
@@ -489,8 +499,8 @@ export default function MarkdownWindowPage() {
                   "app-region-no-drag",
                   sidebarOpen && "bg-selected text-accent-text hover:bg-selected"
                 )}
-                title={sidebarOpen ? "收起侧栏 (⌘\\)" : "展开侧栏 (⌘\\)"}
-                aria-label="侧栏"
+                title={sidebarOpen ? t("chrome.collapseSidebar") : t("chrome.expandSidebar")}
+                aria-label={t("chrome.sidebar")}
                 aria-pressed={sidebarOpen}
                 onClick={() => setSidebarOpen(!sidebarOpen)}
               >
@@ -498,7 +508,7 @@ export default function MarkdownWindowPage() {
               </IconButton>
             )}
             <nav
-              aria-label="路径"
+              aria-label={t("chrome.path")}
               className="text-tau-meta text-ink-3 flex min-w-0 items-center gap-1"
             >
               {[rootPath ? baseName(rootPath) : "Markdown", ...crumbs].map((part, index, parts) => {
@@ -516,7 +526,10 @@ export default function MarkdownWindowPage() {
                 );
               })}
               {status.dirty && (
-                <span className="bg-accent ml-1 size-1.5 shrink-0 rounded-full" title="未保存" />
+                <span
+                  className="bg-accent ml-1 size-1.5 shrink-0 rounded-full"
+                  title={t("chrome.unsaved")}
+                />
               )}
             </nav>
           </>

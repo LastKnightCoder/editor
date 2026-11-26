@@ -5,10 +5,17 @@ import { getMarkdown } from "./markdown";
 import { htmlSerializerRegistry } from "./html-serializers";
 import { processHtmlForWechat, getWechatStyles, resolveCssVariables } from "./wechat";
 
-interface MessageApi {
-  success: (msg: string) => void;
-  error: (msg: string) => void;
+export interface CopyFeedbackOptions {
+  getMessage?: () => string;
 }
+interface MessageApi {
+  success: (msg: string, options?: CopyFeedbackOptions) => void;
+  error: (msg: string, options?: CopyFeedbackOptions) => void;
+}
+const feedback = (key: Parameters<typeof copyTranslator.t>[0]) => {
+  const getMessage = () => copyTranslator.t(key);
+  return [getMessage(), { getMessage }] as const;
+};
 
 /**
  * Copy Markdown content to clipboard
@@ -26,11 +33,11 @@ export async function copyMarkdownToClipboard(
         ).getMarkdown(document.content)
       : getMarkdown(document.content);
     await navigator.clipboard.writeText(markdown);
-    message?.success(copyTranslator.t("copy.markdown"));
+    message?.success(...feedback("copy.markdown"));
     return true;
   } catch (error) {
     console.error("复制 Markdown 失败:", error);
-    message?.error(copyTranslator.t("copy.failed"));
+    message?.error(...feedback("copy.failed"));
     return false;
   }
 }
@@ -70,11 +77,11 @@ export async function copyWechatHtmlToClipboard(
     // 6. Copy to clipboard
     await copyHtmlToClipboard(processedHtml);
 
-    message?.success(copyTranslator.t("copy.wechat"));
+    message?.success(...feedback("copy.wechat"));
     return true;
   } catch (error) {
     console.error("复制公众号格式失败:", error);
-    message?.error(copyTranslator.t("copy.failed"));
+    message?.error(...feedback("copy.failed"));
     return false;
   }
 }

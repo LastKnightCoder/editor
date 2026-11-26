@@ -354,6 +354,8 @@ P6 Native媒体进度：41路径加Root ASR/desktop文档2完成；桌面12文�
 
 影音watch10/chapters9/legacy12加Root日期收束5完成；watch10例、chapters2例、legacy10/原1skip，desktop type/三语及AST对照通过。真实quote原>视频格式/prompt、视频/字幕modal草稿焦点/编辑器/订阅、章节挂起AI与insights坐标保持；原formatDate对新函数54个输入逐个默认输出一致。Root统一editor日期consumer并清零删window-format与死词条，不新增并行formatter；原默认文件/AI标题与时间戳序列化保持。
 
+Markdown F1十二源加Root copy-service1完成；原3文件35至4文件36例、desktop type/44key三语/协议AST通过。实际CodeMirror/useTextFileSession仅隔离IO，保CRLF草稿/history/selection/冲突按钮，原2read/1watch不多save/rebind，keepMine原path+draft一次写。copy既有传输/真实往返11例过；MarkdownFileView仅4 action补id，后续正文UI另F3继续。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

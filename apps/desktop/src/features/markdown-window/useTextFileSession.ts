@@ -12,6 +12,8 @@ import {
 } from "@/commands/file";
 import type { SaveState } from "./types";
 
+import { markdownChromeFeedback } from "./chrome.i18n";
+
 const AUTOSAVE_INTERVAL_MS = 500;
 
 /**
@@ -135,7 +137,7 @@ export function useTextFileSession({
       }
       applyExternalText(text);
       savedText.current = text;
-      toast.info("已同步外部修改");
+      toast.info(...markdownChromeFeedback("chrome.externalSynced"));
     };
     onTextFileChanged(onChanged);
     return () => {

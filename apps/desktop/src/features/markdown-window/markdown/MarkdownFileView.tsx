@@ -479,8 +479,13 @@ export const MarkdownFileView = forwardRef<
         <FileBanner
           tone="warn"
           actions={[
-            { label: "载入外部版本", onClick: session.loadExternal },
-            { label: "保留我的版本", primary: true, onClick: () => void session.keepMine() },
+            { id: "load-external", label: "载入外部版本", onClick: session.loadExternal },
+            {
+              id: "keep-mine",
+              label: "保留我的版本",
+              primary: true,
+              onClick: () => void session.keepMine(),
+            },
           ]}
         >
           文件已在外部修改，与你未保存的内容冲突
@@ -490,8 +495,8 @@ export const MarkdownFileView = forwardRef<
         <FileBanner
           tone="danger"
           actions={[
-            { label: "重新保存", onClick: () => void session.resave() },
-            { label: "另存为…", onClick: () => onSaveAs(getText()) },
+            { id: "resave", label: "重新保存", onClick: () => void session.resave() },
+            { id: "save-as", label: "另存为…", onClick: () => onSaveAs(getText()) },
           ]}
         >
           文件已不在磁盘上（被删除或移动），内容仍保留在窗口里

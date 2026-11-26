@@ -2,11 +2,13 @@ import type { ReactNode } from "react";
 import { Button, cn } from "@tau/ui";
 import type { SaveState } from "./types";
 
-const SAVE_LABELS: Record<SaveState, { label: string; dot: string }> = {
-  saved: { label: "已保存", dot: "bg-ok" },
-  dirty: { label: "未保存 · 自动保存中", dot: "bg-accent" },
-  saving: { label: "保存中…", dot: "bg-accent" },
-  error: { label: "保存失败，稍后重试", dot: "bg-danger" },
+import { useMarkdownChromeI18n } from "./chrome.i18n";
+
+const SAVE_DOTS: Record<SaveState, string> = {
+  saved: "bg-ok",
+  dirty: "bg-accent",
+  saving: "bg-accent",
+  error: "bg-danger",
 };
 
 /** 纸面底部状态栏：左侧由视图决定（字数 / 类型等），右侧行列号 · 保存态 */
@@ -21,20 +23,17 @@ export function FileStatusBar({
   saveState?: SaveState;
   trailing?: ReactNode;
 }) {
-  const save = saveState ? SAVE_LABELS[saveState] : null;
+  const { t } = useMarkdownChromeI18n();
+  const saveDot = saveState ? SAVE_DOTS[saveState] : null;
   return (
     <footer className="border-line-2 text-tau-micro text-ink-3 flex h-[30px] shrink-0 items-center gap-3.5 border-t px-3.5 tabular-nums">
       {children}
       <span className="flex-1" />
-      {cursor && (
-        <span>
-          行 {cursor.line}，列 {cursor.column}
-        </span>
-      )}
-      {save && (
+      {cursor && <span>{t("chrome.cursor", { line: cursor.line, column: cursor.column })}</span>}
+      {saveState && (
         <span className="flex items-center gap-1.5">
-          <span className={cn("size-1.5 rounded-full", save.dot)} />
-          {save.label}
+          <span className={cn("size-1.5 rounded-full", saveDot)} />
+          {t(`chrome.save.${saveState}`)}
         </span>
       )}
       {trailing}
@@ -50,7 +49,7 @@ export function FileBanner({
 }: {
   tone: "warn" | "danger";
   children: ReactNode;
-  actions: { label: string; primary?: boolean; onClick(): void }[];
+  actions: { id: string; label: string; primary?: boolean; onClick(): void }[];
 }) {
   return (
     <div
@@ -63,7 +62,7 @@ export function FileBanner({
       <span className="min-w-0 flex-1">{children}</span>
       {actions.map(action => (
         <Button
-          key={action.label}
+          key={action.id}
           size="sm"
           variant={action.primary ? "primary" : "secondary"}
           onClick={action.onClick}

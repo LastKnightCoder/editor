@@ -34,11 +34,14 @@ import { useTextFileSession } from "./useTextFileSession";
 import { CodeMirrorView } from "./markdown/CodeMirrorView";
 import type { FileViewHandle, FileViewStatus } from "./types";
 
+import { useMarkdownChromeI18n } from "./chrome.i18n";
+
 /** 代码 / 配置文件：CodeMirror 编辑，自动保存 + ⌘S，外部修改同 Markdown 处理 */
 export const CodeFileView = forwardRef<
   FileViewHandle,
   { path: string; onStatus(status: FileViewStatus): void; onSaveAs(text: string): void }
 >(function CodeFileView({ path, onStatus, onSaveAs }, ref) {
+  const { t } = useMarkdownChromeI18n();
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
   useEdgeFade(scrollEl);
   const textRef = useRef<string | null>(null);
@@ -66,35 +69,40 @@ export const CodeFileView = forwardRef<
   if (session.loadError) {
     return (
       <div className="text-tau-meta text-ink-2 grid flex-1 place-items-center px-8 text-center">
-        无法读取文件：{session.loadError}
+        {t("chrome.loadFailed", { reason: session.loadError })}
       </div>
     );
   }
   if (session.initialText === null) return <Loading />;
 
-  const ext = splitExtension(baseName(path)).ext.slice(1).toUpperCase() || "文本";
+  const ext = splitExtension(baseName(path)).ext.slice(1).toUpperCase() || t("chrome.text");
   return (
     <>
       {session.conflict !== null && (
         <FileBanner
           tone="warn"
           actions={[
-            { label: "载入外部版本", onClick: session.loadExternal },
-            { label: "保留我的版本", primary: true, onClick: () => void session.keepMine() },
+            { id: "load-external", label: t("chrome.loadExternal"), onClick: session.loadExternal },
+            {
+              id: "keep-mine",
+              label: t("chrome.keepMine"),
+              primary: true,
+              onClick: () => void session.keepMine(),
+            },
           ]}
         >
-          文件已在外部修改，与你未保存的内容冲突
+          {t("chrome.conflict")}
         </FileBanner>
       )}
       {session.missing && (
         <FileBanner
           tone="danger"
           actions={[
-            { label: "重新保存", onClick: () => void session.resave() },
-            { label: "另存为…", onClick: () => onSaveAs(getText()) },
+            { id: "resave", label: t("chrome.resave"), onClick: () => void session.resave() },
+            { id: "save-as", label: t("chrome.saveAs"), onClick: () => onSaveAs(getText()) },
           ]}
         >
-          文件已不在磁盘上（被删除或移动），内容仍保留在窗口里
+          {t("chrome.missing")}
         </FileBanner>
       )}
       <div ref={setScrollEl} className={cn(FADE_SCROLL_CLASS, "min-h-0 flex-1 px-5 py-4")}>

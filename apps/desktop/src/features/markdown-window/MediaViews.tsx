@@ -9,8 +9,14 @@ import { openFileWithDefaultApp, showInFolder } from "@/commands";
 import { baseName, splitExtension } from "./paths";
 import { FileStatusBar } from "./FileChrome";
 
-const typeLabel = (path: string) =>
-  splitExtension(baseName(path)).ext.slice(1).toUpperCase() || "文件";
+import {
+  useMarkdownChromeI18n,
+  markdownChromeFeedback,
+  type MarkdownChromeTranslate,
+} from "./chrome.i18n";
+
+const typeLabel = (path: string, t: MarkdownChromeTranslate) =>
+  splitExtension(baseName(path)).ext.slice(1).toUpperCase() || t("chrome.file");
 
 const revealButton = (path: string, label: string) => (
   <button
@@ -32,6 +38,7 @@ const CHECKER_BG = {
     的百分比失去参照，大图溢出只能滚动；定尺轨道下才能等比缩放。
     原始尺寸：回到 auto 轨道 + m-auto 居中（auto margin 是「安全」居中，超出时从左上角可滚，不被裁掉） */
 export function MediaView({ path, type }: { path: string; type: "image" | "video" | "audio" }) {
+  const { t } = useMarkdownChromeI18n();
   const { revealInFileManagerLabel } = usePlatformLabels();
   const [fit, setFit] = useState(true);
   const [natural, setNatural] = useState<{ width: number; height: number } | null>(null);
@@ -52,7 +59,7 @@ export function MediaView({ path, type }: { path: string; type: "image" | "video
         {isImage && (
           <LocalImage
             url={path}
-            title="双击切换适应窗口 / 原始尺寸"
+            title={t("chrome.media.toggleHint")}
             onLoad={(event: SyntheticEvent<HTMLImageElement>) =>
               setNatural({
                 width: event.currentTarget.naturalWidth,
@@ -90,7 +97,7 @@ export function MediaView({ path, type }: { path: string; type: "image" | "video
                       fit === value ? "bg-surface text-ink-1 shadow-card" : "hover:text-ink-1"
                     )}
                   >
-                    {value ? "适应窗口" : "原始尺寸"}
+                    {value ? t("chrome.media.fit") : t("chrome.media.original")}
                   </button>
                 ))}
               </div>
@@ -99,7 +106,7 @@ export function MediaView({ path, type }: { path: string; type: "image" | "video
           </>
         }
       >
-        <span>{typeLabel(path)}</span>
+        <span>{typeLabel(path, t)}</span>
         {isImage && natural && (
           <span>
             {natural.width} × {natural.height}
@@ -112,24 +119,25 @@ export function MediaView({ path, type }: { path: string; type: "image" | "video
 
 /** PDF / Office 等：交给系统默认应用 */
 export function ExternalFileView({ path }: { path: string }) {
+  const { t } = useMarkdownChromeI18n();
   const { revealInFileManagerLabel } = usePlatformLabels();
   const open = async () => {
     const failure = await openFileWithDefaultApp(path);
-    if (failure) toast.error(`打开失败：${failure}`);
+    if (failure) toast.error(...markdownChromeFeedback("chrome.openFailed", { reason: failure }));
   };
   return (
     <>
       <div className="text-tau-meta text-ink-2 flex min-h-0 flex-1 flex-col items-center justify-center gap-2 text-center">
         <FileText className="text-ink-3 mb-1 size-10" strokeWidth={1.25} />
         <span className="text-ink-1">{baseName(path)}</span>
-        <span>该格式不能在这里编辑</span>
+        <span>{t("chrome.unsupported")}</span>
         <Button className="mt-2" onClick={() => void open()}>
           <ExternalLink className="size-3.5" strokeWidth={1.75} />
-          用默认应用打开
+          {t("chrome.openDefault")}
         </Button>
       </div>
       <FileStatusBar trailing={revealButton(path, revealInFileManagerLabel)}>
-        <span>{typeLabel(path)}</span>
+        <span>{typeLabel(path, t)}</span>
       </FileStatusBar>
     </>
   );
