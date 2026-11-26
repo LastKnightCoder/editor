@@ -316,6 +316,8 @@ P5 Skills目录/详情：11路径加Root平台getter1完成；3文件10例、des
 
 P6浏览器扩展Phase1：26路径加Root lock/架构2完成；扩展7文件43例、desktop Host/module12例、两处type和WXT构建通过，57key三语参数/范围检查通过。metadata更新不重连/握手/onReady/20s心跳，迟到设置/存储快照不覆盖新值，三root/controller/editor/草稿/选区/query身份保持且第三方lang不变。Note旧Markdown fixture按当前原生节点拒旧契约修正，真实Header/保存断言保留；授权happy test由实际pairing后显式推ready去fixture timer竞态，原token/hello断言保留。原实现极快ready先于deriveSas后可能被pairing覆盖的窗口未改认证状态机，未误记已修。依赖offline filtered install仅新增本workspace importer，3处无关peer漂移逐字节核实后回退。正文/库/笔记主体与manifest元数据继续独立批。
 
+P5 Skills工作台：9路径完成；4文件14例、desktop最终type/静态/三语参数复数与协议AST通过。真实草稿/光标/编辑器/未保存确认、生成流与导入token/勾选跨语保留；S1解冻后rg仅定义再删MODE_OPTIONS，SOURCE_LABEL等旧显示表全消费清零。全12生产模块/120 AST项审计无自产UI或译文标题身份残留，合法模板/AI/默认名/regex/诊断/文件URL示例保留。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

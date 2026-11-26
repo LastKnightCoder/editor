@@ -6,13 +6,15 @@ import { createPageSchema, paramString } from "@/page/core/paramsSchema";
 import { definePage } from "@/page/definePage";
 import { SkillEditView } from "../views/SkillEditView";
 
+import { skillWorkbenchMessages } from "../workbench-i18n";
+
 const schema = createPageSchema({ path: paramString() });
 
 export default definePage({
   key: "skill-edit",
   match: "params",
   getId: params => `skill-${params.path}`,
-  label: "编辑 Skill",
+  label: skillWorkbenchMessages.ref("workbench.editPage"),
   params: schema.schema,
   component: SkillEditView,
 });

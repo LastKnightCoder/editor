@@ -49,33 +49,34 @@ import { hasTriggerHint, metaString, splitSkillDocument } from "@/utils/skill-fr
 import type { SkillImportInspection, SkillImportSource, SkillLinkedDir } from "@/types";
 import { Field } from "@/features/mcp/views/ServerForm";
 
+import {
+  useSkillWorkbenchI18n,
+  skillWorkbenchTranslator,
+  workbenchFeedback,
+  skillTemplateLabel,
+  skillTemplateHint,
+  type SkillTemplateKey,
+} from "../workbench-i18n";
+
 export type AddSkillTab = "new" | "ai" | "import" | "link";
 
 const TEMPLATES: Array<{
-  key: string;
-  label: string;
-  description: string;
+  key: SkillTemplateKey;
   body: (name: string) => string;
 }> = [
-  { key: "blank", label: "空白", description: "只有标题", body: name => `# ${name}\n\n` },
+  { key: "blank", body: name => `# ${name}\n\n` },
   {
     key: "workflow",
-    label: "流程类",
-    description: "分步骤完成一件事（周报、复盘、出题）",
     body: name =>
       `# ${name}\n\n## 步骤\n\n1. 先收集需要的信息（可用 sql_query / search_knowledge）\n2. \n3. 按下面的格式输出\n\n## 输出格式\n\n\n## 注意\n\n- 只写有依据的内容，缺失的部分直接说明\n`,
   },
   {
     key: "reference",
-    label: "参考资料类",
-    description: "SKILL.md 做索引，细节放 reference/",
     body: name =>
       `# ${name}\n\n这份 Skill 汇总了……的知识。正文只放概要，细节按需读取：\n\n- \`reference/\`：详细说明（用 read_skill_file 读取）\n\n## 概要\n\n`,
   },
   {
     key: "format",
-    label: "格式规范类",
-    description: "输出格式、语气、模板约束",
     body: name => `# ${name}\n\n## 格式\n\n\n## 语气\n\n\n## 示例\n\n\`\`\`markdown\n\n\`\`\`\n`,
   },
 ];
@@ -111,18 +112,19 @@ function NewPane({
   manual: boolean;
   setManual: (v: boolean) => void;
 }) {
+  const { t } = useSkillWorkbenchI18n();
   return (
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-2 gap-3">
-        <Field label="名称">
+        <Field label={t("workbench.name")}>
           <Input
             value={name}
             onChange={e => setName(e.target.value)}
-            placeholder="会议纪要"
+            placeholder={t("workbench.nameHint")}
             data-autofocus
           />
         </Field>
-        <Field label="文件夹名" hint="自动生成">
+        <Field label={t("workbench.folder")} hint={t("workbench.generated")}>
           <Input
             value={slugHint(name)}
             readOnly
@@ -131,40 +133,42 @@ function NewPane({
           />
         </Field>
       </div>
-      <Field label="描述" hint="做什么 + 什么时候用">
+      <Field label={t("workbench.description")} hint={t("workbench.descriptionHint")}>
         <Textarea
           value={description}
           onChange={e => setDescription(e.target.value)}
           rows={3}
-          placeholder="例如：把会议录音转写整理成纪要，包含决议与待办。用户贴出会议转写或提到「会议纪要」时使用。"
+          placeholder={t("workbench.descriptionExample")}
         />
         {description.trim() && (
           <span
             className={cn("text-tau-sm", hasTriggerHint(description) ? "text-ok" : "text-ink-3")}
           >
-            {hasTriggerHint(description)
-              ? "写了触发场景，AI 能据此判断何时加载"
-              : "建议补一句「什么时候用」，AI 靠它判断何时加载"}
+            {hasTriggerHint(description) ? t("workbench.triggerReady") : t("workbench.triggerHint")}
           </span>
         )}
       </Field>
-      <Field label="从模板开始">
+      <Field label={t("workbench.startTemplate")}>
         <div className="grid grid-cols-2 gap-2">
-          {TEMPLATES.map(t => (
+          {TEMPLATES.map(templateOption => (
             <button
-              key={t.key}
+              key={templateOption.key}
               type="button"
-              aria-pressed={template === t.key}
-              onClick={() => setTemplate(t.key)}
+              aria-pressed={template === templateOption.key}
+              onClick={() => setTemplate(templateOption.key)}
               className={cn(
                 "rounded-[12px] border px-3 py-2.5 text-left transition-[border-color,box-shadow] duration-150",
-                template === t.key
+                template === templateOption.key
                   ? "border-accent shadow-[var(--tau-focus-ring)]"
                   : "border-line-1 hover:bg-hover"
               )}
             >
-              <b className="text-tau-meta block font-semibold">{t.label}</b>
-              <span className="text-tau-sm text-ink-3">{t.description}</span>
+              <b className="text-tau-meta block font-semibold">
+                {skillTemplateLabel(templateOption.key, t)}
+              </b>
+              <span className="text-tau-sm text-ink-3">
+                {skillTemplateHint(templateOption.key, t)}
+              </span>
             </button>
           ))}
         </div>
@@ -173,10 +177,10 @@ function NewPane({
         <Checkbox
           checked={manual}
           onChange={e => setManual(e.target.checked)}
-          aria-label="仅手动"
+          aria-label={t("workbench.manual")}
         />
-        仅手动调用
-        <span className="text-tau-sm text-ink-3">AI 不会自动加载，只在输入框用 $ 点名时生效</span>
+        {t("workbench.manualInvocation")}
+        <span className="text-tau-sm text-ink-3">{t("workbench.manualHint")}</span>
       </label>
     </div>
   );
@@ -197,22 +201,23 @@ function AiPane({
   onGenerate: () => void;
   onStop: () => void;
 }) {
+  const { t } = useSkillWorkbenchI18n();
   const { meta } = useMemo(() => splitSkillDocument(draft), [draft]);
   return (
     <div className="flex h-full flex-col gap-3">
-      <Field label="想让 AI 学会什么？" hint="可以直接贴一次满意的对话">
+      <Field label={t("workbench.aiQuestion")} hint={t("workbench.aiQuestionHint")}>
         <Textarea
           value={prompt}
           onChange={e => setPrompt(e.target.value)}
           rows={4}
-          placeholder="每次开完会我会把录音转写贴进来，希望整理成纪要：先写结论和决议，再列待办（带负责人和截止日期），最后是讨论要点。"
+          placeholder={t("workbench.aiExample")}
           data-autofocus
         />
       </Field>
       <div className="flex items-center gap-2">
         {generating ? (
           <Button size="sm" variant="secondary" icon={Square} onClick={onStop}>
-            停止
+            {t("workbench.stop")}
           </Button>
         ) : (
           <Button
@@ -222,19 +227,19 @@ function AiPane({
             disabled={!prompt.trim()}
             onClick={onGenerate}
           >
-            {draft ? "重新起草" : "起草"}
+            {draft ? t("workbench.redraft") : t("workbench.draft")}
           </Button>
         )}
         {draft && !generating && (
           <span className="text-tau-sm text-ink-3 min-w-0 truncate">
-            {metaString(meta, "title") || metaString(meta, "name") || "草稿"} ·
-            保存后可在编辑页继续改
+            {metaString(meta, "title") || metaString(meta, "name") || t("workbench.draftTitle")}
+            {t("workbench.draftEditable")}
           </span>
         )}
       </div>
       {(draft || generating) && (
         <pre className="font-tau-mono border-line-1 text-ink-1 m-0 min-h-0 flex-1 overflow-auto rounded-[12px] border px-3.5 py-3 text-[12px] leading-[1.7] whitespace-pre-wrap">
-          {draft || "起草中…"}
+          {draft || t("workbench.drafting")}
         </pre>
       )}
     </div>
@@ -254,12 +259,13 @@ function ImportPane({
   checked: Set<string>;
   setChecked: (next: Set<string>) => void;
 }) {
+  const { t } = useSkillWorkbenchI18n();
   const { trashName } = usePlatformLabels();
   const [url, setUrl] = useState("");
   const pickZip = async () => {
     const files = await selectFile({
       properties: ["openFile"],
-      filters: [{ name: "Skill 压缩包", extensions: ["zip", "skill"] }],
+      filters: [{ name: t("workbench.zipFilter"), extensions: ["zip", "skill"] }],
     });
     if (files?.[0]) onInspect({ type: "zip", path: files[0] });
   };
@@ -278,8 +284,8 @@ function ImportPane({
         >
           <FileArchive className="text-ink-2 size-5" strokeWidth={1.5} />
           <span>
-            <b className="text-tau-meta block font-semibold">选择 .zip / .skill</b>
-            <span className="text-tau-sm text-ink-3">包里需要有 SKILL.md</span>
+            <b className="text-tau-meta block font-semibold">{t("workbench.chooseArchive")}</b>
+            <span className="text-tau-sm text-ink-3">{t("workbench.archiveHint")}</span>
           </span>
         </button>
         <button
@@ -290,12 +296,12 @@ function ImportPane({
         >
           <FolderOpen className="text-ink-2 size-5" strokeWidth={1.5} />
           <span>
-            <b className="text-tau-meta block font-semibold">选择文件夹</b>
-            <span className="text-tau-sm text-ink-3">一个文件夹里有多个 Skill 会逐个列出</span>
+            <b className="text-tau-meta block font-semibold">{t("workbench.chooseFolder")}</b>
+            <span className="text-tau-sm text-ink-3">{t("workbench.folderHint")}</span>
           </span>
         </button>
       </div>
-      <Field label="或从 GitHub 导入" hint="仓库、目录或 SKILL.md 链接">
+      <Field label={t("workbench.github")} hint={t("workbench.githubHint")}>
         <div className="flex gap-2">
           <Input
             lead={Github}
@@ -312,7 +318,7 @@ function ImportPane({
             disabled={!url.trim()}
             onClick={() => onInspect({ type: "github", url })}
           >
-            解析
+            {t("workbench.inspect")}
           </Button>
         </div>
       </Field>
@@ -324,7 +330,7 @@ function ImportPane({
               className="text-tau-meta hover:bg-hover flex items-center gap-2.5 rounded-[9px] px-2.5 py-2"
             >
               <Checkbox
-                aria-label={`导入 ${c.name}`}
+                aria-label={t("workbench.importName", { name: c.name })}
                 checked={checked.has(c.relPath)}
                 onChange={e => {
                   const next = new Set(checked);
@@ -337,20 +343,22 @@ function ImportPane({
                 <span className="flex items-center gap-2">
                   <b className="truncate font-semibold">{c.name}</b>
                   <span className="text-tau-micro text-ink-3 border-line-1 shrink-0 rounded-[5px] border px-1.5">
-                    {c.fileCount} 个文件
+                    {t("workbench.files", { count: c.fileCount })}
                   </span>
                 </span>
                 <span className="text-tau-sm text-ink-3 block truncate">
-                  {c.description || "（没有描述）"}
+                  {c.description || t("workbench.noDescription")}
                 </span>
               </span>
               {c.exists && (
-                <span className="text-tau-sm text-warn shrink-0">{`同名，将覆盖（旧的进${trashName}）`}</span>
+                <span className="text-tau-sm text-warn shrink-0">
+                  {t("workbench.overwrite", { trash: trashName })}
+                </span>
               )}
               {c.hasScripts && !c.exists && (
                 <span className="text-tau-sm text-warn inline-flex shrink-0 items-center gap-1">
                   <TriangleAlert className="size-3.5" strokeWidth={1.75} />
-                  含脚本
+                  {t("workbench.scripts")}
                 </span>
               )}
             </li>
@@ -371,6 +379,7 @@ function LinkPane({
   onUpdate: (path: string, patch: { enabled?: boolean; selectedSkills?: string[] | null }) => void;
   onAddCustom: () => void;
 }) {
+  const { t } = useSkillWorkbenchI18n();
   const [expanded, setExpanded] = useState<string | null>(null);
 
   const toggleSkill = (link: SkillLinkedDir, folderName: string, checked: boolean) => {
@@ -382,10 +391,7 @@ function LinkPane({
 
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-tau-meta text-ink-2 m-0 mb-1">
-        和其它 AI 工具共用同一份 Skill：关联后<b className="font-semibold">只读</b>
-        显示在「关联目录」分组，原文件改了这里自动更新；开启后勾选要启用的，想改就「复制为我的」。
-      </p>
+      <p className="text-tau-meta text-ink-2 m-0 mb-1">{t("workbench.linkIntroduction")}</p>
       {links.map(link => {
         const open = expanded === link.path;
         const canPick = link.enabled && link.exists && (link.skills?.length ?? 0) > 0;
@@ -413,10 +419,13 @@ function LinkPane({
               </span>
               <span className="text-tau-sm text-ink-3 shrink-0 tabular-nums">
                 {!link.exists
-                  ? "目录不存在"
+                  ? t("workbench.missingDirectory")
                   : link.selectedCount === link.count
-                    ? `共 ${link.count ?? 0} 个`
-                    : `已启用 ${link.selectedCount ?? 0} / ${link.count ?? 0}`}
+                    ? t("workbench.total", { count: link.count ?? 0 })
+                    : t("workbench.enabled", {
+                        enabled: link.selectedCount ?? 0,
+                        total: link.count ?? 0,
+                      })}
               </span>
               {canPick && (
                 <Button
@@ -427,12 +436,14 @@ function LinkPane({
                   aria-expanded={open}
                   onClick={() => setExpanded(open ? null : link.path)}
                 >
-                  选择
+                  {t("workbench.choose")}
                 </Button>
               )}
               <Switch
                 size="sm"
-                aria-label={link.enabled ? `取消关联 ${link.path}` : `关联 ${link.path}`}
+                aria-label={t(link.enabled ? "workbench.unlinkPath" : "workbench.linkPath", {
+                  path: link.path,
+                })}
                 checked={link.enabled}
                 disabled={!link.exists && !link.enabled}
                 onCheckedChange={v => {
@@ -450,21 +461,21 @@ function LinkPane({
               <div className="border-line-1 border-t px-2.5 py-2">
                 <div className="flex items-center gap-3 px-1 pb-1.5">
                   <span className="text-tau-sm text-ink-3 min-w-0 flex-1">
-                    勾选的才会出现在 Skill 页；目录那边新增或更新，这里即时生效
+                    {t("workbench.linkSelectionHint")}
                   </span>
                   <button
                     type="button"
                     className="text-tau-sm text-ink-2 hover:text-ink-1 shrink-0"
                     onClick={() => onUpdate(link.path, { selectedSkills: null })}
                   >
-                    全选
+                    {t("workbench.selectAll")}
                   </button>
                   <button
                     type="button"
                     className="text-tau-sm text-ink-2 hover:text-ink-1 shrink-0"
                     onClick={() => onUpdate(link.path, { selectedSkills: [] })}
                   >
-                    全不选
+                    {t("workbench.selectNone")}
                   </button>
                 </div>
                 <ul className="m-0 flex list-none flex-col p-1">
@@ -477,7 +488,7 @@ function LinkPane({
                       )}
                     >
                       <Checkbox
-                        aria-label={`启用 ${s.name}`}
+                        aria-label={t("workbench.enableName", { name: s.name })}
                         checked={s.selected}
                         onChange={e => toggleSkill(link, s.folderName, e.target.checked)}
                       />
@@ -489,7 +500,7 @@ function LinkPane({
                           </span>
                         </span>
                         <span className="text-tau-sm text-ink-3 block truncate">
-                          {s.description || "（没有描述）"}
+                          {s.description || t("workbench.noDescription")}
                         </span>
                       </span>
                     </li>
@@ -506,11 +517,9 @@ function LinkPane({
         className="border-line-1 text-ink-2 hover:bg-hover text-tau-meta flex items-center gap-3 rounded-[12px] border border-dashed px-3.5 py-2.5"
       >
         <FolderPlus className="size-4" strokeWidth={1.75} />
-        关联其它目录…
+        {t("workbench.addDirectory")}
       </button>
-      <p className="text-tau-sm text-ink-3 m-0 mt-1">
-        同名时内置优先，其次「我的」，最后是关联目录。
-      </p>
+      <p className="text-tau-sm text-ink-3 m-0 mt-1">{t("workbench.priorityHint")}</p>
     </div>
   );
 }
@@ -522,6 +531,7 @@ export function AddSkillDialog({
   tab: AddSkillTab | null;
   onTabChange: (tab: AddSkillTab | null) => void;
 }) {
+  const { t } = useSkillWorkbenchI18n();
   const { navigator } = usePage();
   const open = tab !== null;
   const current = tab ?? "new";
@@ -579,7 +589,7 @@ export function AddSkillDialog({
 
   const generate = () => {
     if (!provider || !model) {
-      toast.error("请先在设置里为「对话」配置模型");
+      toast.error(...workbenchFeedback("workbench.modelRequired"));
       return;
     }
     setDraft("");
@@ -605,7 +615,11 @@ export function AddSkillDialog({
       }
       if (!result.aborted) {
         setGenerating(false);
-        toast.error(`起草失败：${result.error ?? "模型请求失败"}`);
+        const getMessage = () =>
+          skillWorkbenchTranslator.t("workbench.draftFailed", {
+            reason: result.error ?? skillWorkbenchTranslator.t("workbench.modelFailed"),
+          });
+        toast.error(getMessage(), { getMessage });
       }
     });
   };
@@ -643,7 +657,7 @@ export function AddSkillDialog({
     const imported = await commitSkillImport(inspection.token, items);
     setInspection(null);
     await useSkillStore.getState().loadSkills();
-    toast.success(`已导入 ${imported.length} 个 Skill`);
+    toast.success(...workbenchFeedback("workbench.imported", { count: imported.length }));
     close();
   };
 
@@ -687,10 +701,13 @@ export function AddSkillDialog({
   };
 
   const primary = {
-    new: { text: "创建并编辑", disabled: !slugHint(name) },
-    ai: { text: "保存 Skill", disabled: !draft || generating },
-    import: { text: `导入 ${checked.size} 个`, disabled: !inspection || checked.size === 0 },
-    link: { text: "完成", disabled: false },
+    new: { text: t("workbench.createEdit"), disabled: !slugHint(name) },
+    ai: { text: t("workbench.saveSkill"), disabled: !draft || generating },
+    import: {
+      text: t("workbench.importCount", { count: checked.size }),
+      disabled: !inspection || checked.size === 0,
+    },
+    link: { text: t("workbench.done"), disabled: false },
   }[current];
 
   return (
@@ -698,14 +715,14 @@ export function AddSkillDialog({
       open={open}
       onOpenChange={v => !v && close()}
       onAfterClose={reset}
-      title="添加 Skill"
+      title={t("workbench.addTitle")}
       icon={<Sparkles />}
       width={720}
-      impact={current === "import" ? "Skill 里的脚本可以在本机执行，只导入信任的来源" : undefined}
+      impact={current === "import" ? t("workbench.trust") : undefined}
       footer={
         <>
           <Button variant="secondary" onClick={close}>
-            {current === "link" ? "关闭" : "取消"}
+            {current === "link" ? t("workbench.close") : t("workbench.cancel")}
           </Button>
           {current !== "link" && (
             <Button
@@ -722,16 +739,16 @@ export function AddSkillDialog({
     >
       <DialogBody>
         <Segmented
-          label="添加方式"
+          label={t("workbench.addMethod")}
           size="sm"
           value={current}
           onValueChange={(v: AddSkillTab) => onTabChange(v)}
           className="mb-4"
         >
-          <Segmented.Item value="new" label="新建" />
-          <Segmented.Item value="ai" label="用 AI 创建" />
-          <Segmented.Item value="import" label="导入" />
-          <Segmented.Item value="link" label="关联目录" />
+          <Segmented.Item value="new" label={t("workbench.new")} />
+          <Segmented.Item value="ai" label={t("workbench.aiCreate")} />
+          <Segmented.Item value="import" label={t("workbench.import")} />
+          <Segmented.Item value="link" label={t("workbench.linked")} />
         </Segmented>
         <FadeScroll className="-mr-1.5 h-[460px]">
           {current === "new" && (

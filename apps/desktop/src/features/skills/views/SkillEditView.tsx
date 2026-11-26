@@ -59,15 +59,18 @@ import {
   writeSkillFile,
 } from "@/commands/skill";
 import type { SkillDetail, SkillFile } from "@/types";
-import {
-  MODE_OPTIONS,
-  setSkillMode,
-  toSkillItems,
-  type SkillItem,
-  type SkillMode,
-} from "../useSkills";
+import { setSkillMode, toSkillItems, type SkillItem, type SkillMode } from "../useSkills";
 import { copySkillToMine } from "../skillActions";
 import { SkillCodeEditor } from "../components/SkillCodeEditor";
+
+import { useSkillsI18n, skillModeOptions } from "../i18n";
+import { useSkillWorkbenchI18n, workbenchFeedback } from "../workbench-i18n";
+
+class MissingSkillError extends Error {
+  constructor() {
+    super("这个 Skill 已不存在");
+  }
+}
 
 const PAGE_KEY = "skill-edit";
 const README = "SKILL.md";
@@ -120,6 +123,7 @@ function FileTree({
   onPrompt: (prompt: EntryPrompt) => void;
   onDelete: (file: SkillFile) => void;
 }) {
+  const { t } = useSkillWorkbenchI18n();
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const rows = useMemo(() => buildRows(files, collapsed), [files, collapsed]);
   const toggle = (rel: string) =>
@@ -131,23 +135,26 @@ function FileTree({
     });
 
   return (
-    <nav aria-label="Skill 文件" className="flex w-[232px] shrink-0 flex-col py-5 pr-2.5 pl-3.5">
+    <nav
+      aria-label={t("workbench.skillFiles")}
+      className="flex w-[232px] shrink-0 flex-col py-5 pr-2.5 pl-3.5"
+    >
       <div className="text-tau-sm text-ink-3 flex h-7 items-center gap-1 px-2">
-        <span className="flex-1">文件</span>
+        <span className="flex-1">{t("workbench.file")}</span>
         {!readonly && (
           <>
-            <Tooltip content="新建文件">
+            <Tooltip content={t("workbench.newFile")}>
               <IconButton
-                aria-label="新建文件"
+                aria-label={t("workbench.newFile")}
                 className="size-6"
                 onClick={() => onPrompt({ kind: "new-file", dir: skillPath })}
               >
                 <FilePlus className="size-3.5" strokeWidth={1.75} />
               </IconButton>
             </Tooltip>
-            <Tooltip content="新建文件夹">
+            <Tooltip content={t("workbench.newFolder")}>
               <IconButton
-                aria-label="新建文件夹"
+                aria-label={t("workbench.newFolder")}
                 className="size-6"
                 onClick={() => onPrompt({ kind: "new-folder", dir: skillPath })}
               >
@@ -204,7 +211,10 @@ function FileTree({
               />
               <span className="min-w-0 flex-1 truncate">{file.name}</span>
               {active && dirty && (
-                <i aria-label="未保存" className="bg-accent size-1.5 shrink-0 rounded-full" />
+                <i
+                  aria-label={t("workbench.unsaved")}
+                  className="bg-accent size-1.5 shrink-0 rounded-full"
+                />
               )}
               {!readonly && !isReadme && (
                 <span
@@ -214,7 +224,10 @@ function FileTree({
                   <Menu
                     align="start"
                     trigger={
-                      <IconButton aria-label={`${file.name} 更多操作`} className="size-5">
+                      <IconButton
+                        aria-label={`${file.name} ${t("workbench.more")}`}
+                        className="size-5"
+                      >
                         <MoreHorizontal className="size-3.5" strokeWidth={1.75} />
                       </IconButton>
                     }
@@ -225,13 +238,13 @@ function FileTree({
                           icon={<FilePlus />}
                           onSelect={() => onPrompt({ kind: "new-file", dir: file.path })}
                         >
-                          新建文件
+                          {t("workbench.newFile")}
                         </Menu.Item>
                         <Menu.Item
                           icon={<FolderPlus />}
                           onSelect={() => onPrompt({ kind: "new-folder", dir: file.path })}
                         >
-                          新建文件夹
+                          {t("workbench.newFolder")}
                         </Menu.Item>
                         <Menu.Separator />
                       </>
@@ -240,10 +253,10 @@ function FileTree({
                       icon={<Pencil />}
                       onSelect={() => onPrompt({ kind: "rename", file })}
                     >
-                      重命名
+                      {t("workbench.rename")}
                     </Menu.Item>
                     <Menu.Item icon={<Trash2 />} danger onSelect={() => onDelete(file)}>
-                      删除
+                      {t("workbench.delete")}
                     </Menu.Item>
                   </Menu>
                 </span>
@@ -253,7 +266,7 @@ function FileTree({
         })}
       </FadeScroll>
       <p className="text-tau-sm text-ink-3 m-0 mt-2 px-2 leading-[1.5]">
-        SKILL.md 以外的文件只在 AI 需要时读取，适合放长参考资料、模板与脚本。
+        {t("workbench.fileHint")}
       </p>
     </nav>
   );
@@ -274,15 +287,18 @@ function ReadmeHeader({
   readonly: boolean;
   item?: SkillItem;
 }) {
+  const { t } = useSkillWorkbenchI18n();
+  const { t: skillsT } = useSkillsI18n();
+  const modeOptions = skillModeOptions(skillsT);
   const title = metaString(meta, "title") || metaString(meta, "name");
   const description = metaString(meta, "description");
   const tokens = estimateTokens(`${title} ${description}`);
   const set = (key: string, value: unknown) => onMetaChange({ ...meta, [key]: value });
   const hint = !description.trim()
-    ? { tone: "text-danger", text: "缺少描述，AI 无法判断何时使用它" }
+    ? { tone: "text-danger", text: t("workbench.missingDescription") }
     : hasTriggerHint(description)
-      ? { tone: "text-ok", text: "写了触发场景，AI 能据此判断何时加载" }
-      : { tone: "text-ink-3", text: "建议补一句「什么时候用」" };
+      ? { tone: "text-ok", text: t("workbench.triggerReady") }
+      : { tone: "text-ink-3", text: t("workbench.triggerShort") };
 
   return (
     <div className="mb-8">
@@ -291,31 +307,31 @@ function ReadmeHeader({
         readOnly={readonly}
         onChange={e => set("title", e.target.value)}
         placeholder={folderName}
-        aria-label="名称"
+        aria-label={t("workbench.name")}
         className="placeholder:text-ink-3 w-full bg-transparent text-[28px] leading-[1.3] font-semibold tracking-[-0.01em] outline-none"
       />
       {/* 调用方式：与卡片开关、抽屉「设置」同一份本机状态，三处永远一致 */}
       <div className="text-tau-sm text-ink-3 mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
         {title && (
-          <span className="font-tau-mono" title="文件夹名是 AI 调用时的标识，不在此修改">
+          <span className="font-tau-mono" title={t("workbench.folderIdentityHint")}>
             {folderName}
           </span>
         )}
         {item && (
           <Segmented
-            label="调用方式"
+            label={t("workbench.invocation")}
             size="sm"
             value={item.mode}
             onValueChange={(v: SkillMode) => setSkillMode(item.skill, v)}
           >
-            {MODE_OPTIONS.map(option => (
+            {modeOptions.map(option => (
               <Segmented.Item key={option.value} value={option.value} label={option.label} />
             ))}
           </Segmented>
         )}
         {item && (
           <span className="min-w-0 truncate">
-            {MODE_OPTIONS.find(o => o.value === item.mode)?.description}
+            {modeOptions.find(o => o.value === item.mode)?.description}
           </span>
         )}
       </div>
@@ -323,15 +339,15 @@ function ReadmeHeader({
       <div className="border-line-1 bg-surface focus-within:border-accent mt-5 rounded-[12px] border px-4 pt-3 pb-2.5 transition-[border-color,box-shadow] duration-150 focus-within:shadow-[var(--tau-focus-ring)]">
         <div className="text-tau-sm text-ink-3 mb-1 flex items-center gap-1.5">
           <Radar className="size-3.5" strokeWidth={1.75} />
-          AI 看到的描述 · 据此决定何时加载
-          <span className="ml-auto tabular-nums">约 {tokens} tokens</span>
+          {t("workbench.aiDescription")}
+          <span className="ml-auto tabular-nums">{t("workbench.tokens", { tokens })}</span>
         </div>
         <textarea
           value={description}
           readOnly={readonly}
           onChange={e => set("description", e.target.value)}
-          placeholder="例如：把一周的日记、已完成待办和日程整理成周报。用户提到「周报」「本周总结」时使用。"
-          aria-label="描述"
+          placeholder={t("workbench.readmeDescriptionExample")}
+          aria-label={t("workbench.description")}
           rows={2}
           className="text-tau-body text-ink-1 placeholder:text-ink-3 block [field-sizing:content] w-full resize-none bg-transparent leading-[1.7] outline-none"
         />
@@ -344,12 +360,13 @@ function ReadmeHeader({
 /* ── 页面 ── */
 
 export function SkillEditView() {
+  const { t } = useSkillWorkbenchI18n();
   const { revealInFileManagerLabel, trashName } = usePlatformLabels();
   const { path: skillPath } = usePageParams<{ path: string }>();
   const { navigator } = usePage();
   const skills = useSkillStore(s => s.skills);
   const [detail, setDetail] = useState<SkillDetail | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<Error | null>(null);
   const [selected, setSelected] = useState<string>("");
   const [saved, setSaved] = useState<string>("");
   const [draft, setDraft] = useState<string>("");
@@ -374,12 +391,12 @@ export function SkillEditView() {
   const reload = useCallback(async () => {
     try {
       const next = await getSkillDetail(skillPath);
-      if (!next) throw new Error("这个 Skill 已不存在");
+      if (!next) throw new MissingSkillError();
       setDetail(next);
       setLoadError(null);
       return next;
     } catch (error) {
-      setLoadError((error as Error).message);
+      setLoadError(error as Error);
       return null;
     }
   }, [skillPath]);
@@ -392,7 +409,9 @@ export function SkillEditView() {
       setDraft(content);
       setEditorVersion(v => v + 1);
     } catch (error) {
-      toast.error(`打开失败：${(error as Error).message}`);
+      toast.error(
+        ...workbenchFeedback("workbench.openFailed", { reason: (error as Error).message })
+      );
     }
   }, []);
 
@@ -415,7 +434,9 @@ export function SkillEditView() {
       setSaved(draft);
       if (isReadme) void useSkillStore.getState().loadSkills();
     } catch (error) {
-      toast.error(`保存失败：${(error as Error).message}`);
+      toast.error(
+        ...workbenchFeedback("workbench.saveFailed", { reason: (error as Error).message })
+      );
     } finally {
       setSaving(false);
     }
@@ -470,10 +491,13 @@ export function SkillEditView() {
   const breadcrumb = useMemo(
     () => (
       <span className="text-tau-meta text-ink-2 flex min-w-0 items-center gap-1">
-        <Tooltip content={showTree ? "收起文件" : "展开文件"} placement="bottom">
+        <Tooltip
+          content={showTree ? t("workbench.collapseFiles") : t("workbench.expandFiles")}
+          placement="bottom"
+        >
           <IconButton
             className="shrink-0"
-            aria-label={showTree ? "收起文件" : "展开文件"}
+            aria-label={showTree ? t("workbench.collapseFiles") : t("workbench.expandFiles")}
             aria-expanded={showTree}
             onClick={() => setTreePref(!showTree)}
           >
@@ -492,7 +516,7 @@ export function SkillEditView() {
       </span>
     ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [displayName, navigator, dirty, showTree]
+    [displayName, navigator, dirty, showTree, t]
   );
   usePageBreadcrumb(PAGE_KEY, breadcrumb);
 
@@ -519,9 +543,11 @@ export function SkillEditView() {
   if (loadError) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3">
-        <p className="text-ink-2">{loadError}</p>
+        <p className="text-ink-2">
+          {loadError instanceof MissingSkillError ? t("workbench.missingSkill") : loadError.message}
+        </p>
         <Button variant="secondary" onClick={() => navigator.back()}>
-          返回
+          {t("workbench.back")}
         </Button>
       </div>
     );
@@ -531,11 +557,11 @@ export function SkillEditView() {
   /** 源码视图：代码框撑满剩余高度、在框内滚动；其余视图整块在外层滚动 */
   let codeView = false;
   if (!selected) {
-    editorArea = <p className="text-tau-meta text-ink-3 p-8">加载中…</p>;
+    editorArea = <p className="text-tau-meta text-ink-3 p-8">{t("workbench.loading")}</p>;
   } else if (isReadme && mode === "visual" && doc?.error) {
     editorArea = (
       <div className="bg-danger-soft text-danger text-tau-meta m-6 rounded-[12px] px-3.5 py-3">
-        front-matter 写坏了（{doc.error}），请切到「源码」修正。
+        {t("workbench.frontmatterError", { reason: doc.error })}
       </div>
     );
   } else if (isMarkdown && mode === "visual") {
@@ -608,17 +634,21 @@ export function SkillEditView() {
             {readonly ? (
               <span className="text-tau-sm text-ink-3 inline-flex items-center gap-1">
                 <Lock className="size-3.5" strokeWidth={1.75} />
-                只读
+                {t("workbench.readonly")}
               </span>
             ) : (
               <span className="text-tau-sm text-ink-3">
-                {saving ? "保存中…" : dirty ? "未保存" : "已保存"}
+                {saving
+                  ? t("workbench.saving")
+                  : dirty
+                    ? t("workbench.unsaved")
+                    : t("workbench.saved")}
               </span>
             )}
             <span className="flex-1" />
             {isReadme && (
               <Segmented
-                label="视图"
+                label={t("workbench.view")}
                 size="sm"
                 value={mode}
                 onValueChange={(v: ViewMode) => {
@@ -626,8 +656,8 @@ export function SkillEditView() {
                   setEditorVersion(n => n + 1);
                 }}
               >
-                <Segmented.Item value="visual" label="编辑" />
-                <Segmented.Item value="source" label="源码" />
+                <Segmented.Item value="visual" label={t("workbench.edit")} />
+                <Segmented.Item value="source" label={t("workbench.source")} />
               </Segmented>
             )}
             {detail && (
@@ -647,7 +677,7 @@ export function SkillEditView() {
                   variant="secondary"
                   onClick={() => void copySkillToMine(item.skill)}
                 >
-                  复制为我的
+                  {t("workbench.copyMine")}
                 </Button>
               )
             ) : (
@@ -658,7 +688,7 @@ export function SkillEditView() {
                 disabled={!dirty}
                 onClick={() => void save()}
               >
-                保存
+                {t("workbench.save")}
               </Button>
             )}
           </header>
@@ -675,12 +705,12 @@ export function SkillEditView() {
         onOpenChange={open => !open && setPrompt(null)}
         title={
           prompt?.kind === "rename"
-            ? "重命名"
+            ? t("workbench.rename")
             : prompt?.kind === "new-folder"
-              ? "新建文件夹"
-              : "新建文件"
+              ? t("workbench.newFolder")
+              : t("workbench.newFile")
         }
-        confirmText="确定"
+        confirmText={t("workbench.confirm")}
         confirmDisabled={!promptValue.trim()}
         onConfirm={submitPrompt}
         description={
@@ -696,10 +726,10 @@ export function SkillEditView() {
       <ConfirmDialog
         open={deleting !== null}
         onOpenChange={open => !open && setDeleting(null)}
-        title={deleting?.isDirectory ? "删除文件夹" : "删除文件"}
+        title={deleting?.isDirectory ? t("workbench.deleteFolder") : t("workbench.deleteFile")}
         context={deleting?.name}
-        description={`会移到${trashName}，可以从那里恢复。`}
-        confirmText="删除"
+        description={t("workbench.deleteDescription", { trash: trashName })}
+        confirmText={t("workbench.delete")}
         danger
         onConfirm={async () => {
           if (!deleting) return;
@@ -717,9 +747,9 @@ export function SkillEditView() {
       <ConfirmDialog
         open={pendingSwitch !== null}
         onOpenChange={open => !open && setPendingSwitch(null)}
-        title="放弃未保存的修改？"
-        description="当前文件有未保存的修改，离开后会丢失。"
-        confirmText="放弃修改"
+        title={t("workbench.discardTitle")}
+        description={t("workbench.discardDescription")}
+        confirmText={t("workbench.discard")}
         danger
         onConfirm={() => {
           const action = pendingSwitch;

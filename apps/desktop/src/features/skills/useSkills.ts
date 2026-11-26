@@ -111,12 +111,6 @@ export function setSkillMode(skill: Skill, mode: SkillMode) {
   else store.setInvocation(skill.folderName, mode);
 }
 
-export const MODE_OPTIONS: Array<{ value: SkillMode; label: string; description: string }> = [
-  { value: "auto", label: "自动", description: "AI 按描述自行决定何时加载" },
-  { value: "manual", label: "仅手动", description: "只在输入框用 $ 点名时加载，不占提示词" },
-  { value: "off", label: "停用", description: "AI 完全看不到这个 Skill" },
-];
-
 export const linkedDirLabel = (skill: Skill) => {
   const root = skill.rootPath ?? "";
   if (root.includes("/.claude/")) return "Claude Code";
