@@ -1,3 +1,5 @@
+import { useWalkI18n } from "../i18n";
+import type { WalkLocale } from "../messages";
 /**
  * 漫步偏好选择器：范围（哪几类内容进抽样池）与抽取偏好（纯随机 / 久未见 / 那年今日）。
  * 改偏好只影响下一次随机跳转，不重置当前内容；变更即持久化。
@@ -7,7 +9,7 @@ import { useState } from "react";
 import { SlidersHorizontal } from "lucide-react";
 import { Button, FilterPill, Popover, Segmented } from "@tau/ui";
 import type { WalkBias, WalkRefKind } from "@/types";
-import { WALK_KIND_META, WALK_KIND_ORDER } from "../model";
+import { walkKindMeta, WALK_KIND_ORDER } from "../model";
 import type { WalkPrefs } from "../prefs";
 
 const BIAS_LABEL: Record<WalkBias, string> = {
@@ -22,9 +24,9 @@ const BIAS_HINT: Record<WalkBias, string> = {
   "on-this-day": "优先抽往年今天写下的内容，没有时按久未见",
 };
 
-function rangeLabel(kinds: WalkRefKind[]): string {
+function rangeLabel(kinds: WalkRefKind[], t: WalkLocale["t"]): string {
   if (kinds.length >= WALK_KIND_ORDER.length) return "全部内容";
-  if (kinds.length <= 2) return kinds.map(kind => WALK_KIND_META[kind].label).join("、");
+  if (kinds.length <= 2) return kinds.map(kind => walkKindMeta(kind, t).label).join("、");
   return `${kinds.length} 类内容`;
 }
 
@@ -35,6 +37,7 @@ export function WalkPoolPicker({
   prefs: WalkPrefs;
   onChange(prefs: WalkPrefs): void;
 }) {
+  const { t } = useWalkI18n();
   const [open, setOpen] = useState(false);
 
   const toggleKind = (kind: WalkRefKind) => {
@@ -55,7 +58,7 @@ export function WalkPoolPicker({
       className="flex w-[300px] flex-col gap-3.5 p-3.5"
       trigger={
         <Button variant="ghost" size="sm" icon={SlidersHorizontal}>
-          {rangeLabel(prefs.kinds)} · {BIAS_LABEL[prefs.bias]}
+          {rangeLabel(prefs.kinds, t)} · {BIAS_LABEL[prefs.bias]}
         </Button>
       }
     >
@@ -66,7 +69,7 @@ export function WalkPoolPicker({
             <FilterPill
               key={kind}
               active={prefs.kinds.includes(kind)}
-              label={WALK_KIND_META[kind].label}
+              label={walkKindMeta(kind, t).label}
               onClick={() => toggleKind(kind)}
             />
           ))}

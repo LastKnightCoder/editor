@@ -60,6 +60,7 @@ export function Example() {
 - `defineI18n` 校验并冻结资源；资源是语言到独立 JSON 词典的映射，文件内使用扁平字符串 key。key 中的点是普通字符。
 - `useI18nRuntime()` 返回所在 Provider 的运行时或 undefined，供公共组件适配层选择独立使用时的默认值。
 - `useI18n(messages)` 跟随所在 Provider；宿主公共组件可传第二个参数指定自己的运行时，避免嵌套插件覆盖宿主语言。
+- Hook 的 `t` / `resolve` 引用随语言变化更新；派生文案的 `useMemo` 应将所用翻译函数列入依赖。
 - `runtime.get(messages).t(key, values)` 用于非 React 逻辑，每次调用读取当前语言。参数仅允许字符串、有限数字与布尔值；文案按文本渲染，不作为 HTML 使用。
 - `messages.ref(key, values)` 返回可序列化引用；`runtime.get(messages).resolve(reference)` 在展示时解析。声明所有者决定使用哪份词典，引用不携带词典或全局命名空间。
 - 英文数量形式使用 `item_one` / `item_other`，调用时传 `{ count }`。缺词回退到配置的默认语言。

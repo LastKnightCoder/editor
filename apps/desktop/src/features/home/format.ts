@@ -59,3 +59,18 @@ export function compactNumber(value: number): string {
     maximumFractionDigits: value >= 10_000 ? 1 : 3,
   }).format(value);
 }
+
+export function pastDateText(timestamp: number, now = Date.now()): string {
+  const days = Math.max(0, -dayDiff(timestamp, now));
+  const locale = desktopLocaleSource.getSnapshot();
+  if (days <= 1)
+    return new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(-days, "day");
+  if (days < 7)
+    return new Intl.RelativeTimeFormat(locale, { numeric: "always" }).format(-days, "day");
+  const year = new Date(timestamp).getFullYear() !== new Date(now).getFullYear();
+  return new Intl.DateTimeFormat(locale, {
+    month: "long",
+    day: "numeric",
+    ...(year ? ({ year: "numeric" } as const) : {}),
+  }).format(timestamp);
+}

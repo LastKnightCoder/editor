@@ -1,3 +1,4 @@
+import { useWalkI18n } from "../i18n";
 /**
  * 漫步主体卡：当前站的内容——元信息、「为什么是它」、标题、正文（PDF 批注为摘录 + 笔记）、
  * 标签行与动作条（打开原文 / 做成闪卡 / 别再抽到这条）。内容切换走 walk-in 入场动效。
@@ -9,7 +10,7 @@ import dayjs from "dayjs";
 import type { EditorRef } from "@tau/editor";
 import { Button, FadeScroll, IconButton, Panel } from "@tau/ui";
 import ContentEditor from "@/components/ContentEditor";
-import { WALK_KIND_META, formatWalkWhy } from "../model";
+import { walkKindMeta, formatWalkWhy } from "../model";
 import type { WalkStep } from "../trail";
 import { useEntityKindMeta } from "@/components/EntityKind";
 
@@ -30,10 +31,11 @@ export function WalkCard({
   /** 缺省 = 闪卡复习已关，不给制卡入口 */
   onMakeFlashcard?: () => void;
 }) {
+  const language = useWalkI18n();
   const { item } = step;
-  const kind = useEntityKindMeta(item.ref, WALK_KIND_META[item.ref.kind]);
+  const kind = useEntityKindMeta(item.ref, walkKindMeta(item.ref.kind, language.t));
   const KindIcon = kind.icon;
-  const why = formatWalkWhy(step);
+  const why = formatWalkWhy(step, language);
   const WhyIcon = why.icon;
   const isPdfAnnotation = item.ref.kind === "pdf-annotation";
 

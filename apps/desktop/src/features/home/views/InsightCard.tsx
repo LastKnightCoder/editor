@@ -1,3 +1,5 @@
+import { useHomeI18n } from "../i18n";
+import { pastDateText } from "../format";
 /**
  * 今日页「继续」段的第一块：「✦ 洞见」列表。每条直接展开：标题一句话（关键的几个字画线）+ 类型 / 范围 / 时间，
  * 一段理由，证据（问过的原话打开那次对话；涉及的笔记打开到命中位置，矛盾时并排两边说法），
@@ -23,7 +25,6 @@ import { Button, Panel, PanelNote, PanelTitle, cn } from "@tau/ui";
 import { usePage } from "@/page/PageProvider";
 import { openEntity } from "@/services/open-content";
 import type { KnowledgeEndpoint } from "@/types/knowledge-insights";
-import { pastDayWord } from "@/utils/dayWords";
 import { useTodayInsights } from "../insightQueries";
 import type { TodayInsight, TodayInsightKind } from "../insightItems";
 
@@ -69,12 +70,12 @@ const EVIDENCE_ROW =
   "flex w-full min-w-0 items-baseline gap-2 py-1 pl-2.5 pr-2 text-left " +
   "shadow-[inset_2px_0_0_var(--tau-line-1)] ease-tau-out transition-[background,color,box-shadow] duration-[160ms]";
 
-const shortDay = (time: number) => {
-  const date = new Date(time);
-  return `${date.getMonth() + 1}月${date.getDate()}日`;
-};
+const shortDay = (time: number, locale: string) =>
+  new Intl.DateTimeFormat(locale, { month: "long", day: "numeric" }).format(time);
 
 export function InsightCard() {
+  const { t, locale } = useHomeI18n();
+  const number = new Intl.NumberFormat(locale);
   const { items, dismiss } = useTodayInsights();
   const [expanded, setExpanded] = useState(false);
   if (!items.length) return null;
@@ -85,8 +86,10 @@ export function InsightCard() {
     <Panel variant="outline" pad="compact" data-today-insight>
       <PanelTitle className="mb-1.5">
         <Sparkles className="text-accent size-3.5" strokeWidth={1.75} />
-        洞见
-        <PanelNote>{items.length} 条新发现</PanelNote>
+        {t("panels.insights")}
+        <PanelNote>
+          {t("insight.count", { count: items.length, value: number.format(items.length) })}
+        </PanelNote>
       </PanelTitle>
       <ul className="-mx-2 flex flex-col gap-2">
         {shown.map(item => (
@@ -97,13 +100,13 @@ export function InsightCard() {
         <button
           type="button"
           onClick={() => setExpanded(!expanded)}
-          className="text-tau-meta text-ink-2 hover:bg-hover hover:text-ink-1 rounded-tau-sm -ml-2 mt-1 inline-flex items-center gap-1 px-2 py-1"
+          className="text-tau-meta text-ink-2 hover:bg-hover hover:text-ink-1 rounded-tau-sm mt-1 -ml-2 inline-flex items-center gap-1 px-2 py-1"
         >
           <ChevronDown
             className={cn("size-3.5 transition-transform", expanded && "rotate-180")}
             strokeWidth={1.75}
           />
-          {expanded ? "收起" : `还有 ${hidden} 条`}
+          {expanded ? t("insight.collapse") : t("insight.more", { value: number.format(hidden) })}
         </button>
       )}
     </Panel>
@@ -111,6 +114,7 @@ export function InsightCard() {
 }
 
 function InsightRow({ item, onDismiss }: { item: TodayInsight; onDismiss(): void }) {
+  const { t, locale } = useHomeI18n();
   const { navigator } = usePage();
   const tone = TONE[item.kind];
   const Icon = tone.icon;
@@ -133,7 +137,7 @@ function InsightRow({ item, onDismiss }: { item: TodayInsight; onDismiss(): void
       </span>
       <div className="min-w-0">
         <div className="flex items-baseline gap-2.5">
-          <p className="text-ink-1 min-w-0 flex-1 text-[14px] font-medium leading-[1.65]">
+          <p className="text-ink-1 min-w-0 flex-1 text-[14px] leading-[1.65] font-medium">
             {item.before}
             <em
               className={cn(
@@ -149,7 +153,7 @@ function InsightRow({ item, onDismiss }: { item: TodayInsight; onDismiss(): void
             {item.label}
           </span>
           <span className="text-tau-micro text-ink-3 shrink-0 tabular-nums">
-            {item.scope} · {pastDayWord(item.time, Date.now())}
+            {item.scope} · {pastDateText(item.time)}
           </span>
         </div>
         {item.desc && <p className="text-tau-meta text-ink-2 mt-0.5 leading-[1.65]">{item.desc}</p>}
@@ -160,7 +164,7 @@ function InsightRow({ item, onDismiss }: { item: TodayInsight; onDismiss(): void
               <button
                 key={prompt.messageId}
                 type="button"
-                title="打开这次对话"
+                title={t("insight.openChat")}
                 onClick={() => navigator.push("chat", { id: prompt.sessionId })}
                 className={cn(EVIDENCE_ROW, tone.rail)}
               >
@@ -168,7 +172,9 @@ function InsightRow({ item, onDismiss }: { item: TodayInsight; onDismiss(): void
                   className="text-ink-3 size-3 shrink-0 self-center"
                   strokeWidth={1.75}
                 />
-                <span className="text-ink-3 shrink-0 tabular-nums">{shortDay(prompt.time)}</span>
+                <span className="text-ink-3 shrink-0 tabular-nums">
+                  {shortDay(prompt.time, locale)}
+                </span>
                 <span className="min-w-0 truncate">{prompt.text}</span>
               </button>
             ))}
@@ -181,7 +187,7 @@ function InsightRow({ item, onDismiss }: { item: TodayInsight; onDismiss(): void
               <button
                 key={index}
                 type="button"
-                title="打开到这一处"
+                title={t("insight.openLocation")}
                 onClick={() => openEnd(end)}
                 className={cn(EVIDENCE_ROW, "flex-col items-start gap-0.5 py-1.5", tone.rail)}
               >
@@ -198,7 +204,7 @@ function InsightRow({ item, onDismiss }: { item: TodayInsight; onDismiss(): void
               <button
                 key={index}
                 type="button"
-                title="打开到这一处"
+                title={t("insight.openLocation")}
                 onClick={() => openEnd(end)}
                 className={cn(EVIDENCE_ROW, tone.rail)}
               >
@@ -222,10 +228,10 @@ function InsightRow({ item, onDismiss }: { item: TodayInsight; onDismiss(): void
           <Button
             size="sm"
             variant="ghost"
-            title={item.kind === "review" ? undefined : "这一处不成立，以后重新分析也不再出现"}
+            title={item.kind === "review" ? undefined : t("insight.dismissHint")}
             onClick={onDismiss}
           >
-            {item.kind === "review" ? "知道了" : "不相关"}
+            {item.kind === "review" ? t("insight.acknowledge") : t("insight.dismiss")}
           </Button>
         </div>
       </div>

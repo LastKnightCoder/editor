@@ -1,3 +1,4 @@
+import { useWalkI18n } from "../i18n";
 /**
  * 右侧岔路栏：从当前站能走向的相邻内容（双链 / 语义相近 / 同标签）+ 底部随机跳。
  * 不显示相似度数值；加载中为骨架，没有岔路时提示随机跳。
@@ -5,7 +6,7 @@
 
 import { GitFork, Shuffle } from "lucide-react";
 import type { WalkNeighbor } from "@/types";
-import { WALK_KIND_META, WALK_RELATION_META } from "../model";
+import { walkKindMeta, walkRelationMeta } from "../model";
 import { EntityKindIcon } from "@/components/EntityKind/EntityKindIcon";
 
 export function WalkForks({
@@ -21,6 +22,7 @@ export function WalkForks({
   onPick(neighbor: WalkNeighbor): void;
   onJump(): void;
 }) {
+  const { t } = useWalkI18n();
   return (
     <aside className="flex min-h-0 flex-col gap-2">
       <p className="text-tau-micro text-ink-3 flex items-center gap-1.5 px-0.5 pt-1.5">
@@ -35,7 +37,7 @@ export function WalkForks({
         <p className="text-tau-meta text-ink-3 px-0.5">这里没有岔路，随机跳一下吧</p>
       ) : (
         neighbors.map((neighbor, i) => {
-          const relation = WALK_RELATION_META[neighbor.relation];
+          const relation = walkRelationMeta(neighbor.relation, t);
           const RelationIcon = relation.icon;
           return (
             <button
@@ -48,7 +50,7 @@ export function WalkForks({
               <span className="flex min-w-0 items-center gap-1.5">
                 <EntityKindIcon
                   entityRef={neighbor.ref}
-                  fallback={WALK_KIND_META[neighbor.ref.kind]}
+                  fallback={walkKindMeta(neighbor.ref.kind, t)}
                   className="text-ink-3 size-3.5 shrink-0"
                   strokeWidth={1.75}
                 />

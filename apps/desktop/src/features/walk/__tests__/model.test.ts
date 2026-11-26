@@ -1,7 +1,16 @@
+import { createI18nRuntime, createLocaleStore } from "@tau/i18n";
+import { walkMessages } from "../messages";
 import { describe, expect, it } from "vitest";
 import type { WalkItem } from "@/types";
-import { formatStaleDays, formatWalkWhy } from "../model";
+import { formatStaleDays as selectStaleDays, formatWalkWhy as selectWalkWhy } from "../model";
 import type { WalkStep } from "../trail";
+
+const translator = createI18nRuntime({ localeSource: createLocaleStore("zh-CN") }).get(
+  walkMessages
+);
+const language = { t: translator.t, locale: "zh-CN" };
+const formatStaleDays = (days: number) => selectStaleDays(days, language);
+const formatWalkWhy = (step: WalkStep) => selectWalkWhy(step, language);
 
 const item = (reason: WalkItem["reason"]): WalkItem => ({
   ref: { kind: "card", id: 1 },

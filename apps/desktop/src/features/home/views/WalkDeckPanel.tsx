@@ -1,3 +1,5 @@
+import { useHomeI18n } from "../i18n";
+import { useWalkI18n } from "@/features/walk/i18n";
 /**
  * 今日页「重温」段的「今日漫步」牌堆：每天固定几张旧内容，翻完即止（明天换新的一叠）。
  * 左列 = 错位叠放的牌堆（当前 + 后两张）与动作条，右列 = 今日进度列表；
@@ -7,7 +9,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import dayjs from "dayjs";
 import { ChevronRight, EyeOff, Footprints, Shuffle } from "lucide-react";
 import {
   Button,
@@ -28,7 +29,7 @@ import {
   rerollRandomWalkDailyDeck,
 } from "@/commands/random-walk";
 import { openWalkItem } from "@/features/walk/open";
-import { WALK_KIND_META, formatWalkWhy } from "@/features/walk/model";
+import { walkKindMeta, formatWalkWhy } from "@/features/walk/model";
 import type { WalkDailyDeck, WalkItem } from "@/types";
 import { useTodayWalkDeck, walkDeckKey } from "../walkDeckQueries";
 
@@ -66,6 +67,8 @@ const prefersReducedMotion = () =>
   window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 export function WalkDeckPanel() {
+  const { t, locale } = useHomeI18n();
+  const number = new Intl.NumberFormat(locale);
   const { navigator } = usePage();
   const queryClient = useQueryClient();
   const { date, deck, loading } = useTodayWalkDeck();
@@ -116,10 +119,10 @@ export function WalkDeckPanel() {
     try {
       await muteRandomWalk(item.ref);
     } catch {
-      toast.error("屏蔽失败，稍后再试");
+      toast.error(t("walk.muteFailed"));
       return;
     }
-    toast.success("这条不会再被抽到了");
+    toast.success(t("walk.muted"));
     setMutedKeys(prev => new Set(prev).add(deckItemKey(item)));
     goNext();
   };
@@ -132,7 +135,7 @@ export function WalkDeckPanel() {
       queryClient.setQueryData(key, next);
       setMutedKeys(new Set());
     } catch {
-      toast.error("重抽失败，稍后再试");
+      toast.error(t("walk.rerollFailed"));
     } finally {
       setRerolling(false);
     }
@@ -144,10 +147,12 @@ export function WalkDeckPanel() {
     <Panel variant="outline" pad="compact">
       <PanelTitle className="mb-2.5">
         <Footprints className="text-accent size-3.5" strokeWidth={1.75} />
-        今日漫步
-        <PanelNote className="tabular-nums">{done ? "已走完" : `${cursor + 1} / ${n}`}</PanelNote>
-        <PanelAction onClick={() => navigator.push("walk")} title="进入漫步页">
-          进入漫步页
+        {t("panels.walk")}
+        <PanelNote className="tabular-nums">
+          {done ? t("walk.finished") : `${number.format(cursor + 1)} / ${number.format(n)}`}
+        </PanelNote>
+        <PanelAction onClick={() => navigator.push("walk")} title={t("walk.open")}>
+          {t("walk.open")}
           <ChevronRight size={13} strokeWidth={1.75} />
         </PanelAction>
       </PanelTitle>
@@ -157,7 +162,7 @@ export function WalkDeckPanel() {
         <div className="flex flex-col gap-3">
           <div
             tabIndex={0}
-            aria-label="今日漫步牌堆"
+            aria-label={t("walk.deckLabel")}
             className="rounded-tau-lg relative mb-5 h-[248px] outline-none focus-visible:shadow-[var(--tau-focus-ring)]"
             onKeyDown={e => {
               if (e.key === "ArrowRight") {
@@ -169,8 +174,12 @@ export function WalkDeckPanel() {
             {done ? (
               <div className="motion-safe:animate-walk-in border-line-2 text-ink-3 rounded-tau-lg absolute inset-0 flex flex-col items-center justify-center gap-2 border border-dashed text-center">
                 <Footprints className="size-6" strokeWidth={1.75} />
-                <p className="text-tau-body text-ink-1 font-medium">今天的 {n} 张走完了</p>
-                <p className="text-tau-meta text-ink-3">明天会有新的 {n} 张</p>
+                <p className="text-tau-body text-ink-1 font-medium">
+                  {t("walk.completed", { count: n, value: number.format(n) })}
+                </p>
+                <p className="text-tau-meta text-ink-3">
+                  {t("walk.tomorrow", { count: n, value: number.format(n) })}
+                </p>
                 <div className="mt-2 flex gap-2">
                   <Button
                     variant="secondary"
@@ -179,10 +188,10 @@ export function WalkDeckPanel() {
                     loading={rerolling}
                     onClick={() => void reroll()}
                   >
-                    再抽 5 张
+                    {t("walk.more")}
                   </Button>
                   <Button variant="primary" size="sm" onClick={() => navigator.push("walk")}>
-                    去漫步页继续走
+                    {t("walk.continuePage")}
                   </Button>
                 </div>
               </div>
@@ -218,7 +227,7 @@ export function WalkDeckPanel() {
                 disabled={advancing}
                 onClick={() => current && navigator.push("walk", { from: deckItemKey(current) })}
               >
-                从这里继续走
+                {t("walk.continueHere")}
               </Button>
               <Button
                 variant="ghost"
@@ -227,11 +236,11 @@ export function WalkDeckPanel() {
                 disabled={advancing}
                 onClick={() => void muteCurrent()}
               >
-                别再出现
+                {t("walk.mute")}
               </Button>
               <span className="flex-1" />
               <Button variant="primary" size="sm" disabled={advancing} onClick={goNext}>
-                {cursor === n - 1 ? "完成" : "下一张"}
+                {cursor === n - 1 ? t("walk.done") : t("walk.next")}
                 {/* 键帽叠在 accent 实心按钮上：半透明 ink-inverse 底只在主按钮内成立 */}
                 <kbd className="text-tau-tiny font-tau-mono ml-1 rounded bg-[color-mix(in_srgb,var(--tau-ink-inverse)_22%,transparent)] px-1">
                   →
@@ -243,7 +252,9 @@ export function WalkDeckPanel() {
 
         {/* 右列：今日进度列表 */}
         <div className="@max-[860px]:hidden">
-          <p className="text-tau-micro text-ink-3 px-2 pb-1.5">今天的 {n} 张</p>
+          <p className="text-tau-micro text-ink-3 px-2 pb-1.5">
+            {t("walk.today", { count: n, value: number.format(n) })}
+          </p>
           <ul>
             {items.map((item, index) => {
               const muted = mutedKeys.has(deckItemKey(item));
@@ -265,7 +276,9 @@ export function WalkDeckPanel() {
                   >
                     {item.title}
                   </span>
-                  {muted && <span className="text-tau-tiny text-ink-3 ml-auto">已屏蔽</span>}
+                  {muted && (
+                    <span className="text-tau-tiny text-ink-3 ml-auto">{t("walk.hidden")}</span>
+                  )}
                 </>
               );
               return (
@@ -273,7 +286,7 @@ export function WalkDeckPanel() {
                   {flipped ? (
                     <button
                       type="button"
-                      title="打开原文"
+                      title={t("walk.openOriginal")}
                       onClick={() => openWalkItem(item)}
                       className="ease-tau-out hover:bg-hover rounded-tau-sm text-tau-meta flex w-full min-w-0 items-center gap-2 px-2 py-[7px] text-left transition-[background] duration-[160ms]"
                     >
@@ -313,10 +326,12 @@ function DeckCard({
   advancing: boolean;
   onOpen?(): void;
 }) {
-  const kind = WALK_KIND_META[item.ref.kind];
+  const { t, locale } = useHomeI18n();
+  const language = useWalkI18n();
+  const kind = walkKindMeta(item.ref.kind, language.t);
   const KindIcon = kind.icon;
   // 牌堆项不是足迹步，via 一律视为起点（只讲选中原因，不讲岔路来处）
-  const why = formatWalkWhy({ item, via: { type: "start" } });
+  const why = formatWalkWhy({ item, via: { type: "start" } }, language);
   const WhyIcon = why.icon;
   const isPdfAnnotation = item.ref.kind === "pdf-annotation";
   const full = offset < FULL_DEPTH;
@@ -331,7 +346,15 @@ function DeckCard({
           <KindIcon className="size-3.5 shrink-0" strokeWidth={1.75} />
           {kind.label}
         </span>
-        <span className="tabular-nums">写于 {dayjs(item.createTime).format("YYYY-MM-DD")}</span>
+        <span className="tabular-nums">
+          {t("walk.created", {
+            date: new Intl.DateTimeFormat(locale, {
+              year: "numeric",
+              month: "short",
+              day: "numeric",
+            }).format(item.createTime),
+          })}
+        </span>
       </div>
       {full && (
         <>
@@ -374,7 +397,7 @@ function DeckCard({
       <div
         role="button"
         tabIndex={0}
-        aria-label={`打开原文：${item.title}`}
+        aria-label={t("walk.openNamed", { name: item.title })}
         className={cn(CARD_BASE, transform, "cursor-pointer text-left")}
         onClick={onOpen}
         onKeyDown={e => {

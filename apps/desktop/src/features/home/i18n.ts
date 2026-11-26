@@ -9,6 +9,7 @@ export const homeMessages = defineI18n({
   fallbackLocale: "zh-CN",
   resources: { "zh-CN": zhCN, "zh-TW": zhTW, "en-US": enUS },
 });
+export type HomeMessageKey = Parameters<typeof homeMessages.ref>[0];
 export const homeTranslator = desktopI18n.get(homeMessages);
 export function useHomeI18n() {
   return useI18n(homeMessages, desktopI18n);

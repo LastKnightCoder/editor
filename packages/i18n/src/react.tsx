@@ -3,10 +3,11 @@ import {
   createContext,
   createElement,
   useContext,
+  useMemo,
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-import type { I18nDefinition } from "./messages";
+import type { DisplayText, I18nDefinition, TranslationValues } from "./messages";
 import type { I18nRuntime } from "./runtime";
 
 const RuntimeContext = createContext<I18nRuntime | undefined>(undefined);
@@ -34,5 +35,12 @@ export function useI18n<Key extends string>(
   if (!runtime) throw new Error("宿主未提供翻译运行时");
   const locale = useSyncExternalStore(runtime.subscribe, runtime.getSnapshot, runtime.getSnapshot);
   const translator = runtime.get(definition);
-  return { ...translator, locale };
+  return useMemo(
+    () => ({
+      locale,
+      t: (key: Key, values?: TranslationValues) => translator.t(key, values),
+      resolve: (value: DisplayText) => translator.resolve(value),
+    }),
+    [translator, locale]
+  );
 }

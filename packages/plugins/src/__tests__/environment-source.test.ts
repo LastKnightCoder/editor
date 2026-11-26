@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, createElement, useState, type FormEvent } from "react";
+import { act, createElement, useMemo, useState, type FormEvent } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
 import {
@@ -90,11 +90,12 @@ it("未激活的静态组件可直接用词典，语言切换保留正在编辑�
   });
   function StaticComponent() {
     const { t } = useI18n(messages);
+    const title = useMemo(() => t("title"), [t]);
     const [draft, setDraft] = useState("");
     return createElement(
       "div",
       null,
-      createElement("span", null, t("title")),
+      createElement("span", null, title),
       createElement("input", {
         value: draft,
         onInput: (event: FormEvent<HTMLInputElement>) => setDraft(event.currentTarget.value),

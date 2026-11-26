@@ -1,3 +1,4 @@
+import { useWalkI18n } from "../i18n";
 /**
  * 足迹条：漫步走过的全部站点排成一行，超出宽度时横向滚动（滚轮纵向转横向），
  * 当前站始终滚入视野，可滚的一侧边缘渐隐；站点不收缩，长标题在站内截断。
@@ -7,7 +8,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Footprints, Shuffle } from "lucide-react";
 import { cn } from "@tau/ui";
-import { WALK_KIND_META } from "../model";
+import { walkKindMeta } from "../model";
 import type { WalkTrail } from "../trail";
 import { EntityKindIcon } from "@/components/EntityKind/EntityKindIcon";
 
@@ -19,6 +20,7 @@ const prefersReducedMotion = () =>
   window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 export function WalkTrailBar({ trail, onGoto }: { trail: WalkTrail; onGoto(index: number): void }) {
+  const { t } = useWalkI18n();
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [edges, setEdges] = useState({ left: false, right: false });
   const lastIndex = trail.steps.length - 1;
@@ -97,7 +99,7 @@ export function WalkTrailBar({ trail, onGoto }: { trail: WalkTrail; onGoto(index
               >
                 <EntityKindIcon
                   entityRef={step.item.ref}
-                  fallback={WALK_KIND_META[step.item.ref.kind]}
+                  fallback={walkKindMeta(step.item.ref.kind, t)}
                   className="size-3 shrink-0"
                   strokeWidth={1.75}
                 />

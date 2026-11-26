@@ -1,3 +1,5 @@
+import { createI18nRuntime, createLocaleStore } from "@tau/i18n";
+import { homeMessages } from "../i18n";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -6,7 +8,17 @@ import type {
   KnowledgeInsightsPayload,
   KnowledgeMark,
 } from "@/types/knowledge-insights";
-import { reviewUnseen, todayInsights, type TodayInsight } from "../insightItems";
+import {
+  reviewUnseen,
+  todayInsights as selectTodayInsights,
+  type TodayInsight,
+} from "../insightItems";
+
+const translator = createI18nRuntime({ localeSource: createLocaleStore("zh-CN") }).get(
+  homeMessages
+);
+const todayInsights = (data: KnowledgeInsightsPayload | null) =>
+  selectTodayInsights(data, { t: translator.t, locale: "zh-CN" });
 
 const end = (id: number, topic: string) => ({
   ref: { kind: "card" as const, id },
@@ -248,4 +260,32 @@ describe("今日洞见卡", () => {
     act(() => button("x")!.click());
     expect(mocks.push).toHaveBeenLastCalledWith("chat", { id: "s" });
   });
+});
+
+it("翻译固定标题时保留原始项目名与生成内容，不改变路由和处理身份", () => {
+  const data = payload();
+  const rawName = `Project ${String.fromCharCode(0xfffc).repeat(2)}`;
+  const target = data.projects.find(
+    project => project.reviewKind === "final" && reviewUnseen(project)
+  );
+  if (!target) throw new Error("缺少未读项目回顾夹具");
+  target.label = rawName;
+  const zh = todayInsights(data);
+  const english = createI18nRuntime({ localeSource: createLocaleStore("en-US") });
+  try {
+    const en = selectTodayInsights(data, { t: english.get(homeMessages).t, locale: "en-US" });
+    expect(en.map(item => item.key)).toEqual(zh.map(item => item.key));
+    expect(en[0].before).toContain(rawName);
+    expect(en[0].em).toBe(zh[0].em);
+    expect(en[0].desc).toBe(zh[0].desc);
+    expect(en[0].before).not.toBe(zh[0].before);
+    expect(en[0].open).toEqual(zh[0].open);
+    expect(en[0].dismiss).toEqual(zh[0].dismiss);
+    const asked = en.find(item => item.kind === "asked");
+    const prompts = data.global?.result.marks.find(mark => mark.kind === "asked")?.prompts;
+    if (!asked || !prompts) throw new Error("缺少问答插值夹具");
+    expect(`${asked.before}${asked.after}`).toContain(String(prompts.length));
+  } finally {
+    english.dispose();
+  }
 });

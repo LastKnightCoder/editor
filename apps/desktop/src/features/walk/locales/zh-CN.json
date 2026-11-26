@@ -1,0 +1,20 @@
+{
+  "kind.card": "卡片",
+  "kind.article": "文章",
+  "kind.diary-moment": "日记",
+  "kind.project-item": "项目文档",
+  "kind.pdf-annotation": "PDF 批注",
+  "kind.plugin-entity": "插件内容",
+  "relation.link": "双链",
+  "relation.semantic": "语义相近",
+  "relation.tag": "标签",
+  "reason.tag": "标签 #{{tag}}",
+  "reason.from": "从「{{from}}」经{{through}}走来",
+  "reason.recent": "最近刚见过",
+  "reason.days": "{{value}} 天没见过它了",
+  "reason.months": "{{value}} 个月没见过它了",
+  "reason.years": "{{value}} 年没见过它了",
+  "reason.yearsMonths": "{{years}} 年零 {{months}} 个月没见过它了",
+  "reason.anniversary": "那年今日 · {{value}} 年前的今天",
+  "reason.random": "随手抽到的"
+}

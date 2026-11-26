@@ -1,3 +1,4 @@
+import { useHomeI18n } from "./i18n";
 /**
  * 今日页「洞见」卡的数据：读主题与全局层的结果与项目回顾（与知识地图同一个缓存键），挑出还没处理的。
  * 「AI 洞见」槽没配时不取。
@@ -23,6 +24,7 @@ on("knowledge-insights:changed", () => {
 });
 
 export function useTodayInsights() {
+  const { t, locale } = useHomeI18n();
   const database = useSettingStore(state => state.setting.database.active);
   const slot = useSettingStore(state => state.setting.llmUsageSettings.contentInsights);
   const connected = useDatabaseConnected();
@@ -36,8 +38,8 @@ export function useTodayInsights() {
     refetchOnWindowFocus: true,
   });
   const items = useMemo(
-    () => (enabled ? todayInsights(query.data ?? null) : []),
-    [enabled, query.data]
+    () => (enabled ? todayInsights(query.data ?? null, { t, locale }) : []),
+    [enabled, query.data, t, locale]
   );
   const dismiss = (item: TodayInsight) => {
     const done =

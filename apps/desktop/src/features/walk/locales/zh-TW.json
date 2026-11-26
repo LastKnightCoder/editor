@@ -1,0 +1,20 @@
+{
+  "kind.card": "卡片",
+  "kind.article": "文章",
+  "kind.diary-moment": "日記",
+  "kind.project-item": "專案文件",
+  "kind.pdf-annotation": "PDF 註解",
+  "kind.plugin-entity": "外掛內容",
+  "relation.link": "雙向連結",
+  "relation.semantic": "語意相近",
+  "relation.tag": "標籤",
+  "reason.tag": "標籤 #{{tag}}",
+  "reason.from": "從「{{from}}」經由{{through}}走來",
+  "reason.recent": "最近剛看過",
+  "reason.days": "{{value}} 天沒看過它了",
+  "reason.months": "{{value}} 個月沒看過它了",
+  "reason.years": "{{value}} 年沒看過它了",
+  "reason.yearsMonths": "{{years}} 年又 {{months}} 個月沒看過它了",
+  "reason.anniversary": "那年今日 · {{value}} 年前的今天",
+  "reason.random": "隨機抽到的"
+}

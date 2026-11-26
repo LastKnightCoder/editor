@@ -3,6 +3,8 @@
  * 顺序：刚结项的回顾 > 呼应 > 问了没写 > 生长回顾 > 主题层发现（每个主题一条），最多 5 条。纯函数。
  */
 
+import type { TranslationValues } from "@tau/i18n";
+import type { HomeMessageKey } from "./i18n";
 import type {
   AskedPrompt,
   KnowledgeEndpoint,
@@ -11,6 +13,11 @@ import type {
   KnowledgeMark,
   KnowledgeMarkKind,
 } from "@/types/knowledge-insights";
+
+interface InsightLocale {
+  locale: string;
+  t(key: HomeMessageKey, values?: TranslationValues): string;
+}
 
 const TODAY_INSIGHT_LIMIT = 5;
 /** 每条最多列几处证据 */
@@ -55,12 +62,12 @@ const firstSentence = (text: string) =>
 const restSentences = (text: string) => text.replace(FIRST_SENTENCE, "").trim();
 
 /** 主题层标记的类型名，与知识地图气泡同一套叫法 */
-const TOPIC_LABEL: Partial<Record<KnowledgeMarkKind, string>> = {
-  dup: "重复",
-  conflict: "矛盾",
-  chain: "缺一环",
-  pattern: "同一思路",
-  gap: "还缺",
+const TOPIC_LABEL: Partial<Record<KnowledgeMarkKind, HomeMessageKey>> = {
+  dup: "insight.dup",
+  conflict: "insight.conflict",
+  chain: "insight.chain",
+  pattern: "insight.pattern",
+  gap: "insight.gap",
 };
 
 const endsEvidence = (mark: KnowledgeMark): TodayInsightEvidence => ({
@@ -76,20 +83,20 @@ const openMarks = (node: KnowledgeInsightNode | null) =>
 export const reviewUnseen = (node: KnowledgeInsightNode) =>
   Boolean(node.result.lead) && !(node.result.seenAt && node.result.seenAt >= node.updateTime);
 
-const titles = (mark: KnowledgeMark) => mark.ends.map(end => `《${end.title}》`);
+const titles = (mark: KnowledgeMark) => mark.ends.map(end => end.title);
 
 /** 主题层一处发现的一句话 */
-function describe(mark: KnowledgeMark): string {
+function describe(mark: KnowledgeMark, t: InsightLocale["t"]): string {
   const [a, b] = titles(mark);
   switch (mark.kind) {
     case "dup":
-      return `${a}和${b}说的是同一件事`;
+      return t("insight.describeDup", { a, b });
     case "conflict":
-      return `${a}和${b}的说法对不上`;
+      return t("insight.describeConflict", { a, b });
     case "chain":
-      return `一条线上缺了「${mark.missing?.text ?? ""}」这一环`;
+      return t("insight.describeChain", { missing: mark.missing?.text ?? "" });
     case "pattern":
-      return `你反复用「${mark.text ?? ""}」这种办法`;
+      return t("insight.describePattern", { text: mark.text ?? "" });
     case "gap":
       return (mark.text ?? "").replace(/^还缺[:：]\s*/, "还缺：");
     default:
@@ -97,7 +104,18 @@ function describe(mark: KnowledgeMark): string {
   }
 }
 
-export function todayInsights(data: KnowledgeInsightsPayload | null): TodayInsight[] {
+export function todayInsights(
+  data: KnowledgeInsightsPayload | null,
+  { t, locale }: InsightLocale
+): TodayInsight[] {
+  const number = new Intl.NumberFormat(locale);
+  const headline = (key: HomeMessageKey, em: string, values: TranslationValues = {}) => {
+    let marker = String.fromCharCode(0xfffc);
+    while (Object.values(values).some(value => String(value).includes(marker)))
+      marker += String.fromCharCode(0xfffc);
+    const [before, ...after] = t(key, { ...values, value: marker }).split(marker);
+    return { before, em, after: after.join(marker) };
+  };
   if (!data) return [];
   const finals: TodayInsight[] = [];
   const growths: TodayInsight[] = [];
@@ -107,17 +125,19 @@ export function todayInsights(data: KnowledgeInsightsPayload | null): TodayInsig
     (final ? finals : growths).push({
       key: `review:${node.id}`,
       kind: "review",
-      label: final ? "结项回顾" : "生长回顾",
-      scope: "项目",
+      label: t(final ? "insight.final" : "insight.growth"),
+      scope: t("kind.project"),
       time: node.updateTime,
-      before: final ? `「${node.label}」已结项：` : `「${node.label}」最近在长：`,
-      em: firstSentence(node.result.lead),
-      after: "",
+      ...headline(
+        final ? "insight.reviewFinal" : "insight.reviewGrowth",
+        firstSentence(node.result.lead),
+        { name: node.label }
+      ),
       desc: restSentences(node.result.lead),
       evidence: { type: "ends", ends: (node.result.refs ?? []).slice(0, TODAY_EVIDENCE_LIMIT) },
       open: { page: "project-detail", projectId: node.projectId },
       dismiss: { type: "seen", nodeId: node.id },
-      action: "打开回顾",
+      action: t("insight.openReview"),
     });
   }
   const bridges: TodayInsight[] = [];
@@ -131,37 +151,43 @@ export function todayInsights(data: KnowledgeInsightsPayload | null): TodayInsig
       bridges.push({
         key: `global:${mark.id}`,
         kind: "bridge",
-        label: "呼应",
-        scope: "跨主题",
+        label: t("insight.bridge"),
+        scope: t("insight.crossTopic"),
         time,
-        before:
+        ...headline(
           a.topic && b.topic && a.topic !== b.topic
-            ? `「${a.topic}」和「${b.topic}」其实在说同一件事：`
-            : `《${a.title}》和《${b.title}》其实在说同一件事：`,
-        em: mark.text || mark.why,
-        after: "",
+            ? "insight.bridgeTopics"
+            : "insight.bridgeTitles",
+          mark.text || mark.why,
+          {
+            a: a.topic && b.topic && a.topic !== b.topic ? a.topic : a.title,
+            b: a.topic && b.topic && a.topic !== b.topic ? b.topic : b.title,
+          }
+        ),
         desc: mark.text ? mark.why : "",
         evidence: endsEvidence(mark),
         open: { page: "knowledge-map", insight: `global:${mark.id}` },
         dismiss: { type: "status", nodeId, itemId: mark.id },
-        action: "在地图上看",
+        action: t("insight.openMap"),
       });
     }
     if (mark.kind === "asked") {
       asked.push({
         key: `global:${mark.id}`,
         kind: "asked",
-        label: "问了没写",
-        scope: mark.topicLabel || "全局",
+        label: t("insight.asked"),
+        scope: mark.topicLabel || t("insight.global"),
         time,
-        before: `你在对话里问过 ${mark.prompts?.length ?? 0} 次`,
-        em: mark.text ?? "",
-        after: /[？?]$/.test(mark.text ?? "") ? " 笔记里还没写" : "，笔记里还没写",
+        ...headline(
+          /[？?]$/.test(mark.text ?? "") ? "insight.askedQuestion" : "insight.askedHeadline",
+          mark.text ?? "",
+          { count: mark.prompts?.length ?? 0, times: number.format(mark.prompts?.length ?? 0) }
+        ),
         desc: mark.why,
         evidence: { type: "prompts", prompts: (mark.prompts ?? []).slice(0, TODAY_EVIDENCE_LIMIT) },
         open: { page: "knowledge-map", insight: `global:${mark.id}` },
         dismiss: { type: "status", nodeId, itemId: mark.id },
-        action: "在地图上看",
+        action: t("insight.openMap"),
       });
     }
   }
@@ -173,17 +199,20 @@ export function todayInsights(data: KnowledgeInsightsPayload | null): TodayInsig
     topics.push({
       key: `topic:${node.id}:${first.id}`,
       kind: "topic",
-      label: TOPIC_LABEL[first.kind] ?? "主题",
-      scope: marks.length > 1 ? `${node.label} · ${marks.length} 处发现` : node.label,
+      label: t(TOPIC_LABEL[first.kind] ?? "insight.topic"),
+      scope:
+        marks.length > 1
+          ? t("insight.topicScope", { name: node.label, value: number.format(marks.length) })
+          : node.label,
       time: node.updateTime,
       before: "",
-      em: describe(first),
+      em: describe(first, t),
       after: "",
       desc: first.kind === "gap" ? "" : first.why,
       evidence: endsEvidence(first),
       open: { page: "knowledge-map", insight: `topic:${node.topicId}:${first.id}` },
       dismiss: { type: "status", nodeId: node.id, itemId: first.id },
-      action: "在地图上看",
+      action: t("insight.openMap"),
     });
   }
   return [...finals, ...bridges, ...asked, ...growths, ...topics].slice(0, TODAY_INSIGHT_LIMIT);

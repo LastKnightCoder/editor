@@ -1,3 +1,4 @@
+import type { WalkLocale, WalkMessageKey } from "./messages";
 /**
  * 漫步页的展示元信息与文案：类型 / 关系图标标签、「为什么是它」与久未见天数的说法。
  */
@@ -29,20 +30,29 @@ export const WALK_KIND_ORDER: WalkRefKind[] = [
   "pdf-annotation",
 ];
 
-export const WALK_KIND_META: Record<WalkRefKind, { label: string; icon: LucideIcon }> = {
-  card: { label: "卡片", icon: StickyNote },
-  article: { label: "文章", icon: FileText },
-  "diary-moment": { label: "日记", icon: NotebookPen },
-  "project-item": { label: "项目文档", icon: FolderKanban },
-  "pdf-annotation": { label: "PDF 批注", icon: BookMarked },
-  "plugin-entity": { label: "插件内容", icon: Puzzle },
+const WALK_KIND_META: Record<WalkRefKind, { label: WalkMessageKey; icon: LucideIcon }> = {
+  card: { label: "kind.card", icon: StickyNote },
+  article: { label: "kind.article", icon: FileText },
+  "diary-moment": { label: "kind.diary-moment", icon: NotebookPen },
+  "project-item": { label: "kind.project-item", icon: FolderKanban },
+  "pdf-annotation": { label: "kind.pdf-annotation", icon: BookMarked },
+  "plugin-entity": { label: "kind.plugin-entity", icon: Puzzle },
 };
 
-export const WALK_RELATION_META: Record<WalkRelation, { label: string; icon: LucideIcon }> = {
-  link: { label: "双链", icon: Link2 },
-  semantic: { label: "语义相近", icon: Sparkles },
-  tag: { label: "标签", icon: Hash },
+const WALK_RELATION_META: Record<WalkRelation, { label: WalkMessageKey; icon: LucideIcon }> = {
+  link: { label: "relation.link", icon: Link2 },
+  semantic: { label: "relation.semantic", icon: Sparkles },
+  tag: { label: "relation.tag", icon: Hash },
 };
+
+export function walkKindMeta(kind: WalkRefKind, t: WalkLocale["t"]) {
+  const meta = WALK_KIND_META[kind];
+  return { ...meta, label: t(meta.label) };
+}
+export function walkRelationMeta(relation: WalkRelation, t: WalkLocale["t"]) {
+  const meta = WALK_RELATION_META[relation];
+  return { ...meta, label: t(meta.label) };
+}
 
 /** 「为什么是它」行的图标 + 文案 */
 export interface WalkWhy {
@@ -53,30 +63,50 @@ export interface WalkWhy {
 const clipTitle = (title: string, max = 16) =>
   title.length > max ? `${title.slice(0, max)}…` : title;
 
-/** 久未见天数的中文说法 */
-export function formatStaleDays(days: number): string {
-  if (days <= 0) return "最近刚见过";
-  if (days < 30) return `${days} 天没见过它了`;
-  if (days < 365) return `${Math.floor(days / 30)} 个月没见过它了`;
+/** 久未见天数的展示文案 */
+export function formatStaleDays(days: number, { t, locale }: WalkLocale): string {
+  const number = new Intl.NumberFormat(locale);
+  if (days <= 0) return t("reason.recent");
+  if (days < 30) return t("reason.days", { count: days, value: number.format(days) });
+  if (days < 365)
+    return t("reason.months", {
+      count: Math.floor(days / 30),
+      value: number.format(Math.floor(days / 30)),
+    });
   const years = Math.floor(days / 365);
   const months = Math.floor((days % 365) / 30);
-  return months > 0 ? `${years} 年零 ${months} 个月没见过它了` : `${years} 年没见过它了`;
+  return months > 0
+    ? t("reason.yearsMonths", { years: number.format(years), months: number.format(months) })
+    : t("reason.years", { count: years, value: number.format(years) });
 }
 
-export function formatWalkWhy(step: WalkStep): WalkWhy {
+export function formatWalkWhy(step: WalkStep, language: WalkLocale): WalkWhy {
+  const { t, locale } = language;
+  const number = new Intl.NumberFormat(locale);
   const { via, item } = step;
   if (via.type === "relation") {
-    const relation = WALK_RELATION_META[via.relation];
+    const relation = walkRelationMeta(via.relation, t);
     const through =
-      via.relation === "tag" && via.sharedTag ? `标签 #${via.sharedTag}` : relation.label;
-    return { icon: relation.icon, text: `从「${clipTitle(via.fromTitle)}」经${through}走来` };
+      via.relation === "tag" && via.sharedTag
+        ? t("reason.tag", { tag: via.sharedTag })
+        : relation.label;
+    return {
+      icon: relation.icon,
+      text: t("reason.from", { from: clipTitle(via.fromTitle), through }),
+    };
   }
   switch (item.reason.type) {
     case "stale":
-      return { icon: Clock3, text: formatStaleDays(item.reason.days) };
+      return { icon: Clock3, text: formatStaleDays(item.reason.days, language) };
     case "on-this-day":
-      return { icon: CalendarHeart, text: `那年今日 · ${item.reason.years} 年前的今天` };
+      return {
+        icon: CalendarHeart,
+        text: t("reason.anniversary", {
+          count: item.reason.years,
+          value: number.format(item.reason.years),
+        }),
+      };
     default:
-      return { icon: Shuffle, text: "随手抽到的" };
+      return { icon: Shuffle, text: t("reason.random") };
   }
 }
