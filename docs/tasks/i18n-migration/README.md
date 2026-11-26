@@ -378,6 +378,8 @@ Markdown F3十四源加Root Core/README二路径完成；全窗口9文件49例�
 
 演示模式八源完成；已有cameraPlan/sections六例、desktop type/build与32key三语语义/插值/实际runtime复数通过。独立AST严格对照四UI全部非展示handlers/hooks与timer/observer/navigation不变，SlideFrame/sections/cameraPlan/frame逐字相同；纯UI改动未补锁文字或样式测试。
 
+发布设置九路径完成；全发布原10例通过，usePublishConfig原1至新增真实在途契约2例通过，desktop type/build、43key三语runtime与范围静态通过。真实QueryClient/setting保同request/providerConfig/配置草稿，跨语不重查模板/目标或重check；完成仍归原请求。独立AST对照全部发布request/存储/连接动作/faviconIO/原生选择参数、模板字段与ProviderFormView binding/自动检测effect保持。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

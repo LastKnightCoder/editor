@@ -1,3 +1,4 @@
+import { usePublishI18n } from "../publish.i18n";
 import clsx from "clsx";
 import { useEffect, useRef, type ReactNode } from "react";
 import { ExternalLink, Globe } from "lucide-react";
@@ -119,20 +120,21 @@ function Group({
   );
 }
 
-const CONNECTION_VIEW: Record<ConnectionState, { label: string; dot: string }> = {
-  idle: { label: "未检测", dot: "bg-ink-3" },
-  checking: { label: "检测中", dot: "bg-accent" },
-  ok: { label: "已连接", dot: "bg-ok" },
-  fail: { label: "连接失败", dot: "bg-danger" },
+const CONNECTION_VIEW: Record<ConnectionState, { dot: string }> = {
+  idle: { dot: "bg-ink-3" },
+  checking: { dot: "bg-accent" },
+  ok: { dot: "bg-ok" },
+  fail: { dot: "bg-danger" },
 };
 
 function ConnectionBar({ config }: { config: PublishConfig }) {
+  const { t } = usePublishI18n();
   const failed = config.connection === "fail" || Boolean(config.targetError);
   const state = config.targetError ? "fail" : config.connection;
   const view = CONNECTION_VIEW[state];
   const detail =
     config.targetError ||
-    (config.connection === "fail" && (config.connectionMessage || "请检查凭证、仓库与分支")) ||
+    (config.connection === "fail" && (config.connectionMessage || t("connection.hint"))) ||
     [config.siteUrl, config.basePath].filter(Boolean).join(" · ");
   return (
     <div
@@ -143,7 +145,7 @@ function ConnectionBar({ config }: { config: PublishConfig }) {
     >
       <span className="bg-surface text-tau-micro text-ink-2 inline-flex flex-none items-center gap-1.5 rounded-full px-2 py-px">
         <span className={clsx("size-1.5 rounded-full", view.dot)} />
-        {view.label}
+        {t(`connection.${state}`)}
       </span>
       <span
         className={clsx(
@@ -160,7 +162,7 @@ function ConnectionBar({ config }: { config: PublishConfig }) {
         loading={config.connection === "checking"}
         onClick={() => void config.checkConnection()}
       >
-        {failed ? "重试" : "测试连接"}
+        {failed ? t("retry") : t("connection.test")}
       </Button>
     </div>
   );
@@ -175,15 +177,16 @@ export function SiteSettingsDrawer({
   onClose: () => void;
   config: PublishConfig;
 }) {
+  const { t } = usePublishI18n();
   const { publish, active } = config;
   const isLocal = active === EPublishProvider.Local;
   const selected = isLocal ? "local" : config.pluginId;
   const options = [
-    { value: "local", label: "本地导出" },
+    { value: "local", label: t("provider.local") },
     ...config.providers.map(item => ({ value: item.id, label: item.name })),
   ];
   if (selected && !options.some(item => item.value === selected))
-    options.push({ value: selected, label: selected + "（不可用）" });
+    options.push({ value: selected, label: t("provider.unavailableOption", { id: selected }) });
 
   // 每次打开抽屉自动检测一次；之后改配置只回到「未检测」，由用户手动重测，避免自动保存触发连续请求
   const autoChecked = useRef(false);
@@ -203,19 +206,19 @@ export function SiteSettingsDrawer({
     <Drawer
       open={open}
       onOpenChange={next => !next && onClose()}
-      title="站点设置"
+      title={t("settings.title")}
       width={460}
       footer={
         <div className="flex w-full items-center justify-between">
-          <span className="text-tau-micro text-ink-3">修改自动保存</span>
+          <span className="text-tau-micro text-ink-3">{t("settings.autosave")}</span>
           <Button variant="primary" size="sm" onClick={onClose}>
-            完成
+            {t("done")}
           </Button>
         </div>
       }
     >
       <Group
-        title="发布目标"
+        title={t("settings.target")}
         action={
           <button
             type="button"
@@ -225,15 +228,15 @@ export function SiteSettingsDrawer({
               openPage("plugins", { tab: "installed" });
             }}
           >
-            管理发布插件
+            {t("settings.manage")}
             <ExternalLink size={11} strokeWidth={2} />
           </button>
         }
       >
         {!isLocal && <ConnectionBar config={config} />}
-        <Row label="服务">
+        <Row label={t("settings.service")}>
           <Select
-            aria-label="发布目标"
+            aria-label={t("settings.target")}
             className="w-full"
             value={selected}
             options={options}
@@ -241,9 +244,9 @@ export function SiteSettingsDrawer({
           />
         </Row>
         {isLocal ? (
-          <Row label="访问路径">
+          <Row label={t("settings.path")}>
             <Input
-              aria-label="访问路径"
+              aria-label={t("settings.path")}
               className="font-tau-mono"
               value={publish.local.basePath}
               onChange={event => config.setLocalBasePath(event.target.value)}
@@ -263,20 +266,20 @@ export function SiteSettingsDrawer({
             }}
           />
         ) : (
-          <Row label="连接配置">
+          <Row label={t("settings.connection")}>
             <Button
               onClick={() => {
                 onClose();
                 openProviderSettings(config.pluginId, config.section?.key);
               }}
             >
-              在插件页配置
+              {t("settings.plugin")}
             </Button>
           </Row>
         )}
-        <Row label="公开 URL">
+        <Row label={t("settings.publicUrl")}>
           <Input
-            aria-label="公开 URL"
+            aria-label={t("settings.publicUrl")}
             className="font-tau-mono"
             value={publish.site.publicUrl}
             placeholder={config.targetPublicUrl || "https://example.com"}
@@ -285,21 +288,21 @@ export function SiteSettingsDrawer({
         </Row>
         {isLocal && (
           <p className="border-line-2 text-tau-micro text-ink-3 border-t px-3 py-2">
-            导出时选择输出文件夹，生成完整静态站点。
+            {t("settings.exportHint")}
           </p>
         )}
       </Group>
 
-      <Group title="站点" hint="名称与图标，各模板通用">
-        <Row label="标题">
+      <Group title={t("settings.site")} hint={t("settings.siteHint")}>
+        <Row label={t("settings.name")}>
           <Input
-            aria-label="站点标题"
+            aria-label={t("settings.siteTitle")}
             value={publish.site.title}
-            placeholder="我的博客"
+            placeholder={t("settings.titlePlaceholder")}
             onChange={e => config.setSiteField("title", e.target.value)}
           />
         </Row>
-        <Row label="图标">
+        <Row label={t("settings.icon")}>
           <div className="flex items-center gap-2">
             <span className="bg-hover text-ink-3 rounded-tau-sm grid size-8 flex-none place-items-center overflow-hidden">
               {publish.site.favicon ? (
@@ -313,29 +316,31 @@ export function SiteSettingsDrawer({
               )}
             </span>
             <div className="text-tau-sm min-w-0 flex-1">
-              <div className="truncate">{publish.site.favicon?.fileName ?? "默认图标"}</div>
+              <div className="truncate">
+                {publish.site.favicon?.fileName ?? t("favicon.default")}
+              </div>
               <small className="text-tau-tiny text-ink-3 block">SVG / PNG / ICO</small>
             </div>
             <Button variant="secondary" size="sm" onClick={() => void config.selectFavicon()}>
-              {publish.site.favicon ? "更换" : "选择"}
+              {publish.site.favicon ? t("replace") : t("select")}
             </Button>
             {publish.site.favicon && (
               <Button variant="ghost" size="sm" onClick={() => void config.clearFavicon()}>
-                清除
+                {t("clear")}
               </Button>
             )}
           </div>
         </Row>
       </Group>
 
-      <Group title="博客模板" hint="字段由所选模板声明">
-        <Row label="模板">
+      <Group title={t("settings.template")} hint={t("settings.templateHint")}>
+        <Row label={t("settings.templateLabel")}>
           <Select
-            aria-label="博客模板"
+            aria-label={t("settings.template")}
             className="w-full"
             value={publish.site.templateId ?? ""}
             options={config.templateOptions}
-            placeholder="请先安装模板插件"
+            placeholder={t("settings.installTemplate")}
             onValueChange={value => config.setSiteField("templateId", value)}
           />
         </Row>
@@ -354,7 +359,7 @@ export function SiteSettingsDrawer({
         ))}
         {config.templateReady && config.templateFields.length === 0 && (
           <p className="border-line-2 text-tau-micro text-ink-3 border-t px-3 py-2">
-            该模板没有可配置的站点字段。
+            {t("settings.noFields")}
           </p>
         )}
       </Group>

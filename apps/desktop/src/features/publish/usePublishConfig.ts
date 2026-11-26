@@ -1,3 +1,5 @@
+import { usePublishI18n } from "./publish.i18n";
+import { publishFeedback } from "./publish.binding";
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { produce } from "immer";
@@ -34,10 +36,6 @@ import {
 } from "@/utils/publishFavicon";
 import type { IPublishFaviconConfig } from "@/types/publish";
 
-export const PROVIDER_LABELS: Record<EPublishProvider, string> = {
-  [EPublishProvider.Plugin]: "发布插件",
-  [EPublishProvider.Local]: "本地导出",
-};
 export type ConnectionState = "idle" | "checking" | "ok" | "fail";
 const isUserCanceled = (error: unknown) =>
   error instanceof Error && error.message === "User canceled file selection";
@@ -49,6 +47,7 @@ const noSubscribe = () => () => {};
 const zeroRevision = () => 0;
 
 export function usePublishConfig() {
+  const { t } = usePublishI18n();
   const runtime = useDesktopPlugins();
   const revision = useSyncExternalStore(
     rendererPublishRegistry.subscribe,
@@ -104,8 +103,8 @@ export function usePublishConfig() {
   const targetReady = active === EPublishProvider.Local || Boolean(provider && targetQuery.data);
   const providerLabel =
     active === EPublishProvider.Local
-      ? "本地导出"
-      : (provider?.name ?? (pluginId || "未选择发布插件"));
+      ? t("provider.local")
+      : (provider?.name ?? (pluginId || t("provider.none")));
   const section = runtime
     ?.listSettings()
     .find(item => item.context.pluginId === pluginId && item.definition.target === "publish");
@@ -167,7 +166,7 @@ export function usePublishConfig() {
       const filePath = paths[0];
       const extension = normalizePublishFaviconExtension(await getFileExtension(filePath));
       if (!extension) {
-        toast.error("仅支持 SVG、PNG、ICO 格式的 favicon");
+        toast.error(...publishFeedback("favicon.format"));
         return;
       }
       const userDataDir = await getUserDataDir();
@@ -184,10 +183,14 @@ export function usePublishConfig() {
           format: extension,
         })
       );
-      toast.success("已缓存发布 favicon");
+      toast.success(...publishFeedback("favicon.cached"));
     } catch (error) {
       if (isUserCanceled(error)) return;
-      toast.error(`选择 favicon 失败: ${error instanceof Error ? error.message : String(error)}`);
+      toast.error(
+        ...publishFeedback("favicon.selectFailed", {
+          error: error instanceof Error ? error.message : String(error),
+        })
+      );
     }
   };
 
@@ -195,9 +198,13 @@ export function usePublishConfig() {
     try {
       await removeCachedFaviconFiles();
       setFavicon(undefined);
-      toast.success("已清除自定义 favicon");
+      toast.success(...publishFeedback("favicon.cleared"));
     } catch (error) {
-      toast.error(`清除 favicon 失败: ${error instanceof Error ? error.message : String(error)}`);
+      toast.error(
+        ...publishFeedback("favicon.clearFailed", {
+          error: error instanceof Error ? error.message : String(error),
+        })
+      );
     }
   };
 
@@ -238,7 +245,7 @@ export function usePublishConfig() {
       targetQuery.error instanceof Error
         ? targetQuery.error.message
         : !provider && active === EPublishProvider.Plugin
-          ? "请安装并启用已选择的发布插件"
+          ? t("provider.unavailable")
           : "",
     basePath: targetQuery.data?.basePath ?? publish.local.basePath,
     siteUrl: publish.site.publicUrl.trim() || targetQuery.data?.publicUrl || "",
