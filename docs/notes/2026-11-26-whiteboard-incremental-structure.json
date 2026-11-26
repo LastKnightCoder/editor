@@ -29336,5 +29336,21 @@
       "kind": "shared-browser-session-closed",
       "resolution": "per-process CLI session; discarded as performance evidence"
     }
-  ]
+  ],
+  "checks": {
+    "whiteboard": {
+      "passed": 159,
+      "environmentGated": 3
+    },
+    "modelHistoryBudgetParity": {
+      "passed": 44
+    },
+    "sqliteWebsocket": {
+      "passed": 7
+    },
+    "types": "whiteboard and collaboration passed",
+    "lint": "0 errors",
+    "whiteboardBoundaries": "passed",
+    "docs": "506 markdown files; 0 warnings"
+  }
 }
