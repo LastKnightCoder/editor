@@ -1,3 +1,4 @@
+import { appMessages } from "@/app/i18n/messages";
 /**
  * 白板列表 page 定义：key "whiteboard" 与 navigation.ts 一致，真实注册接管侧边栏入口
  * （legacy.tsx 的占位同步删除）。全局一份（single）；id = 标签范围（侧栏子项），
@@ -15,7 +16,7 @@ const schema = createPageSchema({
 export default definePage({
   key: "whiteboard",
   match: "single",
-  label: "白板",
+  label: appMessages.ref("nav.whiteboard"),
   params: schema.schema,
   component: WhiteboardsView,
 });

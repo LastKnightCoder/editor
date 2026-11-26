@@ -1,3 +1,4 @@
+import { appMessages } from "@/app/i18n/messages";
 /**
  * Skill 页 page 定义。
  */
@@ -8,7 +9,7 @@ import { SkillsView } from "../views/SkillsView";
 export default definePage({
   key: "skills",
   match: "single",
-  label: "Skill",
+  label: appMessages.ref("nav.skills"),
   params: {},
   component: SkillsView,
 });

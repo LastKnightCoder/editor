@@ -1,3 +1,4 @@
+import type { Localized } from "@tau/i18n";
 import type { ComponentType } from "react";
 import type { Disposable, PluginContext } from "./index";
 import type { JsonValue } from "./json";
@@ -49,7 +50,7 @@ export interface PluginPageHandle extends Disposable {
 }
 
 export interface PluginPages {
-  register(definition: PluginPageDefinition): PluginPageHandle;
+  register(definition: Localized<PluginPageDefinition>): PluginPageHandle;
 }
 
 export function normalizePageParams(value: unknown): PluginPageParams {

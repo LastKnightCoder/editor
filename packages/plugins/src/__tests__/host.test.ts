@@ -1,3 +1,5 @@
+import { createPluginEnvironmentStore } from "../environment";
+import { defineI18n } from "../index";
 import { describe, expect, it } from "vitest";
 import { definePlugin, type PluginContext, type PluginInstance } from "../index";
 import { createMemoryStorage, PluginHost } from "../host";
@@ -262,4 +264,58 @@ describe("受信任插件 API", () => {
     expect(await host.executeCommand("example.notes:run", "正常")).toBe("正常");
     await host.dispose();
   });
+});
+
+it("切换语言更新已有贡献而不重启插件，停用后清理语言订阅", async () => {
+  const environment = createPluginEnvironmentStore({
+    platform: "desktop",
+    locale: "zh-CN",
+    input: { coarsePointer: false, finePointer: true },
+  });
+  const messages = defineI18n({
+    fallbackLocale: "zh-CN",
+    resources: { "zh-CN": { title: "甲" }, "en-US": { title: "A" } },
+  });
+  let context!: PluginContext;
+  let activations = 0;
+  const locales: string[] = [];
+  const host = new PluginHost({
+    workspaceId: "work",
+    storage: createMemoryStorage(),
+    environmentSource: environment,
+  });
+  host.registerTrusted(
+    definePlugin({
+      id: "localized",
+      name: "test",
+      version: "1.0.0",
+      i18n: messages,
+      create: () => ({
+        activate(ctx) {
+          context = ctx;
+          activations++;
+          ctx.environmentChanges.subscribe(value => locales.push(value.locale));
+          ctx.commands.register({
+            id: "action",
+            title: messages.ref("title"),
+            run: () => ctx.i18n.t("title"),
+          });
+        },
+      }),
+    })
+  );
+  await host.enable("localized");
+  expect(host.listCommands()[0].title).toBe("甲");
+  const revision = host.getRevision();
+  environment.update({ locale: "en-US" });
+  expect(host.getRevision()).toBeGreaterThan(revision);
+  expect(host.listCommands()[0].title).toBe("A");
+  expect(await host.executeCommand("localized:action")).toBe("A");
+  expect(activations).toBe(1);
+  expect(locales).toEqual(["en-US"]);
+  await host.disable("localized");
+  environment.update({ locale: "zh-CN" });
+  expect(locales).toEqual(["en-US"]);
+  expect(() => context.i18n.t("title")).toThrow("失效");
+  await host.dispose();
 });

@@ -1,3 +1,4 @@
+import { useAppI18n } from "@/app/i18n/react";
 /**
  * SettingsScreen —— 全窗口设置页（由居中弹窗改为铺满窗口）。
  *
@@ -23,6 +24,7 @@ import { FadeScroll } from "@tau/ui";
 import { SETTINGS_GROUPS, SETTINGS_SECTIONS, type SettingsSectionDef } from "./sections";
 
 export function SettingsScreen() {
+  const { t } = useAppI18n();
   const open = useSettingsStore(s => s.open);
   const closeSettings = useSettingsStore(s => s.closeSettings);
   const section = useSettingsStore(s => s.section);
@@ -82,7 +84,7 @@ export function SettingsScreen() {
       ref={rootRef}
       role="dialog"
       aria-modal="true"
-      aria-label="设置"
+      aria-label={t("settings.title")}
       tabIndex={-1}
       inert={!open}
       aria-hidden={!open}
@@ -94,7 +96,7 @@ export function SettingsScreen() {
       )}
     >
       {/* 左栏：设置侧栏（几何对齐应用侧栏：px-2.5、头部占标题栏高度） */}
-      <nav className="flex min-h-0 flex-col px-2.5 pb-3" aria-label="设置分区">
+      <nav className="flex min-h-0 flex-col px-2.5 pb-3" aria-label={t("settings.sections")}>
         <div
           className={clsx(
             dragRegion,
@@ -110,17 +112,17 @@ export function SettingsScreen() {
             "text-ink-2 hover:bg-hover hover:text-ink-1 mb-1.5 gap-2.5 px-2.5"
           )}
           onClick={closeSettings}
-          title="返回 (Esc)"
+          title={t("settings.backHint")}
         >
           <ArrowLeft className="shrink-0" size="1.06em" strokeWidth={1.75} />
-          <span className="min-w-0 truncate">返回应用</span>
+          <span className="min-w-0 truncate">{t("settings.back")}</span>
         </button>
         <div
           ref={setNavEl}
           className="edge-fade-scroll -mr-[5px] min-h-0 flex-1 overflow-y-auto pr-[5px]"
         >
           {SETTINGS_GROUPS.map(group => (
-            <div key={group.label} className="mt-3">
+            <div key={group.sections[0].key} className="mt-3">
               <div className="text-tau-tiny text-ink-3 px-2.5 pb-1.5">{group.label}</div>
               <div className="space-y-0.5">
                 {group.sections.map(def => (

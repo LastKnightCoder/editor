@@ -1,8 +1,10 @@
+import { canonicalLocale } from "@tau/i18n";
 import { BrowserWindow, ipcMain, webContents, type IpcMainInvokeEvent } from "electron";
 import { assertLocalId } from "@tau/plugins/host";
 import { getThemeRegistry, resolveThemePreference, themeRuntimeConfig } from "@tau/themes";
 import {
   SYSTEM_APPEARANCE,
+  SYSTEM_LOCALE,
   windowChannel,
   type MainWindowCalls,
   type PluginWindowCalls,
@@ -156,6 +158,10 @@ export function registerPluginWindowIpc() {
     manager.revoke(() => true);
     if (lastWorkspace) communication.clearWorkspace(lastWorkspace);
     lastWorkspace = undefined;
+  });
+  handle("publishLocale", (event, { locale }) => {
+    mainWindow(event);
+    communication.publish({ scope: "app", key: SYSTEM_LOCALE }, canonicalLocale(locale));
   });
   handle("publishTheme", (event, preference) => {
     mainWindow(event);

@@ -1,3 +1,4 @@
+import { useAppI18n } from "@/app/i18n/react";
 /**
  * SearchPalette —— 全局命令面板。
  *
@@ -160,6 +161,7 @@ function Highlighted({ text, q }: { text: string; q: string }) {
 }
 
 export function SearchPalette() {
+  useAppI18n();
   const open = useSearchStore(s => s.open);
   const closePalette = useSearchStore(s => s.closePalette);
   const togglePalette = useSearchStore(s => s.togglePalette);
@@ -203,16 +205,12 @@ export function SearchPalette() {
   );
   // 关掉的功能不出现在页面跳转里；页面本身仍可经内容结果打开
   const { isEnabled } = useFeatures();
-  const commands = useMemo(
-    () =>
-      matchCommands(
-        [
-          ...paletteCommands().filter(c => !c.pageKey || isEnabled(c.pageKey)),
-          ...(pluginCommands ?? []),
-        ],
-        lowerQ
-      ),
-    [lowerQ, pluginCommands, isEnabled]
+  const commands = matchCommands(
+    [
+      ...paletteCommands().filter(c => !c.pageKey || isEnabled(c.pageKey)),
+      ...(pluginCommands ?? []),
+    ],
+    lowerQ
   );
 
   // 快速添加用：面板打开才拉（待办项目与待办页共享缓存；日历排除系统日历与归档）
@@ -422,13 +420,10 @@ export function SearchPalette() {
 
   /* ---------- 行构造 ---------- */
 
-  const pageByKey = useMemo(() => {
-    const m = new Map<string, PaletteCommand>();
-    paletteCommands().forEach(c => {
-      if (c.pageKey) m.set(c.pageKey, c);
-    });
-    return m;
-  }, []);
+  const pageByKey = new Map<string, PaletteCommand>();
+  paletteCommands().forEach(command => {
+    if (command.pageKey) pageByKey.set(command.pageKey, command);
+  });
 
   const recentRow = (v: VisitRecord): Row => {
     const page = pageByKey.get(v.key);

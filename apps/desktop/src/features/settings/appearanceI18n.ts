@@ -1,0 +1,15 @@
+import { defineI18n } from "@tau/i18n";
+import { useI18n } from "@tau/i18n/react";
+import { desktopI18n } from "@/app/i18n/runtime";
+import zhCN from "./locales/appearance.zh-CN.json";
+import zhTW from "./locales/appearance.zh-TW.json";
+import enUS from "./locales/appearance.en-US.json";
+
+const messages = defineI18n({
+  fallbackLocale: "zh-CN",
+  resources: { "zh-CN": zhCN, "zh-TW": zhTW, "en-US": enUS },
+});
+export type AppearanceKey = Parameters<typeof messages.ref>[0];
+export function useAppearanceI18n() {
+  return useI18n(messages, desktopI18n);
+}

@@ -1,3 +1,4 @@
+import { type DisplayText } from "@tau/i18n";
 /**
  * definePage 协议 —— 一个文件声明一个 Page 的全部（身份/匹配/保活/参数/组件）。
  * 从移动端 definePage 移植（蓝图 §3.2），泛型只在边界：args 携带泛型 F 推导 params 类型，
@@ -22,7 +23,7 @@ import { registerPageDefinition } from "./registry";
 export interface PageDefinition {
   key: string;
   match: MatchPolicy;
-  label: string;
+  label: DisplayText;
   fields: ParamFields;
   component: ComponentType;
 }
@@ -33,7 +34,7 @@ export interface PageDefinitionArgs<F extends ParamFields> {
   match?: MatchPolicy;
   getId?: (params: InferFields<F>) => string;
   /** 侧边栏/面包屑/命令面板展示名 */
-  label: string;
+  label: DisplayText;
   params: F;
   component: ComponentType;
 }

@@ -1,0 +1,15 @@
+{
+  "close": "Close",
+  "confirm": "Confirm",
+  "cancel": "Cancel",
+  "processing": "Processing…",
+  "confirmPlaceholder": "Enter the name to confirm",
+  "confirmHint": "Enter this name to enable {{action}}: ",
+  "selectPlaceholder": "Select an option",
+  "empty": "No matching options",
+  "filter": "Type to filter…",
+  "searchOrCreate": "Search or enter a custom value…",
+  "other": "Other",
+  "useValue": "Use “{{value}}”",
+  "separator": ", "
+}

@@ -1,3 +1,4 @@
+import { appMessages } from "@/app/i18n/messages";
 /**
  * 漫步 page 定义：key "walk" 与 navigation.ts 一致，接管侧边栏入口。
  * from = 「kind:id」（今日页牌堆「继续走」入口），single 页异参原位更新：
@@ -15,7 +16,7 @@ const schema = createPageSchema({
 export default definePage({
   key: "walk",
   match: "single",
-  label: "漫步",
+  label: appMessages.ref("nav.walk"),
   params: schema.schema,
   component: WalkView,
 });

@@ -1,4 +1,4 @@
-import type { PluginContext, PluginDefinition } from "@tau/plugins";
+import type { PluginContext, PluginDefinition, PluginWindowDefinition } from "@tau/plugins";
 import { attachPluginWindows } from "./windows";
 import { pluginWindowPackageKey } from "../../../shared/plugin-window-values";
 import type { DesktopPluginPackage as DevelopmentPluginPackage } from "../../../shared/plugin-package";
@@ -20,7 +20,10 @@ import { type PluginHost } from "@tau/plugins/host";
 export type SharedPluginModules = Readonly<Record<string, unknown>>;
 
 export function bindPackageWindows(artifact: DevelopmentPluginPackage) {
-  return async (context: PluginContext, definition: PluginDefinition) =>
+  return async (
+    context: PluginContext,
+    definition: Omit<PluginDefinition, "windows"> & { windows?: readonly PluginWindowDefinition[] }
+  ) =>
     definition.windows?.length
       ? attachPluginWindows(context, await pluginWindowPackageKey(artifact), definition.windows)
       : undefined;

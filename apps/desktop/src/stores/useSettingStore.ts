@@ -1,3 +1,4 @@
+import { normalizeLanguagePreference, type LanguagePreference } from "@tau/shared/language";
 import { DEFAULT_WINDOW_FONT, type WindowFont } from "../../shared/window-font";
 import { create } from "zustand";
 import { produce } from "immer";
@@ -102,6 +103,7 @@ export const mergeSettingWithDefaults = (setting: Partial<ISetting> | ISetting):
   if (ttsProviders) {
     mergedSetting.ttsProviders = ttsProviders;
   }
+  mergedSetting.language = normalizeLanguagePreference(mergedSetting.language);
   normalizeImageGenerationConfig(mergedSetting);
   normalizeTransientSettingState(mergedSetting);
   normalizeTTSUsageConfig(mergedSetting);
@@ -110,6 +112,7 @@ export const mergeSettingWithDefaults = (setting: Partial<ISetting> | ISetting):
 };
 
 export interface ISetting {
+  language: LanguagePreference;
   speechInput?: import("@tau/asr").SpeechInputSetting;
   fontSetting: { -readonly [Key in keyof WindowFont]: WindowFont[Key] };
   appearance?: {
@@ -348,6 +351,7 @@ const persistSettingCache = (setting: ISetting) => {
 const initialState: IState = {
   inited: false,
   setting: {
+    language: "zh-CN",
     fontSetting: { ...DEFAULT_WINDOW_FONT },
     appearance: {
       image: {

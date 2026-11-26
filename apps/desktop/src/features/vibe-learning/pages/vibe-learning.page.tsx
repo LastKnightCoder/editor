@@ -1,3 +1,4 @@
+import { appMessages } from "@/app/i18n/messages";
 /**
  * Notebook 列表 page：key "vibe-learning" 与 navigation.ts 一致，注册后接管侧边栏入口。
  * 对外名为 Notebook（仿 NotebookLM），page key / 表名 / IPC 频道沿用 vibe-learning 不改名。
@@ -12,7 +13,7 @@ const schema = createPageSchema({});
 export default definePage({
   key: "vibe-learning",
   match: "single", // 列表页全局一份，重复进入原位激活
-  label: "Notebook",
+  label: appMessages.ref("nav.vibe-learning"),
   params: schema.schema,
   component: VibeLearningListView,
 });

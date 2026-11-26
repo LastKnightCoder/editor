@@ -1,3 +1,4 @@
+import type { Localized } from "@tau/i18n";
 import type { ComponentType } from "react";
 import type { Disposable, PluginContext } from "./index";
 import type { JsonValue } from "./json";
@@ -72,5 +73,5 @@ export interface PluginSettingsHandle extends Disposable {
 
 export interface PluginSettings {
   /** 分区随本次激活回收；提供方保存使用配置属性，普通设置使用 context.storage。 */
-  register(definition: PluginSettingsDefinition): PluginSettingsHandle;
+  register(definition: Localized<PluginSettingsDefinition>): PluginSettingsHandle;
 }

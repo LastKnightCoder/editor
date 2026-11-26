@@ -9,6 +9,8 @@
 3. 打开 `apps/desktop/src/app/AppShell.tsx` → `Sidebar.tsx` → `page/` 目录过一遍；
 4. 跑 `pnpm dev`（desktop），主窗口即新壳层。
 
+宿主与插件的语言配置、词典与窗口同步见 [国际化](/docs/architecture/i18n.md)。
+
 ## 分篇索引
 
 | 篇                                    | 覆盖                                                                                                                                                           |

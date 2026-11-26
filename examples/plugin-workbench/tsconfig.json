@@ -10,7 +10,8 @@
     "jsx": "react-jsx",
     "allowImportingTsExtensions": true,
     "esModuleInterop": true,
-    "types": ["node"]
+    "types": ["node"],
+    "resolveJsonModule": true
   },
   "include": ["src"]
 }

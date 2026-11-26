@@ -5,7 +5,7 @@ import {
 } from "./package.ts";
 import { validateUnifiedPluginManifest, type UnifiedWebPluginManifest } from "./unified.ts";
 import { readPluginMetadata, readPluginFilePath, readPluginFiles } from "./package-fields.ts";
-import type { PluginEnvironment } from "./environment";
+import type { PluginEnvironmentInput } from "./environment";
 import { PLUGIN_AI_CAPABILITIES, type PluginAICapability } from "./ai.ts";
 import {
   PACKAGE_PLATFORMS,
@@ -159,7 +159,7 @@ export function buildPortablePluginManifest(
 }
 
 export interface PortablePluginHost {
-  readonly environment: PluginEnvironment;
+  readonly environment: PluginEnvironmentInput;
   readonly appVersion: string;
   readonly profiles: readonly string[];
 }

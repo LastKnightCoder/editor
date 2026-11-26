@@ -33,14 +33,14 @@ import { connectPublishRenderer } from "./publish-bridge";
 import { registerPluginMCP } from "@/tools/pluginMCP";
 import { declareContentPluginResources } from "./element-resources";
 import { bindPackageWindows } from "./package-loader";
-import { connectPluginWindowTheme } from "./windows";
+import { connectPluginWindowEnvironment } from "./windows";
 
 const restartRequired = new Set<string>();
 let pendingCleanup: Promise<void> = Promise.resolve();
 
 export function DesktopPluginProvider({ children }: { children: ReactNode }) {
   useEffect(connectSyncRenderer, []);
-  useEffect(connectPluginWindowTheme, []);
+  useEffect(connectPluginWindowEnvironment, []);
   useEffect(connectUploadRenderer, []);
   useEffect(connectCollaborationImageStorage, []);
   useEffect(connectTTSRenderer, []);

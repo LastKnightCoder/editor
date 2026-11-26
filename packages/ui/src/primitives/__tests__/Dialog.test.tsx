@@ -1,5 +1,7 @@
 /** Dialog / ConfirmDialog 的开合、关闭仲裁、焦点管理、确认门槛与异步生命周期。 */
 
+import { createI18nRuntime, createLocaleStore } from "@tau/i18n";
+import { I18nRuntimeProvider } from "@tau/i18n/react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { useState, type ReactNode } from "react";
@@ -485,4 +487,55 @@ describe("ConfirmDialog", () => {
     expect(h2.isOpen()).toBe(false);
     h2.cleanup();
   });
+});
+
+it("切换宿主语言时保留确认门槛与输入，调用方文案仍优先", async () => {
+  const localeSource = createLocaleStore("zh-CN");
+  const runtime = createI18nRuntime({ localeSource });
+  const onConfirm = vi.fn();
+  const h = await renderControlled(({ open, change }) => (
+    <I18nRuntimeProvider runtime={runtime}>
+      <ConfirmDialog
+        open={open}
+        onOpenChange={change}
+        title="Object"
+        typeToConfirm="KEEP"
+        confirmText="Approve"
+        onConfirm={onConfirm}
+      />
+    </I18nRuntimeProvider>
+  ));
+  try {
+    const card = h.card();
+    const input = card?.querySelector("input");
+    const confirm = [...(card?.querySelectorAll("button") ?? [])].find(
+      button => button.textContent === "Approve"
+    );
+    const close = card?.querySelector("button[aria-label]");
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    if (!card || !input || !confirm || !close || !setter) throw new Error("确认弹窗缺少可交互控件");
+    const previousCloseLabel = close.getAttribute("aria-label");
+    const typeValue = (value: string) =>
+      act(() => {
+        setter.call(input, value);
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+    typeValue("KE");
+    expect(confirm.disabled).toBe(true);
+    await act(async () => localeSource.setLocale("en-US"));
+    expect(h.card()).toBe(card);
+    expect(card.querySelector("input")).toBe(input);
+    expect(input.value).toBe("KE");
+    expect(close.getAttribute("aria-label")).not.toBe(previousCloseLabel);
+    expect(confirm.textContent).toBe("Approve");
+    expect(confirm.disabled).toBe(true);
+    typeValue("KEEP");
+    expect(confirm.disabled).toBe(false);
+    click(confirm);
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+    expect(h.isOpen()).toBe(false);
+  } finally {
+    h.cleanup();
+    runtime.dispose();
+  }
 });

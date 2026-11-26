@@ -1,3 +1,4 @@
+import { useAppI18n } from "./i18n/react";
 /**
  * 窗口控制按钮 —— mac 自绘信号灯 + Windows/Linux 三键：命令走 commands/window.ts（IPC），
  * 最大化状态经 platform.window.onMaximizedChange。
@@ -14,6 +15,7 @@ const winBtnClass =
   "grid h-[26px] w-9 place-items-center rounded-tau-sm text-ink-2 hover:bg-hover hover:text-ink-1";
 
 export function WindowControls() {
+  const { t } = useAppI18n();
   const [isMaximized, setIsMaximized] = useState(false);
 
   useEffect(() => platform.window.onMaximizedChange(setIsMaximized), []);
@@ -24,8 +26,8 @@ export function WindowControls() {
         type="button"
         className={winBtnClass}
         onClick={minimizeWindow}
-        title="最小化"
-        aria-label="最小化"
+        title={t("shell.minimize")}
+        aria-label={t("shell.minimize")}
       >
         <Minus size={13} strokeWidth={2} />
       </button>
@@ -33,8 +35,8 @@ export function WindowControls() {
         type="button"
         className={winBtnClass}
         onClick={maximizeWindow}
-        title={isMaximized ? "还原" : "最大化"}
-        aria-label="最大化/还原"
+        title={isMaximized ? t("shell.restore") : t("shell.maximize")}
+        aria-label={t("shell.maximizeRestore")}
       >
         {isMaximized ? <Copy size={12} strokeWidth={2} /> : <Square size={11} strokeWidth={2} />}
       </button>
@@ -43,8 +45,8 @@ export function WindowControls() {
         type="button"
         className="rounded-tau-sm text-ink-2 grid h-[26px] w-9 place-items-center hover:bg-[#c25450] hover:text-white"
         onClick={closeWindow}
-        title="关闭"
-        aria-label="关闭"
+        title={t("shell.close")}
+        aria-label={t("shell.close")}
       >
         <X size={13} strokeWidth={2} />
       </button>
@@ -61,6 +63,7 @@ export function WindowControls() {
  *  符号自绘粗笔/实心 SVG（lucide 描边图标 8px 下细弱失真），统一半透明黑
  *  ——对齐 macOS Big Sur+ 原生符号色，叠三色圆点自然融合不突兀。 */
 export function MacTrafficLights({ collapsed }: { collapsed: boolean }) {
+  const { t } = useAppI18n();
   return (
     <div
       className={clsx(
@@ -73,8 +76,8 @@ export function MacTrafficLights({ collapsed }: { collapsed: boolean }) {
         type="button"
         className="grid size-3 cursor-default place-items-center rounded-full bg-[#ff5f57] text-black/50 hover:bg-[#ff5f57]/90"
         onClick={closeWindow}
-        title="关闭"
-        aria-label="关闭"
+        title={t("shell.close")}
+        aria-label={t("shell.close")}
       >
         <svg viewBox="0 0 8 8" className="size-2" aria-hidden>
           <path
@@ -89,8 +92,8 @@ export function MacTrafficLights({ collapsed }: { collapsed: boolean }) {
         type="button"
         className="grid size-3 cursor-default place-items-center rounded-full bg-[#febc2e] text-black/50 hover:bg-[#febc2e]/90"
         onClick={minimizeWindow}
-        title="最小化"
-        aria-label="最小化"
+        title={t("shell.minimize")}
+        aria-label={t("shell.minimize")}
       >
         <svg viewBox="0 0 8 8" className="size-2" aria-hidden>
           <path d="M2 4h4" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
@@ -100,8 +103,8 @@ export function MacTrafficLights({ collapsed }: { collapsed: boolean }) {
         type="button"
         className="grid size-3 cursor-default place-items-center rounded-full bg-[#28c840] text-black/50 hover:bg-[#28c840]/90"
         onClick={toggleFullScreen}
-        title="全屏"
-        aria-label="全屏"
+        title={t("shell.fullscreen")}
+        aria-label={t("shell.fullscreen")}
       >
         <svg viewBox="0 0 8 8" className="size-2" aria-hidden>
           <path d="M1.5 5V1.5H5L1.5 5Z" fill="currentColor" />

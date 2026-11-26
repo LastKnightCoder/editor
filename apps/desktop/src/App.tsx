@@ -1,3 +1,4 @@
+import { connectDesktopI18n } from "./app/i18n/connect";
 import { PluginEnvironmentProvider } from "@tau/plugins/environment-host";
 import { desktopPluginEnvironment } from "@/app/plugins/environment";
 import { useState, useEffect, useMemo } from "react";
@@ -45,6 +46,7 @@ import {
 import { router } from "@/router.tsx";
 
 const Application = () => {
+  useEffect(() => connectDesktopI18n(), []);
   useEffect(() => desktopPluginEnvironment.connect(), []);
   useSyncSetting();
   useItemUpdateListener();

@@ -22,7 +22,8 @@
     "clsx": "^2.1.1",
     "lucide-react": "^0.399.0",
     "tailwind-merge": "^3.7.0",
-    "zustand": "^4.3.8"
+    "zustand": "^4.3.8",
+    "@tau/i18n": "workspace:*"
   },
   "peerDependencies": {
     "react": "^19.2.0",

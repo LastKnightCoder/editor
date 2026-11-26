@@ -1,0 +1,15 @@
+{
+  "close": "关闭",
+  "confirm": "确认",
+  "cancel": "取消",
+  "processing": "处理中…",
+  "confirmPlaceholder": "输入名称以确认",
+  "confirmHint": "输入此名称以启用「{{action}}」：",
+  "selectPlaceholder": "请选择",
+  "empty": "无匹配项",
+  "filter": "输入过滤…",
+  "searchOrCreate": "搜索或输入自定义值…",
+  "other": "其他",
+  "useValue": "使用 “{{value}}”",
+  "separator": "、"
+}

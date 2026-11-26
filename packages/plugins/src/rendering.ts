@@ -1,3 +1,4 @@
+import { defineI18n } from "@tau/i18n";
 import { assertWhiteboardElementVersions } from "@tau/whiteboard/author";
 import { normalizeContentMetricRules } from "@tau/db-schema/content-metrics";
 import { assertContentResourceSpecs } from "@tau/db-schema/content-resources";
@@ -166,6 +167,7 @@ export function validatePluginDefinition(
     throw new Error("白板贡献必须与 manifest.whiteboard 声明一致");
   definition = {
     ...definition,
+    ...(definition.i18n ? { i18n: defineI18n(definition.i18n) } : {}),
     editorExtensions: definition.editorExtensions?.map(normalizePluginEditorExtension),
   };
   getPluginWhiteboardTypes(definition);

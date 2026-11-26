@@ -1,3 +1,4 @@
+import { appMessages } from "@/app/i18n/messages";
 /**
  * AI 对话 page 定义：key "chat" 与 navigation.ts 一致，真实注册接管侧边栏入口
  * （legacy.tsx 的占位同步删除）。全局一份（single）；id = 当前会话（侧栏子项 /
@@ -16,7 +17,7 @@ const schema = createPageSchema({
 export default definePage({
   key: "chat",
   match: "single",
-  label: "AI 对话",
+  label: appMessages.ref("nav.chat"),
   params: schema.schema,
   component: ChatView,
 });

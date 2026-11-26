@@ -7,6 +7,7 @@ import type {
 import { windowStateName } from "../../../shared/plugin-window-values";
 import {
   SYSTEM_APPEARANCE,
+  SYSTEM_LOCALE,
   WINDOW_PARAMS,
   type AppearancePreference,
   type StateSnapshot,
@@ -33,7 +34,8 @@ export function connectWindowCommunication(
   transport: WindowTransport,
   signal: AbortSignal,
   applyAppearance: (value: AppearancePreference) => PluginWindowAppearance,
-  applyParams?: (value: StateSnapshot<PluginWindowParams>) => void
+  applyParams?: (value: StateSnapshot<PluginWindowParams>) => void,
+  applyLocale?: (locale: string) => void
 ) {
   const states = new Map<string, Subscription>();
   const messages = new Map<
@@ -45,6 +47,7 @@ export function connectWindowCommunication(
   let appearance: PluginWindowAppearance | undefined;
   let appearanceRevision = 0;
   let paramsRevision = 0;
+  let localeRevision = 0;
   let initialAppearance: AppearancePreference | undefined;
 
   const token = () => {
@@ -80,6 +83,11 @@ export function connectWindowCommunication(
       const { scope, key, snapshot } = event.change;
       if (scope === "app" && key === SYSTEM_APPEARANCE) {
         receiveAppearance(snapshot as StateSnapshot<AppearancePreference>);
+      } else if (scope === "app" && key === SYSTEM_LOCALE) {
+        if (snapshot.revision > localeRevision && typeof snapshot.value === "string") {
+          localeRevision = snapshot.revision;
+          applyLocale?.(snapshot.value);
+        }
       } else if (scope === "instance" && key === WINDOW_PARAMS) {
         receiveParams(snapshot as StateSnapshot<PluginWindowParams>);
       } else if (scope === "plugin") {
@@ -218,7 +226,7 @@ export function connectWindowCommunication(
     communication,
     refreshAppearance,
     receiveParams,
-    bind(id: string, initial: StateSnapshot<AppearancePreference>) {
+    bind(id: string, initial: StateSnapshot<AppearancePreference>, locale?: StateSnapshot<string>) {
       if (signal.aborted) {
         void transport.invoke("detachEndpoint", { endpoint: id }).catch(() => undefined);
         signal.throwIfAborted();
@@ -226,6 +234,10 @@ export function connectWindowCommunication(
       endpoint = id;
       for (const apply of pendingEvents.splice(0)) apply();
       receiveAppearance(initial);
+      if (locale?.value && locale.revision > localeRevision) {
+        localeRevision = locale.revision;
+        applyLocale?.(locale.value);
+      }
     },
   };
 }

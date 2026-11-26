@@ -1,3 +1,5 @@
+import { appTranslator } from "@/app/i18n/messages";
+import { LanguageSection } from "./sections/LanguageSection";
 /**
  * 设置分区清单 —— 单一信息架构（数据驱动，SettingsScreen 只负责渲染）。
  *
@@ -38,6 +40,7 @@ import { AboutSection } from "./sections/AboutSection";
 import { BrowserExtensionSection } from "./sections/BrowserExtensionSection";
 
 export type SettingsSectionKey =
+  | "language"
   | "appearance"
   | "features"
   | "sync"
@@ -68,109 +71,178 @@ export interface SettingsSectionGroup {
 
 export const SETTINGS_GROUPS: SettingsSectionGroup[] = [
   {
-    label: "通用",
+    get label() {
+      return appTranslator.t("settings.group.general");
+    },
     sections: [
       {
+        key: "language",
+        get label() {
+          return appTranslator.t("language.title");
+        },
+        get description() {
+          return appTranslator.t("language.description");
+        },
+        icon: Globe,
+        component: LanguageSection,
+      },
+      {
         key: "appearance",
-        label: "外观",
-        description: "主题、字体与内容图片的默认呈现，改动即刻生效",
+        get label() {
+          return appTranslator.t("settings.appearance.label");
+        },
+        get description() {
+          return appTranslator.t("settings.appearance.description");
+        },
         icon: Palette,
         component: AppearanceSection,
       },
       {
         key: "features",
-        label: "功能",
-        description: "只留用得上的功能，侧栏会清爽很多。关掉的功能内容都在，打开就回来",
+        get label() {
+          return appTranslator.t("settings.features.label");
+        },
+        get description() {
+          return appTranslator.t("settings.features.description");
+        },
         icon: LayoutGrid,
         component: FeaturesSection,
       },
     ],
   },
   {
-    label: "数据",
+    get label() {
+      return appTranslator.t("settings.group.data");
+    },
     sections: [
       {
         key: "sync",
-        label: "同步",
-        description: "把数据库和本地资源文件同步到远端，全部手动触发",
+        get label() {
+          return appTranslator.t("settings.sync.label");
+        },
+        get description() {
+          return appTranslator.t("settings.sync.description");
+        },
         icon: RefreshCw,
         component: SyncSection,
       },
       {
         key: "imageBed",
-        label: "资源存储",
-        description: "笔记里插入的图片和附件上传到哪里",
+        get label() {
+          return appTranslator.t("settings.imageBed.label");
+        },
+        get description() {
+          return appTranslator.t("settings.imageBed.description");
+        },
         icon: HardDrive,
         component: ResourceSection,
       },
       {
         key: "cache",
-        label: "剪藏与缓存",
-        description: "网页剪藏行为、远程媒体的自动缓存与空间占用",
+        get label() {
+          return appTranslator.t("settings.cache.label");
+        },
+        get description() {
+          return appTranslator.t("settings.cache.description");
+        },
         icon: Archive,
         component: CacheSection,
       },
       {
         key: "transfer",
-        label: "导入与导出",
-        description: "从其它笔记工具迁入，或把内容连同图片打包带走",
+        get label() {
+          return appTranslator.t("settings.transfer.label");
+        },
+        get description() {
+          return appTranslator.t("settings.transfer.description");
+        },
         icon: ArrowLeftRight,
         component: TransferSection,
       },
     ],
   },
   {
-    label: "连接",
+    get label() {
+      return appTranslator.t("settings.group.connections");
+    },
     sections: [
       {
         key: "browserExtension",
-        label: "浏览器扩展",
-        description: "授权「Tau 伴读」扩展在网页里标注、记笔记，并用 Tau 的模型对话",
+        get label() {
+          return appTranslator.t("settings.browserExtension.label");
+        },
+        get description() {
+          return appTranslator.t("settings.browserExtension.description");
+        },
         icon: Globe,
         component: BrowserExtensionSection,
       },
     ],
   },
   {
-    label: "AI 服务",
+    get label() {
+      return appTranslator.t("settings.group.ai");
+    },
     sections: [
       {
         key: "llm",
-        label: "大语言模型",
-        description: "接入服务商与模型，再为各项功能指定模型",
+        get label() {
+          return appTranslator.t("settings.llm.label");
+        },
+        get description() {
+          return appTranslator.t("settings.llm.description");
+        },
         icon: Sparkles,
         component: LLMSection,
       },
       {
         key: "embedding",
-        label: "嵌入模型",
-        description: "知识库检索用的向量模型，切换后会在后台重建索引",
+        get label() {
+          return appTranslator.t("settings.embedding.label");
+        },
+        get description() {
+          return appTranslator.t("settings.embedding.description");
+        },
         icon: Layers,
         component: EmbeddingSection,
       },
       {
         key: "imageGeneration",
-        label: "图片生成",
-        description: "AI 对话里的生图、改图会使用选中的配置",
+        get label() {
+          return appTranslator.t("settings.imageGeneration.label");
+        },
+        get description() {
+          return appTranslator.t("settings.imageGeneration.description");
+        },
         icon: ImageIcon,
         component: ImageGenerationSection,
       },
       {
         key: "voice",
-        label: "语音",
-        description: "音视频转录与语音合成",
+        get label() {
+          return appTranslator.t("settings.voice.label");
+        },
+        get description() {
+          return appTranslator.t("settings.voice.description");
+        },
         icon: AudioLines,
         component: VoiceSection,
       },
     ],
   },
   {
-    label: "系统",
+    get label() {
+      return appTranslator.t("settings.group.system");
+    },
     sections: [
       {
         key: "app",
-        label: "关于与更新",
-        description: "版本与更新",
+        get label() {
+          return appTranslator.t("settings.app.label");
+        },
+        get description() {
+          return appTranslator.t("settings.app.description");
+        },
         icon: Info,
         component: AboutSection,
       },

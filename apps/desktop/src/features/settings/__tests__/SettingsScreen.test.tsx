@@ -38,6 +38,7 @@ afterEach(() => {
 it("按新信息架构渲染全部分区，页头取分区 label + description", () => {
   render();
   expect(navLabels()).toEqual([
+    "界面语言",
     "外观",
     "功能",
     "同步",
@@ -79,5 +80,5 @@ it("「返回应用」关闭设置页，且不再提供分区搜索框", () => {
 it("持久化的旧分区 key 失效时回落到首个分区", () => {
   useSettingsStore.setState({ section: "misc" as never });
   render();
-  expect(header()).toContain("外观");
+  expect(navButtons()[0].getAttribute("aria-current")).toBe("page");
 });

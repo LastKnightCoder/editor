@@ -54,7 +54,8 @@
         "./src/*/index.ts",
         "./src/*/index.tsx"
       ]
-    }
+    },
+    "./language": "./language.ts"
   },
   "peerDependencies": {
     "react": "19.1.x",
@@ -81,7 +82,8 @@
     "remark-math": "^6.0.0",
     "ts-fsrs": "^5.4.2",
     "unist-util-visit": "^5.0.0",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.1",
+    "@tau/i18n": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "19.1.8",

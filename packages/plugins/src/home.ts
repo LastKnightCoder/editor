@@ -1,3 +1,4 @@
+import type { Localized } from "@tau/i18n";
 import type { ComponentType } from "react";
 import type { Disposable, PluginContext } from "./contract";
 
@@ -38,7 +39,11 @@ export type RegisteredHomePanelDefinition = Readonly<
   }
 >;
 
+export type PluginHomePanelInput = Omit<Localized<PluginHomePanelDefinition>, "action"> & {
+  action?: Localized<PluginHomePanelAction>;
+};
+
 export interface PluginHome {
   /** 面板出现在首页：新面板排在末尾，位置由用户调整；插件停用后消失，重新启用回到原位置 */
-  registerPanel(definition: PluginHomePanelDefinition): Disposable;
+  registerPanel(definition: PluginHomePanelInput): Disposable;
 }

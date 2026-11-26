@@ -1,3 +1,4 @@
+import { mobileLocaleSource } from "../../services/i18n";
 import { PluginAppActionHost } from "../../features/plugins/PluginAppActionHost";
 import { listen } from "@tauri-apps/api/event";
 import { PluginPermissionPrompt } from "../../features/plugins/PluginPermissionPrompt";
@@ -41,6 +42,7 @@ const STARTING_KEY = "tau-portable-plugins-starting";
 const SAFE_MESSAGE = "上次插件启动未结束，本次已跳过插件。可在插件中心停用问题插件后重新加载。";
 // 会话就绪前没有插件组件消费环境，占位快照只为让环境 Provider 常驻、切换时不重挂应用子树
 const PENDING_ENVIRONMENT: PluginEnvironment = {
+  locale: "zh-CN",
   platform: "web",
   input: { coarsePointer: true, finePointer: false },
 };
@@ -68,6 +70,7 @@ export function MobilePluginProvider({
   database: string;
   children: ReactNode;
 }) {
+  const locale = useSyncExternalStore(mobileLocaleSource.subscribe, mobileLocaleSource.getSnapshot);
   const navigator = useNavigator();
   const client = useQueryClient();
   const sessionId = useId();
@@ -99,7 +102,7 @@ export function MobilePluginProvider({
         gcTime: 0,
       });
       if (cancelled) return;
-      const environment = createBrowserPluginEnvironment(data.platform, window);
+      const environment = createBrowserPluginEnvironment(data.platform, window, mobileLocaleSource);
       const stopEnvironment = environment.connect();
       const stopForeground = connectPluginForeground(environment);
       disconnect = () => {
@@ -324,7 +327,7 @@ export function MobilePluginProvider({
             {children}
           </PluginEnvironmentProvider>
         ) : (
-          <PluginEnvironmentProvider value={PENDING_ENVIRONMENT}>
+          <PluginEnvironmentProvider value={{ ...PENDING_ENVIRONMENT, locale }}>
             {children}
           </PluginEnvironmentProvider>
         )}

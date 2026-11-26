@@ -1,0 +1,6 @@
+{
+  "remember": "Save last input",
+  "recall": "Read last input",
+  "forget": "Delete last input",
+  "count": "Session execution count"
+}

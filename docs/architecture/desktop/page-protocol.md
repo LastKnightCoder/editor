@@ -1,5 +1,7 @@
 # Page 协议与服务层
 
+页面 `label` 接受字面字符串或可序列化的 i18n 消息引用；栈机保留描述，展示边界解析，见 [国际化](/docs/architecture/i18n.md)。
+
 > 声明式页面、数据与主题协议、导航接线与新增页面流程；UI 铁律与交互定案见 [ui-interaction](./ui-interaction.md)。
 
 ## Page 导航入口与服务层接线

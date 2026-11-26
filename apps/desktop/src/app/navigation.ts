@@ -1,3 +1,4 @@
+import { appTranslator } from "./i18n/messages";
 /**
  * 侧边栏模块清单 —— 真实信息架构（数据驱动，Sidebar 只负责渲染）。
  *
@@ -85,15 +86,46 @@ export const NAV_SECTIONS: NavSection<LucideIcon>[] = [
   {
     // 以「天」为单位的日常：今日 = 行动（复习/待办/日程）+ 继续 + 回顾；日记按天记录，同属时间轴
     id: SIDEBAR_GROUPS.daily,
-    label: "日常",
+    collapseKey: "日常",
+    get label() {
+      return appTranslator.t("nav.group.daily");
+    },
     items: [
-      { key: "home", label: "今日", icon: Flame },
-      { key: "schedule", label: "日程", icon: Calendar },
-      { key: "todos", label: "待办", icon: ListTodo, children: "todo-groups" }, // features/todos（独立页，不并入 schedule；项目嵌在此入口下）
-      { key: "diary", label: "日记", icon: PenLine, children: "diary-tags" }, // features/diary（一整张纸，标签频道嵌在此入口下）
+      {
+        key: "home",
+        get label() {
+          return appTranslator.t("nav.home");
+        },
+        icon: Flame,
+      },
+      {
+        key: "schedule",
+        get label() {
+          return appTranslator.t("nav.schedule");
+        },
+        icon: Calendar,
+      },
+      {
+        key: "todos",
+        get label() {
+          return appTranslator.t("nav.todos");
+        },
+        icon: ListTodo,
+        children: "todo-groups",
+      }, // features/todos（独立页，不并入 schedule；项目嵌在此入口下）
+      {
+        key: "diary",
+        get label() {
+          return appTranslator.t("nav.diary");
+        },
+        icon: PenLine,
+        children: "diary-tags",
+      }, // features/diary（一整张纸，标签频道嵌在此入口下）
       {
         key: "pomodoro",
-        label: "番茄专注",
+        get label() {
+          return appTranslator.t("nav.pomodoro");
+        },
         icon: Timer,
         badge: "pomodoro-live",
       }, // features/pomodoro（独立页；小窗与沉浸为辅助窗口）
@@ -102,63 +134,146 @@ export const NAV_SECTIONS: NavSection<LucideIcon>[] = [
   {
     // 有体系的产出：卡片（原子）→ 文章（长文）→ 项目（体系梳理）→ 其他形态
     id: SIDEBAR_GROUPS.knowledge,
-    label: "知识",
+    collapseKey: "知识",
+    get label() {
+      return appTranslator.t("nav.group.knowledge");
+    },
     items: [
-      { key: "cards", label: "卡片库", icon: Layers, children: "card-tags" }, // features/cards（一整张纸，标签树嵌在此入口下）
+      {
+        key: "cards",
+        get label() {
+          return appTranslator.t("nav.cards");
+        },
+        icon: Layers,
+        children: "card-tags",
+      }, // features/cards（一整张纸，标签树嵌在此入口下）
       {
         key: "articles",
-        label: "文章",
+        get label() {
+          return appTranslator.t("nav.articles");
+        },
         icon: FileText,
         children: "article-tags",
       }, // features/articles（一整张纸，标签嵌在此入口下）
-      { key: "projects", label: "项目", icon: FolderKanban }, // features/projects（驾驶舱列表 + 文档树工作台）
+      {
+        key: "projects",
+        get label() {
+          return appTranslator.t("nav.projects");
+        },
+        icon: FolderKanban,
+      }, // features/projects（驾驶舱列表 + 文档树工作台）
       {
         key: "whiteboard",
-        label: "白板",
+        get label() {
+          return appTranslator.t("nav.whiteboard");
+        },
         icon: Presentation,
         children: "whiteboard-tags",
       }, // features/whiteboards（画廊，标签嵌在此入口下）
-      { key: "databases", label: "数据库", icon: Table }, // features/databases（结构化数据表，自项目 data-table 型拆出）
+      {
+        key: "databases",
+        get label() {
+          return appTranslator.t("nav.databases");
+        },
+        icon: Table,
+      }, // features/databases（结构化数据表，自项目 data-table 型拆出）
     ],
   },
   {
     // 学习工作流：问题（起点）→ 学习形式与资料 → 闪卡巩固
     id: SIDEBAR_GROUPS.learning,
-    label: "学习",
+    collapseKey: "学习",
+    get label() {
+      return appTranslator.t("nav.group.learning");
+    },
     items: [
-      { key: "vibe-learning", label: "Notebook", icon: FlaskConical }, // features/vibe-learning（对外名 Notebook——仿 NotebookLM；自项目 vibe-learning 型拆出，标识符跟数据库走不改名）
-      { key: "pdfs", label: "PDF", icon: BookMarked }, // features/pdfs（文档墙 + 列表排布）
-      { key: "walk", label: "漫步", icon: Footprints }, // features/walk（随机抽旧内容重温，顺岔路走到相邻内容）
-      { key: "review", label: "闪卡复习", icon: Repeat, badge: "review-due" }, // features/flashcards（复习台）
+      {
+        key: "vibe-learning",
+        get label() {
+          return appTranslator.t("nav.vibe-learning");
+        },
+        icon: FlaskConical,
+      }, // features/vibe-learning（对外名 Notebook——仿 NotebookLM；自项目 vibe-learning 型拆出，标识符跟数据库走不改名）
+      {
+        key: "pdfs",
+        get label() {
+          return appTranslator.t("nav.pdfs");
+        },
+        icon: BookMarked,
+      }, // features/pdfs（文档墙 + 列表排布）
+      {
+        key: "walk",
+        get label() {
+          return appTranslator.t("nav.walk");
+        },
+        icon: Footprints,
+      }, // features/walk（随机抽旧内容重温，顺岔路走到相邻内容）
+      {
+        key: "review",
+        get label() {
+          return appTranslator.t("nav.review");
+        },
+        icon: Repeat,
+        badge: "review-due",
+      }, // features/flashcards（复习台）
     ],
   },
   {
     id: SIDEBAR_GROUPS.ai,
-    label: "AI",
+    collapseKey: "AI",
+    get label() {
+      return appTranslator.t("nav.group.ai");
+    },
     items: [
       {
         key: "chat",
-        label: "AI 对话",
+        get label() {
+          return appTranslator.t("nav.chat");
+        },
         icon: MessageCircle,
         children: "chat-sessions",
       }, // 会话导航嵌在侧栏入口下
-      { key: "skills", label: "Skill", icon: Sparkles }, // features/skills（卡片库 + 抽屉 + 整页编辑）
-      { key: "mcp", label: "MCP 服务器", icon: Plug, badge: "mcp-errors" }, // features/mcp（连接失败数作徽标）
+      {
+        key: "skills",
+        get label() {
+          return appTranslator.t("nav.skills");
+        },
+        icon: Sparkles,
+      }, // features/skills（卡片库 + 抽屉 + 整页编辑）
+      {
+        key: "mcp",
+        get label() {
+          return appTranslator.t("nav.mcp");
+        },
+        icon: Plug,
+        badge: "mcp-errors",
+      }, // features/mcp（连接失败数作徽标）
     ],
   },
   {
     // 对外：实时协作 → 静态发布
     id: SIDEBAR_GROUPS.sharing,
-    label: "分享",
+    collapseKey: "分享",
+    get label() {
+      return appTranslator.t("nav.group.sharing");
+    },
     items: [
       {
         key: "collaboration",
-        label: "协作",
+        get label() {
+          return appTranslator.t("nav.collaboration");
+        },
         icon: Users,
         badge: "collab-requests",
         children: "collaboration-sessions",
       }, // features/collaboration（共享内容作为子项嵌套在此入口下）
-      { key: "publish", label: "发布", icon: Send }, // 新架构：静态站点发布（自设置弹窗抽出）
+      {
+        key: "publish",
+        get label() {
+          return appTranslator.t("nav.publish");
+        },
+        icon: Send,
+      }, // 新架构：静态站点发布（自设置弹窗抽出）
     ],
   },
 ];
@@ -166,16 +281,27 @@ export const NAV_SECTIONS: NavSection<LucideIcon>[] = [
 export const NAV_FOOTER: NavItem<LucideIcon>[] = [
   // 设置入口打开壳层设置弹窗（legacy 全屏设置页已随第三批清理退役）
   // 插件中心与已安装管理；插件设置在详情页，设置弹窗只留跳转
-  { key: "plugins", label: "插件", icon: Blocks, badge: "plugin-status" },
+  {
+    key: "plugins",
+    get label() {
+      return appTranslator.t("nav.plugins");
+    },
+    icon: Blocks,
+    badge: "plugin-status",
+  },
   {
     key: "feedback",
-    label: "反馈",
+    get label() {
+      return appTranslator.t("nav.feedback");
+    },
     icon: MessageSquareHeart,
     opensWindow: "feedback",
   },
   {
     key: "settings",
-    label: "设置",
+    get label() {
+      return appTranslator.t("nav.settings");
+    },
     icon: SlidersHorizontal,
     opensOverlay: "settings",
   },

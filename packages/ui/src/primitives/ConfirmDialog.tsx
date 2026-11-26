@@ -15,6 +15,7 @@
  *    false 立即关闭（样板间首版即踩此竞态，故内建 Promise 感知）
  */
 
+import { useUiI18n } from "../i18n";
 import {
   useEffect,
   useRef,
@@ -60,19 +61,23 @@ export function ConfirmDialog({
   context,
   description,
   impact,
-  confirmText = "确认",
-  cancelText = "取消",
+  confirmText: confirmTextProp,
+  cancelText: cancelTextProp,
   danger = false,
   typeToConfirm,
   critical,
   loading = false,
-  loadingText = "处理中…",
+  loadingText: loadingTextProp,
   onConfirm,
   confirmDisabled = false,
   size = "md",
   width,
   className,
 }: ConfirmDialogProps) {
+  const { t } = useUiI18n();
+  const confirmText = confirmTextProp ?? t("confirm");
+  const cancelText = cancelTextProp ?? t("cancel");
+  const loadingText = loadingTextProp ?? t("processing");
   const confirmRef = useRef<HTMLButtonElement | null>(null);
   const [confirmInput, setConfirmInput] = useState("");
   const [pending, setPending] = useState(false);
@@ -158,7 +163,7 @@ export function ConfirmDialog({
               type="text"
               value={confirmInput}
               onChange={e => setConfirmInput(e.target.value)}
-              placeholder="输入名称以确认"
+              placeholder={t("confirmPlaceholder")}
               autoComplete="off"
               disabled={busy}
               className={clsx(
@@ -169,8 +174,8 @@ export function ConfirmDialog({
               )}
             />
             <div className="text-ink-3 mt-1.5 text-[11.5px]">
-              输入 <code className="font-tau-mono text-accent-text">{typeToConfirm}</code> 解锁
-              {confirmText}按钮
+              {t("confirmHint", { action: confirmText })}
+              <code className="font-tau-mono text-accent-text">{typeToConfirm}</code>
             </div>
           </div>
         )}

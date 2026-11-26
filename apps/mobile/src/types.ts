@@ -679,6 +679,7 @@ export type CustomMcpServersMutation =
   | { kind: "setEnabled"; id: string; enabled: boolean };
 
 export interface SettingCompat {
+  language?: import("@tau/shared/language").LanguagePreference;
   imageGeneration?: ImageGenerationSetting;
   mcpServers?: CustomMcpServer[];
   speechInput?: import("@tau/asr").SpeechInputSetting;

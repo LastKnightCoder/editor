@@ -1,3 +1,4 @@
+import type { DisplayText } from "@tau/i18n";
 /**
  * Page 元数据注册表（纯数据，无 React）—— 从移动端 router/core/pageMeta.ts 移植。
  *
@@ -13,7 +14,7 @@ export interface PageMeta {
   key: string;
   match: MatchPolicy;
   getId?: (params: Record<string, unknown>) => string;
-  label: string;
+  label: DisplayText;
   fields: ParamFields;
 }
 

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, createElement } from "react";
+import { act, createElement, useState, type FormEvent } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
 import {
@@ -8,7 +8,7 @@ import {
   usePluginEnvironment,
 } from "../environment";
 import { PluginHost, createMemoryStorage } from "../host";
-import { definePlugin, type PluginContext } from "../index";
+import { defineI18n, useI18n, definePlugin, type PluginContext } from "../index";
 
 it("环境 hook 与 context 读取同一动态源，多作用域独立且卸载注销", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
@@ -75,4 +75,55 @@ it("环境 hook 与 context 读取同一动态源，多作用域独立且卸载�
   expect(renders).toBe(count);
   await host.dispose();
   vi.unstubAllGlobals();
+});
+
+it("未激活的静态组件可直接用词典，语言切换保留正在编辑的内容", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const source = createPluginEnvironmentStore({
+    locale: "zh-CN",
+    platform: "web",
+    input: { coarsePointer: false, finePointer: true },
+  });
+  const messages = defineI18n({
+    fallbackLocale: "zh-CN",
+    resources: { "zh-CN": { title: "甲" }, "en-US": { title: "A" } },
+  });
+  function StaticComponent() {
+    const { t } = useI18n(messages);
+    const [draft, setDraft] = useState("");
+    return createElement(
+      "div",
+      null,
+      createElement("span", null, t("title")),
+      createElement("input", {
+        value: draft,
+        onInput: (event: FormEvent<HTMLInputElement>) => setDraft(event.currentTarget.value),
+      })
+    );
+  }
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  try {
+    await act(async () =>
+      root.render(
+        createElement(PluginEnvironmentProvider, {
+          source,
+          children: createElement(StaticComponent),
+        })
+      )
+    );
+    const input = container.querySelector("input");
+    if (!input) throw new Error("静态组件没有输入框");
+    await act(async () => {
+      input.value = "draft";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => source.update({ locale: "en-US" }));
+    expect(container.querySelector("span")?.textContent).toBe("A");
+    expect(container.querySelector("input")).toBe(input);
+    expect(input.value).toBe("draft");
+  } finally {
+    await act(async () => root.unmount());
+    vi.unstubAllGlobals();
+  }
 });

@@ -1,3 +1,4 @@
+import type { I18nDefinition, Translator, Localized } from "@tau/i18n";
 import type { PluginTextDecorations } from "./text-decorations";
 import type { PluginWindowDefinition, PluginWindows } from "./windows";
 import type { PluginPages } from "./pages";
@@ -62,12 +63,16 @@ export interface PluginCommand {
 
 export interface PluginContext {
   readonly environment: PluginEnvironment;
+  readonly i18n: Translator;
+  readonly environmentChanges: {
+    subscribe(listener: (environment: PluginEnvironment) => void): Disposable;
+  };
   readonly navigation: PluginNavigation;
   readonly backend: PluginBackendClient;
   readonly pluginId: string;
   readonly workspaceId: string;
   readonly signal: AbortSignal;
-  readonly commands: { register(command: PluginCommand): Disposable };
+  readonly commands: { register(command: Localized<PluginCommand>): Disposable };
   readonly storage: PluginStorage;
   readonly pages: PluginPages;
   readonly windows?: PluginWindows;
@@ -135,7 +140,8 @@ export interface PluginDefinition {
   readonly name: string;
   readonly version: string;
   readonly apiVersion: 1;
-  readonly windows?: readonly PluginWindowDefinition[];
+  readonly i18n?: I18nDefinition;
+  readonly windows?: readonly Localized<PluginWindowDefinition>[];
   /** 静态声明，桌面与博客均装配同一份扩展；模块加载不得依赖桌面激活。 */
   readonly editorExtensions?: readonly PluginEditorExtension[];
   readonly whiteboardExtensions?: readonly WhiteboardExtension[];

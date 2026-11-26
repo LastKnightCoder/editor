@@ -1,5 +1,7 @@
 # 插件宿主
 
+插件词典、消息引用与语言环境遵循 [国际化](/docs/architecture/i18n.md)。
+
 > 桌面插件运行时全量：页面/窗口/渲染/MCP/AI/后台/静态内容/提供方/数据授权/中心/贡献位；作者侧见 [作者文档](/plugins/tau-plugin-template/docs/) 与 [plugin-portability](/docs/architecture/plugin-portability.md)。
 
 ## 插件页面与作者 API

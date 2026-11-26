@@ -1,3 +1,4 @@
+import { useAppearanceI18n } from "../appearanceI18n";
 /**
  * 字体选择器 —— Select 富 label：名称 + 预览句按该字体渲染（触发器与选项同构）。
  * 预览句与字体栈对齐 legacy SettingFontPicker（中文字形 / 拉丁字形 / 等宽字形）。
@@ -28,29 +29,33 @@ export function FontSelect({
   onChange: (font: string) => void;
   "aria-label"?: string;
 }) {
+  const { t, locale } = useAppearanceI18n();
+  const systemDefault = t("font.default");
+  const bundledLabel = t("font.bundled");
+  const preview = kind === "chinese" && locale === "zh-TW" ? "春風又綠江南岸" : FONT_PREVIEW[kind];
   const options = useMemo(() => {
     const bundled = BUNDLED_FONTS.filter(font => font.kind === kind).map(font => font.name);
     const list = [...new Set([...bundled, ...(fonts ?? [])])];
     if (value && !list.includes(value)) list.unshift(value);
     return ["", ...list.filter(Boolean)].map(f => ({
       value: f,
-      searchText: f || "系统默认",
+      searchText: f || systemDefault,
       label: (
         <span className="flex min-w-0 items-baseline gap-2.5">
           <span className="text-tau-sm text-ink-1 truncate">
-            {f || "系统默认"}
-            {BUNDLED_FONTS.some(font => font.name === f) && "（内置）"}
+            {f || systemDefault}
+            {BUNDLED_FONTS.some(font => font.name === f) && bundledLabel}
           </span>
           <span
             className="text-tau-meta text-ink-3 ml-auto flex-none truncate"
             style={{ fontFamily: resolveFontStack(kind === "code" ? "code" : "text", f) }}
           >
-            {FONT_PREVIEW[kind]}
+            {preview}
           </span>
         </span>
       ),
     }));
-  }, [fonts, value, kind]);
+  }, [fonts, value, kind, systemDefault, bundledLabel, preview]);
 
   return (
     <Select

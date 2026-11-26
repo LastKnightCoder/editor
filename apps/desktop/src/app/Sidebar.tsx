@@ -1,3 +1,4 @@
+import { useAppI18n } from "@/app/i18n/react";
 /**
  * 侧边栏 —— 模块条目来自 navigation.ts（数据驱动），样式 Tailwind 优先。
  * 收起态由 shellStore 驱动条件类；拖宽时由 AppShell 传 resizing 关宽度过渡；Mac 信号灯由 isMac 条件渲染。
@@ -25,6 +26,7 @@ import { openFeedbackWindow } from "@/commands/feedback";
 import useSettingStore from "@/stores/useSettingStore";
 
 export function Sidebar({ resizing }: { resizing: boolean }) {
+  const { t } = useAppI18n();
   const { navigator, state } = usePage();
   const plugins = useDesktopPlugins();
   const { isEnabled } = useFeatures();
@@ -55,7 +57,7 @@ export function Sidebar({ resizing }: { resizing: boolean }) {
 
   return (
     <nav
-      aria-label="主导航"
+      aria-label={t("shell.navigation")}
       className={clsx(
         "ease-tau-out flex flex-col pb-3 transition-[width,padding] duration-[220ms]",
         // 拖宽时宽度需逐帧跟随鼠标，关过渡避免 220ms 缓动滞后
@@ -97,13 +99,13 @@ export function Sidebar({ resizing }: { resizing: boolean }) {
             <span className="text-tau-body-lg font-semibold">Tau</span>
           </span>
         )}
-        <Tooltip content="展开侧边栏" placement="right" disabled={!collapsed}>
+        <Tooltip content={t("shell.expandSidebar")} placement="right" disabled={!collapsed}>
           <IconButton
             // 头部容器是窗口拖拽区，按钮必须 no-drag 让位，否则点击被拖拽劫持
             className={clsx("app-region-no-drag size-[27px]", collapsed ? "ml-0" : "ml-auto")}
             onClick={toggle}
-            title={collapsed ? undefined : "收起侧边栏"}
-            aria-label={collapsed ? "展开侧边栏" : "收起侧边栏"}
+            title={collapsed ? undefined : t("shell.collapseSidebar")}
+            aria-label={collapsed ? t("shell.expandSidebar") : t("shell.collapseSidebar")}
           >
             <ChevronsLeft
               size={16}
@@ -140,7 +142,9 @@ export function Sidebar({ resizing }: { resizing: boolean }) {
                   )}
                   onClick={() => toggleNavSection(collapseKey)}
                   aria-expanded={!folded}
-                  title={folded ? `展开「${section.label}」` : `收起「${section.label}」`}
+                  title={t(folded ? "shell.expandGroup" : "shell.collapseGroup", {
+                    name: section.label,
+                  })}
                 >
                   <ChevronDown
                     size="1em"

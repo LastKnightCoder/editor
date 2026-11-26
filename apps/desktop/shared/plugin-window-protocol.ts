@@ -8,6 +8,7 @@ import type {
 } from "@tau/plugins";
 import type { DesktopPluginPackage } from "./plugin-package";
 
+export const SYSTEM_LOCALE = "system.locale";
 export const SYSTEM_APPEARANCE = "system.appearance";
 export const WINDOW_PARAMS = "params";
 
@@ -38,6 +39,7 @@ export interface BootstrapSnapshot {
   readonly options: PluginWindowOptions;
   readonly endpoint: string;
   readonly appearance: StateSnapshot<AppearancePreference>;
+  readonly locale?: StateSnapshot<string>;
   readonly params: StateSnapshot<PluginWindowParams>;
 }
 
@@ -73,6 +75,7 @@ export interface MainWindowCalls extends CommunicationCalls {
   ];
   endpointReady: [{ endpoint: string }, void];
   publishTheme: [ThemePreference, void];
+  publishLocale: [{ locale: string }, void];
 }
 
 export interface WindowCommunicationEvents {

@@ -1,3 +1,4 @@
+import { desktopLocaleSource } from "../i18n/runtime";
 import type { PluginContext, PluginWindowDefinition, PluginWindows } from "@tau/plugins";
 import { assertLocalId } from "@tau/plugins/host";
 import { useThemeStore } from "@tau/themes/react";
@@ -29,14 +30,26 @@ async function publishTheme() {
   await transport.invoke("publishTheme", themePreference());
 }
 
-export function connectPluginWindowTheme() {
+const publishLocale = () =>
+  transport.invoke("publishLocale", { locale: desktopLocaleSource.getSnapshot() });
+
+export function connectPluginWindowEnvironment() {
   if (!isElectron) return;
   const sync = () =>
     void publishTheme().catch(error => console.error("插件窗口主题同步失败", error));
   sync();
-  return useThemeStore.subscribe((state, previous) => {
+  const stopTheme = useThemeStore.subscribe((state, previous) => {
     if (state.theme !== previous.theme || state.appearance !== previous.appearance) sync();
   });
+  const syncLocale = () => {
+    void publishLocale().catch(error => console.error("插件窗口语言同步失败", error));
+  };
+  syncLocale();
+  const stopLocale = desktopLocaleSource.subscribe(syncLocale);
+  return () => {
+    stopTheme();
+    stopLocale();
+  };
 }
 
 export async function attachPluginWindows(
@@ -46,7 +59,8 @@ export async function attachPluginWindows(
 ) {
   if (!isElectron) return undefined;
   const windows = new Map<string, Pick<PluginWindowDefinition, "title" | "options">>();
-  for (const { id, title, options, component } of definitions) {
+  for (const definition of definitions) {
+    const { id, title, options, component } = definition;
     assertLocalId(id);
     if (
       windows.has(id) ||
@@ -55,10 +69,16 @@ export async function attachPluginWindows(
       (typeof component !== "function" && (typeof component !== "object" || !component))
     )
       throw new Error("插件窗口声明无效");
-    windows.set(id, { title, options: readWindowOptions(options) });
+    windows.set(id, {
+      get title() {
+        return definition.title;
+      },
+      options: readWindowOptions(options),
+    });
   }
 
   await publishTheme();
+  await publishLocale();
   context.signal.throwIfAborted();
   const connection = connectWindowCommunication(transport, context.signal, preference => ({
     ...preference,

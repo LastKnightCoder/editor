@@ -26,6 +26,7 @@
  * 富行；触发器回填 label 本体，富 label 请保持单行紧凑）。
  */
 
+import { useUiI18n } from "../i18n";
 import {
   useEffect,
   useId,
@@ -118,12 +119,12 @@ export function Select<V = string>({
   defaultValue = null,
   onValueChange,
   multiple = false,
-  placeholder = "请选择",
+  placeholder: placeholderProp,
   size = "md",
   searchable = false,
   creatable = false,
   filter,
-  emptyText = "无匹配项",
+  emptyText: emptyTextProp,
   matchTriggerWidth = true,
   status,
   disabled = false,
@@ -132,6 +133,9 @@ export function Select<V = string>({
   className,
   ref,
 }: SelectProps<V>) {
+  const { t } = useUiI18n();
+  const placeholder = placeholderProp ?? t("selectPlaceholder");
+  const emptyText = emptyTextProp ?? t("empty");
   const portalContainer = usePortalContainer();
   const rootRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -379,7 +383,7 @@ export function Select<V = string>({
               aria-activedescendant={hlOptionId}
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder={creatable ? "搜索或输入自定义值…" : "输入过滤…"}
+              placeholder={creatable ? t("searchOrCreate") : t("filter")}
               className="text-ink-1 placeholder:text-ink-3 h-[30px] w-full bg-transparent pr-2.5 pl-7 text-[12.5px] outline-none"
             />
           </div>
@@ -392,7 +396,7 @@ export function Select<V = string>({
               key={`g-${row.key}`}
               className="text-ink-3 text-tau-tiny px-2.5 pt-2 pb-1 font-semibold first:pt-1"
             >
-              {row.key || "其他"}
+              {row.key || t("other")}
             </div>
           ) : (
             <div
@@ -438,7 +442,7 @@ export function Select<V = string>({
             )}
           >
             <Plus aria-hidden className="size-[13px] shrink-0" strokeWidth={2} />
-            <span className="min-w-0 flex-1 truncate">使用 &ldquo;{createValue}&rdquo;</span>
+            <span className="min-w-0 flex-1 truncate">{t("useValue", { value: createValue })}</span>
           </div>
         )}
         {visible.length === 0 && !showCreatable && (
@@ -491,7 +495,7 @@ export function Select<V = string>({
             ? selected.map((option, index) => (
                 <span key={index}>
                   {option.label}
-                  {index < selected.length - 1 && "、"}
+                  {index < selected.length - 1 && t("separator")}
                 </span>
               ))
             : // 非受控 creatable：创建值不在 options 里，回显原始值兜底

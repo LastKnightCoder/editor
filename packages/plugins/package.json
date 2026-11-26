@@ -78,6 +78,7 @@
     "slate": "0.126.2",
     "@tau/editor": "workspace:*",
     "@tau/markdown": "workspace:*",
-    "@tau/asr": "workspace:*"
+    "@tau/asr": "workspace:*",
+    "@tau/i18n": "workspace:*"
   }
 }

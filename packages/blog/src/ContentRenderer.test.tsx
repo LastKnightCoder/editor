@@ -192,9 +192,10 @@ it("项目文档列表使用共用卡片布局，标题、摘要与卡片整体�
   }
 });
 
-it("公开参数只有正文、路由与语义插槽，不暴露编辑器装配", () => {
+it("公开参数承载正文、语言、路由与语义插槽，不暴露编辑器装配", () => {
   expectTypeOf<keyof ContentRendererProps>().toEqualTypeOf<
     | "content"
+    | "locale"
     | "nodes"
     | "hrefFor"
     | "renderLink"

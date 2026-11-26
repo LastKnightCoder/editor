@@ -1,3 +1,12 @@
+import { defineI18n as snapshotI18n } from "@tau/i18n";
+export {
+  defineI18n,
+  type I18nDefinition,
+  type I18nMessage,
+  type DisplayText,
+  type TranslationValues,
+} from "@tau/i18n";
+export { useI18n } from "@tau/i18n/react";
 import type { PluginDefinition } from "./contract";
 export { usePluginEnvironment } from "./environment";
 export type { PluginEnvironment } from "./environment";
@@ -188,6 +197,7 @@ export function definePlugin(
   return Object.freeze({
     ...definition,
     apiVersion: 1,
+    ...(definition.i18n ? { i18n: snapshotI18n(definition.i18n) } : {}),
     create: definition.create ?? (() => ({ activate: () => undefined })),
   });
 }

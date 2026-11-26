@@ -33,6 +33,7 @@
  * 层级：遮罩容器 z-[340]（Select/Menu 250 < Tooltip 300 之上，Toast 360 之下——弹窗里的操作反馈须可见）。
  */
 
+import { useUiI18n } from "../i18n";
 import {
   createContext,
   use,
@@ -140,6 +141,7 @@ export function Dialog({
   className,
   ref,
 }: DialogProps) {
+  const { t } = useUiI18n();
   const portalContainer = usePortalContainer();
   const cardRef = useRef<HTMLDivElement | null>(null);
   const lastActiveRef = useRef<HTMLElement | null>(null);
@@ -292,7 +294,7 @@ export function Dialog({
                 {!critical && (
                   <IconButton
                     type="button"
-                    aria-label="关闭"
+                    aria-label={t("close")}
                     disabled={locked}
                     onClick={requestClose}
                     className="absolute top-3 right-3 size-[28px] rounded-[8px]"

@@ -9,6 +9,7 @@
  * 跟随；编辑器内容经 --font-size 1:1 跟随）；图片外观仍只作用于内容区图片。
  */
 
+import { useAppearanceI18n, type AppearanceKey } from "../appearanceI18n";
 import { useQuery } from "@tanstack/react-query";
 import { Minus, Plus } from "lucide-react";
 import clsx from "clsx";
@@ -41,27 +42,28 @@ import { SettingsGroup } from "../components/SettingsGroup";
 const FONT_SIZE_MIN = 12;
 const FONT_SIZE_MAX = 24;
 
-const RADIUS_OPTIONS: Array<{ value: ImageBorderRadiusPreset; label: string }> = [
-  { value: "none", label: "无圆角" },
-  { value: "sm", label: "小圆角" },
-  { value: "md", label: "中圆角" },
-  { value: "lg", label: "大圆角" },
+const RADIUS_OPTIONS: Array<{ value: ImageBorderRadiusPreset; label: AppearanceKey }> = [
+  { value: "none", label: "radius.none" },
+  { value: "sm", label: "radius.sm" },
+  { value: "md", label: "radius.md" },
+  { value: "lg", label: "radius.lg" },
 ];
 
-const SHADOW_OPTIONS: Array<{ value: ImageShadowPreset; label: string }> = [
-  { value: "none", label: "无阴影" },
-  { value: "sm", label: "小阴影" },
-  { value: "md", label: "中阴影" },
-  { value: "lg", label: "大阴影" },
+const SHADOW_OPTIONS: Array<{ value: ImageShadowPreset; label: AppearanceKey }> = [
+  { value: "none", label: "shadow.none" },
+  { value: "sm", label: "shadow.sm" },
+  { value: "md", label: "shadow.md" },
+  { value: "lg", label: "shadow.lg" },
 ];
 
-const APPEARANCE_OPTIONS: Array<{ value: Appearance; caption: string }> = [
-  { value: "system", caption: "跟随系统" },
-  { value: "light", caption: "浅色" },
-  { value: "dark", caption: "深色" },
+const APPEARANCE_OPTIONS: Array<{ value: Appearance; caption: AppearanceKey }> = [
+  { value: "system", caption: "mode.system" },
+  { value: "light", caption: "mode.light" },
+  { value: "dark", caption: "mode.dark" },
 ];
 
 export function AppearanceSection() {
+  const { t } = useAppearanceI18n();
   const setting = useSettingStore(s => s.setting);
   const onFontSettingChange = useSettingStore(s => s.onFontSettingChange);
   const { fontSetting, appearance } = setting;
@@ -118,14 +120,14 @@ export function AppearanceSection() {
 
   return (
     <>
-      <SettingsGroup title="明暗" description="跟随系统时，按系统明暗切换当前主题的深浅配色">
+      <SettingsGroup title={t("mode.title")} description={t("mode.description")}>
         <div className="grid grid-cols-3 gap-3 px-1.5 pt-2.5 pb-1">
           {APPEARANCE_OPTIONS.map(option => (
             <ChoiceCard
               key={option.value}
               active={appearancePref === option.value}
               onSelect={() => setAppearance(option.value)}
-              caption={option.caption}
+              caption={t(option.caption)}
             >
               {option.value === "system" ? (
                 <SplitPreview theme={currentTheme} lit={appearancePref === "system"} />
@@ -139,15 +141,15 @@ export function AppearanceSection() {
           ))}
         </div>
         <div className="text-tau-meta text-ink-2 px-3 pt-1.5 pb-2">
-          当前生效：
+          {t("mode.active")}
           <span className="text-ink-1 font-medium">
-            {currentTheme.name} · {mode === "dark" ? "深色" : "浅色"}
+            {currentTheme.name} · {mode === "dark" ? t("mode.dark") : t("mode.light")}
           </span>
-          {appearancePref === "system" && "（跟随系统）"}
+          {appearancePref === "system" && t("mode.following")}
         </div>
       </SettingsGroup>
 
-      <SettingsGroup title="主题" description="每套主题都包含深浅两套配色">
+      <SettingsGroup title={t("theme.title")} description={t("theme.description")}>
         <div className="grid grid-cols-3 gap-3 px-1.5 pt-2.5 pb-2.5">
           {themes.map(theme => (
             <ChoiceCard
@@ -162,17 +164,17 @@ export function AppearanceSection() {
         </div>
       </SettingsGroup>
 
-      <SettingsGroup title="背景">
-        <SettingRow title="渐变背景" description="按当前主题在窗口背后铺一层柔和渐变">
+      <SettingsGroup title={t("background.title")}>
+        <SettingRow title={t("background.gradient")} description={t("background.description")}>
           <Switch
-            aria-label="渐变背景"
+            aria-label={t("background.gradient")}
             checked={backdropEnabled}
             onCheckedChange={enabled => updateBackdrop({ enabled })}
           />
         </SettingRow>
-        <SettingRow title="动态效果" description="色块缓慢流动；系统开启「减少动态效果」时始终静止">
+        <SettingRow title={t("background.motion")} description={t("background.motionDescription")}>
           <Switch
-            aria-label="渐变动态效果"
+            aria-label={t("background.motionLabel")}
             checked={backdropMotion}
             disabled={!backdropEnabled}
             onCheckedChange={motion => updateBackdrop({ motion })}
@@ -180,35 +182,35 @@ export function AppearanceSection() {
         </SettingRow>
       </SettingsGroup>
 
-      <SettingsGroup title="字体" description="界面与编辑器内容统一生效">
-        <SettingRow title="中文字体">
+      <SettingsGroup title={t("font.title")} description={t("font.description")}>
+        <SettingRow title={t("font.chinese")}>
           <FontSelect
             kind="chinese"
-            aria-label="中文字体"
+            aria-label={t("font.chinese")}
             value={fontSetting.chineseFont}
             fonts={fonts}
             onChange={chineseFont => onFontSettingChange({ ...fontSetting, chineseFont })}
           />
         </SettingRow>
-        <SettingRow title="英文字体">
+        <SettingRow title={t("font.english")}>
           <FontSelect
             kind="english"
-            aria-label="英文字体"
+            aria-label={t("font.english")}
             value={fontSetting.englishFont}
             fonts={fonts}
             onChange={englishFont => onFontSettingChange({ ...fontSetting, englishFont })}
           />
         </SettingRow>
-        <SettingRow title="代码字体" description="代码块与界面中的等宽文本">
+        <SettingRow title={t("font.code")} description={t("font.codeDescription")}>
           <FontSelect
             kind="code"
-            aria-label="代码字体"
+            aria-label={t("font.code")}
             value={fontSetting.codeFont}
             fonts={fonts}
             onChange={codeFont => onFontSettingChange({ ...fontSetting, codeFont })}
           />
         </SettingRow>
-        <SettingRow title="字号" description="编辑器正文 1:1 跟随，界面半速跟随">
+        <SettingRow title={t("font.size")} description={t("font.sizeDescription")}>
           <FontSizeStepper
             value={fontSetting.fontSize}
             onChange={fontSize => onFontSettingChange({ ...fontSetting, fontSize })}
@@ -216,14 +218,14 @@ export function AppearanceSection() {
         </SettingRow>
       </SettingsGroup>
 
-      <SettingsGroup title="高亮" description="背景高亮的笔触，对所有文档和发布的博客生效">
+      <SettingsGroup title={t("highlight.title")} description={t("highlight.description")}>
         <div className="grid grid-cols-4 gap-3 px-1.5 pt-2.5 pb-2.5">
           {HIGHLIGHT_STYLES.map(style => (
             <ChoiceCard
               key={style.id}
               active={highlightStyle === style.id}
               onSelect={() => updateHighlightStyle(style.id)}
-              caption={style.label}
+              caption={t(`highlight.${style.id}`)}
             >
               <HighlightPreview style={style.id} />
             </ChoiceCard>
@@ -231,22 +233,28 @@ export function AppearanceSection() {
         </div>
       </SettingsGroup>
 
-      <SettingsGroup title="内容图片" description="单图与图库未单独指定时的默认外观">
-        <SettingRow title="圆角">
+      <SettingsGroup title={t("image.title")} description={t("image.description")}>
+        <SettingRow title={t("image.radius")}>
           <Select
-            aria-label="图片圆角"
+            aria-label={t("image.radiusLabel")}
             className="w-[150px]"
             value={appearance?.image?.borderRadius ?? "none"}
-            options={RADIUS_OPTIONS}
+            options={RADIUS_OPTIONS.map(option => ({
+              value: option.value,
+              label: t(option.label),
+            }))}
             onValueChange={v => updateImage({ borderRadius: v as ImageBorderRadiusPreset })}
           />
         </SettingRow>
-        <SettingRow title="阴影">
+        <SettingRow title={t("image.shadow")}>
           <Select
-            aria-label="图片阴影"
+            aria-label={t("image.shadowLabel")}
             className="w-[150px]"
             value={imageShadow}
-            options={SHADOW_OPTIONS}
+            options={SHADOW_OPTIONS.map(option => ({
+              value: option.value,
+              label: t(option.label),
+            }))}
             onValueChange={v => updateImage({ shadow: v as ImageShadowPreset })}
           />
         </SettingRow>
@@ -303,18 +311,19 @@ function ChoiceCard({
 
 /** 笔触预览：两段不同色的高亮，画在当前明暗下 */
 function HighlightPreview({ style }: { style: HighlightStyle }) {
+  const { t } = useAppearanceI18n();
   return (
     <div className="text-tau-body text-ink-1 absolute inset-0 flex flex-col justify-center gap-1.5 px-3 leading-[1.7]">
       <span>
         <HighlightMark type="yellow" variant={style}>
-          间隔重复
+          {t("preview.review")}
         </HighlightMark>
-        更有效
+        {t("preview.reviewSuffix")}
       </span>
       <span>
-        先
+        {t("preview.recallPrefix")}
         <HighlightMark type="green" variant={style}>
-          提取练习
+          {t("preview.recall")}
         </HighlightMark>
       </span>
     </div>
@@ -392,6 +401,7 @@ function SplitPreview({ theme, lit }: { theme: ThemeDefinition; lit: boolean }) 
 
 /** 字号 stepper：−/值/+（边界禁用；NumberInput 的键入形态不适合这里的三击节奏） */
 function FontSizeStepper({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const { t } = useAppearanceI18n();
   const dec = () => onChange(Math.max(FONT_SIZE_MIN, value - 1));
   const inc = () => onChange(Math.min(FONT_SIZE_MAX, value + 1));
   return (
@@ -400,7 +410,7 @@ function FontSizeStepper({ value, onChange }: { value: number; onChange: (v: num
         type="button"
         onClick={dec}
         disabled={value <= FONT_SIZE_MIN}
-        aria-label="减小字号"
+        aria-label={t("font.decrease")}
         className="text-ink-2 hover:bg-hover hover:text-ink-1 grid size-[30px] place-items-center disabled:pointer-events-none disabled:opacity-35"
       >
         <Minus size={13} strokeWidth={1.75} />
@@ -410,7 +420,7 @@ function FontSizeStepper({ value, onChange }: { value: number; onChange: (v: num
         type="button"
         onClick={inc}
         disabled={value >= FONT_SIZE_MAX}
-        aria-label="增大字号"
+        aria-label={t("font.increase")}
         className="text-ink-2 hover:bg-hover hover:text-ink-1 grid size-[30px] place-items-center disabled:pointer-events-none disabled:opacity-35"
       >
         <Plus size={13} strokeWidth={1.75} />

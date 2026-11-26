@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { screen, webContents, BrowserWindow } from "electron";
 import {
   SYSTEM_APPEARANCE,
+  SYSTEM_LOCALE,
   WINDOW_PARAMS,
   type BootstrapSnapshot,
   type OpenRequest,
@@ -208,6 +209,10 @@ export class PluginWindows {
       artifact: instance.artifact,
       endpoint: instance.endpoint,
       appearance: appearance as BootstrapSnapshot["appearance"],
+      locale: this.communication.read({
+        scope: "app",
+        key: SYSTEM_LOCALE,
+      }) as BootstrapSnapshot["locale"],
       params: this.params(instance),
     };
   }

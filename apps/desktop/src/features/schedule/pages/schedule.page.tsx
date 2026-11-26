@@ -1,3 +1,4 @@
+import { appMessages } from "@/app/i18n/messages";
 /**
  * 日程页 page 定义（legacy Calendar 迁入；时间记录不并入本页）。
  * eventId = 外部定位到某条日程（今日页日程卡等入口），进入后翻到该日程所在日期并打开详情，参数随即消费掉。
@@ -14,7 +15,7 @@ const schema = createPageSchema({
 export default definePage({
   key: "schedule",
   match: "single",
-  label: "日程",
+  label: appMessages.ref("nav.schedule"),
   params: schema.schema,
   component: ScheduleView,
 });

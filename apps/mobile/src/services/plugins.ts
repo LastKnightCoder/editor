@@ -1,3 +1,4 @@
+import type { PluginEnvironmentInput } from "@tau/plugins/environment-host";
 import { comparePluginVersions } from "@tau/plugins/package";
 import { invoke } from "@tauri-apps/api/core";
 import type { StorageAdapter } from "@tau/plugins/host";
@@ -101,7 +102,7 @@ export const cancelMobilePlugin = (id: string) => invoke<void>("plugin_cancel", 
 
 export async function verifyMobilePlugin(
   artifact: MobilePluginArtifact,
-  environment: PluginEnvironment,
+  environment: PluginEnvironmentInput,
   appVersion: string
 ) {
   const manifest = validateMobilePackageManifest(artifact.manifest);
@@ -139,7 +140,7 @@ export async function verifyMobilePlugin(
 
 export async function installMobilePlugin(
   source: PluginInstallSource,
-  environment: PluginEnvironment,
+  environment: PluginEnvironmentInput,
   appVersion: string,
   signal?: AbortSignal
 ) {

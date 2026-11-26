@@ -13,6 +13,8 @@ import { LinkContext, type LinkRenderProps } from "./contentLink";
 import { outlineOf, type OutlineHeading } from "./outline";
 
 export interface ContentRendererProps {
+  /** 发布站提供的界面语言，不改变正文语言。 */
+  locale?: string;
   /** readData 的返回值。 */
   content: DataResult;
   /** 改为渲染同一份数据里的其他正文段；默认渲染 content.data.content.content。 */
@@ -31,6 +33,7 @@ export interface ContentRendererProps {
 
 export function ContentRenderer({
   content,
+  locale = "zh-CN",
   nodes,
   hrefFor,
   renderLink,
@@ -42,15 +45,19 @@ export function ContentRenderer({
   const environment = useMemo(
     () =>
       typeof window !== "undefined" && typeof window.matchMedia === "function"
-        ? createBrowserPluginEnvironment("web", window)
+        ? createBrowserPluginEnvironment("web", window, {
+            getSnapshot: () => locale,
+            subscribe: () => () => undefined,
+          })
         : {
             ...createPluginEnvironmentStore({
               platform: "web",
+              locale,
               input: { coarsePointer: false, finePointer: false },
             }),
             connect: () => undefined,
           },
-    []
+    [locale]
   );
   useEffect(() => environment.connect(), [environment]);
   const [state, setState] = useState<

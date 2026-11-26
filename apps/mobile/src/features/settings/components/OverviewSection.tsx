@@ -1,3 +1,5 @@
+import { useMobileI18n } from "../../../services/i18n-react";
+import { APP_LANGUAGES, normalizeLanguagePreference } from "@tau/shared/language";
 // 我的页根视图（v2 模板）：行内直显关键值，数据域入口收敛为两个独立页面——
 // 数据库同步（同步中心：状态 + 服务 + 数据库切换）/ 资源与存储（资源同步 + 存储目标）。
 // 外观（主题 / 图片渲染 / 背景高亮 / 正文字体 overlay 路由页）/ 编辑器（打开文档时）/ 关于与更新（版本、新版本提示）。
@@ -196,6 +198,7 @@ export function OverviewSection(props: OverviewSectionProps) {
       </SettingsGroup>
 
       <SettingsGroup title="外观">
+        <LanguageItem />
         <ListItem
           icon={<IconMoon />}
           label="主题"
@@ -410,5 +413,41 @@ function ListItem({
         {onClick && <span className="text-ink-3">›</span>}
       </span>
     </button>
+  );
+}
+
+function LanguageItem() {
+  const { syncSettings } = useAppContext();
+  const { t } = useMobileI18n();
+  const [open, setOpen] = useState(false);
+  const value = normalizeLanguagePreference(syncSettings.safeSetting?.language);
+  const options = [
+    { value: "system", label: t("system") },
+    ...APP_LANGUAGES.map(item => ({ value: item.locale, label: item.label })),
+  ];
+  return (
+    <>
+      <ListItem
+        icon={<IconType />}
+        label={t("language")}
+        value={options.find(item => item.value === value)?.label}
+        onClick={() => setOpen(true)}
+      />
+      <ActionSheet
+        open={open}
+        title={t("language")}
+        items={options.map(option => ({
+          label: option.label,
+          selected: option.value === value,
+          onClick: () =>
+            syncSettings.updateSetting(
+              previous => ({ ...previous, language: normalizeLanguagePreference(option.value) }),
+              { persist: true }
+            ),
+        }))}
+        onClose={() => setOpen(false)}
+      />
+      <p className="text-ink-3 px-4 text-xs">{t("description")}</p>
+    </>
   );
 }

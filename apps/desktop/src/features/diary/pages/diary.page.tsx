@@ -1,3 +1,4 @@
+import { appMessages } from "@/app/i18n/messages";
 /**
  * 日记 page 定义：key "diary" 与 navigation.ts 一致，真实注册接管侧边栏入口
  * （legacy.tsx 的占位同步删除）。全局一份（single）；id = 标签频道（侧栏子项），
@@ -18,7 +19,7 @@ const schema = createPageSchema({
 export default definePage({
   key: "diary",
   match: "single",
-  label: "日记",
+  label: appMessages.ref("nav.diary"),
   params: schema.schema,
   component: DiaryView,
 });

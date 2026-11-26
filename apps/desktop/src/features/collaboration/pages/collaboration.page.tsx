@@ -1,3 +1,4 @@
+import { appMessages } from "@/app/i18n/messages";
 /**
  * 协作 page 定义：key "collaboration" 与 navigation.ts 一致，真实注册接管侧边栏入口
  * （legacy.tsx 的占位同步删除）。全局一份（single）；当前内容是可选参数 id，
@@ -13,7 +14,7 @@ const schema = createPageSchema({ id: paramOptional(paramString()) });
 export default definePage({
   key: "collaboration",
   match: "single",
-  label: "协作",
+  label: appMessages.ref("nav.collaboration"),
   params: schema.schema,
   component: CollaborationView,
 });

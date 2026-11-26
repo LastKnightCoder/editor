@@ -73,7 +73,8 @@
     "zustand": "^4.5.7",
     "@tau/asr": "workspace:*",
     "@tau/chat-ui": "workspace:*",
-    "@tau/ai": "workspace:*"
+    "@tau/ai": "workspace:*",
+    "@tau/i18n": "workspace:*"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.3.3",

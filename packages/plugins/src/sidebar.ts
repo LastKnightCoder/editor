@@ -1,3 +1,4 @@
+import type { Localized } from "@tau/i18n";
 import type { Disposable } from "./contract";
 import type { PluginPageHandle, PluginPageParams } from "./pages";
 import type { PluginIcon, PluginIconProps } from "./icons";
@@ -83,9 +84,9 @@ export interface PluginSidebarItemHandle extends Disposable {
 }
 
 export interface PluginSidebar {
-  registerGroup(definition: PluginSidebarGroupDefinition): PluginSidebarGroupHandle;
+  registerGroup(definition: Localized<PluginSidebarGroupDefinition>): PluginSidebarGroupHandle;
   /** 条目所在页面在栈顶且侧栏展开时，子项与动作行展开在条目下方 */
-  registerItem(definition: PluginSidebarItemDefinition): PluginSidebarItemHandle;
+  registerItem(definition: Localized<PluginSidebarItemDefinition>): PluginSidebarItemHandle;
   /**
    * 拖拽类型：插件页面拖起数据时用 dataTransfer.setData(dragType(type), data)，
    * 子项 onDrop 声明同一个 type 才能接收；宿主和其他插件的拖拽不会落到插件子项上。

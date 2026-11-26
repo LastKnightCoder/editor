@@ -1,3 +1,5 @@
+import { I18nRuntimeProvider } from "@tau/i18n/react";
+import { connectMobileI18n, mobileI18n } from "./services/i18n";
 import "./utils/console-logger-install";
 import React from "react";
 import ReactDOM from "react-dom/client";
@@ -63,6 +65,8 @@ class AppErrorBoundary extends React.Component<React.PropsWithChildren, ErrorBou
 // 在此设为 true 并打 debug 包，用法见 docs/slate-react-Android光标修复与补丁维护指南.md
 
 initPerfObservers();
+const stopI18n = connectMobileI18n();
+import.meta.hot?.dispose(stopI18n);
 
 if (isTauri()) {
   const release = installExternalLinkBridge(window, openUrl, message => {
@@ -72,7 +76,9 @@ if (isTauri()) {
 }
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
-  <AppErrorBoundary>
-    <App />
-  </AppErrorBoundary>
+  <I18nRuntimeProvider runtime={mobileI18n}>
+    <AppErrorBoundary>
+      <App />
+    </AppErrorBoundary>
+  </I18nRuntimeProvider>
 );

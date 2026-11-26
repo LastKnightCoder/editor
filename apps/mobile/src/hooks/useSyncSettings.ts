@@ -1,3 +1,4 @@
+import { normalizeLanguagePreference } from "@tau/shared/language";
 import { useMemo, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import type {
@@ -36,6 +37,7 @@ export function normalizeSetting(setting: SettingCompat): SettingCompat {
 
   return {
     ...raw,
+    language: normalizeLanguagePreference(raw.language),
     ttsProviders: Array.isArray(raw.ttsProviders) ? raw.ttsProviders : [],
     ttsUsageSettings: {
       ...ttsUsageSettings,

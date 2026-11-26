@@ -1,3 +1,8 @@
+import {
+  createBrowserPluginEnvironment,
+  PluginEnvironmentProvider,
+} from "@tau/plugins/environment-host";
+import { createI18nRuntime, createLocaleStore } from "@tau/i18n";
 import { createRoot } from "react-dom/client";
 import { Component, useLayoutEffect, type ReactNode } from "react";
 import { sharedPluginModules } from "@tau/plugins/shared-modules";
@@ -53,6 +58,10 @@ class WindowBoundary extends Component<{ children: ReactNode }, { failed: boolea
 }
 
 async function start() {
+  const localeSource = createLocaleStore("zh-CN");
+  const environment = createBrowserPluginEnvironment("desktop", window, localeSource);
+  const stopEnvironment = environment.connect();
+  const translations = createI18nRuntime({ localeSource });
   const runtime = createThemeRuntime({ storage: () => null });
   let params: StateSnapshot<PluginWindowParams> | undefined;
   const viewUpdate: { render?: () => void } = {};
@@ -72,7 +81,8 @@ async function start() {
     snapshot => {
       params = snapshot;
       viewUpdate.render?.();
-    }
+    },
+    locale => localeSource.setLocale(locale)
   );
   const initial = await bridge.invoke("bootstrap", undefined);
   const stop = runtime.init({
@@ -87,10 +97,12 @@ async function start() {
       lifecycle.abort();
       stop();
       unsubscribe();
+      stopEnvironment();
+      translations.dispose();
     },
     { once: true }
   );
-  connection.bind(initial.endpoint, initial.appearance);
+  connection.bind(initial.endpoint, initial.appearance, initial.locale);
   connection.receiveParams(initial.params);
   const definition = evaluateDesktopPluginPackage(initial.artifact, sharedPluginModules, version);
   const view = definition.windows?.find(candidate => candidate.id === initial.windowId);
@@ -134,6 +146,20 @@ async function start() {
       });
   }
 
+  const title = () => {
+    if (typeof view.title === "string") return view.title;
+    if (!definition.i18n) throw new Error("插件窗口的文案引用缺少词典");
+    return translations.get(definition.i18n).resolve(view.title);
+  };
+  const syncTitle = () => {
+    document.title = title();
+    document.documentElement.lang = localeSource.getSnapshot();
+    viewUpdate.render?.();
+  };
+  const stopLocale = localeSource.subscribe(syncTitle);
+  lifecycle.signal.addEventListener("abort", stopLocale, { once: true });
+  document.title = title();
+  document.documentElement.lang = localeSource.getSnapshot();
   const View = view.component;
   // 独立入口由加载握手装配，Vite 热更新时重新加载窗口文档。
   // oxlint-disable-next-line react/only-export-components
@@ -154,31 +180,33 @@ async function start() {
   viewUpdate.render = () => {
     if (!params) return;
     root.render(
-      <WindowBoundary>
-        <UiProvider className="contents">
-          <PortalScope>
-            <UiHostProvider registerDismiss={registerDismiss}>
-              <div className="app bg-page font-tau text-tau-body text-ink-1 flex h-dvh flex-col overflow-hidden">
-                {initial.options.kind !== "normal" && (
-                  <div className="app-region-drag flex shrink-0 items-center justify-between gap-2 px-2">
-                    <span className="truncate">{view.title}</span>
-                    <IconButton
-                      className="app-region-no-drag"
-                      aria-label="关闭窗口"
-                      onClick={() => void close().catch(console.error)}
-                    >
-                      <X />
-                    </IconButton>
-                  </div>
-                )}
-                <main className="min-h-0 flex-1 overflow-auto">
-                  <Content snapshot={params} />
-                </main>
-              </div>
-            </UiHostProvider>
-          </PortalScope>
-        </UiProvider>
-      </WindowBoundary>
+      <PluginEnvironmentProvider source={environment}>
+        <WindowBoundary>
+          <UiProvider className="contents">
+            <PortalScope>
+              <UiHostProvider registerDismiss={registerDismiss}>
+                <div className="app bg-page font-tau text-tau-body text-ink-1 flex h-dvh flex-col overflow-hidden">
+                  {initial.options.kind !== "normal" && (
+                    <div className="app-region-drag flex shrink-0 items-center justify-between gap-2 px-2">
+                      <span className="truncate">{title()}</span>
+                      <IconButton
+                        className="app-region-no-drag"
+                        aria-label="关闭窗口"
+                        onClick={() => void close().catch(console.error)}
+                      >
+                        <X />
+                      </IconButton>
+                    </div>
+                  )}
+                  <main className="min-h-0 flex-1 overflow-auto">
+                    <Content snapshot={params} />
+                  </main>
+                </div>
+              </UiHostProvider>
+            </PortalScope>
+          </UiProvider>
+        </WindowBoundary>
+      </PluginEnvironmentProvider>
     );
   };
   viewUpdate.render();

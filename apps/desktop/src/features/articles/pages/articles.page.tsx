@@ -1,3 +1,4 @@
+import { appMessages } from "@/app/i18n/messages";
 /**
  * 文章 page 定义。
  * id = 标签筛选（侧栏子项，标签名，空 = 全部），切换经栈机原位更新参数，不堆历史。
@@ -14,7 +15,7 @@ const schema = createPageSchema({
 export default definePage({
   key: "articles",
   match: "single", // 列表页全局一份，重复进入原位激活
-  label: "文章",
+  label: appMessages.ref("nav.articles"),
   params: schema.schema,
   component: ArticlesView,
 });

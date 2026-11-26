@@ -1,3 +1,4 @@
+import { useAppI18n } from "@/app/i18n/react";
 /**
  * 标题栏 —— 右列专属，不横贯全宽；样式 Tailwind 优先。
  */
@@ -28,6 +29,7 @@ import { SubagentAttention } from "@/features/chat/components/subagents/Subagent
 import { useFeatureEnabled } from "./featureQueries";
 
 export function Titlebar() {
+  const { resolve, t } = useAppI18n();
   const { navigator, state, breadcrumbs } = usePage();
   const togglePalette = useSearchStore(s => s.togglePalette);
 
@@ -59,7 +61,7 @@ export function Titlebar() {
   const expandedView = useVisibleAssist().expanded;
   const collapseExpanded = () => useShellStore.getState().setAssistExpanded(false);
 
-  const crumb = currentKey ? (getPageMeta(currentKey)?.label ?? currentKey) : "";
+  const crumb = currentKey ? resolve(getPageMeta(currentKey)?.label ?? currentKey) : "";
   /* 页面注册的自定义面包屑（usePageBreadcrumb）整条替换默认「label」；
      自定义内容可能可交互（如文章详情的速切器），须让出拖拽区 */
   const customCrumb = currentKey ? breadcrumbs.get(currentKey) : undefined;
@@ -72,16 +74,16 @@ export function Titlebar() {
         <IconButton
           onClick={() => (expandedView ? collapseExpanded() : navigator.back())}
           disabled={!canBack}
-          title={expandedView ? "收回右栏" : "后退 (Alt+←)"}
-          aria-label="后退"
+          title={expandedView ? t("shell.collapseDock") : t("shell.backHint")}
+          aria-label={t("shell.back")}
         >
           <ArrowLeft size={17} strokeWidth={1.75} />
         </IconButton>
         <IconButton
           onClick={() => navigator.forward()}
           disabled={!canForward}
-          title="前进 (Alt+→)"
-          aria-label="前进"
+          title={t("shell.forwardHint")}
+          aria-label={t("shell.forward")}
         >
           <ArrowRight size={17} strokeWidth={1.75} />
         </IconButton>
@@ -98,11 +100,11 @@ export function Titlebar() {
       <button
         type="button"
         onClick={togglePalette}
-        title="搜索或跳转 (Ctrl+K)"
+        title={t("shell.searchHint")}
         className="app-region-no-drag bg-surface text-tau-sm text-ink-2 shadow-card hover:border-accent hover:text-ink-1 flex h-[30px] items-center gap-2 rounded-full border border-transparent pr-1 pl-3"
       >
         <Search size={13} strokeWidth={1.75} />
-        搜索或跳转…
+        {t("shell.search")}
         <kbd className="bg-hover text-tau-tiny text-ink-2 inline-flex h-5 items-center rounded-md px-1.5 font-mono">
           Ctrl K
         </kbd>
@@ -135,6 +137,7 @@ export function focusKeyOf(entry: { key: string; params: Record<string, unknown>
 
 /** 知识地图入口：在地图页时选中态，再点回到原处 */
 function KnowledgeMapToggle() {
+  const { t } = useAppI18n();
   const { navigator, state } = usePage();
   const top = state.back[state.back.length - 1];
   const active = top?.key === "knowledge-map";
@@ -149,8 +152,8 @@ function KnowledgeMapToggle() {
           const focus = focusKeyOf(top);
           navigator.push("knowledge-map", focus ? { focus } : {});
         }}
-        title={active ? "返回" : "知识地图"}
-        aria-label="知识地图"
+        title={active ? t("shell.return") : t("shell.map")}
+        aria-label={t("shell.map")}
         aria-pressed={active}
         className={active ? "bg-selected text-accent-text hover:bg-selected" : undefined}
       >
@@ -162,14 +165,15 @@ function KnowledgeMapToggle() {
 
 /** AI 对话停靠栏开关：打开时 accent 轻染（同侧栏选中语言） */
 function AssistToggle() {
+  const { t } = useAppI18n();
   const open = useShellStore(s => s.assistView === "chat");
   const toggle = useShellStore(s => s.toggleAssist);
   return (
     <div className="app-region-no-drag">
       <IconButton
         onClick={toggle}
-        title={open ? "收起 AI 对话 (Ctrl+J)" : "AI 对话 (Ctrl+J)"}
-        aria-label="AI 对话"
+        title={open ? t("shell.collapseChat") : t("shell.chatHint")}
+        aria-label={t("nav.chat")}
         aria-pressed={open}
         className={open ? "bg-selected text-accent-text hover:bg-selected" : undefined}
       >
@@ -180,26 +184,27 @@ function AssistToggle() {
 }
 
 const APPEARANCE_LABELS = {
-  light: "浅色",
-  dark: "深色",
-  system: "跟随系统",
+  light: "shell.light",
+  dark: "shell.dark",
+  system: "shell.system",
 } as const;
 
 /** 快捷明暗切换：icon 反映当前偏好，点击按 浅色 → 深色 → 跟随系统 循环（不动主题族）。 */
 export function ThemeToggle() {
+  const { t } = useAppI18n();
   const appearance = useThemeStore(s => s.appearance);
   const mode = useThemeStore(s => s.mode);
   const setAppearance = useThemeStore(s => s.setAppearance);
 
-  const label = APPEARANCE_LABELS[appearance];
+  const label = t(APPEARANCE_LABELS[appearance]);
   const Icon = appearance === "system" ? Monitor : mode === "dark" ? Moon : Sun;
 
   return (
     <div className="app-region-no-drag">
       <IconButton
         onClick={() => setAppearance(nextAppearance(appearance))}
-        title={`明暗：${label}（点击切换）`}
-        aria-label={`切换明暗模式，当前：${label}`}
+        title={t("shell.modeHint", { mode: label })}
+        aria-label={t("shell.modeLabel", { mode: label })}
       >
         <Icon size={17} strokeWidth={1.75} />
       </IconButton>

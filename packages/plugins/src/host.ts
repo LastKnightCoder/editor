@@ -1,3 +1,15 @@
+import type { PluginHomePanelInput } from "./home";
+import type { PluginWindowDefinition } from "./windows";
+import {
+  createI18nRuntime,
+  bindI18nFields,
+  defineI18n,
+  type I18nDefinition,
+  type I18nRuntime,
+  type DisplayText,
+  type Localized,
+  type TranslationValues,
+} from "@tau/i18n";
 import {
   readDirectoryFields,
   type DirectoryEntity,
@@ -34,6 +46,7 @@ import {
   createPluginEnvironmentStore,
   snapshotPluginEnvironment,
   type PluginEnvironment,
+  type PluginEnvironmentInput,
   type PluginEnvironmentSource,
 } from "./environment";
 import type { PluginNavigationEntry } from "./navigation";
@@ -69,7 +82,7 @@ import {
   type PluginSidebarItemState,
   type PluginSidebarItemUpdate,
 } from "./sidebar";
-import type { PluginHomePanelDefinition, RegisteredHomePanelDefinition } from "./home";
+import type { RegisteredHomePanelDefinition } from "./home";
 import {
   PLUGIN_ACTION_TARGET_KINDS,
   snapshotActionTarget,
@@ -1176,6 +1189,8 @@ export interface PluginInfo {
 }
 
 interface Activation {
+  messages?: I18nDefinition;
+  i18n?: I18nRuntime;
   context?: PluginContext;
   windows?: PluginContext["windows"];
   contributions: Map<PluginContributionKind, number>;
@@ -1199,7 +1214,9 @@ type PluginMetadata = Pick<PluginDefinition, "id" | "name" | "version" | "apiVer
 };
 type WindowBinding = (
   context: PluginContext,
-  definition: PluginDefinition
+  definition: Omit<PluginDefinition, "windows"> & {
+    readonly windows?: readonly PluginWindowDefinition[];
+  }
 ) => Promise<
   | {
       api: NonNullable<PluginContext["windows"]>;
@@ -1333,12 +1350,13 @@ export class PluginHost {
   private revision = 0;
   private readonly listeners = new Set<() => void>();
   private readonly restartRequired: Set<string>;
+  private readonly unsubscribeEnvironment: (() => void) | undefined;
   private readonly environmentSource: PluginEnvironmentSource | undefined;
 
   constructor(
     private readonly options: {
       workspaceId: string;
-      environment?: PluginEnvironment;
+      environment?: PluginEnvironmentInput;
       environmentSource?: PluginEnvironmentSource;
       navigation?: {
         registerEntry(context: PluginContext, definition: PluginNavigationEntry): Disposable;
@@ -1433,6 +1451,13 @@ export class PluginHost {
         : {}),
     });
     this.restartRequired = options.restartRequired ?? new Set();
+    let locale = this.environmentSource?.getSnapshot().locale;
+    this.unsubscribeEnvironment = this.environmentSource?.subscribe(() => {
+      const next = this.environmentSource?.getSnapshot().locale;
+      if (next === locale) return;
+      locale = next;
+      this.changed();
+    });
   }
 
   getRevision = (): number => this.revision;
@@ -1548,6 +1573,16 @@ export class PluginHost {
               typeof definition.create !== "function"
             )
               throw new Error("插件定义与登记元信息不一致");
+            if (definition.i18n) {
+              activation.messages = defineI18n(definition.i18n);
+              activation.i18n = createI18nRuntime({
+                localeSource: {
+                  getSnapshot: () => this.environmentSource?.getSnapshot().locale ?? "zh-CN",
+                  subscribe: listener =>
+                    this.environmentSource?.subscribe(listener) ?? (() => undefined),
+                },
+              });
+            }
             activation.instance = definition.create();
             if (!activation.instance || typeof activation.instance.activate !== "function")
               throw new Error("插件实例缺少 activate");
@@ -1572,8 +1607,14 @@ export class PluginHost {
               );
               this.assertActive(entry, activation);
             }
-            activation.context = this.context(entry, activation);
-            const windows = await entry.bindWindows?.(activation.context, definition);
+            const context = this.context(entry, activation);
+            activation.context = context;
+            const windows = await entry.bindWindows?.(activation.context, {
+              ...definition,
+              windows: definition.windows?.map(window =>
+                bindI18nFields(window, ["title"], context.i18n.resolve)
+              ),
+            });
             this.assertActive(entry, activation);
             activation.windows = windows?.api;
             await activation.instance.activate(activation.context);
@@ -1649,6 +1690,7 @@ export class PluginHost {
   dispose(): Promise<void> {
     if (this.disposal) return this.disposal;
     this.closed = true;
+    this.unsubscribeEnvironment?.();
     this.disposal = (async () => {
       const results = await Promise.allSettled(
         [...this.entries.keys()].map(id => this.disable(id))
@@ -1829,6 +1871,27 @@ export class PluginHost {
       readEntityPatch,
       readLinkAdd,
     };
+    const resolveText = (text: DisplayText): string => {
+      this.assertActive(entry, activation);
+      if (typeof text === "string") return text;
+      if (!activation.i18n || !activation.messages) throw new Error("插件未声明 i18n 词典");
+      return activation.i18n.get(activation.messages).resolve(text);
+    };
+    context.i18n = Object.freeze({
+      resolve: resolveText,
+      t: (key: string, values?: TranslationValues) =>
+        resolveText({ kind: "i18n", key, ...(values ? { values } : {}) }),
+    });
+    context.environmentChanges = Object.freeze({
+      subscribe: (listener: (environment: PluginEnvironment) => void) => {
+        this.assertActive(entry, activation);
+        if (!environmentSource) throw new Error("当前宿主未提供插件环境");
+        const off = environmentSource.subscribe(() => {
+          if (!activation.controller.signal.aborted) listener(environmentSource.getSnapshot());
+        });
+        return register({ dispose: off });
+      },
+    });
     context.navigation = this.buildNavigationContext(deps);
     context.backend = this.buildBackendContext(deps);
     context.pluginId = scope.pluginId;
@@ -2051,7 +2114,8 @@ export class PluginHost {
     const { context, entry, activation, pages, registerAs } = deps;
     const navigationIds = new Set<string>();
     return Object.freeze({
-      registerEntry: (definition: PluginNavigationEntry) => {
+      registerEntry: (input: Localized<PluginNavigationEntry>) => {
+        const definition = bindI18nFields(input, ["title"], context.i18n.resolve);
         this.assertActive(entry, activation);
         assertLocalId(definition.id);
         if (!definition.title.trim()) throw new Error("功能入口标题不能为空");
@@ -2061,10 +2125,14 @@ export class PluginHost {
         if (!this.options.navigation) throw new Error("当前宿主不支持功能入口");
         const handle = this.options.navigation.registerEntry(
           context,
-          Object.freeze({
-            ...definition,
-            params: Object.freeze(normalizePageParams(definition.params ?? {})),
-          })
+          bindI18nFields(
+            {
+              ...input,
+              params: Object.freeze(normalizePageParams(definition.params ?? {})),
+            },
+            ["title"],
+            context.i18n.resolve
+          )
         );
         navigationIds.add(definition.id);
         const owned = registerAs("navigation", {
@@ -2582,7 +2650,8 @@ export class PluginHost {
   private buildSettingsContext(deps: ContextDeps): PluginContext["settings"] {
     const { context, entry, activation, registerAs } = deps;
     return Object.freeze({
-      register: (definition: PluginSettingsDefinition) => {
+      register: (input: Localized<PluginSettingsDefinition>) => {
+        const definition = bindI18nFields(input, ["title"], context.i18n.resolve);
         this.assertActive(entry, activation);
         assertLocalId(definition.id);
         if (!definition.title.trim()) throw new Error("设置分区标题不能为空");
@@ -2592,7 +2661,10 @@ export class PluginHost {
           assertProviderForm(definition.form);
         } else if (typeof definition.component !== "function") throw new Error("设置分区缺少组件");
         if (!this.options.settings) throw new Error("当前宿主不支持设置分区");
-        const handle = this.options.settings.register(context, Object.freeze({ ...definition }));
+        const handle = this.options.settings.register(
+          context,
+          bindI18nFields(input, ["title"], context.i18n.resolve)
+        );
         let disposed = false;
         const resource = registerAs("settings", {
           dispose: () => {
@@ -2614,21 +2686,26 @@ export class PluginHost {
   }
 
   private buildCommandsContext(deps: ContextDeps): PluginContext["commands"] {
-    const { entry, activation, scope, registerAs } = deps;
+    const { context, entry, activation, scope, registerAs } = deps;
     return Object.freeze({
-      register: (command: PluginCommand) => {
+      register: (input: Localized<PluginCommand>) => {
+        const command = bindI18nFields(input, ["title"], context.i18n.resolve);
         this.assertActive(entry, activation);
         assertLocalId(command.id);
         if (!command.title.trim()) throw new Error("命令标题不能为空");
         const id = `${scope.pluginId}:${command.id}`;
         if (this.commands.has(id)) throw new Error(`命令已注册：${id}`);
         const value = {
-          info: {
-            id,
-            pluginId: scope.pluginId,
-            pluginName: entry.metadata.name,
-            title: command.title,
-          },
+          info: bindI18nFields(
+            {
+              id,
+              pluginId: scope.pluginId,
+              pluginName: entry.metadata.name,
+              title: input.title,
+            },
+            ["title"],
+            context.i18n.resolve
+          ),
           entry,
           activation,
           run: command.run,
@@ -3988,18 +4065,20 @@ export class PluginHost {
   private buildSidebarContext(deps: ContextDeps): PluginContext["sidebar"] {
     const { context, entry, activation, scope, pages, register, registerAs } = deps;
     return Object.freeze({
-      registerGroup: (definition: PluginSidebarGroupDefinition) => {
+      registerGroup: (input: Localized<PluginSidebarGroupDefinition>) => {
+        const definition = bindI18nFields(input, ["title"], context.i18n.resolve);
         this.assertActive(entry, activation);
         assertLocalId(definition.id);
         if (!definition.title.trim()) throw new Error("侧边栏分组标题不能为空");
         if (!this.options.sidebar) throw new Error("当前宿主不支持侧边栏");
         const handle = this.options.sidebar.registerGroup(
           context,
-          Object.freeze({ ...definition })
+          bindI18nFields(input, ["title"], context.i18n.resolve)
         );
         return Object.freeze({ id: handle.id, dispose: register(handle).dispose });
       },
-      registerItem: (definition: PluginSidebarItemDefinition) => {
+      registerItem: (input: Localized<PluginSidebarItemDefinition>) => {
+        const definition = bindI18nFields(input, ["title"], context.i18n.resolve);
         this.assertActive(entry, activation);
         assertLocalId(definition.id);
         if (!definition.title.trim()) throw new Error("侧边栏条目标题不能为空");
@@ -4008,10 +4087,14 @@ export class PluginHost {
         if (!this.options.sidebar) throw new Error("当前宿主不支持侧边栏");
         const resource = this.options.sidebar.registerItem(
           context,
-          Object.freeze({
-            ...definition,
-            params: Object.freeze(normalizePageParams(definition.params ?? {})),
-          }),
+          bindI18nFields(
+            {
+              ...input,
+              params: Object.freeze(normalizePageParams(definition.params ?? {})),
+            },
+            ["title"],
+            context.i18n.resolve
+          ),
           page.id
         );
         const owned = registerAs("sidebar", resource);
@@ -4223,7 +4306,8 @@ export class PluginHost {
   private buildHomeContext(deps: ContextDeps): PluginContext["home"] {
     const { context, entry, activation, registerAs } = deps;
     return Object.freeze({
-      registerPanel: (definition: PluginHomePanelDefinition) => {
+      registerPanel: (input: PluginHomePanelInput) => {
+        const definition = bindI18nFields(input, ["title"], context.i18n.resolve);
         this.assertActive(entry, activation);
         assertLocalId(definition.id);
         if (typeof definition.title !== "string" || !definition.title.trim())
@@ -4232,7 +4316,9 @@ export class PluginHost {
           throw new Error("首页面板组件必须是 React 组件");
         const size = definition.size ?? "wide";
         if (size !== "compact" && size !== "wide") throw new Error("首页面板宽度无效");
-        const action = definition.action ?? null;
+        const action = definition.action
+          ? bindI18nFields(definition.action, ["title"], context.i18n.resolve)
+          : null;
         if (
           action !== null &&
           (typeof action !== "object" ||
@@ -4248,10 +4334,19 @@ export class PluginHost {
             context,
             Object.freeze({
               id: definition.id,
-              title: definition.title,
+              get title() {
+                return definition.title;
+              },
               component: definition.component,
               size,
-              action: action && Object.freeze({ title: action.title, run: action.run }),
+              action:
+                action &&
+                Object.freeze({
+                  get title() {
+                    return action.title;
+                  },
+                  run: action.run,
+                }),
             })
           )
         );
@@ -4262,7 +4357,8 @@ export class PluginHost {
   private buildPagesContext(deps: ContextDeps): PluginContext["pages"] {
     const { context, entry, activation, pages, registerAs } = deps;
     return Object.freeze({
-      register: (definition: PluginPageDefinition) => {
+      register: (input: Localized<PluginPageDefinition>) => {
+        const definition = bindI18nFields(input, ["title"], context.i18n.resolve);
         this.assertActive(entry, activation);
         assertLocalId(definition.id);
         if (!definition.title.trim()) throw new Error("页面标题不能为空");
@@ -4276,7 +4372,7 @@ export class PluginHost {
         if (definition.dockable !== undefined && typeof definition.dockable !== "boolean")
           throw new Error("dockable 必须是布尔值");
         if (!this.options.pages) throw new Error("当前宿主不支持页面");
-        const registered = Object.freeze({ ...definition });
+        const registered = bindI18nFields(input, ["title"], context.i18n.resolve);
         const handle = this.options.pages.register(context, registered);
         let disposed = false;
         const navigation = new Set<Disposable>();
@@ -4352,6 +4448,7 @@ export class PluginHost {
         errors.push(error);
       }
     }
+    activation.i18n?.dispose();
     entry.activation = undefined;
     if (errors.length) this.restartRequired.add(entry.metadata.id);
     return errors;
