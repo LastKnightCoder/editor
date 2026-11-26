@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>白板思维导图 · 增强</title>
+<link rel="stylesheet" href="../whiteboards/base.css">
+<link rel="stylesheet" href="mind.css">
+</head>
+<body>
+<div class="head">
+  <div>
+    <h1>白板思维导图 · 增强</h1>
+    <p class="sub">在现有导图上补布局、键盘与剪贴板、概要/外框/联系线、关联笔记预览。配色沿用「经典 × 浅底」，新元素都跟随分支色，不引入新的颜色体系。</p>
+  </div>
+  <div class="m-tabs" id="theme-tabs">
+    <button aria-pressed="true" data-t="cream">浅色</button>
+    <button aria-pressed="false" data-t="cocoa">深色</button>
+  </div>
+</div>
+<nav class="toc">
+  <a href="#s1">1 布局</a><a href="#s2">2 导图样式浮层</a><a href="#s3">3 折叠与层级</a><a href="#s4">4 关联笔记预览</a>
+  <a href="#s5">5 概要与外框</a><a href="#s6">6 联系线</a><a href="#s7">7 剪贴板</a><a href="#s8">8 拖进导图</a>
+  <a href="#s9">9 右键菜单</a><a href="#s10">10 快捷键</a><a href="#s11">11 综合示例</a>
+</nav>
+
+<section id="s1">
+  <h2><span class="no">1</span>布局</h2>
+  <p>同一份导图换六种布局。布局存在根节点上，切换只是重排，节点内容和分支配色不变。缺省是「思维导图」，现有导图打开后不变。</p>
+  <div class="grid3" id="layouts"></div>
+</section>
+
+<section id="s2">
+  <h2><span class="no">2</span>导图样式浮层</h2>
+  <p>属性条上的「导图主题」改名「导图样式」，布局放在最上面一栏，和配色同一种缩略图卡片。悬停布局卡片时画布实时预览，移开恢复，点击才写入，和现在悬停配色的行为一致。</p>
+  <div class="row">
+    <div class="stage">
+      <svg class="canvas" id="s2-canvas" width="620" height="420"></svg>
+      <div class="float m-bar" style="left: 198px; top: 18px;">
+        <button class="m-btn on"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M4 6h4M16 6h4M4 18h4M16 18h4M9 10 6.5 7M15 10l2.5-3M9 14l-2.5 3M15 14l2.5 3"/></svg>导图样式</button>
+        <button class="m-btn"><svg class="ic" viewBox="0 0 24 24"><path d="M4 20c2-1 3-4 5-4s2 2 4 2 3-3 5-6M17 4l3 3-8 8H9v-3z"/></svg></button>
+        <span class="sep"></span>
+        <button class="m-btn"><svg class="ic" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z M14 3v5h5"/></svg>关联笔记</button>
+      </div>
+    </div>
+    <div class="m-pop" id="style-pop">
+      <div class="ttl"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M4 6h4M16 6h4M4 18h4M16 18h4M9 10 6.5 7M15 10l2.5-3M9 14l-2.5 3M15 14l2.5 3"/></svg>导图样式</div>
+      <div class="m-field"><div class="lbl">布局</div><div class="m-opts c3" id="layout-opts"></div></div>
+      <div class="m-field"><div class="lbl">风格</div><div class="m-seg"><span>实心</span><span class="on">浅底</span><span>线框</span></div></div>
+      <div class="m-field"><div class="lbl">配色</div><div class="m-opts c3" id="palette-opts"></div></div>
+      <div class="m-chk"><i></i>设为新导图默认</div>
+    </div>
+  </div>
+  <p class="cap">「设为新导图默认」同时记住布局、风格和配色。浮层只挂在根节点上；选中非根节点时属性条没有这一项，和现在一致。</p>
+</section>
+
+<section id="s3">
+  <h2><span class="no">3</span>折叠与层级</h2>
+  <p>折叠按钮平时不出现，选中节点时才显示「−」。收起后变成实心圆点，里面是被收起的子孙数量，一直显示，这样一眼能看出哪里还藏着内容。按钮占用固定位置，出现或消失都不挤动节点。</p>
+  <div class="grid2">
+    <div><h3>选中时出现折叠按钮</h3><svg class="canvas" id="s3a" width="540" height="300"></svg></div>
+    <div><h3>收起后显示数量</h3><svg class="canvas" id="s3b" width="540" height="300"></svg></div>
+  </div>
+  <div class="row" style="margin-top:18px">
+    <div class="m-menu">
+      <div class="grp">展开到</div>
+      <div class="it"><svg class="ic" viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h6"/></svg>第 1 层<kbd>⌥1</kbd></div>
+      <div class="it hl"><svg class="ic" viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h6"/></svg>第 2 层<kbd>⌥2</kbd></div>
+      <div class="it"><svg class="ic" viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h6"/></svg>第 3 层<kbd>⌥3</kbd></div>
+      <div class="it"><svg class="ic" viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h6"/></svg>全部展开<kbd>⌥0</kbd></div>
+    </div>
+    <p class="cap" style="max-width:46ch;margin-top:4px">右键根节点的「展开到」子菜单。选中单个节点时，<span class="keys"><kbd>⌘</kbd> <kbd>.</kbd></span> 收起或展开它，<span class="keys"><kbd>⌘</kbd> <kbd>⇧</kbd> <kbd>.</kbd></span> 展开它下面的全部层级。</p>
+  </div>
+</section>
+
+<section id="s4">
+  <h2><span class="no">4</span>关联笔记预览</h2>
+  <p>节点右上角表示已关联笔记的小圆点改成笔记图标，颜色跟随分支色，占固定位置。悬停图标浮出笔记标题和开头几行，点击图标直接打开。图片继续用画布上的图片元素，放在导图旁边即可，节点里不放图片、标记和标签。</p>
+  <div class="row">
+    <div class="stage">
+      <svg class="canvas" id="s4a" width="720" height="460"></svg>
+      <div class="float m-peek" id="s4-peek" style="left: 330px; top: 150px;">
+        <div class="k"><svg class="ic" style="width:13px;height:13px" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z M14 3v5h5"/></svg>卡片</div>
+        <div class="t">深度工作的四种节奏</div>
+        <div class="b">禁欲主义、双峰、节奏和新闻记者式。大多数知识工作者适合节奏式：每天固定一段时间，雷打不动，用习惯代替意志力。</div>
+        <div class="f"><button class="m-btn on">打开</button><button class="m-btn">取消关联</button></div>
+      </div>
+    </div>
+  </div>
+  <p class="cap">预览只在悬停图标时出现，移开即收起，不做半透明停留。没有关联笔记的节点不留空位。</p>
+</section>
+
+<section id="s5">
+  <h2><span class="no">5</span>概要与外框</h2>
+  <p>选中几个相邻的兄弟节点后加。概要是一个用括号括住它们的节点，可以编辑文字，也能继续加子节点。外框是一个淡色虚线框，标题可以不写。两者都跟随所括分支的颜色。</p>
+  <div class="grid2">
+    <div><h3>概要</h3><svg class="canvas" id="s5a" width="540" height="320"></svg></div>
+    <div><h3>外框（带标题）</h3><svg class="canvas" id="s5b" width="540" height="320"></svg></div>
+  </div>
+  <p class="cap">选中的节点不相邻时，菜单里这两项置灰，提示「选中相邻的同级节点」。被括住的节点删除或移走后，括号自动收缩；一个都不剩时，概要和外框一起删除。</p>
+</section>
+
+<section id="s6">
+  <h2><span class="no">6</span>联系线</h2>
+  <p>连接任意两个节点，表达跨分支的关系。线用中性墨色虚线，和分支连线区分开。可以加标签，拖动控制点调整弧度。</p>
+  <div class="grid3">
+    <div><h3>连线中</h3><svg class="canvas" id="s6a" width="352" height="280"></svg><p class="cap">右键「添加联系线」或 <span class="keys"><kbd>⌘</kbd> <kbd>L</kbd></span>，从选中节点拉出一条跟随鼠标的线，点另一个节点完成，按 <kbd>Esc</kbd> 取消。</p></div>
+    <div><h3>选中：标签与控制点</h3><svg class="canvas" id="s6b" width="352" height="280"></svg><p class="cap">双击线输入标签。两个控制点分别调两端的弧度。</p></div>
+    <div><h3>一端被收起</h3><svg class="canvas" id="s6c" width="352" height="280"></svg><p class="cap">一端收进折叠分支时，那一端落到可见的祖先节点上，线变淡，展开后恢复。</p></div>
+  </div>
+</section>
+
+<section id="s7">
+  <h2><span class="no">7</span>剪贴板</h2>
+  <p>复制导图节点得到的是缩进列表，粘到笔记、聊天里直接可读。反过来，选中节点后粘贴一段多级列表，会把它挂成子节点。</p>
+  <div class="row">
+    <div><h3>复制「怎么练习」</h3><svg class="canvas" id="s7a" width="380" height="220"></svg></div>
+    <div class="arrow-mid">⌘C → ⌘V<svg class="ic" viewBox="0 0 24 24" style="width:22px;height:22px"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+    <div><h3>粘到笔记</h3><div class="m-doc"><div class="t">读书笔记</div><ul><li>怎么练习<ul><li>固定时段 <span style="color:var(--ink-3)">#每天</span></li><li>仪式感</li><li>拥抱无聊</li></ul></li></ul></div></div>
+  </div>
+  <div class="row" style="margin-top:22px">
+    <div><h3>从笔记复制一段列表</h3><div class="m-doc"><div class="t">第 4 章 摘录</div><ul><li><span class="sel">拒绝社交媒体</span><ul><li><span class="sel">按价值评估工具</span></li><li><span class="sel">30 天停用实验</span></li></ul></li><li><span class="sel">别上网瞎逛</span></li></ul></div></div>
+    <div class="arrow-mid">选中节点后 ⌘V<svg class="ic" viewBox="0 0 24 24" style="width:22px;height:22px"><path d="M4 12h15M14 7l5 5-5 5"/></svg></div>
+    <div><h3>挂到「常见阻碍」下</h3><svg class="canvas" id="s7b" width="420" height="240"></svg></div>
+  </div>
+  <div class="row" style="margin-top:22px;align-items:center">
+    <div class="m-menu">
+      <div class="it"><svg class="ic" viewBox="0 0 24 24"><path d="M9 4h6v3H9zM6 6h12v15H6z"/></svg>粘贴<kbd>⌘V</kbd></div>
+      <div class="it hl"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M4 6h4M16 6h4M4 18h4M16 18h4M9 10 6.5 7M15 10l2.5-3M9 14l-2.5 3M15 14l2.5 3"/></svg>粘贴为思维导图</div>
+    </div>
+    <p class="cap" style="max-width:52ch;margin-top:0">在空白画布上直接粘贴，仍然得到文本框，和现在一样。右键空白处多一项「粘贴为思维导图」，剪贴板里是多级列表时才出现：第一层只有一项就作为中心主题，有多项时用剪贴板第一行或「中心主题」作根。</p>
+  </div>
+  <div class="row" style="margin-top:14px;align-items:center">
+    <div class="m-toast">已粘贴 2000 个节点<b>原文还有 314 项未导入</b></div>
+    <p class="cap" style="margin-top:0">超过 2000 个节点时只取前 2000 个，并给出提示。</p>
+  </div>
+</section>
+
+<section id="s8">
+  <h2><span class="no">8</span>拖进导图</h2>
+  <p>画布上的文本框和便签可以拖进导图。经过节点时出现和拖动节点一样的落点预览，松手后原元素变成节点，文字成为节点正文，关联的笔记一起带过来。一步撤销就能恢复原样。图片等其他元素不能拖进导图。</p>
+  <div class="grid2">
+    <div><h3>拖动文本框经过「怎么练习」</h3><svg class="canvas" id="s8a" width="540" height="300"></svg></div>
+    <div><h3>松手后</h3><svg class="canvas" id="s8b" width="540" height="300"></svg></div>
+  </div>
+  <p class="cap">反方向沿用现有行为：按住 <kbd>⌥</kbd> 拖出节点，成为独立的新导图。</p>
+</section>
+
+<section id="s9">
+  <h2><span class="no">9</span>右键菜单</h2>
+  <p>按「插入 / 笔记 / 结构 / 展开」分组，组内顺序按使用频率排。不可用的项置灰并保留位置，不做隐藏，菜单形状每次都一样。</p>
+  <div class="row">
+    <div class="menu-wrap">
+      <div class="m-menu">
+        <div class="it"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>添加子节点<kbd>Tab</kbd></div>
+        <div class="it"><svg class="ic" viewBox="0 0 24 24"><path d="M4 12h16M14 7l5 5-5 5"/></svg>添加同级节点<kbd>Enter</kbd></div>
+        <div class="it"><svg class="ic" viewBox="0 0 24 24"><path d="M7 7h10v10H7z M4 4h3M4 4v3"/></svg>复制一份<kbd>⌘D</kbd></div>
+        <div class="hr"></div>
+        <div class="it hl"><svg class="ic" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z M14 3v5h5"/></svg>关联笔记<svg class="chev ic" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></div>
+        <div class="hr"></div>
+        <div class="it dis"><svg class="ic" viewBox="0 0 24 24"><path d="M8 4c2 0 2 2 2 4s0 4 2 4c-2 0-2 2-2 4s0 4-2 4"/></svg>概要<kbd>⌘⇧S</kbd></div>
+        <div class="it dis"><svg class="ic" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="3" stroke-dasharray="3 2.5"/></svg>外框<kbd>⌘⇧B</kbd></div>
+        <div class="it"><svg class="ic" viewBox="0 0 24 24"><path d="M5 18C5 9 19 15 19 6" stroke-dasharray="3 2.5"/><path d="m16 5 3 1-1 3"/></svg>添加联系线<kbd>⌘L</kbd></div>
+        <div class="hr"></div>
+        <div class="it"><svg class="ic" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>收起<kbd>⌘.</kbd></div>
+        <div class="it"><svg class="ic" viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h6"/></svg>展开全部子级<kbd>⌘⇧.</kbd></div>
+        <div class="hr"></div>
+        <div class="it" style="color:var(--danger)"><svg class="ic" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" style="stroke:var(--danger)"/></svg>删除<kbd>⌫</kbd></div>
+      </div>
+      <div class="m-menu" style="width:196px;margin-top:118px">
+        <div class="it"><svg class="ic" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z M14 3v5h5 M12 11v6 M9 14h6"/></svg>新建笔记</div>
+        <div class="it"><svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="m20 20-4.5-4.5"/></svg>选择笔记…</div>
+      </div>
+    </div>
+    <div style="max-width:380px">
+      <h3>普通节点</h3>
+      <p class="cap" style="margin-top:0">选中单个普通节点时的菜单。已关联笔记时，子菜单换成「打开笔记」「取消关联」。「概要」「外框」要求选中相邻的同级节点，这里只选了一个，所以置灰。</p>
+      <h3 style="margin-top:16px">根节点</h3>
+      <p class="cap" style="margin-top:0">没有「添加同级节点」和「复制一份」。「收起」变成「展开到」子菜单（第 3 节），末尾多一项「导图样式…」，打开属性条上的浮层。</p>
+      <h3 style="margin-top:16px">多选</h3>
+      <p class="cap" style="margin-top:0">只保留对所有选中节点都有意义的项：概要、外框、收起、删除。</p>
+      <h3 style="margin-top:16px">联系线</h3>
+      <p class="cap" style="margin-top:0">编辑标签、反转方向、删除。线型和颜色暂时不开放。</p>
+    </div>
+  </div>
+</section>
+
+<section id="s10">
+  <h2><span class="no">10</span>快捷键</h2>
+  <p>不编辑文字时生效。标「新增」的是这次加的，其余保持不变。</p>
+  <table class="keys">
+    <tr class="g"><td colspan="2">编辑</td></tr>
+    <tr><td><kbd>Tab</kbd></td><td>添加子节点</td></tr>
+    <tr><td><kbd>Enter</kbd> / <kbd>⇧</kbd> <kbd>Enter</kbd></td><td>在后面 / 前面添加同级节点</td></tr>
+    <tr><td class="new"><kbd>⇧</kbd> <kbd>Tab</kbd></td><td>升一级，变成父节点的下一个同级</td></tr>
+    <tr><td class="new"><kbd>⌘</kbd> <kbd>D</kbd></td><td>复制整个分支，放在后面</td></tr>
+    <tr><td><kbd>Space</kbd></td><td>编辑文字</td></tr>
+    <tr><td class="new"><kbd>Esc</kbd>（编辑中）</td><td>结束编辑并选中节点，和 <kbd>Enter</kbd> 一样</td></tr>
+    <tr><td><kbd>⌫</kbd></td><td>删除</td></tr>
+    <tr class="g"><td colspan="2">移动与导航</td></tr>
+    <tr><td>方向键</td><td>在节点间移动选中。方向跟随布局：组织结构图里 <kbd>↓</kbd> 去子节点，<kbd>←</kbd> <kbd>→</kbd> 在同级间移动</td></tr>
+    <tr><td><kbd>⌘</kbd> <kbd>↑</kbd> / <kbd>⌘</kbd> <kbd>↓</kbd></td><td>和上 / 下一个同级交换位置</td></tr>
+    <tr><td><kbd>⌘</kbd> <kbd>←</kbd> / <kbd>⌘</kbd> <kbd>→</kbd></td><td>换到左 / 右侧，只在「思维导图」布局下有</td></tr>
+    <tr class="g"><td colspan="2">结构与展开</td></tr>
+    <tr><td class="new"><kbd>⌘</kbd> <kbd>.</kbd></td><td>收起 / 展开选中节点</td></tr>
+    <tr><td class="new"><kbd>⌘</kbd> <kbd>⇧</kbd> <kbd>.</kbd></td><td>展开选中节点下的全部层级</td></tr>
+    <tr><td class="new"><kbd>⌥</kbd> <kbd>1</kbd>…<kbd>5</kbd>、<kbd>⌥</kbd> <kbd>0</kbd></td><td>整张导图展开到第 N 层；<kbd>0</kbd> 全部展开</td></tr>
+    <tr><td class="new"><kbd>⌘</kbd> <kbd>⇧</kbd> <kbd>S</kbd></td><td>给选中的同级节点加概要</td></tr>
+    <tr><td class="new"><kbd>⌘</kbd> <kbd>⇧</kbd> <kbd>B</kbd></td><td>给选中的同级节点加外框</td></tr>
+    <tr><td class="new"><kbd>⌘</kbd> <kbd>L</kbd></td><td>从选中节点开始画联系线</td></tr>
+  </table>
+  <p class="cap">动手前要和全局快捷键、桌面端菜单核对一遍，有冲突的再换。</p>
+</section>
+
+<section id="s11">
+  <h2><span class="no">11</span>综合示例</h2>
+  <p>一张读书导图同时用上：逻辑图布局、关联笔记、概要、外框、联系线和一个收起的分支，旁边放一张画布图片。用来检查元素叠在一起时会不会太吵。</p>
+  <svg class="canvas" id="s11a" width="1120" height="560"></svg>
+</section>
+
+
+
+<script src="mind.js"></script>
+<script src="page.js"></script>
+</body>
+</html>

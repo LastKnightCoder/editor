@@ -5,7 +5,8 @@ import { ExternalLink, FilePlus, FileSearch, Palette, StickyNote, Unlink } from 
 import { Checkbox, Menu, cn } from "@tau/ui";
 
 import { MindNodeElement } from "../../../types";
-import { MindThemeUtil, MindUtil } from "../../../utils";
+import { BoardUtil, MindThemeUtil, MindUtil, PathUtil } from "../../../utils";
+import { resolveMindLayoutId, type MindLayoutId } from "../../../utils/mind-layout";
 import { useBoard } from "../../../hooks";
 import { useMindMode, useMindThemePreviewStore } from "../../../hooks/useMindTheme";
 import {
@@ -16,6 +17,7 @@ import {
 } from "../../../constants/mind-themes";
 import { AttrBarContext, AttrPopover, ChromeButton, Field, Seg } from "../../../chrome";
 import ThemeThumbnail from "./ThemeThumbnail";
+import LayoutThumbnail from "./LayoutThumbnail";
 import SketchPopover from "../SketchPopover";
 import { useTextExtension } from "../../../extensions/text";
 
@@ -83,28 +85,67 @@ function NoteSetter({ element }: { element: MindNodeElement }) {
   );
 }
 
-function ThemeSetter({ element, onChange }: MindMapSetterProps) {
+const LAYOUT_OPTIONS: Array<{ value: MindLayoutId; label: string }> = [
+  { value: "mind", label: "思维导图" },
+  { value: "logic", label: "逻辑图" },
+  { value: "org", label: "组织结构图" },
+  { value: "tree", label: "树状图" },
+];
+
+const optionClass = (on: boolean) =>
+  cn(
+    "ring-line-1 text-ink-2 hover:bg-hover hover:text-ink-1 flex cursor-pointer flex-col gap-1 rounded-[9px] p-1.5 text-left text-[11.5px] ring-1 ring-inset",
+    on &&
+      "bg-accent-soft text-accent-text ring-accent/45 hover:bg-accent-soft hover:text-accent-text font-medium"
+  );
+
+function StyleSetter({ element, onChange }: MindMapSetterProps) {
   const board = useBoard();
   const root = useMemo(() => MindUtil.getRoot(board, element), [board, element]);
   const mode = useMindMode();
   const setPreview = useMindThemePreviewStore(s => s.setPreview);
+  const setLayoutPreview = useMindThemePreviewStore(s => s.setLayoutPreview);
   const [asDefault, setAsDefault] = useState(false);
 
   const current = MindThemeUtil.getThemeOf(root);
   const paletteId = getPaletteById(current.themeId).id;
   const style = MindThemeUtil.resolveStyle(current.themeStyle);
+  const layoutId = resolveMindLayoutId(root?.layout);
+
+  const saveDefault = (next: {
+    themeId?: string;
+    themeStyle?: MindThemeStyle;
+    layout?: MindLayoutId;
+  }) =>
+    MindThemeUtil.saveDefault(
+      next.themeId ?? paletteId,
+      next.themeStyle ?? style,
+      next.layout ?? layoutId
+    );
 
   const apply = useMemoizedFn((next: { themeId?: string; themeStyle?: MindThemeStyle }) => {
     if (!root) return;
-    const themeId = next.themeId ?? paletteId;
-    const themeStyle = next.themeStyle ?? style;
     onChange(
       produce(root, draft => {
-        draft.themeId = themeId;
-        draft.themeStyle = themeStyle;
+        draft.themeId = next.themeId ?? paletteId;
+        draft.themeStyle = next.themeStyle ?? style;
       }) as MindNodeElement
     );
-    if (asDefault) MindThemeUtil.saveDefault(themeId, themeStyle);
+    if (asDefault) saveDefault(next);
+  });
+
+  // 布局改的是整棵树的坐标，按整树 diff 一次提交，一步撤销
+  const applyLayout = useMemoizedFn((layout: MindLayoutId) => {
+    if (!root) return;
+    setLayoutPreview(root.id, null);
+    if (layout === layoutId) return;
+    const rootPath = PathUtil.getPathByElement(board, root);
+    if (!rootPath) return;
+    const next = MindUtil.layout({ ...root, layout });
+    const ops = BoardUtil.diffNode(root, next, rootPath);
+    BoardUtil.normalizeOperations(ops);
+    board.apply(ops);
+    if (asDefault) saveDefault({ layout });
   });
 
   // 悬停预览：只写预览态，移开或选中后清掉
@@ -112,11 +153,47 @@ function ThemeSetter({ element, onChange }: MindMapSetterProps) {
     if (!root) return;
     setPreview(root.id, themeId ? { themeId, themeStyle: style } : null);
   });
+  const previewLayout = useMemoizedFn((layout: MindLayoutId | null) => {
+    if (!root) return;
+    setLayoutPreview(root.id, layout ? MindUtil.previewLayout(root, layout) : null);
+  });
 
-  useEffect(() => () => void (root && setPreview(root.id, null)), [root, setPreview]);
+  useEffect(
+    () => () => {
+      if (!root) return;
+      setPreview(root.id, null);
+      setLayoutPreview(root.id, null);
+    },
+    [root, setPreview, setLayoutPreview]
+  );
 
   return (
-    <AttrPopover label="导图主题" icon={<Palette strokeWidth={1.75} />} width={300}>
+    <AttrPopover label="导图样式" icon={<Palette strokeWidth={1.75} />} width={300}>
+      <Field label="布局">
+        <div className="grid grid-cols-2 gap-1.5" onPointerLeave={() => previewLayout(null)}>
+          {LAYOUT_OPTIONS.map(option => {
+            const on = option.value === layoutId;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={on}
+                onPointerEnter={() => !on && previewLayout(option.value)}
+                onClick={() => applyLayout(option.value)}
+                className={optionClass(on)}
+              >
+                <LayoutThumbnail
+                  layout={option.value}
+                  themeId={paletteId}
+                  themeStyle={style}
+                  mode={mode}
+                />
+                <span className="truncate">{option.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </Field>
       <Field label="风格">
         <Seg
           label="风格"
@@ -139,11 +216,7 @@ function ThemeSetter({ element, onChange }: MindMapSetterProps) {
                   preview(null);
                   apply({ themeId: palette.id });
                 }}
-                className={cn(
-                  "ring-line-1 text-ink-2 hover:bg-hover hover:text-ink-1 flex cursor-pointer flex-col gap-1 rounded-[9px] p-1.5 text-left text-[11.5px] ring-1 ring-inset",
-                  on &&
-                    "bg-accent-soft text-accent-text ring-accent/45 hover:bg-accent-soft hover:text-accent-text font-medium"
-                )}
+                className={optionClass(on)}
               >
                 <ThemeThumbnail themeId={palette.id} themeStyle={style} mode={mode} />
                 <span className="truncate">{palette.label}</span>
@@ -159,7 +232,7 @@ function ThemeSetter({ element, onChange }: MindMapSetterProps) {
           onChange={e => {
             const on = e.target.checked;
             setAsDefault(on);
-            if (on) MindThemeUtil.saveDefault(paletteId, style);
+            if (on) saveDefault({});
           }}
         />
       </Field>
@@ -178,8 +251,8 @@ function MindSketchSetter({ element, onChange }: MindMapSetterProps) {
 const MindMapSetter = ({ element, onChange }: MindMapSetterProps) => {
   return (
     <>
-      {/* 导图主题只挂在根节点上 */}
-      {MindUtil.isRoot(element) && <ThemeSetter element={element} onChange={onChange} />}
+      {/* 导图样式只挂在根节点上 */}
+      {MindUtil.isRoot(element) && <StyleSetter element={element} onChange={onChange} />}
       <MindSketchSetter element={element} onChange={onChange} />
       <NoteSetter element={element} />
     </>

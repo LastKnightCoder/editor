@@ -209,6 +209,7 @@ export function compile(
     ["set_node", "set_selection", "set_viewport", "set_moving"].includes(op.type)
   );
   const shadows = new Map<string, BoardElement>();
+  const advance = BoardOperations.preparedChildren(children);
   const geometries = new Map<string, WhiteboardGeometry>();
   const isContent = (op: Operation) =>
     !["set_selection", "set_viewport", "set_moving"].includes(op.type);
@@ -220,9 +221,7 @@ export function compile(
         ? ((patchOnly && shadows.size ? shadows.get(operation.path.join("/")) : undefined) ??
           PathUtil.getElement(children, operation.path))
         : undefined;
-    const next = patchOnly
-      ? children
-      : BoardOperations.applyOperations({ children }, [operation]).data.children;
+    let next = children;
     if (operation.type === "set_node") {
       if (!old) throw new Error("属性目标已失效");
       commands.push(...patch(binding, old, operation.newProperties, geometries));
@@ -265,48 +264,51 @@ export function compile(
           ? PathUtil.getElement(children, operation.path.slice(0, -1))
           : undefined;
       const takeVisibleGeometry = priorParent && ["column", "mind-node"].includes(priorParent.type);
-      const locate = (nodes: BoardElement[], parent: WhiteboardParent): boolean => {
-        for (let index = 0; index < nodes.length; index++) {
-          const node = nodes[index];
-          if (node.id === old.id) {
-            if (
-              takeVisibleGeometry &&
-              (parent.kind !== "element" || parent.id !== priorParent.id)
-            ) {
-              geometries.set(old.id, canvasGeometry(old));
-              commands.push({
-                type: "set_node",
-                id: old.id,
-                patch: { geometry: canvasGeometry(old) },
-              });
-            }
-            const codec = binding.options.types[old.type];
-            if (
-              old.type === "column" &&
-              parent.kind === "element" &&
-              old.contractId !== codec?.contractId &&
-              codec?.previousContractIds?.includes(old.contractId)
-            )
-              commands.push({ type: "upgrade_column", id: old.id, contractId: codec.contractId });
-            commands.push({
-              type: "move_node",
-              id: old.id,
-              parent,
-              ...anchorBefore(nodes[index + 1]?.id),
-            });
-            return true;
-          }
-          if (locate(node.children ?? [], { kind: "element", id: node.id })) return true;
-        }
-        return false;
-      };
-      if (!locate(next, { kind: "page", id: binding.page })) throw new Error("移动结果缺少原身份");
+      next = advance(operation);
+      const destination = PathUtil.transformPath([...operation.newPath], {
+        type: "remove_node",
+        path: operation.path,
+        node: old,
+      });
+      if (!destination) throw new Error("移动结果路径已失效");
+      const parentNode =
+        destination.length > 1 ? PathUtil.getElement(next, destination.slice(0, -1)) : undefined;
+      const nodes = destination.length === 1 ? next : parentNode?.children;
+      if (!nodes) throw new Error("移动结果缺少父级");
+      const index = Math.min(destination[destination.length - 1], nodes.length - 1);
+      const parent: WhiteboardParent = parentNode
+        ? { kind: "element", id: parentNode.id }
+        : { kind: "page", id: binding.page };
+      if (nodes[index]?.id !== old.id) throw new Error("移动结果缺少原身份");
+      if (takeVisibleGeometry && (parent.kind !== "element" || parent.id !== priorParent.id)) {
+        geometries.set(old.id, canvasGeometry(old));
+        commands.push({
+          type: "set_node",
+          id: old.id,
+          patch: { geometry: canvasGeometry(old) },
+        });
+      }
+      const codec = binding.options.types[old.type];
+      if (
+        old.type === "column" &&
+        parent.kind === "element" &&
+        old.contractId !== codec?.contractId &&
+        codec?.previousContractIds?.includes(old.contractId)
+      )
+        commands.push({ type: "upgrade_column", id: old.id, contractId: codec.contractId });
+      commands.push({
+        type: "move_node",
+        id: old.id,
+        parent,
+        ...anchorBefore(nodes[index + 1]?.id),
+      });
     } else if (operation.type === "set_sketch")
       commands.push({
         type: "set_page_sketch",
         id: binding.page,
         sketch: { ...board.sketch, ...operation.newProperties },
       });
+    if (!patchOnly && operation.type !== "move_node") next = advance(operation);
     children = next;
   }
   return { commands, children: patchOnly ? batch.data.children : children, feedback };

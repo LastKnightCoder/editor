@@ -7,10 +7,11 @@
  * 由组件用 non-scaling-stroke 渲染，缩放多少都保持细线。
  */
 
-import type { BoardElement } from "../types";
+import type { BoardElement, MindNodeElement } from "../types";
 import type { WhiteboardElementDefinition } from "../extensions/api";
 import { createSnapshotReader } from "../extensions/snapshot";
 import MindThemeUtil from "../utils/MindThemeUtil";
+import { getMindLayout, isHiddenChild } from "../utils/mind-layout";
 import { getThemeColorById } from "../constants/theme-colors";
 import { outlineToSvgPath } from "../utils/HandwriteUtil";
 import { getTextBandColor, getTextSurface, resolveTextStyle } from "../constants/text-style";
@@ -228,6 +229,7 @@ function mindTree(ctx: Ctx, root: AnyElement) {
       MindThemeUtil.getBranchIndex(root, node.id),
       mode
     );
+  const layout = getMindLayout(root as { layout?: string });
   const nodes: SchematicShape[] = [];
   const lines: SchematicShape[] = [];
 
@@ -261,20 +263,16 @@ function mindTree(ctx: Ctx, root: AnyElement) {
 
     for (const child of (node.children ?? []) as AnyElement[]) {
       if (child?.type !== "mind-node" || !hasBox(child)) continue;
-      const left = child.direction === "left";
       // 折叠的一侧整棵子树不画（它们还留着旧坐标，画出来会把示意图撑散）
-      if (left ? node.isLeftFold : node.isRightFold) continue;
-      const sx = left ? x : x + w;
-      const sy = y + h / 2;
-      const ex = left ? child.x + child.width : child.x;
-      const ey = child.y + child.height / 2;
-      const mx = (sx + ex) / 2;
-      lines.push({
-        kind: "path",
-        d: `M ${sx} ${sy} C ${mx} ${sy} ${mx} ${ey} ${ex} ${ey}`,
-        stroke: visualOf(child).lineColor,
-        strokeWidth: 1.4,
-      });
+      if (isHiddenChild(node as MindNodeElement, child as MindNodeElement)) continue;
+      const connector = layout.connector(node as MindNodeElement, child as MindNodeElement);
+      let d = connector.kind === "path" ? connector.d : "";
+      if (connector.kind === "curve") {
+        const { from, to } = connector;
+        const mx = (from.x + to.x) / 2;
+        d = `M ${from.x} ${from.y} C ${mx} ${from.y} ${mx} ${to.y} ${to.x} ${to.y}`;
+      }
+      lines.push({ kind: "path", d, stroke: visualOf(child).lineColor, strokeWidth: 1.4 });
       visit(child);
     }
   };

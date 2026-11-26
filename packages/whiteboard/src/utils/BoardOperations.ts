@@ -79,6 +79,32 @@ export class BoardOperations {
     };
   }
 
+  /** 已规范化操作的私有副本游标，供编译器按顺序读取中间结构。 */
+  static preparedChildren(children: BoardElement[]) {
+    const state = { children },
+      childrenMutationContext = this.createChildrenMutationContext();
+    const metadata: OperationMetadata = {
+      changedElements: [],
+      removedElements: [],
+      insertedElements: [],
+      hasChanges: false,
+    };
+    return (operation: Operation) => {
+      if (
+        ["set_node", "insert_node", "remove_node", "move_node"].includes(operation.type) &&
+        !this.applySingleOperation(
+          state,
+          this.cloneOperation(operation, true),
+          metadata,
+          { readonly: false, skipSelectionOperations: true, skipViewPortOperations: true },
+          { childrenMutationContext }
+        )
+      )
+        throw new Error("规范化操作无法在当前结构执行");
+      return state.children;
+    };
+  }
+
   /**
    * 应用操作列表到数据结构（纯函数版本）
    *

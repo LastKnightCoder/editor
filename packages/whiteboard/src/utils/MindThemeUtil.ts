@@ -8,6 +8,7 @@ import {
   type MindThemeStyle,
 } from "../constants/mind-themes";
 import { contrast, fitTone, hexTone, oklch, type Tone } from "@tau/shared/color-utils";
+import { resolveMindLayoutId, type MindLayoutId } from "./mind-layout";
 
 export type MindMode = "light" | "dark";
 
@@ -190,6 +191,7 @@ const branchCache = new WeakMap<object, Map<string, number>>();
 export class MindThemeUtil {
   private static STORAGE_KEY = "whiteboard-mind-theme";
   private static STYLE_STORAGE_KEY = "whiteboard-mind-theme-style";
+  private static LAYOUT_STORAGE_KEY = "whiteboard-mind-layout";
 
   static resolveStyle(style: string | undefined): MindThemeStyle {
     return isMindThemeStyle(style) ? style : DEFAULT_THEME_STYLE;
@@ -249,9 +251,15 @@ export class MindThemeUtil {
     return this.resolveStyle(localStorage.getItem(this.STYLE_STORAGE_KEY) ?? undefined);
   }
 
-  static saveDefault(themeId: string, themeStyle: MindThemeStyle): void {
+  static getDefaultLayout(): MindLayoutId {
+    return resolveMindLayoutId(localStorage.getItem(this.LAYOUT_STORAGE_KEY));
+  }
+
+  /** 「设为新导图默认」同时记住配色、风格和布局 */
+  static saveDefault(themeId: string, themeStyle: MindThemeStyle, layout: MindLayoutId): void {
     localStorage.setItem(this.STORAGE_KEY, themeId);
     localStorage.setItem(this.STYLE_STORAGE_KEY, themeStyle);
+    localStorage.setItem(this.LAYOUT_STORAGE_KEY, layout);
   }
 
   /** 根节点上的主题；缺省时回落到用户默认 */

@@ -27,6 +27,23 @@ export async function stressFrame(page, url, cycles, rate = 1) {
         title: model.text("column-a", "title"),
         count: model.elements.size,
       };
+      window.addEventListener(
+        "pointerdown",
+        event => {
+          requestAnimationFrame(() => {
+            const { binding } = window.frameBench,
+              state = binding.board.interactions.pointerState;
+            window.frameStress.started = {
+              pointer: state?.name,
+              gesture: binding.gesture,
+              moving: (state?.drag?.moveElements ?? state?.moveElements)?.map(node => node.id),
+              target: event.target?.outerHTML?.slice(0, 180),
+              point: { x: event.clientX, y: event.clientY },
+            };
+          });
+        },
+        { capture: true }
+      );
     });
     const read = id => page.evaluate(id => window.frameBench.api.getElement(id), id);
     const drag = async (id, point, cancel = false) => {
@@ -35,7 +52,11 @@ export async function stressFrame(page, url, cycles, rate = 1) {
       const node = await read(id);
       const screen = await page.evaluate(
         ({ node, point }) => ({
-          start: window.frameBench.api.canvasToScreen({ x: node.x + 10, y: node.y + 10 }),
+          start: window.frameBench.api.canvasToScreen(
+            node.type === "frame"
+              ? { x: node.x + 2, y: node.y + node.height * 0.35 }
+              : { x: node.x + 24, y: node.y + 25 }
+          ),
           end: window.frameBench.api.canvasToScreen(point),
         }),
         { node, point }
@@ -48,6 +69,9 @@ export async function stressFrame(page, url, cycles, rate = 1) {
       await page.mouse.up();
       await page.keyboard.up("Alt");
       await settle();
+      const started = await page.evaluate(() => window.frameStress.started);
+      if (!started?.moving?.includes(id))
+        throw new Error("压测未启动目标拖动：" + JSON.stringify({ id, started }));
     };
     const check = async (id, parent) => {
       const actual = await page.evaluate(id => {
@@ -67,7 +91,18 @@ export async function stressFrame(page, url, cycles, rate = 1) {
             return { id, x: n.x, y: n.y, width: n.width, height: n.height };
           })
         );
-        throw new Error(JSON.stringify({ cycle: currentCycle, id, parent, actual, layout }));
+        const diagnostic = await page.evaluate(
+          id => ({
+            physical: window.frameBench.model.elements.get(id)?.get("placement"),
+            started: window.frameStress.started,
+            pointer: window.frameBench.binding.board.interactions.pointerState?.name,
+            geometry: window.frameBench.model.elements.get(id)?.get("geometry"),
+          }),
+          id
+        );
+        throw new Error(
+          JSON.stringify({ cycle: currentCycle, id, parent, actual, layout, diagnostic })
+        );
       }
     };
     await drag("column-a", { x: 162, y: 210 });
@@ -93,7 +128,7 @@ export async function stressFrame(page, url, cycles, rate = 1) {
       await page.evaluate(() => window.frameBench.binding.redo());
       await check("outside", "column-b");
       const source = await read("frame");
-      await drag("frame", { x: source.x + 16, y: source.y + 10 });
+      await drag("frame", { x: source.x + 8, y: source.y + source.height * 0.35 });
       await check("column-a", "frame");
       await check("column-b", "frame");
       await page.evaluate(() => window.frameBench.binding.undo());
@@ -133,6 +168,7 @@ export async function stressFrame(page, url, cycles, rate = 1) {
           throw new Error("元素落入恢复区");
       });
       if (errors.length) throw new Error(errors.join("\n"));
+      await page.evaluate(() => window.frameBench.verify());
     }
     return {
       cycles,

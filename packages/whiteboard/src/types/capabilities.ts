@@ -309,6 +309,23 @@ export interface IMeasurementCapability {
   ) => Promise<number>;
 }
 
+/**
+ * 剪贴板能力：元素类型自定义复制出的纯文本，以及粘贴到选中的该类型元素里
+ */
+export interface IClipboardCapability {
+  /** 选中的全是该类型时写入 text/plain 的内容；返回 null 沿用白板 JSON */
+  copyText?: (elements: BoardElement[]) => string | null;
+  /**
+   * 只选中一个该类型元素（且不在编辑文字）时的粘贴。payloads 是剪贴板里解析成功的 JSON，
+   * text 是 text/plain 原文。返回 true 表示已处理，其余交给普通粘贴。
+   */
+  pasteInto?: (
+    board: Board,
+    target: BoardElement,
+    clipboard: { payloads: unknown[]; text?: string }
+  ) => boolean;
+}
+
 // =============================================================================
 // 能力聚合接口
 // =============================================================================
@@ -332,6 +349,8 @@ export interface IElementCapabilities {
   connectable?: IConnectableCapability;
   /** 测量能力 */
   measurement?: IMeasurementCapability;
+  /** 剪贴板能力 */
+  clipboard?: IClipboardCapability;
 }
 
 // =============================================================================

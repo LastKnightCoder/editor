@@ -46,6 +46,10 @@ import {
 } from "../extensions/builtins";
 import type { BoardElement } from "../types/element";
 import { restoreHotkeyPlatform, stubHotkeyPlatform } from "./hotkey-platform-stub";
+import MindUtil from "../utils/MindUtil";
+import { useMindNodeKeyboardNavigation } from "../components/MindNode/hooks/useMindNodeKeyboardNavigation";
+import type { MindNodeElement } from "../types/mind";
+import { markdownLineToText } from "../utils/mind-markdown";
 const cleanup: (() => void)[] = [];
 afterEach(() => {
   restoreHotkeyPlatform();
@@ -141,6 +145,116 @@ async function setup(
       board.apply({ type: "insert_node", path: [board.children.length], node }),
   };
 }
+it.each(["mind", "logic", "org", "tree"])(
+  "%s 协作导图升级保留节点和正文身份，撤销重做与远端一致",
+  async layout => {
+    const f = await setup();
+    const node = (id: string, children: MindNodeElement[] = []): MindNodeElement => ({
+      id,
+      type: "mind-node",
+      ...rect,
+      level: 1,
+      direction: "right",
+      text: markdownLineToText("内容"),
+      actualHeight: rect.height,
+      childrenHeight: 0,
+      leftChildrenHeight: 0,
+      rightChildrenHeight: 0,
+      children,
+    });
+    f.insert(MindUtil.layout({ ...node("root", [node("branch", [node("leaf")])]), layout }));
+    const before = f.model.read();
+    const record = f.model.elements.get("leaf");
+    const peer = await setup(Y.encodeStateAsUpdate(f.doc));
+    const leaf = MindUtil.findNodeInTree(f.board.children[0] as MindNodeElement, "leaf");
+    if (!leaf) throw new Error("缺少待升级节点");
+    f.board.apply(
+      {
+        type: "set_selection",
+        properties: f.board.selection,
+        newProperties: { selectArea: null, selectedElements: [leaf] },
+      },
+      false
+    );
+    let handleKeyDown: ((event: KeyboardEvent) => void) | undefined;
+    function KeyboardHarness({ element }: { element: MindNodeElement }) {
+      handleKeyDown = useMindNodeKeyboardNavigation(
+        f.board,
+        element,
+        true,
+        false,
+        vi.fn(),
+        null
+      ).handleKeyDown;
+      return null;
+    }
+    const host = document.createElement("div");
+    const root = createRoot(host);
+    try {
+      await act(async () => root.render(<KeyboardHarness element={leaf} />));
+      f.binding.splitHistory();
+      const event = new KeyboardEvent("keydown", { key: "Tab", shiftKey: true, cancelable: true });
+      Object.defineProperty(event, "which", { value: 9 });
+      if (!handleKeyDown) throw new Error("键盘处理器未挂载");
+      handleKeyDown(event);
+      const after = f.model.read();
+      expect(after.pages[0].children[0].children.map(child => child.id)).toEqual([
+        "branch",
+        "leaf",
+      ]);
+      expect(f.model.elements.get("leaf")).toBe(record);
+      const originalLeaf = before.pages[0].children[0].children[0].children[0];
+      expect(after.pages[0].children[0].children[1].fieldBindings).toEqual(
+        originalLeaf.fieldBindings
+      );
+      expect(after.pages[0].children[0].children[1].body).toEqual(originalLeaf.body);
+      f.binding.undo();
+      expect(f.model.read()).toEqual(before);
+      f.binding.redo();
+      expect(f.model.read()).toEqual(after);
+      await peer.model.receive(Y.encodeStateAsUpdate(f.doc));
+      expect(peer.model.read()).toEqual(after);
+    } finally {
+      await act(async () => root.unmount());
+    }
+  }
+);
+
+it.each([false, true])("列表粘贴按剩余层级接收或整次拒绝（画框内：%s）", async inFrame => {
+  const f = await setup();
+  const outline = Array.from(
+    { length: inFrame ? 62 : 63 },
+    (_, depth) => `${" ".repeat(depth)}- 层${depth}`
+  ).join("\n");
+  const { markdownToOutline } = await import("../utils/mind-markdown");
+  const branches = MindUtil.nodesFromOutline(markdownToOutline(outline).outline);
+  // 用链首本身作根，给第一次粘贴留下最后一层额度。
+  const initial = MindUtil.layout(branches[0]);
+  f.insert(inFrame ? base("frame", { title: "画框", children: [initial] }) : initial);
+  const currentRoot = (): MindNodeElement => {
+    const top = f.board.children[0];
+    const value = inFrame ? top.children?.[0] : top;
+    if (!value || value.type !== "mind-node") throw new Error("缺少导图根节点");
+    return value as MindNodeElement;
+  };
+  const leaves = (node: MindNodeElement): MindNodeElement =>
+    node.children.length ? leaves(node.children[0]) : node;
+  const pasteInto = f.board.capabilityService.getClipboardCapability("mind-node").pasteInto;
+  if (!pasteInto) throw new Error("导图缺少粘贴能力");
+  const target = leaves(currentRoot());
+  expect(pasteInto(f.board, target, { payloads: [], text: "最后一层" })).toBe(true);
+  const last = leaves(currentRoot());
+  expect(last.level).toBe(inFrame ? 63 : 64);
+  const snapshot = f.model.read();
+  const historyLength = f.binding.history.undoStack.length;
+  expect(pasteInto(f.board, last, { payloads: [], text: "不能继续嵌套" })).toBe(true);
+  expect(f.model.read()).toEqual(snapshot);
+  expect(f.binding.history.undoStack.length).toBe(historyLength);
+  const deep = Array.from({ length: 2000 }, (_, depth) => `${" ".repeat(depth)}- 内容`).join("\n");
+  expect(pasteInto(f.board, currentRoot(), { payloads: [], text: deep })).toBe(true);
+  expect(f.model.read()).toEqual(snapshot);
+});
+
 it("文档白板连续点击空白处可分段书写，点已有图形仍可选中", async () => {
   const { board, binding, model, insert } = await setup();
   const shape = base("geometry", { geometryType: "rect", paths: [] });

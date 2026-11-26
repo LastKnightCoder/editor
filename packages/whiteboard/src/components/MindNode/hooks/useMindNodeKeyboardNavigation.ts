@@ -4,6 +4,9 @@ import { Board, MindNodeElement } from "../../../types";
 import { BoardUtil, MindUtil, PathUtil } from "../../../utils";
 import { EditorRef } from "@tau/editor";
 import { produce } from "immer";
+import { getMindLayout, type MindArrowKey, type MindLayout } from "../../../utils/mind-layout";
+import BoardOperations from "../../../utils/BoardOperations";
+import type { MoveNodeOperation } from "../../../types/operation";
 
 // 定义快捷键处理器类型
 type KeyHandler = (params: {
@@ -11,6 +14,7 @@ type KeyHandler = (params: {
   element: MindNodeElement;
   setIsEditing?: (isEditing: boolean) => void;
   editor: EditorRef | null;
+  retainContent?: (contentId: number) => void;
 }) => void;
 
 // 定义快捷键配置
@@ -161,175 +165,69 @@ const handleDeleteNode: KeyHandler = ({ board, element }) => {
   }
 };
 
-/**
- * 向上导航 (ArrowUp键)
- */
-const handleNavigateUp: KeyHandler = ({ board, element }) => {
-  const oldRoot = MindUtil.getRoot(board, element);
-  if (!oldRoot) return;
+const select = (board: Board, node: MindNodeElement) =>
+  board.apply({
+    type: "set_selection",
+    properties: board.selection,
+    newProperties: { selectArea: null, selectedElements: [node] },
+  });
 
-  // 获取父节点
-  const parent = MindUtil.getParent(oldRoot, element);
-  if (!parent) return;
-
-  // 只考虑相同 direction 的兄弟节点
-  const sameDirectionSiblings = parent.children.filter(
-    child => child.direction === element.direction
-  );
-
-  const currentIndex = sameDirectionSiblings.findIndex(child => child.id === element.id);
-
-  // 如果有上一个相同方向的兄弟节点，选择它
-  if (currentIndex > 0) {
-    const prevSibling = sameDirectionSiblings[currentIndex - 1];
-    board.apply({
-      type: "set_selection",
-      properties: board.selection,
-      newProperties: {
-        selectArea: null,
-        selectedElements: [prevSibling],
-      },
-    });
-  } else {
-    // 如果没有上一个兄弟节点，选择父节点
-    board.apply({
-      type: "set_selection",
-      properties: board.selection,
-      newProperties: {
-        selectArea: null,
-        selectedElements: [parent],
-      },
-    });
-  }
-};
+/** 同组兄弟：双向布局只看同侧，单向布局整组 */
+const siblingGroup = (layout: MindLayout, parent: MindNodeElement, node: MindNodeElement) =>
+  layout.sides.length > 1 && parent.level === 1
+    ? parent.children.filter(child => child.direction === node.direction)
+    : parent.children;
 
 /**
- * 向下导航 (ArrowDown键)
+ * 方向键：语义（去子节点 / 回父节点 / 上一个 / 下一个同级）由布局决定，
+ * 组织结构图里 ↓ 去子节点、← → 在主分支间移动。
  */
-const handleNavigateDown: KeyHandler = ({ board, element }) => {
-  const oldRoot = MindUtil.getRoot(board, element);
-  if (!oldRoot) return;
+const handleNavigate =
+  (key: MindArrowKey): KeyHandler =>
+  ({ board, element }) => {
+    const root = MindUtil.getRoot(board, element);
+    if (!root) return;
+    const layout = getMindLayout(root);
+    const role = layout.navigate(element, key);
+    if (!role) return;
 
-  // 获取父节点
-  const parent = MindUtil.getParent(oldRoot, element);
-  if (!parent) return;
-
-  // 只考虑相同 direction 的兄弟节点
-  const sameDirectionSiblings = parent.children.filter(
-    child => child.direction === element.direction
-  );
-
-  const currentIndex = sameDirectionSiblings.findIndex(child => child.id === element.id);
-
-  // 如果有下一个相同方向的兄弟节点，选择它
-  if (currentIndex < sameDirectionSiblings.length - 1) {
-    const nextSibling = sameDirectionSiblings[currentIndex + 1];
-    board.apply({
-      type: "set_selection",
-      properties: board.selection,
-      newProperties: {
-        selectArea: null,
-        selectedElements: [nextSibling],
-      },
-    });
-  } else if (!MindUtil.isRoot(parent)) {
-    // 如果没有下一个兄弟节点，尝试导航到父节点的下一个相同方向的兄弟节点
-    const grandParent = MindUtil.getParent(oldRoot, parent);
-    if (grandParent) {
-      const parentSameDirectionSiblings = grandParent.children.filter(
-        child => child.direction === parent.direction
-      );
-      const parentIndex = parentSameDirectionSiblings.findIndex(child => child.id === parent.id);
-      if (parentIndex < parentSameDirectionSiblings.length - 1) {
-        const parentNextSibling = parentSameDirectionSiblings[parentIndex + 1];
-        board.apply({
-          type: "set_selection",
-          properties: board.selection,
-          newProperties: {
-            selectArea: null,
-            selectedElements: [parentNextSibling],
-          },
-        });
-      }
+    if (role === "child") {
+      const visible = MindUtil.visibleChildren(element);
+      // 思维导图根节点按键决定去哪一侧
+      const candidates =
+        layout.sides.length > 1 && MindUtil.isRoot(element)
+          ? visible.filter(child => child.direction === key)
+          : visible;
+      if (candidates[0]) select(board, candidates[0]);
+      return;
     }
-  }
-};
 
-/**
- * 向左导航 (ArrowLeft键)
- */
-const handleNavigateLeft: KeyHandler = ({ board, element }) => {
-  const oldRoot = MindUtil.getRoot(board, element);
-  if (!oldRoot) return;
+    const parent = MindUtil.getParent(root, element);
+    if (!parent) return;
+    if (role === "parent") {
+      select(board, parent);
+      return;
+    }
 
-  if (element.direction === "left") {
-    // 对于左侧节点，按左键应该选择子节点
-    if (element.children.length > 0) {
-      const firstChild = element.children[0];
-      board.apply({
-        type: "set_selection",
-        properties: board.selection,
-        newProperties: {
-          selectArea: null,
-          selectedElements: [firstChild],
-        },
-      });
+    const group = siblingGroup(layout, parent, element);
+    const index = group.findIndex(child => child.id === element.id);
+    const target = group[role === "prev" ? index - 1 : index + 1];
+    if (target) {
+      select(board, target);
+      return;
     }
-  } else {
-    // 对于右侧节点，按左键应该选择父节点
-    if (!MindUtil.isRoot(element)) {
-      const parent = MindUtil.getParent(oldRoot, element);
-      if (parent) {
-        board.apply({
-          type: "set_selection",
-          properties: board.selection,
-          newProperties: {
-            selectArea: null,
-            selectedElements: [parent],
-          },
-        });
-      }
+    // 组首按「上一个」回到父节点；组尾按「下一个」跳到父节点的下一个同级（与原行为一致）
+    if (role === "prev") {
+      select(board, parent);
+      return;
     }
-  }
-};
-
-/**
- * 向右导航 (ArrowRight键)
- */
-const handleNavigateRight: KeyHandler = ({ board, element }) => {
-  const oldRoot = MindUtil.getRoot(board, element);
-  if (!oldRoot) return;
-
-  if (element.direction === "right") {
-    // 对于右侧节点，按右键应该选择子节点
-    if (element.children.length > 0) {
-      const firstChild = element.children[0];
-      board.apply({
-        type: "set_selection",
-        properties: board.selection,
-        newProperties: {
-          selectArea: null,
-          selectedElements: [firstChild],
-        },
-      });
-    }
-  } else {
-    // 对于左侧节点，按右键应该选择父节点
-    if (!MindUtil.isRoot(element)) {
-      const parent = MindUtil.getParent(oldRoot, element);
-      if (parent) {
-        board.apply({
-          type: "set_selection",
-          properties: board.selection,
-          newProperties: {
-            selectArea: null,
-            selectedElements: [parent],
-          },
-        });
-      }
-    }
-  }
-};
+    if (MindUtil.isRoot(parent)) return;
+    const grandParent = MindUtil.getParent(root, parent);
+    if (!grandParent) return;
+    const parentGroup = siblingGroup(layout, grandParent, parent);
+    const next = parentGroup[parentGroup.findIndex(child => child.id === parent.id) + 1];
+    if (next) select(board, next);
+  };
 
 /**
  * 进入编辑状态 (Space键)
@@ -405,7 +303,7 @@ const handleToggleDirection =
     if (element.level !== 2) return;
     if (element.direction === dir) return;
     const oldRoot = MindUtil.getRoot(board, element);
-    if (!oldRoot) return;
+    if (!oldRoot || getMindLayout(oldRoot).sides.length < 2) return;
     // 找到当前节点并修改 direction
     const changeedDirectionRoot = produce(oldRoot, draft => {
       const node = MindUtil.findNodeInTree(draft, element.id);
@@ -430,6 +328,102 @@ const handleToggleDirection =
     board.apply(ops);
   };
 
+/** 整树替换后写一次操作；selectId 给出时把选区落到新树里的该节点 */
+const commitRoot = (
+  board: Board,
+  oldRoot: MindNodeElement,
+  newRoot: MindNodeElement | null | undefined,
+  selectId?: string,
+  move?: MoveNodeOperation
+) => {
+  if (!newRoot) return false;
+  const rootPath = PathUtil.getPathByElement(board, oldRoot);
+  if (!rootPath) return false;
+  const selected = selectId ? MindUtil.findNodeInTree(newRoot, selectId) : null;
+  const before = move
+    ? PathUtil.getElement(BoardOperations.applyToChildren(board.children, [move]), rootPath)
+    : oldRoot;
+  if (!before) return false;
+  const ops = [
+    ...(move ? [move] : []),
+    ...BoardUtil.diffNode(before, newRoot, rootPath),
+    ...(selected
+      ? [
+          {
+            type: "set_selection" as const,
+            properties: board.selection,
+            newProperties: { selectArea: null, selectedElements: [selected] },
+          },
+        ]
+      : []),
+  ];
+  BoardUtil.normalizeOperations(ops);
+  board.apply(ops);
+  return true;
+};
+
+const withRoot =
+  (
+    change: (
+      root: MindNodeElement,
+      element: MindNodeElement,
+      board: Board,
+      params: Parameters<KeyHandler>[0]
+    ) => void
+  ): KeyHandler =>
+  params => {
+    const root = MindUtil.getRoot(params.board, params.element);
+    if (root) change(root, params.element, params.board, params);
+  };
+
+/** Mod+.：收起 / 展开选中节点 */
+const handleToggleCollapsed = withRoot((root, element, board) =>
+  commitRoot(board, root, MindUtil.toggleCollapsed(root, element.id), element.id)
+);
+
+/** Mod+Shift+.：展开选中节点下的全部层级 */
+const handleExpandAll = withRoot((root, element, board) =>
+  commitRoot(board, root, MindUtil.expandAll(root, element.id), element.id)
+);
+
+/** Alt+数字：整张导图展开到第 N 层；选中节点被收进去时改选它在第 N 层的祖先 */
+const handleExpandToLevel = (depth: number) =>
+  withRoot((root, element, board) => {
+    let selectId = element.id;
+    if (depth > 0 && element.level > depth) {
+      let current: MindNodeElement | null = element;
+      while (current && current.level > depth) current = MindUtil.getParent(root, current);
+      if (current) selectId = current.id;
+    }
+    commitRoot(board, root, MindUtil.expandToLevel(root, depth), selectId);
+  });
+
+/** Shift+Tab：升一级，变成父节点的下一个同级 */
+const handlePromote = withRoot((root, element, board) => {
+  const path = PathUtil.getPathByElement(board, element);
+  const parent = MindUtil.getParent(root, element);
+  if (!path || !parent || MindUtil.isRoot(parent)) return;
+  const parentPath = path.slice(0, -1);
+  commitRoot(board, root, MindUtil.promote(root, element.id), element.id, {
+    type: "move_node",
+    path,
+    newPath: [...parentPath.slice(0, -1), parentPath[parentPath.length - 1] + 1],
+  });
+});
+
+/** Mod+D：复制整个分支放在后面，选中副本 */
+const handleDuplicate = withRoot((root, element, board, { retainContent }) => {
+  const result = MindUtil.duplicate(root, element.id);
+  if (!result || !commitRoot(board, root, result.root, result.copy.id)) return;
+  // 本机模式下笔记按引用计数，副本多引用一次；协作文档里由实体引用自行管理
+  if (board.document || !retainContent) return;
+  MindUtil.dfs(result.copy, {
+    before: node => {
+      if (node.contentId) retainContent(node.contentId);
+    },
+  });
+});
+
 // 非编辑状态下的快捷键配置
 const NON_EDITING_KEYBOARD_CONFIG: KeyboardConfig = {
   "mod+arrowup": handleMoveNodeUp,
@@ -441,41 +435,50 @@ const NON_EDITING_KEYBOARD_CONFIG: KeyboardConfig = {
   "shift+enter": handleAddSiblingBefore,
   backspace: handleDeleteNode,
   delete: handleDeleteNode,
-  arrowup: handleNavigateUp,
-  arrowdown: handleNavigateDown,
-  arrowleft: handleNavigateLeft,
-  arrowright: handleNavigateRight,
+  arrowup: handleNavigate("up"),
+  arrowdown: handleNavigate("down"),
+  arrowleft: handleNavigate("left"),
+  arrowright: handleNavigate("right"),
   space: handleEnterEditMode,
+  "shift+tab": handlePromote,
+  "mod+d": handleDuplicate,
+  "mod+.": handleToggleCollapsed,
+  "mod+shift+.": handleExpandAll,
+  "alt+0": handleExpandToLevel(0),
+  ...Object.fromEntries([1, 2, 3, 4, 5].map(depth => [`alt+${depth}`, handleExpandToLevel(depth)])),
 };
 
 // 编辑状态下的快捷键配置
-const EDITING_KEYBOARD_CONFIG: KeyboardConfig = {
-  enter: ({ setIsEditing, element, board }) => {
-    if (setIsEditing) {
-      setIsEditing(false);
-      // 触发重新布局
-      const root = MindUtil.getRoot(board, element);
-      if (root) {
-        const newRoot = MindUtil.layout(root);
-        const rootPath = PathUtil.getPathByElement(board, root);
-        if (rootPath) {
-          const ops = [
-            ...BoardUtil.diffNode(root, newRoot, rootPath),
-            {
-              type: "set_selection" as const,
-              properties: board.selection,
-              newProperties: {
-                selectArea: null,
-                selectedElements: [element],
-              },
+const handleFinishEditing: KeyHandler = ({ setIsEditing, element, board }) => {
+  if (setIsEditing) {
+    setIsEditing(false);
+    // 触发重新布局
+    const root = MindUtil.getRoot(board, element);
+    if (root) {
+      const newRoot = MindUtil.layout(root);
+      const rootPath = PathUtil.getPathByElement(board, root);
+      if (rootPath) {
+        const ops = [
+          ...BoardUtil.diffNode(root, newRoot, rootPath),
+          {
+            type: "set_selection" as const,
+            properties: board.selection,
+            newProperties: {
+              selectArea: null,
+              selectedElements: [element],
             },
-          ];
-          BoardUtil.normalizeOperations(ops);
-          board.apply(ops);
-        }
+          },
+        ];
+        BoardUtil.normalizeOperations(ops);
+        board.apply(ops);
       }
     }
-  },
+  }
+};
+
+const EDITING_KEYBOARD_CONFIG: KeyboardConfig = {
+  enter: handleFinishEditing,
+  escape: handleFinishEditing,
   delete: () => {
     // 阻止事件冒泡
   },
@@ -490,7 +493,8 @@ export const useMindNodeKeyboardNavigation = (
   isSelected: boolean,
   isEditing: boolean,
   setIsEditing: (isEditing: boolean) => void,
-  editor: EditorRef | null
+  editor: EditorRef | null,
+  retainContent?: (contentId: number) => void
 ) => {
   const handleKeyDown = useMemoizedFn((e: KeyboardEvent) => {
     const onlyOneSelected =
@@ -504,7 +508,7 @@ export const useMindNodeKeyboardNavigation = (
         if (isHotkey(hotkey, e)) {
           e.stopImmediatePropagation();
           e.preventDefault();
-          handler({ board, element, setIsEditing, editor });
+          handler({ board, element, setIsEditing, editor, retainContent });
           return;
         }
       }
@@ -513,6 +517,8 @@ export const useMindNodeKeyboardNavigation = (
     else if (isEditing) {
       // 遍历编辑状态下的快捷键配置
       for (const [hotkey, handler] of Object.entries(EDITING_KEYBOARD_CONFIG)) {
+        // 编辑器内的浮层（链接面板等）先消费过的 Esc 不结束编辑
+        if (hotkey === "escape" && (e.defaultPrevented || e.isComposing)) continue;
         if (isHotkey(hotkey, e)) {
           e.stopPropagation();
           e.preventDefault();

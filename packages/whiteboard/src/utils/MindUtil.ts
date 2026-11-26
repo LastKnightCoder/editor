@@ -1,145 +1,62 @@
 import { produce } from "immer";
+import type { Descendant } from "slate";
 import { v4 as uuid } from "uuid";
 import BoardUtil from "./BoardUtil.ts";
 import PathUtil from "./PathUtil.ts";
 import { Board, ElementBounds, MindNodeElement, MindDragTarget } from "../types";
 import MindThemeUtil from "./MindThemeUtil.ts";
+import {
+  getMindLayout,
+  normalizeTree,
+  visibleChildren,
+  type MindLayout,
+  type MindLayoutId,
+  type MindSide,
+} from "./mind-layout";
 
-const MARGIN_X = 36;
+import { assertMindOutlineDepth, type MindOutline } from "./mind-markdown";
+import { WHITEBOARD_LIMITS } from "@tau/collaboration";
 
-const MIND_DRAG_HORIZONTAL_THRESHOLD_PX = 120;
-const MIND_DRAG_VERTICAL_THRESHOLD_PX = 80;
 const MIND_DRAG_TARGET_RETENTION_SCALE = 1.2;
 
-const MARGIN_Y: Record<string, number> = {
-  "1": 24,
-  "2": 16,
-  "3": 8,
-};
+/** 去掉正文节点的协作 id，副本写入时重新分配 */
+const stripTextIdentity = (nodes: Descendant[]): Descendant[] =>
+  nodes.map(node => {
+    if (!node || typeof node !== "object" || !("children" in node)) return node;
+    const { collabId: _id, ...rest } = node as typeof node & Record<string, unknown>;
+    return { ...rest, children: stripTextIdentity(node.children as Descendant[]) } as Descendant;
+  });
 
 export class MindUtil {
   static isRoot(node: MindNodeElement) {
     return node.level === 1;
   }
 
+  /** 按根节点上的 layout 重排整棵树；未知布局回落思维导图 */
   static layout(node: MindNodeElement): MindNodeElement {
     return produce(node, draft => {
-      this.dfs(
-        draft,
-        {
-          before: (node, parent) => {
-            if (parent) {
-              node.level = parent.level + 1;
-              // Remove hardcoded color assignment - colors will be determined by theme
-              if (node.level > 2) {
-                node.direction = parent.direction;
-              }
-              // 根据 direction 计算 x 坐标
-              if (node.direction === "left") {
-                node.x = parent.x - node.width - MARGIN_X;
-              } else {
-                node.x = parent.x + parent.width + MARGIN_X;
-              }
-            }
-          },
-          after: node => {
-            // 根据折叠状态过滤可见子节点
-            const leftChildren = node.children.filter(child => child.direction === "left");
-            const rightChildren = node.children.filter(child => child.direction === "right");
-
-            const visibleLeftChildren = node.isLeftFold ? [] : leftChildren;
-            const visibleRightChildren = node.isRightFold ? [] : rightChildren;
-            const visibleChildren = [...visibleLeftChildren, ...visibleRightChildren];
-
-            if (visibleChildren.length > 0) {
-              const leftHeight =
-                visibleLeftChildren.length > 0
-                  ? visibleLeftChildren.reduce((pre, cur) => pre + cur.actualHeight, 0) +
-                    (visibleLeftChildren.length - 1) * (MARGIN_Y[node.level + 1] || 8)
-                  : 0;
-
-              const rightHeight =
-                visibleRightChildren.length > 0
-                  ? visibleRightChildren.reduce((pre, cur) => pre + cur.actualHeight, 0) +
-                    (visibleRightChildren.length - 1) * (MARGIN_Y[node.level + 1] || 8)
-                  : 0;
-
-              // 存储左右两边的高度，用于独立布局
-              node.leftChildrenHeight = leftHeight;
-              node.rightChildrenHeight = rightHeight;
-
-              // 取左右两边的最大高度作为总的子节点高度（用于计算 actualHeight）
-              node.childrenHeight = Math.max(leftHeight, rightHeight);
-              node.actualHeight = Math.max(node.childrenHeight, node.height);
-            } else {
-              node.actualHeight = node.height;
-              node.childrenHeight = 0;
-              node.leftChildrenHeight = 0;
-              node.rightChildrenHeight = 0;
-            }
-          },
-        },
-        null,
-        0,
-        true
-      ); // Use skipFolded=true
-
-      this.dfs(
-        draft,
-        {
-          before: (node, parent) => {
-            if (!parent) return;
-
-            // 根据父节点的折叠状态和节点方向计算可见的兄弟节点
-            const isNodeLeftDirection = node.direction === "left";
-            const isParentFoldThisDirection = isNodeLeftDirection
-              ? parent.isLeftFold
-              : parent.isRightFold;
-
-            if (isParentFoldThisDirection) return; // 如果父节点折叠了这个方向，则此节点不可见
-
-            const parentVisibleChildren = parent.children.filter(child => {
-              const isChildLeftDirection = child.direction === "left";
-              const isParentFoldChildDirection = isChildLeftDirection
-                ? parent.isLeftFold
-                : parent.isRightFold;
-              return !isParentFoldChildDirection;
-            });
-
-            // 只考虑相同 direction 的兄弟节点
-            const sameDirectionSiblings = parentVisibleChildren.filter(
-              child => child.direction === node.direction
-            );
-            const currentIndexInSameDirection = sameDirectionSiblings.findIndex(
-              child => child.id === node.id
-            );
-
-            const beforeSiblingsInSameDirection =
-              currentIndexInSameDirection > 0
-                ? sameDirectionSiblings.slice(0, currentIndexInSameDirection)
-                : [];
-
-            const siblingsHeight =
-              beforeSiblingsInSameDirection.reduce((pre, cur) => {
-                return pre + cur.actualHeight;
-              }, 0) +
-              beforeSiblingsInSameDirection.length * (MARGIN_Y[node.level] || 8);
-
-            // 根据节点方向使用对应的 childrenHeight 来计算 baseY
-            const relevantChildrenHeight = isNodeLeftDirection
-              ? parent.leftChildrenHeight
-              : parent.rightChildrenHeight;
-
-            const baseY = parent.y + parent.height / 2 - relevantChildrenHeight / 2;
-            const childrenTop = baseY + siblingsHeight;
-            node.y = childrenTop + (node.actualHeight - node.height) / 2;
-          },
-        },
-        null,
-        0,
-        true
-      );
+      const layout = getMindLayout(draft);
+      normalizeTree(draft, layout.sides.length === 1);
+      layout.place(draft);
     });
+  }
+
+  static visibleChildren(node: MindNodeElement) {
+    return visibleChildren(node);
+  }
+
+  /** 换一种布局重排后的各节点位置，供悬停预览渲染（不写文档） */
+  static previewLayout(root: MindNodeElement, layout: MindLayoutId) {
+    const nodes = new Map<string, MindNodeElement>();
+    this.dfs(this.layout({ ...root, layout }), { before: node => void nodes.set(node.id, node) });
+    return { layout, nodes };
+  }
+
+  /** 单向布局里节点的子分支只有一组，左右两个折叠标记一起读写 */
+  static isFolded(layout: MindLayout, node: MindNodeElement, side: MindSide) {
+    if (layout.sides.length > 1)
+      return Boolean(side === "left" ? node.isLeftFold : node.isRightFold);
+    return Boolean(node.isLeftFold && node.isRightFold);
   }
 
   static relayoutAffectedRootsAfterMindMove(
@@ -228,30 +145,11 @@ export class MindUtil {
     skipFolded = false
   ) {
     before?.(node, parent, index);
-    const nodeChildren = node.children ?? [];
-    if (!skipFolded || (!node.isLeftFold && !node.isRightFold)) {
-      // 如果不跳过折叠节点，或者节点没有完全折叠，则遍历子节点
-      const childrenToVisit = skipFolded
-        ? nodeChildren.filter(child => {
-            const isChildLeftDirection = child.direction === "left";
-            const isFoldInThisDirection = isChildLeftDirection ? node.isLeftFold : node.isRightFold;
-            return !isFoldInThisDirection;
-          })
-        : nodeChildren;
-
-      childrenToVisit.forEach((child, index) => {
-        this.dfs(
-          child,
-          {
-            before,
-            after,
-          },
-          node,
-          index,
-          skipFolded
-        );
-      });
-    }
+    // skipFolded 只跳过被收起那一侧的子节点，另一侧照常遍历
+    const childrenToVisit = skipFolded ? visibleChildren(node) : (node.children ?? []);
+    childrenToVisit.forEach((child, childIndex) => {
+      this.dfs(child, { before, after }, node, childIndex, skipFolded);
+    });
     after?.(node, parent, index);
   }
 
@@ -617,18 +515,18 @@ export class MindUtil {
   }
 
   static toggleFold(root: MindNodeElement, node: MindNodeElement, direction: "left" | "right") {
+    const layout = getMindLayout(root);
     const newRoot = produce(root, draft => {
-      this.dfs(draft, {
-        before: current => {
-          if (current.id === node.id) {
-            if (direction === "left") {
-              current.isLeftFold = !current.isLeftFold;
-            } else {
-              current.isRightFold = !current.isRightFold;
-            }
-          }
-        },
-      });
+      const current = this.findNodeInTree(draft, node.id);
+      if (!current) return;
+      if (layout.sides.length > 1) {
+        if (direction === "left") current.isLeftFold = !current.isLeftFold;
+        else current.isRightFold = !current.isRightFold;
+        return;
+      }
+      const fold = !this.isFolded(layout, current, direction);
+      current.isLeftFold = fold;
+      current.isRightFold = fold;
     });
     return this.layout(newRoot);
   }
@@ -637,48 +535,10 @@ export class MindUtil {
     draggedNode: MindNodeElement,
     candidateParent: MindNodeElement,
     direction: "left" | "right",
-    zoom: number
+    zoom: number,
+    layout: MindLayout = getMindLayout(null)
   ): Omit<MindDragTarget, "node" | "insertIndex"> | null {
-    const parentLeft = candidateParent.x;
-    const parentRight = candidateParent.x + candidateParent.width;
-    const draggedLeft = draggedNode.x;
-    const draggedRight = draggedNode.x + draggedNode.width;
-    const isCompletelyOnDirectionSide =
-      direction === "right" ? draggedLeft >= parentRight : draggedRight <= parentLeft;
-
-    if (!isCompletelyOnDirectionSide) {
-      return null;
-    }
-
-    const horizontalDistance =
-      direction === "right" ? draggedLeft - parentRight : parentLeft - draggedRight;
-    const verticalDistance = Math.max(
-      0,
-      candidateParent.y - (draggedNode.y + draggedNode.height),
-      draggedNode.y - (candidateParent.y + candidateParent.height)
-    );
-    const safeZoom = Math.max(zoom, 0.01);
-    const score = Math.hypot(
-      (horizontalDistance * safeZoom) / MIND_DRAG_HORIZONTAL_THRESHOLD_PX,
-      (verticalDistance * safeZoom) / MIND_DRAG_VERTICAL_THRESHOLD_PX
-    );
-    const parentCenterY = candidateParent.y + candidateParent.height / 2;
-    const draggedCenterY = draggedNode.y + draggedNode.height / 2;
-
-    return {
-      direction,
-      horizontalDistance,
-      verticalDistance,
-      score,
-      connectionStart: {
-        x: direction === "right" ? candidateParent.x + candidateParent.width : candidateParent.x,
-        y: parentCenterY,
-      },
-      connectionEnd: {
-        x: direction === "right" ? draggedNode.x : draggedNode.x + draggedNode.width,
-        y: draggedCenterY,
-      },
-    };
+    return layout.dropDistance(draggedNode, candidateParent, direction, zoom);
   }
 
   /**
@@ -727,7 +587,7 @@ export class MindUtil {
       before: node => draggedNodeIds.add(node.id),
     });
 
-    const visibleMindNodes: MindNodeElement[] = [];
+    const visibleMindNodes: Array<{ node: MindNodeElement; layout: MindLayout }> = [];
     const roots: MindNodeElement[] = [];
     BoardUtil.dfs(board, element => {
       if (element.type === "mind-node" && this.isRoot(element as MindNodeElement)) {
@@ -735,14 +595,11 @@ export class MindUtil {
       }
     });
 
-    const collectVisibleNodes = (node: MindNodeElement) => {
-      visibleMindNodes.push(node);
-      node.children.forEach(child => {
-        const isFolded = child.direction === "left" ? node.isLeftFold : node.isRightFold;
-        if (!isFolded) collectVisibleNodes(child);
-      });
+    const collectVisibleNodes = (node: MindNodeElement, layout: MindLayout) => {
+      visibleMindNodes.push({ node, layout });
+      visibleChildren(node).forEach(child => collectVisibleNodes(child, layout));
     };
-    roots.forEach(collectVisibleNodes);
+    roots.forEach(root => collectVisibleNodes(root, getMindLayout(root)));
 
     let nearestTarget: MindDragTarget | null = null;
     const dragCenterPoint = {
@@ -750,19 +607,18 @@ export class MindUtil {
       y: dragNode.y + dragNode.height / 2,
     };
 
-    visibleMindNodes.forEach(node => {
+    visibleMindNodes.forEach(({ node, layout }) => {
       if (draggedNodeIds.has(node.id)) return;
 
-      const directions: Array<"left" | "right"> = this.isRoot(node)
-        ? ["left", "right"]
-        : [node.direction];
+      const directions: readonly MindSide[] = this.isRoot(node) ? layout.sides : [node.direction];
 
       directions.forEach(direction => {
         const distance = this.calculateDragTargetDistance(
           dragNode,
           node,
           direction,
-          board.viewPort.zoom
+          board.viewPort.zoom,
+          layout
         );
         if (!distance) return;
 
@@ -776,7 +632,8 @@ export class MindUtil {
           node,
           dragCenterPoint,
           direction,
-          dragNode.id
+          dragNode.id,
+          layout
         );
         const target: MindDragTarget = {
           ...placement,
@@ -801,65 +658,26 @@ export class MindUtil {
     parentNode: MindNodeElement,
     dragCenterPoint: { x: number; y: number },
     direction: "left" | "right",
-    draggedNodeId?: string
+    draggedNodeId?: string,
+    layout: MindLayout = getMindLayout(null)
   ): Pick<MindDragTarget, "node" | "insertIndex" | "direction"> {
     const children = draggedNodeId
       ? parentNode.children.filter(child => child.id !== draggedNodeId)
       : parentNode.children;
+    // 双向布局只和同侧兄弟比较；单向布局所有子节点排在同一组
+    const group =
+      layout.sides.length > 1 ? children.filter(child => child.direction === direction) : children;
+    if (group.length === 0) return { node: parentNode, insertIndex: children.length, direction };
 
-    if (children.length === 0) {
-      return {
-        node: parentNode,
-        insertIndex: 0,
-        direction,
-      };
-    }
-
-    // 找出同侧的兄弟节点
-    const sameDirectionSiblings = children.filter(child => child.direction === direction);
-
-    // 如果没有同方向的子节点，直接插入到该方向的第一个位置
-    if (sameDirectionSiblings.length === 0) {
-      // 找到该方向在 children 数组中的第一个位置
-      const firstIndexInDirection = children.findIndex(child => child.direction === direction);
-      const insertIndex = firstIndexInDirection === -1 ? children.length : firstIndexInDirection;
-
-      return {
-        node: parentNode,
-        insertIndex,
-        direction,
-      };
-    }
-
-    // 查找应该插入的位置
-    let insertIndex = children.length; // 默认插入到最后
-
-    // 只比较同方向的兄弟节点
-    for (let i = 0; i < sameDirectionSiblings.length; i++) {
-      const sibling = sameDirectionSiblings[i];
-      const siblingCenterY = sibling.y + sibling.height / 2;
-
-      if (dragCenterPoint.y < siblingCenterY) {
-        // 鼠标在这个兄弟节点上方，应该插入在它之前
-        // 需要找到这个兄弟节点在原始 children 数组中的索引
-        const originalIndex = children.findIndex(child => child.id === sibling.id);
-        insertIndex = originalIndex;
-        break;
-      }
-    }
-
-    // 如果鼠标在所有同方向兄弟节点下方，插入到最后一个同方向兄弟节点之后
-    if (insertIndex === children.length) {
-      const lastSibling = sameDirectionSiblings[sameDirectionSiblings.length - 1];
-      const lastSiblingIndex = children.findIndex(child => child.id === lastSibling.id);
-      insertIndex = lastSiblingIndex + 1;
-    }
-
-    return {
-      node: parentNode,
-      insertIndex,
-      direction,
-    };
+    const axis = layout.siblingAxis(parentNode.level);
+    const centerOf = (node: MindNodeElement) =>
+      axis === "x" ? node.x + node.width / 2 : node.y + node.height / 2;
+    const pointer = axis === "x" ? dragCenterPoint.x : dragCenterPoint.y;
+    const before = group.find(sibling => pointer < centerOf(sibling));
+    const insertIndex = before
+      ? children.indexOf(before)
+      : children.indexOf(group[group.length - 1]) + 1;
+    return { node: parentNode, insertIndex, direction };
   }
 
   static moveNodeToNewParent(
@@ -1001,6 +819,174 @@ export class MindUtil {
     });
 
     return !isDescendant;
+  }
+
+  /** 节点有子节点且全部被收起（两侧都算） */
+  static isCollapsed(node: MindNodeElement) {
+    return node.children.length > 0 && visibleChildren(node).length === 0;
+  }
+
+  /** 收起或展开节点的全部子节点；两侧标记一起写，换边后不会冒出另一侧的旧折叠 */
+  static setFolded(root: MindNodeElement, nodeId: string, folded: boolean) {
+    return this.layout(
+      produce(root, draft => {
+        const node = this.findNodeInTree(draft, nodeId);
+        if (!node || !node.children.length) return;
+        node.isLeftFold = folded;
+        node.isRightFold = folded;
+      })
+    );
+  }
+
+  /** 有可见子节点就全部收起，否则全部展开 */
+  static toggleCollapsed(root: MindNodeElement, nodeId: string) {
+    const node = this.findNodeInTree(root, nodeId);
+    if (!node?.children.length) return null;
+    return this.setFolded(root, nodeId, visibleChildren(node).length > 0);
+  }
+
+  /** 展开节点及其下所有层级 */
+  static expandAll(root: MindNodeElement, nodeId: string) {
+    return this.layout(
+      produce(root, draft => {
+        const node = this.findNodeInTree(draft, nodeId);
+        if (!node) return;
+        this.dfs(node, {
+          before: current => {
+            current.isLeftFold = false;
+            current.isRightFold = false;
+          },
+        });
+      })
+    );
+  }
+
+  /** 整张导图展开到第 depth 层（根节点为第 1 层）；depth 为 0 时全部展开 */
+  static expandToLevel(root: MindNodeElement, depth: number) {
+    return this.layout(
+      produce(root, draft => {
+        this.dfs(draft, {
+          before: node => {
+            const folded = depth > 0 && node.level >= depth && node.children.length > 0;
+            node.isLeftFold = folded;
+            node.isRightFold = folded;
+          },
+        });
+      })
+    );
+  }
+
+  /** 树的最深层级（根节点为 1） */
+  static maxLevel(root: MindNodeElement) {
+    let level = 1;
+    this.dfs(root, { before: node => void (level = Math.max(level, node.level)) });
+    return level;
+  }
+
+  /** 升一级：变成父节点的下一个同级；父节点是根时不动 */
+  static promote(root: MindNodeElement, nodeId: string) {
+    const parent = this.findParentInTree(root, nodeId);
+    if (!parent || this.isRoot(parent)) return null;
+    const grandParent = this.findParentInTree(root, parent.id);
+    if (!grandParent) return null;
+    return this.layout(
+      produce(root, draft => {
+        const from = this.findNodeInTree(draft, parent.id)!;
+        const to = this.findNodeInTree(draft, grandParent.id)!;
+        const index = from.children.findIndex(child => child.id === nodeId);
+        const [node] = from.children.splice(index, 1);
+        node.direction = from.direction;
+        to.children.splice(to.children.findIndex(child => child.id === from.id) + 1, 0, node);
+      })
+    );
+  }
+
+  /** 复制分支放到它后面；返回新树和副本 */
+  static duplicate(root: MindNodeElement, nodeId: string) {
+    const node = this.findNodeInTree(root, nodeId);
+    const parent = node && this.findParentInTree(root, nodeId);
+    if (!node || !parent) return null;
+    const copy = this.cloneSubtree(node);
+    const next = produce(root, draft => {
+      const target = this.findNodeInTree(draft, parent.id)!;
+      target.children.splice(target.children.findIndex(child => child.id === nodeId) + 1, 0, copy);
+    });
+    return { root: this.layout(next), copy };
+  }
+
+  /**
+   * 子树的独立副本：换新 id，正文取协作投影的 body（没有时取 text）并去掉协作 id，
+   * 关联笔记的引用保留。
+   */
+  static cloneSubtree(node: MindNodeElement): MindNodeElement {
+    const {
+      body,
+      dataVersion: _version,
+      defaultFocus: _focus,
+      ...rest
+    } = node as MindNodeElement & Record<string, unknown>;
+    return {
+      ...rest,
+      id: uuid(),
+      text: stripTextIdentity(Array.isArray(body) ? (body as Descendant[]) : (node.text ?? [])),
+      children: node.children.map(child => this.cloneSubtree(child)),
+    } as MindNodeElement;
+  }
+
+  /**
+   * 把若干子树的副本挂到 parentId 下（追加在末尾）并展开父节点，方向与层级随新父节点重算。
+   * 返回新树和挂上去的副本。
+   */
+  static attachSubtrees(root: MindNodeElement, parentId: string, subtrees: MindNodeElement[]) {
+    const parent = this.findNodeInTree(root, parentId);
+    if (!parent || !subtrees.length) return null;
+    const direction: "left" | "right" = this.isRoot(parent) ? "right" : parent.direction;
+    const attached = subtrees.map(subtree =>
+      produce(this.cloneSubtree(subtree), draft => {
+        this.updateNodeDirectionAndLevel(draft, direction, parent.level);
+      })
+    );
+    const next = produce(root, draft => {
+      const target = this.findNodeInTree(draft, parentId)!;
+      target.isLeftFold = false;
+      target.isRightFold = false;
+      target.children.push(...attached);
+    });
+    return { root: this.layout(next), attached };
+  }
+
+  /** 大纲 → 导图节点（坐标由布局算，宽度等文字测量后再重排） */
+  static nodesFromOutline(
+    outline: readonly MindOutline[],
+    fontSize = 13,
+    maxDepth = WHITEBOARD_LIMITS.payloadDepth - 1
+  ): MindNodeElement[] {
+    assertMindOutlineDepth(outline, maxDepth);
+    const height = fontSize * 1.57 + 16 * 2;
+    const build = (item: MindOutline): MindNodeElement => ({
+      id: uuid(),
+      type: "mind-node",
+      x: 0,
+      y: 0,
+      width: 24,
+      height,
+      actualHeight: height,
+      level: 2,
+      childrenHeight: 0,
+      leftChildrenHeight: 0,
+      rightChildrenHeight: 0,
+      direction: "right",
+      text: item.text,
+      children: item.children.map(build),
+      isLeftFold: false,
+      isRightFold: false,
+    });
+    return outline.map(build);
+  }
+
+  /** 导图子树 → 大纲（含收起的分支） */
+  static toOutline(node: MindNodeElement): MindOutline {
+    return { text: node.text, children: node.children.map(child => this.toOutline(child)) };
   }
 
   static getDefaultThemeId(): string {

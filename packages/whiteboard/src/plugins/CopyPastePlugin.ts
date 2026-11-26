@@ -20,6 +20,7 @@ import {
   executeLayerOrderAction,
 } from "../utils";
 import { SelectTransforms, ViewPortTransforms } from "../transforms";
+
 import { detectHotkeyPlatform, formatHotkey } from "../utils/hotkeyFormat";
 
 import { v4 as getUuid } from "uuid";
@@ -149,7 +150,8 @@ export class CopyPastePlugin implements IBoardPlugin {
           const filteredElements = this.filterContainerChildren(ctx.board, targetElements);
           const payload = buildClipboardPayload(ctx.board, filteredElements);
           if (!payload) return;
-          writeClipboardPayload(payload).then(success => {
+          const text = ctx.board.capabilityService.getClipboardText(filteredElements);
+          writeClipboardPayload(payload, text).then(success => {
             if (!success) {
               console.warn("复制到剪贴板失败");
             }
@@ -266,7 +268,10 @@ export class CopyPastePlugin implements IBoardPlugin {
     if (!payload) return;
 
     e.clipboardData?.setData("application/json", payload);
-    e.clipboardData?.setData("text/plain", payload);
+    e.clipboardData?.setData(
+      "text/plain",
+      board.capabilityService.getClipboardText(filteredElements) ?? payload
+    );
     e.preventDefault();
     e.stopImmediatePropagation();
   }
@@ -317,6 +322,11 @@ export class CopyPastePlugin implements IBoardPlugin {
       e.stopImmediatePropagation();
       return;
     }
+    if (this.tryPasteInto(board, payloadCandidates, textPlain)) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      return;
+    }
     for (const candidate of payloadCandidates) {
       if (this.tryPasteWhiteboardPayload(candidate, e, board)) {
         return;
@@ -324,6 +334,31 @@ export class CopyPastePlugin implements IBoardPlugin {
     }
 
     this.tryPasteTextAsRichText(e, board);
+  }
+
+  /** 只选中一个元素且没在编辑文字时，先问该类型能否把剪贴板内容收进去（如导图节点挂子节点） */
+  private tryPasteInto(board: Board, candidates: string[], text?: string): boolean {
+    const selected = board.selection.selectedElements;
+    if (selected.length !== 1 || board.isEditingElements.length > 0) return false;
+    const target = selected[0];
+    const pasteInto = board.capabilityService.getClipboardCapability(target.type).pasteInto;
+    if (!pasteInto) return false;
+    const payloads = candidates.flatMap(candidate => {
+      try {
+        return [JSON.parse(candidate) as unknown];
+      } catch {
+        return [];
+      }
+    });
+    try {
+      return pasteInto(board, target, { payloads, text });
+    } catch (error) {
+      if (error instanceof WhiteboardValidationError) {
+        console.error(`粘贴的内容数据不合规，已放弃：${error.message}`);
+        return true;
+      }
+      throw error;
+    }
   }
 
   private tryPasteWhiteboardPayload(data: string, e: ClipboardEvent, board: Board): boolean {

@@ -10,6 +10,7 @@ import { produce } from "immer";
 
 import CurveArrow from "../../components/Arrow/CurveArrow";
 import SketchRect from "../SketchPaths/SketchRect";
+import SketchStroke from "../SketchPaths/SketchStroke";
 import { hashSeed } from "../../utils/sketch";
 import {
   useActiveTool,
@@ -21,9 +22,10 @@ import {
   useSketch,
 } from "../../hooks";
 import { BoardUtil, MindThemeUtil, MindUtil, PathUtil } from "../../utils";
-import { useMindMode, useMindTheme } from "../../hooks/useMindTheme";
+import { useMindLayout, useMindMode, useMindTheme } from "../../hooks/useMindTheme";
 import useHandleResize from "./hooks/useHandleResize.ts";
 import { useMindNodeKeyboardNavigation } from "./hooks/useMindNodeKeyboardNavigation.ts";
+import { NotePeek } from "./NotePeek";
 import { EMarkerType, MindNodeElement } from "../../types";
 import { allowsElementInteraction } from "../../constants/tools";
 import { useTextExtension } from "../../extensions/text";
@@ -73,8 +75,7 @@ const DEFAULT_CONTENT: Descendant[] = [
 const MindNode = (props: MindNodeProps) => {
   const { element } = props;
 
-  const { id, x, y, width, height, text, defaultFocus, isLeftFold, isRightFold, direction } =
-    element;
+  const { id, text, defaultFocus, direction } = element;
 
   const board = useBoard();
   const collaborativeDocument = board.document?.textDocument(element.id);
@@ -85,6 +86,10 @@ const MindNode = (props: MindNodeProps) => {
 
   const root = useMemo(() => MindUtil.getRoot(board, element), [board, element, board.children]);
   const mindTheme = useMindTheme(root);
+  const { layout, previewNodes } = useMindLayout(root);
+  // 悬停布局卡片时按预览坐标画，文档不变
+  const shown = previewNodes?.get(id) ?? element;
+  const { x, y, width, height } = shown;
   const mindMode = useMindMode();
   const branchIndex = MindThemeUtil.getBranchIndex(root, id);
 
@@ -143,8 +148,8 @@ const MindNode = (props: MindNodeProps) => {
 
     const widthDiff = width - element.width;
     const nextX =
-      // 思维导图左侧节点的 x 依赖 width：保持“右边缘”不动，避免宽度变化导致连接线/布局漂移
-      direction === "left" ? element.x - widthDiff : element.x;
+      // 排在父节点左侧的节点保持右边缘不动，避免宽度变化导致连线/布局漂移
+      layout.sides.length > 1 && direction === "left" ? element.x - widthDiff : element.x;
 
     const path = PathUtil.getPathByElement(board, element);
     if (!path) {
@@ -401,13 +406,18 @@ const MindNode = (props: MindNodeProps) => {
     setContentSelectorOpen(false);
   });
 
+  const retainContent = useMemoizedFn((contentId: number) => {
+    void textBinding.retain?.(contentId);
+  });
+
   const { handleKeyDown } = useMindNodeKeyboardNavigation(
     board,
     element,
     isSelected,
     isEditing,
     setIsEditing,
-    editorRef.current
+    editorRef.current,
+    retainContent
   );
 
   useEffect(() => {
@@ -438,69 +448,27 @@ const MindNode = (props: MindNodeProps) => {
     };
   }, [board, element.id, handleCreateNote]);
 
-  const leftChildPoints = useMemo(() => {
-    const leftChildren = element.children.filter(child => child.direction === "left");
-    const visibleLeftChildren = isLeftFold ? [] : leftChildren;
-
-    if (isLeftFold && leftChildren.length > 0) {
-      return [
-        {
-          id: leftChildren[0].id,
-          x: element.x - 10,
-          y: element.y + element.height / 2,
-        },
-      ];
-    }
-
-    return visibleLeftChildren.map(child => ({
-      id: child.id,
-      x: child.x + child.width,
-      y: child.y + child.height / 2,
-    }));
-  }, [element, isLeftFold]);
-
-  const rightChildPoints = useMemo(() => {
-    const rightChildren = element.children.filter(child => child.direction === "right");
-    const visibleRightChildren = isRightFold ? [] : rightChildren;
-
-    if (isRightFold && rightChildren.length > 0) {
-      return [
-        {
-          id: rightChildren[0].id,
-          x: element.x + element.width + 10,
-          y: element.y + element.height / 2,
-        },
-      ];
-    }
-
-    return visibleRightChildren.map(child => ({
-      id: child.id,
-      x: child.x,
-      y: child.y + child.height / 2,
-    }));
-  }, [element, isRightFold]);
-
-  const leftChildren = element.children.filter(child => child.direction === "left");
-  const rightChildren = element.children.filter(child => child.direction === "right");
-
-  const hasLeftChildren = leftChildren.length > 0;
-  const hasRightChildren = rightChildren.length > 0;
-
-  const leftDescendants =
-    leftChildren.length > 0
-      ? leftChildren.reduce(
-          (total, child) => total + MindUtil.getChildrenByNode(child).length + 1,
-          0
-        )
-      : 0;
-
-  const rightDescendants =
-    rightChildren.length > 0
-      ? rightChildren.reduce(
-          (total, child) => total + MindUtil.getChildrenByNode(child).length + 1,
-          0
-        )
-      : 0;
+  // 连线与折叠按钮：按布局计算，单向布局只有一组子节点
+  const placed = (child: MindNodeElement) => previewNodes?.get(child.id) ?? child;
+  const childLines = MindUtil.visibleChildren(shown).map(child => ({
+    id: child.id,
+    connector: layout.connector(shown, placed(child)),
+  }));
+  const foldHandles = layout.sides
+    .map(side => {
+      const kids =
+        layout.sides.length > 1
+          ? element.children.filter(child => child.direction === side)
+          : element.children;
+      if (!kids.length) return null;
+      const folded = MindUtil.isFolded(layout, element, side);
+      const count = kids.reduce(
+        (sum, child) => sum + MindUtil.getChildrenByNode(child).length + 1,
+        0
+      );
+      return { side, folded, count, firstChildId: kids[0].id, ...layout.foldHandle(shown, side) };
+    })
+    .filter(handle => handle !== null);
 
   const editorStyle = useMemo(() => {
     return {
@@ -580,86 +548,93 @@ const MindNode = (props: MindNodeProps) => {
                 readonly={
                   !isEditing || board.readonly || Boolean(board.document && !collaborativeDocument)
                 }
-                className={cn("box-border w-fit rounded-[4px] p-4", handTextClass(sketch))}
+                className={cn(
+                  "box-border w-fit rounded-[4px] p-4",
+                  element.contentId && "pr-9",
+                  handTextClass(sketch)
+                )}
                 style={editorStyle}
                 onChange={board.document ? undefined : onContentChange}
                 onBlur={handleBlur}
               />
             </EditorThemeOverride>
+            {/* 关联笔记：图标占编辑区右侧留白，颜色跟随分支 */}
+            {element.contentId ? (
+              <NotePeek
+                contentId={element.contentId}
+                title={element.contentTitle ?? ""}
+                color={nodeStyle.accent}
+                style={{ left: width - 30, top: 16 }}
+                onOpen={() =>
+                  board.emit("tau.note.open", element.contentId, element.contentTitle ?? "")
+                }
+                onUnlink={
+                  board.readonly
+                    ? undefined
+                    : () => board.emit("tau.mind.confirm-unlink-note", element.id)
+                }
+              />
+            ) : null}
           </div>
         </foreignObject>
 
-        {/* 笔记状态点：有笔记时常驻显示（hover 时也不消失） */}
-        <If condition={!!element.contentId}>
-          <circle
-            cx={x + width - 9}
-            cy={y + 9}
-            r={4}
-            fill={nodeStyle.accent}
-            stroke="var(--tau-bg-surface)"
-            strokeWidth={1.5}
-            pointerEvents="none"
-          />
-        </If>
-
-        {/* 左侧子节点连线 */}
-        {leftChildPoints.map((point, index) => {
-          const line = childLineOf(point.id);
-
-          return (
+        {childLines.map(({ id: childId, connector }) => {
+          const line = childLineOf(childId);
+          return connector.kind === "curve" ? (
             <CurveArrow
-              key={`left-${index}`}
+              key={childId}
               sourceMarker={EMarkerType.None}
               targetMarker={EMarkerType.None}
               lineColor={line.lineColor}
               lineWidth={line.lineWidth}
-              points={[
-                {
-                  x: element.x,
-                  y: element.y + element.height / 2,
-                },
-                {
-                  x: point.x,
-                  y: point.y,
-                },
-              ]}
+              points={[connector.from, connector.to]}
               forceVertical
-              sketch={branchSketch(point.id)}
+              sketch={branchSketch(childId)}
+            />
+          ) : sketch.enabled ? (
+            <SketchStroke
+              key={childId}
+              d={connector.d}
+              color={line.lineColor}
+              strokeWidth={line.lineWidth}
+              level={sketch.level}
+              seed={(sketch.seed ^ hashSeed(childId)) >>> 0}
+            />
+          ) : (
+            <path
+              key={childId}
+              d={connector.d}
+              stroke={line.lineColor}
+              strokeWidth={line.lineWidth}
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             />
           );
         })}
 
-        {/* 右侧子节点连线 */}
-        {rightChildPoints.map((point, index) => {
-          const line = childLineOf(point.id);
+        {/* 收起后的短连线：从节点边缘接到计数按钮 */}
+        {foldHandles
+          .filter(handle => handle.folded)
+          .map(handle => {
+            const line = childLineOf(handle.firstChildId);
+            return (
+              <line
+                key={`stem-${handle.side}`}
+                x1={handle.from.x}
+                y1={handle.from.y}
+                x2={handle.at.x}
+                y2={handle.at.y}
+                stroke={line.lineColor}
+                strokeWidth={line.lineWidth}
+              />
+            );
+          })}
 
-          return (
-            <CurveArrow
-              key={`right-${index}`}
-              sourceMarker={EMarkerType.None}
-              targetMarker={EMarkerType.None}
-              lineColor={line.lineColor}
-              lineWidth={line.lineWidth}
-              points={[
-                {
-                  x: element.x + element.width,
-                  y: element.y + element.height / 2,
-                },
-                {
-                  x: point.x,
-                  y: point.y,
-                },
-              ]}
-              forceVertical
-              sketch={branchSketch(point.id)}
-            />
-          );
-        })}
-
-        {/* 左侧折叠指示器 */}
-        <If condition={hasLeftChildren}>
+        {foldHandles.map(handle => (
           <g
-            onClick={e => handleToggleFold(e, "left")}
+            key={`fold-${handle.side}`}
+            onClick={e => handleToggleFold(e, handle.side)}
             onDoubleClick={e => {
               e.stopPropagation();
             }}
@@ -668,15 +643,10 @@ const MindNode = (props: MindNodeProps) => {
             }}
             className="cursor-pointer"
           >
-            <circle
-              cx={element.x - 10}
-              cy={element.y + element.height / 2}
-              r={8}
-              fill={nodeStyle.accent}
-            />
+            <circle cx={handle.at.x} cy={handle.at.y} r={8} fill={nodeStyle.accent} />
             <text
-              x={element.x - 10}
-              y={element.y + element.height / 2 + (isLeftFold ? 1 : 0)}
+              x={handle.at.x}
+              y={handle.at.y + (handle.folded ? 1 : 0)}
               textAnchor="middle"
               dominantBaseline="middle"
               fontSize={10}
@@ -684,44 +654,10 @@ const MindNode = (props: MindNodeProps) => {
               fill={nodeStyle.accentText}
               className="select-none"
             >
-              {isLeftFold ? `${leftDescendants}` : "-"}
+              {handle.folded ? `${handle.count}` : "-"}
             </text>
           </g>
-        </If>
-
-        {/* 右侧折叠指示器 */}
-        <If condition={hasRightChildren}>
-          <g
-            onClick={e => handleToggleFold(e, "right")}
-            onDoubleClick={e => {
-              e.stopPropagation();
-            }}
-            onPointerDown={e => {
-              e.stopPropagation();
-            }}
-            className="cursor-pointer"
-          >
-            <circle
-              cx={element.x + element.width + 10}
-              cy={element.y + element.height / 2}
-              r={8}
-              fill={nodeStyle.accent}
-              className="relative"
-            />
-            <text
-              x={element.x + element.width + 10}
-              y={element.y + element.height / 2}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fontSize={10}
-              fontWeight="bold"
-              fill={nodeStyle.accentText}
-              className="select-none"
-            >
-              {isRightFold ? `${rightDescendants}` : "-"}
-            </text>
-          </g>
-        </If>
+        ))}
       </g>
       <ContentSelectorModal
         open={contentSelectorOpen}

@@ -3,7 +3,7 @@ import { useCallback, useLayoutEffect, useRef, useSyncExternalStore } from "reac
 import type Board from "../../Board";
 import { BOARD_TO_CONTAINER } from "../../constants/map";
 import { getMindDragSourceId } from "../../constants/mind";
-import type { MindDragState } from "../../types/mind";
+import type { MindDragState, MindDragTarget } from "../../types/mind";
 
 interface MindDragStore {
   name: string;
@@ -68,14 +68,7 @@ const MindDragOverlay = ({ board }: { board: Board }) => {
   const zoom = Math.max(board.viewPort.zoom, 0.01);
   const translateX = previewNode.x - draggedNode.x;
   const translateY = previewNode.y - draggedNode.y;
-  const connectionPath = currentTarget
-    ? [
-        `M ${currentTarget.connectionStart.x} ${currentTarget.connectionStart.y}`,
-        `C ${(currentTarget.connectionStart.x + currentTarget.connectionEnd.x) / 2} ${currentTarget.connectionStart.y}`,
-        `${(currentTarget.connectionStart.x + currentTarget.connectionEnd.x) / 2} ${currentTarget.connectionEnd.y}`,
-        `${currentTarget.connectionEnd.x} ${currentTarget.connectionEnd.y}`,
-      ].join(" ")
-    : null;
+  const connectionPath = currentTarget ? previewConnection(currentTarget) : null;
 
   if (!showsPreview && !connectionPath) return null;
 
@@ -107,5 +100,19 @@ const MindDragOverlay = ({ board }: { board: Board }) => {
     </g>
   );
 };
+
+/** 起止两端按 connectionAxis 取水平或竖直切线的三次曲线 */
+function previewConnection({
+  connectionStart: s,
+  connectionEnd: e,
+  connectionAxis,
+}: MindDragTarget) {
+  if (connectionAxis === "y") {
+    const my = (s.y + e.y) / 2;
+    return `M ${s.x} ${s.y} C ${s.x} ${my} ${e.x} ${my} ${e.x} ${e.y}`;
+  }
+  const mx = (s.x + e.x) / 2;
+  return `M ${s.x} ${s.y} C ${mx} ${s.y} ${mx} ${e.y} ${e.x} ${e.y}`;
+}
 
 export default MindDragOverlay;

@@ -71,6 +71,7 @@ const specs: Readonly<Record<string, BuiltinSpec>> = {
       "isRightFold",
       "themeId",
       "themeStyle",
+      "layout",
       "theme",
       "background",
       "border",

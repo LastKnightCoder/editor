@@ -115,6 +115,8 @@ export function submit(
         return { createdIds: [] };
       }
     }
+    const structural = binding.model.tryLocalStructure(commands, origin, prepared, validate);
+    if (structural) return structural;
     return chunked
       ? binding.model.submitChunks(commands, origin, prepared, [], validate)
       : binding.model.submit(commands, origin, prepared, validate);

@@ -80,12 +80,52 @@ const DOCUMENT_ENTITY_KINDS = new Set(["card", "article", "project-item", "diary
 
 // 笔迹分段是存储节点。比较投影输入即可复用已有轮廓，避免重新拟合和序列化整条曲线。
 const strokeInputs = new WeakMap<BoardElement, string>();
+function sameProjection(previous: BoardElement, next: BoardElement): boolean {
+  const keys = Object.keys(next);
+  if (Object.keys(previous).length !== keys.length) return false;
+  let deep = false;
+  for (const key of keys) {
+    if (!Object.hasOwn(previous, key)) return false;
+    const a = previous[key],
+      b = next[key];
+    if (a === b) continue;
+    if (key === "children" && Array.isArray(a) && Array.isArray(b)) {
+      if (a.length !== b.length || a.some((child, index) => child !== b[index])) return false;
+    } else if (a && b && typeof a === "object" && typeof b === "object") deep = true;
+    else return false;
+  }
+  return !deep || equal(previous, next);
+}
+const leafProjections = new WeakMap<
+  CanvasBinding,
+  WeakMap<WhiteboardElementSnapshot, { inputs: readonly unknown[]; value: BoardElement }>
+>();
+const layoutProjections = new WeakMap<
+  CanvasBinding,
+  WeakMap<BoardElement, Map<string | undefined, BoardElement>>
+>();
+
+export function clearProjectionCache(binding: CanvasBinding): void {
+  leafProjections.delete(binding);
+  layoutProjections.delete(binding);
+}
 
 export function project(binding: CanvasBinding, node: WhiteboardElementSnapshot): BoardElement {
   const mapped = binding.options.types[node.type];
   const type = matchesCanvasContract(mapped, node.contractId) ? mapped : undefined;
   const localEntity = binding.localEntities.get(node.id);
   const measurement = binding.measurements.get(node.id);
+  let leaves = leafProjections.get(binding);
+  if (!leaves) {
+    leaves = new WeakMap();
+    leafProjections.set(binding, leaves);
+  }
+  const inputs = [type, localEntity, measurement, binding.feedback.get(node.id)];
+  const cached = !node.children.length ? leaves.get(node) : undefined;
+  if (cached && inputs.every((input, index) => input === cached.inputs[index])) {
+    binding.projections.set(node.id, cached.value);
+    return cached.value;
+  }
   const handwrite = type && node.type === "handwrite";
   const segmentContract = binding.options.types["host.whiteboard.stroke-segment"]?.contractId;
   const visibleChildren = handwrite
@@ -150,8 +190,12 @@ export function project(binding: CanvasBinding, node: WhiteboardElementSnapshot)
       node.id
     );
     if (value) Object.assign(next, { points: value.points, outline: value.outline });
-  } else if (previous && equal(previous, next)) return previous;
+  } else if (previous && sameProjection(previous, next)) {
+    if (!node.children.length) leaves.set(node, { inputs, value: previous });
+    return previous;
+  }
   binding.projections.set(node.id, next);
+  if (!node.children.length) leaves.set(node, { inputs, value: next });
   return next;
 }
 
@@ -159,7 +203,23 @@ export function refresh(binding: CanvasBinding): void {
   if (!binding.board || binding.closed) return;
   const snapshot = binding.readSnapshot();
   const page = snapshot.pages.find(page => page.id === binding.page);
+  let layouts = layoutProjections.get(binding);
+  if (!layouts) {
+    layouts = new WeakMap();
+    layoutProjections.set(binding, layouts);
+  }
   const layout = (node: BoardElement, parent?: string): BoardElement => {
+    const cached = layouts.get(node)?.get(parent);
+    if (cached) return cached;
+    const value = computeLayout(node, parent);
+    if (node.type !== "mind-node") {
+      const variants = layouts.get(node) ?? new Map();
+      variants.set(parent, value);
+      layouts.set(node, variants);
+    }
+    return value;
+  };
+  const computeLayout = (node: BoardElement, parent?: string): BoardElement => {
     const children = (node.children ?? []).map(child => layout(child, node.type));
     const value = { ...node, ...(node.children ? { children } : {}) };
     if (!matchesCanvasContract(binding.options.types[node.type], node.contractId)) return node;

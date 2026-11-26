@@ -1,4 +1,5 @@
 import { canUpgradeColumnContract } from "./column-contract-upgrade";
+import { WhiteboardStructure, WhiteboardStructureDraft } from "./whiteboard-structure";
 import { WhiteboardPresentations } from "./whiteboard-presentation";
 import { isContentEntityReference } from "@tau/db-schema/content-identities";
 import * as Y from "yjs";
@@ -111,6 +112,9 @@ export class WhiteboardModel {
   private revision = 0;
   private geometryValues = new WeakSet<WhiteboardGeometry>();
   private translationBudget?: { revision: number; rootCount: number; upperBytes: number };
+  private structure?: WhiteboardStructure;
+  private structureAttempt = -1;
+  private preparedMoves?: Map<PlannedCommand, { at: number; page: string }>;
   private pending?: Uint8Array;
   /** 缺依赖期间复用已提交状态的编码，每份输入仍在独立候选上校验。 */
   private pendingBase?: Uint8Array;
@@ -159,6 +163,7 @@ export class WhiteboardModel {
     this.trees.forEach(tree => tree.dispose());
     this.trees.clear();
     this.histories.clear();
+    this.structure = undefined;
     this.pending = undefined;
     this.pendingBase = undefined;
   };
@@ -580,8 +585,10 @@ export class WhiteboardModel {
     if (
       this.translationBudget?.revision === this.revision &&
       this.translationBudget.rootCount === this.doc.share.size
-    )
+    ) {
+      this.prepareStructure();
       return;
+    }
     this.translationBudget = undefined;
     if (
       this.disposed ||
@@ -600,6 +607,351 @@ export class WhiteboardModel {
     }
     if (revision === this.revision)
       this.translationBudget = { revision, rootCount: this.doc.share.size, upperBytes };
+    if (this.translationBudget) this.prepareStructure();
+  }
+
+  private prepareStructure() {
+    if (this.structure?.revision === this.revision || this.structureAttempt === this.revision)
+      return;
+    this.structureAttempt = this.revision;
+    const snapshot = this.read();
+    this.structure =
+      snapshot.recovery.length || snapshot.pages.some(page => page.recovery.length)
+        ? undefined
+        : new WhiteboardStructure(snapshot, this.revision);
+    if (this.structure)
+      for (const record of this.elements.values()) {
+        const bindings = this.bindings(record);
+        Object.values(bindings.data).forEach(root => this.structure?.roots.add(root));
+        if (bindings.body) this.structure.roots.add(bindings.body.rootId);
+      }
+    if (this.structure)
+      for (const order of this.orders.values())
+        for (const ref of order.toArray()) this.structure.references.add(`${ref.id}:${ref.token}`);
+  }
+
+  readIncrementalSnapshot(): WhiteboardSnapshot | undefined {
+    return !this.doc._transaction &&
+      !this.doc._transactionCleanups.length &&
+      this.structure?.revision === this.revision
+      ? this.structure.snapshot
+      : undefined;
+  }
+
+  private publishGeometryStructure(
+    values: readonly { id: string; geometry: WhiteboardGeometry }[],
+    previousRevision: number
+  ) {
+    if (this.structure?.revision !== previousRevision) return;
+    this.structure.updateGeometries(values, this.revision);
+  }
+
+  /** 可信绑定的结构草稿；新容器载荷在小候选中校验，既有正文不复制或重验。 */
+  tryLocalStructure(
+    commands: readonly WhiteboardModelCommand[],
+    origin: unknown,
+    prepared: readonly (PreparedWhiteboardContract | PreparedContentContract)[] = [],
+    validate?: (created: WhiteboardModel, ids: readonly string[]) => void
+  ): { createdIds: readonly string[]; isolated: boolean } | undefined {
+    this.active();
+    const proof = this.translationBudget,
+      base = this.structure;
+    if (
+      !proof ||
+      !base ||
+      proof.revision !== this.revision ||
+      base.revision !== this.revision ||
+      proof.rootCount !== this.doc.share.size ||
+      this.doc.gc ||
+      this.doc._transaction ||
+      this.doc._transactionCleanups.length ||
+      this.doc.store.pendingStructs ||
+      this.doc.store.pendingDs ||
+      !commands.length
+    )
+      return;
+    if (
+      commands.some(
+        command =>
+          !["create", "move_node", "remove_nodes", "upgrade_column", "set_node"].includes(
+            command.type
+          ) ||
+          (command.type === "set_node" &&
+            (Object.keys(command.patch).length !== 1 || !command.patch.geometry))
+      )
+    )
+      return;
+    const additions = this.preparedAdditions(prepared);
+    if (
+      commands.some(command => {
+        if (command.type !== "create") return false;
+        const contract =
+          this.contracts.get(command.contractId) ?? additions.get(command.contractId);
+        return (
+          command.parent.kind !== "page" ||
+          command.body !== undefined ||
+          contract?.domain !== "whiteboard-element" ||
+          contract.structure.text !== "none"
+        );
+      })
+    )
+      return;
+    const plans: PlannedCommand[] = [];
+    let batch: WhiteboardModelCommand[] = [],
+      batchBytes = 2;
+    const flush = () => {
+      plans.push(...this.planCommands(batch, prepared).plans);
+      batch = [];
+      batchBytes = 2;
+    };
+    for (const command of commands) {
+      const length = bytes(command);
+      if (
+        batch.length &&
+        (batch.length === WHITEBOARD_LIMITS.commandsPerBatch ||
+          batchBytes + length + 1 > WHITEBOARD_LIMITS.batchBytes)
+      )
+        flush();
+      batchBytes += length + (batch.length ? 1 : 0);
+      batch.push(command);
+    }
+    if (batch.length) flush();
+    const draft = new WhiteboardStructureDraft(base),
+      moves = new Map<PlannedCommand, { at: number; page: string }>();
+    const physical = new Map<string, WhiteboardReference[]>(),
+      tokens = new Map<string, string>(),
+      created = new Set<string>();
+    const usedRoots = new Set<string>();
+    const usedCreations = new Set<string>();
+    const newReferences = new Set<string>();
+    const orderAt = (
+      parent: WhiteboardParent,
+      anchor: WhiteboardAnchor,
+      value: WhiteboardReference
+    ) => {
+      const reference = `${value.id}:${value.token}`;
+      if (base.references.has(reference) || newReferences.has(reference))
+        throw new Error("白板顺序身份重复");
+      newReferences.add(reference);
+      const key = whiteboardParentKey(parent);
+      let order = physical.get(key);
+      if (!order) {
+        order =
+          parent.kind === "element" && created.has(parent.id) ? [] : this.order(parent).toArray();
+        physical.set(key, order);
+      }
+      const target = anchor.beforeId ?? anchor.afterId;
+      const token =
+        target === undefined
+          ? undefined
+          : (tokens.get(target) ?? this.placement(this.live(this.elements, target)).token);
+      let at =
+        target === undefined
+          ? order.length
+          : order.findIndex(ref => ref.id === target && ref.token === token);
+      if (at < 0) throw new Error("白板锚点失效");
+      if (anchor.afterId !== undefined) at++;
+      order.splice(at, 0, value);
+      tokens.set(value.id, value.token);
+      return at;
+    };
+    const trial = new WhiteboardModel(new Y.Doc({ gc: false }));
+    let newBytes = 0;
+    try {
+      for (const [key, contract] of additions) trial.contracts.set(key, structuredClone(contract));
+      for (const plan of plans) {
+        const command = plan.command;
+        if (command.type === "create") {
+          if (this.elements.has(plan.id) || this.pages.has(plan.id) || created.has(plan.id))
+            throw new Error("白板身份不能复用");
+          this.live(this.pages, command.parent.id);
+          draft.anchor(command.parent, command);
+          for (const root of Object.values(plan.roots)) {
+            if (usedRoots.has(root) || base.roots.has(root) || this.strings.has(root))
+              throw new Error("白板文字身份重复");
+            usedRoots.add(root);
+          }
+          if (!trial.pages.has(command.parent.id))
+            trial.submit([{ type: "create_page", id: command.parent.id, title: "" }], null);
+          if (!trial.contracts.has(command.contractId)) {
+            const contract = this.contracts.get(command.contractId);
+            if (!contract) throw new Error("白板元素契约无效");
+            trial.contracts.set(command.contractId, structuredClone(contract));
+          }
+          // 原锚点只影响真实父级的顺序，载荷候选不复制既有兄弟。
+          trial.execute(
+            [
+              {
+                ...plan,
+                command: { ...structuredClone(command), beforeId: undefined, afterId: undefined },
+              },
+            ],
+            null
+          );
+          created.add(plan.id);
+          if (this.creations.has(plan.creation) || usedCreations.has(plan.creation))
+            throw new Error("白板创建身份重复");
+          usedCreations.add(plan.creation);
+          const node = frozen(trial.snapshotElement(plan.id, []));
+          draft.create(node, command.parent, command);
+          orderAt(command.parent, command, { id: plan.id, token: plan.token });
+        } else if (command.type === "move_node") {
+          keys(command, ["type", "id", "parent", "beforeId", "afterId"]);
+          keys(command.parent, ["kind", "id"]);
+          id(command.parent.id);
+          if (!["page", "element"].includes(command.parent.kind)) throw new Error("白板父级无效");
+          const node = draft.node(command.id),
+            target = draft.destination(command.parent, command.id);
+          const contract = this.contracts.get(node.contractId) ?? additions.get(node.contractId);
+          const parentContract =
+            command.parent.kind === "element"
+              ? (this.contracts.get(draft.node(command.parent.id).contractId) ??
+                additions.get(draft.node(command.parent.id).contractId))
+              : undefined;
+          if (
+            !contract ||
+            contract.domain !== "whiteboard-element" ||
+            (command.parent.kind === "element" &&
+              (!parentContract ||
+                parentContract.domain !== "whiteboard-element" ||
+                !canContainWhiteboardElement(parentContract, contract)))
+          )
+            throw new Error("白板收纳规则不允许");
+          if (target.depth + draft.height(command.id) > WHITEBOARD_LIMITS.payloadDepth)
+            throw new Error("白板逻辑层级超过预算");
+          draft.anchor(command.parent, command, command.id);
+          const at = orderAt(command.parent, command, { id: command.id, token: plan.token });
+          draft.move(command.id, command.parent, command);
+          moves.set(plan, { at, page: target.page });
+        } else if (command.type === "remove_nodes") {
+          keys(command, ["type", "ids"]);
+          if (!command.ids.length || new Set(command.ids).size !== command.ids.length)
+            throw new Error("删除观察集合无效");
+          command.ids.forEach(id => draft.node(id));
+          draft.remove(command.ids);
+          if (draft.hasOrphans()) return;
+          const newRemoved = command.ids.filter(id => created.has(id));
+          if (newRemoved.length) trial.erase(newRemoved, plan.token);
+        } else if (command.type === "set_node" && command.patch.geometry) {
+          keys(command, ["type", "id", "patch"]);
+          geometry(command.patch.geometry);
+          draft.patch(command.id, { geometry: Object.freeze({ ...command.patch.geometry }) });
+        } else if (command.type === "upgrade_column") {
+          keys(command, ["type", "id", "contractId"]);
+          const node = draft.node(command.id),
+            next = this.contracts.get(command.contractId) ?? additions.get(command.contractId);
+          const already =
+            node.contractId === command.contractId &&
+            next?.domain === "whiteboard-element" &&
+            next.owner === "host.whiteboard" &&
+            next.type === "column" &&
+            next.dataVersion === 2;
+          if (!already && !canUpgradeColumnContract(this.contracts.get(node.contractId), next))
+            throw new Error("分栏契约升级无效");
+          draft.patch(command.id, { contractId: command.contractId });
+        }
+      }
+      if (created.size) {
+        trial.validateState();
+        trial.validateCandidate(validate, [...created]);
+        newBytes =
+          Y.encodeStateAsUpdate(trial.doc).byteLength +
+          64 * Y.getState(trial.doc.store, trial.doc.clientID);
+      } else if (additions.size) return;
+      const upperBytes =
+        proof.upperBytes +
+        newBytes +
+        plans.reduce(
+          (sum, plan) =>
+            sum + (plan.command.type === "remove_nodes" ? plan.command.ids.length * 256 : 1024),
+          0
+        );
+      if (
+        upperBytes > WHITEBOARD_LIMITS.documentBytes ||
+        this.elementUsage() + created.size > WHITEBOARD_LIMITS.elements
+      )
+        return;
+      const next = draft.finish(this.revision + 1);
+      let expected: Y.Transaction["changed"] | undefined,
+        expectedClock = 0,
+        expectedDeletes = "",
+        isolated = false,
+        deltaBytes = 0;
+      const deletionKey = (tx: Y.Transaction) =>
+        JSON.stringify(
+          [...tx.deleteSet.clients].map(([client, ranges]) => [
+            client,
+            ranges.map(r => [r.clock, r.len]),
+          ])
+        );
+      const verify = (tx: Y.Transaction) => {
+        isolated =
+          !!expected &&
+          expected.size === tx.changed.size &&
+          Y.getState(this.doc.store, this.doc.clientID) === expectedClock &&
+          deletionKey(tx) === expectedDeletes &&
+          [...expected].every(([type, fields]) => {
+            const actual = tx.changed.get(type);
+            return actual?.size === fields.size && [...fields].every(key => actual.has(key));
+          });
+      };
+      const measure = (update: Uint8Array) => {
+        deltaBytes += update.byteLength;
+      };
+      this.doc.on("afterTransaction", verify);
+      this.doc.on("update", measure);
+      this.preparedMoves = moves;
+      try {
+        this.doc.transact(tx => {
+          if (
+            tx.changed.size ||
+            tx.deleteSet.clients.size ||
+            this.revision !== proof.revision ||
+            this.doc.share.size !== proof.rootCount
+          )
+            throw new Error("结构提交期间白板状态已变化");
+          const clock = Y.getState(this.doc.store, this.doc.clientID);
+          for (const [id, contract] of additions) this.contracts.set(id, contract);
+          preserveNodeInitialization(tx, {
+            client: this.doc.clientID,
+            clock,
+            len: Y.getState(this.doc.store, this.doc.clientID) - clock,
+          });
+          this.execute(plans, origin);
+          expected = new Map([...tx.changed].map(([type, fields]) => [type, new Set(fields)]));
+          expectedClock = Y.getState(this.doc.store, this.doc.clientID);
+          // Yjs 在观察者调用前规范化删除区间。
+          const normalized = Y.mergeDeleteSets([tx.deleteSet]);
+          expectedDeletes = JSON.stringify(
+            [...normalized.clients].map(([client, ranges]) => [
+              client,
+              ranges.map(r => [r.clock, r.len]),
+            ])
+          );
+        }, origin);
+      } finally {
+        this.preparedMoves = undefined;
+        this.doc.off("afterTransaction", verify);
+        this.doc.off("update", measure);
+      }
+      isolated &&= this.revision === proof.revision + 1 && this.doc.share.size === proof.rootCount;
+      if (isolated) {
+        next.commit();
+        newReferences.forEach(reference => base.references.add(reference));
+        this.translationBudget = {
+          ...proof,
+          revision: this.revision,
+          upperBytes: Math.min(upperBytes, proof.upperBytes + deltaBytes + 64),
+        };
+      } else {
+        this.structure = undefined;
+        this.translationBudget = undefined;
+      }
+      return { createdIds: Object.freeze([...created]), isolated };
+    } finally {
+      trial.dispose();
+      trial.doc.destroy();
+    }
   }
 
   /** 仅平移一个现有标量几何。返回 undefined 时没有写入，由调用方执行原有预检。 */
@@ -678,7 +1030,10 @@ export class WhiteboardModel {
       this.doc.off("afterTransaction", verify);
     }
     isolated &&= this.revision === proof.revision + 1 && this.doc.share.size === proof.rootCount;
-    if (isolated) this.translationBudget = { ...proof, revision: this.revision, upperBytes };
+    if (isolated) {
+      this.translationBudget = { ...proof, revision: this.revision, upperBytes };
+      this.publishGeometryStructure([{ id: target, geometry: next }], proof.revision);
+    }
     return { isolated };
   }
 
@@ -808,13 +1163,14 @@ export class WhiteboardModel {
     }
     isolated &&= this.revision === proof.revision + 1 && this.doc.share.size === proof.rootCount;
     // 标量更新的 V1 合入只合并结构及删除区间，64 B 覆盖顶层计数编码增长。
-    if (isolated && encodedBytes)
+    if (isolated && encodedBytes) {
       this.translationBudget = {
         ...proof,
         upperBytes: Math.min(upperBytes, proof.upperBytes + encodedBytes + 64),
         revision: this.revision,
       };
-    else this.translationBudget = undefined;
+      this.publishGeometryStructure(values, proof.revision);
+    } else this.translationBudget = undefined;
     return { isolated };
   }
 
@@ -1005,11 +1361,13 @@ export class WhiteboardModel {
       id:
         (command.type === "create" || command.type === "create_page") && command.id !== undefined
           ? command.id
-          : uuid(),
+          : command.type === "create" || command.type === "create_page"
+            ? uuid()
+            : "",
       token: uuid(),
-      creation: uuid(),
+      creation: command.type === "create" || command.type === "create_page" ? uuid() : "",
       roots: {} as Record<string, string>,
-      bodyRoot: uuid(),
+      bodyRoot: "",
     }));
     for (const plan of plans) {
       if (plan.command.type === "create") {
@@ -1017,6 +1375,7 @@ export class WhiteboardModel {
           this.contracts.get(plan.command.contractId) ?? additions.get(plan.command.contractId);
         if (!contract || contract.domain !== "whiteboard-element")
           throw new Error("白板元素契约无效");
+        if (contract.structure.text !== "none") plan.bodyRoot = uuid();
         for (const field of contract.textFields) plan.roots[field] = uuid();
       }
     }
@@ -1340,9 +1699,11 @@ export class WhiteboardModel {
       case "move_node": {
         keys(command, ["type", "id", "parent", "beforeId", "afterId"]);
         const record = this.live(this.elements, command.id),
-          fallbackPageId = this.destination(command.parent, this.contract(record), command.id);
+          prepared = this.preparedMoves?.get(plan),
+          fallbackPageId =
+            prepared?.page ?? this.destination(command.parent, this.contract(record), command.id);
         const order = this.order(command.parent),
-          at = this.position(order, command, command.parent, command.id);
+          at = prepared?.at ?? this.position(order, command, command.parent, command.id);
         const client = this.doc.clientID,
           clock = Y.getState(this.doc.store, client);
         order.insert(at, [{ id: command.id, token: plan.token }]);
@@ -1675,6 +2036,8 @@ export class WhiteboardModel {
 
   read(): WhiteboardSnapshot {
     this.active();
+    const cached = this.readIncrementalSnapshot();
+    if (cached && !this.doc._transaction) return cached;
     const routing = this.routing();
     const element = (id: string): WhiteboardElementSnapshot =>
       this.snapshotElement(id, children({ kind: "element", id }), routing.recovered.get(id));

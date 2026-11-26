@@ -47,6 +47,7 @@ export function buildMindRootElement(x: number, y: number, fontSize: number): Mi
     isRightFold: false,
     themeId: MindThemeUtil.getDefaultThemeId(),
     themeStyle: MindThemeUtil.getDefaultThemeStyle(),
+    layout: MindThemeUtil.getDefaultLayout(),
   };
 }
 

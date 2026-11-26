@@ -127,14 +127,21 @@
 
 选中思维导图的节点后：
 
-| 操作                  | 按键                                                                                |
-| --------------------- | ----------------------------------------------------------------------------------- |
-| 添加子节点            | <kbd>Tab</kbd>                                                                      |
-| 在下方 / 上方添加同级 | <kbd>Enter</kbd> / <kbd>⇧Enter</kbd>                                                |
-| 编辑节点文字          | <kbd>空格</kbd>，编辑完按 <kbd>Enter</kbd>                                          |
-| 在节点之间移动        | 方向键                                                                              |
-| 上移 / 下移节点       | <kbd>⌘↑</kbd> / <kbd>⌘↓</kbd>（Windows 上为 <kbd>Ctrl+↑</kbd> / <kbd>Ctrl+↓</kbd>） |
-| 删除节点              | <kbd>Delete</kbd> 或 <kbd>⌫</kbd>                                                   |
+| 操作                  | 按键                                                         |
+| --------------------- | ------------------------------------------------------------ |
+| 添加子节点            | <kbd>Tab</kbd>                                               |
+| 升一级                | <kbd>⇧Tab</kbd>                                              |
+| 在下方 / 上方添加同级 | <kbd>Enter</kbd> / <kbd>⇧Enter</kbd>                         |
+| 复制整个分支          | <kbd>⌘D</kbd>                                                |
+| 编辑节点文字          | <kbd>空格</kbd>，编辑完按 <kbd>Enter</kbd> 或 <kbd>Esc</kbd> |
+| 在节点之间移动        | 方向键，方向跟随导图布局                                     |
+| 上移 / 下移节点       | <kbd>⌘↑</kbd> / <kbd>⌘↓</kbd>                                |
+| 收起 / 展开节点       | <kbd>⌘.</kbd>                                                |
+| 展开节点下的全部层级  | <kbd>⌘⇧.</kbd>                                               |
+| 整张导图展开到第 N 层 | <kbd>⌥1</kbd> … <kbd>⌥5</kbd>，<kbd>⌥0</kbd> 全部展开        |
+| 删除节点              | <kbd>Delete</kbd> 或 <kbd>⌫</kbd>                            |
+
+Windows 上把 <kbd>⌘</kbd> 换成 <kbd>Ctrl</kbd>，<kbd>⌥</kbd> 换成 <kbd>Alt</kbd>。
 
 演示时，用 <kbd>→</kbd> / <kbd>↓</kbd> 翻到下一页，<kbd>←</kbd> / <kbd>↑</kbd> 返回上一页，<kbd>F</kbd> 全屏，<kbd>Esc</kbd> 退出演示。详见 [白板](/docs/whiteboard/)。
 

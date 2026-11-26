@@ -7,6 +7,8 @@ import Board from "../../Board";
 import { BOARD_TO_CONTAINER } from "../../constants";
 import type { MindNodeElement, Selection, ViewPort } from "../../types";
 import { MindPlugin } from "../MindPlugin";
+import MindUtil from "../../utils/MindUtil";
+import { getMindLayout } from "../../utils/mind-layout";
 
 const textStub = [{ type: "paragraph", children: [{ text: "" }] }] as any;
 const viewPort: ViewPort = {
@@ -110,6 +112,64 @@ const flushPointerMove = () => {
 };
 
 describe("MindPlugin 思维导图节点拖拽", () => {
+  it.each(["org", "logic", "tree"])("%s 松手后保持预览的插入顺序，撤销恢复原树", layout => {
+    const root = MindUtil.layout(
+      createMindNode("root", {
+        x: 500,
+        y: 300,
+        layout,
+        children: [
+          createMindNode("a", { direction: "left" }),
+          createMindNode("b"),
+          createMindNode("c", { direction: "left" }),
+          createMindNode("drag"),
+        ],
+      })
+    );
+    const { board, plugin } = createBoard([root]);
+    try {
+      const dragged = root.children[3];
+      const sibling = root.children[layout === "org" ? 1 : 0];
+      const point =
+        layout === "org"
+          ? { x: sibling.x - 10, y: sibling.y + sibling.height / 2 }
+          : { x: sibling.x + sibling.width / 2, y: sibling.y + sibling.height / 2 - 1 };
+      const placement = MindUtil.calculateInsertPosition(
+        root,
+        point,
+        "right",
+        dragged.id,
+        getMindLayout(root)
+      );
+      plugin.setDragState({
+        ...plugin.getSnapshot(),
+        draggedNode: dragged,
+        sourceRootId: root.id,
+        previewNode: {
+          ...dragged,
+          x: point.x - dragged.width / 2,
+          y: point.y - dragged.height / 2,
+        },
+        currentTarget: {
+          ...placement,
+          horizontalDistance: 0,
+          verticalDistance: 0,
+          score: 0,
+          connectionStart: point,
+          connectionEnd: point,
+        },
+      });
+      plugin.commitDrop(board);
+      expect((board.children[0] as MindNodeElement).children.map(child => child.id)).toEqual(
+        layout === "org" ? ["a", "drag", "b", "c"] : ["drag", "a", "b", "c"]
+      );
+      board.undo();
+      expect(board.children).toEqual([root]);
+    } finally {
+      board.destroy();
+    }
+  });
+
   it("移动阶段不修改文档，空白释放后一次提交为独立导图", () => {
     const dragged = createMindNode("dragged", {
       x: 136,

@@ -56,6 +56,13 @@ async function mount() {
         : [],
     },
   }));
+  if (params.has("dense"))
+    nodes.forEach((node, index) => {
+      node.x = 130 + (index % 40) * 14;
+      node.y = 170 + Math.floor(index / 40) * 12;
+      node.width = 10;
+      node.height = 8;
+    });
   const frame = { ...FrameUtil.createFrame(100, 120, 500, 450, "性能画框"), id: "frame" };
   if (!["entry", "column", "mind"].includes(mode)) {
     frame.width = Math.max(500, 20 * 110 + 30);
@@ -215,12 +222,24 @@ async function mount() {
     preparedContracts: schema.prepared,
     coalesceLocalGesture: () => true,
   });
+  const verify = async () => {
+    const doc = new Y.Doc({ gc: false }),
+      replica = new WhiteboardModel(doc);
+    try {
+      await replica.receive(Y.encodeStateAsUpdate(model.doc));
+      if (JSON.stringify(model.read()) !== JSON.stringify(replica.read()))
+        throw new Error("增量快照与独立完整模型不一致");
+    } finally {
+      replica.dispose();
+      doc.destroy();
+    }
+  };
   const probe = defineWhiteboardExtension({
     id: "bench.frame",
     create(api) {
-      Object.assign(window, { frameBench: { api, model, binding, ready: false } });
+      Object.assign(window, { frameBench: { api, model, binding, verify, ready: false } });
       setTimeout(() => {
-        Object.assign(window, { frameBench: { api, model, binding, ready: true } });
+        Object.assign(window, { frameBench: { api, model, binding, verify, ready: true } });
       }, 0);
       return {};
     },

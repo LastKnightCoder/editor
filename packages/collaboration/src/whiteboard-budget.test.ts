@@ -224,6 +224,32 @@ describe("白板模型预算与写入边界", () => {
     expect(flat(board.read())[0].geometry.x).toBe(shapeGeometry.x);
   });
 
+  it("结构草稿余量不足时交回精确候选，真超限仍零写入", async () => {
+    const { board, doc, target } = await translationFixture();
+    const [first, second] = board.read().pages;
+    const limit = WHITEBOARD_LIMITS.documentBytes;
+    board.title.insert(0, "z".repeat(limit - Y.encodeStateAsUpdate(doc).length - 700));
+    board.prepareLocalTranslations();
+    const commands: WhiteboardModelCommand[] = [
+      { type: "move_node", id: target, parent: pageParent(second.id) },
+    ];
+    const before = Y.encodeStateVector(doc);
+    expect(board.tryLocalStructure(commands, {})).toBeUndefined();
+    expect(Y.encodeStateVector(doc)).toEqual(before);
+    board.submit(commands, {});
+    expect(board.read().pages[1].children.map(node => node.id)).toContain(target);
+    const remaining = limit - Y.encodeStateAsUpdate(doc).length;
+    board.title.insert(0, "z".repeat(remaining - 64));
+    board.prepareLocalTranslations();
+    const full = Y.encodeStateAsUpdate(doc);
+    const back: WhiteboardModelCommand[] = [
+      { type: "move_node", id: target, parent: pageParent(first.id) },
+    ];
+    expect(board.tryLocalStructure(back, {})).toBeUndefined();
+    expect(() => board.submit(back, {})).toThrow("预算");
+    expect(Buffer.compare(Buffer.from(Y.encodeStateAsUpdate(doc)), Buffer.from(full))).toBe(0);
+  });
+
   it("页预算包含删除和撤销创建后保留的页，边界外零写入", async () => {
     const { board, page } = await fixture();
     board.submit(

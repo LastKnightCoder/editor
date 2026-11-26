@@ -21,6 +21,7 @@ async function sample(page, url, cases, rounds, options = {}) {
     preselect = false,
     assertFps = false,
     warmup = 0,
+    dense = false,
   } = options;
   await page.setViewportSize({ width: 1000, height: 700 });
   const results = (page.frameResults = []);
@@ -36,7 +37,9 @@ async function sample(page, url, cases, rounds, options = {}) {
     for (const [action, size, mode, rate] of cases) {
       for (let round = 0; round < rounds; round++) {
         await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
-        await page.goto(`${url}?size=${size}&mode=${mode}${labels ? "&labels" : ""}`);
+        await page.goto(
+          `${url}?size=${size}&mode=${mode}${labels ? "&labels" : ""}${dense ? "&dense" : ""}`
+        );
         await page
           .waitForFunction(() => window.frameBench?.ready)
           .catch(error => {
@@ -92,6 +95,8 @@ async function sample(page, url, cases, rounds, options = {}) {
                 "read",
                 "prepareLocalTranslations",
                 "tryLocalGeometries",
+                "tryLocalStructure",
+                "publishGeometryStructure",
                 "createUndoManager",
               ],
               "model",
@@ -111,7 +116,7 @@ async function sample(page, url, cases, rounds, options = {}) {
                       revision: this.revision,
                     });
                   const result = original.apply(this, args);
-                  if (name === "tryLocalGeometries")
+                  if (name === "tryLocalGeometries" || name === "tryLocalStructure")
                     proofEvents.push({
                       isolated: result?.isolated,
                       proof: this.translationBudget,
@@ -406,6 +411,7 @@ async function sample(page, url, cases, rounds, options = {}) {
           ),
         };
         let failure, fpsFailure;
+        if (verify) await page.evaluate(() => window.frameBench.verify());
         if (assertFps && action === "drag") {
           const expected = steps - Math.floor((5 * steps) / Math.hypot(220, 40));
           if (
@@ -429,15 +435,19 @@ async function sample(page, url, cases, rounds, options = {}) {
         if (action === "resize" && frame.width <= before[0].width) failure = "画框没有实际缩放";
         if (action === "create" && !after.some(node => node.type === "frame"))
           failure = "画框没有创建";
+        if (action === "create" && dense && outcome.createdFrameChildren !== size)
+          failure = "密集场景未完整收纳全部元素";
         if (verify && action !== "pan" && action !== "zoom" && !failure) {
           const committed = await page.evaluate(() =>
             JSON.stringify(window.frameBench.model.read())
           );
           await page.evaluate(() => window.frameBench.binding.undo());
+          await page.evaluate(() => window.frameBench.verify());
           outcome.undoRestored =
             (await page.evaluate(() => JSON.stringify(window.frameBench.model.read()))) ===
             baseline;
           await page.evaluate(() => window.frameBench.binding.redo());
+          await page.evaluate(() => window.frameBench.verify());
           outcome.redoRestored =
             (await page.evaluate(() => JSON.stringify(window.frameBench.model.read()))) ===
             committed;
@@ -452,6 +462,7 @@ async function sample(page, url, cases, rounds, options = {}) {
           round,
           warmup: round < warmup,
           labels,
+          dense,
           preselect,
           steps,
           rafInput,
@@ -479,12 +490,13 @@ async function sample(page, url, cases, rounds, options = {}) {
 const root = fileURLToPath(new URL("../e2e/whiteboard-frame/", import.meta.url));
 const outDir = await mkdtemp(join(tmpdir(), "tau-frame-bench-"));
 const cli = process.env.PLAYWRIGHT_CLI ?? "npx";
+const session = `frame-bench-${process.pid}`;
 function run(args) {
   return new Promise((resolve, reject) => {
     const prefix = process.env.PLAYWRIGHT_CLI
       ? []
       : ["--yes", "--package", "@playwright/cli", "playwright-cli"];
-    const child = spawn(cli, [...prefix, "-s=frame-bench", ...args], {
+    const child = spawn(cli, [...prefix, `-s=${session}`, ...args], {
       stdio: ["ignore", "pipe", "inherit"],
     });
     let output = "";
@@ -596,6 +608,7 @@ try {
         preselect: process.argv.includes("--preselect"),
         assertFps: process.argv.includes("--assert-60fps"),
         warmup: Number(process.argv.find(arg => arg.startsWith("--warmup="))?.slice(9) ?? 0),
+        dense: process.argv.includes("--dense"),
       };
       const output = await run([
         "run-code",

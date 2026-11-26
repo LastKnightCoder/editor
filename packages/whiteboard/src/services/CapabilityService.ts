@@ -8,6 +8,7 @@ import {
   type IMovementCapability,
   type IRenderCapability,
   type IMeasurementCapability,
+  type IClipboardCapability,
   type ContainerDragFeedback,
   SnapBehavior,
   ContainmentBehavior,
@@ -373,6 +374,17 @@ export class CapabilityService {
   /**
    * 获取测量能力
    */
+  getClipboardCapability(elementType: string): IClipboardCapability {
+    return this.getCapabilities(elementType).clipboard ?? {};
+  }
+
+  /** 选中的元素同属一个类型且该类型声明了 copyText 时，返回它的纯文本 */
+  getClipboardText(elements: BoardElement[]): string | null {
+    const type = elements[0]?.type;
+    if (!type || elements.some(element => element.type !== type)) return null;
+    return this.getClipboardCapability(type).copyText?.(elements) ?? null;
+  }
+
   getMeasurementCapability(elementType: string): IMeasurementCapability {
     const caps = this.getCapabilities(elementType);
     return caps.measurement ?? {};

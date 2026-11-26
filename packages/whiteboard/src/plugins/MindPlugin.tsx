@@ -15,6 +15,8 @@ import {
   Unlink,
   FilePlus2,
   Search,
+  ListTree,
+  ClipboardPaste,
 } from "lucide-react";
 import {
   Board,
@@ -41,6 +43,38 @@ import {
   PathUtil,
   BoardUtil,
 } from "../utils";
+import { getMindLayout } from "../utils/mind-layout";
+import { detectHotkeyPlatform, formatHotkey } from "../utils/hotkeyFormat";
+import { isMarkdownLikeText } from "@tau/markdown";
+import { toast } from "@tau/ui";
+import { WhiteboardValidationError } from "../extensions/validation";
+import {
+  markdownToOutline,
+  outlineDepth,
+  MIND_OUTLINE_LIMIT,
+  MindOutlineDepthError,
+  type MindOutline,
+} from "../utils/mind-markdown";
+import {
+  asBranch,
+  isWhiteboardPayload,
+  mindClipboardText,
+  mindRootFromOutline,
+  mindSubtreesFromPayload,
+} from "../utils/mind-clipboard";
+import { WHITEBOARD_LIMITS } from "@tau/collaboration";
+
+/** 像列表或多行的文字才拆成大纲；超出上限时提示只转了前面一部分 */
+const outlineFromText = (
+  text: string,
+  maxDepth: number = WHITEBOARD_LIMITS.payloadDepth
+): MindOutline[] | null => {
+  if (!isMarkdownLikeText(text) && !/\n/.test(text.trim())) return null;
+  const { outline, truncated } = markdownToOutline(text, MIND_OUTLINE_LIMIT, maxDepth);
+  if (!outline.length) return null;
+  if (truncated) toast.info(`内容较多，只转换了前 ${MIND_OUTLINE_LIMIT} 行`);
+  return outline;
+};
 import { SelectTransforms } from "../transforms";
 import MindNode from "../components/MindNode";
 import { BOARD_TO_CONTAINER, getMindDragSourceId } from "../constants";
@@ -159,6 +193,187 @@ export class MindPlugin implements IBoardPlugin {
         participatesInRefLines: true,
         shouldParticipate: (element: BoardElement) => MindUtil.isRoot(element as MindNodeElement),
       },
+      clipboard: {
+        copyText: elements => mindClipboardText(elements),
+        pasteInto: (board, target, clipboard) =>
+          this.pasteInto(board, target as MindNodeElement, clipboard),
+      },
+    };
+  }
+
+  /** 剪贴板里是导图子树就挂成子节点；否则把纯文本按列表拆成子节点 */
+  private pasteInto(
+    board: Board,
+    target: MindNodeElement,
+    { payloads, text }: { payloads: unknown[]; text?: string }
+  ) {
+    for (const payload of payloads) {
+      const subtrees = mindSubtreesFromPayload(payload);
+      if (subtrees) return this.attachUnder(board, target, subtrees);
+    }
+    // 其他白板内容（形状、图片……）照常粘到画布上
+    if (payloads.some(isWhiteboardPayload)) return false;
+    if (!text?.trim()) return false;
+    const path = PathUtil.getPathByElement(board, target);
+    if (!path) return false;
+    const maxDepth = WHITEBOARD_LIMITS.payloadDepth - path.length;
+    try {
+      const outline =
+        outlineFromText(text, maxDepth) ??
+        markdownToOutline(text.trim(), MIND_OUTLINE_LIMIT, maxDepth).outline;
+      if (!outline.length) return false;
+      return this.attachUnder(
+        board,
+        target,
+        MindUtil.nodesFromOutline(outline, board.getFontSize(), maxDepth)
+      );
+    } catch (error) {
+      if (!(error instanceof MindOutlineDepthError)) throw error;
+      toast.error(error.message);
+      return true;
+    }
+  }
+
+  /** 把若干子树挂到 target 下，一次提交，选中挂上去的第一个 */
+  private attachUnder(board: Board, target: MindNodeElement, subtrees: MindNodeElement[]) {
+    const root = MindUtil.getRoot(board, target);
+    const rootPath = root && PathUtil.getPathByElement(board, root);
+    if (!root || !rootPath) return false;
+    const result = MindUtil.attachSubtrees(root, target.id, subtrees.map(asBranch));
+    if (!result) return false;
+    const first = MindUtil.findNodeInTree(result.root, result.attached[0].id);
+    const ops: Operation[] = [
+      ...BoardUtil.diffNode(root, result.root, rootPath),
+      {
+        type: "set_selection",
+        properties: board.selection,
+        newProperties: { selectArea: null, selectedElements: first ? [first] : [] },
+      },
+    ];
+    BoardUtil.normalizeOperations(ops);
+    board.apply(ops);
+    // 本机模式下笔记按引用计数，粘贴出的每个关联多引用一次
+    if (!board.document)
+      result.attached.forEach(node =>
+        MindUtil.dfs(node, {
+          before: current => {
+            if (current.contentId) void this.text.retain?.(current.contentId);
+          },
+        })
+      );
+    return true;
+  }
+
+  private async pasteAsMindMap(ctx: ContextMenuContext) {
+    const { board } = ctx;
+    let text: string | null = null;
+    try {
+      text = (await navigator.clipboard?.readText?.()) ?? null;
+    } catch {
+      text = null;
+    }
+    try {
+      const outline = text ? outlineFromText(text) : null;
+      if (!outline || outlineDepth(outline) < 2) {
+        toast.info("剪贴板里没有多级列表");
+        return;
+      }
+      const root = mindRootFromOutline(outline, ctx.viewPortPoint, board.getFontSize());
+      board.apply([
+        { type: "insert_node", path: [board.children.length], node: root },
+        {
+          type: "set_selection",
+          properties: board.selection,
+          newProperties: { selectArea: null, selectedElements: [root] },
+        },
+      ]);
+    } catch (error) {
+      if (error instanceof WhiteboardValidationError || error instanceof MindOutlineDepthError) {
+        toast.error(
+          error instanceof MindOutlineDepthError ? error.message : "粘贴失败，原内容未改变"
+        );
+        return;
+      }
+      throw error;
+    }
+  }
+
+  private applyRootChange(
+    ctx: ContextMenuContext,
+    change: (root: MindNodeElement, node: MindNodeElement) => MindNodeElement | null | undefined
+  ) {
+    const node = ctx.targetElements.find(el => el.type === "mind-node") as MindNodeElement;
+    if (!node) return;
+    const currentRoot = MindUtil.getRoot(ctx.board, node);
+    if (!currentRoot) return;
+    const newRoot = change(currentRoot, node);
+    const rootPath = PathUtil.getPathByElement(ctx.board, currentRoot);
+    if (!newRoot || !rootPath) return;
+    const ops = BoardUtil.diffNode(currentRoot, newRoot, rootPath);
+    BoardUtil.normalizeOperations(ops);
+    ctx.board.apply(ops);
+  }
+
+  private addChildFromMenu(ctx: ContextMenuContext) {
+    this.applyRootChange(ctx, (root, node) =>
+      MindUtil.addChild(root, node, undefined, undefined, ctx.board.getFontSize())
+    );
+  }
+
+  private toggleFoldFromMenu(ctx: ContextMenuContext, side: "left" | "right") {
+    this.applyRootChange(ctx, (root, node) => MindUtil.toggleFold(root, node, side));
+  }
+
+  private shortcut(key: string) {
+    return formatHotkey(key, detectHotkeyPlatform());
+  }
+
+  /** 根节点「展开到」：层级数随导图实际深度，最多到第 5 层 */
+  private expandToMenu(root: MindNodeElement): PluginContextMenuItem {
+    const deepest = Math.min(MindUtil.maxLevel(root) - 1, 5);
+    return {
+      key: "mind-expand-to",
+      label: "展开到",
+      icon: <ListTree size={14} />,
+      priority: 104,
+      onSelect: () => {},
+      children: [
+        ...Array.from({ length: Math.max(deepest, 1) }, (_, i) => ({
+          key: `mind-expand-to-${i + 1}`,
+          label: `第 ${i + 1} 层`,
+          shortcut: this.shortcut(`alt+${i + 1}`),
+          priority: i,
+          onSelect: (ctx: ContextMenuContext) =>
+            this.applyRootChange(ctx, root => MindUtil.expandToLevel(root, i + 1)),
+        })),
+        {
+          key: "mind-expand-to-all",
+          label: "全部展开",
+          shortcut: this.shortcut("alt+0"),
+          priority: 10,
+          onSelect: (ctx: ContextMenuContext) =>
+            this.applyRootChange(ctx, root => MindUtil.expandToLevel(root, 0)),
+        },
+      ],
+    };
+  }
+
+  private expandAllMenu(node: MindNodeElement): PluginContextMenuItem {
+    let folded = false;
+    MindUtil.dfs(node, {
+      before: current => {
+        if (MindUtil.visibleChildren(current).length < current.children.length) folded = true;
+      },
+    });
+    return {
+      key: "mind-expand-all",
+      label: "展开全部子级",
+      icon: <ListTree size={14} />,
+      shortcut: this.shortcut("mod+shift+."),
+      priority: 102,
+      disabled: !folded,
+      onSelect: (ctx: ContextMenuContext) =>
+        this.applyRootChange(ctx, (root, target) => MindUtil.expandAll(root, target.id)),
     };
   }
 
@@ -190,6 +405,14 @@ export class MindPlugin implements IBoardPlugin {
           ctx.board.setActiveTool(MIND_TOOL_ID);
         },
       });
+      if (!context.board.readonly)
+        items.push({
+          key: "paste-as-mindmap",
+          label: "粘贴为思维导图",
+          icon: <ClipboardPaste size={14} />,
+          priority: 131,
+          onSelect: (ctx: ContextMenuContext) => void this.pasteAsMindMap(ctx),
+        });
     }
 
     // 右键点击 MindNode
@@ -203,74 +426,85 @@ export class MindPlugin implements IBoardPlugin {
       const isRootNode = MindUtil.isRoot(mindNode);
 
       if (isRootNode) {
-        // 根节点菜单
+        const bothSides = getMindLayout(root).sides.length > 1;
+        // 根节点菜单：单向布局只有一组子节点，不分左右
         items.push({
           key: "add-mind-node",
           label: "添加节点",
           icon: <Plus size={14} />,
           priority: 100,
-          children: [
-            {
-              key: "add-left-child",
-              label: "左子节点",
-              icon: <ArrowLeft size={14} />,
-              priority: 0,
-              onSelect: (ctx: ContextMenuContext) => {
-                const node = ctx.targetElements.find(
-                  el => el.type === "mind-node"
-                ) as MindNodeElement;
-                if (!node) return;
-                const currentRoot = MindUtil.getRoot(ctx.board, node);
-                if (!currentRoot) return;
+          children: bothSides
+            ? [
+                {
+                  key: "add-left-child",
+                  label: "左子节点",
+                  icon: <ArrowLeft size={14} />,
+                  priority: 0,
+                  onSelect: (ctx: ContextMenuContext) => {
+                    const node = ctx.targetElements.find(
+                      el => el.type === "mind-node"
+                    ) as MindNodeElement;
+                    if (!node) return;
+                    const currentRoot = MindUtil.getRoot(ctx.board, node);
+                    if (!currentRoot) return;
 
-                // 创建一个新的子节点，设置 direction 为 left
-                const newRoot = MindUtil.addChildWithDirection(
-                  currentRoot,
-                  node,
-                  "left",
-                  ctx.board.getFontSize()
-                );
-                if (!newRoot) return;
+                    // 创建一个新的子节点，设置 direction 为 left
+                    const newRoot = MindUtil.addChildWithDirection(
+                      currentRoot,
+                      node,
+                      "left",
+                      ctx.board.getFontSize()
+                    );
+                    if (!newRoot) return;
 
-                const rootPath = PathUtil.getPathByElement(ctx.board, currentRoot);
-                if (rootPath) {
-                  const ops = BoardUtil.diffNode(currentRoot, newRoot, rootPath);
-                  BoardUtil.normalizeOperations(ops);
-                  ctx.board.apply(ops);
-                }
-              },
-            },
-            {
-              key: "add-right-child",
-              label: "右子节点",
-              icon: <ArrowRight size={14} />,
-              priority: 1,
-              onSelect: (ctx: ContextMenuContext) => {
-                const node = ctx.targetElements.find(
-                  el => el.type === "mind-node"
-                ) as MindNodeElement;
-                if (!node) return;
-                const currentRoot = MindUtil.getRoot(ctx.board, node);
-                if (!currentRoot) return;
+                    const rootPath = PathUtil.getPathByElement(ctx.board, currentRoot);
+                    if (rootPath) {
+                      const ops = BoardUtil.diffNode(currentRoot, newRoot, rootPath);
+                      BoardUtil.normalizeOperations(ops);
+                      ctx.board.apply(ops);
+                    }
+                  },
+                },
+                {
+                  key: "add-right-child",
+                  label: "右子节点",
+                  icon: <ArrowRight size={14} />,
+                  priority: 1,
+                  onSelect: (ctx: ContextMenuContext) => {
+                    const node = ctx.targetElements.find(
+                      el => el.type === "mind-node"
+                    ) as MindNodeElement;
+                    if (!node) return;
+                    const currentRoot = MindUtil.getRoot(ctx.board, node);
+                    if (!currentRoot) return;
 
-                // 创建一个新的子节点，设置 direction 为 right
-                const newRoot = MindUtil.addChildWithDirection(
-                  currentRoot,
-                  node,
-                  "right",
-                  ctx.board.getFontSize()
-                );
-                if (!newRoot) return;
+                    // 创建一个新的子节点，设置 direction 为 right
+                    const newRoot = MindUtil.addChildWithDirection(
+                      currentRoot,
+                      node,
+                      "right",
+                      ctx.board.getFontSize()
+                    );
+                    if (!newRoot) return;
 
-                const rootPath = PathUtil.getPathByElement(ctx.board, currentRoot);
-                if (rootPath) {
-                  const ops = BoardUtil.diffNode(currentRoot, newRoot, rootPath);
-                  BoardUtil.normalizeOperations(ops);
-                  ctx.board.apply(ops);
-                }
-              },
-            },
-          ],
+                    const rootPath = PathUtil.getPathByElement(ctx.board, currentRoot);
+                    if (rootPath) {
+                      const ops = BoardUtil.diffNode(currentRoot, newRoot, rootPath);
+                      BoardUtil.normalizeOperations(ops);
+                      ctx.board.apply(ops);
+                    }
+                  },
+                },
+              ]
+            : [
+                {
+                  key: "add-child-node",
+                  label: "子节点",
+                  icon: <CornerDownRight size={14} />,
+                  priority: 0,
+                  onSelect: (ctx: ContextMenuContext) => this.addChildFromMenu(ctx),
+                },
+              ],
           onSelect: () => {},
         });
 
@@ -295,11 +529,22 @@ export class MindPlugin implements IBoardPlugin {
           },
         });
 
-        // 根节点：添加展开/收起左侧和右侧的菜单项（一级菜单）
+        // 根节点：思维导图分左右两侧收起，单向布局只有一项
         const leftChildren = mindNode.children.filter(child => child.direction === "left");
         const rightChildren = mindNode.children.filter(child => child.direction === "right");
 
-        if (leftChildren.length > 0) {
+        if (!bothSides && mindNode.children.length > 0) {
+          const folded = MindUtil.isFolded(getMindLayout(root), mindNode, "right");
+          items.push({
+            key: "toggle-fold",
+            label: folded ? "展开节点" : "收起节点",
+            icon: folded ? <ChevronDown size={14} /> : <ChevronUp size={14} />,
+            priority: 102,
+            onSelect: (ctx: ContextMenuContext) => this.toggleFoldFromMenu(ctx, "right"),
+          });
+        }
+
+        if (bothSides && leftChildren.length > 0) {
           items.push({
             key: "toggle-left-fold",
             label: mindNode.isLeftFold ? "展开左侧" : "收起左侧",
@@ -324,7 +569,7 @@ export class MindPlugin implements IBoardPlugin {
           });
         }
 
-        if (rightChildren.length > 0) {
+        if (bothSides && rightChildren.length > 0) {
           items.push({
             key: "toggle-right-fold",
             label: mindNode.isRightFold ? "展开右侧" : "收起右侧",
@@ -348,6 +593,8 @@ export class MindPlugin implements IBoardPlugin {
             },
           });
         }
+
+        if (mindNode.children.length > 0) items.push(this.expandToMenu(root));
       } else {
         // 非根节点菜单
         items.push({
@@ -443,46 +690,21 @@ export class MindPlugin implements IBoardPlugin {
           onSelect: () => {},
         });
 
-        // 非根节点：添加展开/收起节点的菜单项
-        if (mindNode.children && mindNode.children.length > 0) {
-          // 检查子节点的方向，确定使用哪个折叠状态
-          const hasLeftChildren = mindNode.children.some(child => child.direction === "left");
-          const hasRightChildren = mindNode.children.some(child => child.direction === "right");
-
-          // 确定折叠状态
-          let isFolded = false;
-          if (hasLeftChildren) {
-            isFolded = mindNode.isLeftFold || false;
-          } else if (hasRightChildren) {
-            isFolded = mindNode.isRightFold || false;
-          }
-
-          items.push({
-            key: "toggle-fold",
-            label: isFolded ? "展开节点" : "收起节点",
-            icon: isFolded ? <ChevronDown size={14} /> : <ChevronUp size={14} />,
-            priority: 101,
-            onSelect: (ctx: ContextMenuContext) => {
-              const node = ctx.targetElements.find(
-                el => el.type === "mind-node"
-              ) as MindNodeElement;
-              if (!node) return;
-              const currentRoot = MindUtil.getRoot(ctx.board, node);
-              if (!currentRoot) return;
-
-              // 检查子节点方向并切换折叠状态
-              const hasLeft = node.children.some(child => child.direction === "left");
-              const dir: "left" | "right" = hasLeft ? "left" : "right";
-
-              const newRoot = MindUtil.toggleFold(currentRoot, node, dir);
-              const rootPath = PathUtil.getPathByElement(ctx.board, currentRoot);
-              if (rootPath) {
-                const ops = BoardUtil.diffNode(currentRoot, newRoot, rootPath);
-                BoardUtil.normalizeOperations(ops);
-                ctx.board.apply(ops);
-              }
+        // 非根节点：收起 / 展开，以及展开下面全部层级
+        if (mindNode.children.length > 0) {
+          const collapsed = MindUtil.isCollapsed(mindNode);
+          items.push(
+            {
+              key: "toggle-fold",
+              label: collapsed ? "展开节点" : "收起节点",
+              icon: collapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />,
+              shortcut: this.shortcut("mod+."),
+              priority: 101,
+              onSelect: (ctx: ContextMenuContext) =>
+                this.applyRootChange(ctx, (root, node) => MindUtil.toggleCollapsed(root, node.id)),
             },
-          });
+            this.expandAllMenu(mindNode)
+          );
         }
       }
 
@@ -964,7 +1186,8 @@ export class MindPlugin implements IBoardPlugin {
           y: previewNode.y + previewNode.height / 2,
         },
         currentTarget.direction,
-        latestDraggedNode.id
+        latestDraggedNode.id,
+        getMindLayout(targetRoot)
       );
 
       if (targetRoot.id === sourceRoot.id) {

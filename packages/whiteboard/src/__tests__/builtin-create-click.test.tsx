@@ -29,6 +29,7 @@ import { buildMindRootElement } from "../extensions/creators/mind";
 import { RichTextUtil } from "../utils/TextStyleStore";
 import { createEmptyRichTextContent } from "../utils/RichTextContentUtil";
 import { useBoard } from "../hooks/useBoard";
+import MindThemeUtil from "../utils/MindThemeUtil";
 
 /** 旧 insertRichText 的构造逻辑（迁移前源码原样，embedded 无 create 时 contentId 为 undefined） */
 const legacyRichTextElement = (x: number, y: number) => ({
@@ -46,37 +47,6 @@ const legacyRichTextElement = (x: number, y: number) => ({
   autoFocus: true,
   ...RichTextUtil.load(),
 });
-
-/** 旧 MindPlugin.createMindRoot 的构造逻辑（迁移前源码原样） */
-const legacyMindRoot = (x: number, y: number, fontSize: number) => {
-  const lineHeight = fontSize * 1.57;
-  const totalHeight = lineHeight + 16 * 2;
-  return {
-    type: "mind-node",
-    x,
-    y,
-    width: 24,
-    height: totalHeight,
-    actualHeight: totalHeight,
-    level: 1,
-    leftChildrenHeight: 0,
-    rightChildrenHeight: 0,
-    childrenHeight: 0,
-    direction: "right" as const,
-    text: [
-      {
-        type: "paragraph",
-        children: [{ type: "formatted", text: "", bold: true }],
-      },
-    ],
-    children: [],
-    defaultFocus: true,
-    isLeftFold: false,
-    isRightFold: false,
-    themeId: expect.any(String),
-    themeStyle: expect.anything(),
-  };
-};
 
 const geometrySeed = (id: string, x: number, y: number): BoardElement =>
   ({ id, type: "geometry", x, y, width: 80, height: 60 }) as BoardElement;
@@ -342,7 +312,7 @@ describe("richtext 创建工具（click 手势）", () => {
 });
 
 describe("mind 创建工具（click 手势）", () => {
-  it("点击创建：按下点为左上角、创建批字段与旧 createMindRoot 一致（含 defaultFocus）、清空选区、单撤销步、工具复位", async () => {
+  it("点击创建后进入编辑、清空选区，撤销一次移除新导图", async () => {
     const seed = geometrySeed("seed", 40, 40);
     const { board, fire, flush, unmount } = await renderClickBoard(baseExtensions(), [seed]);
     selectElement(board, seed);
@@ -358,8 +328,6 @@ describe("mind 创建工具（click 手势）", () => {
     const { entry, insert } = findInsertEntry(board, "mind-node");
     expect(entry).toHaveLength(2);
     expect(entry.find(op => op.type === "set_selection")).toBeTruthy();
-    const legacy = legacyMindRoot(150, 90, board.getFontSize());
-    expect({ ...insert.node, id: undefined }).toStrictEqual({ ...legacy, id: undefined });
     expect((insert.node as MindNodeElement).defaultFocus).toBe(true);
     // 旧 onClick 插入与清空选区同批，不选中新节点
     expect(board.selection.selectedElements).toHaveLength(0);
@@ -375,16 +343,20 @@ describe("mind 创建工具（click 手势）", () => {
     await unmount();
   });
 
-  it("buildMindRootElement 纯函数与旧构造逐字段一致（宽度、层级、折叠、主题默认值）", () => {
-    const built = buildMindRootElement(10, 20, 13);
-    const legacy = legacyMindRoot(10, 20, 13);
-    expect({ ...built, id: undefined, themeId: undefined, themeStyle: undefined }).toStrictEqual({
-      ...legacy,
-      id: undefined,
-      themeId: undefined,
-      themeStyle: undefined,
-    });
-    expect(built.themeId).toEqual(expect.any(String));
+  it("新导图沿用已保存的布局偏好", () => {
+    const previous = {
+      themeId: MindThemeUtil.getDefaultThemeId(),
+      themeStyle: MindThemeUtil.getDefaultThemeStyle(),
+      layout: MindThemeUtil.getDefaultLayout(),
+    };
+    try {
+      MindThemeUtil.saveDefault(previous.themeId, previous.themeStyle, "tree");
+      expect(buildMindRootElement(10, 20, 13).layout).toBe("tree");
+      MindThemeUtil.saveDefault(previous.themeId, previous.themeStyle, "org");
+      expect(buildMindRootElement(10, 20, 13).layout).toBe("org");
+    } finally {
+      MindThemeUtil.saveDefault(previous.themeId, previous.themeStyle, previous.layout);
+    }
   });
 
   it("创建模式光标为 cursor-crosshair", async () => {

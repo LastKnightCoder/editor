@@ -26,6 +26,7 @@ import {
   flatten,
   measureElement,
   refreshLayout,
+  clearProjectionCache,
 } from "./projection";
 import {
   isBlocked,
@@ -268,6 +269,7 @@ export class CanvasBinding implements WhiteboardDocumentBinding {
     this.editors.clear();
     this.documents.clear();
     this.projections.clear();
+    clearProjectionCache(this);
     this.pending = [];
     this.idleGestureHistory?.destroy();
     this.idleGestureHistory = undefined;
@@ -302,6 +304,11 @@ export class CanvasBinding implements WhiteboardDocumentBinding {
     before: ReturnType<WhiteboardModel["read"]>,
     values: readonly { id: string; geometry: import("@tau/collaboration").WhiteboardGeometry }[]
   ): void {
+    const incremental = this.model.readIncrementalSnapshot();
+    if (incremental) {
+      this.snapshot = incremental;
+      return;
+    }
     const geometries = new Map(values.map(value => [value.id, value.geometry]));
     const patch = (nodes: typeof before.recovery): typeof before.recovery =>
       Object.freeze(

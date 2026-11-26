@@ -36,8 +36,16 @@ export const buildClipboardPayload = (board: Board, elements: BoardElement[]): s
   });
 };
 
-export const writeClipboardPayload = async (payload: string): Promise<boolean> => {
+/**
+ * plainText 缺省时纯文本也写白板 JSON。只能写一种格式的兜底通道（writeText）
+ * 始终写白板 JSON，保证粘回白板不丢结构。
+ */
+export const writeClipboardPayload = async (
+  payload: string,
+  plainText: string | null = null
+): Promise<boolean> => {
   if (!payload) return false;
+  const text = plainText ?? payload;
 
   try {
     if (
@@ -51,7 +59,7 @@ export const writeClipboardPayload = async (payload: string): Promise<boolean> =
         "application/json": new Blob([payload], {
           type: "application/json",
         }),
-        "text/plain": new Blob([payload], { type: "text/plain" }),
+        "text/plain": new Blob([text], { type: "text/plain" }),
       });
       await navigator.clipboard.write([clipboardItem]);
       return true;
@@ -84,7 +92,7 @@ export const writeClipboardPayload = async (payload: string): Promise<boolean> =
 
     const handleCopy = (event: ClipboardEvent) => {
       event.clipboardData?.setData("application/json", payload);
-      event.clipboardData?.setData("text/plain", payload);
+      event.clipboardData?.setData("text/plain", text);
       event.preventDefault();
       event.stopImmediatePropagation();
       cleanup(true);

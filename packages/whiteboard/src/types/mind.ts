@@ -31,6 +31,8 @@ export interface MindNodeElement {
   themeId?: string;
   /** 节点风格：solid / soft / outline（只在根节点上） */
   themeStyle?: string;
+  /** 布局：mind / logic / org / tree（只在根节点上），缺省为 mind，见 utils/mind-layout */
+  layout?: string;
 }
 
 export interface MindDragTarget {
@@ -42,6 +44,8 @@ export interface MindDragTarget {
   score: number;
   connectionStart: Point;
   connectionEnd: Point;
+  /** 预览连线两端的切线方向，缺省水平 */
+  connectionAxis?: "x" | "y";
 }
 
 export interface MindDragState {
