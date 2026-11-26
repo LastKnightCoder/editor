@@ -1,4 +1,5 @@
 import { act } from "react";
+import { desktopLocaleSource } from "@/app/i18n/runtime";
 import type { ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -285,6 +286,25 @@ describe("ContentEditProposalRenderer", () => {
       button.textContent?.includes("提交修改意见")
     );
     expect(submitButton).toBeTruthy();
+    const originalLocale = desktopLocaleSource.getSnapshot();
+    const originalSession = useContentEditReviewSessionStore.getState().records[session.sessionId];
+    textarea.focus();
+    textarea.setSelectionRange(2, 5);
+    try {
+      for (const locale of ["en-US", "zh-TW"]) {
+        await act(async () => desktopLocaleSource.setLocale(locale));
+        expect(container.querySelector("textarea")).toBe(textarea);
+        expect(textarea.value).toBe("第二段更自然一些");
+        expect([textarea.selectionStart, textarea.selectionEnd]).toEqual([2, 5]);
+        expect(document.activeElement).toBe(textarea);
+        expect(useContentEditReviewSessionStore.getState().records[session.sessionId]).toBe(
+          originalSession
+        );
+        expect(originalSession?.status).toBe("pending");
+      }
+    } finally {
+      await act(async () => desktopLocaleSource.setLocale(originalLocale));
+    }
     await act(async () => {
       submitButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });

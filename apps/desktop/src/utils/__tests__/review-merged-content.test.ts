@@ -298,6 +298,11 @@ describe("buildMergedReviewContent", () => {
     expect(highlightBlock.type).toBe("highlight-block");
     const leaves = collectTextLeaves([highlightBlock]);
     expect(leaves.some(leaf => leaf.text.includes("高亮块颜色已修改"))).toBe(true);
+    expect(leaves.find(leaf => leaf.reviewDisplay)?.reviewDisplay).toEqual({
+      kind: "highlight-color",
+      before: "yellow",
+      after: "blue",
+    });
     expect(leaves.some(leaf => leaf.text.includes("高亮内容"))).toBe(true);
   });
 
@@ -360,5 +365,8 @@ describe("buildMergedReviewContent", () => {
     expect(text).toContain("第二段");
     expect(text).toContain("第四段");
     expect(text.some(value => value.includes("…… 已折叠未改动内容 ……"))).toBe(true);
+    expect(collectTextLeaves(content).some(leaf => leaf.reviewDisplay?.kind === "collapsed")).toBe(
+      true
+    );
   });
 });

@@ -358,6 +358,8 @@ Markdown F1十二源加Root copy-service1完成；原3文件35至4文件36例、
 
 项目WebView十一源完成；既有Hook/runner5例、desktop type/build与三语参数/范围静态通过。实际Hook语言订阅回归保progress/complete handler引用、pending与status读取次数，无重复start且原HTML/URL/title/translateToChinese=false完整；原节流尾帧/取消迟到消息仍被丢弃。独立AST证明所有持久/解析/AI数据调用、effect/memo/callback依赖与webview/editor身份props原样；确认仅换展示kind，不改action/目标，原解析文档/笔记n默认数据和aborted哨兵保留。
 
+工具卡R3十四源完成；全renderer13文件53例、desktop type/89key三语/协议AST通过。真实双Editor三语copy全MIME逐值相等，HTML无本域UI/sr-only，真实insertData回原完整fragment/bold；同实例/选区/序列化和反馈pending不重发。31生产模块/74 AST项审计无自产UI或译文身份残留，合法AI hidden context/4模板value/诊断/原合成copy text保留。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

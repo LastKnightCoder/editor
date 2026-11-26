@@ -1,4 +1,4 @@
-import { useDesktopLocale } from "@/app/i18n/react";
+import { useReviewToolI18n, type ReviewToolTranslate } from "./review.i18n";
 /**
  * 对话里的修改卡：Agent 在某篇正文留下的一组改动，不打开文章也能逐条接受、退回、回复。
  * 每处一行直接显示差异；多处全部处理完后收起成一行摘要，可展开回看或整体撤销。
@@ -26,28 +26,39 @@ import useSettingStore from "@/stores/useSettingStore";
 import { formatAgo } from "@/utils/formatAgo";
 import type { ContentSuggestion } from "@/types/content-suggestion";
 
-const summaryOf = (items: ContentSuggestion[], direct: boolean) => {
+const summaryOf = (items: ContentSuggestion[], direct: boolean, t: ReviewToolTranslate) => {
   const count = (status: ContentSuggestion["status"]) =>
     items.filter(item => item.status === status).length;
   return [
-    count("accepted") && (direct ? `落地 ${count("accepted")}` : `接受 ${count("accepted")}`),
-    count("answered") && `回答 ${count("answered")}`,
-    count("rejected") && `退回 ${count("rejected")}`,
-    count("expired") && `过期 ${count("expired")}`,
-    count("undone") && `撤销 ${count("undone")}`,
-    count("superseded") && `替换 ${count("superseded")}`,
+    count("accepted") &&
+      t(direct ? "review.summary.applied" : "review.summary.accepted", {
+        count: count("accepted"),
+      }),
+    count("answered") && t("review.summary.answered", { count: count("answered") }),
+    count("rejected") && t("review.summary.rejected", { count: count("rejected") }),
+    count("expired") && t("review.summary.expired", { count: count("expired") }),
+    count("undone") && t("review.summary.undone", { count: count("undone") }),
+    count("superseded") && t("review.summary.superseded", { count: count("superseded") }),
   ]
     .filter(Boolean)
     .join(" · ");
 };
 
-const verbOf = (items: ContentSuggestion[], direct: boolean, finished: boolean) => {
+const verbOf = (
+  items: ContentSuggestion[],
+  direct: boolean,
+  finished: boolean,
+  t: ReviewToolTranslate
+) => {
   const edits = items.filter(item => item.kind === "edit").length;
   const questions = items.length - edits;
-  if (finished) return direct ? "直接改了" : "改了";
-  return [questions && `问了 ${questions} 个问题`, edits && `改 ${edits} 处`]
+  if (finished) return direct ? t("review.verb.direct") : t("review.verb.finished");
+  return [
+    questions && t("review.verb.questions", { count: questions }),
+    edits && t("review.verb.edits", { count: edits }),
+  ]
     .filter(Boolean)
-    .join("、");
+    .join(t("review.verb.join"));
 };
 
 export function SuggestionProposalCard({
@@ -64,7 +75,7 @@ export function SuggestionProposalCard({
   /** 发起它的工具调用还在等逐条结果 */
   waiting: boolean;
 }) {
-  const locale = useDesktopLocale();
+  const { t, locale } = useReviewToolI18n();
   const active = useSettingStore(state => state.setting.database.active);
   const database = databaseName ?? active;
   const { data: items } = useProposalSuggestions(proposalId, database);
@@ -76,9 +87,9 @@ export function SuggestionProposalCard({
     return (
       <ToolCard isDark={isDark}>
         <ToolCardHeader isDark={isDark}>
-          <div className="text-tau-body text-ink-1 font-medium">修改</div>
+          <div className="text-tau-body text-ink-1 font-medium">{t("review.modify")}</div>
           <ToolMutedText isDark={isDark} className="mt-1 mb-2">
-            {items ? "这次修改的记录已清理。" : "正在读取修改…"}
+            {items ? t("review.cleared") : t("review.reading")}
           </ToolMutedText>
         </ToolCardHeader>
       </ToolCard>
@@ -108,7 +119,7 @@ export function SuggestionProposalCard({
       >
         <AgentAvatar name={agent} size={20} status={!finished ? "waiting" : undefined} />
         <AgentName name={agent} />
-        <span className="text-ink-2 shrink-0">{verbOf(items, direct, finished)}</span>
+        <span className="text-ink-2 shrink-0">{verbOf(items, direct, finished, t)}</span>
         <button
           type="button"
           className="text-accent-text inline-flex min-w-0 cursor-pointer items-center gap-1 hover:underline"
@@ -124,7 +135,9 @@ export function SuggestionProposalCard({
         {finished ? (
           <>
             {collapsible ? (
-              <span className="text-tau-meta text-ink-3 shrink-0">{summaryOf(items, direct)}</span>
+              <span className="text-tau-meta text-ink-3 shrink-0">
+                {summaryOf(items, direct, t)}
+              </span>
             ) : null}
             {accepted.length > 1 ? (
               <Button
@@ -139,7 +152,7 @@ export function SuggestionProposalCard({
                   void actions.undo(accepted);
                 }}
               >
-                全部撤销
+                {t("review.undoAll")}
               </Button>
             ) : null}
             {collapsible ? (
@@ -193,10 +206,10 @@ export function SuggestionProposalCard({
         <div className="border-line-2 flex flex-wrap items-center gap-1.5 border-t px-3 py-2">
           <span className="text-tau-meta text-ink-3 min-w-0 flex-1">
             {pendingQuestions.length
-              ? `先回答问题，${agent}再接着改`
+              ? t("review.answerFirst", { agent })
               : waiting
-                ? `处理完这些，${agent}再接着做`
-                : `${open.length} 处待定`}
+                ? t("review.continueAgent", { agent })
+                : t("review.pending", { count: open.length })}
           </span>
           {pendingEdits.length > 1 ? (
             <Button
@@ -205,7 +218,7 @@ export function SuggestionProposalCard({
               disabled={actions.busy}
               onClick={() => void actions.reject(pendingEdits)}
             >
-              全部退回
+              {t("review.rejectAll")}
             </Button>
           ) : null}
           {pendingEdits.length ? (
@@ -218,10 +231,10 @@ export function SuggestionProposalCard({
               onClick={() => void actions.accept(pendingEdits)}
             >
               {handled
-                ? `接受剩下 ${pendingEdits.length} 处`
+                ? t("review.acceptRemaining", { count: pendingEdits.length })
                 : pendingEdits.length > 1
-                  ? "全部接受"
-                  : "接受"}
+                  ? t("review.acceptAll")
+                  : t("review.accept")}
             </Button>
           ) : null}
         </div>

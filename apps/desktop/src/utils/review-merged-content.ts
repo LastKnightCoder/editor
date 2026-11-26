@@ -10,11 +10,21 @@ type ReviewSyntheticKind = "collapsed" | "meta" | "code";
 type ReviewNodeCapability = "container" | "text-block" | "code-block" | "opaque";
 type SequenceDiffType = "equal" | "insert" | "delete";
 
+export type ReviewMetadataChange =
+  | { kind: "type" | "title" | "language"; before: string; after: string }
+  | { kind: "steps" };
+export type ReviewSyntheticDisplay =
+  | { kind: "collapsed" }
+  | { kind: "callout" | "code"; changes: ReviewMetadataChange[] }
+  | { kind: "highlight-color"; before: string; after: string }
+  | { kind: "list-icon" };
+
 export interface ReviewLeaf extends FormattedText {
   diffType?: ReviewDiffType;
   diffId?: string;
   reviewSynthetic?: boolean;
   reviewSyntheticKind?: ReviewSyntheticKind;
+  reviewDisplay?: ReviewSyntheticDisplay;
 }
 
 interface SequenceDiff<T> {
@@ -113,11 +123,13 @@ const createSyntheticParagraph = (
   text: string,
   kind: ReviewSyntheticKind,
   diffType?: ReviewDiffType,
-  diffId?: string
+  diffId?: string,
+  display?: ReviewSyntheticDisplay
 ): Descendant =>
   createParagraph(text, {
     reviewSynthetic: true,
     reviewSyntheticKind: kind,
+    ...(display ? { reviewDisplay: display } : {}),
     ...(diffType ? { diffType } : {}),
     ...(diffId ? { diffId } : {}),
   });
@@ -261,7 +273,10 @@ const getNodeMetadata = (node: Descendant) => {
 const areMetadataEqual = (beforeNode: Descendant, afterNode: Descendant) =>
   JSON.stringify(getNodeMetadata(beforeNode)) === JSON.stringify(getNodeMetadata(afterNode));
 
-const describeMetadataDiff = (beforeNode: Descendant, afterNode: Descendant) => {
+const describeMetadataDiff = (
+  beforeNode: Descendant,
+  afterNode: Descendant
+): { text: string; display: ReviewSyntheticDisplay } | null => {
   if (!isElementNode(beforeNode) || !isElementNode(afterNode)) {
     return null;
   }
@@ -277,15 +292,31 @@ const describeMetadataDiff = (beforeNode: Descendant, afterNode: Descendant) => 
         title?: string;
       };
       const changes: string[] = [];
+      const displayChanges: ReviewMetadataChange[] = [];
       if (beforeCallout.calloutType !== afterCallout.calloutType) {
         changes.push(
           `类型：${beforeCallout.calloutType || "note"} -> ${afterCallout.calloutType || "note"}`
         );
+        displayChanges.push({
+          kind: "type",
+          before: beforeCallout.calloutType || "note",
+          after: afterCallout.calloutType || "note",
+        });
       }
       if ((beforeCallout.title || "") !== (afterCallout.title || "")) {
         changes.push(`标题：${beforeCallout.title || "空"} -> ${afterCallout.title || "空"}`);
+        displayChanges.push({
+          kind: "title",
+          before: beforeCallout.title || "",
+          after: afterCallout.title || "",
+        });
       }
-      return changes.length > 0 ? `Callout 属性已修改：${changes.join("；")}` : null;
+      return changes.length > 0
+        ? {
+            text: `Callout 属性已修改：${changes.join("；")}`,
+            display: { kind: "callout", changes: displayChanges },
+          }
+        : null;
     }
     case "highlight-block": {
       const beforeColor = (beforeNode as { color?: string }).color || "";
@@ -293,7 +324,10 @@ const describeMetadataDiff = (beforeNode: Descendant, afterNode: Descendant) => 
       if (beforeColor === afterColor) {
         return null;
       }
-      return `高亮块颜色已修改：${beforeColor || "默认"} -> ${afterColor || "默认"}`;
+      return {
+        text: `高亮块颜色已修改：${beforeColor || "默认"} -> ${afterColor || "默认"}`,
+        display: { kind: "highlight-color", before: beforeColor, after: afterColor },
+      };
     }
     case "list-item": {
       const beforeMeta = beforeNode as {
@@ -313,19 +347,31 @@ const describeMetadataDiff = (beforeNode: Descendant, afterNode: Descendant) => 
       ) {
         return null;
       }
-      return "列表项图标已修改";
+      return { text: "列表项图标已修改", display: { kind: "list-icon" } };
     }
     case "code-block": {
       const beforeCode = getNodeMetadata(beforeNode) as { language: string; steps: unknown };
       const afterCode = getNodeMetadata(afterNode) as { language: string; steps: unknown };
       const changes: string[] = [];
+      const displayChanges: ReviewMetadataChange[] = [];
       if (beforeCode.language !== afterCode.language) {
         changes.push(`语言：${beforeCode.language || "plain"} -> ${afterCode.language || "plain"}`);
+        displayChanges.push({
+          kind: "language",
+          before: beforeCode.language || "plain",
+          after: afterCode.language || "plain",
+        });
       }
       if (JSON.stringify(beforeCode.steps) !== JSON.stringify(afterCode.steps)) {
         changes.push("步骤标题或高亮行已修改");
+        displayChanges.push({ kind: "steps" });
       }
-      return changes.length > 0 ? `代码块属性已修改：${changes.join("；")}` : null;
+      return changes.length > 0
+        ? {
+            text: `代码块属性已修改：${changes.join("；")}`,
+            display: { kind: "code", changes: displayChanges },
+          }
+        : null;
     }
     default:
       return null;
@@ -708,7 +754,15 @@ const renderCodeBlockDiff = (
   const results: Descendant[] = [];
   const metaDescription = describeMetadataDiff(beforeNode, afterNode);
   if (metaDescription) {
-    results.push(createSyntheticParagraph(metaDescription, "meta", "replace", diffId));
+    results.push(
+      createSyntheticParagraph(
+        metaDescription.text,
+        "meta",
+        "replace",
+        diffId,
+        metaDescription.display
+      )
+    );
   }
 
   const beforeLines = normalizeCodeLines(getNodeSummaryText(beforeNode));
@@ -811,7 +865,16 @@ const mergeNodePair = (
     const children = mergeNodeList(beforeNode.children, afterNode.children, diffId);
     const metaDescription = describeMetadataDiff(beforeNode, afterNode);
     nextNode.children = metaDescription
-      ? [createSyntheticParagraph(metaDescription, "meta", "replace", diffId), ...children]
+      ? [
+          createSyntheticParagraph(
+            metaDescription.text,
+            "meta",
+            "replace",
+            diffId,
+            metaDescription.display
+          ),
+          ...children,
+        ]
       : children;
     return [nextNode];
   }
@@ -896,7 +959,11 @@ const collapseUnchangedRootUnits = (content: Descendant[], contextRadius: number
 
   mergedWindows.forEach(window => {
     if (window.start > cursor) {
-      result.push(createSyntheticParagraph("…… 已折叠未改动内容 ……", "collapsed"));
+      result.push(
+        createSyntheticParagraph("…… 已折叠未改动内容 ……", "collapsed", undefined, undefined, {
+          kind: "collapsed",
+        })
+      );
     }
 
     for (let index = window.start; index <= window.end; index += 1) {
@@ -906,7 +973,11 @@ const collapseUnchangedRootUnits = (content: Descendant[], contextRadius: number
   });
 
   if (cursor < content.length) {
-    result.push(createSyntheticParagraph("…… 已折叠未改动内容 ……", "collapsed"));
+    result.push(
+      createSyntheticParagraph("…… 已折叠未改动内容 ……", "collapsed", undefined, undefined, {
+        kind: "collapsed",
+      })
+    );
   }
 
   return result;

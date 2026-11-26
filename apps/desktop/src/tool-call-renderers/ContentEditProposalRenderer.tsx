@@ -22,6 +22,8 @@ import { generateChangePreviews } from "@/utils/review-change-preview";
 import { buildMergedReviewContent } from "@/utils/review-merged-content";
 import { SuggestionProposalCard } from "./SuggestionProposalCard";
 
+import { useReviewToolI18n, reviewFeedback, reviewFailure } from "./review.i18n";
+
 type ReviewResultPayload = {
   kind?: "content-edit-review-result";
   type: "content-edit-review-result";
@@ -43,11 +45,16 @@ type ReviewResultPayload = {
   };
 };
 
-const actionLabelMap: Record<string, string> = {
-  applied: "已应用",
-  rejected: "已拒绝",
-  feedback: "已提交修改意见",
-};
+const actionLabel = (action: string | undefined, t: ReturnType<typeof useReviewToolI18n>["t"]) =>
+  t(
+    action === "applied"
+      ? "review.action.applied"
+      : action === "rejected"
+        ? "review.action.rejected"
+        : action === "feedback"
+          ? "review.action.feedback"
+          : "review.processed"
+  );
 
 /** 完成态结果：小图标 + 语义色（不用彩色实底徽章） */
 const resultToneMap: Record<string, { Icon: LucideIcon; className: string }> = {
@@ -120,6 +127,7 @@ const SectionShell = ({
 type PreviewMode = "diff" | "full";
 
 const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRendererProps) => {
+  const { t } = useReviewToolI18n();
   const [busyAction, setBusyAction] = useState("");
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackText, setFeedbackText] = useState("");
@@ -256,27 +264,27 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
         <ToolCardHeader isDark={isDark}>
           <div className="text-tau-body text-ink-1 font-medium">
             {mismatch
-              ? "本次修改未执行"
+              ? t("review.notExecuted")
               : failure.errorCode === "COMMIT_PENDING"
-                ? "提交结果待确认"
-                : "修改结果"}
+                ? t("review.commitPending")
+                : t("review.result")}
           </div>
         </ToolCardHeader>
         <ToolCardBody>
           <ToolMutedText isDark={isDark} className="break-words">
-            {mismatch ? "选中位置的原文与 AI 要替换的文字不一致。" : failure.message}
+            {mismatch ? t("review.mismatch") : failure.message}
           </ToolMutedText>
           {mismatch &&
           typeof details?.expectedText === "string" &&
           typeof details.actualText === "string" ? (
             <dl className="text-tau-body mt-2 grid max-h-48 grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 overflow-auto">
-              <dt className="text-ink-3">AI 预期的原文</dt>
+              <dt className="text-ink-3">{t("review.expected")}</dt>
               <dd className="break-words whitespace-pre-wrap">
-                {details.expectedText || "（空文本）"}
+                {details.expectedText || t("review.emptyText")}
               </dd>
-              <dt className="text-ink-3">选中位置的原文</dt>
+              <dt className="text-ink-3">{t("review.actual")}</dt>
               <dd className="break-words whitespace-pre-wrap">
-                {details.actualText || "（空文本）"}
+                {details.actualText || t("review.emptyText")}
               </dd>
             </dl>
           ) : null}
@@ -310,7 +318,7 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
           <ToolCardHeader isDark={isDark}>
             <div className="flex items-center gap-2">
               <div className="text-tau-body text-ink-1 min-w-0 flex-1 font-medium">
-                {actionLabelMap[outputResult.action] || "已处理"}
+                {actionLabel(outputResult.action, t)}
               </div>
               <ToolBadge isDark={isDark}>{outputResult.message}</ToolBadge>
             </div>
@@ -318,7 +326,7 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
           {outputResult.feedback ? (
             <ToolCardBody>
               <ToolMutedText isDark={isDark} className="break-words">
-                已记录的修改意见：{outputResult.feedback}
+                {t("review.recordedFeedback", { feedback: outputResult.feedback })}
               </ToolMutedText>
             </ToolCardBody>
           ) : (
@@ -331,9 +339,9 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
     return (
       <ToolCard isDark={isDark}>
         <ToolCardHeader isDark={isDark}>
-          <div className="text-tau-body text-ink-1 font-medium">内容修改处理中</div>
+          <div className="text-tau-body text-ink-1 font-medium">{t("review.preparing")}</div>
           <ToolMutedText isDark={isDark} className="mt-1 mb-2">
-            正在准备审阅结果，请稍候。
+            {t("review.preparingHint")}
           </ToolMutedText>
         </ToolCardHeader>
       </ToolCard>
@@ -361,22 +369,24 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
         }
       );
       if (submitResult === "missing") {
-        toast.error("当前审阅会话已失效，请重新发起修改。");
+        toast.error(...reviewFeedback("review.sessionExpired"));
         return;
       }
       if (action === "feedback") {
         setFeedbackOpen(false);
         setFeedbackText("");
-        toast.success("修改意见已提交，AI 将基于这条意见继续调整。");
+        toast.success(...reviewFeedback("review.feedbackSubmitted"));
         return;
       }
-      toast.success(action === "apply" ? "已确认应用这次修改。" : "已拒绝这次修改。");
+      toast.success(
+        ...reviewFeedback(action === "apply" ? "review.appliedFeedback" : "review.rejectedFeedback")
+      );
     });
 
   const handleUndo = () =>
     withBusy("undo", async () => {
       if (!liveProposal?.checkpointId) {
-        toast.error("当前没有可恢复的修改记录");
+        toast.error(...reviewFeedback("review.noRestore"));
         return;
       }
       const result = await restoreContentCheckpoint({
@@ -387,10 +397,10 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
           setRestoreConflict({ checkpointId: liveProposal.checkpointId, message: result.message });
           return;
         }
-        toast.error(result.message || "恢复失败");
+        toast.error(...reviewFailure("review.restoreFailed", result.message || undefined));
         return;
       }
-      toast.success("已恢复到本次 AI 修改前。");
+      toast.success(...reviewFeedback("review.restored"));
     });
 
   const handleForceRestore = async () => {
@@ -401,7 +411,9 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
     });
   };
 
-  const title = canReview ? "请确认这次修改" : outputResult?.message || "内容修改结果";
+  const title = canReview
+    ? t("review.confirmTitle")
+    : outputResult?.message || t("review.contentResult");
   const resultTone = resultToneMap[outputResult?.action || ""] || resultToneMap.rejected;
   const ResultIcon = resultTone.Icon;
 
@@ -419,7 +431,7 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
                 disabled={busy}
                 loading={busyAction === "apply"}
               >
-                确认应用
+                {t("review.apply")}
               </Button>
               <Button
                 variant="secondary"
@@ -427,7 +439,7 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
                 onClick={() => setFeedbackOpen(prev => !prev)}
                 disabled={busy}
               >
-                提修改意见
+                {t("review.provideFeedback")}
               </Button>
               <Button
                 variant="danger-soft"
@@ -436,7 +448,7 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
                 disabled={busy}
                 loading={busyAction === "reject"}
               >
-                拒绝
+                {t("review.reject")}
               </Button>
             </div>
           ) : (
@@ -448,7 +460,7 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
               />
               <div className="min-w-0 space-y-0.5">
                 <div className="text-tau-body text-ink-1 font-medium">
-                  {actionLabelMap[outputResult?.action || ""] || "已处理"}
+                  {actionLabel(outputResult?.action, t)}
                 </div>
                 <div className="text-tau-meta text-ink-2 leading-[1.6] break-words">
                   {outputResult?.message || title}
@@ -492,13 +504,13 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
           <SectionShell
             title={
               <Segmented<PreviewMode>
-                label="预览视图"
+                label={t("review.view")}
                 size="sm"
                 value={showDiffView ? "diff" : "full"}
                 onValueChange={value => setShowDiffView(value === "diff")}
               >
-                <Segmented.Item value="diff" label="改动高亮" />
-                <Segmented.Item value="full" label="完整内容" />
+                <Segmented.Item value="diff" label={t("review.diff")} />
+                <Segmented.Item value="full" label={t("review.full")} />
               </Segmented>
             }
           >
@@ -520,7 +532,7 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
 
         {canReview && feedbackOpen ? (
           <div ref={feedbackSectionRef}>
-            <SectionShell title="告诉 AI 你想怎么改">
+            <SectionShell title={t("review.feedbackTitle")}>
               <div className="space-y-2.5">
                 <FeedbackTemplates
                   isDark={isDark}
@@ -532,7 +544,7 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
                   ref={feedbackTextareaRef}
                   value={feedbackText}
                   onChange={event => setFeedbackText(event.target.value)}
-                  placeholder="例如：语气更自然一些；第二段保留原意但更精炼；不要改标题。"
+                  placeholder={t("review.feedbackExample")}
                   rows={4}
                   className="[field-sizing:content] min-h-28 resize-y"
                 />
@@ -544,7 +556,7 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
                     disabled={!feedbackText.trim() || busy}
                     loading={busyAction === "feedback"}
                   >
-                    提交修改意见
+                    {t("review.submitFeedback")}
                   </Button>
                   <Button
                     variant="ghost"
@@ -555,7 +567,7 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
                     }}
                     disabled={busy}
                   >
-                    取消
+                    {t("review.cancel")}
                   </Button>
                 </div>
               </div>
@@ -569,10 +581,10 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
         onOpenChange={open => {
           if (!open) setRestoreConflict(null);
         }}
-        title="恢复会覆盖后续编辑"
+        title={t("review.restoreTitle")}
         description={restoreConflict?.message}
-        confirmText="继续恢复"
-        cancelText="取消"
+        confirmText={t("review.continueRestore")}
+        cancelText={t("review.cancel")}
         danger
         onConfirm={handleForceRestore}
       />

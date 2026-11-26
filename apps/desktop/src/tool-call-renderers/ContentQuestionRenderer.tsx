@@ -1,4 +1,4 @@
-import { useDesktopLocale } from "@/app/i18n/react";
+import { useReviewToolI18n } from "./review.i18n";
 /**
  * 对话里的提问卡：Agent 在某篇正文的一段原句上问你，给几个可点的答案；
  * 作答留在发起提问的对话中。
@@ -30,7 +30,7 @@ const parseError = (output?: string) => {
 };
 
 const ContentQuestionRenderer = ({ execution, isDark }: ToolCallCustomRendererProps) => {
-  const locale = useDesktopLocale();
+  const { t, locale } = useReviewToolI18n();
   const database = useSettingStore(state => state.setting.database.active);
   const { data: items } = useProposalSuggestions(
     questionProposalId(execution.toolCallId),
@@ -45,9 +45,12 @@ const ContentQuestionRenderer = ({ execution, isDark }: ToolCallCustomRendererPr
     return (
       <ToolCard isDark={isDark}>
         <ToolCardHeader isDark={isDark}>
-          <div className="text-tau-body text-ink-1 font-medium">在正文里提问</div>
+          <div className="text-tau-body text-ink-1 font-medium">{t("review.question.title")}</div>
           <ToolMutedText isDark={isDark} className="mt-1 mb-2">
-            {error ?? (execution.status === "success" ? "这个问题的记录已清理。" : "正在准备问题…")}
+            {error ??
+              (execution.status === "success"
+                ? t("review.question.cleared")
+                : t("review.question.preparing"))}
           </ToolMutedText>
         </ToolCardHeader>
       </ToolCard>
@@ -64,7 +67,7 @@ const ContentQuestionRenderer = ({ execution, isDark }: ToolCallCustomRendererPr
             status={item.status === "pending" ? "waiting" : undefined}
           />
           <AgentName name={agent} />
-          <span className="text-ink-3">在</span>
+          <span className="text-ink-3">{t("review.question.in")}</span>
           <button
             type="button"
             className="text-accent-text inline-flex min-w-0 cursor-pointer items-center gap-1 hover:underline"
@@ -73,7 +76,9 @@ const ContentQuestionRenderer = ({ execution, isDark }: ToolCallCustomRendererPr
             <FileText size={13} strokeWidth={1.75} className="shrink-0" />
             <span className="max-w-[16em] truncate">{targetLabel(target)}</span>
           </button>
-          <span className="text-ink-3">{item.status === "pending" ? "问你" : "问过你"}</span>
+          <span className="text-ink-3">
+            {item.status === "pending" ? t("review.question.ask") : t("review.question.asked")}
+          </span>
           <span className="text-tau-micro text-ink-3 ml-auto tabular-nums">
             {formatAgo(item.createdAt, locale)}
           </span>

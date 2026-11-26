@@ -1,9 +1,11 @@
 import { getContentKit } from "@/services/editorKit";
 import { Editor } from "@tau/editor";
-import type { Descendant } from "slate";
+import type { Descendant, Editor as SlateEditor } from "slate";
 import type { MarkRenderProps } from "@tau/editor/api";
 import { cn } from "@tau/ui";
 import type { ReviewLeaf } from "@/utils/review-merged-content";
+
+import { useReviewToolI18n, reviewSyntheticLabel } from "./review.i18n";
 
 interface DiffHighlightedEditorProps {
   content: Descendant[];
@@ -25,8 +27,10 @@ const SYNTHETIC_CLASS: Record<string, string> = {
 };
 
 const ReviewLeafWrapper = (props: MarkRenderProps) => {
+  const { t } = useReviewToolI18n();
   const { leaf, children } = props;
   const diffLeaf = leaf as ReviewLeaf;
+  const display = diffLeaf.reviewDisplay ? reviewSyntheticLabel(diffLeaf.reviewDisplay, t) : null;
 
   return (
     <span
@@ -34,11 +38,51 @@ const ReviewLeafWrapper = (props: MarkRenderProps) => {
         diffLeaf.diffType && DIFF_CLASS[diffLeaf.diffType],
         diffLeaf.reviewSyntheticKind && SYNTHETIC_CLASS[diffLeaf.reviewSyntheticKind]
       )}
-      title={diffLeaf.diffId ? `变更：${diffLeaf.diffId}` : undefined}
+      title={diffLeaf.diffId ? t("review.diffId", { id: diffLeaf.diffId }) : undefined}
+      data-review-leaf
     >
-      {children}
+      {display === null ? (
+        children
+      ) : (
+        <>
+          <span
+            contentEditable={false}
+            role="note"
+            data-review-display={display}
+            aria-label={display}
+            className="before:content-[attr(data-review-display)]"
+          />
+          <span className="sr-only" data-review-original>
+            {children}
+          </span>
+        </>
+      )}
     </span>
   );
+};
+
+const initializedClipboard = new WeakSet<SlateEditor>();
+const initializeReviewClipboard = (editor: SlateEditor) => {
+  if (initializedClipboard.has(editor)) return;
+  initializedClipboard.add(editor);
+  const setFragmentData = editor.setFragmentData;
+  editor.setFragmentData = (data, originEvent) => {
+    const result = setFragmentData.call(editor, data, originEvent);
+    const html = data.getData("text/html");
+    if (!html.includes("data-review-leaf")) return result;
+    const template = document.createElement("template");
+    template.innerHTML = html;
+    template.content.querySelectorAll("[data-review-display]").forEach(element => element.remove());
+    template.content
+      .querySelectorAll("[data-review-original]")
+      .forEach(element => element.replaceWith(...Array.from(element.childNodes)));
+    template.content.querySelectorAll("[data-review-leaf]").forEach(element => {
+      element.removeAttribute("title");
+      element.removeAttribute("data-review-leaf");
+    });
+    data.setData("text/html", template.innerHTML);
+    return result;
+  };
 };
 
 export const DiffHighlightedEditor = ({ content }: DiffHighlightedEditorProps) => {
@@ -48,6 +92,7 @@ export const DiffHighlightedEditor = ({ content }: DiffHighlightedEditorProps) =
       initValue={content}
       readonly
       leafWrapper={ReviewLeafWrapper}
+      onInit={initializeReviewClipboard}
       className="text-ink-1"
       style={{ padding: "0 4px" }}
     />
