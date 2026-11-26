@@ -245,7 +245,8 @@ export interface ContentEditReviewSessionRecord {
 
 export interface ContentEditReviewToolResult {
   type: "content-edit-review-result";
-  action: "applied" | "rejected" | "feedback";
+  action: "applied" | "rejected" | "feedback" | "commit_pending";
+  errorCode?: "COMMIT_PENDING";
   submittedAt: number;
   contentId: number;
   message: string;

@@ -174,6 +174,34 @@ describe("ContentEditProposalRenderer", () => {
     vi.restoreAllMocks();
   });
 
+  it("原文校验退回的调用即使正常返回，也能在卡片中对照预期与实际原文", async () => {
+    const execution = createExecution({
+      status: "success",
+      output: JSON.stringify({
+        success: false,
+        errorCode: "REPLACE_GUARD_MISMATCH",
+        message: "目标内容与 expectedText 不一致",
+        details: { expectedText: "海风", actualText: "山风" },
+      }),
+    });
+    const { container, root } = await mount(
+      <ContentEditProposalRenderer
+        execution={execution}
+        isDark={false}
+        parsedInput={null}
+        renderDefault={() => null}
+      />
+    );
+    try {
+      expect(Array.from(container.querySelectorAll("dd"), item => item.textContent)).toEqual([
+        "海风",
+        "山风",
+      ]);
+    } finally {
+      await unmount(root, container);
+    }
+  });
+
   it("待审核时应展示完整预览与审阅动作", async () => {
     const payload = createPayload();
     const proposal = createProposalRecord();

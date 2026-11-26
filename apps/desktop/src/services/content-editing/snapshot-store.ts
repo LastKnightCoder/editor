@@ -26,6 +26,17 @@ export const getSnapshot = (snapshotId: string) => {
   return snapshots.get(snapshotId) || null;
 };
 
+export function invalidateContentSnapshots(databaseName: string, contentId: number) {
+  for (const [id, snapshot] of snapshots) {
+    if (
+      snapshot.editState?.databaseName === databaseName &&
+      snapshot.editState.contentId === contentId
+    )
+      snapshots.delete(id);
+  }
+  trimSnapshots();
+}
+
 export const registerRangeCandidates = (candidates: RangeCandidate[]) => {
   candidates.forEach(candidate => {
     matchRanges.set(candidate.matchId, {

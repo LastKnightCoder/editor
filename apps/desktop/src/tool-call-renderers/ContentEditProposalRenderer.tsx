@@ -25,7 +25,7 @@ import { SuggestionProposalCard } from "./SuggestionProposalCard";
 type ReviewResultPayload = {
   kind?: "content-edit-review-result";
   type: "content-edit-review-result";
-  action: "applied" | "rejected" | "feedback";
+  action: "applied" | "rejected" | "feedback" | "commit_pending";
   submittedAt: number;
   contentId: number;
   message: string;
@@ -56,10 +56,18 @@ const resultToneMap: Record<string, { Icon: LucideIcon; className: string }> = {
   rejected: { Icon: CircleX, className: "text-ink-3" },
 };
 
-const parseOutputResult = (output?: string): ReviewResultPayload | null => {
+type FailedEditResult = {
+  success: false;
+  errorCode?: string;
+  message: string;
+  details?: { expectedText?: string; actualText?: string };
+};
+
+const parseOutputResult = (output?: string): ReviewResultPayload | FailedEditResult | null => {
   if (!output) return null;
   try {
-    const parsed = JSON.parse(output) as ReviewResultPayload;
+    const parsed = JSON.parse(output);
+    if (parsed?.success === false && typeof parsed.message === "string") return parsed;
     return parsed?.type === "content-edit-review-result" ? parsed : null;
   } catch {
     return null;
@@ -123,7 +131,9 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
   } | null>(null);
   const feedbackSectionRef = useRef<HTMLDivElement | null>(null);
   const feedbackTextareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const outputResult = getMetadataResult(execution) || parseOutputResult(execution.output);
+  const output = useMemo(() => parseOutputResult(execution.output), [execution.output]);
+  const failure = output && "success" in output ? output : null;
+  const outputResult = getMetadataResult(execution) || (output && "type" in output ? output : null);
 
   const session = useContentEditReviewSessionStore(state =>
     state.findRecordByExecution({
@@ -237,6 +247,43 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
 
     return () => window.cancelAnimationFrame(frameId);
   }, [feedbackOpen]);
+
+  if (failure) {
+    const mismatch = failure.errorCode === "REPLACE_GUARD_MISMATCH";
+    const details = failure.details;
+    return (
+      <ToolCard isDark={isDark}>
+        <ToolCardHeader isDark={isDark}>
+          <div className="text-tau-body text-ink-1 font-medium">
+            {mismatch
+              ? "本次修改未执行"
+              : failure.errorCode === "COMMIT_PENDING"
+                ? "提交结果待确认"
+                : "修改结果"}
+          </div>
+        </ToolCardHeader>
+        <ToolCardBody>
+          <ToolMutedText isDark={isDark} className="break-words">
+            {mismatch ? "选中位置的原文与 AI 要替换的文字不一致。" : failure.message}
+          </ToolMutedText>
+          {mismatch &&
+          typeof details?.expectedText === "string" &&
+          typeof details.actualText === "string" ? (
+            <dl className="text-tau-body mt-2 grid max-h-48 grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 overflow-auto">
+              <dt className="text-ink-3">AI 预期的原文</dt>
+              <dd className="break-words whitespace-pre-wrap">
+                {details.expectedText || "（空文本）"}
+              </dd>
+              <dt className="text-ink-3">选中位置的原文</dt>
+              <dd className="break-words whitespace-pre-wrap">
+                {details.actualText || "（空文本）"}
+              </dd>
+            </dl>
+          ) : null}
+        </ToolCardBody>
+      </ToolCard>
+    );
+  }
 
   // 逐条建议：对话里是按条卡片，与正文右栏操作同一份主进程记录
   const suggestionContentId =

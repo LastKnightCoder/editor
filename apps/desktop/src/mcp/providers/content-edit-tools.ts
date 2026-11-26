@@ -191,6 +191,8 @@ const executeOperationsWithReviewPolicy = async (payload: {
       baseHash,
       snapshotId,
       operations,
+      executionId: context?.toolContext?.executionId,
+      requireDirectPermission: !autoApply,
       sourceToolName: context?.toolName || "content-edit-tools",
       agentId: context?.conversationKey?.split(":subagent:")[1],
       agentLabel: agent,
@@ -228,7 +230,7 @@ const executeOperationsWithReviewPolicy = async (payload: {
             !autoApply
           )
         : await autoApplyContentEditProposal(proposalResult.proposal, context?.signal);
-      reportAgentPresence(context, contentId, { status: "busy", action: "改好了，接着做" });
+      reportAgentPresence(context, contentId, { status: "busy", action: "已检查修改结果" });
       return result;
     }
     const count =
@@ -499,7 +501,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
       name: "apply_content_edit_operations",
       risk: "write",
       description:
-        "对正文执行批量编辑（insert/delete/replace），也是全文改写的唯一入口。先用 get_content_markdown 或 find_content_ranges 读取，传入 snapshotId；精确替换使用 match-id，整篇改写使用 full-document。SCOPE_CONFLICT 时用返回的 blockId 调用 get_content_markdown 重读目标，再基于当前正文决定是否生成新操作。COMMIT_PENDING 时仅传 resumeProposalId 查询或补交原请求。手动确认模式下工具会等待审阅。",
+        "对正文执行批量编辑（insert/delete/replace），也是全文改写的唯一入口。先用 get_content_markdown 或 find_content_ranges 读取，传入 snapshotId；精确替换使用 match-id，整篇改写使用 full-document。SCOPE_CONFLICT 时用返回的 blockId 调用 get_content_markdown 重读目标，再基于当前正文决定是否生成新操作。COMMIT_PENDING 表示平台尚未确认上次修改，请说明哪些结果待确认，结束本轮重试。下次编辑会自动核对。手动确认模式下工具会等待审阅。",
       execution: reviewToolExecution,
       parameters: {
         type: "object",

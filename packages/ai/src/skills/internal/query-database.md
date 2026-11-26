@@ -20,7 +20,7 @@
 2. 只改用户要求的语言、代码或参数。保持原有列 key、未要求修改的来源范围及展示配置。
 3. 用 find_content_ranges 精确定位完整查询块，携带其 snapshotId 和实际返回的 matchId 提交 apply_content_edit_operations；replace 可附 expectedText 防止误替换。当前正文工具对块内源码子串未必能无损定位，遇到 UNSUPPORTED_RANGE 时重读并针对完整查询块处理，不升级为整篇覆盖。
 4. 参数与展示配置存在时，围栏后的 qdb= 值是 encodeURIComponent(JSON.stringify({params,presentation}))。只改代码时保留原 qdb 值；确需改参数时解码后仅改 params，保留 presentation 并正确重编码。没有可靠编码方法时给出具体参数改法，不手猜编码，也不清空配置。
-5. 沿用工具返回的定位与版本信息，不自造或擦写节点身份。SCOPE_CONFLICT/ANCHOR_CHANGED 时重读目标并基于新内容生成操作；COMMIT_PENDING 按工具说明仅携带原 resumeProposalId 查询或补交。
+5. 沿用工具返回的定位与版本信息，不自造或擦写节点身份。SCOPE_CONFLICT/ANCHOR_CHANGED 时重读目标并基于新内容生成操作；COMMIT_PENDING 表示上次提交仍未确认，说明逐条结果并结束本轮重试，下次编辑由平台再次核对。
    同一目标重读后再次冲突时停止改写并报告未完成，不扩大为整篇覆盖，也不覆盖用户正在输入的内容。
 
 6. 根据工具返回区分已提交、待审阅、冲突和失败。遵守既有 Agent × 正文权限；技能不会授予写入或直接应用权限。

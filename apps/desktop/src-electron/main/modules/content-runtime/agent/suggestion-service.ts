@@ -137,7 +137,11 @@ export class ContentSuggestionService {
     signal?.throwIfAborted();
     const claimed = this.store.claim(
       workspaceId,
-      [...new Set(ids)].filter(id => !this.inFlight.has(id)),
+      [...new Set(ids)].filter(
+        id =>
+          !this.inFlight.has(id) &&
+          (!options.onlyApplying || this.store.row(id)?.status === "applying")
+      ),
       contentId
     );
     for (const { row } of claimed) this.inFlight.add(row.id);

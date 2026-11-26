@@ -65,9 +65,9 @@ const describeSuggestionItems = (
       count("pending") &&
         `${count("pending")} 处因用户正在编辑那一段先停下，已留作待处理，用户决定是否让你接着改`,
       count("expired") && `${count("expired")} 处已过期（用条目的 blockId 重读原文后再提）`,
-      count("applying") && `${count("applying")} 处提交结果尚未确认（用 resumeProposalId 补交）`,
+      count("applying") && `${count("applying")} 处提交结果尚未确认，下次编辑时会再次核对`,
     ].filter(Boolean);
-    return `已按直接改权限落地：${parts.join("；") || "没有可改的条目"}`;
+    return `本次修改：${parts.join("；") || "没有可改的条目"}`;
   }
   const parts = [
     count("accepted") && `接受 ${count("accepted")} 条`,
@@ -91,6 +91,7 @@ export const createReviewToolResult = (payload: {
   const result: ContentEditReviewToolResult = {
     type: "content-edit-review-result",
     action: payload.action,
+    ...(payload.action === "commit_pending" ? { errorCode: "COMMIT_PENDING" as const } : {}),
     submittedAt: now(),
     contentId: payload.proposal.contentId,
     proposalId: payload.proposal.proposalId,

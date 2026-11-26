@@ -37,7 +37,7 @@ import {
   getContentEditProposal,
   useContentEditReviewStore,
 } from "./proposal-store";
-import { acceptSuggestions } from "./suggestion-review";
+import { acceptSuggestions, reconcileSuggestionCommit } from "./suggestion-review";
 import type {
   ContentEditCheckpointRecord,
   ContentEditProposalRecord,
@@ -55,6 +55,8 @@ const requireProposal = (proposalId: string): ContentEditProposalRecord => {
 interface CreateProposalParams {
   databaseName?: string;
   signal?: AbortSignal;
+  executionId?: string;
+  requireDirectPermission?: boolean;
   target?: { contentId?: number };
   baseHash?: string;
   snapshotId?: string;
@@ -121,16 +123,47 @@ export const createContentEditProposal = async (params: CreateProposalParams) =>
   const unsettled = Object.values(useContentEditReviewStore.getState().proposals).find(
     proposal =>
       proposal.conversationKey === conversationKey &&
+      proposal.databaseName?.replace(/\.db$/, "") === databaseName &&
       proposal.contentId === resolvedTarget.contentId &&
       proposal.commitPending
   );
-  if (unsettled)
-    return {
-      success: false as const,
-      errorCode: "COMMIT_PENDING",
-      message: "请先用 resumeProposalId 确认原提交",
-      proposalId: unsettled.proposalId,
-    };
+  if (unsettled) {
+    const previous = await reconcileSuggestionCommit(unsettled, {
+      signal: params.signal,
+      executionId: mode === "direct" ? params.executionId : undefined,
+      requireDirectPermission: params.requireDirectPermission,
+    });
+    if (!previous.success) return previous;
+    if (previous.unsettled)
+      return {
+        success: false as const,
+        errorCode: "COMMIT_PENDING",
+        message: "上次修改的结果仍未确认。已保留原提交，下次编辑时会再次核对。",
+        proposalId: unsettled.proposalId,
+        items: previous.items,
+      };
+    // 补交可能改变了正文。只有本次操作确实基于恢复后的正文，才能继续。
+    const { snapshot: latest } = await loadSnapshotForContent(
+      resolvedTarget.contentId,
+      params,
+      true
+    );
+    if (
+      !captured ||
+      !state ||
+      latest.markdown !== captured.markdown ||
+      latest.editState?.identity.documentId !== state.identity.documentId ||
+      latest.editState.identity.baselineId !== state.identity.baselineId ||
+      latest.editState.identity.epoch !== state.identity.epoch
+    )
+      return {
+        success: false as const,
+        errorCode: "SNAPSHOT_EXPIRED",
+        message: "上次提交的结果已核对，请重读当前正文，只提交仍需进行的修改。",
+        proposalId: unsettled.proposalId,
+        items: previous.items,
+      };
+  }
   if (
     isElectron &&
     !snapshotId &&

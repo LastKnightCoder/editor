@@ -103,6 +103,8 @@ export interface ContentSuggestionQuery {
 
 export interface ContentSuggestionAcceptOptions {
   typing?: boolean;
+  /** 自动核对只可认领仍在提交中的原条目。 */
+  onlyApplying?: boolean;
   requireDirectPermission?: boolean;
   executionId?: string;
 }

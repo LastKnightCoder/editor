@@ -7,6 +7,7 @@ import { getContentEditProposal, useContentEditReviewStore } from "./proposal-st
 import { createReviewToolResult } from "./review-session-render";
 import { useContentEditReviewSessionStore } from "./review-session-store";
 import { createCheckpointId, now } from "./review-session-helpers";
+import { invalidateContentSnapshots } from "./snapshot-store";
 import { watchProposal } from "./suggestion-watch";
 import type { ContentEditCheckpointRecord, ContentEditProposalRecord } from "./types";
 
@@ -81,6 +82,76 @@ const summarizeSuggestionProposal = (
   };
 };
 
+/** 同一操作最多补交一次；IPC 回应丢失时以主进程逐条记录为准。 */
+export async function reconcileSuggestionCommit(
+  proposal: ContentEditProposalRecord,
+  options: Pick<ApplyProposalParams, "signal" | "executionId" | "requireDirectPermission">
+) {
+  const { signal, executionId, requireDirectPermission } = options;
+  const commands = bindDatabaseCommands(
+    { listContentSuggestions, acceptContentSuggestions },
+    { databaseName: proposal.databaseName, signal }
+  );
+  const list = () => commands.listContentSuggestions({ proposalId: proposal.proposalId });
+  let items: ContentSuggestion[];
+  try {
+    items = await list();
+    const applying = items.filter(item => item.status === "applying" && item.mode === "direct");
+    if (applying.length && executionId) {
+      signal?.throwIfAborted();
+      try {
+        await commands.acceptContentSuggestions(
+          proposal.contentId,
+          applying.map(item => item.id),
+          {
+            executionId,
+            requireDirectPermission,
+            onlyApplying: true,
+          }
+        );
+      } catch {
+        signal?.throwIfAborted();
+        // IPC 回应可能在提交后丢失，仍以随后的逐条记录为准。
+      }
+      items = await list();
+    }
+  } catch {
+    useContentEditReviewStore.getState().updateProposal(proposal.proposalId, current => ({
+      ...current,
+      commitPending: true,
+      updatedAt: now(),
+    }));
+    signal?.throwIfAborted();
+    return {
+      success: false as const,
+      proposalId: proposal.proposalId,
+      errorCode: "COMMIT_PENDING",
+      message: "暂时无法确认上次修改的结果，下次编辑时会再次核对。",
+    };
+  }
+  if (!items.length) {
+    const message =
+      "原提交记录已不存在，无法确认该修改是否生效。请重读正文，只提交仍需进行的修改。";
+    useContentEditReviewStore.getState().updateProposal(proposal.proposalId, current => ({
+      ...current,
+      commitPending: false,
+      lastError: message,
+      updatedAt: now(),
+    }));
+    invalidateContentSnapshots(
+      proposal.databaseName?.replace(/\.db$/, "") ?? "",
+      proposal.contentId
+    );
+    return {
+      success: false as const,
+      proposalId: proposal.proposalId,
+      errorCode: "SNAPSHOT_EXPIRED",
+      message,
+    };
+  }
+  return { success: true as const, ...summarizeSuggestionProposal(proposal, items) };
+}
+
 /** 接受选中的条目（缺省全部待处理）；已被另一视图处理的条目原样返回其结果。 */
 export const acceptSuggestions = async (
   proposal: ContentEditProposalRecord,
@@ -104,7 +175,7 @@ export const acceptSuggestions = async (
     );
   const items = await commands.listContentSuggestions({ proposalId: proposal.proposalId });
   const summary = summarizeSuggestionProposal(proposal, items);
-  if (accept.length && !items.some(item => item.status === "accepted"))
+  if (summary.unsettled || (accept.length && !items.some(item => item.status === "accepted")))
     return {
       success: false as const,
       errorCode: summary.unsettled ? "COMMIT_PENDING" : "SCOPE_CONFLICT",
@@ -195,16 +266,27 @@ export const applyDirectSuggestions = async (
   );
   const before = await commands.listContentSuggestions({ proposalId: proposal.proposalId });
   const pending = before.filter(item => item.status === "pending").map(item => item.id);
-  if (pending.length)
-    await commands.acceptContentSuggestions(proposal.contentId, pending, {
-      typing: true,
-      executionId,
-      requireDirectPermission,
-    });
-  const items = await commands.listContentSuggestions({ proposalId: proposal.proposalId });
-  const summary = summarizeSuggestionProposal(proposal, items);
+  let submitError: unknown;
+  if (pending.length) {
+    try {
+      await commands.acceptContentSuggestions(proposal.contentId, pending, {
+        typing: true,
+        executionId,
+        requireDirectPermission,
+      });
+    } catch (error) {
+      submitError = error;
+    }
+  }
+  const summary = await reconcileSuggestionCommit(proposal, {
+    signal,
+    executionId,
+    requireDirectPermission,
+  });
+  if (!summary.success) return { content: JSON.stringify(summary) };
+  if (submitError && summary.items.every(item => item.status === "pending")) throw submitError;
   return createReviewToolResult({
-    action: items.some(item => item.status === "accepted") ? "applied" : "rejected",
+    action: summary.unsettled ? "commit_pending" : summary.checkpoint ? "applied" : "rejected",
     proposal: getContentEditProposal(proposal.proposalId) ?? proposal,
     items: summary.items,
     direct: true,
