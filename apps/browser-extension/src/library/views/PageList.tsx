@@ -5,13 +5,9 @@ import { hostOf, summarize, type LocalNotePage } from "../local";
 import { useLibraryPages, type PagesFilter } from "../queries";
 import { Badge, ColorBar, EmptyState, LoadMore, SiteMark } from "./parts";
 import { formatTime, pageLabel, timeGroup } from "../helpers";
+import { useLibraryI18n } from "../i18n";
 
-const SORT_LABEL: Record<LibrarySort, string> = {
-  recent: "最近标注",
-  oldest: "最早标注",
-  most: "标注最多",
-  title: "按名称",
-};
+const SORTS: LibrarySort[] = ["recent", "oldest", "most", "title"];
 
 function PageRow({
   page,
@@ -24,6 +20,8 @@ function PageRow({
   notes: LocalNotePage | undefined;
   onSelect: () => void;
 }) {
+  const context = useLibraryI18n();
+  const { t, locale } = context;
   return (
     <button
       type="button"
@@ -41,12 +39,23 @@ function PageRow({
         </span>
         <span className="text-tau-sm text-ink-3 mt-1 flex items-center gap-2">
           {page.count > 0 && <ColorBar colors={page.colors} count={page.count} />}
-          {page.count > 0 && <span>{page.count} 条</span>}
-          {notes?.draft && <Badge tone="warn">草稿</Badge>}
-          {notes && notes.saved.length > 0 && <Badge tone="ok">{notes.saved.length} 张卡片</Badge>}
-          <span className="ml-auto flex-none">{formatTime(page.lastTime)}</span>
+          {page.count > 0 && (
+            <span>
+              {t("items", { count: page.count, amount: page.count.toLocaleString(locale) })}
+            </span>
+          )}
+          {notes && notes.draft !== null && <Badge tone="warn">{t("draft")}</Badge>}
+          {notes && notes.saved.length > 0 && (
+            <Badge tone="ok">
+              {t("cards", {
+                count: notes.saved.length,
+                amount: notes.saved.length.toLocaleString(locale),
+              })}
+            </Badge>
+          )}
+          <span className="ml-auto flex-none">{formatTime(page.lastTime, context)}</span>
         </span>
-        {page.renamed && <span className="text-tau-tiny text-ink-3">已重命名</span>}
+        {page.renamed && <span className="text-tau-tiny text-ink-3">{t("renamed")}</span>}
       </span>
     </button>
   );
@@ -72,6 +81,7 @@ export function PageList({
   onFilter: (filter: PagesFilter) => void;
   onSelect: (page: WebPageSummary) => void;
 }) {
+  const { t } = useLibraryI18n();
   const pages = useLibraryPages(filter, online);
   const items = pages.data?.pages.flatMap(page => page.items) ?? [];
   const grouped = filter.sort === "recent" || filter.sort === "oldest";
@@ -99,19 +109,19 @@ export function PageList({
           lead={Search}
           clearable
           size="sm"
-          placeholder="搜页面名、网址、原文、批注…"
+          placeholder={t("pages.search")}
           value={query}
           onChange={event => onQuery(event.target.value)}
         />
         <div className="flex items-center gap-1.5">
           <FilterPill
             active={!filter.noted}
-            label="全部"
+            label={t("all")}
             onClick={() => onFilter({ ...filter, noted: undefined })}
           />
           <FilterPill
             active={!!filter.noted}
-            label="有批注"
+            label={t("noted")}
             onClick={() => onFilter({ ...filter, noted: true })}
           />
           <span className="flex-1" />
@@ -123,7 +133,7 @@ export function PageList({
                 className="text-tau-sm text-ink-2 hover:bg-hover rounded-tau-sm inline-flex h-6 items-center gap-1 px-2"
               >
                 <ArrowDownUp size={13} strokeWidth={1.8} />
-                {SORT_LABEL[filter.sort]}
+                {t(`sort.${filter.sort}`)}
               </button>
             }
           >
@@ -131,9 +141,9 @@ export function PageList({
               value={filter.sort}
               onValueChange={sort => onFilter({ ...filter, sort: sort as LibrarySort })}
             >
-              {(Object.keys(SORT_LABEL) as LibrarySort[]).map(sort => (
+              {SORTS.map(sort => (
                 <Menu.RadioItem key={sort} value={sort}>
-                  {SORT_LABEL[sort]}
+                  {t(`sort.${sort}`)}
                 </Menu.RadioItem>
               ))}
             </Menu.RadioGroup>
@@ -141,13 +151,13 @@ export function PageList({
         </div>
         {filter.host && (
           <p className="text-tau-sm text-ink-3">
-            只看 {filter.host}
+            {t("pages.host", { host: filter.host })}
             <button
               type="button"
               className="text-accent-text ml-2"
               onClick={() => onFilter({ ...filter, host: undefined })}
             >
-              看全部站点
+              {t("pages.allSites")}
             </button>
           </p>
         )}
@@ -155,11 +165,7 @@ export function PageList({
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2.5">
         {pages.isPending ? null : items.length === 0 && noteOnly.length === 0 ? (
           <EmptyState icon={<Highlighter size={22} strokeWidth={1.6} />}>
-            {filtering
-              ? "没有符合条件的页面"
-              : online
-                ? "还没有标注过的网页：在网页上选中文字即可高亮或批注"
-                : "本机还没有缓存的标注，连上 Tau 后可看到全部页面"}
+            {filtering ? t("pages.noResults") : online ? t("pages.empty") : t("pages.noCache")}
           </EmptyState>
         ) : (
           items.map((page, index) => {
@@ -168,7 +174,9 @@ export function PageList({
               group && (index === 0 || timeGroup(items[index - 1].lastTime) !== group);
             return (
               <div key={page.url}>
-                {showGroup && <p className="text-tau-sm text-ink-3 px-2 pt-2.5 pb-1">{group}</p>}
+                {showGroup && (
+                  <p className="text-tau-sm text-ink-3 px-2 pt-2.5 pb-1">{t(`group.${group}`)}</p>
+                )}
                 <PageRow
                   page={page}
                   active={page.url === selected}
@@ -181,7 +189,7 @@ export function PageList({
         )}
         {noteOnly.length > 0 && (
           <>
-            <p className="text-tau-sm text-ink-3 px-2 pt-2.5 pb-1">只有笔记</p>
+            <p className="text-tau-sm text-ink-3 px-2 pt-2.5 pb-1">{t("pages.onlyNotes")}</p>
             {noteOnly.map(page => (
               <PageRow
                 key={page.url}

@@ -6,6 +6,7 @@ import type { LocalNotePage } from "../local";
 import { usePageAnnotations, useRenamePage } from "../queries";
 import { AnnotationItem, Badge, SiteMark } from "./parts";
 import { formatTime, openCard, openPage, pageLabel } from "../helpers";
+import { useLibraryI18n, libraryErrorText } from "../i18n";
 
 /** 按原文顺序；没有锚点的（早期标注）按时间排在后面 */
 const byPosition = (a: WebAnnotation, b: WebAnnotation) =>
@@ -13,6 +14,7 @@ const byPosition = (a: WebAnnotation, b: WebAnnotation) =>
   a.createdAt - b.createdAt;
 
 function PageTitle({ page, canRename }: { page: WebPageSummary; canRename: boolean }) {
+  const { t } = useLibraryI18n();
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState("");
   const rename = useRenamePage();
@@ -39,7 +41,7 @@ function PageTitle({ page, canRename }: { page: WebPageSummary; canRename: boole
     if (next === page.title || (!next && !page.renamed)) return;
     rename.mutate(
       { url: page.url, title: next },
-      { onError: error => toast.error(error instanceof Error ? error.message : "改名失败") }
+      { onError: error => toast.error(libraryErrorText(error, "rename.failed")) }
     );
   };
 
@@ -48,7 +50,7 @@ function PageTitle({ page, canRename }: { page: WebPageSummary; canRename: boole
     <>
       {editing ? (
         <input
-          aria-label="页面名称"
+          aria-label={t("rename.name")}
           autoFocus
           value={text}
           maxLength={500}
@@ -67,7 +69,7 @@ function PageTitle({ page, canRename }: { page: WebPageSummary; canRename: boole
           <button
             type="button"
             disabled={!canRename}
-            title={canRename ? "点击重命名" : undefined}
+            title={canRename ? t("rename.click") : undefined}
             onClick={startEditing}
             className={`${titleClass} enabled:hover:bg-hover rounded-tau-sm group -ml-1.5 inline-flex items-baseline gap-2 px-1.5 text-left`}
           >
@@ -84,10 +86,12 @@ function PageTitle({ page, canRename }: { page: WebPageSummary; canRename: boole
       )}
       <p className="text-tau-sm text-ink-3 mt-1 flex items-center gap-2 empty:hidden">
         {editing ? (
-          "回车保存 · Esc 取消 · 清空即恢复网页标题"
+          t("rename.hint")
         ) : page.renamed ? (
           <>
-            <span className="min-w-0 truncate">网页标题：{page.pageTitle || "（无）"}</span>
+            <span className="min-w-0 truncate">
+              {t("rename.original", { title: page.pageTitle || t("none") })}
+            </span>
             {canRename && (
               <button
                 type="button"
@@ -97,12 +101,12 @@ function PageTitle({ page, canRename }: { page: WebPageSummary; canRename: boole
                   submit("");
                 }}
               >
-                恢复
+                {t("rename.restore")}
               </button>
             )}
           </>
         ) : canRename ? null : (
-          "连上 Tau 后可重命名"
+          t("rename.offline")
         )}
       </p>
     </>
@@ -120,15 +124,22 @@ export function PageDetail({
   notes: LocalNotePage | undefined;
   onWriteNote: () => void;
 }) {
+  const context = useLibraryI18n();
+  const { t, locale } = context;
+  const hasDraft = Boolean(notes && notes.draft !== null);
   const annotations = usePageAnnotations(page.url);
   const items = [...(annotations.data ?? [])].sort(byPosition);
   const noted = items.filter(item => item.note.trim()).length;
 
   const summary = [
-    items.length ? `${items.length} 条标注` : null,
-    noted ? `${noted} 条批注` : null,
-    notes?.saved.length ? `${notes.saved.length} 张卡片` : null,
-    notes?.draft ? "有草稿" : null,
+    items.length
+      ? t("annotations", { count: items.length, amount: items.length.toLocaleString(locale) })
+      : null,
+    noted ? t("comments", { count: noted, amount: noted.toLocaleString(locale) }) : null,
+    notes?.saved.length
+      ? t("cards", { count: notes.saved.length, amount: notes.saved.length.toLocaleString(locale) })
+      : null,
+    hasDraft ? t("hasDraft") : null,
   ].filter(Boolean);
 
   return (
@@ -153,41 +164,43 @@ export function PageDetail({
               icon={ArrowUpRight}
               onClick={() => openPage(page.url)}
             >
-              打开网页
+              {t("page.open")}
             </Button>
             <Button size="sm" icon={NotebookPen} onClick={onWriteNote}>
-              {notes?.draft ? "继续写笔记" : "写笔记"}
+              {hasDraft ? t("page.continueNote") : t("page.writeNote")}
             </Button>
           </div>
         </header>
         <div className="border-line-2 mt-6 grid grid-cols-[minmax(0,1fr)_260px] gap-10 border-t pt-2">
-          <section aria-label="标注">
-            <p className="text-tau-sm text-ink-3 mt-4 mb-1">标注</p>
+          <section aria-label={t("page.annotations")}>
+            <p className="text-tau-sm text-ink-3 mt-4 mb-1">{t("page.annotations")}</p>
             {annotations.isPending ? null : items.length === 0 ? (
               <p className="text-tau-meta text-ink-3 flex items-center gap-2 py-3">
                 <Highlighter size={15} strokeWidth={1.8} className="flex-none" />
-                还没有标注。打开网页，选中文字即可高亮或批注。
+                {t("page.emptyAnnotations")}
               </p>
             ) : (
               items.map(item => <AnnotationItem key={item.id} url={page.url} item={item} />)
             )}
           </section>
           <aside>
-            <p className="text-tau-sm text-ink-3 mt-4 mb-2">笔记</p>
-            {notes?.draft && (
+            <p className="text-tau-sm text-ink-3 mt-4 mb-2">{t("view.notes")}</p>
+            {notes && notes.draft !== null && (
               <button
                 type="button"
                 onClick={onWriteNote}
                 className="border-line-1 hover:bg-surface-hover rounded-tau-md mb-2 block w-full border p-3 text-left"
               >
                 <span className="flex items-center justify-between">
-                  <Badge tone="warn">草稿</Badge>
+                  <Badge tone="warn">{t("draft")}</Badge>
                   <span className="text-tau-sm text-ink-3">
-                    {notes.updatedAt ? formatTime(notes.updatedAt) : "仅本机"}
+                    {notes.updatedAt ? formatTime(notes.updatedAt, context) : t("localOnly")}
                   </span>
                 </span>
-                <span className="text-tau-meta text-ink-1 mt-2 line-clamp-4">{notes.draft}</span>
-                <span className="text-tau-sm text-accent-text mt-2 block">继续编辑</span>
+                <span className="text-tau-meta text-ink-1 mt-2 line-clamp-4">
+                  {notes.draft || t("noText")}
+                </span>
+                <span className="text-tau-sm text-accent-text mt-2 block">{t("edit")}</span>
               </button>
             )}
             {notes?.saved.map(card => (
@@ -198,22 +211,24 @@ export function PageDetail({
                 className="border-line-1 hover:bg-surface-hover rounded-tau-md mb-2 block w-full border p-3 text-left"
               >
                 <span className="flex items-center justify-between">
-                  <Badge tone="ok">卡片</Badge>
-                  <span className="text-tau-sm text-ink-3">{formatTime(card.savedAt)}</span>
+                  <Badge tone="ok">{t("card")}</Badge>
+                  <span className="text-tau-sm text-ink-3">
+                    {formatTime(card.savedAt, context)}
+                  </span>
                 </span>
                 <span className="text-tau-meta text-ink-1 mt-2 line-clamp-4">
-                  {card.preview || "（无文字）"}
+                  {card.preview || t("noText")}
                 </span>
-                <span className="text-tau-sm text-accent-text mt-2 block">在 Tau 中打开</span>
+                <span className="text-tau-sm text-accent-text mt-2 block">{t("openTau")}</span>
               </button>
             ))}
-            {!notes?.draft && !notes?.saved.length && (
+            {!hasDraft && !notes?.saved.length && (
               <button
                 type="button"
                 onClick={onWriteNote}
                 className="text-tau-sm text-ink-3 border-line-1 hover:text-ink-2 hover:bg-surface-hover rounded-tau-md w-full border border-dashed p-3 text-center"
               >
-                这一页还没有笔记，写一条
+                {t("page.emptyNote")}
               </button>
             )}
           </aside>

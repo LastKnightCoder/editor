@@ -2,7 +2,7 @@
  * 伴读库（扩展自己的页面 library.html）：所有标注过的网页、跨页的全部标注、页面笔记汇总，
  * 可给页面起名（存在 Tau，成为页面的显示名）。数据经后台转给 Tau；没连上时页面列表用本机缓存。
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useDebounce } from "ahooks";
 import { LayoutList } from "lucide-react";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
@@ -24,6 +24,7 @@ import { PageList } from "./views/PageList";
 import { EmptyState } from "./views/parts";
 import { pageLabel } from "./helpers";
 import { Sidebar, type LibraryView } from "./views/Sidebar";
+import { useLibraryI18n } from "./i18n";
 
 const SEARCH_DEBOUNCE = { wait: 250 };
 
@@ -35,22 +36,27 @@ function NoteDrawer({
   page: { url: string; title: string } | null;
   onClose: () => void;
 }) {
+  const { t } = useLibraryI18n();
   const src = page && `/note.html?${new URLSearchParams({ url: page.url, title: page.title })}`;
   return (
     <Drawer
       open={!!page}
       onOpenChange={open => !open && onClose()}
-      title="页面笔记"
+      title={t("note.page")}
       subtitle={page && pageLabel(page)}
       size="md"
       fill
     >
-      {src && <iframe title="页面笔记" src={src} className="h-full w-full flex-1 border-0" />}
+      {src && <iframe title={t("note.page")} src={src} className="h-full w-full flex-1 border-0" />}
     </Drawer>
   );
 }
 
 function Library() {
+  const { t } = useLibraryI18n();
+  useEffect(() => {
+    document.title = t("title");
+  }, [t]);
   const client = useQueryClient();
   useStorageInvalidation(client);
   const status = useCompanionStatus();
@@ -131,7 +137,7 @@ function Library() {
           ) : (
             <main className="bg-surface min-h-0 flex-1">
               <EmptyState icon={<LayoutList size={22} strokeWidth={1.6} />}>
-                选择一个页面，查看它的标注与笔记
+                {t("selectPage")}
               </EmptyState>
             </main>
           )}

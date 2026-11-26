@@ -4,20 +4,21 @@ import { cn } from "@tau/ui";
 import type { ConnectionState } from "../../shared/messages";
 import { useLibrarySites } from "../queries";
 import { SiteMark } from "./parts";
+import { useLibraryI18n } from "../i18n";
 
 export type LibraryView = "pages" | "feed" | "notes";
 
-const VIEWS: Array<{ key: LibraryView; label: string; icon: LucideIcon }> = [
-  { key: "pages", label: "页面", icon: LayoutList },
-  { key: "feed", label: "全部标注", icon: Highlighter },
-  { key: "notes", label: "笔记", icon: NotebookPen },
+const VIEWS: Array<{ key: LibraryView; icon: LucideIcon }> = [
+  { key: "pages", icon: LayoutList },
+  { key: "feed", icon: Highlighter },
+  { key: "notes", icon: NotebookPen },
 ];
 
-const STATUS: Partial<Record<ConnectionState, { label: string; dot: string }>> = {
-  ready: { label: "Tau 已连接", dot: "bg-ok" },
-  pairing: { label: "等待在 Tau 里授权", dot: "bg-warn" },
-  connecting: { label: "正在连接 Tau", dot: "bg-warn" },
-  launching: { label: "正在等待 Tau", dot: "bg-warn" },
+const STATUS_DOT: Partial<Record<ConnectionState, string>> = {
+  ready: "bg-ok",
+  pairing: "bg-warn",
+  connecting: "bg-warn",
+  launching: "bg-warn",
 };
 
 function NavItem({
@@ -31,6 +32,7 @@ function NavItem({
   children: React.ReactNode;
   count?: number;
 }) {
+  const { locale } = useLibraryI18n();
   return (
     <button
       type="button"
@@ -43,7 +45,9 @@ function NavItem({
     >
       {children}
       {count !== undefined && (
-        <span className="text-tau-sm ml-auto tabular-nums opacity-70">{count}</span>
+        <span className="text-tau-sm ml-auto tabular-nums opacity-70">
+          {count.toLocaleString(locale)}
+        </span>
       )}
     </button>
   );
@@ -62,9 +66,16 @@ export function Sidebar({
   onView: (view: LibraryView) => void;
   onHost: (host: string | null) => void;
 }) {
+  const { t } = useLibraryI18n();
   const online = state === "ready";
   const sites = useLibrarySites(online).data ?? [];
-  const status = STATUS[state] ?? { label: "Tau 未连接", dot: "bg-ink-3" };
+  const status = {
+    label:
+      state === "ready" || state === "pairing" || state === "connecting" || state === "launching"
+        ? t(`status.${state}`)
+        : t("status.offline"),
+    dot: STATUS_DOT[state] ?? "bg-ink-3",
+  };
 
   return (
     <aside className="border-line-1 flex min-h-0 w-[208px] flex-none flex-col gap-0.5 border-r px-2.5 py-3.5">
@@ -72,9 +83,9 @@ export function Sidebar({
         <span className="bg-accent text-ink-inverse rounded-tau-sm grid size-[22px] place-items-center text-[12px]">
           τ
         </span>
-        伴读库
+        {t("title")}
       </div>
-      {VIEWS.map(({ key, label, icon: Icon }) => (
+      {VIEWS.map(({ key, icon: Icon }) => (
         <NavItem
           key={key}
           active={view === key && !(key === "pages" && host)}
@@ -84,12 +95,12 @@ export function Sidebar({
           }}
         >
           <Icon size={15} strokeWidth={1.8} />
-          {label}
+          {t(`view.${key}`)}
         </NavItem>
       ))}
       {sites.length > 0 && (
         <>
-          <p className="text-tau-sm text-ink-3 px-2 pt-3.5 pb-1">站点</p>
+          <p className="text-tau-sm text-ink-3 px-2 pt-3.5 pb-1">{t("sites")}</p>
           <div className="min-h-0 flex-1 overflow-y-auto">
             {sites.map(site => (
               <NavItem
@@ -110,7 +121,7 @@ export function Sidebar({
       )}
       <div className="text-tau-sm text-ink-3 mt-auto flex items-center gap-1.5 px-2 pt-2.5">
         <span className={cn("size-1.5 rounded-full", status.dot)} />
-        {online ? status.label : `${status.label} · 显示本机缓存`}
+        {online ? status.label : t("status.cached", { status: status.label })}
       </div>
     </aside>
   );

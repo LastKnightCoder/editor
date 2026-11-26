@@ -320,6 +320,8 @@ P5 Skills工作台：9路径完成；4文件14例、desktop最终type/静态/三
 
 P6浏览器Note：7路径完成；note-app3/原模型6共9例、extension type、13key三语参数与范围静态格式通过。真实保存pending跨语同Editor/draft、单save RPC与原URL/pageTitle/节点，完成仅打开原cardID；Header/blockquote与保存结构断言保持，未改kit/URL/保存协议。
 
+P6浏览器Library：14路径完成；原7至9例、extension type、79key三语参数/范围检查通过。真实rename草稿/光标跨语不发RPC，非文本草稿仍可打开原note iframe，locale不重挂/重查/改节点；null/空串数据边界及原排序/QueryClient/query身份保留，旧Sidebar/SORT/COLOR显示map清零退役。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

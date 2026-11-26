@@ -9,6 +9,7 @@ import {
 import { cn, toast } from "@tau/ui";
 import { HIGHLIGHT_HEX } from "../../content/page/highlights";
 import { formatTime, openPage } from "../helpers";
+import { useLibraryI18n, libraryTranslator } from "../i18n";
 
 export function SiteMark({ host, className }: { host: string; className?: string }) {
   const letter =
@@ -82,13 +83,15 @@ export function AnnotationItem({
   item: WebAnnotation;
   footer?: ReactNode;
 }) {
+  const context = useLibraryI18n();
+  const { t } = context;
   const [copied, setCopied] = useState(false);
   const copy = () =>
     void navigator.clipboard
       .writeText(item.note ? `${item.text}\n\n${item.note}` : item.text)
       .then(() => {
         setCopied(true);
-        toast.success("已复制");
+        toast.success(libraryTranslator.t("copied"));
       });
   return (
     <div className="group hover:bg-surface-hover rounded-tau-sm -mx-2.5 flex gap-3 px-2.5 py-3">
@@ -104,14 +107,14 @@ export function AnnotationItem({
           </p>
         )}
         <div className="text-tau-sm text-ink-3 mt-1.5 flex items-center gap-3">
-          {footer ?? <span>{formatTime(item.createdAt)}</span>}
+          {footer ?? <span>{formatTime(item.createdAt, context)}</span>}
           <span className="flex gap-3 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100">
             <button
               type="button"
               onClick={() => openPage(url, item.id)}
               className="text-accent-text inline-flex items-center gap-0.5 hover:underline"
             >
-              在原页定位
+              {t("locate")}
               <ArrowUpRight size={12} strokeWidth={1.8} />
             </button>
             <button
@@ -120,7 +123,7 @@ export function AnnotationItem({
               className="hover:text-ink-1 inline-flex items-center gap-1"
             >
               <Copy size={12} strokeWidth={1.8} />
-              {copied ? "已复制" : "复制"}
+              {copied ? t("copied") : t("copy")}
             </button>
           </span>
         </div>
@@ -147,6 +150,7 @@ export function LoadMore({
   loading: boolean;
   onClick: () => void;
 }) {
+  const { t } = useLibraryI18n();
   if (!hasMore) return null;
   return (
     <button
@@ -155,7 +159,7 @@ export function LoadMore({
       onClick={onClick}
       className="text-tau-sm text-ink-2 hover:bg-hover rounded-tau-sm my-2 w-full py-2"
     >
-      {loading ? "正在加载…" : "加载更多"}
+      {loading ? t("loading") : t("more")}
     </button>
   );
 }

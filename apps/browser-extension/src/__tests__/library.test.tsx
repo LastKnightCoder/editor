@@ -60,6 +60,7 @@ const reply = (method: string, params: Record<string, unknown>): unknown => {
 };
 
 vi.stubGlobal("chrome", {
+  i18n: { getUILanguage: () => "zh-CN" },
   storage: {
     local: {
       get: async (key: string | null) => (key === null ? { ...store } : { [key]: store[key] }),
@@ -106,6 +107,15 @@ describe("伴读库的本机数据", () => {
       { url: "https://a.com/", title: "A 页", updatedAt: 50, draft: "新想法", saved: [] },
       { url: "https://b.com/", title: "", updatedAt: null, draft: "旧草稿", saved: [] },
     ]);
+  });
+
+  it("非文字草稿保留存在性，查询结果不包含翻译占位或改写原节点", () => {
+    const draft = [{ type: "divide-line", children: [{ type: "formatted", text: "" }] }];
+    const notes = readLocalNotes({ "note:https://a.com/nontext": draft });
+    expect(notes).toEqual([
+      { url: "https://a.com/nontext", title: "", updatedAt: null, draft: "", saved: [] },
+    ]);
+    expect(draft).toEqual([{ type: "divide-line", children: [{ type: "formatted", text: "" }] }]);
   });
 
   it("离线页面列表来自标注缓存，与 Tau 同口径筛选、排序、分页", () => {
@@ -241,13 +251,28 @@ describe("伴读库页", () => {
           )
         )
       );
-      expect(container.querySelector('input[aria-label="页面名称"]')).toBe(draft);
+      expect(container.querySelector('input[maxlength="500"]')).toBe(draft);
       expect(draft.value).toBe("不会保存");
       expect(document.activeElement).toBe(draft);
       expect([draft.selectionStart, draft.selectionEnd]).toEqual([1, 3]);
       expect(sent).toEqual(reads);
       expect(document.documentElement.lang).toBe(locale);
     }
+    await act(async () =>
+      storageListeners.forEach(listener =>
+        listener(
+          {
+            "companion.status": {
+              newValue: {
+                state: "ready",
+                appearance: { theme: "paper", mode: "light", locale: "zh-CN" },
+              },
+            },
+          },
+          "local"
+        )
+      )
+    );
     await type(draft, "不会保存", "Escape");
     expect(methods()).not.toContain("library.rename");
 
@@ -289,6 +314,44 @@ describe("伴读库页", () => {
     expect(container.querySelector("h1")?.textContent).toContain("Rust 所有权");
     await act(async () => button("在原页定位")!.click());
     expect(created).toEqual(["https://b.com/y#tau-hl=a1"]);
+  });
+
+  it("非文字草稿可打开笔记，换语保持原iframe和URL且不重查或清空选择", async () => {
+    const url = "https://a.com/nontext";
+    const draft = [{ type: "divide-line", children: [{ type: "formatted", text: "" }] }];
+    store["companion.status"] = {
+      state: "ready",
+      appearance: { theme: "paper", mode: "light", locale: "zh-CN" },
+    };
+    store[`note:${url}`] = draft;
+    pages = [];
+    await render(`?page=${encodeURIComponent(url)}`);
+    await act(async () => button("继续写笔记")!.click());
+    const frame = document.querySelector<HTMLIFrameElement>("iframe");
+    if (!frame) throw new Error("非文字草稿的笔记未打开");
+    const src = frame.getAttribute("src");
+    const parsed = new URL(src ?? "", location.href);
+    expect(parsed.searchParams.get("url")).toBe(url);
+    expect(parsed.searchParams.has("locale")).toBe(false);
+    const before = [...sent];
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () =>
+        storageListeners.forEach(listener =>
+          listener(
+            {
+              "companion.status": {
+                newValue: { state: "ready", appearance: { theme: "paper", mode: "light", locale } },
+              },
+            },
+            "local"
+          )
+        )
+      );
+      expect(document.querySelector("iframe")).toBe(frame);
+      expect(frame.getAttribute("src")).toBe(src);
+      expect(sent).toEqual(before);
+      expect(store[`note:${url}`]).toBe(draft);
+    }
   });
 
   it("没连上 Tau：页面列表与全部标注用本机缓存，不能改名", async () => {

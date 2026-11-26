@@ -1,17 +1,10 @@
 import { Highlighter, Search } from "lucide-react";
-import { HIGHLIGHT_COLORS, type HighlightColor } from "@tau/shared/browser-companion";
+import { HIGHLIGHT_COLORS } from "@tau/shared/browser-companion";
 import { FilterPill, Input } from "@tau/ui";
 import { useLibraryFeed, type FeedFilter } from "../queries";
 import { AnnotationItem, Dot, EmptyState, LoadMore } from "./parts";
 import { formatTime } from "../helpers";
-
-const COLOR_LABEL: Record<HighlightColor, string> = {
-  yellow: "黄",
-  green: "绿",
-  blue: "蓝",
-  purple: "紫",
-  red: "红",
-};
+import { useLibraryI18n } from "../i18n";
 
 /** 全部标注：跨页面按时间倒序平铺，连续同页的归在一个页面标题下 */
 export function FeedView({
@@ -29,6 +22,8 @@ export function FeedView({
   onFilter: (filter: FeedFilter) => void;
   onOpenPage: (url: string) => void;
 }) {
+  const context = useLibraryI18n();
+  const { t, locale } = context;
   const feed = useLibraryFeed(filter, online);
   const items = feed.data?.pages.flatMap(page => page.items) ?? [];
   const total = feed.data?.pages[0]?.total ?? 0;
@@ -36,10 +31,10 @@ export function FeedView({
   return (
     <main className="bg-surface min-h-0 flex-1 overflow-y-auto">
       <header className="border-line-2 bg-surface sticky top-0 z-[1] border-b px-9 pt-6 pb-4">
-        <h1 className="text-tau-title-lg text-ink-1 font-serif font-bold">全部标注</h1>
+        <h1 className="text-tau-title-lg text-ink-1 font-serif font-bold">{t("view.feed")}</h1>
         <p className="text-tau-sm text-ink-3 mt-1">
-          {total} 条 · 按时间倒序，跨页面平铺
-          {!online && " · Tau 未连接，显示本机缓存"}
+          {t("feed.summary", { amount: total.toLocaleString(locale) })}
+          {!online && t("feed.offline")}
         </p>
         <div className="mt-3.5 flex flex-wrap items-center gap-1.5">
           <Input
@@ -47,20 +42,20 @@ export function FeedView({
             clearable
             size="sm"
             wrapperClassName="w-[240px]"
-            placeholder="搜原文、批注、页面名…"
+            placeholder={t("feed.search")}
             value={query}
             onChange={event => onQuery(event.target.value)}
           />
           <FilterPill
             active={!filter.color}
-            label="全部颜色"
+            label={t("feed.allColors")}
             onClick={() => onFilter({ ...filter, color: undefined })}
           />
           {HIGHLIGHT_COLORS.map(color => (
             <FilterPill
               key={color}
               active={filter.color === color}
-              label={COLOR_LABEL[color]}
+              label={t(`color.${color}`)}
               icon={<Dot color={color} />}
               onClick={() =>
                 onFilter({
@@ -72,7 +67,7 @@ export function FeedView({
           ))}
           <FilterPill
             active={!!filter.noted}
-            label="只看有批注"
+            label={t("feed.noted")}
             onClick={() => onFilter({ ...filter, noted: filter.noted ? undefined : true })}
           />
         </div>
@@ -81,8 +76,8 @@ export function FeedView({
         {feed.isPending ? null : items.length === 0 ? (
           <EmptyState icon={<Highlighter size={22} strokeWidth={1.6} />}>
             {online || filter.color || filter.noted || filter.query
-              ? "没有符合条件的标注"
-              : "本机还没有缓存的标注，连上 Tau 后可看到全部"}
+              ? t("feed.noResults")
+              : t("feed.noCache")}
           </EmptyState>
         ) : (
           items.map((item, index) => (
@@ -99,7 +94,7 @@ export function FeedView({
               <AnnotationItem
                 url={item.url}
                 item={item}
-                footer={<span>{formatTime(item.createdAt)}</span>}
+                footer={<span>{formatTime(item.createdAt, context)}</span>}
               />
             </div>
           ))

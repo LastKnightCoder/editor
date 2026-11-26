@@ -23,7 +23,7 @@ export interface LocalNotePage {
   title: string;
   /** 最近一次写草稿或存卡片的时间；旧草稿没有记录时为 null */
   updatedAt: number | null;
-  /** 草稿第一段文字；没有草稿或草稿为空时为 null */
+  /** 草稿第一段文字；null为无草稿，空串为有非文字内容的草稿。 */
   draft: string | null;
   saved: SavedNote[];
 }
@@ -43,7 +43,7 @@ const draftPreview = (draft: unknown): string | null => {
     return line ?? null;
   }
   if (!Array.isArray(draft) || isEmptyNote(draft as Descendant[])) return null;
-  return notePreview(draft as Descendant[]) || "（无文字）";
+  return notePreview(draft as Descendant[]);
 };
 
 /** 有草稿或存过卡片的页面，最近写过的在前，没有时间记录的排在最后 */
@@ -59,7 +59,7 @@ export function readLocalNotes(snapshot: StorageSnapshot): LocalNotePage[] {
   };
   for (const [url, draft] of entriesWithPrefix<unknown>(snapshot, "note:")) {
     const preview = draftPreview(draft);
-    if (preview) pageOf(url).draft = preview;
+    if (preview !== null) pageOf(url).draft = preview;
   }
   for (const [url, saved] of entriesWithPrefix<SavedNote[]>(snapshot, "notes-saved:")) {
     if (Array.isArray(saved) && saved.length) pageOf(url).saved = saved;
