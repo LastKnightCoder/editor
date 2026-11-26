@@ -282,6 +282,8 @@ P6A3-D2A白板常用菜单：13路径工程完成；7文件59例、包type/白�
 
 P5桌面对话工作目录/停靠：10路径工程完成；真实QueryClient+传输边界2例、desktop类型/构建、17key三语参数与范围静态/格式通过。fake timer换语保持info/branch缓存对象、在途checkout状态和原cwd/branch单请求，完成后沿原onSettled刷新；同文外部诊断仍属原始Error，只有缺诊断的本机失败携稳定类型。新测试仅锁缓存/异步写入与错误归属契约，不断言UI文案。
 
+P5手机工具展示：19路径工程完成；5文件31例、mobile类型/构建、三语key/参数/复数、无DOM纯formatter和范围静态/格式通过。公开ToolInteractionHost异步边界保留审批pending、分页/other草稿、preview真实缓存；真实router保留原同步broker协议与choice/request身份。6日期parity覆盖短日期/全天exclusive，独立AST确认parseObject/prettyJson/parseLocalText/isOverdue/humanizeToolName/startOfDay及LOCAL正则原样。旧SPECS/SOURCE_NOTE/WEEKDAYS label消费者清零退出，无兼容；RawData/图片prompt/url/fileName和AI载荷不改。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

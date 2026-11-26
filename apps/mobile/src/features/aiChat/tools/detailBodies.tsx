@@ -1,3 +1,4 @@
+import { useToolsI18n } from "../tools.i18n";
 import { useConversationI18n } from "../conversation.i18n";
 // 详情面板里各内置工具的结果：按手机端对应页面的样子画（搜索结果、待办列表、日程列表、查询表格）。
 // 结果行点按打开预览或跳到详情页；没有专门展示的工具只给原始数据。
@@ -13,6 +14,7 @@ import { FALLBACK_REFERENCE_KIND, referenceKindOf } from "../referenceKinds";
 import { useChatToolHost } from "./context";
 import {
   dayLabel,
+  startOfDay,
   formatCount,
   formatDue,
   formatEventRange,
@@ -43,10 +45,12 @@ function Footer(props: { children: ReactNode }) {
 }
 
 function SearchBody(props: { output: Data; close(): void }) {
-  const { t } = useConversationI18n();
+  const context = useToolsI18n();
+  const { t, locale } = context;
+  const { t: referenceT } = useConversationI18n();
   const host = useChatToolHost();
   const results = list(props.output.results);
-  if (!results.length) return <Empty>没有找到相关内容</Empty>;
+  if (!results.length) return <Empty>{t("detail.noSearch")}</Empty>;
   const total = num(props.output.total);
   return (
     <div>
@@ -56,7 +60,7 @@ function SearchBody(props: { output: Data; close(): void }) {
           const kind = referenceKindOf(type) ?? FALLBACK_REFERENCE_KIND;
           const Icon = kind.icon;
           const id = num(item.id);
-          const title = str(item.title)?.trim() || "未命名";
+          const title = str(item.title)?.trim() || t("detail.untitled");
           const excerpt = str(item.excerpt)?.trim();
           const container = str(item.container)?.trim();
           const openable = id !== undefined && canResolveChatReference(type);
@@ -68,7 +72,7 @@ function SearchBody(props: { output: Data; close(): void }) {
                   {title}
                 </span>
                 <span className="text-tau-sm text-ink-3 mt-px block truncate">
-                  {[t(kind.labelKey), container, excerpt].filter(Boolean).join(" · ")}
+                  {[referenceT(kind.labelKey), container, excerpt].filter(Boolean).join(" · ")}
                 </span>
               </span>
               {openable && <ChevronRight size={16} aria-hidden className="text-ink-3 shrink-0" />}
@@ -95,7 +99,11 @@ function SearchBody(props: { output: Data; close(): void }) {
       </div>
       {total !== undefined && total > results.length && (
         <Footer>
-          共 {formatCount(total)} 篇，AI 看了前 {results.length} 篇
+          {t("detail.searchTotal", {
+            count: total,
+            total: formatCount(total, locale),
+            shown: formatCount(results.length, locale),
+          })}
         </Footer>
       )}
     </div>
@@ -103,6 +111,8 @@ function SearchBody(props: { output: Data; close(): void }) {
 }
 
 function MarkdownBody(props: { output: Data; close(): void }) {
+  const context = useToolsI18n();
+  const { t } = context;
   const host = useChatToolHost();
   const markdown = str(props.output.markdown) ?? "";
   const entity = props.output.entity as Data | undefined;
@@ -121,7 +131,7 @@ function MarkdownBody(props: { output: Data; close(): void }) {
           <MarkdownRenderer content={markdown.slice(0, 1500)} isDark={host.isDark} />
         </div>
       ) : (
-        <Empty>这篇笔记没有正文</Empty>
+        <Empty>{t("detail.noContent")}</Empty>
       )}
       {openable && (
         <button
@@ -132,7 +142,7 @@ function MarkdownBody(props: { output: Data; close(): void }) {
           }}
           className="bg-accent text-ink-inverse text-tau-body h-[46px] w-full rounded-[14px] font-semibold active:opacity-80"
         >
-          打开笔记
+          {t("detail.openNote")}
         </button>
       )}
     </div>
@@ -167,6 +177,8 @@ function cellText(value: unknown) {
 }
 
 function SqlBody(props: { input: Data; output: Data }) {
+  const context = useToolsI18n();
+  const { t, locale } = context;
   const sql = str(props.input.sql) ?? "";
   const columns = list(props.output.columns).map(column => str(column.name) ?? "");
   const rows = list(props.output.rows);
@@ -215,28 +227,31 @@ function SqlBody(props: { input: Data; output: Data }) {
             </table>
           </div>
           <Footer>
-            共 {formatCount(rowCount)} 行
-            {rows.length > MAX_TABLE_ROWS && `，这里显示前 ${MAX_TABLE_ROWS} 行`}
-            {columns.length > 2 && "，左右滑动看更多列"}
+            {t("detail.rows", { count: rowCount, number: formatCount(rowCount, locale) })}
+            {rows.length > MAX_TABLE_ROWS &&
+              t("detail.firstRows", { number: formatCount(MAX_TABLE_ROWS, locale) })}
+            {columns.length > 2 && t("detail.moreColumns")}
           </Footer>
         </div>
       ) : (
-        <Empty>查询没有返回结果</Empty>
+        <Empty>{t("detail.noRows")}</Empty>
       )}
     </div>
   );
 }
 
 function TodoListBody(props: { output: Data; close(): void }) {
+  const context = useToolsI18n();
+  const { t, locale } = context;
   const items = list(props.output.items);
-  if (!items.length) return <Empty>没有符合条件的待办</Empty>;
+  if (!items.length) return <Empty>{t("detail.noTodos")}</Empty>;
   const total = num(props.output.total) ?? items.length;
   return (
     <div>
       <div className={cn(GROUP, DIVIDED, "overflow-hidden")}>
         {items.map((item, index) => {
           const id = Number(str(item.taskRef));
-          const due = formatDue(item.dueAt);
+          const due = formatDue(item.dueAt, context);
           const completed = item.completed === true;
           return (
             <button
@@ -256,7 +271,7 @@ function TodoListBody(props: { output: Data; close(): void }) {
                   completed ? "text-ink-3 line-through" : "text-ink-1"
                 )}
               >
-                {str(item.title) || "未命名待办"}
+                {str(item.title) || t("detail.untitledTodo")}
               </span>
               <span
                 className={cn(
@@ -270,24 +285,38 @@ function TodoListBody(props: { output: Data; close(): void }) {
           );
         })}
       </div>
-      {total > items.length && <Footer>还有 {total - items.length} 项没有列出</Footer>}
+      {total > items.length && (
+        <Footer>
+          {t("detail.moreTodos", {
+            count: total - items.length,
+            number: formatCount(total - items.length, locale),
+          })}
+        </Footer>
+      )}
     </div>
   );
 }
 
 function EventListBody(props: { output: Data; close(): void }) {
+  const context = useToolsI18n();
+  const { t } = context;
   const events = list(props.output.events);
-  if (!events.length) return <Empty>这段时间没有日程</Empty>;
-  const days = new Map<string, Data[]>();
+  if (!events.length) return <Empty>{t("detail.noEvents")}</Empty>;
+  const days = new Map<number | "other", { label: string; events: Data[] }>();
   for (const event of events) {
     const start = parseLocalText(event.start);
-    const key = start ? dayLabel(start.date) : "其他";
-    days.set(key, [...(days.get(key) ?? []), event]);
+    const key = start ? startOfDay(start.date) : "other";
+    const day = days.get(key) ?? {
+      label: start ? dayLabel(start.date, context) : t("detail.other"),
+      events: [],
+    };
+    day.events.push(event);
+    days.set(key, day);
   }
   return (
     <div className="space-y-3">
-      {[...days].map(([day, items]) => (
-        <div key={day}>
+      {[...days].map(([key, { label: day, events: items }]) => (
+        <div key={key}>
           <SectionLabel>{day}</SectionLabel>
           <div className={cn(GROUP, DIVIDED, "overflow-hidden")}>
             {items.map((event, index) => {
@@ -305,11 +334,11 @@ function EventListBody(props: { output: Data; close(): void }) {
                   }}
                 >
                   <span className="text-tau-sm text-ink-3 w-11 shrink-0 tabular-nums">
-                    {allDay ? "全天" : (parseLocalText(event.start)?.time ?? "")}
+                    {allDay ? t("date.allDay") : (parseLocalText(event.start)?.time ?? "")}
                   </span>
                   <span aria-hidden className="bg-tag-2 h-[22px] w-[3px] shrink-0 rounded-full" />
                   <span className="text-tau-body text-ink-1 min-w-0 flex-1 truncate">
-                    {str(event.title) || "未命名日程"}
+                    {str(event.title) || t("detail.untitledEvent")}
                   </span>
                   <span className="text-tau-sm text-ink-3 shrink-0">
                     {str(event.calendar) ?? ""}
@@ -326,27 +355,33 @@ function EventListBody(props: { output: Data; close(): void }) {
 
 /** 写入类的详情：只列这条待办 / 日程的字段（结果卡已经显示，面板里给完整时间） */
 function WriteBody(props: { output: Data }) {
+  const context = useToolsI18n();
+  const { t } = context;
   const item = props.output.item as Data | undefined;
   const event = props.output.event as Data | undefined;
   const fields = item
     ? [
-        ["标题", str(item.title)],
-        ["截止", formatDue(item.dueAt)],
-        ["清单", str(item.group)],
+        { id: "title", label: t("field.title"), value: str(item.title) },
+        { id: "due", label: t("field.due"), value: formatDue(item.dueAt, context) },
+        { id: "group", label: t("field.group"), value: str(item.group) },
       ]
     : event
       ? [
-          ["标题", str(event.title)],
-          ["时间", formatEventRange(event.start, event.end, event.allDay === true)],
-          ["日历", str(event.calendar)],
+          { id: "title", label: t("field.title"), value: str(event.title) },
+          {
+            id: "time",
+            label: t("field.time"),
+            value: formatEventRange(event.start, event.end, event.allDay === true, context),
+          },
+          { id: "calendar", label: t("field.calendar"), value: str(event.calendar) },
         ]
       : [];
-  const shown = fields.filter((field): field is [string, string] => !!field[1]);
+  const shown = fields.flatMap(field => (field.value ? [{ ...field, value: field.value }] : []));
   if (!shown.length) return null;
   return (
     <div className={cn(GROUP, DIVIDED, "px-3.5")}>
-      {shown.map(([label, value]) => (
-        <div key={label} className="text-tau-body flex min-h-[42px] items-center gap-3 py-2">
+      {shown.map(({ id, label, value }) => (
+        <div key={id} className="text-tau-body flex min-h-[42px] items-center gap-3 py-2">
           <span className="text-tau-meta text-ink-3 w-14 shrink-0">{label}</span>
           <span className="text-ink-1 min-w-0 flex-1">{value}</span>
         </div>

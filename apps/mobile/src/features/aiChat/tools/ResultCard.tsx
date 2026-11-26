@@ -1,3 +1,5 @@
+import type { ToolDisplayContext } from "../tools.messages";
+import { useToolsI18n } from "../tools.i18n";
 // 写入结果卡：新建 / 修改 / 完成 / 删除待办与日程成功后，卡片就是那条待办或日程本身。
 // 修改只列变了的字段（旧值划掉）；删除整条划掉，没有「查看」。
 
@@ -38,6 +40,7 @@ function Card(props: {
   oldTitle?: string;
   chips: ReactNode;
 }) {
+  const { t } = useToolsI18n();
   return (
     <div className="bg-surface my-1.5 rounded-[18px] px-3.5 py-3">
       <div className="text-tau-sm text-ink-3 flex items-center gap-1.5">
@@ -53,7 +56,7 @@ function Card(props: {
             onClick={props.onView}
             className="text-accent-text -my-2 -mr-1.5 flex h-9 items-center px-1.5 font-semibold"
           >
-            查看
+            {t("action.view")}
             <ChevronRight size={14} aria-hidden />
           </button>
         )}
@@ -86,16 +89,18 @@ function Card(props: {
 }
 
 function TodoCard(props: { toolName: string; item: Data; before?: Data; done: string }) {
+  const context = useToolsI18n();
+  const { t } = context;
   const { item, before } = props;
   const id = Number(str(item.taskRef));
   const gone = props.toolName === "delete_todo";
   const completed = item.completed === true;
   const reopened = props.toolName === "set_todo_completed" && !completed;
-  const title = str(item.title) || "未命名待办";
+  const title = str(item.title) || t("detail.untitledTodo");
   const beforeTitle = before ? str(before.title) : undefined;
   return (
     <Card
-      done={reopened ? "已改回未完成" : props.done}
+      done={reopened ? t("result.reopened") : props.done}
       danger={gone}
       onView={
         !gone && Number.isSafeInteger(id)
@@ -112,8 +117,8 @@ function TodoCard(props: { toolName: string; item: Data; before?: Data; done: st
           <>
             <Changed
               icon={<CalendarClock aria-hidden />}
-              before={before ? formatDue(before.dueAt) : undefined}
-              after={formatDue(item.dueAt)}
+              before={before ? formatDue(before.dueAt, context) : undefined}
+              after={formatDue(item.dueAt, context)}
             />
             {str(item.group) && <Chip icon={<Hash aria-hidden />}>{str(item.group)}</Chip>}
           </>
@@ -123,15 +128,18 @@ function TodoCard(props: { toolName: string; item: Data; before?: Data; done: st
   );
 }
 
-const eventRange = (event: Data) => formatEventRange(event.start, event.end, event.allDay === true);
+const eventRange = (event: Data, context: ToolDisplayContext) =>
+  formatEventRange(event.start, event.end, event.allDay === true, context);
 
 function EventCard(props: { toolName: string; event: Data; before?: Data; done: string }) {
+  const context = useToolsI18n();
+  const { t } = context;
   const { event, before } = props;
   const id = Number(str(event.eventId));
   const gone = props.toolName === "delete_calendar_event";
-  const title = str(event.title) || "未命名日程";
+  const title = str(event.title) || t("detail.untitledEvent");
   const beforeTitle = before ? str(before.title) : undefined;
-  const range = eventRange(event);
+  const range = eventRange(event, context);
   return (
     <Card
       done={props.done}
@@ -157,7 +165,7 @@ function EventCard(props: { toolName: string; event: Data; before?: Data; done: 
           <>
             <Changed
               icon={<CalendarClock aria-hidden />}
-              before={before ? eventRange(before) : undefined}
+              before={before ? eventRange(before, context) : undefined}
               after={range}
             />
             {str(event.calendar) && <Chip>{str(event.calendar)}</Chip>}
@@ -170,9 +178,11 @@ function EventCard(props: { toolName: string; event: Data; before?: Data; done: 
 
 /** 输出里没有可展示的待办 / 日程时返回 null，由调用方回落为时间线行 */
 export function ResultCard(props: { execution: ToolCallExecutionState }) {
+  const context = useToolsI18n();
+  const { t } = context;
   const { execution } = props;
   const output = parseObject(execution.output);
-  const done = presentTool(execution).write?.done ?? "已完成";
+  const done = presentTool(execution, context).write?.done ?? t("action.done");
   const before = execution.metadata?.before as Data | undefined;
   const item = output?.item as Data | undefined;
   const event = output?.event as Data | undefined;

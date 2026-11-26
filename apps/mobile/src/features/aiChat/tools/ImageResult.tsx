@@ -1,3 +1,4 @@
+import { useToolsI18n } from "../tools.i18n";
 // 图片生成 / 编辑的结果：直接把图画在对话里，生成中先占好位置；点图全屏查看，左右滑切换。
 
 import { useEffect, useRef, useState } from "react";
@@ -9,7 +10,7 @@ import { resolveLocalMediaSource } from "../../../components/editor/localMedia";
 import { useScrollLock } from "../../../hooks/useScrollLock";
 import { useSheetBackDismiss } from "../../../router/useSheetBackDismiss";
 import { Z_INDEX } from "../../../router/zIndex";
-import { num, parseObject } from "./format";
+import { formatCount, num, parseObject } from "./format";
 import { parseImagePayload, type ImagePayload } from "./results";
 
 function useImageSrc(url: string) {
@@ -31,11 +32,12 @@ function useImageSrc(url: string) {
 }
 
 function Tile(props: { url: string; alt: string; wide: boolean; onOpen(): void }) {
+  const { t } = useToolsI18n();
   const { src, failed } = useImageSrc(props.url);
   return (
     <button
       type="button"
-      aria-label="查看大图"
+      aria-label={t("image.open")}
       onClick={props.onOpen}
       className={cn(
         "bg-surface relative grid overflow-hidden rounded-[14px] place-items-center",
@@ -64,6 +66,7 @@ function ViewerSlide(props: { url: string; alt: string }) {
 
 /** 全屏看图：固定黑底（照片在深底上最清楚），左右滑切换，返回手势或 × 关闭 */
 function ImageViewer(props: { payload: ImagePayload; index: number; onClose(): void }) {
+  const { t, locale } = useToolsI18n();
   const { images } = props.payload;
   const [current, setCurrent] = useState(props.index);
   const trackRef = useRef<HTMLDivElement>(null);
@@ -82,7 +85,7 @@ function ImageViewer(props: { payload: ImagePayload; index: number; onClose(): v
       <div className="flex h-12 items-center justify-between px-2">
         <button
           type="button"
-          aria-label="关闭"
+          aria-label={t("action.close")}
           onClick={props.onClose}
           className="grid size-11 place-items-center"
         >
@@ -90,7 +93,10 @@ function ImageViewer(props: { payload: ImagePayload; index: number; onClose(): v
         </button>
         {images.length > 1 && (
           <span className="text-tau-meta tabular-nums opacity-80">
-            {current + 1} / {images.length}
+            {t("image.position", {
+              current: formatCount(current + 1, locale),
+              total: formatCount(images.length, locale),
+            })}
           </span>
         )}
         <span className="size-11" />
@@ -150,6 +156,7 @@ export function ImageGrid(props: { payload: ImagePayload }) {
 
 /** 对话里的图片块：生成中按张数占位，完成后原地换成图片 */
 export function ImageResult(props: { execution: ToolCallExecutionState }) {
+  const { t } = useToolsI18n();
   const { execution } = props;
   if (execution.status === "pending" || execution.status === "executing") {
     const count = Math.min(Math.max(num(parseObject(execution.input)?.n) ?? 1, 1), 4);
@@ -174,7 +181,7 @@ export function ImageResult(props: { execution: ToolCallExecutionState }) {
       <ImageGrid payload={payload} />
       <div className="text-tau-sm text-ink-3 mt-1.5 flex items-center gap-1.5">
         <Sparkles size={13} aria-hidden />
-        已保存到资源库 · 点开查看大图
+        {t("image.saved")}
       </div>
     </div>
   );

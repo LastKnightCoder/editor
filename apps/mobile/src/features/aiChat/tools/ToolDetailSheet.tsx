@@ -1,3 +1,5 @@
+import type { ToolDisplayContext, ToolMessageKey } from "../tools.messages";
+import { useToolsI18n } from "../tools.i18n";
 // 工具详情底部面板：点时间线行升起，头部写清这次调用做了什么，中间是专门展示，底部是折叠的原始数据。
 
 import { useRef } from "react";
@@ -11,28 +13,35 @@ import { RawData } from "./parts";
 import { hasDetailBody } from "./results";
 import { presentTool } from "./presenters";
 
-const SOURCE_NOTE: Record<string, string> = {
-  sql_query: "只读查询",
-  search_knowledge: "关键词全文检索",
+const SOURCE_NOTE_KEYS: Partial<Record<string, ToolMessageKey>> = {
+  sql_query: "detail.sqlNote",
+  search_knowledge: "detail.searchNote",
 };
 
-function failureOf(execution: ToolCallExecutionState, output: Record<string, unknown> | null) {
-  if (execution.status === "failed") return execution.error || "调用失败";
+function failureOf(
+  execution: ToolCallExecutionState,
+  output: Record<string, unknown> | null,
+  t: ToolDisplayContext["t"]
+) {
+  if (execution.status === "failed") return execution.error || t("failure.call");
   if (execution.status === "cancelled")
-    return execution.metadata?.denied ? "你拒绝了这次调用，它没有执行" : "这次调用已取消";
-  return softFailure(output);
+    return execution.metadata?.denied ? t("failure.denied") : t("failure.cancelled");
+  return softFailure(output, t);
 }
 
 function DetailContent(props: { execution: ToolCallExecutionState; close(): void }) {
+  const context = useToolsI18n();
+  const { t } = context;
   const { execution } = props;
-  const presentation = presentTool(execution);
+  const presentation = presentTool(execution, context);
   const input = parseObject(execution.input) ?? {};
   const output = parseObject(execution.output);
-  const failure = failureOf(execution, output);
+  const failure = failureOf(execution, output, t);
   const body = !failure && output && hasDetailBody(execution.toolName, output);
+  const noteKey = SOURCE_NOTE_KEYS[execution.toolName];
   const subtitle = [
     presentation.subject && `「${presentation.subject}」`,
-    SOURCE_NOTE[execution.toolName],
+    noteKey ? t(noteKey) : undefined,
     presentation.meta,
   ]
     .filter(Boolean)
@@ -55,7 +64,7 @@ function DetailContent(props: { execution: ToolCallExecutionState; close(): void
         </div>
         <button
           type="button"
-          aria-label="关闭"
+          aria-label={t("action.close")}
           onClick={props.close}
           className="bg-surface-hover text-ink-2 grid size-[34px] shrink-0 place-items-center rounded-full"
         >

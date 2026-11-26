@@ -1,3 +1,5 @@
+import type { ToolDisplayContext } from "../tools.messages";
+import { useToolsI18n } from "../tools.i18n";
 // 提问卡（ask-question）：选项是整行可点块，多个问题分页、一次答一题；「其他」点开换成输入框。
 // 作答后收成只读的问答小卡；宿主已没有这条等待（中止 / 重启）时只剩一行「已中断」。
 
@@ -25,6 +27,7 @@ function resultOf(output: string | undefined): AskQuestionToolResult | null {
 
 /** 作答后的只读小卡：每题一行「问题 / ✓ 回答」 */
 function AnsweredCard(props: { rows: Array<{ question: string; answer: string }> }) {
+  const { t } = useToolsI18n();
   return (
     <div className="bg-surface my-1.5 space-y-2 rounded-[18px] px-3.5 py-2.5">
       {props.rows.map((row, index) => (
@@ -32,7 +35,7 @@ function AnsweredCard(props: { rows: Array<{ question: string; answer: string }>
           <div className="text-tau-sm text-ink-3">{row.question}</div>
           <div className="text-tau-meta text-ink-1 mt-0.5 flex items-start gap-1.5 font-semibold">
             <CircleCheck size={15} aria-hidden className="text-ok mt-[2px] shrink-0" />
-            <span className="min-w-0 break-words">{row.answer || "没有回答"}</span>
+            <span className="min-w-0 break-words">{row.answer || t("question.none")}</span>
           </div>
         </div>
       ))}
@@ -40,14 +43,18 @@ function AnsweredCard(props: { rows: Array<{ question: string; answer: string }>
   );
 }
 
-function answeredRows(payload: AskQuestionPayload | undefined, answers: AskQuestionAnswerItem[]) {
+function answeredRows(
+  payload: AskQuestionPayload | undefined,
+  answers: AskQuestionAnswerItem[],
+  t: ToolDisplayContext["t"]
+) {
   return answers.map(answer => {
     const question = payload?.questions.find(item => item.id === answer.questionId);
     const labels = answer.selectedValues.map(
       value => question?.options.find(option => option.value === value)?.label ?? value
     );
     if (answer.otherText.trim()) labels.push(answer.otherText.trim());
-    return { question: question?.question ?? "", answer: labels.join("、") };
+    return { question: question?.question ?? "", answer: labels.join(t("question.separator")) };
   });
 }
 
@@ -96,6 +103,7 @@ function Option(props: {
 }
 
 export function QuestionCard(props: { execution: ToolCallExecutionState; linked?: boolean }) {
+  const { t, locale } = useToolsI18n();
   const { execution } = props;
   const pending = useToolInteraction(execution, (host, item) => host.questionOf(item), undefined);
   const ready = useToolInteraction(execution, (host, item) => host.isReady(item), false);
@@ -108,7 +116,14 @@ export function QuestionCard(props: { execution: ToolCallExecutionState; linked?
   const [answers, setAnswers] = useState<Answers>({});
   const [otherOpen, setOtherOpen] = useState<Record<string, boolean>>({});
   const [page, setPage] = useState(0);
-  const [error, setError] = useState("");
+  const [failure, setFailure] = useState<
+    { kind: "required" | "failed" } | { kind: "diagnostic"; message: string } | null
+  >(null);
+  const error = !failure
+    ? ""
+    : failure.kind === "diagnostic"
+      ? failure.message
+      : t(`question.${failure.kind}`);
   const [submitting, setSubmitting] = useState(false);
 
   if (result)
@@ -118,11 +133,11 @@ export function QuestionCard(props: { execution: ToolCallExecutionState; linked?
           question: answer.question,
           answer: [...answer.selectedOptions.map(option => option.label), answer.otherText.trim()]
             .filter(Boolean)
-            .join("、"),
+            .join(t("question.separator")),
         }))}
       />
     );
-  if (sent) return <AnsweredCard rows={answeredRows(payload, sent)} />;
+  if (sent) return <AnsweredCard rows={answeredRows(payload, sent, t)} />;
   const live = !!pending && ready;
   if (!payload || !live) {
     const preparing = execution.status === "pending" || execution.status === "executing";
@@ -137,9 +152,9 @@ export function QuestionCard(props: { execution: ToolCallExecutionState; linked?
             <MessageCircleQuestion strokeWidth={1.9} />
           )
         }
-        title={preparing ? "正在准备问题" : "向你提问"}
-        meta={pending ? "正在恢复问题…" : preparing ? undefined : "已中断"}
-        note={!pending && !preparing ? "等待回答时对话已中断，这次提问没有得到回答" : undefined}
+        title={preparing ? t("question.preparing") : t("tool.ask-question")}
+        meta={pending ? t("question.restoring") : preparing ? undefined : t("state.interrupted")}
+        note={!pending && !preparing ? t("question.interruptedHint") : undefined}
       />
     );
   }
@@ -155,7 +170,7 @@ export function QuestionCard(props: { execution: ToolCallExecutionState; linked?
   };
   const last = index === questions.length - 1;
   const update = (next: Partial<AskQuestionAnswerItem>) => {
-    setError("");
+    setFailure(null);
     setAnswers(current => ({ ...current, [question.id]: { ...answer, ...next } }));
   };
   const choose = (value: string) => {
@@ -177,7 +192,7 @@ export function QuestionCard(props: { execution: ToolCallExecutionState; linked?
     const missing = findUnansweredQuestion(payload, all);
     if (missing) {
       setPage(questions.indexOf(missing));
-      setError("这一题需要回答");
+      setFailure({ kind: "required" });
       return;
     }
     const host = getToolInteractionHost();
@@ -188,14 +203,18 @@ export function QuestionCard(props: { execution: ToolCallExecutionState; linked?
       await host.answerQuestion(execution, pending, trimmed);
       setSent(trimmed);
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "提交回答失败");
+      setFailure(
+        submitError instanceof Error
+          ? { kind: "diagnostic", message: submitError.message }
+          : { kind: "failed" }
+      );
     } finally {
       setSubmitting(false);
     }
   };
   const next = () => {
     if (question.required && !answered) {
-      setError("这一题需要回答");
+      setFailure({ kind: "required" });
       return;
     }
     if (last) void submit();
@@ -207,8 +226,12 @@ export function QuestionCard(props: { execution: ToolCallExecutionState; linked?
       <div className="text-tau-sm text-ink-3 flex items-center gap-2">
         <MessageCircleQuestion size={16} aria-hidden className="text-accent-text shrink-0" />
         <span className="min-w-0 truncate">
-          {payload.title || "AI 想先问你"}
-          {questions.length > 1 && ` · ${index + 1}/${questions.length}`}
+          {payload.title ?? t("question.title")}
+          {questions.length > 1 &&
+            t("question.position", {
+              current: (index + 1).toLocaleString(locale),
+              total: questions.length.toLocaleString(locale),
+            })}
         </span>
       </div>
       {payload.description && index === 0 && (
@@ -218,7 +241,9 @@ export function QuestionCard(props: { execution: ToolCallExecutionState; linked?
         {question.question}
         {(multiple || !question.required) && (
           <span className="text-tau-sm text-ink-3 ml-1.5 font-normal">
-            {[multiple && "可多选", !question.required && "可不答"].filter(Boolean).join(" · ")}
+            {[multiple && t("question.multiple"), !question.required && t("question.optional")]
+              .filter(Boolean)
+              .join(" · ")}
           </span>
         )}
       </div>
@@ -240,7 +265,7 @@ export function QuestionCard(props: { execution: ToolCallExecutionState; linked?
             value={answer.otherText}
             disabled={submitting}
             onChange={event => update({ otherText: event.target.value })}
-            placeholder="写下你的回答"
+            placeholder={t("question.placeholder")}
             className="input-text text-ink-1 placeholder:text-ink-3 min-h-[50px] w-full rounded-[14px] bg-transparent px-3 shadow-[inset_0_0_0_1.5px_var(--tau-accent)] outline-none"
           />
         ) : (
@@ -253,7 +278,7 @@ export function QuestionCard(props: { execution: ToolCallExecutionState; linked?
             <span className="grid size-[22px] shrink-0 place-items-center">
               <Pencil size={14} aria-hidden />
             </span>
-            其他，我来写…
+            {t("question.other")}
           </button>
         )}
       </div>
@@ -283,7 +308,7 @@ export function QuestionCard(props: { execution: ToolCallExecutionState; linked?
             onClick={() => setPage(index - 1)}
             className="text-tau-meta text-ink-3 h-11 px-2"
           >
-            上一题
+            {t("question.previous")}
           </button>
         )}
         <button
@@ -293,10 +318,10 @@ export function QuestionCard(props: { execution: ToolCallExecutionState; linked?
           className="bg-accent text-ink-inverse text-tau-body h-11 rounded-[14px] px-5 font-semibold active:opacity-80 disabled:opacity-50"
         >
           {last
-            ? payload.submitLabel || "提交"
+            ? (payload.submitLabel ?? t("question.submit"))
             : !answered && !question.required
-              ? "跳过"
-              : "下一题"}
+              ? t("question.skip")
+              : t("question.next")}
         </button>
       </div>
     </div>

@@ -1,3 +1,5 @@
+import type { ToolDisplayContext } from "../tools.messages";
+import { useToolsI18n } from "../tools.i18n";
 // 时间线行：每次工具调用一行，左侧淡墨类别图标（无底色），标题「动作 + 对象」，右侧结果；整行可点开详情。
 // 连续的行之间画一小段竖线，卡片（结果卡、确认卡、提问卡）打断它。
 
@@ -13,7 +15,7 @@ import {
 import type { ToolCallExecutionState } from "@tau/shared/chat-renderers";
 import { formatElapsed } from "@tau/chat-ui/conversation";
 import { Spinner, cn } from "@tau/ui";
-import { parseObject, softFailure } from "./format";
+import { formatCount, parseObject, softFailure } from "./format";
 import { presentTool } from "./presenters";
 
 type RowTone = "default" | "dim" | "danger" | "warn";
@@ -114,15 +116,23 @@ export function TimelineRow(props: {
 
 /** 标题里的对象用「」括起，墨色深一档 */
 export function ToolTitle(props: { label: string; subject?: string; running?: boolean }) {
+  const { t } = useToolsI18n();
   return (
     <>
-      {props.running ? `正在${props.label}` : props.label}
-      {props.subject && <span className="text-ink-1"> 「{props.subject}」</span>}
+      {props.running ? t("row.running", { label: props.label }) : props.label}
+      {props.subject && (
+        <span className="text-ink-1">{t("row.subject", { subject: props.subject })}</span>
+      )}
     </>
   );
 }
 
-function rowState(execution: ToolCallExecutionState, meta: string | undefined) {
+function rowState(
+  execution: ToolCallExecutionState,
+  meta: string | undefined,
+  context: ToolDisplayContext
+) {
+  const { t, locale } = context;
   const icon = (Icon: LucideIcon) => <Icon strokeWidth={1.9} />;
   switch (execution.status) {
     case "pending":
@@ -133,28 +143,42 @@ function rowState(execution: ToolCallExecutionState, meta: string | undefined) {
         icon: <Spinner className="size-3.5 border-[1.5px]" />,
       };
     case "awaiting-approval":
-      return { tone: "warn" as const, meta: "等待确认", icon: icon(ShieldAlert) };
+      return { tone: "warn" as const, meta: t("state.awaiting"), icon: icon(ShieldAlert) };
     case "retrying":
       return {
         tone: "warn" as const,
-        meta: execution.retryCount ? `重试 ${execution.retryCount}/2` : "重试中",
+        meta: execution.retryCount
+          ? t("state.retry", { attempt: formatCount(execution.retryCount, locale) })
+          : t("state.retrying"),
         icon: <RotateCw strokeWidth={1.9} className="animate-spin" />,
       };
     case "cancelled":
-      return { tone: "dim" as const, meta: execution.metadata?.denied ? "你拒绝了" : "已取消" };
+      return {
+        tone: "dim" as const,
+        meta: execution.metadata?.denied ? t("state.denied") : t("state.cancelled"),
+      };
     case "failed": {
       const unknown = /AI_TOOL_OUTCOME_UNKNOWN|结果未知/.test(execution.error ?? "");
       return {
         tone: "danger" as const,
-        meta: unknown ? "已中断" : execution.errorType === "parameter" ? "参数有误" : "失败",
+        meta: unknown
+          ? t("state.interrupted")
+          : execution.errorType === "parameter"
+            ? t("state.parameter")
+            : t("state.failed"),
         note: execution.error,
         icon: icon(TriangleAlert),
       };
     }
     case "success": {
-      const failure = softFailure(parseObject(execution.output));
+      const failure = softFailure(parseObject(execution.output), t);
       return failure
-        ? { tone: "danger" as const, meta: "没有成功", note: failure, icon: icon(TriangleAlert) }
+        ? {
+            tone: "danger" as const,
+            meta: t("state.unsuccessful"),
+            note: failure,
+            icon: icon(TriangleAlert),
+          }
         : { tone: "default" as const, meta };
     }
   }
@@ -165,8 +189,10 @@ export const ToolRow = memo(function ToolRow(props: {
   linked?: boolean;
   onOpen?: () => void;
 }) {
-  const presentation = presentTool(props.execution);
-  const state = rowState(props.execution, presentation.meta);
+  const context = useToolsI18n();
+  const { t } = context;
+  const presentation = presentTool(props.execution, context);
+  const state = rowState(props.execution, presentation.meta, context);
   const Icon = presentation.icon;
   return (
     <TimelineRow
@@ -190,7 +216,11 @@ export const ToolRow = memo(function ToolRow(props: {
       meta={state.meta}
       note={"note" in state ? state.note : undefined}
       onPress={props.onOpen}
-      label={`${presentation.label}${presentation.subject ? `「${presentation.subject}」` : ""}`}
+      label={
+        presentation.subject
+          ? t("row.title", { label: presentation.label, subject: presentation.subject })
+          : presentation.label
+      }
     />
   );
 });
@@ -202,6 +232,7 @@ export function ReasoningRow(props: {
   duration?: number;
   children: ReactNode;
 }) {
+  const { t, locale } = useToolsI18n();
   const [expanded, setExpanded] = useState(false);
   const thinking = props.startTime !== undefined && props.endTime === undefined;
   const [now, setNow] = useState(() => Date.now());
@@ -214,10 +245,12 @@ export function ReasoningRow(props: {
     props.duration ??
     (props.startTime !== undefined ? (props.endTime ?? now) - props.startTime : undefined);
   const title = thinking
-    ? `思考中${elapsed !== undefined ? ` ${formatElapsed(elapsed)}` : "…"}`
+    ? elapsed !== undefined
+      ? t("reasoning.elapsed", { elapsed: formatElapsed(elapsed, locale) })
+      : t("reasoning.thinking")
     : elapsed !== undefined
-      ? `思考了 ${formatElapsed(elapsed)}`
-      : "思考过程";
+      ? t("reasoning.thought", { elapsed: formatElapsed(elapsed, locale) })
+      : t("reasoning.title");
   return (
     <div className="my-1 first:mt-0">
       <TimelineRow

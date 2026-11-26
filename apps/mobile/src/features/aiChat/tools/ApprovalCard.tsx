@@ -1,3 +1,4 @@
+import { useToolsI18n } from "../tools.i18n";
 // 确认卡：写入与执行类工具等待用户确认时，在它执行顺序的位置出现。
 // 字段与结果卡同一口径（用户确认的就是将会出现的那条待办）；「本次对话不再询问」降为一行文字。
 
@@ -18,6 +19,8 @@ import { presentTool } from "./presenters";
 import { TimelineRow, ToolTitle } from "./ToolRow";
 
 export function ApprovalCard(props: { execution: ToolCallExecutionState; linked?: boolean }) {
+  const context = useToolsI18n();
+  const { t } = context;
   const { execution } = props;
   const pending = useToolInteraction(execution, (host, item) => host.approvalOf(item), undefined);
   const ready = useToolInteraction(execution, (host, item) => host.isReady(item), false);
@@ -26,7 +29,7 @@ export function ApprovalCard(props: { execution: ToolCallExecutionState; linked?
   const toolName = pending?.toolName ?? execution.toolName;
   const input = parseObject(pending?.input ?? execution.input) ?? {};
   const preview = useApprovalPreview(toolName, input);
-  const presentation = presentTool(execution);
+  const presentation = presentTool(execution, context);
 
   if (!pending || !ready) {
     return (
@@ -35,8 +38,8 @@ export function ApprovalCard(props: { execution: ToolCallExecutionState; linked?
         tone="dim"
         icon={<ShieldAlert strokeWidth={1.9} />}
         title={<ToolTitle label={presentation.label} subject={presentation.subject} />}
-        meta={pending ? "正在恢复确认…" : "已中断"}
-        note={pending ? undefined : "等待确认时对话已中断，这次调用没有执行"}
+        meta={pending ? t("approval.restoring") : t("state.interrupted")}
+        note={pending ? undefined : t("approval.interruptedHint")}
       />
     );
   }
@@ -48,16 +51,17 @@ export function ApprovalCard(props: { execution: ToolCallExecutionState; linked?
     try {
       await host.decideApproval(execution, pending, choice);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "提交确认失败");
+      toast.error(error instanceof Error ? error.message : t("approval.failed"));
     } finally {
       setSubmitting(false);
     }
   };
   const Icon = danger ? Trash2 : ShieldAlert;
-  const title = presentation.write?.confirm(input) ?? `允许「${presentation.label}」？`;
+  const title =
+    presentation.write?.confirm(input) ?? t("approval.allowTitle", { label: presentation.label });
   const subtitle = danger
-    ? "删除后无法恢复"
-    : `AI 想${host?.riskLabel(pending.risk) ?? "执行操作"}，确认后才会执行`;
+    ? t("approval.dangerHint")
+    : t("approval.confirmHint", { risk: host?.riskLabel(pending.risk) ?? t("approval.execute") });
 
   return (
     <div
@@ -78,12 +82,13 @@ export function ApprovalCard(props: { execution: ToolCallExecutionState; linked?
       </div>
       <div className="text-tau-sm text-ink-3 mt-0.5 mb-2.5 ml-7">{subtitle}</div>
       {preview === null ? (
-        <div className="text-tau-meta text-ink-3 mb-3 px-1">正在读取…</div>
+        <div className="text-tau-meta text-ink-3 mb-3 px-1">{t("approval.loading")}</div>
       ) : (
         preview.fields.length > 0 && (
           <div className="mb-3">
             <FieldList
               fields={preview.fields.map(field => ({
+                id: field.id,
                 label: field.label,
                 value: field.before ? (
                   <>
@@ -111,7 +116,7 @@ export function ApprovalCard(props: { execution: ToolCallExecutionState; linked?
           onClick={() => void decide("deny")}
           className="text-tau-body text-ink-1 h-[46px] flex-1 rounded-[14px] font-semibold shadow-[inset_0_0_0_1px_var(--tau-line-2)] active:opacity-70 disabled:opacity-50"
         >
-          拒绝
+          {t("approval.deny")}
         </button>
         <button
           type="button"
@@ -122,7 +127,7 @@ export function ApprovalCard(props: { execution: ToolCallExecutionState; linked?
             danger ? "bg-danger" : "bg-accent"
           )}
         >
-          {danger ? "删除" : "允许"}
+          {danger ? t("action.delete") : t("approval.allow")}
         </button>
       </div>
       <button
@@ -131,7 +136,7 @@ export function ApprovalCard(props: { execution: ToolCallExecutionState; linked?
         onClick={() => void decide("allow-session")}
         className="text-tau-sm text-ink-2 mt-1 flex h-9 w-full items-center justify-center disabled:opacity-50"
       >
-        本次对话不再询问
+        {t("approval.session")}
         <span className={cn("ml-1 font-semibold", danger ? "text-danger" : "text-accent-text")}>
           {presentation.label}
         </span>

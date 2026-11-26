@@ -1,3 +1,5 @@
+import { toolT } from "../tools.binding";
+import { useToolsI18n } from "../tools.i18n";
 // 工具卡片与详情面板共用的小件：同底色细描边分组、字段胶囊、原始数据。
 // 卡片与面板本身是 surface，里面的块与容器同底色，只靠 line-1 描边区分，不铺页面底色。
 
@@ -53,11 +55,13 @@ export function TodoMark(props: { completed?: boolean; gone?: boolean }) {
 }
 
 /** 字段组：确认卡与详情面板里的「标题 / 截止 / 清单」 */
-export function FieldList(props: { fields: Array<{ label: string; value: ReactNode }> }) {
+export function FieldList(props: {
+  fields: Array<{ id: string; label: string; value: ReactNode }>;
+}) {
   return (
     <div className={cn(GROUP, DIVIDED, "px-3.5")}>
       {props.fields.map(field => (
-        <div key={field.label} className="text-tau-body flex min-h-[42px] items-center gap-3 py-2">
+        <div key={field.id} className="text-tau-body flex min-h-[42px] items-center gap-3 py-2">
           <span className="text-tau-meta text-ink-3 w-14 shrink-0">{field.label}</span>
           <span className="text-ink-1 min-w-0 flex-1 break-words">{field.value}</span>
         </div>
@@ -68,19 +72,20 @@ export function FieldList(props: { fields: Array<{ label: string; value: ReactNo
 
 function copy(text: string) {
   navigator.clipboard.writeText(text).then(
-    () => toast.success("已复制"),
-    () => toast.error("复制失败")
+    () => toast.success(toolT("copy.done")),
+    () => toast.error(toolT("copy.failed"))
   );
 }
 
 function RawBlock(props: { label: string; text: string; danger?: boolean }) {
+  const { t } = useToolsI18n();
   return (
     <div className="min-w-0">
       <div className="text-tau-sm text-ink-3 mb-1 flex items-center">
         <span className={cn("flex-1", props.danger && "text-danger")}>{props.label}</span>
         <button
           type="button"
-          aria-label={`复制${props.label}`}
+          aria-label={t("copy.field", { label: props.label })}
           onClick={() => copy(props.text)}
           className="-mr-1.5 grid size-8 place-items-center"
         >
@@ -102,6 +107,7 @@ function RawBlock(props: { label: string; text: string; danger?: boolean }) {
 
 /** 原始数据：格式化后的输入、输出与错误，默认折叠；排查问题和反馈时用 */
 export function RawData(props: { execution: ToolCallExecutionState; defaultOpen?: boolean }) {
+  const { t } = useToolsI18n();
   const [open, setOpen] = useState(!!props.defaultOpen);
   const { input, output, error } = props.execution;
   return (
@@ -113,7 +119,7 @@ export function RawData(props: { execution: ToolCallExecutionState; defaultOpen?
         className="text-tau-meta text-ink-2 flex h-11 w-full items-center gap-2 px-3.5"
       >
         <Code size={15} aria-hidden />
-        <span className="flex-1 text-left">原始数据</span>
+        <span className="flex-1 text-left">{t("raw.title")}</span>
         <ChevronDown
           size={15}
           aria-hidden
@@ -122,9 +128,9 @@ export function RawData(props: { execution: ToolCallExecutionState; defaultOpen?
       </button>
       {open && (
         <div className="space-y-3 px-3.5 pb-3">
-          {input.trim() && <RawBlock label="输入" text={prettyJson(input)} />}
-          {output && <RawBlock label="输出" text={prettyJson(output)} />}
-          {error && <RawBlock label="错误" text={error} danger />}
+          {input.trim() && <RawBlock label={t("raw.input")} text={prettyJson(input)} />}
+          {output && <RawBlock label={t("raw.output")} text={prettyJson(output)} />}
+          {error && <RawBlock label={t("raw.error")} text={error} danger />}
         </div>
       )}
     </div>

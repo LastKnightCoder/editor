@@ -1,3 +1,4 @@
+import type { ToolDisplayContext } from "../tools.messages";
 // 工具展示用的纯函数：解析输入输出、把工具里的本地时间串写成手机上的说法。
 
 /** JSON 对象解析；不是对象时返回 null */
@@ -18,9 +19,12 @@ export const list = (value: unknown): Record<string, unknown>[] =>
   Array.isArray(value) ? value.filter(item => item && typeof item === "object") : [];
 
 /** 工具层的结构化失败（success:false），返回它的说明 */
-export function softFailure(output: Record<string, unknown> | null): string | null {
+export function softFailure(
+  output: Record<string, unknown> | null,
+  t: ToolDisplayContext["t"]
+): string | null {
   if (!output || output.success !== false) return null;
-  return str(output.message) ?? str(output.error) ?? "执行没有成功";
+  return str(output.message) ?? str(output.error) ?? t("failure.default");
 }
 
 export function prettyJson(raw: string) {
@@ -31,21 +35,40 @@ export function prettyJson(raw: string) {
   }
 }
 
-const WEEKDAYS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 const DAY_MS = 86_400_000;
-
-function startOfDay(date: Date) {
+export function startOfDay(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
 }
 
-/** 「今天」「明天」「11月7日 周五」，跨年补年份 */
-export function dayLabel(date: Date, now = new Date()) {
+type DateDisplayContext = ToolDisplayContext & { now?: Date };
+function dateLabel(date: Date, locale: string, year = false) {
+  return new Intl.DateTimeFormat(locale, {
+    month: "short",
+    day: "numeric",
+    ...(year ? { year: "numeric" as const } : {}),
+  }).format(date);
+}
+
+export function dayLabel(
+  date: Date,
+  {
+    now = new Date(),
+    weekday = true,
+    relative = true,
+    ...context
+  }: DateDisplayContext & { weekday?: boolean; relative?: boolean }
+) {
   const diff = Math.round((startOfDay(date) - startOfDay(now)) / DAY_MS);
-  if (diff === 0) return "今天";
-  if (diff === 1) return "明天";
-  if (diff === -1) return "昨天";
-  const base = `${date.getMonth() + 1}月${date.getDate()}日 ${WEEKDAYS[date.getDay()]}`;
-  return date.getFullYear() === now.getFullYear() ? base : `${date.getFullYear()}年${base}`;
+  if (relative && diff === 0) return context.t("date.today");
+  if (relative && diff === 1) return context.t("date.tomorrow");
+  if (relative && diff === -1) return context.t("date.yesterday");
+  const label = dateLabel(date, context.locale, date.getFullYear() !== now.getFullYear());
+  return weekday
+    ? context.t("date.weekday", {
+        date: label,
+        weekday: new Intl.DateTimeFormat(context.locale, { weekday: "short" }).format(date),
+      })
+    : label;
 }
 
 const LOCAL = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/;
@@ -61,11 +84,13 @@ export function parseLocalText(value: unknown): { date: Date; time: string | nul
   };
 }
 
-/** 截止时间：「周五 18:00」；无效时返回 null */
-export function formatDue(value: unknown, now = new Date()) {
+/** 截止时间；无效时返回 null。 */
+export function formatDue(value: unknown, context: DateDisplayContext) {
   const parsed = parseLocalText(value);
   if (!parsed) return null;
-  return parsed.time ? `${dayLabel(parsed.date, now)} ${parsed.time}` : dayLabel(parsed.date, now);
+  return parsed.time
+    ? `${dayLabel(parsed.date, context)} ${parsed.time}`
+    : dayLabel(parsed.date, context);
 }
 
 /** 已过截止时间（未完成待办标红用） */
@@ -77,44 +102,46 @@ export function isOverdue(value: unknown, now = new Date()) {
     : parsed.date.getTime() < startOfDay(now);
 }
 
-/**
- * 日程起止：「周四 15:00–16:00」「11月5日 全天」。
- * endExclusive：全天日程的 end 是否不含当天（新建/修改的入参如此，查询结果的 end 含当天）。
- */
+/** endExclusive 只用于全天日程的输入，查询结果的结束日包含当天。 */
 export function formatEventRange(
   start: unknown,
   end: unknown,
   allDay: boolean,
-  { endExclusive = false, now = new Date() } = {}
+  {
+    endExclusive = false,
+    now = new Date(),
+    ...context
+  }: DateDisplayContext & { endExclusive?: boolean }
 ) {
   const from = parseLocalText(start);
   if (!from) return null;
   const to = parseLocalText(end);
+  const display = { ...context, now };
   if (allDay || !from.time) {
     let last = to?.date ?? from.date;
     if (endExclusive && to && startOfDay(to.date) > startOfDay(from.date))
       last = new Date(startOfDay(to.date) - DAY_MS);
     return startOfDay(last) > startOfDay(from.date)
-      ? `${dayLabel(from.date, now)} 至 ${dayLabel(last, now)}`
-      : `${dayLabel(from.date, now)} 全天`;
+      ? context.t("date.until", { from: dayLabel(from.date, display), to: dayLabel(last, display) })
+      : context.t("date.dayAllDay", { date: dayLabel(from.date, display) });
   }
-  const head = `${dayLabel(from.date, now)} ${from.time}`;
+  const head = `${dayLabel(from.date, display)} ${from.time}`;
   if (!to?.time) return head;
   return startOfDay(to.date) === startOfDay(from.date)
     ? `${head}–${to.time}`
-    : `${head} 至 ${dayLabel(to.date, now)} ${to.time}`;
+    : context.t("date.until", { from: head, to: `${dayLabel(to.date, display)} ${to.time}` });
 }
 
-/** 查询窗口：「11月3日–9日」「今天」 */
-export function formatDayRange(start: unknown, end: unknown, now = new Date()) {
+export function formatDayRange(start: unknown, end: unknown, context: DateDisplayContext) {
   const from = parseLocalText(start)?.date;
   const to = parseLocalText(end)?.date;
   if (!from) return null;
-  if (!to || startOfDay(to) === startOfDay(from)) return dayLabel(from, now).split(" ")[0];
-  const head = `${from.getMonth() + 1}月${from.getDate()}日`;
+  if (!to || startOfDay(to) === startOfDay(from))
+    return dayLabel(from, { ...context, weekday: false });
+  const head = dateLabel(from, context.locale);
   return from.getMonth() === to.getMonth()
-    ? `${head}–${to.getDate()}日`
-    : `${head}–${to.getMonth() + 1}月${to.getDate()}日`;
+    ? context.t("date.sameMonth", { from: head, day: formatCount(to.getDate(), context.locale) })
+    : context.t("date.range", { from: head, to: dateLabel(to, context.locale) });
 }
 
 /** 插件 / MCP 工具名转成可读叫法：plugin_ns__search-bookmarks → search bookmarks */
@@ -127,4 +154,4 @@ export function humanizeToolName(name: string) {
   return words || name;
 }
 
-export const formatCount = (value: number) => value.toLocaleString("en-US");
+export const formatCount = (value: number, locale: string) => value.toLocaleString(locale);

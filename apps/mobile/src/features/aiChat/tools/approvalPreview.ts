@@ -1,14 +1,17 @@
+import { useToolsI18n } from "../tools.i18n";
+import type { ToolMessageKey } from "../tools.messages";
 // 确认卡的字段：把写入工具的入参翻译成「将会出现的那条待办 / 日程」。
 // 清单名、日历名与修改前的旧值需要查一次本机数据；插件与未知工具列出入参的顶层字段。
 
 import { useQuery } from "@tanstack/react-query";
 import * as tauri from "../../../services/tauri";
 import { eventView, todoView } from "../../../services/aiChat/taskTools";
-import { formatDue, formatEventRange, str } from "./format";
+import { formatCount, formatDue, formatEventRange, str } from "./format";
 
 type Data = Record<string, unknown>;
 
 export interface PreviewField {
+  id: string;
   label: string;
   value: string;
   /** 修改前的值（划掉显示） */
@@ -37,13 +40,14 @@ async function loadTodo(taskRef: number) {
   };
 }
 
-function field(
+function buildField(
+  id: string,
   label: string,
   value: string | null | undefined,
   before?: string | null
 ): PreviewField[] {
   if (!value) return [];
-  return [{ label, value, ...(before && before !== value ? { before } : {}) }];
+  return [{ id, label, value, ...(before && before !== value ? { before } : {}) }];
 }
 
 function genericFields(input: Data): PreviewField[] {
@@ -52,11 +56,15 @@ function genericFields(input: Data): PreviewField[] {
     .slice(0, 6)
     .map(([key, value]) => {
       const text = typeof value === "object" ? JSON.stringify(value) : String(value);
-      return { label: key, value: text.length > 80 ? `${text.slice(0, 80)}…` : text };
+      return { id: key, label: key, value: text.length > 80 ? `${text.slice(0, 80)}…` : text };
     });
 }
 
 export function useApprovalPreview(toolName: string, input: Data): ApprovalPreview | null {
+  const context = useToolsI18n();
+  const { t, locale } = context;
+  const field = (id: ToolMessageKey, value: string | null | undefined, before?: string | null) =>
+    buildField(id, t(id), value, before);
   const taskRef = Number(str(input.taskRef));
   const eventId = Number(str(input.eventId));
   const todo = useQuery({
@@ -94,9 +102,9 @@ export function useApprovalPreview(toolName: string, input: Data): ApprovalPrevi
         : usable?.[0];
       return {
         fields: [
-          ...field("标题", str(input.title)),
-          ...field("截止", formatDue(input.dueAt)),
-          ...field("清单", group?.title),
+          ...field("field.title", str(input.title)),
+          ...field("field.due", formatDue(input.dueAt, context)),
+          ...field("field.group", group?.title),
         ],
       };
     }
@@ -109,24 +117,33 @@ export function useApprovalPreview(toolName: string, input: Data): ApprovalPrevi
           : { fields: genericFields(input) };
       const { view, children } = todo.data;
       if (toolName === "update_todo") {
-        const nextDue = patch.dueAt === null ? "不设截止" : formatDue(patch.dueAt);
+        const nextDue = patch.dueAt === null ? t("field.noDue") : formatDue(patch.dueAt, context);
         return {
           fields: [
-            ...field("标题", str(patch.title) ?? view.title, view.title),
+            ...field("field.title", str(patch.title) ?? view.title, view.title),
             ...(patch.dueAt !== undefined
-              ? field("截止", nextDue, formatDue(view.dueAt) ?? "不设截止")
-              : field("截止", formatDue(view.dueAt))),
-            ...field("清单", view.group),
+              ? field("field.due", nextDue, formatDue(view.dueAt, context) ?? t("field.noDue"))
+              : field("field.due", formatDue(view.dueAt, context))),
+            ...field("field.group", view.group),
           ],
         };
       }
       return {
-        fields: [...field("标题", view.title), ...field("截止", formatDue(view.dueAt))],
+        fields: [
+          ...field("field.title", view.title),
+          ...field("field.due", formatDue(view.dueAt, context)),
+        ],
         warning: children
           ? toolName === "delete_todo"
-            ? `连同 ${children} 个子待办一起删除`
+            ? t("preview.deleteChildren", {
+                count: children,
+                number: formatCount(children, locale),
+              })
             : input.completed !== false
-              ? `${children} 个子待办会一起完成`
+              ? t("preview.completeChildren", {
+                  count: children,
+                  number: formatCount(children, locale),
+                })
               : undefined
           : undefined,
       };
@@ -139,12 +156,15 @@ export function useApprovalPreview(toolName: string, input: Data): ApprovalPrevi
         : usable?.[0];
       return {
         fields: [
-          ...field("标题", str(input.title)),
+          ...field("field.title", str(input.title)),
           ...field(
-            "时间",
-            formatEventRange(input.start, input.end, input.allDay === true, { endExclusive: true })
+            "field.time",
+            formatEventRange(input.start, input.end, input.allDay === true, {
+              ...context,
+              endExclusive: true,
+            })
           ),
-          ...field("日历", calendar?.title),
+          ...field("field.calendar", calendar?.title),
         ],
       };
     }
@@ -155,29 +175,30 @@ export function useApprovalPreview(toolName: string, input: Data): ApprovalPrevi
           ? null
           : { fields: genericFields(input) };
       const current = event.data;
-      const currentRange = formatEventRange(current.start, current.end, current.allDay);
+      const currentRange = formatEventRange(current.start, current.end, current.allDay, context);
       if (toolName === "delete_calendar_event")
         return {
           fields: [
-            ...field("标题", current.title),
-            ...field("时间", currentRange),
-            ...field("日历", current.calendar),
+            ...field("field.title", current.title),
+            ...field("field.time", currentRange),
+            ...field("field.calendar", current.calendar),
           ],
         };
       const moved = patch.start !== undefined || patch.end !== undefined;
       return {
         fields: [
-          ...field("标题", str(patch.title) ?? current.title, current.title),
+          ...field("field.title", str(patch.title) ?? current.title, current.title),
           ...field(
-            "时间",
+            "field.time",
             moved
               ? formatEventRange(patch.start, patch.end, patch.allDay === true, {
+                  ...context,
                   endExclusive: true,
                 })
               : currentRange,
             currentRange
           ),
-          ...field("日历", current.calendar),
+          ...field("field.calendar", current.calendar),
         ],
       };
     }
