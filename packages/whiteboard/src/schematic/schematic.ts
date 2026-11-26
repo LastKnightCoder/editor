@@ -11,7 +11,7 @@ import type { BoardElement, MindNodeElement } from "../types";
 import type { WhiteboardElementDefinition } from "../extensions/api";
 import { createSnapshotReader } from "../extensions/snapshot";
 import MindThemeUtil from "../utils/MindThemeUtil";
-import { getMindLayout, isHiddenChild } from "../utils/mind-layout";
+import { getMindLayout, isHiddenChild, rangeBox, summaryBrace } from "../utils/mind-layout";
 import { getThemeColorById } from "../constants/theme-colors";
 import { outlineToSvgPath } from "../utils/HandwriteUtil";
 import { getTextBandColor, getTextSurface, resolveTextStyle } from "../constants/text-style";
@@ -265,6 +265,24 @@ function mindTree(ctx: Ctx, root: AnyElement) {
       if (child?.type !== "mind-node" || !hasBox(child)) continue;
       // 折叠的一侧整棵子树不画（它们还留着旧坐标，画出来会把示意图撑散）
       if (isHiddenChild(node as MindNodeElement, child as MindNodeElement)) continue;
+      const range = (child as MindNodeElement).summaryRange;
+      if (range) {
+        const parent = node as MindNodeElement;
+        const bothSides = layout.sides.length > 1;
+        const box = rangeBox(parent, range, bothSides);
+        if (box) {
+          const side = bothSides ? (child as MindNodeElement).direction : "right";
+          const { d } = summaryBrace(
+            box,
+            layout.siblingAxis(parent.level),
+            side,
+            child as MindNodeElement
+          );
+          lines.push({ kind: "path", d, stroke: visualOf(child).lineColor, strokeWidth: 1.4 });
+        }
+        visit(child);
+        continue;
+      }
       const connector = layout.connector(node as MindNodeElement, child as MindNodeElement);
       let d = connector.kind === "path" ? connector.d : "";
       if (connector.kind === "curve") {

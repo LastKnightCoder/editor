@@ -17,6 +17,11 @@ import {
   Search,
   ListTree,
   ClipboardPaste,
+  Braces,
+  BoxSelect,
+  Spline,
+  Type,
+  Trash2,
 } from "lucide-react";
 import {
   Board,
@@ -34,6 +39,7 @@ import {
   MovementBehavior,
   ChildrenRenderOrder,
   BoardElement,
+  CustomOffset,
 } from "../types";
 import {
   isRectIntersect,
@@ -44,6 +50,18 @@ import {
   BoardUtil,
 } from "../utils";
 import { getMindLayout } from "../utils/mind-layout";
+import BoardOperations from "../utils/BoardOperations";
+import type { MoveNodeOperation } from "../types/operation";
+import {
+  cancelMindRelation,
+  createMindRelation,
+  relationStoreOf,
+  startMindRelation,
+  visibleRelationEnd,
+  withMindRelationRemovals,
+} from "../utils/mindRelation";
+import { EDIT_BOUNDARY_EVENT } from "../components/MindNode/MindRanges";
+import { ARROW_CONNECT_ID } from "../constants/arrow";
 import { detectHotkeyPlatform, formatHotkey } from "../utils/hotkeyFormat";
 import { isMarkdownLikeText } from "@tau/markdown";
 import { toast } from "@tau/ui";
@@ -326,6 +344,93 @@ export class MindPlugin implements IBoardPlugin {
 
   private shortcut(key: string) {
     return formatHotkey(key, detectHotkeyPlatform());
+  }
+
+  /** 概要 / 外框 / 联系线：选中的相邻同级节点可加概要与外框 */
+  private rangeMenu(context: ContextMenuContext, root: MindNodeElement): PluginContextMenuItem[] {
+    if (context.board.readonly) return [];
+    const ids = context.targetElements.filter(el => el.type === "mind-node").map(el => el.id);
+    const adjacent = MindUtil.adjacentSiblings(root, ids) !== null;
+    const hint = adjacent ? undefined : "选中相邻的同级节点";
+    const commit = (next: MindNodeElement | null | undefined, selectId?: string) => {
+      const path = PathUtil.getPathByElement(context.board, root);
+      if (!next || !path) return;
+      const ops: Operation[] = BoardUtil.diffNode(root, next, path);
+      const selected = selectId && MindUtil.findNodeInTree(next, selectId);
+      if (selected)
+        ops.push({
+          type: "set_selection",
+          properties: context.board.selection,
+          newProperties: { selectArea: null, selectedElements: [selected] },
+        });
+      BoardUtil.normalizeOperations(ops);
+      context.board.apply(ops);
+    };
+    const items: PluginContextMenuItem[] = [
+      {
+        key: "mind-summary",
+        label: hint ? `概要（${hint}）` : "概要",
+        icon: <Braces size={14} />,
+        shortcut: this.shortcut("mod+shift+s"),
+        disabled: !adjacent,
+        priority: 104,
+        onSelect: () => {
+          const result = MindUtil.addSummary(root, ids, [
+            { type: "paragraph", children: [{ type: "formatted", text: "概要" }] },
+          ] as MindNodeElement["text"]);
+          if (result) commit(result.root, result.summaryId);
+        },
+      },
+      {
+        key: "mind-boundary",
+        label: hint ? `外框（${hint}）` : "外框",
+        icon: <BoxSelect size={14} />,
+        shortcut: this.shortcut("mod+shift+b"),
+        disabled: !adjacent,
+        priority: 105,
+        onSelect: () => commit(MindUtil.addBoundary(root, ids)?.root),
+      },
+    ];
+    if (ids.length === 1)
+      items.push({
+        key: "mind-relation",
+        label: "添加联系线",
+        icon: <Spline size={14} />,
+        shortcut: this.shortcut("mod+l"),
+        priority: 106,
+        onSelect: () => startMindRelation(context.board, ids[0]),
+      });
+    // 右键的节点是外框的首个节点时，可编辑或删除该外框
+    const node = context.targetElements.find(el => el.type === "mind-node");
+    const parent = node && MindUtil.findParentInTree(root, node.id);
+    for (const boundary of parent?.boundaries ?? []) {
+      if (!MindUtil.rangeNodes(root, parent!, boundary).some(n => n.id === node!.id)) continue;
+      items.push({
+        key: `mind-boundary-${boundary.id}`,
+        label: boundary.title ? `外框「${boundary.title}」` : "外框",
+        icon: <BoxSelect size={14} />,
+        priority: 107,
+        onSelect: () => {},
+        children: [
+          {
+            key: "mind-boundary-title",
+            label: boundary.title ? "编辑外框标题" : "添加外框标题",
+            icon: <Type size={14} />,
+            priority: 0,
+            onSelect: () => context.board.emit(EDIT_BOUNDARY_EVENT, boundary.id),
+          },
+          {
+            key: "mind-boundary-remove",
+            label: "删除外框",
+            icon: <Trash2 size={14} />,
+            danger: true,
+            priority: 1,
+            onSelect: () => commit(MindUtil.removeBoundary(root, boundary.id)),
+          },
+        ],
+      });
+    }
+    return items;
   }
 
   /** 根节点「展开到」：层级数随导图实际深度，最多到第 5 层 */
@@ -708,6 +813,8 @@ export class MindPlugin implements IBoardPlugin {
         }
       }
 
+      items.push(...this.rangeMenu(context, root));
+
       // 笔记相关菜单项（根节点与非根节点通用）
       if (mindNode.contentId) {
         items.push({
@@ -811,6 +918,69 @@ export class MindPlugin implements IBoardPlugin {
     return items;
   }
 
+  /** 联系线模式下点到另一个节点：插入联系线并退出模式 */
+  private finishRelation(board: Board, target: MindNodeElement) {
+    const { sourceId } = relationStoreOf(board).getState();
+    if (!sourceId) return false;
+    cancelMindRelation(board);
+    const source = BoardUtil.getElementById(board, sourceId) as MindNodeElement | null;
+    if (!source || source.id === target.id) return true;
+    const arrow = createMindRelation(source, target);
+    board.apply([
+      { type: "insert_node", path: [board.children.length], node: arrow },
+      {
+        type: "set_selection",
+        properties: board.selection,
+        newProperties: { selectArea: null, selectedElements: [arrow] },
+      },
+    ]);
+    return true;
+  }
+
+  /** 联系线模式下点空白处取消 */
+  onPointerDown(_e: PointerEvent, board: Board) {
+    if (!relationStoreOf(board).getState().sourceId) return;
+    cancelMindRelation(board);
+    return false;
+  }
+
+  onGlobalPointerMove(e: PointerEvent, board: Board) {
+    const store = relationStoreOf(board);
+    if (!store.getState().sourceId) return;
+    const pointer = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
+    if (pointer) store.setState({ pointer });
+  }
+
+  onKeyDown(e: KeyboardEvent, board: Board) {
+    if (e.key !== "Escape" || !relationStoreOf(board).getState().sourceId) return;
+    cancelMindRelation(board);
+    return false;
+  }
+
+  /** 联系线端点：节点被收起时接到最近的可见祖先上 */
+  getArrowBindPoint(
+    board: Board,
+    element: BoardElement,
+    connectId: string,
+    _offset?: CustomOffset,
+    children = board.children
+  ) {
+    const { node } = visibleRelationEnd(board, element as MindNodeElement, children);
+    const { x, y, width, height } = node;
+    switch (connectId) {
+      case ARROW_CONNECT_ID.LEFT:
+        return { x, y: y + height / 2 };
+      case ARROW_CONNECT_ID.RIGHT:
+        return { x: x + width, y: y + height / 2 };
+      case ARROW_CONNECT_ID.TOP:
+        return { x: x + width / 2, y };
+      case ARROW_CONNECT_ID.BOTTOM:
+        return { x: x + width / 2, y: y + height };
+      default:
+        return { x: x + width / 2, y: y + height / 2 };
+    }
+  }
+
   isHit(_board: Board, element: MindNodeElement, x: number, y: number) {
     // 若节点在折叠状态（被父级或祖先按其方向折叠而隐藏），直接不可命中
     const root = MindUtil.getRoot(_board, element);
@@ -894,13 +1064,17 @@ export class MindPlugin implements IBoardPlugin {
     board: Board,
     e: PointerEvent,
     hitElement: BoardElement
-  ): MindDragInteraction | null {
+  ): InteractionState | null {
     if (e.button !== 0 || board.readonly || board.presentationManager.isPresentationMode) {
       return null;
     }
 
     if (hitElement.type !== "mind-node") return null;
     const mindNode = hitElement as MindNodeElement;
+    if (this.finishRelation(board, mindNode)) {
+      e.preventDefault();
+      return new FinishedInteraction();
+    }
 
     const startPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
     if (!startPoint) return null;
@@ -1160,7 +1334,35 @@ export class MindPlugin implements IBoardPlugin {
     const sourcePath = PathUtil.getPathByElement(board, sourceRoot);
     if (!sourcePath) return;
 
+    const nodePath = PathUtil.getPathByElement(board, latestDraggedNode);
+    if (!nodePath) return;
     const operations: Operation[] = [];
+    // 本机根拖动的实时预览不记历史，合并时补记预览前的属性以便一步撤销。
+    if (!board.document && currentTarget && MindUtil.isRoot(latestDraggedNode)) {
+      const recordPreview = (
+        initial: MindNodeElement,
+        current: MindNodeElement,
+        path: number[]
+      ) => {
+        operations.push(...BoardUtil.diffNodePatchOnly(initial, current, path));
+        current.children.forEach((child, index) => {
+          const previous = initial.children.find(node => node.id === child.id);
+          if (previous) recordPreview(previous, child, [...path, index]);
+        });
+      };
+      recordPreview(draggedNode, latestDraggedNode, nodePath);
+    }
+    const moveAndLayout = (move: MoveNodeOperation, roots: MindNodeElement[]) => {
+      const moved = BoardOperations.applyToChildren(board.children, [move]);
+      operations.push(move);
+      for (const root of roots) {
+        const oldPath = PathUtil.getPathByElement(board, root);
+        const path = oldPath && PathUtil.transformPath(oldPath, move);
+        const before = path && PathUtil.getElement(moved, path);
+        if (!before || !path) throw new Error("移动后的导图路径已失效");
+        operations.push(...BoardUtil.diffNode(before, root, path));
+      }
+    };
     if (currentTarget) {
       const targetNode = BoardUtil.getElementById(
         board,
@@ -1190,6 +1392,19 @@ export class MindPlugin implements IBoardPlugin {
         getMindLayout(targetRoot)
       );
 
+      const parentPath = PathUtil.getPathByElement(board, targetNode);
+      if (!parentPath) return;
+      const sameParent =
+        nodePath.length === parentPath.length + 1 &&
+        parentPath.every((index, i) => index === nodePath[i]);
+      const index =
+        placement.insertIndex +
+        (sameParent && nodePath[nodePath.length - 1] <= placement.insertIndex ? 1 : 0);
+      const move: MoveNodeOperation = {
+        type: "move_node",
+        path: nodePath,
+        newPath: [...parentPath, index],
+      };
       if (targetRoot.id === sourceRoot.id) {
         const updatedRoot = MindUtil.layout(
           MindUtil.moveNodeToNewParent(
@@ -1201,7 +1416,7 @@ export class MindPlugin implements IBoardPlugin {
             placement.direction
           )
         );
-        operations.push(...BoardUtil.diffNode(sourceRoot, updatedRoot, sourcePath));
+        moveAndLayout(move, [updatedRoot]);
       } else {
         const updatedTargetRoot = MindUtil.layout(
           MindUtil.moveNodeToNewParent(
@@ -1214,26 +1429,10 @@ export class MindPlugin implements IBoardPlugin {
           )
         );
 
-        if (MindUtil.isRoot(latestDraggedNode)) {
-          const removeSourceOperation: Operation = {
-            type: "remove_node",
-            path: sourcePath,
-            node: draggedNode,
-          };
-          const adjustedTargetPath = PathUtil.transformPath(targetPath, removeSourceOperation);
-          if (!adjustedTargetPath) return;
-
-          operations.push(
-            removeSourceOperation,
-            ...BoardUtil.diffNode(targetRoot, updatedTargetRoot, adjustedTargetPath)
-          );
-        } else {
-          const updatedSourceRoot = MindUtil.deleteNode(sourceRoot, latestDraggedNode);
-          operations.push(
-            ...BoardUtil.diffNode(sourceRoot, updatedSourceRoot, sourcePath),
-            ...BoardUtil.diffNode(targetRoot, updatedTargetRoot, targetPath)
-          );
-        }
+        const roots = MindUtil.isRoot(latestDraggedNode)
+          ? [updatedTargetRoot]
+          : [MindUtil.deleteNode(sourceRoot, latestDraggedNode), updatedTargetRoot];
+        moveAndLayout(move, roots);
       }
     } else {
       if (MindUtil.isRoot(latestDraggedNode)) {
@@ -1251,17 +1450,15 @@ export class MindPlugin implements IBoardPlugin {
           x: previewNode.x,
           y: previewNode.y,
         });
-        operations.push(...BoardUtil.diffNode(sourceRoot, updatedSourceRoot, sourcePath), {
-          type: "insert_node",
-          path: [board.children.length],
-          node: independentRoot,
-        });
+        moveAndLayout({ type: "move_node", path: nodePath, newPath: [board.children.length] }, [
+          updatedSourceRoot,
+          independentRoot,
+        ]);
       }
     }
 
     if (operations.length === 0) return;
-    BoardUtil.normalizeOperations(operations);
-    board.apply(operations);
+    board.apply(withMindRelationRemovals(board, operations));
   }
 
   isPointerInsideBoard(board: Board, clientX: number, clientY: number) {
@@ -1315,6 +1512,12 @@ export class MindPlugin implements IBoardPlugin {
 }
 
 export default MindPlugin;
+
+/** 联系线落点已在 claim 阶段处理完，只消费本次按下 */
+class FinishedInteraction implements InteractionState {
+  readonly name = "mind-relation";
+  isFinished = true;
+}
 
 /**
  * 思维导图拖拽的交互内核适配：由 MindPlugin.claimPointerGesture 创建，

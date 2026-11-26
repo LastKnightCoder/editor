@@ -234,7 +234,7 @@ flowchart TD
 - [x] 设计稿评审
 - [x] 第 1 批：`utils/mind-layout/` 布局策略（思维导图 / 逻辑图 / 组织结构图 / 树状图），节点连线、折叠、方向键、拖拽落点、右键菜单、示意图按布局走；「导图样式」浮层加布局一栏，悬停预览、设为默认同时记住布局
 - [x] 第 2 批：`⌘.` 收起展开、`⌘⇧.` 展开全部子级、`⌥1…5 / ⌥0` 展开到第 N 层（根节点右键「展开到」）、`⇧Tab` 升级、`⌘D` 复制分支、编辑中 `Esc` 结束；复制导图节点写缩进列表，选中节点粘贴挂成子节点，空白处右键「粘贴为思维导图」；关联笔记圆点改为图标，悬停预览标题与开头几行。剪贴板走新增的 `clipboard` 能力声明（`CopyPastePlugin` 不直接引用 `MindUtil`）
-- [ ] 第 3 批
+- [x] 第 3 批：概要、外框（含标题）、联系线；区间收缩纯函数有单测
 - [ ] 第 4 批
 
 验证：每批跑 `pnpm --filter @tau/whiteboard check`、白板包内与导图相关的现有测试（`MindUtil.drag`、`MindPlugin.drag`、`MindMap.creation`、`CopyPastePlugin.*`）、`pnpm --filter @tau/website test`。新增测试只覆盖白名单内的：Markdown round-trip（外部格式解析）、概要/外框区间在删除移动后的收缩（纯函数边界）、旧导图在新布局入口下坐标不变（回归）。

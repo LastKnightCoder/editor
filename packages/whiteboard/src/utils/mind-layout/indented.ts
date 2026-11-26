@@ -1,7 +1,8 @@
 import type { MindNodeElement } from "../../types/mind";
 import type { MindBox, MindConnector, MindDropDistance } from "./types";
 import { scoreOf } from "./score";
-import { visibleChildren } from "./tree-shape";
+import { stackChildren, summaryChildren } from "./tree-shape";
+import { boundaryInsets, createRangeGeometry, placeSummary, SUMMARY_OFFSET } from "./ranges";
 
 /** 缩进列：子节点排在父节点下方并右缩进，树状图与组织结构图的三级以下共用 */
 export const INDENT = 36;
@@ -11,8 +12,13 @@ const CORNER = 6;
 export const stemX = (node: MindBox) => node.x + Math.min(14, node.width / 2);
 
 export function columnWidth(node: MindNodeElement): number {
-  const kids = visibleChildren(node);
-  return Math.max(node.width, kids.length ? INDENT + Math.max(...kids.map(columnWidth)) : 0);
+  const kids = stackChildren(node);
+  const summaries = summaryChildren(node);
+  const stack = kids.length ? INDENT + Math.max(...kids.map(columnWidth)) : 0;
+  return Math.max(
+    node.width,
+    summaries.length ? stack + SUMMARY_OFFSET + Math.max(...summaries.map(columnWidth)) : stack
+  );
 }
 
 /** 把 node 放到 (x, y)，子孙逐行向下排；actualHeight 记录整列高度 */
@@ -20,14 +26,28 @@ export function placeColumn(node: MindNodeElement, x: number, y: number) {
   node.x = x;
   node.y = y;
   let bottom = y + node.height;
-  for (const child of visibleChildren(node)) {
-    placeColumn(child, x + INDENT, bottom + ROW_GAP);
-    bottom = child.y + child.actualHeight;
-  }
+  const kids = stackChildren(node);
+  const { before, after } = boundaryInsets(node, kids, false);
+  kids.forEach((child, i) => {
+    placeColumn(child, x + INDENT, bottom + ROW_GAP + before[i]);
+    bottom = child.y + child.actualHeight + after[i];
+  });
+  placeColumnSummaries(node, "y");
+  for (const summary of summaryChildren(node))
+    bottom = Math.max(bottom, summary.y + summary.actualHeight);
   node.actualHeight = bottom - y;
   node.childrenHeight = node.actualHeight - node.height;
   node.leftChildrenHeight = 0;
   node.rightChildrenHeight = node.childrenHeight;
+}
+
+/** 概要按括号贴靠点摆放后，它自己的子孙仍按缩进列往下排 */
+export function placeColumnSummaries(node: MindNodeElement, axis: "x" | "y") {
+  const geometry = createRangeGeometry(false);
+  for (const summary of summaryChildren(node)) {
+    if (placeSummary(node, summary, axis, "right", false, geometry))
+      placeColumn(summary, summary.x, summary.y);
+  }
 }
 
 export function columnConnector(parent: MindBox, child: MindBox): MindConnector {

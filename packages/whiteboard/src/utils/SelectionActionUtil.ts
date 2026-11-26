@@ -3,6 +3,7 @@ import { MindUtil } from "./MindUtil";
 import { PathUtil } from "./PathUtil";
 import { BoardUtil } from "./BoardUtil";
 import { isValid } from "./common";
+import { relationRemovals, removedNodeIds } from "./mindRelation";
 import { ColumnUtil } from "./ColumnUtil";
 import { isRichTextContentEmpty } from "./RichTextContentUtil";
 import type { ColumnElement } from "../types/column";
@@ -36,6 +37,7 @@ export const deleteBoardElements = (board: Board, elements: BoardElement[]): boo
 
   const mindOps: Operation[] = [];
   const rootsToDelete: MindNodeElement[] = [];
+  const removedInTrees = new Set<string>();
 
   rootsMap.forEach((nodes, root) => {
     const rootPath = PathUtil.getPathByElement(board, root);
@@ -45,16 +47,24 @@ export const deleteBoardElements = (board: Board, elements: BoardElement[]): boo
     } else {
       const newRoot = MindUtil.deleteNodes(root, nodes);
       mindOps.push(...BoardUtil.diffNode(root, newRoot, rootPath));
+      removedNodeIds(root, newRoot).forEach(id => removedInTrees.add(id));
     }
   });
 
   const otherElements = elements.filter(element => element.type !== "mind-node");
 
   const deleteTargets = [...otherElements, ...rootsToDelete];
+  const removedMindIds = new Set(removedInTrees);
+  const collectRemoved = (node: BoardElement) => {
+    if (node.type === "mind-node") removedMindIds.add(node.id);
+    node.children?.forEach(collectRemoved);
+  };
   const ops: Operation[] = [];
   for (const element of deleteTargets) {
     const path = PathUtil.getPathByElement(board, element);
     if (!path) continue;
+    const current = PathUtil.getElement(board.children, path);
+    if (current) collectRemoved(current);
     ops.push({
       type: "remove_node",
       path,
@@ -62,7 +72,9 @@ export const deleteBoardElements = (board: Board, elements: BoardElement[]): boo
     });
   }
 
-  const finalOps = [...mindOps, ...ops];
+  const relationOps = relationRemovals(board, removedMindIds, selectedIds);
+
+  const finalOps = [...mindOps, ...relationOps, ...ops];
   if (finalOps.length === 0) {
     return false;
   }

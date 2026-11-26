@@ -1,12 +1,14 @@
 import type { MindLayout } from "./types";
 import { scoreOf } from "./score";
-import { visibleChildren } from "./tree-shape";
+import { stackChildren, summaryChildren, visibleChildren } from "./tree-shape";
+import { boundaryInsets } from "./ranges";
 import {
   columnConnector,
   columnDropDistance,
   columnFoldHandle,
   columnWidth,
   placeColumn,
+  placeColumnSummaries,
   stemX,
 } from "./indented";
 
@@ -19,18 +21,26 @@ export const orgLayout: MindLayout = {
   id: "org",
   sides: ["right"],
   place(root) {
-    const branches = visibleChildren(root);
+    const branches = stackChildren(root);
     const widths = branches.map(columnWidth);
+    const { before, after } = boundaryInsets(root, branches, false, false);
+    const insets = [...before, ...after].reduce((sum, n) => sum + n, 0);
     const total =
-      widths.reduce((sum, w) => sum + w, 0) + BRANCH_GAP * Math.max(0, branches.length - 1);
+      widths.reduce((sum, w) => sum + w, 0) +
+      BRANCH_GAP * Math.max(0, branches.length - 1) +
+      insets;
     const top = root.y + root.height + ROOT_GAP;
     let x = root.x + root.width / 2 - total / 2;
     let bottom = root.y + root.height;
     branches.forEach((branch, i) => {
+      x += before[i];
       placeColumn(branch, x, top);
       bottom = Math.max(bottom, branch.y + branch.actualHeight);
-      x += widths[i] + BRANCH_GAP;
+      x += widths[i] + after[i] + BRANCH_GAP;
     });
+    placeColumnSummaries(root, "x");
+    for (const summary of summaryChildren(root))
+      bottom = Math.max(bottom, summary.y + summary.actualHeight);
     root.actualHeight = bottom - root.y;
     root.childrenHeight = root.actualHeight - root.height;
     root.leftChildrenHeight = 0;

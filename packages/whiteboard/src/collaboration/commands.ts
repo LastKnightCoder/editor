@@ -63,7 +63,7 @@ export function submit(
         : []
     ),
   ];
-  // 结构移动、删除与几何修改不写扩展数据，模型仍校验完整候选。
+  // 结构移动、删除与几何修改不写扩展数据，载荷校验只检查创建和数据修改。
   const geometryOnly =
     commands.length > 0 &&
     commands.every(
@@ -73,14 +73,17 @@ export function submit(
         command.patch.geometry !== undefined
     );
   const validate = commands.some(
-    command => command.type === "create" || command.type === "set_data"
+    command =>
+      command.type === "create" || command.type === "set_data" || command.type === "patch_records"
   )
     ? (candidate: typeof binding.model, created: readonly string[]) => {
         binding.validating = true;
         try {
           const touched = new Set([
             ...created,
-            ...commands.flatMap(command => (command.type === "set_data" ? [command.id] : [])),
+            ...commands.flatMap(command =>
+              command.type === "set_data" || command.type === "patch_records" ? [command.id] : []
+            ),
           ]);
           const catalog = binding.options.catalog;
           for (const id of touched) {

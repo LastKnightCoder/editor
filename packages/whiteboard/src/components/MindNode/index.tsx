@@ -26,6 +26,7 @@ import { useMindLayout, useMindMode, useMindTheme } from "../../hooks/useMindThe
 import useHandleResize from "./hooks/useHandleResize.ts";
 import { useMindNodeKeyboardNavigation } from "./hooks/useMindNodeKeyboardNavigation.ts";
 import { NotePeek } from "./NotePeek";
+import { MindRanges, useMindRanges } from "./MindRanges";
 import { EMarkerType, MindNodeElement } from "../../types";
 import { allowsElementInteraction } from "../../constants/tools";
 import { useTextExtension } from "../../extensions/text";
@@ -450,10 +451,11 @@ const MindNode = (props: MindNodeProps) => {
 
   // 连线与折叠按钮：按布局计算，单向布局只有一组子节点
   const placed = (child: MindNodeElement) => previewNodes?.get(child.id) ?? child;
-  const childLines = MindUtil.visibleChildren(shown).map(child => ({
+  const childLines = MindUtil.stackChildren(shown).map(child => ({
     id: child.id,
     connector: layout.connector(shown, placed(child)),
   }));
+  const ranges = useMindRanges(shown, layout);
   const foldHandles = layout.sides
     .map(side => {
       const kids =
@@ -577,6 +579,15 @@ const MindNode = (props: MindNodeProps) => {
             ) : null}
           </div>
         </foreignObject>
+
+        <MindRanges
+          board={board}
+          rootId={root?.id ?? element.id}
+          ranges={ranges}
+          lineOf={childLineOf}
+          dark={mindMode === "dark"}
+          sketch={sketch}
+        />
 
         {childLines.map(({ id: childId, connector }) => {
           const line = childLineOf(childId);

@@ -3,6 +3,7 @@ export interface WhiteboardCanvasType {
   contractId: string;
   previousContractIds?: readonly string[];
   dataProperties?: readonly string[];
+  recordProperties?: readonly string[];
   transientProperties?: readonly string[];
   bodyProperty?: string;
 }

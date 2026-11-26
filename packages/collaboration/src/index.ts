@@ -19,6 +19,7 @@ export * from "./document-write-queue";
 export * from "./whiteboard-types";
 export * from "./whiteboard-model";
 export * from "./whiteboard-relations";
+export { inactiveMindRelationIds } from "./whiteboard-mind-relations";
 export * from "./whiteboard-document";
 export * from "./document-adapter";
 export * from "./document-operations";

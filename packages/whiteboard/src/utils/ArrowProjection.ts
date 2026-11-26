@@ -4,7 +4,8 @@ import type { BoardElement } from "../types/element";
 export function projectArrow(
   board: Board,
   node: BoardElement,
-  find: (id: string) => BoardElement | undefined
+  find: (id: string) => BoardElement | undefined,
+  children = board.children
 ): BoardElement {
   const points = [...(node.points ?? [])];
   for (const [key, at] of [
@@ -13,7 +14,8 @@ export function projectArrow(
   ] as const) {
     const end = node[key],
       target = end?.bindId ? find(end.bindId) : undefined;
-    const point = target && board.getArrowBindPoint(target, end.connectId, end.customOffset);
+    const point =
+      target && board.getArrowBindPoint(target, end.connectId, end.customOffset, children);
     if (point && at >= 0) points[at] = point;
   }
   return JSON.stringify(points) === JSON.stringify(node.points) ? node : { ...node, points };
@@ -36,7 +38,7 @@ export function projectArrowTree(
   collect(children);
   if (!arrows) return children;
   const connect = (node: BoardElement): BoardElement => {
-    if (eligible(node)) return projectArrow(board, node, id => index.get(id));
+    if (eligible(node)) return projectArrow(board, node, id => index.get(id), children);
     if (!node.children?.length) return node;
     const next = node.children.map(connect);
     return next.every((child, i) => child === node.children?.[i])

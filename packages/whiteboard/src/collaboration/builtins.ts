@@ -77,6 +77,8 @@ const specs: Readonly<Record<string, BuiltinSpec>> = {
       "border",
       "textColor",
       "contentTitle",
+      "summaryRange",
+      "boundaries",
     ],
     transient: [
       "defaultFocus",
@@ -210,6 +212,7 @@ export async function prepareBuiltinWhiteboardTypes(): Promise<{
         contractId: entry.id,
         ...(previous ? { previousContractIds: [previous.id] } : {}),
         dataProperties: [...common, ...spec.data],
+        ...(type === "mind-node" ? { recordProperties: ["boundaries"] } : {}),
         transientProperties: spec.transient,
         bodyProperty: spec.body,
       };

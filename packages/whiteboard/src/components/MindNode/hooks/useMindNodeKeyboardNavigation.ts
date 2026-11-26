@@ -7,6 +7,13 @@ import { produce } from "immer";
 import { getMindLayout, type MindArrowKey, type MindLayout } from "../../../utils/mind-layout";
 import BoardOperations from "../../../utils/BoardOperations";
 import type { MoveNodeOperation } from "../../../types/operation";
+import {
+  relationRemovals,
+  removedNodeIds,
+  startMindRelation,
+  subtreeIds,
+  withMindRelationRemovals,
+} from "../../../utils/mindRelation";
 
 // 定义快捷键处理器类型
 type KeyHandler = (params: {
@@ -113,11 +120,10 @@ const handleDeleteNode: KeyHandler = ({ board, element }) => {
   if (MindUtil.isRoot(element)) {
     const rootPath = PathUtil.getPathByElement(board, element);
     if (!rootPath) return;
-    board.apply({
-      type: "remove_node",
-      path: rootPath,
-      node: element,
-    });
+    board.apply([
+      ...relationRemovals(board, subtreeIds([element])),
+      { type: "remove_node", path: rootPath, node: element },
+    ]);
   } else {
     const oldRoot = MindUtil.getRoot(board, element);
     if (!oldRoot) return;
@@ -161,7 +167,7 @@ const handleDeleteNode: KeyHandler = ({ board, element }) => {
       },
     ];
     BoardUtil.normalizeOperations(ops);
-    board.apply(ops);
+    board.apply([...ops, ...relationRemovals(board, removedNodeIds(oldRoot, newRoot))]);
   }
 };
 
@@ -173,10 +179,15 @@ const select = (board: Board, node: MindNodeElement) =>
   });
 
 /** 同组兄弟：双向布局只看同侧，单向布局整组 */
-const siblingGroup = (layout: MindLayout, parent: MindNodeElement, node: MindNodeElement) =>
-  layout.sides.length > 1 && parent.level === 1
-    ? parent.children.filter(child => child.direction === node.direction)
-    : parent.children;
+const siblingGroup = (layout: MindLayout, parent: MindNodeElement, node: MindNodeElement) => {
+  // 概要不参与兄弟排布，在概要之间切换
+  const pool = parent.children.filter(
+    child => MindUtil.isSummary(child) === MindUtil.isSummary(node)
+  );
+  return layout.sides.length > 1 && parent.level === 1
+    ? pool.filter(child => child.direction === node.direction)
+    : pool;
+};
 
 /**
  * 方向键：语义（去子节点 / 回父节点 / 上一个 / 下一个同级）由布局决定，
@@ -192,7 +203,7 @@ const handleNavigate =
     if (!role) return;
 
     if (role === "child") {
-      const visible = MindUtil.visibleChildren(element);
+      const visible = MindUtil.stackChildren(element);
       // 思维导图根节点按键决定去哪一侧
       const candidates =
         layout.sides.length > 1 && MindUtil.isRoot(element)
@@ -357,8 +368,7 @@ const commitRoot = (
         ]
       : []),
   ];
-  BoardUtil.normalizeOperations(ops);
-  board.apply(ops);
+  board.apply(withMindRelationRemovals(board, ops));
   return true;
 };
 
@@ -424,6 +434,37 @@ const handleDuplicate = withRoot((root, element, board, { retainContent }) => {
   });
 });
 
+/** 选中的导图节点（多选时按选区顺序） */
+const selectedMindIds = (board: Board) =>
+  (board.selection.selectedElements ?? [])
+    .filter(selected => selected.type === "mind-node")
+    .map(selected => selected.id);
+
+/** Mod+Shift+S：给选中的相邻同级节点加概要，进入概要编辑 */
+const handleAddSummary = withRoot((root, _element, board, { setIsEditing }) => {
+  const result = MindUtil.addSummary(root, selectedMindIds(board), [
+    { type: "paragraph", children: [{ type: "formatted", text: "概要" }] },
+  ] as MindNodeElement["text"]);
+  if (result && commitRoot(board, root, result.root, result.summaryId)) setIsEditing?.(false);
+});
+
+/** Mod+Shift+B：给选中的相邻同级节点加外框 */
+const handleAddBoundary = withRoot((root, element, board) => {
+  const result = MindUtil.addBoundary(root, selectedMindIds(board));
+  if (result) commitRoot(board, root, result.root, element.id);
+});
+
+/** Mod+L：从选中节点开始画联系线，点另一个节点完成 */
+const handleStartRelation: KeyHandler = ({ board, element }) => {
+  if (!board.readonly) startMindRelation(board, element.id);
+};
+
+/** 多选相邻同级节点时也生效的快捷键，由选区里第一个节点处理 */
+const MULTI_SELECT_KEYBOARD_CONFIG: KeyboardConfig = {
+  "mod+shift+s": handleAddSummary,
+  "mod+shift+b": handleAddBoundary,
+};
+
 // 非编辑状态下的快捷键配置
 const NON_EDITING_KEYBOARD_CONFIG: KeyboardConfig = {
   "mod+arrowup": handleMoveNodeUp,
@@ -444,6 +485,7 @@ const NON_EDITING_KEYBOARD_CONFIG: KeyboardConfig = {
   "mod+d": handleDuplicate,
   "mod+.": handleToggleCollapsed,
   "mod+shift+.": handleExpandAll,
+  "mod+l": handleStartRelation,
   "alt+0": handleExpandToLevel(0),
   ...Object.fromEntries([1, 2, 3, 4, 5].map(depth => [`alt+${depth}`, handleExpandToLevel(depth)])),
 };
@@ -503,6 +545,16 @@ export const useMindNodeKeyboardNavigation = (
     // 如果选中了当前节点且不在编辑状态：
     // 仅在命中本 hook 的快捷键时才拦截，其余按键放行给 Board
     // （如 mod+z 撤销等全局快捷键不能被误拦）
+    if (isSelected && !isEditing && board.selection.selectedElements?.[0]?.id === element.id) {
+      for (const [hotkey, handler] of Object.entries(MULTI_SELECT_KEYBOARD_CONFIG)) {
+        if (isHotkey(hotkey, e)) {
+          e.stopImmediatePropagation();
+          e.preventDefault();
+          handler({ board, element, setIsEditing, editor, retainContent });
+          return;
+        }
+      }
+    }
     if (isSelected && onlyOneSelected && !isEditing) {
       for (const [hotkey, handler] of Object.entries(NON_EDITING_KEYBOARD_CONFIG)) {
         if (isHotkey(hotkey, e)) {

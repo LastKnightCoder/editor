@@ -500,6 +500,16 @@ export function patch(
     }
     if (!currentContract || !codec?.dataProperties?.includes(key))
       throw new Error("属性未声明持久归属");
+    if (codec.recordProperties?.includes(key)) {
+      commands.push({
+        type: "patch_records",
+        id: node.id,
+        field: key,
+        before: (node[key] ?? []) as WhiteboardData[],
+        after: (value ?? []) as WhiteboardData[],
+      });
+      continue;
+    }
     if (value == null) unset.add(key);
     else data[key] = canvasValue(value);
   }

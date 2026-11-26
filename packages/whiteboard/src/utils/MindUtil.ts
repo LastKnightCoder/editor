@@ -4,10 +4,16 @@ import { v4 as uuid } from "uuid";
 import BoardUtil from "./BoardUtil.ts";
 import PathUtil from "./PathUtil.ts";
 import { Board, ElementBounds, MindNodeElement, MindDragTarget } from "../types";
+import type { MindRange } from "../types/mind";
 import MindThemeUtil from "./MindThemeUtil.ts";
 import {
   getMindLayout,
+  isSummary,
   normalizeTree,
+  reconcileRanges,
+  rangeNodes,
+  shrinkRangesBeforeRemoval,
+  stackChildren,
   visibleChildren,
   type MindLayout,
   type MindLayoutId,
@@ -16,6 +22,7 @@ import {
 
 import { assertMindOutlineDepth, type MindOutline } from "./mind-markdown";
 import { WHITEBOARD_LIMITS } from "@tau/collaboration";
+import { resolveSummaryCollisions } from "./mind-layout/summary-collisions";
 
 const MIND_DRAG_TARGET_RETENTION_SCALE = 1.2;
 
@@ -36,13 +43,121 @@ export class MindUtil {
   static layout(node: MindNodeElement): MindNodeElement {
     return produce(node, draft => {
       const layout = getMindLayout(draft);
+      reconcileRanges(draft, layout.sides.length > 1);
       normalizeTree(draft, layout.sides.length === 1);
       layout.place(draft);
+      resolveSummaryCollisions(draft, layout);
     });
   }
 
   static visibleChildren(node: MindNodeElement) {
     return visibleChildren(node);
+  }
+
+  /** 可见且不是概要的子节点：兄弟导航、拖拽插入位置只在这一组里算 */
+  static stackChildren(node: MindNodeElement) {
+    return stackChildren(node);
+  }
+
+  static isSummary(node: MindNodeElement) {
+    return isSummary(node);
+  }
+
+  /**
+   * nodes 是同一父节点下、同一侧、连续相邻（不计概要）的兄弟时返回父节点和首尾，否则 null。
+   * 单个节点也算；根节点和概要节点不能被括住。
+   */
+  static adjacentSiblings(root: MindNodeElement, ids: readonly string[]) {
+    if (!ids.length) return null;
+    const parent = this.findParentInTree(root, ids[0]);
+    if (!parent) return null;
+    const bothSides = getMindLayout(root).sides.length > 1;
+    const picked = parent.children.filter(child => ids.includes(child.id));
+    if (picked.length !== new Set(ids).size || picked.some(isSummary)) return null;
+    const group = parent.children.filter(
+      child => !isSummary(child) && (!bothSides || child.direction === picked[0].direction)
+    );
+    const indexes = picked.map(child => group.indexOf(child)).sort((a, b) => a - b);
+    if (indexes[0] < 0 || indexes.some((index, i) => index !== indexes[0] + i)) return null;
+    return { parent, first: group[indexes[0]], last: group[indexes[indexes.length - 1]] };
+  }
+
+  /** 给相邻兄弟加概要节点（插在同组最后一个概要之后）；返回新树和概要节点 id */
+  static addSummary(root: MindNodeElement, ids: readonly string[], text: Descendant[]) {
+    const range = this.adjacentSiblings(root, ids);
+    if (!range) return null;
+    const existing = range.parent.children.find(
+      child =>
+        child.summaryRange?.startId === range.first.id && child.summaryRange.endId === range.last.id
+    );
+    if (existing) return { root, summaryId: existing.id };
+    const summary: MindNodeElement = {
+      ...this.nodesFromOutline([{ text, children: [] }])[0],
+      direction: range.first.direction,
+      summaryRange: { startId: range.first.id, endId: range.last.id },
+    };
+    const next = produce(root, draft => {
+      const parent = this.findNodeInTree(draft, range.parent.id)!;
+      parent.children.push(summary);
+    });
+    return { root: this.layout(next), summaryId: summary.id };
+  }
+
+  /** 给相邻兄弟加外框；返回新树和外框 id */
+  static addBoundary(root: MindNodeElement, ids: readonly string[]) {
+    const range = this.adjacentSiblings(root, ids);
+    if (!range) return null;
+    const id = uuid();
+    const next = produce(root, draft => {
+      const parent = this.findNodeInTree(draft, range.parent.id)!;
+      parent.boundaries = [
+        ...(parent.boundaries ?? []),
+        { id, startId: range.first.id, endId: range.last.id },
+      ];
+    });
+    return { root: this.layout(next), boundaryId: id };
+  }
+
+  static findBoundary(root: MindNodeElement, boundaryId: string) {
+    let found: { parent: MindNodeElement; index: number } | null = null;
+    this.dfs(root, {
+      before: node => {
+        const index = node.boundaries?.findIndex(boundary => boundary.id === boundaryId) ?? -1;
+        if (!found && index >= 0) found = { parent: node, index };
+      },
+    });
+    return found as { parent: MindNodeElement; index: number } | null;
+  }
+
+  /** 改外框标题；title 为 undefined 时删除标题 */
+  static updateBoundary(root: MindNodeElement, boundaryId: string, title: string | undefined) {
+    const found = this.findBoundary(root, boundaryId);
+    if (!found) return null;
+    return this.layout(
+      produce(root, draft => {
+        const parent = this.findNodeInTree(draft, found.parent.id)!;
+        const boundary = parent.boundaries![found.index];
+        if (title) boundary.title = title;
+        else delete boundary.title;
+      })
+    );
+  }
+
+  static removeBoundary(root: MindNodeElement, boundaryId: string) {
+    const found = this.findBoundary(root, boundaryId);
+    if (!found) return null;
+    return this.layout(
+      produce(root, draft => {
+        const parent = this.findNodeInTree(draft, found.parent.id)!;
+        parent.boundaries!.splice(found.index, 1);
+        if (!parent.boundaries!.length) delete parent.boundaries;
+      })
+    );
+  }
+
+  /** 外框/概要括住的兄弟在 parent 下的首尾节点 */
+  static rangeNodes(root: MindNodeElement, parent: MindNodeElement, range: MindRange) {
+    return rangeNodes(parent, range, getMindLayout(root).sides.length > 1);
   }
 
   /** 换一种布局重排后的各节点位置，供悬停预览渲染（不写文档） */
@@ -427,29 +542,21 @@ export class MindUtil {
   }
 
   static deleteNode(root: MindNodeElement, node: MindNodeElement) {
-    const newRoot = produce(root, draft => {
-      this.dfs(draft, {
-        before: current => {
-          const childIndex = current.children.findIndex(child => child.id === node.id);
-          if (childIndex !== -1) {
-            current.children.splice(childIndex, 1);
-          }
-        },
-      });
-    });
-    return this.layout(newRoot);
+    return this.deleteNodes(root, [node]);
   }
 
+  /** 删除节点；括住它们的概要与外框收缩到剩下的区间，整段删光时一并移除 */
   static deleteNodes(root: MindNodeElement, nodes: MindNodeElement[]) {
+    const bothSides = getMindLayout(root).sides.length > 1;
     const newRoot = produce(root, draft => {
       this.dfs(draft, {
         before: current => {
-          nodes.forEach(node => {
-            const childIndex = current.children.findIndex(child => child.id === node.id);
-            if (childIndex !== -1) {
-              current.children.splice(childIndex, 1);
-            }
-          });
+          const removed = new Set(
+            nodes.map(node => node.id).filter(id => current.children.some(child => child.id === id))
+          );
+          if (!removed.size) return;
+          shrinkRangesBeforeRemoval(current, removed, bothSides);
+          current.children = current.children.filter(child => !removed.has(child.id));
         },
       });
     });
@@ -664,9 +771,10 @@ export class MindUtil {
     const children = draggedNodeId
       ? parentNode.children.filter(child => child.id !== draggedNodeId)
       : parentNode.children;
-    // 双向布局只和同侧兄弟比较；单向布局所有子节点排在同一组
+    // 双向布局只和同侧兄弟比较；单向布局所有子节点排在同一组；概要不参与比较
+    const stacked = children.filter(child => !isSummary(child));
     const group =
-      layout.sides.length > 1 ? children.filter(child => child.direction === direction) : children;
+      layout.sides.length > 1 ? stacked.filter(child => child.direction === direction) : stacked;
     if (group.length === 0) return { node: parentNode, insertIndex: children.length, direction };
 
     const axis = layout.siblingAxis(parentNode.level);
@@ -692,7 +800,11 @@ export class MindUtil {
       if (sourceRoot.id === targetRoot.id) {
         const sourceParent = this.findParentInTree(draft, nodeToMove.id);
         if (sourceParent) {
-          sourceParent.children = sourceParent.children.filter(child => child.id !== nodeToMove.id);
+          if (sourceParent.id === newParent.id)
+            sourceParent.children = sourceParent.children.filter(
+              child => child.id !== nodeToMove.id
+            );
+          else this.detachChild(draft, sourceParent, nodeToMove.id);
         }
       }
 
@@ -701,6 +813,7 @@ export class MindUtil {
 
       // 创建移动后的节点，递归更新所有子节点的 direction
       const movedNode = produce(nodeToMove, draft => {
+        delete draft.summaryRange;
         this.updateNodeDirectionAndLevel(draft, direction, targetParentNode.level);
       });
 
@@ -725,7 +838,11 @@ export class MindUtil {
       if (sourceRoot.id === targetRoot.id) {
         const sourceParent = this.findParentInTree(draft, nodeToMove.id);
         if (sourceParent) {
-          sourceParent.children = sourceParent.children.filter(child => child.id !== nodeToMove.id);
+          if (sourceParent.id === targetParent.id)
+            sourceParent.children = sourceParent.children.filter(
+              child => child.id !== nodeToMove.id
+            );
+          else this.detachChild(draft, sourceParent, nodeToMove.id);
         }
       }
 
@@ -738,6 +855,7 @@ export class MindUtil {
 
       // 创建移动后的节点，递归更新所有子节点的 direction
       const movedNode = produce(nodeToMove, draft => {
+        delete draft.summaryRange;
         this.updateNodeDirectionAndLevel(draft, direction, targetParentNode.level);
       });
 
@@ -755,11 +873,19 @@ export class MindUtil {
     });
   }
 
+  /** 从父节点摘下一个子节点，区间先按删除收缩 */
+  private static detachChild(root: MindNodeElement, parent: MindNodeElement, childId: string) {
+    const removed = new Set([childId]);
+    shrinkRangesBeforeRemoval(parent, removed, getMindLayout(root).sides.length > 1);
+    parent.children = parent.children.filter(child => !removed.has(child.id));
+  }
+
   static createNewRootNode(
     node: MindNodeElement,
     position: { x: number; y: number }
   ): MindNodeElement {
     const newRoot = produce(node, draft => {
+      delete draft.summaryRange;
       draft.level = 1;
       draft.direction = "right";
       draft.x = position.x;
@@ -893,8 +1019,9 @@ export class MindUtil {
       produce(root, draft => {
         const from = this.findNodeInTree(draft, parent.id)!;
         const to = this.findNodeInTree(draft, grandParent.id)!;
-        const index = from.children.findIndex(child => child.id === nodeId);
-        const [node] = from.children.splice(index, 1);
+        const node = from.children.find(child => child.id === nodeId)!;
+        this.detachChild(draft, from, nodeId);
+        delete node.summaryRange;
         node.direction = from.direction;
         to.children.splice(to.children.findIndex(child => child.id === from.id) + 1, 0, node);
       })
@@ -919,6 +1046,34 @@ export class MindUtil {
    * 关联笔记的引用保留。
    */
   static cloneSubtree(node: MindNodeElement): MindNodeElement {
+    return this.cloneSubtrees([node])[0];
+  }
+
+  private static cloneSubtrees(nodes: MindNodeElement[]): MindNodeElement[] {
+    const ids = new Map<string, string>();
+    nodes.forEach(node =>
+      this.dfs(node, { before: current => void ids.set(current.id, uuid()) }, null, 0, false)
+    );
+    const remap = <T extends { startId: string; endId: string }>(range: T): T => ({
+      ...range,
+      startId: ids.get(range.startId) ?? range.startId,
+      endId: ids.get(range.endId) ?? range.endId,
+    });
+    const clone = (current: MindNodeElement): MindNodeElement => {
+      const copy = this.cloneNode(current, ids.get(current.id)!, clone);
+      if (current.summaryRange) copy.summaryRange = remap(current.summaryRange);
+      if (current.boundaries)
+        copy.boundaries = current.boundaries.map(boundary => ({ ...remap(boundary), id: uuid() }));
+      return copy;
+    };
+    return nodes.map(clone);
+  }
+
+  private static cloneNode(
+    node: MindNodeElement,
+    id: string,
+    cloneChild: (child: MindNodeElement) => MindNodeElement
+  ): MindNodeElement {
     const {
       body,
       dataVersion: _version,
@@ -927,9 +1082,9 @@ export class MindUtil {
     } = node as MindNodeElement & Record<string, unknown>;
     return {
       ...rest,
-      id: uuid(),
+      id,
       text: stripTextIdentity(Array.isArray(body) ? (body as Descendant[]) : (node.text ?? [])),
-      children: node.children.map(child => this.cloneSubtree(child)),
+      children: node.children.map(cloneChild),
     } as MindNodeElement;
   }
 
@@ -941,8 +1096,8 @@ export class MindUtil {
     const parent = this.findNodeInTree(root, parentId);
     if (!parent || !subtrees.length) return null;
     const direction: "left" | "right" = this.isRoot(parent) ? "right" : parent.direction;
-    const attached = subtrees.map(subtree =>
-      produce(this.cloneSubtree(subtree), draft => {
+    const attached = this.cloneSubtrees(subtrees).map(subtree =>
+      produce(subtree, draft => {
         this.updateNodeDirectionAndLevel(draft, direction, parent.level);
       })
     );
@@ -984,9 +1139,14 @@ export class MindUtil {
     return outline.map(build);
   }
 
-  /** 导图子树 → 大纲（含收起的分支） */
+  /** 导图子树 → 大纲（含收起的分支，不含概要） */
   static toOutline(node: MindNodeElement): MindOutline {
-    return { text: node.text, children: node.children.map(child => this.toOutline(child)) };
+    return {
+      text: node.text,
+      children: node.children
+        .filter(child => !isSummary(child))
+        .map(child => this.toOutline(child)),
+    };
   }
 
   static getDefaultThemeId(): string {

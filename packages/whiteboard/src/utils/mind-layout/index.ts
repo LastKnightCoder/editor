@@ -5,7 +5,25 @@ import { orgLayout } from "./org";
 import { treeLayout } from "./tree";
 
 export type * from "./types";
-export { isHiddenChild, normalizeTree, visibleChildren } from "./tree-shape";
+export {
+  boundaryBox,
+  createRangeGeometry,
+  rangeBox,
+  rangeNodes,
+  subtreeBox,
+  summaryBrace,
+} from "./ranges";
+export {
+  isHiddenChild,
+  isSummary,
+  normalizeTree,
+  reconcileRanges,
+  resolveRange,
+  shrinkRangesBeforeRemoval,
+  stackChildren,
+  summaryChildren,
+  visibleChildren,
+} from "./tree-shape";
 
 const LAYOUTS: Record<MindLayoutId, MindLayout> = {
   mind: createHorizontalLayout("mind", true),

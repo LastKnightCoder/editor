@@ -9,7 +9,7 @@ import { Descendant, Node } from "slate";
 import { useEffect, memo, useMemo, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import { useSelectState, useBoard, useSketch } from "../../hooks";
-import { ArrowElement, BoardElement, Point } from "../../types";
+import { ArrowElement, BoardElement } from "../../types";
 import Arrow from "../Arrow";
 import ArrowActivePoint from "./ArrowActivePoint";
 import ArrowMidPointHandle from "./ArrowMidPointHandle";
@@ -18,6 +18,7 @@ import { getArrowDisplayColor } from "../../utils/color";
 import useTheme from "../../hooks/useTheme";
 import { getLabelAnchorByPath, offsetAnchorAlongNormal } from "./labelGeometry";
 import { handTextClass } from "../../utils/sketch";
+import { mindRelationOpacity } from "../../utils/mindRelation";
 const styles = {
   descriptionContainer: "pointer-events-auto inline-flex h-fit w-fit items-center justify-start",
   descriptionEditor: "min-h-9 w-fit rounded-tau-sm",
@@ -152,6 +153,7 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
   }));
 
   const displayColor = getArrowDisplayColor(element, isDark);
+  const relationOpacity = mindRelationOpacity(board, element);
   const labelPath = useMemo(() => {
     return ArrowUtil.getArrowPath({
       lineType,
@@ -276,61 +278,6 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
       const ops = BoardUtil.diffNodePatchOnly(element, newElement, path);
       if (ops.length > 0) {
         board.apply(ops);
-      }
-    }
-  });
-
-  const handleElementsChange = useMemoizedFn((elements: BoardElement[]) => {
-    const sourceBindElement = elements.find(element => element.id === source?.bindId);
-    const targetBindElement = elements.find(element => element.id === target?.bindId);
-
-    let sourcePoint: Point | null = null;
-    let targetPoint: Point | null = null;
-
-    if (sourceBindElement) {
-      const { connectId, customOffset } = source;
-      const sourceBindPoint = board.getArrowBindPoint(
-        sourceBindElement,
-        connectId ?? "",
-        customOffset
-      );
-      if (sourceBindPoint) {
-        sourcePoint = sourceBindPoint;
-      }
-    }
-
-    if (targetBindElement) {
-      const { connectId, customOffset } = target;
-      const targetBindPoint = board.getArrowBindPoint(
-        targetBindElement,
-        connectId ?? "",
-        customOffset
-      );
-      if (targetBindPoint) {
-        targetPoint = targetBindPoint;
-      }
-    }
-
-    const newPoints = [...points];
-    if (sourcePoint) {
-      newPoints[0] = sourcePoint;
-    }
-
-    if (targetPoint) {
-      newPoints[newPoints.length - 1] = targetPoint;
-    }
-
-    if (sourcePoint || targetPoint) {
-      const path = PathUtil.getPathByElement(board, element);
-      if (!path) return;
-
-      const newElement = {
-        ...element,
-        points: newPoints,
-      };
-      const ops = BoardUtil.diffNodePatchOnly(element, newElement, path);
-      if (ops.length > 0) {
-        board.apply(ops, false);
       }
     }
   });
@@ -475,13 +422,11 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
   );
 
   useEffect(() => {
-    board.on("element:change", handleElementsChange);
     board.on("element:remove", handleElementsRemove);
     return () => {
-      board.off("element:change", handleElementsChange);
       board.off("element:remove", handleElementsRemove);
     };
-  }, [board, handleElementsChange, handleElementsRemove]);
+  }, [board, handleElementsRemove]);
 
   useEffect(() => {
     const handleOpenDescriptionEditor = (payload: { id?: string }) => {
@@ -567,7 +512,7 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
   }, [finishEditingDescription, isEditingDescription]);
 
   return (
-    <g onDoubleClick={handleArrowDoubleClick}>
+    <g onDoubleClick={handleArrowDoubleClick} opacity={relationOpacity}>
       <Arrow
         points={points}
         lineColor={displayColor}

@@ -5,6 +5,7 @@ export type { DataJson as WhiteboardJson } from "@tau/db-schema/content-contract
 import type { DataJson as WhiteboardJson } from "@tau/db-schema/content-contracts";
 
 const unsafe = new Set(["__proto__", "constructor", "prototype"]);
+export const WHITEBOARD_RECORD_PREFIX = "\u0000record:";
 
 export function assertWhiteboardJson(value: unknown, depth = 0): void {
   if (depth > WHITEBOARD_LIMITS.payloadDepth) throw new Error("白板数据层级超过预算");
@@ -58,7 +59,12 @@ export function assertWhiteboardDataPatch(
     throw new Error("删除属性列表无效");
   const keys = [...Object.keys(patch), ...unset];
   if (
-    keys.some(key => unsafe.has(key) || contract.textFields.includes(key)) ||
+    keys.some(
+      key =>
+        unsafe.has(key) ||
+        key.startsWith(WHITEBOARD_RECORD_PREFIX) ||
+        contract.textFields.includes(key)
+    ) ||
     unset.some(key => Object.hasOwn(patch, key))
   )
     throw new Error("补丁覆盖受保护字段或存在冲突");

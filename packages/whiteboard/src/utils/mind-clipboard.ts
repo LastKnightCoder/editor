@@ -16,6 +16,7 @@ export function mindClipboardText(elements: readonly BoardElement[]): string | n
 }
 
 type TransferNode = {
+  id: string;
   type: string;
   geometry?: Record<string, number>;
   data?: Record<string, unknown>;
@@ -30,7 +31,7 @@ const fromTransfer = (node: TransferNode): MindNodeElement =>
   ({
     ...node.geometry,
     ...node.data,
-    id: "",
+    id: node.id,
     type: "mind-node",
     level: 2,
     actualHeight: node.geometry?.height ?? 0,

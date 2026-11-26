@@ -76,6 +76,13 @@ export type WhiteboardModelCommand =
   | { type: "remove_nodes"; ids: readonly string[] }
   | { type: "set_node"; id: string; patch: WhiteboardShellPatch }
   | { type: "set_data"; id: string; patch: WhiteboardData; unset?: readonly string[] }
+  | {
+      type: "patch_records";
+      id: string;
+      field: string;
+      before: readonly WhiteboardData[];
+      after: readonly WhiteboardData[];
+    }
   | { type: "edit_text"; id: string; field: string | null; edit: WhiteboardTextEdit };
 
 export type WhiteboardRecoveryReason = "parent-unavailable" | "containment" | "cycle" | "depth";

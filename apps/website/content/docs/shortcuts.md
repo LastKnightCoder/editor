@@ -139,6 +139,9 @@
 | 收起 / 展开节点       | <kbd>⌘.</kbd>                                                |
 | 展开节点下的全部层级  | <kbd>⌘⇧.</kbd>                                               |
 | 整张导图展开到第 N 层 | <kbd>⌥1</kbd> … <kbd>⌥5</kbd>，<kbd>⌥0</kbd> 全部展开        |
+| 给相邻同级加概要      | <kbd>⌘⇧S</kbd>                                               |
+| 给相邻同级加外框      | <kbd>⌘⇧B</kbd>                                               |
+| 画联系线              | <kbd>⌘L</kbd>，再点另一个节点；<kbd>Esc</kbd> 取消           |
 | 删除节点              | <kbd>Delete</kbd> 或 <kbd>⌫</kbd>                            |
 
 Windows 上把 <kbd>⌘</kbd> 换成 <kbd>Ctrl</kbd>，<kbd>⌥</kbd> 换成 <kbd>Alt</kbd>。

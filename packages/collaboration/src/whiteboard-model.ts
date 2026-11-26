@@ -26,6 +26,11 @@ import { WHITEBOARD_LIMITS, assertWhiteboardBudget } from "./model-limits";
 import { assertWhiteboardDataPatch, assertWhiteboardJson } from "./whiteboard-contract";
 import { sharedValueEquals } from "./shared-values";
 import {
+  hasWhiteboardRecords,
+  patchWhiteboardRecords,
+  readWhiteboardData,
+} from "./whiteboard-data-records";
+import {
   canContainWhiteboardElement,
   projectWhiteboardRouting,
   sameWhiteboardParent,
@@ -1759,9 +1764,33 @@ export class WhiteboardModel {
         const record = this.live(this.elements, command.id);
         assertWhiteboardDataPatch(this.contract(record), command.patch, command.unset);
         const data = record.get("data") as Y.Map<unknown>;
-        for (const key of command.unset ?? []) data.delete(key);
-        for (const [key, value] of Object.entries(command.patch))
-          data.set(key, structuredClone(value));
+        const replace = (key: string, value: unknown) => {
+          if (hasWhiteboardRecords(data, key)) {
+            patchWhiteboardRecords(
+              data,
+              key,
+              (readWhiteboardData(data)[key] ?? []) as WhiteboardData[],
+              (value ?? []) as WhiteboardData[],
+              plan.token
+            );
+          } else if (value === undefined) data.delete(key);
+          else data.set(key, structuredClone(value));
+        };
+        for (const key of command.unset ?? []) replace(key, undefined);
+        for (const [key, value] of Object.entries(command.patch)) replace(key, value);
+        return;
+      }
+      case "patch_records": {
+        keys(command, ["type", "id", "field", "before", "after"]);
+        const record = this.live(this.elements, command.id);
+        const contract = this.contract(record);
+        assertWhiteboardDataPatch(contract, { [command.field]: command.before });
+        assertWhiteboardDataPatch(contract, { [command.field]: command.after });
+        const data = record.get("data") as Y.Map<unknown>;
+        patchWhiteboardRecords(data, command.field, command.before, command.after, plan.token);
+        assertWhiteboardDataPatch(contract, {
+          [command.field]: readWhiteboardData(data)[command.field] ?? [],
+        });
         return;
       }
       case "edit_text":
@@ -1872,7 +1901,9 @@ export class WhiteboardModel {
       keys(bindings.data, contract.textFields);
       if (!(record.get("data") instanceof Y.Map) || !(record.get("style") instanceof Y.Map))
         throw new Error("白板属性根无效");
-      const data = Object.fromEntries(record.get("data") as Y.Map<unknown>);
+      const data = readWhiteboardData(record.get("data") as Y.Map<unknown>, field =>
+        assertWhiteboardDataPatch(contract, { [field]: [] })
+      );
       for (const [key, value] of Object.entries(data))
         assertWhiteboardDataPatch(contract, { [key]: value });
       assertWhiteboardJson(Object.fromEntries(record.get("style") as Y.Map<unknown>));
@@ -1949,10 +1980,13 @@ export class WhiteboardModel {
     });
   }
 
-  readElementIdentity(target: string): { type: string; contractId: string } | undefined {
+  readElementIdentity(
+    target: string,
+    options: { includeRemoved?: boolean } = {}
+  ): { type: string; contractId: string } | undefined {
     this.active();
     const record = this.elements.get(target);
-    if (!record || !this.visible(record)) return;
+    if (!record || (!options.includeRemoved && !this.visible(record))) return;
     const contract = this.contract(record);
     const { contractId } = record.get("identity") as { contractId: string };
     return { type: contract.type, contractId };
@@ -1974,7 +2008,7 @@ export class WhiteboardModel {
     contract: WhiteboardElementContract,
     bindings: WhiteboardFieldBindings
   ): WhiteboardData {
-    const data = (record.get("data") as Y.Map<unknown>).toJSON();
+    const data = readWhiteboardData(record.get("data") as Y.Map<unknown>);
     for (const field of contract.textFields)
       data[field] = (this.strings.get(bindings.data[field]) ?? "").toString();
     return structuredClone(data);

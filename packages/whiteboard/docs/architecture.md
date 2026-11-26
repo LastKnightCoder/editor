@@ -139,7 +139,9 @@ Board（数据内核：Operation / undo / 事件总线；阶段 A 未改动，�
 
 - `types/board.ts` 定义 `BoardElement` 通用字段：`id/type/name/groupId/children` 与能力控制 `resizable/autoHeight`。
 - 富文本外观优先读取 `variant/tone`；没有时由旧版 `background/topColor` 只读换算（这两个字段随画布投影，不改写存量数据），都没有时使用透明样式。设置样式时不删除未知字段。渲染、尺寸测量与缩略图使用同一解析函数。脑图的旧主题 ID 读取时映射到当前 `MIND_PALETTES` 配色，未登记值回落默认配色。
-- 脑图布局存在根节点的 `layout` 字段（缺省 `mind`，未登记值按 `mind` 排布），策略位于 `utils/mind-layout/`：每种布局给出排布、父子连线、折叠按钮位置、方向键语义与拖拽落点。`level` 与三级以下的 `direction` 继承是数据规范，与布局无关；单向布局不改写 `direction`，切回 `mind` 恢复原左右分配。单向布局下左右两个折叠标记合一读写。悬停布局卡片的预览坐标只进 `mindThemePreviewStore`，不写文档。拖拽预览与松手提交使用同一目标布局；升级通过 `move_node` 保留节点与正文身份，重排只生成属性补丁。
+- 脑图布局存在根节点的 `layout` 字段（缺省 `mind`，未登记值按 `mind` 排布），策略位于 `utils/mind-layout/`：每种布局给出排布、父子连线、折叠按钮位置、方向键语义与拖拽落点。`level` 与三级以下的 `direction` 继承是数据规范，与布局无关；单向布局不改写 `direction`，切回 `mind` 恢复原左右分配。单向布局下左右两个折叠标记合一读写。悬停布局卡片的预览坐标只进 `mindThemePreviewStore`，不写文档。拖拽预览与松手提交使用同一目标布局；升级和拖拽（同树换父、跨树、拖出、整图合并）通过 `move_node` 保留节点与正文身份，移动后再对同一结构生成布局与区间补丁。本机根拖动的合并提交补记预览前的属性，撤销同时恢复结构与拖前坐标。
+- 脑图概要是带 `summaryRange { startId, endId }` 的子节点，外框是父节点上的 `boundaries[]`；区间只认非概要兄弟，双向布局下只在起点同侧连成一组。布局只排非概要兄弟（外框首尾留出内边距），概要随后贴在区间外侧的括号尖外；方向键、拖拽插入位置与大纲导出都跳过概要。删除先把端点向区间内收缩，整段删光时外框移除、概要节点连带删除；布局前的 `reconcileRanges` 兜住并发删除与跨文档粘贴造成的端点失效（端点退化为另一端，两端都失效时概要退回普通子节点）。同一区间再次添加概要时复用已有节点与正文；并发生成的重复概要按当前兄弟顺序保留首个概要，其余投影为普通节点，保留身份与正文并避免重叠。不同区间的概要在基础布局后用空间索引检查可见正文，以整棵概要子树向外侧避让；按父级复用范围查询批次，括号向避让后的正文补连线。外框写入由 codec 的 `recordProperties` 分类为记录差异，投影与导入导出仍是 `boundaries[]`；独立外框与同一外框的不同字段可以并发合并，记录存储与删除规则见[协作模型](/packages/collaboration/README.md#白板纯数据模型)。复制、粘贴与迁移导入同步重映射区间 id；transfer 转投影保留原 id，同批多子树统一分配副本身份。包围盒查询的缓存仅在同一批几何计算中有效，每个可见子树至多计算一次；同父节点的区间查询共享按方向分组的兄弟索引。布局放置概要与渲染概要/外框各自创建查询批次，坐标和折叠变化后的下一批重新计算。
+- 脑图联系线是两端 `bindId` 都指向导图节点的顶层箭头（`utils/mindRelation.ts`）：`⌘L` 写入每块白板一份的联系线模式状态，`MindPlugin.claimPointerGesture` 在模式中点到节点时插入箭头，空白处或 Esc 取消。节点与最近可见祖先按不可变 `children` 快照索引，每个快照遍历一次；结构、折叠和坐标变化后的新树重建。`Board.getArrowBindPoint` 的可选快照参数供发布前投影使用，避免查询旧画布树；隐藏端点的预览副本按其相对快照的位移补偿可见祖先，画框位移不依赖导图类型。`MindPlugin.getArrowBindPoint` 在端点被收起时返回最近可见祖先的点，箭头随任一导图节点变化重算端点并变淡；本机 `Board.apply` 在发布新树前复用 `ArrowProjection` 一批计算绑定端点，派生几何随同一快照和元素事件发布，不另建历史；组件不订阅 `element:change` 逐线查路径或写回。删除节点时连同任一端在被删节点上的联系线一起删除，属于同一步撤销。升级和拖拽提交通过 `withMindRelationRemovals` 按最终结构差集清理连带消失的概要联系线，仍存活的移动节点保留绑定；整张容器删除按实际删除的当前子树收集导图身份，内外联系线一起删除和撤销。 并发新增联系线与端点删除通过公共 `inactiveMindRelationIds` 判定：只识别 `host.whiteboard` 的箭头和两端导图身份（含保留池中的已删身份），任一端不在同页活树时，该线退出画布与可编辑导出；底层记录和正文保留，恢复两端后复用原身份显示。读取和投影不追加共享删除，不依赖接收顺序或组件挂载；普通箭头和同名第三方元素保持原规则。
 - Markdown 导入先按目标路径的剩余层级检查大纲，再构造节点；深度预算复用 `WHITEBOARD_LIMITS.payloadDepth`，超限整次拒绝并提示，不写文档和历史。行内代码序列化使用长于正文反引号串的分隔符，解析按相同长度配对。
 - 旧值模式元素的 `schemaVersion` 仅参与版本识别与保护。加载、粘贴、插入均不转换数据，不再声明或校验升级函数；版本不匹配时保留原数据并按未知元素处理。
 - 当前工具由 activeTool 模型表达：`tau.select` 为显式选择工具（非创建模式哨兵），创建型工具激活后在画布按元素声明的 `create` 规格手势创建；旧创建类型枚举与字段兼容层已删除。
@@ -189,23 +191,23 @@ Board（数据内核：Operation / undo / 事件总线；阶段 A 未改动，�
 
 ### 4.2 内置元素策略（由 `extensions/builtins.tsx` 与桌面装配组合）
 
-| 插件                    | 作用                            | 关键点                                                                                                                                                 |
-| ----------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| ViewPortPlugin          | 视口滚轮缩放/平移、右键默认行为 | 缩放/全览快捷键与命令在 tau.interaction 扩展（`extensions/interactionCommands.ts`）；右键拖拽平移、方向键平移在交互内核 PanningState/ViewportMoveState |
-| CopyPastePlugin         | 复制/粘贴/剪切                  | 依赖选区，支持剪切删除；复制走原生 clipboard 事件，不进快捷键仲裁                                                                                      |
-| CardPlugin              | 文本卡片元素                    | 基于 CommonPlugin 尺寸/命中/箭头连接点                                                                                                                 |
-| GeometryPlugin          | 矩形/圆角/菱形/三角等           | 多形状绘制与 resize                                                                                                                                    |
-| StickmanPlugin          | 人物（火柴人）                  | 只存姿态 key 与形体/着色/翻转，图形由 `utils/stickman` 现算；按比例缩放（四角手柄），跟随手绘，见 5.2                                                  |
-| RichTextPlugin          | 富文本块                        | 编辑态控制，选择时禁止删除等                                                                                                                           |
-| ArrowPlugin             | 连线与中心连接                  | 处理箭头绑定点、marker                                                                                                                                 |
-| Image/Video/AudioPlugin | 媒体渲染与资源选择              | 右键菜单触发选择器，beforeSave 清理无效资源                                                                                                            |
-| MindPlugin              | 思维导图节点                    | 按根节点布局排布与折叠、整体吸附 RootOnly；剪贴板能力：复制写缩进列表，粘贴到选中节点下挂子节点（导图子树或 Markdown 列表，`utils/mind-markdown.ts`）  |
-| PresentationPlugin      | 演示序列管理                    | 创建帧、进入演示模式过滤元素                                                                                                                           |
-| WebviewPlugin           | 网页 iframe/预览                | 右键插入/替换                                                                                                                                          |
-| FramePlugin             | 容器元素                        | 子元素移动与参考线联动                                                                                                                                 |
-| WhiteboardPlugin        | 引用/嵌入其他白板               | 支持 reference/create                                                                                                                                  |
-| ColumnPlugin            | 列布局元素                      | 子列容器/可重排                                                                                                                                        |
-| FileDragDropPlugin      | 外部文件拖拽导入                | 处理图片/视频/音频/白板文件                                                                                                                            |
+| 插件                    | 作用                            | 关键点                                                                                                                                                         |
+| ----------------------- | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ViewPortPlugin          | 视口滚轮缩放/平移、右键默认行为 | 缩放/全览快捷键与命令在 tau.interaction 扩展（`extensions/interactionCommands.ts`）；右键拖拽平移、方向键平移在交互内核 PanningState/ViewportMoveState         |
+| CopyPastePlugin         | 复制/粘贴/剪切                  | 依赖选区，支持剪切删除；复制走原生 clipboard 事件，不进快捷键仲裁                                                                                              |
+| CardPlugin              | 文本卡片元素                    | 基于 CommonPlugin 尺寸/命中/箭头连接点                                                                                                                         |
+| GeometryPlugin          | 矩形/圆角/菱形/三角等           | 多形状绘制与 resize                                                                                                                                            |
+| StickmanPlugin          | 人物（火柴人）                  | 只存姿态 key 与形体/着色/翻转，图形由 `utils/stickman` 现算；按比例缩放（四角手柄），跟随手绘，见 5.2                                                          |
+| RichTextPlugin          | 富文本块                        | 编辑态控制，选择时禁止删除等                                                                                                                                   |
+| ArrowPlugin             | 连线与中心连接                  | 处理箭头绑定点、marker                                                                                                                                         |
+| Image/Video/AudioPlugin | 媒体渲染与资源选择              | 右键菜单触发选择器，beforeSave 清理无效资源                                                                                                                    |
+| MindPlugin              | 思维导图节点                    | 按根节点布局排布与折叠、整体吸附 RootOnly；概要/外框菜单、联系线模式与绑定点；剪贴板能力：复制写缩进列表，粘贴到选中节点下挂子节点（`utils/mind-markdown.ts`） |
+| PresentationPlugin      | 演示序列管理                    | 创建帧、进入演示模式过滤元素                                                                                                                                   |
+| WebviewPlugin           | 网页 iframe/预览                | 右键插入/替换                                                                                                                                                  |
+| FramePlugin             | 容器元素                        | 子元素移动与参考线联动                                                                                                                                         |
+| WhiteboardPlugin        | 引用/嵌入其他白板               | 支持 reference/create                                                                                                                                          |
+| ColumnPlugin            | 列布局元素                      | 子列容器/可重排                                                                                                                                                |
+| FileDragDropPlugin      | 外部文件拖拽导入                | 处理图片/视频/音频/白板文件                                                                                                                                    |
 
 > 备注：`CommonPlugin` 抽象了通用几何类元素的命中/resize/箭头连接点等逻辑，其子类直接复用。选中元素的拖拽/吸附/参考线手势不在插件中，由交互内核 `interactions/states/DraggingState` 承接（原 MovePlugin 已删除）；HistoryPlugin / SelectPlugin 已删除，撤销重做与全选/删除的快捷键硬编码迁入 `tau.interaction` 扩展的命令与快捷键。
 
@@ -333,12 +335,12 @@ Board 在各事件入口通过 `bindHandler(eventName)` 收集插件实现的 ha
 
 ### Board.apply 六步详解
 
-1. **预处理**：`BoardOperations.applyOperations`（纯函数）深拷贝数据 → 过滤无效操作 → 插入操作按深度排序 → 逐条执行 → 返回 `data` + `metadata`（changed/removed/inserted/hasChanges）+ `executedOps`。
-2. **资源追踪**：`ResourceUsageTracker.track(metadata, resourceSource)` 统计新增/删除资源（图片/音视频/白板引用）。
-3. **状态更新**（immer Draft）：若 children/viewPort/selection 有变化，更新 draft。
-4. **参考线**：apply 不再维护参考线数据，吸附候选由 `board.snap` 在交互开始时按需快照。
-5. **历史记录**：若 `updateHistory=true`，使用 `executedOps`（或 preprocess 结果）入栈，1 秒内合并；超过 100 弹出最旧。
-6. **事件广播**：完成 draft 后 `finishDraft` 并 emit `onValueChange/onViewPortChange/onSelectionChange/element:change/element:remove/change`。
+1. **文档与预览边界**：有文档绑定时先交给绑定提交；本机路径在已有预览回退后，从当前节点重取旧属性。
+2. **纯操作执行**：`BoardOperations.applyOperations` 预处理并执行操作，返回 `data`、`metadata` 和 `executedOps`，失败不发布候选。
+3. **载荷校验**：扩展验证变更元素；无实际变化直接返回，历史重放复用已校验的数据。
+4. **派生几何与状态发布**：本机顶层箭头按新树批量投影端点，事件里的变化与插入元素同步使用投影后的值；重绑选区引用后以不可变树更新状态与快照。
+5. **历史记录**：`updateHistory=true` 时保存 `executedOps`；相同显式组归并，无显式组时一秒内归并，最多保留 100 条。箭头派生端点随重放重新计算，不单独入栈。
+6. **事件广播**：新快照发布后通知 `value:change`、`viewport:change`、`selection:change`、`sketch:change`、`element:change`、`element:insert`、`element:remove` 和 `change`；观察者失败不截断已完成的提交。
 
 ---
 

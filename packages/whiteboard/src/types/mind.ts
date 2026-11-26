@@ -33,6 +33,20 @@ export interface MindNodeElement {
   themeStyle?: string;
   /** 布局：mind / logic / org / tree（只在根节点上），缺省为 mind，见 utils/mind-layout */
   layout?: string;
+  /** 本节点为概要：括住父节点下 [startId, endId] 这段兄弟（不含其他概要） */
+  summaryRange?: MindRange;
+  /** 外框：各括住本节点下 [startId, endId] 这段子节点 */
+  boundaries?: MindBoundary[];
+}
+
+export interface MindRange {
+  startId: string;
+  endId: string;
+}
+
+export interface MindBoundary extends MindRange {
+  id: string;
+  title?: string;
 }
 
 export interface MindDragTarget {

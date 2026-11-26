@@ -2,7 +2,7 @@ import { projectArrowTree } from "../utils/ArrowProjection";
 import { matchesCanvasContract } from "./types";
 import { canvasFields } from "./builtins";
 import { buildHandwriteElement } from "../extensions/creators/handwrite";
-import type { WhiteboardElementSnapshot } from "@tau/collaboration";
+import { inactiveMindRelationIds, type WhiteboardElementSnapshot } from "@tau/collaboration";
 import { ColumnUtil } from "../utils/ColumnUtil";
 import { MindUtil } from "../utils/MindUtil";
 import type { BoardElement } from "../types/element";
@@ -267,7 +267,7 @@ export function refresh(binding: CanvasBinding): void {
       })
       .catch(() => undefined);
   }
-  children = resolveArrowBindings(binding, children);
+  children = resolveArrowBindings(binding, children, snapshot);
   const retained = new Set(flatten(children).map(node => node.id));
   for (const id of binding.projections.keys())
     if (!retained.has(id)) binding.projections.delete(id);
@@ -283,13 +283,18 @@ export function refresh(binding: CanvasBinding): void {
 
 export function resolveArrowBindings(
   binding: CanvasBinding,
-  children: BoardElement[]
+  children: BoardElement[],
+  snapshot?: ReturnType<CanvasBinding["readSnapshot"]>
 ): BoardElement[] {
   if (!binding.board) return children;
+  const eligible = (node: BoardElement) =>
+    node.type === "arrow" && binding.options.types.arrow?.contractId === node.contractId;
+  if (!children.some(eligible)) return children;
+  const inactive = inactiveMindRelationIds(binding.model, snapshot ?? binding.readSnapshot());
   return projectArrowTree(
     binding.board,
-    children,
-    node => node.type === "arrow" && binding.options.types.arrow?.contractId === node.contractId
+    children.filter(node => !inactive.has(node.id)),
+    eligible
   );
 }
 

@@ -598,6 +598,17 @@ export class CopyPastePlugin implements IBoardPlugin {
         idMaps.get(updatedElement.target.bindId) || updatedElement.target.bindId;
     }
 
+    // 导图概要与外框按 id 指向兄弟节点，原地改写（与 source/target 一致）
+    const ranges = [updatedElement.summaryRange, ...(updatedElement.boundaries ?? [])] as Array<
+      { id?: string; startId: string; endId: string } | undefined
+    >;
+    for (const range of ranges) {
+      if (!range) continue;
+      range.startId = idMaps.get(range.startId) || range.startId;
+      range.endId = idMaps.get(range.endId) || range.endId;
+      if (range.id) range.id = getUuid();
+    }
+
     // 递归处理children
     if (updatedElement.children && updatedElement.children.length > 0) {
       updatedElement.children = updatedElement.children.map(child =>

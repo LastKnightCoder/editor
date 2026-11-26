@@ -104,7 +104,8 @@ export interface IBoardPlugin {
     board: Board,
     element: BoardElement,
     connectId: string,
-    customOffset?: CustomOffset
+    customOffset?: CustomOffset,
+    children?: BoardElement[]
   ): Point | null;
   isElementSelected?(
     board: Board,

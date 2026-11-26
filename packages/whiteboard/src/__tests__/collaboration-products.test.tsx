@@ -47,9 +47,13 @@ import {
 import type { BoardElement } from "../types/element";
 import { restoreHotkeyPlatform, stubHotkeyPlatform } from "./hotkey-platform-stub";
 import MindUtil from "../utils/MindUtil";
+import { MindPlugin } from "../plugins/MindPlugin";
+import { createMindRelation } from "../utils/mindRelation";
+import BoardUtil from "../utils/BoardUtil";
 import { useMindNodeKeyboardNavigation } from "../components/MindNode/hooks/useMindNodeKeyboardNavigation";
 import type { MindNodeElement } from "../types/mind";
-import { markdownLineToText } from "../utils/mind-markdown";
+import { markdownLineToText, textToMarkdownLine } from "../utils/mind-markdown";
+import { deleteBoardElements } from "../utils/SelectionActionUtil";
 const cleanup: (() => void)[] = [];
 afterEach(() => {
   restoreHotkeyPlatform();
@@ -1946,3 +1950,697 @@ it("空图形只读挂载不写入正文，远端加入标签后能显示且移�
   );
   expect(host.textContent).toContain("远端标签");
 });
+
+const mindNode = (id: string, children: MindNodeElement[] = []): MindNodeElement => ({
+  id,
+  type: "mind-node",
+  ...rect,
+  level: 1,
+  direction: "right",
+  text: markdownLineToText(id),
+  actualHeight: rect.height,
+  childrenHeight: 0,
+  leftChildrenHeight: 0,
+  rightChildrenHeight: 0,
+  children,
+});
+
+it.each([false, true])(
+  "并发删除与新增联系线在合并和重开后不残留，撤销恢复原身份（逆序接收：%s）",
+  async reverse => {
+    // 删除时尚未知晓远端的新线，不能靠本端删除清单或组件挂载完成清理。
+    const local = await setup();
+    const tree = MindUtil.layout(mindNode("root", [mindNode("a"), mindNode("b"), mindNode("c")]));
+    local.insert(tree);
+    const remote = await setup(Y.encodeStateAsUpdate(local.doc));
+    const get = (id: string) => BoardUtil.getElementById(remote.board, id) as MindNodeElement;
+    const arrow = createMindRelation(get("a"), get("b"));
+    const kept = createMindRelation(get("b"), get("c"));
+    local.binding.splitHistory();
+    deleteBoardElements(local.board, [BoardUtil.getElementById(local.board, "a")!]);
+    remote.insert(arrow);
+    remote.insert(kept);
+    const updates = [local, remote].map(client => Y.encodeStateAsUpdate(client.doc));
+    if (reverse) updates.reverse();
+    for (const client of [local, remote])
+      for (const update of updates) await client.model.receive(update);
+    expect(local.model.read()).toEqual(remote.model.read());
+    for (const client of [local, remote]) {
+      expect(BoardUtil.getElementById(client.board, arrow.id)).toBeNull();
+      expect(BoardUtil.getElementById(client.board, kept.id)?.source.bindId).toBe("b");
+      expect(client.model.readElementIdentity("a")).toBeUndefined();
+      expect(client.model.readElementIdentity("a", { includeRemoved: true })?.type).toBe(
+        "mind-node"
+      );
+    }
+    const state = Y.encodeStateAsUpdate(local.doc);
+    const reopened = await setup(state);
+    expect(BoardUtil.getElementById(reopened.board, arrow.id)).toBeNull();
+    const pack = exportWhiteboardTransfer(local.model, "source");
+    expect(pack.pages.flatMap(page => page.elements).some(node => node.id === arrow.id)).toBe(
+      false
+    );
+    expect(pack.pages.flatMap(page => page.elements).some(node => node.id === kept.id)).toBe(true);
+    const imported = await setup();
+    await imported.binding.importTransfer(pack);
+    expect(imported.board.children.filter(node => node.type === "arrow")).toHaveLength(1);
+    expect(Y.encodeStateAsUpdate(local.doc)).toEqual(state);
+
+    const sync = async () => {
+      const states = [local, remote].map(client => Y.encodeStateAsUpdate(client.doc));
+      for (const client of [local, remote])
+        for (const update of states) await client.model.receive(update);
+      expect(remote.model.read()).toEqual(local.model.read());
+    };
+    local.binding.undo();
+    await sync();
+    for (const client of [local, remote]) {
+      const restored = BoardUtil.getElementById(client.board, arrow.id);
+      expect(restored?.source.bindId).toBe("a");
+      expect(restored?.target.bindId).toBe("b");
+    }
+    const selected = exportWhiteboardTransfer(local.model, "source", [arrow.id]);
+    expect(selected.pages.flatMap(page => page.elements).map(node => node.id)).toEqual([arrow.id]);
+    local.binding.redo();
+    await sync();
+    expect(BoardUtil.getElementById(local.board, arrow.id)).toBeNull();
+    local.binding.splitHistory();
+    deleteBoardElements(local.board, [BoardUtil.getElementById(local.board, "b")!]);
+    await sync();
+    expect(BoardUtil.getElementById(local.board, arrow.id)).toBeNull();
+    const final = await setup(Y.encodeStateAsUpdate(local.doc));
+    expect(BoardUtil.getElementById(final.board, arrow.id)).toBeNull();
+    local.binding.undo();
+    await sync();
+    expect(BoardUtil.getElementById(local.board, arrow.id)).toBeNull();
+    local.binding.undo();
+    await sync();
+    expect(BoardUtil.getElementById(local.board, arrow.id)?.source.bindId).toBe("a");
+  }
+);
+
+it("失效联系线过滤保留普通箭头和同名第三方元素", async () => {
+  const local = await setup();
+  local.insert(MindUtil.layout(mindNode("root", [mindNode("a"), mindNode("b")])));
+  const shape = base("geometry", { geometryType: "rectangle" });
+  local.insert(shape);
+  const remote = await setup(Y.encodeStateAsUpdate(local.doc));
+  const from = BoardUtil.getElementById(remote.board, "a") as MindNodeElement;
+  const to = BoardUtil.getElementById(remote.board, "b") as MindNodeElement;
+  deleteBoardElements(local.board, [BoardUtil.getElementById(local.board, "a")!]);
+  const ordinary = {
+    ...createMindRelation(from, to),
+    target: { ...createMindRelation(from, to).target, bindId: shape.id },
+  };
+  remote.insert(ordinary);
+  const foreign = await prepareWhiteboardContract("test.plugin", {
+    type: "arrow",
+    dataVersion: 1,
+  });
+  remote.model.submit(
+    [
+      {
+        type: "create",
+        id: "foreign-arrow",
+        contractId: foreign.id,
+        data: { source: { bindId: "a" }, target: { bindId: "b" } },
+        geometry: rect,
+        parent: { kind: "page", id: remote.model.read().pages[0].id },
+      },
+    ],
+    {},
+    [foreign]
+  );
+  await local.model.receive(Y.encodeStateAsUpdate(remote.doc));
+  expect(BoardUtil.getElementById(local.board, ordinary.id)?.target.bindId).toBe(shape.id);
+  expect(BoardUtil.getElementById(local.board, "foreign-arrow")?.contractId).toBe(foreign.id);
+  const exported = exportWhiteboardTransfer(local.model, "source").pages.flatMap(
+    page => page.elements
+  );
+  expect(exported.some(node => node.id === ordinary.id)).toBe(true);
+  expect(exported.some(node => node.id === "foreign-arrow")).toBe(true);
+});
+
+it.skipIf(process.env.WHITEBOARD_MIND_STRESS !== "1")(
+  "三端联系线并发创建与端点删除反复合并、撤销和重开一致",
+  async () => {
+    const first = await setup();
+    first.insert(MindUtil.layout(mindNode("root", [mindNode("a"), mindNode("b")])));
+    const clients = [
+      first,
+      await setup(Y.encodeStateAsUpdate(first.doc)),
+      await setup(Y.encodeStateAsUpdate(first.doc)),
+    ];
+    const sync = async (reverse: boolean) => {
+      const updates = clients.map(client => Y.encodeStateAsUpdate(client.doc));
+      if (reverse) updates.reverse();
+      for (const client of clients)
+        for (const update of updates) await client.model.receive(update);
+      for (const client of clients.slice(1))
+        expect(client.model.read()).toEqual(first.model.read());
+    };
+    const rounds = 20;
+    for (let round = 0; round < rounds; round++) {
+      const [a, b, c] = clients;
+      const arrow = createMindRelation(
+        BoardUtil.getElementById(b.board, "a") as MindNodeElement,
+        BoardUtil.getElementById(b.board, "b") as MindNodeElement
+      );
+      a.binding.splitHistory();
+      c.binding.splitHistory();
+      deleteBoardElements(a.board, [BoardUtil.getElementById(a.board, "a")!]);
+      b.insert(arrow);
+      deleteBoardElements(c.board, [BoardUtil.getElementById(c.board, "b")!]);
+      await sync(round % 2 === 0);
+      for (const client of clients) {
+        expect(BoardUtil.getElementById(client.board, arrow.id)).toBeNull();
+        const pack = exportWhiteboardTransfer(client.model, "doc");
+        expect(pack.pages.flatMap(page => page.elements).some(node => node.id === arrow.id)).toBe(
+          false
+        );
+      }
+      a.binding.undo();
+      await sync(false);
+      expect(BoardUtil.getElementById(first.board, arrow.id)).toBeNull();
+      c.binding.undo();
+      await sync(true);
+      for (const client of clients) {
+        const restored = BoardUtil.getElementById(client.board, arrow.id);
+        expect(restored?.source.bindId).toBe("a");
+        expect(restored?.target.bindId).toBe("b");
+      }
+      if (round % 5 === 0) {
+        const reopened = await setup(Y.encodeStateAsUpdate(first.doc));
+        expect(reopened.model.read()).toEqual(first.model.read());
+        expect(BoardUtil.getElementById(reopened.board, arrow.id)?.source.bindId).toBe("a");
+      }
+      b.binding.splitHistory();
+      deleteBoardElements(b.board, [BoardUtil.getElementById(b.board, arrow.id)!]);
+      await sync(false);
+      for (const client of clients)
+        expect(BoardUtil.getElementById(client.board, arrow.id)).toBeNull();
+    }
+    console.log(
+      "MIND_RELATION_CONCURRENCY",
+      JSON.stringify({ clients: 3, rounds, bytes: Y.encodeStateAsUpdate(first.doc).length })
+    );
+  },
+  120000
+);
+
+it.each([false, true])(
+  "复制到节点下保留独立身份、概要、外框和正文，可撤销重开（框内：%s）",
+  async inFrame => {
+    // transfer 转投影时曾把所有 id 清空，整个粘贴被真实协作模型拒绝。
+    const f = await setup();
+    const initial = MindUtil.layout(
+      mindNode("mind-root", [mindNode("a"), mindNode("b"), mindNode("c")])
+    );
+    const summary = MindUtil.addSummary(initial, ["a", "b"], markdownLineToText("已有总结"))!;
+    const boundary = MindUtil.addBoundary(summary.root, ["a", "b"])!;
+    const tree = MindUtil.updateBoundary(boundary.root, boundary.boundaryId, "分组")!;
+    f.insert(inFrame ? base("frame", { children: [tree] }) : tree);
+    const before = f.model.read();
+    const bundle = exportWhiteboardTransfer(f.model, "doc", [tree.id]);
+    const target = BoardUtil.getElementById(f.board, "c")!;
+    const paste = f.board.capabilityService.getClipboardCapability("mind-node").pasteInto;
+    if (!paste) throw new Error("导图缺少粘贴能力");
+    f.binding.splitHistory();
+    expect(paste(f.board, target, { payloads: [bundle] })).toBe(true);
+    const copied = (BoardUtil.getElementById(f.board, "c") as MindNodeElement).children[0];
+    const oldIds = new Set<string>(),
+      newIds = new Set<string>();
+    MindUtil.dfs(tree, { before: node => void oldIds.add(node.id) });
+    MindUtil.dfs(copied, {
+      before: node => {
+        expect(oldIds.has(node.id)).toBe(false);
+        expect(newIds.has(node.id)).toBe(false);
+        newIds.add(node.id);
+      },
+    });
+    const [a, b] = copied.children;
+    const copiedSummary = copied.children.find(node => node.summaryRange)!;
+    expect(copiedSummary.summaryRange).toEqual({ startId: a.id, endId: b.id });
+    expect(textToMarkdownLine(copiedSummary.text)).toBe("已有总结");
+    expect(copied.boundaries).toEqual([
+      { id: expect.any(String), startId: a.id, endId: b.id, title: "分组" },
+    ]);
+    expect(copied.boundaries![0].id).not.toBe(boundary.boundaryId);
+    const after = f.model.read();
+    f.binding.undo();
+    expect(f.model.read()).toEqual(before);
+    f.binding.redo();
+    expect(f.model.read()).toEqual(after);
+    const reopened = await setup(Y.encodeStateAsUpdate(f.doc));
+    expect(reopened.model.read()).toEqual(after);
+  }
+);
+
+const dragScenarios = ["换父", "跨导图", "拖出", "整图合并", "同级排序"] as const;
+it.each(
+  ["mind", "logic", "org", "tree"].flatMap(layout =>
+    dragScenarios.flatMap(scenario => [false, true].map(inFrame => ({ layout, scenario, inFrame })))
+  )
+)(
+  "$layout $scenario 保留节点正文身份并原子清理消失概要的联系线（框内：$inFrame）",
+  async ({ layout, scenario, inFrame }) => {
+    const f = await setup();
+    const tree = MindUtil.layout({
+      ...mindNode("root", [mindNode("p", [mindNode("a"), mindNode("b")]), mindNode("q")]),
+      layout,
+    });
+    const summary = MindUtil.addSummary(tree, ["a"], markdownLineToText("总结"))!;
+    f.insert(inFrame ? base("frame", { children: [summary.root] }) : summary.root);
+    f.insert(MindUtil.layout(mindNode("other", [mindNode("z")])));
+    const get = (id: string) => BoardUtil.getElementById(f.board, id) as MindNodeElement;
+    const summaryArrow = createMindRelation(get(summary.summaryId), get("z"));
+    const keptArrow = createMindRelation(get("a"), get("z"));
+    f.insert(summaryArrow);
+    f.insert(keptArrow);
+    const before = f.model.read(),
+      record = f.model.elements.get("a"),
+      body = get("a").text;
+    const peer = await setup(Y.encodeStateAsUpdate(f.doc));
+    const plugin = f.board.getPlugin<MindPlugin>("mind-node");
+    if (!plugin) throw new Error("导图缺少手势处理器");
+    const dragged = get(scenario === "整图合并" ? "root" : "a");
+    const target =
+      scenario === "拖出"
+        ? null
+        : get(scenario === "换父" ? "q" : scenario === "同级排序" ? "p" : "other");
+    const preview = target
+      ? { ...dragged, x: target.x + target.width + 130, y: target.y + 10000 }
+      : { ...dragged, x: 1400, y: 900 };
+    plugin.setDragState({
+      ...plugin.getSnapshot(),
+      draggedNode: dragged,
+      sourceRootId: "root",
+      previewNode: preview,
+      currentTarget: target
+        ? {
+            node: target,
+            insertIndex: target.children.length,
+            direction: "right",
+            horizontalDistance: 0,
+            verticalDistance: 0,
+            score: 0,
+            connectionStart: { x: 0, y: 0 },
+            connectionEnd: { x: 0, y: 0 },
+          }
+        : null,
+    });
+    f.binding.splitHistory();
+    plugin.commitDrop(f.board);
+    const after = f.model.read();
+    expect(f.model.elements.get("a")).toBe(record);
+    expect(get("a").text).toEqual(body);
+    expect(BoardUtil.getElementById(f.board, keptArrow.id)?.source?.bindId).toBe("a");
+    const keepsSummary = scenario === "整图合并" || scenario === "同级排序";
+    expect(Boolean(BoardUtil.getElementById(f.board, summary.summaryId))).toBe(keepsSummary);
+    expect(Boolean(BoardUtil.getElementById(f.board, summaryArrow.id))).toBe(keepsSummary);
+    if (scenario === "拖出") expect(f.board.children.some(node => node.id === "a")).toBe(true);
+    else if (scenario === "整图合并")
+      expect(get("other").children.some(node => node.id === "root")).toBe(true);
+    else expect(target && get(target.id).children.some(node => node.id === "a")).toBe(true);
+    if (scenario === "同级排序")
+      expect(
+        get("p")
+          .children.filter(node => !node.summaryRange)
+          .map(node => node.id)
+      ).toEqual(["b", "a"]);
+    f.binding.undo();
+    expect(f.model.read()).toEqual(before);
+    f.binding.redo();
+    expect(f.model.read()).toEqual(after);
+    await peer.model.receive(Y.encodeStateAsUpdate(f.doc));
+    expect(peer.model.read()).toEqual(after);
+    const reopened = await setup(Y.encodeStateAsUpdate(f.doc));
+    expect(reopened.model.read()).toEqual(after);
+  }
+);
+
+it("升级使概要消失时联系线一起撤销恢复", async () => {
+  const f = await setup();
+  const summary = MindUtil.addSummary(
+    MindUtil.layout(mindNode("root", [mindNode("p", [mindNode("leaf")]), mindNode("q")])),
+    ["leaf"],
+    markdownLineToText("总结")
+  )!;
+  f.insert(summary.root);
+  const get = (id: string) => BoardUtil.getElementById(f.board, id) as MindNodeElement;
+  const arrow = createMindRelation(get(summary.summaryId), get("q"));
+  f.insert(arrow);
+  const leaf = get("leaf");
+  f.board.apply(
+    {
+      type: "set_selection",
+      properties: f.board.selection,
+      newProperties: { selectArea: null, selectedElements: [leaf] },
+    },
+    false
+  );
+  const before = f.model.read();
+  let handle: ((event: KeyboardEvent) => void) | undefined;
+  function Harness() {
+    handle = useMindNodeKeyboardNavigation(
+      f.board,
+      leaf,
+      true,
+      false,
+      () => {},
+      null
+    ).handleKeyDown;
+    return null;
+  }
+  const root = createRoot(document.createElement("div"));
+  try {
+    await act(async () => root.render(<Harness />));
+    const event = new KeyboardEvent("keydown", { key: "Tab", shiftKey: true, cancelable: true });
+    Object.defineProperty(event, "which", { value: 9 });
+    f.binding.splitHistory();
+    handle!(event);
+    expect(BoardUtil.getElementById(f.board, summary.summaryId)).toBeNull();
+    expect(BoardUtil.getElementById(f.board, arrow.id)).toBeNull();
+    f.binding.undo();
+    expect(f.model.read()).toEqual(before);
+  } finally {
+    await act(async () => root.unmount());
+  }
+});
+
+it.skipIf(process.env.WHITEBOARD_MIND_STRESS !== "1")(
+  "导图结构长会话逐操作撤销重做、同步及重开一致",
+  async () => {
+    const f = await setup();
+    f.insert(MindUtil.layout(mindNode("root", [mindNode("a"), mindNode("b"), mindNode("c")])));
+    const peer = await setup(Y.encodeStateAsUpdate(f.doc));
+    const root = () => f.board.children[0] as MindNodeElement;
+    const sync = () => {
+      Y.applyUpdate(peer.doc, Y.encodeStateAsUpdate(f.doc, Y.encodeStateVector(peer.doc)));
+      expect(peer.model.read()).toEqual(f.model.read());
+    };
+    const commit = (next: MindNodeElement) => {
+      const ops = BoardUtil.diffNode(root(), next, [0]);
+      BoardUtil.normalizeOperations(ops);
+      f.board.apply(ops);
+    };
+    const verify = (change: () => void) => {
+      const before = f.model.read();
+      f.binding.splitHistory();
+      change();
+      const after = f.model.read();
+      sync();
+      f.binding.undo();
+      expect(f.model.read()).toEqual(before);
+      sync();
+      f.binding.redo();
+      expect(f.model.read()).toEqual(after);
+      sync();
+    };
+    const rounds = 80;
+    for (let round = 0; round < rounds; round++) {
+      verify(() =>
+        commit(MindUtil.layout({ ...root(), layout: ["mind", "logic", "org", "tree"][round % 4] }))
+      );
+      const summary = MindUtil.addSummary(root(), ["a", "b"], markdownLineToText("总结"))!;
+      verify(() => commit(summary.root));
+      const boundary = MindUtil.addBoundary(root(), ["a", "b"])!;
+      verify(() => commit(boundary.root));
+      verify(() => commit(MindUtil.updateBoundary(root(), boundary.boundaryId, "分组")!));
+      verify(() => {
+        f.insert(
+          createMindRelation(
+            MindUtil.findNodeInTree(root(), summary.summaryId)!,
+            MindUtil.findNodeInTree(root(), "c")!
+          )
+        );
+      });
+      verify(() => commit(MindUtil.toggleCollapsed(root(), "root")!));
+      verify(() => commit(MindUtil.toggleCollapsed(root(), "root")!));
+      verify(() => {
+        deleteBoardElements(f.board, [MindUtil.findNodeInTree(root(), summary.summaryId)!]);
+      });
+      expect(f.board.children.some(node => node.type === "arrow")).toBe(false);
+      verify(() => commit(MindUtil.removeBoundary(root(), boundary.boundaryId)!));
+      if (round % 10 === 0) {
+        const reopened = await setup(Y.encodeStateAsUpdate(f.doc));
+        expect(reopened.model.read()).toEqual(f.model.read());
+      }
+    }
+    console.log(
+      JSON.stringify({
+        rounds,
+        operations: rounds * 9,
+        undoRedo: rounds * 18,
+        bytes: Y.encodeStateAsUpdate(f.doc).length,
+      })
+    );
+  },
+  120000
+);
+
+it("两端同时添加同区间概要后正文都保留，重复概要成为可独立编辑的普通节点", async () => {
+  const local = await setup();
+  local.insert(MindUtil.layout(mindNode("root", [mindNode("a"), mindNode("b")])));
+  const peer = await setup(Y.encodeStateAsUpdate(local.doc));
+  const add = (f: Awaited<ReturnType<typeof setup>>, text: string) => {
+    const root = f.board.children[0] as MindNodeElement;
+    const added = MindUtil.addSummary(root, ["a", "b"], markdownLineToText(text));
+    if (!added) throw new Error("缺少概要范围");
+    const operations = BoardUtil.diffNode(root, added.root, [0]);
+    BoardUtil.normalizeOperations(operations);
+    f.binding.splitHistory();
+    f.board.apply(operations);
+    return added.summaryId;
+  };
+  const firstId = add(local, "本端总结"),
+    secondId = add(peer, "另一端总结");
+  await local.model.receive(Y.encodeStateAsUpdate(peer.doc));
+  await peer.model.receive(Y.encodeStateAsUpdate(local.doc));
+  expect(peer.model.read()).toEqual(local.model.read());
+  for (const f of [local, peer]) {
+    const root = f.board.children[0] as MindNodeElement;
+    const first = MindUtil.findNodeInTree(root, firstId)!,
+      second = MindUtil.findNodeInTree(root, secondId)!;
+    expect(root.children.filter(child => child.summaryRange)).toHaveLength(1);
+    expect(textToMarkdownLine(first.text)).toBe("本端总结");
+    expect(textToMarkdownLine(second.text)).toBe("另一端总结");
+    expect(
+      first.x + first.width <= second.x ||
+        second.x + second.width <= first.x ||
+        first.y + first.height <= second.y ||
+        second.y + second.height <= first.y
+    ).toBe(true);
+  }
+  local.binding.undo();
+  expect(BoardUtil.getElementById(local.board, firstId)).toBeNull();
+  expect(
+    textToMarkdownLine((BoardUtil.getElementById(local.board, secondId) as MindNodeElement).text)
+  ).toBe("另一端总结");
+});
+
+it.each(["新增", "改标题", "删除与修改"])(
+  "两端%s不同外框后可局部撤销、同步和重开",
+  async scenario => {
+    const f = await setup();
+    let tree = MindUtil.layout(mindNode("root", [mindNode("a"), mindNode("b")]));
+    const a = MindUtil.addBoundary(tree, ["a"])!;
+    const b = MindUtil.addBoundary(a.root, ["b"])!;
+    if (scenario !== "新增") tree = b.root;
+    f.insert(tree);
+    const peer = await setup(Y.encodeStateAsUpdate(f.doc));
+    const commit = (client: typeof f, next: MindNodeElement) => {
+      const operations = BoardUtil.diffNode(client.board.children[0], next, [0]);
+      BoardUtil.normalizeOperations(operations);
+      client.binding.splitHistory();
+      client.board.apply(operations);
+    };
+    let localId = a.boundaryId,
+      remoteId = b.boundaryId;
+    if (scenario === "新增") {
+      const local = MindUtil.addBoundary(f.board.children[0] as MindNodeElement, ["a"])!;
+      const remote = MindUtil.addBoundary(peer.board.children[0] as MindNodeElement, ["b"])!;
+      localId = local.boundaryId;
+      remoteId = remote.boundaryId;
+      commit(f, local.root);
+      commit(peer, remote.root);
+    } else {
+      commit(
+        f,
+        scenario === "改标题"
+          ? MindUtil.updateBoundary(f.board.children[0] as MindNodeElement, localId, "本端标题")!
+          : MindUtil.removeBoundary(f.board.children[0] as MindNodeElement, localId)!
+      );
+      commit(
+        peer,
+        MindUtil.updateBoundary(peer.board.children[0] as MindNodeElement, remoteId, "远端标题")!
+      );
+    }
+    const sync = async () => {
+      await f.model.receive(Y.encodeStateAsUpdate(peer.doc, Y.encodeStateVector(f.doc)));
+      await peer.model.receive(Y.encodeStateAsUpdate(f.doc, Y.encodeStateVector(peer.doc)));
+      expect(peer.model.read()).toEqual(f.model.read());
+    };
+    await sync();
+    const boundaries = () => (f.board.children[0] as MindNodeElement).boundaries ?? [];
+    expect(boundaries().some(item => item.id === localId)).toBe(scenario !== "删除与修改");
+    expect(boundaries().find(item => item.id === remoteId)?.title).toBe(
+      scenario === "新增" ? undefined : "远端标题"
+    );
+    expect(boundaries().some(item => item.id === remoteId)).toBe(true);
+    if (scenario === "改标题")
+      expect(boundaries().find(item => item.id === localId)?.title).toBe("本端标题");
+    const merged = f.model.read();
+    f.binding.undo();
+    await sync();
+    expect(boundaries().some(item => item.id === localId)).toBe(scenario !== "新增");
+    expect(boundaries().some(item => item.id === remoteId)).toBe(true);
+    if (scenario !== "新增")
+      expect(boundaries().find(item => item.id === remoteId)?.title).toBe("远端标题");
+    f.binding.redo();
+    await sync();
+    expect(f.model.read()).toEqual(merged);
+    const reopened = await setup(Y.encodeStateAsUpdate(f.doc));
+    expect(reopened.model.read()).toEqual(merged);
+    const bundle = exportWhiteboardTransfer(f.model, "doc", ["root"]);
+    const paste = f.board.capabilityService.getClipboardCapability("mind-node").pasteInto;
+    if (!paste) throw new Error("导图缺少粘贴能力");
+    const titles = boundaries()
+      .map(item => item.title ?? "")
+      .sort();
+    f.binding.splitHistory();
+    expect(paste(f.board, BoardUtil.getElementById(f.board, "a")!, { payloads: [bundle] })).toBe(
+      true
+    );
+    const copied = (BoardUtil.getElementById(f.board, "a") as MindNodeElement).children[0];
+    expect(copied.boundaries!.map(item => item.title ?? "").sort()).toEqual(titles);
+    const childIds = new Set(copied.children.map(child => child.id));
+    for (const item of copied.boundaries!)
+      expect(childIds.has(item.startId) && childIds.has(item.endId)).toBe(true);
+    f.binding.undo();
+    expect(f.model.read()).toEqual(merged);
+  }
+);
+
+it.each([false, true])(
+  "删除含导图的嵌套画框连同内外联系线一次撤销恢复（连线在前：%s）",
+  async arrowFirst => {
+    const f = await setup();
+    const tree = MindUtil.layout(mindNode("inside", [mindNode("a"), mindNode("b")]));
+    const outside = MindUtil.layout(mindNode("outside", [mindNode("x"), mindNode("y")]));
+    const frame = base("frame", { children: [base("frame", { children: [tree] })] });
+    f.insert(frame);
+    f.insert(outside);
+    const internal = createMindRelation(tree.children[0], tree.children[1]);
+    const crossing = createMindRelation(tree.children[0], outside.children[0]);
+    const retained = createMindRelation(outside.children[0], outside.children[1]);
+    for (const arrow of [internal, crossing, retained])
+      f.board.apply({
+        type: "insert_node",
+        path: [arrowFirst ? 0 : f.board.children.length],
+        node: arrow,
+      });
+    const before = f.model.read();
+    f.binding.splitHistory();
+    deleteBoardElements(f.board, [BoardUtil.getElementById(f.board, frame.id)!]);
+    expect(BoardUtil.getElementById(f.board, "a")).toBeNull();
+    expect(BoardUtil.getElementById(f.board, internal.id)).toBeNull();
+    expect(BoardUtil.getElementById(f.board, crossing.id)).toBeNull();
+    expect(BoardUtil.getElementById(f.board, retained.id)?.source?.bindId).toBe("x");
+    const after = f.model.read();
+    f.binding.undo();
+    expect(f.model.read()).toEqual(before);
+    f.binding.redo();
+    expect(f.model.read()).toEqual(after);
+    const peer = await setup(Y.encodeStateAsUpdate(f.doc));
+    expect(peer.model.read()).toEqual(after);
+  }
+);
+
+it.skipIf(process.env.WHITEBOARD_MIND_STRESS !== "1")(
+  "三端独立外框反复并发增删改、局部撤销和重开一致",
+  async () => {
+    const first = await setup();
+    first.insert(MindUtil.layout(mindNode("root", [mindNode("a"), mindNode("b"), mindNode("c")])));
+    const clients = [
+      first,
+      await setup(Y.encodeStateAsUpdate(first.doc)),
+      await setup(Y.encodeStateAsUpdate(first.doc)),
+    ];
+    const root = (client: typeof first) => client.board.children[0] as MindNodeElement;
+    const commit = (client: typeof first, next: MindNodeElement) => {
+      const operations = BoardUtil.diffNode(root(client), next, [0]);
+      BoardUtil.normalizeOperations(operations);
+      client.binding.splitHistory();
+      client.board.apply(operations);
+    };
+    const sync = async () => {
+      const updates = clients.map(client => Y.encodeStateAsUpdate(client.doc));
+      for (const client of clients)
+        for (const update of updates) await client.model.receive(update);
+      for (const client of clients.slice(1))
+        expect(client.model.read()).toEqual(first.model.read());
+    };
+    for (let round = 0; round < 40; round++) {
+      const ids = clients.map((client, i) => {
+        const added = MindUtil.addBoundary(root(client), [["a", "b", "c"][i]])!;
+        commit(client, MindUtil.updateBoundary(added.root, added.boundaryId, `初始-${i}`)!);
+        return added.boundaryId;
+      });
+      await sync();
+      expect(new Set(root(first).boundaries!.map(item => item.id))).toEqual(new Set(ids));
+      clients.forEach((client, i) =>
+        commit(client, MindUtil.updateBoundary(root(client), ids[i], `改字-${i}`)!)
+      );
+      await sync();
+      for (const [i, id] of ids.entries())
+        expect(root(first).boundaries!.find(item => item.id === id)?.title).toBe(`改字-${i}`);
+      first.binding.undo();
+      await sync();
+      expect(root(first).boundaries!.find(item => item.id === ids[0])?.title).toBe("初始-0");
+      expect(root(first).boundaries!.find(item => item.id === ids[1])?.title).toBe("改字-1");
+      first.binding.redo();
+      await sync();
+      clients
+        .slice(0, 2)
+        .forEach(client => commit(client, MindUtil.removeBoundary(root(client), ids[0])!));
+      await sync();
+      expect(root(first).boundaries!.some(item => item.id === ids[0])).toBe(false);
+      first.binding.undo();
+      await sync();
+      expect(root(first).boundaries!.some(item => item.id === ids[0])).toBe(false);
+      clients[1].binding.undo();
+      await sync();
+      expect(root(first).boundaries!.find(item => item.id === ids[0])?.title).toBe("改字-0");
+      clients.forEach((client, i) => {
+        const next = MindUtil.removeBoundary(root(client), ids[i])!;
+        commit(client, MindUtil.updateBoundary(next, ids[(i + 1) % 3], `删除期间-${i}`)!);
+      });
+      await sync();
+      expect(root(first).boundaries ?? []).toEqual([]);
+      first.binding.undo();
+      await sync();
+      expect(root(first).boundaries).toEqual([
+        { id: ids[0], startId: "a", endId: "a", title: "删除期间-2" },
+      ]);
+      first.binding.redo();
+      await sync();
+      expect(root(first).boundaries ?? []).toEqual([]);
+      if (round % 10 === 0) {
+        const reopened = await setup(Y.encodeStateAsUpdate(first.doc));
+        expect(reopened.model.read()).toEqual(first.model.read());
+      }
+    }
+    console.log(
+      "MIND_BOUNDARY_CONCURRENCY",
+      JSON.stringify({
+        clients: 3,
+        rounds: 40,
+        edits: 440,
+        undoRedo: 240,
+        bytes: Y.encodeStateAsUpdate(first.doc).length,
+      })
+    );
+  },
+  120000
+);

@@ -1,5 +1,5 @@
 import intersect from "path-intersection";
-import { MoveRight, RotateCcw } from "lucide-react";
+import { ArrowLeftRight, MoveRight, RotateCcw, Tag, Trash2 } from "lucide-react";
 import {
   IBoardPlugin,
   ArrowElement,
@@ -18,6 +18,7 @@ import {
 import ArrowElementComponent from "../components/ArrowElementComponent";
 import { ARROW_TOOL_ID } from "../constants/tools";
 import { ArrowUtil, BoardUtil, CanvasUtil, PointUtil, selectAreaToRect, PathUtil } from "../utils";
+import { isMindRelation } from "../utils/mindRelation";
 
 export class ArrowPlugin implements IBoardPlugin {
   name = "arrow";
@@ -63,6 +64,60 @@ export class ArrowPlugin implements IBoardPlugin {
           ctx.board.setActiveTool(ARROW_TOOL_ID);
         },
       });
+    }
+
+    // 思维导图联系线：编辑标签、反转方向、删除
+    if (
+      targetElements.length === 1 &&
+      targetElements[0].type === "arrow" &&
+      !context.board.readonly &&
+      isMindRelation(context.board, targetElements[0] as ArrowElement)
+    ) {
+      const arrow = targetElements[0] as ArrowElement;
+      items.push(
+        {
+          key: "mind-relation-label",
+          label: "编辑标签",
+          icon: <Tag size={14} />,
+          priority: 100,
+          onSelect: ctx => ctx.board.emit("tau.arrow.description-edit", { id: arrow.id }),
+        },
+        {
+          key: "mind-relation-reverse",
+          label: "反转方向",
+          icon: <ArrowLeftRight size={14} />,
+          priority: 101,
+          onSelect: ctx => {
+            const path = PathUtil.getPathByElement(ctx.board, arrow);
+            if (!path) return;
+            const swap = (from: ArrowElement["source"], to: ArrowElement["target"]) => ({
+              ...from,
+              marker: to.marker,
+            });
+            ctx.board.apply({
+              type: "set_node",
+              path,
+              properties: { source: arrow.source, target: arrow.target, points: arrow.points },
+              newProperties: {
+                source: swap(arrow.target, arrow.source),
+                target: swap(arrow.source, arrow.target),
+                points: [...arrow.points].reverse(),
+              },
+            });
+          },
+        },
+        {
+          key: "mind-relation-remove",
+          label: "删除联系线",
+          icon: <Trash2 size={14} />,
+          danger: true,
+          priority: 102,
+          onSelect: ctx => {
+            const path = PathUtil.getPathByElement(ctx.board, arrow);
+            if (path) ctx.board.apply({ type: "remove_node", path, node: arrow });
+          },
+        }
+      );
     }
 
     // 右键选中单个直线箭头 → 添加「恢复直线」菜单

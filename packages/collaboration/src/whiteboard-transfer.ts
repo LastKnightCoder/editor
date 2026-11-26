@@ -16,6 +16,7 @@ import { collectWhiteboardDocumentResources } from "./whiteboard-document";
 import { isSafeResource } from "./resource-policy";
 import { assertWhiteboardJson } from "./whiteboard-contract";
 import { NODE_TREE_LIMITS } from "./model-limits";
+import { inactiveMindRelationIds } from "./whiteboard-mind-relations";
 import type { ContentNode } from "./protocol";
 import type { WhiteboardModel } from "./whiteboard-model";
 import type { WhiteboardElementSnapshot, WhiteboardModelCommand } from "./whiteboard-types";
@@ -79,6 +80,8 @@ export function exportWhiteboardTransfer(
 ): WhiteboardTransfer {
   const selected = elementIds && new Set(elementIds),
     contracts: Record<string, DataContract> = {};
+  const snapshot = model.read();
+  const inactive = inactiveMindRelationIds(model, snapshot);
   const used = (id: string) => {
     const contract = model.contracts.get(id);
     if (!contract) throw new Error("导出契约缺失");
@@ -93,13 +96,16 @@ export function exportWhiteboardTransfer(
     used(node.contractId);
     if (Array.isArray(node.body)) node.body.forEach(body);
     const { fieldBindings: _fields, recoveryReason: _recovery, children, ...value } = node;
-    return { ...value, children: children.map(convert) };
+    return { ...value, children: children.filter(child => !inactive.has(child.id)).map(convert) };
   };
   const pick = (nodes: readonly WhiteboardElementSnapshot[]): TransferElement[] =>
     nodes.flatMap(node =>
-      !selected || selected.has(node.id) ? [convert(node)] : pick(node.children)
+      inactive.has(node.id)
+        ? []
+        : !selected || selected.has(node.id)
+          ? [convert(node)]
+          : pick(node.children)
     );
-  const snapshot = model.read();
   if (snapshot.recovery.length && !selected && !scope.pageIds)
     throw new Error("白板仍有未确认页面归属的元素，请先处理恢复区再完整导出");
   const pages = snapshot.pages
@@ -328,6 +334,24 @@ export async function prepareWhiteboardTransfer(
           groups.set(data.groupId, mapped);
         }
         data.groupId = mapped;
+      }
+      if (node.type === "mind-node") {
+        const remap = (range: unknown) => {
+          const value = range as { startId?: unknown; endId?: unknown } | null;
+          if (!value || typeof value.startId !== "string" || typeof value.endId !== "string")
+            return range;
+          return {
+            ...value,
+            startId: ids.get(value.startId) ?? value.startId,
+            endId: ids.get(value.endId) ?? value.endId,
+          };
+        };
+        if (data.summaryRange) data.summaryRange = remap(data.summaryRange) as never;
+        if (Array.isArray(data.boundaries))
+          data.boundaries = data.boundaries.map(item => {
+            const next = remap(item) as Record<string, unknown>;
+            return { ...next, id: crypto.randomUUID() };
+          }) as never;
       }
       if (node.type === "arrow")
         for (const key of ["source", "target"]) {

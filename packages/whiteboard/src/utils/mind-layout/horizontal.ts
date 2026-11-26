@@ -1,7 +1,8 @@
 import type { MindNodeElement } from "../../types/mind";
 import type { MindBox, MindLayout, MindLayoutId, MindSide } from "./types";
 import { scoreOf } from "./score";
-import { visibleChildren } from "./tree-shape";
+import { stackChildren, summaryChildren, visibleChildren } from "./tree-shape";
+import { boundaryInsets, createRangeGeometry, placeSummary } from "./ranges";
 
 const MARGIN_X = 36;
 const MARGIN_Y: Record<string, number> = { "1": 24, "2": 16, "3": 8 };
@@ -17,16 +18,22 @@ export function createHorizontalLayout(id: MindLayoutId, bothSides: boolean): Mi
 
   const place = (root: MindNodeElement) => {
     const onSide = (node: MindNodeElement, side: MindSide) =>
-      visibleChildren(node).filter(child => sideOf(child) === side);
-    const stackHeight = (nodes: MindNodeElement[], level: number) =>
-      nodes.length
-        ? nodes.reduce((sum, n) => sum + n.actualHeight, 0) + (nodes.length - 1) * gapY(level)
-        : 0;
+      stackChildren(node).filter(child => sideOf(child) === side);
+    const stackHeight = (parent: MindNodeElement, nodes: MindNodeElement[]) => {
+      if (!nodes.length) return 0;
+      const { before, after } = boundaryInsets(parent, nodes, bothSides);
+      const insets = [...before, ...after].reduce((sum, n) => sum + n, 0);
+      return (
+        nodes.reduce((sum, n) => sum + n.actualHeight, 0) +
+        (nodes.length - 1) * gapY(parent.level + 1) +
+        insets
+      );
+    };
 
     const measure = (node: MindNodeElement) => {
       visibleChildren(node).forEach(measure);
-      const left = stackHeight(onSide(node, "left"), node.level + 1);
-      const right = stackHeight(onSide(node, "right"), node.level + 1);
+      const left = stackHeight(node, onSide(node, "left"));
+      const right = stackHeight(node, onSide(node, "right"));
       node.leftChildrenHeight = left;
       node.rightChildrenHeight = right;
       node.childrenHeight = Math.max(left, right);
@@ -34,15 +41,27 @@ export function createHorizontalLayout(id: MindLayoutId, bothSides: boolean): Mi
     };
 
     const position = (node: MindNodeElement) => {
+      const geometry = createRangeGeometry(bothSides);
       for (const side of ["left", "right"] as const) {
         const total = side === "left" ? node.leftChildrenHeight : node.rightChildrenHeight;
         let top = node.y + node.height / 2 - total / 2;
-        for (const child of onSide(node, side)) {
+        const kids = onSide(node, side);
+        const { before, after } = boundaryInsets(node, kids, bothSides);
+        kids.forEach((child, i) => {
+          top += before[i];
           child.x =
             side === "left" ? node.x - child.width - MARGIN_X : node.x + node.width + MARGIN_X;
           child.y = top + (child.actualHeight - child.height) / 2;
-          top += child.actualHeight + gapY(child.level);
+          top += child.actualHeight + after[i] + gapY(child.level);
           position(child);
+        });
+        for (const summary of summaryChildren(node)) {
+          if (
+            sideOf(summary) === side &&
+            placeSummary(node, summary, "y", side, bothSides, geometry)
+          ) {
+            position(summary);
+          }
         }
       }
     };

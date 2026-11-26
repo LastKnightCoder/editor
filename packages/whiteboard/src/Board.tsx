@@ -35,6 +35,7 @@ import { InteractionManager } from "./interactions/InteractionManager";
 import { BOARD_TO_CONTAINER } from "./constants/map";
 import { HAND_TOOL_ID, SELECT_TOOL_ID, builtinCreateToolIds } from "./constants/tools";
 import { createMindThemePreviewStore } from "./utils/MindThemePreviewStore";
+import { projectArrowTree } from "./utils/ArrowProjection";
 import { ExtensionRuntime } from "./extensions/runtime";
 import type {
   WhiteboardAPI,
@@ -902,6 +903,26 @@ class Board {
     const hasSelectedElementsToRebind = Boolean(
       hasElementMutation && data.selection?.selectedElements?.length
     );
+    if (hasElementMutation && data.children.some(node => node.type === "arrow")) {
+      const arrows = new Map(
+        data.children.filter(node => node.type === "arrow").map(node => [node.id, node])
+      );
+      data.children = projectArrowTree(this, data.children, node => node.type === "arrow");
+      const projected = new Map(
+        data.children
+          .filter(node => arrows.has(node.id) && arrows.get(node.id) !== node)
+          .map(node => [node.id, node])
+      );
+      const inserted = new Set(metadata.insertedElements.map(node => node.id));
+      const changed = new Map(
+        metadata.changedElements.map(node => [node.id, projected.get(node.id) ?? node])
+      );
+      for (const [id, node] of projected) if (!inserted.has(id)) changed.set(id, node);
+      metadata.changedElements = [...changed.values()];
+      metadata.insertedElements = metadata.insertedElements.map(
+        node => projected.get(node.id) ?? node
+      );
+    }
 
     // 重要：selection.selectedElements 存的是元素快照对象，children 变化（尤其是 undo/redo）后会变“陈旧”。
     // 如果不把 selection 重新绑定到最新 children 上，后续属性面板/样式修改会把陈旧的 x/y 等字段写回去，
@@ -1131,9 +1152,14 @@ class Board {
     return value.map(element => this.renderElement(element));
   }
 
-  getArrowBindPoint(element: BoardElement, connectId: string, customOffset?: CustomOffset) {
+  getArrowBindPoint(
+    element: BoardElement,
+    connectId: string,
+    customOffset?: CustomOffset,
+    children = this.children
+  ) {
     const plugin = this.plugins.find(plugin => plugin.name === element.type);
-    return plugin?.getArrowBindPoint?.(this, element, connectId, customOffset) ?? null;
+    return plugin?.getArrowBindPoint?.(this, element, connectId, customOffset, children) ?? null;
   }
 
   canUndo(): boolean {
