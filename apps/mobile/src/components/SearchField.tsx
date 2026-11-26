@@ -1,5 +1,6 @@
 // 移动端统一搜索框：40px 胶囊 + 18 号图标 + 16px 输入字号 + 一键清空；样式见 styles.css `.search-field`。
 
+import { useMobileI18n } from "../services/i18n-react";
 import { useRef, type InputHTMLAttributes, type Ref } from "react";
 import { Search, X } from "lucide-react";
 import { cn } from "@tau/ui";
@@ -18,6 +19,7 @@ type SearchFieldProps = Omit<
 };
 
 export function SearchField(props: SearchFieldProps) {
+  const { t } = useMobileI18n();
   const { value, onValueChange, tone = "page", inputRef, className, ...inputProps } = props;
   const localRef = useRef<HTMLInputElement | null>(null);
 
@@ -43,7 +45,7 @@ export function SearchField(props: SearchFieldProps) {
       {value ? (
         <button
           type="button"
-          aria-label="清空"
+          aria-label={t("common.clear")}
           // 清空不抢走输入框焦点，键盘保持
           onPointerDown={event => event.preventDefault()}
           onClick={() => {

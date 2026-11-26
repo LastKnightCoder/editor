@@ -2,6 +2,7 @@
 // 编辑态下 chip 自带 × 可直接删除；新增与删除统一经 onCommit 串行写回。
 // 写回经 onCommit 注入（卡片走 updateCardTags，文章 / 文档走各自 update 命令）。
 
+import { useMobileI18n } from "../../services/i18n-react";
 import { useEffect, useRef, useState } from "react";
 import { Check, Plus } from "lucide-react";
 import TagChips from "./TagChips";
@@ -13,6 +14,7 @@ type TagInlineEditorProps = {
 };
 
 export function TagInlineEditor({ tags, onCommit, onError }: TagInlineEditorProps) {
+  const { t } = useMobileI18n();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
@@ -55,7 +57,7 @@ export function TagInlineEditor({ tags, onCommit, onError }: TagInlineEditorProp
     }
     setSaving(true);
     try {
-      await enqueue(localTags.concat(value), "标签保存失败");
+      await enqueue(localTags.concat(value), t("tags.saveFailed"));
     } finally {
       setSaving(false);
       stopEditing();
@@ -65,7 +67,7 @@ export function TagInlineEditor({ tags, onCommit, onError }: TagInlineEditorProp
   const remove = (tag: string) => {
     void enqueue(
       localTags.filter(item => item !== tag),
-      "标签删除失败"
+      t("tags.removeFailed")
     );
   };
 
@@ -99,7 +101,7 @@ export function TagInlineEditor({ tags, onCommit, onError }: TagInlineEditorProp
                   }
                 }}
                 onBlur={() => void commit()}
-                placeholder="输入标签名"
+                placeholder={t("tags.input")}
                 enterKeyHint="done"
                 className="text-ink-1 caret-accent placeholder:text-ink-3 w-24 bg-transparent text-[12px] outline-none"
               />
@@ -110,7 +112,7 @@ export function TagInlineEditor({ tags, onCommit, onError }: TagInlineEditorProp
               className="border-accent text-accent inline-flex items-center gap-[3px] rounded-[8px] border-[1.5px] border-solid px-2.5 py-[3px] text-[12px] font-semibold"
             >
               <Check size={12.5} strokeWidth={2.5} />
-              完成
+              {t("tags.done")}
             </button>
           </>
         ) : (
@@ -120,7 +122,7 @@ export function TagInlineEditor({ tags, onCommit, onError }: TagInlineEditorProp
             className="border-line-2 text-ink-3 active:bg-hover inline-flex items-center gap-[3px] rounded-[8px] border border-dashed px-2.5 py-[3px] text-[12px] font-semibold"
           >
             <Plus size={12.5} strokeWidth={2.5} />
-            标签
+            {t("tags.label")}
           </button>
         )
       }

@@ -1,6 +1,8 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { desktopI18n, desktopLocaleSource } from "@/app/i18n/runtime";
+import { tagsMessages } from "../i18n";
 import AddTag from "@/components/AddTag";
 
 vi.mock("react-dnd", () => ({
@@ -100,4 +102,34 @@ it("编辑中再次点击保留草稿与当前光标", () => {
   expect(selection.anchorOffset).toBe(3);
   expect(selection.isCollapsed).toBe(true);
   expect(caretRangeFromPoint).toHaveBeenCalledTimes(1);
+});
+
+it("切换语言保留标签草稿、编辑节点和光标，不提交编辑", () => {
+  const editTag = vi.fn();
+  act(() =>
+    root.render(
+      <AddTag tags={["测试标签"]} addTag={vi.fn()} removeTag={vi.fn()} editTag={editTag} />
+    )
+  );
+  caretRangeFromPoint.mockReturnValue(null);
+  const editor = startEditing();
+  editor.textContent = "尚未保存的标签";
+  const range = document.createRange();
+  range.setStart(editor.firstChild!, 3);
+  range.collapse(true);
+  const selection = window.getSelection()!;
+  selection.removeAllRanges();
+  selection.addRange(range);
+  const originalLocale = desktopLocaleSource.getSnapshot();
+  try {
+    act(() => desktopLocaleSource.setLocale("en-US"));
+    expect(host.querySelector("[contenteditable]")).toBe(editor);
+    expect(editor.textContent).toBe("尚未保存的标签");
+    expect(selection.anchorNode).toBe(editor.firstChild);
+    expect(selection.anchorOffset).toBe(3);
+    expect(host.textContent).toContain(desktopI18n.get(tagsMessages).t("add"));
+    expect(editTag).not.toHaveBeenCalled();
+  } finally {
+    act(() => desktopLocaleSource.setLocale(originalLocale));
+  }
 });

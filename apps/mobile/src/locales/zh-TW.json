@@ -13,5 +13,19 @@
   "nav.more": "更多",
   "nav.moreEntries": "更多入口",
   "nav.search": "搜尋所有內容",
-  "nav.pinHint": "在「我的」長按並拖曳功能圖示，調整這裡顯示的項目"
+  "nav.pinHint": "在「我的」長按並拖曳功能圖示，調整這裡顯示的項目",
+  "common.cancel": "取消",
+  "common.confirm": "確認",
+  "common.closeConfirm": "關閉確認視窗",
+  "common.clear": "清除",
+  "tags.remove": "刪除標籤 {{tag}}",
+  "tags.saveFailed": "標籤儲存失敗",
+  "tags.removeFailed": "標籤刪除失敗",
+  "tags.input": "輸入標籤名稱",
+  "tags.done": "完成",
+  "tags.label": "標籤",
+  "common.back": "返回",
+  "content.selectBlocks": "選取區塊",
+  "content.outline": "整理結構",
+  "common.closePanel": "關閉面板"
 }

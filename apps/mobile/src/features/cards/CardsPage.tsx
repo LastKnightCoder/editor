@@ -1,3 +1,4 @@
+import { useMobileCardsI18n } from "./i18n";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -35,6 +36,7 @@ function laneBox(lane: number, lanes: number): { left: string; width: string } {
 }
 
 export function CardsPage(props: CardsPageProps) {
+  const { t, locale } = useMobileCardsI18n();
   const items = props.cards?.items ?? [];
   const hasMore = props.queryState.page < props.totalPages;
   const listCount = items.length + (hasMore ? 1 : 0);
@@ -222,10 +224,10 @@ export function CardsPage(props: CardsPageProps) {
                       {props.isLoadingCards ? (
                         <div className="flex items-center justify-center gap-2">
                           <div className="border-accent h-4 w-4 animate-spin rounded-full border-2 border-t-transparent" />
-                          <span className="text-ink-3 text-sm">加载中...</span>
+                          <span className="text-ink-3 text-sm">{t("loadingMore")}</span>
                         </div>
                       ) : (
-                        <span className="text-ink-3 text-xs">继续下滑加载更多</span>
+                        <span className="text-ink-3 text-xs">{t("more")}</span>
                       )}
                     </div>
                   </div>
@@ -255,15 +257,18 @@ export function CardsPage(props: CardsPageProps) {
 
           {!hasMore && (
             <p className="text-ink-3 py-4 text-center text-xs">
-              已加载全部 {props.cards?.total ?? 0} 条卡片
+              {t("loaded", {
+                count: props.cards?.total ?? 0,
+                amount: (props.cards?.total ?? 0).toLocaleString(locale),
+              })}
             </p>
           )}
         </>
       ) : (
         <div className="py-20 text-center">
           <NotebookPen size={44} className="text-ink-3 mx-auto" aria-hidden="true" />
-          <p className="text-ink-2 mt-4 text-[14px] font-medium">还没有卡片</p>
-          <p className="text-ink-3 mt-1 text-sm">点击下方 + 按钮创建第一张卡片</p>
+          <p className="text-ink-2 mt-4 text-[14px] font-medium">{t("empty.title")}</p>
+          <p className="text-ink-3 mt-1 text-sm">{t("empty.hint")}</p>
         </div>
       )}
     </section>

@@ -272,15 +272,8 @@ export function bucketByTimeGroups(cards: ICard[]): CardTimeGroup[] {
     else buckets.set(key, [card]);
   }
   const order: CardTimeGroupKey[] = ["today", "yesterday", "week", "month", "earlier"];
-  const labels: Record<CardTimeGroupKey, string> = {
-    today: "今天",
-    yesterday: "昨天",
-    week: "本周",
-    month: "本月",
-    earlier: "更早",
-  };
   return order
-    .map(key => ({ key, label: labels[key], cards: buckets.get(key) ?? [] }))
+    .map(key => ({ key, cards: buckets.get(key) ?? [] }))
     .filter(group => group.cards.length > 0);
 }
 

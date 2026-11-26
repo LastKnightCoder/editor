@@ -8,6 +8,7 @@
  * 分组头暂不吸顶（虚拟行内 sticky 不可靠）。
  */
 
+import { useCardsI18n } from "../i18n";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ArrowUp, Pin } from "lucide-react";
@@ -15,10 +16,12 @@ import type { ICard } from "@/types";
 import { ContentPreview } from "@/components/ContentPreview";
 import { cn, useEdgeFade, IconButton, Tag } from "@tau/ui";
 import { bucketByTimeGroups } from "../queries";
-import { CardItemView, formatMonthDay } from "./CardItemView";
+import { CardItemView } from "./CardItemView";
 import { FadeWhenOverflow } from "./FadeWhenOverflow";
 import { useScrollTopOnChange } from "@/hooks/useScrollTopOnChange";
 import type { CardItemActions } from "../types";
+import { cardDate } from "../format";
+import type { CardTimeGroupKey } from "../types";
 import { cardMorphKey } from "../morph";
 
 const MIN_CARD_WIDTH = 288;
@@ -31,7 +34,7 @@ const CARD_ESTIMATE = 170;
 type WallRow =
   | { kind: "pin-head"; count: number }
   | { kind: "featured"; cards: ICard[] }
-  | { kind: "group-head"; label: string; count: number }
+  | { kind: "group-head"; group: CardTimeGroupKey; count: number }
   | { kind: "cards"; cards: ICard[] };
 
 export interface CardWallListProps {
@@ -41,6 +44,7 @@ export interface CardWallListProps {
 }
 
 export function CardWallList({ cards, actions, resetScrollKey }: CardWallListProps) {
+  const { t } = useCardsI18n();
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
   const [cols, setCols] = useState(3);
   const [showBackToTop, setShowBackToTop] = useState(false);
@@ -90,7 +94,7 @@ export function CardWallList({ cards, actions, resetScrollKey }: CardWallListPro
       }
     }
     for (const group of bucketByTimeGroups(cards)) {
-      list.push({ kind: "group-head", label: group.label, count: group.cards.length });
+      list.push({ kind: "group-head", group: group.key, count: group.cards.length });
       for (let i = 0; i < group.cards.length; i += cols) {
         list.push({ kind: "cards", cards: group.cards.slice(i, i + cols) });
       }
@@ -115,7 +119,7 @@ export function CardWallList({ cards, actions, resetScrollKey }: CardWallListPro
     getItemKey: index => {
       const row = rows[index];
       if (row.kind === "pin-head") return "pin-head";
-      if (row.kind === "group-head") return `head-${row.label}`;
+      if (row.kind === "group-head") return `head-${row.group}`;
       const first = row.cards[0];
       return `${row.kind}-${first.id}`;
     },
@@ -146,10 +150,18 @@ export function CardWallList({ cards, actions, resetScrollKey }: CardWallListPro
                   }}
                 >
                   {row.kind === "pin-head" && (
-                    <SectionHead first={item.index === 0} label="置顶" count={row.count} />
+                    <SectionHead
+                      first={item.index === 0}
+                      label={t("group.pinned")}
+                      count={row.count}
+                    />
                   )}
                   {row.kind === "group-head" && (
-                    <SectionHead first={item.index === 0} label={row.label} count={row.count} />
+                    <SectionHead
+                      first={item.index === 0}
+                      label={t(`group.${row.group}`)}
+                      count={row.count}
+                    />
                   )}
                   {row.kind === "featured" && (
                     <div
@@ -191,7 +203,7 @@ export function CardWallList({ cards, actions, resetScrollKey }: CardWallListPro
       </div>
       {showBackToTop && (
         <IconButton
-          title="回到顶部"
+          title={t("backTop")}
           className="bg-surface enabled:hover:bg-surface-hover shadow-float rounded-tau-md absolute right-3 bottom-5 size-9"
           onClick={() => {
             virtualizer.scrollToOffset(0);
@@ -215,10 +227,13 @@ function SectionHead({
   count: number;
   first?: boolean;
 }) {
+  const { t, locale } = useCardsI18n();
   return (
     <header className={cn("flex items-baseline gap-2 pb-2", first ? "pt-2" : "pt-4")}>
       <b className="text-ink-2 text-[13px] font-semibold">{label}</b>
-      <span className="text-ink-3 text-[11px] tabular-nums">{count} 张</span>
+      <span className="text-ink-3 text-[11px] tabular-nums">
+        {t("meta.cards", { count, amount: count.toLocaleString(locale) })}
+      </span>
       <span className="bg-sunken/60 ml-1 h-px flex-1 self-center" />
     </header>
   );
@@ -234,6 +249,7 @@ function FeaturedCard({
   actions: CardItemActions;
   previewMaxHeight: number;
 }) {
+  const { t, locale } = useCardsI18n();
   return (
     <article
       tabIndex={0}
@@ -248,7 +264,7 @@ function FeaturedCard({
       <span className="absolute inset-y-0 left-0 w-1" style={{ background: "var(--tau-accent)" }} />
       <span
         className="bg-accent-soft text-accent absolute top-3 right-3.5 grid size-[22px] place-items-center rounded-full"
-        title="已置顶"
+        title={t("pinned")}
       >
         <Pin className="size-3" strokeWidth={1.75} />
       </span>
@@ -270,9 +286,13 @@ function FeaturedCard({
             ))}
           </div>
           <span className="flex shrink-0 items-center gap-2.5">
-            {card.linkCount > 0 && <span className="text-info">⇄ {card.linkCount}</span>}
-            <span>{card.count} 字</span>
-            <span>{formatMonthDay(card.create_time)}</span>
+            {card.linkCount > 0 && (
+              <span className="text-info">⇄ {card.linkCount.toLocaleString(locale)}</span>
+            )}
+            <span>
+              {t("meta.words", { count: card.count, amount: card.count.toLocaleString(locale) })}
+            </span>
+            <span>{cardDate(card.create_time, locale, false)}</span>
           </span>
         </div>
       </div>

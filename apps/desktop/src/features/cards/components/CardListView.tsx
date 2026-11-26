@@ -6,14 +6,14 @@
  * 列头在滚动容器内吸顶（scrollMargin 让出列头高度）。
  */
 
+import { useCardsI18n } from "../i18n";
 import { useMemo, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Link2, Maximize2, MoreHorizontal, Star } from "lucide-react";
 import type { ICard } from "@/types";
 import { IconButton, cn, useEdgeFade } from "@tau/ui";
 import { ListTags, SortHeader } from "@/features/shared/list/ListControls";
-import { cockpitRelativeTime } from "@/features/shared/cockpit/text";
-import { formatDate } from "@/features/shared/cockpit/model";
+import { relativeCardTime, cardDate } from "../format";
 import { cardListText, sortCardList, type CardListSort } from "../listModel";
 import { CardActionMenu } from "./CardActionMenu";
 import { useScrollTopOnChange } from "@/hooks/useScrollTopOnChange";
@@ -41,6 +41,7 @@ export function CardListView({
   actions,
   resetScrollKey,
 }: CardListViewProps) {
+  const { t } = useCardsI18n();
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
   useEdgeFade(scrollEl, { top: false });
   const rows = useMemo(() => sortCardList(cards, sort), [cards, sort]);
@@ -77,12 +78,12 @@ export function CardListView({
         )}
         style={{ height: HEAD_HEIGHT }}
       >
-        <span>内容</span>
-        <span>标签</span>
-        {head("links", "连接", "justify-self-end")}
-        {head("words", "字数", "justify-self-end")}
-        {head("updated", "更新")}
-        {head("created", "创建")}
+        <span>{t("column.content")}</span>
+        <span>{t("column.tags")}</span>
+        {head("links", t("column.links"), "justify-self-end")}
+        {head("words", t("column.words"), "justify-self-end")}
+        {head("updated", t("column.updated"))}
+        {head("created", t("column.created"))}
         <span />
       </div>
       <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
@@ -108,6 +109,7 @@ function CardListRow({
   actions: CardItemActions;
   offset: number;
 }) {
+  const { t, locale } = useCardsI18n();
   const { title, excerpt } = cardListText(card);
   const cell = "text-tau-sm text-ink-2 truncate tabular-nums";
   return (
@@ -131,33 +133,35 @@ function CardListRow({
             <Star
               className="text-accent fill-accent size-[13px] shrink-0"
               strokeWidth={1.75}
-              aria-label="已置顶"
+              aria-label={t("pinned")}
             />
           )}
-          <span className="truncate">{title || `卡片 #${card.id}`}</span>
+          <span className="truncate">{title || t("card.fallback", { id: card.id })}</span>
         </p>
-        <p className="text-ink-3 truncate text-[11.5px]">{excerpt || (title ? "" : "空卡片")}</p>
+        <p className="text-ink-3 truncate text-[11.5px]">
+          {excerpt || (title ? "" : t("card.empty"))}
+        </p>
       </div>
       <ListTags tags={card.tags} />
       <span className={cn(cell, "flex items-center justify-end gap-1")}>
         {card.linkCount > 0 ? (
           <>
             <Link2 className="text-ink-3 size-3 shrink-0" strokeWidth={1.75} />
-            {card.linkCount}
+            {card.linkCount.toLocaleString(locale)}
           </>
         ) : (
           <span className="text-ink-3">—</span>
         )}
       </span>
-      <span className={cn(cell, "text-right")}>{card.count.toLocaleString("zh-CN")}</span>
-      <span className={cell}>{cockpitRelativeTime(card.update_time)}</span>
-      <span className={cell}>{formatDate(card.create_time)}</span>
+      <span className={cn(cell, "text-right")}>{card.count.toLocaleString(locale)}</span>
+      <span className={cell}>{relativeCardTime(card.update_time, locale)}</span>
+      <span className={cell}>{cardDate(card.create_time, locale)}</span>
       <div
         className="flex justify-end gap-0.5 opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100 has-[[aria-expanded=true]]:opacity-100"
         onClick={e => e.stopPropagation()}
       >
         <IconButton
-          title="进入详情"
+          title={t("action.detail")}
           className="size-[23px] rounded-[7px]"
           onClick={() => actions.onOpenDetail(card)}
         >
@@ -167,7 +171,7 @@ function CardListRow({
           card={card}
           actions={actions}
           trigger={
-            <IconButton title="更多操作" className="size-[23px] rounded-[7px]">
+            <IconButton title={t("action.more")} className="size-[23px] rounded-[7px]">
               <MoreHorizontal className="size-[13px]" strokeWidth={1.75} />
             </IconButton>
           }

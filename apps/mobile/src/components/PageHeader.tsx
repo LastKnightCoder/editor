@@ -1,6 +1,7 @@
 // 二级页统一顶栏：ghost 图标按钮（无底无影，按压浮现墨团）+ 居中大标题。
 // 任务/文章/项目/知识库/设置/关于等页面共用，避免各页样式分叉。
 
+import { useMobileI18n } from "../services/i18n-react";
 import { ChevronLeft } from "lucide-react";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { CoverHeaderContext, useOnCoverHeader } from "./coverHeaderContext";
@@ -84,6 +85,7 @@ type PageHeaderProps = {
 };
 
 export function PageHeader(props: PageHeaderProps) {
+  const { t } = useMobileI18n();
   return (
     <CoverHeaderContext.Provider value={props.transparent ?? false}>
       <header
@@ -100,7 +102,7 @@ export function PageHeader(props: PageHeaderProps) {
               (props.onBack ? (
                 <PageHeaderButton
                   icon={<ChevronLeft size={22} strokeWidth={2.4} />}
-                  aria-label={props.backLabel ?? "返回"}
+                  aria-label={props.backLabel ?? t("common.back")}
                   onClick={props.onBack}
                 />
               ) : null)}

@@ -1,3 +1,4 @@
+import { useTagsI18n } from "./i18n";
 import React, { useEffect, useLayoutEffect, useState, useRef, useCallback } from "react";
 import { isHotkey } from "is-hotkey";
 import { Plus } from "lucide-react";
@@ -27,6 +28,7 @@ interface AddTagProps {
 }
 
 const AddTag = (props: AddTagProps) => {
+  const { t } = useTagsI18n();
   const {
     tags,
     addTag,
@@ -152,7 +154,7 @@ const AddTag = (props: AddTagProps) => {
           >
             <span className="flex items-center gap-1 whitespace-nowrap">
               <Plus aria-hidden className="size-3.5 shrink-0" strokeWidth={2} />
-              添加标签
+              {t("add")}
             </span>
           </TauTag>
         }

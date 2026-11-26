@@ -1,3 +1,4 @@
+import { cardsTranslator } from "../features/cards/i18n";
 import { MobilePluginProvider } from "./plugins/PluginProvider";
 // AppShell：全局数据编排 + Provider 组装。导航/页面/浮层全部交给 router。
 
@@ -390,9 +391,9 @@ function AppShellInner() {
         throw new Error("CARD_NOT_FOUND: card does not exist");
       }
       await refreshCardsSafe({ page: 1 });
-      toast.success("卡片已删除");
+      toast.success(cardsTranslator.t("delete.success"));
     } catch (error) {
-      presentError(error, "删除卡片失败");
+      presentError(error, cardsTranslator.t("delete.failed"));
       throw error;
     }
   });

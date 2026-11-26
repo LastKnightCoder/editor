@@ -3,6 +3,7 @@
 // trailing 为行尾附加节点（如「＋ 标签」），与 chips 同容器排布。
 // 传 onRemove 时 chip 尾随 × 删除按钮，传原始 tag 串（含 # 前缀）。
 
+import { useMobileI18n } from "../../services/i18n-react";
 import type { ReactNode } from "react";
 import { X } from "lucide-react";
 
@@ -20,6 +21,7 @@ const SOFT_CHIP_CLASS =
   "inline-flex items-center gap-[3px] rounded-[8px] bg-accent-soft px-2.5 py-[3.5px] text-tau-micro font-semibold text-accent-text";
 
 function TagChips({ tags, className, variant, trailing, onRemove }: TagChipsProps) {
+  const { t } = useMobileI18n();
   if (tags.length === 0 && !trailing) {
     return null;
   }
@@ -40,7 +42,7 @@ function TagChips({ tags, className, variant, trailing, onRemove }: TagChipsProp
             {onRemove ? (
               <button
                 type="button"
-                aria-label={`删除标签 ${label}`}
+                aria-label={t("tags.remove", { tag: label })}
                 // 阻止 pointerdown 默认行为，避免内联输入框先失焦（失焦即提交并退出编辑态，× 会被卸载导致点击丢失）
                 onPointerDown={event => event.preventDefault()}
                 onClick={() => onRemove(tag)}

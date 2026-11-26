@@ -10,6 +10,7 @@
  * 弹窗随卡片数据就位即可展示，形变不等会话加载。
  */
 
+import { useCardsI18n } from "../i18n";
 import { useEffect, useMemo, useRef, useState, type Ref } from "react";
 import { useRafInterval, useUnmount } from "ahooks";
 import { produce } from "immer";
@@ -19,7 +20,8 @@ import type { EditorRef } from "@tau/editor";
 import AddTag from "@/components/AddTag";
 import ContentEditor from "@/components/ContentEditor";
 import { ErrorBoundary } from "@tau/ui";
-import { formatDate, getContentLength } from "@/utils";
+import { getContentLength } from "@/utils";
+import { cardDateTime } from "../format";
 import { loadCardTagSuggestions, useCardsMutations } from "../queries";
 import type { ICard } from "@/types";
 import { CardActionMenu } from "./CardActionMenu";
@@ -49,6 +51,7 @@ export function CardPreviewDialog({
   onSaved,
   ref,
 }: CardPreviewDialogProps) {
+  const { t, locale } = useCardsI18n();
   const [editing, setEditing] = useState<ICard | null>(null);
   const [initValue, setInitValue] = useState<Descendant[]>([]);
   const [displayError, setDisplayError] = useState(error);
@@ -136,14 +139,19 @@ export function CardPreviewDialog({
   const meta = useMemo(() => {
     if (!editing) return "";
     return [
-      `创建于 ${formatDate(editing.create_time, true)}`,
-      `最后修改 ${formatDate(editing.update_time, true)}`,
-      editing.linkCount > 0 ? `${editing.linkCount} 连接` : null,
-      `${editing.count} 字`,
+      t("meta.created", { date: cardDateTime(editing.create_time, locale, t) }),
+      t("meta.updated", { date: cardDateTime(editing.update_time, locale, t) }),
+      editing.linkCount > 0
+        ? t("meta.links", {
+            count: editing.linkCount,
+            amount: editing.linkCount.toLocaleString(locale),
+          })
+        : null,
+      t("meta.words", { count: editing.count, amount: editing.count.toLocaleString(locale) }),
     ]
       .filter(Boolean)
       .join(" · ");
-  }, [editing]);
+  }, [editing, t, locale]);
 
   const openDetail = async () => {
     await saveCard();
@@ -151,7 +159,7 @@ export function CardPreviewDialog({
   };
 
   const loadFailed = Boolean(displayError && !card);
-  const title = editing ? `卡片 #${editing.id}` : "卡片预览";
+  const title = editing ? t("card.fallback", { id: editing.id }) : t("preview.title");
 
   const close = () => {
     void saveCard()
@@ -177,7 +185,7 @@ export function CardPreviewDialog({
         {editing && !loadFailed && (
           <>
             <IconButton
-              title="进入详情"
+              title={t("action.detail")}
               className="size-[28px] rounded-[8px]"
               onClick={() => {
                 void openDetail().catch(() => {});
@@ -189,7 +197,7 @@ export function CardPreviewDialog({
               card={editing}
               actions={actions}
               trigger={
-                <IconButton title="更多操作" className="size-[28px] rounded-[8px]">
+                <IconButton title={t("action.more")} className="size-[28px] rounded-[8px]">
                   <MoreHorizontal className="size-[14px]" />
                 </IconButton>
               }
@@ -208,8 +216,8 @@ export function CardPreviewDialog({
           </>
         )}
         <IconButton
-          aria-label="关闭"
-          title="关闭"
+          aria-label={t("action.close")}
+          title={t("action.close")}
           disabled={patch.isPending}
           className="size-[28px] rounded-[8px]"
           onClick={close}
@@ -244,9 +252,9 @@ export function CardPreviewDialog({
         <DialogBody>
           <div className="flex min-h-[240px] flex-col items-center justify-center gap-3">
             <p role="alert" className="text-danger">
-              读取卡片失败：{displayError}
+              {t("preview.error", { error: displayError ?? "" })}
             </p>
-            <Button onClick={onRetry}>重试</Button>
+            <Button onClick={onRetry}>{t("retry")}</Button>
           </div>
         </DialogBody>
       )}

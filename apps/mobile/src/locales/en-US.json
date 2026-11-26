@@ -13,5 +13,19 @@
   "nav.more": "More",
   "nav.moreEntries": "More destinations",
   "nav.search": "Search all content",
-  "nav.pinHint": "Hold and drag feature icons in Me to choose what appears here."
+  "nav.pinHint": "Hold and drag feature icons in Me to choose what appears here.",
+  "common.cancel": "Cancel",
+  "common.confirm": "Confirm",
+  "common.closeConfirm": "Close confirmation",
+  "common.clear": "Clear",
+  "tags.remove": "Remove tag {{tag}}",
+  "tags.saveFailed": "Could not save tag",
+  "tags.removeFailed": "Could not remove tag",
+  "tags.input": "Enter a tag name",
+  "tags.done": "Done",
+  "tags.label": "Tags",
+  "common.back": "Back",
+  "content.selectBlocks": "Select blocks",
+  "content.outline": "Organize structure",
+  "common.closePanel": "Close panel"
 }

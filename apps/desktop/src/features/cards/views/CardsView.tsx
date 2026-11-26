@@ -13,6 +13,7 @@
  * 卡面 / 列表行 ⇄ 预览弹窗 ⇄ 详情页的纸走共享元素形变；表格视图不形变。
  */
 
+import { useCardsI18n } from "../i18n";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
@@ -66,6 +67,7 @@ import { useImportDrop } from "@/features/transfer/useImportDrop";
 const PREFETCH_STALE_MS = 30_000;
 
 export function CardsView() {
+  const { t, locale } = useCardsI18n();
   const { navigator } = usePage();
   const params = usePageParams<{ id?: string }>();
   const tag = params.id ?? "";
@@ -114,12 +116,12 @@ export function CardsView() {
   const breadcrumbNode = useMemo(
     () => (
       <span className="text-tau-meta text-ink-2 flex min-w-0 items-center gap-1">
-        <span className="px-1.5 py-0.5">卡片库</span>
+        <span className="px-1.5 py-0.5">{t("title")}</span>
         <span className="text-ink-3">/</span>
         <CardViewSwitcher value={view} onChange={setView} />
       </span>
     ),
-    [view, setView]
+    [view, setView, t]
   );
   usePageBreadcrumb("cards", breadcrumbNode);
 
@@ -141,7 +143,7 @@ export function CardsView() {
         queryFn: () => getScopedCard(databaseName, card.id),
       });
     } catch {
-      toast.error("读取卡片失败");
+      toast.error(t("load.failed"));
       return null;
     }
   };
@@ -250,8 +252,8 @@ export function CardsView() {
   if (feed.error)
     return (
       <div role="alert" className="flex flex-col items-center gap-3 py-20">
-        <p className="text-danger">卡片加载失败：{feed.error}</p>
-        <Button onClick={feed.refresh}>重试</Button>
+        <p className="text-danger">{t("load.error", { error: feed.error })}</p>
+        <Button onClick={feed.refresh}>{t("retry")}</Button>
       </div>
     );
 
@@ -269,12 +271,12 @@ export function CardsView() {
         {/* 工具栏：标题 / 当前标签 + 摘要 + 导入 / 新建 */}
         <div className="mt-5 mb-2 flex h-10 flex-none items-center gap-3 px-8">
           <h1 className="text-tau-title-lg shrink-0 font-semibold tracking-[-0.01em] whitespace-nowrap">
-            卡片库
+            {t("title")}
           </h1>
           {tag && (
             <button
               type="button"
-              title="清除标签筛选"
+              title={t("filter.clear")}
               onClick={clearTag}
               className="bg-selected text-accent-text inline-flex h-6 max-w-[200px] shrink-0 items-center gap-1 rounded-full pr-1.5 pl-2.5 text-[12px] font-medium"
             >
@@ -283,9 +285,17 @@ export function CardsView() {
             </button>
           )}
           <span className="text-tau-meta text-ink-2 w-0 flex-1 truncate whitespace-nowrap tabular-nums">
-            {filtering ? "找到" : "共"}{" "}
-            <b className="text-ink-1 font-semibold">{summaryCards.length}</b> 张 · 累计{" "}
-            <b className="text-ink-1 font-semibold">{totalWords.toLocaleString("zh-CN")}</b> 字
+            {t(filtering ? "summary.filtered" : "summary.all", { cards: "\uFFFC", words: "\uFFFD" })
+              .split(/([\uFFFC\uFFFD])/)
+              .map((part, index) =>
+                part === "\uFFFC" || part === "\uFFFD" ? (
+                  <b key={index} className="text-ink-1 font-semibold">
+                    {(part === "\uFFFC" ? summaryCards.length : totalWords).toLocaleString(locale)}
+                  </b>
+                ) : (
+                  part
+                )
+              )}
           </span>
           {/* 导入：带文字的次要按钮（同文章页），不用「下载」语义的裸图标 */}
           <Menu
@@ -295,10 +305,10 @@ export function CardsView() {
                 variant="secondary"
                 size="sm"
                 icon={Import}
-                title="从本地 Markdown 导入"
+                title={t("import.title")}
                 className="shrink-0 whitespace-nowrap"
               >
-                导入
+                {t("import.action")}
               </Button>
             }
           >
@@ -306,13 +316,13 @@ export function CardsView() {
               icon={<FileText className="size-[15px] shrink-0" strokeWidth={1.75} />}
               onSelect={() => void handleImport()}
             >
-              Markdown 文件…
+              {t("import.files")}
             </Menu.Item>
             <Menu.Item
               icon={<FolderInput className="size-[15px] shrink-0" strokeWidth={1.75} />}
               onSelect={() => useTransferStore.getState().openImportWizard({ target: "card" })}
             >
-              文件夹或压缩包…
+              {t("import.folder")}
             </Menu.Item>
           </Menu>
           <Button
@@ -322,7 +332,7 @@ export function CardsView() {
             className="shrink-0 whitespace-nowrap"
             onClick={() => setCreating(true)}
           >
-            新建卡片
+            {t("create")}
           </Button>
         </div>
 
@@ -332,8 +342,8 @@ export function CardsView() {
             {filtered.length === 0 ? (
               <div className="flex flex-col items-center gap-2 px-0 py-20 text-center">
                 <Layers className="text-ink-3 size-6" strokeWidth={1.75} />
-                <p className="text-ink-2 text-[15px] font-medium">没有匹配的卡片</p>
-                <p className="text-ink-3 text-[12.5px]">清除标签筛选，或用 Ctrl+K 全局搜索</p>
+                <p className="text-ink-2 text-[15px] font-medium">{t("empty.title")}</p>
+                <p className="text-ink-3 text-[12.5px]">{t("empty.hint")}</p>
               </div>
             ) : view === "list" ? (
               <CardListView
@@ -385,11 +395,11 @@ export function CardsView() {
           deleteBridge.current?.reject(new Error("取消删除卡片"));
           deleteBridge.current = null;
         }}
-        title="删除卡片"
-        description="卡片将从卡片库中移除。"
-        impact="卡片的正文与双向链接将不再可访问"
+        title={t("action.delete")}
+        description={t("delete.description")}
+        impact={t("delete.impact")}
         danger
-        confirmText="删除"
+        confirmText={t("delete.confirm")}
         loading={mutations.remove.isPending}
         onConfirm={async () => {
           if (!pendingDelete) return;
@@ -398,10 +408,10 @@ export function CardsView() {
             /* 删除的是正在预览的卡片时直接收起预览（不走关闭落盘，卡片已不存在） */
             if (previewCardId === pendingDelete.id) setPreviewCardId(null);
             deleteBridge.current?.resolve();
-            toast.success("已删除");
+            toast.success(t("delete.success"));
           } catch {
             deleteBridge.current?.reject(new Error("删除卡片失败"));
-            toast.error("删除失败");
+            toast.error(t("delete.failed"));
           } finally {
             setPendingDelete(null);
             deleteBridge.current = null;

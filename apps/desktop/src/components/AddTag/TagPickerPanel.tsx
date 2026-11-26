@@ -3,6 +3,7 @@
  * 没有完全同名的标签时末行是「新建」。↑↓ 选、↵ 加上（面板不收，可连加）、Esc 收起。
  */
 
+import { useTagsI18n } from "./i18n";
 import { useMemo, useState } from "react";
 import { Hash, Plus } from "lucide-react";
 import { cn } from "@tau/ui";
@@ -20,6 +21,7 @@ export interface TagPickerPanelProps {
 type Option = { kind: "tag"; tag: string; count: number } | { kind: "create"; tag: string };
 
 export function TagPickerPanel({ selected, suggestions, onPick }: TagPickerPanelProps) {
+  const { t, locale } = useTagsI18n();
   const [query, setQuery] = useState("");
   const [highlight, setHighlight] = useState(0);
   const needle = query.trim();
@@ -64,13 +66,15 @@ export function TagPickerPanel({ selected, suggestions, onPick }: TagPickerPanel
       {option.kind === "create" ? (
         <>
           <Plus className="size-[14px] shrink-0" strokeWidth={1.75} />
-          <span className="truncate">新建「{option.tag}」</span>
+          <span className="truncate">{t("picker.create", { tag: option.tag })}</span>
         </>
       ) : (
         <>
           <Hash className="text-ink-3 size-[13px] shrink-0" strokeWidth={1.75} />
           <span className="text-ink-1 min-w-0 flex-1 truncate">{option.tag}</span>
-          <span className="text-tau-sm text-ink-3 tabular-nums">{option.count}</span>
+          <span className="text-tau-sm text-ink-3 tabular-nums">
+            {option.count.toLocaleString(locale)}
+          </span>
         </>
       )}
     </div>
@@ -87,8 +91,8 @@ export function TagPickerPanel({ selected, suggestions, onPick }: TagPickerPanel
         <input
           data-autofocus
           value={query}
-          placeholder="搜索或新建标签"
-          aria-label="搜索或新建标签"
+          placeholder={t("picker.search")}
+          aria-label={t("picker.search")}
           onChange={event => {
             setQuery(event.target.value);
             setHighlight(0);
@@ -109,21 +113,21 @@ export function TagPickerPanel({ selected, suggestions, onPick }: TagPickerPanel
           className="text-tau-body placeholder:text-ink-3 min-w-0 flex-1 bg-transparent outline-none"
         />
       </label>
-      <div role="listbox" aria-label="标签" className="max-h-[280px] overflow-y-auto">
-        {recent > 0 && caption("最近用过")}
+      <div role="listbox" aria-label={t("picker.tags")} className="max-h-[280px] overflow-y-auto">
+        {recent > 0 && caption(t("picker.recent"))}
         {options.slice(0, recent).map(renderOption)}
-        {recent > 0 && rest > 0 && caption("全部标签")}
+        {recent > 0 && rest > 0 && caption(t("picker.all"))}
         {options.slice(recent).map((option, index) => renderOption(option, recent + index))}
         {!options.length && (
           <p className="text-tau-meta text-ink-3 px-2 py-2.5">
-            {needle ? "已经加上了" : "还没有标签，输入名称新建"}
+            {t(needle ? "picker.added" : "picker.empty")}
           </p>
         )}
       </div>
       <div className="text-tau-sm text-ink-3 flex items-center gap-3 px-2 pt-1.5 pb-0.5">
-        <span>↑↓ 选择</span>
-        <span>↵ 加上</span>
-        <span className="ml-auto">Esc 收起</span>
+        <span>{t("picker.select")}</span>
+        <span>{t("picker.add")}</span>
+        <span className="ml-auto">{t("picker.close")}</span>
       </div>
     </div>
   );

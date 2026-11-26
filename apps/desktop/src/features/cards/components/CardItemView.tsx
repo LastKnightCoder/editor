@@ -6,6 +6,7 @@
  * 「详情 / 更多」；更多菜单走域内共享的 CardActionMenu（与预览 ⋯ 菜单同源）。
  */
 
+import { useCardsI18n } from "../i18n";
 import { Maximize2, MoreHorizontal, Pin } from "lucide-react";
 import type { ICard } from "@/types";
 import { ContentPreview } from "@/components/ContentPreview";
@@ -13,6 +14,7 @@ import { FadeWhenOverflow } from "./FadeWhenOverflow";
 import { IconButton, cn, Tag } from "@tau/ui";
 import { CardActionMenu } from "./CardActionMenu";
 import type { CardItemActions } from "../types";
+import { cardDate } from "../format";
 import { cardMorphKey } from "../morph";
 
 export interface CardItemViewProps {
@@ -23,6 +25,7 @@ export interface CardItemViewProps {
 }
 
 export function CardItemView({ card, actions, previewMaxHeight = 150 }: CardItemViewProps) {
+  const { t, locale } = useCardsI18n();
   return (
     <article
       tabIndex={0}
@@ -38,7 +41,11 @@ export function CardItemView({ card, actions, previewMaxHeight = 150 }: CardItem
     >
       <div className="flex items-center gap-1.5 text-[11px]">
         {card.isTop && (
-          <Pin className="text-accent size-3 shrink-0" strokeWidth={1.75} aria-label="已置顶" />
+          <Pin
+            className="text-accent size-3 shrink-0"
+            strokeWidth={1.75}
+            aria-label={t("pinned")}
+          />
         )}
         <span className="flex-1" />
         <div
@@ -46,7 +53,7 @@ export function CardItemView({ card, actions, previewMaxHeight = 150 }: CardItem
           onClick={e => e.stopPropagation()}
         >
           <IconButton
-            title="进入详情"
+            title={t("action.detail")}
             className="size-[22px] rounded-[7px]"
             onClick={() => actions.onOpenDetail(card)}
           >
@@ -56,7 +63,7 @@ export function CardItemView({ card, actions, previewMaxHeight = 150 }: CardItem
             card={card}
             actions={actions}
             trigger={
-              <IconButton title="更多操作" className="size-[22px] rounded-[7px]">
+              <IconButton title={t("action.more")} className="size-[22px] rounded-[7px]">
                 <MoreHorizontal className="size-[13px]" strokeWidth={1.75} />
               </IconButton>
             }
@@ -82,16 +89,20 @@ export function CardItemView({ card, actions, previewMaxHeight = 150 }: CardItem
           {card.tags.length > 2 && <Tag title={card.tags.join("、")}>+{card.tags.length - 2}</Tag>}
         </div>
         <span className="text-ink-3 flex shrink-0 items-center gap-2 text-[10.5px] tabular-nums">
-          {card.linkCount > 0 && <span className="text-info">{card.linkCount} 连接</span>}
-          <span>{card.count} 字</span>
-          <span>{formatMonthDay(card.create_time)}</span>
+          {card.linkCount > 0 && (
+            <span className="text-info">
+              {t("meta.links", {
+                count: card.linkCount,
+                amount: card.linkCount.toLocaleString(locale),
+              })}
+            </span>
+          )}
+          <span>
+            {t("meta.words", { count: card.count, amount: card.count.toLocaleString(locale) })}
+          </span>
+          <span>{cardDate(card.create_time, locale, false)}</span>
         </span>
       </div>
     </article>
   );
-}
-
-export function formatMonthDay(ts: number): string {
-  const d = new Date(ts);
-  return `${d.getMonth() + 1}-${String(d.getDate()).padStart(2, "0")}`;
 }

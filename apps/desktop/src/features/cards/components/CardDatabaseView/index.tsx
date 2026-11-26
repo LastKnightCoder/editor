@@ -1,3 +1,4 @@
+import { useCardsI18n } from "../../i18n";
 import { DesktopDatabase as Database } from "@/features/shared/database/DesktopDatabase";
 import { memo, useMemo, useRef, useEffect } from "react";
 import { useMemoizedFn } from "ahooks";
@@ -50,6 +51,7 @@ interface CardDatabaseViewProps {
 }
 
 function CardDatabaseViewInstance(props: CardDatabaseViewProps) {
+  const { t } = useCardsI18n();
   const {
     databaseName,
     cards,
@@ -103,14 +105,14 @@ function CardDatabaseViewInstance(props: CardDatabaseViewProps) {
     return [
       {
         id: "title",
-        title: "标题",
+        title: t("column.title"),
         type: "text",
         width: columnWidths["title"] || 300,
         isPrimary: true,
       },
       {
         id: "tags",
-        title: "标签",
+        title: t("column.tags"),
         type: "multiSelect",
         width: columnWidths["tags"] || 200,
         config: {
@@ -119,7 +121,7 @@ function CardDatabaseViewInstance(props: CardDatabaseViewProps) {
       },
       {
         id: "links",
-        title: "连接",
+        title: t("column.links"),
         type: "card-links",
         width: columnWidths["links"] || 250,
         config: {
@@ -132,27 +134,27 @@ function CardDatabaseViewInstance(props: CardDatabaseViewProps) {
               }
             }
             openEntity(ref).catch(error =>
-              toast.error(error instanceof Error ? error.message : "无法打开内容")
+              toast.error(error instanceof Error ? error.message : t("open.failed"))
             );
           },
         },
       },
       {
         id: "create_time",
-        title: "创建时间",
+        title: t("column.createTime"),
         type: "date",
         width: columnWidths["create_time"] || 180,
         readonly: true,
       },
       {
         id: "update_time",
-        title: "更新时间",
+        title: t("column.updateTime"),
         type: "date",
         width: columnWidths["update_time"] || 180,
         readonly: true,
       },
     ];
-  }, [allTags, cards, onCardClick, columnWidths]);
+  }, [allTags, cards, onCardClick, columnWidths, t]);
 
   /* 连接列的行值：显式 content_links（标题已解析）∪ 正文内联引用（只读） */
   const linksQuery = useContentLinksByContentIds(cards.map(card => card.contentId));

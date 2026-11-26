@@ -1,3 +1,4 @@
+import { useMobileI18n } from "../services/i18n-react";
 import {
   createContext,
   type CSSProperties,
@@ -284,6 +285,7 @@ function CenteredSnapSheet(props: {
   containerClassName?: string;
   children: ReactNode;
 }) {
+  const { t } = useMobileI18n();
   useScrollLock(props.open);
   if (typeof document === "undefined") return null;
   return createPortal(
@@ -295,7 +297,7 @@ function CenteredSnapSheet(props: {
         >
           <motion.button
             type="button"
-            aria-label="关闭面板"
+            aria-label={t("common.closePanel")}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

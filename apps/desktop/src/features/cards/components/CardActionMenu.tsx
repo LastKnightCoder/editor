@@ -5,6 +5,7 @@
  * props 表达——预览在菜单内提供「进入详情」且演示前需落盘并收起弹窗。
  */
 
+import { useCardsI18n } from "../i18n";
 import type { LucideIcon } from "lucide-react";
 import {
   BookOpen,
@@ -46,6 +47,7 @@ export function CardActionMenu({
   detailItem,
   onBeforePresent,
 }: CardActionMenuProps) {
+  const { t } = useCardsI18n();
   return (
     <Menu align="end" trigger={trigger}>
       {actions.onOpenWindow && (
@@ -53,15 +55,15 @@ export function CardActionMenu({
           onSelect={() => actions.onOpenWindow?.(card)}
           icon={<MenuIcon icon={ExternalLink} />}
         >
-          窗口打开
+          {t("action.window")}
         </Menu.Item>
       )}
       <Menu.Item onSelect={() => actions.onToggleTop(card)} icon={<MenuIcon icon={Pin} />}>
-        {card.isTop ? "取消置顶" : "设置置顶"}
+        {t(card.isTop ? "action.unpin" : "action.pin")}
       </Menu.Item>
       {detailItem && (
         <Menu.Item onSelect={detailItem.onSelect} icon={<MenuIcon icon={Maximize2} />}>
-          进入详情
+          {t("action.detail")}
         </Menu.Item>
       )}
       <Menu.Item
@@ -73,9 +75,9 @@ export function CardActionMenu({
         }}
         icon={<MenuIcon icon={Play} />}
       >
-        演示模式
+        {t("action.present")}
       </Menu.Item>
-      <Menu.Submenu label="导出" icon={<MenuIcon icon={Download} />}>
+      <Menu.Submenu label={t("action.export")} icon={<MenuIcon icon={Download} />}>
         <Menu.Item
           onSelect={() => actions.onExportMarkdown(card)}
           icon={<MenuIcon icon={FileText} />}
@@ -83,13 +85,13 @@ export function CardActionMenu({
           Markdown
         </Menu.Item>
         <Menu.Item onSelect={() => actions.onExportWord(card)} icon={<MenuIcon icon={FileText} />}>
-          Word 文档（.docx）
+          {t("export.word")}
         </Menu.Item>
         <Menu.Item
           onSelect={() => actions.onExportImage(card)}
           icon={<MenuIcon icon={ImageIcon} />}
         >
-          图片
+          {t("export.image")}
         </Menu.Item>
         <Menu.Item onSelect={() => actions.onExportEpub(card)} icon={<MenuIcon icon={BookOpen} />}>
           EPUB
@@ -101,7 +103,7 @@ export function CardActionMenu({
       <PluginActionMenuItems target={{ kind: "card", id: String(card.id) }} />
       <Menu.Separator />
       <Menu.Item danger onSelect={() => actions.onDelete(card)} icon={<MenuIcon icon={Trash2} />}>
-        删除卡片
+        {t("action.delete")}
       </Menu.Item>
     </Menu>
   );

@@ -31,7 +31,7 @@ vi.mock("@tau/editor", () => ({
 vi.mock("@/components/ErrorBoundary", () => ({ default: ({ children }: any) => children }));
 vi.mock("../queries", () => ({
   bucketByTimeGroups: (cards: ICard[]) => [
-    { label: "今天", cards: cards.filter(card => !card.isTop) },
+    { key: "today", cards: cards.filter(card => !card.isTop) },
   ],
 }));
 vi.mock("@tau/ui", async () => {

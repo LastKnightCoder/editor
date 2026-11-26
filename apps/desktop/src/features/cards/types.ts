@@ -9,7 +9,6 @@ export type CardTimeGroupKey = "today" | "yesterday" | "week" | "month" | "earli
 
 export interface CardTimeGroup {
   key: CardTimeGroupKey;
-  label: string;
   cards: ICard[];
 }
 

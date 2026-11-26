@@ -23,7 +23,7 @@ export function ArticlesNavTags({
   const mutations = useArticleTagMutations();
   const manage = useTagManage({
     existing: tags,
-    unit: { noun: "文章", measure: "篇" },
+    entity: "article",
     hierarchical: false,
     rename: mutations.rename,
     remove: mutations.remove,

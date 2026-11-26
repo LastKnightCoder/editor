@@ -5,7 +5,7 @@ import { DeleteTagDialog, RenameTagDialog, type TagManageTarget } from "./TagMan
 
 export function useTagManage({
   existing,
-  unit,
+  entity,
   hierarchical,
   rename,
   remove,
@@ -13,7 +13,7 @@ export function useTagManage({
   onRemoved,
 }: {
   existing: TagManageTarget[];
-  unit: { noun: string; measure: string };
+  entity: "card" | "article";
   hierarchical: boolean;
   rename: (from: string, to: string) => Promise<void>;
   remove: (tag: string) => Promise<void>;
@@ -34,7 +34,7 @@ export function useTagManage({
         <RenameTagDialog
           target={renaming}
           existing={existing}
-          unit={unit}
+          entity={entity}
           hierarchical={hierarchical}
           onOpenChange={open => !open && setRenaming(null)}
           onRename={async (from, to) => {
@@ -44,7 +44,7 @@ export function useTagManage({
         />
         <DeleteTagDialog
           target={deleting}
-          unit={unit}
+          entity={entity}
           hierarchical={hierarchical}
           onOpenChange={open => !open && setDeleting(null)}
           onDelete={async tag => {

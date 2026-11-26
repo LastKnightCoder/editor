@@ -1,3 +1,5 @@
+import { cardTimeDisplay } from "./format";
+import { useMobileCardsI18n } from "./i18n";
 // 卡片列表项（v2 模板）：整卡可点开详情页，不设 more 按钮——
 // 删除等操作收进详情页 ⋯ 菜单。
 // 头部 = 右侧时间；标签用品牌色 # chip。
@@ -11,36 +13,13 @@ import { CardListItem } from "../../types";
 import TagChips from "./TagChips";
 import { useReadonlyContentSync } from "../../hooks/useReadonlyContentSync";
 
-function formatTimeDisplay(ts: number): string {
-  if (!ts) return "";
-  const normalized = ts > 0 && ts < 1_000_000_000_000 ? ts * 1000 : ts;
-  const date = new Date(normalized);
-  const now = new Date();
-
-  const isToday = date.toDateString() === now.toDateString();
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const isYesterday = date.toDateString() === yesterday.toDateString();
-
-  const time = `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
-
-  if (isToday) {
-    return time;
-  } else if (isYesterday) {
-    return `昨天 ${time}`;
-  } else if (date.getFullYear() === now.getFullYear()) {
-    return `${date.getMonth() + 1}月${date.getDate()}日`;
-  }
-
-  return `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`;
-}
-
 interface CardItemProps {
   item: CardListItem;
   onPreviewCard: (cardId: number) => void;
 }
 
 const CardItem = memo(({ item, onPreviewCard }: CardItemProps) => {
+  const { t, locale } = useMobileCardsI18n();
   const contentKit = useMobileContentKit("read");
   const editorContent = useMemo(() => {
     if (Array.isArray(item.content) && item.content.length > 0) {
@@ -60,11 +39,11 @@ const CardItem = memo(({ item, onPreviewCard }: CardItemProps) => {
   });
 
   return (
-    <article className="card pop-in rounded-card relative w-full overflow-hidden px-4 pb-3.5 pt-3 transition-transform duration-200 active:scale-[0.97]">
+    <article className="card pop-in rounded-card relative w-full overflow-hidden px-4 pt-3 pb-3.5 transition-transform duration-200 active:scale-[0.97]">
       <button type="button" onClick={() => onPreviewCard(item.id)} className="w-full text-left">
         <div className="mb-2.5 flex items-center gap-2">
           <span className="text-ink-2 text-tau-sm ml-auto tabular-nums">
-            {formatTimeDisplay(item.updateTime)}
+            {cardTimeDisplay(item.updateTime, locale)}
           </span>
         </div>
 
@@ -79,7 +58,7 @@ const CardItem = memo(({ item, onPreviewCard }: CardItemProps) => {
             />
           ) : (
             <p className="text-ink-1 text-tau-body-lg line-clamp-1 font-bold">
-              {item.excerpt?.split("\n")[0] || `卡片 #${item.id}`}
+              {item.excerpt?.split("\n")[0] || t("fallback", { id: item.id })}
             </p>
           )}
         </div>

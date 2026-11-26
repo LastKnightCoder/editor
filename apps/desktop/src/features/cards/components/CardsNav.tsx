@@ -5,6 +5,7 @@
  * 标签可能很多：列表限高约 8 行，超出在框内滚动（FadeScroll 上下渐隐）。
  */
 
+import { useCardsI18n } from "../i18n";
 import { useMemo, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@tau/ui";
@@ -26,13 +27,14 @@ export function CardsNavTags({
   selectedId?: string;
   onSelect: (id: string) => void;
 }) {
+  const { t } = useCardsI18n();
   const tree = useCardTagTree();
   const existing = useMemo(() => flatten(tree), [tree]);
   const mutations = useCardTagMutations();
   const activeTag = selectedId ?? "";
   const manage = useTagManage({
     existing,
-    unit: { noun: "卡片", measure: "张" },
+    entity: "card",
     hierarchical: true,
     rename: mutations.rename,
     remove: mutations.remove,
@@ -49,7 +51,7 @@ export function CardsNavTags({
   return (
     // -mr-1.5：FadeScroll 右侧 6px 透明边吃进侧栏右内边距；内层 pr-1.5 让行与滚动条之间留出间隙
     <FadeScroll className="mt-0.5 -mr-1.5 mb-1 max-h-[236px]">
-      <div className="space-y-px pr-1.5" role="tree" aria-label="卡片标签">
+      <div className="space-y-px pr-1.5" role="tree" aria-label={t("tags.tree")}>
         {tree.map(node => (
           <TagNode
             key={node.path}
@@ -82,6 +84,7 @@ function TagNode({
   onSelect: (id: string) => void;
   manage: Pick<ReturnType<typeof useTagManage>, "startRename" | "startDelete">;
 }) {
+  const { t } = useCardsI18n();
   /* 挂载时当前选中落在本子树内则初始展开，保证恢复的选中项可见（之后仍可手动收起） */
   const [expanded, setExpanded] = useState(() => activeTag.startsWith(node.path + "/"));
   const active = activeTag === node.path;
@@ -105,7 +108,7 @@ function TagNode({
           {hasKids ? (
             <button
               type="button"
-              aria-label={expanded ? "收起" : "展开"}
+              aria-label={t(expanded ? "tags.collapse" : "tags.expand")}
               onClick={() => setExpanded(value => !value)}
               className="text-ink-3 hover:text-ink-1 grid size-[21px] shrink-0 place-items-center rounded-[6px]"
             >
@@ -132,7 +135,7 @@ function TagNode({
             type="button"
             onClick={() => onSelect(active ? "" : node.path)}
             aria-current={active ? "page" : undefined}
-            title={active ? "再点一次回到全部" : `只看「${node.path}」`}
+            title={active ? t("tags.all") : t("tags.only", { tag: node.path })}
             className="flex h-full min-w-0 flex-1 items-center gap-2.5 pr-1 pl-1 text-left"
           >
             <span className="min-w-0 flex-1 truncate">{node.name}</span>

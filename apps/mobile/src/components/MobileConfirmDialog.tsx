@@ -1,3 +1,4 @@
+import { useMobileI18n } from "../services/i18n-react";
 import { useEffect, useMemo, useState } from "react";
 import { Z_INDEX } from "../router/zIndex";
 import { useSheetBackDismiss } from "../router/useSheetBackDismiss";
@@ -19,13 +20,14 @@ export function MobileConfirmDialog({
   open,
   title,
   description,
-  cancelText = "取消",
-  confirmText = "确认",
+  cancelText,
+  confirmText,
   danger = false,
   loading = false,
   onCancel,
   onConfirm,
 }: MobileConfirmDialogProps) {
+  const { t } = useMobileI18n();
   const [shouldRender, setShouldRender] = useState(open);
 
   // 返回手势等同取消（对齐原生 Dialog 行为）；loading 中不拦截，避免中断进行中的操作
@@ -58,13 +60,13 @@ export function MobileConfirmDialog({
       <button
         type="button"
         className={`bg-overlay absolute inset-0 ${open ? "mask-enter" : "mask-exit"}`}
-        aria-label="关闭确认框"
+        aria-label={t("common.closeConfirm")}
         onClick={onCancel}
         disabled={loading}
       />
 
       <div
-        className={`card absolute left-1/2 top-1/2 w-[min(86vw,340px)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-3xl transition-all duration-200 ${open ? "opacity-100" : "scale-95 opacity-0"}`}
+        className={`card absolute top-1/2 left-1/2 w-[min(86vw,340px)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-3xl transition-all duration-200 ${open ? "opacity-100" : "scale-95 opacity-0"}`}
       >
         <div
           className={`text-ink-1 px-6 text-center text-[16px] font-bold ${description ? "pt-6" : "py-6"}`}
@@ -72,7 +74,7 @@ export function MobileConfirmDialog({
           {title}
         </div>
         {description ? (
-          <p className="text-ink-2 px-6 pb-5 pt-2 text-center text-[13px] leading-relaxed">
+          <p className="text-ink-2 px-6 pt-2 pb-5 text-center text-[13px] leading-relaxed">
             {description}
           </p>
         ) : null}
@@ -83,7 +85,7 @@ export function MobileConfirmDialog({
             onClick={onCancel}
             disabled={loading}
           >
-            {cancelText}
+            {cancelText ?? t("common.cancel")}
           </button>
           <button
             type="button"
@@ -91,7 +93,7 @@ export function MobileConfirmDialog({
             onClick={onConfirm}
             disabled={loading}
           >
-            {confirmText}
+            {confirmText ?? t("common.confirm")}
           </button>
         </div>
       </div>

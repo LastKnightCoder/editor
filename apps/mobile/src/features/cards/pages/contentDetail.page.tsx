@@ -1,3 +1,4 @@
+import { useMobileCardsI18n, cardsTranslator } from "../i18n";
 import { useMobilePluginActionItems } from "../../../app/plugins/action-menu";
 import { useEffect, useRef, useState } from "react";
 import { Layers, ChevronRight, Copy, Ellipsis, Link2, Trash2 } from "lucide-react";
@@ -54,6 +55,7 @@ function CardEntryScreen(props: {
   block?: number;
   locationRequestId?: string;
 }) {
+  const { t } = useMobileCardsI18n();
   const navigator = useNavigator();
   const app = useAppContext();
   const [card, setCard] = useState<CardDetailResponse | null>(null);
@@ -78,7 +80,7 @@ function CardEntryScreen(props: {
         if (!cancelled) setCard(result);
       })
       .catch(error => {
-        if (!cancelled) app.presentError(error, "卡片加载失败");
+        if (!cancelled) app.presentError(error, cardsTranslator.t("load.failed"));
       })
       .finally(() => {
         if (!cancelled) setResolving(false);
@@ -117,7 +119,7 @@ function CardEntryScreen(props: {
             onClick={() => navigator.goBack("ui")}
             className="bg-page text-ink-2 rounded-full px-5 py-2.5 text-sm font-semibold"
           >
-            加载失败，点按返回
+            {t("load.back")}
           </button>
         )}
       </div>
@@ -136,7 +138,7 @@ function CardEntryScreen(props: {
       setCard(prev => (prev ? { ...prev, links: saved.links } : prev));
       setLinksRev(value => value + 1);
     } catch (error) {
-      app.presentError(error, "关联保存失败");
+      app.presentError(error, t("links.failed"));
     }
   };
 
@@ -156,7 +158,7 @@ function CardEntryScreen(props: {
         headerRight={
           <PageHeaderButton
             icon={<Ellipsis size={17} />}
-            aria-label="卡片操作"
+            aria-label={t("actions")}
             onClick={() => setMenuOpen(true)}
           />
         }
@@ -166,31 +168,31 @@ function CardEntryScreen(props: {
 
       <ActionSheet
         open={menuOpen}
-        kind="卡片"
+        kind={t("card")}
         onClose={() => setMenuOpen(false)}
         items={[
           blockSelectionMenuItem(() => detailActionsRef.current?.enterBlockSelection()),
           outlineMenuItem(() => detailActionsRef.current?.openOutline()),
           {
-            label: "关联卡片",
+            label: t("links.action"),
             icon: <Link2 size={18} />,
             tone: "lilac",
             trailing: <ChevronRight strokeWidth={2} />,
             onClick: () => setLinksSheetOpen(true),
           },
           {
-            label: "复制正文",
+            label: t("copy.action"),
             icon: <Copy size={18} />,
             tone: "sage",
             onClick: () => {
               void window.navigator.clipboard
                 .writeText(richTextPlainText(card.content))
-                .then(() => toast({ type: "success", text: "已复制正文" }))
-                .catch(() => toast({ type: "warning", text: "复制失败" }));
+                .then(() => toast({ type: "success", text: cardsTranslator.t("copy.success") }))
+                .catch(() => toast({ type: "warning", text: cardsTranslator.t("copy.failed") }));
             },
           },
           {
-            label: "加入闪卡",
+            label: t("flashcards"),
             icon: <Layers size={18} />,
             tone: "lilac",
             onClick: () => {
@@ -205,7 +207,7 @@ function CardEntryScreen(props: {
           ...collab.menuItems,
           ...pluginActionItems,
           {
-            label: "删除卡片",
+            label: t("delete.action"),
             danger: true,
             icon: <Trash2 size={18} />,
             onClick: () => setDeleteOpen(true),
@@ -223,9 +225,9 @@ function CardEntryScreen(props: {
 
       <MobileConfirmDialog
         open={deleteOpen}
-        title="确定删除这个卡片？"
-        cancelText="取消"
-        confirmText="确认"
+        title={t("delete.title")}
+        cancelText={t("cancel")}
+        confirmText={t("confirm")}
         danger
         loading={deleteLoading}
         onCancel={() => {

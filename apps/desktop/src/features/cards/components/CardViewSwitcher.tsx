@@ -4,15 +4,20 @@
  * 当前视图以 accent 图标 + 文字高亮标记。
  */
 
+import { useCardsI18n } from "../i18n";
 import { useState } from "react";
 import { ChevronDown, Layers, List, Table2 } from "lucide-react";
 import { Menu, cn } from "@tau/ui";
 import type { CardsViewMode } from "../preferences";
 
-const VIEW_OPTIONS: { key: CardsViewMode; label: string; icon: typeof Layers }[] = [
-  { key: "wall", label: "卡片墙", icon: Layers },
-  { key: "list", label: "列表", icon: List },
-  { key: "database", label: "表格", icon: Table2 },
+const VIEW_OPTIONS: {
+  key: CardsViewMode;
+  label: "view.wall" | "view.list" | "view.database";
+  icon: typeof Layers;
+}[] = [
+  { key: "wall", label: "view.wall", icon: Layers },
+  { key: "list", label: "view.list", icon: List },
+  { key: "database", label: "view.database", icon: Table2 },
 ];
 
 interface CardViewSwitcherProps {
@@ -21,6 +26,7 @@ interface CardViewSwitcherProps {
 }
 
 export function CardViewSwitcher({ value, onChange }: CardViewSwitcherProps) {
+  const { t } = useCardsI18n();
   const [open, setOpen] = useState(false);
   const current = VIEW_OPTIONS.find(option => option.key === value) ?? VIEW_OPTIONS[0];
   const CurrentIcon = current.icon;
@@ -34,11 +40,11 @@ export function CardViewSwitcher({ value, onChange }: CardViewSwitcherProps) {
       trigger={
         <button
           type="button"
-          title="切换视图"
+          title={t("view.switch")}
           className="rounded-tau-sm text-ink-2 hover:bg-hover hover:text-ink-1 flex min-w-0 items-center gap-1.5 px-1.5 py-0.5 text-[11.5px] transition-colors"
         >
           <CurrentIcon className="size-[13px] shrink-0" strokeWidth={1.75} />
-          <span>{current.label}</span>
+          <span>{t(current.label)}</span>
           <ChevronDown
             className={cn(
               "ease-tau-out size-3 shrink-0 transition-transform duration-150",
@@ -58,7 +64,7 @@ export function CardViewSwitcher({ value, onChange }: CardViewSwitcherProps) {
             onSelect={() => onChange(key)}
             className={active ? "text-accent-text font-medium" : undefined}
           >
-            {label}
+            {t(label)}
           </Menu.Item>
         );
       })}

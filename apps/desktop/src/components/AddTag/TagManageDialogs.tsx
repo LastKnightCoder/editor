@@ -3,6 +3,7 @@
  * 卡片与文章共用；hierarchical 时子标签随父级一起改名 / 删除。
  */
 
+import { useTagsI18n } from "./i18n";
 import { useEffect, useState } from "react";
 import { Button, ConfirmDialog, Dialog, DialogBody, Input, toast } from "@tau/ui";
 
@@ -12,18 +13,14 @@ export interface TagManageTarget {
 }
 
 interface CommonProps {
-  /** 条目的叫法与量词，如 { noun: "卡片", measure: "张" } */
-  unit: { noun: string; measure: string };
+  entity: "card" | "article";
   hierarchical: boolean;
 }
-
-const amount = (count: number, { noun, measure }: CommonProps["unit"]) =>
-  `${count} ${measure}${noun}`;
 
 export function RenameTagDialog({
   target,
   existing,
-  unit,
+  entity,
   hierarchical,
   onOpenChange,
   onRename,
@@ -34,6 +31,9 @@ export function RenameTagDialog({
   onOpenChange: (open: boolean) => void;
   onRename: (from: string, to: string) => Promise<void>;
 }) {
+  const { t, locale } = useTagsI18n();
+  const amount = (count: number) =>
+    t(`amount.${entity}`, { count, amount: count.toLocaleString(locale) });
   const [value, setValue] = useState("");
   const [saving, setSaving] = useState(false);
   useEffect(() => {
@@ -52,7 +52,7 @@ export function RenameTagDialog({
       await onRename(target.tag, next);
       onOpenChange(false);
     } catch {
-      toast.error("标签改名失败");
+      toast.error(t("rename.failed"));
     } finally {
       setSaving(false);
     }
@@ -62,19 +62,17 @@ export function RenameTagDialog({
     <Dialog
       open={target != null}
       onOpenChange={onOpenChange}
-      title="重命名标签"
-      subtitle={target ? `「${target.tag}」用在 ${amount(target.count, unit)}上` : undefined}
+      title={t("rename.title")}
+      subtitle={
+        target ? t("rename.subtitle", { tag: target.tag, amount: amount(target.count) }) : undefined
+      }
       locked={saving}
       size="md"
-      impact={
-        merged
-          ? `「${next}」已经存在（${amount(merged.count, unit)}），确定后两个标签合并为「${next}」`
-          : undefined
-      }
+      impact={merged ? t("rename.merge", { tag: next, amount: amount(merged.count) }) : undefined}
       footer={
         <>
           <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={saving}>
-            取消
+            {t("cancel")}
           </Button>
           <Button
             variant="primary"
@@ -82,7 +80,7 @@ export function RenameTagDialog({
             disabled={unchanged || invalid}
             onClick={() => void submit()}
           >
-            {merged ? "合并" : "重命名"}
+            {t(merged ? "merge" : "rename")}
           </Button>
         </>
       }
@@ -91,7 +89,7 @@ export function RenameTagDialog({
         <Input
           data-autofocus
           value={value}
-          aria-label="新的标签名"
+          aria-label={t("rename.input")}
           onChange={event => setValue(event.target.value)}
           onKeyDown={event => {
             if (event.key === "Enter" && !event.nativeEvent.isComposing) {
@@ -102,7 +100,7 @@ export function RenameTagDialog({
         />
         {hierarchical && (
           <p className="text-tau-sm text-ink-3 mt-2.5">
-            子标签一起改名：「{target?.tag}/…」会变成「{next || target?.tag}/…」
+            {t("rename.children", { from: target?.tag ?? "", to: next || target?.tag || "" })}
           </p>
         )}
       </DialogBody>
@@ -112,7 +110,7 @@ export function RenameTagDialog({
 
 export function DeleteTagDialog({
   target,
-  unit,
+  entity,
   hierarchical,
   onOpenChange,
   onDelete,
@@ -121,22 +119,32 @@ export function DeleteTagDialog({
   onOpenChange: (open: boolean) => void;
   onDelete: (tag: string) => Promise<void>;
 }) {
+  const { t, locale } = useTagsI18n();
   return (
     <ConfirmDialog
       open={target != null}
       onOpenChange={onOpenChange}
-      title="删除标签"
+      title={t("delete.title")}
       context={target?.tag}
-      description={`标签会从所有${unit.noun}上移除${hierarchical ? "（子标签一起移除）" : ""}，${unit.noun}本身不受影响。`}
-      impact={target ? `${amount(target.count, unit)}会失去这个标签` : undefined}
-      confirmText="删除"
+      description={t(`delete.${entity}${hierarchical ? "Tree" : ""}`)}
+      impact={
+        target
+          ? t("delete.impact", {
+              amount: t(`amount.${entity}`, {
+                count: target.count,
+                amount: target.count.toLocaleString(locale),
+              }),
+            })
+          : undefined
+      }
+      confirmText={t("delete.confirm")}
       danger
       onConfirm={async () => {
         if (!target) return;
         try {
           await onDelete(target.tag);
         } catch {
-          toast.error("删除标签失败");
+          toast.error(t("delete.failed"));
           throw new Error("删除标签失败");
         }
       }}

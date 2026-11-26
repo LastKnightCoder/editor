@@ -13,5 +13,19 @@
   "nav.more": "更多",
   "nav.moreEntries": "更多入口",
   "nav.search": "搜索所有内容",
-  "nav.pinHint": "在「我的」里长按功能图标拖动，调整这里显示哪几个"
+  "nav.pinHint": "在「我的」里长按功能图标拖动，调整这里显示哪几个",
+  "common.cancel": "取消",
+  "common.confirm": "确认",
+  "common.closeConfirm": "关闭确认框",
+  "common.clear": "清空",
+  "tags.remove": "删除标签 {{tag}}",
+  "tags.saveFailed": "标签保存失败",
+  "tags.removeFailed": "标签删除失败",
+  "tags.input": "输入标签名",
+  "tags.done": "完成",
+  "tags.label": "标签",
+  "common.back": "返回",
+  "content.selectBlocks": "选择块",
+  "content.outline": "整理结构",
+  "common.closePanel": "关闭面板"
 }

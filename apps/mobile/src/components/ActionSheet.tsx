@@ -1,3 +1,4 @@
+import { useMobileI18n } from "../services/i18n-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Z_INDEX } from "../router/zIndex";
 import { useSheetBackDismiss } from "../router/useSheetBackDismiss";
@@ -78,6 +79,7 @@ export function ActionSheet({
   onClose,
   backDismiss = true,
 }: ActionSheetProps) {
+  const { t } = useMobileI18n();
   const [shouldRender, setShouldRender] = useState(open);
   // 关闭缓冲：请求关闭先播退场动画（visible 置 false），动画完成后才回调
   // onClose——遮罩点击、返回手势、下拉、选项/取消点击统一走该时序
@@ -249,7 +251,7 @@ export function ActionSheet({
                 className="text-ink-2 active:bg-hover w-full rounded-[14px] py-[13px] text-[15px] font-bold transition-colors"
                 onClick={requestClose}
               >
-                取消
+                {t("common.cancel")}
               </button>
             </div>
           </motion.div>

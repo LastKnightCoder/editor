@@ -1,3 +1,4 @@
+import { useMobileCardsI18n, cardsTranslator } from "./i18n";
 import {
   lazy,
   Suspense,
@@ -20,7 +21,7 @@ import { Editor, type EditorDocument, type EditorRef } from "@tau/editor";
 import { cn } from "@tau/ui";
 import * as tauri from "../../services/tauri";
 import type { ContentDetailResponse } from "../../types";
-import { formatDateTimeCompact } from "../../utils/formatTime";
+import { cardDateTime } from "./format";
 import { useEditContent } from "../../hooks/useEditContent";
 import { useOptionalPageInstanceContext } from "../../router/pageLifecycle";
 import { collaborationManager } from "../collaboration/core/manager";
@@ -140,10 +141,6 @@ type ContentDetailPageProps = {
   aiContext?: { entityType: MentionEntityType; entityId: number; title?: string };
 };
 
-function formatTimeLabel(value: number): string {
-  return value ? formatDateTimeCompact(value) : "--";
-}
-
 function resolveTitle(props: { contentTitle?: string; contentId: number }): string {
   if (props.contentTitle?.trim()) {
     return props.contentTitle.trim();
@@ -167,6 +164,7 @@ function detailEditMode(hasCollaboration: boolean, mode: CollaborativeEditorMode
 }
 
 export function ContentDetailPage(props: ContentDetailPageProps) {
+  const { t, locale } = useMobileCardsI18n();
   // 全页只有一个编辑器实例：本机与协作是同谱系的两个文档源，切换即换源（01 §7.3 第 3 层）
   const editorRef = useRef<EditorRef | null>(null);
   const localDocumentRef = useRef<LocalContentDocument | undefined>(undefined);
@@ -216,7 +214,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
         prev => prev ?? (openInEditModeRef.current || isEditorContentEmpty(result.content))
       );
     },
-    onLoadError: error => onErrorRef.current?.(error, "内容详情加载失败"),
+    onLoadError: error => onErrorRef.current?.(error, cardsTranslator.t("detail.load")),
     onSaved: saved => {
       setDetail(prev => ({
         ...(prev ?? saved),
@@ -231,7 +229,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
       props.onSaved?.(saved);
     },
     onSaveError: error => {
-      props.onError?.(error, "内容自动保存失败");
+      props.onError?.(error, cardsTranslator.t("detail.save"));
     },
   });
   // 录音只在本机文档里开放：协作文档的附件归属规则不同，首版不接
@@ -452,7 +450,11 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
 
   // 顶栏中央统一显示内容类型名：日记/卡片为固定文案，文章/项目文档/知识库沿用 contentType；
   // 保存状态不再占用顶栏，改在正文 meta 行随日期/字数一起展示
-  const headerTitle = props.diaryDate ? "日记" : props.titleEditable ? props.contentType : "卡片";
+  const headerTitle = props.diaryDate
+    ? t("detail.diary")
+    : props.titleEditable
+      ? props.contentType
+      : t("card");
 
   // 封面沉浸页顶栏浮于封面之上：白/棕双层标题随滚动交叉过渡（--header-p 驱动，见 styles.css）
   const headerCenter = headerTitle ? (
@@ -531,13 +533,13 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
   );
 
   const saveStatusNode = saving ? (
-    <span className="text-ink-2 text-[12px]">保存中…</span>
+    <span className="text-ink-2 text-[12px]">{t("detail.saving")}</span>
   ) : saveError ? (
-    <span className="text-danger text-[12px] font-medium">保存失败</span>
+    <span className="text-danger text-[12px] font-medium">{t("detail.saveFailed")}</span>
   ) : props.diaryDate ? (
     <span className="text-ok flex items-center gap-1.5 text-[12px] font-medium tabular-nums">
       <span className="bg-ok h-[5.5px] w-[5.5px] rounded-full" aria-hidden />
-      已保存 · {wordCount.toLocaleString()} 字
+      {t("detail.saved", { count: wordCount, amount: wordCount.toLocaleString(locale) })}
     </span>
   ) : null;
 
@@ -614,9 +616,14 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
             <div className="mt-2.5 flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
               {typeBadge}
               <div className="text-ink-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] font-medium tabular-nums">
-                <span>{formatTimeLabel(detail.updateTime)}</span>
+                <span>{cardDateTime(detail.updateTime, locale)}</span>
                 <MetaDot />
-                <span>{wordCount.toLocaleString()} 字</span>
+                <span>
+                  {t("detail.words", {
+                    count: wordCount,
+                    amount: wordCount.toLocaleString(locale),
+                  })}
+                </span>
                 {saveStatusNode ? (
                   <>
                     <MetaDot />
@@ -653,9 +660,11 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 pt-5">
             {typeBadge}
             <div className="text-ink-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] font-medium tabular-nums">
-              <span>{formatTimeLabel(detail.updateTime)}</span>
+              <span>{cardDateTime(detail.updateTime, locale)}</span>
               <MetaDot />
-              <span>{wordCount.toLocaleString()} 字</span>
+              <span>
+                {t("detail.words", { count: wordCount, amount: wordCount.toLocaleString(locale) })}
+              </span>
               {typeof props.refId === "number" && props.refId > 0 ? (
                 <>
                   <MetaDot />

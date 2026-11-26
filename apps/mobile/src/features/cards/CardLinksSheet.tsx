@@ -1,6 +1,7 @@
 // 添加关联弹层：搜索卡片 + 多选勾选 +「完成 · N」提交。
 // 空关键词时展示最近卡片；勾选状态由父层在 onConfirm 统一写回（updateCardLinks）。
 
+import { useMobileCardsI18n } from "./i18n";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDebounceFn, useMemoizedFn } from "ahooks";
 import { Check, Link2, Plus, SearchX } from "lucide-react";
@@ -9,7 +10,7 @@ import { SnapSheet } from "../../components/SnapSheet";
 import { SearchField } from "../../components/SearchField";
 import * as tauri from "../../services/tauri";
 import type { CardListItem } from "../../types";
-import { formatTimeDisplay } from "../../utils/formatTime";
+import { cardTimeDisplay } from "./format";
 
 const PAGE_SIZE = 20;
 
@@ -22,13 +23,9 @@ type CardLinksSheetProps = {
   onConfirm: (links: number[]) => void;
 };
 
-function resolveTitle(item: CardListItem): string {
+function resolveTitle(item: CardListItem, fallback: string): string {
   const firstLine = item.excerpt?.split("\n")[0]?.trim();
-  return firstLine || `卡片 #${item.id}`;
-}
-
-function resolveSubtitle(item: CardListItem): string {
-  return formatTimeDisplay(item.updateTime);
+  return firstLine || fallback;
 }
 
 export function CardLinksSheet({
@@ -38,6 +35,7 @@ export function CardLinksSheet({
   onClose,
   onConfirm,
 }: CardLinksSheetProps) {
+  const { t, locale } = useMobileCardsI18n();
   const [panelState, setPanelState] = useState<"normal" | "full">("normal");
   const [query, setQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
@@ -121,13 +119,13 @@ export function CardLinksSheet({
 
   const hint = useMemo(() => {
     if (isSearching) {
-      return "搜索中...";
+      return t("links.searching");
     }
     if (query.trim()) {
-      return "未找到相关内容";
+      return t("links.empty");
     }
-    return "输入关键词搜索，或从最近卡片中选择";
-  }, [isSearching, query]);
+    return t("links.hint");
+  }, [isSearching, query, t]);
 
   return (
     <SnapSheet
@@ -150,20 +148,20 @@ export function CardLinksSheet({
 
         <header className={`px-4 ${panelState === "full" ? "mobile-safe-top-gap pb-3" : "pb-2"}`}>
           <div className="flex items-center gap-2.5">
-            <span className="text-ink-1 text-[16px] font-bold">添加关联</span>
+            <span className="text-ink-1 text-[16px] font-bold">{t("links.title")}</span>
             <button
               type="button"
               onClick={() => onConfirm([...picked])}
               className="bg-accent-soft text-accent ml-auto rounded-full px-3.5 py-[7px] text-[13px] font-bold active:opacity-80"
             >
-              完成 · {picked.size}
+              {t("links.done", { amount: picked.size.toLocaleString(locale) })}
             </button>
           </div>
           <SearchField
             inputRef={inputRef}
             value={query}
             onValueChange={setQuery}
-            placeholder="搜索卡片…"
+            placeholder={t("search.placeholder")}
             className="mt-2.5"
           />
         </header>
@@ -182,9 +180,11 @@ export function CardLinksSheet({
                   >
                     <div className="min-w-0 flex-1">
                       <p className="text-ink-1 line-clamp-1 text-[14.5px] font-semibold">
-                        {resolveTitle(item)}
+                        {resolveTitle(item, t("fallback", { id: item.id }))}
                       </p>
-                      <p className="text-ink-3 mt-0.5 text-[11.5px]">{resolveSubtitle(item)}</p>
+                      <p className="text-ink-3 mt-0.5 text-[11.5px]">
+                        {cardTimeDisplay(item.updateTime, locale)}
+                      </p>
                     </div>
                     <span
                       className={`grid h-[30px] w-[30px] shrink-0 place-items-center rounded-full ${

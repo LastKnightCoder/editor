@@ -10,6 +10,7 @@
  * 单尺寸（高 22、字 tau-sm）无档；长文本 truncate 由容器约束 max-width。
  */
 
+import { useUiI18n } from "../i18n";
 import { X } from "lucide-react";
 import type { ComponentProps } from "react";
 import { cn } from "../cn";
@@ -46,6 +47,7 @@ export function Tag({
   children,
   ...props
 }: TagProps) {
+  const { t } = useUiI18n();
   const { shell, dot } = TAG_STYLES[color];
   const withDot = showDot && color !== "gray";
 
@@ -63,7 +65,7 @@ export function Tag({
       {onRemove && (
         <button
           type="button"
-          aria-label="移除"
+          aria-label={t("tag.remove")}
           onClick={event => {
             event.stopPropagation();
             onRemove();
