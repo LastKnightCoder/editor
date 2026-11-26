@@ -1,3 +1,6 @@
+import mediaZhCN from "./locales/menus-media.zh-CN.json" with { type: "json" };
+import mediaZhTW from "./locales/menus-media.zh-TW.json" with { type: "json" };
+import mediaEnUS from "./locales/menus-media.en-US.json" with { type: "json" };
 import structureZhCN from "./locales/menus-structure.zh-CN.json" with { type: "json" };
 import structureZhTW from "./locales/menus-structure.zh-TW.json" with { type: "json" };
 import structureEnUS from "./locales/menus-structure.en-US.json" with { type: "json" };
@@ -12,9 +15,9 @@ import enUS from "./locales/tools.en-US.json" with { type: "json" };
 export const whiteboardMessages = defineI18n({
   fallbackLocale: "zh-CN",
   resources: {
-    "zh-CN": { ...zhCN, ...menusZhCN, ...structureZhCN },
-    "zh-TW": { ...zhTW, ...menusZhTW, ...structureZhTW },
-    "en-US": { ...enUS, ...menusEnUS, ...structureEnUS },
+    "zh-CN": { ...zhCN, ...menusZhCN, ...structureZhCN, ...mediaZhCN },
+    "zh-TW": { ...zhTW, ...menusZhTW, ...structureZhTW, ...mediaZhTW },
+    "en-US": { ...enUS, ...menusEnUS, ...structureEnUS, ...mediaEnUS },
   },
 });
 export type WhiteboardMessageKey = Parameters<typeof whiteboardMessages.ref>[0];

@@ -1,3 +1,5 @@
+import { menuText } from "../menu-i18n";
+import { whiteboardFeedback } from "../feedback-i18n";
 import { mediaMenu, browserMediaInfo, type MediaCapabilities } from "../extensions/media";
 import { Music2, Link, Download, Upload, Mic } from "lucide-react";
 import { v4 as getUuid } from "uuid";
@@ -63,13 +65,13 @@ export class AudioPlugin extends CommonPlugin implements IBoardPlugin {
     if (targetElements.length === 0) {
       items.push({
         key: "create-audio",
-        label: "音频",
+        ...menuText(context.board, "menus.media.audio"),
         icon: <Music2 size={14} />,
         priority: 165, // After video (160)
         children: [
           {
             key: "audio-local",
-            label: "本地上传",
+            ...menuText(context.board, "menus.media.local"),
             icon: <Upload size={14} />,
             priority: 0,
             onSelect: (ctx: ContextMenuContext) => {
@@ -81,7 +83,7 @@ export class AudioPlugin extends CommonPlugin implements IBoardPlugin {
           },
           {
             key: "audio-url",
-            label: "网络地址",
+            ...menuText(context.board, "menus.media.address"),
             icon: <Link size={14} />,
             priority: 2,
             onSelect: (ctx: ContextMenuContext) => {
@@ -93,7 +95,7 @@ export class AudioPlugin extends CommonPlugin implements IBoardPlugin {
           },
           {
             key: "audio-tts",
-            label: "文本转语音",
+            ...menuText(context.board, "menus.media.tts"),
             icon: <Mic size={14} />,
             priority: 3,
             onSelect: (ctx: ContextMenuContext) => {
@@ -115,34 +117,34 @@ export class AudioPlugin extends CommonPlugin implements IBoardPlugin {
 
       items.push({
         key: "copy-audio-link",
-        label: "复制链接",
+        ...menuText(context.board, "menus.media.copyLink"),
         icon: <Link size={14} />,
         priority: 50,
         onSelect: async () => {
           try {
             await navigator.clipboard.writeText(audioElement.src);
-            toast.success("链接已复制到剪贴板");
+            toast.success(...whiteboardFeedback(context.board, "menus.media.linkCopied"));
           } catch (error) {
             console.error("复制链接失败:", error);
-            toast.error("复制链接失败");
+            toast.error(...whiteboardFeedback(context.board, "menus.media.copyLinkFailed"));
           }
         },
       });
 
       items.push({
         key: "download-audio",
-        label: "下载音频",
+        ...menuText(context.board, "menus.media.downloadAudio"),
         icon: <Download size={14} />,
         priority: 51,
         onSelect: async () => {
           try {
             await this.media.download?.(audioElement.src);
-            toast.success("音频下载成功");
+            toast.success(...whiteboardFeedback(context.board, "menus.media.audioDownloaded"));
           } catch (error) {
             // 用户取消下载不显示错误
             if ((error as { message?: string })?.message !== "用户取消了下载") {
               console.error("下载音频失败:", error);
-              toast.error("下载音频失败");
+              toast.error(...whiteboardFeedback(context.board, "menus.media.downloadAudioFailed"));
             }
           }
         },
@@ -173,7 +175,9 @@ export class AudioPlugin extends CommonPlugin implements IBoardPlugin {
 
     Promise.all(audioFiles.map(file => Promise.resolve(file)))
       .then(async files => {
-        const uploadingToast = toast.loading("正在处理音频，请稍候…");
+        const uploadingToast = toast.loading(
+          ...whiteboardFeedback(board, "menus.media.processingAudio")
+        );
 
         try {
           let insertPath = board.children.length;
@@ -213,7 +217,7 @@ export class AudioPlugin extends CommonPlugin implements IBoardPlugin {
               if (op.type === "insert_node") op.path = [board.children.length];
             });
             board.apply(ops);
-            toast.success("音频粘贴成功");
+            toast.success(...whiteboardFeedback(board, "menus.media.audioPasted"));
           }
         } finally {
           toast.dismiss(uploadingToast);
@@ -221,7 +225,7 @@ export class AudioPlugin extends CommonPlugin implements IBoardPlugin {
       })
       .catch(error => {
         console.error("白板媒体粘贴失败", error);
-        toast.error("媒体粘贴失败");
+        toast.error(...whiteboardFeedback(board, "menus.media.pasteFailed"));
       });
   }
 

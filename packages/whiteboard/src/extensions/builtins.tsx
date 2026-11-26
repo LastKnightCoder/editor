@@ -1,3 +1,5 @@
+import { useWhiteboardI18n } from "../i18n";
+import { useWhiteboardUiI18n } from "../ui-i18n";
 import { useEffect, useState, type ComponentType } from "react";
 import {
   Type,
@@ -599,10 +601,17 @@ export function createWebviewExtension(options: ReferencedElementOptions) {
 
 function urlTool(kind: "image" | "video" | "audio") {
   return function UrlTool({ run }: WhiteboardToolProps) {
+    const { t } = useWhiteboardI18n();
     const Icon = kind === "image" ? Image : kind === "video" ? Video : AudioLines;
     return (
       <ChromeButton
-        label={kind === "image" ? "图片" : kind === "video" ? "视频" : "音频"}
+        label={t(
+          kind === "image"
+            ? "menus.media.image"
+            : kind === "video"
+              ? "menus.media.video"
+              : "menus.media.audio"
+        )}
         onClick={() => run("url")}
       >
         <Icon strokeWidth={1.75} />
@@ -816,8 +825,13 @@ export function createExportExtension(captureBlob: CaptureBlob = browserCapture)
 }
 export function createImagePreviewExtension(options: MediaExtensionOptions = {}) {
   function PreviewLayer() {
+    const { t } = useWhiteboardUiI18n();
     const board = useBoard();
-    const [preview, setPreview] = useState<{ src: string; alt?: string } | null>(null);
+    const [preview, setPreview] = useState<{
+      src: string;
+      alt?: string;
+      defaultAlt?: boolean;
+    } | null>(null);
     useEffect(() => {
       board.on("tau.image.preview-open", setPreview);
       return () => board.off("tau.image.preview-open", setPreview);
@@ -827,7 +841,7 @@ export function createImagePreviewExtension(options: MediaExtensionOptions = {})
         <ImagePreviewModal
           open={!!preview}
           src={preview?.src ?? ""}
-          alt={preview?.alt}
+          alt={preview?.defaultAlt === true ? t("ui.image") : preview?.alt}
           onClose={() => setPreview(null)}
         />
       </MediaExtensionContext>

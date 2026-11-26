@@ -290,6 +290,8 @@ P5 MCP列表/快捷入口：11路径加Root Toast4工程完成；插件MCP真实
 
 P6B手机房间/成员/退出：17路径工程完成；既有editor13/share guard3与真实locale7共23例通过，mobile类型/构建、room91语义key三语参数与范围格式/静态通过（保留原7条fast-refresh warning）。真实多持有者按页面顺序挂载后验证notice仅消费一次，换语不重放通知/启动错误、不多start/retain/release；确认/菜单/邀请码与Share guard保留原target/title/content/banner/source/expectedRef，未知诊断与默认昵称数据不改。历史独立子批继续。
 
+P6A3-D2C白板媒体/反馈：14路径工程完成；5文件20例、包type/白板边界、44key三语runtime、Node纯feedback owner/参数快照与范围格式静态通过。真实preview事件链保持同img/src/Board/ext与读取次数，默认caption可变而用户中文caption保留；file-drop同Toast/单上传、Export自产kind/未知raw、video自定义同名label通过。独立5插件AST对照非UI协议保持，原名字/URI/default/body/上传导出动作不改。导出弹层与节点附属UI另批。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

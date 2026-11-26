@@ -1,3 +1,5 @@
+import { menuText } from "../menu-i18n";
+import { whiteboardFeedback } from "../feedback-i18n";
 import { allowsElementInteraction } from "../constants/tools";
 import { mediaMenu, browserMediaInfo, type MediaCapabilities } from "../extensions/media";
 import { Image, Copy, Link, Download, Sparkles, Upload } from "lucide-react";
@@ -81,13 +83,13 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
     if (targetElements.length === 0) {
       items.push({
         key: "create-image",
-        label: "图片",
+        ...menuText(context.board, "menus.media.image"),
         icon: <Image size={14} />,
         priority: 150,
         children: [
           {
             key: "image-local",
-            label: "本地上传",
+            ...menuText(context.board, "menus.media.local"),
             icon: <Upload size={14} />,
             priority: 0,
             onSelect: (ctx: ContextMenuContext) => {
@@ -99,7 +101,7 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
           },
           {
             key: "image-url",
-            label: "输入 URL",
+            ...menuText(context.board, "menus.media.url"),
             icon: <Link size={14} />,
             priority: 2,
             onSelect: (ctx: ContextMenuContext) => {
@@ -111,7 +113,7 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
           },
           {
             key: "image-ai",
-            label: "AI 图片生成",
+            ...menuText(context.board, "menus.media.generateImage"),
             icon: <Sparkles size={14} />,
             priority: 3,
             onSelect: (ctx: ContextMenuContext) => {
@@ -133,7 +135,7 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
 
       items.push({
         key: "copy-image",
-        label: "复制图片",
+        ...menuText(context.board, "menus.media.copyImage"),
         icon: <Copy size={14} />,
         priority: 50,
         onSelect: async () => {
@@ -145,44 +147,44 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
                 [blob.type]: blob,
               }),
             ]);
-            toast.success("图片已复制到剪贴板");
+            toast.success(...whiteboardFeedback(context.board, "menus.media.imageCopied"));
           } catch (error) {
             console.error("复制图片失败:", error);
-            toast.error("复制图片失败");
+            toast.error(...whiteboardFeedback(context.board, "menus.media.copyImageFailed"));
           }
         },
       });
 
       items.push({
         key: "copy-image-link",
-        label: "复制链接",
+        ...menuText(context.board, "menus.media.copyLink"),
         icon: <Link size={14} />,
         priority: 51,
         onSelect: async () => {
           try {
             await navigator.clipboard.writeText(imageElement.src);
-            toast.success("链接已复制到剪贴板");
+            toast.success(...whiteboardFeedback(context.board, "menus.media.linkCopied"));
           } catch (error) {
             console.error("复制链接失败:", error);
-            toast.error("复制链接失败");
+            toast.error(...whiteboardFeedback(context.board, "menus.media.copyLinkFailed"));
           }
         },
       });
 
       items.push({
         key: "download-image",
-        label: "下载图片",
+        ...menuText(context.board, "menus.media.downloadImage"),
         icon: <Download size={14} />,
         priority: 52,
         onSelect: async () => {
           try {
             await this.media.download?.(imageElement.src);
-            toast.success("图片下载成功");
+            toast.success(...whiteboardFeedback(context.board, "menus.media.imageDownloaded"));
           } catch (error) {
             // 用户取消下载不显示错误
             if ((error as { message?: string })?.message !== "用户取消了下载") {
               console.error("下载图片失败:", error);
-              toast.error("下载图片失败");
+              toast.error(...whiteboardFeedback(context.board, "menus.media.downloadImageFailed"));
             }
           }
         },
@@ -254,9 +256,11 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
 
     if (!shouldPreview) return;
 
+    const alt = previewImage.description?.trim();
     board.emit("tau.image.preview-open", {
       src: previewImage.src,
-      alt: previewImage.description?.trim() || "图片",
+      alt: alt || undefined,
+      defaultAlt: !alt,
     });
   }
 
@@ -286,7 +290,9 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
       imageFiles.map(file => Promise.all([this.media.imageInfo(file), Promise.resolve(file)]))
     )
       .then(async images => {
-        const uploadingToast = toast.loading("正在处理图片，请稍候…");
+        const uploadingToast = toast.loading(
+          ...whiteboardFeedback(board, "menus.media.processingImage")
+        );
         try {
           let insertPath = board.children.length;
           const { minX, minY, width, height } = board.viewPort;
@@ -345,7 +351,7 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
               if (op.type === "insert_node") op.path = [board.children.length];
             });
             board.apply(ops);
-            toast.success("图片粘贴成功");
+            toast.success(...whiteboardFeedback(board, "menus.media.imagePasted"));
           }
         } finally {
           toast.dismiss(uploadingToast);
@@ -353,7 +359,7 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
       })
       .catch(error => {
         console.error("白板媒体粘贴失败", error);
-        toast.error("媒体粘贴失败");
+        toast.error(...whiteboardFeedback(board, "menus.media.pasteFailed"));
       });
   }
 

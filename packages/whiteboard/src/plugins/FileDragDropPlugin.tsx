@@ -1,3 +1,4 @@
+import { whiteboardFeedback } from "../feedback-i18n";
 import { browserMediaInfo, type MediaCapabilities } from "../extensions/media";
 import { v4 as getUuid } from "uuid";
 import { toast } from "@tau/ui";
@@ -53,7 +54,7 @@ export class FileDragDropPlugin implements IBoardPlugin {
     // 处理所有拖入的文件
     void this.handleDroppedFiles(files, board, dropPoint).catch(error => {
       console.error("白板文件导入失败", error);
-      toast.error("文件导入失败");
+      toast.error(...whiteboardFeedback(board, "menus.media.fileFailed"));
     });
   }
 
@@ -107,7 +108,9 @@ export class FileDragDropPlugin implements IBoardPlugin {
       imageFiles.map(file => Promise.all([this.media.imageInfo(file), Promise.resolve(file)]))
     );
 
-    const uploadingToast = toast.loading("正在处理图片，请稍候…");
+    const uploadingToast = toast.loading(
+      ...whiteboardFeedback(board, "menus.media.processingImage")
+    );
 
     try {
       const ops: Operation[] = [];
@@ -167,7 +170,7 @@ export class FileDragDropPlugin implements IBoardPlugin {
           if (op.type === "insert_node") op.path = [board.children.length];
         });
         board.apply(ops);
-        toast.success("图片上传成功");
+        toast.success(...whiteboardFeedback(board, "menus.media.imageUploaded"));
       }
     } finally {
       toast.dismiss(uploadingToast);
@@ -186,7 +189,9 @@ export class FileDragDropPlugin implements IBoardPlugin {
       videoFiles.map(file => Promise.all([this.media.videoInfo(file), Promise.resolve(file)]))
     );
 
-    const uploadingToast = toast.loading("正在处理视频，请稍候…");
+    const uploadingToast = toast.loading(
+      ...whiteboardFeedback(board, "menus.media.processingVideo")
+    );
 
     try {
       const ops: Operation[] = [];
@@ -243,7 +248,7 @@ export class FileDragDropPlugin implements IBoardPlugin {
           if (op.type === "insert_node") op.path = [board.children.length];
         });
         board.apply(ops);
-        toast.success("视频上传成功");
+        toast.success(...whiteboardFeedback(board, "menus.media.videoUploaded"));
       }
     } finally {
       toast.dismiss(uploadingToast);
@@ -257,7 +262,9 @@ export class FileDragDropPlugin implements IBoardPlugin {
     canSubmit: () => boolean
   ) {
     if (!canSubmit()) return;
-    const uploadingToast = toast.loading("正在处理音频，请稍候…");
+    const uploadingToast = toast.loading(
+      ...whiteboardFeedback(board, "menus.media.processingAudio")
+    );
 
     try {
       const ops: Operation[] = [];
@@ -293,7 +300,7 @@ export class FileDragDropPlugin implements IBoardPlugin {
           if (op.type === "insert_node") op.path = [board.children.length];
         });
         board.apply(ops);
-        toast.success("音频上传成功");
+        toast.success(...whiteboardFeedback(board, "menus.media.audioUploaded"));
       }
     } finally {
       toast.dismiss(uploadingToast);
