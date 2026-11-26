@@ -1,7 +1,7 @@
-import { act } from "react";
+import { act, createRef } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
-import Whiteboard from "../Whiteboard";
+import Whiteboard, { type WhiteboardRef } from "../Whiteboard";
 import { extensionsWithLayer } from "./extensions.fixture";
 import { createRichTextExtension } from "../extensions/builtins";
 import { createServiceRegistry } from "../extensions";
@@ -9,6 +9,7 @@ import { IWhiteboardRichText, embeddedTextOptions } from "../extensions/text";
 import type { WhiteboardTextEditorProps } from "../extensions/text";
 
 it("非编辑底板保持元素尺寸，编辑测量后失焦恢复几何边界", async () => {
+  vi.useFakeTimers();
   const observers = new Set<ResizeObserverCallback>();
   vi.stubGlobal(
     "ResizeObserver",
@@ -33,6 +34,7 @@ it("非编辑底板保持元素尺寸，编辑测量后失焦恢复几何边界"
   const host = document.createElement("div");
   document.body.append(host);
   const root = createRoot(host);
+  const boardRef = createRef<WhiteboardRef>();
   const resize = () => {
     for (const callback of [...observers])
       callback(
@@ -44,6 +46,7 @@ it("非编辑底板保持元素尺寸，编辑测量后失焦恢复几何边界"
     await act(async () =>
       root.render(
         <Whiteboard
+          ref={boardRef}
           initData={[
             {
               id: "text",
@@ -84,13 +87,19 @@ it("非编辑底板保持元素尺寸，编辑测量后失焦恢复几何边界"
     expect(surface.style.width).toBe("160px");
     await act(async () => {
       props.onBlur?.();
-      await new Promise(resolve => setTimeout(resolve, 130));
+      await vi.advanceTimersByTimeAsync(100);
     });
-    const bounds = surface.closest("foreignObject")!;
-    expect(surface.style.width).toBe(`${bounds.getAttribute("width")}px`);
+    // foreignObject 保留最大排版宽度；底板与命中范围遵循元素的尺寸投影。
+    const element = boardRef.current!.getElements()[0];
+    expect(surface.style.width).toBe(`${element.width}px`);
+    expect(surface.style.height).toBe(`${element.height}px`);
+    await act(async () => resize());
+    expect(surface.style.width).toBe(`${element.width}px`);
+    expect(surface.style.height).toBe(`${element.height}px`);
   } finally {
     await act(async () => root.unmount());
     host.remove();
     vi.unstubAllGlobals();
+    vi.useRealTimers();
   }
 });

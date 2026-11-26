@@ -92,6 +92,7 @@ const createBoardContext = (
   const board = {
     boardFlag: Board.boardFlag,
     children,
+    framePresentation: { isMoving: () => false },
     getElementVersion: () => version,
     isHit: isHitMock,
     isElementSelected: isElementSelectedMock,
