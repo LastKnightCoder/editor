@@ -4,6 +4,7 @@
  * （见 AnnotationMenu）。坐标一律是 PDF 坐标 × scale。
  */
 
+import { pdfText, pdfValue, pdfFormat, usePdfI18n } from "../../i18n";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { Rect } from "@embedpdf/models";
 import { Bookmark, MessageSquareText } from "lucide-react";
@@ -14,7 +15,6 @@ import {
   annotationColor,
   annotationPage,
   annotationRect,
-  annotationSnippet,
   hasNote,
   layoutPins,
   noteText,
@@ -71,6 +71,8 @@ function Anchor({
   placement?: "auto" | "below";
   children: ReactNode;
 }) {
+  usePdfI18n();
+
   const box = scaled(rect, scale);
   const below = placement === "below" || box.top < ABOVE_MIN;
   const half = estimatedWidth / 2;
@@ -97,6 +99,8 @@ function Anchor({
 }
 
 export function PageLayer({ pageIndex, scale, width, height, paper }: PageLayerProps) {
+  usePdfI18n();
+
   const reader = useReader();
   const pageNumber = pageIndex + 1;
   const pageRecords = useMemo(
@@ -120,8 +124,8 @@ export function PageLayer({ pageIndex, scale, width, height, paper }: PageLayerP
       <button
         {...overlayProps}
         type="button"
-        title={bookmarked ? "移除书签 (B)" : "加书签 (B)"}
-        aria-label={bookmarked ? "移除书签" : "加书签"}
+        title={bookmarked ? pdfText("bookmark.removeShortcut") : pdfText("bookmark.addShortcut")}
+        aria-label={bookmarked ? pdfText("bookmark.remove") : pdfText("bookmark.add")}
         aria-pressed={bookmarked}
         onClick={() => reader.toggleBookmark(pageNumber)}
         className={cn(
@@ -273,6 +277,8 @@ export function PageLayer({ pageIndex, scale, width, height, paper }: PageLayerP
 }
 
 function AreaBox({ record, scale }: { record: PdfAnnotation; scale: number }) {
+  usePdfI18n();
+
   const reader = useReader();
   const rect = recordRect(record);
   if (!rect) return null;
@@ -282,7 +288,7 @@ function AreaBox({ record, scale }: { record: PdfAnnotation; scale: number }) {
     <button
       {...overlayProps}
       type="button"
-      aria-label={`区域标注 · 第 ${annotationPage(record)} 页`}
+      aria-label={pdfText("annotation.areaPage", { page: pdfValue(annotationPage(record)) })}
       onPointerDown={e => e.stopPropagation()}
       onMouseDown={e => e.stopPropagation()}
       onClick={() => reader.selectArea(selected ? null : record.id)}
@@ -299,6 +305,8 @@ function AreaBox({ record, scale }: { record: PdfAnnotation; scale: number }) {
 
 /** 页边笔记图钉：悬停浮出笔记卡，点击钉住（再点或点别处取消） */
 function NotePins({ records, scale }: { records: PdfAnnotation[]; scale: number }) {
+  usePdfI18n();
+
   const reader = useReader();
   const [hovered, setHovered] = useState<number | null>(null);
   const hideTimer = useRef<number | null>(null);
@@ -327,8 +335,10 @@ function NotePins({ records, scale }: { records: PdfAnnotation[]; scale: number 
             {...overlayProps}
             key={record.id}
             type="button"
-            title="悬停查看笔记，点击钉住"
-            aria-label={`笔记 · ${annotationSnippet(record)}`}
+            title={pdfText("note.pinHint")}
+            aria-label={pdfText("note.named", {
+              text: pdfValue(pdfFormat.annotationSnippet(record)),
+            })}
             aria-pressed={on}
             onPointerDown={e => e.stopPropagation()}
             onMouseDown={e => e.stopPropagation()}
@@ -381,6 +391,8 @@ function PinCard({
   onMouseEnter: () => void;
   onMouseLeave: () => void;
 }) {
+  usePdfI18n();
+
   const reader = useReader();
   const spec = COLOR_SPECS[annotationColor(record)];
   return (
@@ -397,12 +409,14 @@ function PinCard({
       )}
       style={{ top: top - 4, right: 40, width: PIN_CARD_WIDTH }}
     >
-      <div className="text-tau-meta text-ink-3 truncate">{annotationSnippet(record)}</div>
+      <div className="text-tau-meta text-ink-3 truncate">{pdfFormat.annotationSnippet(record)}</div>
       <div className="mt-0.5 line-clamp-6 leading-relaxed whitespace-pre-wrap">
         {noteText(record)}
       </div>
       <div className="text-tau-meta text-ink-3 mt-1.5 flex items-center gap-2">
-        <span className="tabular-nums">第 {annotationPage(record)} 页</span>
+        <span className="tabular-nums">
+          {pdfText("page.number", { page: pdfValue(annotationPage(record)) })}
+        </span>
         <span className="flex-1" />
         <button
           type="button"
@@ -412,14 +426,14 @@ function PinCard({
             reader.openNote(record);
           }}
         >
-          编辑
+          {pdfText("action.edit")}
         </button>
         <button
           type="button"
           className="hover:text-danger rounded-tau-sm px-1"
           onClick={() => reader.clearNote(record)}
         >
-          删除笔记
+          {pdfText("note.delete")}
         </button>
       </div>
     </div>

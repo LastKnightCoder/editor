@@ -1,5 +1,5 @@
 import { useWalkI18n } from "../i18n";
-import type { WalkLocale } from "../messages";
+import type { WalkLocale, WalkMessageKey } from "../messages";
 /**
  * 漫步偏好选择器：范围（哪几类内容进抽样池）与抽取偏好（纯随机 / 久未见 / 那年今日）。
  * 改偏好只影响下一次随机跳转，不重置当前内容；变更即持久化。
@@ -12,22 +12,23 @@ import type { WalkBias, WalkRefKind } from "@/types";
 import { walkKindMeta, WALK_KIND_ORDER } from "../model";
 import type { WalkPrefs } from "../prefs";
 
-const BIAS_LABEL: Record<WalkBias, string> = {
-  random: "纯随机",
-  stale: "久未见",
-  "on-this-day": "那年今日",
+const BIAS_MESSAGE: Record<WalkBias, WalkMessageKey> = {
+  random: "pool.bias.random",
+  stale: "pool.bias.stale",
+  "on-this-day": "pool.bias.on-this-day",
 };
 
-const BIAS_HINT: Record<WalkBias, string> = {
-  random: "每条内容被抽到的机会均等",
-  stale: "越久没见的内容，越容易被抽到",
-  "on-this-day": "优先抽往年今天写下的内容，没有时按久未见",
+const BIAS_HINT: Record<WalkBias, WalkMessageKey> = {
+  random: "pool.hint.random",
+  stale: "pool.hint.stale",
+  "on-this-day": "pool.hint.on-this-day",
 };
 
-function rangeLabel(kinds: WalkRefKind[], t: WalkLocale["t"]): string {
-  if (kinds.length >= WALK_KIND_ORDER.length) return "全部内容";
-  if (kinds.length <= 2) return kinds.map(kind => walkKindMeta(kind, t).label).join("、");
-  return `${kinds.length} 类内容`;
+function rangeLabel(kinds: WalkRefKind[], { t, locale }: WalkLocale): string {
+  if (kinds.length >= WALK_KIND_ORDER.length) return t("pool.all");
+  if (kinds.length <= 2)
+    return kinds.map(kind => walkKindMeta(kind, t).label).join(t("pool.separator"));
+  return t("pool.kindCount", { count: kinds.length, amount: kinds.length.toLocaleString(locale) });
 }
 
 export function WalkPoolPicker({
@@ -37,7 +38,8 @@ export function WalkPoolPicker({
   prefs: WalkPrefs;
   onChange(prefs: WalkPrefs): void;
 }) {
-  const { t } = useWalkI18n();
+  const language = useWalkI18n();
+  const { t } = language;
   const [open, setOpen] = useState(false);
 
   const toggleKind = (kind: WalkRefKind) => {
@@ -58,12 +60,12 @@ export function WalkPoolPicker({
       className="flex w-[300px] flex-col gap-3.5 p-3.5"
       trigger={
         <Button variant="ghost" size="sm" icon={SlidersHorizontal}>
-          {rangeLabel(prefs.kinds, t)} · {BIAS_LABEL[prefs.bias]}
+          {rangeLabel(prefs.kinds, language)} · {t(BIAS_MESSAGE[prefs.bias])}
         </Button>
       }
     >
       <div>
-        <p className="text-tau-micro text-ink-3 mb-1.5">从哪些内容里抽</p>
+        <p className="text-tau-micro text-ink-3 mb-1.5">{t("pool.range")}</p>
         <div className="flex flex-wrap gap-1.5">
           {WALK_KIND_ORDER.map(kind => (
             <FilterPill
@@ -76,17 +78,17 @@ export function WalkPoolPicker({
         </div>
       </div>
       <div>
-        <p className="text-tau-micro text-ink-3 mb-1.5">抽取偏好</p>
+        <p className="text-tau-micro text-ink-3 mb-1.5">{t("pool.preference")}</p>
         <Segmented
-          label="抽取偏好"
+          label={t("pool.preference")}
           value={prefs.bias}
           onValueChange={bias => onChange({ ...prefs, bias })}
         >
-          <Segmented.Item value="random" label="纯随机" />
-          <Segmented.Item value="stale" label="久未见" />
-          <Segmented.Item value="on-this-day" label="那年今日" />
+          <Segmented.Item value="random" label={t("pool.bias.random")} />
+          <Segmented.Item value="stale" label={t("pool.bias.stale")} />
+          <Segmented.Item value="on-this-day" label={t("pool.bias.on-this-day")} />
         </Segmented>
-        <p className="text-tau-micro text-ink-3 mt-1.5">{BIAS_HINT[prefs.bias]}</p>
+        <p className="text-tau-micro text-ink-3 mt-1.5">{t(BIAS_HINT[prefs.bias])}</p>
       </div>
     </Popover>
   );

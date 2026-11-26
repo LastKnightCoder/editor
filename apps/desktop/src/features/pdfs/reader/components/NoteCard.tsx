@@ -4,6 +4,7 @@
  * 保存时才落库。
  */
 
+import { pdfText, pdfValue, pdfFormat, usePdfI18n } from "../../i18n";
 import { useCallback, useRef, useState } from "react";
 import type { Descendant } from "slate";
 import { Editor as SlateEditor, Transforms } from "slate";
@@ -15,13 +16,7 @@ import { Editor } from "@tau/editor";
 import { getDescriptionKit } from "@/services/editorKit";
 import { useOverlayDismiss } from "@/page/PageProvider";
 import type { Note, PdfAnnotation } from "@/types";
-import {
-  COLOR_SPECS,
-  annotationColor,
-  annotationPage,
-  annotationSnippet,
-  isMarginNote,
-} from "../annotationModel";
+import { COLOR_SPECS, annotationColor, annotationPage, isMarginNote } from "../annotationModel";
 
 const emptyValue = (): Descendant[] => [
   { type: "paragraph", children: [{ type: "formatted", text: "" }] } as unknown as Descendant,
@@ -49,6 +44,8 @@ export function NoteCard({
   onAsk,
   className,
 }: NoteCardProps) {
+  usePdfI18n();
+
   const [value, setValue] = useState<Descendant[]>(() => {
     const existing = record?.notes?.[0]?.note;
     return existing && existing.length ? existing : emptyValue();
@@ -88,7 +85,7 @@ export function NoteCard({
     <div
       ref={cardRef}
       role="dialog"
-      aria-label="写笔记"
+      aria-label={pdfText("note.write")}
       onPointerDown={e => e.stopPropagation()}
       onMouseDown={e => e.stopPropagation()}
       onKeyDownCapture={e => {
@@ -111,7 +108,7 @@ export function NoteCard({
             color && COLOR_SPECS[color].border
           )}
         >
-          {annotationSnippet(record)}
+          {pdfFormat.annotationSnippet(record)}
         </div>
       )}
       <div className="border-line-1 bg-surface focus-within:border-accent rounded-tau-sm text-tau-body max-h-[240px] min-h-[72px] overflow-y-auto border px-2.5 py-1.5 focus-within:shadow-[var(--tau-focus-ring)]">
@@ -120,29 +117,34 @@ export function NoteCard({
           initValue={value}
           onChange={setValue}
           onInit={focusEnd}
-          placeHolder="写下你的想法…"
+          placeHolder={pdfText("note.placeholder")}
           readonly={false}
         />
       </div>
       <div className="text-tau-meta text-ink-3 flex items-center gap-2">
         <span className="tabular-nums">
           {pageNumber === undefined
-            ? "正在保存标注…"
-            : `${margin ? "页边批注 · " : ""}第 ${pageNumber} 页`}
+            ? pdfText("annotation.saving")
+            : pdfText(margin ? "note.marginPage" : "page.number", { page: pdfValue(pageNumber) })}
         </span>
         {onAsk && (
-          <IconButton title="问 AI" aria-label="问 AI" onClick={onAsk} className="size-6">
+          <IconButton
+            title={pdfText("chat.ask")}
+            aria-label={pdfText("chat.ask")}
+            onClick={onAsk}
+            className="size-6"
+          >
             <MessageCircle size={13} strokeWidth={1.75} />
           </IconButton>
         )}
         <span className="flex-1" />
         {onDelete && (
           <Button variant="ghost" size="sm" className="hover:text-danger" onClick={onDelete}>
-            删除
+            {pdfText("action.delete")}
           </Button>
         )}
         <Button variant="ghost" size="sm" onClick={onCancel}>
-          取消
+          {pdfText("action.cancel")}
         </Button>
         <Button
           variant="primary"
@@ -150,9 +152,9 @@ export function NoteCard({
           onClick={() => void save()}
           disabled={!savable}
           loading={saving}
-          loadingText="保存中"
+          loadingText={pdfText("action.saving")}
         >
-          保存
+          {pdfText("action.save")}
           <span className="ml-1 opacity-75">⌘↵</span>
         </Button>
       </div>

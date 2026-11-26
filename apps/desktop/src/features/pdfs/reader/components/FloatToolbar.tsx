@@ -8,6 +8,7 @@
  * extra 放在删除之前（插件动作的「⋯」），按钮样式用 TOOLBAR_ICON_BUTTON。
  */
 
+import { pdfText, pdfValue, usePdfI18n } from "../../i18n";
 import type { ReactNode } from "react";
 import {
   Check,
@@ -25,7 +26,7 @@ import {
 } from "lucide-react";
 import { cn } from "@tau/ui";
 import type { EHighlightColor } from "@/types";
-import { COLOR_SPECS, PICKABLE_COLORS, STYLE_LABEL, type MarkupStyle } from "../annotationModel";
+import { COLOR_SPECS, PICKABLE_COLORS, type MarkupStyle } from "../annotationModel";
 
 export type FloatToolbarMode = "selection" | "annotation" | "area-new" | "area";
 
@@ -63,6 +64,8 @@ const STYLE_ICON = {
 const ICON = { size: 15, strokeWidth: 1.75 } as const;
 
 function Divider() {
+  usePdfI18n();
+
   return <span aria-hidden className="bg-line-1 mx-1 h-4 w-px shrink-0" />;
 }
 
@@ -87,6 +90,8 @@ function ToolButton({
   danger?: boolean;
   accent?: boolean;
 }) {
+  usePdfI18n();
+
   return (
     <button
       type="button"
@@ -129,6 +134,8 @@ export function FloatToolbar({
   extra,
   className,
 }: FloatToolbarProps) {
+  usePdfI18n();
+
   const showColors = mode !== "area-new";
   const markChecked = mode === "annotation" || mode === "area";
   const StyleIcon = STYLE_ICON[markupStyle];
@@ -136,7 +143,7 @@ export function FloatToolbar({
   return (
     <div
       role="toolbar"
-      aria-label="标注工具条"
+      aria-label={pdfText("annotation.toolbar")}
       onPointerDown={e => {
         // 拖出把手要走原生拖放，不能吞掉默认行为
         if ((e.target as Element).closest("[data-drag-out]")) return e.stopPropagation();
@@ -160,8 +167,12 @@ export function FloatToolbar({
             <button
               key={c}
               type="button"
-              title={mode === "selection" ? `高亮 · ${COLOR_SPECS[c].label}` : COLOR_SPECS[c].label}
-              aria-label={COLOR_SPECS[c].label}
+              title={
+                mode === "selection"
+                  ? pdfText("markup.highlightColor", { color: pdfValue(pdfText(`color.${c}`)) })
+                  : pdfText(`color.${c}`)
+              }
+              aria-label={pdfText(`color.${c}`)}
               aria-pressed={on}
               onClick={() => onColor?.(c)}
               className="rounded-tau-sm hover:bg-hover grid size-7 shrink-0 place-items-center"
@@ -180,7 +191,9 @@ export function FloatToolbar({
 
       {(mode === "selection" || mode === "annotation") && (
         <ToolButton
-          label={`${STYLE_LABEL[markupStyle]} · 点击切换高亮 / 下划线`}
+          label={pdfText("markup.toggleHint", {
+            style: pdfValue(pdfText(`markup.${markupStyle}`)),
+          })}
           icon={<StyleIcon {...ICON} />}
           onClick={onToggleStyle}
           active={markupStyle === "underline"}
@@ -188,15 +201,23 @@ export function FloatToolbar({
       )}
 
       {mode === "area-new" && (
-        <ToolButton label="存为区域标注" icon={<BoxSelect {...ICON} />} onClick={onSaveArea}>
-          存为区域标注
+        <ToolButton
+          label={pdfText("annotation.saveArea")}
+          icon={<BoxSelect {...ICON} />}
+          onClick={onSaveArea}
+        >
+          {pdfText("annotation.saveArea")}
         </ToolButton>
       )}
 
       {showColors && <Divider />}
       {mode !== "area-new" && (
-        <ToolButton label="笔记" icon={<MessageSquarePlus {...ICON} />} onClick={onNote}>
-          {mode === "selection" || !hasNote ? "写笔记" : "笔记"}
+        <ToolButton
+          label={pdfText("field.note")}
+          icon={<MessageSquarePlus {...ICON} />}
+          onClick={onNote}
+        >
+          {mode === "selection" || !hasNote ? pdfText("note.write") : pdfText("field.note")}
         </ToolButton>
       )}
       {onSendToBoard && (
@@ -205,34 +226,44 @@ export function FloatToolbar({
           draggable={!!onSendDragStart}
           onDragStart={onSendDragStart}
           className="inline-flex"
-          title={onSendDragStart ? "点一下放到旁边，或拖到画布上的任意位置" : undefined}
+          title={onSendDragStart ? pdfText("board.sendHint") : undefined}
         >
           <ToolButton
-            label="放到白板"
+            label={pdfText("board.send")}
             icon={<SquareArrowOutUpRight {...ICON} />}
             onClick={onSendToBoard}
           >
-            放到白板
+            {pdfText("board.send")}
           </ToolButton>
         </span>
       )}
       {canAsk && (
-        <ToolButton label="问 AI" icon={<Sparkles {...ICON} />} onClick={onAsk} accent>
-          问 AI
+        <ToolButton
+          label={pdfText("chat.ask")}
+          icon={<Sparkles {...ICON} />}
+          onClick={onAsk}
+          accent
+        >
+          {pdfText("chat.ask")}
         </ToolButton>
       )}
       {mode === "area-new" || mode === "area" ? (
-        <ToolButton label="复制图片" icon={<ImageIcon {...ICON} />} onClick={onCopy}>
-          {mode === "area-new" ? "复制图片" : undefined}
+        <ToolButton label={pdfText("copy.image")} icon={<ImageIcon {...ICON} />} onClick={onCopy}>
+          {mode === "area-new" ? pdfText("copy.image") : undefined}
         </ToolButton>
       ) : (
-        <ToolButton label="复制原文" icon={<Copy {...ICON} />} onClick={onCopy} />
+        <ToolButton label={pdfText("copy.text")} icon={<Copy {...ICON} />} onClick={onCopy} />
       )}
       {extra}
       {(mode === "annotation" || mode === "area") && (
         <>
           <Divider />
-          <ToolButton label="删除标注" icon={<Trash2 {...ICON} />} onClick={onDelete} danger />
+          <ToolButton
+            label={pdfText("annotation.delete")}
+            icon={<Trash2 {...ICON} />}
+            onClick={onDelete}
+            danger
+          />
         </>
       )}
     </div>

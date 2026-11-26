@@ -6,7 +6,7 @@ import { useWalkI18n } from "../i18n";
 
 import type { RefObject } from "react";
 import { BookOpen, EyeOff, Layers } from "lucide-react";
-import dayjs from "dayjs";
+import { formatWalkCreatedDate } from "../format";
 import type { EditorRef } from "@tau/editor";
 import { Button, FadeScroll, IconButton, Panel } from "@tau/ui";
 import ContentEditor from "@/components/ContentEditor";
@@ -54,7 +54,11 @@ export function WalkCard({
             <KindIcon className="size-3.5 shrink-0" strokeWidth={1.75} />
             {kind.label}
           </span>
-          <span className="tabular-nums">写于 {dayjs(item.createTime).format("YYYY-MM-DD")}</span>
+          <span className="tabular-nums">
+            {language.t("card.created", {
+              date: formatWalkCreatedDate(item.createTime, language.locale),
+            })}
+          </span>
           {item.source && <span>· {item.source}</span>}
         </div>
         <p className="text-tau-meta text-ink-2 mt-2.5 flex items-center gap-1.5">
@@ -76,7 +80,7 @@ export function WalkCard({
               )}
               {item.note && (
                 <div className="mt-4">
-                  <p className="text-tau-micro text-ink-3 mb-1">我的批注</p>
+                  <p className="text-tau-micro text-ink-3 mb-1">{language.t("card.note")}</p>
                   <p className="text-tau-body text-ink-2">{item.note}</p>
                 </div>
               )}
@@ -101,15 +105,19 @@ export function WalkCard({
         )}
         <div className="border-line-1 mt-4 flex items-center gap-1.5 border-t pt-3">
           <Button variant="secondary" size="sm" icon={BookOpen} onClick={onOpenSource}>
-            打开原文
+            {language.t("card.open")}
           </Button>
           {!isPdfAnnotation && onMakeFlashcard && (
             <Button variant="ghost" size="sm" icon={Layers} onClick={onMakeFlashcard}>
-              做成闪卡
+              {language.t("card.flashcard")}
             </Button>
           )}
           <span className="flex-1" />
-          <IconButton aria-label="别再抽到这条" title="别再抽到这条" onClick={onMute}>
+          <IconButton
+            aria-label={language.t("card.mute")}
+            title={language.t("card.mute")}
+            onClick={onMute}
+          >
             <EyeOff className="size-4" strokeWidth={1.75} />
           </IconButton>
         </div>

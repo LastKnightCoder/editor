@@ -1,8 +1,10 @@
+import { createI18nRuntime, createLocaleStore, defineI18n } from "@tau/i18n";
+import { createPdfFormatting } from "../format";
+import zhCN from "../locales/zh-CN.json";
 import { describe, expect, it } from "vitest";
 import type { PdfIndexStatus, PdfLibraryItem } from "@/types";
 import {
   fileNameFromUrl,
-  formatDay,
   matchQuery,
   matchSource,
   pdfTitle,
@@ -10,6 +12,14 @@ import {
   sortEntries,
   toEntry,
 } from "../model";
+
+const formatting = createPdfFormatting(
+  "zh-CN",
+  createI18nRuntime({ localeSource: createLocaleStore("zh-CN") }).get(
+    defineI18n({ fallbackLocale: "zh-CN", resources: { "zh-CN": zhCN } })
+  ).t
+);
+const formatDay = formatting.day;
 
 const item = (patch: Partial<PdfLibraryItem> & { id: number }): PdfLibraryItem => ({
   createTime: 1_000,

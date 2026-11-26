@@ -1,5 +1,6 @@
 /** PDF 列表条目：封面格、「最近打开」续读卡、列表排布（行式，点列头排序），以及共用的操作菜单 */
 
+import { pdfText, pdfValue, pdfFormat, pdfFileTitle, usePdfI18n } from "../i18n";
 import type { ReactNode } from "react";
 import {
   ArrowDown,
@@ -15,7 +16,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { IconButton, Menu, cn } from "@tau/ui";
-import { INDEX_LABEL, formatDay, type PdfEntry, type PdfIndexState, type PdfSort } from "../model";
+import { type PdfEntry, type PdfIndexState, type PdfSort } from "../model";
 import { PdfCover } from "./PdfCover";
 
 export interface PdfItemActions {
@@ -30,6 +31,8 @@ export interface PdfItemActions {
 }
 
 function MenuIcon({ icon: Icon }: { icon: LucideIcon }) {
+  usePdfI18n();
+
   return <Icon className="size-[15px] shrink-0" strokeWidth={1.75} />;
 }
 
@@ -42,15 +45,15 @@ function menuItems(entry: PdfEntry, actions: PdfItemActions) {
           icon={<MenuIcon icon={FolderSearch} />}
           onSelect={() => actions.onRelocate(entry)}
         >
-          重新定位文件
+          {pdfText("file.relocate")}
         </Menu.Item>
       ) : (
         <Menu.Item icon={<MenuIcon icon={BookOpen} />} onSelect={() => actions.onOpen(entry)}>
-          打开
+          {pdfText("action.open")}
         </Menu.Item>
       )}
       <Menu.Item icon={<MenuIcon icon={PencilLine} />} onSelect={() => actions.onRename(entry)}>
-        重命名
+        {pdfText("action.rename")}
       </Menu.Item>
       {entry.isLocal && !entry.fileMissing && (
         <>
@@ -58,26 +61,26 @@ function menuItems(entry: PdfEntry, actions: PdfItemActions) {
             icon={<MenuIcon icon={CloudUpload} />}
             onSelect={() => actions.onUpload(entry)}
           >
-            上传到云端
+            {pdfText("file.upload")}
           </Menu.Item>
           <Menu.Item icon={<MenuIcon icon={FolderOpen} />} onSelect={() => actions.onReveal(entry)}>
-            在文件夹中显示
+            {pdfText("file.reveal")}
           </Menu.Item>
         </>
       )}
       {!entry.isLocal && (
         <Menu.Item icon={<MenuIcon icon={Link2} />} onSelect={() => actions.onCopyLink(entry)}>
-          复制链接
+          {pdfText("file.copyLink")}
         </Menu.Item>
       )}
       {(entry.index === "none" || entry.index === "failed") && !entry.fileMissing && (
         <Menu.Item icon={<MenuIcon icon={Sparkles} />} onSelect={() => actions.onBuildIndex(entry)}>
-          {entry.index === "failed" ? "重建 AI 索引" : "建立 AI 索引"}
+          {entry.index === "failed" ? pdfText("index.rebuild") : pdfText("index.build")}
         </Menu.Item>
       )}
       <Menu.Separator />
       <Menu.Item danger icon={<MenuIcon icon={Trash2} />} onSelect={() => actions.onDelete(entry)}>
-        删除
+        {pdfText("action.delete")}
       </Menu.Item>
     </>
   );
@@ -92,13 +95,15 @@ function MoreMenu({
   actions: PdfItemActions;
   className?: string;
 }) {
+  usePdfI18n();
+
   return (
     <div className={className} onClick={e => e.stopPropagation()}>
       <Menu
         align="end"
         trigger={
           <IconButton
-            title="更多操作"
+            title={pdfText("action.moreActions")}
             className="bg-surface shadow-lift enabled:hover:bg-surface-hover size-[26px] rounded-[8px]"
           >
             <MoreHorizontal className="size-[14px]" strokeWidth={1.75} />
@@ -117,19 +122,28 @@ const activate = (entry: PdfEntry, actions: PdfItemActions) =>
 
 /** 条目信息行：页数 · 标注数（都没有时给添加日期），文件丢失时给出提示 */
 export function Meta({ entry }: { entry: PdfEntry }) {
-  if (entry.fileMissing) return <span className="text-danger">文件丢失 · 点击重新定位</span>;
+  usePdfI18n();
+
+  if (entry.fileMissing)
+    return <span className="text-danger">{pdfText("file.missingAction")}</span>;
   return (
     <>
-      {entry.pageCount ? <span>{entry.pageCount} 页</span> : null}
-      {entry.annotationCount > 0 && <span>{entry.annotationCount} 标注</span>}
+      {entry.pageCount ? (
+        <span>{pdfText("file.pages", { count: pdfValue(entry.pageCount) })}</span>
+      ) : null}
+      {entry.annotationCount > 0 && (
+        <span>{pdfText("file.annotations", { count: pdfValue(entry.annotationCount) })}</span>
+      )}
       {!entry.pageCount && entry.annotationCount === 0 && (
-        <span>{formatDay(entry.addedAt)} 添加</span>
+        <span>{pdfText("file.addedAt", { date: pdfFormat.day(entry.addedAt) })}</span>
       )}
     </>
   );
 }
 
 export function CoverTile({ entry, actions }: { entry: PdfEntry; actions: PdfItemActions }) {
+  usePdfI18n();
+
   return (
     <article
       tabIndex={0}
@@ -146,14 +160,14 @@ export function CoverTile({ entry, actions }: { entry: PdfEntry; actions: PdfIte
       <MoreMenu
         entry={entry}
         actions={actions}
-        className="ease-tau-out absolute right-2 top-2 z-[1] opacity-0 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100 has-[[aria-expanded=true]]:opacity-100"
+        className="ease-tau-out absolute top-2 right-2 z-[1] opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100"
       />
       {/* 标题固定占两行高：同一行的文件无论标题一行还是两行，下面的信息行都对齐 */}
       <span
-        title={entry.title}
-        className="mt-2.5 line-clamp-2 h-[2.8em] text-[13px] font-medium leading-[1.4] [overflow-wrap:anywhere]"
+        title={pdfFileTitle(entry.raw.fileName)}
+        className="mt-2.5 line-clamp-2 h-[2.8em] text-[13px] leading-[1.4] font-medium [overflow-wrap:anywhere]"
       >
-        {entry.title}
+        {pdfFileTitle(entry.raw.fileName)}
       </span>
       <span className="text-tau-micro text-ink-3 mt-1 flex gap-2 tabular-nums">
         <Meta entry={entry} />
@@ -163,18 +177,23 @@ export function CoverTile({ entry, actions }: { entry: PdfEntry; actions: PdfIte
 }
 
 export function RecentCard({ entry, onOpen }: { entry: PdfEntry; onOpen(): void }) {
+  usePdfI18n();
+
   return (
     <button
       type="button"
       onClick={onOpen}
-      className="hover:bg-hover ease-tau-out flex min-w-0 gap-3.5 rounded-[var(--tau-radius-lg)] p-3.5 text-left outline-none transition-colors duration-150 focus-visible:shadow-[var(--tau-focus-ring)]"
+      className="hover:bg-hover ease-tau-out flex min-w-0 gap-3.5 rounded-[var(--tau-radius-lg)] p-3.5 text-left transition-colors duration-150 outline-none focus-visible:shadow-[var(--tau-focus-ring)]"
     >
       <PdfCover entry={entry} bare className="w-[56px] self-start" />
       <span className="flex min-w-0 flex-1 flex-col gap-0.5 py-0.5">
-        <span className="truncate text-[14px] font-semibold">{entry.title}</span>
+        <span className="truncate text-[14px] font-semibold">
+          {pdfFileTitle(entry.raw.fileName)}
+        </span>
         <span className="text-tau-sm text-ink-3 truncate tabular-nums">
-          {formatDay(entry.openedAt)} 打开
-          {entry.annotationCount > 0 && ` · ${entry.annotationCount} 条标注`}
+          {pdfText("file.openedAt", { date: pdfFormat.day(entry.openedAt) })}
+          {entry.annotationCount > 0 &&
+            pdfText("annotation.countSuffix", { count: pdfValue(entry.annotationCount) })}
         </span>
         {entry.lastPage && entry.pageCount ? (
           <span className="text-tau-micro text-ink-3 mt-auto flex items-center gap-2 tabular-nums">
@@ -184,11 +203,11 @@ export function RecentCard({ entry, onOpen }: { entry: PdfEntry; onOpen(): void 
                 style={{ width: `${Math.min(100, (entry.lastPage / entry.pageCount) * 100)}%` }}
               />
             </span>
-            {entry.lastPage} / {entry.pageCount} 页
+            {entry.lastPage} / {pdfText("file.pages", { count: pdfValue(entry.pageCount) })}
           </span>
         ) : entry.lastPage ? (
           <span className="text-tau-micro text-ink-3 mt-auto tabular-nums">
-            读到第 {entry.lastPage} 页
+            {pdfText("reading.lastPage", { page: pdfValue(entry.lastPage) })}
           </span>
         ) : null}
       </span>
@@ -217,6 +236,8 @@ export function PdfList({
   onSort(sort: PdfSort): void;
   actions: PdfItemActions;
 }) {
+  usePdfI18n();
+
   const head = (key: PdfSort, label: string) => (
     <button
       type="button"
@@ -233,12 +254,12 @@ export function PdfList({
   return (
     <div className="-mx-3">
       <div className={cn(LIST_COLS, "text-tau-sm text-ink-3 px-3 py-2")}>
-        {head("name", "名称")}
-        <span>页数</span>
-        {head("annotations", "标注")}
-        <span>来源</span>
-        <span>AI 检索</span>
-        {head("opened", "最近打开")}
+        {head("name", pdfText("field.name"))}
+        <span>{pdfText("field.pages")}</span>
+        {head("annotations", pdfText("field.annotations"))}
+        <span>{pdfText("field.source")}</span>
+        <span>{pdfText("field.aiSearch")}</span>
+        {head("opened", pdfText("sort.opened"))}
         <span />
       </div>
       {entries.map(entry => (
@@ -249,6 +270,8 @@ export function PdfList({
 }
 
 function Row({ entry, actions }: { entry: PdfEntry; actions: PdfItemActions }) {
+  usePdfI18n();
+
   const cell = (children: ReactNode) => (
     <span className="text-tau-sm text-ink-2 truncate tabular-nums">{children}</span>
   );
@@ -266,21 +289,23 @@ function Row({ entry, actions }: { entry: PdfEntry; actions: PdfItemActions }) {
     >
       <span className="flex min-w-0 items-center gap-3">
         <PdfCover entry={entry} bare className="w-[28px] rounded-[2px]" />
-        <span className="min-w-0 truncate font-medium">{entry.title}</span>
-        {entry.fileMissing && <span className="text-tau-sm text-danger shrink-0">文件丢失</span>}
+        <span className="min-w-0 truncate font-medium">{pdfFileTitle(entry.raw.fileName)}</span>
+        {entry.fileMissing && (
+          <span className="text-tau-sm text-danger shrink-0">{pdfText("file.missing")}</span>
+        )}
       </span>
       {cell(entry.pageCount ?? "—")}
       {cell(entry.annotationCount || "—")}
-      {cell(entry.isLocal ? "本地" : "远程")}
+      {cell(entry.isLocal ? pdfText("source.local") : pdfText("source.remote"))}
       <span className="text-tau-sm text-ink-2 inline-flex items-center gap-1.5 whitespace-nowrap">
         <span className={cn("size-1.5 rounded-full", INDEX_DOT[entry.index])} />
-        {INDEX_LABEL[entry.index]}
+        {pdfText(`index.${entry.index}`)}
       </span>
-      {cell(formatDay(entry.openedAt))}
+      {cell(pdfFormat.day(entry.openedAt))}
       <MoreMenu
         entry={entry}
         actions={actions}
-        className="ease-tau-out opacity-0 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100 has-[[aria-expanded=true]]:opacity-100"
+        className="ease-tau-out opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100"
       />
     </div>
   );

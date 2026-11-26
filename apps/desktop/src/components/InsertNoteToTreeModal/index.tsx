@@ -1,3 +1,4 @@
+import { readingTranslator, useReadingI18n } from "../reading.i18n";
 import { memo, useState, useEffect, useCallback } from "react";
 import { Descendant } from "slate";
 import { ChevronRight, FileText, Folder, FolderInput } from "lucide-react";
@@ -55,6 +56,7 @@ const TreeNodeItem = memo<{
   onSelect: (id: number) => void;
   depth?: number;
 }>(({ node, selectedNodeId, onSelect, depth = 0 }) => {
+  const { t } = useReadingI18n();
   const [expanded, setExpanded] = useState(true);
   const isSelected = selectedNodeId === node.id;
   const hasChildren = node.children.length > 0;
@@ -76,7 +78,7 @@ const TreeNodeItem = memo<{
         {hasChildren ? (
           <span
             role="button"
-            aria-label={expanded ? "折叠" : "展开"}
+            aria-label={expanded ? t("tree.collapse") : t("tree.expand")}
             aria-expanded={expanded}
             className="text-ink-3 hover:text-ink-1 grid size-4 shrink-0 place-items-center"
             onClick={e => {
@@ -130,6 +132,7 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
     onCancel,
     onSuccess,
   }) => {
+    const { t } = useReadingI18n();
     const [projects, setProjects] = useState<Project[]>([]);
     const [selectedEntityId, setSelectedEntityId] = useState<number | null>(null);
     const [treeNodes, setTreeNodes] = useState<DocTreeNode[]>([]);
@@ -151,7 +154,7 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
           // 项目即文档树（数据库 / Vibe Learning 已拆为独立模块），只需过掉归档
           setProjects(allProjects.filter(p => !p.archived));
         })
-        .catch(() => toast.error("加载列表失败"))
+        .catch(() => toast.error(readingTranslator.t("tree.loadFailed")))
         .finally(() => setLoading(false));
     }, [open, mode]);
 
@@ -167,22 +170,19 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
     const entityList = projects;
 
     // 选择项目，加载文档树
-    const handleSelectEntity = useCallback(
-      async (entity: Project) => {
-        setSelectedEntityId(entity.id);
-        setSelectedNodeId(null);
-        setTreeLoading(true);
-        try {
-          const nodes = await buildProjectTree(entity as Project);
-          setTreeNodes(nodes);
-        } catch {
-          setTreeNodes([]);
-        } finally {
-          setTreeLoading(false);
-        }
-      },
-      [mode]
-    );
+    const handleSelectEntity = useCallback(async (entity: Project) => {
+      setSelectedEntityId(entity.id);
+      setSelectedNodeId(null);
+      setTreeLoading(true);
+      try {
+        const nodes = await buildProjectTree(entity as Project);
+        setTreeNodes(nodes);
+      } catch {
+        setTreeNodes([]);
+      } finally {
+        setTreeLoading(false);
+      }
+    }, []);
 
     // 确认插入
     const handleConfirm = useCallback(async () => {
@@ -203,7 +203,7 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
             parentProjectItemId: selectedNodeId,
             title,
           });
-          toast.success("内容已挂载");
+          toast.success(t("tree.mounted"));
         } else {
           let contentToInsert = noteContent;
           let sourceContracts = contracts;
@@ -237,19 +237,22 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
               relation: "derived",
             });
           }
-          toast.success("笔记已插入");
+          toast.success(t("tree.inserted"));
         }
         onSuccess(created);
       } catch (error) {
         console.error("Failed to insert note:", error);
-        toast.error(insertMode === "shared-content" ? "挂载内容失败" : "插入笔记失败");
+        toast.error(
+          insertMode === "shared-content" ? t("tree.mountFailed") : t("tree.insertFailed")
+        );
       } finally {
         setInserting(false);
       }
     }, [
       selectedEntityId,
-      mode,
       selectedNodeId,
+      contracts,
+      t,
       noteTitle,
       noteContent,
       sourceContentId,
@@ -258,7 +261,7 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
       onSuccess,
     ]);
 
-    const actionText = insertMode === "shared-content" ? "创建" : "插入";
+    const actionText = insertMode === "shared-content" ? t("tree.create") : t("tree.insert");
 
     return (
       <Dialog
@@ -269,11 +272,11 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
         width={680}
         locked={inserting}
         icon={<FolderInput className="size-4" strokeWidth={1.75} />}
-        title={insertMode === "shared-content" ? "创建项目文档" : "插入笔记到项目"}
+        title={insertMode === "shared-content" ? t("tree.createTitle") : t("tree.insertTitle")}
         footer={
           <>
             <Button variant="secondary" size="sm" disabled={inserting} onClick={onCancel}>
-              取消
+              {t("cancel")}
             </Button>
             <Button
               variant="primary"
@@ -292,7 +295,7 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
           <div className="flex h-[400px] gap-3">
             {/* 左侧：项目列表 */}
             <div className="border-line-2 flex w-56 shrink-0 flex-col gap-1.5 border-r pr-3">
-              <span className="text-ink-2 text-[12px]">项目</span>
+              <span className="text-ink-2 text-[12px]">{t("tree.projects")}</span>
               <div
                 ref={setEntityListEl}
                 className="edge-fade-scroll scrollbar-inset min-h-0 flex-1 overflow-y-auto"
@@ -300,7 +303,7 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
                 {loading ? (
                   <Loading minHeight={0} />
                 ) : entityList.length === 0 ? (
-                  <p className="text-tau-sm text-ink-3 py-10 text-center">暂无文档类型项目</p>
+                  <p className="text-tau-sm text-ink-3 py-10 text-center">{t("tree.empty")}</p>
                 ) : (
                   <div className="flex flex-col gap-px">
                     {entityList.map(entity => {
@@ -329,13 +332,15 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
 
             {/* 右侧：文档树 */}
             <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-              <span className="text-ink-2 text-[12px]">插入位置</span>
+              <span className="text-ink-2 text-[12px]">{t("tree.location")}</span>
               <div
                 ref={setTreeEl}
                 className="edge-fade-scroll scrollbar-inset min-h-0 flex-1 overflow-y-auto"
               >
                 {!selectedEntityId ? (
-                  <p className="text-tau-sm text-ink-3 py-10 text-center">先在左侧选择一个项目</p>
+                  <p className="text-tau-sm text-ink-3 py-10 text-center">
+                    {t("tree.chooseProject")}
+                  </p>
                 ) : treeLoading ? (
                   <Loading minHeight={0} />
                 ) : (
@@ -360,7 +365,7 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
                         )}
                         strokeWidth={1.75}
                       />
-                      <span className="min-w-0 flex-1 truncate">插入到根目录</span>
+                      <span className="min-w-0 flex-1 truncate">{t("tree.root")}</span>
                     </div>
                     {/* 文档树节点 */}
                     {treeNodes.map(node => (

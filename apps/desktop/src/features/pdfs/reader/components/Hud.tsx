@@ -3,6 +3,7 @@
  * 重建 AI 索引），对话关着时末尾多一个对话开关。常驻显示。
  */
 
+import { pdfText, usePdfI18n } from "../../i18n";
 import type { ReactNode } from "react";
 import {
   ChevronDown,
@@ -59,6 +60,8 @@ interface HudProps {
 const ICON = { size: 16, strokeWidth: 1.75 } as const;
 
 function Divider() {
+  usePdfI18n();
+
   return <span aria-hidden className="bg-line-1 mx-1 h-4 w-px shrink-0" />;
 }
 
@@ -75,6 +78,8 @@ function HudButton({
   className?: string;
   pressed?: boolean;
 }) {
+  usePdfI18n();
+
   return (
     <IconButton
       title={title}
@@ -89,13 +94,15 @@ function HudButton({
 }
 
 export function Hud(props: HudProps) {
+  usePdfI18n();
+
   const { page, total, zoomLabel } = props;
   return (
     <div className="bg-surface shadow-float absolute bottom-4 left-1/2 z-30 flex h-10 -translate-x-1/2 items-center gap-0.5 rounded-full px-1.5">
       {props.onToggleLeft && (
         <>
           <HudButton
-            title="左面板"
+            title={pdfText("reader.leftPanel")}
             onClick={props.onToggleLeft}
             pressed={props.leftOpen}
             className={props.leftOpen ? "text-accent-text" : undefined}
@@ -105,35 +112,33 @@ export function Hud(props: HudProps) {
           <Divider />
         </>
       )}
-      <HudButton title="上一页 (←)" onClick={props.onPrev}>
+      <HudButton title={pdfText("navigation.previousShortcut")} onClick={props.onPrev}>
         <ChevronUp {...ICON} />
       </HudButton>
       <span className="text-tau-sm text-ink-2 min-w-[64px] px-1 text-center tabular-nums">
         <b className="text-ink-1 font-semibold">{page}</b> / {total}
       </span>
-      <HudButton title="下一页 (→)" onClick={props.onNext}>
+      <HudButton title={pdfText("navigation.nextShortcut")} onClick={props.onNext}>
         <ChevronDown {...ICON} />
       </HudButton>
       <Divider />
-      <HudButton title="缩小" onClick={props.onZoomOut}>
+      <HudButton title={pdfText("zoom.out")} onClick={props.onZoomOut}>
         <Minus {...ICON} />
       </HudButton>
       <button
         type="button"
-        title="切换 适宽 / 适页 / 100%"
+        title={pdfText("zoom.cycle")}
         onClick={props.onCycleZoom}
         className="rounded-tau-sm text-tau-sm text-ink-2 hover:bg-hover hover:text-ink-1 h-7 min-w-[52px] px-1.5 tabular-nums"
       >
         {zoomLabel}
       </button>
-      <HudButton title="放大" onClick={props.onZoomIn}>
+      <HudButton title={pdfText("zoom.in")} onClick={props.onZoomIn}>
         <Plus {...ICON} />
       </HudButton>
       <Divider />
       <HudButton
-        title={
-          props.handTool ? "抓手：拖动平移 (H)，再点回到选择文字" : "抓手 (H)，按住空格临时平移"
-        }
+        title={props.handTool ? pdfText("pan.activeHint") : pdfText("pan.inactiveHint")}
         onClick={props.onToggleHand}
         pressed={props.handTool}
         className={
@@ -142,14 +147,18 @@ export function Hud(props: HudProps) {
       >
         <Hand {...ICON} />
       </HudButton>
-      <HudButton title="查找 (Ctrl/⌘ F)" onClick={props.onFind}>
+      <HudButton title={pdfText("find.shortcut")} onClick={props.onFind}>
         <Search {...ICON} />
       </HudButton>
       <Menu
         align="end"
         className="w-[210px]"
         trigger={
-          <IconButton title="更多" aria-label="更多" className="size-8">
+          <IconButton
+            title={pdfText("action.more")}
+            aria-label={pdfText("action.more")}
+            className="size-8"
+          >
             <MoreHorizontal {...ICON} />
           </IconButton>
         }
@@ -161,7 +170,7 @@ export function Hud(props: HudProps) {
           icon={<PanelRight {...ICON} />}
           kbd="M"
         >
-          {props.marginAvailable ? "页边批注" : "页边批注（仅单页未旋转）"}
+          {props.marginAvailable ? pdfText("note.margin") : pdfText("note.marginUnavailable")}
         </Menu.CheckboxItem>
         <Menu.CheckboxItem
           checked={props.spread}
@@ -169,30 +178,30 @@ export function Hud(props: HudProps) {
           icon={<Columns2 {...ICON} />}
           kbd="D"
         >
-          双页显示
+          {pdfText("reader.spread")}
         </Menu.CheckboxItem>
         <Menu.Item icon={<RotateCw {...ICON} />} kbd="R" onSelect={props.onRotate}>
-          向右旋转
+          {pdfText("reader.rotate")}
         </Menu.Item>
         <Menu.CheckboxItem
           checked={props.night}
           onCheckedChange={props.onToggleNight}
           icon={<Moon {...ICON} />}
         >
-          夜间页面（反色）
+          {pdfText("reader.night")}
         </Menu.CheckboxItem>
         <Menu.Item icon={<Expand {...ICON} />} onSelect={props.onFullscreen}>
-          全屏阅读
+          {pdfText("reader.fullscreen")}
         </Menu.Item>
         {(props.onReveal || props.onRebuildIndex) && <Menu.Separator />}
         {props.onReveal && (
           <Menu.Item icon={<FolderOpen {...ICON} />} onSelect={props.onReveal}>
-            在文件夹中显示
+            {pdfText("file.reveal")}
           </Menu.Item>
         )}
         {props.onRebuildIndex && (
           <Menu.Item icon={<RefreshCw {...ICON} />} onSelect={props.onRebuildIndex}>
-            重建 AI 索引
+            {pdfText("index.rebuild")}
           </Menu.Item>
         )}
       </Menu>
@@ -200,7 +209,7 @@ export function Hud(props: HudProps) {
         <>
           <Divider />
           <HudButton
-            title="打开对话 (Ctrl/⌘ J)"
+            title={pdfText("chat.openShortcut")}
             onClick={props.onOpenChat}
             className="text-accent-text"
           >

@@ -3,6 +3,7 @@
  * 本地文件交给调用方导入（导入进度在 toast 里），选完即关。
  */
 
+import { pdfText, usePdfI18n } from "../i18n";
 import { useEffect, useState } from "react";
 import { FileUp } from "lucide-react";
 import { Button, Checkbox, Dialog, DialogBody, FileDropZone, Input, Tabs, toast } from "@tau/ui";
@@ -27,6 +28,8 @@ export function AddPdfDialog({
   onFiles(files: File[]): void;
   onAddRemote(url: string, fileName: string): Promise<void>;
 }) {
+  usePdfI18n();
+
   const [tab, setTab] = useState<AddTab>(initialTab);
   const [url, setUrl] = useState("");
   const [name, setName] = useState("");
@@ -52,7 +55,7 @@ export function AddPdfDialog({
     setSaving(true);
     onAddRemote(url.trim(), /\.pdf$/i.test(fileName) ? fileName : `${fileName}.pdf`)
       .then(onClose)
-      .catch(() => toast.error("添加失败"))
+      .catch(() => toast.error(pdfText("feedback.addFailed")))
       .finally(() => setSaving(false));
   };
 
@@ -61,13 +64,13 @@ export function AddPdfDialog({
       open={open}
       onOpenChange={next => !next && onClose()}
       onAfterClose={reset}
-      title="添加 PDF"
+      title={pdfText("file.addPdf")}
       locked={saving}
       footer={
         tab === "remote" ? (
           <>
             <Button variant="secondary" size="sm" disabled={saving} onClick={onClose}>
-              取消
+              {pdfText("action.cancel")}
             </Button>
             <Button
               variant="primary"
@@ -76,7 +79,7 @@ export function AddPdfDialog({
               disabled={!validUrl || !fileName}
               onClick={submitRemote}
             >
-              添加
+              {pdfText("action.add")}
             </Button>
           </>
         ) : undefined
@@ -89,7 +92,9 @@ export function AddPdfDialog({
           items={[
             {
               key: "local",
-              label: "本地文件",
+              get label() {
+                return pdfText("file.localFiles");
+              },
               children: (
                 <div className="flex flex-col gap-3 pt-3">
                   <FileDropZone
@@ -102,25 +107,28 @@ export function AddPdfDialog({
                   >
                     <FileUp className="text-ink-3 size-6" strokeWidth={1.5} />
                     <span className="text-tau-meta text-ink-2">
-                      拖入 PDF，或 <span className="text-accent-text">选择文件</span>
+                      {pdfText("upload.dropPrefix")}{" "}
+                      <span className="text-accent-text">{pdfText("file.choose")}</span>
                     </span>
-                    <span className="text-tau-sm text-ink-3">可一次选多个</span>
+                    <span className="text-tau-sm text-ink-3">{pdfText("upload.multipleHint")}</span>
                   </FileDropZone>
                   <Checkbox
                     checked={uploadOnImport}
                     onChange={e => onUploadOnImportChange(e.target.checked)}
-                    label="同时上传到云端（按设置里的上传目标）"
+                    label={pdfText("upload.cloudOption")}
                   />
                 </div>
               ),
             },
             {
               key: "remote",
-              label: "链接",
+              get label() {
+                return pdfText("field.link");
+              },
               children: (
                 <div className="flex flex-col gap-3.5 pt-3">
                   <label className="flex flex-col gap-1.5">
-                    <span className="text-ink-2 text-[12px]">链接</span>
+                    <span className="text-ink-2 text-[12px]">{pdfText("field.link")}</span>
                     <Input
                       data-autofocus
                       value={url}
@@ -133,7 +141,8 @@ export function AddPdfDialog({
                   </label>
                   <label className="flex flex-col gap-1.5">
                     <span className="text-ink-2 text-[12px]">
-                      名称 <span className="text-ink-3">· 默认取链接里的文件名</span>
+                      {pdfText("field.name")}{" "}
+                      <span className="text-ink-3">{pdfText("file.nameHint")}</span>
                     </span>
                     <Input
                       value={fileName}
@@ -144,7 +153,7 @@ export function AddPdfDialog({
                       onKeyDown={e => {
                         if (e.key === "Enter" && !e.nativeEvent.isComposing) submitRemote();
                       }}
-                      placeholder="文件名.pdf"
+                      placeholder={pdfText("file.namePlaceholder")}
                     />
                   </label>
                 </div>

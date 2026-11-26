@@ -1,5 +1,6 @@
 /** 重命名 PDF：只改显示用的文件名（.pdf 后缀自动补），不动磁盘文件 */
 
+import { pdfText, usePdfI18n } from "../i18n";
 import { useEffect, useState } from "react";
 import { Button, Dialog, DialogBody, Input, toast } from "@tau/ui";
 import type { PdfEntry } from "../model";
@@ -14,6 +15,8 @@ export function RenamePdfDialog({
   onClose(): void;
   onSubmit(entry: PdfEntry, title: string): Promise<void>;
 }) {
+  usePdfI18n();
+
   const [title, setTitle] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -26,7 +29,7 @@ export function RenamePdfDialog({
     setSaving(true);
     onSubmit(entry, title)
       .then(onClose)
-      .catch(() => toast.error("重命名失败"))
+      .catch(() => toast.error(pdfText("feedback.renameFailed")))
       .finally(() => setSaving(false));
   };
 
@@ -34,13 +37,13 @@ export function RenamePdfDialog({
     <Dialog
       open={entry !== null}
       onOpenChange={next => !next && onClose()}
-      title="重命名"
+      title={pdfText("action.rename")}
       size="sm"
       locked={saving}
       footer={
         <>
           <Button variant="secondary" size="sm" disabled={saving} onClick={onClose}>
-            取消
+            {pdfText("action.cancel")}
           </Button>
           <Button
             variant="primary"
@@ -49,7 +52,7 @@ export function RenamePdfDialog({
             disabled={!title.trim()}
             onClick={submit}
           >
-            保存
+            {pdfText("action.save")}
           </Button>
         </>
       }
@@ -62,7 +65,7 @@ export function RenamePdfDialog({
           onKeyDown={e => {
             if (e.key === "Enter" && !e.nativeEvent.isComposing) submit();
           }}
-          placeholder="文件名"
+          placeholder={pdfText("field.fileName")}
         />
       </DialogBody>
     </Dialog>

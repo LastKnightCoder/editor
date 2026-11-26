@@ -1,3 +1,6 @@
+import { createI18nRuntime, createLocaleStore, defineI18n } from "@tau/i18n";
+import { createPdfFormatting } from "../../format";
+import zhCN from "../../locales/zh-CN.json";
 import { describe, expect, it } from "vitest";
 import { PdfActionType, PdfAnnotationSubtype, PdfBlendMode, PdfZoomMode } from "@embedpdf/models";
 import type {
@@ -10,7 +13,6 @@ import {
   COLOR_SPECS,
   annotationColor,
   annotationPage,
-  annotationSnippet,
   applyQuote,
   colorFromHex,
   filterAnnotations,
@@ -26,6 +28,14 @@ import {
   toggleStylePatch,
 } from "../annotationModel";
 import { activeOutlineKey, flattenOutline, targetPage } from "../outline";
+
+const formatting = createPdfFormatting(
+  "zh-CN",
+  createI18nRuntime({ localeSource: createLocaleStore("zh-CN") }).get(
+    defineI18n({ fallbackLocale: "zh-CN", resources: { "zh-CN": zhCN } })
+  ).t
+);
+const annotationSnippet = formatting.annotationSnippet;
 
 const markup = (patch: Partial<PdfAnnotationObject> = {}): PdfAnnotationObject =>
   ({
@@ -296,4 +306,27 @@ describe("目录", () => {
     expect(activeOutlineKey(rows, 4)).toBe("0.0");
     expect(activeOutlineKey(rows, 9)).toBe("1");
   });
+});
+
+it("切换展示语言不改写引用消息正文或用户原文", async () => {
+  const { desktopLocaleSource } = await import("@/app/i18n/runtime");
+  const { pdfFormat } = await import("../../i18n");
+  const original = desktopLocaleSource.getSnapshot();
+  const quote = {
+    kind: "area",
+    pageNumber: 4,
+    text: "原始证据 [x]",
+    imageUrl: "file://raw/capture.png",
+  } as const;
+  const input = [{ type: "text", text: "用户问题" }] as const;
+  const before = applyQuote([...input], quote);
+  const display = pdfFormat.quoteSource(quote);
+  try {
+    desktopLocaleSource.setLocale("en-US");
+    expect(pdfFormat.quoteSource(quote)).not.toBe(display);
+    expect(applyQuote([...input], quote)).toEqual(before);
+    expect(input[0].text).toBe("用户问题");
+  } finally {
+    desktopLocaleSource.setLocale(original);
+  }
 });

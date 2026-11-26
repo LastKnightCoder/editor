@@ -1,3 +1,4 @@
+import { pdfText, pdfValue } from "./i18n";
 /**
  * PDF 数据层：列表（Pdf 行 + 标注数 + 缩略图，主进程一次聚合）与 AI 索引状态分两个 query，
  * 按工作区数据库分 key；有文件在建索引时轮询状态。写操作之后失效整个 ["pdfs"] 域。
@@ -145,7 +146,8 @@ export function usePdfActions() {
       } catch (error) {
         console.error("[pdfs] 上传失败", error);
       }
-      if (!remoteUrl) toast.warning(`「${file.name}」上传失败，已保存为本地文件`);
+      if (!remoteUrl)
+        toast.warning(pdfText("feedback.localAfterUploadFailure", { name: pdfValue(file.name) }));
     }
     const pdf = await createPdf({
       fileName: file.name,
@@ -165,11 +167,13 @@ export function usePdfActions() {
         f => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf")
       );
       if (pdfs.length === 0) {
-        toast.warning("只能添加 PDF 文件");
+        toast.warning(pdfText("validation.pdfOnly"));
         return;
       }
       const id = toast.loading(
-        pdfs.length > 1 ? `正在添加 ${pdfs.length} 个 PDF…` : `正在添加「${pdfs[0].name}」…`
+        pdfs.length > 1
+          ? pdfText("feedback.addingMany", { count: pdfValue(pdfs.length) })
+          : pdfText("feedback.addingNamed", { name: pdfValue(pdfs[0].name) })
       );
       let added = 0;
       for (const file of pdfs) {
@@ -178,10 +182,10 @@ export function usePdfActions() {
           added += 1;
         } catch (error) {
           console.error("[pdfs] 添加失败", error);
-          toast.error(`「${file.name}」添加失败`);
+          toast.error(pdfText("feedback.addNamedFailed", { name: pdfValue(file.name) }));
         }
       }
-      if (added > 0) toast.resolve(id, `已添加 ${added} 个 PDF`);
+      if (added > 0) toast.resolve(id, pdfText("feedback.added", { count: pdfValue(added) }));
       else toast.dismiss(id);
       await invalidate();
     },
@@ -207,7 +211,7 @@ export function usePdfActions() {
     },
 
     async uploadToCloud(entry: PdfEntry) {
-      const id = toast.loading(`正在上传「${entry.title}」…`);
+      const id = toast.loading(pdfText("feedback.uploading", { title: pdfValue(entry.title) }));
       try {
         const bytes = await readBinaryFile(entry.raw.filePath);
         const url = await uploadResource(
@@ -215,11 +219,11 @@ export function usePdfActions() {
         );
         if (!url) throw new Error("上传未返回地址");
         await updatePdf({ ...entry.raw, isLocal: false, remoteUrl: url, filePath: "" });
-        toast.resolve(id, "已上传到云端");
+        toast.resolve(id, pdfText("feedback.uploaded"));
       } catch (error) {
         console.error("[pdfs] 上传失败", error);
         toast.dismiss(id);
-        toast.error("上传失败，请检查设置里的上传目标");
+        toast.error(pdfText("feedback.uploadFailed"));
       }
       await invalidate();
     },
@@ -250,7 +254,7 @@ export function usePdfActions() {
         await task;
       } catch (error) {
         console.error("[pdfs] 建立索引失败", error);
-        toast.error(`「${entry.title}」建立索引失败`);
+        toast.error(pdfText("feedback.indexFailed", { title: pdfValue(entry.title) }));
       }
       await invalidate();
     },

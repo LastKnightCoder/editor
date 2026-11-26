@@ -4,6 +4,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { EProjectItemType } from "@/types/project";
 import InsertNoteToTreeModal from "..";
+import { desktopLocaleSource } from "@/app/i18n/runtime";
+import { readingTranslator } from "../../reading.i18n";
 
 (globalThis as any).ResizeObserver = class {
   observe() {}
@@ -93,7 +95,7 @@ describe("InsertNoteToTreeModal", () => {
     ]);
   });
 
-  it("复制模式按来源正文新建文档，并为来源记谱系 derived", async () => {
+  it("复制模式保留换语前的插入位置，按来源正文创建并记谱系 derived", async () => {
     const onSuccess = vi.fn();
     const { root, container } = await mount(
       <InsertNoteToTreeModal
@@ -120,10 +122,14 @@ describe("InsertNoteToTreeModal", () => {
     });
     await flush();
     await flush();
-    expect(document.body.textContent).toContain("插入到根目录");
+    const originalLocale = desktopLocaleSource.getSnapshot();
+    const reads = commandMocks.getProjectList.mock.calls.length;
+    await act(async () => desktopLocaleSource.setLocale("en-US"));
+    expect(commandMocks.getProjectList).toHaveBeenCalledTimes(reads);
+    expect(commandMocks.addRootProjectItem).not.toHaveBeenCalled();
 
     const insertButton = Array.from(document.body.querySelectorAll("button")).find(
-      button => button.textContent?.trim() === "插入"
+      button => button.textContent?.trim() === readingTranslator.t("tree.insert")
     ) as HTMLButtonElement | undefined;
     expect(insertButton?.disabled).toBe(false);
     await act(async () => {
@@ -150,5 +156,6 @@ describe("InsertNoteToTreeModal", () => {
     expect(onSuccess).toHaveBeenCalledWith({ id: 22, title: "渲染笔记" });
 
     await unmount(root, container);
+    await act(async () => desktopLocaleSource.setLocale(originalLocale));
   });
 });

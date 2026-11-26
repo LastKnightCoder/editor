@@ -4,6 +4,7 @@
  * 文字封面并入底行（与「PDF · N 页」同一行），缩略图上只放一个图标。
  */
 
+import { pdfText, pdfValue, pdfFileTitle, usePdfI18n } from "../i18n";
 import { useState, type ReactNode } from "react";
 import { Cloud, FileX } from "lucide-react";
 import { cn } from "@tau/ui";
@@ -29,13 +30,15 @@ export function PdfCover({
   bare?: boolean;
   children?: ReactNode;
 }) {
+  usePdfI18n();
+
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const thumbnailUrl = entry.thumbnailUrl;
   const showImage = Boolean(thumbnailUrl) && failedUrl !== thumbnailUrl;
   const mark = bare ? null : entry.fileMissing ? (
-    <SourceMark icon={FileX} label="文件丢失" className="text-danger" />
+    <SourceMark icon={FileX} label={pdfText("file.missing")} className="text-danger" />
   ) : entry.isLocal ? null : (
-    <SourceMark icon={Cloud} label="远程" />
+    <SourceMark icon={Cloud} label={pdfText("source.remote")} />
   );
   return (
     <div
@@ -65,11 +68,14 @@ export function PdfCover({
       ) : bare ? null : (
         <div className="flex size-full flex-col px-[12%] pt-[14%] pb-[10%]">
           <span className="line-clamp-5 text-[13px] leading-[1.35] font-semibold [overflow-wrap:anywhere]">
-            {entry.title}
+            {pdfFileTitle(entry.raw.fileName)}
           </span>
           <span className="mt-auto flex items-center gap-2 text-[10px] font-medium tracking-[0.08em] opacity-70">
             <span className="min-w-0 flex-1 truncate">
-              PDF{entry.pageCount ? ` · ${entry.pageCount} 页` : ""}
+              PDF
+              {entry.pageCount
+                ? pdfText("page.countSuffix", { count: pdfValue(entry.pageCount) })
+                : ""}
             </span>
             {mark}
           </span>
@@ -90,6 +96,8 @@ function SourceMark({
   label: string;
   className?: string;
 }) {
+  usePdfI18n();
+
   return (
     <span title={label} aria-label={label} className={cn("inline-flex shrink-0", className)}>
       <Icon className="size-3" strokeWidth={1.75} />

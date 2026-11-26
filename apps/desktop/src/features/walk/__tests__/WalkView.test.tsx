@@ -1,3 +1,5 @@
+import { desktopLocaleSource } from "@/app/i18n/runtime";
+import { walkTranslator } from "../i18n";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -218,4 +220,97 @@ describe("WalkView", () => {
       kinds: ["card", "article", "diary-moment", "project-item", "pdf-annotation"],
     });
   });
+});
+
+it("切换语言保留当前站、前进足迹和已打开偏好，不重抽或重复记已见", async () => {
+  const original = desktopLocaleSource.getSnapshot();
+  mocks.pick.mockResolvedValue(ITEM_A);
+  mocks.get.mockResolvedValue(ITEM_B);
+  mocks.sameTag.mockResolvedValue([NEIGHBOR]);
+  const button = (text: string) => {
+    const result = [...document.querySelectorAll("button")].find(
+      node => node.textContent?.trim() === text
+    );
+    if (!result) throw new Error(`未找到操作：${text}`);
+    return result;
+  };
+  try {
+    await act(async () => desktopLocaleSource.setLocale("zh-CN"));
+    render();
+    await vi.waitFor(async () => {
+      await act(() => Promise.resolve());
+      expect(findButton(ITEM_B.title)).toBeDefined();
+    });
+    await click(findButton(ITEM_B.title));
+    await vi.waitFor(async () => {
+      await act(() => Promise.resolve());
+      expect(document.querySelector('[data-content-id="2"]')).not.toBeNull();
+    });
+    await act(async () =>
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }))
+    );
+    await vi.waitFor(async () => {
+      await act(() => Promise.resolve());
+      expect(document.querySelector('[data-content-id="1"]')).not.toBeNull();
+    });
+    await click(findButton(walkTranslator.t("pool.all")));
+    const selectedBias = document.querySelector<HTMLInputElement>(
+      'input[type="radio"][value="random"]'
+    );
+    if (!selectedBias) throw new Error("偏好选项未挂载");
+    await click(selectedBias);
+    const removedKind = button(walkTranslator.t("kind.pdf-annotation"));
+    await click(removedKind);
+    expect(removedKind.getAttribute("aria-pressed")).toBe("false");
+    const current = document.querySelector('[aria-current="step"]');
+    const content = document.querySelector('[data-content-id="1"]');
+    const stored = localStorage.getItem("walk:prefs");
+    expect(JSON.parse(stored ?? "null")).toEqual({
+      kinds: ["card", "article", "diary-moment", "project-item"],
+      bias: "random",
+    });
+    const calls = () => ({
+      pick: mocks.pick.mock.calls.length,
+      get: mocks.get.mock.calls.length,
+      seen: mocks.markSeen.mock.calls.length,
+      mute: mocks.mute.mock.calls.length,
+      links: mocks.entityContext.mock.calls.length,
+      related: mocks.entityRelated.mock.calls.length,
+      tags: mocks.sameTag.mock.calls.length,
+      flashcards: mocks.openAiFlashcard.mock.calls.length,
+    });
+    const before = calls(),
+      keys = queryClient
+        .getQueryCache()
+        .getAll()
+        .map(query => query.queryKey);
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(document.querySelector('[aria-current="step"]')).toBe(current);
+      expect(document.querySelector('[data-content-id="1"]')).toBe(content);
+      expect(document.querySelector('input[type="radio"][value="random"]')).toBe(selectedBias);
+      expect(selectedBias.checked).toBe(true);
+      expect(button(walkTranslator.t("kind.pdf-annotation"))).toBe(removedKind);
+      expect(removedKind.getAttribute("aria-pressed")).toBe("false");
+      expect(localStorage.getItem("walk:prefs")).toBe(stored);
+      expect(queryClient.getQueryData(["walk", "start", "random"])).toEqual(ITEM_A);
+      expect(
+        queryClient
+          .getQueryCache()
+          .getAll()
+          .map(query => query.queryKey)
+      ).toEqual(keys);
+      expect(calls()).toEqual(before);
+    }
+    await act(async () =>
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }))
+    );
+    expect(document.querySelector('[data-content-id="2"]')).not.toBeNull();
+    expect(document.querySelector('[aria-current="step"]')?.textContent).toContain(ITEM_B.title);
+    expect(mocks.pick).toHaveBeenCalledTimes(before.pick);
+    expect(mocks.get).toHaveBeenCalledTimes(before.get);
+    expect(mocks.markSeen).toHaveBeenCalledTimes(before.seen);
+  } finally {
+    await act(async () => desktopLocaleSource.setLocale(original));
+  }
 });

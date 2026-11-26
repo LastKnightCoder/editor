@@ -4,6 +4,7 @@
  * 排不下的笔记不显示，底部给出条数，点开左侧标注列表。
  */
 
+import { pdfText, pdfValue, usePdfI18n } from "../../i18n";
 import {
   useCallback,
   useEffect,
@@ -55,6 +56,8 @@ function marginVars(paper: PaperPalette | null): CSSProperties {
 }
 
 export function MarginColumn({ pageIndex, scale, height, paper, records }: MarginColumnProps) {
+  usePdfI18n();
+
   const reader = useReader();
   const setLeftTab = useReaderPrefs(s => s.setLeftTab);
   const notes = useMemo(() => sortAnnotations(records.filter(hasNote)), [records]);
@@ -137,7 +140,7 @@ export function MarginColumn({ pageIndex, scale, height, paper, records }: Margi
       <div
         {...overlayProps}
         role="region"
-        aria-label={`第 ${pageIndex + 1} 页页边`}
+        aria-label={pdfText("margin.page", { page: pdfValue(pageIndex + 1) })}
         onPointerDown={e => e.stopPropagation()}
         onMouseDown={e => e.stopPropagation()}
         onMouseMove={e => setGhostY(onBlank(e) ? e.nativeEvent.offsetY : null)}
@@ -161,7 +164,7 @@ export function MarginColumn({ pageIndex, scale, height, paper, records }: Margi
               data-note-id={record.id}
               role="button"
               tabIndex={top === undefined ? -1 : 0}
-              aria-label={`笔记 · ${noteText(record)}`}
+              aria-label={pdfText("note.named", { text: pdfValue(noteText(record)) })}
               onClick={() => reader.openNote(record)}
               onKeyDown={e => {
                 if (e.key === "Enter" && !e.nativeEvent.isComposing) reader.openNote(record);
@@ -185,7 +188,7 @@ export function MarginColumn({ pageIndex, scale, height, paper, records }: Margi
                     : cn("w-0.5 rounded-full", COLOR_SPECS[annotationColor(record)].swatch)
                 )}
               />
-              <span className="line-clamp-4 whitespace-pre-wrap break-words">
+              <span className="line-clamp-4 break-words whitespace-pre-wrap">
                 {noteText(record)}
               </span>
             </div>
@@ -198,7 +201,7 @@ export function MarginColumn({ pageIndex, scale, height, paper, records }: Margi
             className="text-tau-meta pointer-events-none absolute left-5 text-[var(--margin-muted)]"
             style={{ top: ghostY - 9 }}
           >
-            ＋ 写批注
+            {pdfText("note.addMargin")}
           </span>
         )}
 
@@ -208,7 +211,7 @@ export function MarginColumn({ pageIndex, scale, height, paper, records }: Margi
             onClick={() => setLeftTab("anns")}
             className="text-tau-meta rounded-tau-sm absolute bottom-2 left-5 px-1 text-[var(--margin-muted)] hover:text-[var(--margin-ink-strong)]"
           >
-            还有 {hidden} 条笔记
+            {pdfText("margin.moreNotes", { count: pdfValue(hidden) })}
           </button>
         )}
 

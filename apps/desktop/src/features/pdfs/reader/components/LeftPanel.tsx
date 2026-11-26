@@ -3,6 +3,7 @@
  * 「标注」是查找与跳转入口（页面上只在页边留图钉）；须在 EmbedPDF 上下文内渲染（缩略图走引擎）。
  */
 
+import { pdfText, pdfValue, pdfFormat, usePdfI18n } from "../../i18n";
 import { useEffect, useMemo, useState } from "react";
 import { Bookmark, Layers, MessageSquareText, X } from "lucide-react";
 import { ThumbImg, ThumbnailsPane, type ThumbMeta } from "@embedpdf/plugin-thumbnail/react";
@@ -11,10 +12,8 @@ import type { PdfAnnotation, PdfBookmark } from "@/types";
 import {
   COLOR_SPECS,
   PICKABLE_COLORS,
-  STYLE_LABEL,
   annotationColor,
   annotationPage,
-  annotationSnippet,
   filterAnnotations,
   isEngineAnnotation,
   isMarginNote,
@@ -46,19 +45,43 @@ interface LeftPanelProps {
 }
 
 const TABS: Array<{ key: LeftTab; label: string }> = [
-  { key: "toc", label: "目录" },
-  { key: "thumbs", label: "页面" },
-  { key: "anns", label: "标注" },
-  { key: "marks", label: "书签" },
+  {
+    key: "toc",
+    get label() {
+      return pdfText("tab.toc");
+    },
+  },
+  {
+    key: "thumbs",
+    get label() {
+      return pdfText("tab.thumbs");
+    },
+  },
+  {
+    key: "anns",
+    get label() {
+      return pdfText("field.annotations");
+    },
+  },
+  {
+    key: "marks",
+    get label() {
+      return pdfText("tab.marks");
+    },
+  },
 ];
 
 function Empty({ children }: { children: React.ReactNode }) {
+  usePdfI18n();
+
   return (
     <p className="text-tau-meta text-ink-3 px-2 py-6 text-center leading-relaxed">{children}</p>
   );
 }
 
 function ScrollBody({ children, className }: { children: React.ReactNode; className?: string }) {
+  usePdfI18n();
+
   const [el, setEl] = useState<HTMLDivElement | null>(null);
   useEdgeFade(el);
   return (
@@ -69,10 +92,12 @@ function ScrollBody({ children, className }: { children: React.ReactNode; classN
 }
 
 export function LeftPanel(props: LeftPanelProps) {
+  usePdfI18n();
+
   const { open, tab, onTabChange } = props;
   return (
     <aside
-      aria-label="PDF 导航"
+      aria-label={pdfText("reader.navigation")}
       aria-hidden={!open}
       className={cn(
         "ease-tau-out flex min-h-0 shrink-0 flex-col overflow-hidden transition-[width,opacity] duration-[220ms]",
@@ -83,7 +108,7 @@ export function LeftPanel(props: LeftPanelProps) {
         {/* 栏头与对话栏头同高（44px）、同为 28px 按钮，两侧正文从同一条线开始 */}
         <div
           role="tablist"
-          aria-label="左面板"
+          aria-label={pdfText("reader.leftPanel")}
           className="flex h-11 shrink-0 items-center gap-0.5 pr-2 pl-2.5"
         >
           {TABS.map(t => (
@@ -118,8 +143,10 @@ export function LeftPanel(props: LeftPanelProps) {
 }
 
 function OutlineList({ outline, currentPage, onJumpPage }: LeftPanelProps) {
+  usePdfI18n();
+
   const active = useMemo(() => activeOutlineKey(outline, currentPage), [outline, currentPage]);
-  if (outline.length === 0) return <Empty>这份 PDF 没有目录</Empty>;
+  if (outline.length === 0) return <Empty>{pdfText("outline.empty")}</Empty>;
   return (
     <ScrollBody>
       {outline.map(row => (
@@ -137,7 +164,9 @@ function OutlineList({ outline, currentPage, onJumpPage }: LeftPanelProps) {
           )}
           style={{ paddingLeft: 8 + row.depth * 14 }}
         >
-          <span className="min-w-0 flex-1 truncate">{row.title}</span>
+          <span className="min-w-0 flex-1 truncate">
+            {row.titleMissing ? pdfText("fallback.untitled") : row.title}
+          </span>
           {row.page != null && (
             <span className="text-tau-meta text-ink-3 shrink-0 tabular-nums">{row.page}</span>
           )}
@@ -154,6 +183,8 @@ function ThumbList({
   currentPage: number;
   onJump: (page: number) => void;
 }) {
+  usePdfI18n();
+
   // 缩略图面板是引擎组件（ref 被它占用），经标记属性取元素接边缘渐隐
   const [wrap, setWrap] = useState<HTMLDivElement | null>(null);
   const [pane, setPane] = useState<HTMLElement | null>(null);
@@ -210,6 +241,8 @@ function AnnotationList({
   onJumpAnnotation,
   onAnnotationToCard,
 }: LeftPanelProps) {
+  usePdfI18n();
+
   const [filter, setFilter] = useState<AnnotationFilter>("all");
   const sorted = useMemo(() => sortAnnotations(records), [records]);
   const list = useMemo(() => filterAnnotations(sorted, filter), [sorted, filter]);
@@ -219,17 +252,21 @@ function AnnotationList({
         <FilterPill
           active={filter === "all"}
           onClick={() => setFilter("all")}
-          label="全部"
+          label={pdfText("source.all")}
           count={records.length}
         />
-        <FilterPill active={filter === "notes"} onClick={() => setFilter("notes")} label="有笔记" />
+        <FilterPill
+          active={filter === "notes"}
+          onClick={() => setFilter("notes")}
+          label={pdfText("filter.hasNotes")}
+        />
         <span className="flex-1" />
         {PICKABLE_COLORS.map(color => (
           <button
             key={color}
             type="button"
-            title={`只看${COLOR_SPECS[color].label}色`}
-            aria-label={`只看${COLOR_SPECS[color].label}色`}
+            title={pdfText("filter.color", { color: pdfValue(pdfText(`color.${color}`)) })}
+            aria-label={pdfText("filter.color", { color: pdfValue(pdfText(`color.${color}`)) })}
             aria-pressed={filter === color}
             onClick={() => setFilter(filter === color ? "all" : color)}
             className={cn(
@@ -242,14 +279,14 @@ function AnnotationList({
       </div>
       {records.length === 0 ? (
         <Empty>
-          选中文字即可高亮或写笔记
+          {pdfText("annotation.emptySelectHint")}
           <br />
-          按住 Alt 拖动可框选区域
+          {pdfText("annotation.emptyAreaHint")}
           <br />
-          点页面右侧的页边可随手写批注
+          {pdfText("annotation.emptyMarginHint")}
         </Empty>
       ) : list.length === 0 ? (
-        <Empty>没有符合条件的标注</Empty>
+        <Empty>{pdfText("annotation.emptyFiltered")}</Empty>
       ) : (
         <ScrollBody>
           <div className="flex flex-col gap-0.5">
@@ -278,7 +315,7 @@ function AnnotationList({
                       )}
                     >
                       {/* 页边批注没有原文，主行就是批注 */}
-                      {margin ? note : annotationSnippet(record)}
+                      {margin ? note : pdfFormat.annotationSnippet(record)}
                     </span>
                     {note && !margin && (
                       <span className="text-tau-meta text-ink-2 flex gap-1.5 pl-0.5">
@@ -291,14 +328,15 @@ function AnnotationList({
                       </span>
                     )}
                     <span className="text-tau-meta text-ink-3 pl-0.5 tabular-nums">
-                      第 {annotationPage(record)} 页{margin ? " · 页边" : ""}
-                      {style && style !== "highlight" ? ` · ${STYLE_LABEL[style]}` : ""}
+                      {pdfText("page.number", { page: pdfValue(annotationPage(record)) })}
+                      {margin ? pdfText("annotation.marginSuffix") : ""}
+                      {style && style !== "highlight" ? ` · ${pdfText(`markup.${style}`)}` : ""}
                     </span>
                   </button>
                   <div className="absolute right-1.5 bottom-1.5 flex gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100">
                     {canToCard && (
                       <IconButton
-                        title="转为卡片"
+                        title={pdfText("annotation.toCard")}
                         onClick={() => onAnnotationToCard(record)}
                         className="bg-surface shadow-lift size-[24px] rounded-[7px]"
                       >
@@ -318,6 +356,8 @@ function AnnotationList({
 }
 
 function BookmarkList({ bookmarks, onJumpPage, onRemoveBookmark }: LeftPanelProps) {
+  usePdfI18n();
+
   const rows = useMemo(
     () =>
       bookmarks
@@ -326,7 +366,7 @@ function BookmarkList({ bookmarks, onJumpPage, onRemoveBookmark }: LeftPanelProp
     [bookmarks]
   );
   if (rows.length === 0) {
-    return <Empty>悬停页面右上角点书签图标，或按 B 给当前页加书签</Empty>;
+    return <Empty>{pdfText("bookmark.empty")}</Empty>;
   }
   return (
     <ScrollBody>
@@ -348,14 +388,16 @@ function BookmarkList({ bookmarks, onJumpPage, onRemoveBookmark }: LeftPanelProp
             />
             <span className="min-w-0 flex-1 truncate">{bookmark.bookmark.title}</span>
             {page != null && (
-              <span className="text-tau-meta text-ink-3 shrink-0 tabular-nums">第 {page} 页</span>
+              <span className="text-tau-meta text-ink-3 shrink-0 tabular-nums">
+                {pdfText("page.number", { page: pdfValue(page) })}
+              </span>
             )}
           </button>
           {/* 删除占固定槽位、悬停淡入，不顶开行宽 */}
           <button
             type="button"
-            title="删除书签"
-            aria-label="删除书签"
+            title={pdfText("bookmark.delete")}
+            aria-label={pdfText("bookmark.delete")}
             onClick={() => onRemoveBookmark(bookmark)}
             className="text-ink-3 hover:text-ink-1 grid size-7 shrink-0 place-items-center opacity-0 transition-opacity group-hover/mark:opacity-100"
           >

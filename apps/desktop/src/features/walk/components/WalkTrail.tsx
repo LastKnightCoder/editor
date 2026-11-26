@@ -62,7 +62,7 @@ export function WalkTrailBar({ trail, onGoto }: { trail: WalkTrail; onGoto(index
     <div className="mt-3 flex h-[30px] flex-none items-center gap-2 px-8">
       <span className="text-tau-micro text-ink-3 mr-1 inline-flex flex-none items-center gap-1 whitespace-nowrap">
         <Footprints className="size-3.5" strokeWidth={1.75} />
-        足迹
+        {t("trail.title")}
       </span>
       <div
         ref={scrollerRef}
@@ -84,7 +84,7 @@ export function WalkTrailBar({ trail, onGoto }: { trail: WalkTrail; onGoto(index
                 <Shuffle
                   className="text-accent mx-0.5 size-3.5 flex-none"
                   strokeWidth={1.75}
-                  aria-label="随机跳转"
+                  aria-label={t("trail.jump")}
                 />
               ) : null}
               <button

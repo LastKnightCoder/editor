@@ -3,6 +3,7 @@
  * 按最近打开排序，文件名过滤，单选；双击或 ↵ 直接确认。选中态只在弹窗内，关闭即清。
  */
 
+import { pdfText, pdfFileTitle, usePdfI18n } from "../i18n";
 import { useMemo, useState } from "react";
 import { FileText, Search } from "lucide-react";
 import { Button, Dialog, DialogBody, Input, Loading, cn } from "@tau/ui";
@@ -25,9 +26,11 @@ export function SelectPdfDialog({
   open,
   onCancel,
   onConfirm,
-  title = "关联已有 PDF",
+  title = pdfText("select.title"),
   excludeIds,
 }: SelectPdfDialogProps) {
+  usePdfI18n();
+
   const { entries, loading } = usePdfLibrary();
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<number | null>(null);
@@ -67,7 +70,7 @@ export function SelectPdfDialog({
       footer={
         <>
           <Button variant="secondary" size="sm" onClick={onCancel}>
-            取消
+            {pdfText("action.cancel")}
           </Button>
           <Button
             variant="primary"
@@ -76,7 +79,7 @@ export function SelectPdfDialog({
             loading={submitting}
             onClick={() => void confirm(selectedEntry)}
           >
-            关联
+            {pdfText("action.link")}
           </Button>
         </>
       }
@@ -92,15 +95,13 @@ export function SelectPdfDialog({
             onKeyDown={e => {
               if (e.key === "Enter" && !e.nativeEvent.isComposing) void confirm(selectedEntry);
             }}
-            placeholder="按文件名筛选"
+            placeholder={pdfText("select.filter")}
           />
           {loading ? (
             <Loading minHeight={240} />
           ) : list.length === 0 ? (
             <p className="text-tau-meta text-ink-3 py-16 text-center">
-              {entries?.length
-                ? "没有匹配的 PDF"
-                : "还没有 PDF，可以先在 PDF 页面添加，或直接导入本地 / 远程文件"}
+              {entries?.length ? pdfText("select.empty") : pdfText("select.emptyHint")}
             </p>
           ) : (
             <div
@@ -128,17 +129,17 @@ export function SelectPdfDialog({
                       )}
                     />
                     <span
-                      title={entry.title}
+                      title={pdfFileTitle(entry.raw.fileName)}
                       className={cn(
                         "mt-2 line-clamp-2 h-[2.8em] text-[13px] font-medium leading-[1.4] [overflow-wrap:anywhere]",
                         on ? "text-accent-text" : "text-ink-1"
                       )}
                     >
-                      {entry.title}
+                      {pdfFileTitle(entry.raw.fileName)}
                     </span>
                     <span className="text-tau-micro text-ink-3 mt-0.5 flex gap-2 tabular-nums">
                       {entry.fileMissing ? (
-                        <span className="text-danger">文件丢失</span>
+                        <span className="text-danger">{pdfText("file.missing")}</span>
                       ) : (
                         <Meta entry={entry} />
                       )}

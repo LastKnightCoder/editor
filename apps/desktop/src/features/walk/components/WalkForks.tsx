@@ -27,14 +27,14 @@ export function WalkForks({
     <aside className="flex min-h-0 flex-col gap-2">
       <p className="text-tau-micro text-ink-3 flex items-center gap-1.5 px-0.5 pt-1.5">
         <GitFork className="size-3.5" strokeWidth={1.75} />
-        从这里走向
+        {t("forks.title")}
       </p>
       {loading ? (
         [0, 1, 2].map(i => (
           <div key={i} className="rounded-tau-md bg-sunken h-[58px] animate-pulse" />
         ))
       ) : neighbors.length === 0 ? (
-        <p className="text-tau-meta text-ink-3 px-0.5">这里没有岔路，随机跳一下吧</p>
+        <p className="text-tau-meta text-ink-3 px-0.5">{t("forks.empty")}</p>
       ) : (
         neighbors.map((neighbor, i) => {
           const relation = walkRelationMeta(neighbor.relation, t);
@@ -75,7 +75,7 @@ export function WalkForks({
         className="rounded-tau-md border-line-2 text-tau-meta text-ink-2 ease-tau-out hover:border-accent hover:text-accent-text mt-auto inline-flex h-10 w-full items-center justify-center gap-1.5 border border-dashed transition-colors duration-[160ms] disabled:pointer-events-none disabled:opacity-45"
       >
         <Shuffle className="size-3.5" strokeWidth={1.75} />
-        换个方向，随机跳一下
+        {t("forks.jump")}
         <kbd className="bg-sunken font-tau-mono text-tau-tiny text-ink-3 ml-1 rounded px-1.5">
           Space
         </kbd>

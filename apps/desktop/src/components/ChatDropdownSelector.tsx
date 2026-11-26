@@ -1,3 +1,4 @@
+import { useReadingI18n } from "./reading.i18n";
 import { memo, useMemo, useRef, useState } from "react";
 import {
   Check,
@@ -50,6 +51,7 @@ const ChatDropdownSelector = memo(
     titleRef,
     onOpenLibrary,
   }: ChatDropdownSelectorProps) => {
+    const { t } = useReadingI18n();
     const [listOpen, setListOpen] = useState(false);
     const [query, setQuery] = useState("");
     const [renaming, setRenaming] = useState(false);
@@ -83,7 +85,7 @@ const ChatDropdownSelector = memo(
       setPendingDelete(currentChat.id);
     });
 
-    const title = hasChat ? currentChat.title || "新对话" : "新对话";
+    const title = hasChat ? currentChat.title || t("chat.new") : t("chat.new");
 
     return (
       <div className="flex w-full min-w-0 items-center gap-0.5">
@@ -121,7 +123,7 @@ const ChatDropdownSelector = memo(
               <button
                 type="button"
                 disabled={disabled}
-                title="切换对话"
+                title={t("chat.switch")}
                 className="hover:bg-hover aria-expanded:bg-hover text-tau-body text-ink-1 ease-tau-out -ml-1 flex max-w-full min-w-0 items-center gap-1 rounded-[8px] px-1.5 py-1 font-semibold transition-colors duration-[160ms]"
               >
                 <span className="min-w-0 truncate">{title}</span>
@@ -135,13 +137,13 @@ const ChatDropdownSelector = memo(
                 autoFocus
                 value={query}
                 onChange={event => setQuery(event.target.value)}
-                placeholder="搜索对话"
+                placeholder={t("chat.search")}
                 className="text-tau-meta text-ink-1 placeholder:text-ink-3 min-w-0 flex-1 bg-transparent outline-none"
               />
             </div>
             <FadeScroll className="-mr-1.5 max-h-[320px] pr-1.5">
               {rows.length === 0 ? (
-                <p className="text-tau-sm text-ink-3 px-2.5 py-3">没有匹配的对话</p>
+                <p className="text-tau-sm text-ink-3 px-2.5 py-3">{t("chat.empty")}</p>
               ) : (
                 rows.map(({ chat, pinned }) => {
                   const active = chat.id === currentChat.id;
@@ -157,7 +159,7 @@ const ChatDropdownSelector = memo(
                           : "text-ink-2 hover:bg-hover hover:text-ink-1"
                       )}
                     >
-                      <span className="min-w-0 flex-1 truncate">{chat.title || "新对话"}</span>
+                      <span className="min-w-0 flex-1 truncate">{chat.title || t("chat.new")}</span>
                       {pinned ? (
                         <Pin size={12} strokeWidth={1.75} className="text-ink-3 shrink-0" />
                       ) : null}
@@ -179,8 +181,8 @@ const ChatDropdownSelector = memo(
                 className="hover:bg-hover text-tau-meta text-ink-2 mt-1 flex h-8 w-[calc(100%-10px)] items-center gap-2 rounded-[7px] px-2.5"
               >
                 <Library size={14} strokeWidth={1.75} className="text-ink-3" />
-                全部会话…
-                <span className="text-tau-tiny text-ink-3 ml-auto">分组与归档</span>
+                {t("chat.library")}
+                <span className="text-tau-tiny text-ink-3 ml-auto">{t("chat.organize")}</span>
               </button>
             )}
           </Popover>
@@ -194,8 +196,8 @@ const ChatDropdownSelector = memo(
             className="w-[168px]"
             trigger={
               <IconButton
-                aria-label="更多操作"
-                title="更多操作"
+                aria-label={t("chat.more")}
+                title={t("chat.more")}
                 className="size-7"
                 disabled={disabled}
               >
@@ -210,13 +212,13 @@ const ChatDropdownSelector = memo(
                 setRenaming(true);
               }}
             >
-              重命名
+              {t("chat.rename")}
             </Menu.Item>
             {onChatDelete && (
               <>
                 <Menu.Separator />
                 <Menu.Item danger icon={<Trash2 />} onSelect={askDelete}>
-                  删除对话
+                  {t("chat.delete")}
                 </Menu.Item>
               </>
             )}
@@ -226,19 +228,19 @@ const ChatDropdownSelector = memo(
         <ConfirmDialog
           open={pendingDelete !== null}
           onOpenChange={open => !open && setPendingDelete(null)}
-          title="删除这个对话？"
+          title={t("chat.deleteTitle")}
           context={currentChat.title}
-          description="对话里的所有版本会一起删除，删除后无法恢复。"
-          confirmText="删除"
+          description={t("chat.deleteDescription")}
+          confirmText={t("delete")}
           danger
           size="sm"
           onConfirm={async () => {
             if (!pendingDelete || !onChatDelete) return;
             try {
               await onChatDelete(pendingDelete);
-              toast.success("对话已删除");
+              toast.success(t("chat.deleted"));
             } catch (error) {
-              toast.error("删除对话失败");
+              toast.error(t("chat.deleteFailed"));
               console.error(error);
             } finally {
               setPendingDelete(null);

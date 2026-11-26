@@ -18,7 +18,6 @@ export const PICKABLE_COLORS = [
 ] as const;
 
 interface ColorSpec {
-  label: string;
   /** 写进 PDF 标注对象的颜色：属于文件数据，不随主题变化 */
   pdfHex: string;
   /** 界面上的色块 / 竖条 / 图钉，映射到主题数据色（与微信读书划线同一套对应） */
@@ -30,7 +29,6 @@ interface ColorSpec {
 
 export const COLOR_SPECS: Record<EHighlightColor, ColorSpec> = {
   [EHighlightColor.Yellow]: {
-    label: "黄",
     pdfHex: "#fde58b",
     swatch: "bg-tag-4",
     text: "text-tag-4",
@@ -38,7 +36,6 @@ export const COLOR_SPECS: Record<EHighlightColor, ColorSpec> = {
     areaFill: "bg-tag-4/15",
   },
   [EHighlightColor.Red]: {
-    label: "红",
     pdfHex: "#ffb3b3",
     swatch: "bg-tag-5",
     text: "text-tag-5",
@@ -46,7 +43,6 @@ export const COLOR_SPECS: Record<EHighlightColor, ColorSpec> = {
     areaFill: "bg-tag-5/15",
   },
   [EHighlightColor.Green]: {
-    label: "绿",
     pdfHex: "#b2f1b7",
     swatch: "bg-tag-1",
     text: "text-tag-1",
@@ -54,7 +50,6 @@ export const COLOR_SPECS: Record<EHighlightColor, ColorSpec> = {
     areaFill: "bg-tag-1/15",
   },
   [EHighlightColor.Blue]: {
-    label: "蓝",
     pdfHex: "#b8d3ff",
     swatch: "bg-tag-2",
     text: "text-tag-2",
@@ -62,7 +57,6 @@ export const COLOR_SPECS: Record<EHighlightColor, ColorSpec> = {
     areaFill: "bg-tag-2/15",
   },
   [EHighlightColor.Purple]: {
-    label: "紫",
     pdfHex: "#dcb8ff",
     swatch: "bg-tag-3",
     text: "text-tag-3",
@@ -70,7 +64,6 @@ export const COLOR_SPECS: Record<EHighlightColor, ColorSpec> = {
     areaFill: "bg-tag-3/15",
   },
   [EHighlightColor.Pink]: {
-    label: "粉",
     pdfHex: "#ffc4e1",
     swatch: "bg-tag-5",
     text: "text-tag-5",
@@ -141,13 +134,6 @@ const SUBTYPE_STYLE: Partial<Record<PdfAnnotationSubtype, MarkupStyle>> = {
   [PdfAnnotationSubtype.UNDERLINE]: "underline",
   [PdfAnnotationSubtype.SQUIGGLY]: "squiggly",
   [PdfAnnotationSubtype.STRIKEOUT]: "strikeout",
-};
-
-export const STYLE_LABEL: Record<MarkupStyle, string> = {
-  highlight: "高亮",
-  underline: "下划线",
-  squiggly: "波浪线",
-  strikeout: "删除线",
 };
 
 export function markupStyleOf(annotation: PdfAnnotationObject): MarkupStyle | null {
@@ -243,13 +229,6 @@ export function noteText(record: PdfAnnotation): string {
 
 export function hasNote(record: PdfAnnotation): boolean {
   return noteText(record).length > 0;
-}
-
-/** 列表 / 边注里展示的摘录 */
-export function annotationSnippet(record: PdfAnnotation): string {
-  if (record.type === "area") return `区域截图 · 第 ${annotationPage(record)} 页`;
-  if (record.type === "margin") return `页边批注 · 第 ${annotationPage(record)} 页`;
-  return annotationText(record.annotation) || `第 ${annotationPage(record)} 页标注`;
 }
 
 /** 按页、再按页内纵向位置排序 */
@@ -348,7 +327,7 @@ const QUOTE_KIND_LABEL: Record<PdfQuote["kind"], string> = {
   margin: "页边批注",
 };
 
-export function quoteSource(quote: PdfQuote): string {
+function serializeQuoteSource(quote: PdfQuote): string {
   const kind = QUOTE_KIND_LABEL[quote.kind];
   return `第 ${quote.pageNumber} 页 · ${kind}`;
 }
@@ -356,7 +335,7 @@ export function quoteSource(quote: PdfQuote): string {
 /** 把引用并入用户消息：原文作为引用块放在问题前面，截图作为图片附件 */
 export function applyQuote(content: MessageContentItem[], quote: PdfQuote): MessageContentItem[] {
   const quoteLines = [
-    `> ${quoteSource(quote)}`,
+    `> ${serializeQuoteSource(quote)}`,
     ...(quote.text ? quote.text.split(/\n+/).map(line => `> ${line}`) : []),
   ].join("\n");
   const textIndex = content.findIndex(item => item.type === "text");

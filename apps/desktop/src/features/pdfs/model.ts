@@ -26,29 +26,22 @@ export interface PdfEntry {
   raw: PdfLibraryItem;
 }
 
-export const PDF_SOURCES: { value: PdfSource; label: string }[] = [
-  { value: "all", label: "全部" },
-  { value: "local", label: "本地" },
-  { value: "remote", label: "远程" },
+export const PDF_SOURCES: { value: PdfSource }[] = [
+  { value: "all" },
+  { value: "local" },
+  { value: "remote" },
 ];
 
-export const PDF_SORTS: { value: PdfSort; label: string }[] = [
-  { value: "opened", label: "最近打开" },
-  { value: "added", label: "添加时间" },
-  { value: "name", label: "名称" },
-  { value: "annotations", label: "标注数" },
+export const PDF_SORTS: { value: PdfSort }[] = [
+  { value: "opened" },
+  { value: "added" },
+  { value: "name" },
+  { value: "annotations" },
 ];
 
-export const INDEX_LABEL: Record<PdfIndexState, string> = {
-  ready: "可检索",
-  building: "索引中",
-  failed: "索引失败",
-  none: "未索引",
-};
-
-export function pdfTitle(fileName: string): string {
+export function pdfTitle(fileName: string, fallback = "未命名 PDF"): string {
   const title = fileName.replace(/\.pdf$/i, "").trim();
-  return title || fileName || "未命名 PDF";
+  return title || fileName || fallback;
 }
 
 function toIndexState(status: PdfIndexStatus | undefined): PdfIndexState {
@@ -111,20 +104,6 @@ export function recentEntries(entries: PdfEntry[], n = 3): PdfEntry[] {
     .filter(e => e.openedAt && !e.fileMissing)
     .sort((a, b) => (b.openedAt ?? 0) - (a.openedAt ?? 0))
     .slice(0, n);
-}
-
-/** 今天 / 昨天 / n 天前 / 月/日（跨年带年份） */
-export function formatDay(ts: number | null, now = new Date()): string {
-  if (!ts) return "—";
-  const date = new Date(ts);
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const day = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const diff = Math.round((today.getTime() - day.getTime()) / 86_400_000);
-  if (diff <= 0) return "今天";
-  if (diff === 1) return "昨天";
-  if (diff < 7) return `${diff} 天前`;
-  const md = `${date.getMonth() + 1}/${date.getDate()}`;
-  return date.getFullYear() === now.getFullYear() ? md : `${date.getFullYear()}/${md}`;
 }
 
 /** 文字封面的色调：按 id 派生，同一文件稳定 */

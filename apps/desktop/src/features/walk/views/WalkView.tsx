@@ -5,6 +5,7 @@
  * 键位（本页在栈顶、无修饰键、不在输入框、无闪卡弹窗时）：Space 随机跳、←/→ 足迹回退/前进。
  */
 
+import { useWalkI18n, walkTranslator } from "../i18n";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { EditorRef } from "@tau/editor";
@@ -54,6 +55,7 @@ function parseFromRef(raw: string | undefined): { kind: WalkRefKind; id: number 
 }
 
 export function WalkView() {
+  const { t } = useWalkI18n();
   const { navigator } = usePage();
   const params = usePageParams<{ from?: string }>();
 
@@ -120,12 +122,12 @@ export function WalkView() {
         exclude,
       });
       if (!item) {
-        toast.info("没有更多可以走的内容了");
+        toast.info(walkTranslator.t("feedback.noMore"));
         return;
       }
       advance(item, { type: "jump" });
     } catch {
-      toast.error("随机跳转失败，稍后再试");
+      toast.error(walkTranslator.t("feedback.jumpFailed"));
     } finally {
       setJumping(false);
     }
@@ -136,7 +138,7 @@ export function WalkView() {
     try {
       const item = await getRandomWalkItem(neighbor.ref);
       if (!item) {
-        toast.info("这条内容已经不在了");
+        toast.info(walkTranslator.t("feedback.missing"));
         return;
       }
       advance(item, {
@@ -146,7 +148,7 @@ export function WalkView() {
         fromTitle: currentItem.title,
       });
     } catch {
-      toast.info("这条内容已经不在了");
+      toast.info(walkTranslator.t("feedback.missing"));
     }
   };
 
@@ -155,10 +157,10 @@ export function WalkView() {
     try {
       await muteRandomWalk(currentItem.ref);
     } catch {
-      toast.error("屏蔽失败，稍后再试");
+      toast.error(walkTranslator.t("feedback.muteFailed"));
       return;
     }
-    toast.success("这条不会再被抽到了");
+    toast.success(walkTranslator.t("feedback.muted"));
     void jump();
   };
 
@@ -219,8 +221,10 @@ export function WalkView() {
         {/* 头部：标题 + 偏好选择器 */}
         <div className="flex flex-none items-end gap-3 px-8 pt-5">
           <div>
-            <h1 className="text-tau-title-lg font-semibold tracking-[-0.01em]">漫步</h1>
-            <p className="text-tau-sm text-ink-2">从你写过的东西里随便走走</p>
+            <h1 className="text-tau-title-lg font-semibold tracking-[-0.01em]">
+              {t("view.title")}
+            </h1>
+            <p className="text-tau-sm text-ink-2">{t("view.subtitle")}</p>
           </div>
           <div className="ml-auto">
             <WalkPoolPicker prefs={prefs} onChange={changePrefs} />
@@ -273,19 +277,18 @@ export function WalkView() {
 }
 
 function EmptyWalk({ fullRange, onWiden }: { fullRange: boolean; onWiden(): void }) {
+  const { t } = useWalkI18n();
   return (
     <div className="flex flex-col items-center justify-center gap-2 text-center">
       <Footprints className="text-ink-3 size-8" strokeWidth={1.75} />
       <p className="text-tau-body text-ink-1 font-medium">
-        {fullRange ? "还没有可以漫步的内容" : "当前范围里没有内容"}
+        {fullRange ? t("view.empty") : t("view.emptyRange")}
       </p>
       {fullRange ? (
-        <p className="text-tau-meta text-ink-3">
-          写下 30 字以上的卡片、文章或日记后，这里就有路可走了
-        </p>
+        <p className="text-tau-meta text-ink-3">{t("view.emptyHint")}</p>
       ) : (
         <Button variant="secondary" size="sm" className="mt-2" onClick={onWiden}>
-          放宽到全部内容
+          {t("view.widen")}
         </Button>
       )}
     </div>

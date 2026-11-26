@@ -5,6 +5,7 @@
  * 以 id + updateTime 作重载键：阅读状态经 pdf:record-* 写入，不改 updateTime，翻页不会重挂载。
  */
 
+import { pdfText, usePdfI18n } from "../i18n";
 import { useMemo } from "react";
 import { createPluginRegistration, type PluginBatchRegistrations } from "@embedpdf/core";
 import { EmbedPDF } from "@embedpdf/core/react";
@@ -89,6 +90,8 @@ interface PdfReaderViewProps extends LayoutPassThrough {
 }
 
 export function PdfReaderView({ pdf, file, index, ...layout }: PdfReaderViewProps) {
+  usePdfI18n();
+
   const { engine, error: engineError } = usePdfiumEngine({ worker: true });
   const { database } = useDatabaseReady();
   const plugins = useMemo(() => (file.pdfFile ? buildPlugins(file.pdfFile) : []), [file.pdfFile]);
@@ -101,11 +104,9 @@ export function PdfReaderView({ pdf, file, index, ...layout }: PdfReaderViewProp
         <ErrorState
           size="page"
           error={error}
-          title="PDF 打开失败"
+          title={pdfText("reader.openFailed")}
           description={
-            pdf.isLocal
-              ? "文件可能已被移动或删除，可以在 PDF 列表里重新定位。"
-              : "远程文件下载失败，请检查网络或文件地址。"
+            pdf.isLocal ? pdfText("reader.localFailedHint") : pdfText("reader.remoteFailedHint")
           }
           className="flex-1"
         />
@@ -135,6 +136,8 @@ export function PdfReaderView({ pdf, file, index, ...layout }: PdfReaderViewProp
 
 /** 独立阅读器（无对话）：左面板开关放进 HUD */
 export function PdfReader({ pdf, ...layout }: { pdf: Pdf } & LayoutPassThrough) {
+  usePdfI18n();
+
   const file = usePdfFile(pdf);
   const index = usePdfIndex(pdf, file.resolvedPath);
   return <PdfReaderView pdf={pdf} file={file} index={index} leftToggleInHud {...layout} />;

@@ -17,6 +17,7 @@ export function targetPage(object: PdfBookmarkObject): number | null {
 export interface OutlineRow {
   key: string;
   title: string;
+  titleMissing: boolean;
   page: number | null;
   depth: number;
 }
@@ -25,7 +26,13 @@ export function flattenOutline(items: PdfBookmarkObject[], depth = 0, prefix = "
   return items.flatMap((item, index) => {
     const key = `${prefix}${index}`;
     return [
-      { key, title: item.title?.trim() || "（无标题）", page: targetPage(item), depth },
+      {
+        key,
+        title: item.title?.trim() || "（无标题）",
+        titleMissing: !item.title?.trim(),
+        page: targetPage(item),
+        depth,
+      },
       ...flattenOutline(item.children ?? [], depth + 1, `${key}.`),
     ];
   });

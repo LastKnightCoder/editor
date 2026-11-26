@@ -2,6 +2,7 @@
  * PDF 标注上的插件对象动作（目标为材料 pdf-annotation:<id>）：工具条与左侧标注列表各自给触发器样式。
  */
 
+import { pdfText, usePdfI18n } from "../../i18n";
 import { MoreHorizontal } from "lucide-react";
 import { IconButton } from "@tau/ui";
 import { PluginActionsMenu } from "@/app/plugins/action-menu";
@@ -14,6 +15,8 @@ const target = (recordId: number) => ({
 
 /** 浮动工具条里的「⋯」 */
 export function ToolbarPluginActions({ recordId }: { recordId: number | undefined }) {
+  usePdfI18n();
+
   if (recordId === undefined) return null;
   return (
     <PluginActionsMenu
@@ -21,8 +24,8 @@ export function ToolbarPluginActions({ recordId }: { recordId: number | undefine
       trigger={
         <button
           type="button"
-          title="更多操作"
-          aria-label="更多操作"
+          title={pdfText("action.moreActions")}
+          aria-label={pdfText("action.moreActions")}
           className={TOOLBAR_ICON_BUTTON}
         >
           <MoreHorizontal size={15} strokeWidth={1.75} />
@@ -34,13 +37,15 @@ export function ToolbarPluginActions({ recordId }: { recordId: number | undefine
 
 /** 左侧标注列表悬停时的「⋯」 */
 export function ListPluginActions({ recordId }: { recordId: number }) {
+  usePdfI18n();
+
   return (
     <PluginActionsMenu
       target={target(recordId)}
       trigger={
         <IconButton
-          title="更多操作"
-          aria-label="更多操作"
+          title={pdfText("action.moreActions")}
+          aria-label={pdfText("action.moreActions")}
           className="bg-surface shadow-lift size-[24px] rounded-[7px]"
         >
           <MoreHorizontal className="size-[12px]" strokeWidth={1.75} />

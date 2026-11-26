@@ -5,6 +5,7 @@
  * - AI 索引建好之前也能提问（只是不能按页引用），顶部给出进度。
  */
 
+import { pdfText, pdfValue, pdfFormat, usePdfI18n } from "../i18n";
 import {
   forwardRef,
   isValidElement,
@@ -33,7 +34,7 @@ import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import { useScopedChat } from "@/hooks/useScopedChat";
 import type { Pdf, PdfIndexStatus } from "@/types";
 import { buildPdfCitationMarkerLabel, type PdfCitationTarget } from "@/utils/pdfCitation";
-import { applyQuote, quoteSource, type PdfQuote } from "../reader/annotationModel";
+import { applyQuote, type PdfQuote } from "../reader/annotationModel";
 
 const ChatContainer = lazy(() => import("@/components/ChatSidebar/ChatContainer"));
 
@@ -55,13 +56,37 @@ interface PdfChatPanelProps {
 }
 
 const QUICK_ASKS = [
-  { label: "解释", prompt: "解释一下这段内容" },
-  { label: "翻译", prompt: "把这段翻译成中文" },
-  { label: "举个例子", prompt: "举个例子说明这段话" },
-  { label: "找相关段落", prompt: "在这份 PDF 里找和这段相关的其他段落" },
+  {
+    get label() {
+      return pdfText("chat.explain");
+    },
+    prompt: "解释一下这段内容",
+  },
+  {
+    get label() {
+      return pdfText("chat.translate");
+    },
+    prompt: "把这段翻译成中文",
+  },
+  {
+    get label() {
+      return pdfText("chat.example");
+    },
+    prompt: "举个例子说明这段话",
+  },
+  {
+    get label() {
+      return pdfText("chat.related");
+    },
+    prompt: "在这份 PDF 里找和这段相关的其他段落",
+  },
 ];
 
-const STARTERS = ["总结全文", "列出这份文档的核心贡献", "这份文档的结构是怎样的"];
+const STARTERS = [
+  { key: "chat.starterSummary", prompt: "总结全文" },
+  { key: "chat.starterContributions", prompt: "列出这份文档的核心贡献" },
+  { key: "chat.starterStructure", prompt: "这份文档的结构是怎样的" },
+] as const;
 
 const textOf = (node: ReactNode): string => {
   if (node == null || typeof node === "boolean") return "";
@@ -72,10 +97,12 @@ const textOf = (node: ReactNode): string => {
 };
 
 function IndexBanner({ status, preparing }: { status: PdfIndexStatus | null; preparing: boolean }) {
+  usePdfI18n();
+
   if (status?.state === "failed") {
     return (
       <div className="rounded-tau-md bg-danger-soft text-tau-sm text-danger mb-2 px-3 py-2">
-        AI 索引建立失败：{status.error || "未知错误"}。可以在「更多 → 重建 AI 索引」里重试
+        {pdfText("index.failedHint", { error: status.error || pdfText("index.unknownError") })}
       </div>
     );
   }
@@ -88,7 +115,7 @@ function IndexBanner({ status, preparing }: { status: PdfIndexStatus | null; pre
       <div className="flex items-center gap-2">
         <Spinner className="size-3" />
         <span className="min-w-0 flex-1 truncate">
-          {status?.progressLabel || "正在建立 AI 索引"}
+          {status?.progressLabel || pdfText("index.preparing")}
         </span>
         {total > 0 && (
           <span className="text-ink-3 shrink-0 tabular-nums">
@@ -102,7 +129,7 @@ function IndexBanner({ status, preparing }: { status: PdfIndexStatus | null; pre
           style={{ width: `${percent}%` }}
         />
       </div>
-      <div className="text-tau-meta text-ink-3 mt-1.5">完成前也能提问，只是不能按页引用</div>
+      <div className="text-tau-meta text-ink-3 mt-1.5">{pdfText("index.askBeforeReady")}</div>
     </div>
   );
 }
@@ -121,6 +148,8 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
     },
     ref
   ) => {
+    usePdfI18n();
+
     const { isDark } = useTheme();
     const editTitleRef = useRef<EditTextHandle>(null);
     const chatRef = useRef<ChatContainerHandle>(null);
@@ -164,7 +193,7 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
       try {
         await rename(currentChat.id, title);
       } catch (error) {
-        toast.error("更新标题失败");
+        toast.error(pdfText("feedback.titleFailed"));
         console.error(error);
       }
     });
@@ -185,7 +214,8 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
       () => ({
         ...baseMarkdownComponents,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
-        span: ({ children, className, node: _node, ...props }: any) => {
+        span: function PdfCitationSpan({ children, className, node: _node, ...props }: any) {
+          usePdfI18n();
           if (className !== "pdf-citation") {
             return (
               <span className={className} {...props}>
@@ -213,9 +243,11 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
               delay={200}
               content={
                 <span className="block max-w-[260px]">
-                  <span className="mb-0.5 block font-medium tabular-nums">第 {pageNumber} 页</span>
+                  <span className="mb-0.5 block font-medium tabular-nums">
+                    {pdfText("page.number", { page: pdfValue(pageNumber) })}
+                  </span>
                   <span className="block opacity-85">
-                    {citation.previewText || label || "引用位置"}
+                    {citation.previewText || label || pdfText("citation.fallback")}
                   </span>
                 </span>
               }
@@ -223,7 +255,7 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
               <button
                 type="button"
                 className="rounded-tau-sm bg-accent-soft text-accent-text ease-tau-out text-tau-tiny hover:bg-selected mx-px inline-flex translate-y-[-0.2em] cursor-pointer items-center px-1.5 py-px leading-none font-medium tabular-nums transition-colors duration-[160ms]"
-                aria-label={`跳转到第 ${pageNumber} 页引用`}
+                aria-label={pdfText("citation.jumpPage", { page: pdfValue(pageNumber) })}
                 onMouseDown={event => {
                   event.preventDefault();
                   event.stopPropagation();
@@ -249,17 +281,19 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
           {quote.imageUrl && (
             <img
               src={quote.imageUrl}
-              alt="区域截图"
+              alt={pdfText("quote.area")}
               className="border-line-1 rounded-tau-sm size-12 shrink-0 border object-cover"
             />
           )}
           <div className="min-w-0 flex-1">
-            <div className="text-tau-meta text-ink-3 tabular-nums">{quoteSource(quote)}</div>
+            <div className="text-tau-meta text-ink-3 tabular-nums">
+              {pdfFormat.quoteSource(quote)}
+            </div>
             {quote.text && <div className="text-tau-sm text-ink-2 line-clamp-2">{quote.text}</div>}
           </div>
           <IconButton
-            title="移除引用"
-            aria-label="移除引用"
+            title={pdfText("quote.remove")}
+            aria-label={pdfText("quote.remove")}
             onClick={() => setQuote(null)}
             className="-mt-0.5 -mr-1 size-6"
           >
@@ -297,12 +331,17 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
                 />
               )}
             </div>
-            <IconButton title="新对话" aria-label="新对话" onClick={newChat} className="size-7">
+            <IconButton
+              title={pdfText("chat.new")}
+              aria-label={pdfText("chat.new")}
+              onClick={newChat}
+              className="size-7"
+            >
               <SquarePen size={15} strokeWidth={1.75} />
             </IconButton>
             <IconButton
-              title="收起对话 (Ctrl/⌘ J)"
-              aria-label="收起对话"
+              title={pdfText("chat.hideShortcut")}
+              aria-label={pdfText("chat.hide")}
               onClick={onClose}
               className="size-7"
             >
@@ -338,23 +377,25 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
                   prepareUserContent={prepareUserContent}
                   emptyState={
                     <div className="flex h-full flex-col items-center justify-center px-6 pb-10 text-center">
-                      <h2 className="text-tau-title text-ink-1 font-semibold">问问这份 PDF</h2>
+                      <h2 className="text-tau-title text-ink-1 font-semibold">
+                        {pdfText("chat.emptyTitle")}
+                      </h2>
                       <p className="text-tau-meta text-ink-3 mt-1.5 max-w-[280px]">
-                        回答会标出处页码，点页码直接跳到原文。也可以在正文里选中文字后点「问 AI」。
+                        {pdfText("chat.emptyHint")}
                       </p>
                       <div className="mt-4 flex w-full max-w-[280px] flex-col gap-2">
-                        {STARTERS.map(prompt => (
+                        {STARTERS.map(starter => (
                           <button
-                            key={prompt}
+                            key={starter.key}
                             type="button"
                             onClick={() =>
                               void chatRef.current?.sendUserMessage([
-                                { type: "text", text: prompt },
+                                { type: "text", text: starter.prompt },
                               ])
                             }
                             className="border-line-1 text-tau-meta text-ink-2 hover:bg-hover hover:text-ink-1 rounded-tau-sm ease-tau-out border px-3 py-2 text-left transition-colors duration-[160ms]"
                           >
-                            {prompt}
+                            {pdfText(starter.key)}
                           </button>
                         ))}
                       </div>

@@ -12,6 +12,7 @@
  * 这里只把单独按下的 Alt 当作框选修饰键。Esc 一律经页面浮层仲裁。
  */
 
+import { pdfText, pdfValue, usePdfI18n } from "../i18n";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useMemoizedFn } from "ahooks";
@@ -162,6 +163,8 @@ export function ReaderLayout({
   leftToggleInHud,
   onOpenChat,
 }: ReaderLayoutProps) {
+  usePdfI18n();
+
   const prefs = useReaderPrefs();
   const annotations = useReaderAnnotations(pdf.id);
   const bookmarkStore = useReaderBookmarks(pdf.id);
@@ -503,12 +506,15 @@ export function ReaderLayout({
     setOverlay(null);
   });
 
-  const copyText = async (text: string, label = "原文") => {
+  const copyText = async (
+    text: string,
+    label: "copy.original" | "copy.notes" = "copy.original"
+  ) => {
     try {
       await navigator.clipboard.writeText(text);
-      toast.success(`已复制${label}`);
+      toast.success(pdfText("feedback.copied", { label: pdfText(label) }));
     } catch {
-      toast.error("复制失败");
+      toast.error(pdfText("feedback.copyFailed"));
     }
   };
 
@@ -524,17 +530,24 @@ export function ReaderLayout({
     setOverlay(null);
     if (pinned === record?.id) setPinned(null);
     if (!record) return;
-    toast.info(isMarginNote(record) ? "已删除页边批注" : "已删除标注", {
-      duration: 5000,
-      action: {
-        label: "撤销",
-        onClick: () => {
-          void annotations.restore(record).then(restored => {
-            if (isEngineAnnotation(restored)) sync.reimport(restored);
-          });
+    toast.info(
+      isMarginNote(record)
+        ? pdfText("feedback.marginDeleted")
+        : pdfText("feedback.annotationDeleted"),
+      {
+        duration: 5000,
+        action: {
+          get label() {
+            return pdfText("action.undo");
+          },
+          onClick: () => {
+            void annotations.restore(record).then(restored => {
+              if (isEngineAnnotation(restored)) sync.reimport(restored);
+            });
+          },
         },
-      },
-    });
+      }
+    );
   });
 
   const openNote = useMemoizedFn((target: PdfAnnotationObject | PdfAnnotation) => {
@@ -618,7 +631,7 @@ export function ReaderLayout({
       void annotations
         .upsertObject(created.object, prefs.lastColor)
         .then(send)
-        .catch(() => toast.error("划线保存失败"));
+        .catch(() => toast.error(pdfText("feedback.markupFailed")));
     },
     sendToBoard: target => {
       const record = isRecord(target) ? target : recordOf(target);
@@ -648,7 +661,7 @@ export function ReaderLayout({
           );
         } catch (error) {
           console.error("[pdf-reader] 保存区域标注失败", error);
-          toast.error("区域截图上传失败，请检查设置里的上传目标");
+          toast.error(pdfText("feedback.captureUploadFailed"));
         }
       })();
     },
@@ -661,7 +674,7 @@ export function ReaderLayout({
           askWith({ kind: "area", pageNumber: newArea.pageIndex + 1, text: "", imageUrl });
         } catch (error) {
           console.error("[pdf-reader] 截图上传失败", error);
-          toast.error("区域截图上传失败，请检查设置里的上传目标");
+          toast.error(pdfText("feedback.captureUploadFailed"));
         }
       })();
     },
@@ -669,8 +682,8 @@ export function ReaderLayout({
       if (!newArea) return;
       setOverlay(null);
       void copyImage(newArea.blob)
-        .then(() => toast.success("已复制图片"))
-        .catch(() => toast.error("复制图片失败"));
+        .then(() => toast.success(pdfText("feedback.imageCopied")))
+        .catch(() => toast.error(pdfText("feedback.imageCopyFailed")));
     },
 
     recolor: (target, color) => {
@@ -697,12 +710,12 @@ export function ReaderLayout({
         void fetch(url)
           .then(res => res.blob())
           .then(copyImage)
-          .then(() => toast.success("已复制图片"))
-          .catch(() => toast.error("复制图片失败"));
+          .then(() => toast.success(pdfText("feedback.imageCopied")))
+          .catch(() => toast.error(pdfText("feedback.imageCopyFailed")));
         return;
       }
       const quote = quoteOf(target);
-      void copyText(quote.text, quote.kind === "margin" ? "批注" : "原文");
+      void copyText(quote.text, quote.kind === "margin" ? "copy.notes" : "copy.original");
     },
     remove: removeTarget,
     clearNote: record => {
@@ -714,10 +727,12 @@ export function ReaderLayout({
       const previous = record.notes;
       setPinned(null);
       void annotations.updateNotes(record.id, []).then(() =>
-        toast.info("已删除笔记", {
+        toast.info(pdfText("feedback.noteDeleted"), {
           duration: 5000,
           action: {
-            label: "撤销",
+            get label() {
+              return pdfText("action.undo");
+            },
             onClick: () => void annotations.updateNotes(record.id, previous),
           },
         })
@@ -745,7 +760,7 @@ export function ReaderLayout({
         setNoteTarget(null);
       } catch (error) {
         console.error("[pdf-reader] 保存页边批注失败", error);
-        toast.error("保存页边批注失败");
+        toast.error(pdfText("feedback.marginFailed"));
       }
     },
 
@@ -765,9 +780,9 @@ export function ReaderLayout({
 
   const zoomLabel = (() => {
     const level = zoomState?.zoomLevel;
-    if (level === ZoomMode.FitWidth) return "适宽";
-    if (level === ZoomMode.FitPage) return "适页";
-    return `${Math.round((zoomState?.currentZoomLevel ?? 1) * 100)}%`;
+    if (level === ZoomMode.FitWidth) return pdfText("zoom.fitWidth");
+    if (level === ZoomMode.FitPage) return pdfText("zoom.fitPage");
+    return `${pdfValue(Math.round((zoomState?.currentZoomLevel ?? 1) * 100))}%`;
   })();
   const cycleZoom = () => {
     const level = zoomState?.zoomLevel;
@@ -1033,7 +1048,7 @@ export function ReaderLayout({
                 resolvedPath
                   ? () => {
                       index.rebuild();
-                      toast.info("正在重建 AI 索引");
+                      toast.info(pdfText("index.rebuilding"));
                     }
                   : undefined
               }
@@ -1073,6 +1088,8 @@ function PageFrame({
   marginWidth: number;
   renderMenu: (props: SelectionMenuProps) => React.JSX.Element;
 }) {
+  usePdfI18n();
+
   const [painted, setPainted] = useState(false);
   const [paperRgb, setPaperRgb] = useState<Rgb | null>(null);
   const paper = useMemo(
@@ -1170,7 +1187,10 @@ function useFind({
   const [current, setCurrent] = useState(0);
   const [semantic, setSemantic] = useState<PdfSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{
+    key: "find.keywordEmpty" | "find.indexUnavailable" | "find.semanticEmpty" | "find.failed";
+    error?: string;
+  } | null>(null);
 
   const goTo = useCallback(
     (list: SearchResult[], i: number) => {
@@ -1205,7 +1225,7 @@ function useFind({
           if (cancelled) return;
           setLoading(false);
           setHits(result.results);
-          setNotice(result.results.length ? null : "没有找到。扫描版 PDF 可能没有可检索的文字");
+          setNotice(result.results.length ? null : { key: "find.keywordEmpty" });
           goTo(result.results, 0);
         },
         () => {
@@ -1228,16 +1248,16 @@ function useFind({
     try {
       const status = index.status?.state === "ready" ? index.status : await index.ensure();
       if (status.state === "failed") {
-        setNotice(`AI 索引不可用：${status.error || "建立失败"}`);
+        setNotice({ key: "find.indexUnavailable", error: status.error });
         setSemantic([]);
         return;
       }
       const results = await searchPdfContent({ pdfId: pdf.id, mainDbName, query: text, limit: 10 });
       setSemantic(results);
-      if (results.length === 0) setNotice("没有找到相关段落，可以换个说法");
+      if (results.length === 0) setNotice({ key: "find.semanticEmpty" });
     } catch (error) {
       console.error("[pdf-reader] 按意思找失败", error);
-      setNotice("搜索失败，请稍后再试");
+      setNotice({ key: "find.failed" });
     } finally {
       setLoading(false);
     }
@@ -1281,7 +1301,9 @@ function useFind({
     rows,
     current,
     loading,
-    notice,
+    notice: notice
+      ? pdfText(notice.key, { error: notice.error || pdfText("index.buildFailed") })
+      : null,
     hits: pageHits,
     currentHit,
     open: useCallback(() => setOpen(true), []),

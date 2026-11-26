@@ -6,6 +6,7 @@
  * 离开（含保活隐藏）时立即写回；文件就位后补生成缩略图（顺带记下页数）。
  */
 
+import { pdfText, pdfFileTitle, usePdfI18n } from "../i18n";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { FileX, PanelLeft } from "lucide-react";
@@ -20,7 +21,7 @@ import type { PdfCitationTarget } from "@/utils/pdfCitation";
 import PdfChatPanel, { type PdfChatPanelHandle } from "../chat/PdfChatPanel";
 import { buildPdfSystemPrompt, usePdfChatTools } from "../chat/usePdfChatTools";
 import useChatSessionStore from "@/stores/useChatSessionStore";
-import { pdfTitle } from "../model";
+
 import { useDatabaseReady, usePdfDetail } from "../queries";
 import type { PdfQuote } from "../reader/annotationModel";
 import { usePdfIndex } from "../reader/data";
@@ -39,10 +40,12 @@ const PAGE_KEY = "pdf-detail";
 const PAGE_SAVE_DELAY = 1500;
 
 export function PdfDetailView() {
+  const { t } = usePdfI18n();
+
   const { pdfId, annotation } = usePageParams<{ pdfId: number; annotation?: number }>();
   const { navigator } = usePage();
   const { pdf, loading } = usePdfDetail(pdfId);
-  const title = pdf ? pdfTitle(pdf.fileName) : null;
+  const title = pdf ? pdfFileTitle(pdf.fileName) : null;
   const leftOpen = useReaderPrefs(s => s.leftOpen);
   const toggleLeft = useReaderPrefs(s => s.toggleLeft);
   useSidebarCollapsedWhile(true);
@@ -52,8 +55,8 @@ export function PdfDetailView() {
       <span className="text-tau-meta flex min-w-0 items-center gap-1.5">
         {pdf && (
           <IconButton
-            title={leftOpen ? "收起左面板" : "打开左面板"}
-            aria-label="左面板"
+            title={leftOpen ? t("reader.hideLeft") : t("reader.showLeft")}
+            aria-label={t("reader.leftPanel")}
             aria-pressed={leftOpen}
             onClick={toggleLeft}
             className={cn("size-7", leftOpen && "bg-selected text-accent-text hover:bg-selected")}
@@ -76,7 +79,7 @@ export function PdfDetailView() {
         )}
       </span>
     ),
-    [navigator, title, pdf, leftOpen, toggleLeft]
+    [navigator, title, pdf, leftOpen, toggleLeft, t]
   );
   usePageBreadcrumb(PAGE_KEY, breadcrumb);
 
@@ -90,15 +93,15 @@ export function PdfDetailView() {
         ) : (
           <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-center">
             <FileX className="text-ink-3 size-7" strokeWidth={1.5} />
-            <p className="text-ink-1 text-[15px] font-semibold">这份 PDF 已不存在</p>
-            <p className="text-tau-meta text-ink-2">可能已在别处被删除。</p>
+            <p className="text-ink-1 text-[15px] font-semibold">{pdfText("file.deleted")}</p>
+            <p className="text-tau-meta text-ink-2">{pdfText("file.deletedHint")}</p>
             <Button
               variant="secondary"
               size="sm"
               className="mt-2"
               onClick={() => navigator.push("pdfs", {})}
             >
-              回到 PDF 列表
+              {pdfText("file.backToList")}
             </Button>
           </div>
         )}
@@ -108,6 +111,8 @@ export function PdfDetailView() {
 }
 
 function PdfReaderPage({ pdf, annotationId }: { pdf: Pdf; annotationId: number | null }) {
+  usePdfI18n();
+
   const { chatId } = usePageParams<{ chatId?: string }>();
   const { navigator } = usePage();
   const client = useQueryClient();
@@ -198,7 +203,7 @@ function PdfReaderPage({ pdf, annotationId }: { pdf: Pdf; annotationId: number |
     toggle: toggleChat,
     quickChat: () => ({
       chatScope: `pdf-chat:${pdf.id}`,
-      placeholder: "问这份 PDF，回答会在旁边的对话栏继续",
+      placeholder: pdfText("chat.askHint"),
       toolScope,
       customSystemPrompt: systemPrompt,
       beforeSend: ensureChatIndex,
@@ -248,7 +253,7 @@ function PdfReaderPage({ pdf, annotationId }: { pdf: Pdf; annotationId: number |
       />
       {chatMounted && (
         <section
-          aria-label="AI 对话"
+          aria-label={pdfText("chat.title")}
           aria-hidden={!chatOpen}
           inert={!chatOpen}
           className={cn(
@@ -267,7 +272,7 @@ function PdfReaderPage({ pdf, annotationId }: { pdf: Pdf; annotationId: number |
             onChange={setChatWidth}
             onActiveChange={setResizing}
             side="right"
-            label="AI 对话栏宽度"
+            label={pdfText("chat.resize")}
             className="absolute top-4 bottom-4 left-0 z-10"
           />
           <div className="h-full" style={{ width: chatWidth }}>

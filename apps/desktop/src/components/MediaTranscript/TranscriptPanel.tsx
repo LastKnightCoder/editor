@@ -1,3 +1,4 @@
+import { useReadingI18n } from "../reading.i18n";
 import { Fragment } from "react";
 import { NotebookPen } from "lucide-react";
 import { cn } from "@tau/ui";
@@ -52,10 +53,11 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
   innerClassName = "mx-auto max-w-[760px] px-6 pb-10 pt-2",
   className,
 }) => {
+  const { t } = useReadingI18n();
   if (!segments || segments.length === 0) {
     return (
       <div className="text-tau-meta text-ink-3 flex items-center justify-center py-10">
-        还没有字幕，转录完成后会出现在这里
+        {t("transcript.empty")}
       </div>
     );
   }
@@ -117,7 +119,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
                   </span>
                   {quoted && (
                     <span
-                      title="已摘到笔记"
+                      title={t("transcript.quoted")}
                       className="text-accent-text ml-1 inline-block align-[-1px]"
                     >
                       <NotebookPen className="size-3" strokeWidth={1.75} />
