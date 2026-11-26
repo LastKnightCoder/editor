@@ -1,3 +1,4 @@
+import { homeTranslator } from "./i18n";
 /**
  * 首页内置面板：数组顺序即默认布局。ID 随笔记库保存，改名会丢失用户的调整。
  */
@@ -10,11 +11,64 @@ import { WalkDeckPanel } from "./views/WalkDeckPanel";
 import { RetroPanel } from "./views/RetroSection";
 
 export const BUILTIN_HOME_PANELS: readonly HomePanelDefinition[] = [
-  { id: "review", title: "复习", size: "compact", component: ReviewPanel, feature: "review" },
-  { id: "todos", title: "待办", size: "compact", component: TodosPanel, feature: "todos" },
-  { id: "schedule", title: "日程", size: "compact", component: SchedulePanel, feature: "schedule" },
-  { id: "insights", title: "洞见", size: "wide", component: InsightCard },
-  { id: "recent-edits", title: "最近编辑", size: "wide", component: RecentEditsPanel },
-  { id: "walk", title: "今日漫步", size: "wide", component: WalkDeckPanel, feature: "walk" },
-  { id: "retro", title: "回顾", size: "wide", component: RetroPanel },
+  {
+    id: "review",
+    get title() {
+      return homeTranslator.t("panels.review");
+    },
+    size: "compact",
+    component: ReviewPanel,
+    feature: "review",
+  },
+  {
+    id: "todos",
+    get title() {
+      return homeTranslator.t("panels.todos");
+    },
+    size: "compact",
+    component: TodosPanel,
+    feature: "todos",
+  },
+  {
+    id: "schedule",
+    get title() {
+      return homeTranslator.t("panels.schedule");
+    },
+    size: "compact",
+    component: SchedulePanel,
+    feature: "schedule",
+  },
+  {
+    id: "insights",
+    get title() {
+      return homeTranslator.t("panels.insights");
+    },
+    size: "wide",
+    component: InsightCard,
+  },
+  {
+    id: "recent-edits",
+    get title() {
+      return homeTranslator.t("panels.recent");
+    },
+    size: "wide",
+    component: RecentEditsPanel,
+  },
+  {
+    id: "walk",
+    get title() {
+      return homeTranslator.t("panels.walk");
+    },
+    size: "wide",
+    component: WalkDeckPanel,
+    feature: "walk",
+  },
+  {
+    id: "retro",
+    get title() {
+      return homeTranslator.t("panels.retro");
+    },
+    size: "wide",
+    component: RetroPanel,
+  },
 ];

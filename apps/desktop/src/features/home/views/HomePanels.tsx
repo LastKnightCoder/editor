@@ -1,3 +1,4 @@
+import { useHomeI18n } from "../i18n";
 /**
  * 首页面板容器：按布局渲染面板，一个可换行的流式容器——wide 占整行，compact 约 340px
  * 起并可伸展，排不满的行伸展填满，同行等高。没有内容的面板（组件返回 null，插件面板正文为空）不占位。
@@ -93,6 +94,7 @@ export function HomePanels({
   editing?: boolean;
   onChange(next: HomeLayoutEntry[]): void;
 }) {
+  const { t } = useHomeI18n();
   const containerRef = useRef<HTMLDivElement>(null);
   const hiddenZoneRef = useRef<HTMLDivElement>(null);
   const scrollRoot = useContext(HomeScrollRootContext);
@@ -283,7 +285,10 @@ export function HomePanels({
       session.liftScale = rect.width > WIDE_GHOST_LIMIT ? WIDE_GHOST_WIDTH / rect.width : 1.02;
     } else {
       const panel = byId.get(session.id);
-      ghost.textContent = `${panel?.title ?? ""} · ${panel?.size === "wide" ? "整行" : "紧凑"}`;
+      ghost.textContent = t("layout.ghost", {
+        name: panel?.title ?? "",
+        size: t(panel?.size === "wide" ? "layout.wide" : "layout.compact"),
+      });
       ghost.className =
         "border-line-1 bg-surface shadow-float text-tau-meta text-ink-1 pointer-events-none fixed left-0 top-0 z-50 whitespace-nowrap rounded-[9px] border px-3 py-1.5 font-medium";
       session.liftScale = 1;
@@ -518,7 +523,7 @@ export function HomePanels({
                       isSlot && "invisible"
                     )}
                   >
-                    {panel.title} · 今天没有内容
+                    {t("layout.emptyPanel", { name: panel.title })}
                   </div>
                   {isSlot ? (
                     <div className="border-accent/40 bg-accent/5 rounded-tau-lg pointer-events-none absolute inset-0 border-[1.5px] border-dashed" />
@@ -530,8 +535,8 @@ export function HomePanels({
                       <button
                         type="button"
                         data-home-panel-handle
-                        aria-label={`移动「${panel.title}」`}
-                        title="拖动调整位置，或用方向键移动"
+                        aria-label={t("layout.move", { name: panel.title })}
+                        title={t("layout.moveHint")}
                         onKeyDown={moveByKey(index)}
                         className={cn(CHROME_BUTTON, dragging ? "cursor-grabbing" : "cursor-grab")}
                       >
@@ -540,8 +545,8 @@ export function HomePanels({
                       <button
                         type="button"
                         data-home-panel-action
-                        aria-label={`隐藏「${panel.title}」`}
-                        title="隐藏"
+                        aria-label={t("layout.hideName", { name: panel.title })}
+                        title={t("layout.hide")}
                         onClick={() => hide(panel.id)}
                         className={CHROME_BUTTON}
                       >
@@ -562,7 +567,7 @@ export function HomePanels({
           data-drop-over={overHidden || undefined}
           className="border-line-2 data-[drop-over]:border-accent data-[drop-over]:bg-accent-soft rounded-tau-lg ease-tau-out flex min-h-[52px] flex-wrap items-center gap-2 border-[1.5px] border-dashed px-4 py-2.5 transition-[background,border-color] duration-[160ms]"
         >
-          <span className="text-tau-meta text-ink-3 mr-1">已隐藏</span>
+          <span className="text-tau-meta text-ink-3 mr-1">{t("layout.hidden")}</span>
           {trayPanels.map(panel => (
             <button
               key={panel.id}
@@ -572,7 +577,7 @@ export function HomePanels({
                 if (draggedRef.current) draggedRef.current = false;
                 else restore(panel.id);
               }}
-              title="点击恢复到末尾，或拖到想放的位置"
+              title={t("layout.restoreHint")}
               className={cn(
                 "border-line-1 bg-surface text-tau-meta text-ink-2 hover:bg-hover hover:text-ink-1 ease-tau-out inline-flex cursor-grab items-center gap-1 rounded-[8px] border px-2.5 py-1 transition-[background,color,opacity] duration-[160ms]",
                 dragId === panel.id && "opacity-40"
@@ -587,11 +592,11 @@ export function HomePanels({
               data-home-hidden-pending
               className="border-accent text-tau-meta text-accent-text bg-surface ease-tau-out inline-flex items-center rounded-[8px] border-[1.5px] border-dashed px-2.5 py-1 transition-[opacity,scale] duration-150 starting:scale-95 starting:opacity-0"
             >
-              松手隐藏「{pendingHide.title}」
+              {t("layout.pendingHide", { name: pendingHide.title })}
             </span>
           ) : (
             trayPanels.length === 0 && (
-              <span className="text-tau-meta text-ink-3">把面板拖到这里即可隐藏</span>
+              <span className="text-tau-meta text-ink-3">{t("layout.dropHint")}</span>
             )
           )}
         </div>

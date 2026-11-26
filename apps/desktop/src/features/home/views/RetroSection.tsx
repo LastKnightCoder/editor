@@ -21,7 +21,8 @@ import {
   YearHeatmap,
 } from "@tau/ui";
 import { useRetroSnapshot } from "../retroQueries";
-import { minutesToHM, useHomeSnapshot } from "../queries";
+import { useHomeSnapshot } from "../queries";
+import { minutesToHM } from "../format";
 import {
   RETRO_RANGES,
   type HeatmapStats,
@@ -135,7 +136,7 @@ function RetroPanels({ data, range }: { data: RetroSnapshot; range: RetroRange }
   return (
     <>
       {/* ── 写作趋势（面积 + 7 日均线；窗口汇总并入标题行）── */}
-      <Panel variant="outline" pad="compact" className="@max-[1179px]:col-span-12 col-span-8">
+      <Panel variant="outline" pad="compact" className="col-span-8 @max-[1179px]:col-span-12">
         <PanelTitle className="mb-2.5">
           写作趋势
           <PanelNote>{RANGE_LABEL[range]} · 日字数与 7 日均线</PanelNote>
@@ -160,7 +161,7 @@ function RetroPanels({ data, range }: { data: RetroSnapshot; range: RetroRange }
       <Panel
         variant="outline"
         pad="compact"
-        className="@max-[1179px]:col-span-12 col-span-4 flex flex-col"
+        className="col-span-4 flex flex-col @max-[1179px]:col-span-12"
       >
         <PanelTitle className="mb-2.5">
           知识构成<PanelNote>累计 {fmtWan(totals.wordsTotal)} 字</PanelNote>
@@ -207,7 +208,7 @@ function RetroPanels({ data, range }: { data: RetroSnapshot; range: RetroRange }
       </Panel>
 
       {/* ── 记忆保持 ── */}
-      <Panel variant="outline" pad="compact" className="@max-[859px]:col-span-12 col-span-6">
+      <Panel variant="outline" pad="compact" className="col-span-6 @max-[859px]:col-span-12">
         <PanelTitle className="mb-2.5">
           记忆保持
           <PanelNote>
@@ -257,7 +258,7 @@ function RetroPanels({ data, range }: { data: RetroSnapshot; range: RetroRange }
       </Panel>
 
       {/* ── 专注节律 ── */}
-      <Panel variant="outline" pad="compact" className="@max-[859px]:col-span-12 col-span-6">
+      <Panel variant="outline" pad="compact" className="col-span-6 @max-[859px]:col-span-12">
         <PanelTitle className="mb-2.5">
           专注节律
           <PanelNote>

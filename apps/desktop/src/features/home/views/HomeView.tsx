@@ -10,12 +10,14 @@
  * 容器查询响应式（@container 在根）：面板内的多列行按 1180/860 两档收列。
  */
 
-import { useState } from "react";
+import { Fragment, useState, type ReactNode } from "react";
+import { useHomeI18n } from "../i18n";
+import { minutesToHM } from "../format";
 import { LayoutDashboard } from "lucide-react";
 import { MotionConfig } from "motion/react";
 import { usePage, useOverlayDismiss } from "@/page/PageProvider";
 import { Button, IconButton, Loading, FadeScroll } from "@tau/ui";
-import { useHomeSnapshot, minutesToHM } from "../queries";
+import { useHomeSnapshot } from "../queries";
 import { useHomeLayout } from "../layoutQueries";
 import { BUILTIN_HOME_PANELS } from "../panels";
 import { useDesktopPlugins } from "@/app/plugins/context";
@@ -25,6 +27,8 @@ import { pluginHomePanel } from "./PluginHomePanel";
 import "../home.css";
 
 export function HomeView() {
+  const { t, locale } = useHomeI18n();
+  const number = new Intl.NumberFormat(locale);
   const { data, loading } = useHomeSnapshot();
   const { layout, save } = useHomeLayout();
   const { navigator } = usePage();
@@ -42,7 +46,7 @@ export function HomeView() {
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
 
   if (loading || !layout) {
-    return <Loading />;
+    return <Loading label={t("loading")} />;
   }
   if (!data) return null;
 
@@ -54,17 +58,17 @@ export function HomeView() {
           {/* hero：只放今天的数字，每项全页仅此一处 */}
           <header className="mt-6 mb-2 flex flex-none items-baseline gap-4 px-8">
             <h1 className="text-tau-title-lg shrink-0 font-semibold tracking-[-0.01em] whitespace-nowrap">
-              {greeting()}
+              {t(greeting())}
             </h1>
             <span className="text-tau-sm text-ink-2 shrink-0 whitespace-nowrap">
-              {formatToday()}
+              {formatToday(locale)}
             </span>
             {/* 右侧一组按首个子元素的基线对齐 hero，按钮与这行文字居中对齐；编辑时数字换成操作 */}
             <div className="ml-auto flex min-w-0 items-center gap-3">
               {editing ? (
                 <>
                   <span className="text-tau-meta text-ink-3 ease-tau-out min-w-0 truncate transition-opacity duration-200 starting:opacity-0">
-                    拖动面板调整顺序，拖到底部「已隐藏」即隐藏 · Esc 取消
+                    {t("layout.instructions")}
                   </span>
                   <Button
                     size="sm"
@@ -72,7 +76,7 @@ export function HomeView() {
                     className="-my-1 shrink-0"
                     onClick={() => save([])}
                   >
-                    恢复默认
+                    {t("layout.reset")}
                   </Button>
                   <Button
                     size="sm"
@@ -80,7 +84,7 @@ export function HomeView() {
                     className="-my-1 shrink-0"
                     onClick={() => setEditing(false)}
                   >
-                    完成
+                    {t("layout.done")}
                   </Button>
                 </>
               ) : (
@@ -88,28 +92,49 @@ export function HomeView() {
                   <span className="text-tau-sm text-ink-2 ease-tau-out min-w-0 truncate whitespace-nowrap tabular-nums transition-opacity duration-200 starting:opacity-0">
                     <button
                       type="button"
-                      title="前往番茄专注"
+                      title={t("hero.focusLink")}
                       onClick={() => navigator.push("pomodoro")}
                       className="text-inherit"
                     >
-                      已专注{" "}
-                      <b className="text-accent-text font-semibold">
+                      <MetricText text={t("hero.focus", { value: METRIC_VALUE })}>
                         {minutesToHM(data.focus.focusMinutes)}
-                      </b>
-                      {data.focus.sessionCount > 0 && ` · ${data.focus.sessionCount} 番茄`}
+                      </MetricText>
+                      {data.focus.sessionCount > 0 &&
+                        t("hero.sessions", {
+                          count: data.focus.sessionCount,
+                          value: number.format(data.focus.sessionCount),
+                        })}
                     </button>
-                    <span className="text-ink-3 mx-2">·</span>写下{" "}
-                    <b className="text-accent-text font-semibold">{data.todayStats.wordsWritten}</b>{" "}
-                    字<span className="text-ink-3 mx-2">·</span>新建{" "}
-                    <b className="text-accent-text font-semibold">
-                      {data.todayStats.cardsCreated + data.todayStats.articlesCreated}
-                    </b>{" "}
-                    条<span className="text-ink-3 mx-2">·</span>连续活跃{" "}
-                    <b className="text-accent-text font-semibold">{data.heatmap.streak}</b> 天
+                    <span className="text-ink-3 mx-2">·</span>
+                    <MetricText
+                      text={t("hero.written", {
+                        count: data.todayStats.wordsWritten,
+                        value: METRIC_VALUE,
+                      })}
+                    >
+                      {number.format(data.todayStats.wordsWritten)}
+                    </MetricText>
+                    <span className="text-ink-3 mx-2">·</span>
+                    <MetricText
+                      text={t("hero.created", {
+                        count: data.todayStats.cardsCreated + data.todayStats.articlesCreated,
+                        value: METRIC_VALUE,
+                      })}
+                    >
+                      {number.format(
+                        data.todayStats.cardsCreated + data.todayStats.articlesCreated
+                      )}
+                    </MetricText>
+                    <span className="text-ink-3 mx-2">·</span>
+                    <MetricText
+                      text={t("hero.streak", { count: data.heatmap.streak, value: METRIC_VALUE })}
+                    >
+                      {number.format(data.heatmap.streak)}
+                    </MetricText>
                   </span>
                   <IconButton
-                    aria-label="调整首页"
-                    title="调整首页"
+                    aria-label={t("layout.customize")}
+                    title={t("layout.customize")}
                     onClick={() => setEditing(true)}
                     className="-my-1 size-7 shrink-0"
                   >
@@ -136,19 +161,30 @@ export function HomeView() {
   );
 }
 
-function formatToday(): string {
-  return new Intl.DateTimeFormat("zh-CN", {
+function formatToday(locale: string): string {
+  return new Intl.DateTimeFormat(locale, {
     month: "long",
     day: "numeric",
     weekday: "long",
   }).format(new Date());
 }
 
-function greeting(): string {
+function greeting() {
   const h = new Date().getHours();
-  if (h < 5) return "夜深了";
-  if (h < 11) return "早上好";
-  if (h < 14) return "中午好";
-  if (h < 18) return "下午好";
-  return "晚上好";
+  if (h < 5) return "greeting.night";
+  if (h < 11) return "greeting.morning";
+  if (h < 14) return "greeting.noon";
+  if (h < 18) return "greeting.afternoon";
+  return "greeting.evening";
+}
+
+// 保留完整译文语序，同时只强调动态数值。
+const METRIC_VALUE = "\uFFFC";
+function MetricText({ text, children }: { text: string; children: ReactNode }) {
+  return text.split(METRIC_VALUE).map((part, index) => (
+    <Fragment key={index}>
+      {index > 0 && <b className="text-accent-text font-semibold">{children}</b>}
+      {part}
+    </Fragment>
+  ));
 }

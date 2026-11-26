@@ -59,12 +59,6 @@ function relativeDays(ts: number): string {
   return `${Math.floor(days / 30)} 个月前`;
 }
 
-export function minutesToHM(min: number): string {
-  if (min < 60) return `${min} 分钟`;
-  const h = Math.floor(min / 60);
-  return h >= 10 ? `${h}h` : `${h}h ${min % 60}m`;
-}
-
 function slateToPlain(nodes: unknown): string {
   if (!Array.isArray(nodes)) return "";
   let out = "";

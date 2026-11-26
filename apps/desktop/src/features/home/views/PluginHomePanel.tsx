@@ -1,3 +1,4 @@
+import { homeTranslator, useHomeI18n } from "../i18n";
 /**
  * 插件首页面板（PS-046 2.8b）：宿主画面板外框、标题与标题行右侧的入口，插件组件只渲染正文；
  * 正文为空时整块不显示（HomePanels 按 [data-home-panel-body]:empty 隐藏外层）。
@@ -17,7 +18,7 @@ import type { HomePanelDefinition } from "../layout";
 function runAction(run: () => unknown) {
   const report = (error: unknown) =>
     appNotify({
-      title: "插件操作失败",
+      title: homeTranslator.t("plugin.failed"),
       body: error instanceof Error ? error.message : String(error),
       tone: "danger",
     });
@@ -29,6 +30,7 @@ function runAction(run: () => unknown) {
 }
 
 function PluginHomePanel({ panel }: { panel: RegisteredPluginHomePanel }) {
+  const { t } = useHomeI18n();
   const { component: Component, action } = panel.definition;
   // 面板里的浮层按 Esc 先关（与插件页面的 registerDismiss 同一仲裁）
   const registerOverlayDismiss = usePageOptional()?.registerOverlayDismiss;
@@ -52,10 +54,10 @@ function PluginHomePanel({ panel }: { panel: RegisteredPluginHomePanel }) {
         fallback={({ error, reset }) => (
           <div className="flex items-center gap-3">
             <EmptyNote className="min-w-0 flex-1">
-              面板出错了：{error instanceof Error ? error.message : String(error)}
+              {t("plugin.error", { error: error instanceof Error ? error.message : String(error) })}
             </EmptyNote>
             <Button size="sm" variant="ghost" onClick={reset}>
-              重试
+              {t("plugin.retry")}
             </Button>
           </div>
         )}
@@ -83,7 +85,9 @@ export function pluginHomePanel(panel: RegisteredPluginHomePanel): HomePanelDefi
     component.displayName = `PluginHomePanel(${panel.id})`;
     definition = {
       id: panel.id,
-      title: panel.definition.title,
+      get title() {
+        return panel.definition.title;
+      },
       size: panel.definition.size,
       component,
     };
