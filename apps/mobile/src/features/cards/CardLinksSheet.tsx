@@ -10,7 +10,7 @@ import { SnapSheet } from "../../components/SnapSheet";
 import { SearchField } from "../../components/SearchField";
 import * as tauri from "../../services/tauri";
 import type { CardListItem } from "../../types";
-import { cardTimeDisplay } from "./format";
+import { formatListTime } from "../../utils/contentTime";
 
 const PAGE_SIZE = 20;
 
@@ -183,7 +183,7 @@ export function CardLinksSheet({
                         {resolveTitle(item, t("fallback", { id: item.id }))}
                       </p>
                       <p className="text-ink-3 mt-0.5 text-[11.5px]">
-                        {cardTimeDisplay(item.updateTime, locale)}
+                        {formatListTime(item.updateTime, locale, time => t("yesterday", { time }))}
                       </p>
                     </div>
                     <span

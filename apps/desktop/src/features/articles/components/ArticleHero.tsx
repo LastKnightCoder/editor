@@ -6,10 +6,12 @@
  * 有封面时 hover 封面中央浮出「更换封面」（Notion 式，上传流程由调用方承担）。
  */
 
+import { useArticlesI18n } from "../i18n";
 import { useState, type ReactNode } from "react";
 import { ImagePlus } from "lucide-react";
 import type { IArticle } from "@/types";
-import { formatDate, getContentLength } from "@/utils";
+import { getContentLength } from "@/utils/helper";
+import { formatRecentDateTime } from "@/features/shared/list/format";
 import LocalImage from "@/components/LocalImage";
 import { cn } from "@tau/ui";
 
@@ -52,6 +54,9 @@ export function ArticleHero({
   actions,
   className,
 }: ArticleHeroProps) {
+  const { t, locale } = useArticlesI18n();
+  const dateTime = (ts: number) =>
+    formatRecentDateTime(ts, locale, (day, time) => t("meta.relativeTime", { day, time }));
   // 实时口径：编辑中即时反映（count 字段只在保存时落库，展示不走它）
   const words = getContentLength(article.content ?? []);
   // 记失败的 url 而非布尔：换封面后自动重试新图
@@ -74,11 +79,11 @@ export function ArticleHero({
             type="button"
             onClick={onChangeCover}
             disabled={changingCover}
-            title="更换封面"
+            title={t("cover.change")}
             className="ease-tau-out absolute top-1/2 left-1/2 flex h-7 -translate-x-1/2 -translate-y-1/2 items-center gap-1.5 rounded-full bg-[rgba(26,19,12,0.55)] px-3.5 text-[11.5px] text-[rgba(255,248,239,0.92)] opacity-0 backdrop-blur-[6px] transition-opacity duration-150 group-hover/cover:opacity-100"
           >
             <ImagePlus className="size-[13px]" strokeWidth={1.75} />
-            {changingCover ? "上传中…" : "更换封面"}
+            {t(changingCover ? "cover.uploading" : "cover.change")}
           </button>
         </div>
       )}
@@ -96,7 +101,7 @@ export function ArticleHero({
             )}
           >
             <ImagePlus className="size-[14px]" strokeWidth={1.75} />
-            {changingCover ? "上传中…" : "添加封面"}
+            {t(changingCover ? "cover.uploading" : "cover.add")}
           </button>
         )}
         <input
@@ -105,18 +110,20 @@ export function ArticleHero({
           onKeyDown={event => {
             if (event.key === "Enter") event.currentTarget.blur();
           }}
-          placeholder="未命名标题"
-          aria-label="文章标题"
+          placeholder={t("hero.placeholder")}
+          aria-label={t("hero.title")}
           className="rounded-tau-sm text-ink-1 placeholder:text-ink-3 w-full bg-transparent text-[27px] leading-[1.35] font-semibold tracking-[-0.01em] outline-none"
         />
         {/* 时间和字数只占一行，先给操作让位；连编辑时间和操作都放不下时，操作换行。 */}
         <div className="text-tau-meta text-ink-3 mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 whitespace-nowrap tabular-nums">
           <span className="basis-min flex h-[22px] max-w-max min-w-0 grow flex-wrap items-center gap-x-2.5 overflow-hidden leading-[22px]">
-            <span title={`${formatDate(article.create_time, true)} 创建`}>
-              {formatDate(article.update_time, true)} 编辑
+            <span title={t("meta.created", { date: dateTime(article.create_time) })}>
+              {t("meta.updated", { date: dateTime(article.update_time) })}
             </span>
-            <MetaItem>{words} 字</MetaItem>
-            <MetaItem>{formatDate(article.create_time, true)} 创建</MetaItem>
+            <MetaItem>
+              {t("meta.words", { count: words, amount: words.toLocaleString(locale) })}
+            </MetaItem>
+            <MetaItem>{t("meta.created", { date: dateTime(article.create_time) })}</MetaItem>
           </span>
           {extraMeta}
           {actions && <span className="ml-auto flex max-w-full items-center">{actions}</span>}

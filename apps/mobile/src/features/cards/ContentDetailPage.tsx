@@ -21,7 +21,7 @@ import { Editor, type EditorDocument, type EditorRef } from "@tau/editor";
 import { cn } from "@tau/ui";
 import * as tauri from "../../services/tauri";
 import type { ContentDetailResponse } from "../../types";
-import { cardDateTime } from "./format";
+import { formatContentDateTime } from "../../utils/contentTime";
 import { useEditContent } from "../../hooks/useEditContent";
 import { useOptionalPageInstanceContext } from "../../router/pageLifecycle";
 import { collaborationManager } from "../collaboration/core/manager";
@@ -616,7 +616,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
             <div className="mt-2.5 flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
               {typeBadge}
               <div className="text-ink-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] font-medium tabular-nums">
-                <span>{cardDateTime(detail.updateTime, locale)}</span>
+                <span>{formatContentDateTime(detail.updateTime, locale)}</span>
                 <MetaDot />
                 <span>
                   {t("detail.words", {
@@ -660,7 +660,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 pt-5">
             {typeBadge}
             <div className="text-ink-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] font-medium tabular-nums">
-              <span>{cardDateTime(detail.updateTime, locale)}</span>
+              <span>{formatContentDateTime(detail.updateTime, locale)}</span>
               <MetaDot />
               <span>
                 {t("detail.words", { count: wordCount, amount: wordCount.toLocaleString(locale) })}

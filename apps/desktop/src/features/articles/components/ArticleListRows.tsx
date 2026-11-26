@@ -6,16 +6,19 @@
  * 条目随无限滚动分页追加，量级有限，不做虚拟化。
  */
 
+import { useArticlesI18n } from "../i18n";
 import { Star } from "lucide-react";
 import LocalImage from "@/components/LocalImage";
 import { cn } from "@tau/ui";
 import type { ArticlePageItem, ArticlePageSort } from "@/types";
 import { coverGradientOf } from "@/utils/cover";
 import { ListTags, SortHeader } from "@/features/shared/list/ListControls";
-import { cockpitRelativeTime } from "@/features/shared/cockpit/text";
-import { formatDate } from "@/features/shared/cockpit/model";
+import {
+  formatListDate,
+  formatRelativeTime,
+  formatCompactCount,
+} from "@/features/shared/list/format";
 import { articleExcerpt } from "../queries";
-import { formatWords } from "../views/ArticleCard";
 import { useArticleBanner } from "./useArticleBanner";
 import { ArticleItemOps, type ArticleItemActions } from "./ArticleItemOps";
 import { articleMorphKey } from "../morph";
@@ -34,6 +37,7 @@ export function ArticleListRows({
   onSortChange(sort: ArticlePageSort): void;
   actions: ArticleItemActions;
 }) {
+  const { t } = useArticlesI18n();
   const head = (key: ArticlePageSort, label: string, className?: string) => (
     <SortHeader
       label={label}
@@ -50,11 +54,11 @@ export function ArticleListRows({
           "bg-surface text-tau-sm text-ink-3 sticky top-0 z-[2] h-8 px-3 shadow-[0_1px_0_var(--tau-line-2)]"
         )}
       >
-        <span>标题</span>
-        <span>标签</span>
-        {head("words", "字数", "justify-self-end")}
-        {head("updated", "更新")}
-        {head("created", "创建")}
+        <span>{t("column.title")}</span>
+        <span>{t("column.tags")}</span>
+        {head("words", t("column.words"), "justify-self-end")}
+        {head("updated", t("column.updated"))}
+        {head("created", t("column.created"))}
         <span />
       </div>
       {items.map(article => (
@@ -71,6 +75,7 @@ function ArticleListRow({
   article: ArticlePageItem;
   actions: ArticleItemActions;
 }) {
+  const { t, locale } = useArticlesI18n();
   const excerpt = articleExcerpt(article.excerpt);
   const { banner, onBannerError } = useArticleBanner(article);
   const cell = "text-tau-sm text-ink-2 truncate tabular-nums";
@@ -107,20 +112,20 @@ function ArticleListRow({
               <Star
                 className="text-accent fill-accent size-[13px] shrink-0"
                 strokeWidth={1.75}
-                aria-label="已置顶"
+                aria-label={t("pinned")}
               />
             )}
-            <span className="truncate">{article.title || `文章 #${article.id}`}</span>
+            <span className="truncate">{article.title || t("fallback", { id: article.id })}</span>
           </p>
-          <p className="text-ink-3 truncate text-[11.5px]">{excerpt || "还没有正文"}</p>
+          <p className="text-ink-3 truncate text-[11.5px]">{excerpt || t("empty.body")}</p>
         </div>
       </div>
       <ListTags tags={article.tags} />
       <span className={cn(cell, "text-right", !article.words && "text-ink-3")}>
-        {article.words ? formatWords(article.words) : "—"}
+        {article.words ? formatCompactCount(article.words, locale) : "—"}
       </span>
-      <span className={cell}>{cockpitRelativeTime(article.updateTime)}</span>
-      <span className={cell}>{formatDate(article.createTime)}</span>
+      <span className={cell}>{formatRelativeTime(article.updateTime, locale)}</span>
+      <span className={cell}>{formatListDate(article.createTime, locale)}</span>
       <ArticleItemOps article={article} actions={actions} className="justify-end" />
     </div>
   );

@@ -89,5 +89,6 @@
   "shell.restore": "还原",
   "shell.maximizeRestore": "最大化/还原",
   "shell.fullscreen": "全屏",
-  "settings.backHint": "返回 (Esc)"
+  "settings.backHint": "返回 (Esc)",
+  "page.articleDetail": "文章详情"
 }

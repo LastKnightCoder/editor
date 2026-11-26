@@ -16,6 +16,7 @@
  * · 协作控制 ContentCollaborationControl（已去 antd）。
  */
 
+import { useArticlesI18n } from "../i18n";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRafInterval, useUnmount } from "ahooks";
 import type { Descendant, Range } from "slate";
@@ -114,6 +115,7 @@ function cloneRange(selection: Range | null): Range | null {
 }
 
 export function ArticleDetailView() {
+  const { t } = useArticlesI18n();
   const { navigator } = usePage();
   // 本实例 params（PageHost 按栈条目注入；勿读全局栈顶——多实例保活时会串台）
   const { id, at, layout } = usePageParams<{ id: number; at?: string; layout?: string }>();
@@ -243,7 +245,9 @@ export function ArticleDetailView() {
     if (!editingArticle) return;
     const paths = await selectFile({
       properties: ["openFile"],
-      filters: [{ name: "Image", extensions: ["jpg", "jpeg", "png", "gif", "bmp", "webp"] }],
+      filters: [
+        { name: t("cover.imageType"), extensions: ["jpg", "jpeg", "png", "gif", "bmp", "webp"] },
+      ],
     });
     const path = Array.isArray(paths) ? paths[0] : paths;
     if (!path) return;
@@ -253,12 +257,12 @@ export function ArticleDetailView() {
       const file = new File([data], await getFileBaseName(path));
       const url = await uploadResource(file);
       if (!url) {
-        toast.error("封面上传失败");
+        toast.error(t("cover.failed"));
         return;
       }
       await updateArticleBannerBg(editingArticle.id, url);
       setEditingArticle({ ...editingArticle, bannerBg: url });
-      toast.success("封面已更新");
+      toast.success(t("cover.success"));
     } finally {
       setChangingCover(false);
     }
@@ -282,10 +286,10 @@ export function ArticleDetailView() {
         <button
           type="button"
           onClick={() => navigator.push("articles")}
-          title="返回文章列表"
+          title={t("detail.back")}
           className="ease-tau-out hover:text-accent-text rounded-tau-sm hover:bg-hover px-1.5 py-0.5 transition-colors"
         >
-          文章
+          {t("title")}
         </button>
         <span className="text-ink-3">/</span>
         <ArticleSwitcher
@@ -298,7 +302,7 @@ export function ArticleDetailView() {
     );
     // navigator 引用稳定（dispatch 闭包）；回调闭包随 editingArticle 更新
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editingArticle, navigator]);
+  }, [editingArticle, navigator, t]);
   usePageBreadcrumb("article-detail", breadcrumbNode);
 
   /* 元信息行右侧 ⋯ 菜单（结构对齐卡片详情）：场景（高频）与协作在前，复制/导出居中，
@@ -311,7 +315,7 @@ export function ArticleDetailView() {
         trigger={
           <button
             type="button"
-            title="更多操作"
+            title={t("action.more")}
             className="text-ink-3 hover:bg-hover hover:text-ink-1 rounded-tau-sm grid size-[26px] place-items-center transition-colors"
           >
             <MoreHorizontal className="size-4" strokeWidth={1.75} />
@@ -319,14 +323,14 @@ export function ArticleDetailView() {
         }
       >
         <Menu.Submenu
-          label="场景"
+          label={t("menu.scene")}
           icon={<Presentation className="size-[15px] shrink-0" strokeWidth={1.75} />}
         >
           <Menu.Item
             icon={<Play className="size-[15px] shrink-0" strokeWidth={1.75} />}
             onSelect={() => setPresenting(editingArticle.content)}
           >
-            演示模式
+            {t("action.present")}
           </Menu.Item>
           <Menu.Item
             icon={<Maximize2 className="size-[15px] shrink-0" strokeWidth={1.75} />}
@@ -337,14 +341,14 @@ export function ArticleDetailView() {
               setImmersive(true);
             }}
           >
-            沉浸模式
+            {t("action.immersive")}
           </Menu.Item>
           {isElectron && databaseName && (
             <Menu.Item
               icon={<ExternalLink className="size-[15px] shrink-0" strokeWidth={1.75} />}
               onSelect={() => void openArticleInNewWindow(databaseName, editingArticle.id)}
             >
-              在新窗口打开
+              {t("action.newWindow")}
             </Menu.Item>
           )}
         </Menu.Submenu>
@@ -358,15 +362,15 @@ export function ArticleDetailView() {
           }
           onSelect={() => collaborationRef.current?.open()}
         >
-          {shared ? "协作成员" : "发起协作"}
+          {t(shared ? "menu.members" : "menu.share")}
         </Menu.Item>
         {isElectron && (
           <Menu.Item icon={<HistoryIcon className="size-[15px]" />} onSelect={() => history.open()}>
-            编辑历史
+            {t("menu.history")}
           </Menu.Item>
         )}
         <Menu.Submenu
-          label="复制"
+          label={t("menu.copy")}
           icon={<Copy className="size-[15px] shrink-0" strokeWidth={1.75} />}
         >
           <Menu.Item
@@ -379,7 +383,7 @@ export function ArticleDetailView() {
               )
             }
           >
-            复制 Markdown
+            {t("copy.markdown")}
           </Menu.Item>
           <Menu.Item
             icon={<MessageSquare className="size-[15px] shrink-0" strokeWidth={1.75} />}
@@ -391,30 +395,30 @@ export function ArticleDetailView() {
               )
             }
           >
-            复制公众号格式
+            {t("copy.wechat")}
           </Menu.Item>
         </Menu.Submenu>
         <Menu.Submenu
-          label="导出"
+          label={t("action.export")}
           icon={<Download className="size-[15px] shrink-0" strokeWidth={1.75} />}
         >
           <Menu.Item
             icon={<FileText className="size-[15px] shrink-0" strokeWidth={1.75} />}
             onSelect={() => handleExportFile(exportContentAsMarkdown)}
           >
-            Markdown 文件
+            {t("export.markdown")}
           </Menu.Item>
           <Menu.Item
             icon={<FileText className="size-[15px] shrink-0" strokeWidth={1.75} />}
             onSelect={() => handleExportFile(exportContentAsWord)}
           >
-            Word 文档（.docx）
+            {t("export.word")}
           </Menu.Item>
           <Menu.Item
             icon={<ImageIcon className="size-[15px] shrink-0" strokeWidth={1.75} />}
             onSelect={() => setExportKind("image")}
           >
-            图片
+            {t("export.image")}
           </Menu.Item>
           <Menu.Item
             icon={<BookOpen className="size-[15px] shrink-0" strokeWidth={1.75} />}
@@ -430,7 +434,7 @@ export function ArticleDetailView() {
           </Menu.Item>
         </Menu.Submenu>
         <Menu.Submenu
-          label="生成"
+          label={t("menu.generate")}
           icon={<Wand2 className="size-[15px] shrink-0" strokeWidth={1.75} />}
         >
           {flashcardsEnabled && (
@@ -439,13 +443,13 @@ export function ArticleDetailView() {
                 icon={<Sparkles className="size-[15px] shrink-0" strokeWidth={1.75} />}
                 onSelect={() => flashcard.openAiFlashcard()}
               >
-                AI 制卡（闪卡）
+                {t("generate.ai")}
               </Menu.Item>
               <Menu.Item
                 icon={<CreditCard className="size-[15px] shrink-0" strokeWidth={1.75} />}
                 onSelect={() => flashcard.openManualFlashcard()}
               >
-                手动制卡（闪卡）
+                {t("generate.manual")}
               </Menu.Item>
             </>
           )}
@@ -457,13 +461,13 @@ export function ArticleDetailView() {
           icon={<Trash2 className="size-[15px] shrink-0" strokeWidth={1.75} />}
           onSelect={() => setPendingDelete(true)}
         >
-          删除文章
+          {t("action.delete")}
         </Menu.Item>
       </Menu>
     );
     // 菜单回调闭包随 editingArticle/数据库名更新
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editingArticle, databaseName, shared]);
+  }, [editingArticle, databaseName, shared, t]);
 
   if (!editingArticle) {
     return <Loading />;
@@ -552,8 +556,8 @@ export function ArticleDetailView() {
                         }}
                       />
                       <IconButton
-                        title="编辑历史"
-                        aria-label="编辑历史"
+                        title={t("menu.history")}
+                        aria-label={t("menu.history")}
                         aria-pressed={history.isOpen}
                         className={cn(
                           "size-[30px]",
@@ -656,21 +660,21 @@ export function ArticleDetailView() {
         <ConfirmDialog
           open={pendingDelete}
           onOpenChange={setPendingDelete}
-          title="删除文章"
-          context={editingArticle.title || `文章 #${editingArticle.id}`}
-          description="文章将移入回收语义删除，列表立即移除。"
-          impact="该文章的正文与关联卡片链接将不再可访问"
+          title={t("action.delete")}
+          context={editingArticle.title || t("fallback", { id: editingArticle.id })}
+          description={t("delete.description")}
+          impact={t("delete.impact")}
           danger
-          confirmText="删除"
+          confirmText={t("delete.confirm")}
           loading={deleting}
           onConfirm={async () => {
             setDeleting(true);
             try {
               await remove(editingArticle.id);
-              toast.success("已删除");
+              toast.success(t("delete.success"));
               navigator.back();
             } catch {
-              toast.error("删除失败");
+              toast.error(t("delete.failed"));
             } finally {
               setDeleting(false);
               setPendingDelete(false);

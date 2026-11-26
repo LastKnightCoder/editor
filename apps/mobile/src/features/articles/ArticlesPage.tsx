@@ -1,6 +1,7 @@
 // 文章列表：置顶特写卡 + 杂志式卡片流；
 // 打开即编辑（无阅读/预览切换），入口收敛在「我的 · 功能」Hub。
 
+import { useMobileArticlesI18n } from "./i18n";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
@@ -16,7 +17,8 @@ import {
 } from "lucide-react";
 import type { ArticleListItem } from "../../types";
 import { clampText } from "../../utils/richTextText";
-import { formatTimeDisplay, readingMinutes } from "../../utils/formatTime";
+import { readingMinutes } from "../../utils/formatTime";
+import { formatListTime } from "../../utils/contentTime";
 import { useEdgeFade } from "../../hooks/useScrollState";
 import { logPerf, sampleFrames } from "../../utils/perf";
 import { toast } from "../../components/toast";
@@ -41,6 +43,7 @@ type ArticlesPageProps = {
 };
 
 export function ArticlesPage(props: ArticlesPageProps) {
+  const { t, locale } = useMobileArticlesI18n();
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [menuArticle, setMenuArticle] = useState<ArticleListItem | null>(null);
@@ -54,10 +57,10 @@ export function ArticlesPage(props: ArticlesPageProps) {
   const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } = useArticlesQuery();
   const invalidate = useInvalidateArticles();
   const toggleTop = useArticleToggleTop(article => {
-    toast({ type: "success", text: article.isTop ? "已置顶" : "已取消置顶" });
+    toast({ type: "success", text: t(article.isTop ? "pin.success" : "unpin.success") });
   });
   const deleteArticle = useArticleDelete(() => {
-    toast({ type: "success", text: "已删除文章" });
+    toast({ type: "success", text: t("delete.success") });
   });
 
   const articles = useMemo(() => data?.pages.flatMap(page => page.items) ?? [], [data]);
@@ -116,7 +119,7 @@ export function ArticlesPage(props: ArticlesPageProps) {
       setCreateOpen(false);
       props.onOpenArticle(article.id);
     } catch (error) {
-      props.onError(error, "新建文章失败");
+      props.onError(error, t("create.failed"));
     } finally {
       setCreating(false);
     }
@@ -137,9 +140,9 @@ export function ArticlesPage(props: ArticlesPageProps) {
       }
       await tauri.articleUpdate({ id: coverTarget.id, bannerBg: url });
       invalidate();
-      toast({ type: "success", text: "封面已更新" });
+      toast({ type: "success", text: t("cover.success") });
     } catch (error) {
-      props.onError(error, "封面上传失败");
+      props.onError(error, t("cover.failed"));
     } finally {
       setCoverUploading(false);
       setCoverTarget(null);
@@ -156,7 +159,7 @@ export function ArticlesPage(props: ArticlesPageProps) {
       <ArticleCover article={article} variant="feature">
         <span className="absolute top-3 left-3 z-10 inline-flex items-center gap-1 rounded-full bg-[rgba(255,253,249,.88)] px-2.5 py-1 text-[11px] font-bold text-[#4a3a2c] backdrop-blur">
           <Star size={11} fill="currentColor" />
-          置顶
+          {t("pinned")}
         </span>
       </ArticleCover>
       <div className="p-4">
@@ -167,11 +170,20 @@ export function ArticlesPage(props: ArticlesPageProps) {
           {clampText(article.excerpt, 64)}
         </p>
         <div className="text-ink-3 mt-2.5 flex items-center gap-2 text-[11.5px] tabular-nums">
-          <span>{formatTimeDisplay(article.createTime)}</span>
+          <span>
+            {formatListTime(article.createTime, locale, time => t("time.yesterday", { time }))}
+          </span>
           <span>·</span>
-          <span>{article.count.toLocaleString()} 字</span>
+          <span>
+            {t("words", { count: article.count, amount: article.count.toLocaleString(locale) })}
+          </span>
           <span>·</span>
-          <span>约 {readingMinutes(article.count)} 分钟</span>
+          <span>
+            {t("reading", {
+              count: readingMinutes(article.count),
+              amount: readingMinutes(article.count).toLocaleString(locale),
+            })}
+          </span>
           {article.tags.length > 0 ? (
             <span className="bg-page ml-auto rounded-full px-2.5 py-0.5 text-[11.5px]">
               #{article.tags[0]}
@@ -179,7 +191,7 @@ export function ArticlesPage(props: ArticlesPageProps) {
           ) : null}
           <button
             type="button"
-            aria-label="文章操作"
+            aria-label={t("action.actions")}
             className={`text-ink-3 active:bg-hover -mr-1 grid h-[26px] w-[26px] place-items-center rounded-lg ${
               article.tags.length > 0 ? "" : "ml-auto"
             }`}
@@ -210,12 +222,16 @@ export function ArticlesPage(props: ArticlesPageProps) {
           {clampText(article.excerpt, 48)}
         </p>
         <div className="text-ink-3 mt-auto flex items-center gap-2 pt-2 text-[11px] tabular-nums">
-          <span>{formatTimeDisplay(article.createTime)}</span>
+          <span>
+            {formatListTime(article.createTime, locale, time => t("time.yesterday", { time }))}
+          </span>
           <span>·</span>
-          <span>{article.count.toLocaleString()} 字</span>
+          <span>
+            {t("words", { count: article.count, amount: article.count.toLocaleString(locale) })}
+          </span>
           <button
             type="button"
-            aria-label="文章操作"
+            aria-label={t("action.actions")}
             className="text-ink-3 active:bg-hover -mr-1 ml-auto grid h-[26px] w-[26px] place-items-center rounded-lg"
             onClick={event => {
               event.stopPropagation();
@@ -233,19 +249,19 @@ export function ArticlesPage(props: ArticlesPageProps) {
   return (
     <div className="mobile-kb-screen bg-page fixed inset-0 z-50 flex flex-col">
       <PageHeader
-        title="文章"
+        title={t("title")}
         onBack={props.onBack}
         actions={
           <>
             <PageHeaderButton
               icon={<Search size={17} strokeWidth={2} />}
-              aria-label="全局搜索"
+              aria-label={t("action.search")}
               onClick={props.onOpenSearch}
             />
             <PageHeaderButton
               icon={<Plus size={18} strokeWidth={2.6} />}
               variant="brand"
-              aria-label="新建文章"
+              aria-label={t("action.create")}
               onClick={() => setCreateOpen(true)}
             />
           </>
@@ -265,14 +281,23 @@ export function ArticlesPage(props: ArticlesPageProps) {
         ) : articles.length === 0 ? (
           <div className="py-16 text-center">
             <FileText size={36} strokeWidth={1.4} className="text-ink-3 mx-auto" />
-            <p className="text-ink-2 mt-3 text-sm">还没有文章</p>
-            <p className="text-ink-3 mt-1 text-xs">点右上角 + 写第一篇</p>
+            <p className="text-ink-2 mt-3 text-sm">{t("empty.title")}</p>
+            <p className="text-ink-3 mt-1 text-xs">{t("empty.hint")}</p>
           </div>
         ) : (
           <>
             <div className="text-ink-3 mt-1 mb-3.5 flex items-center gap-2 px-0.5 text-xs tabular-nums">
-              <b className="text-ink-2 font-bold">{articles.length}</b> 篇 · 共{" "}
-              <b className="text-ink-2 font-bold">{totalWords.toLocaleString()}</b> 字
+              {t("summary", { articles: "\uFFFC", words: "\uFFFD" })
+                .split(/([\uFFFC\uFFFD])/)
+                .map((part, index) =>
+                  part === "\uFFFC" || part === "\uFFFD" ? (
+                    <b key={index} className="text-ink-2 font-bold">
+                      {(part === "\uFFFC" ? articles.length : totalWords).toLocaleString(locale)}
+                    </b>
+                  ) : (
+                    part
+                  )
+                )}
             </div>
             <div className="relative" style={{ height: virtualizer.getTotalSize() }}>
               {virtualItems.map(virtualRow => {
@@ -285,7 +310,7 @@ export function ArticlesPage(props: ArticlesPageProps) {
                       className="text-ink-3 absolute right-0 left-0 py-4 text-center text-xs"
                       style={{ transform: `translateY(${virtualRow.start}px)` }}
                     >
-                      {isFetchingNextPage ? "正在加载更多…" : "继续滚动加载"}
+                      {t(isFetchingNextPage ? "more.loading" : "more.scroll")}
                     </div>
                   );
                 }
@@ -306,13 +331,20 @@ export function ArticlesPage(props: ArticlesPageProps) {
               })}
             </div>
             <p className="text-ink-3 py-4 text-center text-xs">
-              {hasNextPage ? `已加载 ${articles.length} 篇` : `已加载全部 ${articles.length} 篇`}
+              {t(hasNextPage ? "loaded" : "loaded.all", {
+                count: articles.length,
+                amount: articles.length.toLocaleString(locale),
+              })}
             </p>
           </>
         )}
       </div>
 
-      <BottomSheet open={createOpen} title="新建文章" onClose={() => setCreateOpen(false)}>
+      <BottomSheet
+        open={createOpen}
+        title={t("action.create")}
+        onClose={() => setCreateOpen(false)}
+      >
         <div className="space-y-3">
           <button
             type="button"
@@ -324,15 +356,15 @@ export function ArticlesPage(props: ArticlesPageProps) {
               <FileText size={21} strokeWidth={1.9} />
             </span>
             <span>
-              <span className="text-ink-1 block text-[15px] font-bold">空白文章</span>
-              <span className="text-ink-2 block text-xs">空白页开始，随手开写</span>
+              <span className="text-ink-1 block text-[15px] font-bold">{t("create.blank")}</span>
+              <span className="text-ink-2 block text-xs">{t("create.hint")}</span>
             </span>
           </button>
           <button
             type="button"
             onClick={() => {
               setCreateOpen(false);
-              toast({ type: "info", text: "导入 Markdown 即将上线" });
+              toast({ type: "info", text: t("import.soon") });
             }}
             className="bg-page flex w-full items-center gap-3.5 rounded-[18px] p-4 text-left transition-transform active:scale-[0.97]"
           >
@@ -340,8 +372,8 @@ export function ArticlesPage(props: ArticlesPageProps) {
               <FileDown size={21} strokeWidth={1.9} />
             </span>
             <span>
-              <span className="text-ink-1 block text-[15px] font-bold">导入 Markdown</span>
-              <span className="text-ink-2 block text-xs">从 .md 文件导入，自动识别标题与标签</span>
+              <span className="text-ink-1 block text-[15px] font-bold">{t("import.action")}</span>
+              <span className="text-ink-2 block text-xs">{t("import.hint")}</span>
             </span>
           </button>
         </div>
@@ -350,23 +382,31 @@ export function ArticlesPage(props: ArticlesPageProps) {
       <ActionSheet
         open={menuArticle !== null}
         title={menuArticle?.title}
-        kind="文章"
+        kind={t("type")}
         onClose={() => setMenuArticle(null)}
         items={[
           {
-            label: menuArticle?.isTop ? "取消置顶" : "置顶",
+            label: t(menuArticle?.isTop ? "action.unpin" : "action.pin"),
             icon: <Star size={18} />,
             tone: "butter",
-            trailing: menuArticle?.isTop ? "已置顶" : undefined,
+            trailing: menuArticle?.isTop ? t("pin.success") : undefined,
             onClick: () => {
               if (menuArticle) {
-                toggleTop.mutate(menuArticle);
+                toggleTop.mutate(menuArticle, {
+                  onError: error => props.onError(error, t("pin.failed")),
+                });
               }
               setMenuArticle(null);
             },
           },
           {
-            label: coverUploading ? "封面上传中…" : menuArticle?.bannerBg ? "更换封面" : "添加封面",
+            label: t(
+              coverUploading
+                ? "cover.uploading"
+                : menuArticle?.bannerBg
+                  ? "cover.change"
+                  : "cover.add"
+            ),
             icon: coverUploading ? (
               <Loader2 size={18} className="animate-spin" />
             ) : (
@@ -380,7 +420,7 @@ export function ArticlesPage(props: ArticlesPageProps) {
             },
           },
           {
-            label: "删除文章",
+            label: t("delete.action"),
             danger: true,
             icon: <Trash2 size={18} />,
             onClick: () => {
@@ -407,14 +447,16 @@ export function ArticlesPage(props: ArticlesPageProps) {
 
       <MobileConfirmDialog
         open={deleteTarget !== null}
-        title="删除文章"
-        description={`「${clampText(deleteTarget?.title ?? "", 18)}」将被移入回收站，正文一并删除。`}
+        title={t("delete.action")}
+        description={t("delete.description", { title: clampText(deleteTarget?.title ?? "", 18) })}
         danger
         loading={deleteArticle.isPending}
         onCancel={() => setDeleteTarget(null)}
         onConfirm={() => {
           if (deleteTarget) {
-            deleteArticle.mutate(deleteTarget.id);
+            deleteArticle.mutate(deleteTarget.id, {
+              onError: error => props.onError(error, t("delete.failed")),
+            });
           }
           setDeleteTarget(null);
         }}

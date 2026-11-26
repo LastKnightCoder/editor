@@ -6,6 +6,7 @@
  * 派生色纯色块。banner 加载失败按「无 banner」处理（不露裂图）。派生色板是数据色（与热力图色阶同性质），不进主题词表。
  */
 
+import { useArticlesI18n } from "../i18n";
 import { Star } from "lucide-react";
 import LocalImage from "@/components/LocalImage";
 import { cn } from "@tau/ui";
@@ -14,6 +15,7 @@ import { coverGradientOf } from "@/utils/cover";
 import type { ArticlePageItem } from "@/types";
 import { ArticleItemOps, type ArticleItemActions } from "../components/ArticleItemOps";
 import { useArticleBanner } from "../components/useArticleBanner";
+import { formatListDate, formatCompactCount } from "@/features/shared/list/format";
 import { articleMorphKey } from "../morph";
 
 /** 文字封面的前景（粉彩底上的对比色，出处同上） */
@@ -25,6 +27,7 @@ export interface ArticleCardProps extends ArticleItemActions {
 }
 
 export function ArticleCard(props: ArticleCardProps) {
+  const { t, locale } = useArticlesI18n();
   const { article } = props;
   const excerpt = articleExcerpt(article.excerpt);
   const gradient = coverGradientOf(article.id);
@@ -90,7 +93,7 @@ export function ArticleCard(props: ArticleCardProps) {
       {/* 主体 */}
       <div className="flex min-w-0 flex-1 flex-col px-3.5 pt-3 pb-[11px]">
         <h3 className="text-ink-1 line-clamp-2 text-[14.5px] leading-[1.45] font-semibold tracking-[-0.005em]">
-          {article.title || `文章 #${article.id}`}
+          {article.title || t("fallback", { id: article.id })}
         </h3>
         {excerpt && (
           <p className="text-ink-2 mt-[5px] line-clamp-2 text-[12.5px] leading-[1.65]">{excerpt}</p>
@@ -108,23 +111,16 @@ export function ArticleCard(props: ArticleCardProps) {
           </div>
         )}
         <p className="text-ink-3 mt-auto flex items-center gap-2 pt-[9px] text-[11px] tabular-nums">
-          <span>{formatMonthDay(article.updateTime)}</span>
+          <span>{formatListDate(article.updateTime, locale, false)}</span>
           <span className="bg-ink-3 size-[2.5px] rounded-full opacity-60" />
-          <span>{formatWords(article.words)} 字</span>
+          <span>
+            {t("meta.words", {
+              count: article.words,
+              amount: formatCompactCount(article.words, locale),
+            })}
+          </span>
         </p>
       </div>
     </article>
   );
-}
-
-/* ---------- 展示格式化 ---------- */
-
-function formatMonthDay(ts: number): string {
-  const d = new Date(ts);
-  return `${d.getMonth() + 1}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-export function formatWords(n: number): string {
-  if (n >= 10000) return `${(n / 10000).toFixed(1)} 万`;
-  return n.toLocaleString("zh-CN");
 }

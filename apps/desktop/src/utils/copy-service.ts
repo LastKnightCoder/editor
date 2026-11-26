@@ -1,3 +1,4 @@
+import { copyTranslator } from "./copy-i18n";
 import { readContentForExport } from "@/services/content-transfer";
 import { Descendant } from "slate";
 import { getMarkdown } from "./markdown";
@@ -25,11 +26,11 @@ export async function copyMarkdownToClipboard(
         ).getMarkdown(document.content)
       : getMarkdown(document.content);
     await navigator.clipboard.writeText(markdown);
-    message?.success("已复制 Markdown 到剪贴板");
+    message?.success(copyTranslator.t("copy.markdown"));
     return true;
   } catch (error) {
     console.error("复制 Markdown 失败:", error);
-    message?.error("复制失败，请稍后重试");
+    message?.error(copyTranslator.t("copy.failed"));
     return false;
   }
 }
@@ -69,11 +70,11 @@ export async function copyWechatHtmlToClipboard(
     // 6. Copy to clipboard
     await copyHtmlToClipboard(processedHtml);
 
-    message?.success("已复制到剪贴板，可直接粘贴到公众号编辑器");
+    message?.success(copyTranslator.t("copy.wechat"));
     return true;
   } catch (error) {
     console.error("复制公众号格式失败:", error);
-    message?.error("复制失败，请稍后重试");
+    message?.error(copyTranslator.t("copy.failed"));
     return false;
   }
 }

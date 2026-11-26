@@ -12,6 +12,7 @@
  * 网格卡 / 列表行 ⇄ 详情页的纸走共享元素形变。
  */
 
+import { useArticlesI18n } from "../i18n";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FileText, FolderInput, Import, PanelsLeftRight, Plus, Search, X } from "lucide-react";
 import { FadeScroll } from "@tau/ui";
@@ -38,7 +39,9 @@ import { ARTICLE_PAGE_SIZE, useArticleFeed, useArticleMutations, bucketByMonths 
 import { useArticlesPreferencesStore } from "../preferences";
 import { ArticleListRows } from "../components/ArticleListRows";
 import type { ArticleItemActions } from "../components/ArticleItemOps";
-import { ArticleCard, formatWords } from "./ArticleCard";
+import { ArticleCard } from "./ArticleCard";
+import { formatCompactCount } from "@/features/shared/list/format";
+import { ArticleMonthLabel } from "../components/ArticleMonthLabel";
 import { articleMorphKey } from "../morph";
 import {
   exportContentAsWord,
@@ -53,6 +56,7 @@ const LOAD_MORE_THRESHOLD = 700;
 const SEARCH_DEBOUNCE_MS = 250;
 
 export function ArticlesView() {
+  const { t, locale } = useArticlesI18n();
   const { navigator } = usePage();
   const params = usePageParams<{ id?: string }>();
   const tag = params.id ?? "";
@@ -127,14 +131,17 @@ export function ArticlesView() {
 
   /* ---------- 卡片操作 ---------- */
 
-  const handlePresent = useCallback(async (article: ArticlePageItem) => {
-    try {
-      const full = await findOneArticle(article.id);
-      setPresenting({ content: full.content });
-    } catch {
-      toast.error("文章内容读取失败");
-    }
-  }, []);
+  const handlePresent = useCallback(
+    async (article: ArticlePageItem) => {
+      try {
+        const full = await findOneArticle(article.id);
+        setPresenting({ content: full.content });
+      } catch {
+        toast.error(t("read.failed"));
+      }
+    },
+    [t]
+  );
 
   const handleExportFile = useCallback(
     async (article: ArticlePageItem, save: typeof exportContentAsMarkdown) => {
@@ -146,17 +153,19 @@ export function ArticlesView() {
           contentId: full.contentId,
         });
       } catch {
-        toast.error("导出失败");
+        toast.error(t("export.failed"));
       }
     },
-    []
+    [t]
   );
 
   const handleChangeCover = useCallback(
     async (article: ArticlePageItem) => {
       const paths = await selectFile({
         properties: ["openFile"],
-        filters: [{ name: "Image", extensions: ["jpg", "jpeg", "png", "gif", "bmp", "webp"] }],
+        filters: [
+          { name: t("cover.imageType"), extensions: ["jpg", "jpeg", "png", "gif", "bmp", "webp"] },
+        ],
       });
       const path = Array.isArray(paths) ? paths[0] : paths;
       if (!path) return;
@@ -166,17 +175,17 @@ export function ArticlesView() {
         const file = new File([data], await getFileBaseName(path));
         const url = await uploadResource(file);
         if (!url) {
-          toast.error("封面上传失败");
+          toast.error(t("cover.failed"));
           return;
         }
         await updateArticleBannerBg(article.id, url);
         feed.refresh();
-        toast.success("封面已更新");
+        toast.success(t("cover.success"));
       } finally {
         setBusy(false);
       }
     },
-    [uploadResource, feed]
+    [uploadResource, feed, t]
   );
 
   /* ---------- 工具栏：新建 / 导入 ---------- */
@@ -251,12 +260,12 @@ export function ArticlesView() {
         {/* 工具栏：标题 / 当前标签 + 摘要 + 标题搜索 + 导入 / 新建 */}
         <div className="mt-5 mb-3 flex h-10 flex-none items-center gap-3 px-8">
           <h1 className="text-tau-title-lg shrink-0 font-semibold tracking-[-0.01em] whitespace-nowrap">
-            文章
+            {t("title")}
           </h1>
           {tag && (
             <button
               type="button"
-              title="清除标签筛选"
+              title={t("filter.clearTag")}
               onClick={() => navigator.push("articles", { id: "" })}
               className="bg-selected text-accent-text inline-flex h-6 max-w-[180px] shrink-0 items-center gap-1 rounded-full pr-1.5 pl-2.5 text-[12px] font-medium"
             >
@@ -267,9 +276,22 @@ export function ArticlesView() {
           <span className="text-tau-meta text-ink-2 w-0 flex-1 truncate whitespace-nowrap tabular-nums">
             {feed.total > 0 && (
               <>
-                {filtering ? "找到" : "共"} <b className="text-ink-1 font-semibold">{feed.total}</b>{" "}
-                篇 · 累计 <b className="text-ink-1 font-semibold">{formatWords(feed.totalWords)}</b>
-                字
+                {t(filtering ? "summary.filtered" : "summary.all", {
+                  articles: "\uFFFC",
+                  words: "\uFFFD",
+                })
+                  .split(/([\uFFFC\uFFFD])/)
+                  .map((part, index) =>
+                    part === "\uFFFC" || part === "\uFFFD" ? (
+                      <b key={index} className="text-ink-1 font-semibold">
+                        {part === "\uFFFC"
+                          ? feed.total.toLocaleString(locale)
+                          : formatCompactCount(feed.totalWords, locale)}
+                      </b>
+                    ) : (
+                      part
+                    )
+                  )}
               </>
             )}
           </span>
@@ -285,7 +307,7 @@ export function ArticlesView() {
                 setSearch("");
               }
             }}
-            placeholder="搜索文章标题"
+            placeholder={t("search")}
             // 输入框自身不贡献最小宽度，窄窗口下随标题栏收缩
             className="w-0"
             wrapperClassName="w-auto max-w-[240px] flex-[0_1_240px]"
@@ -301,10 +323,10 @@ export function ArticlesView() {
                 size="sm"
                 icon={Import}
                 disabled={busy}
-                title="从本地 Markdown 导入"
+                title={t("import.title")}
                 className="shrink-0 whitespace-nowrap"
               >
-                导入
+                {t("import.action")}
               </Button>
             }
           >
@@ -312,13 +334,13 @@ export function ArticlesView() {
               icon={<FileText className="size-[15px] shrink-0" strokeWidth={1.75} />}
               onSelect={() => void handleImport()}
             >
-              Markdown 文件…
+              {t("import.files")}
             </Menu.Item>
             <Menu.Item
               icon={<FolderInput className="size-[15px] shrink-0" strokeWidth={1.75} />}
               onSelect={() => useTransferStore.getState().openImportWizard({ target: "article" })}
             >
-              文件夹或压缩包…
+              {t("import.folder")}
             </Menu.Item>
           </Menu>
           <Menu
@@ -331,7 +353,7 @@ export function ArticlesView() {
                 disabled={busy}
                 className="shrink-0 whitespace-nowrap"
               >
-                新建
+                {t("create")}
               </Button>
             }
           >
@@ -339,13 +361,13 @@ export function ArticlesView() {
               icon={<FileText className="size-[15px] shrink-0" strokeWidth={1.75} />}
               onSelect={() => void handleCreate()}
             >
-              空白文章
+              {t("create.blank")}
             </Menu.Item>
             <Menu.Item
               icon={<PanelsLeftRight className="size-[15px] shrink-0" strokeWidth={1.75} />}
               onSelect={() => void handleCreate(true)}
             >
-              在创作模式中新建
+              {t("create.compose")}
             </Menu.Item>
           </Menu>
         </div>
@@ -368,7 +390,7 @@ export function ArticlesView() {
 
           {/* 置顶段 */}
           {!listLayout && tops.length > 0 && (
-            <MonthSection label="置顶" count={tops.length} words={sumWords(tops)}>
+            <MonthSection label={t("section.pinned")} count={tops.length} words={sumWords(tops)}>
               {tops.map(article => (
                 <ArticleCard key={article.id} article={article} {...cardActions} />
               ))}
@@ -380,8 +402,7 @@ export function ArticlesView() {
             months.map(month => (
               <MonthSection
                 key={month.key}
-                label={`${month.month} 月`}
-                year={month.year}
+                label={<ArticleMonthLabel year={month.year} month={month.month} />}
                 count={month.items.length}
                 words={month.words}
               >
@@ -395,9 +416,9 @@ export function ArticlesView() {
           {feed.total === 0 &&
             (filtering ? (
               <div className="flex flex-col items-center gap-2 px-0 py-20 text-center">
-                <p className="text-ink-2 text-[15px] font-medium">没有符合条件的文章</p>
+                <p className="text-ink-2 text-[15px] font-medium">{t("empty.filtered")}</p>
                 <p className="text-ink-3 text-[12.5px]">
-                  {query ? `标题里没有「${query}」` : "这个标签下还没有文章"}
+                  {query ? t("empty.query", { query }) : t("empty.tag")}
                 </p>
                 <Button
                   className="mt-3"
@@ -408,13 +429,13 @@ export function ArticlesView() {
                     if (tag) navigator.push("articles", { id: "" });
                   }}
                 >
-                  清除筛选
+                  {t("filter.clear")}
                 </Button>
               </div>
             ) : (
               <div className="flex flex-col items-center gap-2 px-0 py-20 text-center">
-                <p className="text-ink-2 text-[15px] font-medium">还没有文章</p>
-                <p className="text-ink-3 text-[12.5px]">从一篇空白文章或本地 Markdown 开始</p>
+                <p className="text-ink-2 text-[15px] font-medium">{t("empty.title")}</p>
+                <p className="text-ink-3 text-[12.5px]">{t("empty.hint")}</p>
                 <div className="mt-3 flex gap-2">
                   <Button
                     variant="primary"
@@ -422,7 +443,7 @@ export function ArticlesView() {
                     icon={Plus}
                     onClick={() => void handleCreate()}
                   >
-                    新建文章
+                    {t("create.article")}
                   </Button>
                   <Button
                     variant="secondary"
@@ -430,7 +451,7 @@ export function ArticlesView() {
                     disabled={busy}
                     onClick={() => void handleImport()}
                   >
-                    导入 Markdown
+                    {t("import.markdown")}
                   </Button>
                 </div>
               </div>
@@ -442,16 +463,18 @@ export function ArticlesView() {
               {feed.loadingMore ? (
                 <>
                   <Spinner className="size-3.5" />
-                  加载中…
+                  {t("loading")}
                 </>
               ) : feed.hasMore ? (
                 listLayout ? (
-                  "向下滚动加载更多"
+                  t("more")
                 ) : (
-                  "向下滚动加载更早的月份"
+                  t("more.months")
                 )
               ) : (
-                <span className="tabular-nums">已全部加载 · {feed.total} 篇</span>
+                <span className="tabular-nums">
+                  {t("loaded", { count: feed.total, amount: feed.total.toLocaleString(locale) })}
+                </span>
               )}
             </div>
           )}
@@ -464,12 +487,14 @@ export function ArticlesView() {
         onOpenChange={open => {
           if (!open) setPendingDelete(null);
         }}
-        title="删除文章"
-        context={pendingDelete?.title || `文章 #${pendingDelete?.id}`}
-        description="文章将移入回收语义删除，列表立即移除。"
-        impact="该文章的正文与关联卡片链接将不再可访问"
+        title={t("action.delete")}
+        context={
+          pendingDelete ? pendingDelete.title || t("fallback", { id: pendingDelete.id }) : undefined
+        }
+        description={t("delete.description")}
+        impact={t("delete.impact")}
         danger
-        confirmText="删除"
+        confirmText={t("delete.confirm")}
         loading={deleting}
         onConfirm={async () => {
           if (!pendingDelete) return;
@@ -477,9 +502,9 @@ export function ArticlesView() {
           try {
             await remove(pendingDelete.id);
             setPendingDelete(null);
-            toast.success("已删除");
+            toast.success(t("delete.success"));
           } catch {
-            toast.error("删除失败");
+            toast.error(t("delete.failed"));
           } finally {
             setDeleting(false);
           }
@@ -498,29 +523,26 @@ export function ArticlesView() {
 
 function MonthSection({
   label,
-  year,
   count,
   words,
   children,
 }: {
-  label: string;
-  year?: number;
+  label: React.ReactNode;
   count: number;
   words: number;
   children: React.ReactNode;
 }) {
+  const { t, locale } = useArticlesI18n();
   return (
     <section className="mb-[26px]">
       {/* sticky 月头：纸色实底、底缘 13px 渐透——卡片向上滚过时在月头下缘淡出 */}
       <header className="sticky top-0 z-[2] flex items-baseline gap-3 bg-[linear-gradient(180deg,var(--tau-bg-surface)_calc(100%_-_13px),transparent)] pt-0.5 pb-[13px] pl-0.5">
-        <span className="text-[16px] font-semibold tracking-[-0.01em]">
-          {label}
-          {year !== undefined && (
-            <small className="text-ink-3 ml-0.5 text-[12px] font-normal tabular-nums">{year}</small>
-          )}
-        </span>
+        <span className="text-[16px] font-semibold tracking-[-0.01em]">{label}</span>
         <span className="text-ink-3 text-[11.5px] tabular-nums">
-          {count} 篇 · {formatWords(words)}字
+          {t("summary.section", {
+            articles: count.toLocaleString(locale),
+            words: formatCompactCount(words, locale),
+          })}
         </span>
       </header>
       <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-3">{children}</div>

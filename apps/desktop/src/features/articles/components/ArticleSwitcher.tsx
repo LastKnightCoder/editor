@@ -5,6 +5,7 @@
  * 触底加载更多；条目 hover ⋯ 承接 置顶/导出（MD·图片·EPUB·PDF）/窗口打开/删除。
  */
 
+import { useArticlesI18n } from "../i18n";
 import { useMemo, useState } from "react";
 import {
   ChevronDown,
@@ -27,6 +28,8 @@ import { PdfExportModal } from "@/components/PdfExportModal";
 import { IconButton, Menu, Popover, cn } from "@tau/ui";
 
 import { ARTICLE_PAGE_SIZE, bucketByMonths, useArticleFeed, useArticleMutations } from "../queries";
+import { formatSwitcherDate } from "../format";
+import { ArticleMonthLabel } from "./ArticleMonthLabel";
 import { exportContentAsWord, exportContentAsMarkdown } from "@/services/content-transfer";
 
 type ExportState =
@@ -41,28 +44,13 @@ interface ArticleSwitcherProps {
   onDeleteCurrent: () => void;
 }
 
-/** 条目日期：今天/昨天友好显示，否则 MM-DD（跨年带年份） */
-function formatItemDate(ts: number): string {
-  const date = new Date(ts);
-  const now = new Date();
-  const sameYear = date.getFullYear() === now.getFullYear();
-  const mm = String(date.getMonth() + 1).padStart(2, "0");
-  const dd = String(date.getDate()).padStart(2, "0");
-  if (sameYear) {
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    if (ts >= today) return "今天";
-    if (ts >= today - 86_400_000) return "昨天";
-    return `${mm}-${dd}`;
-  }
-  return `${date.getFullYear()}-${mm}-${dd}`;
-}
-
 export function ArticleSwitcher({
   currentId,
   currentTitle,
   onOpenArticle,
   onDeleteCurrent,
 }: ArticleSwitcherProps) {
+  const { t, locale } = useArticlesI18n();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [pendingDelete, setPendingDelete] = useState<ArticlePageItem | null>(null);
@@ -137,16 +125,16 @@ export function ArticleSwitcher({
         {item.isTop && (
           <Pin className="fill-accent text-accent size-[11px] shrink-0" strokeWidth={1.75} />
         )}
-        <span className="truncate">{item.title || `文章 #${item.id}`}</span>
+        <span className="truncate">{item.title || t("fallback", { id: item.id })}</span>
         <span className="text-ink-3 ml-auto shrink-0 text-[10.5px] tabular-nums group-hover/row:hidden group-has-[[aria-expanded=true]]/row:hidden">
-          {formatItemDate(item.updateTime)}
+          {formatSwitcherDate(item.updateTime, locale)}
         </span>
       </button>
       <Menu
         align="end"
         trigger={
           <IconButton
-            title="置顶 / 导出 / 删除"
+            title={t("switch.actions")}
             className="absolute top-1/2 right-1 size-5 -translate-y-1/2 opacity-0 group-hover/row:opacity-100 aria-expanded:opacity-100"
           >
             <MoreHorizontal className="size-[14px]" strokeWidth={1.75} />
@@ -157,16 +145,21 @@ export function ArticleSwitcher({
           icon={<Star className="size-[15px]" strokeWidth={1.75} />}
           onSelect={() => void toggleTop(item.id, !item.isTop)}
         >
-          {item.isTop ? "取消置顶" : "置顶"}
+          {t(item.isTop ? "action.unpin" : "action.pin")}
         </Menu.Item>
-        <Menu.Submenu label="导出" icon={<Download className="size-[15px]" strokeWidth={1.75} />}>
+        <Menu.Submenu
+          label={t("action.export")}
+          icon={<Download className="size-[15px]" strokeWidth={1.75} />}
+        >
           <Menu.Item onSelect={() => void handleExportFile(item, exportContentAsMarkdown)}>
-            Markdown 文件
+            {t("export.markdown")}
           </Menu.Item>
           <Menu.Item onSelect={() => void handleExportFile(item, exportContentAsWord)}>
-            Word 文档（.docx）
+            {t("export.word")}
           </Menu.Item>
-          <Menu.Item onSelect={() => void openExportModal(item, "image")}>图片</Menu.Item>
+          <Menu.Item onSelect={() => void openExportModal(item, "image")}>
+            {t("export.image")}
+          </Menu.Item>
           <Menu.Item onSelect={() => void openExportModal(item, "epub")}>EPUB</Menu.Item>
           <Menu.Item onSelect={() => void openExportModal(item, "pdf")}>PDF</Menu.Item>
         </Menu.Submenu>
@@ -175,7 +168,7 @@ export function ArticleSwitcher({
             icon={<MonitorUp className="size-[15px]" strokeWidth={1.75} />}
             onSelect={() => void openArticleInNewWindow(databaseName, item.id)}
           >
-            窗口打开
+            {t("action.window")}
           </Menu.Item>
         )}
         <Menu.Separator />
@@ -184,7 +177,7 @@ export function ArticleSwitcher({
           icon={<Trash2 className="size-[15px]" strokeWidth={1.75} />}
           onSelect={() => setPendingDelete(item)}
         >
-          删除文章
+          {t("action.delete")}
         </Menu.Item>
       </Menu>
     </div>
@@ -201,11 +194,11 @@ export function ArticleSwitcher({
         trigger={
           <button
             type="button"
-            title="切换文章"
+            title={t("switch.title")}
             className="rounded-tau-sm text-ink-2 hover:bg-hover hover:text-ink-1 flex max-w-[280px] min-w-0 items-center gap-1.5 px-1.5 py-0.5 text-[11.5px] transition-colors"
           >
             <FileText className="size-[13px] shrink-0" strokeWidth={1.75} />
-            <span className="truncate">{currentTitle || "未命名文章"}</span>
+            <span className="truncate">{currentTitle || t("untitled")}</span>
             <ChevronDown
               className={cn(
                 "ease-tau-out size-3 shrink-0 transition-transform duration-150",
@@ -222,8 +215,8 @@ export function ArticleSwitcher({
             data-autofocus
             value={query}
             onChange={event => setQuery(event.target.value)}
-            placeholder="搜索文章标题…"
-            aria-label="搜索文章标题"
+            placeholder={t("search.placeholder")}
+            aria-label={t("search")}
             className="text-tau-meta text-ink-1 placeholder:text-ink-3 min-w-0 flex-1 bg-transparent outline-none"
           />
         </div>
@@ -245,24 +238,29 @@ export function ArticleSwitcher({
               }
             }}
           >
-            {tops.length > 0 && <div className="text-ink-3 px-3.5 pt-2 pb-1 text-[11px]">置顶</div>}
+            {tops.length > 0 && (
+              <div className="text-ink-3 px-3.5 pt-2 pb-1 text-[11px]">{t("action.pin")}</div>
+            )}
             {tops.map(renderRow)}
             {months.map(month => (
               <div key={month.key}>
                 <div className="text-ink-3 px-3.5 pt-2 pb-1 text-[11px]">
-                  {month.month} 月
-                  <span className="ml-1 text-[10px] tabular-nums">{month.year}</span>
+                  <ArticleMonthLabel
+                    year={month.year}
+                    month={month.month}
+                    yearClassName="ml-1 text-[10px] tabular-nums"
+                  />
                 </div>
                 {month.items.map(renderRow)}
               </div>
             ))}
             {filtered.length === 0 && (
               <div className="text-tau-meta text-ink-3 px-3.5 py-8 text-center">
-                {feed.loading ? "加载中…" : "没有匹配的文章"}
+                {t(feed.loading ? "loading" : "switch.empty")}
               </div>
             )}
             {feed.loadingMore && (
-              <div className="text-tau-sm text-ink-3 px-3.5 py-2 text-center">加载中…</div>
+              <div className="text-tau-sm text-ink-3 px-3.5 py-2 text-center">{t("loading")}</div>
             )}
           </div>
         </Popover.Body>
@@ -270,21 +268,21 @@ export function ArticleSwitcher({
         {pendingDelete && (
           <Popover.Footer>
             <span className="text-tau-sm text-ink-2">
-              删除「{pendingDelete.title || `#${pendingDelete.id}`}」？
+              {t("delete.question", { title: pendingDelete.title || `#${pendingDelete.id}` })}
             </span>
             <button
               type="button"
               onClick={() => setPendingDelete(null)}
               className="text-tau-sm rounded-tau-sm text-ink-3 hover:bg-hover hover:text-ink-1 px-2 py-1"
             >
-              取消
+              {t("cancel")}
             </button>
             <button
               type="button"
               onClick={() => void handleDelete(pendingDelete)}
               className="text-tau-sm rounded-tau-sm bg-danger text-ink-inverse px-2.5 py-1 font-medium hover:opacity-90"
             >
-              删除
+              {t("delete.confirm")}
             </button>
           </Popover.Footer>
         )}

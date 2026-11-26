@@ -13,7 +13,7 @@ import { Link2, Maximize2, MoreHorizontal, Star } from "lucide-react";
 import type { ICard } from "@/types";
 import { IconButton, cn, useEdgeFade } from "@tau/ui";
 import { ListTags, SortHeader } from "@/features/shared/list/ListControls";
-import { relativeCardTime, cardDate } from "../format";
+import { formatRelativeTime, formatListDate } from "@/features/shared/list/format";
 import { cardListText, sortCardList, type CardListSort } from "../listModel";
 import { CardActionMenu } from "./CardActionMenu";
 import { useScrollTopOnChange } from "@/hooks/useScrollTopOnChange";
@@ -154,8 +154,8 @@ function CardListRow({
         )}
       </span>
       <span className={cn(cell, "text-right")}>{card.count.toLocaleString(locale)}</span>
-      <span className={cell}>{relativeCardTime(card.update_time, locale)}</span>
-      <span className={cell}>{cardDate(card.create_time, locale)}</span>
+      <span className={cell}>{formatRelativeTime(card.update_time, locale)}</span>
+      <span className={cell}>{formatListDate(card.create_time, locale)}</span>
       <div
         className="flex justify-end gap-0.5 opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100 has-[[aria-expanded=true]]:opacity-100"
         onClick={e => e.stopPropagation()}

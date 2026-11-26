@@ -18,6 +18,7 @@
  * 文本后缀 / addon 组合等装备位不预置。
  */
 
+import { useUiI18n } from "../../i18n";
 import { useRef, useState, type ComponentProps } from "react";
 import type { LucideIcon } from "lucide-react";
 import { X } from "lucide-react";
@@ -59,6 +60,7 @@ export function Input({
   ref,
   ...props
 }: InputProps) {
+  const { t } = useUiI18n();
   const inputRef = useRef<HTMLInputElement | null>(null);
   // 非受控时镜像有值态驱动 ×；受控时以 value 为准
   const [mirror, setMirror] = useState(() => String(defaultValue ?? "") !== "");
@@ -118,7 +120,7 @@ export function Input({
       {clearable && (
         <button
           type="button"
-          aria-label="清空"
+          aria-label={t("input.clear")}
           tabIndex={-1}
           hidden={!hasValue}
           onClick={() => inputRef.current && clearInputElement(inputRef.current)}

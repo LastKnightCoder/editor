@@ -1,3 +1,4 @@
+import { useMobileArticlesI18n } from "../i18n";
 import { useMobilePluginActionItems } from "../../../app/plugins/action-menu";
 import { useEffect, useRef, useState } from "react";
 import { Layers, Ellipsis, Newspaper, Star, Trash2 } from "lucide-react";
@@ -40,6 +41,7 @@ const articleEditorSchema = createPageSchema({
 type ArticleEditorParams = typeof articleEditorSchema.type;
 
 function ArticleEditorScreen() {
+  const { t } = useMobileArticlesI18n();
   const { params } = usePage<ArticleEditorParams>();
   const navigator = useNavigator();
   const app = useAppContext();
@@ -65,7 +67,7 @@ function ArticleEditorScreen() {
   });
   const toggleTop = useArticleToggleTop(() => setMenuOpen(false));
   const deleteArticle = useArticleDelete(() => {
-    toast({ type: "success", text: "已删除文章" });
+    toast({ type: "success", text: t("delete.success") });
     navigator.popTo("articles");
   });
 
@@ -95,7 +97,7 @@ function ArticleEditorScreen() {
         contentId={article.contentId ?? 0}
         contentTitle={article.title}
         titleEditable
-        contentType="文章"
+        contentType={t("type")}
         contentTypeBadge={{
           icon: Newspaper,
           className: "bg-tag-5-soft text-tag-5",
@@ -120,12 +122,12 @@ function ArticleEditorScreen() {
           tauri
             .articleUpdate({ id: params.articleId, title })
             .then(() => invalidate())
-            .catch(error => app.presentError(error, "标题保存失败"));
+            .catch(error => app.presentError(error, t("title.failed")));
         }}
         headerRight={
           <PageHeaderButton
             icon={<Ellipsis size={17} />}
-            aria-label="文章操作"
+            aria-label={t("action.actions")}
             onClick={() => setMenuOpen(true)}
           />
         }
@@ -136,20 +138,23 @@ function ArticleEditorScreen() {
       <ActionSheet
         open={menuOpen}
         title={article.title}
-        kind="文章"
+        kind={t("type")}
         onClose={() => setMenuOpen(false)}
         items={[
           blockSelectionMenuItem(() => detailActionsRef.current?.enterBlockSelection()),
           outlineMenuItem(() => detailActionsRef.current?.openOutline()),
           {
-            label: article.isTop ? "取消置顶" : "置顶",
+            label: t(article.isTop ? "action.unpin" : "action.pin"),
             icon: <Star size={18} />,
             tone: "butter",
-            trailing: article.isTop ? "已置顶" : undefined,
-            onClick: () => toggleTop.mutate(article),
+            trailing: article.isTop ? t("pin.success") : undefined,
+            onClick: () =>
+              toggleTop.mutate(article, {
+                onError: error => app.presentError(error, t("pin.failed")),
+              }),
           },
           {
-            label: "加入闪卡",
+            label: t("flashcards"),
             icon: <Layers size={18} />,
             tone: "lilac",
             onClick: () => {
@@ -164,7 +169,7 @@ function ArticleEditorScreen() {
           ...collab.menuItems,
           ...pluginActionItems,
           {
-            label: "删除文章",
+            label: t("delete.action"),
             danger: true,
             icon: <Trash2 size={18} />,
             onClick: () => {
@@ -179,14 +184,16 @@ function ArticleEditorScreen() {
 
       <MobileConfirmDialog
         open={deleteOpen}
-        title="删除文章"
-        description={`「${clampText(article.title, 18)}」将被移入回收站，正文一并删除。`}
+        title={t("delete.action")}
+        description={t("delete.description", { title: clampText(article.title, 18) })}
         danger
         loading={deleteArticle.isPending}
         onCancel={() => setDeleteOpen(false)}
         onConfirm={() => {
           setDeleteOpen(false);
-          deleteArticle.mutate(article.id);
+          deleteArticle.mutate(article.id, {
+            onError: error => app.presentError(error, t("delete.failed")),
+          });
         }}
       />
     </>

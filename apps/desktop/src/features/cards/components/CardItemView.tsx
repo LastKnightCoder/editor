@@ -14,7 +14,7 @@ import { FadeWhenOverflow } from "./FadeWhenOverflow";
 import { IconButton, cn, Tag } from "@tau/ui";
 import { CardActionMenu } from "./CardActionMenu";
 import type { CardItemActions } from "../types";
-import { cardDate } from "../format";
+import { formatListDate } from "@/features/shared/list/format";
 import { cardMorphKey } from "../morph";
 
 export interface CardItemViewProps {
@@ -100,7 +100,7 @@ export function CardItemView({ card, actions, previewMaxHeight = 150 }: CardItem
           <span>
             {t("meta.words", { count: card.count, amount: card.count.toLocaleString(locale) })}
           </span>
-          <span>{cardDate(card.create_time, locale, false)}</span>
+          <span>{formatListDate(card.create_time, locale, false)}</span>
         </span>
       </div>
     </article>

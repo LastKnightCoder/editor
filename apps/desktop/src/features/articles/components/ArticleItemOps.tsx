@@ -3,6 +3,7 @@
  * 网格卡（封面右上角浮起的实底小方块）与列表行（行尾平铺）共用，差异只在容器与按钮样式。
  */
 
+import { useArticlesI18n } from "../i18n";
 import type { LucideIcon } from "lucide-react";
 import { Download, ImagePlus, MonitorUp, MoreHorizontal, Play, Star, Trash2 } from "lucide-react";
 import { IconButton, Menu, cn } from "@tau/ui";
@@ -38,6 +39,7 @@ export function ArticleItemOps({
   className?: string;
   buttonClassName?: string;
 }) {
+  const { t } = useArticlesI18n();
   const button = cn("size-[23px] rounded-[7px]", buttonClassName);
   return (
     <div
@@ -48,7 +50,7 @@ export function ArticleItemOps({
       onClick={e => e.stopPropagation()}
     >
       <IconButton
-        title={article.isTop ? "取消置顶" : "置顶"}
+        title={t(article.isTop ? "action.unpin" : "action.pin")}
         onClick={() => actions.onToggleTop(article)}
         className={button}
       >
@@ -60,38 +62,38 @@ export function ArticleItemOps({
       <Menu
         align="end"
         trigger={
-          <IconButton title="更多操作" className={button}>
+          <IconButton title={t("action.more")} className={button}>
             <MoreHorizontal className="size-[13px]" strokeWidth={1.75} />
           </IconButton>
         }
       >
         <Menu.Item onSelect={() => actions.onPresent(article)} icon={<MenuIcon icon={Play} />}>
-          演示模式
+          {t("action.present")}
         </Menu.Item>
         <Menu.Item
           onSelect={() => actions.onExportMarkdown(article)}
           icon={<MenuIcon icon={Download} />}
         >
-          导出 Markdown
+          {t("action.exportMarkdown")}
         </Menu.Item>
         <Menu.Item
           onSelect={() => actions.onExportWord(article)}
           icon={<MenuIcon icon={Download} />}
         >
-          导出 Word
+          {t("action.exportWord")}
         </Menu.Item>
         <Menu.Item
           onSelect={() => actions.onChangeCover(article)}
           icon={<MenuIcon icon={ImagePlus} />}
         >
-          换封面
+          {t("action.cover")}
         </Menu.Item>
         {actions.onOpenWindow && (
           <Menu.Item
             onSelect={() => actions.onOpenWindow?.(article)}
             icon={<MenuIcon icon={MonitorUp} />}
           >
-            窗口打开
+            {t("action.window")}
           </Menu.Item>
         )}
         <PluginActionMenuItems target={{ kind: "article", id: String(article.id) }} />
@@ -101,7 +103,7 @@ export function ArticleItemOps({
           onSelect={() => actions.onDelete(article)}
           icon={<MenuIcon icon={Trash2} />}
         >
-          删除文章
+          {t("action.delete")}
         </Menu.Item>
       </Menu>
     </div>

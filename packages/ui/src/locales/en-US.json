@@ -18,5 +18,6 @@
   "heatmap.cell_one": "{{date}} · {{value}} activity",
   "heatmap.streak_other": "{{value}} active days in a row",
   "heatmap.streak_one": "{{value}} active day in a row",
-  "tag.remove": "Remove"
+  "tag.remove": "Remove",
+  "input.clear": "Clear"
 }

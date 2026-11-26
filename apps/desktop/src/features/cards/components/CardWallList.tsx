@@ -20,7 +20,7 @@ import { CardItemView } from "./CardItemView";
 import { FadeWhenOverflow } from "./FadeWhenOverflow";
 import { useScrollTopOnChange } from "@/hooks/useScrollTopOnChange";
 import type { CardItemActions } from "../types";
-import { cardDate } from "../format";
+import { formatListDate } from "@/features/shared/list/format";
 import type { CardTimeGroupKey } from "../types";
 import { cardMorphKey } from "../morph";
 
@@ -292,7 +292,7 @@ function FeaturedCard({
             <span>
               {t("meta.words", { count: card.count, amount: card.count.toLocaleString(locale) })}
             </span>
-            <span>{cardDate(card.create_time, locale, false)}</span>
+            <span>{formatListDate(card.create_time, locale, false)}</span>
           </span>
         </div>
       </div>

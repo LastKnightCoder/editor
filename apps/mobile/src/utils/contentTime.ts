@@ -1,6 +1,8 @@
-import { cardsTranslator } from "./i18n";
-
-export function cardTimeDisplay(ts: number, locale: string): string {
+export function formatListTime(
+  ts: number,
+  locale: string,
+  yesterdayLabel: (time: string) => string
+): string {
   if (!ts) return "";
   const normalized = ts > 0 && ts < 1_000_000_000_000 ? ts * 1000 : ts;
   const date = new Date(normalized);
@@ -13,8 +15,7 @@ export function cardTimeDisplay(ts: number, locale: string): string {
     hourCycle: "h23",
   }).format(date);
   if (date.toDateString() === now.toDateString()) return time;
-  if (date.toDateString() === yesterday.toDateString())
-    return cardsTranslator.t("yesterday", { time });
+  if (date.toDateString() === yesterday.toDateString()) return yesterdayLabel(time);
   return new Intl.DateTimeFormat(locale, {
     year: date.getFullYear() === now.getFullYear() ? undefined : "numeric",
     month: "numeric",
@@ -22,7 +23,7 @@ export function cardTimeDisplay(ts: number, locale: string): string {
   }).format(date);
 }
 
-export function cardDateTime(ts: number, locale: string): string {
+export function formatContentDateTime(ts: number, locale: string): string {
   if (!ts) return "--";
   const date = new Date(ts > 0 && ts < 1_000_000_000_000 ? ts * 1000 : ts);
   return new Intl.DateTimeFormat(locale, {

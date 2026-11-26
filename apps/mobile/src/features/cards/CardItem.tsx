@@ -1,4 +1,4 @@
-import { cardTimeDisplay } from "./format";
+import { formatListTime } from "../../utils/contentTime";
 import { useMobileCardsI18n } from "./i18n";
 // 卡片列表项（v2 模板）：整卡可点开详情页，不设 more 按钮——
 // 删除等操作收进详情页 ⋯ 菜单。
@@ -43,7 +43,7 @@ const CardItem = memo(({ item, onPreviewCard }: CardItemProps) => {
       <button type="button" onClick={() => onPreviewCard(item.id)} className="w-full text-left">
         <div className="mb-2.5 flex items-center gap-2">
           <span className="text-ink-2 text-tau-sm ml-auto tabular-nums">
-            {cardTimeDisplay(item.updateTime, locale)}
+            {formatListTime(item.updateTime, locale, time => t("yesterday", { time }))}
           </span>
         </div>
 

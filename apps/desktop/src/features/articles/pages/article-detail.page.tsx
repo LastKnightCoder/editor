@@ -3,6 +3,7 @@
  * params 按 id 去重——同篇文章重复进入激活同一实例。
  */
 
+import { appMessages } from "@/app/i18n/messages";
 import {
   createPageSchema,
   paramNumber,
@@ -23,7 +24,7 @@ export default definePage({
   key: "article-detail",
   match: "params",
   getId: params => `article-${params.id}`,
-  label: "文章详情",
+  label: appMessages.ref("page.articleDetail"),
   params: schema.schema,
   component: ArticleDetailView,
 });

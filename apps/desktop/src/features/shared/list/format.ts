@@ -1,8 +1,6 @@
 import dayjs from "dayjs";
-import type { Translator } from "@tau/i18n";
-import type { CardsMessageKey } from "./i18n";
 
-export function cardDate(ts: number, locale: string, includeYear = true): string {
+export function formatListDate(ts: number, locale: string, includeYear = true): string {
   const date = new Date(ts);
   return new Intl.DateTimeFormat(locale, {
     year: includeYear && date.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined,
@@ -11,10 +9,10 @@ export function cardDate(ts: number, locale: string, includeYear = true): string
   }).format(date);
 }
 
-export function cardDateTime(
+export function formatRecentDateTime(
   ts: number,
   locale: string,
-  t: Translator<CardsMessageKey>["t"]
+  relativeTime: (day: string, time: string) => string
 ): string {
   const date = dayjs(ts);
   const now = dayjs();
@@ -26,10 +24,10 @@ export function cardDateTime(
   }).format(ts);
   if (days < 1) return time;
   if (days < 3)
-    return t("meta.relativeTime", {
-      day: new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(-days, "day"),
-      time,
-    });
+    return relativeTime(
+      new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(-days, "day"),
+      time
+    );
   return new Intl.DateTimeFormat(locale, {
     year: date.year() === now.year() ? undefined : "numeric",
     month: "numeric",
@@ -40,7 +38,7 @@ export function cardDateTime(
   }).format(ts);
 }
 
-export function relativeCardTime(ts: number, locale: string, now = Date.now()): string {
+export function formatRelativeTime(ts: number, locale: string, now = Date.now()): string {
   const start = (value: number) => {
     const date = new Date(value);
     date.setHours(0, 0, 0, 0);
@@ -53,4 +51,17 @@ export function relativeCardTime(ts: number, locale: string, now = Date.now()): 
   if (days < 7) return relative.format(-days, "day");
   if (days < 30) return relative.format(-Math.floor(days / 7), "week");
   return relative.format(-Math.floor(days / 30), "month");
+}
+
+export function formatCompactCount(value: number, locale: string): string {
+  return new Intl.NumberFormat(
+    locale,
+    value >= 10000
+      ? {
+          notation: "compact",
+          minimumFractionDigits: 1,
+          maximumFractionDigits: 1,
+        }
+      : {}
+  ).format(value);
 }

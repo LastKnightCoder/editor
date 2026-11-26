@@ -4,6 +4,7 @@
  * （不用 Segmented / Radio）。
  */
 
+import { useListI18n } from "./i18n";
 import type { LucideIcon } from "lucide-react";
 import { ArrowDown, ArrowUp, ChevronDown, LayoutGrid, List } from "lucide-react";
 import { Button, Menu, Tag, cn } from "@tau/ui";
@@ -15,11 +16,6 @@ export interface CommandOption<T extends string> {
   label: string;
   icon: LucideIcon;
 }
-
-const LAYOUTS: CommandOption<ListLayout>[] = [
-  { value: "grid", label: "网格", icon: LayoutGrid },
-  { value: "list", label: "列表", icon: List },
-];
 
 /** 工具栏命令菜单：触发按钮显示当前项（图标 + 文字 + ▾），菜单项高亮当前项 */
 export function CommandMenu<T extends string>({
@@ -84,7 +80,14 @@ export function LayoutMenu({
   value: ListLayout;
   onChange(layout: ListLayout): void;
 }) {
-  return <CommandMenu options={LAYOUTS} value={value} onChange={onChange} title="切换视图" />;
+  const { t } = useListI18n();
+  const options: CommandOption<ListLayout>[] = [
+    { value: "grid", label: t("layout.grid"), icon: LayoutGrid },
+    { value: "list", label: t("layout.list"), icon: List },
+  ];
+  return (
+    <CommandMenu options={options} value={value} onChange={onChange} title={t("layout.switch")} />
+  );
 }
 
 /**

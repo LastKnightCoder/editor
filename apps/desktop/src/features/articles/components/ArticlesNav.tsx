@@ -5,6 +5,7 @@
  * 找文章走文章页右上角的标题搜索。页内因此不放标签 pills。
  */
 
+import { useArticlesI18n } from "../i18n";
 import type { ReactNode } from "react";
 import { cn } from "@tau/ui";
 import { FadeScroll } from "@tau/ui";
@@ -19,6 +20,7 @@ export function ArticlesNavTags({
   selectedId?: string;
   onSelect: (id: string) => void;
 }) {
+  const { t } = useArticlesI18n();
   const { tags } = useArticleTagCounts();
   const mutations = useArticleTagMutations();
   const manage = useTagManage({
@@ -40,7 +42,7 @@ export function ArticlesNavTags({
   return (
     // -mr-1.5：FadeScroll 右侧 6px 透明边吃进侧栏右内边距；内层 pr-1.5 让行与滚动条之间留出间隙
     <FadeScroll className="mt-0.5 -mr-1.5 mb-1 max-h-[236px]">
-      <div className="space-y-px pr-1.5" role="group" aria-label="文章标签">
+      <div className="space-y-px pr-1.5" role="group" aria-label={t("tags.label")}>
         {tags.map(({ tag, count }) => {
           const active = selectedId === tag;
           return (
@@ -54,7 +56,7 @@ export function ArticlesNavTags({
                   #
                 </span>
               }
-              title={active ? "再点一次回到全部" : `只看「${tag}」`}
+              title={active ? t("tags.all") : t("tags.only", { tag })}
               onClick={() => onSelect(active ? "" : tag)}
               onRename={() => manage.startRename({ tag, count })}
               onDelete={() => manage.startDelete({ tag, count })}

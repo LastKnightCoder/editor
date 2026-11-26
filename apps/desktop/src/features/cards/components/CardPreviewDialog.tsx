@@ -21,7 +21,7 @@ import AddTag from "@/components/AddTag";
 import ContentEditor from "@/components/ContentEditor";
 import { ErrorBoundary } from "@tau/ui";
 import { getContentLength } from "@/utils";
-import { cardDateTime } from "../format";
+import { formatRecentDateTime } from "@/features/shared/list/format";
 import { loadCardTagSuggestions, useCardsMutations } from "../queries";
 import type { ICard } from "@/types";
 import { CardActionMenu } from "./CardActionMenu";
@@ -139,8 +139,16 @@ export function CardPreviewDialog({
   const meta = useMemo(() => {
     if (!editing) return "";
     return [
-      t("meta.created", { date: cardDateTime(editing.create_time, locale, t) }),
-      t("meta.updated", { date: cardDateTime(editing.update_time, locale, t) }),
+      t("meta.created", {
+        date: formatRecentDateTime(editing.create_time, locale, (day, time) =>
+          t("meta.relativeTime", { day, time })
+        ),
+      }),
+      t("meta.updated", {
+        date: formatRecentDateTime(editing.update_time, locale, (day, time) =>
+          t("meta.relativeTime", { day, time })
+        ),
+      }),
       editing.linkCount > 0
         ? t("meta.links", {
             count: editing.linkCount,
