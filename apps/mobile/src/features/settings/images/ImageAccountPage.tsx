@@ -1,3 +1,10 @@
+import { ImageAccountFieldsError } from "./errors";
+import {
+  imageText,
+  useImageSettingsI18n,
+  imageSettingsErrorText,
+  type ImageSettingsMessageKey,
+} from "./i18n";
 import { useState } from "react";
 import { Button } from "@tau/ui";
 import { PageHeader } from "../../../components/PageHeader";
@@ -13,6 +20,7 @@ export function ImageAccountPage({
   settingsId: string;
   accountId?: string;
 }) {
+  useImageSettingsI18n();
   const navigator = useNavigator();
   const { providers, accounts, mutate } = useImageDomain();
   const provider = providers.find(item => item.id === settingsId);
@@ -24,7 +32,7 @@ export function ImageAccountPage({
   );
   const [removeOpen, setRemoveOpen] = useState(false);
   const [removing, setRemoving] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<ImageSettingsMessageKey | "">("");
   const [deleted, setDeleted] = useState(false);
   const form =
     !account || account.pluginId === provider?.context.pluginId
@@ -37,34 +45,34 @@ export function ImageAccountPage({
       setDeleted(true);
       setRemoveOpen(false);
     } catch {
-      setError("删除失败，请稍后重试");
+      setError("error.deleteFailed");
     } finally {
       setRemoving(false);
     }
   };
   return (
     <div className="mobile-kb-screen bg-page fixed inset-0 flex flex-col">
-      <PageHeader title="图片账号" onBack={() => void navigator.goBack("ui")} />
+      <PageHeader title={imageText("accountTitle")} onBack={() => void navigator.goBack("ui")} />
       <div className="mobile-page-scroll min-h-0 flex-1 overflow-y-auto px-4">
         {deleted || (accountId && !account) ? (
-          <p className="text-ink-3 py-8">账号已删除，请返回图片设置。</p>
+          <p className="text-ink-3 py-8">{imageText("deleted")}</p>
         ) : !provider || !form ? (
-          <p className="text-ink-3 py-8">请先启用支持声明式配置的图片插件。</p>
+          <p className="text-ink-3 py-8">{imageText("enablePlugin")}</p>
         ) : (
           <>
             <label className="text-ink-3 text-tau-sm block py-3">
-              账号名称
+              {imageText("accountName")}
               <input
-                aria-label="账号名称"
+                aria-label={imageText("accountName")}
                 className="input-base bg-surface text-ink-1 mt-2 w-full rounded-xl p-3"
                 value={name}
                 onChange={event => setName(event.currentTarget.value)}
               />
             </label>
             <label className="text-ink-3 text-tau-sm block pb-3">
-              图片模型 ID
+              {imageText("modelId")}
               <input
-                aria-label="图片模型 ID"
+                aria-label={imageText("modelId")}
                 autoCapitalize="off"
                 autoCorrect="off"
                 spellCheck={false}
@@ -74,6 +82,7 @@ export function ImageAccountPage({
               />
             </label>
             <ProviderConfigForm
+              errorText={imageSettingsErrorText}
               form={form}
               context={provider.context}
               stored={account?.config ?? {}}
@@ -83,7 +92,7 @@ export function ImageAccountPage({
                 setModelId(account?.modelId ?? provider.definition.models?.[0]?.id ?? "");
               }}
               save={async config => {
-                if (!name.trim() || !modelId.trim()) throw new Error("请填写账号名称和图片模型 ID");
+                if (!name.trim() || !modelId.trim()) throw new ImageAccountFieldsError();
                 provider.context.signal.throwIfAborted();
                 await mutate({
                   type: "save",
@@ -101,22 +110,22 @@ export function ImageAccountPage({
             />
             {account && (
               <Button variant="ghost" onClick={() => setRemoveOpen(true)}>
-                删除账号
+                {imageText("deleteAccount")}
               </Button>
             )}
           </>
         )}
         {error && (
           <p role="alert" className="text-danger text-tau-meta">
-            {error}
+            {imageText(error)}
           </p>
         )}
       </div>
       <MobileConfirmDialog
         open={removeOpen}
-        title="删除图片账号？"
-        description="账号配置会被删除。若它正在使用，需要重新选择图片服务。"
-        confirmText="删除"
+        title={imageText("deleteTitle")}
+        description={imageText("deleteDescription")}
+        confirmText={imageText("delete")}
         loading={removing}
         onCancel={() => setRemoveOpen(false)}
         onConfirm={() => void remove()}

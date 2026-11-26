@@ -1,3 +1,4 @@
+import { imageText, useImageSettingsI18n, type ImageSettingsMessageKey } from "./i18n";
 import { useState } from "react";
 import { isProviderFormComplete } from "@tau/plugins";
 import { Check, ChevronRight } from "lucide-react";
@@ -8,10 +9,11 @@ import type { ImageProviderConfig } from "../../../types";
 import { useImageDomain } from "./useImageDomain";
 
 export function ImageGenerationSection() {
+  useImageSettingsI18n();
   const navigator = useNavigator();
   const { setting, providers, accounts, currentId, mutate } = useImageDomain();
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<ImageSettingsMessageKey | "">("");
   const select = async (account: ImageProviderConfig) => {
     if (busy) return;
     setBusy(true);
@@ -19,15 +21,15 @@ export function ImageGenerationSection() {
     try {
       await mutate({ type: "select", id: account.id, expectedProvider: account });
     } catch {
-      setError("图片服务未切换，请检查账号配置后重试");
+      setError("error.selectFailed");
     } finally {
       setBusy(false);
     }
   };
-  if (!setting) return <p className="text-ink-3 py-8 text-center">正在读取图片设置…</p>;
+  if (!setting) return <p className="text-ink-3 py-8 text-center">{imageText("loading")}</p>;
   return (
     <div className="page-enter">
-      <GroupLabel>当前图片服务</GroupLabel>
+      <GroupLabel>{imageText("currentService")}</GroupLabel>
       <GroupCard>
         {accounts.length ? (
           accounts.map(account => {
@@ -51,18 +53,18 @@ export function ImageGenerationSection() {
                       {provider
                         ? ready
                           ? account.modelId
-                          : "请先完成配置"
-                        : "插件已停用，配置已保留"}
+                          : imageText("configurationRequired")
+                        : imageText("pluginDisabled")}
                     </span>
                   </span>
                   {currentId === account.id && (
-                    <Check size={18} className="text-accent" aria-label="当前选用" />
+                    <Check size={18} className="text-accent" aria-label={imageText("selected")} />
                   )}
                 </button>
                 {provider && (
                   <button
                     type="button"
-                    aria-label={`配置${account.name}`}
+                    aria-label={imageText("configureNamed", { name: account.name })}
                     className="text-accent-text text-tau-sm min-h-11 px-3"
                     onClick={() =>
                       navigator.push("imageAccount", {
@@ -71,27 +73,23 @@ export function ImageGenerationSection() {
                       })
                     }
                   >
-                    配置
+                    {imageText("configure")}
                   </button>
                 )}
               </div>
             );
           })
         ) : (
-          <p className="text-ink-3 text-tau-body px-3.5 py-4">
-            先安装图片插件并添加账号，再选择用于对话的图片服务。
-          </p>
+          <p className="text-ink-3 text-tau-body px-3.5 py-4">{imageText("empty")}</p>
         )}
       </GroupCard>
-      <GroupNote>
-        对话中的图片生成和编辑使用当前选用的账号。生成结果按「图片与附件」中的上传位置保存。
-      </GroupNote>
+      <GroupNote>{imageText("uploadHint")}</GroupNote>
       {error && (
         <p role="alert" className="text-danger text-tau-meta py-2">
-          {error}
+          {imageText(error)}
         </p>
       )}
-      <GroupLabel>图片插件</GroupLabel>
+      <GroupLabel>{imageText("plugins")}</GroupLabel>
       <GroupCard>
         {providers.map(provider => (
           <GroupRow
@@ -101,12 +99,12 @@ export function ImageGenerationSection() {
             <span className="text-ink-1 text-tau-body min-w-0 flex-1">
               {provider.definition.title}
             </span>
-            <span className="text-ink-3 text-tau-sm">账号与配置</span>
+            <span className="text-ink-3 text-tau-sm">{imageText("accountsAndConfig")}</span>
             <ChevronRight size={17} className="text-ink-3" />
           </GroupRow>
         ))}
         <GroupRow onClick={() => navigator.push("plugins", { tab: "store" })}>
-          <span className="text-accent-text text-tau-body flex-1">去插件中心下载</span>
+          <span className="text-accent-text text-tau-body flex-1">{imageText("pluginCenter")}</span>
           <ChevronRight size={17} className="text-ink-3" />
         </GroupRow>
       </GroupCard>

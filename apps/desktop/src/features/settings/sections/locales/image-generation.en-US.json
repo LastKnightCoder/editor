@@ -1,0 +1,9 @@
+{
+  "description": "Choose the account used to generate and edit images in chat. Manage connection details in the plugin’s settings.",
+  "pluginInactive": "Plugin inactive",
+  "notConfigured": "Not configured",
+  "configure": "Configure",
+  "manageDescription": "Add accounts and configure connection details and models on the plugin page.",
+  "manageAccounts": "Manage accounts",
+  "addPlugin": "Add image generation plugin"
+}

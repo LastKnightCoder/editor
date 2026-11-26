@@ -1,0 +1,10 @@
+{
+  "reset": "还原",
+  "saved": "配置已保存",
+  "save": "保存配置",
+  "leave.title": "放弃未保存的修改？",
+  "leave.description": "配置尚未保存，返回会放弃这次修改。",
+  "leave.confirm": "放弃修改",
+  "required": "请填写{{field}}",
+  "saveFailed": "保存失败"
+}

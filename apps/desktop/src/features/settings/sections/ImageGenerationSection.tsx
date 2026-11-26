@@ -1,3 +1,4 @@
+import { imageText, useImageSettingsI18n } from "./ImageGenerationSection.i18n";
 import { useId } from "react";
 import { produce } from "immer";
 import { isProviderFormComplete, type JsonValue } from "@tau/plugins";
@@ -10,13 +11,14 @@ import { useSettingsStore } from "@/app/settingsStore";
 import { SettingsGroup } from "../components/SettingsGroup";
 
 export function ImageGenerationSection() {
+  useImageSettingsI18n();
   const { providers, currentProviderId } = useSettingStore(state => state.setting.imageGeneration);
   const runtime = useDesktopPlugins();
   const sections =
     runtime?.listSettings().filter(item => item.definition.target === "images") ?? [];
   const name = useId();
   return (
-    <SettingsGroup description="选择对话生图与改图使用的账号；连接信息在对应插件的设置中管理。">
+    <SettingsGroup description={imageText("description")}>
       {providers.map(provider => {
         const section = sections.find(item => item.context.pluginId === provider.pluginId);
         const ready =
@@ -43,7 +45,13 @@ export function ImageGenerationSection() {
                 }
               />
             }
-            description={!section ? "插件未启用" : !ready ? "未配置" : provider.modelId}
+            description={
+              !section
+                ? imageText("pluginInactive")
+                : !ready
+                  ? imageText("notConfigured")
+                  : provider.modelId
+            }
           >
             <Button
               size="sm"
@@ -51,7 +59,7 @@ export function ImageGenerationSection() {
                 openProviderSettings(provider.pluginId, section?.key, "imageGeneration")
               }
             >
-              配置
+              {imageText("configure")}
             </Button>
           </SettingRow>
         );
@@ -60,7 +68,7 @@ export function ImageGenerationSection() {
         <SettingRow
           key={section.key}
           title={section.definition.title}
-          description="在插件页添加账号、填写连接信息和模型。"
+          description={imageText("manageDescription")}
         >
           <Button
             size="sm"
@@ -69,7 +77,7 @@ export function ImageGenerationSection() {
               openProviderSettings(section.context.pluginId, section.key, "imageGeneration")
             }
           >
-            管理账号
+            {imageText("manageAccounts")}
           </Button>
         </SettingRow>
       ))}
@@ -80,7 +88,7 @@ export function ImageGenerationSection() {
             openPage("plugins");
           }}
         >
-          添加图片生成插件
+          {imageText("addPlugin")}
         </Button>
       )}
     </SettingsGroup>

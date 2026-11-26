@@ -1,0 +1,10 @@
+{
+  "reset": "Reset",
+  "saved": "Configuration saved",
+  "save": "Save configuration",
+  "leave.title": "Discard unsaved changes?",
+  "leave.description": "This configuration has not been saved. Going back will discard these changes.",
+  "leave.confirm": "Discard changes",
+  "required": "Enter {{field}}",
+  "saveFailed": "Failed to save"
+}

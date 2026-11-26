@@ -1,0 +1,9 @@
+{
+  "description": "选择对话生图与改图使用的账号；连接信息在对应插件的设置中管理。",
+  "pluginInactive": "插件未启用",
+  "notConfigured": "未配置",
+  "configure": "配置",
+  "manageDescription": "在插件页添加账号、填写连接信息和模型。",
+  "manageAccounts": "管理账号",
+  "addPlugin": "添加图片生成插件"
+}

@@ -215,3 +215,98 @@ it("账号选择独立持久化，插件停用时保留选择并禁止再次调�
   expect((button("个人图片") as HTMLButtonElement).disabled).toBe(true);
   expect(setting.imageGeneration!.currentProviderId).toBe("a");
 });
+
+it("已知校验错误换语保留账号草稿，修正后保存中的请求不重放", async () => {
+  const { mobileLocaleSource } = await import("../../../../services/i18n");
+  const { imageText } = await import("../i18n");
+  const original = mobileLocaleSource.getSnapshot();
+  const account = {
+    id: "original-account",
+    name: "原始账号",
+    pluginId: "test.images",
+    modelId: "image-model",
+    config: { apiKey: "test-key", baseUrl: "https://images.test/v1" },
+  };
+  const images = setting.imageGeneration;
+  if (!images) throw new Error("图片设置未初始化");
+  images.providers.push(account);
+  images.currentProviderId = account.id;
+  setMobileSettingSnapshot(setting);
+  render();
+  try {
+    await open("imageAccount", { settingsId: "test.images:connection", accountId: account.id });
+    await act(async () => {
+      await vi.waitFor(() =>
+        expect(active().querySelector('input[aria-label="API Key"]')).not.toBeNull()
+      );
+    });
+    await input(imageText("accountName"), "草稿账号");
+    await input(imageText("modelId"), "");
+    await input("API Key", "draft-key");
+    await input("模型地址", "https://images.test/v2");
+    await click(button("保存配置"));
+    const alert = active().querySelector('[role="alert"]');
+    if (!alert) throw new Error("校验错误未显示");
+    const beforeText = alert.textContent;
+    const name = active().querySelector<HTMLInputElement>(
+      `input[aria-label="${imageText("accountName")}"]`
+    );
+    const model = active().querySelector<HTMLInputElement>(
+      `input[aria-label="${imageText("modelId")}"]`
+    );
+    const key = active().querySelector<HTMLInputElement>('input[aria-label="API Key"]');
+    if (!name || !model || !key) throw new Error("账号字段未挂载");
+    name.focus();
+    name.setSelectionRange(1, 3);
+    const before = setting.imageGeneration;
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => mobileLocaleSource.setLocale(locale));
+      expect(active().querySelector(`input[aria-label="${imageText("accountName")}"]`)).toBe(name);
+      expect(active().querySelector(`input[aria-label="${imageText("modelId")}"]`)).toBe(model);
+      expect(name.value).toBe("草稿账号");
+      expect(model.value).toBe("");
+      expect(key.value).toBe("draft-key");
+      expect(document.activeElement).toBe(name);
+      expect([name.selectionStart, name.selectionEnd]).toEqual([1, 3]);
+      expect(active().querySelector('[role="alert"]')).toBe(alert);
+      expect(setting.imageGeneration).toBe(before);
+      expect(mutateImageSettings).not.toHaveBeenCalled();
+    }
+    expect(alert.textContent).not.toBe(beforeText);
+    await input(imageText("modelId"), "raw-custom-model");
+    await act(async () => mobileLocaleSource.setLocale("zh-CN"));
+    let finish: ((value: SettingCompat) => void) | undefined;
+    vi.mocked(mutateImageSettings).mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        })
+    );
+    await click(button("保存配置"));
+    expect(mutateImageSettings).toHaveBeenCalledTimes(1);
+    const mutation = vi.mocked(mutateImageSettings).mock.calls[0][1];
+    if (mutation.type !== "save") throw new Error("未提交账号保存");
+    expect(mutation.provider).toEqual({
+      id: account.id,
+      name: "草稿账号",
+      pluginId: account.pluginId,
+      modelId: "raw-custom-model",
+      config: { apiKey: "draft-key", baseUrl: "https://images.test/v2" },
+    });
+    await act(async () => mobileLocaleSource.setLocale("en-US"));
+    expect(mutateImageSettings).toHaveBeenCalledTimes(1);
+    expect(active().querySelector('input[aria-label="API Key"]')).toBe(key);
+    if (!finish) throw new Error("保存未进入服务边界");
+    await act(async () =>
+      finish?.({
+        ...setting,
+        imageGeneration: { ...images, providers: [mutation.provider] },
+      })
+    );
+    expect(mutateImageSettings).toHaveBeenCalledTimes(1);
+    expect(setting.imageGeneration?.currentProviderId).toBe(account.id);
+    expect(setting.imageGeneration?.providers[0]).toEqual(mutation.provider);
+  } finally {
+    await act(async () => mobileLocaleSource.setLocale(original));
+  }
+});

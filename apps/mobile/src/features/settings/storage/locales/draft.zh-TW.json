@@ -1,0 +1,10 @@
+{
+  "reset": "還原",
+  "saved": "設定已儲存",
+  "save": "儲存設定",
+  "leave.title": "放棄未儲存的修改？",
+  "leave.description": "設定尚未儲存，返回會放棄這次修改。",
+  "leave.confirm": "放棄修改",
+  "required": "請填寫{{field}}",
+  "saveFailed": "儲存失敗"
+}

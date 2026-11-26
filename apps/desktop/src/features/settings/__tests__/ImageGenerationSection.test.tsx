@@ -93,3 +93,28 @@ it("插件停用时保留账号和当前选择，但不允许选择不可用服�
   expect(useSettingStore.getState().setting.imageGeneration.currentProviderId).toBe("a");
   expect(useSettingStore.getState().setting.imageGeneration.providers).toHaveLength(2);
 });
+
+it("换语保留账号选择和配置对象，选择动作仍使用原账号 ID", async () => {
+  const { desktopLocaleSource } = await import("@/app/i18n/runtime");
+  const original = desktopLocaleSource.getSnapshot();
+  try {
+    await render();
+    const before = useSettingStore.getState().setting.imageGeneration;
+    const selected = container.querySelector<HTMLInputElement>('input[value="a"]');
+    const next = container.querySelector<HTMLInputElement>('input[value="b"]');
+    if (!selected || !next) throw new Error("账号选项未挂载");
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(container.querySelector('input[value="a"]')).toBe(selected);
+      expect(container.querySelector('input[value="b"]')).toBe(next);
+      expect(selected.checked).toBe(true);
+      expect(useSettingStore.getState().setting.imageGeneration).toBe(before);
+      expect(mocks.open).not.toHaveBeenCalled();
+    }
+    await act(async () => next.click());
+    expect(useSettingStore.getState().setting.imageGeneration.currentProviderId).toBe("b");
+    expect(useSettingStore.getState().setting.imageGeneration.providers).toEqual(before.providers);
+  } finally {
+    await act(async () => desktopLocaleSource.setLocale(original));
+  }
+});

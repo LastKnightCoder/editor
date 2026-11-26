@@ -1,0 +1,9 @@
+{
+  "description": "選擇對話生圖與改圖使用的帳號；連線資訊在對應外掛的設定中管理。",
+  "pluginInactive": "外掛未啟用",
+  "notConfigured": "未設定",
+  "configure": "設定",
+  "manageDescription": "在外掛頁新增帳號、填寫連線資訊和模型。",
+  "manageAccounts": "管理帳號",
+  "addPlugin": "新增圖片生成外掛"
+}

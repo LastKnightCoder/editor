@@ -1,3 +1,4 @@
+import { useProviderDraftI18n } from "../settings/storage/draft.i18n";
 import { useState } from "react";
 import type { JsonValue, PluginContext, ProviderForm } from "@tau/plugins";
 import { isProviderFormComplete } from "@tau/plugins";
@@ -14,7 +15,9 @@ export function ProviderConfigForm({
   save,
   changed = false,
   onReset,
+  errorText,
 }: {
+  errorText?: (error: unknown) => string;
   changed?: boolean;
   onReset?(): void;
   form: ProviderForm;
@@ -22,11 +25,17 @@ export function ProviderConfigForm({
   stored: JsonValue;
   save(config: JsonValue): Promise<void>;
 }) {
-  const draft = useProviderDraft(form, stored, async config => {
-    context.signal.throwIfAborted();
-    await save(config);
-  });
-  const [message, setMessage] = useState("");
+  const { t } = useProviderDraftI18n();
+  const draft = useProviderDraft(
+    form,
+    stored,
+    async config => {
+      context.signal.throwIfAborted();
+      await save(config);
+    },
+    errorText
+  );
+  const [saved, setSaved] = useState(false);
   const [leave, setLeave] = useState<{ resolve(value: boolean): void }>();
   usePageGuard(() =>
     !draft.dirty && !changed && !draft.saving
@@ -42,7 +51,7 @@ export function ProviderConfigForm({
         disabled={draft.saving}
         signal={context.signal}
         onChange={(values, key) => {
-          setMessage("");
+          setSaved(false);
           draft.change(values, key);
         }}
       />
@@ -55,28 +64,28 @@ export function ProviderConfigForm({
             onReset?.();
           }}
         >
-          还原
+          {t("reset")}
         </Button>
         <Button
           loading={draft.saving}
           disabled={!draft.dirty && !changed && isProviderFormComplete(form, stored)}
           onClick={async () => {
-            if (await draft.save()) setMessage("配置已保存");
+            if (await draft.save()) setSaved(true);
           }}
         >
-          保存配置
+          {t("save")}
         </Button>
       </div>
-      {(draft.error || message) && (
+      {(draft.error || saved) && (
         <p role={draft.error ? "alert" : "status"} className="text-tau-meta">
-          {draft.error || message}
+          {draft.error || t("saved")}
         </p>
       )}
       <MobileConfirmDialog
         open={!!leave}
-        title="放弃未保存的修改？"
-        description="配置尚未保存，返回会放弃这次修改。"
-        confirmText="放弃修改"
+        title={t("leave.title")}
+        description={t("leave.description")}
+        confirmText={t("leave.confirm")}
         loading={draft.saving}
         onCancel={() => {
           leave?.resolve(false);
