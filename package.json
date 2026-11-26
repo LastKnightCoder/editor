@@ -2,7 +2,7 @@
   "name": "tau",
   "license": "PolyForm-Noncommercial-1.0.0",
   "private": true,
-  "version": "0.66.4",
+  "version": "0.67.0",
   "scripts": {
     "code:stats": "node scripts/count-code.mjs",
     "check:whiteboard-boundaries": "node scripts/check-whiteboard-boundaries.mjs",
