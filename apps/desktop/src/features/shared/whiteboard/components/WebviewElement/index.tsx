@@ -1,4 +1,4 @@
-import { memo, useMemo, useState, useEffect, useRef } from "react";
+import { memo, useMemo, useState, useEffect, useRef, useSyncExternalStore } from "react";
 import { useMemoizedFn } from "ahooks";
 import { Menu, toast } from "@tau/ui";
 import { MoreHorizontal, Pencil, RefreshCw, Upload } from "lucide-react";
@@ -67,7 +67,8 @@ const WebviewElementComponent = memo((props: WebviewElementProps) => {
   const { id, x, y, width, height, url } = element;
 
   const [isResizing, setIsResizing] = useState(false);
-  const { isMoving } = useBoardState();
+  const { movingStore } = useBoardState();
+  const isMoving = useSyncExternalStore(movingStore.subscribe, movingStore.getBoardMoving);
   const [isEditingUrl, setIsEditingUrl] = useState(false);
   const [tempUrl, setTempUrl] = useState(url);
   const webviewRef = useRef<WebviewRef>(null);
