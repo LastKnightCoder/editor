@@ -1,3 +1,4 @@
+import type { MediaProgressSemantic } from "../../shared/media-progress";
 import { invoke, on, off } from "@/electron";
 import type { IpcRendererEvent } from "electron";
 
@@ -12,7 +13,7 @@ export interface RemoteVideoCacheEntry {
   lastAccessed: string;
 }
 
-export interface RemoteVideoCacheProgress {
+export interface RemoteVideoCacheProgress extends MediaProgressSemantic {
   requestId: number;
   stage: "downloading" | "completed" | "error";
   progress: number;

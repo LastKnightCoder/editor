@@ -107,8 +107,9 @@ export function createLocalFileASR(engine: TranscriptionService, config: Transcr
           const sourceResult = await engine.transcribe(
             filePath,
             { ...settings, language: request.language },
-            message => {
-              emit({ type: "progress", stage: "recognizing", message });
+            progress => {
+              const { stage, ...data } = progress;
+              emit({ type: "progress", stage: stage ?? "recognizing", ...data });
             },
             signal
           );

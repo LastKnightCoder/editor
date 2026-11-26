@@ -169,6 +169,7 @@ async function fetchSource(
       await download(source.stream, temporary[2], signal, (downloaded, total) =>
         report({
           stage: "downloading",
+          code: "video.downloading",
           downloaded,
           total,
           percent: total ? (downloaded / total) * 100 : undefined,
@@ -176,7 +177,11 @@ async function fetchSource(
       );
       await fs.rename(temporary[2], output);
     } else if (source.kind === "split") {
-      const progress: Progress = { stage: "downloading", message: "正在下载视频与音频…" };
+      const progress: Progress = {
+        stage: "downloading",
+        message: "正在下载视频与音频…",
+        code: "video.tracks.downloading",
+      };
       await Promise.all(
         (["video", "audio"] as const).map((track, position) =>
           download(source[track], temporary[position], signal, (downloaded, total) => {
@@ -186,9 +191,12 @@ async function fetchSource(
           })
         )
       );
-      report({ stage: "merging", percent: 0, message: "正在合并音视频…" }, true);
+      report(
+        { stage: "merging", percent: 0, message: "正在合并音视频…", code: "video.merge" },
+        true
+      );
       await merge(temporary[0], temporary[1], temporary[2], signal, percent =>
-        report({ stage: "merging", percent, message: "正在合并音视频…" })
+        report({ stage: "merging", percent, message: "正在合并音视频…", code: "video.merge" })
       );
       await fs.rename(temporary[2], output);
     } else {
@@ -204,9 +212,17 @@ async function fetchSource(
         onProgress: progress =>
           report(
             progress.stage === "merging"
-              ? { stage: "merging", percent: progress.percent, message: progress.message }
+              ? {
+                  stage: "merging",
+                  percent: progress.percent,
+                  message: progress.message,
+                  code: progress.code,
+                  params: progress.params,
+                }
               : {
                   stage: "downloading",
+                  code: progress.code,
+                  params: progress.params,
                   message: progress.message,
                   percent: progress.percent,
                   ...(progress.type
@@ -273,7 +289,7 @@ export async function ensureOnlineVideo(
           lastAccessed: now,
         };
       });
-      report({ stage: "completed", message: "视频已就绪" }, true);
+      report({ stage: "completed", message: "视频已就绪", code: "video.ready" }, true);
       return { localPath, fileSize: size, cached: false };
     })().finally(() => flights.delete(id));
     // 全部等待方都已离开时下载被中止，失败不再有人接收。

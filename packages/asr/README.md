@@ -15,6 +15,8 @@
 
 准确类型以 [types.ts](./src/types.ts) 为准。`ASRTask<T>` 允许宿主保留内部结果扩展；提供方的私有数据不自动成为公共契约。
 
+进度事件保留原 `stage`、`fraction` 和可选 `message`，另可携带不透明的显示 `code` 与 JSON 原始类型 `params`。运行时原样传递这些事实，不读取 locale 或词典；消费者只在界面解释已知 code，未知提供方消息保留原文，数值进度不从显示文字反推。
+
 ## 文件与实时任务
 
 `createASRTask(options, execute)` 固定 taskId 与外部信号，生成递增事件序号，验证分段与最终结果。执行函数的 finally 负责释放文件、子进程和连接，完成或取消后迟到事件不再交付。调用方可稍后订阅原 result 拒绝，不产生无人观察的拒绝。

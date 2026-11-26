@@ -1,3 +1,4 @@
+import type { MediaProgressSemantic } from "../../../shared/media-progress";
 import { ipcMain, WebContents } from "electron";
 import path from "node:path";
 import fs from "node:fs/promises";
@@ -21,7 +22,7 @@ interface RemoteVideoCacheConfig {
   entries: Record<string, RemoteVideoCacheEntry>;
 }
 
-interface RemoteVideoProgressEvent {
+interface RemoteVideoProgressEvent extends MediaProgressSemantic {
   requestId: number;
   stage: "downloading" | "completed" | "error";
   progress: number;
@@ -174,6 +175,8 @@ async function downloadFileWithProgress(
           stage: "downloading",
           progress: percent,
           message: `Downloading video... ${percent.toFixed(1)}%`,
+          code: "video.remote.downloading",
+          params: { percent },
           downloaded: downloadedSize,
           total: totalSize,
         });
@@ -235,6 +238,7 @@ async function cacheRemoteVideo(
         stage: "downloading",
         progress: 0,
         message: "Starting video download...",
+        code: "video.remote.start",
         downloaded: 0,
         total: 0,
       });
@@ -265,6 +269,8 @@ async function cacheRemoteVideo(
         stage: "completed",
         progress: 100,
         message: `Download completed (${(fileSize / 1024 / 1024).toFixed(2)}MB)`,
+        code: "video.remote.completed",
+        params: { fileSize },
         downloaded: fileSize,
         total: fileSize,
       });
@@ -282,6 +288,8 @@ async function cacheRemoteVideo(
         stage: "error",
         progress: 0,
         message: `Download failed: ${error instanceof Error ? error.message : String(error)}`,
+        code: "video.remote.error",
+        params: { error: error instanceof Error ? error.message : String(error) },
       });
     }
 

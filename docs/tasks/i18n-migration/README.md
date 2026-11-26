@@ -338,6 +338,8 @@ P7 MCP声明：SDK新增PluginMCPDeclaration，默认PluginMCPDefinition<string>
 
 项目回顾/PDF6路径完成；既有回顾4例、desktop type/三语复数参数/范围检查通过。独立AST证明原讨论prompt、addChild/openEntity payload与全部effect/memo/callback依赖保持，纯UI未补锁文字测试；视频与网页专属大界面另批。
 
+P6 Native媒体进度：41路径加Root ASR/desktop文档2完成；桌面12文件39例、source4、ASR14、shared1通过，原Windows环境门控10skip保留；desktop/ASR类型、三语21 producer-code非空审计、纯binding实际标记/范围静态格式通过。真实Native→ASRTask→structuredClone IPC→commands验证fraction-only一次完整到达，唯一行为修复为删除原message truthy门槛，无合成timer/重试。0/25/29/98/100真实数值回调AST执行保MarkItDown30+percent*.3/Vibe整数，字幕/文件名/原stage/bytes/空message/unknown保持。4枚新增有意envelope unused改最小void后静态绿，native/下载/取消参数与调度不改。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

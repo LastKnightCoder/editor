@@ -1,3 +1,5 @@
+import type { MediaProgress } from "../../../shared/media-progress";
+import { mediaProgressText } from "@/services/media-progress.binding";
 import { desktopI18n } from "@/app/i18n/runtime";
 import type { checkLLMOptimizationConfig } from "@/utils/transcription";
 import { videoTranscriptionMessages } from "./video-transcription.messages";
@@ -6,14 +8,19 @@ import { VideoTranscriptionFailure } from "./video-transcription-error";
 export const videoTranscriptionT = desktopI18n.get(videoTranscriptionMessages).t;
 
 export type VideoTranscriptionProgress =
-  | { kind: "raw"; message: string }
+  | { kind: "service"; progress: MediaProgress; downloadPercent?: number; download?: true }
   | { kind: "downloading"; percent?: number }
   | { kind: "segmented"; minutes: number }
   | { kind: "preparing" | "extracting" | "checking" | "transcribing" | "optimizing" | "saving" };
 
 export function videoTranscriptionProgressText(value: VideoTranscriptionProgress | null): string {
   if (!value) return "";
-  if (value.kind === "raw") return value.message;
+  if (value.kind === "service") {
+    const fallback = value.download
+      ? videoTranscriptionProgressText({ kind: "downloading", percent: value.downloadPercent })
+      : "";
+    return mediaProgressText(value.progress, fallback);
+  }
   const number = (value: number) =>
     value.toLocaleString(desktopI18n.getSnapshot(), { useGrouping: false });
   if (value.kind === "downloading")

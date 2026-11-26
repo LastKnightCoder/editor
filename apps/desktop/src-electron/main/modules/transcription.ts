@@ -1,3 +1,4 @@
+import type { TranscriptionProgress } from "../../../shared/media-progress";
 import { ipcMain, app } from "electron";
 import path from "path";
 import { randomUUID } from "node:crypto";
@@ -55,9 +56,9 @@ class TranscriptionModule implements Module {
               audioPath,
               options,
               signal,
-              message => {
+              progress => {
                 if (!signal.aborted && !event.sender.isDestroyed())
-                  event.sender.send("transcription-progress", { taskId, message });
+                  event.sender.send("transcription-progress", { ...progress, taskId });
               },
               taskId
             )
@@ -166,9 +167,9 @@ class TranscriptionModule implements Module {
       async (event, audioPath: string, options: TranscriptionOptions, taskId: string) => {
         try {
           const data = await this.tasks.run(event.sender, taskId, async signal => {
-            const progress = (message: string) => {
+            const progress = (progress: TranscriptionProgress) => {
               if (!signal.aborted && !event.sender.isDestroyed())
-                event.sender.send("transcription-progress", { taskId, message });
+                event.sender.send("transcription-progress", { ...progress, taskId });
             };
             const { shouldSegment, duration } = await this.queueManager.shouldSegmentAudio(
               audioPath,
@@ -203,7 +204,7 @@ class TranscriptionModule implements Module {
     audioPath: string,
     options: TranscriptionOptions,
     signal: AbortSignal,
-    onProgress?: (message: string) => void,
+    onProgress?: (progress: TranscriptionProgress) => void,
     taskId: string = randomUUID()
   ): Promise<TranscriptionResult> {
     const provider = createLocalFileASR(this.service, options);
@@ -215,7 +216,13 @@ class TranscriptionModule implements Module {
         taskId,
         signal,
         onEvent: event => {
-          if (event.type === "progress" && event.message) onProgress?.(event.message);
+          if (event.type === "progress") {
+            const { type: _type, taskId: _taskId, seq: _seq, ...progress } = event;
+            void _type;
+            void _taskId;
+            void _seq;
+            onProgress?.(progress);
+          }
         },
       }
     );
@@ -250,7 +257,7 @@ class TranscriptionModule implements Module {
   async transcribeAudio(
     audioPath: string,
     options: TranscriptionOptions = {},
-    onProgress?: (message: string) => void
+    onProgress?: (progress: TranscriptionProgress) => void
   ): Promise<{
     success: boolean;
     data?: TranscriptionResult;

@@ -130,12 +130,13 @@ export async function processMediaResource(
       const transcriptionResult = await transcriptionModule.transcribeAudio(
         audioPath,
         transcriptionOptions,
-        (msg: string) => {
-          const match = msg.match(/(\d+)%/);
-          if (match) {
+        progress => {
+          const percent =
+            progress.fraction !== undefined ? Math.round(progress.fraction * 100) : undefined;
+          if (percent !== undefined) {
             manager.sendStatusWithProgress(resourceId, "transcribing", {
               total: 100,
-              completed: parseInt(match[1]),
+              completed: percent,
               failed: 0,
               inProgress: 1,
             });

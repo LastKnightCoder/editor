@@ -53,7 +53,16 @@ it("下载时携带插件给出的请求头，缓存命中后不再向插件取�
     "https://cdn.test/a.mp4",
     { headers: { Referer: "https://site.test/" } },
   ]);
-  expect(progress).toHaveBeenLastCalledWith(expect.objectContaining({ stage: "completed" }));
+  expect(progress).toHaveBeenLastCalledWith(
+    expect.objectContaining({ stage: "completed", code: "video.ready", message: "视频已就绪" })
+  );
+  expect(progress.mock.calls[0][0]).toMatchObject({
+    code: "video.downloading",
+    stage: "downloading",
+    downloaded: 4,
+    total: 4,
+    percent: 100,
+  });
   const index = JSON.parse(await readFile(join(state.dir, "online-video-cache.json"), "utf8"));
   expect(JSON.stringify(index)).not.toContain("Referer");
 

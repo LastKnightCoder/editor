@@ -1,3 +1,4 @@
+import type { TranscriptionProgress } from "../../../shared/media-progress";
 import type { EngineOptions } from "../../../shared/local-transcription";
 import { app, shell } from "electron";
 import { ASRError, throwIfASRAborted, waitForASR } from "@tau/asr";
@@ -398,7 +399,7 @@ export class TranscriptionService {
   async transcribe(
     audioPath: string,
     options: TranscriptionOptions = {},
-    onProgress?: (message: string) => void,
+    onProgress?: (progress: TranscriptionProgress) => void,
     signal = new AbortController().signal
   ): Promise<TranscriptionResult> {
     throwIfASRAborted(signal);
@@ -421,7 +422,11 @@ export class TranscriptionService {
     const startedAt = Date.now();
     try {
       throwIfASRAborted(signal);
-      onProgress?.("正在准备识别音频...");
+      onProgress?.({
+        message: "正在准备识别音频...",
+        code: "transcription.audio.prepare",
+        stage: "recognizing",
+      });
       const ffmpeg = await waitForASR(FfmpegService.ensureFluentFfmpegPath(), signal);
       throwIfASRAborted(signal);
       const input = path.join(temporary, "input.wav");

@@ -1,3 +1,4 @@
+import type { TranscriptionProgress } from "../../../../shared/media-progress";
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
@@ -54,7 +55,7 @@ describe("ASR 子进程", () => {
     ).rejects.toMatchObject({ code: "internal", message: "转录处理程序异常退出（7）" });
   });
   it("进度和语言解析保持有界，并处理跨块语言日志", async () => {
-    const updates: string[] = [];
+    const updates: TranscriptionProgress[] = [];
     const result = await runASRProcess(
       process.execPath,
       [
@@ -65,6 +66,12 @@ describe("ASR 子进程", () => {
       message => updates.push(message)
     );
     expect(result.language).toEqual({ language: "zh", probability: 0.98 });
-    expect(updates).toContain("正在转录 ... 25%");
+    expect(updates).toContainEqual({
+      message: "正在转录 ... 25%",
+      code: "transcription.recognizing",
+      params: { percent: 25 },
+      stage: "recognizing",
+      fraction: 0.25,
+    });
   });
 });

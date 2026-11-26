@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createLocalFileASR, localASRAudioFile } from "../asr-whisper";
+import type { ASREvent } from "@tau/asr";
 import type { TranscriptionService } from "../whisper-engine";
 
 const roots: string[] = [];
@@ -45,11 +46,24 @@ describe("Whisper 文件提供方", () => {
     roots.push(root);
     const file = path.join(root, "中文.wav");
     await writeFile(file, "audio");
+    const progress = {
+      stage: "uploading" as const,
+      fraction: 0.29,
+      code: "transcription.recognizing",
+      params: { percent: 29, flag: true, detail: null },
+    };
+    mock.transcribe.mockImplementationOnce(async (_file, _options, report) => {
+      report?.(progress);
+      return original;
+    });
+    const events: ASREvent[] = [];
     const task = await provider.transcribeFile(
       { audio: await localASRAudioFile(file), language: "zh-CN" },
-      { taskId: "one", signal, onEvent() {} }
+      { taskId: "one", signal, onEvent: event => events.push(event) }
     );
     const result = await task.result;
+    const updates = events.filter(event => event.type === "progress");
+    expect(updates).toEqual([{ taskId: "one", seq: 1, type: "progress", ...progress }]);
     expect(result.words).toEqual([{ text: "中文", startMs: 20, endMs: 900 }]);
     expect(result).not.toHaveProperty("languageConfidence");
     expect(mock.transcribe.mock.calls[0][1]).toMatchObject({

@@ -1,3 +1,4 @@
+import type { TranscriptionProgress } from "../../../shared/media-progress";
 import { EventEmitter } from "events";
 import path from "path";
 import { app } from "electron";
@@ -108,7 +109,7 @@ export class TranscriptionQueueManager extends EventEmitter {
     segments: AudioSegmentInfo[],
     options: TranscriptionOptions,
     transcribeFunc: TranscribeFunction,
-    onProgress: (message: string) => void,
+    onProgress: (progress: TranscriptionProgress) => void,
     signal = new AbortController().signal
   ): Promise<TranscriptionResult> {
     const lifetime = new AbortController();
@@ -120,7 +121,11 @@ export class TranscriptionQueueManager extends EventEmitter {
     let failure: unknown;
     try {
       throwIfASRAborted(lifetime.signal);
-      onProgress(`准备音频分段 (0/${segments.length})...`);
+      onProgress({
+        message: `准备音频分段 (0/${segments.length})...`,
+        code: "transcription.segments.prepare",
+        params: { current: 0, total: segments.length },
+      });
       for (const segment of segments) {
         throwIfASRAborted(lifetime.signal);
         await MediaUtil.extractAudioSegmentForTranscription(
@@ -131,7 +136,11 @@ export class TranscriptionQueueManager extends EventEmitter {
           undefined,
           lifetime.signal
         );
-        onProgress(`已准备分段 ${segment.segmentIndex + 1}/${segments.length}`);
+        onProgress({
+          message: `已准备分段 ${segment.segmentIndex + 1}/${segments.length}`,
+          code: "transcription.segments.ready",
+          params: { current: segment.segmentIndex + 1, total: segments.length },
+        });
       }
       const worker = async () => {
         while (next < segments.length && !lifetime.signal.aborted) {
@@ -143,7 +152,11 @@ export class TranscriptionQueueManager extends EventEmitter {
             segment.status = "completed";
             segment.result = result;
             completedResults.push({ index: segment.segmentIndex, result });
-            onProgress(`已转录 ${completedResults.length}/${segments.length} 个分段`);
+            onProgress({
+              message: `已转录 ${completedResults.length}/${segments.length} 个分段`,
+              code: "transcription.segments.done",
+              params: { current: completedResults.length, total: segments.length },
+            });
           } catch (error) {
             segment.status = "failed";
             failure ??= error;
@@ -156,7 +169,7 @@ export class TranscriptionQueueManager extends EventEmitter {
       );
       if (failure) throw failure;
       throwIfASRAborted(lifetime.signal);
-      onProgress("合并转录结果...");
+      onProgress({ message: "合并转录结果...", code: "transcription.segments.merge" });
       return this.mergeResults(segments, completedResults);
     } finally {
       signal.removeEventListener("abort", abort);

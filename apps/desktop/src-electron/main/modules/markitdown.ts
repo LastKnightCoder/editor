@@ -457,14 +457,11 @@ class MarkItDownModule implements Module {
           wordTimestamps: transcriptionWordTimestamps ?? saved.options.wordTimestamps,
           modelDir: transcriptionModelDir,
         },
-        message => {
-          const match = message.match(/(\d+)%/);
-          if (match) {
-            this.sendProgress(
-              "transcribing",
-              30 + Number(match[1]) * 0.3,
-              `正在转录... ${match[1]}%`
-            );
+        progress => {
+          const percent =
+            progress.fraction !== undefined ? Math.round(progress.fraction * 100) : undefined;
+          if (percent !== undefined) {
+            this.sendProgress("transcribing", 30 + percent * 0.3, `正在转录... ${percent}%`);
           }
         }
       );

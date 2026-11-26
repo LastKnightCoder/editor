@@ -83,13 +83,7 @@ const Application = () => {
           { url: options.url, fileName: options.fileName },
           onProgress
             ? progress => {
-                onProgress({
-                  progress: progress.progress,
-                  stage: progress.stage,
-                  message: progress.message,
-                  downloaded: progress.downloaded,
-                  total: progress.total,
-                });
+                onProgress({ ...progress });
               }
             : undefined
         );

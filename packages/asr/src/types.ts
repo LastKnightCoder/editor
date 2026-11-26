@@ -73,7 +73,14 @@ export type ASREventPayload =
       deleteCount: number;
       segments: readonly ASRSegment[];
     }
-  | { type: "progress"; stage: "uploading" | "recognizing"; fraction?: number; message?: string };
+  | {
+      type: "progress";
+      stage: "uploading" | "recognizing";
+      fraction?: number;
+      message?: string;
+      code?: string;
+      params?: Record<string, string | number | boolean | null>;
+    };
 export type ASREvent = { taskId: string; seq: number } & ASREventPayload;
 export interface ASRRunOptions {
   taskId: string;

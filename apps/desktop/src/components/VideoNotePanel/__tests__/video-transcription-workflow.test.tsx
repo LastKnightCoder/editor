@@ -180,6 +180,18 @@ it("下载与分段识别中换语保持同一任务和原语言参数，原服�
     expect(wire.extract).not.toHaveBeenCalled();
     expect(wire.save).not.toHaveBeenCalled();
   }
+  const known = {
+    progress: 31,
+    message: "服务原进度：31%",
+    code: "video.remote.downloading",
+    params: { percent: 31 },
+  };
+  await act(async () => progress(known));
+  expect(workflow.progress).not.toBe(known.message);
+  const translated = workflow.progress;
+  await act(async () => desktopLocaleSource.setLocale("en-US"));
+  expect(workflow.progress).not.toBe(translated);
+  expect(wire.download).toHaveBeenCalledTimes(1);
   await act(async () => progress({ progress: 31, message: "服务原进度：31%" }));
   await act(async () => desktopLocaleSource.setLocale("en-US"));
   expect(workflow.progress).toBe("服务原进度：31%");

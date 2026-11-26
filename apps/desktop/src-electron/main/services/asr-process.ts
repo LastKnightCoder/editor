@@ -1,3 +1,4 @@
+import type { TranscriptionProgress } from "../../../shared/media-progress";
 import { spawn } from "node:child_process";
 import { ASRError, asrAbortError, throwIfASRAborted } from "@tau/asr";
 import { parseLanguageFromLogs } from "../utils/transcription-language";
@@ -16,7 +17,7 @@ export function runASRProcess(
   binary: string,
   args: string[],
   signal: AbortSignal,
-  onProgress?: (message: string) => void,
+  onProgress?: (progress: TranscriptionProgress) => void,
   onOutputLine?: (line: string) => void
 ) {
   throwIfASRAborted(signal);
@@ -53,7 +54,13 @@ export function runASRProcess(
           if (percent <= 100 && percent !== previousProgress) {
             previousProgress = percent;
             try {
-              onProgress?.(`正在转录 ... ${percent}%`);
+              onProgress?.({
+                message: `正在转录 ... ${percent}%`,
+                code: "transcription.recognizing",
+                params: { percent },
+                stage: "recognizing",
+                fraction: percent / 100,
+              });
             } catch (error) {
               failure = error;
               cancel();

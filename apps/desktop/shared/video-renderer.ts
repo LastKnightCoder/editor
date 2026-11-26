@@ -1,3 +1,4 @@
+import type { MediaProgressSemantic } from "./media-progress";
 import type { ResolvedVideo, VideoPlaybackSource, VideoRef, VideoCaptions } from "@tau/plugins";
 
 /** 在线视频提供方请求：主窗口渲染宿主按当前设置创建插件实例后执行。 */
@@ -43,7 +44,7 @@ export interface VideoRendererReply {
 }
 
 /** 在线视频缓存进度，音视频分流下载时分别给出两路字节数。 */
-export interface OnlineVideoCacheProgress {
+export interface OnlineVideoCacheProgress extends MediaProgressSemantic {
   requestId: string;
   stage: "downloading" | "merging" | "completed";
   message?: string;

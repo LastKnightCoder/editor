@@ -1,3 +1,4 @@
+import type { TranscriptionProgress } from "../../../shared/media-progress";
 import { TranscriptionService, type TranscriptionOptions } from "./whisper-engine";
 import { groupTimedWords } from "./subtitle-cues";
 import { transcribeQwen } from "./qwen/engine";
@@ -6,7 +7,7 @@ export class LocalTranscriptionService extends TranscriptionService {
   override async transcribe(
     audio: string,
     options: TranscriptionOptions = {},
-    progress?: (message: string) => void,
+    progress?: (progress: TranscriptionProgress) => void,
     signal = new AbortController().signal
   ) {
     if (options.engine === "qwen")

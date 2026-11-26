@@ -1,3 +1,4 @@
+import type { MediaProgressSemantic } from "../../../shared/media-progress";
 import { spawn } from "node:child_process";
 import * as fs from "node:fs/promises";
 import { createWriteStream } from "node:fs";
@@ -52,7 +53,7 @@ interface RawYtDlpInfo extends SubtitleInfo {
   duration?: number;
 }
 
-export interface YtDlpDownloadProgress {
+export interface YtDlpDownloadProgress extends MediaProgressSemantic {
   stage: "downloading" | "merging";
   percent: number;
   downloadedBytes?: number;
@@ -306,6 +307,8 @@ export default class YtDlpService {
             downloadedBytes,
             totalBytes: totalSize,
             type: currentType,
+            code: "video.track.downloading",
+            params: { percent, track: currentType ?? "all" },
             message:
               currentType === "video"
                 ? `正在下载视频 ${percent.toFixed(1)}%`
@@ -326,6 +329,7 @@ export default class YtDlpService {
             stage: "merging",
             percent: 95,
             message: "正在合并音视频...",
+            code: "video.merge",
           });
           return;
         }
@@ -341,6 +345,8 @@ export default class YtDlpService {
               downloadedBytes: totalSize,
               totalBytes: totalSize,
               type: currentType,
+              code: "video.track.completed",
+              params: { track: currentType ?? "all" },
               message:
                 currentType === "video"
                   ? "视频下载完成"

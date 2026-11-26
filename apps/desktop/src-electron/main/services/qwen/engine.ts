@@ -1,3 +1,4 @@
+import type { TranscriptionProgress } from "../../../../shared/media-progress";
 import fs from "fs-extra";
 import path from "node:path";
 import os from "node:os";
@@ -55,7 +56,7 @@ export async function transcribeQwen(
   audio: string,
   options: TranscriptionOptions,
   signal: AbortSignal,
-  progress?: (message: string) => void
+  progress?: (progress: TranscriptionProgress) => void
 ): Promise<TranscriptionResult> {
   if (!qwenSupported()) throw new ASRError("unsupported", "当前设备不支持 Qwen 本地转录");
   const timed = options.output !== "text";

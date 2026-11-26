@@ -47,6 +47,18 @@ describe("转录命令作用域", () => {
       listener({}, { taskId: pending[1].id, message: "第二个任务" });
     expect(firstProgress).not.toHaveBeenCalled();
     expect(secondProgress).toHaveBeenCalledWith({ message: "第二个任务" });
+    const structured = {
+      stage: "uploading",
+      fraction: 0.29,
+      code: "transcription.recognizing",
+      params: { percent: 29, flag: true, detail: null },
+    };
+    for (const listener of mocks.listeners) listener({}, { ...structured, taskId: pending[1].id });
+    expect(secondProgress).toHaveBeenCalledTimes(2);
+    expect(secondProgress).toHaveBeenLastCalledWith(structured);
+    expect(firstProgress).not.toHaveBeenCalled();
+    for (const listener of mocks.listeners) listener({}, { taskId: pending[1].id, message: "" });
+    expect(secondProgress).toHaveBeenLastCalledWith({ message: "" });
     controller.abort();
     expect(mocks.invoke).toHaveBeenCalledWith("transcription-cancel", pending[0].id);
     pending[0].resolve({ success: true, data: { text: "迟到" } });

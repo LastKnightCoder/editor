@@ -1,7 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 
+interface VideoProgressSemantic {
+  code?: string;
+  params?: Record<string, string | number | boolean | null>;
+  fraction?: number;
+}
+
 // Type definitions
-export interface RemoteVideoStreamProgress {
+export interface RemoteVideoStreamProgress extends VideoProgressSemantic {
   downloaded: number;
   total: number;
   stage: "downloading" | "completed" | "error";
@@ -19,7 +25,7 @@ export interface UseRemoteVideoResult {
 }
 
 // Platform-agnostic progress type
-export interface RemoteVideoCacheProgress {
+export interface RemoteVideoCacheProgress extends VideoProgressSemantic {
   progress: number;
   stage: string;
   message?: string;
@@ -79,6 +85,8 @@ export function useRemoteVideo(src?: string, deps?: UseRemoteVideoDeps): UseRemo
             total: cacheStatus.fileSize || 0,
             stage: "completed",
             message: `Using cached file (${((cacheStatus.fileSize || 0) / 1024 / 1024).toFixed(2)}MB)`,
+            code: "video.remote.cached",
+            params: { fileSize: cacheStatus.fileSize || 0 },
             percent: 100,
           });
 
@@ -97,6 +105,7 @@ export function useRemoteVideo(src?: string, deps?: UseRemoteVideoDeps): UseRemo
           total: 0,
           stage: "downloading",
           message: "Starting video download...",
+          code: "video.remote.start",
           percent: 0,
         });
 
@@ -107,6 +116,9 @@ export function useRemoteVideo(src?: string, deps?: UseRemoteVideoDeps): UseRemo
             total: progress.total || 0,
             stage: progress.stage as "downloading" | "completed" | "error",
             message: progress.message,
+            code: progress.code,
+            params: progress.params,
+            fraction: progress.fraction,
             percent: progress.progress,
           });
         });
@@ -117,6 +129,8 @@ export function useRemoteVideo(src?: string, deps?: UseRemoteVideoDeps): UseRemo
           downloaded: result.fileSize,
           total: result.fileSize,
           stage: "completed",
+          code: result.cached ? "video.remote.cached" : "video.remote.completed",
+          params: { fileSize: result.fileSize },
           message: result.cached
             ? `Using cached file (${(result.fileSize / 1024 / 1024).toFixed(2)}MB)`
             : `Download completed (${(result.fileSize / 1024 / 1024).toFixed(2)}MB)`,

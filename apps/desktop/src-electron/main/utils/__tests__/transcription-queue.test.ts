@@ -1,3 +1,4 @@
+import type { TranscriptionProgress } from "../../../../shared/media-progress";
 // @vitest-environment node
 import { readFile, writeFile, readdir } from "node:fs/promises";
 import path from "node:path";
@@ -30,6 +31,7 @@ describe("长音频任务队列", () => {
     const first = await queue.createSegments("source", 4);
     const second = await queue.createSegments("source", 1);
     expect(path.dirname(first[0].audioPath)).not.toBe(path.dirname(second[0].audioPath));
+    const updates: TranscriptionProgress[] = [];
     const merged = await queue.processQueue(
       "source",
       first,
@@ -40,8 +42,22 @@ describe("长音频任务队列", () => {
         await new Promise(resolve => setTimeout(resolve, index === 0 ? 20 : 1));
         return result(String(index));
       },
-      () => {}
+      progress => updates.push(progress)
     );
+    expect(updates[0]).toEqual({
+      message: "准备音频分段 (0/4)...",
+      code: "transcription.segments.prepare",
+      params: { current: 0, total: 4 },
+    });
+    expect(
+      updates
+        .filter(event => event.code === "transcription.segments.done")
+        .map(event => event.params?.current)
+    ).toEqual([1, 2, 3, 4]);
+    expect(updates.at(-1)).toEqual({
+      message: "合并转录结果...",
+      code: "transcription.segments.merge",
+    });
     expect(merged.text).toBe("0 1 2 3");
     expect(merged.segments.map(s => s.start)).toEqual([0, 1000, 2000, 3000]);
     await expect(readdir(path.dirname(first[0].audioPath))).rejects.toMatchObject({

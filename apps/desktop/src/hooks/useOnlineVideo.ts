@@ -41,7 +41,9 @@ export function useOnlineVideo(meta: object | null | undefined): UseOnlineVideoR
         videoUrl: null,
         loading: !ready,
         error: ready ? `需要在插件中心安装并启用「${providerId}」插件` : null,
-        streamProgress: ready ? null : { stage: "preparing", message: "正在准备…" },
+        streamProgress: ready
+          ? null
+          : { stage: "preparing", message: "正在准备…", code: "video.source.preparing" },
       });
       return;
     }
@@ -50,7 +52,11 @@ export function useOnlineVideo(meta: object | null | undefined): UseOnlineVideoR
       videoUrl: null,
       loading: true,
       error: null,
-      streamProgress: { stage: "preparing", message: "正在获取视频信息…" },
+      streamProgress: {
+        stage: "preparing",
+        message: "正在获取视频信息…",
+        code: "video.source.info",
+      },
     });
     ensureOnlineVideo(
       { providerId, ref: JSON.parse(refKey), title },
@@ -59,7 +65,12 @@ export function useOnlineVideo(meta: object | null | undefined): UseOnlineVideoR
         onProgress: progress =>
           setState(current => ({
             ...current,
-            streamProgress: { ...current.streamProgress, ...progress },
+            streamProgress: {
+              ...current.streamProgress,
+              ...progress,
+              code: progress.code,
+              params: progress.params,
+            },
           })),
       }
     )

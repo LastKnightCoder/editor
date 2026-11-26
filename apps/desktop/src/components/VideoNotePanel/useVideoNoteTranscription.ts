@@ -1,3 +1,4 @@
+import type { TranscriptionProgress } from "../../../shared/media-progress";
 import { useVideoTranscriptionI18n } from "./video-transcription.i18n";
 import {
   createVideoLlmConfirm,
@@ -121,14 +122,12 @@ export function useVideoNoteTranscription({
 
       setProgress({ kind: "downloading" });
       const result = await downloadRemoteVideoWithProgress({ url: remoteUrl }, p => {
-        setProgress(
-          p.message
-            ? { kind: "raw", message: p.message }
-            : {
-                kind: "downloading",
-                percent: typeof p.progress === "number" ? p.progress : undefined,
-              }
-        );
+        setProgress({
+          kind: "service",
+          progress: p,
+          download: true,
+          downloadPercent: typeof p.progress === "number" ? p.progress : undefined,
+        });
       });
       return result.localPath || null;
     };
@@ -142,14 +141,12 @@ export function useVideoNoteTranscription({
       { providerId: metaInfo.type, ref: onlineVideoRef(metaInfo), title: metaInfo.title },
       {
         onProgress: p => {
-          setProgress(
-            p.message
-              ? { kind: "raw", message: p.message }
-              : {
-                  kind: "downloading",
-                  percent: typeof p.percent === "number" ? p.percent : undefined,
-                }
-          );
+          setProgress({
+            kind: "service",
+            progress: p,
+            download: true,
+            downloadPercent: typeof p.percent === "number" ? p.percent : undefined,
+          });
         },
       }
     );
@@ -234,8 +231,8 @@ export function useVideoNoteTranscription({
         if (!segmented) setProgress({ kind: "transcribing" });
 
         const run = {
-          onProgress: (data: { message: string }) =>
-            setProgress({ kind: "raw", message: data.message }),
+          onProgress: (data: TranscriptionProgress) =>
+            setProgress({ kind: "service", progress: data }),
         };
         const result = await (segmented
           ? transcribeAudioSegmented(audioPath, options, run)

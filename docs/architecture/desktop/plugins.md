@@ -44,6 +44,8 @@
 
 ## 文件转录与 ASR
 
+本机媒体进度使用原stage/fraction/percent/bytes与可选opaque code/params。队列、Whisper/Qwen及下载producer在原事件时点提供显示语义，ASRTask、IPC和commands完整传递，renderer以已知code投影、未知message保真。fraction-only事件同样交付，不合成新时钟；MarkItDown与资料索引仅取原fraction数值事实，不把显示code用于队列判断。
+
 文件语音识别的公共契约与运行时在 [@tau/asr](/packages/asr/README.md)。`transcription` 仍是 BACKGROUND 模块：窗口文件与分段命令通过内置 `createLocalFileASR`，结果交回现有媒体流程；`whisper-engine.ts` 复用既有程序与模型目录，先由 ffmpeg 转为 16 kHz 单声道 PCM Int16 WAV，每次识别独占临时目录，进程正常退出且本次 SRT 可读才交付结果；Windows XXL 的特定退出阶段故障按下述完成证明恢复。词级结果保留原始对齐；旧媒体字段仅在宿主结果扩展 `sourceResult` 中保留，不把推断置信度或字幕末尾时刻当作公共 ASR 的测量值。
 
 本地文件转录设置按引擎保存 Whisper 型号与 Qwen3-ASR 型号。旧设置沿用 Whisper 和原有的词级、AI 断句偏好。视频笔记按任务快照执行「本次转录设置」，学习资料与文件导入在任务开始时读取默认设置。纯文字跳过对齐与 AI，字幕可组合自动或 AI 断句和逐词时间保留；AI 用到的词级时间仅在用户选择保留时随视频笔记保存。

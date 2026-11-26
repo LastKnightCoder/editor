@@ -1,3 +1,4 @@
+import type { TranscriptionProgress } from "../../shared/media-progress";
 import type { EngineOptions } from "../../shared/local-transcription";
 import { invoke, on, off } from "@/electron";
 import { ASRError, throwIfASRAborted, type ASRErrorCode } from "@tau/asr";
@@ -49,7 +50,7 @@ export interface TranscriptionResponse {
  */
 export interface TranscriptionRunOptions {
   signal?: AbortSignal;
-  onProgress?: (data: { message: string }) => void;
+  onProgress?: (data: TranscriptionProgress) => void;
 }
 
 async function runTranscription(
@@ -66,8 +67,12 @@ async function runTranscription(
   await ensureModule("transcription");
   throwIfASRAborted(signal);
   const taskId = crypto.randomUUID();
-  const progress = (_event: unknown, data: { taskId: string; message: string }) => {
-    if (!signal.aborted && data.taskId === taskId) run.onProgress?.({ message: data.message });
+  const progress = (_event: unknown, data: TranscriptionProgress & { taskId: string }) => {
+    if (!signal.aborted && data.taskId === taskId) {
+      const { taskId: _taskId, ...progress } = data;
+      void _taskId;
+      run.onProgress?.(progress);
+    }
   };
   const cancel = () => {
     void window.electron.invoke("transcription-cancel", taskId).catch(() => undefined);

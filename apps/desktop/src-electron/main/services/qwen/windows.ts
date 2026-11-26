@@ -1,3 +1,4 @@
+import type { TranscriptionProgress } from "../../../../shared/media-progress";
 import fs from "fs-extra";
 import type { QwenDevice } from "../../../../shared/local-transcription";
 import path from "node:path";
@@ -26,7 +27,7 @@ export async function transcribeWindows(
   language: string,
   device: QwenDevice,
   signal: AbortSignal,
-  progress?: (message: string) => void
+  progress?: (progress: TranscriptionProgress) => void
 ): Promise<TranscriptionResult> {
   const dir = path.dirname(input);
   const transcript = path.join(dir, "transcript.txt");
@@ -71,7 +72,16 @@ export async function transcribeWindows(
       "clamp_timestamps_to_audio=true"
     );
   const duration = await MediaUtil.getMediaDuration(input, signal);
-  progress?.(gpu ? "正在使用 " + gpu.description + " 转录…" : "正在使用 Qwen 在本机转录…");
+  progress?.(
+    gpu
+      ? {
+          message: "正在使用 " + gpu.description + " 转录…",
+          code: "transcription.gpu",
+          params: { device: gpu.description },
+          stage: "recognizing",
+        }
+      : { message: "正在使用 Qwen 在本机转录…", code: "transcription.qwen", stage: "recognizing" }
+  );
   try {
     await runASRProcess(executable, args, signal, progress);
   } catch (error) {
