@@ -23,6 +23,8 @@ import {
   ToolValuePill,
 } from "@tau/chat-ui";
 
+import { useToolActivityI18n, subagentStatusLabel } from "./activity.i18n";
+
 const getPayload = (metadata?: Record<string, unknown>): SubAgentResearchPayload | null => {
   const render =
     metadata?.render && typeof metadata.render === "object"
@@ -39,15 +41,6 @@ const getPayload = (metadata?: Record<string, unknown>): SubAgentResearchPayload
     return null;
   }
   return payload;
-};
-
-const statusLabel: Record<string, string> = {
-  pending: "等待中",
-  running: "调研中",
-  success: "已完成",
-  partial_success: "部分完成",
-  failed: "失败",
-  cancelled: "已取消",
 };
 
 /** 状态 = 小图标 + 语义色文字（不上彩色实底徽章） */
@@ -101,11 +94,12 @@ const getTaskDuration = (task: SubAgentTaskView, now: number) => {
 };
 
 const StatusBadge = ({ status }: { status: string; isDark: boolean }) => {
+  const { t } = useToolActivityI18n();
   const visual = statusVisual(status);
   return (
     <span className={cn("text-tau-sm inline-flex shrink-0 items-center gap-1", visual.className)}>
       <StatusIcon status={status} />
-      {statusLabel[status] || status}
+      {subagentStatusLabel(status, t)}
     </span>
   );
 };
@@ -123,8 +117,9 @@ const ToolExecutionList = ({
   isDark: boolean;
   markdownComponents: Record<string, ElementType>;
 }) => {
+  const { t } = useToolActivityI18n();
   if (executions.length === 0) {
-    return <ToolMutedText isDark={isDark}>未调用工具。</ToolMutedText>;
+    return <ToolMutedText isDark={isDark}>{t("activity.noTools")}</ToolMutedText>;
   }
 
   return (
@@ -150,34 +145,37 @@ const TaskTabs = ({
   activeTaskId: string;
   onChange: (taskId: string) => void;
   isDark: boolean;
-}) => (
-  <div
-    role="tablist"
-    data-testid="subagent-tabs"
-    aria-label="SubAgent 任务"
-    className="flex max-h-28 shrink-0 flex-wrap gap-1 overflow-y-auto"
-  >
-    {tasks.map(task => {
-      const active = task.id === activeTaskId;
-      return (
-        <button
-          key={task.id}
-          type="button"
-          role="tab"
-          aria-selected={active}
-          className={cn(
-            "text-tau-sm rounded-tau-sm ease-tau-out inline-flex max-w-[220px] shrink-0 items-center gap-1.5 px-2.5 py-1 transition-colors duration-150",
-            active ? "bg-selected text-ink-1" : "text-ink-2 hover:bg-hover hover:text-ink-1"
-          )}
-          onClick={() => onChange(task.id)}
-        >
-          <StatusIcon status={task.status} />
-          <span className="truncate">{task.title}</span>
-        </button>
-      );
-    })}
-  </div>
-);
+}) => {
+  const { t } = useToolActivityI18n();
+  return (
+    <div
+      role="tablist"
+      data-testid="subagent-tabs"
+      aria-label={t("activity.tasks")}
+      className="flex max-h-28 shrink-0 flex-wrap gap-1 overflow-y-auto"
+    >
+      {tasks.map(task => {
+        const active = task.id === activeTaskId;
+        return (
+          <button
+            key={task.id}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            className={cn(
+              "text-tau-sm rounded-tau-sm ease-tau-out inline-flex max-w-[220px] shrink-0 items-center gap-1.5 px-2.5 py-1 transition-colors duration-150",
+              active ? "bg-selected text-ink-1" : "text-ink-2 hover:bg-hover hover:text-ink-1"
+            )}
+            onClick={() => onChange(task.id)}
+          >
+            <StatusIcon status={task.status} />
+            <span className="truncate">{task.title}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+};
 
 const TaskOutputBlocks = ({
   task,
@@ -190,6 +188,7 @@ const TaskOutputBlocks = ({
   markdownComponents: Record<string, ElementType>;
   now: number;
 }) => {
+  const { t } = useToolActivityI18n();
   const reasoning = task.reasoning || task.reasoningPreview || "";
   const textContent = task.answer || task.progressText || "";
   const duration = getTaskDuration(task, now);
@@ -202,13 +201,13 @@ const TaskOutputBlocks = ({
         <div className="text-tau-title text-ink-1 min-w-0 flex-1 font-semibold">{task.title}</div>
         <StatusBadge status={task.status} isDark={isDark} />
         <span className="text-tau-sm text-ink-3 shrink-0 tabular-nums">
-          耗时 {formatDuration(duration)}
+          {t("activity.duration", { duration: formatDuration(duration) })}
         </span>
       </div>
 
       <div>
         <ToolMutedText isDark={isDark} className="mb-1">
-          任务 Prompt
+          {t("activity.prompt")}
         </ToolMutedText>
         <pre
           data-testid="subagent-prompt"
@@ -253,7 +252,7 @@ const TaskOutputBlocks = ({
           ) : null}
         </div>
       ) : (
-        <ToolMutedText isDark={isDark}>暂无输出。</ToolMutedText>
+        <ToolMutedText isDark={isDark}>{t("activity.noOutput")}</ToolMutedText>
       )}
     </div>
   );
@@ -265,6 +264,7 @@ const SubAgentResearchRenderer = ({
   rendererContext,
   renderDefault,
 }: ToolCallCustomRendererProps) => {
+  const { t } = useToolActivityI18n();
   const payload = useMemo(() => getPayload(execution.metadata), [execution.metadata]);
   const [detailOpen, setDetailOpen] = useState(false);
   const [activeTaskId, setActiveTaskId] = useState("");
@@ -312,17 +312,23 @@ const SubAgentResearchRenderer = ({
             isDark={isDark}
             action={<StatusBadge status={payload.status} isDark={isDark} />}
           >
-            SubAgent 调研
+            {t("activity.research")}
           </ToolSectionTitle>
           <ToolMutedText isDark={isDark} className="mt-0.5 tabular-nums">
-            {payload.tasks.length} 个子任务，{runningCount} 个进行中。
+            {t("activity.summary", { count: payload.tasks.length, running: runningCount })}
           </ToolMutedText>
         </ToolCardHeader>
         <ToolCardBody>
           <div className="flex flex-wrap gap-1.5 tabular-nums">
-            <ToolValuePill isDark={isDark}>完成：{successCount}</ToolValuePill>
-            <ToolValuePill isDark={isDark}>失败：{failedCount}</ToolValuePill>
-            <ToolValuePill isDark={isDark}>取消：{cancelledCount}</ToolValuePill>
+            <ToolValuePill isDark={isDark}>
+              {t("activity.completed", { count: successCount })}
+            </ToolValuePill>
+            <ToolValuePill isDark={isDark}>
+              {t("activity.failed", { count: failedCount })}
+            </ToolValuePill>
+            <ToolValuePill isDark={isDark}>
+              {t("activity.cancelled", { count: cancelledCount })}
+            </ToolValuePill>
           </div>
           <ToolDividerList isDark={isDark}>
             {payload.tasks.map(task => (
@@ -334,20 +340,20 @@ const SubAgentResearchRenderer = ({
                   </div>
                   <DurationText duration={getTaskDuration(task, now)} />
                   <span className="text-tau-sm text-ink-3 w-14 shrink-0 text-right">
-                    {statusLabel[task.status] || task.status}
+                    {subagentStatusLabel(task.status, t)}
                   </span>
                 </div>
               </ToolDividerListItem>
             ))}
           </ToolDividerList>
           <Button size="sm" variant="soft" onClick={() => setDetailOpen(true)}>
-            查看详情
+            {t("activity.details")}
           </Button>
         </ToolCardBody>
       </ToolCard>
 
       <Dialog
-        title="SubAgent 执行详情"
+        title={t("activity.detailTitle")}
         open={detailOpen}
         onOpenChange={setDetailOpen}
         width={860}
@@ -374,7 +380,7 @@ const SubAgentResearchRenderer = ({
                   now={now}
                 />
               ) : (
-                <ToolMutedText isDark={isDark}>暂无 SubAgent 任务。</ToolMutedText>
+                <ToolMutedText isDark={isDark}>{t("activity.noTasks")}</ToolMutedText>
               )}
             </div>
           </div>

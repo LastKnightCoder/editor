@@ -15,6 +15,8 @@ import {
   ToolBadge,
 } from "@tau/chat-ui";
 
+import { useToolActivityI18n, toolActivityTranslator } from "./activity.i18n";
+
 interface OpenAIImageRenderPayload {
   success: boolean;
   mode: "generate" | "edit";
@@ -51,6 +53,7 @@ const overlayBtnClass =
   "border-line-1 bg-surface/90 text-ink-2 hover:bg-surface-hover hover:text-ink-1 ease-tau-out inline-flex size-7 cursor-pointer items-center justify-center rounded-tau-sm border backdrop-blur transition-colors duration-[140ms]";
 
 const CopyButton = ({ url }: { url: string }) => {
+  const { t } = useToolActivityI18n();
   const [copied, setCopied] = useState(false);
 
   const handleCopy = (e: React.MouseEvent) => {
@@ -63,7 +66,7 @@ const CopyButton = ({ url }: { url: string }) => {
   return (
     <button
       type="button"
-      title={copied ? "已复制" : "复制链接"}
+      title={copied ? t("activity.image.copied") : t("activity.image.copy")}
       className={cn(overlayBtnClass, copied && "text-ok hover:text-ok")}
       onClick={handleCopy}
     >
@@ -78,9 +81,11 @@ const ImageCard = ({
   single,
   onPreview,
   onEdit,
+  editLabel,
 }: {
   image: OpenAIImageRenderPayload["images"][number];
   prompt: string;
+  editLabel: string;
   isDark: boolean;
   single: boolean;
   onPreview: (image: OpenAIImageRenderPayload["images"][number]) => void;
@@ -100,7 +105,7 @@ const ImageCard = ({
       <div className="pointer-events-auto flex gap-1.5">
         <button
           type="button"
-          title="编辑"
+          title={editLabel}
           className={overlayBtnClass}
           onClick={e => {
             e.stopPropagation();
@@ -125,6 +130,7 @@ const OpenAIImageResultRenderer = ({
   isDark,
   renderDefault,
 }: ToolCallCustomRendererProps) => {
+  const { t } = useToolActivityI18n();
   const interaction = useToolRendererInteraction();
   const [previewImage, setPreviewImage] = useState<
     OpenAIImageRenderPayload["images"][number] | null
@@ -136,12 +142,15 @@ const OpenAIImageResultRenderer = ({
   }
 
   const single = payload.images.length === 1;
-  const title = payload.mode === "edit" ? "图片编辑完成" : "图片生成完成";
+  const title =
+    payload.mode === "edit" ? t("activity.image.edited") : t("activity.image.generated");
 
   const handleEdit = (image: OpenAIImageRenderPayload["images"][number]) => {
     interaction?.setHiddenPromptContext?.({
       text: buildHiddenEditContext(image, payload.prompt),
-      label: "输入编辑要求，例如：去掉文字、改为透明背景",
+      get label() {
+        return toolActivityTranslator.t("activity.image.inputHint");
+      },
     });
     interaction?.setInputValue?.("");
   };
@@ -155,12 +164,14 @@ const OpenAIImageResultRenderer = ({
             action={
               <div className="flex items-center gap-1.5">
                 {!single ? (
-                  <ToolBadge isDark={isDark}>{payload.images.length} 张图片</ToolBadge>
+                  <ToolBadge isDark={isDark}>
+                    {t("activity.image.count", { count: payload.images.length })}
+                  </ToolBadge>
                 ) : null}
                 <IconButton
                   className="size-[26px]"
-                  title={expanded ? "收起" : "展开"}
-                  aria-label={expanded ? "收起" : "展开"}
+                  title={expanded ? t("activity.image.collapse") : t("activity.image.expand")}
+                  aria-label={expanded ? t("activity.image.collapse") : t("activity.image.expand")}
                   aria-expanded={expanded}
                   onClick={() => setExpanded(v => !v)}
                 >
@@ -194,6 +205,7 @@ const OpenAIImageResultRenderer = ({
                   single={single}
                   onPreview={setPreviewImage}
                   onEdit={handleEdit}
+                  editLabel={t("activity.image.edit")}
                 />
               ))}
             </div>

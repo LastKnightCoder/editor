@@ -1,0 +1,16 @@
+{
+  "read.search": "知識庫搜尋",
+  "read.results": "知識庫搜尋結果",
+  "read.count": "共 {{count}} 則結果",
+  "read.empty": "未找到相關內容。",
+  "read.noPreview": "（無預覽內容）",
+  "read.collapse": "收合清單",
+  "read.more": "展開剩餘 {{count}} 則結果",
+  "read.loading": "載入中…",
+  "read.item": "項目 {{index}}",
+  "read.noContent": "沒有更多可顯示的內容。",
+  "read.time.today": "今天",
+  "read.time.yesterday": "昨天",
+  "read.time.days": "{{count}} 天前",
+  "read.time.weeks": "{{count}} 週前"
+}

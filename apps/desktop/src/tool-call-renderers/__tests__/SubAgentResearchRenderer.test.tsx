@@ -1,4 +1,6 @@
 import { act } from "react";
+import { desktopLocaleSource } from "@/app/i18n/runtime";
+import { toolActivityTranslator } from "../activity.i18n";
 import type { ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -182,4 +184,60 @@ describe("SubAgentResearchRenderer", () => {
 
     await unmount(root, container);
   });
+});
+
+it("详情换语保留当前子任务、滚动位置和计时间隔，原Prompt与输出不变", async () => {
+  const originalLocale = desktopLocaleSource.getSnapshot();
+  desktopLocaleSource.setLocale("zh-CN");
+  vi.useFakeTimers();
+  const intervals = vi.spyOn(window, "setInterval"),
+    clears = vi.spyOn(window, "clearInterval");
+  const execution = createExecution();
+  const { root, container } = await mount(
+    <SubAgentResearchRenderer
+      execution={execution}
+      isDark={false}
+      parsedInput={null}
+      renderDefault={() => null}
+    />
+  );
+  try {
+    const open = [...container.querySelectorAll("button")].find(button =>
+      button.textContent?.includes(toolActivityTranslator.t("activity.details"))
+    );
+    if (!open) throw new Error("Missing details action");
+    await act(async () => open.click());
+    const tabs = [...document.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
+    await act(async () => tabs[1].click());
+    const scroll = document.querySelector<HTMLElement>('[data-testid="subagent-scroll-body"]');
+    const prompt = document.querySelector('[data-testid="subagent-prompt"]');
+    if (!scroll || !prompt) throw new Error("Missing task body");
+    scroll.scrollTop = 123;
+    const content = prompt.textContent;
+    const handles = () =>
+      intervals.mock.calls.flatMap((call, index) =>
+        call[1] === 1000 ? [intervals.mock.results[index].value] : []
+      );
+    const originalHandles = handles();
+    expect(originalHandles.length).toBeGreaterThan(0);
+    for (const locale of ["en-US", "zh-TW"]) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(document.querySelector('[data-testid="subagent-scroll-body"]')).toBe(scroll);
+      expect(scroll.scrollTop).toBe(123);
+      expect(document.querySelector('[data-testid="subagent-prompt"]')).toBe(prompt);
+      expect(prompt.textContent).toBe(content);
+      expect(tabs[1].getAttribute("aria-selected")).toBe("true");
+      expect(handles()).toEqual(originalHandles);
+      expect(clears.mock.calls.some(([handle]) => originalHandles.includes(handle))).toBe(false);
+    }
+    await act(async () => vi.advanceTimersByTime(1000));
+    expect(tabs[1].getAttribute("aria-selected")).toBe("true");
+    expect(prompt.textContent).toBe(content);
+  } finally {
+    await unmount(root, container);
+    desktopLocaleSource.setLocale(originalLocale);
+    vi.useRealTimers();
+    intervals.mockRestore();
+    clears.mockRestore();
+  }
 });

@@ -8,6 +8,8 @@ import {
   ToolValuePill,
 } from "@tau/chat-ui";
 
+import { useTodoToolI18n, type TodoToolTranslate, type TodoToolMessageKey } from "./todo.i18n";
+
 type OperationPayload = {
   success?: boolean;
   todoId?: number;
@@ -39,12 +41,12 @@ type OperationPayload = {
   data?: Record<string, unknown> | null;
 };
 
-const entityTypeLabelMap: Record<string, string> = {
-  item: "任务",
-  group: "分组",
-  recurrence: "周期",
-  "note-link": "笔记",
-  "calendar-mapping": "日历",
+const entityTypeMessages: Record<string, TodoToolMessageKey> = {
+  item: "todo.entity.item",
+  group: "todo.entity.group",
+  recurrence: "todo.entity.recurrence",
+  "note-link": "todo.entity.note-link",
+  "calendar-mapping": "todo.entity.calendar-mapping",
 };
 
 const getDisplayTitle = (payload: OperationPayload) => {
@@ -74,70 +76,70 @@ const parsePayload = (output?: string): OperationPayload | null => {
   }
 };
 
-const actionLabelMap: Record<string, string> = {
-  "create-group": "已创建分组",
-  "update-group": "已更新分组",
-  "archive-group": "已归档分组",
-  "unarchive-group": "已取消归档分组",
-  "reorder-groups": "已重排分组",
-  "create-item": "已创建任务",
-  "create-item-above": "已在上方创建任务",
-  "create-item-below": "已在下方创建任务",
-  "create-item-child": "已创建子任务",
-  "update-item": "已更新任务",
-  "complete-item": "已标记完成",
-  "uncomplete-item": "已取消完成",
-  "move-item": "已移动任务",
-  "archive-item": "已归档任务",
-  "unarchive-item": "已取消归档任务",
-  "delete-item": "已删除任务",
-  "delete-item-cascade": "已删除任务树",
-  "create-recurrence": "已创建周期规则",
-  "update-recurrence": "已更新周期规则",
-  "delete-recurrence": "已删除周期规则",
-  "complete-occurrence": "已完成周期实例",
-  "uncomplete-occurrence": "已撤销周期实例",
-  "skip-occurrence": "已跳过周期实例",
-  "attach-note": "已关联笔记",
-  "create-and-attach-note": "已新建并关联笔记",
-  "detach-note": "已解除笔记关联",
-  "reorder-notes": "已更新笔记顺序",
-  "update-note-title-snapshot": "已更新笔记标题快照",
-  "create-calendar-mapping": "已创建日历映射",
-  "delete-calendar-mapping": "已删除日历映射",
-  "delete-calendar-mappings-by-todo": "已清空日历映射",
-  "sync-item-to-calendar": "已同步到任务日历",
-  "remove-item-from-calendar": "已从任务日历移除",
+const actionMessages: Record<string, TodoToolMessageKey> = {
+  "create-group": "todo.action.create-group",
+  "update-group": "todo.action.update-group",
+  "archive-group": "todo.action.archive-group",
+  "unarchive-group": "todo.action.unarchive-group",
+  "reorder-groups": "todo.action.reorder-groups",
+  "create-item": "todo.action.create-item",
+  "create-item-above": "todo.action.create-item-above",
+  "create-item-below": "todo.action.create-item-below",
+  "create-item-child": "todo.action.create-item-child",
+  "update-item": "todo.action.update-item",
+  "complete-item": "todo.action.complete-item",
+  "uncomplete-item": "todo.action.uncomplete-item",
+  "move-item": "todo.action.move-item",
+  "archive-item": "todo.action.archive-item",
+  "unarchive-item": "todo.action.unarchive-item",
+  "delete-item": "todo.action.delete-item",
+  "delete-item-cascade": "todo.action.delete-item-cascade",
+  "create-recurrence": "todo.action.create-recurrence",
+  "update-recurrence": "todo.action.update-recurrence",
+  "delete-recurrence": "todo.action.delete-recurrence",
+  "complete-occurrence": "todo.action.complete-occurrence",
+  "uncomplete-occurrence": "todo.action.uncomplete-occurrence",
+  "skip-occurrence": "todo.action.skip-occurrence",
+  "attach-note": "todo.action.attach-note",
+  "create-and-attach-note": "todo.action.create-and-attach-note",
+  "detach-note": "todo.action.detach-note",
+  "reorder-notes": "todo.action.reorder-notes",
+  "update-note-title-snapshot": "todo.action.update-note-title-snapshot",
+  "create-calendar-mapping": "todo.action.create-calendar-mapping",
+  "delete-calendar-mapping": "todo.action.delete-calendar-mapping",
+  "delete-calendar-mappings-by-todo": "todo.action.delete-calendar-mappings-by-todo",
+  "sync-item-to-calendar": "todo.action.sync-item-to-calendar",
+  "remove-item-from-calendar": "todo.action.remove-item-from-calendar",
 };
 
-const getPrimaryText = (payload: OperationPayload) => {
+const getPrimaryText = (payload: OperationPayload, t: TodoToolTranslate) => {
   const action = payload.event?.action;
-  if (action && actionLabelMap[action]) {
-    return actionLabelMap[action];
+  if (action && actionMessages[action]) {
+    return t(actionMessages[action]);
   }
 
   if (Array.isArray(payload.notes)) {
-    return `共 ${payload.notes.length} 条关联笔记`;
+    return t("todo.notes", { count: payload.notes.length });
   }
 
   if (Array.isArray(payload.mappings)) {
-    return `共 ${payload.mappings.length} 条日历映射`;
+    return t("todo.mappings", { count: payload.mappings.length });
   }
 
   if (payload.recurrence) {
-    return "已读取周期规则";
+    return t("todo.recurrenceRead");
   }
 
-  return payload.success === false ? "操作失败" : "操作已完成";
+  return payload.success === false ? t("todo.failed") : t("todo.done");
 };
 
-const renderDataSummary = (payload: OperationPayload, isDark: boolean) => {
+const renderDataSummary = (payload: OperationPayload, isDark: boolean, t: TodoToolTranslate) => {
   if (Array.isArray(payload.notes)) {
     return (
       <div className="space-y-1.5">
         {payload.notes.slice(0, 6).map(note => (
           <ToolValuePill key={note.id} isDark={isDark}>
-            {note.title || `内容 ${note.contentId}`}
+            {note.title || t("todo.content", { id: note.contentId })}
             {note.type ? ` · ${note.type}` : ""}
           </ToolValuePill>
         ))}
@@ -150,8 +152,8 @@ const renderDataSummary = (payload: OperationPayload, isDark: boolean) => {
       <div className="space-y-1.5">
         {payload.mappings.slice(0, 6).map(mapping => (
           <ToolValuePill key={mapping.id} isDark={isDark}>
-            <span className="tabular-nums">事件 #{mapping.calendarEventId}</span> ·{" "}
-            {mapping.syncType}
+            <span className="tabular-nums">{t("todo.event", { id: mapping.calendarEventId })}</span>{" "}
+            · {mapping.syncType}
           </ToolValuePill>
         ))}
       </div>
@@ -161,7 +163,10 @@ const renderDataSummary = (payload: OperationPayload, isDark: boolean) => {
   if (payload.recurrence) {
     return (
       <ToolValuePill isDark={isDark}>
-        类型：{payload.recurrence.type} · 间隔：{payload.recurrence.interval}
+        {t("todo.recurrence", {
+          type: payload.recurrence.type,
+          interval: payload.recurrence.interval,
+        })}
       </ToolValuePill>
     );
   }
@@ -170,7 +175,7 @@ const renderDataSummary = (payload: OperationPayload, isDark: boolean) => {
   if (data && typeof data === "object") {
     const title = typeof data.title === "string" ? data.title : null;
     if (title) {
-      return <ToolValuePill isDark={isDark}>标题：{title}</ToolValuePill>;
+      return <ToolValuePill isDark={isDark}>{t("todo.title", { title })}</ToolValuePill>;
     }
   }
 
@@ -182,17 +187,20 @@ const TodoOperationRenderer = ({
   isDark,
   renderDefault,
 }: ToolCallCustomRendererProps) => {
+  const { t } = useTodoToolI18n();
   const payload = parsePayload(execution.output);
   if (!payload) {
     return <>{renderDefault()}</>;
   }
 
-  const primaryText = getPrimaryText(payload);
-  const dataSummary = renderDataSummary(payload, isDark);
+  const primaryText = getPrimaryText(payload, t);
+  const dataSummary = renderDataSummary(payload, isDark, t);
   const displayTitle = getDisplayTitle(payload);
   const displayGroupTitle = getDisplayGroupTitle(payload);
   const entityLabel = payload.event?.entityType
-    ? entityTypeLabelMap[payload.event.entityType] || null
+    ? entityTypeMessages[payload.event.entityType]
+      ? t(entityTypeMessages[payload.event.entityType])
+      : null
     : null;
   const hasSecondaryContent = Boolean(displayTitle || displayGroupTitle || dataSummary);
   const failed = payload.success === false;
@@ -216,10 +224,14 @@ const TodoOperationRenderer = ({
           {displayTitle || displayGroupTitle ? (
             <div className="space-y-0.5">
               {displayTitle ? (
-                <ToolMutedText isDark={isDark}>关联对象：{displayTitle}</ToolMutedText>
+                <ToolMutedText isDark={isDark}>
+                  {t("todo.related", { title: displayTitle })}
+                </ToolMutedText>
               ) : null}
               {displayGroupTitle ? (
-                <ToolMutedText isDark={isDark}>所属分组：{displayGroupTitle}</ToolMutedText>
+                <ToolMutedText isDark={isDark}>
+                  {t("todo.group", { title: displayGroupTitle })}
+                </ToolMutedText>
               ) : null}
             </div>
           ) : null}

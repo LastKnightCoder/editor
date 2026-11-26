@@ -11,6 +11,8 @@ import {
   ToolValuePill,
 } from "@tau/chat-ui";
 
+import { useToolReadI18n } from "./read.i18n";
+
 type StructuredToolResultPayload = {
   layout?: "operation" | "detail" | "list";
   title?: string;
@@ -52,6 +54,7 @@ const StructuredToolResultRenderer = ({
   isDark,
   renderDefault,
 }: ToolCallCustomRendererProps) => {
+  const { t } = useToolReadI18n();
   const payload = getStructuredPayload(execution.metadata);
   if (!payload) {
     return <>{renderDefault()}</>;
@@ -103,7 +106,7 @@ const StructuredToolResultRenderer = ({
             {payload.items.map((item, index) => (
               <ToolDividerListItem key={`${item.title || "item"}-${index}`} isDark={isDark}>
                 <ToolSectionTitle isDark={isDark}>
-                  {item.title || `项目 ${index + 1}`}
+                  {item.title || t("read.item", { index: index + 1 })}
                 </ToolSectionTitle>
                 {item.subtitle ? (
                   <ToolMutedText isDark={isDark} className="mt-1 break-words">
@@ -130,9 +133,7 @@ const StructuredToolResultRenderer = ({
         ) : null}
 
         {!payload.metrics?.length && !payload.fields?.length && !payload.items?.length ? (
-          <ToolMutedText isDark={isDark}>
-            {payload.emptyText || "没有更多可展示的内容。"}
-          </ToolMutedText>
+          <ToolMutedText isDark={isDark}>{payload.emptyText || t("read.noContent")}</ToolMutedText>
         ) : null}
       </ToolCardBody>
     </ToolCard>

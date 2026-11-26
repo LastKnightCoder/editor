@@ -1,8 +1,14 @@
 import { CalendarDays, FileText, Repeat, type LucideIcon } from "lucide-react";
 import { Tooltip, cn } from "@tau/ui";
 import { TodoCheck, TypeIcon } from "@/features/todos/components/TodoBits";
-import { typeLabelMap } from "./constants";
-import { formatTime, isOverdue, getSecondaryInfoItems, type SecondaryInfoKind } from "./utils";
+import { useTodoToolI18n } from "../todo.i18n";
+import { isOverdue } from "./utils";
+import {
+  todoResultTime,
+  todoTypeLabel,
+  todoSecondaryInfo,
+  type SecondaryInfoKind,
+} from "./display";
 import type { TodoRowCardProps } from "./types";
 
 const SECONDARY_ICONS: Record<SecondaryInfoKind, LucideIcon> = {
@@ -17,12 +23,13 @@ const SECONDARY_ICONS: Record<SecondaryInfoKind, LucideIcon> = {
  * isDark 保留仅为接口兼容，不参与取色。
  */
 const TodoRowCard = ({ item, onToggleComplete }: TodoRowCardProps) => {
+  const { t, locale } = useTodoToolI18n();
   const overdueStatus = Boolean(isOverdue(item));
-  const secondaryInfoItems = getSecondaryInfoItems(item);
+  const secondaryInfoItems = todoSecondaryInfo(item, t);
   const meta = [
     item.group?.title ?? item.groupId,
-    item.dueAt ? formatTime(item.dueAt) : null,
-    formatTime(item.updateTime),
+    item.dueAt ? todoResultTime(item.dueAt, locale) : null,
+    todoResultTime(item.updateTime, locale),
   ]
     .filter(Boolean)
     .join(" · ");
@@ -37,10 +44,10 @@ const TodoRowCard = ({ item, onToggleComplete }: TodoRowCardProps) => {
         overdue={overdueStatus}
         label={
           !onToggleComplete
-            ? `历史状态：${item.isCompleted ? "已完成" : "未完成"}`
+            ? t(item.isCompleted ? "todo.historyCompleted" : "todo.historyPending")
             : item.isCompleted
-              ? "标记为未完成"
-              : "标记为已完成"
+              ? t("todo.markPending")
+              : t("todo.markCompleted")
         }
         onToggle={() => void onToggleComplete?.(item)}
       />
@@ -56,7 +63,7 @@ const TodoRowCard = ({ item, onToggleComplete }: TodoRowCardProps) => {
             {item.title}
           </div>
           {item.type !== "normal" ? (
-            <Tooltip content={typeLabelMap[item.type]}>
+            <Tooltip content={todoTypeLabel(item.type, t)}>
               <span className="inline-flex items-center">
                 <TypeIcon type={item.type} />
               </span>
@@ -77,7 +84,7 @@ const TodoRowCard = ({ item, onToggleComplete }: TodoRowCardProps) => {
 
         {overdueStatus && (
           <div className="text-tau-sm text-danger mt-0.5 tabular-nums">
-            逾期：{formatTime(item.dueAt)}
+            {t("todo.overdue", { time: todoResultTime(item.dueAt, locale) })}
           </div>
         )}
 

@@ -1,0 +1,16 @@
+{
+  "read.search": "知识库搜索",
+  "read.results": "知识库搜索结果",
+  "read.count": "共 {{count}} 条结果",
+  "read.empty": "未找到相关内容。",
+  "read.noPreview": "（无预览内容）",
+  "read.collapse": "收起列表",
+  "read.more": "展开剩余 {{count}} 条结果",
+  "read.loading": "加载中…",
+  "read.item": "项目 {{index}}",
+  "read.noContent": "没有更多可展示的内容。",
+  "read.time.today": "今天",
+  "read.time.yesterday": "昨天",
+  "read.time.days": "{{count}} 天前",
+  "read.time.weeks": "{{count}} 周前"
+}

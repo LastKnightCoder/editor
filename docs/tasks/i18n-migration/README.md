@@ -328,6 +328,8 @@ P7 MCP声明：SDK新增PluginMCPDeclaration，默认PluginMCPDefinition<string>
 
 知识地图K1/K2共19源码完成；4文件28例、desktop type、12+70key三语复数参数与原AI/几何/动作/hooks/key AST对照通过。真实同graphItems/hits/currentIds/preview、pending分析/同气泡svg/camera/原discussPrompt保持；全15模块审计无自产UI或译文身份残留，合法AI正文/prefix parser保留。
 
+工具卡R1A/R1B/R2A共27源码完成；read3例、activity相关21例、todo3例与各域type/三语/协议AST通过。真实Image→Provider→ChatContainer placeholder→原ref/发送IPC保持同输入/草稿/光标，发送仍原hidden text；研究tab/interval/scroll、知识详情原快照/按需读取、Todo详情ID/刷新与原动作保持。todo/constants.ts被退役且提交验证文件缺失，其余算法不改。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

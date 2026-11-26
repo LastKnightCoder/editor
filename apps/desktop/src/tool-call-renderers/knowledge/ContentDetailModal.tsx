@@ -5,6 +5,8 @@ import Editor from "@/components/ContentEditor";
 import { ErrorBoundary } from "@tau/ui";
 import { getContentById } from "@/commands/content";
 
+import { useToolReadI18n } from "../read.i18n";
+
 interface ContentDetailModalProps {
   contentId: number | undefined;
   title: string;
@@ -20,6 +22,7 @@ const ContentDetailModal = ({
   visible,
   onClose,
 }: ContentDetailModalProps) => {
+  const { t } = useToolReadI18n();
   const [loading, setLoading] = useState(true);
   const [initValue, setInitValue] = useState<Descendant[] | null>(null);
 
@@ -50,7 +53,7 @@ const ContentDetailModal = ({
         {loading || !initValue ? (
           <div className="text-ink-3 text-tau-meta flex h-48 items-center justify-center gap-2">
             <Spinner />
-            加载中…
+            {t("read.loading")}
           </div>
         ) : (
           <div className="text-ink-1 min-h-50 pb-2">

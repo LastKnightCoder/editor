@@ -20,6 +20,8 @@ import { isMaterialKind } from "@/entity/material";
 import { locatesSection } from "@/entity/section-location";
 import { openMaterial } from "@/services/open-material";
 
+import { useToolReadI18n, type ReadTranslate } from "./read.i18n";
+
 interface KnowledgeSearchResultItem {
   id: number;
   contentId: number;
@@ -72,21 +74,22 @@ const parseOutput = (output?: string): KnowledgeSearchOutput | null => {
   }
 };
 
-const formatTime = (timestamp: number): string => {
+const formatTime = (timestamp: number, locale: string, t: ReadTranslate): string => {
   const date = new Date(timestamp);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-  if (diffDays === 0) return "今天";
-  if (diffDays === 1) return "昨天";
-  if (diffDays < 7) return `${diffDays} 天前`;
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)} 周前`;
+  if (diffDays === 0) return t("read.time.today");
+  if (diffDays === 1) return t("read.time.yesterday");
+  if (diffDays < 7) return t("read.time.days", { count: diffDays });
+  if (diffDays < 30) return t("read.time.weeks", { count: Math.floor(diffDays / 7) });
 
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return y === now.getFullYear() ? `${m}-${d}` : `${y}-${m}-${d}`;
+  return new Intl.DateTimeFormat(locale, {
+    ...(date.getFullYear() === now.getFullYear() ? {} : { year: "numeric" }),
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
 };
 
 const ResultItemPreview = ({
@@ -98,6 +101,7 @@ const ResultItemPreview = ({
   isDark: boolean;
   onClick: () => void;
 }) => {
+  const { t, locale } = useToolReadI18n();
   // 预览是搜索时输出里的快照（纯渲染，不回源拉内容）；点击进详情弹窗才按需取实时内容
   const previewContent = useMemo(
     () =>
@@ -126,11 +130,11 @@ const ResultItemPreview = ({
             <Editor key={item.id} initValue={previewContent} readonly />
           </ErrorBoundary>
         ) : (
-          <ToolMutedText isDark={isDark}>（无预览内容）</ToolMutedText>
+          <ToolMutedText isDark={isDark}>{t("read.noPreview")}</ToolMutedText>
         )}
       </div>
       <ToolMutedText isDark={isDark} className="mt-1 tabular-nums">
-        {formatTime(item.updateTime)}
+        {formatTime(item.updateTime, locale, t)}
       </ToolMutedText>
     </div>
   );
@@ -141,6 +145,7 @@ const KnowledgeSearchRenderer = ({
   isDark,
   renderDefault,
 }: ToolCallCustomRendererProps) => {
+  const { t } = useToolReadI18n();
   const data = useMemo(() => parseOutput(execution.output), [execution.output]);
   const [expanded, setExpanded] = useState(false);
   const [selectedItem, setSelectedItem] = useState<KnowledgeSearchResultItem | null>(null);
@@ -153,7 +158,7 @@ const KnowledgeSearchRenderer = ({
     return (
       <ToolCard isDark={isDark}>
         <ToolCardHeader isDark={isDark}>
-          <ToolSectionTitle isDark={isDark}>知识库搜索</ToolSectionTitle>
+          <ToolSectionTitle isDark={isDark}>{t("read.search")}</ToolSectionTitle>
         </ToolCardHeader>
         <ToolCardBody>
           <ToolMutedText isDark={isDark}>{data.error}</ToolMutedText>
@@ -170,14 +175,14 @@ const KnowledgeSearchRenderer = ({
     <>
       <ToolCard isDark={isDark}>
         <ToolCardHeader isDark={isDark}>
-          <ToolSectionTitle isDark={isDark}>知识库搜索结果</ToolSectionTitle>
+          <ToolSectionTitle isDark={isDark}>{t("read.results")}</ToolSectionTitle>
           <ToolMutedText isDark={isDark} className="mt-1">
-            {data.message || `共 ${data.count} 条结果`}
+            {data.message || t("read.count", { count: data.count })}
           </ToolMutedText>
         </ToolCardHeader>
         <ToolCardBody>
           {items.length === 0 ? (
-            <ToolMutedText isDark={isDark}>未找到相关内容。</ToolMutedText>
+            <ToolMutedText isDark={isDark}>{t("read.empty")}</ToolMutedText>
           ) : (
             <div className="space-y-2">
               {visibleItems.map(item => (
@@ -207,7 +212,7 @@ const KnowledgeSearchRenderer = ({
               {hasMore && (
                 <div className="flex justify-center pt-1">
                   <Button variant="ghost" size="sm" onClick={() => setExpanded(v => !v)}>
-                    {expanded ? "收起列表" : `展开剩余 ${items.length - 5} 条结果`}
+                    {expanded ? t("read.collapse") : t("read.more", { count: items.length - 5 })}
                   </Button>
                 </div>
               )}

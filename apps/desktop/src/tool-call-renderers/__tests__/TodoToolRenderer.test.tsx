@@ -1,4 +1,6 @@
 import { act } from "react";
+import { desktopI18n, desktopLocaleSource } from "@/app/i18n/runtime";
+import { todoToolMessages } from "../todo.i18n";
 import type { ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -183,4 +185,61 @@ describe("TodoToolRenderer", () => {
 
     await unmount(root, container);
   });
+});
+
+it("历史快照换语保留展开分组与原任务，只读勾选不会触发当前数据库操作", async () => {
+  const originalLocale = desktopLocaleSource.getSnapshot();
+  desktopLocaleSource.setLocale("zh-CN");
+  const items = Array.from({ length: 11 }, (_, index) => ({
+    ...queryResult.items[0],
+    id: index + 1,
+    title: `原始任务${index}`,
+  }));
+  const result = {
+    ...queryResult,
+    items,
+    groups: [
+      {
+        key: "group:100",
+        label: "原始分组名",
+        itemIds: items.map(item => item.id),
+        totalCount: items.length,
+      },
+    ],
+  };
+  const execution = createExecution({ output: JSON.stringify(result) });
+  const originalOutput = execution.output;
+  const { root, container } = await mount(
+    <TodoToolRenderer
+      execution={execution}
+      isDark={false}
+      parsedInput={queryResult.query}
+      renderDefault={() => null}
+    />
+  );
+  try {
+    const t = desktopI18n.get(todoToolMessages).t;
+    const expand = [...container.querySelectorAll<HTMLButtonElement>("button")].find(
+      button => button.textContent?.trim() === t("todo.expand", { count: 1 })
+    );
+    if (!expand) throw new Error("Missing group expansion");
+    await act(async () => expand.click());
+    const checks = [...container.querySelectorAll<HTMLButtonElement>('button[role="checkbox"]')];
+    expect(checks).toHaveLength(items.length);
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect([...container.querySelectorAll('button[role="checkbox"]')]).toEqual(checks);
+      expect(checks.every(check => check.disabled)).toBe(true);
+      expect(container.textContent).toContain("原始分组名");
+      expect(container.textContent).toContain(items.at(-1)?.title);
+      await act(async () => checks[0].click());
+      expect(todoCommands.toggleCompleteCascade).not.toHaveBeenCalled();
+      expect(todoMutation.emitTodoMutation).not.toHaveBeenCalled();
+      expect(todoCommands.listTodoGroups).not.toHaveBeenCalled();
+      expect(execution.output).toBe(originalOutput);
+    }
+  } finally {
+    await unmount(root, container);
+    desktopLocaleSource.setLocale(originalLocale);
+  }
 });

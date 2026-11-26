@@ -14,7 +14,10 @@ import {
 import TodoRowCard from "./todo/TodoRowCard";
 import { parseTodoRendererOutput } from "./todo/utils";
 
+import { useTodoToolI18n } from "./todo.i18n";
+
 const TodoToolRenderer = ({ execution, isDark, renderDefault }: ToolCallCustomRendererProps) => {
+  const { t } = useTodoToolI18n();
   const data = useMemo(() => parseTodoRendererOutput(execution.output), [execution.output]);
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
@@ -24,9 +27,7 @@ const TodoToolRenderer = ({ execution, isDark, renderDefault }: ToolCallCustomRe
 
   const renderItems = (items: TodoQueryItem[]) => {
     if (items.length === 0) {
-      return (
-        <div className="text-tau-sm text-ink-3 px-3 py-4 text-center">当前没有符合条件的任务</div>
-      );
+      return <div className="text-tau-sm text-ink-3 px-3 py-4 text-center">{t("todo.empty")}</div>;
     }
 
     return (
@@ -87,7 +88,9 @@ const TodoToolRenderer = ({ execution, isDark, renderDefault }: ToolCallCustomRe
                     }))
                   }
                 >
-                  {isExpanded ? "收起" : `展开全部（+${groupItems.length - 10}）`}
+                  {isExpanded
+                    ? t("todo.collapse")
+                    : t("todo.expand", { count: groupItems.length - 10 })}
                 </button>
               )}
             </div>
@@ -102,12 +105,16 @@ const TodoToolRenderer = ({ execution, isDark, renderDefault }: ToolCallCustomRe
     <ToolCard isDark={isDark}>
       <ToolCardHeader isDark={isDark}>
         <ToolSectionTitle isDark={isDark}>
-          {data.type === "todo-dashboard" ? "任务列表总览" : "任务列表查询结果"}
+          {data.type === "todo-dashboard" ? t("todo.dashboard") : t("todo.query")}
         </ToolSectionTitle>
-        <ToolMutedText>历史查询快照；请重新查询后操作。</ToolMutedText>
+        <ToolMutedText>{t("todo.historical")}</ToolMutedText>
         <ToolMutedText isDark={isDark} className="mt-0.5 tabular-nums">
-          共 {summary.totalCount} 项，未完成 {summary.pendingCount}，已完成 {summary.completedCount}
-          ，逾期 {summary.overdueCount}
+          {t("todo.summary", {
+            total: summary.totalCount,
+            pending: summary.pendingCount,
+            completed: summary.completedCount,
+            overdue: summary.overdueCount,
+          })}
         </ToolMutedText>
       </ToolCardHeader>
 
@@ -127,8 +134,12 @@ const TodoToolRenderer = ({ execution, isDark, renderDefault }: ToolCallCustomRe
                 ]}
               />
               <ToolMutedText isDark={isDark} className="tabular-nums">
-                {summary.completedCount}/{summary.totalCount} 已完成
-                {summary.overdueCount > 0 && ` · ${summary.overdueCount} 项逾期`}
+                {t("todo.completion", {
+                  completed: summary.completedCount,
+                  total: summary.totalCount,
+                })}
+                {summary.overdueCount > 0 &&
+                  t("todo.overdueCount", { count: summary.overdueCount })}
               </ToolMutedText>
             </div>
 
@@ -137,7 +148,11 @@ const TodoToolRenderer = ({ execution, isDark, renderDefault }: ToolCallCustomRe
         ) : (
           <div className="space-y-4">
             <ToolMutedText isDark={isDark} className="tabular-nums">
-              第 {data.page}/{data.totalPages} 页 · 当前展示 {data.items.length} 条
+              {t("todo.page", {
+                page: data.page,
+                total: data.totalPages,
+                count: data.items.length,
+              })}
             </ToolMutedText>
             {renderGroupedItems(data.items, data.groups)}
           </div>

@@ -1,0 +1,20 @@
+{
+  "read.search": "Knowledge search",
+  "read.results": "Knowledge search results",
+  "read.empty": "No relevant content found.",
+  "read.noPreview": "(No preview content)",
+  "read.collapse": "Collapse list",
+  "read.loading": "Loading…",
+  "read.item": "Item {{index}}",
+  "read.noContent": "There is no more content to show.",
+  "read.time.today": "Today",
+  "read.time.yesterday": "Yesterday",
+  "read.count_one": "{{count}} result",
+  "read.count_other": "{{count}} results",
+  "read.more_one": "Show {{count}} more result",
+  "read.more_other": "Show {{count}} more results",
+  "read.time.days_one": "{{count}} day ago",
+  "read.time.days_other": "{{count}} days ago",
+  "read.time.weeks_one": "{{count}} week ago",
+  "read.time.weeks_other": "{{count}} weeks ago"
+}

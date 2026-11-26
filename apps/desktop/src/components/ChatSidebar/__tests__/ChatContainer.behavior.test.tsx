@@ -9,7 +9,10 @@
  * store、piChatRuntime、piChatSessionManager、commands 全部走真实实现，断言落在
  * store 状态 / IPC 通道与载荷 / runtime 队列 / 对宿主的回调上。
  */
-import { act } from "react";
+import { act, type ReactNode } from "react";
+import { OPENAI_IMAGE_RENDERER_KEY } from "@/tools/openaiImageTools";
+import OpenAIImageResultRenderer from "@/tool-call-renderers/OpenAIImageResultRenderer";
+import { toolActivityTranslator } from "@/tool-call-renderers/activity.i18n";
 import { toast } from "@tau/ui";
 import { desktopLocaleSource } from "@/app/i18n/runtime";
 import { PageProvider } from "@/page/PageProvider";
@@ -143,12 +146,14 @@ vi.mock("@tau/chat-ui", async importOriginal => {
 /* ChatInputArea 桩：实现 ChatInputAreaHandle 协议（getValue/setValue/clear），测试经
    inputRef 读取输入框状态；onSteer 出现与否由组件的 canSteerNow 决定（桩只接线） */
 const inputShell = vi.hoisted(() => ({
+  native: false,
   state: null as null | { text: string; clears: number; setValues: string[] },
 }));
 vi.mock("@/components/ChatInputArea", async () => {
   const React = await import("react");
   const InputStub = React.forwardRef(function ChatInputAreaStub(_props: any, ref: any) {
     const state = React.useRef({ text: "", clears: 0, setValues: [] as string[] });
+    const field = React.useRef<HTMLTextAreaElement | null>(null);
     inputShell.state = state.current;
     React.useImperativeHandle(ref, () => ({
       getValue: () =>
@@ -156,14 +161,26 @@ vi.mock("@/components/ChatInputArea", async () => {
       setValue: (value: string) => {
         state.current.text = value;
         state.current.setValues.push(value);
+        if (field.current) field.current.value = value;
       },
       clear: () => {
         state.current.text = "";
         state.current.clears += 1;
+        if (field.current) field.current.value = "";
       },
       focusEnd: () => {},
       appendMention: () => {},
     }));
+    if (inputShell.native)
+      return React.createElement("textarea", {
+        ref: field,
+        "data-testid": "native-input-protocol",
+        placeholder: _props.placeholder,
+        defaultValue: state.current.text,
+        onInput: (event: { currentTarget: HTMLTextAreaElement }) => {
+          state.current.text = event.currentTarget.value;
+        },
+      });
     return _props.onSteer
       ? React.createElement("button", {
           type: "button",
@@ -215,7 +232,7 @@ import { usePiInteractionStore } from "@/services/piInteractions";
 import useChatSessionStore, { ChatBucketStatus } from "@/stores/useChatSessionStore";
 import useSettingStore from "@/stores/useSettingStore";
 import { Role } from "@/constants";
-import type { ChatMessage, RequestMessage, ResponseMessage } from "@/types";
+import type { ChatMessage, RequestMessage, ResponseMessage, ToolCallExecutionState } from "@/types";
 import type { ChatSessionRow } from "@/types/chat-session";
 
 registerPageMeta({ key: "pdf-detail", match: "single", label: "PDF", fields: {} });
@@ -312,6 +329,7 @@ const seedSessionRow = (chat: ChatMessage) => {
 };
 
 interface MountOptions {
+  composerAccessory?: ReactNode;
   chat: ChatMessage;
   chatScope?: string;
   beforeSendUserMessage?: (content: any[]) => Promise<boolean | void>;
@@ -335,6 +353,7 @@ const mountChat = (options: MountOptions) => {
         <DndProvider backend={HTML5Backend}>
           <ChatContainer
             ref={handle}
+            composerAccessory={options.composerAccessory}
             currentChat={options.chat}
             isDark={false}
             markdownComponents={{}}
@@ -394,6 +413,7 @@ const clickStub = async (selector: string) => {
 };
 
 beforeEach(() => {
+  inputShell.native = false;
   ipc.reset();
   useChatSessionStore.setState({
     buckets: {},
@@ -1014,4 +1034,84 @@ it("快捷输入提交失败可保留原文重试，首条消息被接收时切�
     reply.resolve({ ok: true });
   });
   expect(useChatSessionStore.getState().currentIds["pdf-chat|42"]).toBe(created.piSessionId);
+});
+
+it("图片编辑提示经真实Provider和ChatContainer换语，保留同一输入框草稿与原隐藏上下文", async () => {
+  inputShell.native = true;
+  const imageUrl = "data:image/png;base64,iVBORw0KGgo=";
+  const prompt = "原始图像生成提示";
+  const execution = {
+    toolCallId: "image-original",
+    toolName: "generate_image",
+    status: "success",
+    input: "original image input",
+    timestamp: 1,
+    metadata: {
+      render: {
+        rendererKey: OPENAI_IMAGE_RENDERER_KEY,
+        payload: {
+          success: true,
+          mode: "generate",
+          prompt,
+          parameters: {},
+          images: [{ url: imageUrl, mimeType: "image/png", fileName: "original.png" }],
+        },
+      },
+    },
+  } as ToolCallExecutionState;
+  const { handle, Harness } = mountChat({
+    chat: draftChat("image-edit-locale"),
+    composerAccessory: (
+      <OpenAIImageResultRenderer
+        execution={execution}
+        parsedInput={{}}
+        isDark={false}
+        renderDefault={() => null}
+      />
+    ),
+  });
+  await act(async () => {
+    root.render(<Harness />);
+    await flushMicrotasks();
+  });
+  const expand = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
+    button => button.title === toolActivityTranslator.t("activity.image.expand")
+  );
+  if (!expand) throw new Error("Missing image expansion");
+  await act(async () => expand.click());
+  const edit = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
+    button => button.title === toolActivityTranslator.t("activity.image.edit")
+  );
+  if (!edit) throw new Error("Missing image edit action");
+  await act(async () => edit.click());
+  const field = host.querySelector<HTMLTextAreaElement>('[data-testid="native-input-protocol"]');
+  const inputState = inputShell.state;
+  if (!field || !inputState || !handle.current) throw new Error("Missing real composer state");
+  expect(field.placeholder).toBe(toolActivityTranslator.t("activity.image.inputHint"));
+  await act(async () => handle.current?.setInputValue("保留原始编辑要求"));
+  field.focus();
+  field.setSelectionRange(2, 4);
+  const setValues = [...inputState.setValues];
+  let previous = field.placeholder;
+  for (const locale of ["en-US", "zh-TW"] as const) {
+    await act(async () => desktopLocaleSource.setLocale(locale));
+    expect(host.querySelector('[data-testid="native-input-protocol"]')).toBe(field);
+    expect(field.placeholder).not.toBe(previous);
+    previous = field.placeholder;
+    expect(field.value).toBe("保留原始编辑要求");
+    expect([field.selectionStart, field.selectionEnd]).toEqual([2, 4]);
+    expect(document.activeElement).toBe(field);
+    expect(inputShell.state).toBe(inputState);
+    expect(inputState.setValues).toEqual(setValues);
+    expect(promptPayloads()).toEqual([]);
+    expect(callsOf("pi-session:create")).toEqual([]);
+  }
+  const sent = await send(handle, field.value);
+  expect(sent).toBe(true);
+  const requests = promptPayloads();
+  expect(requests).toHaveLength(1);
+  expect(requests[0].text).toBe(
+    `请调用 edit_image 工具基于这张图片继续编辑：${imageUrl}\n\n原始生成提示：${prompt}\n\n用户编辑要求：保留原始编辑要求`
+  );
+  expect(execution.input).toBe("original image input");
 });
