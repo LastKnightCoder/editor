@@ -22,7 +22,6 @@ import { viewportCellStart } from "./utils/ViewportUtil";
 
 import {
   BoardContext,
-  SelectionContext,
   BoardStateContext,
   ArrowConnectPointOverlayContext,
   PointerViewportStoreContext,
@@ -93,6 +92,7 @@ import type {
   WhiteboardOutline,
   WhiteboardSnapshot,
 } from "./extensions/api";
+import { SelectionScope } from "./components/SelectionScope";
 import { WhiteboardAPIProvider } from "./extensions/context";
 import { isDocumentVersionSupported } from "./document-version";
 
@@ -828,7 +828,7 @@ const WhiteboardCanvas = forwardRef<WhiteboardRef, WhiteboardProps & { board: Bo
     return (
       <WhiteboardAPIProvider value={extensionsRuntime.api}>
         <BoardContext.Provider value={board}>
-          <SelectionContext.Provider value={selection}>
+          <SelectionScope value={selection}>
             <ArrowMoveContext.Provider value={arrowMoveState}>
               <BoardStateContext.Provider value={boardState}>
                 <ArrowConnectPointOverlayContext.Provider value={connectPointOverlayRef}>
@@ -938,7 +938,7 @@ const WhiteboardCanvas = forwardRef<WhiteboardRef, WhiteboardProps & { board: Bo
                 </ArrowConnectPointOverlayContext.Provider>
               </BoardStateContext.Provider>
             </ArrowMoveContext.Provider>
-          </SelectionContext.Provider>
+          </SelectionScope>
         </BoardContext.Provider>
       </WhiteboardAPIProvider>
     );

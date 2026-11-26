@@ -11,7 +11,25 @@ export interface PointerViewportStore {
 }
 
 export const BoardContext = createContext<Board | null>(null);
-export const SelectionContext = createContext<Selection | null>(null);
+
+export class SelectionStore {
+  private listeners = new Set<() => void>();
+  constructor(private current: Selection | null) {}
+  readonly getSnapshot = () => this.current;
+  readonly subscribe = (listener: () => void) => {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  };
+  publish(value: Selection | null) {
+    if (this.current === value) return;
+    this.current = value;
+    this.listeners.forEach(listener => listener());
+  }
+}
+
+export const SelectionContext = createContext<Selection | SelectionStore | null>(null);
 /** 静态元素层（选中的箭头/内部连接元素已提升到交互层时）强制无选区；元素级选中订阅据此短路 */
 export const StaticSelectionContext = createContext(false);
 

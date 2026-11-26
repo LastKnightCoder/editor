@@ -1,4 +1,4 @@
-import { memo, SVGProps, forwardRef, useMemo, useContext, useRef, useLayoutEffect } from "react";
+import { memo, SVGProps, forwardRef, useMemo, useRef, useLayoutEffect } from "react";
 import type { RefObject } from "react";
 import { BoardElement, Selection, ViewPort } from "../../types";
 import { CULL_CELL_PX, viewportCellStart } from "../../utils/ViewportUtil";
@@ -11,13 +11,15 @@ import ArrowCustomConnectOverlay from "../ArrowCustomConnectOverlay";
 import MindDragOverlay from "../MindDragOverlay";
 import { CreationPreview } from "../CreationPreview";
 import Board from "../../Board";
-import { SelectionContext } from "../../context";
+import { SelectionScope } from "../SelectionScope";
+import { useSelection } from "../../hooks/useSelection";
 import {
   WhiteboardPresenceOverlay,
   previewPeerElements,
   alignPeerSelections,
 } from "../../collaboration/presence";
 import type { WhiteboardPeer } from "@tau/collaboration";
+import { ElementLayer } from "./ElementLayer";
 
 interface BoardContentProps extends SVGProps<SVGSVGElement> {
   cameraRef?: RefObject<HTMLDivElement | null>;
@@ -48,22 +50,29 @@ function useVisibleLayer(
   board: Board,
   elements: BoardElement[],
   viewport: ViewPort | null,
-  liveText: boolean
+  liveText: boolean,
+  stableFrames = false
 ) {
   const retained = useRef(new Set<string>());
   const layer = useMemo(() => {
     const current = new Set<string>();
-    const nodes = viewport
-      ? board.renderVisibleElements(
-          board.filterElementsInViewport(elements, CULL_CELL_PX, viewport, {
-            previous: retained.current,
-            current,
-          }),
-          liveText
-        )
-      : board.renderElements(elements);
+    const visible = viewport
+      ? board.filterElementsInViewport(elements, CULL_CELL_PX, viewport, {
+          previous: retained.current,
+          current,
+        })
+      : undefined;
+    const nodes = visible ? (
+      stableFrames ? (
+        <ElementLayer board={board} elements={visible} liveText={liveText} />
+      ) : (
+        board.renderVisibleElements(visible, liveText)
+      )
+    ) : (
+      board.renderElements(elements)
+    );
     return { current, nodes };
-  }, [board, elements, viewport, liveText]);
+  }, [board, elements, viewport, liveText, stableFrames]);
   useLayoutEffect(() => {
     retained.current = layer.current;
   }, [layer]);
@@ -85,12 +94,12 @@ const StaticLayers = memo(function StaticLayers({
   visibleNoneCenterConnectArrows: React.ReactNode;
 }) {
   return (
-    <SelectionContext.Provider value={staticLayerSelection}>
+    <SelectionScope value={staticLayerSelection}>
       {/* 1. 中心连接且未选中的箭头（最底层） */}
       <g data-layer="center-connect-arrows">{visibleCenterConnectArrows}</g>
       {/* 2. 非中心连接的元素（中间层） */}
       <g data-layer="main-elements">{visibleNoneCenterConnectArrows}</g>
-    </SelectionContext.Provider>
+    </SelectionScope>
   );
 });
 
@@ -118,7 +127,7 @@ const BoardContent = memo(
     } = props;
 
     const { minX, minY, width, height, zoom } = viewPort;
-    const selection = useContext(SelectionContext);
+    const selection = useSelection();
     const staticLayerSelection = isolateStaticSelection ? STATIC_LAYER_SELECTION : selection;
 
     const preview = (items: BoardElement[]) =>
@@ -154,7 +163,10 @@ const BoardContent = memo(
       board,
       mainElements,
       cullViewport,
-      liveText
+      liveText,
+      liveText &&
+        typeof Element !== "undefined" &&
+        typeof Element.prototype.moveBefore === "function"
     );
     const visibleCenterConnectAndSelectedArrows = useVisibleLayer(
       board,

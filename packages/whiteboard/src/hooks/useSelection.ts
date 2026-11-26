@@ -1,8 +1,14 @@
-import { useContext } from "react";
-import { SelectionContext } from "../context";
+import { useContext, useSyncExternalStore } from "react";
+import { SelectionContext, SelectionStore } from "../context";
 
-export const useSelection = () => {
-  const selection = useContext(SelectionContext);
+const subscribeNone = () => () => undefined;
 
-  return selection;
-};
+export function useSelection() {
+  const value = useContext(SelectionContext);
+  const read = value instanceof SelectionStore ? value.getSnapshot : () => value;
+  return useSyncExternalStore(
+    value instanceof SelectionStore ? value.subscribe : subscribeNone,
+    read,
+    read
+  );
+}
