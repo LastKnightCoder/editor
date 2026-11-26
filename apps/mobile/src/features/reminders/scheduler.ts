@@ -3,6 +3,8 @@
  * 触发：启动、回到前台、影响提醒的写命令之后（合并抖动）。iOS 最多保留 64 条待送达通知，
  * 只排最近的 50 条；Android 不设系统上限，排 14 天内最多 200 条。
  */
+import { mobileI18n } from "../../services/i18n";
+import { notificationSnapshot } from "./notification.i18n";
 import { reminderBody, reminderDetail } from "@tau/shared/reminders";
 import * as tauri from "../../services/tauri";
 import { computeElapsedMs } from "../pomodoro/timer";
@@ -17,7 +19,7 @@ import { readReminderSettings } from "./settings";
 const WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
 const isIOS = () => /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-function toNotifyEntry(item: tauri.UpcomingReminder, now = Date.now()): NotifyEntry {
+function toNotifyEntry(item: tauri.UpcomingReminder, now: number, locale: string): NotifyEntry {
   // 文档待办与日程在文案上同属「到点提醒」，日程以外都按待办口径书写
   const shape = {
     kind: item.kind === "event" ? ("event" as const) : ("todo" as const),
@@ -31,8 +33,8 @@ function toNotifyEntry(item: tauri.UpcomingReminder, now = Date.now()): NotifyEn
     kind: item.kind,
     ownerId: item.ownerId,
     title: item.title,
-    body: reminderBody({ ...shape, remindAt: item.remindAt }),
-    detail: reminderDetail({ ...shape, now }),
+    body: reminderBody({ ...shape, remindAt: item.remindAt }, { locale }),
+    detail: reminderDetail({ ...shape, now }, { locale }),
     // 周期实例要按当次打卡，文档待办要改正文：通知上都不直接「完成」
     actions: item.kind === "todo" && !item.recurring ? "complete" : "ack",
     at: item.remindAt,
@@ -40,19 +42,20 @@ function toNotifyEntry(item: tauri.UpcomingReminder, now = Date.now()): NotifyEn
 }
 
 /** 进行中的倒计时番茄：到点时提醒（应用在后台时页面计时器不会走，靠系统通知） */
-async function pomodoroEntry(now: number): Promise<NotifyEntry | null> {
+async function pomodoroEntry(now: number, locale: string): Promise<NotifyEntry | null> {
   const session = await tauri.pomodoroGetActiveSession();
   if (!session || session.status !== "running" || !session.expectedMs) return null;
   const at = now + session.expectedMs - computeElapsedMs(session, now);
   if (at <= now) return null;
   const minutes = Math.round(session.expectedMs / 60_000);
+  const { t } = notificationSnapshot(locale);
   return {
     key: `pomodoro:${session.id}`,
     owner: `pomodoro:${session.id}`,
     kind: "pomodoro",
     ownerId: session.id,
-    title: "番茄完成",
-    body: `专注 ${minutes} 分钟，休息一下`,
+    title: t("pomodoro.title"),
+    body: t("pomodoro.body", { count: minutes }),
     detail: "",
     actions: "none",
     at,
@@ -64,11 +67,12 @@ let again = false;
 
 async function run(): Promise<NotifyState | null> {
   const now = Date.now();
+  const locale = mobileI18n.getSnapshot();
   const [upcoming, pomodoro] = await Promise.all([
     tauri.reminderUpcoming(now, now + WINDOW_MS, isIOS() ? 50 : 200),
-    pomodoroEntry(now).catch(() => null),
+    pomodoroEntry(now, locale).catch(() => null),
   ]);
-  const items = upcoming.items.map(item => toNotifyEntry(item, now));
+  const items = upcoming.items.map(item => toNotifyEntry(item, now, locale));
   if (pomodoro) items.unshift(pomodoro);
   return notifySchedule(items, upcoming.owners, readReminderSettings().snoozeMinutes);
 }

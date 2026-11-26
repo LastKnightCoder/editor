@@ -1,3 +1,4 @@
+import { notifyPermissionIssueText, useNotificationI18n } from "./notification.i18n";
 import { useEffect, useState } from "react";
 import { AlarmClock, BellOff, ChevronRight, CircleCheck } from "lucide-react";
 import { summarizeReminders } from "@tau/shared/reminders";
@@ -17,11 +18,7 @@ import { useNotifyPermission } from "./useNotifyPermission";
 
 type DefaultKey = "todo" | "event" | "allDay";
 
-const DEFAULT_ROWS: Array<{ key: DefaultKey; label: string }> = [
-  { key: "todo", label: "新建截止任务" },
-  { key: "event", label: "新建日程" },
-  { key: "allDay", label: "新建全天日程" },
-];
+const DEFAULT_ROWS: DefaultKey[] = ["todo", "event", "allDay"];
 
 function ValueRow(props: { label: string; value: string; onClick: () => void }) {
   return (
@@ -49,7 +46,8 @@ function StatusTile({ tone, children }: { tone: "ok" | "warn"; children: React.R
 
 /** 设置 › 提醒与通知：系统授权状态、Android 准点提醒授权、已排进系统的提醒数 */
 export function NotificationsSection() {
-  const { state, request, openSettings, refresh } = useNotifyPermission();
+  const { t, locale } = useNotificationI18n();
+  const { state, issue, request, openSettings, refresh } = useNotifyPermission();
   const [pending, setPending] = useState<number | null>(null);
   const app = useAppContext();
   const settings = readReminderSettings(app.syncSettings.safeSetting);
@@ -64,36 +62,47 @@ export function NotificationsSection() {
   }, []);
 
   if (!isNativeNotifyAvailable()) {
-    return <GroupNote>系统通知只在手机 App 中可用。</GroupNote>;
+    return <GroupNote>{t("nativeOnly")}</GroupNote>;
   }
 
   const notifications = state?.notifications;
   const granted = notifications === "granted";
   return (
     <div className="page-enter space-y-1">
+      {issue && (
+        <p role="alert" className="text-danger text-tau-sm px-[15px] py-2">
+          {notifyPermissionIssueText(issue)}
+        </p>
+      )}
       <GroupCard>
         <GroupRow
           onClick={
             granted
               ? undefined
               : () =>
-                  void (notifications === "prompt" ? request() : openSettings()).then(() =>
-                    refresh()
-                  )
+                  void (notifications === "prompt" ? request() : openSettings())
+                    .then(() => refresh())
+                    .catch(() => undefined)
           }
         >
           <StatusTile tone={granted ? "ok" : "warn"}>
             {granted ? <CircleCheck size={17} /> : <BellOff size={17} />}
           </StatusTile>
           <span className="min-w-0 flex-1">
-            <span className="text-ink-1 block text-[14.5px] font-medium">系统通知</span>
+            <span className="text-ink-1 block text-[14.5px] font-medium">
+              {t("notifications.title")}
+            </span>
             <span className="text-ink-3 block text-[11.5px]">
-              {granted ? "已开启" : notifications === "prompt" ? "尚未开启" : "已关闭，提醒不会响"}
+              {granted
+                ? t("notifications.on")
+                : notifications === "prompt"
+                  ? t("notifications.prompt")
+                  : t("notifications.off")}
             </span>
           </span>
           {!granted && (
             <span className="text-accent-text text-[13.5px] font-semibold">
-              {notifications === "prompt" ? "开启" : "去设置"}
+              {notifications === "prompt" ? t("notifications.enable") : t("notifications.settings")}
             </span>
           )}
         </GroupRow>
@@ -102,47 +111,52 @@ export function NotificationsSection() {
             onClick={
               state?.exactAlarm === "granted"
                 ? undefined
-                : () => void openSettings("exactAlarm").then(() => refresh())
+                : () =>
+                    void openSettings("exactAlarm")
+                      .then(() => refresh())
+                      .catch(() => undefined)
             }
           >
             <StatusTile tone={state?.exactAlarm === "granted" ? "ok" : "warn"}>
               <AlarmClock size={17} />
             </StatusTile>
             <span className="min-w-0 flex-1">
-              <span className="text-ink-1 block text-[14.5px] font-medium">准点提醒</span>
+              <span className="text-ink-1 block text-[14.5px] font-medium">{t("exact.title")}</span>
               <span className="text-ink-3 block text-[11.5px]">
-                {state?.exactAlarm === "granted" ? "已允许" : "未允许，可能延后几分钟"}
+                {state?.exactAlarm === "granted" ? t("exact.allowed") : t("exact.denied")}
               </span>
             </span>
             {state?.exactAlarm !== "granted" && (
-              <span className="text-accent-text text-[13.5px] font-semibold">去允许</span>
+              <span className="text-accent-text text-[13.5px] font-semibold">
+                {t("exact.allow")}
+              </span>
             )}
           </GroupRow>
         )}
       </GroupCard>
       <GroupNote>
-        {pending != null ? `接下来 14 天有 ${pending} 个提醒已排进系统。` : ""}
-        {isAndroid() ? "部分手机的省电策略会拦截提醒，可在系统设置里允许 Tau 后台运行。" : ""}
+        {pending != null ? t("pending", { count: pending }) : ""}
+        {isAndroid() ? t("batteryHint") : ""}
       </GroupNote>
 
-      <div className="text-ink-3 px-[15px] pt-4 pb-1.5 text-[12px]">默认提醒</div>
+      <div className="text-ink-3 px-[15px] pt-4 pb-1.5 text-[12px]">{t("defaults.title")}</div>
       <GroupCard>
-        {DEFAULT_ROWS.map(row => (
+        {DEFAULT_ROWS.map(key => (
           <ValueRow
-            key={row.key}
-            label={row.label}
-            value={summarizeReminders(settings[row.key], row.key === "allDay")}
-            onClick={() => setEditing(row.key)}
+            key={key}
+            label={t(`defaults.${key}`)}
+            value={summarizeReminders(settings[key], key === "allDay", { locale })}
+            onClick={() => setEditing(key)}
           />
         ))}
       </GroupCard>
-      <GroupNote>只影响新建的任务和日程，已有的不改。</GroupNote>
+      <GroupNote>{t("defaults.hint")}</GroupNote>
 
-      <div className="text-ink-3 px-[15px] pt-4 pb-1.5 text-[12px]">其他</div>
+      <div className="text-ink-3 px-[15px] pt-4 pb-1.5 text-[12px]">{t("other")}</div>
       <GroupCard>
         <GroupRow>
           <span className="text-ink-1 min-w-0 flex-1 text-[14.5px] font-medium">
-            App 在前台时显示横幅
+            {t("foreground")}
           </span>
           <SwitchButton
             checked={settings.foregroundBanner}
@@ -150,15 +164,12 @@ export function NotificationsSection() {
           />
         </GroupRow>
         <ValueRow
-          label="稍后提醒间隔"
-          value={`${settings.snoozeMinutes} 分钟`}
+          label={t("snooze.title")}
+          value={t("minutes", { count: settings.snoozeMinutes })}
           onClick={() => setSnoozeOpen(true)}
         />
       </GroupCard>
-      <GroupNote>
-        关闭横幅后，App 在前台时也弹系统通知。提醒在待办详情或日程编辑里设置，最多 3
-        个；桌面端同时提醒。
-      </GroupNote>
+      <GroupNote>{t("foregroundHint")}</GroupNote>
 
       <ReminderSheet
         open={editing !== null}
@@ -170,9 +181,10 @@ export function NotificationsSection() {
       />
       <ActionSheet
         open={snoozeOpen}
-        title="稍后提醒间隔"
+        title={t("snooze.title")}
         items={SNOOZE_CHOICES.map(minutes => ({
-          label: `${minutes} 分钟`,
+          key: `snooze:${minutes}`,
+          label: t("minutes", { count: minutes }),
           selected: settings.snoozeMinutes === minutes,
           onClick: () => save({ snoozeMinutes: minutes }),
         }))}

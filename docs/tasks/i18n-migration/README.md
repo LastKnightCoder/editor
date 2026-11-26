@@ -348,6 +348,8 @@ P6 Native媒体进度：41路径加Root ASR/desktop文档2完成；桌面12文�
 
 项目视频十一源完成；原10+新真实观看/笔记3共13例、desktop type/三语/范围检查与协议AST通过。同VideoPlayer/video/track实例保currentTime/volume/rate且不重转录，标题焦点/选区/Editor不卸载不重查保存；英文摘录仍空title+原句/秒时间戳。empty/user/默认title矩阵证明导出/AI数据与旧值一致，全部原effect/Controller memo/字幕序列化/quoteContent/range保持；共享观看与白板独立继续。
 
+提醒前端10路径完成；既有Sheet1与新增真实生命周期4共5例、mobile type/39key三语/范围检查通过。跨语不request/write/reschedule，权限原reject，排期语言与异步窗口为创建快照；AppContext每render新对象仍不重复listener/drain，完成→cancel_owner顺序保持。Native动作/渠道/稍后文案尚待可选UI快照持久协议，不误记迁完。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

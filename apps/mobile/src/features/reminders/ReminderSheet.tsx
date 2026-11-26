@@ -1,3 +1,4 @@
+import { notifyPermissionIssueText } from "./notification.i18n";
 import { useReminderSheetI18n } from "./ReminderSheet.i18n";
 import { useEffect, useState } from "react";
 import { BellOff, BellRing, Check } from "lucide-react";
@@ -84,10 +85,15 @@ export function ReminderSheet({
   return (
     <BottomSheet open={open} title={t("sheet.title")} onClose={commit}>
       <div className="px-4 pb-2">
+        {permission.issue && (
+          <p role="alert" className="text-danger text-tau-sm mb-2">
+            {notifyPermissionIssueText(permission.issue)}
+          </p>
+        )}
         {permission.state?.notifications === "denied" && (
           <button
             type="button"
-            onClick={() => void permission.openSettings()}
+            onClick={() => void permission.openSettings().catch(() => undefined)}
             className="bg-tag-4-soft text-tag-4 mb-3 flex w-full items-start gap-2 rounded-[14px] px-3 py-2.5 text-left text-[12.5px] leading-relaxed"
           >
             <BellOff size={16} className="mt-0.5 shrink-0" />
@@ -112,7 +118,7 @@ export function ReminderSheet({
                   className="bg-accent text-ink-inverse h-8 rounded-[10px] px-3.5 text-[13px] font-semibold"
                   onClick={() => {
                     setExplaining(false);
-                    void permission.request();
+                    void permission.request().catch(() => undefined);
                   }}
                 >
                   {t("permission.allow")}

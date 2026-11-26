@@ -1,3 +1,4 @@
+import { notificationTranslator, useNotificationI18n } from "./notification.i18n";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
@@ -25,13 +26,6 @@ import { resyncReminders, scheduleResync } from "./scheduler";
 import { readReminderSettings } from "./settings";
 
 const BANNER_MS = 8000;
-const KIND_LABEL: Record<NotifyEntry["kind"], string> = {
-  todo: "待办",
-  event: "日程",
-  doc: "文档待办",
-  pomodoro: "番茄专注",
-};
-
 type Owner =
   | { kind: "todo" | "event" | "pomodoro"; id: number }
   | { kind: "doc"; id: number; taskId: string };
@@ -54,7 +48,10 @@ const POMODORO_PAGES = new Set(["pomodoro", "pomodoroFocus"]);
  * - 应用在前台时到点的提醒以顶部横幅展示，替代系统横幅（设置里可关）；番茄页上不叠横幅。
  */
 export function ReminderHost() {
+  const { t } = useNotificationI18n();
   const app = useAppContext();
+  const presentErrorRef = useRef(app.presentError);
+  presentErrorRef.current = app.presentError;
   const router = useRouterContext();
   const topKey = router.state.screens.entries.at(-1)?.key;
   const topKeyRef = useRef(topKey);
@@ -85,20 +82,17 @@ export function ReminderHost() {
     }
   }, []);
 
-  const complete = useCallback(
-    async (owner: string) => {
-      const parsed = parseOwner(owner);
-      if (!parsed || parsed.kind !== "todo") return;
-      try {
-        await useTodoStore.getState().toggleCompleteCascade({ id: parsed.id, isCompleted: true });
-        await notifyCancelOwner(owner);
-        toast.success("已完成");
-      } catch (error) {
-        app.presentError(error, "完成待办失败");
-      }
-    },
-    [app]
-  );
+  const complete = useCallback(async (owner: string) => {
+    const parsed = parseOwner(owner);
+    if (!parsed || parsed.kind !== "todo") return;
+    try {
+      await useTodoStore.getState().toggleCompleteCascade({ id: parsed.id, isCompleted: true });
+      await notifyCancelOwner(owner);
+      toast.success(notificationTranslator.t("complete.success"));
+    } catch (error) {
+      presentErrorRef.current(error, notificationTranslator.t("complete.failed"));
+    }
+  }, []);
 
   const handle = useCallback(
     async (action: NotifyAction) => {
@@ -191,7 +185,7 @@ export function ReminderHost() {
           <img src={appIcon} alt="" className="h-8 w-8 shrink-0 rounded-[9px]" />
           <div className="min-w-0 flex-1">
             <div className="text-ink-3 text-[11.5px]">
-              {KIND_LABEL[banner.kind]} · {banner.body}
+              {t(`kind.${banner.kind}`)} · {banner.body}
             </div>
             <div className="text-ink-1 mt-px truncate text-[14px] font-semibold">
               {banner.title}
@@ -206,7 +200,7 @@ export function ReminderHost() {
                     void complete(banner.owner);
                   }}
                 >
-                  完成
+                  {t("complete")}
                 </button>
               )}
               {banner.actions !== "none" && (
@@ -216,11 +210,13 @@ export function ReminderHost() {
                   onClick={() => {
                     dismiss();
                     void notifySnooze(banner).then(() =>
-                      toast.success(`${snoozeMinutes} 分钟后再提醒`)
+                      toast.success(
+                        notificationTranslator.t("snooze.success", { count: snoozeMinutes })
+                      )
                     );
                   }}
                 >
-                  {snoozeMinutes} 分钟后
+                  {t("snooze.action", { count: snoozeMinutes })}
                 </button>
               )}
               <button
@@ -231,11 +227,16 @@ export function ReminderHost() {
                   open(banner.owner);
                 }}
               >
-                查看
+                {t("view")}
               </button>
             </div>
           </div>
-          <button type="button" aria-label="关闭" className="text-ink-3 p-0.5" onClick={dismiss}>
+          <button
+            type="button"
+            aria-label={t("close")}
+            className="text-ink-3 p-0.5"
+            onClick={dismiss}
+          >
             <X size={16} />
           </button>
         </motion.div>
