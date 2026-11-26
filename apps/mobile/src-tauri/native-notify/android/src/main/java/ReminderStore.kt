@@ -12,36 +12,6 @@ import androidx.core.app.NotificationManagerCompat
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** 一条已排期的系统提醒；key 形如 `todo:12:900000`，owner 形如 `todo:12` */
-data class ReminderEntry(
-  val key: String,
-  val owner: String,
-  val kind: String,
-  val ownerId: Long,
-  val title: String,
-  val body: String,
-  /** 不含倒计时的时间描述（「18:00 截止」），稍后提醒时用来重写正文 */
-  val detail: String,
-  /** 通知按钮：complete =「完成 / 稍后」，ack =「知道了 / 稍后」，none = 无按钮 */
-  val actions: String,
-  val at: Long
-) {
-  fun toJson(): JSONObject = JSONObject()
-    .put("key", key).put("owner", owner).put("kind", kind).put("ownerId", ownerId)
-    .put("title", title).put("body", body).put("detail", detail).put("actions", actions)
-    .put("at", at)
-
-  companion object {
-    fun fromJson(json: JSONObject) = ReminderEntry(
-      json.getString("key"), json.getString("owner"), json.getString("kind"),
-      json.getLong("ownerId"), json.getString("title"), json.getString("body"),
-      json.optString("detail", ""),
-      json.optString("actions", if (json.getString("kind") == "todo") "complete" else "ack"),
-      json.getLong("at")
-    )
-  }
-}
-
 /**
  * 排期表与待处理动作都存 SharedPreferences：AlarmManager 闹钟重启即失效，
  * 开机广播据此重排；通知按钮在 App 未运行时点击，动作排队等 App 打开后由前端落库。
@@ -52,6 +22,7 @@ object ReminderStore {
   private const val KEY_ACTIONS = "actions"
   private const val KEY_SHOWN = "shown"
   private const val KEY_SNOOZE = "snooze_minutes"
+  private const val KEY_CHANNELS = "ui_channels"
   private const val SHOWN_LIMIT = 20
   const val CHANNEL_TODO = "tau_todo_reminders"
   const val CHANNEL_EVENT = "tau_event_reminders"
@@ -138,21 +109,27 @@ object ReminderStore {
   /** 通知 id 取 key 的稳定哈希；同一提醒重排覆盖旧闹钟与旧通知 */
   fun notificationId(key: String) = key.hashCode()
 
+  fun applyChannelDisplay(context: Context, value: JSONObject?) {
+    val channels = ReminderChannels.fromJson(value) ?: return
+    prefs(context).edit().putString(KEY_CHANNELS, channels.toJson().toString()).apply()
+    ensureChannels(context)
+  }
+
   fun ensureChannels(context: Context) {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
     val manager = context.getSystemService(NotificationManager::class.java)
-    manager.createNotificationChannel(
-      NotificationChannel(CHANNEL_TODO, "待办提醒", NotificationManager.IMPORTANCE_HIGH)
-        .apply { description = "截止任务到点前提醒" }
-    )
-    manager.createNotificationChannel(
-      NotificationChannel(CHANNEL_EVENT, "日程提醒", NotificationManager.IMPORTANCE_HIGH)
-        .apply { description = "日程开始前提醒" }
-    )
-    manager.createNotificationChannel(
-      NotificationChannel(CHANNEL_POMODORO, "番茄专注", NotificationManager.IMPORTANCE_HIGH)
-        .apply { description = "倒计时专注结束" }
-    )
+    val raw = prefs(context).getString(KEY_CHANNELS, null)
+    val channels = try { ReminderChannels.fromJson(raw?.let { JSONObject(it) }) } catch (_: Exception) { null }
+    fun update(id: String, display: ReminderChannel?, name: String, description: String) {
+      val channel = manager.getNotificationChannel(id)
+        ?: NotificationChannel(id, display?.name ?: name, NotificationManager.IMPORTANCE_HIGH)
+      channel.name = display?.name ?: name
+      channel.description = display?.description ?: description
+      manager.createNotificationChannel(channel)
+    }
+    update(CHANNEL_TODO, channels?.todo, "待办提醒", "截止任务到点前提醒")
+    update(CHANNEL_EVENT, channels?.event, "日程提醒", "日程开始前提醒")
+    update(CHANNEL_POMODORO, channels?.pomodoro, "番茄专注", "倒计时专注结束")
   }
 
   private fun alarmIntent(context: Context, key: String): PendingIntent {
@@ -221,18 +198,18 @@ object ReminderStore {
       .setSmallIcon(R.drawable.ic_stat_tau)
       .setContentTitle(entry.title)
       .setContentText(entry.body)
-      .setSubText(label)
+      .setSubText(entry.ui?.kindLabel ?: label)
       .setCategory(category)
       .setPriority(NotificationCompat.PRIORITY_HIGH)
       .setAutoCancel(true)
       .setWhen(entry.at)
       .setShowWhen(true)
     when (entry.actions) {
-      "complete" -> launchIntent(context, entry, ACTION_DONE)?.let { builder.addAction(0, "完成", it) }
-      "ack" -> builder.addAction(0, "知道了", actionIntent(context, entry, ACTION_ACK))
+      "complete" -> launchIntent(context, entry, ACTION_DONE)?.let { builder.addAction(0, entry.ui?.completeLabel ?: "完成", it) }
+      "ack" -> builder.addAction(0, entry.ui?.ackLabel ?: "知道了", actionIntent(context, entry, ACTION_ACK))
     }
     if (entry.actions != "none") {
-      builder.addAction(0, "${snoozeMinutes(context)} 分钟后", actionIntent(context, entry, ACTION_SNOOZE))
+      builder.addAction(0, entry.ui?.snoozeLabel ?: "${snoozeMinutes(context)} 分钟后", actionIntent(context, entry, ACTION_SNOOZE))
     }
     launchIntent(context, entry, ACTION_TAP)?.let { builder.setContentIntent(it) }
     try {

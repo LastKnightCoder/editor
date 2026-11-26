@@ -37,5 +37,14 @@
   "pomodoro.body": "Focused for {{count}} min. Take a break.",
   "permission.read": "Could not read notification permissions",
   "permission.request": "Could not request notification permission",
-  "permission.settings": "Could not open system settings"
+  "permission.settings": "Could not open system settings",
+  "native.ack": "Got it",
+  "native.snoozed": "Snoozed reminder",
+  "native.snoozedDetail": "Snoozed reminder · {{detail}}",
+  "native.channel.todo.name": "Todo reminders",
+  "native.channel.todo.description": "Reminders before task deadlines",
+  "native.channel.event.name": "Calendar reminders",
+  "native.channel.event.description": "Reminders before events start",
+  "native.channel.pomodoro.name": "Pomodoro focus",
+  "native.channel.pomodoro.description": "Countdown focus completed"
 }

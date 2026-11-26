@@ -1,3 +1,4 @@
+import { writeFileSync } from "node:fs";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -8,7 +9,7 @@ import { NotificationsSection } from "../NotificationsSection";
 import { ReminderHost } from "../ReminderHost";
 import { resyncReminders } from "../scheduler";
 import { useNotifyPermission } from "../useNotifyPermission";
-import { notificationTranslator } from "../notification.i18n";
+import { notificationTranslator, notificationEntryUi } from "../notification.i18n";
 import type { NotifyEntry, NotifyState } from "../native";
 
 const mocks = vi.hoisted(() => ({
@@ -214,6 +215,15 @@ it("通知载荷以排期开始时语言快照创建，换语不重排且原身�
   // A later genuine reschedule uses the new language; the old request remains a snapshot.
   await resyncReminders();
   const second = nativeCalls("schedule")[1][1];
+  expect(first.items[1].ui).toMatchObject({ locale: "zh-CN", snoozeMinutes: first.snoozeMinutes });
+  expect(second.items[1].ui).toMatchObject({
+    locale: "en-US",
+    snoozeMinutes: second.snoozeMinutes,
+  });
+  expect(first.items[1].ui.snoozedBody).toContain(first.items[1].detail);
+  expect(first.uiChannels.todo.name).not.toBe(second.uiChannels.todo.name);
+  const fixturePath = process.env.TAU_NOTIFY_WIRE_FIXTURE;
+  if (fixturePath) writeFileSync(fixturePath, JSON.stringify(first));
   expect(first.items[1].body).not.toBe(second.items[1].body);
   expect(first.items[0].title).not.toBe(second.items[0].title);
   expect(second.items[1]).toMatchObject({
@@ -230,51 +240,59 @@ it("通知载荷以排期开始时语言快照创建，换语不重排且原身�
   });
 });
 
-it("AppContext随语言变动不重订阅或重排，旧横幅原载荷用于稍后与完成动作", async () => {
-  await render(<ReminderHost />);
-  await act(async () => vi.advanceTimersByTimeAsync(1500));
-  const registrations = mocks.register.mock.calls.length;
-  const schedules = nativeCalls("schedule").length;
-  const drains = nativeCalls("take_actions").length;
-  const entry: NotifyEntry = Object.freeze({
-    key: "todo:41:300000",
-    owner: "todo:41",
-    kind: "todo",
-    ownerId: 41,
-    title: "delivered original title",
-    body: "delivered original body",
-    detail: "original time detail",
-    actions: "complete",
-    at: now + 600000,
-  });
-  await act(async () => mocks.listeners.get("delivered")?.(entry));
-  const banner = document.querySelector('[role="alert"]');
-  if (!banner) throw new Error("reminder banner missing");
-  for (const locale of locales) {
-    await act(async () => mobileLocaleSource.setLocale(locale));
-    expect(document.querySelector('[role="alert"]')).toBe(banner);
-    expect(banner.textContent).toContain(entry.title);
-    expect(banner.textContent).toContain(entry.body);
-    expect(mocks.register).toHaveBeenCalledTimes(registrations);
-    expect(mocks.unregister).not.toHaveBeenCalled();
-    expect(nativeCalls("schedule")).toHaveLength(schedules);
-    expect(nativeCalls("take_actions")).toHaveLength(drains);
-    expect(mocks.complete).not.toHaveBeenCalled();
+it.each([false, true])(
+  "AppContext随语言变动不重订阅或重排，横幅显示快照存在=%s时原载荷用于动作",
+  async withUi => {
+    await render(<ReminderHost />);
+    await act(async () => vi.advanceTimersByTimeAsync(1500));
+    const registrations = mocks.register.mock.calls.length;
+    const schedules = nativeCalls("schedule").length;
+    const drains = nativeCalls("take_actions").length;
+    const entry: NotifyEntry = Object.freeze({
+      key: "todo:41:300000",
+      owner: "todo:41",
+      kind: "todo",
+      ownerId: 41,
+      title: "delivered original title",
+      body: "delivered original body",
+      detail: "original time detail",
+      actions: "complete",
+      at: now + 600000,
+      ...(withUi
+        ? { ui: notificationEntryUi({ kind: "todo", detail: "original time detail" }, "zh-TW", 10) }
+        : {}),
+    });
+    await act(async () => mocks.listeners.get("delivered")?.(entry));
+    const banner = document.querySelector('[role="alert"]');
+    if (!banner) throw new Error("reminder banner missing");
+    for (const locale of locales) {
+      await act(async () => mobileLocaleSource.setLocale(locale));
+      expect(document.querySelector('[role="alert"]')).toBe(banner);
+      expect(banner.textContent).toContain(entry.title);
+      expect(banner.textContent).toContain(entry.body);
+      expect(mocks.register).toHaveBeenCalledTimes(registrations);
+      expect(mocks.unregister).not.toHaveBeenCalled();
+      expect(nativeCalls("schedule")).toHaveLength(schedules);
+      expect(nativeCalls("take_actions")).toHaveLength(drains);
+      expect(mocks.complete).not.toHaveBeenCalled();
+    }
+    await act(async () =>
+      byText(notificationTranslator.t("snooze.action", { count: 10 }))?.click()
+    );
+    expect(nativeCalls("snooze")[0][1].item).toBe(entry);
+    const order: string[] = [];
+    mocks.complete.mockImplementation(async () => {
+      order.push("complete");
+    });
+    const originalInvoke = mocks.invoke.getMockImplementation();
+    mocks.invoke.mockImplementation(async (...args) => {
+      if (args[0].endsWith("|cancel_owner")) order.push("cancel");
+      return originalInvoke?.(...args);
+    });
+    await act(async () => mocks.listeners.get("delivered")?.(entry));
+    await act(async () => byText(notificationTranslator.t("complete"))?.click());
+    expect(mocks.complete).toHaveBeenCalledExactlyOnceWith({ id: 41, isCompleted: true });
+    expect(nativeCalls("cancel_owner")[0][1]).toEqual({ owner: entry.owner });
+    expect(order).toEqual(["complete", "cancel"]);
   }
-  await act(async () => byText(notificationTranslator.t("snooze.action", { count: 10 }))?.click());
-  expect(nativeCalls("snooze")[0][1].item).toBe(entry);
-  const order: string[] = [];
-  mocks.complete.mockImplementation(async () => {
-    order.push("complete");
-  });
-  const originalInvoke = mocks.invoke.getMockImplementation();
-  mocks.invoke.mockImplementation(async (...args) => {
-    if (args[0].endsWith("|cancel_owner")) order.push("cancel");
-    return originalInvoke?.(...args);
-  });
-  await act(async () => mocks.listeners.get("delivered")?.(entry));
-  await act(async () => byText(notificationTranslator.t("complete"))?.click());
-  expect(mocks.complete).toHaveBeenCalledExactlyOnceWith({ id: 41, isCompleted: true });
-  expect(nativeCalls("cancel_owner")[0][1]).toEqual({ owner: entry.owner });
-  expect(order).toEqual(["complete", "cancel"]);
-});
+);

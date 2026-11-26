@@ -4,7 +4,11 @@
  * 只排最近的 50 条；Android 不设系统上限，排 14 天内最多 200 条。
  */
 import { mobileI18n } from "../../services/i18n";
-import { notificationSnapshot } from "./notification.i18n";
+import {
+  notificationSnapshot,
+  notificationEntryUi,
+  notificationChannelUi,
+} from "./notification.i18n";
 import { reminderBody, reminderDetail } from "@tau/shared/reminders";
 import * as tauri from "../../services/tauri";
 import { computeElapsedMs } from "../pomodoro/timer";
@@ -74,7 +78,13 @@ async function run(): Promise<NotifyState | null> {
   ]);
   const items = upcoming.items.map(item => toNotifyEntry(item, now, locale));
   if (pomodoro) items.unshift(pomodoro);
-  return notifySchedule(items, upcoming.owners, readReminderSettings().snoozeMinutes);
+  const snoozeMinutes = readReminderSettings().snoozeMinutes;
+  return notifySchedule(
+    items.map(entry => ({ ...entry, ui: notificationEntryUi(entry, locale, snoozeMinutes) })),
+    upcoming.owners,
+    snoozeMinutes,
+    notificationChannelUi(locale)
+  );
 }
 
 /** 重排一次；进行中再次请求时排在其后合并为一次 */

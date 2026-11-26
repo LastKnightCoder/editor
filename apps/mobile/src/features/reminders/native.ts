@@ -15,6 +15,22 @@ export interface NotifyState {
   pending: number;
 }
 
+export interface NotifyUi {
+  locale: string;
+  /** 显示与类别快照；实际稍后排期仍读取原生偏好。 */
+  snoozeMinutes: number;
+  kindLabel: string;
+  completeLabel: string;
+  ackLabel: string;
+  snoozeLabel: string;
+  snoozedBody: string;
+}
+
+export type NotifyUiChannels = Record<
+  "todo" | "event" | "pomodoro",
+  { name: string; description: string }
+>;
+
 /** 交给系统排期的一条提醒：body 带倒计时，detail 是稍后提醒时复用的时间描述 */
 export interface NotifyEntry {
   key: string;
@@ -27,6 +43,7 @@ export interface NotifyEntry {
   /** 通知按钮：complete =「完成 / 稍后」，ack =「知道了 / 稍后」，none = 无按钮 */
   actions: "complete" | "ack" | "none";
   at: number;
+  ui?: NotifyUi;
 }
 
 export interface NotifyAction {
@@ -45,8 +62,18 @@ export const notifyPermissionState = () => invoke<NotifyState>(command("permissi
 export const notifyRequestPermission = () => invoke<NotifyState>(command("request_permission"));
 export const notifyOpenSettings = (target: "notifications" | "exactAlarm" = "notifications") =>
   invoke<void>(command("open_settings"), { target });
-export const notifySchedule = (items: NotifyEntry[], owners: string[], snoozeMinutes: number) =>
-  invoke<NotifyState>(command("schedule"), { items, owners, snoozeMinutes });
+export const notifySchedule = (
+  items: NotifyEntry[],
+  owners: string[],
+  snoozeMinutes: number,
+  uiChannels?: NotifyUiChannels
+) =>
+  invoke<NotifyState>(command("schedule"), {
+    items,
+    owners,
+    snoozeMinutes,
+    ...(uiChannels ? { uiChannels } : {}),
+  });
 export const notifySnooze = (item: NotifyEntry) => invoke<void>(command("snooze"), { item });
 export const notifyCancelOwner = (owner: string) =>
   invoke<void>(command("cancel_owner"), { owner });

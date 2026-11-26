@@ -364,6 +364,8 @@ Markdown F1十二源加Root copy-service1完成；原3文件35至4文件36例、
 
 Markdown F2九路径完成；原10至11例、desktop type、29key三语及原路径/IO/drag/defaultname对照通过。实际延迟重命名跨语保同NameInput、焦点/光标与单次beforeMutate，目录过滤与路径边界原契约保持。
 
+Native通知十四路径完成；真实前端21例、mobile type/lint、48key三语通过；Android离线生产Kotlin编译成功。Swift旧/新/坏ui往返、类别稳定隔离/重启并集及真实前端→SDK嵌套桥接契约通过，iOS13 codec typecheck与插件语法通过。完整iOS App/插件链接未执行（本地无Tauri/SwiftRs simulator预构建模块）；未作设备投递验收。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

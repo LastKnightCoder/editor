@@ -48,7 +48,7 @@ class LocalNotifyPlugin(private val activity: Activity) : Plugin(activity) {
       val owner = source.owner
       val entry = source.copy(
         key = "$owner:snooze",
-        body = if (source.detail.isNotEmpty()) "稍后提醒 · ${source.detail}" else "稍后提醒",
+        body = source.ui?.snoozedBody ?: if (source.detail.isNotEmpty()) "稍后提醒 · ${source.detail}" else "稍后提醒",
         at = System.currentTimeMillis() + ReminderStore.snoozeMinutes(context) * 60_000L
       )
       val entries = ReminderStore.entries(context)
@@ -162,6 +162,7 @@ class LocalNotifyPlugin(private val activity: Activity) : Plugin(activity) {
     try {
       val args = invoke.getArgs()
       ReminderStore.setSnoozeMinutes(activity, args.optInt("snoozeMinutes", 10))
+      ReminderStore.applyChannelDisplay(activity, args.optJSONObject("uiChannels"))
       val items = args.getJSONArray("items")
       val owners = args.getJSONArray("owners")
       val activeOwners = HashSet<String>()

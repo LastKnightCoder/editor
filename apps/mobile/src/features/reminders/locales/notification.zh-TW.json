@@ -37,5 +37,14 @@
   "pomodoro.body": "專注 {{count}} 分鐘，休息一下",
   "permission.read": "讀取通知權限失敗",
   "permission.request": "請求通知權限失敗",
-  "permission.settings": "無法開啟系統設定"
+  "permission.settings": "無法開啟系統設定",
+  "native.ack": "知道了",
+  "native.snoozed": "稍後提醒",
+  "native.snoozedDetail": "稍後提醒 · {{detail}}",
+  "native.channel.todo.name": "待辦提醒",
+  "native.channel.todo.description": "截止任務到期前提醒",
+  "native.channel.event.name": "行程提醒",
+  "native.channel.event.description": "行程開始前提醒",
+  "native.channel.pomodoro.name": "番茄專注",
+  "native.channel.pomodoro.description": "倒數專注結束"
 }

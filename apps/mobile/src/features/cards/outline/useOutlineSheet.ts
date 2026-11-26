@@ -1,3 +1,4 @@
+import { readingTranslator } from "../reading.i18n";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "../../../components/toast";
 import type { ReadingModeState } from "../readingMode/useReadingMode";
@@ -15,7 +16,7 @@ export function useOutlineSheet(options: UseOutlineSheetOptions) {
 
   const openOutline = () => {
     if (!readingMode.canEdit) {
-      toast({ type: "warning", text: "当前内容不可编辑" });
+      toast({ type: "warning", text: readingTranslator.t("detail.readonly") });
       return;
     }
     if (blockSelection.active) blockSelection.exit();

@@ -4,37 +4,6 @@ import UIKit
 import UserNotifications
 import WebKit
 
-/// 一条已排期的系统提醒；key 形如 `todo:12:900000`，owner 形如 `todo:12`
-struct ReminderEntry: Codable {
-  let key: String
-  let owner: String
-  let kind: String
-  let ownerId: Int64
-  let title: String
-  let body: String
-  /// 不含倒计时的时间描述（「18:00 截止」），稍后提醒时用来重写正文
-  let detail: String
-  /// 通知按钮：complete =「完成 / 稍后」，ack =「知道了 / 稍后」，none = 无按钮
-  let actions: String?
-  let at: Int64
-
-  var actionSet: String { actions ?? (kind == "todo" ? "complete" : "ack") }
-
-  var json: [String: Any] {
-    [
-      "key": key, "owner": owner, "kind": kind, "ownerId": ownerId,
-      "title": title, "body": body, "detail": detail, "actions": actionSet, "at": at,
-    ]
-  }
-
-  static func from(_ value: Any?) -> ReminderEntry? {
-    guard let value, JSONSerialization.isValidJSONObject(value),
-      let data = try? JSONSerialization.data(withJSONObject: value)
-    else { return nil }
-    return try? JSONDecoder().decode(ReminderEntry.self, from: data)
-  }
-}
-
 struct ScheduleArgs: Decodable {
   let items: [ReminderEntry]
   let owners: [String]
@@ -56,6 +25,7 @@ struct BannerArgs: Decodable {
 private let idPrefix = "tau.reminder."
 private let actionsKey = "tau.local-notify.actions"
 private let snoozeKey = "tau.local-notify.snooze-minutes"
+private let categoriesKey = "tau.local-notify.category-snapshots"
 
 /// 「稍后提醒」间隔（分钟），由前端随排期写入；通知按钮在 App 未运行时也要用到
 private func snoozeMinutes() -> Int {
@@ -76,11 +46,17 @@ class LocalNotifyPlugin: Plugin, UNUserNotificationCenterDelegate {
     registerCategories()
   }
 
-  /// 按钮标题含稍后间隔，间隔变化后重新登记
-  private func registerCategories() {
+  /// 保留旧类别与历史快照变体，新增语言或文案不覆盖已排通知的动作标签。
+  private func registerCategories(_ entries: [ReminderEntry] = []) {
+    let saved = UserDefaults.standard.data(forKey: categoriesKey)
+      .flatMap { try? JSONDecoder().decode([ReminderCategorySnapshot].self, from: $0) } ?? []
+    let snapshots = ReminderCategorySnapshot.merging(saved, entries: entries)
+    if let data = try? JSONEncoder().encode(snapshots) {
+      UserDefaults.standard.set(data, forKey: categoriesKey)
+    }
     let snooze = UNNotificationAction(
       identifier: "snooze", title: "\(snoozeMinutes()) 分钟后", options: [])
-    center.setNotificationCategories([
+    var categories: Set<UNNotificationCategory> = [
       UNNotificationCategory(
         identifier: "tau.complete",
         actions: [UNNotificationAction(identifier: "done", title: "完成", options: [.foreground]), snooze],
@@ -89,7 +65,19 @@ class LocalNotifyPlugin: Plugin, UNUserNotificationCenterDelegate {
         identifier: "tau.ack",
         actions: [UNNotificationAction(identifier: "ack", title: "知道了", options: []), snooze],
         intentIdentifiers: [], options: []),
-    ])
+    ]
+    for snapshot in snapshots {
+      let later = UNNotificationAction(identifier: "snooze", title: snapshot.snoozeLabel, options: [])
+      for actionSet in ["complete", "ack"] {
+        guard let identifier = snapshot.identifier(for: actionSet) else { continue }
+        let primary = actionSet == "complete"
+          ? UNNotificationAction(identifier: "done", title: snapshot.completeLabel, options: [.foreground])
+          : UNNotificationAction(identifier: "ack", title: snapshot.ackLabel, options: [])
+        categories.insert(UNNotificationCategory(
+          identifier: identifier, actions: [primary, later], intentIdentifiers: [], options: []))
+      }
+    }
+    center.setNotificationCategories(categories)
   }
 
   // MARK: 动作队列
@@ -121,11 +109,9 @@ class LocalNotifyPlugin: Plugin, UNUserNotificationCenterDelegate {
     }
     // 前端开启应用内横幅时交给前端展示，避免与系统横幅重复
     if foregroundBanner {
-      var data: JSObject = [:]
-      for (key, value) in entry.json {
-        if let value = value as? JSValue { data[key] = value }
+      if let data = JSTypes.coerceDictionaryToJSObject(entry.json as NSDictionary) {
+        trigger("delivered", data: data)
       }
-      trigger("delivered", data: data)
       completionHandler([])
       return
     }
@@ -164,11 +150,7 @@ class LocalNotifyPlugin: Plugin, UNUserNotificationCenterDelegate {
     content.title = entry.title
     content.body = entry.body
     content.sound = .default
-    switch entry.actionSet {
-    case "complete": content.categoryIdentifier = "tau.complete"
-    case "ack": content.categoryIdentifier = "tau.ack"
-    default: break
-    }
+    content.categoryIdentifier = entry.categoryIdentifier
     content.threadIdentifier = entry.owner
     content.userInfo = ["entry": entry.json]
     if #available(iOS 15.0, *) { content.interruptionLevel = .timeSensitive }
@@ -191,9 +173,10 @@ class LocalNotifyPlugin: Plugin, UNUserNotificationCenterDelegate {
     let seconds = TimeInterval(snoozeMinutes() * 60)
     let next = ReminderEntry(
       key: entry.owner + ":snooze", owner: entry.owner, kind: entry.kind, ownerId: entry.ownerId,
-      title: entry.title, body: entry.detail.isEmpty ? "稍后提醒" : "稍后提醒 · \(entry.detail)",
+      title: entry.title, body: entry.ui?.snoozedBody ?? (entry.detail.isEmpty ? "稍后提醒" : "稍后提醒 · \(entry.detail)"),
       detail: entry.detail, actions: entry.actionSet,
-      at: Int64((Date().timeIntervalSince1970 + seconds) * 1000))
+      at: Int64((Date().timeIntervalSince1970 + seconds) * 1000), ui: entry.ui)
+    registerCategories([next])
     add(next, trigger: UNTimeIntervalNotificationTrigger(timeInterval: seconds, repeats: false))
   }
 
@@ -202,8 +185,8 @@ class LocalNotifyPlugin: Plugin, UNUserNotificationCenterDelegate {
     let args = try invoke.parseArgs(ScheduleArgs.self)
     if let minutes = args.snoozeMinutes, minutes > 0, minutes != snoozeMinutes() {
       UserDefaults.standard.set(min(minutes, 120), forKey: snoozeKey)
-      registerCategories()
     }
+    registerCategories(args.items)
     let active = Set(args.owners)
     center.getPendingNotificationRequests { requests in
       var stale: [String] = []
