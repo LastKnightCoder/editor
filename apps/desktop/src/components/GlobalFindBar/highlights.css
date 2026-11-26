@@ -1,3 +1,14 @@
+:root,
+[data-mode="light"] {
+  --find-bg-mix: 22%;
+  --find-line-mix: 72%;
+}
+
+[data-mode="dark"] {
+  --find-bg-mix: 28%;
+  --find-line-mix: 85%;
+}
+
 @keyframes tau-find-bar-in {
   from {
     opacity: 0;
@@ -6,17 +17,23 @@
 }
 
 ::highlight(tau-global-find) {
-  background-color: color-mix(in srgb, var(--tau-accent) 9%, transparent);
+  background-color: color-mix(in srgb, var(--tau-accent) var(--find-bg-mix), transparent);
   color: inherit;
+  text-decoration-line: underline;
+  text-decoration-style: solid;
+  text-decoration-color: color-mix(in srgb, var(--tau-accent) var(--find-line-mix), transparent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
 }
 
 ::highlight(tau-global-find-current) {
-  background-color: color-mix(in srgb, var(--tau-accent) 20%, transparent);
-  color: var(--tau-ink-1);
+  background-color: var(--tau-accent);
+  color: var(--tau-ink-inverse);
 }
 
 .tau-source-find-current {
-  background-color: color-mix(in srgb, var(--tau-accent) 20%, transparent);
+  background-color: var(--tau-accent);
+  color: var(--tau-ink-inverse);
 }
 
 /* 临时显示折叠章节的当前命中，正文折叠属性仍归用户操作。 */

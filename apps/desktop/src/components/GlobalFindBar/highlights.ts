@@ -9,6 +9,8 @@ export function clearFindHighlights() {
 export function showFindHighlights(current: Range | undefined, all: Range[] = []) {
   clearFindHighlights();
   if (!window.CSS?.highlights || typeof window.Highlight !== "function") return;
-  if (all.length) window.CSS.highlights.set(allHighlights, new Highlight(...all));
+  // 排除当前命中，避免其余命中的底线叠加到当前实底高亮上。
+  const others = current ? all.filter(range => range !== current) : all;
+  if (others.length) window.CSS.highlights.set(allHighlights, new Highlight(...others));
   if (current) window.CSS.highlights.set(currentHighlight, new Highlight(current));
 }
