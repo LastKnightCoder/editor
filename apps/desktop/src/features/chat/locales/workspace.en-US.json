@@ -1,0 +1,19 @@
+{
+  "workspace.busy": "A chat is running. Switch after it finishes",
+  "workspace.changeFailed": "Failed to update working directory",
+  "workspace.label": "Working directory",
+  "workspace.choose": "Choose directory…",
+  "workspace.reset": "Use default directory",
+  "workspace.missing": "Directory not found; using the app data directory",
+  "branch.detached": "{{head}} (detached)",
+  "branch.done": "Switched to {{branch}}",
+  "branch.failed": "Failed to switch branch",
+  "branch.current": "Current branch: {{branch}}",
+  "branch.switch": "Switch branch",
+  "branch.loading": "Loading…",
+  "branch.readFailed": "Failed to load branches",
+  "dock.openPage": "Open in chat page",
+  "dock.closeShortcut": "Close (Ctrl+J)",
+  "dock.close": "Close AI chat panel",
+  "paper.collapse": "Move to sidebar"
+}

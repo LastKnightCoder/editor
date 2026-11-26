@@ -280,6 +280,8 @@ P6系统平台名称：14路径工程完成；desktop类型/构建、启动/插�
 
 P6A3-D2A白板常用菜单：13路径工程完成；7文件59例、包type/白板边界、menus31key三语及范围静态格式通过。独立AST对照8插件除展示/反馈表达式外协议与动作保持，反馈计数变量一致；真实RichText目标/正文/事件mode与手写合并/撤销换语契约通过，key/参数仍只在工厂打开时冻结。Mind/CopyPaste、媒体与导出另批。
 
+P5桌面对话工作目录/停靠：10路径工程完成；真实QueryClient+传输边界2例、desktop类型/构建、17key三语参数与范围静态/格式通过。fake timer换语保持info/branch缓存对象、在途checkout状态和原cwd/branch单请求，完成后沿原onSettled刷新；同文外部诊断仍属原始Error，只有缺诊断的本机失败携稳定类型。新测试仅锁缓存/异步写入与错误归属契约，不断言UI文案。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

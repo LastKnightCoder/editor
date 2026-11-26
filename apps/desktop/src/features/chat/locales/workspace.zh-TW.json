@@ -1,0 +1,19 @@
+{
+  "workspace.busy": "對話進行中，結束後再切換",
+  "workspace.changeFailed": "工作目錄更新失敗",
+  "workspace.label": "工作目錄",
+  "workspace.choose": "選擇目錄…",
+  "workspace.reset": "使用預設目錄",
+  "workspace.missing": "目錄不存在，已改用應用程式資料目錄",
+  "branch.detached": "{{head}}（分離）",
+  "branch.done": "已切換到 {{branch}}",
+  "branch.failed": "切換分支失敗",
+  "branch.current": "目前分支：{{branch}}",
+  "branch.switch": "切換分支",
+  "branch.loading": "讀取中…",
+  "branch.readFailed": "讀取分支失敗",
+  "dock.openPage": "在對話頁開啟",
+  "dock.closeShortcut": "關閉 (Ctrl+J)",
+  "dock.close": "關閉 AI 對話欄",
+  "paper.collapse": "收為側欄"
+}

@@ -3,6 +3,7 @@
  * 分支可能在应用外被切换，窗口聚焦时刷新。
  */
 
+import { WorkspaceCheckoutError } from "./workspace-errors";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { piWorkspaceBranches, piWorkspaceCheckout, piWorkspaceInfo } from "@/commands/piSession";
 
@@ -40,7 +41,10 @@ export function useWorkspaceCheckout(cwd: string) {
   return useMutation({
     mutationFn: async (branch: string) => {
       const outcome = await piWorkspaceCheckout(cwd, branch);
-      if (!outcome.ok) throw new Error(outcome.error ?? "切换分支失败");
+      if (!outcome.ok)
+        throw outcome.error != null
+          ? new Error(outcome.error)
+          : new WorkspaceCheckoutError("切换分支失败");
     },
     // 同一仓库可能被多个对话以不同子目录打开：整组刷新
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["chat-workspace"] }),

@@ -1,0 +1,19 @@
+{
+  "workspace.busy": "对话进行中，结束后再切换",
+  "workspace.changeFailed": "工作目录更新失败",
+  "workspace.label": "工作目录",
+  "workspace.choose": "选择目录…",
+  "workspace.reset": "使用默认目录",
+  "workspace.missing": "目录不存在，已改用应用数据目录",
+  "branch.detached": "{{head}}（游离）",
+  "branch.done": "已切换到 {{branch}}",
+  "branch.failed": "切换分支失败",
+  "branch.current": "当前分支：{{branch}}",
+  "branch.switch": "切换分支",
+  "branch.loading": "读取中…",
+  "branch.readFailed": "读取分支失败",
+  "dock.openPage": "在对话页打开",
+  "dock.closeShortcut": "关闭 (Ctrl+J)",
+  "dock.close": "关闭 AI 对话栏",
+  "paper.collapse": "收为侧栏"
+}

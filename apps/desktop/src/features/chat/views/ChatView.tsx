@@ -1,3 +1,4 @@
+import { useChatWorkspaceI18n } from "../workspace.i18n";
 /**
  * AI 对话页：页面承载会话正文，会话导航在
  * 全局侧栏「AI 对话」之下（ChatNavSessions），全量管理在「全部会话」弹窗。
@@ -36,6 +37,7 @@ export function ChatView() {
 }
 
 function ChatPaper() {
+  const { t } = useChatWorkspaceI18n();
   const { navigator } = usePage();
   const { id, entry } = usePageParams<{
     id?: string;
@@ -88,8 +90,8 @@ function ChatPaper() {
           onOpenLibrary={() => openLibrary(true)}
           headerActions={
             <IconButton
-              title="收为侧栏"
-              aria-label="收为侧栏"
+              title={t("paper.collapse")}
+              aria-label={t("paper.collapse")}
               className="size-7"
               onClick={collapseToDock}
             >

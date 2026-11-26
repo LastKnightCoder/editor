@@ -1,3 +1,4 @@
+import { useChatWorkspaceI18n } from "../workspace.i18n";
 /**
  * AI 对话停靠栏内容：主体复用聊天共享组件，
  * RightChatPanel（会话下拉 + ChatContainer），会话与对话页同源 useChatMessageStore。
@@ -21,6 +22,7 @@ const RightChatPanel = lazy(() =>
 );
 
 export function ChatDock({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { t } = useChatWorkspaceI18n();
   const { navigator } = usePage();
   const currentChatId = useChatSessionStore(
     s => s.currentIds[bucketKeyOf(MAIN_CHAT_BUCKET)] ?? null
@@ -31,8 +33,8 @@ export function ChatDock({ open, onClose }: { open: boolean; onClose: () => void
   const headerActions = (
     <>
       <IconButton
-        title="在对话页打开"
-        aria-label="在对话页打开"
+        title={t("dock.openPage")}
+        aria-label={t("dock.openPage")}
         className="size-7"
         onClick={() =>
           morphAssist(() =>
@@ -43,8 +45,8 @@ export function ChatDock({ open, onClose }: { open: boolean; onClose: () => void
         <Maximize2 size={15} strokeWidth={1.75} />
       </IconButton>
       <IconButton
-        title="关闭 (Ctrl+J)"
-        aria-label="关闭 AI 对话栏"
+        title={t("dock.closeShortcut")}
+        aria-label={t("dock.close")}
         className="size-7"
         onClick={onClose}
       >
