@@ -5,7 +5,7 @@ import { getProjectItemById } from "@/commands";
 import { EProjectItemType, ProjectItem } from "@/types";
 import { useProjectContext } from "../ProjectContext";
 import VideoNoteView from "../VideoNoteView";
-import WhiteboardProjectView from "../WhiteboardProjectItemView";
+import { BoardCanvas } from "@/features/whiteboards/components/BoardCanvas";
 import WebViewProjectItemView from "../WebViewProjectItemView";
 import TableProjectItemView from "../TableProjectItemView";
 import PdfProjectItemView from "../PdfProjectItemView";
@@ -57,7 +57,7 @@ const EditProjectView = () => {
   if (projectItem.projectItemType === EProjectItemType.Whiteboard) {
     return (
       <div className="h-full w-full">
-        <WhiteboardProjectView key={projectItem.id} projectItemId={projectItem.id} />
+        <BoardCanvas key={projectItem.whiteboardContentId} id={projectItem.whiteboardContentId} />
       </div>
     );
   }

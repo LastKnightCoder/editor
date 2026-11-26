@@ -6,6 +6,10 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 import { WhiteboardModel } from "@tau/collaboration";
+import type { createWhiteboardBinding } from "@tau/whiteboard/collaboration";
+import { EProjectItemType } from "@/types";
+import EditProjectView from "@/features/projects/components/ProjectView/EditProjectView";
+import { ProjectContext } from "@/features/projects/components/ProjectView/ProjectContext";
 import toolRegistry from "@/tools/toolRegistry";
 import { currentWhiteboardToolScope } from "@/services/whiteboard-documents/agent-scope";
 import { queryClient } from "@/queryClient";
@@ -31,6 +35,7 @@ const mocks = vi.hoisted(() => ({
   pageId: "",
   revision: 0,
   open: vi.fn(),
+  append: vi.fn(),
   release: vi.fn(),
   detached: new Set<(leaseId: string) => void>(),
   publish: vi.fn(),
@@ -42,7 +47,40 @@ const mocks = vi.hoisted(() => ({
   unshare: vi.fn(async () => ({ missing: 0 })),
   finish: vi.fn(async () => ({ phase: "COMPLETE" })),
 }));
-vi.mock("@/commands", () => ({ searchEntities: async () => [] }));
+vi.mock("@/commands", () => ({
+  searchEntities: async () => [],
+  getProjectItemById: async (id: number) => ({
+    id,
+    projectItemType: EProjectItemType.Whiteboard,
+    refType: "white-board",
+    refId: 3,
+    whiteboardContentId: 41,
+  }),
+  getWhiteboardPageHeader: async () => ({
+    name: "甲",
+    data: { documentKind: "whiteboard", documentId: mocks.docId, pageId: mocks.pageId },
+  }),
+  getWhiteboardContentById: async () => ({
+    id: 41,
+    name: "甲",
+    data: { version: 3, children: [] },
+  }),
+}));
+vi.mock("@/features/projects/components/ProjectView/EditProjectItem", () => ({
+  default: () => null,
+}));
+vi.mock("@/features/projects/components/ProjectView/VideoNoteView", () => ({
+  default: () => null,
+}));
+vi.mock("@/features/projects/components/ProjectView/WebViewProjectItemView", () => ({
+  default: () => null,
+}));
+vi.mock("@/features/projects/components/ProjectView/TableProjectItemView", () => ({
+  default: () => null,
+}));
+vi.mock("@/features/projects/components/ProjectView/PdfProjectItemView", () => ({
+  default: () => null,
+}));
 vi.mock("@/features/shared/whiteboard/editorKit", async () => {
   const { createEditorKit } = await import("@tau/editor");
   const kit = createEditorKit();
@@ -65,7 +103,7 @@ vi.mock("@/commands/whiteboard-document", () => ({
   whiteboardDocumentBackend: {
     open: mocks.open,
     release: mocks.release,
-    append: async () => ({ revision: ++mocks.revision, projectedRevision: mocks.revision }),
+    append: mocks.append,
     flush: async () => ({ revision: mocks.revision, projectedRevision: mocks.revision }),
     snapshot: async () => ({ state: mocks.state }),
     events: () => () => {},
@@ -120,6 +158,11 @@ beforeEach(() => {
     }
   );
   mocks.revision = 0;
+  mocks.binding = undefined;
+  mocks.append.mockImplementation(async () => ({
+    revision: ++mocks.revision,
+    projectedRevision: mocks.revision,
+  }));
   mocks.docId = crypto.randomUUID();
   source = new Y.Doc();
   const model = new WhiteboardModel(source);
@@ -164,6 +207,53 @@ afterEach(async () => {
   source.destroy();
   vi.unstubAllGlobals();
   document.body.innerHTML = "";
+});
+
+it("项目关联的白板通过文档会话编辑，离页前确认增量保存", async () => {
+  // 关联入口曾把托管页当旧快照打开，误报版本过高且无法保存。
+  mocks.append.mockImplementation(async (_lease: string, _batch: string, update: Uint8Array) => {
+    Y.applyUpdate(source, update);
+    return { revision: ++mocks.revision, projectedRevision: mocks.revision };
+  });
+  const container = document.createElement("div");
+  document.body.append(container);
+  root = createRoot(container);
+  await act(async () =>
+    root!.render(
+      <QueryClientProvider client={queryClient}>
+        <DndProvider backend={HTML5Backend}>
+          <ProjectContext value={{ projectId: 2, itemId: 10 }}>
+            <EditProjectView />
+          </ProjectContext>
+        </DndProvider>
+      </QueryClientProvider>
+    )
+  );
+  await vi.waitFor(() =>
+    expect((mocks.binding as ReturnType<typeof createWhiteboardBinding> | undefined)?.pageId).toBe(
+      mocks.pageId
+    )
+  );
+  const binding = mocks.binding as ReturnType<typeof createWhiteboardBinding>;
+  expect(binding.pageId).toBe(mocks.pageId);
+  const entry = whiteboardDocumentEntry({ databaseName: "A", contentId: 41 }, mocks.docId);
+  expect(entry.getSnapshot().client?.target).toEqual({ databaseName: "A", contentId: 41 });
+  await act(async () => {
+    binding.submit([
+      {
+        type: "edit_page_title",
+        id: mocks.pageId,
+        edit: { offset: 1, remove: 0, text: "：项目编辑" },
+      },
+    ]);
+    expect(await mocks.guard.mock.calls.at(-1)![0]()).toBe(true);
+  });
+  const saved = new WhiteboardModel(source);
+  try {
+    expect(saved.read().pages[0].title).toBe("甲：项目编辑");
+  } finally {
+    saved.dispose();
+  }
 });
 
 it("Activity 隐藏不释放会话或历史，重新显示复用；真正卸载才释放", async () => {
