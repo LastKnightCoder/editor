@@ -44,3 +44,18 @@ export function eventTime(event: { allDay: boolean; startTime: number; endTime?:
     `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
   return `${clock(event.startTime)}${event.endTime != null ? `-${clock(event.endTime)}` : ""}`;
 }
+
+export function displayPercent(part: number, total: number): string {
+  return new Intl.NumberFormat(desktopLocaleSource.getSnapshot(), {
+    style: "percent",
+    maximumFractionDigits: 0,
+  }).format(total <= 0 ? 0 : Math.round((part / total) * 100) / 100);
+}
+
+export function compactNumber(value: number): string {
+  return new Intl.NumberFormat(desktopLocaleSource.getSnapshot(), {
+    notation: value >= 10_000 ? "compact" : "standard",
+    minimumFractionDigits: value >= 10_000 ? 1 : 0,
+    maximumFractionDigits: value >= 10_000 ? 1 : 3,
+  }).format(value);
+}

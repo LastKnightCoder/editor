@@ -103,12 +103,7 @@ export interface HomeSnapshot {
 
 export type RetroRange = "d30" | "d90" | "year" | "all";
 
-export const RETRO_RANGES: { key: RetroRange; label: string }[] = [
-  { key: "d30", label: "近 30 天" },
-  { key: "d90", label: "近 90 天" },
-  { key: "year", label: "今年" },
-  { key: "all", label: "全部" },
-];
+export const RETRO_RANGES: readonly RetroRange[] = ["d30", "d90", "year", "all"];
 
 export interface RetroTotals {
   cards: number;

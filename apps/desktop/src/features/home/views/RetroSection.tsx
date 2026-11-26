@@ -1,3 +1,5 @@
+import { useHomeI18n } from "../i18n";
+import { METRIC_VALUE, MetricText } from "./MetricText";
 /**
  * 今日页 · 回顾段（原统计页并入）：
  * 分段标题（右端时间窗）→ 全年热力图 → 写作趋势 + 知识构成 → 记忆保持 + 专注节律。
@@ -22,7 +24,7 @@ import {
 } from "@tau/ui";
 import { useRetroSnapshot } from "../retroQueries";
 import { useHomeSnapshot } from "../queries";
-import { minutesToHM } from "../format";
+import { minutesToHM, displayPercent, compactNumber } from "../format";
 import {
   RETRO_RANGES,
   type HeatmapStats,
@@ -34,12 +36,12 @@ import { RetroTrend } from "./RetroTrend";
 import { SectionHeading } from "./SectionHeading";
 import { HomeScrollRootContext } from "./HomePanels";
 
-const RANGE_LABEL: Record<RetroRange, string> = {
-  d30: "近 30 天",
-  d90: "近 90 天",
-  year: "今年",
-  all: "全部",
-};
+const RANGE_LABEL = {
+  d30: "retro.range.d30",
+  d90: "retro.range.d90",
+  year: "retro.range.year",
+  all: "retro.range.all",
+} as const;
 
 /** 首页面板：热力图取首页快照，懒加载以首页滚动容器为可见性根 */
 export function RetroPanel() {
@@ -57,6 +59,8 @@ export function RetroSection({
   /** 今日页滚动容器：懒加载的可见性以它为根 */
   scrollRoot: HTMLElement | null;
 }) {
+  const { t, locale } = useHomeI18n();
+  const number = new Intl.NumberFormat(locale);
   const [range, setRange] = useState<RetroRange>("d30");
 
   // 进入视口（预读 240px）后常驻开启，之后切时间窗照常拉取
@@ -79,10 +83,14 @@ export function RetroSection({
 
   return (
     <section ref={rootRef} className="flex flex-col gap-3">
-      <SectionHeading title="回顾">
-        <Segmented label="回顾时间窗" value={range} onValueChange={(v: RetroRange) => setRange(v)}>
-          {RETRO_RANGES.map(r => (
-            <Segmented.Item key={r.key} value={r.key} label={r.label} />
+      <SectionHeading title={t("panels.retro")}>
+        <Segmented
+          label={t("retro.rangeLabel")}
+          value={range}
+          onValueChange={(v: RetroRange) => setRange(v)}
+        >
+          {RETRO_RANGES.map(key => (
+            <Segmented.Item key={key} value={key} label={t(RANGE_LABEL[key])} />
           ))}
         </Segmented>
       </SectionHeading>
@@ -91,10 +99,15 @@ export function RetroSection({
         {/* ── 活动：全年热力图 ── */}
         <Panel variant="outline" pad="compact" className="col-span-12">
           <PanelTitle className="mb-2.5">
-            活动
-            <PanelNote>{new Date().getFullYear()} 年全年 · 每日操作</PanelNote>
+            {t("retro.activity")}
+            <PanelNote>{t("retro.year", { year: String(new Date().getFullYear()) })}</PanelNote>
             <span className="text-tau-micro text-ink-3 ml-auto tabular-nums">
-              今年 <b className="text-ink-1 font-semibold">{heatmap.activeDays}</b> 个活跃日
+              <MetricText
+                text={t("retro.activeDays", { count: heatmap.activeDays, value: METRIC_VALUE })}
+                className="text-ink-1 font-semibold"
+              >
+                {number.format(heatmap.activeDays)}
+              </MetricText>
             </span>
           </PanelTitle>
           {heatmap.days.length > 0 ? (
@@ -104,7 +117,7 @@ export function RetroSection({
               </div>
             </div>
           ) : (
-            <EmptyNote>暂无活动数据</EmptyNote>
+            <EmptyNote>{t("retro.noActivity")}</EmptyNote>
           )}
         </Panel>
 
@@ -116,7 +129,7 @@ export function RetroSection({
             pad="compact"
             className="col-span-12 grid h-[260px] place-items-center"
           >
-            <Loading />
+            <Loading label={t("loading")} />
           </Panel>
         )}
       </div>
@@ -125,6 +138,8 @@ export function RetroSection({
 }
 
 function RetroPanels({ data, range }: { data: RetroSnapshot; range: RetroRange }) {
+  const { t, locale } = useHomeI18n();
+  const number = new Intl.NumberFormat(locale);
   const { navigator } = usePage();
   const { totals, trend, previous, review, rhythm } = data;
 
@@ -138,22 +153,28 @@ function RetroPanels({ data, range }: { data: RetroSnapshot; range: RetroRange }
       {/* ── 写作趋势（面积 + 7 日均线；窗口汇总并入标题行）── */}
       <Panel variant="outline" pad="compact" className="col-span-8 @max-[1179px]:col-span-12">
         <PanelTitle className="mb-2.5">
-          写作趋势
-          <PanelNote>{RANGE_LABEL[range]} · 日字数与 7 日均线</PanelNote>
+          {t("retro.writing")}
+          <PanelNote>{t("retro.writingScope", { range: t(RANGE_LABEL[range]) })}</PanelNote>
           <span className="text-tau-micro text-ink-3 ml-auto tabular-nums">
-            共 <b className="text-ink-1 font-semibold">{words.toLocaleString("zh-CN")}</b> 字
+            <MetricText
+              text={t("retro.totalWords", { count: words, value: METRIC_VALUE })}
+              className="text-ink-1 font-semibold"
+            >
+              {number.format(words)}
+            </MetricText>
             {wordsDelta !== null && (
               <span className={clsx("ml-1.5", wordsDelta >= 0 ? "text-ok" : "text-danger")}>
-                {wordsDelta >= 0 ? "▲" : "▼"} {Math.round(Math.abs(wordsDelta) * 100)}%
+                {wordsDelta >= 0 ? "▲" : "▼"} {displayPercent(Math.abs(wordsDelta), 1)}
               </span>
             )}
-            <span className="text-ink-3 mx-1.5">·</span>日均 {dailyAvg.toLocaleString("zh-CN")}
+            <span className="text-ink-3 mx-1.5">·</span>
+            {t("retro.dailyAverage", { value: number.format(dailyAvg) })}
           </span>
         </PanelTitle>
         {trend.length > 1 ? (
           <RetroTrend trend={trend} />
         ) : (
-          <EmptyNote>暂无趋势数据——写下第一篇内容后这里会开始生长</EmptyNote>
+          <EmptyNote>{t("retro.noTrend")}</EmptyNote>
         )}
       </Panel>
 
@@ -164,7 +185,13 @@ function RetroPanels({ data, range }: { data: RetroSnapshot; range: RetroRange }
         className="col-span-4 flex flex-col @max-[1179px]:col-span-12"
       >
         <PanelTitle className="mb-2.5">
-          知识构成<PanelNote>累计 {fmtWan(totals.wordsTotal)} 字</PanelNote>
+          {t("retro.composition")}
+          <PanelNote>
+            {t("retro.accumulated", {
+              count: totals.wordsTotal,
+              value: compactNumber(totals.wordsTotal),
+            })}
+          </PanelNote>
         </PanelTitle>
         {totals.wordsTotal > 0 ? (
           <>
@@ -172,7 +199,7 @@ function RetroPanels({ data, range }: { data: RetroSnapshot; range: RetroRange }
               {COMP_ROWS.map(row => (
                 <Tooltip
                   key={row.name}
-                  content={`${row.name} ${pctStr(row.words(totals), totals.wordsTotal)}`}
+                  content={`${t(row.name)} ${displayPercent(row.words(totals), totals.wordsTotal)}`}
                 >
                   <i
                     className={row.colorClass}
@@ -186,36 +213,48 @@ function RetroPanels({ data, range }: { data: RetroSnapshot; range: RetroRange }
                 <button
                   key={row.name}
                   type="button"
-                  title={`前往${row.name}`}
+                  title={t("retro.openKind", { name: t(row.name) })}
                   onClick={() => navigator.push(row.target)}
                   className="rounded-tau-sm ease-tau-out hover:bg-hover flex items-center gap-2 px-2 py-[5px] text-left transition-[background] duration-[160ms]"
                 >
                   <i className={clsx("size-2 rounded-[3px]", row.colorClass)} />
-                  <span className="text-tau-body w-10 font-medium">{row.name}</span>
+                  <span className="text-tau-body w-10 font-medium">{t(row.name)}</span>
                   <span className="text-tau-micro text-ink-3 tabular-nums">
-                    {row.count(totals).toLocaleString("zh-CN")} {row.unit}
+                    {t(row.unit, {
+                      count: row.count(totals),
+                      value: number.format(row.count(totals)),
+                    })}
                   </span>
                   <span className="text-tau-micro text-ink-2 ml-auto tabular-nums">
-                    <b className="text-ink-1">{row.words(totals).toLocaleString("zh-CN")}</b> 字
+                    <MetricText
+                      text={t("retro.words", { count: row.words(totals), value: METRIC_VALUE })}
+                      className="text-ink-1"
+                    >
+                      {number.format(row.words(totals))}
+                    </MetricText>
                   </span>
                 </button>
               ))}
             </div>
           </>
         ) : (
-          <EmptyNote>还没有内容——构成会随写作积累出现</EmptyNote>
+          <EmptyNote>{t("retro.noContent")}</EmptyNote>
         )}
       </Panel>
 
       {/* ── 记忆保持 ── */}
       <Panel variant="outline" pad="compact" className="col-span-6 @max-[859px]:col-span-12">
         <PanelTitle className="mb-2.5">
-          记忆保持
+          {t("retro.memory")}
           <PanelNote>
-            {RANGE_LABEL[range]} · {review ? review.total.toLocaleString("zh-CN") : 0} 次评分
+            {t("retro.ratings", {
+              range: t(RANGE_LABEL[range]),
+              count: review?.total ?? 0,
+              value: number.format(review?.total ?? 0),
+            })}
           </PanelNote>
-          <PanelAction onClick={() => navigator.push("review")} title="前往闪卡复习">
-            前往复习
+          <PanelAction onClick={() => navigator.push("review")} title={t("review.openHint")}>
+            {t("review.open")}
           </PanelAction>
         </PanelTitle>
         {review && review.total > 0 ? (
@@ -224,7 +263,7 @@ function RetroPanels({ data, range }: { data: RetroSnapshot; range: RetroRange }
               {RATING_ROWS.map(row => (
                 <Tooltip
                   key={row.key}
-                  content={`${row.label} ${pctStr(review.ratings[row.key], review.total)}`}
+                  content={`${t(row.label)} ${displayPercent(review.ratings[row.key], review.total)}`}
                 >
                   <i
                     className={row.colorClass}
@@ -237,43 +276,56 @@ function RetroPanels({ data, range }: { data: RetroSnapshot; range: RetroRange }
               {RATING_ROWS.map(row => (
                 <span key={row.key} className="inline-flex items-center gap-1.5">
                   <i className={clsx("size-[7px] rounded-[2.5px]", row.colorClass)} />
-                  {row.label}{" "}
+                  {t(row.label)}{" "}
                   <b className="text-ink-1 tabular-nums">
-                    {review.ratings[row.key].toLocaleString("zh-CN")}
+                    {number.format(review.ratings[row.key])}
                   </b>
                 </span>
               ))}
               <span className="ml-auto inline-flex items-baseline gap-1.5">
                 <span className="text-ok text-[14px] font-semibold tabular-nums">
-                  {pctStr(review.ratings.normal + review.ratings.easy, review.total)}
+                  {displayPercent(review.ratings.normal + review.ratings.easy, review.total)}
                 </span>
-                <span className="text-tau-micro text-ink-3">保持率（记得 + 轻松）</span>
+                <span className="text-tau-micro text-ink-3">{t("retro.retention")}</span>
               </span>
             </div>
             <DueStrip buckets={review.dueBuckets} />
           </>
         ) : (
-          <EmptyNote>还没有复习记录</EmptyNote>
+          <EmptyNote>{t("retro.noReviews")}</EmptyNote>
         )}
       </Panel>
 
       {/* ── 专注节律 ── */}
       <Panel variant="outline" pad="compact" className="col-span-6 @max-[859px]:col-span-12">
         <PanelTitle className="mb-2.5">
-          专注节律
+          {t("retro.focus")}
           <PanelNote>
-            {RANGE_LABEL[range]} · {rhythm ? rhythm.sessionCount : 0} 个番茄
-            {rhythm && rhythm.focusMinutes > 0 ? ` · 共 ${minutesToHM(rhythm.focusMinutes)}` : ""}
+            {t("retro.sessions", {
+              range: t(RANGE_LABEL[range]),
+              count: rhythm?.sessionCount ?? 0,
+              value: number.format(rhythm?.sessionCount ?? 0),
+            })}
+            {rhythm && rhythm.focusMinutes > 0
+              ? t("retro.duration", { duration: minutesToHM(rhythm.focusMinutes) })
+              : ""}
           </PanelNote>
-          <PanelAction onClick={() => navigator.push("pomodoro")} title="前往番茄专注">
-            前往番茄专注
+          <PanelAction onClick={() => navigator.push("pomodoro")} title={t("hero.focusLink")}>
+            {t("hero.focusLink")}
           </PanelAction>
         </PanelTitle>
         {rhythm && rhythm.sessionCount > 0 ? (
           <>
             <div className="flex h-[96px] items-end gap-[3px]">
               {rhythm.hourBuckets.map((n, h) => (
-                <Tooltip key={h} content={`${String(h).padStart(2, "0")}:00 · ${n} 个番茄`}>
+                <Tooltip
+                  key={h}
+                  content={t("retro.hourSessions", {
+                    hour: `${String(h).padStart(2, "0")}:00`,
+                    count: n,
+                    value: number.format(n),
+                  })}
+                >
                   <div className="flex h-full min-w-0 flex-1 flex-col justify-end">
                     <i
                       className={clsx(
@@ -300,16 +352,26 @@ function RetroPanels({ data, range }: { data: RetroSnapshot; range: RetroRange }
                 value={
                   rhythm.peakHour !== null ? `${String(rhythm.peakHour).padStart(2, "0")}:00` : "—"
                 }
-                label="最活跃时段"
+                label={t("retro.peakHour")}
               />
-              <RhythmNum value={`${rhythm.avgSessionMinutes} 分钟`} label="平均单次" />
+              <RhythmNum
+                value={t("duration.minutes", { value: number.format(rhythm.avgSessionMinutes) })}
+                label={t("retro.averageSession")}
+              />
               {rhythm.interruptRate !== null && (
-                <RhythmNum value={`${(rhythm.interruptRate * 100).toFixed(1)}%`} label="中断率" />
+                <RhythmNum
+                  value={new Intl.NumberFormat(locale, {
+                    style: "percent",
+                    minimumFractionDigits: 1,
+                    maximumFractionDigits: 1,
+                  }).format(rhythm.interruptRate)}
+                  label={t("retro.interruptRate")}
+                />
               )}
             </div>
           </>
         ) : (
-          <EmptyNote>还没有番茄记录</EmptyNote>
+          <EmptyNote>{t("retro.noFocus")}</EmptyNote>
         )}
       </Panel>
     </>
@@ -320,14 +382,19 @@ function RetroPanels({ data, range }: { data: RetroSnapshot; range: RetroRange }
 
 /** 到期预告：未来 7 天（含今日）逐日柱 */
 function DueStrip({ buckets }: { buckets: number[] }) {
+  const { t, locale } = useHomeI18n();
+  const number = new Intl.NumberFormat(locale);
   const max = maxOf(buckets);
-  const labels = ["今天", "+1", "+2", "+3", "+4", "+5", "+6"];
+  const labels = [t("retro.today"), "+1", "+2", "+3", "+4", "+5", "+6"];
   return (
     <div className="mt-2.5">
-      <div className="text-tau-micro text-ink-3">未来 7 天到期</div>
+      <div className="text-tau-micro text-ink-3">{t("retro.dueWeek")}</div>
       <div className="mt-1 flex h-[52px] items-end gap-[3px]">
         {buckets.map((n, i) => (
-          <Tooltip key={i} content={`${labels[i]} · ${n} 张到期`}>
+          <Tooltip
+            key={i}
+            content={t("retro.dueDay", { day: labels[i], count: n, value: number.format(n) })}
+          >
             <div className="flex h-full min-w-0 flex-1 flex-col justify-end">
               <i
                 className={clsx("rounded-t-[3px]", i === 0 ? "bg-accent" : "bg-accent opacity-40")}
@@ -362,32 +429,32 @@ function RhythmNum({ value, label }: { value: string; label: string }) {
 /** 构成四分类（顺序即展示顺序）：卡片 → 文章 → 项目 → 日记 */
 const COMP_ROWS = [
   {
-    name: "卡片",
-    unit: "张",
+    name: "kind.card",
+    unit: "retro.count.card",
     target: "cards",
     colorClass: "bg-accent",
     words: (t: RetroTotals) => t.cardWords,
     count: (t: RetroTotals) => t.cards,
   },
   {
-    name: "文章",
-    unit: "篇",
+    name: "kind.article",
+    unit: "retro.count.article",
     target: "articles",
     colorClass: "bg-tag-1",
     words: (t: RetroTotals) => t.articleWords,
     count: (t: RetroTotals) => t.articles,
   },
   {
-    name: "项目",
-    unit: "篇",
+    name: "kind.project",
+    unit: "retro.count.project",
     target: "projects",
     colorClass: "bg-tag-2",
     words: (t: RetroTotals) => t.projectWords,
     count: (t: RetroTotals) => t.projects,
   },
   {
-    name: "日记",
-    unit: "篇",
+    name: "kind.diary",
+    unit: "retro.count.diary",
     target: "diary",
     colorClass: "bg-tag-4",
     words: (t: RetroTotals) => t.diaryWords,
@@ -396,24 +463,16 @@ const COMP_ROWS = [
 ] as const;
 
 const RATING_ROWS = [
-  { key: "normal", label: "记得", colorClass: "bg-ok" },
-  { key: "easy", label: "轻松", colorClass: "bg-tag-2" },
-  { key: "struggle", label: "模糊", colorClass: "bg-tag-4" },
-  { key: "hard", label: "忘记", colorClass: "bg-danger" },
+  { key: "normal", label: "retro.rating.normal", colorClass: "bg-ok" },
+  { key: "easy", label: "retro.rating.easy", colorClass: "bg-tag-2" },
+  { key: "struggle", label: "retro.rating.struggle", colorClass: "bg-tag-4" },
+  { key: "hard", label: "retro.rating.hard", colorClass: "bg-danger" },
 ] as const;
 
 function pct(part: number, total: number): string {
   return total <= 0 ? "0%" : `${(part / total) * 100}%`;
 }
 
-function pctStr(part: number, total: number): string {
-  return total <= 0 ? "0%" : `${Math.round((part / total) * 100)}%`;
-}
-
 function maxOf(nums: number[]): number {
   return Math.max(...nums, 1);
-}
-
-function fmtWan(n: number): string {
-  return n >= 10_000 ? `${(n / 10_000).toFixed(1)} 万` : n.toLocaleString("zh-CN");
 }

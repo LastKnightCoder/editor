@@ -33,7 +33,7 @@ Dialog 内自动提供局部 Portal 容器，挂载点位于当前遮罩内、�
 
 ## 界面语言
 
-Dialog、ConfirmDialog 与 Select 的默认文案跟随所在 `I18nRuntimeProvider`，内置简体、繁体与英文词典。调用方显式传入的按钮文案、占位和空态优先使用；没有翻译 Provider 时保持中文默认值。切换语言不重建控件，不清除输入、选中值或确认状态。
+Dialog、ConfirmDialog、Select 与 YearHeatmap 的默认文案跟随所在 `I18nRuntimeProvider`，内置简体、繁体与英文词典。调用方显式传入的按钮文案、占位和空态优先使用；没有翻译 Provider 时保持中文默认值。切换语言不重建控件，不清除输入、选中值或确认状态。
 
 UI 词典位于本包的 `src/locales/{zh-CN,zh-TW,en-US}.json`，`src/i18n.ts` 只负责导入和绑定，不读取业务设置或插件词典。应用和插件只需由宿主提供语言运行时；外部内容和调用方自定义文案由其所有者翻译。
 

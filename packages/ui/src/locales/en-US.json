@@ -11,5 +11,11 @@
   "searchOrCreate": "Search or enter a custom value…",
   "other": "Other",
   "useValue": "Use “{{value}}”",
-  "separator": ", "
+  "separator": ", ",
+  "heatmap.less": "Less",
+  "heatmap.more": "More",
+  "heatmap.cell_other": "{{date}} · {{value}} activities",
+  "heatmap.cell_one": "{{date}} · {{value}} activity",
+  "heatmap.streak_other": "{{value}} active days in a row",
+  "heatmap.streak_one": "{{value}} active day in a row"
 }

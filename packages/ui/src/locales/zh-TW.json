@@ -11,5 +11,9 @@
   "searchOrCreate": "搜尋或輸入自訂值…",
   "other": "其他",
   "useValue": "使用「{{value}}」",
-  "separator": "、"
+  "separator": "、",
+  "heatmap.less": "少",
+  "heatmap.more": "多",
+  "heatmap.cell": "{{date}} · {{value}} 次操作",
+  "heatmap.streak": "連續活躍 {{value}} 天"
 }

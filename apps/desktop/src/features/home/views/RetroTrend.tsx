@@ -1,3 +1,5 @@
+import { useHomeI18n } from "../i18n";
+import { METRIC_VALUE, MetricText } from "./MetricText";
 /**
  * 写作趋势面积图 —— SVG 手绘（零图表库）：日字数面积 + 7 日均线 + hover 竖线 tooltip。
  * 曲线用 Catmull-Rom 样条转三次贝塞尔（过每个数据点、无折角）。
@@ -36,6 +38,14 @@ function smoothPath(pts: readonly Pt[]): string {
 }
 
 export function RetroTrend({ trend }: { trend: TrendDay[] }) {
+  const { t, locale } = useHomeI18n();
+  const number = new Intl.NumberFormat(locale);
+  const shortDate = (value: string, year = false) =>
+    new Intl.DateTimeFormat(locale, {
+      month: "short",
+      day: "numeric",
+      ...(year ? ({ year: "numeric" } as const) : {}),
+    }).format(new Date(`${value}T12:00:00`));
   const [hover, setHover] = useState<number | null>(null);
 
   const geo = useMemo(() => {
@@ -75,7 +85,7 @@ export function RetroTrend({ trend }: { trend: TrendDay[] }) {
           className="block h-auto w-full"
           preserveAspectRatio="none"
           role="img"
-          aria-label="写作趋势"
+          aria-label={t("retro.writing")}
         >
           <defs>
             <linearGradient id="stats-trend-fill" x1="0" y1="0" x2="0" y2="1">
@@ -123,13 +133,18 @@ export function RetroTrend({ trend }: { trend: TrendDay[] }) {
           content={
             hovered ? (
               <>
-                <b className="text-[12.5px] tabular-nums">
-                  {hovered.words.toLocaleString("zh-CN")}
-                </b>{" "}
-                字
+                <MetricText
+                  text={t("retro.words", { count: hovered.words, value: METRIC_VALUE })}
+                  className="text-[12.5px] tabular-nums"
+                >
+                  {number.format(hovered.words)}
+                </MetricText>
                 <br />
                 <span className="opacity-70">
-                  {hovered.date} · 新建 {hovered.cardsCreated + hovered.articlesCreated}
+                  {t("trend.created", {
+                    date: shortDate(hovered.date, true),
+                    value: number.format(hovered.cardsCreated + hovered.articlesCreated),
+                  })}
                 </span>
               </>
             ) : null
@@ -151,22 +166,26 @@ export function RetroTrend({ trend }: { trend: TrendDay[] }) {
       <div className="text-ink-3 mt-1.5 flex justify-between px-px text-[10.5px]">
         {trend.map((d, i) =>
           i % step === 0 || i === trend.length - 1 ? (
-            <span key={d.date}>{d.date.slice(5)}</span>
+            <span key={d.date}>{shortDate(d.date)}</span>
           ) : null
         )}
       </div>
       <div className="text-ink-2 mt-2 flex items-center gap-3.5 text-[11px]">
         <span className="inline-flex items-center gap-1.5">
           <i className="bg-accent h-[3px] w-3.5 rounded-sm" />
-          日字数
+          {t("trend.daily")}
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <i className="bg-tag-2 h-[3px] w-3.5 rounded-sm" />7 日均线
+          <i className="bg-tag-2 h-[3px] w-3.5 rounded-sm" />
+          {t("trend.average")}
         </span>
         {trend[geo.peakIdx].words > 0 && (
           <span className="text-ink-3 ml-auto tabular-nums">
-            峰值 {trend[geo.peakIdx].date.slice(5)} ·{" "}
-            {trend[geo.peakIdx].words.toLocaleString("zh-CN")} 字
+            {t("trend.peak", {
+              date: shortDate(trend[geo.peakIdx].date),
+              count: trend[geo.peakIdx].words,
+              value: number.format(trend[geo.peakIdx].words),
+            })}
           </span>
         )}
       </div>

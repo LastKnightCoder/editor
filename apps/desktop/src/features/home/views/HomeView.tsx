@@ -1,3 +1,4 @@
+import { METRIC_VALUE, MetricText } from "./MetricText";
 /**
  * 今日视图（原统计页并入）—— 一整张纸：纸顶固定问候与今天的数字（hero，不是面板），
  * 下方按首页布局渲染面板：内置面板见 ../panels.ts，用户经纸顶「调整首页」进入编辑模式
@@ -10,7 +11,7 @@
  * 容器查询响应式（@container 在根）：面板内的多列行按 1180/860 两档收列。
  */
 
-import { Fragment, useState, type ReactNode } from "react";
+import { useState } from "react";
 import { useHomeI18n } from "../i18n";
 import { minutesToHM } from "../format";
 import { LayoutDashboard } from "lucide-react";
@@ -176,15 +177,4 @@ function greeting() {
   if (h < 14) return "greeting.noon";
   if (h < 18) return "greeting.afternoon";
   return "greeting.evening";
-}
-
-// 保留完整译文语序，同时只强调动态数值。
-const METRIC_VALUE = "\uFFFC";
-function MetricText({ text, children }: { text: string; children: ReactNode }) {
-  return text.split(METRIC_VALUE).map((part, index) => (
-    <Fragment key={index}>
-      {index > 0 && <b className="text-accent-text font-semibold">{children}</b>}
-      {part}
-    </Fragment>
-  ));
 }
