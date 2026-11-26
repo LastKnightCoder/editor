@@ -1,3 +1,5 @@
+import { ttsWorkspaceT } from "@/services/tts-workspace.binding";
+import { TtsWorkspaceFailure } from "@/services/tts-workspace-error";
 import { AudioLines } from "lucide-react";
 
 import { showMediaNode } from "./mediaModalHost";
@@ -11,7 +13,9 @@ import { uploadResource as uploadResourceCommand } from "@/hooks/useUploadResour
  */
 export const ttsInsertSource: MediaInsertSource = {
   id: "tts",
-  label: "文本转语音",
+  get label() {
+    return ttsWorkspaceT("title");
+  },
   icon: AudioLines,
   mediaTypes: ["audio"],
   open: ({ onInsert }) => {
@@ -22,7 +26,7 @@ export const ttsInsertSource: MediaInsertSource = {
         onConfirm={async (audioBlob, text) => {
           const file = new File([audioBlob], `${Date.now()}.mp3`, { type: "audio/mp3" });
           const url = await uploadResourceCommand(file);
-          if (!url) throw new Error("上传音频失败");
+          if (!url) throw new TtsWorkspaceFailure("upload");
           onInsert({
             src: url,
             title: "语音配音",

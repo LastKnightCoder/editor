@@ -392,6 +392,8 @@ Compose C1九路径完成；原2文件6至3文件8例、desktop type、24key三�
 
 发布执行十二路径完成；全发布三文件11例通过、store增强后原4至5例通过，desktop最终type/build、实际三语runtime与范围静态通过。真实在途store换语保同run/progress handler且只一次执行、不提前通知；缺模板与外部同文异常分开归属。独立AST对照原发布/导出/目录参数、全部callback/effect依赖、250ms debounce与常驻handler保持；纯耗时函数Node无DOM导入与旧14边界输入默认输出逐一相等。范围warning仅原store测试空函数/unused与useRun cleanup ref四条。
 
+TTS工作台十一源完成；原2例加真实全流程契约先基线3至迁后3通过，desktop type/lint与Node无DOM已知/未知/cause烟测、三语runtime通过。生成挂起→同audio→添加挂起跨三语保voice/输入caret/Blob/MIME/URL/currentTime/volume/rate，synthesize/getVoiceList/dispose各一次，无额外pause/revoke/submit；AST证明effects/loadVoices/play/cleanup整段与原上传数据参数保持。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

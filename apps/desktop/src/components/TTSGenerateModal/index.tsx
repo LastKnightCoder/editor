@@ -1,3 +1,6 @@
+import { useTtsWorkspaceI18n } from "@/services/tts-workspace.i18n";
+import { ttsWorkspaceFailureText } from "@/services/tts-workspace.binding";
+import { TtsWorkspaceFailure } from "@/services/tts-workspace-error";
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import { useMemoizedFn } from "ahooks";
 import { Mic, Play, Pause, RefreshCw } from "lucide-react";
@@ -19,6 +22,7 @@ interface TTSGenerateModalProps {
 }
 
 const TTSGenerateModal: React.FC<TTSGenerateModalProps> = ({ open, onCancel, onConfirm }) => {
+  const { t, locale } = useTtsWorkspaceI18n();
   const [text, setText] = useState("");
   const [voices, setVoices] = useState<VoiceOption[]>([]);
   const [selectedVoiceId, setSelectedVoiceId] = useState<string>("");
@@ -27,7 +31,8 @@ const TTSGenerateModal: React.FC<TTSGenerateModalProps> = ({ open, onCancel, onC
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Error | null>(null);
+  const errorText = error ? ttsWorkspaceFailureText(error) : null;
   const [confirming, setConfirming] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -87,11 +92,11 @@ const TTSGenerateModal: React.FC<TTSGenerateModalProps> = ({ open, onCancel, onC
 
   const handleGenerate = useMemoizedFn(async () => {
     if (!text.trim()) {
-      setError("请输入要转换的文本");
+      setError(new TtsWorkspaceFailure("text"));
       return;
     }
     if (!selectedVoiceId) {
-      setError("请选择一个音色");
+      setError(new TtsWorkspaceFailure("voice"));
       return;
     }
 
@@ -101,12 +106,12 @@ const TTSGenerateModal: React.FC<TTSGenerateModalProps> = ({ open, onCancel, onC
 
     try {
       if (!synthesizer) {
-        setError("TTS服务不可用");
+        setError(new TtsWorkspaceFailure("service"));
         return;
       }
       const audioBuffer = await synthesizer.synthesizeSpeech(text.trim(), selectedVoiceId);
       if (!audioBuffer) {
-        setError("文本转语音失败，请重试");
+        setError(new TtsWorkspaceFailure("generate"));
         return;
       }
       const blob = new Blob([audioBuffer.audio.slice().buffer as ArrayBuffer], {
@@ -117,7 +122,7 @@ const TTSGenerateModal: React.FC<TTSGenerateModalProps> = ({ open, onCancel, onC
       setAudioUrl(url);
     } catch (err) {
       console.error("TTS error:", err);
-      setError("文本转语音失败，请检查配置");
+      setError(new TtsWorkspaceFailure("settings", { cause: err }));
     } finally {
       await synthesizer?.dispose?.();
       setGenerating(false);
@@ -145,7 +150,7 @@ const TTSGenerateModal: React.FC<TTSGenerateModalProps> = ({ open, onCancel, onC
       await onConfirm(audioBlob, text.trim());
     } catch (err) {
       console.error("TTS confirm error:", err);
-      setError(err instanceof Error ? err.message : "添加音频失败，请重试");
+      setError(err instanceof Error ? err : new TtsWorkspaceFailure("add", { cause: err }));
     } finally {
       setConfirming(false);
     }
@@ -155,8 +160,8 @@ const TTSGenerateModal: React.FC<TTSGenerateModalProps> = ({ open, onCancel, onC
     <Dialog
       open={open}
       onOpenChange={next => !next && onCancel()}
-      title="文本转语音"
-      subtitle="输入文字，生成后可试听再添加"
+      title={t("title")}
+      subtitle={t("hint")}
       icon={<Mic className="size-4" strokeWidth={1.75} />}
       width={500}
       locked={generating || confirming}
@@ -168,17 +173,17 @@ const TTSGenerateModal: React.FC<TTSGenerateModalProps> = ({ open, onCancel, onC
               size="sm"
               className="mr-auto"
               loading={generating}
-              loadingText="生成中…"
+              loadingText={t("action.generating")}
               disabled={!text.trim() || !selectedVoiceId}
               onClick={handleGenerate}
             >
               {audioBlob ? (
                 <>
                   <RefreshCw className="size-3.5" strokeWidth={1.75} />
-                  重新生成
+                  {t("action.regenerate")}
                 </>
               ) : (
-                "生成音频"
+                t("action.generate")
               )}
             </Button>
             <Button
@@ -187,22 +192,22 @@ const TTSGenerateModal: React.FC<TTSGenerateModalProps> = ({ open, onCancel, onC
               disabled={generating || confirming}
               onClick={onCancel}
             >
-              取消
+              {t("action.cancel")}
             </Button>
             <Button
               variant="primary"
               size="sm"
               loading={confirming}
-              loadingText="正在添加…"
+              loadingText={t("action.adding")}
               disabled={!audioBlob || generating}
               onClick={() => void handleConfirm()}
             >
-              确认添加
+              {t("action.add")}
             </Button>
           </>
         ) : (
           <Button variant="primary" size="sm" data-autofocus onClick={onCancel}>
-            知道了
+            {t("action.acknowledge")}
           </Button>
         )
       }
@@ -210,19 +215,17 @@ const TTSGenerateModal: React.FC<TTSGenerateModalProps> = ({ open, onCancel, onC
       <DialogBody>
         {!isTTSConfigured ? (
           <div className="bg-warn-soft rounded-tau-sm px-3.5 py-2.5">
-            <div className="text-tau-meta text-warn font-medium">语音服务未配置</div>
-            <div className="text-tau-sm text-ink-2 mt-0.5">
-              请先在设置中配置语音合成服务后再使用此功能
-            </div>
+            <div className="text-tau-meta text-warn font-medium">{t("config.missing")}</div>
+            <div className="text-tau-sm text-ink-2 mt-0.5">{t("config.hint")}</div>
           </div>
         ) : (
           <div className="flex flex-col gap-3.5">
-            <ResourceSelectField label="音色">
+            <ResourceSelectField label={t("voice.title")}>
               <Select
-                aria-label="音色"
+                aria-label={t("voice.title")}
                 value={selectedVoiceId || null}
                 onValueChange={v => setSelectedVoiceId(v)}
-                placeholder={voicesLoading ? "正在加载音色…" : "选择音色"}
+                placeholder={voicesLoading ? t("voice.loading") : t("voice.choose")}
                 disabled={voicesLoading}
                 searchable={voices.length > 8}
                 options={voices.map(v => ({
@@ -232,7 +235,7 @@ const TTSGenerateModal: React.FC<TTSGenerateModalProps> = ({ open, onCancel, onC
                 }))}
               />
             </ResourceSelectField>
-            <ResourceSelectField label="文本">
+            <ResourceSelectField label={t("text.title")}>
               <Textarea
                 data-autofocus
                 value={text}
@@ -240,16 +243,19 @@ const TTSGenerateModal: React.FC<TTSGenerateModalProps> = ({ open, onCancel, onC
                   setText(e.target.value);
                   setError(null);
                 }}
-                placeholder="输入要转换成语音的文字"
+                placeholder={t("text.placeholder")}
                 rows={5}
                 className="resize-none"
               />
             </ResourceSelectField>
-            {error && <ResourceSelectError text={error} />}
+            {errorText && <ResourceSelectError text={errorText} />}
             {audioUrl && (
               <div className="border-line-1 rounded-tau-md flex items-center gap-3 border px-3 py-2.5">
                 <audio ref={audioRef} src={audioUrl} onEnded={handleAudioEnded} />
-                <IconButton aria-label={isPlaying ? "暂停" : "试听"} onClick={handlePlayPause}>
+                <IconButton
+                  aria-label={isPlaying ? t("preview.pause") : t("preview.play")}
+                  onClick={handlePlayPause}
+                >
                   {isPlaying ? (
                     <Pause className="size-4" strokeWidth={1.75} />
                   ) : (
@@ -257,8 +263,13 @@ const TTSGenerateModal: React.FC<TTSGenerateModalProps> = ({ open, onCancel, onC
                   )}
                 </IconButton>
                 <div className="min-w-0 flex-1">
-                  <div className="text-tau-body text-ink-1 font-medium">已生成音频</div>
-                  <div className="text-tau-sm text-ink-3">{text.trim().length} 字 · 点击试听</div>
+                  <div className="text-tau-body text-ink-1 font-medium">{t("preview.ready")}</div>
+                  <div className="text-tau-sm text-ink-3">
+                    {t("preview.hint", {
+                      count: text.trim().length,
+                      number: text.trim().length.toLocaleString(locale),
+                    })}
+                  </div>
                 </div>
               </div>
             )}
