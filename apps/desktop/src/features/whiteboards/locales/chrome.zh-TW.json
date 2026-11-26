@@ -93,5 +93,6 @@
   "chrome.status.incompatible": "已儲存在本機，尚未同步：協作端需要較新版本的應用程式，請升級後再同步",
   "chrome.status.rejected": "協作端未接受部分變更，同步已暫停",
   "chrome.status.failed": "已儲存在本機，同步尚未完成：{{reason}}",
-  "chrome.status.retry": "請稍後重試"
+  "chrome.status.retry": "請稍後重試",
+  "chrome.shelf.label": "素材架"
 }

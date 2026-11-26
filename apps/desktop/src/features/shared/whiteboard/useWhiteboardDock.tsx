@@ -1,4 +1,5 @@
 import { isDocumentVersionSupported, type WhiteboardOutline } from "@tau/whiteboard";
+import { useWhiteboardChromeI18n } from "@/features/whiteboards/i18n-chrome";
 import { useWhiteboardDockStore } from "./dockStore";
 import { MaterialShelf } from "./components/Document/MaterialShelf";
 import { useDocumentHost } from "./components/Document/DocumentHostContext";
@@ -12,6 +13,7 @@ export function useWhiteboardDock({
   version?: number;
   onDockWidthChange?(width: number): void;
 }): WhiteboardOutline {
+  const { t } = useWhiteboardChromeI18n();
   const { panel, widths, setWidth } = useWhiteboardDockStore();
   const { shelf } = useDocumentHost();
   const showShelf =
@@ -22,6 +24,8 @@ export function useWhiteboardDock({
     width: widths[current],
     onWidthChange: width => setWidth(current, width),
     onDockWidthChange,
-    panel: showShelf ? { label: "素材架", content: <MaterialShelf /> } : undefined,
+    panel: showShelf
+      ? { id: "shelf", label: t("chrome.shelf.label"), content: <MaterialShelf /> }
+      : undefined,
   };
 }

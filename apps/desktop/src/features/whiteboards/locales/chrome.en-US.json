@@ -97,5 +97,6 @@
   "chrome.status.incompatible": "Saved locally but not synced: collaboration requires a newer app. Update before syncing.",
   "chrome.status.rejected": "Some changes were not accepted. Syncing is paused.",
   "chrome.status.failed": "Saved locally. Syncing did not finish: {{reason}}",
-  "chrome.status.retry": "Please try again later"
+  "chrome.status.retry": "Please try again later",
+  "chrome.shelf.label": "Material shelf"
 }

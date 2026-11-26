@@ -1,3 +1,4 @@
+import type { TreeTranslate } from "../../../tree-i18n";
 import {
   ArrowUpRight,
   AudioLines,
@@ -43,10 +44,45 @@ const META: Record<string, { label: string; icon: LucideIcon }> = {
   whiteboard: { label: "白板", icon: Presentation },
 };
 
-export function elementTypeMeta(type: string, definitions?: Definitions) {
+const typeKeys: Record<string, Parameters<TreeTranslate>[0]> = {
+  geometry: "tree.type.geometry",
+  arrow: "tree.type.arrow",
+  richtext: "tree.type.richtext",
+  document: "tree.type.document",
+  excerpt: "tree.type.excerpt",
+  image: "tree.type.image",
+  video: "tree.type.video",
+  audio: "tree.type.audio",
+  webview: "tree.type.webview",
+  "mind-node": "tree.type.mind-node",
+  frame: "tree.type.frame",
+  column: "tree.type.column",
+  handwrite: "tree.type.handwrite",
+  whiteboard: "tree.type.whiteboard",
+};
+const geometryKeys: Record<string, Parameters<TreeTranslate>[0]> = {
+  rectangle: "tree.shape.rectangle",
+  circle: "tree.shape.circle",
+  triangle: "tree.shape.triangle",
+  diamond: "tree.shape.diamond",
+  capsule: "tree.shape.capsule",
+  parallelogram: "tree.shape.parallelogram",
+  trapezoid: "tree.shape.trapezoid",
+  hexagon: "tree.shape.hexagon",
+  cylinder: "tree.shape.cylinder",
+  document: "tree.shape.document",
+  "speech-bubble": "tree.shape.speech-bubble",
+  cloud: "tree.shape.cloud",
+  "block-arrow": "tree.shape.block-arrow",
+  star: "tree.shape.star",
+  heart: "tree.shape.heart",
+};
+
+export function elementTypeMeta(type: string, t: TreeTranslate, definitions?: Definitions) {
   const presentation = definitions?.(type)?.presentation;
   if (presentation) return { label: presentation.label, icon: presentation.icon ?? Box };
-  return META[type] ?? { label: type, icon: Box };
+  const meta = Object.hasOwn(META, type) ? META[type] : undefined;
+  return meta ? { ...meta, label: t(typeKeys[type]) } : { label: type, icon: Box };
 }
 
 const GEOMETRY_LABEL: Record<string, string> = Object.fromEntries(
@@ -63,6 +99,7 @@ const GENERIC_NAMES = new Set([
 /** 元素自身内容派生的名字（不含手动命名 / 类型名兜底）；取不到返回空串 */
 function contentLabel(
   element: BoardElement,
+  t: TreeTranslate,
   lookup?: (id: string) => BoardElement | null | undefined,
   definitions?: Definitions
 ): string {
@@ -79,7 +116,12 @@ function contentLabel(
     case "richtext":
       return richTextPlainText(element.content) || element.contentTitle || "";
     case "geometry":
-      return richTextPlainText(element.text?.content) || GEOMETRY_LABEL[element.geometryType] || "";
+      return (
+        richTextPlainText(element.text?.content) ||
+        (Object.hasOwn(geometryKeys, element.geometryType)
+          ? t(geometryKeys[element.geometryType])
+          : "")
+      );
     case "mind-node":
       return richTextPlainText(element.text);
     case "frame":
@@ -95,7 +137,7 @@ function contentLabel(
     case "arrow": {
       const end = (id?: string) => {
         const target = id ? lookup?.(id) : undefined;
-        return target ? elementLabel(target, undefined, definitions) : "";
+        return target ? elementLabel(target, t, undefined, definitions) : "";
       };
       const from = end(element.source?.bindId);
       const to = end(element.target?.bindId);
@@ -111,6 +153,7 @@ function contentLabel(
  */
 export function elementLabel(
   element: BoardElement,
+  t: TreeTranslate,
   lookup?: (id: string) => BoardElement | null | undefined,
   definitions?: Definitions
 ): string {
@@ -118,9 +161,7 @@ export function elementLabel(
     element.name && (definitions?.(element.type)?.presentation || !GENERIC_NAMES.has(element.name))
       ? element.name
       : "";
-  const text = (named || contentLabel(element, lookup, definitions) || element.name || "")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (!text) return elementTypeMeta(element.type, definitions).label;
+  const text = (named || contentLabel(element, t, lookup, definitions)).replace(/\s+/g, " ").trim();
+  if (!text) return elementTypeMeta(element.type, t, definitions).label;
   return text.length > MAX_LABEL ? `${text.slice(0, MAX_LABEL)}…` : text;
 }

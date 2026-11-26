@@ -348,7 +348,7 @@ export function defineWhiteboardExtension(
 
 export interface WhiteboardOutline {
   /** 省略时显示内置元素树。 */
-  panel?: { label: string; content: ReactNode };
+  panel?: { id: string; label: string; content: ReactNode };
   open: boolean;
   width: number;
   onWidthChange(width: number): void;

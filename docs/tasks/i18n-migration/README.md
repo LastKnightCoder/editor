@@ -260,6 +260,8 @@ P5快捷对话与配置错误：7路径工程完成；真实发送流水线既�
 
 P6B桌面共享入口：7源码加Root服务退役2路径工程完成；真实共享入口5例及Root远端/宿主文档/停靠3文件22例通过（原环境门控1skip）。desktop类型、sharing三语27语义key参数、范围静态/格式通过。真实QueryClient换语保留查询身份/次数、筛选、焦点选区与pending失败重试，未知诊断保持原样；英文UI仍提交原文章默认标题，卡片默认title保持undefined，白板对象/roomID/payload不改。
 
+P6A3-C1白板元素树：11源码及Root宿主4路径工程完成；4文件15例、包type/白板边界及宿主3文件22例通过（原环境门控1skip）；desktop类型、tree三语44语义key对账/范围静态格式通过。真实元素查询/重命名及自定义面板换语保留子树DOM/草稿/焦点/选区、不写文档；原默认名识别、插件getName/presentation、拖拽/层级/排序算法保持。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

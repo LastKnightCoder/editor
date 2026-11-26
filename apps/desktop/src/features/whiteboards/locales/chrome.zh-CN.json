@@ -93,5 +93,6 @@
   "chrome.status.incompatible": "已保存在本机，未同步：协作端需要更新版本的应用，请升级后再同步",
   "chrome.status.rejected": "协作端没有接受部分改动，同步已暂停",
   "chrome.status.failed": "已保存在本机，同步未完成：{{reason}}",
-  "chrome.status.retry": "请稍后重试"
+  "chrome.status.retry": "请稍后重试",
+  "chrome.shelf.label": "素材架"
 }

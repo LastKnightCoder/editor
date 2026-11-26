@@ -1,3 +1,4 @@
+import { useTreeI18n } from "../../../tree-i18n";
 import React, { useMemo, useState, useCallback } from "react";
 import {
   ArrowDown,
@@ -46,6 +47,7 @@ const BOTTOM_DROP_INDICATOR_CLASS =
 const INSIDE_DROP_INDICATOR_CLASS = "ring-1 ring-inset ring-accent bg-accent-soft";
 
 const Node: React.FC<NodeProps> = ({ element, depth, selectedIds, flat, siblingIndex }) => {
+  const { t } = useTreeI18n();
   const board = useBoard();
   const [expanded, setExpanded] = useState(true);
   const [isRenaming, setIsRenaming] = useState(false);
@@ -55,8 +57,13 @@ const Node: React.FC<NodeProps> = ({ element, depth, selectedIds, flat, siblingI
   const isSelected = selectedIds.has(element.id);
 
   const definitions = (type: string) => board.extensions?.getElementDefinition(type);
-  const meta = elementTypeMeta(element.type, definitions);
-  const displayName = elementLabel(element, id => BoardUtil.getElementById(board, id), definitions);
+  const meta = elementTypeMeta(element.type, t, definitions);
+  const displayName = elementLabel(
+    element,
+    t,
+    id => BoardUtil.getElementById(board, id),
+    definitions
+  );
   const childCount = element.children?.length ?? 0;
   const capService = board.capabilityService;
 
@@ -504,7 +511,7 @@ const Node: React.FC<NodeProps> = ({ element, depth, selectedIds, flat, siblingI
             {hasChildren && (
               <button
                 type="button"
-                aria-label={expanded ? "收起" : "展开"}
+                aria-label={expanded ? t("tree.collapse") : t("tree.expand")}
                 onClick={e => {
                   e.stopPropagation();
                   setExpanded(v => !v);
@@ -570,7 +577,7 @@ const Node: React.FC<NodeProps> = ({ element, depth, selectedIds, flat, siblingI
               trigger={
                 <button
                   type="button"
-                  aria-label="更多"
+                  aria-label={t("tree.more")}
                   onClick={e => e.stopPropagation()}
                   className={cn(
                     "text-ink-3 hover:bg-press hover:text-ink-1 grid size-[22px] flex-none cursor-pointer place-items-center rounded-[6px] opacity-0 group-hover/row:opacity-100",
@@ -609,6 +616,7 @@ function RowActions({
   targets: BoardElement[];
   runAction: (key: string) => void;
 }) {
+  const { t } = useTreeI18n();
   const board = useBoard();
   React.useSyncExternalStore(board.subscribe, board.getSnapshot.bind(board));
   const layerActionState = getLayerOrderActionState(board, targets);
@@ -618,7 +626,7 @@ function RowActions({
         icon={<PencilLine size={15} strokeWidth={1.75} />}
         onSelect={() => runAction("rename")}
       >
-        重命名
+        {t("tree.rename")}
       </Menu.Item>
       <Menu.Separator />
       <Menu.Item
@@ -626,28 +634,28 @@ function RowActions({
         disabled={layerActionState.moveUpDisabled}
         onSelect={() => runAction("layer-move-up")}
       >
-        上移一层
+        {t("tree.layer.up")}
       </Menu.Item>
       <Menu.Item
         icon={<ArrowDown size={15} strokeWidth={1.75} />}
         disabled={layerActionState.moveDownDisabled}
         onSelect={() => runAction("layer-move-down")}
       >
-        下移一层
+        {t("tree.layer.down")}
       </Menu.Item>
       <Menu.Item
         icon={<ArrowUpToLine size={15} strokeWidth={1.75} />}
         disabled={layerActionState.moveTopDisabled}
         onSelect={() => runAction("layer-move-top")}
       >
-        移至顶层
+        {t("tree.layer.top")}
       </Menu.Item>
       <Menu.Item
         icon={<ArrowDownToLine size={15} strokeWidth={1.75} />}
         disabled={layerActionState.moveBottomDisabled}
         onSelect={() => runAction("layer-move-bottom")}
       >
-        移至底层
+        {t("tree.layer.bottom")}
       </Menu.Item>
       <Menu.Separator />
       <Menu.Item
@@ -655,7 +663,7 @@ function RowActions({
         icon={<Trash2 size={15} strokeWidth={1.75} />}
         onSelect={() => runAction("delete")}
       >
-        删除
+        {t("tree.delete")}
       </Menu.Item>
     </>
   );

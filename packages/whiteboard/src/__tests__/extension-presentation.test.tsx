@@ -1,3 +1,5 @@
+import { treeMessages } from "../tree-i18n";
+import { standaloneWhiteboardI18n } from "../locale-runtime";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
@@ -11,6 +13,8 @@ import { buildSchematic } from "../schematic/schematic";
 import { elementLabel, elementTypeMeta } from "../components/Sidebar/tree/typeMeta";
 import { createWhiteboardSession } from "../public";
 import { ARROW_CONNECT_ID, BOARD_TO_CONTAINER } from "../constants";
+
+const { t } = standaloneWhiteboardI18n.get(treeMessages);
 
 const node = () => ({
   id: "box",
@@ -66,9 +70,9 @@ it("没有创建画布时可投影缩略图，元信息使用同一静态定义�
       ?.shapes[0]
   ).toMatchObject({ kind: "rect", fill: "var(--tau-accent)" });
   expect(create).not.toHaveBeenCalled();
-  expect(elementTypeMeta("acme.box", () => definition).label).toBe("测试图形");
-  expect(elementLabel(node(), undefined, () => definition)).toBe("来自插件");
-  expect(elementLabel({ ...node(), name: "自定义名称" }, undefined, () => definition)).toBe(
+  expect(elementTypeMeta("acme.box", t, () => definition).label).toBe("测试图形");
+  expect(elementLabel(node(), t, undefined, () => definition)).toBe("来自插件");
+  expect(elementLabel({ ...node(), name: "自定义名称" }, t, undefined, () => definition)).toBe(
     "自定义名称"
   );
 });
