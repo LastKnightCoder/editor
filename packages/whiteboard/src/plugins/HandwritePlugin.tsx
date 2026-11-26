@@ -1,3 +1,5 @@
+import { whiteboardT } from "../i18n-runtime";
+import { menuText } from "../menu-i18n";
 import { Gauge, Link2, Minus, PenLine, Plus, Sparkles, Ungroup } from "lucide-react";
 import { v4 as getUuid } from "uuid";
 import { toast } from "@tau/ui";
@@ -150,7 +152,7 @@ export class HandwritePlugin extends CommonPlugin implements IBoardPlugin {
     if (targetElements.length === 0) {
       items.push({
         key: "create-handwrite",
-        label: "手写",
+        ...menuText(context.board, "menus.handwrite"),
         icon: <PenLine size={14} />,
         priority: 115,
         onSelect: (ctx: ContextMenuContext) => {
@@ -162,13 +164,13 @@ export class HandwritePlugin extends CommonPlugin implements IBoardPlugin {
     if (isMergeableHandwriteSelection(targetElements)) {
       items.push({
         key: "handwrite-merge-group",
-        label: "合并手写",
+        ...menuText(context.board, "menus.handwrite.merge"),
         icon: <Link2 size={14} />,
         priority: 117,
         onSelect: (ctx: ContextMenuContext) => {
           const mergedCount = this.updateHandwriteGroup(ctx.board, ctx.targetElements, getUuid());
           if (mergedCount > 0) {
-            toast.success(`已合并 ${mergedCount} 条手写`);
+            toast.success(whiteboardT(ctx.board, "menus.handwrite.merged", { count: mergedCount }));
           }
         },
       });
@@ -186,7 +188,7 @@ export class HandwritePlugin extends CommonPlugin implements IBoardPlugin {
     ) {
       items.push({
         key: "handwrite-split-group",
-        label: "拆分手写组",
+        ...menuText(context.board, "menus.handwrite.split"),
         icon: <Ungroup size={14} />,
         priority: 118,
         onSelect: (ctx: ContextMenuContext) => {
@@ -196,7 +198,9 @@ export class HandwritePlugin extends CommonPlugin implements IBoardPlugin {
           if (members.length < 2) return;
           const splitCount = this.updateHandwriteGroup(ctx.board, members, null);
           if (splitCount > 0) {
-            toast.success(`已拆分 ${splitCount} 条手写`);
+            toast.success(
+              whiteboardT(ctx.board, "menus.handwrite.splitResult", { count: splitCount })
+            );
           }
         },
       });
@@ -206,13 +210,13 @@ export class HandwritePlugin extends CommonPlugin implements IBoardPlugin {
       const handwriteElement = targetElements[0] as HandwriteElement;
       items.push({
         key: "handwrite-shortcuts",
-        label: "手写快捷",
+        ...menuText(context.board, "menus.handwrite.shortcuts"),
         icon: <Sparkles size={14} />,
         priority: 116,
         children: [
           {
             key: "handwrite-size-up",
-            label: "线宽 +1",
+            ...menuText(context.board, "menus.handwrite.wider"),
             icon: <Plus size={14} />,
             priority: 0,
             onSelect: (ctx: ContextMenuContext) => {
@@ -224,7 +228,7 @@ export class HandwritePlugin extends CommonPlugin implements IBoardPlugin {
           },
           {
             key: "handwrite-size-down",
-            label: "线宽 -1",
+            ...menuText(context.board, "menus.handwrite.narrower"),
             icon: <Minus size={14} />,
             priority: 1,
             onSelect: (ctx: ContextMenuContext) => {
@@ -236,7 +240,7 @@ export class HandwritePlugin extends CommonPlugin implements IBoardPlugin {
           },
           {
             key: "handwrite-toggle-pressure",
-            label: "切换压感模拟",
+            ...menuText(context.board, "menus.handwrite.pressure"),
             icon: <Gauge size={14} />,
             priority: 2,
             onSelect: (ctx: ContextMenuContext) => {

@@ -1,3 +1,4 @@
+import { menuText } from "../menu-i18n";
 import { embeddedTextOptions, type TextExtensionOptions } from "../extensions/text";
 import { DOMSizeMeasurer } from "../extensions/DOMSizeMeasurer";
 import { Descendant } from "slate";
@@ -105,7 +106,7 @@ export class RichTextPlugin extends CommonPlugin {
     if (targetElements.length === 0) {
       items.push({
         key: "create-text",
-        label: "文本",
+        ...menuText(context.board, "menus.text"),
         icon: <Type size={14} />,
         priority: 120,
         onSelect: (ctx: ContextMenuContext) => {
@@ -118,14 +119,17 @@ export class RichTextPlugin extends CommonPlugin {
       const richText = targetElements[0] as RichTextElement;
       items.push({
         key: `richtext-create-as-${richText.id}`,
-        label: context.board.document ? "复制为独立内容" : "创建为",
+        ...menuText(
+          context.board,
+          context.board.document ? "menus.text.copyIndependent" : "menus.text.createAs"
+        ),
         icon: <FolderOpen size={14} />,
         priority: 260,
         children: [
           !richText.linkedCardId
             ? {
                 key: `richtext-create-as-card-${richText.id}`,
-                label: "卡片",
+                ...menuText(context.board, "menus.card"),
                 icon: <CreditCard size={14} />,
                 priority: 261,
                 onSelect: (ctx: ContextMenuContext) => {
@@ -139,7 +143,7 @@ export class RichTextPlugin extends CommonPlugin {
           !richText.linkedArticleId
             ? {
                 key: `richtext-create-as-article-${richText.id}`,
-                label: "文章",
+                ...menuText(context.board, "menus.article"),
                 icon: <FileText size={14} />,
                 priority: 262,
                 onSelect: (ctx: ContextMenuContext) => {
@@ -152,7 +156,7 @@ export class RichTextPlugin extends CommonPlugin {
             : null,
           {
             key: `richtext-create-as-project-${richText.id}`,
-            label: "项目文档",
+            ...menuText(context.board, "menus.projectDocument"),
             icon: <FolderOpen size={14} />,
             priority: 264,
             onSelect: (ctx: ContextMenuContext) => {

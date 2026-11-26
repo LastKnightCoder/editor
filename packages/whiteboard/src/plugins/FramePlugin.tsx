@@ -1,3 +1,4 @@
+import { menuText } from "../menu-i18n";
 import { StaticSelectionContext } from "../context";
 import { useContext, useLayoutEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
 import { useMemoizedFn } from "ahooks";
@@ -194,7 +195,7 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
     if (targetElements.length === 0) {
       items.push({
         key: "create-frame",
-        label: "画框",
+        ...menuText(context.board, "menus.frame"),
         icon: <FrameIcon size={14} />,
         priority: 180,
         onSelect: (ctx: ContextMenuContext) => {
@@ -208,7 +209,7 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
     if (frameElement) {
       items.push({
         key: "dissolve-frame",
-        label: "解散画框",
+        ...menuText(context.board, "menus.frame.dissolve"),
         icon: <Ungroup size={14} />,
         priority: 200,
         onSelect: (ctx: ContextMenuContext) => {
@@ -252,7 +253,7 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
 
       items.push({
         key: "fit-frame-content",
-        label: "自适应内容",
+        ...menuText(context.board, "menus.frame.fit"),
         icon: <Maximize size={14} />,
         priority: 201,
         onSelect: (ctx: ContextMenuContext) => {

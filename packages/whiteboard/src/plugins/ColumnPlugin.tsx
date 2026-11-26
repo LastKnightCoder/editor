@@ -1,3 +1,4 @@
+import { menuText } from "../menu-i18n";
 import { Columns3, Ungroup } from "lucide-react";
 import {
   Board,
@@ -238,7 +239,7 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
     if (targetElements.length === 0) {
       items.push({
         key: "create-column",
-        label: "分栏",
+        ...menuText(context.board, "menus.column"),
         icon: <Columns3 size={14} />,
         priority: 185,
         onSelect: (ctx: ContextMenuContext) => {
@@ -253,7 +254,7 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
     if (columnElement) {
       items.push({
         key: "dissolve-column",
-        label: "解散分栏",
+        ...menuText(context.board, "menus.column.dissolve"),
         icon: <Ungroup size={14} />,
         priority: 200,
         onSelect: (ctx: ContextMenuContext) => {

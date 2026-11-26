@@ -1,3 +1,4 @@
+import { menuText } from "../menu-i18n";
 import { Layout, Link2, Plus } from "lucide-react";
 import {
   Board,
@@ -81,13 +82,13 @@ export class WhiteboardPlugin extends CommonPlugin implements IBoardPlugin {
     if (this.canCreate && targetElements.length === 0) {
       items.push({
         key: "create-whiteboard",
-        label: "白板",
+        ...menuText(context.board, "menus.whiteboard"),
         icon: <Layout size={14} />,
         priority: 190,
         children: [
           {
             key: "create-whiteboard-new",
-            label: "创建新白板",
+            ...menuText(context.board, "menus.whiteboard.create"),
             icon: <Plus size={14} />,
             priority: 0,
             onSelect: (ctx: ContextMenuContext) => {
@@ -99,7 +100,7 @@ export class WhiteboardPlugin extends CommonPlugin implements IBoardPlugin {
           },
           {
             key: "create-whiteboard-reference",
-            label: "引用已有白板",
+            ...menuText(context.board, "menus.whiteboard.reference"),
             icon: <Link2 size={14} />,
             priority: 1,
             onSelect: (ctx: ContextMenuContext) => {

@@ -1,3 +1,4 @@
+import { menuText } from "../menu-i18n";
 import { FileText, Maximize2 } from "lucide-react";
 import {
   Board,
@@ -120,7 +121,7 @@ export class DocumentPlugin extends CommonPlugin implements IBoardPlugin {
       return [
         {
           key: "create-document",
-          label: "文档",
+          ...menuText(context.board, "menus.document"),
           icon: <FileText size={14} />,
           priority: 140,
           onSelect: (ctx: ContextMenuContext) => {
@@ -136,7 +137,7 @@ export class DocumentPlugin extends CommonPlugin implements IBoardPlugin {
       return [
         {
           key: "open-document",
-          label: "展开",
+          ...menuText(context.board, "menus.document.open"),
           icon: <Maximize2 size={14} />,
           priority: 0,
           onSelect: (ctx: ContextMenuContext) => {

@@ -1,3 +1,4 @@
+import { menuText } from "../menu-i18n";
 import { Globe } from "lucide-react";
 import CommonPlugin, { CommonElement } from "./CommonPlugin";
 import {
@@ -26,7 +27,7 @@ export class WebviewPlugin extends CommonPlugin implements IBoardPlugin {
     if (targetElements.length === 0) {
       items.push({
         key: "create-webview",
-        label: "网页",
+        ...menuText(context.board, "menus.webview"),
         icon: <Globe size={14} />,
         priority: 170,
         onSelect: (ctx: ContextMenuContext) => {

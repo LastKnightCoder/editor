@@ -1,3 +1,4 @@
+import { menuText } from "../menu-i18n";
 import intersect from "path-intersection";
 import { ArrowLeftRight, MoveRight, RotateCcw, Tag, Trash2 } from "lucide-react";
 import {
@@ -57,7 +58,7 @@ export class ArrowPlugin implements IBoardPlugin {
     if (targetElements.length === 0) {
       items.push({
         key: "create-arrow",
-        label: "箭头",
+        ...menuText(context.board, "menus.arrow"),
         icon: <MoveRight size={14} />,
         priority: 110,
         onSelect: (ctx: ContextMenuContext) => {
@@ -77,14 +78,14 @@ export class ArrowPlugin implements IBoardPlugin {
       items.push(
         {
           key: "mind-relation-label",
-          label: "编辑标签",
+          ...menuText(context.board, "menus.arrow.label"),
           icon: <Tag size={14} />,
           priority: 100,
           onSelect: ctx => ctx.board.emit("tau.arrow.description-edit", { id: arrow.id }),
         },
         {
           key: "mind-relation-reverse",
-          label: "反转方向",
+          ...menuText(context.board, "menus.arrow.reverse"),
           icon: <ArrowLeftRight size={14} />,
           priority: 101,
           onSelect: ctx => {
@@ -108,7 +109,7 @@ export class ArrowPlugin implements IBoardPlugin {
         },
         {
           key: "mind-relation-remove",
-          label: "删除联系线",
+          ...menuText(context.board, "menus.arrow.removeRelation"),
           icon: <Trash2 size={14} />,
           danger: true,
           priority: 102,
@@ -137,7 +138,7 @@ export class ArrowPlugin implements IBoardPlugin {
         if (!isOnLine) {
           items.push({
             key: "reset-straight-line",
-            label: "恢复直线",
+            ...menuText(context.board, "menus.arrow.straight"),
             icon: <RotateCcw size={14} />,
             priority: 100,
             onSelect: (ctx: ContextMenuContext) => {
