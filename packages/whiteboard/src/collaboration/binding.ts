@@ -15,6 +15,7 @@ import type { EditorDocument } from "@tau/editor";
 import type { WhiteboardAuthorBridge } from "../extensions/authorTypes";
 import { resolveBoardAccess } from "../extensions/access";
 import type Board from "../Board";
+import { BoardUtil } from "../utils/BoardUtil";
 import type { BoardElement } from "../types/element";
 import type { Operation } from "../types/operation";
 import type { WhiteboardDocumentBinding } from "../document";
@@ -44,7 +45,13 @@ import {
   setPresentations,
 } from "./commands";
 import { beginGesture, isRealtimeGesture, endGesture, prepareGestureHistory } from "./gesture";
-import { apply, commitPreview, geometryKeys, previewFramePosition } from "./operations";
+import {
+  apply,
+  commitPreview,
+  geometryKeys,
+  previewFramePosition,
+  flushFramePosition,
+} from "./operations";
 import {
   createContentCopy,
   pages,
@@ -241,6 +248,7 @@ export class CanvasBinding implements WhiteboardDocumentBinding {
         this.model.prepareLocalTranslations();
         this.readSnapshot();
         this.idleGestureHistory ??= prepareGestureHistory(this);
+        BoardUtil.prepareHitQueries(this.board);
       }
     };
     if (typeof requestIdleCallback === "function") {
@@ -368,6 +376,7 @@ export class CanvasBinding implements WhiteboardDocumentBinding {
     rootId: string;
     commands: import("@tau/collaboration").WhiteboardModelCommand[];
   };
+  frameTarget?: { id: string; x: number; y: number };
   idleGestureHistory?: import("@tau/collaboration").NodeTreeHistory;
   lastCommittedChildren?: BoardElement[];
 
@@ -549,6 +558,9 @@ export class CanvasBinding implements WhiteboardDocumentBinding {
   }
   previewFramePosition(id: string, x: number, y: number) {
     return previewFramePosition(this, id, x, y);
+  }
+  flushFramePosition() {
+    flushFramePosition(this);
   }
   beginGesture(options?: { realtime?: boolean }): void {
     return beginGesture(this, options);

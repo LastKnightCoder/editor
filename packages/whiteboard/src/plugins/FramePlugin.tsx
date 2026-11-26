@@ -26,7 +26,13 @@ import { CommonPlugin } from "./CommonPlugin";
 import { FrameUtil, PathUtil, BoardUtil } from "../utils";
 import Frame from "../components/Frame";
 
-function FrameRoot({ element, children }: { element: FrameElement; children: ReactNode }) {
+function FrameRoot({
+  element,
+  children,
+}: {
+  element: FrameElement;
+  children: (rebasing: boolean) => ReactNode;
+}) {
   const board = useBoard(),
     ref = useRef<SVGGElement>(null);
   const isolated = useContext(StaticSelectionContext);
@@ -44,7 +50,7 @@ function FrameRoot({ element, children }: { element: FrameElement; children: Rea
   useLayoutEffect(() => {
     if (!isolated) board.framePresentation.rendered(element);
   }, [board, element, isolated, rebasePhase]);
-  return <g ref={ref}>{children}</g>;
+  return <g ref={ref}>{children(rebasePhase !== 0)}</g>;
 }
 
 export class FramePlugin extends CommonPlugin implements IBoardPlugin {
@@ -410,13 +416,18 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
   ) {
     return (
       <FrameRoot key={element.id} element={element}>
-        <Frame
-          element={element}
-          onResize={this.onResize.bind(this)}
-          onResizeStart={this.onResizeStart.bind(this)}
-          onResizeEnd={this.onResizeEnd.bind(this)}
-        />
-        {children}
+        {rebasing => (
+          <>
+            <Frame
+              element={element}
+              hideSelection={rebasing}
+              onResize={this.onResize.bind(this)}
+              onResizeStart={this.onResizeStart.bind(this)}
+              onResizeEnd={this.onResizeEnd.bind(this)}
+            />
+            {children}
+          </>
+        )}
       </FrameRoot>
     );
   }

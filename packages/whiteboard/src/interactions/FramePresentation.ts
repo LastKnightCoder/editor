@@ -5,11 +5,14 @@ import type { BoardElement } from "../types/element";
 import { CULL_CELL_PX } from "../utils/ViewportUtil";
 
 type Snapshot = Required<import("../extensions/api").WhiteboardSnapshot>;
+const REBASE_SELECTION: Snapshot["selection"] = { selectedElements: [], selectArea: null };
 interface Root {
   element: BoardElement;
   group: SVGGElement;
 }
 interface Motion {
+  slowBatches: number;
+  inputSurface?: HTMLElement;
   id: string;
   base: BoardElement;
   dx: number;
@@ -26,12 +29,14 @@ interface Motion {
 /** 仅复用活动画框的绘制坐标；模型、命中及持久化始终使用实际坐标。 */
 export class FramePresentation {
   private roots = new Map<string, Root>();
+  private paintGroups = new Map<string, Set<SVGGElement>>();
   private motion?: Motion;
   private visual?: Snapshot;
   private pendingRoot?: string;
   private rebasing = false;
   private holdRebase = false;
   private rebaseFrame?: number;
+  private selectionFrame?: number;
   private pendingFlush?: () => void;
   private flushing = false;
   private notifying = 0;
@@ -64,6 +69,25 @@ export class FramePresentation {
   readonly isRebasing = () => this.rebasing;
   readonly rebasePhase = () => (this.rebasing ? (this.holdRebase ? 1 : 2) : 0);
   readonly isMoving = () => !!this.motion;
+  isGeometryLimited() {
+    return !!this.motion?.inputSurface;
+  }
+
+  recordGeometryCost(ms: number, isolated: boolean) {
+    const motion = this.motion;
+    if (!motion || motion.inputSurface) return;
+    // 给输入与绘制保留四分之一帧；连续两笔几何提交超过余量才切换命中面。
+    motion.slowBatches = isolated && ms > (1000 / 60) * 0.75 ? motion.slowBatches + 1 : 0;
+    if (motion.slowBatches < 2) return;
+    const surface = this.roots
+      .get(motion.id)
+      ?.group.closest<HTMLElement>("[data-whiteboard-stage]");
+    if (surface) {
+      motion.inputSurface = surface;
+      surface.setAttribute("data-frame-drag", "");
+    }
+  }
+
   private setRebasing(value: boolean) {
     if (this.rebasing === value) return;
     this.rebasing = value;
@@ -72,7 +96,9 @@ export class FramePresentation {
 
   private cancelRebaseFrame() {
     if (this.rebaseFrame !== undefined) cancelAnimationFrame(this.rebaseFrame);
+    if (this.selectionFrame !== undefined) cancelAnimationFrame(this.selectionFrame);
     this.rebaseFrame = undefined;
+    this.selectionFrame = undefined;
     this.holdRebase = false;
   }
 
@@ -80,8 +106,7 @@ export class FramePresentation {
     const entry = { element, group };
     this.roots.set(element.id, entry);
     group.style.willChange = "transform";
-    if (!this.motion && this.pendingRoot !== element.id)
-      group.style.transform = "translate3d(0px, 0px, 0)";
+    if (!this.motion && this.pendingRoot !== element.id) this.transform(element.id, 0, 0);
     if (this.motion?.id === element.id) this.paint(this.motion);
     return () => {
       if (this.roots.get(element.id) === entry) this.roots.delete(element.id);
@@ -93,6 +118,29 @@ export class FramePresentation {
         this.setRebasing(false);
       }
     };
+  }
+
+  registerPaintGroup(id: string, group: SVGGElement) {
+    const groups = this.paintGroups.get(id) ?? new Set<SVGGElement>();
+    groups.add(group);
+    this.paintGroups.set(id, groups);
+    group.style.willChange = "transform";
+    group.style.transform = this.roots.get(id)?.group.style.transform || "translate3d(0px, 0px, 0)";
+    return () => {
+      groups.delete(group);
+      if (!groups.size && this.paintGroups.get(id) === groups) this.paintGroups.delete(id);
+    };
+  }
+
+  hasRoot(id: string) {
+    return this.roots.has(id);
+  }
+
+  private transform(id: string, dx: number, dy: number) {
+    const transform = `translate3d(${dx}px, ${dy}px, 0)`;
+    const root = this.roots.get(id);
+    if (root) root.group.style.transform = transform;
+    for (const group of this.paintGroups.get(id) ?? []) group.style.transform = transform;
   }
 
   rendered(element: BoardElement) {
@@ -122,13 +170,23 @@ export class FramePresentation {
           current.height !== element.height)
       )
         return;
-      root.group.style.transform = "translate3d(0px, 0px, 0)";
+      this.transform(element.id, 0, 0);
       root.group.style.willChange = "transform";
       this.pendingRoot = undefined;
       this.cancelRebaseFrame();
-      this.visual = undefined;
       this.arrows.clear();
-      this.setRebasing(false);
+      // 坐标落地后的下一帧再显示编辑控件，避免与批量属性更新挤在同一帧。
+      if (this.rebasing && typeof requestAnimationFrame === "function") {
+        this.selectionFrame = requestAnimationFrame(() => {
+          this.selectionFrame = undefined;
+          this.visual = undefined;
+          this.setRebasing(false);
+          this.board.emit("change", { source: "projection" });
+        });
+      } else {
+        this.visual = undefined;
+        this.setRebasing(false);
+      }
     }
   }
 
@@ -137,6 +195,7 @@ export class FramePresentation {
       return;
     const root = this.roots.get(element.id);
     if (!root) return;
+    this.cancelRebaseFrame();
     if (!this.visual) this.visual = this.board.getCanvasSnapshot();
     const ids = new Set<string>();
     const visit = (node: BoardElement) => {
@@ -154,6 +213,8 @@ export class FramePresentation {
       logicalX: element.x,
       logicalY: element.y,
       ids,
+      slowBatches: 0,
+      inputSurface: undefined,
       tileX: 0,
       tileY: 0,
     };
@@ -167,7 +228,7 @@ export class FramePresentation {
     const root = this.roots.get(motion.id);
     if (!root) return;
     root.group.style.willChange = "transform";
-    root.group.style.transform = `translate3d(${motion.dx}px, ${motion.dy}px, 0)`;
+    this.transform(motion.id, motion.dx, motion.dy);
   }
 
   publish(snapshot: Snapshot) {
@@ -288,24 +349,30 @@ export class FramePresentation {
     this.pendingFlush = callback;
   }
   flush() {
-    if (this.flushing || !this.pendingFlush) return;
+    if (this.flushing) return;
     this.flushing = true;
     try {
-      this.pendingFlush();
+      this.pendingFlush?.();
+      this.board.document?.flushFramePosition?.();
     } finally {
       this.flushing = false;
     }
   }
 
   snapshot(current: Snapshot): Snapshot {
-    if ((!this.motion && !this.holdRebase) || !this.visual) return current;
+    if (this.pendingRoot && !current.children.some(node => node.id === this.pendingRoot))
+      return current;
+    if ((!this.motion && !this.holdRebase && !this.rebasing) || !this.visual) return current;
+    const children = this.motion || this.holdRebase ? this.visual.children : current.children;
+    const selection = this.rebasing ? REBASE_SELECTION : current.selection;
     if (
-      this.visual.selection !== current.selection ||
+      this.visual.children !== children ||
+      this.visual.selection !== selection ||
       this.visual.viewPort !== current.viewPort ||
       this.visual.sketch !== current.sketch ||
       this.visual.presentationSequences !== current.presentationSequences
     )
-      this.visual = { ...current, children: this.visual.children };
+      this.visual = { ...current, children, selection };
     return this.visual;
   }
 
@@ -316,12 +383,13 @@ export class FramePresentation {
 
   end() {
     if (!this.motion) return;
+    this.motion.inputSurface?.removeAttribute("data-frame-drag");
     const id = this.motion.id;
     const root = this.roots.get(id),
       current = this.board.children.find(node => node.id === id);
     this.motion = undefined;
     if (root && root.element === current) {
-      root.group.style.transform = "translate3d(0px, 0px, 0)";
+      this.transform(id, 0, 0);
       root.group.style.willChange = "transform";
       this.pendingRoot = undefined;
       this.visual = undefined;
@@ -354,6 +422,7 @@ export class FramePresentation {
 
   finishForInteraction() {
     this.cancelRebaseFrame();
+    if (!this.motion) this.visual = undefined;
     this.setRebasing(false);
     this.board.emit("change", { source: "projection" });
   }
@@ -379,11 +448,18 @@ export class FramePresentation {
   }
 
   destroy() {
+    this.motion?.inputSurface?.removeAttribute("data-frame-drag");
     this.cancelRebaseFrame();
     for (const root of this.roots.values()) {
       root.group.style.transform = "";
       root.group.style.willChange = "";
     }
+    for (const groups of this.paintGroups.values())
+      for (const group of groups) {
+        group.style.transform = "";
+        group.style.willChange = "";
+      }
+    this.paintGroups.clear();
     this.pendingFlush = undefined;
     this.queried = undefined;
     this.motion = undefined;

@@ -406,6 +406,8 @@ export class DraggingState implements InteractionState {
       this.frameTarget = frame;
       board.framePresentation.move(frame.x, frame.y);
       this.flushFrame(board);
+      board.document?.flushFramePosition?.();
+      board.framePresentation.end();
       if (this.isHitSelected) {
         const node = BoardUtil.getElementById(board, frame.id);
         board.apply(

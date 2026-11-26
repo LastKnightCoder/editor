@@ -62,6 +62,10 @@ export class BoardUtil {
     return index;
   }
 
+  static prepareHitQueries(board: Board): void {
+    this.getSpatialIndex(board);
+  }
+
   /** 与 dfs 相同的先序遍历，但只进入可见子元素 */
   private static dfsHitTestable(
     board: Board,
@@ -801,6 +805,8 @@ export class BoardUtil {
   }
 
   static getElementById(board: Board, id: string): BoardElement | null {
+    const root = board.children.find(node => node.id === id);
+    if (root) return root;
     let element: BoardElement | null = null;
     this.dfs(
       board,

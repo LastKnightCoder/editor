@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { seedGeometryHistory } from "../../../../e2e/whiteboard-frame/prototype/seedGeometryHistory";
 import { act, Activity } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
@@ -11,6 +12,7 @@ import { createServer as createTcpServer, createConnection, type Socket } from "
 import { Transform } from "node:stream";
 import { transferableAbortController } from "node:util";
 import schema from "@tau/db-schema/schema/main.sql?raw";
+import { prepareContentContract } from "@tau/db-schema/content-contracts";
 import Whiteboard from "@tau/whiteboard";
 import { createFrameExtension, createInteractionExtension } from "@tau/whiteboard/extensions";
 import {
@@ -28,6 +30,7 @@ import { createServer } from "../../../../../collaboration-server/src/server";
 import { CollaborationClient } from "../../../../src-electron/main/modules/collaboration/client";
 import { CollaborationLocalStore } from "../../../../src-electron/main/modules/collaboration/local-store";
 import { ContentIdentityTable } from "../../../../src-electron/main/modules/tables/content-identity";
+import { WhiteboardDocumentRepository } from "../../../../src-electron/main/modules/whiteboard-documents/repository";
 import { WhiteboardDocumentSessions } from "../../../../src-electron/main/modules/whiteboard-documents/sessions";
 import {
   WhiteboardJournal,
@@ -43,9 +46,9 @@ afterEach(async () => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
-const waitFor = async (check: () => void) => {
+const waitFor = async (check: () => void, timeout = 4000) => {
   await act(async () => {
-    await vi.waitFor(check, { timeout: 4000, interval: 25 });
+    await vi.waitFor(check, { timeout, interval: 25 });
   });
 };
 
@@ -87,7 +90,13 @@ async function delayedPort(port: number, oneWayMs: number) {
   return address.port;
 }
 
-async function setup({ roundTripMs = 0, frameCount = 1 } = {}) {
+async function setup({
+  roundTripMs = 0,
+  frameCount = 1,
+  frameChildren = 0,
+  seedBytes = 0,
+  SessionClass = WhiteboardDocumentSessions,
+} = {}) {
   vi.stubGlobal(
     "ResizeObserver",
     class {
@@ -113,7 +122,7 @@ async function setup({ roundTripMs = 0, frameCount = 1 } = {}) {
   const device = server.store.register("拖动测试");
   const room = server.store.create(device.id, "whiteboard");
   const builtins = await prepareBuiltinWhiteboardTypes();
-  const source = new Y.Doc();
+  const source = new Y.Doc({ gc: !seedBytes });
   const sourceModel = new WhiteboardModel(source);
   const contract = builtins.prepared.find(item => item.id === builtins.types.frame.contractId)!;
   await sourceModel.installContracts({ [contract.id]: contract.contract });
@@ -136,6 +145,48 @@ async function setup({ roundTripMs = 0, frameCount = 1 } = {}) {
     ],
     {}
   ).createdIds[0];
+  if (frameChildren) {
+    const shape = builtins.prepared.find(row => row.id === builtins.types.geometry.contractId);
+    if (!shape) throw new Error("缺少图形契约");
+    await sourceModel.installContracts({ [shape.id]: shape.contract });
+    const commands = Array.from({ length: frameChildren }, (_, i) => ({
+      type: "create" as const,
+      id: `shape-${i}`,
+      contractId: shape.id,
+      parent: { kind: "element" as const, id: elementId },
+      geometry: {
+        x: 110 + (i % 50),
+        y: 110 + Math.floor(i / 50),
+        width: 1,
+        height: 1,
+        rotation: 0,
+      },
+      data: { geometryType: "rectangle", text: { align: "center" } },
+    }));
+    for (let i = 0; i < commands.length; i += 100)
+      sourceModel.submit(commands.slice(i, i + 100), {});
+    const paragraph = await prepareContentContract("frame-bench", {
+      type: "paragraph",
+      dataVersion: 1,
+      kind: "block",
+    });
+    await sourceModel
+      .richText("shape-0")
+      .installContracts({ [paragraph.id]: paragraph.contract }, null);
+    for (let i = 0; i < frameChildren; i += 64)
+      sourceModel.richText(`shape-${i}`).insertNode(
+        {
+          type: "paragraph",
+          collabId: `label-${i}`,
+          tauContract: paragraph.id,
+          children: [{ text: `标签 ${i}` }],
+        },
+        null,
+        0,
+        null,
+        true
+      );
+  }
   if (frameCount > 1)
     sourceModel.submit(
       Array.from({ length: frameCount - 1 }, (_, i) => ({
@@ -148,6 +199,7 @@ async function setup({ roundTripMs = 0, frameCount = 1 } = {}) {
       })),
       {}
     );
+  if (seedBytes) seedGeometryHistory(sourceModel, elementId, seedBytes);
   const published = await createWhiteboardDocument(
     { documentId: room.id, epoch: 0, baselineId: "base" },
     Y.encodeStateAsUpdate(source)
@@ -168,14 +220,18 @@ async function setup({ roundTripMs = 0, frameCount = 1 } = {}) {
     setOnline(online: boolean): void;
     connected(): boolean;
     x(): number;
+    durable(): Uint8Array;
   }[] = [];
   for (const name of ["A", "B"]) {
-    const db = new Database(":memory:");
+    const dbFile = frameChildren ? join(dir, name + ".sqlite") : ":memory:";
+    const db = new Database(dbFile);
     db.exec(schema);
     ContentIdentityTable.establishBaseline(db);
-    const journal = new WhiteboardJournal(":memory:");
+    const journal = new WhiteboardJournal(
+      frameChildren ? join(dir, name + "-journal.sqlite") : ":memory:"
+    );
     const events = new Set<(event: WhiteboardDocumentEvent) => void>();
-    const sessions = new WhiteboardDocumentSessions(
+    const sessions = new SessionClass(
       journal,
       () => db,
       (_owner, event) => events.forEach(listener => listener(event))
@@ -263,6 +319,7 @@ async function setup({ roundTripMs = 0, frameCount = 1 } = {}) {
     let realtime: WhiteboardRealtime | undefined = connect();
     const binding = createWhiteboardBinding(client.model, {
       pageId,
+      coalesceLocalGesture: frameChildren ? () => true : undefined,
       types: builtins.types,
       preparedContracts: builtins.prepared,
     });
@@ -329,6 +386,21 @@ async function setup({ roundTripMs = 0, frameCount = 1 } = {}) {
         realtime = online ? connect() : undefined;
       },
       connected: () => connected,
+      durable: () => {
+        if (frameChildren) {
+          const disk = new Database(dbFile, { readonly: true });
+          try {
+            const persisted = new WhiteboardDocumentRepository(disk, name).read(room.id);
+            if (!persisted) throw new Error("未从独立数据库连接读回文档");
+            return persisted.state;
+          } finally {
+            disk.close();
+          }
+        }
+        const lease = client.leaseId;
+        if (!lease) throw new Error("耐久会话未打开");
+        return sessions.snapshot(lease, 1).state;
+      },
       x: () =>
         client.model.read().pages[0].children.find(item => item.id === elementId)!.geometry.x,
     });
@@ -375,6 +447,181 @@ it.each([false, true])(
     expect(errors).toEqual([]);
   },
   20000
+);
+
+async function packagedSessions() {
+  const dir = mkdtempSync(join(tmpdir(), "frame-append-worker-"));
+  cleanups.push(() => rmSync(dir, { recursive: true, force: true }));
+  const { execFileSync } = await import("node:child_process");
+  const { createRequire } = await import("node:module");
+  const require = createRequire(import.meta.url);
+  const sqlite = require.resolve("better-sqlite3");
+  // 大检查点按桌面包的相邻路径启动真实工作线程，两份构建都留在临时目录。
+  execFileSync(require.resolve("esbuild/bin/esbuild"), [
+    `sessions=${join(__dirname, "../../../../src-electron/main/modules/whiteboard-documents/sessions.ts")}`,
+    `whiteboard-append-worker=${join(__dirname, "../../../../src-electron/main/workers/whiteboard-append.worker.ts")}`,
+    "--bundle",
+    "--platform=node",
+    "--format=cjs",
+    `--outdir=${dir}`,
+    `--alias:better-sqlite3=${sqlite}`,
+    `--external:${sqlite}`,
+  ]);
+  const { WhiteboardDocumentSessions: SessionClass } = require(
+    join(dir, "sessions.js")
+  ) as typeof import("../../../../src-electron/main/modules/whiteboard-documents/sessions");
+  return SessionClass;
+}
+
+it.runIf(process.env.TAU_FRAME_DRAG_STRESS === "1")(
+  "千元素整框拖动中途和松手后两端可从保存状态重开，单步撤销重做所有坐标",
+  async () => {
+    const SessionClass = await packagedSessions();
+    const {
+      sides: [left, right],
+      errors,
+    } = await setup({ frameChildren: 1000, SessionClass });
+    // 在独立正确性压力中稳定进入慢提交分支，不给正式计时增加工作。
+    const slowCommit = (tx: Y.Transaction) => {
+      if (!left.binding.gestureHistory || tx.origin !== left.binding.gestureHistory) return;
+      const until = performance.now() + 16;
+      while (performance.now() < until) {
+        /* 模拟耗时的同步观察者 */
+      }
+    };
+    left.client.model.doc.on("afterTransaction", slowCommit);
+    cleanups.push(() => left.client.model.doc.off("afterTransaction", slowCommit));
+
+    const initial = left.client.model.read();
+    expect(initial.pages[0].children[0].children).toHaveLength(1000);
+    const compare = async (dx: number) => {
+      const expected = initial.pages[0].children[0];
+      await waitFor(() => expect(right.x()).toBe(expected.geometry.x + dx), 20000);
+      for (const side of [left, right]) {
+        await side.client.flush();
+        const reopened = new WhiteboardModel(new Y.Doc({ gc: false }));
+        try {
+          await reopened.receive(side.durable());
+          const snapshot = reopened.read();
+          expect(snapshot).toEqual(side.client.model.read());
+          const frame = snapshot.pages[0].children[0];
+          expect(frame.children.map(node => [node.id, node.geometry])).toEqual(
+            expected.children.map(node => [node.id, { ...node.geometry, x: node.geometry.x + dx }])
+          );
+          expect(frame.children.map(node => node.body)).toEqual(
+            expected.children.map(node => node.body)
+          );
+          if (dx === 0) expect(snapshot).toEqual(initial);
+        } finally {
+          reopened.dispose();
+          reopened.doc.destroy();
+        }
+      }
+    };
+    await left.fire("pointerdown", 150);
+    await left.fire("pointermove", 200);
+    await compare(50);
+    for (const x of [180, 230, 210, 240]) {
+      await left.fire("pointermove", x);
+      await compare(x - 150);
+    }
+    await left.fire("pointermove", 250);
+    await left.fire("pointerup", 265);
+    await compare(115);
+    expect(left.binding.history.undoStack).toHaveLength(1);
+    expect(right.binding.history.undoStack).toHaveLength(0);
+    await act(async () => left.binding.undo());
+    await compare(0);
+    await act(async () => left.binding.redo());
+    await compare(115);
+    await left.fire("pointerdown", 275);
+    for (const x of [295, 285, 310, 290]) {
+      await left.fire("pointermove", x);
+      await compare(115 + x - 275);
+    }
+    await left.fire("pointercancel", 290);
+    await left.fire("pointerup", 290);
+    await compare(115);
+    expect(left.binding.history.undoStack).toHaveLength(1);
+    expect(left.host.querySelector("[data-frame-drag]")).toBeNull();
+
+    await left.fire("pointerdown", 275);
+    for (const x of [295, 280, 310, 300]) {
+      await left.fire("pointermove", x);
+      await waitFor(() => expect(right.x()).toBe(215 + x - 275), 20000);
+    }
+    expect(left.host.querySelector("[data-frame-drag]")).not.toBeNull();
+    await act(async () =>
+      right.binding.submit([
+        { type: "edit_title", edit: { offset: 0, remove: 0, text: "保留对端写入" } },
+      ])
+    );
+    await waitFor(() => {
+      expect(left.client.model.read().title).toBe("保留对端写入");
+      expect(left.binding.gesture).toBe(false);
+    }, 20000);
+    await left.fire("pointerup", 300);
+    await compare(115);
+    expect(left.binding.history.undoStack).toHaveLength(1);
+    expect(right.binding.history.undoStack).toHaveLength(1);
+    expect(left.host.querySelector("[data-frame-drag]")).toBeNull();
+    expect(errors).toEqual([]);
+  },
+  150000
+);
+
+it.runIf(process.env.TAU_FRAME_QUOTA_STRESS === "1")(
+  "容量拒绝取消时保留已广播坐标和原手势的撤销项，迟到松手不覆盖已保存数据",
+  async () => {
+    const SessionClass = await packagedSessions();
+    const {
+      sides: [left, right],
+      errors,
+    } = await setup({ frameChildren: 1000, seedBytes: 8180000, SessionClass });
+    await act(async () =>
+      right.binding.submit([
+        { type: "edit_title", edit: { offset: 0, remove: 0, text: "容量压力" } },
+      ])
+    );
+    await waitFor(() => expect(left.client.model.read().title).toBe("容量压力"), 25000);
+    await Promise.all([left.client.flush(), right.client.flush()]);
+    const rightDepth = right.binding.history.undoStack.length;
+    await left.fire("pointerdown", 150);
+    for (const x of [165, 180, 195, 210, 225, 240, 255, 270, 285, 300]) {
+      await left.fire("pointermove", x);
+      await waitFor(() => {
+        if (left.binding.gesture) expect(right.x()).toBe(x - 50);
+      }, 25000);
+      if (!left.binding.gesture) break;
+    }
+    expect(left.binding.gesture).toBe(false);
+    const prefix = left.x();
+    expect(prefix).toBeGreaterThan(100);
+    await left.fire("pointerup", 320);
+    await waitFor(() => expect(right.x()).toBe(prefix), 25000);
+    expect(left.binding.history.undoStack).toHaveLength(1);
+    expect(right.binding.history.undoStack).toHaveLength(rightDepth);
+    const state = Y.encodeStateAsUpdate(left.client.model.doc);
+    const item = left.binding.history.undoStack[0];
+    expect(() => left.binding.undo()).toThrow(/预算/);
+    expect(left.binding.history.undoStack[0]).toBe(item);
+    expect(
+      Buffer.from(Y.encodeStateAsUpdate(left.client.model.doc)).equals(Buffer.from(state))
+    ).toBe(true);
+    for (const side of [left, right]) {
+      await side.client.flush();
+      const reopened = new WhiteboardModel(new Y.Doc({ gc: false }));
+      try {
+        await reopened.receive(side.durable());
+        expect(reopened.read()).toEqual(left.client.model.read());
+      } finally {
+        reopened.dispose();
+        reopened.doc.destroy();
+      }
+    }
+    expect(errors).toEqual([]);
+  },
+  180000
 );
 
 it.each(["pointercancel", "hidden"])(

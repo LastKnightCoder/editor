@@ -34,8 +34,8 @@ export function collectFrameChildren(
     element =>
       element.type !== "frame" &&
       element.type !== "arrow" &&
-      api.canContain("frame", element) &&
-      FrameUtil.isElementInFrame(element, frame)
+      FrameUtil.isElementInFrame(element, frame) &&
+      api.canContain("frame", element)
   );
 }
 

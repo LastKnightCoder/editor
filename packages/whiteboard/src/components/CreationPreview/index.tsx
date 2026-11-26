@@ -2,6 +2,7 @@ import { Fragment, useCallback, useSyncExternalStore } from "react";
 import { cn } from "@tau/ui";
 
 import type Board from "../../Board";
+import type { ElementBounds } from "../../types";
 import { BOARD_TO_CONTAINER } from "../../constants/map";
 import { PointUtil } from "../../utils";
 
@@ -37,12 +38,22 @@ export const CreationPreview = ({ board, zoom }: { board: Board; zoom: number })
   const { element, highlight, leaving, bounds: drawBounds } = preview;
 
   const bounds = board.getBounds(element);
+  const targets = new Set(highlight);
+  const byId = new Map<string, ElementBounds>();
+  const visit = (elements: Board["children"]) => {
+    for (const element of elements) {
+      if (targets.delete(element.id)) {
+        const bounds = board.getBounds(element);
+        if (bounds) byId.set(element.id, bounds);
+      }
+      if (!targets.size) return;
+      if (element.children) visit(element.children);
+    }
+  };
+  if (targets.size) visit(board.children);
   const highlightBounds = highlight
-    .map(id => {
-      const target = findElementById(board, id);
-      return target ? board.getBounds(target) : null;
-    })
-    .filter((value): value is NonNullable<typeof value> => value !== null);
+    .map(id => byId.get(id))
+    .filter((value): value is ElementBounds => value !== undefined);
 
   return (
     <g data-layer="creation-preview" className={cn("pointer-events-none", leaving && leavingClass)}>
@@ -118,18 +129,6 @@ export const CreationPreviewBadge = ({ board }: { board: Board }) => {
       </div>
     </div>
   );
-};
-
-/** 深度查找（高亮目标可在容器子树内） */
-const findElementById = (board: Board, id: string) => {
-  const stack = [...board.children];
-  while (stack.length > 0) {
-    const current = stack.pop();
-    if (!current) continue;
-    if (current.id === id) return current;
-    if (Array.isArray(current.children)) stack.push(...current.children);
-  }
-  return undefined;
 };
 
 export default CreationPreview;

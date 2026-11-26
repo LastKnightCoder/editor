@@ -99,6 +99,31 @@ pnpm --filter @tau/whiteboard bench:mind
 
 与构建、类型检查及其他压力任务串行执行。门控套件覆盖四种布局的 100–2000 普通节点、概要与带标题外框，以及最多 64 个节点逐层嵌套的几何查询，并校验大图中的概要正文不重叠；计时只用于比较，不作为默认单测门槛。联系线批量查询覆盖 100–2000 普通节点及一半数量的连线，plain 组记录普通对象耗时，tracked 组只用于身份访问次数，首轮包含建索引、后两轮复用同一快照。协作长会话逐操作验证撤销重做、远端增量同步与二进制重开；三端外框压力反复并发新增、改标题、删除与修改，验证独立操作保留和局部撤销。真实箭头组件压力另覆盖 100–1000 节点下的单节点编辑和整批端点移动；计时包含实际 `Board.apply` 与 React 提交，组件挂载和断言在窗口外，不以直接调用几何工具函数代替。三端联系线压力反复组合建线、两端删节点、逆序同步、逐端撤销、导出和二进制重开，验证失效线不可见及恢复后的身份。默认回归另外约束身份、区间引用、联系线清理、元素事件一致性和几何访问次数，不能用模型、jsdom 或纯布局读数替代真实客户端帧率或视觉验收。
 
+### 画框长拖动
+
+```sh
+node apps/desktop/scripts/bench-whiteboard-frame.mjs --only=drag:frame:1000 --drag-variants=baseline,surface-scope --stable-frame-hosts --preselect --labels --dense --verify --steps=480 --assert-60fps --raf-input --rounds=3 --warmup=1 --rates=1,2,4 --quiet-host --settle-ms=500 --output=/tmp/frame-raf.json
+node apps/desktop/scripts/bench-whiteboard-frame.mjs --only=drag:frame:1000 --drag-variants=baseline,surface-scope --stable-frame-hosts --preselect --labels --dense --verify --steps=480 --assert-60fps --cadence --rounds=3 --warmup=1 --rates=1,2,4 --quiet-host --settle-ms=500 --output=/tmp/frame-wall.json
+VITE_FRAME_BENCH_DRAG_VARIANT=surface-scope node apps/desktop/scripts/bench-whiteboard-frame.mjs --stable-frame-hosts --drag-variants=surface-scope --stress-fragmented --stress-rate=4 --output=/tmp/frame-drag-state.json
+TAU_FRAME_DRAG_STRESS=1 pnpm --filter desktop exec vitest run src/services/whiteboard-documents/__tests__/drag-realtime.test.tsx
+```
+
+将 `--drag-variants` 设为 `baseline,scope` 可单独比较默认选区订阅及宿主顺序改造，`surface-scope` 还会开启隔离的命中面。不传实验参数时使用当前默认实现。
+
+三档分别记录每个样本的 rAF 间隔、实际位置变化间隔、起拖阈值之后单独显示的位置数、发送到屏幕坐标可观测的延迟、松手与归位阶段。每轮交换基线与原型顺序。rAF 输入随页面掉帧而拉长，`--cadence` 从浏览器外的时钟发送，检查实际发送完毕耗时及确认等待。独立发送会产生浏览器输入合并，要同时核对未独立显示的位置，以及每个输入到画面抵达该位置的延迟。保留全部拒绝、未合格负载与超预算样本；正式计时与正确性压力串行运行。
+
+持续拖动原型用下列命令复测。
+
+```sh
+node apps/desktop/scripts/bench-whiteboard-frame.mjs --only=drag:frame:1000 --stable-frame-hosts --drag-variants=scope,history-scope,adaptive-history-scope,budget-scope --rates=1,2,4 --labels --dense --preselect --steps=480 --cadence --align-cadence --rounds=3 --warmup=1 --settle-ms=500 --quiet-host --verify --assert-60fps --output=/tmp/frame-drag-cadence.json
+VITE_FRAME_BENCH_DRAG_VARIANT=budget-scope node apps/desktop/scripts/bench-whiteboard-frame.mjs --drag-variants=budget-scope --stable-frame-hosts --stress-drag-conflicts --stress-rate=4 --output=/tmp/frame-drag-conflicts.json
+TAU_FRAME_DRAG_STRESS=1 pnpm --filter desktop exec vitest run src/services/whiteboard-documents/__tests__/drag-realtime.test.tsx
+```
+
+本组对照中，`scope` 使用已提交的稳定选区和画框宿主，关闭慢提交降载。`history-scope` 在整框同步时复用已裁剪的历史区间；`adaptive-history-scope` 另外按实际帧间隔启用临时命中面；`budget-scope` 测默认慢提交策略并附加诊断计数。省略原型参数可复测实际默认入口。独立发送的 `--align-cadence` 在各轮交替使用 4ms 和 12ms 的起始相位，使同轮方案面对相同输入位置与刷新相位；rAF 对照将 `--cadence --align-cadence` 换成 `--raf-input`。真实观察者和人造慢帧只在中断及耐久压力中使用。
+
+`--reuse-board` 可在同一已加载画布上配对 `scope,budget-scope`，每次真实撤销到初始状态并核对独立模型；连续复位也会累积 V1 历史。容量边界使用 `--seed-geometry-bytes=8010000` 或 `8160000` 单独复现，读取拒绝前后的二进制及两栈。真实近满容量回执、取消及持久化的回归运行 `TAU_FRAME_QUOTA_STRESS=1 pnpm --filter desktop exec vitest run src/services/whiteboard-documents/__tests__/drag-realtime.test.tsx -t 容量拒绝取消`。
+
 ### 正文保存压力验证
 
 投影性能对照、真实 IPC、跨端往返、容量及硬杀验证的命令和通过条件见 [正文回归与容量验证](/docs/guides/dev-content-verification.md)。

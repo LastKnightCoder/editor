@@ -294,21 +294,21 @@ const Geometry = memo((props: GeometryProps) => {
           />
         )}
       </svg>
-      <foreignObject x={x} y={y} width={width} height={height} className="border-none">
-        <div
-          className={classnames(
-            styles.textContainer,
-            styles[text.align],
-            {
-              [styles.readonly]: !isEditing,
-            },
-            handTextClass(sketch)
-          )}
-          style={{ color }}
-        >
-          {/* 图形可单独指定文字明暗（深色填充配浅色字），未指定时跟随宿主 */}
-          <EditorThemeOverride mode={theme}>
-            {showEditor && (
+      {showEditor && (
+        <foreignObject x={x} y={y} width={width} height={height} className="border-none">
+          <div
+            className={classnames(
+              styles.textContainer,
+              styles[text.align],
+              {
+                [styles.readonly]: !isEditing,
+              },
+              handTextClass(sketch)
+            )}
+            style={{ color }}
+          >
+            {/* 图形可单独指定文字明暗（深色填充配浅色字），未指定时跟随宿主 */}
+            <EditorThemeOverride mode={theme}>
               <Editor
                 document={collaborativeDocument}
                 showDragHandle={false}
@@ -323,10 +323,10 @@ const Geometry = memo((props: GeometryProps) => {
                 onChange={board.document ? undefined : handleTextContentChange}
                 hotkeyConfigs={geometryHotkeyConfigs}
               />
-            )}
-          </EditorThemeOverride>
-        </div>
-      </foreignObject>
+            </EditorThemeOverride>
+          </div>
+        </foreignObject>
+      )}
       <If condition={isSelected}>
         <g>
           <rect

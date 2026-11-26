@@ -59,6 +59,7 @@ export interface WhiteboardDocumentBinding {
     x: number,
     y: number
   ): import("./types/element").BoardElement | undefined;
+  flushFramePosition?(): void;
   beginGesture(options?: { realtime?: boolean }): void;
   splitHistory(): void;
   endGesture(commit: boolean): void;

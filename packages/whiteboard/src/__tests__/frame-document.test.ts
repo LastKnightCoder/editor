@@ -28,7 +28,7 @@ afterEach(() => {
     .forEach(fn => fn());
 });
 const geometry = { x: 120, y: 140, width: 80, height: 50, rotation: 0 };
-async function setup() {
+async function setup(local = false) {
   const model = new WhiteboardModel(new Y.Doc({ gc: false }));
   model.submit([{ type: "create_page", id: "page", title: "画框" }], null);
   const schema = await prepareBuiltinWhiteboardTypes();
@@ -45,6 +45,7 @@ async function setup() {
     pageId: "page",
     types: schema.types,
     preparedContracts: schema.prepared,
+    coalesceLocalGesture: local ? () => true : undefined,
   });
   board.attachDocument(binding);
   cleanups.push(() => {
@@ -438,4 +439,90 @@ it("画框显示先行时查询返回最新子元素坐标，读取不写文档�
   board.framePresentation.end();
   expect(model.read()).toEqual(original);
   expect(api.getElement("child")).toMatchObject(geometry);
+});
+
+it("本机画框合并提交保留已发出的坐标快照，取消丢弃尚未提交的位移", async () => {
+  const { board, model, binding, insert } = await setup(true);
+  insert({ ...frame(), children: [card("child")] });
+  vi.useFakeTimers({
+    toFake: [
+      "setTimeout",
+      "clearTimeout",
+      "Date",
+      "performance",
+      "requestAnimationFrame",
+      "cancelAnimationFrame",
+    ],
+  });
+  const original = model.read(),
+    root = board.children[0];
+  cleanups.push(
+    board.framePresentation.register(
+      root,
+      document.createElementNS("http://www.w3.org/2000/svg", "g")
+    )
+  );
+  binding.beginGesture({ realtime: true });
+  board.framePresentation.begin(root);
+  let target = { x: root.x + 40, y: root.y + 25 };
+  board.framePresentation.move(target.x, target.y);
+  const first = binding.previewFramePosition(root.id, target.x, target.y);
+  if (!first) throw new Error("没有产生移动快照");
+  board.framePresentation.setFlush(() => binding.previewFramePosition(root.id, target.x, target.y));
+  const vector = Y.encodeStateVector(model.doc);
+  for (let step = 1; step <= 4; step++) {
+    vi.advanceTimersByTime(100);
+    target = { x: root.x + 40 + step * 20, y: root.y + 25 };
+    board.framePresentation.move(target.x, target.y);
+    binding.previewFramePosition(root.id, target.x, target.y);
+    expect(Y.encodeStateVector(model.doc)).toEqual(vector);
+  }
+  target = { x: root.x + 130, y: root.y + 25 };
+  board.framePresentation.move(target.x, target.y);
+  expect(first.children?.[0].x).toBe(geometry.x + 40);
+  expect(getApi(board).getElement("child")?.x).toBe(geometry.x + 130);
+  vi.advanceTimersByTime(100);
+  const committed = model.read().pages[0].children[0];
+  expect(committed.geometry.x).toBeGreaterThanOrEqual(root.x + 120);
+  expect(committed.geometry.x).toBeLessThanOrEqual(root.x + 130);
+  expect(committed.children[0].geometry.x).toBe(geometry.x + committed.geometry.x - root.x);
+  target = { x: root.x + 170, y: root.y + 25 };
+  board.framePresentation.move(target.x, target.y);
+  binding.previewFramePosition(root.id, target.x, target.y);
+  board.framePresentation.setFlush(undefined);
+  binding.endGesture(false);
+  board.framePresentation.end();
+  vi.advanceTimersByTime(1000);
+  expect(model.read()).toEqual(original);
+  binding.beginGesture({ realtime: true });
+  const restored = board.children[0];
+  board.framePresentation.begin(restored);
+  board.framePresentation.move(restored.x + 30, restored.y + 10);
+  binding.previewFramePosition(restored.id, restored.x + 30, restored.y + 10);
+  getApi(board).select([restored.id]);
+  binding.endGesture(true);
+  board.framePresentation.end();
+  expect(model.read().pages[0].children[0].geometry.x).toBe(restored.x + 30);
+  expect(getApi(board).selection.selectedElements.map(node => node.id)).toEqual([restored.id]);
+  board.framePresentation.rendered(board.children[0]);
+  expect(board.getCanvasSnapshot().selection.selectedElements).toEqual([]);
+  vi.advanceTimersByTime(17);
+  expect(board.getCanvasSnapshot().selection.selectedElements.map(node => node.id)).toEqual([
+    restored.id,
+  ]);
+  binding.undo();
+  expect(model.read()).toEqual(original);
+  binding.beginGesture({ realtime: true });
+  const beforeDissolve = board.children[0];
+  board.framePresentation.begin(beforeDissolve);
+  board.framePresentation.move(beforeDissolve.x + 45, beforeDissolve.y + 10);
+  binding.previewFramePosition(beforeDissolve.id, beforeDissolve.x + 45, beforeDissolve.y + 10);
+  await dissolve(board, beforeDissolve.id);
+  binding.endGesture(true);
+  expect(model.read().pages[0].children[0]).toMatchObject({
+    id: "child",
+    geometry: { x: geometry.x + 45 },
+  });
+  binding.undo();
+  expect(model.read()).toEqual(original);
 });

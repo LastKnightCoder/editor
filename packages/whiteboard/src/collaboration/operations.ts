@@ -100,6 +100,41 @@ export function previewFramePosition(
 ): BoardElement | undefined {
   const board = assertWritable(binding, false);
   if (!binding.gesture) return;
+  if (binding.coalescingGesture && board.framePresentation.isMoving()) {
+    const current = board.children.find(node => node.id === id);
+    if (!current || current.type !== "frame") return;
+    binding.frameTarget = { id, x, y };
+    scheduleGesture(binding);
+    const dx = x - current.x,
+      dy = y - current.y;
+    const project = (node: BoardElement): BoardElement => {
+      const view = { ...node, x: node.x + dx, y: node.y + dy };
+      const original = node.children;
+      if (original) {
+        let children: BoardElement[] | undefined;
+        Object.defineProperty(view, "children", {
+          enumerable: true,
+          get: () => (children ??= original.map(project)),
+        });
+      }
+      return Object.freeze(view);
+    };
+    return project(current);
+  }
+  const value = materializeFramePosition(binding, id, x, y);
+  scheduleGesture(binding);
+  return value;
+}
+
+export function flushFramePosition(binding: CanvasBinding): void {
+  const target = binding.frameTarget;
+  binding.frameTarget = undefined;
+  if (target && binding.gesture) materializeFramePosition(binding, target.id, target.x, target.y);
+}
+
+function materializeFramePosition(binding: CanvasBinding, id: string, x: number, y: number) {
+  const board = assertWritable(binding, false);
+  if (!binding.gesture) return;
   const index = board.children.findIndex(node => node.id === id);
   const current = board.children[index];
   if (!current || current.type !== "frame") return;
@@ -144,7 +179,6 @@ export function previewFramePosition(
     binding.framePending = undefined;
   }
   board.publishDocument(resolveArrowBindings(binding, children));
-  scheduleGesture(binding);
   return next;
 }
 

@@ -201,6 +201,21 @@ afterEach(() => {
 });
 
 describe("geometry 创建工具", () => {
+  it("空标签的图形第一次双击仍立即进入文字编辑", async () => {
+    const shape = buildGeometryElement(
+      { x: 100, y: 100, width: 100, height: 60 },
+      shapeOptions(rectangleItem)
+    );
+    if (!shape) throw new Error("没有创建图形");
+    const { host, board, unmount } = await renderWhiteboard([shape]);
+    const target = host.querySelector("svg[x='100'][y='100'] rect");
+    if (!target) throw new Error("没有找到图形");
+    await act(async () => target.dispatchEvent(new MouseEvent("dblclick", { bubbles: true })));
+    await vi.waitFor(() => expect(host.querySelector('[contenteditable="true"]')).not.toBeNull());
+    expect(board.selection.selectedElements).toEqual([]);
+    await unmount();
+  });
+
   it("拖出矩形：字段与旧构造逻辑一致、单撤销步、创建后选中并回到选择工具，拖动中文档不变", async () => {
     const { board, fire, unmount } = await renderWhiteboard([]);
     board.setActiveTool(GEOMETRY_TOOL_ID, shapeOptions(rectangleItem));

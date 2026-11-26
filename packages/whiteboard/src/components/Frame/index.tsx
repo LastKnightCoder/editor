@@ -50,6 +50,7 @@ const getReadableTextColor = (hex: string): string => {
 
 interface FrameProps {
   element: FrameElement;
+  hideSelection?: boolean;
   onClick?: (e: React.MouseEvent) => void;
   onDoubleClick?: (e: React.MouseEvent) => void;
   onResizeStart?: (element: FrameElement, startPoint: Point) => void;
@@ -72,7 +73,15 @@ interface FrameProps {
 }
 
 const Frame = memo(
-  ({ element, onClick, onDoubleClick, onResize, onResizeStart, onResizeEnd }: FrameProps) => {
+  ({
+    element,
+    hideSelection = false,
+    onClick,
+    onDoubleClick,
+    onResize,
+    onResizeStart,
+    onResizeEnd,
+  }: FrameProps) => {
     const board = useBoard();
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const titleRef = useRef<EditTextHandle>(null);
@@ -96,7 +105,10 @@ const Frame = memo(
     const borderWidth = element.borderWidth ?? defaultStyle.borderWidth;
     const borderRadius = element.borderRadius ?? defaultStyle.borderRadius;
 
-    const { isSelected: isFrameSelected } = useSelectState(element.id);
+    const { isSelected } = useSelectState(element.id);
+    const isFrameSelected = isSelected && !hideSelection;
+    const selectionMounted = useRef(false);
+    selectionMounted.current ||= isFrameSelected;
     const sketch = useSketch(element);
     const { isMoveArrowClosing, activeConnectId, arrowConnectPoints, arrowConnectExtendPoints } =
       useDropArrow(element, { container: true });
@@ -268,8 +280,8 @@ const Frame = memo(
         </foreignObject>
 
         {/* 选中时的边框高亮 */}
-        <If condition={isFrameSelected}>
-          <g>
+        <If condition={selectionMounted.current}>
+          <g visibility={isFrameSelected ? undefined : "hidden"}>
             <rect
               className="pointer-events-none"
               x={x}

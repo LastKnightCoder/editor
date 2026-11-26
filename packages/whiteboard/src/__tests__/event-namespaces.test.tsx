@@ -43,6 +43,58 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe("画布事件分发", () => {
+  it("重复监听按注册顺序触发，通知中的增删仅影响后续通知", () => {
+    const board = create();
+    const calls: string[] = [];
+    const repeated = () => calls.push("repeated"),
+      late = () => calls.push("late");
+    let change = true;
+    board.on("test:event", repeated);
+    board.on("test:event", () => {
+      calls.push("middle");
+      if (!change) return;
+      change = false;
+      board.off("test:event", repeated);
+      board.on("test:event", late);
+    });
+    board.on("test:event", repeated);
+    board.on("test:event", () => calls.push("tail"));
+    board.emit("test:event");
+    expect(calls).toEqual(["repeated", "middle", "repeated", "tail"]);
+    calls.length = 0;
+    board.emit("test:event");
+    expect(calls).toEqual(["middle", "tail", "late"]);
+    calls.length = 0;
+    board.on("test:event", repeated);
+    board.emit("test:event");
+    expect(calls).toEqual(["middle", "tail", "late", "repeated"]);
+  });
+
+  it("once 在重入前移除自身，异常不中断其它监听，销毁清除订阅", () => {
+    vi.spyOn(console, "error").mockReturnValue(undefined);
+    const board = create();
+    const calls: string[] = [];
+    board.once("test:event", () => {
+      calls.push("once");
+      board.emit("test:event");
+    });
+    board.on("test:event", () => {
+      calls.push("throw");
+      throw new Error("监听失败");
+    });
+    board.on("test:event", () => calls.push("tail"));
+    board.emit("test:event");
+    expect(calls).toEqual(["once", "throw", "tail", "throw", "tail"]);
+    board.destroy();
+    calls.length = 0;
+    board.emit("test:event");
+    expect(calls).toEqual([]);
+    // @ts-expect-error 运行时边界同样拒绝非函数监听器。
+    expect(() => board.on("test:event", null)).toThrow(TypeError);
+  });
+});
+
 describe("事件命名空间", () => {
   it("扩展只能发出自己命名空间的事件，其它扩展可订阅", () => {
     const board = create();

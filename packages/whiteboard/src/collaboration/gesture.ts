@@ -19,6 +19,7 @@ export function beginGesture(binding: CanvasBinding, options?: { realtime?: bool
   if (options?.realtime && !binding.coalescingGesture) startGestureHistory(binding);
   binding.pending = [];
   binding.framePending = undefined;
+  binding.frameTarget = undefined;
 }
 
 // 只有实际发布中间位置时才需要单独的撤销栈，短途本机拖动直接提交一个撤销项。
@@ -26,6 +27,11 @@ export function prepareGestureHistory(binding: CanvasBinding) {
   return binding.model.createUndoManager({
     trackedOrigins: new Set(),
     captureTimeout: Number.POSITIVE_INFINITY,
+    reuseCapturedScope: () =>
+      binding.coalescingGesture &&
+      binding.board?.framePresentation.isGeometryLimited() === true &&
+      !!binding.framePending &&
+      binding.framePending.commands === binding.pending,
     beforeChange: (history, direction) => binding.model.preflightHistory(history, direction),
   });
 }
@@ -51,18 +57,28 @@ export function scheduleGesture(binding: CanvasBinding): void {
   const delay = local ? Math.max(0, Math.min(150, 500 - (now - binding.gestureWindowStart))) : 50;
   clearTimeout(binding.gestureTimer);
   binding.gestureTimer = setTimeout(() => {
-    binding.gestureTimer = undefined;
-    binding.gestureWindowStart = undefined;
     if (binding.isBlocked()) {
       binding.endGesture(false);
       return;
     }
     try {
+      binding.board?.framePresentation.flush();
+      binding.flushFramePosition();
+      clearTimeout(binding.gestureTimer);
+      binding.gestureTimer = undefined;
+      binding.gestureWindowStart = undefined;
       if (!binding.gestureHistory && binding.pending.length) startGestureHistory(binding);
       flushGesture(binding);
     } catch (error) {
-      binding.board?.interactions.cancel();
-      binding.endGesture(false);
+      try {
+        try {
+          binding.board?.interactions.cancel();
+        } finally {
+          binding.endGesture(false);
+        }
+      } catch (rollbackError) {
+        console.error("白板拖动未能完整回滚", rollbackError);
+      }
       console.error("白板拖动增量提交失败", error);
     }
   }, delay);
@@ -139,10 +155,27 @@ function commitPreview(binding: CanvasBinding, commands: WhiteboardModelCommand[
     binding.writing = true;
     let committed;
     try {
+      const presentation = board.framePresentation;
+      const owner = board.interactions.activePointerState;
+      const history = binding.gestureHistory;
+      const measure =
+        binding.coalescingGesture &&
+        owner &&
+        history &&
+        binding.framePending?.commands === commands &&
+        presentation.isMoving() &&
+        !presentation.isGeometryLimited();
+      const start = measure ? performance.now() : 0;
       committed = binding.model.tryLocalGeometries(
         geometries,
         binding.gestureHistory ?? binding.origin
       );
+      if (
+        measure &&
+        owner === board.interactions.activePointerState &&
+        history === binding.gestureHistory
+      )
+        presentation.recordGeometryCost(performance.now() - start, committed?.isolated === true);
     } finally {
       binding.writing = false;
     }
@@ -173,6 +206,15 @@ export function flushGesture(binding: CanvasBinding): void {
 
 export function endGesture(binding: CanvasBinding, commit: boolean): void {
   if (!binding.gesture) return;
+  if (commit) {
+    try {
+      binding.board?.framePresentation.flush();
+      binding.flushFramePosition();
+    } catch (error) {
+      binding.endGesture(false);
+      throw error;
+    }
+  }
   clearTimeout(binding.gestureTimer);
   binding.gestureTimer = undefined;
   binding.gestureWindowStart = undefined;
@@ -199,19 +241,23 @@ export function endGesture(binding: CanvasBinding, commit: boolean): void {
   let projected = false;
   try {
     if (history && !binding.model.doc.isDestroyed) {
-      if (commit || binding.options.canWrite?.() === false) {
+      try {
+        if (!commit && binding.options.canWrite?.() !== false && history.undoStack.length) {
+          binding.writing = true;
+          binding.lastCommittedChildren = undefined;
+          try {
+            history.undo();
+            history.clear();
+          } finally {
+            binding.writing = false;
+          }
+        }
+      } finally {
+        // 取消受容量屏障阻止时，已经同步的修改及其撤销项仍属于当前视图。
         if (history.undoStack.length) {
           binding.history.clear(false, true);
           binding.history.undoStack.push(...history.undoStack);
           history.undoStack = [];
-        }
-      } else if (history.undoStack.length) {
-        binding.writing = true;
-        try {
-          history.undo();
-          history.clear();
-        } finally {
-          binding.writing = false;
         }
       }
     } else if (commit && pending.length) {
@@ -227,6 +273,7 @@ export function endGesture(binding: CanvasBinding, commit: boolean): void {
       else history.destroy();
     }
     binding.framePending = undefined;
+    binding.frameTarget = undefined;
     binding.history.captureTimeout = binding.gestureCaptureTimeout ?? 500;
     binding.gestureCaptureTimeout = undefined;
     binding.splitHistory();
@@ -236,6 +283,7 @@ export function endGesture(binding: CanvasBinding, commit: boolean): void {
     )
       refresh(binding);
     binding.lastCommittedChildren = undefined;
+    binding.prepareGeometryWhenIdle();
   }
 }
 

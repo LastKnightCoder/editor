@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import * as Y from "yjs";
+import { createNodeTreeHistory, preserveNodeInitialization } from "./node-tree-history";
 import { NodeTree } from "./node-tree";
 import type { ContentNode } from "./protocol";
 
@@ -223,4 +224,67 @@ describe("节点池的创建、删除和恢复历史", () => {
     exchange();
     expect(left.tree.read()).toEqual(before);
   });
+});
+
+it("合并长手势后扩展历史作用域，撤销仍保留先前属于其它根的修改和初始化记录", () => {
+  const doc = new Y.Doc({ gc: false });
+  const tracked = doc.getMap<number>("tracked");
+  const later = doc.getMap<number>("later");
+  tracked.set("x", 0);
+  later.set("x", 0);
+  const history = createNodeTreeHistory(tracked, {
+    trackedOrigins: new Set(),
+    captureTimeout: Infinity,
+    reuseCapturedScope: () => true,
+  });
+  try {
+    for (const x of [1, 2, 3])
+      doc.transact(() => {
+        tracked.set("x", x);
+        later.set("x", x);
+      }, history);
+    history.attach(later);
+    doc.transact(tx => {
+      const clock = Y.getState(doc.store, doc.clientID);
+      tracked.set("initial", 7);
+      preserveNodeInitialization(tx, { client: doc.clientID, clock, len: 1 });
+      later.set("x", 4);
+    }, history);
+    doc.transact(() => tracked.set("x", 5), history);
+    expect(history.undoStack).toHaveLength(1);
+    history.undo();
+    expect(tracked.toJSON()).toEqual({ x: 0, initial: 7 });
+    expect(later.get("x")).toBe(3);
+    history.redo();
+    expect(tracked.toJSON()).toEqual({ x: 5, initial: 7 });
+    expect(later.get("x")).toBe(4);
+  } finally {
+    history.destroy();
+    doc.destroy();
+  }
+});
+
+it("接手后来裁短的撤销项后继续合并，只撤销实际保留的时钟", () => {
+  const doc = new Y.Doc({ gc: false });
+  const values = doc.getMap<number>("positions");
+  values.set("x", 0);
+  const history = createNodeTreeHistory(values, {
+    trackedOrigins: new Set(),
+    captureTimeout: Infinity,
+    reuseCapturedScope: () => true,
+  });
+  try {
+    for (const x of [1, 2]) doc.transact(() => values.set("x", x), history);
+    const [saved] = history.undoStack;
+    saved.insertions.clients.clear();
+    saved.deletions.clients.clear();
+    doc.transact(() => values.set("x", 3), history);
+    history.undo();
+    expect(values.get("x")).toBe(2);
+    history.redo();
+    expect(values.get("x")).toBe(3);
+  } finally {
+    history.destroy();
+    doc.destroy();
+  }
 });

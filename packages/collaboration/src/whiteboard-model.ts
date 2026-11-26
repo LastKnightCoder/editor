@@ -1389,8 +1389,63 @@ export class WhiteboardModel {
   private execute(plans: readonly PlannedCommand[], origin: unknown): void {
     this.doc.transact(transaction => {
       if (!this.meta.has("profile")) this.meta.set("profile", PROFILE);
-      for (const plan of plans) this.executeOne(plan, transaction, origin);
+      for (let index = 0; index < plans.length; index++) {
+        const plan = plans[index],
+          prepared = this.preparedMoves?.get(plan);
+        if (plan.command.type !== "move_node" || !prepared) {
+          this.executeOne(plan, transaction, origin);
+          continue;
+        }
+        const moves = [plan];
+        let prepend = false;
+        while (index + moves.length < plans.length) {
+          const next = plans[index + moves.length],
+            position = this.preparedMoves?.get(next);
+          if (
+            next.command.type !== "move_node" ||
+            !position ||
+            !sameWhiteboardParent(plan.command.parent, next.command.parent)
+          )
+            break;
+          if (moves.length === 1) prepend = position.at === prepared.at;
+          if (position.at !== prepared.at + (prepend ? 0 : moves.length)) break;
+          moves.push(next);
+        }
+        this.moveNodes(moves, transaction, prepend);
+        index += moves.length - 1;
+      }
     }, origin);
+  }
+
+  private moveNodes(plans: readonly PlannedCommand[], transaction: Y.Transaction, prepend = false) {
+    const moves = plans.map(plan => {
+      const command = plan.command;
+      if (command.type !== "move_node") throw new Error("白板移动命令无效");
+      keys(command, ["type", "id", "parent", "beforeId", "afterId"]);
+      const record = this.live(this.elements, command.id),
+        prepared = this.preparedMoves?.get(plan);
+      const page =
+        prepared?.page ?? this.destination(command.parent, this.contract(record), command.id);
+      return { plan, command, record, prepared, page };
+    });
+    const first = moves[0],
+      order = this.order(first.command.parent),
+      at =
+        first.prepared?.at ??
+        this.position(order, first.command, first.command.parent, first.command.id);
+    const client = this.doc.clientID,
+      clock = Y.getState(this.doc.store, client);
+    // 只合并草稿已证明在同一顺序表连续插入的移动，位置属性仍按命令顺序竞争。
+    const references = moves.map(({ command, plan }) => ({ id: command.id, token: plan.token }));
+    if (prepend) references.reverse();
+    order.insert(at, references);
+    preserveNodeInitialization(transaction, {
+      client,
+      clock,
+      len: Y.getState(this.doc.store, client) - clock,
+    });
+    for (const { command, plan, record, page } of moves)
+      record.set("placement", { parent: command.parent, token: plan.token, fallbackPageId: page });
   }
   private initialize(plan: PlannedCommand, transaction: Y.Transaction, build: () => void): void {
     const client = this.doc.clientID,
@@ -1702,22 +1757,7 @@ export class WhiteboardModel {
         return;
       }
       case "move_node": {
-        keys(command, ["type", "id", "parent", "beforeId", "afterId"]);
-        const record = this.live(this.elements, command.id),
-          prepared = this.preparedMoves?.get(plan),
-          fallbackPageId =
-            prepared?.page ?? this.destination(command.parent, this.contract(record), command.id);
-        const order = this.order(command.parent),
-          at = prepared?.at ?? this.position(order, command, command.parent, command.id);
-        const client = this.doc.clientID,
-          clock = Y.getState(this.doc.store, client);
-        order.insert(at, [{ id: command.id, token: plan.token }]);
-        preserveNodeInitialization(transaction, {
-          client,
-          clock,
-          len: Y.getState(this.doc.store, client) - clock,
-        });
-        record.set("placement", { parent: command.parent, token: plan.token, fallbackPageId });
+        this.moveNodes([plan], transaction);
         return;
       }
       case "set_entity": {

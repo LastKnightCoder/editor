@@ -15,6 +15,113 @@ import {
 afterEach(() => documents.splice(0).forEach(doc => doc.destroy()));
 
 describe("白板结构增量与完整模型对账", () => {
+  it("连续收纳移动遇到重复目标、历史锚点和父级切换时，与逐条提交顺序及撤销一致", async () => {
+    const { board, page, secondPage, container, shape } = await fixture();
+    board.doc.gc = false;
+    const parent = create(board, container, pageParent(page)),
+      anchor = create(board, container, pageParent(page));
+    const leaves = Array.from({ length: 5 }, () =>
+      create(board, shape, elementParent(parent), "seed", "保留正文")
+    );
+    // 先留下失效顺序引用，后续锚点必须定位当前有效身份。
+    board.submit(
+      [
+        { type: "move_node", id: anchor, parent: pageParent(secondPage) },
+        { type: "move_node", id: anchor, parent: pageParent(page) },
+      ],
+      "seed"
+    );
+    const before = board.read(),
+      expected = model(Y.encodeStateAsUpdate(board.doc)),
+      record = board.elements.get(leaves[0]),
+      body = board.text(leaves[0]),
+      origin = {},
+      history = board.createUndoManager({ trackedOrigins: new Set([origin]) });
+    const commands: import("./whiteboard-types").WhiteboardModelCommand[] = [
+      ...[leaves[0], leaves[1], leaves[0], leaves[2]].map(id => ({
+        type: "move_node" as const,
+        id,
+        parent: pageParent(page),
+        beforeId: anchor,
+      })),
+      { type: "set_node", id: anchor, patch: { geometry: { ...shapeGeometry, x: 30 } } },
+      { type: "move_node", id: leaves[3], parent: pageParent(secondPage) },
+      {
+        type: "move_node",
+        id: leaves[4],
+        parent: pageParent(secondPage),
+        beforeId: leaves[3],
+      },
+    ];
+    expected.submit(commands, origin);
+    board.prepareLocalTranslations();
+    expect(board.tryLocalStructure(commands, origin)?.isolated).toBe(true);
+    expect(board.read()).toEqual(expected.read());
+    expect(board.read().pages[0].children.map(node => node.id)).toEqual([
+      parent,
+      leaves[1],
+      leaves[0],
+      leaves[2],
+      anchor,
+    ]);
+    expect(board.read().pages[1].children.map(node => node.id)).toEqual([leaves[4], leaves[3]]);
+    const committed = board.read();
+    history.undo();
+    expect(board.read()).toEqual(before);
+    history.redo();
+    expect(board.read()).toEqual(committed);
+    expect(board.elements.get(leaves[0])).toBe(record);
+    expect(board.text(leaves[0])).toBe(body);
+    expect(body.toString()).toBe("保留正文");
+    history.destroy();
+  });
+
+  it("批量移动与远端的归属和正文编辑并发时，合并及撤销重做不丢元素或文字", async () => {
+    const { board, page, secondPage, container, shape } = await fixture();
+    board.doc.gc = false;
+    const parent = create(board, container, pageParent(page)),
+      leaves = Array.from({ length: 3 }, () =>
+        create(board, shape, elementParent(parent), "seed", "原文")
+      ),
+      peer = model(Y.encodeStateAsUpdate(board.doc)),
+      origin = {},
+      history = board.createUndoManager({ trackedOrigins: new Set([origin]) });
+    peer.submit(
+      [
+        { type: "move_node", id: leaves[0], parent: pageParent(secondPage) },
+        {
+          type: "edit_text",
+          id: leaves[1],
+          field: null,
+          edit: { offset: 2, remove: 0, text: "并发编辑" },
+        },
+      ],
+      {}
+    );
+    board.prepareLocalTranslations();
+    expect(
+      board.tryLocalStructure(
+        leaves.map(id => ({ type: "move_node", id, parent: pageParent(page) })),
+        origin
+      )?.isolated
+    ).toBe(true);
+    await board.receive(Y.encodeStateAsUpdate(peer.doc));
+    await peer.receive(Y.encodeStateAsUpdate(board.doc));
+    expect(board.read()).toEqual(peer.read());
+    for (const change of [() => history.undo(), () => history.redo()]) {
+      change();
+      await peer.receive(Y.encodeStateAsUpdate(board.doc));
+      expect(board.read()).toEqual(peer.read());
+      expect(
+        flat(board.read())
+          .map(node => node.id)
+          .sort()
+      ).toEqual([parent, ...leaves].sort());
+      expect(board.text(leaves[1]).toString()).toBe("原文并发编辑");
+    }
+    history.destroy();
+  });
+
   it("多页容器反复创建收纳与解散后，增量快照和远端完整校验逐批一致", async () => {
     const { board, page, secondPage, rich, container } = await fixture();
     board.doc.gc = false;

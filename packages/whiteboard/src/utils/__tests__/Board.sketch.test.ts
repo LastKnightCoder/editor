@@ -35,6 +35,27 @@ afterEach(() => {
 });
 
 describe("Board 页级画风（set_sketch）", () => {
+  it("文档投影的画风通知到达时，完整快照已包含同一次更新", () => {
+    const board = createBoard();
+    const observed: unknown[] = [];
+    board.on("sketch:change", (sketch: PageSketch) => {
+      const snapshot = board.getSnapshot();
+      observed.push({
+        sketch,
+        snapshot: snapshot.sketch,
+        ids: snapshot.children.map(node => node.id),
+      });
+    });
+    const next: PageSketch = { mode: "sketch", level: "neat" };
+    try {
+      const children = [rect("new")];
+      board.publishDocument(children, next);
+      expect(observed).toEqual([{ sketch: next, snapshot: next, ids: ["new"] }]);
+    } finally {
+      board.destroy();
+    }
+  });
+
   it("缺省为普通，构造参数可传入页面画风", () => {
     expect(createBoard().sketch).toEqual(DEFAULT_PAGE_SKETCH);
     expect(createBoard({ mode: "sketch", level: "loose" }).sketch).toEqual({

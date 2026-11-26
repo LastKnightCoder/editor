@@ -2,7 +2,6 @@ import { FramePresentation } from "./interactions/FramePresentation";
 import React from "react";
 import { ErrorBoundary, isEditableTarget } from "@tau/ui";
 import { UnknownElement, type UnknownElementReason } from "./components/UnknownElement";
-import EventEmitter from "eventemitter3";
 import curry from "lodash/curry";
 import SnapManager from "./utils/snap/SnapManager";
 import { PresentationManager } from "./utils/PresentationManager";
@@ -51,6 +50,15 @@ import { CreationPreviewSession } from "./interactions/CreationPreviewSession";
 interface VisibleElementTree {
   element: BoardElement;
   children: VisibleElementTree[];
+}
+
+type BoardEventListener = (...args: unknown[]) => unknown;
+interface BoardEventRegistration {
+  listener: BoardEventListener;
+}
+interface BoardEventListeners {
+  ordered: Set<BoardEventRegistration>;
+  byListener: Map<BoardEventListener, BoardEventRegistration[]>;
 }
 
 const bindHandler = curry((eventName: Events, plugin: IBoardPlugin): EventHandler | undefined => {
@@ -125,11 +133,12 @@ class Board {
   ): void {
     const previousSelection = this.selection;
     const layout = this.getCanvasSnapshot();
+    let sketchChanged = false;
     this.projectingDocument = true;
     try {
       if (sketch && JSON.stringify(this.sketch) !== JSON.stringify(sketch)) {
         this.sketch = { ...sketch };
-        this.emit("sketch:change", this.sketch);
+        sketchChanged = true;
       }
       if (sequences) this.presentationManager.publishSequences(sequences);
       this.submissionVersion++;
@@ -147,6 +156,7 @@ class Board {
       } else this.bodyLayout = undefined;
       this.elementVersion++;
       this.framePresentation.publish(this.snapshot);
+      if (sketchChanged) this.emit("sketch:change", this.sketch);
       this.emit("value:change", children);
       if (this.selection !== previousSelection) this.emit("selection:change", this.selection);
       this.emit("change", { source: "projection" });
@@ -158,7 +168,7 @@ class Board {
   private plugins: IBoardPlugin[] = [];
   /** 指针在画布上的最近位置（画布坐标）；指针离开画布为 null。`/` 放入等需要光标处的入口读取 */
   pointer: Point | null = null;
-  private eventEmitter: EventEmitter;
+  private eventListeners = new Map<string, BoardEventListeners>();
   public snap: SnapManager;
   public capabilityService: CapabilityService;
   public interactions: InteractionManager;
@@ -368,7 +378,6 @@ class Board {
     this.boardFlag = boardFlag;
     this.isDestroyed = false;
     this.children = children;
-    this.eventEmitter = new EventEmitter();
     this.viewPort = viewPort;
     this.selection = selection;
     this.sketch = sketch;
@@ -421,15 +430,32 @@ class Board {
   }
 
   on(event: string, listener: (...args: any[]) => void) {
-    this.eventEmitter.on(event, listener);
+    if (typeof listener !== "function") throw new TypeError("白板事件监听器必须是函数");
+    let listeners = this.eventListeners.get(event);
+    if (!listeners) {
+      listeners = { ordered: new Set(), byListener: new Map() };
+      this.eventListeners.set(event, listeners);
+    }
+    const registration = { listener },
+      registrations = listeners.byListener.get(listener) ?? [];
+    registrations.push(registration);
+    listeners.byListener.set(listener, registrations);
+    listeners.ordered.add(registration);
   }
 
   off(event: string, listener: (...args: any[]) => void) {
-    this.eventEmitter.off(event, listener);
+    const listeners = this.eventListeners.get(event),
+      registrations = listeners?.byListener.get(listener);
+    if (!listeners || !registrations) return;
+    for (const registration of registrations) listeners.ordered.delete(registration);
+    listeners.byListener.delete(listener);
+    if (!listeners.ordered.size) this.eventListeners.delete(event);
   }
 
   emit(event: string, ...args: unknown[]) {
-    for (const listener of this.eventEmitter.listeners(event)) {
+    // 通知使用注册快照，移除监听不扫描其它元素的订阅，也不改变当前通知顺序。
+    const listeners = [...(this.eventListeners.get(event)?.ordered ?? [])];
+    for (const { listener } of listeners) {
       try {
         const result: unknown = listener(...args);
         if (result instanceof Promise) {
@@ -461,7 +487,7 @@ class Board {
     this.snap.dispose();
     this.interactions.destroy();
     this.framePresentation.destroy();
-    this.eventEmitter.removeAllListeners();
+    this.eventListeners.clear();
     this.plugins = [];
   }
 

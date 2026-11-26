@@ -27,6 +27,8 @@ export function nodeInitializationRanges(
 
 export interface NodeTreeHistoryOptions {
   trackedOrigins: Set<unknown>;
+  /** 同一手势合并大批记录时允许重用上一次已裁剪的时钟范围。 */
+  reuseCapturedScope?: () => boolean;
   captureTimeout?: number;
   beforeChange?: (history: NodeTreeHistory, direction: "undo" | "redo") => void;
 }
@@ -44,9 +46,37 @@ function checkedScope(scope: ConstructorParameters<typeof Y.UndoManager>[0]) {
   return types.filter((type): type is Exclude<typeof type, Y.Doc> => !(type instanceof Y.Doc));
 }
 
+type ClockSet = ReturnType<typeof Y.createDeleteSet>;
+type HistoryItem = Y.UndoManager["undoStack"][number];
+
+function transactionInsertions(transaction: Y.Transaction): ClockSet {
+  const result = Y.createDeleteSet();
+  for (const [client, end] of transaction.afterState) {
+    const start = transaction.beforeState.get(client) ?? 0;
+    if (end > start) result.clients.set(client, [{ clock: start, len: end - start }]);
+  }
+  return result;
+}
+
+function copyClocks(source: ClockSet): ClockSet {
+  const result = Y.createDeleteSet();
+  for (const [client, ranges] of source.clients)
+    result.clients.set(
+      client,
+      ranges.map(({ clock, len }) => ({ clock, len }))
+    );
+  return result;
+}
+
 export class NodeTreeHistory extends Y.UndoManager {
   readonly identity = crypto.randomUUID();
   private closed = false;
+  private captured?: {
+    item: HistoryItem;
+    scope: Y.UndoManager["scope"];
+    insertions?: ClockSet;
+    deletions?: ClockSet;
+  };
   private origins = new Map<unknown, { count: number; keep: boolean }>();
   private knownScope?: Set<object>;
   private knownScopeLength = -1;
@@ -58,10 +88,11 @@ export class NodeTreeHistory extends Y.UndoManager {
     options: NodeTreeHistoryOptions
   ) {
     const types = checkedScope(scope);
+    const { reuseCapturedScope, ...undoOptions } = options;
     let transaction: Y.Transaction | undefined;
-    let canDelete = (_item: Y.Item) => true;
+    let canDelete: (item: Y.Item) => boolean = () => true;
     super(types, {
-      ...options,
+      ...undoOptions,
       trackedOrigins: new Set(options.trackedOrigins),
       deleteFilter: item => canDelete(item),
       captureTransaction(current) {
@@ -75,8 +106,31 @@ export class NodeTreeHistory extends Y.UndoManager {
       if (!transaction) return;
       const ranges = initializations.get(transaction) ?? [];
       // 按捕获时的作用域裁剪，后续挂入新根不能追溯撤销原本不属于它的编辑。
-      stackItem.insertions = excludeRanges(this.inScope(transaction, stackItem.insertions), ranges);
-      stackItem.deletions = excludeRanges(this.inScope(transaction, stackItem.deletions), ranges);
+      const incremental =
+        reuseCapturedScope?.() &&
+        transaction.local &&
+        !this.doc.gc &&
+        transaction.origin === this &&
+        !this.undoing &&
+        !this.redoing &&
+        this.undoStack.at(-1) === stackItem;
+      if (incremental) {
+        if (
+          !this.captured ||
+          this.captured.item !== stackItem ||
+          this.captured.scope.length !== this.scope.length ||
+          this.captured.scope.some((type, index) => type !== this.scope[index])
+        )
+          this.captured = { item: stackItem, scope: [...this.scope] };
+      } else this.captured = undefined;
+      stackItem.insertions = excludeRanges(
+        this.captureField(transaction, stackItem, "insertions"),
+        ranges
+      );
+      stackItem.deletions = excludeRanges(
+        this.captureField(transaction, stackItem, "deletions"),
+        ranges
+      );
       if (!stackItem.insertions.clients.size && !stackItem.deletions.clients.size)
         for (const stack of [this.undoStack, this.redoStack])
           if (stack.at(-1) === stackItem) stack.pop();
@@ -169,11 +223,35 @@ export class NodeTreeHistory extends Y.UndoManager {
       if (Y.isDeleted(source.deletions, previous.id)) return false;
     return true;
   }
+  override stopCapturing(): void {
+    this.captured = undefined;
+    super.stopCapturing();
+  }
+
   override destroy(): void {
     if (this.closed) return;
     this.closed = true;
+    this.captured = undefined;
     this.origins.clear();
     super.destroy();
+  }
+
+  private captureField(
+    tx: Y.Transaction,
+    item: HistoryItem,
+    field: "insertions" | "deletions"
+  ): ClockSet {
+    const source = item[field],
+      captured = this.captured;
+    if (!captured) return this.inScope(tx, source);
+    const checked = captured[field];
+    const delta = field === "insertions" ? transactionInsertions(tx) : tx.deleteSet;
+    // 历史栈允许被移交或改写，只有完整时钟集合仍一致才沿用先前的作用域裁剪。
+    const reuse = checked && Y.equalDeleteSets(source, Y.mergeDeleteSets([checked, delta]));
+    const fresh = this.inScope(tx, reuse ? delta : source);
+    const result = reuse && checked ? Y.mergeDeleteSets([checked, fresh]) : fresh;
+    captured[field] = copyClocks(result);
+    return result;
   }
 
   private inScope(transaction: Y.Transaction, source: ReturnType<typeof Y.createDeleteSet>) {

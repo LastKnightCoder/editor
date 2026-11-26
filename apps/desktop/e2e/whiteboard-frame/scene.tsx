@@ -1,3 +1,5 @@
+import { seedGeometryHistory } from "./prototype/seedGeometryHistory";
+import { installDragProbe } from "./prototype/drag";
 import { createRoot } from "react-dom/client";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
@@ -189,6 +191,17 @@ async function mount() {
         data[head] = { ...data[head] };
         delete data[head][tail];
       }
+      const body =
+        codec.bodyProperty
+          ?.split(".")
+          .reduce<unknown>(
+            (value, key) =>
+              value && typeof value === "object" ? Reflect.get(value, key) : undefined,
+            node
+          ) ?? [];
+      const initialBody = typeof body === "string" || Array.isArray(body) ? body : undefined;
+      if (codec.bodyProperty && initialBody === undefined)
+        throw new Error("夹具正文必须是字符串或节点列表");
       commands.push({
         type: "create",
         id: node.id,
@@ -199,9 +212,7 @@ async function mount() {
         parent,
         geometry: { x: node.x, y: node.y, width: node.width, height: node.height, rotation: 0 },
         data,
-        ...(codec.bodyProperty
-          ? { body: codec.bodyProperty.split(".").reduce((value, key) => value?.[key], node) ?? [] }
-          : {}),
+        ...(codec.bodyProperty ? { body: initialBody ?? [] } : {}),
       });
       collect(node.children ?? [], { kind: "element", id: node.id });
     }
@@ -237,9 +248,110 @@ async function mount() {
   const probe = defineWhiteboardExtension({
     id: "bench.frame",
     create(api) {
-      Object.assign(window, { frameBench: { api, model, binding, verify, ready: false } });
+      const frameCommand = (id: string): WhiteboardModelCommand => {
+        const element: BoardElement = { ...FrameUtil.createFrame(100, 120, 700, 450), id };
+        const codec = schema.types.frame;
+        return {
+          type: "create",
+          id,
+          parent: { kind: "page", id: "p" },
+          contractId: codec.contractId,
+          geometry: {
+            x: element.x,
+            y: element.y,
+            width: element.width,
+            height: element.height,
+            rotation: 0,
+          },
+          data: Object.fromEntries(
+            (codec.dataProperties ?? [])
+              .filter(key => element[key] !== undefined)
+              .map(key => [key, element[key]])
+          ),
+        };
+      };
+      const fixture = {
+        api,
+        model,
+        binding,
+        verify,
+        stateBytes: () => Y.encodeStateAsUpdate(model.doc).byteLength,
+        auditHistory(direction: "undo" | "redo") {
+          const state = Y.encodeStateAsUpdate(model.doc),
+            snapshot = JSON.stringify(model.read());
+          const history = binding.history;
+          const stack = () =>
+            JSON.stringify(
+              [history.undoStack, history.redoStack].map(items =>
+                items.map(item => [
+                  Array.from(item.insertions.clients),
+                  Array.from(item.deletions.clients),
+                ])
+              )
+            );
+          const beforeStack = stack(),
+            undo = [...history.undoStack],
+            redo = [...history.redoStack];
+          try {
+            binding[direction]();
+            return {
+              direction,
+              accepted: true,
+              beforeBytes: state.length,
+              afterBytes: Y.encodeStateAsUpdate(model.doc).length,
+            };
+          } catch (error) {
+            const after = Y.encodeStateAsUpdate(model.doc);
+            return {
+              direction,
+              accepted: false,
+              error: error instanceof Error ? error.message : String(error),
+              beforeBytes: state.length,
+              afterBytes: after.length,
+              bytesUnchanged:
+                state.length === after.length && state.every((b, i) => b === after[i]),
+              modelUnchanged: snapshot === JSON.stringify(model.read()),
+              stacksUnchanged:
+                stack() === beforeStack &&
+                history.undoStack.length === undo.length &&
+                history.redoStack.length === redo.length &&
+                undo.every((item, i) => item === history.undoStack[i]) &&
+                redo.every((item, i) => item === history.redoStack[i]),
+            };
+          }
+        },
+        seedGeometryBytes(target: number) {
+          binding.writing = true;
+          try {
+            return seedGeometryHistory(model, "frame", target);
+          } finally {
+            binding.writing = false;
+            binding.refreshLayout();
+          }
+        },
+        async remote(commands: readonly WhiteboardModelCommand[]) {
+          const doc = new Y.Doc({ gc: false }),
+            peer = new WhiteboardModel(doc);
+          try {
+            await peer.receive(Y.encodeStateAsUpdate(model.doc));
+            peer.prepareLocalTranslations();
+            peer.tryLocalStructure(commands, {}) ?? peer.submitChunks(commands, {});
+            await model.receive(Y.encodeStateAsUpdate(doc, Y.encodeStateVector(model.doc)));
+          } finally {
+            peer.dispose();
+            doc.destroy();
+          }
+        },
+        frameCommand,
+        ready: false,
+      };
+      Object.assign(window, { frameBench: fixture });
       setTimeout(() => {
-        Object.assign(window, { frameBench: { api, model, binding, verify, ready: true } });
+        const variant = params.get("drag-variant") ?? import.meta.env.VITE_FRAME_BENCH_DRAG_VARIANT;
+        Object.assign(fixture, { dragVariant: variant ?? "configured" });
+        if (variant && variant !== "baseline" && variant !== "configured")
+          Object.assign(fixture, { dragProbe: installDragProbe(binding, variant) });
+        fixture.ready = true;
       }, 0);
       return {};
     },

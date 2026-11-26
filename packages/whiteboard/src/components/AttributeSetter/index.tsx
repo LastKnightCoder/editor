@@ -1,10 +1,12 @@
 import { useMemoizedFn } from "ahooks";
+import { useRef, useSyncExternalStore } from "react";
 import { useBoard, useSelection, usePresentationState } from "../../hooks";
-import { BoardElement, Operation, FrameElement } from "../../types";
+import { BoardElement, Operation, FrameElement, type Selection } from "../../types";
+import { SelectionContext } from "../../context";
 import { BoardUtil, FrameUtil, PathUtil } from "../../utils";
 import FloatingAttrBar from "./FloatingAttrBar";
 
-const AttributeSetter = () => {
+const AttributeSetterContent = ({ suspended = false }: { suspended?: boolean }) => {
   const selection = useSelection();
   const board = useBoard();
   const inspectors = board.extensions?.inspectors ?? {};
@@ -12,7 +14,7 @@ const AttributeSetter = () => {
   const { isPresentationMode } = usePresentationState();
 
   const onElementChange = useMemoizedFn((newElement: BoardElement) => {
-    if (!selection) return;
+    if (!selection || suspended) return;
     const path = PathUtil.getPathByElement(board, newElement);
     if (!path) return;
 
@@ -36,7 +38,7 @@ const AttributeSetter = () => {
   });
 
   const onMultiElementsChange = useMemoizedFn((newElements: BoardElement[]) => {
-    if (!selection) return;
+    if (!selection || suspended) return;
 
     const ops: Operation[] = [];
     const selectedElements = selection.selectedElements;
@@ -123,6 +125,39 @@ const AttributeSetter = () => {
   }
 
   return null;
+};
+
+const AttributeSetter = () => {
+  const board = useBoard(),
+    selection = useSelection();
+  const moving = useSyncExternalStore(
+    board.framePresentation.subscribe,
+    () => board.framePresentation.isMoving() || board.framePresentation.isRebasing(),
+    () => false
+  );
+  const previous = useRef<Selection | null>(null);
+  const visible = Boolean(selection?.selectedElements.length);
+  if (visible)
+    previous.current =
+      selection?.selectedElements.length === 1 && selection.selectedElements[0].type === "frame"
+        ? selection
+        : null;
+  const cached = previous.current;
+  const id = cached?.selectedElements[0].id;
+  const retain =
+    !visible &&
+    id &&
+    board.children.some(node => node.id === id) &&
+    (moving || board.selection.selectedElements.some(node => node.id === id));
+  if (!visible && !retain) previous.current = null;
+  const suspended = Boolean(retain);
+  return (
+    <SelectionContext.Provider value={suspended ? cached : selection}>
+      <div style={{ visibility: suspended ? "hidden" : undefined }} inert={suspended || undefined}>
+        <AttributeSetterContent suspended={suspended} />
+      </div>
+    </SelectionContext.Provider>
+  );
 };
 
 export default AttributeSetter;
