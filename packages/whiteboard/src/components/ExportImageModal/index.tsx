@@ -1,3 +1,4 @@
+import { useImageExportI18n, type ImageExportTranslate } from "../../export-i18n";
 import { missingExportElements } from "../../utils/visualExport";
 /**
  * 导出为图片：预览 + 背景 / 放大倍数 / 边距。
@@ -34,10 +35,12 @@ interface ExportImageModalProps {
   selectedElementIds?: string[];
 }
 
-const BACKGROUND_OPTIONS: { value: ExportImageBackgroundMode; label: string }[] = [
-  { value: "light", label: "白色" },
-  { value: "dark", label: "深色" },
-  { value: "transparent", label: "透明" },
+const backgroundOptions = (
+  t: ImageExportTranslate
+): { value: ExportImageBackgroundMode; label: string }[] => [
+  { value: "light", label: t("imageExport.background.light") },
+  { value: "dark", label: t("imageExport.background.dark") },
+  { value: "transparent", label: t("imageExport.background.transparent") },
 ];
 
 const PREVIEW_W = 216;
@@ -53,6 +56,7 @@ const CHECKER_STYLE: CSSProperties = {
 };
 
 const ExportImageModal = (props: ExportImageModalProps) => {
+  const { t } = useImageExportI18n();
   const { open, onClose, board, action, selectedElementIds } = props;
   const { isDark } = useTheme();
   const { capture, layer } = useBoardCapture(board, props.captureBlob);
@@ -89,8 +93,10 @@ const ExportImageModal = (props: ExportImageModalProps) => {
   }, [open, board, exportAction, selectedElementIds]);
 
   const modalTitle = useMemo(() => {
-    return exportAction === "selection" ? "导出元素为图片" : "导出白板为图片";
-  }, [exportAction]);
+    return exportAction === "selection"
+      ? t("imageExport.selectionTitle")
+      : t("imageExport.boardTitle");
+  }, [exportAction, t]);
 
   const handleExport = useMemoizedFn(async () => {
     if (exporting) return;
@@ -103,7 +109,9 @@ const ExportImageModal = (props: ExportImageModalProps) => {
     const elements = sourceElements;
 
     if (elements.length === 0) {
-      toast.warning(exportAction === "selection" ? "没有可导出的元素" : "白板中没有可导出的元素");
+      const key =
+        exportAction === "selection" ? "imageExport.emptySelection" : "imageExport.emptyBoard";
+      toast.warning(t(key), { getMessage: () => t(key) });
       return;
     }
 
@@ -133,16 +141,18 @@ const ExportImageModal = (props: ExportImageModalProps) => {
         quality: 0.95,
       });
       if (!blob) {
-        toast.error("无法计算导出范围，请重试");
+        toast.error(t("imageExport.rangeFailed"), {
+          getMessage: () => t("imageExport.rangeFailed"),
+        });
         return;
       }
 
       downloadBlobAsFile(blob, createExportFilename(exportAction));
-      toast.success("图片导出成功");
+      toast.success(t("imageExport.success"), { getMessage: () => t("imageExport.success") });
       onClose();
     } catch (error) {
       console.error("Export whiteboard image failed:", error);
-      toast.error("导出失败，请重试");
+      toast.error(t("imageExport.failed"), { getMessage: () => t("imageExport.failed") });
     } finally {
       board.apply(
         {
@@ -170,8 +180,8 @@ const ExportImageModal = (props: ExportImageModalProps) => {
         title={modalTitle}
         subtitle={
           exportAction === "selection"
-            ? `选中的 ${previewElements.length} 个元素`
-            : "这一页的全部元素"
+            ? t("imageExport.selected", { count: previewElements.length })
+            : t("imageExport.all")
         }
         width={440}
         locked={exporting}
@@ -184,21 +194,21 @@ const ExportImageModal = (props: ExportImageModalProps) => {
                   checked={allowPlaceholders}
                   onChange={event => setAllowPlaceholders(event.target.checked)}
                 />
-                导出包含缺失插件占位的图片
+                {t("imageExport.placeholders")}
               </label>
             )}
             <Button variant="secondary" size="sm" disabled={exporting} onClick={onClose}>
-              取消
+              {t("imageExport.cancel")}
             </Button>
             <Button
               variant="primary"
               size="sm"
               icon={Download}
               loading={exporting}
-              loadingText="导出中…"
+              loadingText={t("imageExport.loading")}
               onClick={handleExport}
             >
-              导出
+              {t("imageExport.export")}
             </Button>
           </>
         }
@@ -239,24 +249,24 @@ const ExportImageModal = (props: ExportImageModalProps) => {
                   />
                 ) : (
                   <span className="text-ink-3 grid size-full place-items-center text-[12px]">
-                    没有可导出的元素
+                    {t("imageExport.emptySelection")}
                   </span>
                 )}
               </div>
             </div>
 
             <div>
-              <Field label="背景">
+              <Field label={t("imageExport.background")}>
                 <Seg
-                  label="背景"
-                  options={BACKGROUND_OPTIONS}
+                  label={t("imageExport.background")}
+                  options={backgroundOptions(t)}
                   value={background}
                   onChange={value => setBackground(value)}
                 />
               </Field>
-              <Field label="放大倍数">
+              <Field label={t("imageExport.scale")}>
                 <Slider
-                  label="放大倍数"
+                  label={t("imageExport.scale")}
                   value={scale}
                   min={0.5}
                   max={4}
@@ -265,9 +275,9 @@ const ExportImageModal = (props: ExportImageModalProps) => {
                   onChange={value => setScale(Number(value) || 1)}
                 />
               </Field>
-              <Field label="边距">
+              <Field label={t("imageExport.padding")}>
                 <Slider
-                  label="边距"
+                  label={t("imageExport.padding")}
                   value={padding}
                   min={0}
                   max={PADDING_MAX}

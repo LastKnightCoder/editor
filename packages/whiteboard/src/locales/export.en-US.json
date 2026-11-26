@@ -1,0 +1,22 @@
+{
+  "imageExport.background.light": "White",
+  "imageExport.background.dark": "Dark",
+  "imageExport.background.transparent": "Transparent",
+  "imageExport.selectionTitle": "Export elements as image",
+  "imageExport.boardTitle": "Export whiteboard as image",
+  "imageExport.emptySelection": "No elements to export",
+  "imageExport.emptyBoard": "No elements to export in this whiteboard",
+  "imageExport.rangeFailed": "Could not calculate export bounds. Try again",
+  "imageExport.success": "Image exported",
+  "imageExport.failed": "Could not export. Try again",
+  "imageExport.selected_one": "{{count}} selected element",
+  "imageExport.selected_other": "{{count}} selected elements",
+  "imageExport.all": "All elements on this page",
+  "imageExport.placeholders": "Include placeholders for missing extensions",
+  "imageExport.cancel": "Cancel",
+  "imageExport.loading": "Exporting…",
+  "imageExport.export": "Export",
+  "imageExport.background": "Background",
+  "imageExport.scale": "Scale",
+  "imageExport.padding": "Padding"
+}

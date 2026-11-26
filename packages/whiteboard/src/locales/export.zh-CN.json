@@ -1,0 +1,21 @@
+{
+  "imageExport.background.light": "白色",
+  "imageExport.background.dark": "深色",
+  "imageExport.background.transparent": "透明",
+  "imageExport.selectionTitle": "导出元素为图片",
+  "imageExport.boardTitle": "导出白板为图片",
+  "imageExport.emptySelection": "没有可导出的元素",
+  "imageExport.emptyBoard": "白板中没有可导出的元素",
+  "imageExport.rangeFailed": "无法计算导出范围，请重试",
+  "imageExport.success": "图片导出成功",
+  "imageExport.failed": "导出失败，请重试",
+  "imageExport.selected": "选中的 {{count}} 个元素",
+  "imageExport.all": "这一页的全部元素",
+  "imageExport.placeholders": "导出包含缺失插件占位的图片",
+  "imageExport.cancel": "取消",
+  "imageExport.loading": "导出中…",
+  "imageExport.export": "导出",
+  "imageExport.background": "背景",
+  "imageExport.scale": "放大倍数",
+  "imageExport.padding": "边距"
+}

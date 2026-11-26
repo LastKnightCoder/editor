@@ -298,6 +298,8 @@ P5手机实际听写：24路径加Root原始诊断JSON工程完成；10文件78�
 
 P6B历史：16路径工程完成；共享模型13基线、desktop历史2、mobile历史2及既有editor13通过，两端最终历史各2复跑与双端type全绿，三语desktop46/mobile35 key参数/范围静态格式通过。真实Query/预览/恢复契约保持筛选焦点、同readonly viewer/正文缓存、原operationId/sequence；mobile compare=true只由prepare触发，确认/重试保同detail与headRevision，在途不重发。旧Panel显示helpers/CHANGE_LABELS/errorMessage消费清零退役；历史原因/标题/正文/actor/target版本ID原样，未动网络/models/Rust。
 
+P6A3-E1导出弹层：6路径工程完成；3文件15例、包type/白板边界、export19key三语对账与范围格式/静态通过。独立AST严格对照初始化/reset/选择/尺寸/Slider和截图-下载-恢复选区保持；真实在途换语只capture一次，同Blob/filename路径与控件配置保留。选择null属性原归一化为缺省的行为不改，回归按原selectedElements与空框选语义验证。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

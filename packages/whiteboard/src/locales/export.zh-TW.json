@@ -1,0 +1,21 @@
+{
+  "imageExport.background.light": "白色",
+  "imageExport.background.dark": "深色",
+  "imageExport.background.transparent": "透明",
+  "imageExport.selectionTitle": "將元素匯出為圖片",
+  "imageExport.boardTitle": "將白板匯出為圖片",
+  "imageExport.emptySelection": "沒有可匯出的元素",
+  "imageExport.emptyBoard": "白板中沒有可匯出的元素",
+  "imageExport.rangeFailed": "無法計算匯出範圍，請重試",
+  "imageExport.success": "圖片匯出成功",
+  "imageExport.failed": "匯出失敗，請重試",
+  "imageExport.selected": "選取的 {{count}} 個元素",
+  "imageExport.all": "這一頁的全部元素",
+  "imageExport.placeholders": "匯出包含缺失擴充功能佔位的圖片",
+  "imageExport.cancel": "取消",
+  "imageExport.loading": "匯出中…",
+  "imageExport.export": "匯出",
+  "imageExport.background": "背景",
+  "imageExport.scale": "放大倍率",
+  "imageExport.padding": "邊距"
+}
