@@ -13,6 +13,7 @@ import { refresh, resolveArrowBindings, flatten, equal, authorElement } from "./
 import { assertWritable, canEditElement } from "./element-access";
 import { captureFeedback, applyFeedback, scheduleGesture } from "./gesture";
 import { compact } from "./commands";
+import { observeRemovals } from "./removals";
 import type { CanvasBinding } from "./binding";
 
 const bodyValue = (node: Record<string, unknown>, path: string) =>
@@ -194,6 +195,7 @@ export function compile(
   let children = board.children;
   const commands: WhiteboardModelCommand[] = [];
   const feedback: { id: string; patch: Record<string, unknown> }[] = [];
+  const removalIds = observeRemovals(binding, commands, binding.pending);
   const parentAt = (path: number[]): WhiteboardParent => {
     if (path.length === 1) return { kind: "page", id: binding.page };
     const parent = PathUtil.getElement(children, path.slice(0, -1));
@@ -241,11 +243,9 @@ export function compile(
       feedback.push(...captureFeedback(binding, old, operation.newProperties));
     } else if (operation.type === "remove_node") {
       if (!old || old.id !== operation.node.id) throw new Error("删除观察目标已失效");
-      const target = authorElement(binding, old.id);
-      if (!target) throw new Error("删除目标不在协作模型中");
       commands.push({
         type: "remove_nodes",
-        ids: flatten([old]).map(node => node.id),
+        ids: removalIds([old.id]),
       });
     } else if (operation.type === "insert_node") {
       const parent = parentAt(operation.path);

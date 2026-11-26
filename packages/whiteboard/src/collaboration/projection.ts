@@ -110,6 +110,13 @@ export function clearProjectionCache(binding: CanvasBinding): void {
   layoutProjections.delete(binding);
 }
 
+function isStrokeSegment(binding: CanvasBinding, node: WhiteboardElementSnapshot): boolean {
+  return (
+    node.type === "host.whiteboard.stroke-segment" &&
+    matchesCanvasContract(binding.options.types[node.type], node.contractId)
+  );
+}
+
 export function project(binding: CanvasBinding, node: WhiteboardElementSnapshot): BoardElement {
   const mapped = binding.options.types[node.type];
   const type = matchesCanvasContract(mapped, node.contractId) ? mapped : undefined;
@@ -127,10 +134,7 @@ export function project(binding: CanvasBinding, node: WhiteboardElementSnapshot)
     return cached.value;
   }
   const handwrite = type && node.type === "handwrite";
-  const segmentContract = binding.options.types["host.whiteboard.stroke-segment"]?.contractId;
-  const visibleChildren = handwrite
-    ? node.children.filter(child => child.contractId !== segmentContract)
-    : node.children;
+  const visibleChildren = node.children.filter(child => !isStrokeSegment(binding, child));
   const children = visibleChildren.map(child => project(binding, child));
   const next: BoardElement = {
     id: node.id,
@@ -242,9 +246,10 @@ export function refresh(binding: CanvasBinding): void {
     }
     return node.children?.length ? value : node;
   };
-  let children = [...(page?.children ?? []), ...(page?.recovery ?? [])].map(node =>
-    layout(project(binding, node))
-  );
+  // 与整笔删除并发的新分段仍可恢复，但存储节点不能独立进入画布。
+  let children = [...(page?.children ?? []), ...(page?.recovery ?? [])]
+    .filter(node => !isStrokeSegment(binding, node))
+    .map(node => layout(project(binding, node)));
   for (const node of flattenModel([...(page?.children ?? []), ...(page?.recovery ?? [])])) {
     if (
       !node.entity ||

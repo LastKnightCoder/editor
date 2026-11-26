@@ -18,6 +18,7 @@
     "check": "tsc --noEmit",
     "check:boundaries": "node ../../scripts/check-whiteboard-boundaries.mjs",
     "bench:mind": "cross-env WHITEBOARD_MIND_STRESS=1 vitest run src/utils/benchmarks/mind-structure.benchmark.test.ts src/components/ArrowElementComponent/__tests__/bindings.guard.test.tsx src/__tests__/collaboration-products.test.tsx --maxWorkers 1 --no-file-parallelism",
+    "bench:removals": "cross-env WHITEBOARD_REMOVAL_STRESS=1 vitest run src/collaboration/__tests__/removals.benchmark.test.ts --maxWorkers 1 --no-file-parallelism",
     "bench:hit": "cross-env WHITEBOARD_HIT_BENCH=1 vitest run src/utils/benchmarks/hit.benchmark.test.ts --reporter=verbose",
     "bench:render": "cross-env WHITEBOARD_RENDER_BENCH=1 vitest run src/utils/benchmarks/render-profile.benchmark.test.tsx --reporter=verbose"
   },

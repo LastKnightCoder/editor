@@ -9,6 +9,7 @@ import type { WhiteboardContractEntry } from "./catalog";
 import { authorSnapshot, flattenModel, authorElement, refresh } from "./projection";
 import { assertWritable, entryInstalled } from "./element-access";
 import { enterGroup } from "./commands";
+import { observeRemovals } from "./removals";
 import type { CanvasBinding } from "./binding";
 
 export function createAuthorBridge(binding: CanvasBinding): WhiteboardAuthorBridge {
@@ -83,6 +84,7 @@ export function submitAuthor(
   const commands: WhiteboardModelCommand[] = [],
     prepared: import("@tau/db-schema/content-contracts").PreparedWhiteboardContract[] = [];
   const checked = new Set<string>();
+  const removalIds = observeRemovals(binding, commands);
   const keys = (value: object, allowed: readonly string[]) => {
     if (Object.keys(value).some(key => !allowed.includes(key)))
       throw new Error("作者命令包含宿主保留字段");
@@ -105,6 +107,7 @@ export function submitAuthor(
       prepared.push(entry.prepared);
       commands.push({
         type: "create",
+        id: crypto.randomUUID(),
         contractId: entry.id,
         data: command.element.data,
         geometry: command.element.geometry,
@@ -141,14 +144,7 @@ export function submitAuthor(
       keys(command, ["type", "ids"]);
       commands.push({
         type: "remove_nodes",
-        ids: [
-          ...new Set(
-            command.ids.flatMap(id => {
-              const node = authorElement(binding, id);
-              return node ? flattenModel([node]).map(child => child.id) : [id];
-            })
-          ),
-        ],
+        ids: removalIds(command.ids),
       });
     } else throw new Error("作者命令不支持");
   }

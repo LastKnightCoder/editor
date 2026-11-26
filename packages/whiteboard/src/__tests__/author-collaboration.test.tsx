@@ -19,6 +19,7 @@ import { WhiteboardContractCatalog } from "../collaboration/catalog";
 import { createWhiteboardBinding } from "../collaboration/binding";
 import { createServiceRegistry } from "@tau/shared/service-registry";
 import { IWhiteboardAuthorPermission } from "../extensions/authorAccess";
+import { prepareWhiteboardContract } from "@tau/db-schema/content-contracts";
 import Board from "../Board";
 const cleanup: (() => void)[] = [];
 afterEach(() =>
@@ -113,6 +114,43 @@ async function fixture(
     },
   };
 }
+it("同批在容器内新建插件元素再删除容器，不产生悬挂的新元素", async () => {
+  const f = await fixture();
+  const frame = await prepareWhiteboardContract("host.whiteboard", {
+    type: "frame",
+    dataVersion: 1,
+    structure: { container: "free" },
+  });
+  f.model.submit(
+    [
+      {
+        type: "create",
+        id: "frame",
+        contractId: frame.id,
+        parent: { kind: "page", id: f.page },
+        geometry,
+        data: {},
+      },
+    ],
+    null,
+    [frame]
+  );
+  const before = f.model.read();
+  const result = f.api.submit([
+    {
+      type: "create",
+      element: { type: v1().type, data: {}, geometry },
+      parent: { kind: "element", id: "frame" },
+    },
+    { type: "remove_nodes", ids: ["frame"] },
+  ]);
+  expect(f.model.read().pages[0].children).toEqual([]);
+  expect(f.model.read().pages[0].recovery).toEqual([]);
+  expect(f.api.getElement(result.createdIds[0])).toBeUndefined();
+  f.binding.undo();
+  expect(f.model.read()).toEqual(before);
+});
+
 // 插件复用普通渲染与文字绑定时，创建草稿不能要求已存在的文档契约。
 it.each(["commit", "cancel"])("插件预览可查询并订阅草稿，%s 后旧租约失效", async outcome => {
   let renderedAPI!: WhiteboardAPI;

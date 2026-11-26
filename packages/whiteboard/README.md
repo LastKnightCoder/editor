@@ -200,6 +200,8 @@ defineElement({ type: "demo.stamp", containment: { canBeContained: false }, rend
 
 运行 `pnpm --filter @tau/whiteboard check`、`test`、`bench:hit`、`bench:render`；边界检查为 `pnpm check:whiteboard-boundaries`。独立示例使用 `pnpm --filter @example/whiteboard build`。视觉验收由用户完成。
 
+修改删除观察集合或笔迹投影时，运行 `pnpm --filter @tau/whiteboard bench:removals`：检查接近节点预算的手写与导图混合批删、剪切到新白板、撤销重做、重开，以及三端离线追加与删除的乱序和重复交付。删除后的模型不得漏留已观察到的后代；并发新分段保留数据，恢复主体后可重组笔迹。
+
 修改文字排版、自动尺寸或画布生命周期时，运行 `pnpm --filter desktop test:whiteboard-text-measurement`。真实 Chromium 覆盖退出重进、Activity 恢复、文字增删换行、缩放和手动尺寸保持，并检查自动测量不写文档。
 
 ## 可选协作文档绑定
