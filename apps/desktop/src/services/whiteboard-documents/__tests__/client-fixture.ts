@@ -26,7 +26,7 @@ export function cleanupClients(): void {
     .reverse()
     .forEach(cleanup => cleanup());
 }
-class Outbox implements WhiteboardOutbox {
+export class Outbox implements WhiteboardOutbox {
   records = new Map<string, PendingWhiteboardUpdate>();
   fail = false;
   async list(databaseName: string, documentId: string) {

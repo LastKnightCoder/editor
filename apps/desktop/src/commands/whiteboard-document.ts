@@ -26,7 +26,7 @@ export const whiteboardDocumentBackend: WhiteboardDocumentBackend = {
   append: (lease, batch, update) => call("append", lease, batch, update),
   snapshot: lease => call("snapshot", lease),
   flush: lease => call("flush", lease),
-  release: lease => call("release", lease),
+  release: (lease, draftsDrained) => call("release", lease, draftsDrained),
   events: listener => subscribe<WhiteboardDocumentEvent>("whiteboard-document:update", listener),
   drains: listener =>
     subscribe<WhiteboardDocumentFlushRequest>("whiteboard-document:drain", listener),

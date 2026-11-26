@@ -641,9 +641,9 @@ export function registerWhiteboardDocumentIpc(
   handle("flush", (event, leaseId: string) =>
     module.sessions.flush(leaseId, module.leaseOwner(event, leaseId))
   );
-  handle("release", (event, leaseId: string) => {
+  handle("release", (event, leaseId: string, draftsDrained?: boolean) => {
     const owner = module.leaseOwner(event, leaseId);
-    return module.sessions.release(leaseId, owner).then(() => {
+    return module.sessions.release(leaseId, owner, draftsDrained === true).then(() => {
       module.releaseRemoteView(leaseId);
     });
   });

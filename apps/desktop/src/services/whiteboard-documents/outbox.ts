@@ -1,3 +1,4 @@
+import { alternateWhiteboardDatabaseName } from "@/types/whiteboard-document";
 import type { PendingWhiteboardUpdate, WhiteboardOutbox } from "./client";
 export class IndexedWhiteboardOutbox implements WhiteboardOutbox {
   private opening?: Promise<IDBDatabase>;
@@ -27,11 +28,18 @@ export class IndexedWhiteboardOutbox implements WhiteboardOutbox {
       transaction.onerror = () => reject(transaction.error ?? request.error);
     });
   }
-  async list(databaseName: string, documentId: string): Promise<PendingWhiteboardUpdate[]> {
+  async list(
+    databaseName: string,
+    documentId: string,
+    includeDatabaseAlias = false
+  ): Promise<PendingWhiteboardUpdate[]> {
     const records = await this.transaction("readonly", store => store.getAll());
     return records.filter(
       (record: PendingWhiteboardUpdate) =>
-        record.databaseName === databaseName && record.documentId === documentId
+        record.documentId === documentId &&
+        (record.databaseName === databaseName ||
+          (includeDatabaseAlias &&
+            record.databaseName === alternateWhiteboardDatabaseName(databaseName)))
     );
   }
   async put(record: PendingWhiteboardUpdate): Promise<void> {

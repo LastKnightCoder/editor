@@ -7,7 +7,7 @@ import {
 } from "@tau/collaboration";
 import { ContentIdentityTable } from "../tables/content-identity";
 import type { WhiteboardDocumentIdentity } from "@/types/whiteboard-document";
-import type { JournalDocument } from "./journal";
+import type { JournalDocument, WhiteboardCheckpoint } from "./journal";
 import { stateHash } from "./journal";
 import { prepareProjection, type PreparedProjection } from "./projection";
 
@@ -173,6 +173,39 @@ export class WhiteboardDocumentRepository {
       const created = this.read(documentId);
       if (!created) throw new Error(`白板文档写入后读取失败：${documentId}`);
       return created;
+    })();
+  }
+  installReclaim(previous: WhiteboardCheckpoint, state: Uint8Array, hash: string): void {
+    this.db.transaction(() => {
+      const result = this.db
+        .prepare(
+          "UPDATE whiteboard_documents SET epoch=epoch+1, revision_hash=?, state=? WHERE document_id=? AND source_id=? AND baseline_id=? AND epoch=? AND revision=? AND revision_hash=?"
+        )
+        .run(
+          hash,
+          Buffer.from(state),
+          previous.documentId,
+          previous.sourceId,
+          previous.baselineId,
+          previous.epoch,
+          previous.revision,
+          previous.hash
+        );
+      if (result.changes !== 1) throw new Error("白板清理期间已发生编辑");
+      const pages = this.db
+        .prepare("SELECT count(*) AS count FROM whiteboard_document_pages WHERE document_id=?")
+        .get(previous.documentId) as { count: number };
+      const updated = this.db
+        .prepare(
+          `UPDATE white_board_contents AS c SET data=json_set(c.data,'$.epoch',?)
+         FROM whiteboard_document_pages AS p
+         WHERE p.document_id=? AND c.id=p.content_id AND c.create_time=p.content_created_at
+         AND json_extract(c.data,'$.documentId')=p.document_id AND json_extract(c.data,'$.pageId')=p.page_id
+         AND json_extract(c.data,'$.epoch')=?`
+        )
+        .run(previous.epoch + 1, previous.documentId, previous.epoch);
+      if (updated.changes !== pages.count) throw new Error("白板页面身份已变化，取消清理");
+      if (this.read(previous.documentId)?.hash !== hash) throw new Error("白板清理读回失败");
     })();
   }
   project(value: JournalDocument, model: WhiteboardModel, prepared?: PreparedProjection): void {

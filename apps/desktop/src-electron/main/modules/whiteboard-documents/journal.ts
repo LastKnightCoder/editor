@@ -2,7 +2,10 @@ import Database from "better-sqlite3";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import type { WhiteboardDocumentIdentity } from "@/types/whiteboard-document";
+import {
+  alternateWhiteboardDatabaseName,
+  type WhiteboardDocumentIdentity,
+} from "@/types/whiteboard-document";
 import type { ContentEntityReference } from "@tau/db-schema/content-identities";
 
 export const journalKey = (identity: WhiteboardDocumentIdentity) =>
@@ -14,10 +17,12 @@ export const journalKey = (identity: WhiteboardDocumentIdentity) =>
     identity.epoch,
   ]);
 export const stateHash = (state: Uint8Array) => createHash("sha256").update(state).digest("hex");
-export interface JournalDocument extends WhiteboardDocumentIdentity {
-  state: Uint8Array;
+export interface WhiteboardCheckpoint extends WhiteboardDocumentIdentity {
   revision: number;
   hash: string;
+}
+export interface JournalDocument extends WhiteboardCheckpoint {
+  state: Uint8Array;
   projectedRevision: number;
   projectedHash: string;
 }
@@ -49,6 +54,7 @@ export class WhiteboardJournal {
       CREATE TABLE IF NOT EXISTS updates(document_id TEXT NOT NULL, batch_id TEXT NOT NULL, revision INTEGER NOT NULL, update_hash TEXT NOT NULL, state BLOB NOT NULL, state_hash TEXT NOT NULL, PRIMARY KEY(document_id,batch_id), UNIQUE(document_id,revision));
       CREATE INDEX IF NOT EXISTS updates_pending_payload ON updates(document_id,revision) WHERE length(state)>0;
       CREATE TABLE IF NOT EXISTS holds(document_id TEXT NOT NULL, source_id TEXT NOT NULL, entity_kind TEXT NOT NULL, entity_id TEXT NOT NULL, PRIMARY KEY(document_id,source_id,entity_kind,entity_id));
+      CREATE TABLE IF NOT EXISTS checkpoint_reclaims(target_key TEXT PRIMARY KEY, source_key TEXT NOT NULL, source_hash TEXT NOT NULL, target_hash TEXT NOT NULL);
       PRAGMA user_version=2;
     `);
   }
@@ -132,6 +138,77 @@ export class WhiteboardJournal {
           document.projectedHash
         );
       this.hold(journalKey(document), holds);
+    })();
+  }
+  prepareReclaim(previous: WhiteboardCheckpoint, nextHash: string): boolean {
+    const key = journalKey(previous);
+    const next = journalKey({ ...previous, epoch: previous.epoch + 1 });
+    const row = this.db
+      .prepare(
+        `INSERT OR REPLACE INTO checkpoint_reclaims
+       SELECT ?,document_id,hash,? FROM documents WHERE document_id=? AND revision=? AND hash=?
+       AND projected_revision=revision AND projected_hash=hash
+       AND NOT EXISTS (SELECT 1 FROM documents WHERE document_id IN (?,?))`
+      )
+      .run(
+        next,
+        nextHash,
+        key,
+        previous.revision,
+        previous.hash,
+        next,
+        journalKey({
+          ...previous,
+          databaseName: alternateWhiteboardDatabaseName(previous.databaseName),
+        })
+      );
+    return row.changes === 1;
+  }
+
+  /** 主库事务是切换点；崩溃后只按实际落盘的目标摘要完成日志交接。 */
+  finishReclaim(
+    current: WhiteboardDocumentIdentity & { state: Uint8Array; hash: string; revision: number }
+  ): void {
+    const key = journalKey(current);
+    const job = this.db
+      .prepare("SELECT * FROM checkpoint_reclaims WHERE target_key=? OR source_key=?")
+      .get(key, key) as
+      | { target_key: string; source_key: string; source_hash: string; target_hash: string }
+      | undefined;
+    if (!job) return;
+    if (job.source_key === key || job.target_hash !== current.hash) {
+      this.db.prepare("DELETE FROM checkpoint_reclaims WHERE target_key=?").run(job.target_key);
+      return;
+    }
+    this.db.transaction(() => {
+      const result = this.db
+        .prepare(
+          "UPDATE documents SET document_id=?, identity=json_set(identity,'$.epoch',?), state=?, hash=?, projected_hash=? WHERE document_id=? AND revision=? AND projected_revision=revision AND hash=? AND projected_hash=hash AND NOT EXISTS (SELECT 1 FROM documents WHERE document_id=?)"
+        )
+        .run(
+          key,
+          current.epoch,
+          Buffer.from(current.state),
+          current.hash,
+          current.hash,
+          job.source_key,
+          current.revision,
+          job.source_hash,
+          key
+        );
+      this.db.prepare("DELETE FROM checkpoint_reclaims WHERE target_key=?").run(key);
+      // 旧日志缺失或另有分支时从已确认的主库打开，另一分支材料留在原键。
+      if (result.changes !== 1) return;
+      // 普通批次只能在原代次重送；助手请求按稳定业务身份幂等。
+      this.db
+        .prepare("DELETE FROM updates WHERE document_id=? AND batch_id NOT GLOB 'agent:*'")
+        .run(job.source_key);
+      this.db
+        .prepare("UPDATE updates SET document_id=? WHERE document_id=?")
+        .run(key, job.source_key);
+      this.db
+        .prepare("UPDATE holds SET document_id=? WHERE document_id=?")
+        .run(key, job.source_key);
     })();
   }
   agentReceipt(documentId: string, prefix: string, batchId: string): number | undefined {
@@ -237,6 +314,10 @@ export class WhiteboardJournal {
           throw new Error("白板仍有未保存进资料库的改动，不能替换资料库");
       }
       for (const row of rows)
+        this.db
+          .prepare("DELETE FROM checkpoint_reclaims WHERE source_key=? OR target_key=?")
+          .run(row.document_id, row.document_id);
+      for (const row of rows)
         for (const table of ["holds", "updates", "documents"])
           this.db.prepare(`DELETE FROM ${table} WHERE document_id=?`).run(row.document_id);
       return rows.length;
@@ -258,6 +339,9 @@ export class WhiteboardJournal {
           throw new Error("白板仍有未投影日志，不能回收");
       }
       for (const row of rows) {
+        this.db
+          .prepare("DELETE FROM checkpoint_reclaims WHERE source_key=? OR target_key=?")
+          .run(row.document_id, row.document_id);
         for (const table of ["holds", "updates", "documents"])
           this.db.prepare(`DELETE FROM ${table} WHERE document_id=?`).run(row.document_id);
       }
