@@ -13,6 +13,7 @@ import { useThemeRuntime } from "@/app/useThemeRuntime";
 import { EditorWindow } from "@/features/editor-window/EditorWindow";
 import { EditorWindowTitlebar } from "@/features/editor-window/EditorWindowTitlebar";
 import { WindowMessage } from "@/features/editor-window/WindowMessage";
+import { useEditorWindowI18n } from "@/features/editor-window/window.i18n";
 import { DOCUMENT_DRIVERS } from "@/features/editor-window/documentDrivers";
 import { useEditorDocument } from "@/features/editor-window/useEditorDocument";
 import useSettingStore from "@/stores/useSettingStore";
@@ -63,6 +64,7 @@ type BootState =
 
 export default function QuickCardWindow() {
   const { t } = useCardsI18n();
+  const { t: windowT } = useEditorWindowI18n();
   useThemeRuntime();
   useEffect(() => initScrollbarAutoHide(), []);
 
@@ -114,7 +116,7 @@ export default function QuickCardWindow() {
   } else {
     body = (
       <>
-        <EditorWindowTitlebar icon={cardDriver.icon} label={cardDriver.label} title="" />
+        <EditorWindowTitlebar icon={cardDriver.icon} label={windowT("type.card")} title="" />
         <div className="min-h-0 flex-1">
           {boot.phase === "connecting" ? (
             <Loading label={t("window.preparing")} />
@@ -140,6 +142,7 @@ export default function QuickCardWindow() {
 
 function QuickCardDocument({ cardId, databaseName }: { cardId: number; databaseName: string }) {
   const { t } = useCardsI18n();
+  const { t: windowT } = useEditorWindowI18n();
   const { document, status, saveState, updateFields } = useEditorDocument(cardDriver, cardId);
   const emptyRef = useRef(false);
   emptyRef.current = status === "ready" && !!document && isContentEmpty(document.content);
@@ -169,7 +172,7 @@ function QuickCardDocument({ cardId, databaseName }: { cardId: number; databaseN
   }
   return (
     <>
-      <EditorWindowTitlebar icon={cardDriver.icon} label={cardDriver.label} title="" />
+      <EditorWindowTitlebar icon={cardDriver.icon} label={windowT("type.card")} title="" />
       <div className="min-h-0 flex-1">
         {status === "loading" ? (
           <Loading />

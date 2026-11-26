@@ -20,6 +20,7 @@ import { useEditorDocument } from "./useEditorDocument";
 import { EditorWindow } from "./EditorWindow";
 import { EditorWindowTitlebar } from "./EditorWindowTitlebar";
 import { WindowMessage } from "./WindowMessage";
+import { useEditorWindowI18n } from "./window.i18n";
 import { DesktopPluginServicesProvider } from "@/app/plugins/ServiceProvider";
 
 // .app：base.css 作用域锚点（控件 reset / focus-ring / 滚动条）；布局尺度变量见 base.css
@@ -27,6 +28,7 @@ const rootClass =
   "app flex h-screen flex-col overflow-hidden bg-page font-tau text-tau-body text-ink-1 antialiased";
 
 export default function EditorWindowPage() {
+  const { t } = useEditorWindowI18n();
   const [params] = useSearchParams();
   const kind = params.get("kind");
   const databaseName = params.get("db") ?? "";
@@ -60,7 +62,7 @@ export default function EditorWindowPage() {
     <>
       <EditorWindowTitlebar
         icon={driver?.icon ?? FileText}
-        label={driver?.label ?? "编辑"}
+        label={driver ? t(`type.${driver.kind}`) : t("type.edit")}
         title={title}
       />
       <div className="min-h-0 flex-1">{body}</div>
@@ -71,19 +73,19 @@ export default function EditorWindowPage() {
   if (!driver || !valid) {
     content = chrome(
       "",
-      <WindowMessage title="窗口参数无效" description="无法确定要编辑的内容。" />
+      <WindowMessage title={t("boot.invalid")} description={t("boot.invalidHint")} />
     );
   } else if (boot === "failed") {
     content = chrome(
       "",
       <WindowMessage
-        title="数据库连接失败"
+        title={t("boot.failed")}
         description={bootError}
-        actions={<Button onClick={connect}>重试</Button>}
+        actions={<Button onClick={connect}>{t("action.retry")}</Button>}
       />
     );
   } else if (boot === "connecting") {
-    content = chrome("", <Loading label="正在连接数据库…" />);
+    content = chrome("", <Loading label={t("boot.connecting")} />);
   } else {
     content = (
       <DesktopPluginServicesProvider workspace={databaseName}>
@@ -109,6 +111,7 @@ function DocumentView({
   id: number;
   databaseName: string;
 }) {
+  const { t } = useEditorWindowI18n();
   const { document, status, saveState, updateFields } = useEditorDocument(driver, id);
 
   if (status === "ready" && document) {
@@ -124,14 +127,14 @@ function DocumentView({
   }
   return (
     <>
-      <EditorWindowTitlebar icon={driver.icon} label={driver.label} title="" />
+      <EditorWindowTitlebar icon={driver.icon} label={t(`type.${driver.kind}`)} title="" />
       <div className="min-h-0 flex-1">
         {status === "loading" ? (
           <Loading />
         ) : (
           <WindowMessage
-            title={`${driver.label}不存在或已被删除`}
-            description="它可能已在其它窗口被删除，或所在数据库已不可用。"
+            title={t("document.missing", { kind: t(`type.${driver.kind}`) })}
+            description={t("document.missingHint")}
           />
         )}
       </div>

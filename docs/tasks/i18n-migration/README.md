@@ -268,6 +268,8 @@ P6A3-C2白板演示：9路径工程完成；3文件48例、包type、白板边�
 
 P6B相对时间联动：16源码/测试加Room单调用联动完成；纯边界11例及导出往返/内容导出/日历展示直接3文件14例通过，三语/参数/复数和范围静态格式通过。relativeAge锁定原取整阈值与未来最近态，QueryStatusPill按unit判断最近结果，原30秒tick不重置；所有formatAgo消费者显式locale，不留默认中文接口。Room其余UI由协作Agent另批提交，源码精确hunk隔离保留。
 
+P6独立编辑窗口：11路径工程完成；desktop类型/构建、三语32语义key参数对账与范围静态/格式通过，相关内容导出/真实往返/日历3文件14例通过。独立AST等价校验确认30组旧标题payload一致，所有JSX动作回调与useEditorDocument加载/保存/bus代码保持，driver仅display label退为数据defaultTitlePrefix；无新增纯展示文案测试。显示title与document.title可换语，export title/正文/默认名不改。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

@@ -29,7 +29,7 @@ export function useEditorDocument(driver: DocumentDriver, id: number) {
     try {
       return await driver.load(id);
     } catch (error) {
-      console.error(`[editor-window] 加载${driver.label}失败:`, error);
+      console.error(`[editor-window] 加载${driver.defaultTitlePrefix}失败:`, error);
       return null;
     }
   }, [driver, id]);
@@ -83,7 +83,7 @@ export function useEditorDocument(driver: DocumentDriver, id: number) {
       if (saved) bus.publish(saved);
       setSaveState("saved");
     } catch (error) {
-      console.error(`[editor-window] 保存${driver.label}失败:`, error);
+      console.error(`[editor-window] 保存${driver.defaultTitlePrefix}失败:`, error);
       // 下一轮重试
       savedSignature.current = "";
       setSaveState("error");

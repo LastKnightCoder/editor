@@ -44,8 +44,8 @@ export interface DocumentFields {
 
 export interface DocumentDriver<Entity = unknown> {
   kind: EditorWindowKind;
-  /** 类型名与图标（标题栏徽标、空态文案） */
-  label: string;
+  /** 用于导出等数据载荷的默认标题前缀。 */
+  defaultTitlePrefix: string;
   icon: LucideIcon;
   hasTitle: boolean;
   hasTags: boolean;
@@ -71,7 +71,7 @@ export const metadataSignature = (entity: unknown) =>
 
 const cardDriver: DocumentDriver<ICard> = {
   kind: "card",
-  label: "卡片",
+  defaultTitlePrefix: "卡片",
   icon: CreditCard,
   hasTitle: false,
   hasTags: true,
@@ -104,7 +104,7 @@ const cardDriver: DocumentDriver<ICard> = {
 
 const articleDriver: DocumentDriver<IArticle> = {
   kind: "article",
-  label: "文章",
+  defaultTitlePrefix: "文章",
   icon: FileText,
   hasTitle: true,
   hasTags: true,
@@ -138,7 +138,7 @@ const articleDriver: DocumentDriver<IArticle> = {
 
 const projectItemDriver: DocumentDriver<ProjectItem> = {
   kind: "project-item",
-  label: "项目",
+  defaultTitlePrefix: "项目",
   icon: FolderOpen,
   hasTitle: true,
   hasTags: false,

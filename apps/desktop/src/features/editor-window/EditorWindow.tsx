@@ -55,7 +55,8 @@ import { ContentDocumentImageExportModal } from "@/components/ContentExportModal
 import EpubExportModal from "@/components/EpubExportModal";
 import { PdfExportModal } from "@/components/PdfExportModal";
 import { copyMarkdownToClipboard, copyWechatHtmlToClipboard, getContentLength } from "@/utils";
-import { formatDate } from "@/utils/time";
+import { useEditorWindowI18n } from "./window.i18n";
+import { windowTimestamp } from "./window-format";
 import type { DocumentDriver, DocumentFields, EditorDocument } from "./documentDrivers";
 import type { SaveState } from "./useEditorDocument";
 import { useEditorWindowPrefs } from "./editorWindowPrefs";
@@ -91,6 +92,7 @@ export function EditorWindow({
   /** 打开即聚焦正文（快捷卡片窗口用） */
   autoFocus?: boolean;
 }) {
+  const { t, locale } = useEditorWindowI18n();
   const editorRef = useRef<EditorRef>(null);
   const loadTagSuggestions = driver.loadTagSuggestions
     ? () => driver.loadTagSuggestions?.(databaseName) ?? Promise.resolve([])
@@ -124,12 +126,17 @@ export function EditorWindow({
   const { t: transferT } = useContentTransferI18n();
   const [exportKind, setExportKind] = useState<"image" | "epub" | "pdf" | null>(null);
 
-  const title = driver.hasTitle
-    ? doc.title || "未命名"
-    : cardTitle(doc, 20) || `${driver.label} #${doc.id}`;
+  const contentTitle = driver.hasTitle ? doc.title : cardTitle(doc, 20);
+  const title =
+    contentTitle || (driver.hasTitle ? "未命名" : `${driver.defaultTitlePrefix} #${doc.id}`);
+  const displayTitle =
+    contentTitle ||
+    (driver.hasTitle
+      ? t("title.untitled")
+      : t("title.fallback", { kind: t(`type.${driver.kind}`), id: doc.id }));
   useEffect(() => {
-    document.title = title;
-  }, [title]);
+    document.title = displayTitle;
+  }, [displayTitle]);
 
   /* 会话：标题绑定会话文档；frozen / shared 驱动横幅与状态栏 */
   const source = useMemo(
@@ -214,8 +221,8 @@ export function EditorWindow({
   const outlineButton = (
     <IconButton
       onClick={() => toggleOutline(driver.kind)}
-      title={outlineOn ? "隐藏大纲" : "显示大纲"}
-      aria-label="大纲"
+      title={t(outlineOn ? "outline.hide" : "outline.show")}
+      aria-label={t("outline.label")}
       aria-pressed={outlineOn}
       className={outlineOn ? "bg-selected text-accent-text hover:bg-selected" : undefined}
     >
@@ -228,7 +235,7 @@ export function EditorWindow({
       align="end"
       fit
       trigger={
-        <IconButton title="更多" aria-label="更多">
+        <IconButton title={t("action.more")} aria-label={t("action.more")}>
           <MoreHorizontal size={17} strokeWidth={1.75} />
         </IconButton>
       }
@@ -238,7 +245,7 @@ export function EditorWindow({
         disabled={!inActiveDatabase}
         onSelect={() => void openInMainWindow()}
       >
-        {inActiveDatabase ? "在主窗口中打开" : "在主窗口中打开（非当前数据库）"}
+        {t(inActiveDatabase ? "action.mainWindow" : "action.otherDatabase")}
       </Menu.Item>
       <Menu.Item
         icon={
@@ -250,7 +257,7 @@ export function EditorWindow({
         }
         onSelect={() => collaborationRef.current?.open()}
       >
-        {entry?.mode === "shared" ? "协作成员" : "发起协作"}
+        {t(entry?.mode === "shared" ? "action.members" : "action.share")}
       </Menu.Item>
       <Menu.Separator />
       <Menu.Item
@@ -258,14 +265,14 @@ export function EditorWindow({
         kbd="⌘."
         onSelect={() => setFocusMode(true)}
       >
-        专注模式
+        {t("action.focus")}
       </Menu.Item>
       <Menu.CheckboxItem
         icon={<TextCursorInput className={iconClass} strokeWidth={1.75} />}
         checked={typewriter}
         onCheckedChange={toggleTypewriter}
       >
-        打字机滚动
+        {t("action.typewriter")}
       </Menu.CheckboxItem>
       <Menu.Item
         icon={<Search className={iconClass} strokeWidth={1.75} />}
@@ -277,7 +284,7 @@ export function EditorWindow({
           )
         }
       >
-        查找
+        {t("action.find")}
       </Menu.Item>
       <Menu.Separator />
       <Menu.Submenu
@@ -341,14 +348,18 @@ export function EditorWindow({
         icon={<X className={iconClass} strokeWidth={1.75} />}
         onSelect={() => void closeWindow()}
       >
-        关闭窗口
+        {t("action.close")}
       </Menu.Item>
     </Menu>
   );
 
   return (
     <div className="flex h-full flex-col">
-      <EditorWindowTitlebar icon={driver.icon} label={driver.label} title={title}>
+      <EditorWindowTitlebar
+        icon={driver.icon}
+        label={t(`type.${driver.kind}`)}
+        title={displayTitle}
+      >
         {/* 协作：已共享时常驻成员条（点开成员与邀请）；未共享不占位，由 ⋯「发起协作」打开对话框 */}
         <ContentCollaborationControl
           ref={collaborationRef}
@@ -373,8 +384,8 @@ export function EditorWindow({
             )}
             <IconButton
               onClick={togglePin}
-              title={pinned ? "取消置顶" : "窗口置顶"}
-              aria-label="窗口置顶"
+              title={t(pinned ? "action.unpin" : "action.pin")}
+              aria-label={t("action.pin")}
               aria-pressed={pinned}
               className={pinned ? "bg-selected text-accent-text hover:bg-selected" : undefined}
             >
@@ -389,7 +400,7 @@ export function EditorWindow({
       <div className="tau-sheet bg-surface shadow-card rounded-tau-md relative mx-2 mb-2 flex min-h-0 flex-1 flex-col overflow-hidden">
         {collab.frozen && (
           <div className="bg-warn-soft text-tau-sm text-warn mx-3 mt-2.5 rounded-[10px] px-3 py-2">
-            正在切换共享状态… 正文暂时只读
+            {t("status.transition")}
           </div>
         )}
         <div ref={setScrollEl} className={cn(FADE_SCROLL_CLASS, "@container min-h-0 flex-1")}>
@@ -404,7 +415,7 @@ export function EditorWindow({
                   frozen={collab.frozen}
                   error={collab.error}
                   defaultValue={doc.title}
-                  placeholder="未命名标题"
+                  placeholder={t("title.placeholder")}
                   contentEditable
                   onChange={value => updateFields({ title: value })}
                   onPressEnter={() => editorRef.current?.focus()}
@@ -417,9 +428,13 @@ export function EditorWindow({
                   driver.hasTitle ? "mb-6 mt-3" : "mb-5"
                 )}
               >
-                <span>创建于 {formatDate(doc.createTime, true)}</span>
+                <span>
+                  {t("date.created", { date: windowTimestamp(doc.createTime, locale, t) })}
+                </span>
                 <span className="mx-0.5 opacity-50">·</span>
-                <span>修改于 {formatDate(doc.updateTime, true)}</span>
+                <span>
+                  {t("date.modified", { date: windowTimestamp(doc.updateTime, locale, t) })}
+                </span>
               </div>
               {/* 点正文下方空白处落到正文末尾 */}
               <div
