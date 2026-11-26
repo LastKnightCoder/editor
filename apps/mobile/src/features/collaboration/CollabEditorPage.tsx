@@ -86,10 +86,14 @@ export function CollabEditorPage(props: {
             binding?.flushLocal?.();
             const current = collaborationManager.sessions.get(props.documentId);
             if (!current || current.info.frozen || current.info.status !== "active")
-              throw new Error("协作文档已失效");
+              throw Object.assign(new Error("协作文档已失效"), {
+                code: "UI_HISTORY_DOCUMENT_UNAVAILABLE",
+              });
             await collaborationManager.flush(current);
             if (current.info.pending || current.provider?.hasUnsyncedChanges)
-              throw new Error("请等待当前编辑同步后重试");
+              throw Object.assign(new Error("请等待当前编辑同步后重试"), {
+                code: "UI_HISTORY_SYNC_PENDING",
+              });
           })
         : undefined,
     [binding, props.documentId, serverUrl]

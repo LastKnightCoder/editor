@@ -2,6 +2,7 @@ import { Drawer } from "@tau/ui";
 import ContentEditor from "@/components/ContentEditor";
 import type { DocumentHistoryPreview } from "@tau/collaboration";
 import type { Descendant } from "slate";
+import { useHistoryI18n } from "./i18n";
 
 /** 「该版本全文」浏览：模态抽屉内只读渲染历史快照，不进写路径 */
 export function HistoryFullText({
@@ -11,6 +12,7 @@ export function HistoryFullText({
   preview: DocumentHistoryPreview | undefined;
   onClose: () => void;
 }) {
+  const { t, locale } = useHistoryI18n();
   return (
     <Drawer
       open={Boolean(preview)}
@@ -18,13 +20,13 @@ export function HistoryFullText({
         if (!open) onClose();
       }}
       size="lg"
-      title={preview ? `版本全文 · ${preview.entry.actorName}` : "版本全文"}
+      title={preview ? t("drawer.actor", { actor: preview.entry.actorName }) : t("drawer.title")}
       subtitle={
         preview
-          ? `#${preview.entry.sequence} · ${new Date(preview.entry.time).toLocaleString()}`
+          ? `#${preview.entry.sequence} · ${new Date(preview.entry.time).toLocaleString(locale)}`
           : undefined
       }
-      label="版本全文"
+      label={t("drawer.title")}
       fill
     >
       {preview && (

@@ -296,6 +296,8 @@ P5 MCP详情/配置/导入：13路径工程完成；已有插件MCP/解析24例�
 
 P5手机实际听写：24路径加Root原始诊断JSON工程完成；10文件78例中77通过，另聊天composer8例通过；唯一toolbarVoiceMode:66左右顺序布局断言在改动前基线已失败，相关toolbar源码/测试未触及，未删断言或转skip。mobile最终类型/构建、三语参数/复数/范围静态及实际Node无DOM分类烟测通过。真实fake timer保留录音实例/startedAt/选区、quiet10s、overlay原timer lease/portal/caller hint；EN界面仍按原ja-JP识别配置，未知含中文配置字样的诊断不跳设置。旧helper/regex消费清零退出，原生参数/计时器体/速记正文/coach生命周期AST对照保持。
 
+P6B历史：16路径工程完成；共享模型13基线、desktop历史2、mobile历史2及既有editor13通过，两端最终历史各2复跑与双端type全绿，三语desktop46/mobile35 key参数/范围静态格式通过。真实Query/预览/恢复契约保持筛选焦点、同readonly viewer/正文缓存、原operationId/sequence；mobile compare=true只由prepare触发，确认/重试保同detail与headRevision，在途不重发。旧Panel显示helpers/CHANGE_LABELS/errorMessage消费清零退役；历史原因/标题/正文/actor/target版本ID原样，未动网络/models/Rust。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

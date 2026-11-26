@@ -11,6 +11,7 @@ import type {
   DocumentHistoryPreview,
 } from "@tau/collaboration";
 import { useHistoryMarks } from "./HistoryMarks";
+import type { HistoryIssue } from "./i18n";
 
 export interface UseContentHistoryOptions {
   contentId?: number;
@@ -27,7 +28,7 @@ export interface ContentHistoryController {
   close: () => void;
   toggle: () => void;
   isOpen: boolean;
-  error: string | undefined;
+  error: HistoryIssue | undefined;
   rows: DocumentHistoryEntry[];
   /** 未筛选的最新一条 sequence（「当前版本」判断用，不受作者筛选影响） */
   headSequence: number | undefined;
@@ -51,9 +52,6 @@ export interface ContentHistoryController {
   filterActor: string | undefined;
   setFilterActor: (actorId: string | undefined) => void;
 }
-
-const errorMessage = (failure: unknown) =>
-  failure instanceof Error ? failure.message : "历史加载失败";
 
 export function useContentHistory({
   contentId,
@@ -133,11 +131,15 @@ export function useContentHistory({
     },
     toggle: () => setOpen(previous => !previous),
     isOpen,
-    error:
-      sessionError ??
-      (history.error || preview.error || apply.error
-        ? errorMessage(history.error ?? preview.error ?? apply.error)
-        : undefined),
+    error: sessionError
+      ? { cause: sessionError, fallback: "error.load" }
+      : history.error
+        ? { cause: history.error, fallback: "error.list" }
+        : preview.error
+          ? { cause: preview.error, fallback: "error.preview" }
+          : apply.error
+            ? { cause: apply.error, fallback: "error.action" }
+            : undefined,
     rows: visibleRows,
     headSequence: rows[0]?.sequence,
     hasNextPage: Boolean(history.hasNextPage),

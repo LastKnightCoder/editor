@@ -12,55 +12,14 @@ import type { ContentHistoryController } from "./useContentHistory";
 import { blockText } from "./HistoryMarks";
 import { HistoryLinks } from "./HistoryLinks";
 import { HistoryFullText } from "./HistoryFullText";
-
-const CHANGE_LABELS = {
-  insert: "新增块",
-  delete: "删除块",
-  modify: "修改块",
-  move: "移动块",
-} as const;
+import { useHistoryI18n, historyErrorText } from "./i18n";
+import { historyRelativeTime, historyDayLabel, historyEntryTime } from "./format";
 
 /** 作者色：actorId 稳定映射到五枚标签色（本机与他人一视同仁，身份靠名称与徽章） */
 const actorTagClass = (actorId: string) => {
   let hash = 0;
   for (const ch of actorId) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
   return `bg-tag-${(hash % 5) + 1}`;
-};
-
-const relTime = (time: number) => {
-  const mins = Math.round((Date.now() - time) / 60000);
-  if (mins < 1) return "刚刚";
-  if (mins < 60) return `${mins} 分钟前`;
-  if (mins < 720) return `${Math.round(mins / 60)} 小时前`;
-  const d = new Date(time);
-  return `${d.getMonth() + 1} 月 ${d.getDate()} 日`;
-};
-
-const absTime = (time: number) => {
-  const d = new Date(time);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getMonth() + 1} 月 ${d.getDate()} 日 ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-};
-
-const pad2 = (n: number) => String(n).padStart(2, "0");
-const clock = (time: number) => {
-  const d = new Date(time);
-  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
-};
-/** 合并了一段连续编辑的记录显示起止时间 */
-const entryTime = (entry: DocumentHistoryEntry) =>
-  entry.startTime && clock(entry.startTime) !== clock(entry.time)
-    ? `${absTime(entry.startTime)}–${clock(entry.time)}`
-    : absTime(entry.time);
-
-const dayLabel = (time: number) => {
-  const d = new Date(time);
-  const now = new Date();
-  if (d.toDateString() === now.toDateString()) return "今天";
-  const yesterday = new Date(now.getTime() - 864e5);
-  if (d.toDateString() === yesterday.toDateString()) return "昨天";
-  const weekday = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"][d.getDay()];
-  return `${d.getMonth() + 1} 月 ${d.getDate()} 日 ${weekday}`;
 };
 
 const firstLine = (text: string) => {
@@ -79,6 +38,8 @@ export function HistoryPanel({
   history: ContentHistoryController;
   containerRef: React.RefObject<HTMLElement | null>;
 }) {
+  const context = useHistoryI18n();
+  const { t, locale } = context;
   const [fullText, setFullText] = useState(false);
   const [floating, setFloating] = useState(false);
   const selectedRef = useRef<HTMLButtonElement | null>(null);
@@ -114,12 +75,12 @@ export function HistoryPanel({
     <>
       {row.kind === "undo" && (
         <span className="bg-warn-soft text-warn rounded-full px-1.5 text-[10px] leading-4">
-          撤销了 #{row.target}
+          {t("badge.undo", { target: String(row.target ?? "") })}
         </span>
       )}
       {row.kind === "restore" && (
         <span className="bg-info-soft text-info rounded-full px-1.5 text-[10px] leading-4">
-          恢复自 #{row.target}
+          {t("badge.restore", { target: String(row.target ?? "") })}
         </span>
       )}
       {row.source && (
@@ -132,7 +93,7 @@ export function HistoryPanel({
 
   return (
     <aside
-      aria-label="编辑历史"
+      aria-label={t("title")}
       onKeyDown={onKeyDown}
       className={cn(
         "flex w-[292px] min-h-0 shrink-0 flex-col",
@@ -142,11 +103,13 @@ export function HistoryPanel({
       )}
     >
       <header className="flex items-center gap-2 px-1 pb-1">
-        <h2 className="text-tau-sm text-ink-3 font-semibold tracking-[0.2em]">编辑历史</h2>
-        <span className="text-tau-meta text-ink-3 tabular-nums">{rows.length}</span>
+        <h2 className="text-tau-sm text-ink-3 font-semibold tracking-[0.2em]">{t("title")}</h2>
+        <span className="text-tau-meta text-ink-3 tabular-nums">
+          {rows.length.toLocaleString(locale)}
+        </span>
         <IconButton
-          title="收起历史面板"
-          aria-label="收起历史面板"
+          title={t("panel.close")}
+          aria-label={t("panel.close")}
           className="ml-auto size-6"
           onClick={history.close}
         >
@@ -158,7 +121,7 @@ export function HistoryPanel({
         <div className="flex flex-wrap gap-1 px-1 pb-1">
           <FilterChip
             active={!history.filterActor}
-            label="全部"
+            label={t("filter.all")}
             onClick={() => history.setFilterActor(undefined)}
           />
           {actors.map(([actorId, actorName]) => (
@@ -180,14 +143,16 @@ export function HistoryPanel({
           className="text-tau-meta rounded-tau-sm bg-danger-soft text-danger mx-1 px-2 py-1"
           role="alert"
         >
-          {history.error}
+          {historyErrorText(history.error, context)}
         </p>
       )}
 
       <FadeScroll className="min-h-0 flex-1 pl-1" topFade={false}>
-        {history.isListPending && <p className="text-tau-meta text-ink-3 px-2 py-4">载入中…</p>}
+        {history.isListPending && (
+          <p className="text-tau-meta text-ink-3 px-2 py-4">{t("loading")}</p>
+        )}
         {!history.isListPending && !rows.length && (
-          <p className="text-tau-meta text-ink-3 px-2 py-4">暂无编辑记录</p>
+          <p className="text-tau-meta text-ink-3 px-2 py-4">{t("empty")}</p>
         )}
         {rows.map((row, index) => {
           const isSelected = row.sequence === selected;
@@ -199,7 +164,7 @@ export function HistoryPanel({
             <div key={row.sequence} className="relative">
               {showDay && (
                 <p className="text-tau-sm bg-surface text-ink-3 sticky top-0 z-[1] px-2 pt-3 pb-1">
-                  {dayLabel(row.time)}
+                  {historyDayLabel(row.time, context)}
                 </p>
               )}
               {/* 时间轴脊线：穿过节点，组内首尾收口 */}
@@ -238,11 +203,11 @@ export function HistoryPanel({
                 />
                 <span className="flex items-baseline gap-1.5">
                   <span className="text-tau-body truncate font-medium">
-                    {row.kind === "baseline" ? "历史起点" : row.actorName}
+                    {row.kind === "baseline" ? t("baseline") : row.actorName}
                   </span>
                   <span className="flex min-w-0 items-center gap-1">{entryBadges(row)}</span>
                   <span className="text-tau-sm text-ink-3 ml-auto shrink-0 tabular-nums">
-                    {relTime(row.time)}
+                    {historyRelativeTime(row.time, context)}
                   </span>
                 </span>
               </button>
@@ -257,7 +222,7 @@ export function HistoryPanel({
             disabled={history.isFetchingNextPage}
             onClick={history.fetchNextPage}
           >
-            {history.isFetchingNextPage ? "载入中…" : "更早的记录…"}
+            {history.isFetchingNextPage ? t("loading") : t("older")}
           </button>
         )}
       </FadeScroll>
@@ -303,10 +268,11 @@ function EntryDetail({
   history: ContentHistoryController;
   onFullText: () => void;
 }) {
+  const { t, locale } = useHistoryI18n();
   const detail = history.preview;
   const entry = detail?.entry;
   const confirming = history.confirming;
-  if (!detail || !entry) return <p className="text-tau-sm text-ink-3 px-2 py-2">载入中…</p>;
+  if (!detail || !entry) return <p className="text-tau-sm text-ink-3 px-2 py-2">{t("loading")}</p>;
 
   const isHead = entry.sequence === history.headSequence;
   const canUndo = detail.canUndo;
@@ -315,12 +281,13 @@ function EntryDetail({
   return (
     <div className="mx-1 mt-1 mb-2 pl-5">
       <p className="text-tau-sm text-ink-3 tabular-nums">
-        #{entry.sequence} · {entryTime(entry)}
+        #{entry.sequence} · {historyEntryTime(entry, locale)}
       </p>
 
       {detail.previousTitle !== detail.value.title && (
         <p className="text-tau-sm text-ink-2 mt-2">
-          修改标题 <del className="text-danger">{detail.previousTitle}</del> {detail.value.title}
+          {t("modifiedTitle")} <del className="text-danger">{detail.previousTitle}</del>{" "}
+          {detail.value.title}
         </p>
       )}
 
@@ -331,30 +298,30 @@ function EntryDetail({
             className="text-tau-sm text-ink-2 flex items-baseline gap-1.5"
           >
             <span className="border-line-1 bg-surface text-accent-text flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border text-[9px] font-semibold">
-              {index + 1}
+              {(index + 1).toLocaleString(locale)}
             </span>
-            <span className="text-ink-3 shrink-0">{CHANGE_LABELS[change.kind]}</span>
+            <span className="text-ink-3 shrink-0">{t(`change.${change.kind}`)}</span>
             <span className="truncate">{firstLine(blockText(change.after ?? change.before))}</span>
           </p>
         ))}
         {!detail.changes.length && detail.previousTitle === detail.value.title && (
-          <p className="text-tau-sm text-ink-3">这条记录没有可见的正文变化</p>
+          <p className="text-tau-sm text-ink-3">{t("noChanges")}</p>
         )}
       </div>
 
       {confirming ? (
         <div className="mt-2.5">
           <p className="text-tau-body font-medium">
-            {confirming.kind === "undo" ? "确认撤销这次编辑？" : `确认恢复到 #${entry.sequence}？`}
+            {confirming.kind === "undo"
+              ? t("confirm.undoQuestion")
+              : t("confirm.restoreQuestion", { sequence: String(entry.sequence) })}
           </p>
           <p className="text-tau-sm text-ink-2 mt-0.5">
-            {confirming.kind === "undo"
-              ? "只回退这条记录中的修改，其余编辑保持不变。"
-              : `正文将回到该版本，之后的历史记录不会丢失。`}
+            {confirming.kind === "undo" ? t("confirm.undoHint") : t("confirm.restoreHint")}
           </p>
           <div className="mt-2 flex gap-1.5">
             <Button size="sm" disabled={history.applyPending} onClick={history.cancelConfirm}>
-              取消
+              {t("cancel")}
             </Button>
             <Button
               size="sm"
@@ -363,7 +330,7 @@ function EntryDetail({
               loading={history.applyPending}
               onClick={history.applyAction}
             >
-              {confirming.kind === "undo" ? "确认撤销" : "确认恢复"}
+              {confirming.kind === "undo" ? t("confirm.undo") : t("confirm.restore")}
             </Button>
           </div>
         </div>
@@ -371,23 +338,23 @@ function EntryDetail({
         !history.isPreviewPending && (
           <div className="mt-2 flex flex-wrap gap-1.5">
             <Button size="sm" variant="ghost" onClick={onFullText}>
-              该版本全文
+              {t("fullText")}
             </Button>
             {canUndo && (
               <Button size="sm" onClick={() => history.beginConfirm("undo")}>
-                撤销这次编辑
+                {t("undo")}
               </Button>
             )}
             {canRestore && !isHead && (
               <Button size="sm" variant="soft" onClick={() => history.beginConfirm("restore")}>
-                恢复到此版本
+                {t("restore")}
               </Button>
             )}
           </div>
         )
       )}
 
-      {isHead && !confirming && <p className="text-tau-sm text-ink-3 mt-1.5">这是当前版本</p>}
+      {isHead && !confirming && <p className="text-tau-sm text-ink-3 mt-1.5">{t("current")}</p>}
     </div>
   );
 }

@@ -10,20 +10,22 @@ import type {
 } from "@tau/collaboration";
 import { BottomSheet } from "../../components/BottomSheet";
 import { useMobileContentKit } from "../../services/editorKit";
-import { parseInvokeError } from "../../services/errors";
+import { useHistoryI18n, historyErrorText, type HistoryIssue } from "./history.i18n";
 import type { HistoryApi } from "./core/document-history";
 
 const textOf = (node: ContentNode): string =>
   node.text ?? node.children?.map(textOf).join("") ?? "";
 
 export function ContentHistorySheet({ api, onClose }: { api: HistoryApi; onClose(): void }) {
+  const context = useHistoryI18n();
+  const { t, locale } = context;
   const [rows, setRows] = useState<DocumentHistoryEntry[]>();
   const [preview, setPreview] = useState<DocumentHistoryPreview>();
   const [sequence, select] = useState<number>();
   const [full, setFull] = useState(false);
   const [action, setAction] = useState<DocumentHistoryAction>();
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string>();
+  const [error, setError] = useState<HistoryIssue>();
   const [more, setMore] = useState(false);
   const kit = useMobileContentKit("edit");
   const current = sequence ?? rows?.[0]?.sequence;
@@ -39,7 +41,7 @@ export function ContentHistorySheet({ api, onClose }: { api: HistoryApi; onClose
         setMore(result.length === 50);
       })
       .catch(failure => {
-        if (active) setError(parseInvokeError(failure).message || "编辑历史无法加载");
+        if (active) setError({ cause: failure, fallback: "error.list" });
       });
     return () => {
       active = false;
@@ -54,7 +56,7 @@ export function ContentHistorySheet({ api, onClose }: { api: HistoryApi; onClose
         if (active) setPreview(result);
       })
       .catch(failure => {
-        if (active) setError(parseInvokeError(failure).message || "历史版本无法加载");
+        if (active) setError({ cause: failure, fallback: "error.preview" });
       });
     return () => {
       active = false;
@@ -67,7 +69,7 @@ export function ContentHistorySheet({ api, onClose }: { api: HistoryApi; onClose
       setRows(previous => [...(previous ?? []), ...result]);
       setMore(result.length === 50);
     } catch (failure) {
-      setError(parseInvokeError(failure).message);
+      setError({ cause: failure, fallback: "error.list" });
     }
   };
   const prepare = (kind: DocumentHistoryAction["kind"]) => {
@@ -92,7 +94,7 @@ export function ContentHistorySheet({ api, onClose }: { api: HistoryApi; onClose
       await api.apply({ ...action, expectedRevision: compare ? detail.headRevision : undefined });
       onClose();
     } catch (failure) {
-      setError(parseInvokeError(failure).message || "历史操作失败");
+      setError({ cause: failure, fallback: "error.action" });
     } finally {
       setBusy(false);
     }
@@ -100,22 +102,22 @@ export function ContentHistorySheet({ api, onClose }: { api: HistoryApi; onClose
   return (
     <BottomSheet
       open
-      title="编辑历史"
+      title={t("title")}
       onClose={() => {
         if (!busy) onClose();
       }}
     >
       {error && (
         <p className="text-danger" role="alert">
-          {error}
+          {historyErrorText(error, context)}
         </p>
       )}
       {!rows && !error && <Loading />}
-      {rows?.length === 0 && <p>暂无编辑记录</p>}
+      {rows?.length === 0 && <p>{t("empty")}</p>}
       {rows && rows.length > 0 && (
         <div className="space-y-3">
           <select
-            aria-label="历史版本"
+            aria-label={t("version")}
             disabled={busy}
             className="bg-surface rounded-tau-sm w-full p-2"
             value={current}
@@ -127,31 +129,35 @@ export function ContentHistorySheet({ api, onClose }: { api: HistoryApi; onClose
           >
             {rows.map(row => (
               <option key={row.sequence} value={row.sequence}>
-                {row.actorName || "历史起点"} ·{" "}
-                {row.startTime ? `${new Date(row.startTime).toLocaleString()} – ` : ""}
+                {row.actorName || t("baseline")} ·{" "}
+                {row.startTime ? `${new Date(row.startTime).toLocaleString(locale)} – ` : ""}
                 {row.startTime
-                  ? new Date(row.time).toLocaleTimeString()
-                  : new Date(row.time).toLocaleString()}
-                {row.kind === "undo" ? " · 撤销编辑" : row.kind === "restore" ? " · 恢复版本" : ""}
+                  ? new Date(row.time).toLocaleTimeString(locale)
+                  : new Date(row.time).toLocaleString(locale)}
+                {row.kind === "undo"
+                  ? ` · ${t("undoKind")}`
+                  : row.kind === "restore"
+                    ? ` · ${t("restoreKind")}`
+                    : ""}
               </option>
             ))}
           </select>
-          {more && <Button onClick={() => void older()}>加载更早记录</Button>}
+          {more && <Button onClick={() => void older()}>{t("older")}</Button>}
           {!detail && !error && <Loading />}
           {detail && (
             <>
               <div className="flex gap-2">
                 <Button aria-pressed={!full} onClick={() => setFull(false)}>
-                  改动
+                  {t("changes")}
                 </Button>
                 <Button aria-pressed={full} onClick={() => setFull(true)}>
-                  完整正文
+                  {t("fullText")}
                 </Button>
               </div>
               <div className="max-h-[45vh] overflow-y-auto">
                 {full || (detail.entry.kind === "baseline" && !compare) ? (
                   <>
-                    {compare && <p className="text-ink-3">恢复后对当前正文的改动</p>}
+                    {compare && <p className="text-ink-3">{t("restoreHint")}</p>}
                     {detail.value.title && <h3>{detail.value.title}</h3>}
                     {kit && (
                       <Editor
@@ -174,16 +180,7 @@ export function ContentHistorySheet({ api, onClose }: { api: HistoryApi; onClose
                         key={`${change.blockId}:${change.kind}`}
                         className="bg-surface rounded-tau-sm mb-2 p-2"
                       >
-                        <p className="text-ink-3">
-                          {
-                            {
-                              insert: "新增块",
-                              delete: "删除块",
-                              modify: "修改块",
-                              move: "移动块",
-                            }[change.kind]
-                          }
-                        </p>
+                        <p className="text-ink-3">{t(`change.${change.kind}`)}</p>
                         {change.before && change.kind !== "move" && (
                           <del className="text-danger block">{textOf(change.before)}</del>
                         )}
@@ -203,19 +200,17 @@ export function ContentHistorySheet({ api, onClose }: { api: HistoryApi; onClose
                         setError(undefined);
                       }}
                     >
-                      取消
+                      {t("cancel")}
                     </Button>
                     <Button disabled={busy} variant="primary" onClick={() => void apply()}>
-                      {action.kind === "undo" ? "确认撤销这次编辑" : "确认恢复到此版本"}
+                      {action.kind === "undo" ? t("confirm.undo") : t("confirm.restore")}
                     </Button>
                   </>
                 ) : (
                   <>
-                    {detail.canUndo && (
-                      <Button onClick={() => prepare("undo")}>撤销这次编辑</Button>
-                    )}
+                    {detail.canUndo && <Button onClick={() => prepare("undo")}>{t("undo")}</Button>}
                     {detail.canRestore && (
-                      <Button onClick={() => prepare("restore")}>恢复到此版本</Button>
+                      <Button onClick={() => prepare("restore")}>{t("restore")}</Button>
                     )}
                   </>
                 )}
