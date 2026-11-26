@@ -62,7 +62,7 @@
   "underline.dashed": "虚线",
   "underline.dotted": "点线",
   "underline.wavy": "波浪线",
-  "underline.sample": "文字",
+  "underline.remove": "移除下划线",
   "math.source": "行内公式 LaTeX 源码",
   "math.input": "输入公式",
   "math.preview": "公式预览",

@@ -6,9 +6,9 @@ import { Editor, NodeEntry, Transforms } from "slate";
 import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
 import { unwrapUnderline, wrapUnderline } from "../../selection.ts";
 import classnames from "classnames";
-import { ChevronDown, Underline } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import UnderlineSelect, { type UnderlineLineType } from "../UnderlineSelect/index.tsx";
-import { getInlinePaletteEntry } from "@tau/editor/extensions/text-formatting/palette";
+import { getInlinePaletteEntry, inlineInk } from "@tau/editor/extensions/text-formatting/palette";
 import { useToolbarState } from "@tau/editor/api";
 import { ToolbarSubmenu as FloatingSubmenu } from "@tau/editor/api";
 import { type UnderlineElement } from "../../types.ts";
@@ -147,6 +147,16 @@ const HoveringItem = () => {
       setPopoverOpen(false);
     }
   });
+  const handleRemove = useMemoizedFn(() => {
+    unwrapUnderline(editor);
+    ReactEditor.focus(editor);
+    if (isCompact) {
+      setPopoverOpen(false);
+    }
+  });
+
+  const barColor = inlineInk(selectedColor);
+
   return (
     <FloatingSubmenu
       open={popoverOpen}
@@ -159,8 +169,10 @@ const HoveringItem = () => {
         <UnderlineSelect
           selectedColor={selectedColor}
           selectedLineType={selectedLineType}
+          canRemove={isActive}
           onColorSelect={handleColorSelect}
           onLineTypeSelect={handleLineTypeSelect}
+          onRemove={handleRemove}
         />
       }
     >
@@ -174,7 +186,28 @@ const HoveringItem = () => {
           )}
           onClick={handleClick}
         >
-          <Underline size={16} strokeWidth={2.5} />
+          {/* 16px 图标盒与工具条其他图标同几何，底线色条同步当前下划线颜色 */}
+          <span aria-hidden className="relative size-4 shrink-0">
+            <svg
+              width={16}
+              height={16}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2.5}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M6 4v6a6 6 0 0 0 12 0V4" />
+            </svg>
+            <span
+              className={classnames(
+                "absolute inset-x-[2px] top-[12.5px] h-[2.5px] rounded-full",
+                !barColor && "bg-current"
+              )}
+              style={barColor ? { backgroundColor: barColor } : undefined}
+            />
+          </span>
           <ChevronDown size={11} strokeWidth={3} className="opacity-60" />
         </div>
       </Tooltip>

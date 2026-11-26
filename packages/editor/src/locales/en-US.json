@@ -62,7 +62,7 @@
   "underline.dashed": "Dashed",
   "underline.dotted": "Dotted",
   "underline.wavy": "Wavy",
-  "underline.sample": "Text",
+  "underline.remove": "Remove underline",
   "math.source": "Inline math LaTeX source",
   "math.input": "Enter a formula",
   "math.preview": "Formula preview",
