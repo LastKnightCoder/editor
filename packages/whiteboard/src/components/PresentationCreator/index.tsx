@@ -1,3 +1,4 @@
+import { usePresentationI18n } from "../../presentation-i18n";
 /**
  * 演示序列创建面板（画布 chrome 换皮）：
  * 画布右上浮层——头部即序列名称输入框 + 关闭；工具行 添加帧 / 调整视口 / 预览；
@@ -27,6 +28,7 @@ import { ViewPortTransforms } from "../../transforms/ViewPortTransforms";
 import { ChromeBar, ChromeButton, ChromeGap, Slider, stopCanvasEvents } from "../../chrome";
 
 const PresentationCreator: React.FC = () => {
+  const { t } = usePresentationI18n();
   const board = useBoard();
   const [frames, setFrames] = useState<PresentationFrame[]>([]);
   const [currentFrame, setCurrentFrame] = useState<PresentationFrame | null>(null);
@@ -102,14 +104,14 @@ const PresentationCreator: React.FC = () => {
     const newFrame = board.presentationManager.createFrameFromSelectedElements(board);
 
     if (!newFrame) {
-      toast.warning("请先选择元素");
+      toast.warning(t("presentation.selectElements"));
       return;
     }
 
     setFrames(prev => [...prev, newFrame]);
     setCurrentFrame(newFrame);
 
-    toast.success("已添加当前选中元素为一帧");
+    toast.success(t("presentation.added"));
 
     board.apply(
       {
@@ -171,7 +173,7 @@ const PresentationCreator: React.FC = () => {
   // 开始预览所有帧
   const startPreview = useMemoizedFn(() => {
     if (frames.length === 0) {
-      toast.warning("请先添加帧");
+      toast.warning(t("presentation.addFirst"));
       return;
     }
 
@@ -206,7 +208,7 @@ const PresentationCreator: React.FC = () => {
   // 保存演示序列
   const saveSequence = useMemoizedFn(() => {
     if (frames.length === 0) {
-      toast.warning("请先添加帧");
+      toast.warning(t("presentation.addFirst"));
       return;
     }
 
@@ -217,7 +219,7 @@ const PresentationCreator: React.FC = () => {
   // 确认保存
   const handleSave = useMemoizedFn(() => {
     if (!sequenceName.trim()) {
-      toast.warning("请输入演示序列名称");
+      toast.warning(t("presentation.nameRequired"));
       nameInputRef.current?.focus();
       return;
     }
@@ -225,13 +227,15 @@ const PresentationCreator: React.FC = () => {
     board.presentationManager.saveSequence(sequenceName, frames, currentSequenceId);
     // 保存后自动退出序列制作模式
     board.presentationManager.stopCreatingSequence();
-    toast.success(`演示序列 "${sequenceName}" 已${isEditMode ? "更新" : "保存"}`);
+    toast.success(
+      t(isEditMode ? "presentation.updated" : "presentation.saved", { name: sequenceName })
+    );
   });
 
   // 开始调整视口
   const startAdjustViewport = useMemoizedFn(() => {
     if (!currentFrame) {
-      toast.warning("请先选择一帧");
+      toast.warning(t("presentation.selectFrame"));
       return;
     }
 
@@ -367,8 +371,8 @@ const PresentationCreator: React.FC = () => {
         <input
           ref={nameInputRef}
           value={sequenceName}
-          placeholder="演示序列名称"
-          aria-label="演示序列名称"
+          placeholder={t("presentation.name")}
+          aria-label={t("presentation.name")}
           onChange={e => setSequenceName(e.target.value)}
           onKeyDown={e => {
             // 输入时的按键不落到画布快捷键（Backspace 删元素等）
@@ -384,8 +388,12 @@ const PresentationCreator: React.FC = () => {
             "hover:bg-hover focus:bg-surface focus:shadow-[inset_0_0_0_1px_var(--tau-accent),var(--tau-focus-ring)]"
           )}
         />
-        <Tooltip content="关闭" placement="bottom" arrow={false}>
-          <IconButton aria-label="关闭" onClick={onCancel} disabled={isAdjustingViewport}>
+        <Tooltip content={t("presentation.close")} placement="bottom" arrow={false}>
+          <IconButton
+            aria-label={t("presentation.close")}
+            onClick={onCancel}
+            disabled={isAdjustingViewport}
+          >
             <X size={16} strokeWidth={1.75} />
           </IconButton>
         </Tooltip>
@@ -393,7 +401,7 @@ const PresentationCreator: React.FC = () => {
 
       {/* 工具行 */}
       <div className="flex flex-none gap-1.5 px-3.5 pt-1 pb-2.5">
-        <Tooltip content="把画布上选中的元素加为一帧" placement="bottom" arrow={false}>
+        <Tooltip content={t("presentation.addHint")} placement="bottom" arrow={false}>
           <Button
             variant="soft"
             size="sm"
@@ -401,7 +409,7 @@ const PresentationCreator: React.FC = () => {
             onClick={addCurrentFrame}
             disabled={previewMode || isAdjustingViewport}
           >
-            添加帧
+            {t("presentation.add")}
           </Button>
         </Tooltip>
         <Button
@@ -412,7 +420,7 @@ const PresentationCreator: React.FC = () => {
           disabled={!currentFrame || previewMode}
           className={cn(isAdjustingViewport && "bg-press text-ink-1")}
         >
-          {isAdjustingViewport ? "完成" : "调整视口"}
+          {isAdjustingViewport ? t("presentation.done") : t("presentation.adjust")}
         </Button>
         <Button
           variant="ghost"
@@ -421,16 +429,16 @@ const PresentationCreator: React.FC = () => {
           onClick={startPreview}
           disabled={frames.length === 0 || previewMode || isAdjustingViewport}
         >
-          预览
+          {t("presentation.preview")}
         </Button>
       </div>
 
       {/* 调整视口：留白滑杆 + 拖拽改尺寸 */}
       {isAdjustingViewport && (
         <div className="mx-3.5 mb-2.5 flex-none">
-          <div className="text-ink-3 mb-1.5 text-[11.5px]">视口留白</div>
+          <div className="text-ink-3 mb-1.5 text-[11.5px]">{t("presentation.padding")}</div>
           <Slider
-            label="视口留白"
+            label={t("presentation.padding")}
             min={0}
             max={200}
             value={viewportPadding}
@@ -443,7 +451,7 @@ const PresentationCreator: React.FC = () => {
             className="text-ink-3 hover:bg-hover hover:text-ink-2 ease-tau-out mt-2 flex h-7 cursor-nwse-resize items-center gap-1.5 rounded-[8px] px-1.5 text-[11.5px] transition-[background-color,color] duration-150"
           >
             <MoveDiagonal2 size={14} strokeWidth={1.75} />
-            拖拽此处调整视口大小
+            {t("presentation.resize")}
           </div>
         </div>
       )}
@@ -456,7 +464,7 @@ const PresentationCreator: React.FC = () => {
         {frames.length === 0 ? (
           <div className="text-ink-3 px-3 pt-[22px] pb-[26px] text-center text-[12.5px]">
             <Film size={22} strokeWidth={1.5} className="mx-auto mb-2" />
-            选中画布上的元素，点「添加帧」
+            {t("presentation.empty")}
           </div>
         ) : (
           frames.map((frame, index) => {
@@ -488,16 +496,18 @@ const PresentationCreator: React.FC = () => {
                   {index + 1}
                 </span>
                 <span className="min-w-0 flex-1 text-[12.5px] leading-[1.3]">
-                  <span className="text-ink-1 block truncate">第 {index + 1} 帧</span>
+                  <span className="text-ink-1 block truncate">
+                    {t("presentation.frame", { number: index + 1 })}
+                  </span>
                   <span className="text-ink-3 block text-[11.5px]">
-                    {frame.elements.length} 个元素
+                    {t("presentation.elements", { count: frame.elements.length })}
                   </span>
                 </span>
                 {/* 固定槽位：悬停 / 聚焦只改透明度，不改尺寸 */}
                 <span className="ease-tau-out flex flex-none opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100">
-                  <Tooltip content="预览此帧" placement="top" arrow={false}>
+                  <Tooltip content={t("presentation.previewFrame")} placement="top" arrow={false}>
                     <IconButton
-                      aria-label="预览此帧"
+                      aria-label={t("presentation.previewFrame")}
                       className="size-[26px]"
                       disabled={frameActionsDisabled}
                       onClick={e => {
@@ -508,9 +518,9 @@ const PresentationCreator: React.FC = () => {
                       <Eye size={15} strokeWidth={1.75} />
                     </IconButton>
                   </Tooltip>
-                  <Tooltip content="删除此帧" placement="top" arrow={false}>
+                  <Tooltip content={t("presentation.deleteFrame")} placement="top" arrow={false}>
                     <IconButton
-                      aria-label="删除此帧"
+                      aria-label={t("presentation.deleteFrame")}
                       className="enabled:hover:text-danger size-[26px]"
                       disabled={frameActionsDisabled}
                       onClick={e => {
@@ -531,14 +541,14 @@ const PresentationCreator: React.FC = () => {
       {/* 应答区 */}
       <div className="flex flex-none justify-end gap-2 px-3.5 pt-2.5 pb-3.5">
         <Button variant="secondary" onClick={onCancel} disabled={isAdjustingViewport}>
-          取消
+          {t("presentation.cancel")}
         </Button>
         <Button
           variant="primary"
           onClick={saveSequence}
           disabled={frames.length === 0 || isAdjustingViewport}
         >
-          {isEditMode ? "更新" : "保存"}
+          {isEditMode ? t("presentation.update") : t("presentation.save")}
         </Button>
       </div>
 
@@ -547,7 +557,7 @@ const PresentationCreator: React.FC = () => {
         createPortal(
           <ChromeBar className="fixed bottom-[22px] left-1/2 z-[1001] -translate-x-1/2 gap-0.5 text-[12.5px]">
             <ChromeButton
-              label="上一帧"
+              label={t("presentation.previous")}
               tooltipPlacement="top"
               onClick={previewPrev}
               disabled={previewIndex === 0}
@@ -558,7 +568,7 @@ const PresentationCreator: React.FC = () => {
               <b className="text-ink-1 font-semibold">{previewIndex + 1}</b> / {frames.length}
             </span>
             <ChromeButton
-              label="下一帧"
+              label={t("presentation.next")}
               tooltipPlacement="top"
               onClick={previewNext}
               disabled={previewIndex === frames.length - 1}
@@ -567,7 +577,7 @@ const PresentationCreator: React.FC = () => {
             </ChromeButton>
             <ChromeGap />
             <Button variant="ghost" size="sm" icon={X} onClick={stopPreview}>
-              退出预览
+              {t("presentation.exitPreview")}
             </Button>
           </ChromeBar>,
           document.body
@@ -576,13 +586,13 @@ const PresentationCreator: React.FC = () => {
       <ConfirmDialog
         open={removeConfirmOpen}
         onOpenChange={setRemoveConfirmOpen}
-        title="删除帧"
+        title={t("presentation.deleteTitle")}
         description={
           pendingRemove
-            ? `确定要删除第 ${pendingRemove.index + 1} 帧吗？该操作无法撤销。`
+            ? t("presentation.removeFrame", { number: pendingRemove.index + 1 })
             : undefined
         }
-        confirmText="删除"
+        confirmText={t("presentation.delete")}
         danger
         onConfirm={confirmRemoveFrame}
       />

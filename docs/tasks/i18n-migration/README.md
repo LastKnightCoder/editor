@@ -264,6 +264,8 @@ P6A3-C1白板元素树：11源码及Root宿主4路径工程完成；4文件15例
 
 P5手机消息与引用：12路径工程完成；真实router/引用直接2文件15例、mobile类型、三语参数/复数、Node无DOM binding与范围静态/格式通过。换语保留同引用按钮/菜单action DOM/原目标/文字选择面板，不重读session/不editHistory/重发run；实际点击仅一次查询，saveAsCard解析/count/title/body、clipboard和delete/regenerate输入未改。
 
+P6A3-C2白板演示：9路径工程完成；3文件48例、包type、白板边界、三语56语义key/参数/复数与范围格式/静态通过。真实创建草稿/帧/视口、放映中当前帧/激光/全屏单次与原3秒提示计时换语契约通过。sketchLevelLabel全仓消费归零退休，原SKETCH常量数据与演示manager/plugin/算法不改；只保留2个原effect lint warning。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

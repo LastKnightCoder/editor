@@ -1,3 +1,4 @@
+import { usePresentationI18n } from "../../presentation-i18n";
 /**
  * 放映模式外壳（画布 chrome 换皮）：
  * 底部居中一条 ChromeBar（上一帧 · 页码 · 下一帧 · 激光笔 · 退出），顶部墨底小提示；
@@ -184,6 +185,7 @@ const getLaserOpacity = (points: LaserPoint[], now: number) => {
 };
 
 const PresentationMode: React.FC = () => {
+  const { t } = usePresentationI18n();
   const [showTip, setShowTip] = useState(true);
   // 提示淡出阶段（原 CSS：2s 后用 1s 淡出，3s 时移除）
   const [tipFading, setTipFading] = useState(false);
@@ -356,7 +358,7 @@ const PresentationMode: React.FC = () => {
       {/* 放映控件：底部居中浮动条 */}
       <ChromeBar className="pointer-events-auto bottom-[22px] left-1/2 z-[1001] -translate-x-1/2 gap-0.5 text-[12.5px] select-none">
         <ChromeButton
-          label="上一帧"
+          label={t("presentation.previous")}
           tooltipPlacement="top"
           onClick={handlePrev}
           disabled={displayIndex <= 1}
@@ -367,7 +369,7 @@ const PresentationMode: React.FC = () => {
           <b className="text-ink-1 font-semibold">{displayIndex}</b> / {totalFrames}
         </span>
         <ChromeButton
-          label="下一帧"
+          label={t("presentation.next")}
           tooltipPlacement="top"
           onClick={handleNext}
           disabled={displayIndex >= totalFrames}
@@ -376,7 +378,7 @@ const PresentationMode: React.FC = () => {
         </ChromeButton>
         <ChromeGap />
         <ChromeButton
-          label={pointerMode === "laser" ? "切换为普通鼠标" : "切换为激光笔"}
+          label={pointerMode === "laser" ? t("presentation.cursor") : t("presentation.laser")}
           tooltipPlacement="top"
           active={pointerMode === "laser"}
           onClick={handleTogglePointerMode}
@@ -384,7 +386,7 @@ const PresentationMode: React.FC = () => {
           <Crosshair strokeWidth={1.75} />
         </ChromeButton>
         <Button variant="ghost" size="sm" icon={X} onClick={handleExit}>
-          退出
+          {t("presentation.exit")}
         </Button>
       </ChromeBar>
 
@@ -396,7 +398,7 @@ const PresentationMode: React.FC = () => {
             tipFading && "opacity-0"
           )}
         >
-          使用方向键或滚轮导航，按 ESC 退出演示模式
+          {t("presentation.navigationHint")}
         </div>
       )}
 

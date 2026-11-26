@@ -1,14 +1,12 @@
+import { useAttributeI18n } from "../../attributes-i18n";
+import { attributeOption } from "../../attribute-labels";
+import { usePresentationI18n } from "../../presentation-i18n";
 import React, { memo, useState } from "react";
 import { Clapperboard, Maximize, Minus, Pencil, PenLine, Play, Plus, Trash2 } from "lucide-react";
 import { Button, ConfirmDialog, IconButton, Menu, Popover, Tooltip } from "@tau/ui";
 
 import { PresentationSequence, SketchLevel, SketchMode } from "../../types";
-import {
-  SKETCH_LEVEL_OPTIONS,
-  SKETCH_MODE_OPTIONS,
-  ZOOM_PRESETS,
-  sketchLevelLabel,
-} from "../../constants";
+import { SKETCH_LEVEL_OPTIONS, SKETCH_MODE_OPTIONS, ZOOM_PRESETS } from "../../constants";
 import {
   useBoard,
   usePageSketch,
@@ -45,6 +43,7 @@ interface StatusBarProps {
  * 末尾是宿主控件（end），演示模式下随状态栏一起隐藏。
  */
 const StatusBar = memo((props: StatusBarProps) => {
+  const { t } = usePresentationI18n();
   const {
     gridVisible = false,
     zoom,
@@ -74,7 +73,7 @@ const StatusBar = memo((props: StatusBarProps) => {
     <ChromeBar ref={ref} className="right-3 bottom-3 text-[12px]">
       <SketchEntry />
       <ChromeButton
-        label="缩小"
+        label={t("presentation.zoomOut")}
         kbd={kbdOf("tau.viewport.zoom-out")}
         tooltipPlacement="top"
         onClick={onZoomOut}
@@ -88,7 +87,7 @@ const StatusBar = memo((props: StatusBarProps) => {
         trigger={
           <button
             type="button"
-            aria-label="视图"
+            aria-label={t("presentation.view")}
             className="text-ink-2 hover:bg-hover hover:text-ink-1 aria-expanded:bg-press h-[30px] min-w-12 cursor-pointer rounded-[8px] text-center tabular-nums"
           >
             {Math.round(zoom * 100)}%
@@ -96,17 +95,17 @@ const StatusBar = memo((props: StatusBarProps) => {
         }
       >
         <Menu.Item kbd={kbdOf("tau.viewport.fit-all")} onSelect={onFitAll}>
-          适应全部
+          {t("presentation.fitAll")}
         </Menu.Item>
         <Menu.Item
           kbd={kbdOf("tau.viewport.fit-selection")}
           disabled={!hasSelection}
           onSelect={onFitSelection}
         >
-          适应选中
+          {t("presentation.fitSelection")}
         </Menu.Item>
         <Menu.Separator />
-        <Menu.Group>缩放</Menu.Group>
+        <Menu.Group>{t("presentation.zoom")}</Menu.Group>
         <Menu.RadioGroup
           value={String(ZOOM_PRESETS.find(z => Math.abs(zoom - z) < 0.001) ?? "")}
           onValueChange={v => onZoomTo(Number(v))}
@@ -123,11 +122,11 @@ const StatusBar = memo((props: StatusBarProps) => {
         </Menu.RadioGroup>
         <Menu.Separator />
         <Menu.CheckboxItem checked={gridVisible} onCheckedChange={onGridVisibleChange}>
-          显示点阵
+          {t("presentation.grid")}
         </Menu.CheckboxItem>
       </Menu>
       <ChromeButton
-        label="放大"
+        label={t("presentation.zoomIn")}
         kbd={kbdOf("tau.viewport.zoom-in")}
         tooltipPlacement="top"
         onClick={onZoomIn}
@@ -135,7 +134,7 @@ const StatusBar = memo((props: StatusBarProps) => {
         <Plus strokeWidth={1.75} />
       </ChromeButton>
       <ChromeButton
-        label="全览"
+        label={t("presentation.overview")}
         kbd={kbdOf("tau.viewport.toggle-fit")}
         tooltipPlacement="top"
         onClick={onFitAll}
@@ -161,6 +160,8 @@ const StatusBar = memo((props: StatusBarProps) => {
 
 /** 页级画风：手绘 / 普通 + 默认笔触；单独设置过的元素不受影响 */
 function SketchEntry() {
+  const { t } = usePresentationI18n();
+  const { t: attributeT } = useAttributeI18n();
   const board = useBoard();
   const sketch = usePageSketch();
   const readonly = useReadonly();
@@ -174,30 +175,34 @@ function SketchEntry() {
         className="w-[220px]"
         trigger={
           <Button variant="ghost" icon={PenLine} className="aria-expanded:bg-press h-[30px] px-2.5">
-            {isSketch ? `手绘 · ${sketchLevelLabel(sketch.level)}` : "普通"}
+            {isSketch
+              ? t("presentation.sketchMode", {
+                  level: attributeOption("level", sketch.level, "", attributeT),
+                })
+              : attributeT("attributes.sketch.mode.normal")}
           </Button>
         }
       >
-        <Menu.Group>画风</Menu.Group>
+        <Menu.Group>{t("presentation.sketch")}</Menu.Group>
         <Menu.RadioGroup
           value={sketch.mode}
           onValueChange={v => SketchTransforms.setPageSketch(board, { mode: v as SketchMode })}
         >
           {SKETCH_MODE_OPTIONS.map(o => (
             <Menu.RadioItem key={o.value} value={o.value}>
-              {o.label}
+              {attributeOption("mode", o.value, o.label, attributeT)}
             </Menu.RadioItem>
           ))}
         </Menu.RadioGroup>
         <Menu.Separator />
-        <Menu.Group>默认笔触</Menu.Group>
+        <Menu.Group>{t("presentation.defaultStroke")}</Menu.Group>
         <Menu.RadioGroup
           value={sketch.level}
           onValueChange={v => SketchTransforms.setPageSketch(board, { level: v as SketchLevel })}
         >
           {SKETCH_LEVEL_OPTIONS.map(o => (
             <Menu.RadioItem key={o.value} value={o.value} disabled={!isSketch}>
-              {o.label}
+              {attributeOption("level", o.value, o.label, attributeT)}
             </Menu.RadioItem>
           ))}
         </Menu.RadioGroup>
@@ -218,6 +223,7 @@ function SequenceEntry({
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
 }) {
+  const { t } = usePresentationI18n();
   const board = useBoard();
   const { isCreatingSequence } = usePresentationState();
   const [open, setOpen] = useState(false);
@@ -248,14 +254,18 @@ function SequenceEntry({
         arrow={false}
         trigger={
           <Button variant="ghost" icon={Play} className="aria-expanded:bg-press h-[30px] px-2.5">
-            演示
+            {t("presentation.open")}
           </Button>
         }
       >
         <div {...stopCanvasEvents} className="w-[268px] px-2.5 pt-3 pb-2.5">
-          <div className="text-ink-1 mb-1.5 px-1.5 text-[12.5px] font-semibold">演示序列</div>
+          <div className="text-ink-1 mb-1.5 px-1.5 text-[12.5px] font-semibold">
+            {t("presentation.sequences")}
+          </div>
           {sequences.length === 0 ? (
-            <div className="text-ink-3 px-1.5 pb-2 text-[12.5px]">还没有演示序列</div>
+            <div className="text-ink-3 px-1.5 pb-2 text-[12.5px]">
+              {t("presentation.noSequences")}
+            </div>
           ) : (
             <div className="flex flex-col gap-px">
               {sequences.map(s => (
@@ -280,13 +290,15 @@ function SequenceEntry({
                   </span>
                   <span className="min-w-0 flex-1 leading-tight">
                     <span className="text-ink-1 block truncate text-[13px]">{s.name}</span>
-                    <span className="text-ink-3 block text-[11.5px]">{s.frames.length} 帧</span>
+                    <span className="text-ink-3 block text-[11.5px]">
+                      {t("presentation.frames", { count: s.frames.length })}
+                    </span>
                   </span>
                   {/* 编辑 / 删除占固定槽位，悬停只改透明度 */}
                   <span className="flex opacity-0 group-focus-within/seq:opacity-100 group-hover/seq:opacity-100">
-                    <Tooltip content="编辑" placement="top" arrow={false}>
+                    <Tooltip content={t("presentation.edit")} placement="top" arrow={false}>
                       <IconButton
-                        aria-label="编辑"
+                        aria-label={t("presentation.edit")}
                         className="size-[26px]"
                         onClick={e => {
                           e.stopPropagation();
@@ -297,9 +309,9 @@ function SequenceEntry({
                         <Pencil size={14} strokeWidth={1.75} />
                       </IconButton>
                     </Tooltip>
-                    <Tooltip content="删除" placement="top" arrow={false}>
+                    <Tooltip content={t("presentation.delete")} placement="top" arrow={false}>
                       <IconButton
-                        aria-label="删除"
+                        aria-label={t("presentation.delete")}
                         className="size-[26px]"
                         onClick={e => {
                           e.stopPropagation();
@@ -316,7 +328,7 @@ function SequenceEntry({
             </div>
           )}
           <Button variant="soft" icon={Clapperboard} block className="mt-2" onClick={createNew}>
-            新建演示序列
+            {t("presentation.new")}
           </Button>
         </div>
       </Popover>
@@ -324,9 +336,9 @@ function SequenceEntry({
         open={!!deleting}
         onOpenChange={v => !v && setDeleting(null)}
         danger
-        title={`删除「${deleting?.name ?? ""}」？`}
-        description={`这个序列的 ${deleting?.frames.length ?? 0} 帧会一起删除，画布上的元素不受影响。`}
-        confirmText="删除"
+        title={t("presentation.deleteSequence", { name: deleting?.name ?? "" })}
+        description={t("presentation.deleteDescription", { count: deleting?.frames.length ?? 0 })}
+        confirmText={t("presentation.delete")}
         onConfirm={() => {
           if (deleting) onDelete(deleting.id);
           setDeleting(null);
@@ -336,9 +348,9 @@ function SequenceEntry({
         open={confirmStopCreating}
         onOpenChange={v => !v && setConfirmStopCreating(false)}
         danger
-        title="确定停止创建序列吗？"
-        description="停止后会关闭创建面板，正在创建的序列不会被保存。"
-        confirmText="停止创建"
+        title={t("presentation.stopTitle")}
+        description={t("presentation.stopDescription")}
+        confirmText={t("presentation.stop")}
         onConfirm={() => {
           setConfirmStopCreating(false);
           setOpen(false);
