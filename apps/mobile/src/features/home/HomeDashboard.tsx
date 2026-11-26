@@ -1,3 +1,4 @@
+import { useMobileHomeI18n, type MobileHomeKey } from "./i18n";
 // 首页（今天）：「接下来」议程清单 + 任务摘要 + 最近动态（按类型筛选，筛选按钮带资料库总数）。
 // 卡片全量列表在「卡片库」Tab；这里只做今日待办与最近活动的聚合呈现。
 // 数据全部走 query 缓存，模块关闭时对应请求与条目一并隐藏。
@@ -40,14 +41,18 @@ function diaryFeedTitle(content: Descendant[] | null | undefined, max = 96): str
   return text.replace(/\s+/g, " ").trim().slice(0, max);
 }
 
-function formatRelativeTime(ts: number | null | undefined): string {
+function formatRelativeTime(
+  ts: number | null | undefined,
+  language: ReturnType<typeof useMobileHomeI18n>
+): string {
   if (!ts) return "";
   const normalized = ts > 0 && ts < 1_000_000_000_000 ? ts * 1000 : ts;
   const diff = Date.now() - normalized;
-  if (diff < 60_000) return "刚刚";
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} 分钟前`;
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} 小时前`;
-  return `${Math.floor(diff / 86_400_000)} 天前`;
+  if (diff < 60_000) return language.t("relative.justNow");
+  const format = new Intl.RelativeTimeFormat(language.locale, { numeric: "always" });
+  if (diff < 3_600_000) return format.format(-Math.floor(diff / 60_000), "minute");
+  if (diff < 86_400_000) return format.format(-Math.floor(diff / 3_600_000), "hour");
+  return format.format(-Math.floor(diff / 86_400_000), "day");
 }
 
 /** 「全部」默认展示条数，「显示更多」展开到 FEED_EXPANDED_COUNT */
@@ -61,38 +66,38 @@ type FeedFilter = "all" | Exclude<FeedKind, "todo">;
 
 const FEED_KIND_STYLE: Record<
   FeedKind,
-  { label: string; chip: string; icon: Icon; tone: string; soft: string }
+  { label: MobileHomeKey; chip: string; icon: Icon; tone: string; soft: string }
 > = {
   card: {
-    label: "卡片",
+    label: "feed.kind.card",
     chip: "bg-tag-2-soft text-tag-2",
     icon: Stack,
     tone: "var(--tau-tag-2)",
     soft: "var(--tau-tag-2-soft)",
   },
   diary: {
-    label: "日记",
+    label: "feed.kind.diary",
     chip: "bg-tag-1-soft text-tag-1",
     icon: BookOpen,
     tone: "var(--tau-tag-1)",
     soft: "var(--tau-tag-1-soft)",
   },
   todo: {
-    label: "任务",
+    label: "feed.kind.todo",
     chip: "bg-tag-4-soft text-tag-4",
     icon: CheckCircle,
     tone: "var(--tau-tag-4)",
     soft: "var(--tau-tag-4-soft)",
   },
   article: {
-    label: "文章",
+    label: "feed.kind.article",
     chip: "bg-accent-soft text-accent-text",
     icon: Article,
     tone: "var(--tau-accent)",
     soft: "var(--tau-accent-soft)",
   },
   projectDoc: {
-    label: "项目",
+    label: "feed.kind.projectDoc",
     chip: "bg-tag-3-soft text-tag-3",
     icon: FolderOpen,
     tone: "var(--tau-tag-3)",
@@ -150,6 +155,9 @@ type HomeDashboardProps = {
 };
 
 export function HomeDashboard(props: HomeDashboardProps) {
+  const language = useMobileHomeI18n();
+  const { t, locale } = language;
+  const number = new Intl.NumberFormat(locale);
   const agenda = useTodayAgenda();
   const allItemsQuery = useTodoItems({ systemType: "all" });
   const diaryEntriesQuery = useDiaryEntries();
@@ -190,7 +198,7 @@ export function HomeDashboard(props: HomeDashboardProps) {
       items.push({
         key: `card-${card.id}`,
         kind: "card",
-        title: card.excerpt?.split("\n")[0]?.trim() || `卡片 #${card.id}`,
+        title: card.excerpt?.split("\n")[0]?.trim() || t("feed.cardFallback", { id: card.id }),
         time: card.updateTime,
         action: () => props.onPreviewCard(card.id),
       });
@@ -203,7 +211,7 @@ export function HomeDashboard(props: HomeDashboardProps) {
         items.push({
           key: `article-${article.id}`,
           kind: "article",
-          title: article.title || "无标题文章",
+          title: article.title || t("feed.articleFallback"),
           time: article.updateTime,
           action: () => props.onOpenArticle(article.id),
         });
@@ -217,7 +225,7 @@ export function HomeDashboard(props: HomeDashboardProps) {
         items.push({
           key: `diary-${segment.contentId}`,
           kind: "diary",
-          title: diaryFeedTitle(segment.content) || "一篇空白日记",
+          title: diaryFeedTitle(segment.content) || t("feed.diaryFallback"),
           time: segment.updateTime,
           action: () => props.onOpenDiaryEntry(entry, segment),
         });
@@ -231,7 +239,7 @@ export function HomeDashboard(props: HomeDashboardProps) {
         items.push({
           key: `todo-${item.id}`,
           kind: "todo",
-          title: `完成了「${item.title}」`,
+          title: t("feed.completed", { title: item.title }),
           time: item.completedAt ?? item.updateTime,
           action: props.onOpenTodo,
         });
@@ -254,6 +262,7 @@ export function HomeDashboard(props: HomeDashboardProps) {
 
     return items.sort((a, b) => b.time - a.time);
   }, [
+    t,
     props,
     diaryEntriesQuery.data,
     allItemsQuery.data,
@@ -268,33 +277,48 @@ export function HomeDashboard(props: HomeDashboardProps) {
     viewAll?: () => void;
     viewAllLabel?: string;
   }[] = [
-    { key: "all", label: "全部" },
+    { key: "all", label: t("filter.all") },
     {
       key: "card",
-      label: "卡片",
+      label: t("filter.card"),
       count: props.cardsTotal,
       viewAll: props.onOpenCards,
-      viewAllLabel: `查看全部 ${props.cardsTotal} 张卡片`,
+      viewAllLabel: t("feed.viewCards", {
+        count: props.cardsTotal,
+        value: number.format(props.cardsTotal),
+      }),
     },
     {
       key: "article",
-      label: "文章",
+      label: t("filter.article"),
       count: homeStats?.articlesTotal,
       viewAll: props.onOpenArticles,
-      viewAllLabel: `查看全部 ${homeStats?.articlesTotal ?? ""} 篇文章`,
+      viewAllLabel:
+        homeStats?.articlesTotal == null
+          ? t("feed.allArticles")
+          : t("feed.viewArticles", {
+              count: homeStats.articlesTotal,
+              value: number.format(homeStats.articlesTotal),
+            }),
     },
     {
       key: "projectDoc",
-      label: "项目",
+      label: t("filter.projectDoc"),
       count: homeStats?.projectsTotal,
       viewAll: props.onOpenProjects,
-      viewAllLabel: `查看全部 ${homeStats?.projectsTotal ?? ""} 个项目`,
+      viewAllLabel:
+        homeStats?.projectsTotal == null
+          ? t("feed.allProjects")
+          : t("feed.viewProjects", {
+              count: homeStats.projectsTotal,
+              value: number.format(homeStats.projectsTotal),
+            }),
     },
     {
       key: "diary",
-      label: "日记",
+      label: t("filter.diary"),
       viewAll: props.onOpenDiary,
-      viewAllLabel: "查看全部日记",
+      viewAllLabel: t("feed.allDiary"),
     },
   ];
   const activeFilter = feedFilters.find(filter => filter.key === feedFilter) ?? feedFilters[0];
@@ -309,10 +333,13 @@ export function HomeDashboard(props: HomeDashboardProps) {
 
   const agendaHandlers: Record<AgendaKind, { open: () => void; action?: [string, () => void] }> = {
     calendar: { open: props.onOpenCalendar },
-    flashcard: { open: props.onOpenFlashcards, action: ["开始", props.onStartFlashcardReview] },
+    flashcard: {
+      open: props.onOpenFlashcards,
+      action: [t("action.start"), props.onStartFlashcardReview],
+    },
     todo: { open: props.onOpenTodo },
-    diary: { open: props.onOpenDiary, action: ["写", props.onComposeDiary] },
-    pomodoro: { open: props.onOpenPomodoro, action: ["开始", props.onOpenPomodoro] },
+    diary: { open: props.onOpenDiary, action: [t("action.write"), props.onComposeDiary] },
+    pomodoro: { open: props.onOpenPomodoro, action: [t("action.start"), props.onOpenPomodoro] },
   };
 
   return (
@@ -327,21 +354,19 @@ export function HomeDashboard(props: HomeDashboardProps) {
 
       <section className="mt-6">
         <div className="mb-2.5 flex items-baseline justify-between px-1">
-          <h2 className="text-ink-1 text-[16.5px] font-extrabold">任务</h2>
+          <h2 className="text-ink-1 text-[16.5px] font-extrabold">{t("section.tasks")}</h2>
           <button
             type="button"
             onClick={props.onOpenTodo}
             className="text-ink-3 active:text-ink-1 text-[12.5px] font-semibold"
           >
-            全部 ›
+            {t("task.all")} ›
           </button>
         </div>
         <div className="list-group pop-in" style={{ animationDelay: "0.06s" }}>
           {todayTodos.length === 0 ? (
             <p className="text-ink-3 px-4 py-6 text-center text-[13px]">
-              {agenda.todoTotals && agenda.todoTotals.total > 0
-                ? "任务都完成了，休息一下"
-                : "还没有安排任务"}
+              {agenda.todoTotals && agenda.todoTotals.total > 0 ? t("task.done") : t("task.empty")}
             </p>
           ) : (
             todayTodos.map(item => (
@@ -349,7 +374,9 @@ export function HomeDashboard(props: HomeDashboardProps) {
                 key={item.id}
                 title={item.title}
                 onToggle={isCompleted => {
-                  void toggleTodoComplete(item, isCompleted, props.onError);
+                  void toggleTodoComplete(item, isCompleted, error =>
+                    props.onError(error, t("error.todoUpdate"))
+                  );
                 }}
               />
             ))
@@ -359,7 +386,7 @@ export function HomeDashboard(props: HomeDashboardProps) {
 
       <section className="mt-6">
         <div className="mb-2.5 px-1">
-          <h2 className="text-ink-1 text-[16.5px] font-extrabold">最近</h2>
+          <h2 className="text-ink-1 text-[16.5px] font-extrabold">{t("section.recent")}</h2>
         </div>
         <div className="scrollbar-hide -mx-[18px] mb-2.5 flex gap-1.5 overflow-x-auto px-[18px] py-1">
           {feedFilters.map(filter => {
@@ -379,7 +406,7 @@ export function HomeDashboard(props: HomeDashboardProps) {
                   <span
                     className={`font-semibold tabular-nums ${on ? "opacity-60" : "text-ink-3"}`}
                   >
-                    {filter.count}
+                    {number.format(filter.count)}
                   </span>
                 ) : null}
               </button>
@@ -401,9 +428,7 @@ export function HomeDashboard(props: HomeDashboardProps) {
             </div>
           ) : visibleFeed.length === 0 ? (
             <p className="text-ink-3 py-6 text-center text-[13px]">
-              {feedFilter === "all"
-                ? "还没有动态，写下第一条记录吧"
-                : `还没有${activeFilter.label}`}
+              {feedFilter === "all" ? t("feed.empty.all") : t(`feed.empty.${feedFilter}`)}
             </p>
           ) : (
             visibleFeed.map(item => {
@@ -430,10 +455,10 @@ export function HomeDashboard(props: HomeDashboardProps) {
                         <span
                           className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${style.chip}`}
                         >
-                          {style.label}
+                          {t(style.label)}
                         </span>
                       ) : null}
-                      {formatRelativeTime(item.time)}
+                      {formatRelativeTime(item.time, language)}
                     </span>
                   </span>
                 </button>
@@ -446,7 +471,7 @@ export function HomeDashboard(props: HomeDashboardProps) {
               onClick={() => setFeedExpanded(true)}
               className="text-ink-3 active:text-ink-1 border-line-1 -mx-4 block w-[calc(100%+2rem)] border-t border-dashed py-3 text-center text-[12.5px] font-semibold"
             >
-              显示更多
+              {t("feed.more")}
             </button>
           ) : null}
           {feedFilter !== "all" && activeFilter.viewAll ? (
@@ -473,6 +498,8 @@ function AgendaRow({
   open: () => void;
   action?: [string, () => void];
 }) {
+  const { locale } = useMobileHomeI18n();
+  const number = new Intl.NumberFormat(locale);
   const style = AGENDA_STYLE[item.kind];
   const progressPct = item.progress
     ? Math.round((item.progress.completed / item.progress.total) * 100)
@@ -514,7 +541,7 @@ function AgendaRow({
       </button>
       {item.progress ? (
         <span className="text-ink-2 shrink-0 text-[12px] font-bold tabular-nums">
-          {item.progress.completed}/{item.progress.total}
+          {number.format(item.progress.completed)}/{number.format(item.progress.total)}
         </span>
       ) : null}
       {action && !item.done ? (
@@ -532,9 +559,10 @@ function AgendaRow({
 }
 
 function TodoSummaryRow({ title, onToggle }: { title: string; onToggle: (v: boolean) => void }) {
+  const { t } = useMobileHomeI18n();
   return (
     <div className="flex items-center gap-3 px-4 py-3">
-      <TodoCheck checked={false} onToggle={onToggle} />
+      <TodoCheck checked={false} onToggle={onToggle} aria-label={t("task.markDone", { title })} />
       <span className="text-ink-1 min-w-0 flex-1 truncate text-[14px] font-semibold">{title}</span>
     </div>
   );

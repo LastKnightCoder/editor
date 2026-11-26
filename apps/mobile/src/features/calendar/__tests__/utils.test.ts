@@ -105,24 +105,26 @@ describe("calendar utils", () => {
         endTime: end ?? start + 60,
       });
 
-    it("空列表给空态文案", () => {
+    it("空列表没有下一件或剩余日程", () => {
       expect(summarizeToday([], nowAt(9))).toEqual({
         total: 0,
         upcoming: 0,
-        headline: "今天没有日程",
+        next: null,
+        remaining: 0,
+        allDayCount: 0,
       });
     });
 
-    it("下一件未结束日程带时间前缀，还有件数不含自身", () => {
+    it("选择下一件未结束日程，剩余数量不含自身", () => {
       const events = [timed(1, at(8)), timed(2, at(14)), timed(3, at(16))];
       // 9:00 时：8 点那件（8:00-9:00）已结束，下一件是 14:00 事件2，之后还有事件3
-      expect(summarizeToday(events, nowAt(9)).headline).toBe("14:00 事件2 · 还有 1 件");
+      expect(summarizeToday(events, nowAt(9))).toMatchObject({ next: events[1], remaining: 1 });
       expect(summarizeToday(events, nowAt(9)).upcoming).toBe(2);
     });
 
     it("进行中的日程算下一件", () => {
       const events = [timed(1, at(8), at(10)), timed(2, at(14))];
-      expect(summarizeToday(events, nowAt(9)).headline).toBe("08:00 事件1 · 还有 1 件");
+      expect(summarizeToday(events, nowAt(9))).toMatchObject({ next: events[0], remaining: 1 });
     });
 
     it("跨到未来日的定时事件不会被误判已结束", () => {
@@ -136,27 +138,35 @@ describe("calendar utils", () => {
         startDate: new Date(2025, 8, 15).getTime(),
         endDate: new Date(2025, 8, 16).getTime(),
       });
-      expect(summarizeToday([crossDay], nowAt(23)).headline).toBe("22:00 跨天事");
+      expect(summarizeToday([crossDay], nowAt(23))).toMatchObject({ next: crossDay, remaining: 0 });
     });
 
     it("只剩全天日程时按件数收尾", () => {
       const events = [timed(1, at(8)), event({ id: 2, allDay: true, title: "全天事" })];
       expect(summarizeToday(events, nowAt(12))).toMatchObject({
         upcoming: 1,
-        headline: "1 件全天日程",
+        next: null,
+        remaining: 1,
+        allDayCount: 1,
       });
     });
 
-    it("定时日程全部结束给收尾文案", () => {
+    it("定时日程全部结束后没有待处理日程", () => {
       expect(summarizeToday([timed(1, at(8))], nowAt(12))).toMatchObject({
         upcoming: 0,
-        headline: "今日日程已结束",
+        next: null,
+        remaining: 0,
+        allDayCount: 0,
       });
     });
 
     it("全天日程计入还有件数", () => {
       const events = [timed(1, at(14)), event({ id: 2, allDay: true, title: "全天事" })];
-      expect(summarizeToday(events, nowAt(9)).headline).toBe("14:00 事件1 · 还有 1 件");
+      expect(summarizeToday(events, nowAt(9))).toMatchObject({
+        next: events[0],
+        remaining: 1,
+        allDayCount: 1,
+      });
     });
   });
 });

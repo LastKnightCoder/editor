@@ -12,6 +12,9 @@ export const mobileMessages = defineI18n({
   resources: { "zh-CN": zhCN, "zh-TW": zhTW, "en-US": enUS },
 });
 
+export type MobileMessageKey = Parameters<typeof mobileMessages.ref>[0];
+export const mobileTranslator = mobileI18n.get(mobileMessages);
+
 export function connectMobileI18n() {
   const update = () => {
     const locale = resolveAppLocale(getMobileSettingSnapshot()?.language, navigator.language);

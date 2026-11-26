@@ -1,3 +1,4 @@
+import { useMobileI18n } from "../services/i18n-react";
 // 中等与宽档的左侧导航条：替代底部 Dock，所有页面常驻（二级页也在）。
 // 新建置顶（轻点展开创建菜单、长按直接说），4 个 Tab 根，分隔线下是自选入口，底部搜索。
 // 自选入口即「我的」功能宫格的顺序，按剩余高度截取：全放得下就全放，放不下时最后一格换成「更多」。
@@ -41,6 +42,7 @@ function openPin(navigator: Navigator, pin: FeatureEntry) {
 }
 
 export function AppRail() {
+  const { t } = useMobileI18n();
   const { state, navigator } = useRouterContext();
   const [menuOpen, setMenuOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -134,7 +136,7 @@ export function AppRail() {
       {anyMenuOpen ? (
         <button
           type="button"
-          aria-label="关闭菜单"
+          aria-label={t("nav.closeMenu")}
           onClick={closeMenus}
           className="fixed inset-0"
           // 「更多」贴着按钮弹、不压暗页面；新建菜单沿用遮罩
@@ -143,7 +145,7 @@ export function AppRail() {
       ) : null}
       <nav
         ref={navRef}
-        aria-label="主导航"
+        aria-label={t("nav.main")}
         data-no-edge-back
         className="bg-page fixed top-0 bottom-0 left-0 flex flex-col items-center gap-2.5"
         style={{
@@ -158,7 +160,7 @@ export function AppRail() {
         <div className="relative mb-3">
           <button
             type="button"
-            aria-label="新建，长按直接说"
+            aria-label={t("nav.create")}
             aria-expanded={menuOpen}
             className="text-ink-inverse grid h-12 w-12 place-items-center rounded-[16px] transition-transform duration-200 select-none"
             style={{
@@ -232,7 +234,7 @@ export function AppRail() {
           {fit.more ? (
             <div ref={moreRef} className="flex-none">
               <RailItem
-                label="更多"
+                label={t("nav.more")}
                 active={moreOpen || (activePin !== null && rest.includes(activePin))}
                 expanded={moreOpen}
                 icon={() => <Ellipsis size={21} strokeWidth={1.9} aria-hidden="true" />}
@@ -252,7 +254,7 @@ export function AppRail() {
             closeMenus();
             navigator.push("search");
           }}
-          aria-label="搜索所有内容"
+          aria-label={t("nav.search")}
           className="text-ink-2 active:bg-press grid h-11 w-11 place-items-center rounded-[14px]"
         >
           <Search size={21} strokeWidth={1.9} aria-hidden="true" />
@@ -261,7 +263,7 @@ export function AppRail() {
       {moreVisible ? (
         <div
           role="menu"
-          aria-label="更多入口"
+          aria-label={t("nav.moreEntries")}
           className="bg-surface shadow-float fixed max-h-[70vh] w-[216px] overflow-y-auto rounded-[16px] p-1.5"
           style={{
             zIndex: 46,
@@ -285,7 +287,7 @@ export function AppRail() {
             </button>
           ))}
           <p className="border-line-1 text-ink-3 mx-2 mt-1 border-t pt-2 pb-1 text-[12px] leading-snug">
-            在「我的」里长按功能图标拖动，调整这里显示哪几个
+            {t("nav.pinHint")}
           </p>
         </div>
       ) : null}

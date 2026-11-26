@@ -1,5 +1,17 @@
 {
   "language": "介面語言",
   "system": "跟隨系統",
-  "description": "繁體中文與英文介面正在逐步完善，部分內容仍顯示簡體中文。"
+  "description": "繁體中文與英文介面正在逐步完善，部分內容仍顯示簡體中文。",
+  "nav.home": "今天",
+  "nav.cards": "卡片",
+  "nav.diary": "日記",
+  "nav.me": "我的",
+  "nav.closeCreate": "關閉新增選單",
+  "nav.closeMenu": "關閉選單",
+  "nav.main": "主導覽",
+  "nav.create": "新增，長按即可說話",
+  "nav.more": "更多",
+  "nav.moreEntries": "更多入口",
+  "nav.search": "搜尋所有內容",
+  "nav.pinHint": "在「我的」長按並拖曳功能圖示，調整這裡顯示的項目"
 }

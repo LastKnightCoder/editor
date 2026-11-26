@@ -1,3 +1,4 @@
+import { useMobileI18n } from "../services/i18n-react";
 // 全局底部 Dock（v2 模板）：4 个 Tab 根（今天/卡片/日记/我的）+ 中央 FAB。
 // FAB 轻点在正上方浮出新建菜单，长按直接语音速记。
 // 由 AppShell 在 RouterProvider 内挂载：只在 4 个 Tab 根显示，
@@ -16,6 +17,7 @@ import { NAV_TABS, useActiveTab, type NavTab } from "./navTabs";
 const WARMUP_DELAY_MS = 600;
 
 function AppDock() {
+  const { t } = useMobileI18n();
   const { state, navigator } = useRouterContext();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -76,7 +78,7 @@ function AppDock() {
       {menuOpen ? (
         <button
           type="button"
-          aria-label="关闭创建菜单"
+          aria-label={t("nav.closeCreate")}
           onClick={() => setMenuOpen(false)}
           className="fixed inset-0"
           style={{ zIndex: 44, background: "var(--tau-overlay)" }}
@@ -85,7 +87,7 @@ function AppDock() {
       ) : null}
 
       <nav
-        aria-label="主导航"
+        aria-label={t("nav.main")}
         data-no-tab-swipe
         className="fixed inset-x-0 bottom-0"
         style={{
@@ -129,7 +131,7 @@ function AppDock() {
           <div className="grid w-[74px] shrink-0 justify-center">
             <button
               type="button"
-              aria-label="新建，长按直接说"
+              aria-label={t("nav.create")}
               aria-expanded={menuOpen}
               className="text-ink-inverse z-10 grid h-[54px] w-[54px] place-items-center rounded-[19px] transition-transform duration-200 select-none"
               style={{

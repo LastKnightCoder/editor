@@ -1,3 +1,4 @@
+import { useMobileHomeI18n } from "./i18n";
 // 首页「接下来」清单：把各模块的今日状态归一成议程条目，未完成的按优先级排前、已完成的沉底。
 // 标题栏的「今天还有 N 件事」与清单共用本 hook，query 由 react-query 去重。
 
@@ -14,7 +15,7 @@ import { useTodoGroupStats, useTodoSystemGroups } from "../todo/queries";
 import { usePomodoroTodaySummary } from "../pomodoro/queries";
 import { formatFocusDuration } from "../pomodoro/timer";
 import { useCalendarEventsByRange, useCalendars } from "../calendar/queries";
-import { addDays, summarizeToday, todayStart } from "../calendar/utils";
+import { addDays, formatTime, summarizeToday, todayStart } from "../calendar/utils";
 import type { DiaryEntry } from "../../types";
 
 export type AgendaKind = "calendar" | "flashcard" | "todo" | "diary" | "pomodoro";
@@ -43,6 +44,7 @@ function diaryStatusOf(entries: DiaryEntry[]): { writtenToday: boolean; streak: 
 }
 
 export function useTodayAgenda() {
+  const { t, locale } = useMobileHomeI18n();
   const todoStatsQuery = useTodoGroupStats();
   const systemGroupsQuery = useTodoSystemGroups();
   const diaryEntriesQuery = useDiaryEntries();
@@ -75,6 +77,7 @@ export function useTodayAgenda() {
   }, [systemGroupsQuery.data, todoStatsQuery.data]);
 
   const items = useMemo(() => {
+    const number = new Intl.NumberFormat(locale);
     const result: AgendaItem[] = [];
 
     if (calendarTodayQuery.data) {
@@ -84,10 +87,25 @@ export function useTodayAgenda() {
         kind: "calendar",
         title: done
           ? summary.total === 0
-            ? "今天没有日程"
-            : "今天的日程已结束"
-          : `今天还有 ${summary.upcoming} 件日程`,
-        subtitle: done ? "" : summary.headline,
+            ? t("agenda.noEvents")
+            : t("agenda.eventsDone")
+          : t("agenda.eventsRemaining", {
+              count: summary.upcoming,
+              value: number.format(summary.upcoming),
+            }),
+        subtitle: done
+          ? ""
+          : summary.next
+            ? summary.remaining > 0
+              ? t("agenda.nextMore", {
+                  label: `${formatTime(summary.next.startTime)} ${summary.next.title}`,
+                  value: number.format(summary.remaining),
+                })
+              : `${formatTime(summary.next.startTime)} ${summary.next.title}`
+            : t("agenda.allDay", {
+                count: summary.allDayCount,
+                value: number.format(summary.allDayCount),
+              }),
         done,
       });
     }
@@ -98,8 +116,15 @@ export function useTodayAgenda() {
       result.push({
         kind: "flashcard",
         title:
-          due > 0 ? `复习 ${due} 张闪卡` : reviewed > 0 ? "闪卡复习完了" : "今天没有要复习的闪卡",
-        subtitle: due > 0 || reviewed > 0 ? `今天已复习 ${reviewed} 张` : "",
+          due > 0
+            ? t("agenda.review", { count: due, value: number.format(due) })
+            : reviewed > 0
+              ? t("agenda.reviewDone")
+              : t("agenda.noReviews"),
+        subtitle:
+          due > 0 || reviewed > 0
+            ? t("agenda.reviewed", { count: reviewed, value: number.format(reviewed) })
+            : "",
         done: due === 0,
       });
     }
@@ -109,10 +134,13 @@ export function useTodayAgenda() {
         kind: "todo",
         title:
           todoTotals.uncompleted > 0
-            ? `还剩 ${todoTotals.uncompleted} 项任务`
+            ? t("agenda.tasksRemaining", {
+                count: todoTotals.uncompleted,
+                value: number.format(todoTotals.uncompleted),
+              })
             : todoTotals.total > 0
-              ? "任务都完成了"
-              : "还没有任务",
+              ? t("agenda.tasksDone")
+              : t("agenda.noTasks"),
         subtitle: "",
         done: todoTotals.uncompleted === 0,
         progress:
@@ -126,8 +154,11 @@ export function useTodayAgenda() {
       const { writtenToday, streak } = diaryStatusOf(diaryEntriesQuery.data);
       result.push({
         kind: "diary",
-        title: writtenToday ? "今天写过日记了" : "写今天的日记",
-        subtitle: streak > 0 ? `已连续 ${streak} 天` : "今天还没写",
+        title: writtenToday ? t("agenda.diaryDone") : t("agenda.writeDiary"),
+        subtitle:
+          streak > 0
+            ? t("agenda.streak", { count: streak, value: number.format(streak) })
+            : t("agenda.noDiary"),
         done: writtenToday,
       });
     }
@@ -136,8 +167,14 @@ export function useTodayAgenda() {
       const { count, focusMs } = pomodoroSummaryQuery.data;
       result.push({
         kind: "pomodoro",
-        title: count > 0 ? `今天专注了 ${formatFocusDuration(focusMs)}` : "专注一个番茄",
-        subtitle: count > 0 ? `${count} 个番茄` : "今天还没有专注",
+        title:
+          count > 0
+            ? t("agenda.focus", { duration: formatFocusDuration(focusMs) })
+            : t("agenda.startFocus"),
+        subtitle:
+          count > 0
+            ? t("agenda.sessions", { count, value: number.format(count) })
+            : t("agenda.noFocus"),
         done: count > 0,
       });
     }
@@ -146,6 +183,8 @@ export function useTodayAgenda() {
       (item.done ? AGENDA_PRIORITY.length : 0) + AGENDA_PRIORITY.indexOf(item.kind);
     return result.sort((a, b) => rank(a) - rank(b));
   }, [
+    t,
+    locale,
     calendarTodayQuery.data,
     flashcardDecksQuery.data,
     flashcardStatsQuery.data,

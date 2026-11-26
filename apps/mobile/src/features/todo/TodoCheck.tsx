@@ -6,14 +6,21 @@ type TodoCheckProps = {
   checked: boolean;
   onToggle: (next: boolean) => void;
   small?: boolean;
+  "aria-label"?: string;
 };
 
-export function TodoCheck({ checked, onToggle, small = false }: TodoCheckProps) {
+export function TodoCheck({
+  checked,
+  onToggle,
+  small = false,
+  "aria-label": ariaLabel,
+}: TodoCheckProps) {
   return (
     <button
       type="button"
       role="checkbox"
       aria-checked={checked}
+      aria-label={ariaLabel}
       onClick={event => {
         event.stopPropagation();
         onToggle(!checked);

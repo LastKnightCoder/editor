@@ -1,0 +1,13 @@
+{
+  "placeholder": "Ask your notes…",
+  "suggestion.todayEvents": "What is on my calendar today?",
+  "suggestion.weekTasks": "Which tasks are unfinished this week?",
+  "suggestion.yesterdayJournal": "Summarize yesterday's journal.",
+  "suggestion.todayPriority": "What should I do first today?",
+  "suggestion.remainingEvents": "What is still planned for today?",
+  "suggestion.recentNotes": "What notes have I been writing lately?",
+  "suggestion.tomorrowPlan": "Help me organize tomorrow's plans.",
+  "suggestion.tomorrowEvents": "What is on my calendar tomorrow?",
+  "suggestion.todayJournal": "Summarize today's journal.",
+  "suggestion.weekJournal": "What is worth remembering from this week's journal?"
+}

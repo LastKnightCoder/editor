@@ -1,19 +1,25 @@
+import type { SuggestionKey } from "./askI18n";
 /** 按时段给建议问题：早上问计划，下午看安排，晚上做回顾 */
-export function suggestionsFor(now = new Date()) {
+export function suggestionsFor(now = new Date()): SuggestionKey[] {
   const hour = now.getHours();
   return hour < 12
-    ? ["今天有哪些日程", "这周还有哪些没完成的待办", "总结昨天的日记", "今天该先做什么"]
+    ? [
+        "suggestion.todayEvents",
+        "suggestion.weekTasks",
+        "suggestion.yesterdayJournal",
+        "suggestion.todayPriority",
+      ]
     : hour < 18
       ? [
-          "今天还剩哪些安排",
-          "这周还有哪些没完成的待办",
-          "最近在写哪些笔记",
-          "帮我把明天的安排理一理",
+          "suggestion.remainingEvents",
+          "suggestion.weekTasks",
+          "suggestion.recentNotes",
+          "suggestion.tomorrowPlan",
         ]
       : [
-          "明天有哪些日程",
-          "这周还有哪些没完成的待办",
-          "总结一下今天的日记",
-          "这周日记里有什么值得记下来的",
+          "suggestion.tomorrowEvents",
+          "suggestion.weekTasks",
+          "suggestion.todayJournal",
+          "suggestion.weekJournal",
         ];
 }

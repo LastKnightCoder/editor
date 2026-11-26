@@ -174,15 +174,24 @@ export function isSameDay(a: number, b: number): boolean {
 export function summarizeToday(
   events: CalendarEvent[],
   now = Date.now()
-): { total: number; upcoming: number; headline: string } {
+): {
+  total: number;
+  upcoming: number;
+  next: (CalendarEvent & { startTime: number }) | null;
+  remaining: number;
+  allDayCount: number;
+} {
   if (events.length === 0) {
-    return { total: 0, upcoming: 0, headline: "今天没有日程" };
+    return { total: 0, upcoming: 0, next: null, remaining: 0, allDayCount: 0 };
   }
   const nowMinutes = new Date(now).getHours() * 60 + new Date(now).getMinutes();
   const today = dayStart(now);
   const timed = events
-    .filter(event => !event.allDay && event.startTime !== null)
-    .sort((a, b) => (a.startTime as number) - (b.startTime as number));
+    .filter(
+      (event): event is CalendarEvent & { startTime: number } =>
+        !event.allDay && event.startTime !== null
+    )
+    .sort((a, b) => a.startTime - b.startTime);
   const allDayCount = events.filter(event => event.allDay).length;
   const isOngoing = (event: CalendarEvent) => {
     // 跨到未来日的定时事件必然未结束（endTime 只对尾日有效，不能与今日 now 比较）
@@ -197,14 +206,17 @@ export function summarizeToday(
     return {
       total: events.length,
       upcoming: allDayCount,
-      headline: allDayCount > 0 ? `${allDayCount} 件全天日程` : "今日日程已结束",
+      next: null,
+      remaining: allDayCount,
+      allDayCount,
     };
   }
   const remaining = timed.filter(event => event !== next && isOngoing(event)).length + allDayCount;
-  const label = `${formatTime(next.startTime as number)} ${next.title}`;
   return {
     total: events.length,
     upcoming: remaining + 1,
-    headline: remaining > 0 ? `${label} · 还有 ${remaining} 件` : label,
+    next,
+    remaining,
+    allDayCount,
   };
 }

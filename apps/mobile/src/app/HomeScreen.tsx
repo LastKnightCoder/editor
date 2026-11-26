@@ -1,3 +1,4 @@
+import { useMobileHomeI18n } from "../features/home/i18n";
 // 根页（今天 Tab）：纯仪表盘。卡片列表在「卡片库」Tab，底部导航由全局 AppDock 提供。
 // 由 PageHost 以 rootContent 渲染：非根时经 Activity hidden 隔离（无惯性滚动/交互）。
 
@@ -20,21 +21,26 @@ import type { DiaryEntry, DiarySegment } from "../types";
 
 const RECENT_CARD_COUNT = 6;
 
-function getGreeting(now: Date): string {
+function getGreeting(now: Date) {
   const hour = now.getHours();
-  if (hour < 5) return "夜深了";
-  if (hour < 11) return "早上好";
-  if (hour < 13) return "中午好";
-  if (hour < 18) return "下午好";
-  return "晚上好";
+  if (hour < 5) return "greeting.night";
+  if (hour < 11) return "greeting.morning";
+  if (hour < 13) return "greeting.noon";
+  if (hour < 18) return "greeting.afternoon";
+  return "greeting.evening";
 }
 
-function formatHeadDate(now: Date): string {
-  const weekday = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"][now.getDay()];
-  return `${now.getMonth() + 1}月${now.getDate()}日 · ${weekday}`;
+function formatHeadDate(now: Date, locale: string): string {
+  return new Intl.DateTimeFormat(locale, {
+    month: "long",
+    day: "numeric",
+    weekday: "short",
+  }).format(now);
 }
 
 export function HomeScreen() {
+  const { t, locale } = useMobileHomeI18n();
+  const number = new Intl.NumberFormat(locale);
   const now = useMemo(() => new Date(), []);
   const app = useAppContext();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -96,7 +102,7 @@ export function HomeScreen() {
           diaryDate: describeDiaryPeriod("daily", today),
         });
       } catch (error) {
-        app.presentError(error, "打开日记失败");
+        app.presentError(error, t("error.diaryOpen"));
       }
     })();
   });
@@ -109,8 +115,11 @@ export function HomeScreen() {
     agenda.items.length === 0
       ? ""
       : agenda.pendingCount > 0
-        ? ` · 今天还有 ${agenda.pendingCount} 件事`
-        : " · 今天的事都做完了";
+        ? t("header.pending", {
+            count: agenda.pendingCount,
+            value: number.format(agenda.pendingCount),
+          })
+        : t("header.done");
 
   const cards = app.cards.cards;
   const recentItems = cards?.items.slice(0, RECENT_CARD_COUNT) ?? [];
@@ -119,16 +128,18 @@ export function HomeScreen() {
     <div className="bg-page relative flex h-full flex-col">
       <header className="mx-auto flex w-full max-w-[960px] items-center justify-between px-[18px] pt-[calc(20px+var(--mobile-safe-top))]">
         <div>
-          <h1 className="text-ink-1 text-2xl font-extrabold tracking-tight">{getGreeting(now)}</h1>
+          <h1 className="text-ink-1 text-2xl font-extrabold tracking-tight">
+            {t(getGreeting(now))}
+          </h1>
           <p className="text-ink-2 mt-1 text-[12.5px]">
-            {formatHeadDate(now)}
+            {formatHeadDate(now, locale)}
             {agendaHint}
           </p>
         </div>
         <button
           type="button"
           onClick={onOpenSearch}
-          aria-label="搜索所有内容"
+          aria-label={t("header.search")}
           // 中等与宽档由左导航条底部的搜索承担
           className="medium:hidden bg-surface text-ink-2 shadow-card grid h-[42px] w-[42px] place-items-center rounded-[15px] transition-transform duration-200 active:scale-88"
         >

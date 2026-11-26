@@ -1,3 +1,4 @@
+import { useAskI18n } from "./askI18n";
 import { CalendarDays, KeyRound, ListChecks, NotebookPen, Sparkles } from "lucide-react";
 import type { ReactNode } from "react";
 import { suggestionsFor } from "./suggestions";
@@ -16,6 +17,7 @@ function greeting(now = new Date()) {
 }
 
 export function ChatEmpty(props: { onPick(text: string): void }) {
+  const { t } = useAskI18n();
   return (
     <div className="px-1.5 pt-8">
       <h2 className="text-ink-1 text-[24px] leading-[1.35] font-bold">
@@ -27,19 +29,19 @@ export function ChatEmpty(props: { onPick(text: string): void }) {
         可以问笔记里的内容，也能帮你查日程、排待办。
       </p>
       <div className="mt-6 grid grid-cols-2 gap-2.5">
-        {suggestionsFor().map((text, index) => {
+        {suggestionsFor().map((key, index) => {
           const { Icon, tone } = SUGGESTION_STYLES[index % SUGGESTION_STYLES.length];
           return (
             <button
-              key={text}
+              key={key}
               type="button"
-              onClick={() => props.onPick(text)}
+              onClick={() => props.onPick(t(key))}
               className="bg-surface shadow-card text-ink-1 text-tau-body flex min-h-[92px] flex-col items-start gap-2 rounded-[18px] p-3 text-left leading-snug transition-transform active:scale-[0.98]"
             >
               <span className={`grid h-7 w-7 place-items-center rounded-[9px] ${tone}`}>
                 <Icon size={15} aria-hidden="true" />
               </span>
-              {text}
+              {t(key)}
             </button>
           );
         })}

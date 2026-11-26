@@ -1,3 +1,4 @@
+import { useMobileHomeI18n } from "./i18n";
 // 今天页的插件卡片：宿主画外框、标题与标题行右侧的入口，插件组件只渲染正文。
 // compact 按宽度排（手机两个一行，宽屏每格至少 300），wide 与落单的 compact 占满一行；
 // 正文返回 null 时整块不显示，渲染出错只影响这一块。
@@ -32,6 +33,7 @@ function PanelCard({
   fullRow: boolean;
   registerDismiss: (dismiss: () => void) => { dispose(): void };
 }) {
+  const { t } = useMobileHomeI18n();
   const { component: Component, action, title } = panel.definition;
   return (
     <section
@@ -65,7 +67,7 @@ function PanelCard({
       </header>
       <ErrorBoundary
         key={panel.mountId}
-        fallback={<p className="text-ink-3 py-2 text-[12.5px]">卡片出错了</p>}
+        fallback={<p className="text-ink-3 py-2 text-[12.5px]">{t("plugin.error")}</p>}
       >
         <UiProvider className="contents">
           <PluginPageComponentScope context={panel.context}>

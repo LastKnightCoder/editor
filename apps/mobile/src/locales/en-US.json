@@ -1,5 +1,17 @@
 {
   "language": "Interface language",
   "system": "Follow system",
-  "description": "Traditional Chinese and English are being added gradually; some content is still shown in Simplified Chinese."
+  "description": "Traditional Chinese and English are being added gradually; some content is still shown in Simplified Chinese.",
+  "nav.home": "Today",
+  "nav.cards": "Cards",
+  "nav.diary": "Journal",
+  "nav.me": "Me",
+  "nav.closeCreate": "Close create menu",
+  "nav.closeMenu": "Close menu",
+  "nav.main": "Main navigation",
+  "nav.create": "Create; hold to dictate",
+  "nav.more": "More",
+  "nav.moreEntries": "More destinations",
+  "nav.search": "Search all content",
+  "nav.pinHint": "Hold and drag feature icons in Me to choose what appears here."
 }
