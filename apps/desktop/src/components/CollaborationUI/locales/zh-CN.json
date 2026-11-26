@@ -1,0 +1,14 @@
+{
+  "status.error": "协作暂不可用",
+  "status.leaving": "等待退出完成",
+  "status.closed-pending": "共享已结束，有待恢复内容",
+  "status.closed": "共享已结束",
+  "status.idle": "未打开",
+  "status.syncing": "正在同步",
+  "status.synced": "已同步",
+  "status.offline-pending": "离线，改动已存本机",
+  "status.offline": "离线",
+  "others.editing_other": "{{amount}} 人正在编辑",
+  "others.online_other": "{{amount}} 人在线",
+  "others.alone": "只有你在"
+}

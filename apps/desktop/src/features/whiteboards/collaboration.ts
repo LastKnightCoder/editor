@@ -4,92 +4,128 @@
  */
 
 import type { WhiteboardChromeTranslator } from "./i18n-chrome";
-import type { SessionStatus } from "@tau/collaboration/src/view";
+import type { SessionTone } from "@tau/collaboration/src/view";
 import type { CollaborationSession, SharedWhiteboardInfo } from "@tau/collaboration";
 import type { WhiteboardSaveState } from "@/services/whiteboard-documents/client";
 import type { WhiteboardRemoteState } from "@/services/whiteboard-documents/remote";
 
 /** retry-save/retry 重试；detach 转为本机白板。 */
 export type WhiteboardSyncAction = "retry-save" | "retry" | "detach";
-export interface WhiteboardSyncStatus extends SessionStatus {
+export type WhiteboardSyncKind =
+  | "publication"
+  | "unshare"
+  | "saveFailed"
+  | "saving"
+  | "saved"
+  | "checking"
+  | "connecting"
+  | "syncing"
+  | "synced"
+  | "waiting"
+  | "offlinePending"
+  | "offline"
+  | "forbidden"
+  | "closed"
+  | "incompatible"
+  | "rejected"
+  | "failed";
+export interface WhiteboardSyncStatus {
+  kind: WhiteboardSyncKind;
+  reason?: string;
+  tone: SessionTone;
+  transientSyncing?: boolean;
   actions?: WhiteboardSyncAction[];
 }
 /** 已固定、尚未完成的操作：白板在此期间暂停编辑，只能按原操作继续或取消。 */
 export type WhiteboardPendingKind = "publication" | "unshare";
 export function whiteboardSyncStatus(
   local: WhiteboardSaveState,
-  t: WhiteboardChromeTranslator["t"],
   remote?: WhiteboardRemoteState,
   pending?: WhiteboardPendingKind
 ): WhiteboardSyncStatus {
   if (pending)
     return {
-      label: t(pending === "publication" ? "chrome.status.publication" : "chrome.status.unshare"),
+      kind: pending,
       tone: "syncing",
     };
   if (local.error)
     return {
-      label: t("chrome.status.saveFailed", { reason: local.error }),
+      kind: "saveFailed",
+      reason: local.error,
       tone: "error",
       actions: ["retry-save"],
     };
   if (local.phase !== "saved" || local.pending > 0)
-    return { label: t("chrome.status.saving"), tone: "syncing", transientSyncing: true };
-  if (!remote) return { label: t("chrome.status.saved"), tone: "idle" };
+    return { kind: "saving", tone: "syncing", transientSyncing: true };
+  if (!remote) return { kind: "saved", tone: "idle" };
   switch (remote.phase) {
     case "checking":
-      return { label: t("chrome.status.checking"), tone: "syncing" };
+      return { kind: "checking", tone: "syncing" };
     case "local":
-      return { label: t("chrome.status.saved"), tone: "idle" };
+      return { kind: "saved", tone: "idle" };
     case "connecting":
-      return { label: t("chrome.status.connecting"), tone: "syncing" };
+      return { kind: "connecting", tone: "syncing" };
     case "syncing":
-      return { label: t("chrome.status.syncing"), tone: "syncing", transientSyncing: true };
+      return { kind: "syncing", tone: "syncing", transientSyncing: true };
     case "synced":
       return remote.unsynced
-        ? { label: t("chrome.status.syncing"), tone: "syncing", transientSyncing: true }
-        : { label: t("chrome.status.synced"), tone: "live" };
+        ? { kind: "syncing", tone: "syncing", transientSyncing: true }
+        : { kind: "synced", tone: "live" };
     case "waiting":
       return {
-        label: remote.message ?? t("chrome.status.waiting"),
+        kind: "waiting",
+        reason: remote.message,
         tone: "syncing",
         actions: ["retry"],
       };
     case "offline":
       return remote.unsynced
-        ? { label: t("chrome.status.offlinePending"), tone: "syncing", actions: ["retry"] }
-        : { label: t("chrome.status.offline"), tone: "offline", actions: ["retry"] };
+        ? { kind: "offlinePending", tone: "syncing", actions: ["retry"] }
+        : { kind: "offline", tone: "offline", actions: ["retry"] };
     case "forbidden":
       return {
-        label: t("chrome.status.forbidden"),
+        kind: "forbidden",
         tone: "error",
         actions: ["retry", "detach"],
       };
     case "closed":
       return {
-        label: t("chrome.status.closed"),
+        kind: "closed",
         tone: "idle",
         actions: ["detach"],
       };
     case "incompatible":
       return {
-        label: t("chrome.status.incompatible"),
+        kind: "incompatible",
         tone: "error",
         actions: ["retry"],
       };
     case "rejected":
       return {
-        label: t("chrome.status.rejected"),
+        kind: "rejected",
         tone: "error",
         actions: ["detach"],
       };
     default:
       return {
-        label: t("chrome.status.failed", { reason: remote.message ?? t("chrome.status.retry") }),
+        kind: "failed",
+        reason: remote.message,
         tone: "error",
         actions: ["retry"],
       };
   }
+}
+
+export function whiteboardStatusText(
+  status: WhiteboardSyncStatus,
+  t: WhiteboardChromeTranslator["t"]
+): string {
+  if (status.kind === "waiting") return status.reason ?? t("chrome.status.waiting");
+  if (status.kind === "saveFailed")
+    return t("chrome.status.saveFailed", { reason: status.reason ?? "" });
+  if (status.kind === "failed")
+    return t("chrome.status.failed", { reason: status.reason ?? t("chrome.status.retry") });
+  return t(`chrome.status.${status.kind}`);
 }
 
 /** 协作码、成员列表沿用正文协作的面板，白板房间按同一会话形状呈现。 */

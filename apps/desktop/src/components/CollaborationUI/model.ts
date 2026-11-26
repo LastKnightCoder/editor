@@ -4,6 +4,7 @@
  */
 
 import type { CollaborationSession, JoinRequest, Member, SourceType } from "@tau/collaboration";
+import type { CollaborationUiLocale } from "./i18n";
 
 export type MemberActivity = Member["activity"] | "offline";
 
@@ -22,12 +23,21 @@ export function memberActivity(member: Member): string {
 }
 
 /** 在线摘要只数他人：自己在编辑不必告诉自己 */
-export function othersSummary(session: CollaborationSession, deviceId?: string): string {
+export function othersSummary(
+  session: CollaborationSession,
+  deviceId: string | undefined,
+  { locale, t }: CollaborationUiLocale
+): string {
   const others = session.members.filter(member => member.deviceId !== deviceId && member.online);
   const editing = others.filter(member => member.activity === "editing").length;
-  if (editing) return `${editing} 人正在编辑`;
-  if (others.length) return `${others.length} 人在线`;
-  return "只有你在";
+  if (editing)
+    return t("others.editing", { count: editing, amount: editing.toLocaleString(locale) });
+  if (others.length)
+    return t("others.online", {
+      count: others.length,
+      amount: others.length.toLocaleString(locale),
+    });
+  return t("others.alone");
 }
 
 /** 作者在前；其余在线优先，编辑中优先 */

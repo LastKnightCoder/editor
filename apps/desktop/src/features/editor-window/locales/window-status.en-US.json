@@ -1,0 +1,11 @@
+{
+  "save.saved": "Saved",
+  "save.saving": "Saving…",
+  "save.error": "Could not save. Try again later",
+  "collaboration": "Collaborating · {{state}}",
+  "characters_one": "character",
+  "characters_other": "characters",
+  "selected": "Selected",
+  "reading_one": "About {{amount}} minute",
+  "reading_other": "About {{amount}} minutes"
+}

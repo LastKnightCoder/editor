@@ -1,3 +1,4 @@
+import { useCollaborationUiI18n } from "@/components/CollaborationUI/i18n";
 /**
  * 内容页协作入口（文章 / 卡片 / 项目文档）：底栏触发位 + 「内容协作」对话框。
  *
@@ -61,6 +62,7 @@ export default function ContentCollaborationControl({
   /** 经 open() 打开的窗口全部关闭（或会话打开失败）后回调 */
   onClose?: () => void;
 }) {
+  const context = useCollaborationUiI18n();
   const { entry, error: sessionError } = useContentSession(contentId, source);
   const sessions = useCollaborationStore(state => state.sessions);
   const requests = useCollaborationStore(state => state.requests);
@@ -79,7 +81,7 @@ export default function ContentCollaborationControl({
   const pending = session ? pendingRequests(requests, session.id) : [];
   const origin = source || entry?.source;
   const title = session?.title || entry?.title || origin?.sourceTitle;
-  const summary = session ? othersSummary(session, deviceId) : undefined;
+  const summary = session ? othersSummary(session, deviceId, context) : undefined;
 
   useImperativeHandle(ref, () => ({ open: () => setOpenRequested(true) }), []);
   const onCloseRef = useRef(onClose);

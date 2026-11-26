@@ -20,6 +20,7 @@ import {
 import type { WhiteboardShareStatus } from "@/types/whiteboard-document";
 import { AvatarStack, SharePanel, StatusDot } from "@/components/CollaborationUI";
 import { othersSummary } from "@/components/CollaborationUI/model";
+import { useCollaborationUiI18n } from "@/components/CollaborationUI/i18n";
 import type { WhiteboardDocumentClient } from "@/services/whiteboard-documents/client";
 import { whiteboardRemoteSync } from "@/services/whiteboard-documents/registry";
 import { whiteboardShareStatusKey } from "@/services/whiteboard-documents/keys";
@@ -33,6 +34,7 @@ import { useWhiteboardShareStatus } from "../queries";
 import {
   whiteboardSession,
   whiteboardSyncStatus,
+  whiteboardStatusText,
   type WhiteboardPendingKind,
 } from "../collaboration";
 
@@ -93,13 +95,13 @@ export function WhiteboardCollaborationBar({
   const [confirming, setConfirming] = useState<ConfirmKind>();
   const readNotice = () => {
     const local = client.getSnapshot();
-    return pending || confirming || whiteboardSyncStatus(local, t, remote).actions?.length
+    return pending || confirming || whiteboardSyncStatus(local, remote).actions?.length
       ? local
       : null;
   };
   const local = useSyncExternalStore(client.subscribe, readNotice, readNotice);
   if (!local) return null;
-  const status = whiteboardSyncStatus(local, t, remote, pending);
+  const status = whiteboardSyncStatus(local, remote, pending);
   const databaseName = client.target.databaseName;
   const actions = status.actions ?? [];
   const binding = share.data?.binding ?? null;
@@ -111,7 +113,7 @@ export function WhiteboardCollaborationBar({
       role={status.tone === "error" ? "alert" : "status"}
     >
       <StatusDot tone={status.tone} />
-      <span className="min-w-0 truncate">{status.label}</span>
+      <span className="min-w-0 truncate">{whiteboardStatusText(status, t)}</span>
       {actions.includes("retry-save") && (
         <Button
           size="sm"
@@ -456,6 +458,7 @@ function WhiteboardShareControl({
   remote?: WhiteboardRemoteState;
   onUnshare: (mode: "close" | "leave") => void;
 }) {
+  const collaborationContext = useCollaborationUiI18n();
   const { t } = useWhiteboardChromeI18n();
   const room = useCollaborationStore(state =>
     binding ? state.whiteboards?.find(item => item.id === binding.documentId) : undefined
@@ -497,7 +500,9 @@ function WhiteboardShareControl({
           {session ? (
             <>
               <AvatarStack members={session.members} max={3} size={18} />
-              <span className="whitespace-nowrap">{othersSummary(session, deviceId)}</span>
+              <span className="whitespace-nowrap">
+                {othersSummary(session, deviceId, collaborationContext)}
+              </span>
             </>
           ) : (
             <>

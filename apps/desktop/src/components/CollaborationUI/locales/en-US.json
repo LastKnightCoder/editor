@@ -1,0 +1,16 @@
+{
+  "status.error": "Collaboration is unavailable",
+  "status.leaving": "Waiting to finish leaving",
+  "status.closed-pending": "Sharing ended; content awaits recovery",
+  "status.closed": "Sharing ended",
+  "status.idle": "Not opened",
+  "status.syncing": "Syncing",
+  "status.synced": "Synced",
+  "status.offline-pending": "Offline; changes saved on this device",
+  "status.offline": "Offline",
+  "others.editing_one": "{{amount}} person editing",
+  "others.editing_other": "{{amount}} people editing",
+  "others.online_one": "{{amount}} person online",
+  "others.online_other": "{{amount}} people online",
+  "others.alone": "Only you are here"
+}

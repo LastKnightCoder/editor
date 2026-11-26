@@ -1,3 +1,4 @@
+import { useCollaborationUiI18n } from "./i18n";
 /** 分享面板（作者：协作码 + 申请 + 成员；成员：成员）——协作页 Popover 与内容页对话框共用 */
 
 import type { CollaborationSession, JoinRequest } from "@tau/collaboration";
@@ -16,6 +17,7 @@ export function SharePanel({
   requests: JoinRequest[];
   deviceId?: string;
 }) {
+  const context = useCollaborationUiI18n();
   const pending = pendingRequests(requests, session.id);
   const ownerActive = session.role === "owner" && session.status === "active";
   return (
@@ -32,7 +34,9 @@ export function SharePanel({
       <div className="flex flex-col gap-1">
         <SectionTitle
           count={session.members.length}
-          aside={session.status === "active" ? othersSummary(session, deviceId) : undefined}
+          aside={
+            session.status === "active" ? othersSummary(session, deviceId, context) : undefined
+          }
         >
           成员
         </SectionTitle>

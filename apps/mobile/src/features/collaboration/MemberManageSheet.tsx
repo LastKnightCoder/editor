@@ -1,3 +1,4 @@
+import { useCollaborationStatusI18n, sessionStatusText } from "./status.i18n";
 // 成员管理：协作码卡置顶，向下依次为待审批、成员、危险操作。
 // 单列滚动一屏管完一个房间，复制码零跳步。
 import { useState } from "react";
@@ -34,6 +35,7 @@ export function MemberManageSheet(props: {
   onExit: () => void;
   onError: (error: unknown, fallback: string) => void;
 }) {
+  const context = useCollaborationStatusI18n();
   const session = useCollaborationStore(state =>
     state.sessions.find(item => item.id === props.documentId)
   );
@@ -119,8 +121,14 @@ export function MemberManageSheet(props: {
           <div className="mb-3 flex items-center justify-center">
             <StatusBadge tone={status.tone}>
               {status.tone === "live"
-                ? `${status.label} · ${members.filter(member => member.online).length} 人在线`
-                : status.label}
+                ? context.t("status.withOnline", {
+                    state: sessionStatusText(status, context),
+                    count: members.filter(member => member.online).length,
+                    amount: members
+                      .filter(member => member.online)
+                      .length.toLocaleString(context.locale),
+                  })
+                : sessionStatusText(status, context)}
             </StatusBadge>
           </div>
         ) : (

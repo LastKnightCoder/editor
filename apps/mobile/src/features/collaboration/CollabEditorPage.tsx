@@ -1,3 +1,4 @@
+import { useCollaborationStatusI18n, sessionStatusText } from "./status.i18n";
 // 协作编辑页：顶栏 presence + 状态副行 + 离线横幅 + 协作编辑器。
 // 远端光标/选区由 @tau/editor-collab 的文档源自动渲染，本页只负责外壳与状态。
 // 成员视角（本地无内容行）与协作中心入口仍走本页；owner 的原地编辑见详情页 CollaborativeEditor。
@@ -58,6 +59,7 @@ export function CollabEditorPage(props: {
   onBack: () => void;
   onExit: () => void;
 }) {
+  const context = useCollaborationStatusI18n();
   const navigator = useNavigator();
   const [moreOpen, setMoreOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -172,8 +174,10 @@ export function CollabEditorPage(props: {
                 <div className="text-ink-2 mt-px flex items-center justify-center gap-1 text-[10.5px]">
                   <StatusDot tone={status?.tone ?? "idle"} />
                   <span className={status?.tone === "offline" ? "text-warn" : undefined}>
-                    {status?.label ?? "连接中"}
-                    {online.length > 0 ? ` · ${online.length} 人` : ""}
+                    {status ? sessionStatusText(status, context) : context.t("status.connecting")}
+                    {online.length > 0
+                      ? ` · ${context.t("status.people", { count: online.length, amount: online.length.toLocaleString(context.locale) })}`
+                      : ""}
                   </span>
                 </div>
               </div>
@@ -203,7 +207,11 @@ export function CollabEditorPage(props: {
           <div className="bg-tag-4-soft text-warn flex items-center gap-2.5 px-4 py-2.5 text-[12.5px] font-semibold">
             <WifiOff size={15} className="shrink-0" />
             <span className="flex-1">
-              {status?.label ?? "网络已断开"} · 改动保留在本机，恢复后自动同步
+              {context.t("status.offlineHint", {
+                state: status
+                  ? sessionStatusText(status, context)
+                  : context.t("status.networkDisconnected"),
+              })}
             </span>
           </div>
         ) : null}
@@ -235,7 +243,7 @@ export function CollabEditorPage(props: {
                   className="bg-surface shadow-card mt-5 flex items-center gap-1.5 rounded-full px-4 py-2 text-[12.5px] font-bold active:opacity-70"
                 >
                   <RefreshCw size={13} strokeWidth={2.6} />
-                  重试
+                  {context.t("status.retry")}
                 </button>
               </div>
             ) : null}

@@ -244,6 +244,8 @@ P6B桌面加入/昵称：7源码16语义key工程完成，原2例扩为4例通�
 
 P6A3-A公共工具栏：30源码连同@tau/i18n workspace依赖/lock工程完成；6文件52例、包类型/纯Node无DOM/JSX入口、白板边界、三语参数/复数与范围静态/格式通过。真实换语保留菜单factory次数/原动作、插件草稿选区、错误fallback及各runtime隔离、raw几何payload。7 creator仅退役固定hint及dead shapeName，build/default/name/手势算法和第三方显式hint原文保留；BoardContent/perf硬排除。
 
+P6B共享状态：32路径工程完成，desktop模型/白板10例+remote既有8例、mobile状态/编辑19例通过；两端与collaboration包类型、三语39语义key/参数及范围静态/格式通过。旧label/sessionStatusLabel消费清零退休，原300+300+400ms与中途locale不重计时契约保留；17宿主白板kind和actions/tone/transient不变，不新增白板延迟。EditorStatusBar原400字阅读速率/计数不改，所有othersSummary调用同域UI context。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

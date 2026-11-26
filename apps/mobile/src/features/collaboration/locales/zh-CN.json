@@ -1,0 +1,22 @@
+{
+  "status.error": "协作暂不可用",
+  "status.leaving": "等待退出完成",
+  "status.closed-pending": "共享已结束，有待恢复内容",
+  "status.closed": "共享已结束",
+  "status.idle": "未打开",
+  "status.syncing": "正在同步",
+  "status.synced": "已同步",
+  "status.offline-pending": "离线，改动已存本机",
+  "status.offline": "离线",
+  "status.withOnline_other": "{{state}} · {{amount}} 人在线",
+  "status.people_other": "{{amount}} 人",
+  "status.collaborating": "正在协作 · {{state}}",
+  "status.connecting": "连接中",
+  "status.connectingCollaboration": "正在连接协作…",
+  "status.networkDisconnected": "网络已断开",
+  "status.offlineHint": "{{state}} · 改动保留在本机，恢复后自动同步",
+  "status.readonlyHint": "{{state}} · 正文暂为只读",
+  "status.unavailableHint": "协作会话尚未就绪，正文暂为只读，请重试连接",
+  "status.retry": "重试",
+  "status.details": "协作详情与成员"
+}

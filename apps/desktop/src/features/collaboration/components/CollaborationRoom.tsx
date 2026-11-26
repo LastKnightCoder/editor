@@ -1,3 +1,4 @@
+import { useCollaborationUiI18n } from "@/components/CollaborationUI/i18n";
 /**
  * 协作副本：直接编辑共享内容——我发起的与我加入的都在这里改。
  * 落在协作页那张纸内，不自带卡片外壳；顶栏 / 横幅 / 底栏与页头同为 32px 左右边距。
@@ -118,6 +119,7 @@ export function CollaborationRoom({
   onLeft: () => void;
 }) {
   const { binding, article, error, frozen, retry } = useCollaborationDocument(session.id);
+  const context = useCollaborationUiI18n();
   const [leaving, setLeaving] = useState(false);
   /* 编辑历史页边注：与正文同纸的右栏，选中条目联动正文块标注（连接线画在房间行容器内） */
   const roomRowRef = useRef<HTMLDivElement>(null);
@@ -191,7 +193,7 @@ export function CollaborationRoom({
                 className="rounded-tau-sm text-ink-2 hover:bg-hover hover:text-ink-1 text-tau-meta flex h-[30px] cursor-pointer items-center gap-2 pr-2.5 pl-1.5"
               >
                 <AvatarStack members={session.members} max={4} className="ring-surface" />
-                <span>{othersSummary(session, deviceId)}</span>
+                <span>{othersSummary(session, deviceId, context)}</span>
                 {pending.length > 0 && (
                   <span className="bg-accent text-ink-inverse min-w-[18px] rounded-full px-1.5 text-center text-[11px] leading-[18px] font-[600] tabular-nums">
                     {pending.length}

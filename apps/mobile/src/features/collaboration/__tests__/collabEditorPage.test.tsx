@@ -63,7 +63,7 @@ vi.mock("../hooks/useCollabSession", () => ({
     error: undefined,
     readonly: collabState.readonly,
     presence: { onFocus: vi.fn(), onBlur: vi.fn() },
-    status: { label: "已同步", tone: "live" },
+    status: { kind: "synced", tone: "live" },
     online: [],
     offline: false,
     retry: vi.fn(),

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CollaborationSession, JoinRequest, Member } from "@tau/collaboration";
+import type { CollaborationUiLocale } from "../i18n";
 import {
   formatInvitationCode,
   leaveIntent,
@@ -32,9 +33,13 @@ const session = (patch: Partial<CollaborationSession> = {}): CollaborationSessio
   ...patch,
 });
 
+const summaryContext: CollaborationUiLocale = {
+  locale: "en-US",
+  t: (_key, values) => String(values?.count ?? 0),
+};
 describe("othersSummary", () => {
   it("只数他人：自己在编辑时不计入", () => {
-    expect(othersSummary(session(), "me")).toBe("只有你在");
+    expect(othersSummary(session(), "me", summaryContext)).toBe("0");
   });
   it("有人编辑时报编辑人数，否则报在线人数", () => {
     const s = session({
@@ -42,13 +47,18 @@ describe("othersSummary", () => {
         member("me", { role: "owner", activity: "editing" }),
         member("a", { activity: "editing" }),
         member("b"),
+        member("d"),
         member("c", { online: false }),
       ],
     });
-    expect(othersSummary(s, "me")).toBe("1 人正在编辑");
-    expect(othersSummary({ ...s, members: s.members.filter(x => x.deviceId !== "a") }, "me")).toBe(
-      "1 人在线"
-    );
+    expect(othersSummary(s, "me", summaryContext)).toBe("1");
+    expect(
+      othersSummary(
+        { ...s, members: s.members.filter(x => x.deviceId !== "a") },
+        "me",
+        summaryContext
+      )
+    ).toBe("2");
   });
 });
 

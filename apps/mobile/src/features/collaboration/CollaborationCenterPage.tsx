@@ -1,3 +1,4 @@
+import { useCollaborationStatusI18n, sessionStatusText } from "./status.i18n";
 // 协作中心：身份卡 + 待审批 + 我发起的 / 我加入的 分组会话列表。
 import { useRef, useState } from "react";
 import { FileText, Loader2, Settings, UserPlus } from "lucide-react";
@@ -15,6 +16,7 @@ import { Avatar, AvatarStack, StatusDot } from "./components/CollaborationUI";
 import { ApprovalRow } from "./components/ApprovalRow";
 
 function SessionRow(props: { session: CollaborationSession; onOpen: () => void }) {
+  const context = useCollaborationStatusI18n();
   const status = sessionStatus(props.session);
   const online = props.session.members.filter(member => member.online);
   return (
@@ -33,7 +35,13 @@ function SessionRow(props: { session: CollaborationSession; onOpen: () => void }
         <span className="text-ink-3 mt-0.5 flex items-center gap-1.5 text-[11.5px]">
           <StatusDot tone={status.tone} />
           <span className={status.tone === "live" ? "text-tag-1" : undefined}>
-            {status.tone === "live" ? `${status.label} · ${online.length} 人在线` : status.label}
+            {status.tone === "live"
+              ? context.t("status.withOnline", {
+                  state: sessionStatusText(status, context),
+                  count: online.length,
+                  amount: online.length.toLocaleString(context.locale),
+                })
+              : sessionStatusText(status, context)}
           </span>
         </span>
       </span>

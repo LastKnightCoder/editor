@@ -6,35 +6,43 @@ import type { CollaborationSession } from "./protocol";
 
 export type SessionTone = "live" | "syncing" | "offline" | "error" | "idle";
 
+export type SessionStatusKind =
+  | "error"
+  | "leaving"
+  | "closed-pending"
+  | "closed"
+  | "idle"
+  | "syncing"
+  | "synced"
+  | "offline-pending"
+  | "offline";
+
 export type SessionStatus = {
-  label: string;
+  kind: SessionStatusKind;
+  error?: string;
   tone: SessionTone;
   /** 连接正常且有未同步改动：打字时 pending 在毫秒级反复翻转，展示层需延迟揭示 */
   transientSyncing?: boolean;
 };
 
 export function sessionStatus(session: CollaborationSession): SessionStatus {
-  if (session.error) return { label: session.error, tone: "error" };
-  if (session.leaving) return { label: "等待退出完成", tone: "syncing" };
+  if (session.error) return { kind: "error", error: session.error, tone: "error" };
+  if (session.leaving) return { kind: "leaving", tone: "syncing" };
   if (session.status === "closed") {
     return session.pending
-      ? { label: "共享已结束，有待恢复内容", tone: "syncing" }
-      : { label: "共享已结束", tone: "idle" };
+      ? { kind: "closed-pending", tone: "syncing" }
+      : { kind: "closed", tone: "idle" };
   }
-  if (session.connection === "idle") return { label: "未打开", tone: "idle" };
+  if (session.connection === "idle") return { kind: "idle", tone: "idle" };
   if (session.connection === "connected") {
     // 唯一由打字触发的同步态（error/leaving/closed 分支的 syncing 都不是）：标记供展示层延迟揭示
     return session.pending
-      ? { label: "正在同步", tone: "syncing", transientSyncing: true }
-      : { label: "已同步", tone: "live" };
+      ? { kind: "syncing", tone: "syncing", transientSyncing: true }
+      : { kind: "synced", tone: "live" };
   }
   return session.pending
-    ? { label: "离线，改动已存本机", tone: "syncing" }
-    : { label: "离线", tone: "offline" };
-}
-
-export function sessionStatusLabel(session: CollaborationSession) {
-  return sessionStatus(session).label;
+    ? { kind: "offline-pending", tone: "syncing" }
+    : { kind: "offline", tone: "offline" };
 }
 
 /** 连接正常时的瞬时「正在同步」需持续超过该时长才切换显示，避免打字时徽标闪烁 */
@@ -44,23 +52,26 @@ export function useStableSessionStatus(session?: CollaborationSession): SessionS
   return useStableStatus(session ? sessionStatus(session) : undefined);
 }
 
-/** 任意来源的状态（如白板同步）共用同一延迟揭示规则 */
-function useStableStatus<T extends SessionStatus>(status?: T): SessionStatus | undefined {
+/** 延迟揭示只缓存业务状态，译文由宿主在展示时生成。 */
+function useStableStatus(status?: SessionStatus): SessionStatus | undefined {
   const [displayed, setDisplayed] = useState<SessionStatus | undefined>(status);
   // 依赖只放可比较的原始字段：session 与推导结果的引用每次渲染/状态广播都会重建，
   // 一旦作为依赖，本 effect 就会每渲染重跑并反复重置计时器——广播比 1s 更密时揭示被无限推迟
-  const label = status?.label;
+  const kind = status?.kind;
+  const error = status?.error;
   const tone = status?.tone;
   const transientSyncing = status?.transientSyncing === true;
 
   useEffect(() => {
-    if (label === undefined || tone === undefined) {
+    if (kind === undefined || tone === undefined) {
       setDisplayed(undefined);
       return;
     }
     const reveal = () =>
       setDisplayed(previous =>
-        previous?.label === label && previous?.tone === tone ? previous : { label, tone }
+        previous?.kind === kind && previous?.tone === tone && previous?.error === error
+          ? previous
+          : { kind, tone, ...(error === undefined ? {} : { error }) }
       );
     if (!transientSyncing) {
       reveal();
@@ -68,7 +79,7 @@ function useStableStatus<T extends SessionStatus>(status?: T): SessionStatus | u
     }
     const timer = setTimeout(reveal, TRANSIENT_SYNCING_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [label, tone, transientSyncing]);
+  }, [kind, tone, error, transientSyncing]);
 
   return displayed ?? status;
 }

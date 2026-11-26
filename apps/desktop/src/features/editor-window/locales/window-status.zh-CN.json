@@ -1,0 +1,9 @@
+{
+  "save.saved": "已保存",
+  "save.saving": "保存中…",
+  "save.error": "保存失败，稍后重试",
+  "collaboration": "协作中 · {{state}}",
+  "characters_other": "字",
+  "selected": "选中",
+  "reading_other": "约 {{amount}} 分钟"
+}

@@ -1,0 +1,14 @@
+{
+  "status.error": "協作暫不可用",
+  "status.leaving": "等待退出完成",
+  "status.closed-pending": "共享已結束，有待復原內容",
+  "status.closed": "共享已結束",
+  "status.idle": "未開啟",
+  "status.syncing": "正在同步",
+  "status.synced": "已同步",
+  "status.offline-pending": "離線，變更已存本機",
+  "status.offline": "離線",
+  "others.editing_other": "{{amount}} 人正在編輯",
+  "others.online_other": "{{amount}} 人在線",
+  "others.alone": "只有你在"
+}

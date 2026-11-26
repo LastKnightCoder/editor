@@ -8,13 +8,7 @@ import {
   splitRemoteError,
   type WhiteboardRemoteBackend,
 } from "../remote";
-import { createI18nRuntime, createLocaleStore } from "@tau/i18n";
-import { whiteboardChromeMessages } from "@/features/whiteboards/i18n-chrome";
 import { whiteboardSyncStatus } from "@/features/whiteboards/collaboration";
-
-const syncStatusT = createI18nRuntime({ localeSource: createLocaleStore("zh-CN") }).get(
-  whiteboardChromeMessages
-).t;
 
 /** 只实现远端同步用到的客户端表面：耐久保存回执与订阅。 */
 function fakeClient() {
@@ -115,15 +109,14 @@ it("远端确认覆盖本机修订才显示已同步；新的本机编辑先回�
   await vi.advanceTimersByTimeAsync(0);
   expect(backend.open).toHaveBeenCalledWith("lease", "https://collab.test");
   expect(sync.getSnapshot()).toMatchObject({ phase: "synced", unsynced: false });
-  expect(whiteboardSyncStatus(client.getSnapshot(), syncStatusT, sync.getSnapshot()).label).toBe(
-    "已同步"
-  );
+  expect(whiteboardSyncStatus(client.getSnapshot(), sync.getSnapshot())).toMatchObject({
+    kind: "synced",
+    tone: "live",
+  });
   backend.sync.mockImplementationOnce(async () => ok(1));
   client.edit();
   expect(sync.getSnapshot().unsynced).toBe(true);
-  expect(
-    whiteboardSyncStatus(client.getSnapshot(), syncStatusT, sync.getSnapshot()).label
-  ).not.toBe("已同步");
+  expect(whiteboardSyncStatus(client.getSnapshot(), sync.getSnapshot()).kind).toBe("syncing");
   await vi.advanceTimersByTimeAsync(800);
   // 返回的确认修订落后于本机，立即再同步一次而不宣称完成。
   expect(sync.getSnapshot().unsynced).toBe(true);
@@ -137,9 +130,11 @@ it("断网自动退避重试，恢复后继续同步；轮询接收远端更新"
   create();
   await vi.advanceTimersByTimeAsync(0);
   expect(sync.getSnapshot().phase).toBe("offline");
-  expect(
-    whiteboardSyncStatus(client.getSnapshot(), syncStatusT, sync.getSnapshot()).label
-  ).toContain("改动已存本机");
+  expect(whiteboardSyncStatus(client.getSnapshot(), sync.getSnapshot())).toMatchObject({
+    kind: "offlinePending",
+    tone: "syncing",
+    actions: ["retry"],
+  });
   await vi.advanceTimersByTimeAsync(2_000);
   expect(sync.getSnapshot().phase).toBe("synced");
   await vi.advanceTimersByTimeAsync(10_000);

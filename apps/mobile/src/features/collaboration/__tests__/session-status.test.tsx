@@ -6,6 +6,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CollaborationSession } from "@tau/collaboration";
 import { sessionStatus, useStableSessionStatus, type SessionStatus } from "../session-status";
+import { mobileLocaleSource } from "../../../services/i18n";
+import { useCollaborationStatusI18n, sessionStatusText } from "../status.i18n";
 
 function makeSession(overrides: Partial<CollaborationSession> = {}): CollaborationSession {
   return {
@@ -37,8 +39,10 @@ function createStatusController(): StatusController {
   const rendered: (SessionStatus | undefined)[] = [];
 
   function Probe({ session }: { session?: CollaborationSession }) {
-    rendered.push(useStableSessionStatus(session));
-    return null;
+    const context = useCollaborationStatusI18n();
+    const status = useStableSessionStatus(session);
+    rendered.push(status);
+    return <span>{status ? sessionStatusText(status, context) : null}</span>;
   }
 
   return {
@@ -63,7 +67,7 @@ function createStatusController(): StatusController {
 describe("sessionStatus", () => {
   it("仅「连接正常 + 有未同步改动」标记为瞬时同步", () => {
     const connected = sessionStatus(makeSession({ connection: "connected", pending: true }));
-    expect(connected).toEqual({ label: "正在同步", tone: "syncing", transientSyncing: true });
+    expect(connected).toEqual({ kind: "syncing", tone: "syncing", transientSyncing: true });
 
     expect(sessionStatus(makeSession({ pending: false })).transientSyncing).toBeUndefined();
   });
@@ -81,7 +85,8 @@ describe("sessionStatus", () => {
     expect(sessionStatus(makeSession({ leaving: true })).transientSyncing).toBeUndefined();
     // 错误态压过一切
     expect(sessionStatus(makeSession({ error: "身份验证失败", pending: true }))).toMatchObject({
-      label: "身份验证失败",
+      kind: "error",
+      error: "身份验证失败",
       tone: "error",
     });
   });
@@ -98,11 +103,11 @@ describe("useStableSessionStatus", () => {
     const controller = createStatusController();
 
     await controller.render(makeSession({ pending: false }));
-    expect(controller.last()?.label).toBe("已同步");
+    expect(controller.last()?.kind).toBe("synced");
 
     // 开始打字：进入瞬时同步，此时不应立刻揭示
     await controller.render(makeSession({ pending: true }));
-    expect(controller.last()?.label).toBe("已同步");
+    expect(controller.last()?.kind).toBe("synced");
 
     // 期间服务端持续广播（manager.changed() 每次生成全新的 session.info 对象）
     await act(async () => {
@@ -118,7 +123,7 @@ describe("useStableSessionStatus", () => {
     await act(async () => {
       vi.advanceTimersByTime(400);
     });
-    expect(controller.last()?.label).toBe("正在同步");
+    expect(controller.last()?.kind).toBe("syncing");
 
     await controller.cleanup();
   });
@@ -129,10 +134,10 @@ describe("useStableSessionStatus", () => {
 
     await controller.render(makeSession({ pending: false }));
     await controller.render(makeSession({ pending: true }));
-    expect(controller.last()?.label).toBe("已同步");
+    expect(controller.last()?.kind).toBe("synced");
 
     await controller.render(makeSession({ pending: false }));
-    expect(controller.last()?.label).toBe("已同步");
+    expect(controller.last()?.kind).toBe("synced");
 
     await controller.cleanup();
   });
@@ -141,11 +146,47 @@ describe("useStableSessionStatus", () => {
     const controller = createStatusController();
 
     await controller.render(makeSession());
-    expect(controller.last()?.label).toBe("已同步");
+    expect(controller.last()?.kind).toBe("synced");
 
     await controller.render(undefined);
     expect(controller.last()).toBeUndefined();
 
     await controller.cleanup();
   });
+});
+
+it("同步延迟期间切换语言不重新计时，原错误与会话数据保持不变", async () => {
+  vi.useFakeTimers();
+  const original = mobileLocaleSource.getSnapshot();
+  const controller = createStatusController();
+  const data = makeSession({ pending: true });
+  try {
+    await controller.render(makeSession());
+    await controller.render(data);
+    await act(async () => {
+      vi.advanceTimersByTime(400);
+      mobileLocaleSource.setLocale("zh-TW");
+    });
+    expect(controller.last()?.kind).toBe("synced");
+    await act(async () => {
+      vi.advanceTimersByTime(300);
+      mobileLocaleSource.setLocale("en-US");
+    });
+    expect(controller.last()?.kind).toBe("synced");
+    await act(async () => vi.advanceTimersByTime(300));
+    expect(controller.last()?.kind).toBe("syncing");
+    expect(data.pending).toBe(true);
+    expect(data.connection).toBe("connected");
+    const error = "CUSTOM_FAILURE: 原始诊断 trace-42";
+    const failed = { ...data, error };
+    await controller.render(failed);
+    expect(controller.last()).toMatchObject({ kind: "error", error, tone: "error" });
+    await act(async () => mobileLocaleSource.setLocale("zh-CN"));
+    expect(controller.last()).toMatchObject({ kind: "error", error, tone: "error" });
+    expect(failed.error).toBe(error);
+  } finally {
+    await controller.cleanup();
+    mobileLocaleSource.setLocale(original);
+    vi.useRealTimers();
+  }
 });

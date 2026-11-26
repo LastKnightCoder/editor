@@ -1,3 +1,4 @@
+import { useCollaborationUiI18n, sessionStatusText } from "@/components/CollaborationUI/i18n";
 /**
  * 侧栏「协作」入口的两件（A3 侧栏嵌套）：
  *  - CollaborationNavBadge：待审批加入申请数（离开协作页也看得到；收起为图标列时退化为角点）；
@@ -128,6 +129,7 @@ function SessionItem({
   requests: number;
   onClick: () => void;
 }) {
+  const context = useCollaborationUiI18n();
   const status = useStableSessionStatus(session) ?? sessionStatus(session);
   const title = session.title || "未命名内容";
   return (
@@ -139,7 +141,7 @@ function SessionItem({
         type="button"
         onClick={onClick}
         aria-current={active ? "page" : undefined}
-        title={`${title} · ${status.label}`}
+        title={`${title} · ${sessionStatusText(status, context)}`}
         className={childClass(active)}
       >
         <StatusDot tone={status.tone} className="size-1.5 shrink-0" />

@@ -1,3 +1,4 @@
+import { useCollaborationStatusI18n, sessionStatusText } from "./status.i18n";
 // 详情页的原地协作会话（懒加载 chunk，与协作运行时同舟）：绑定协作的内容无需跳转协作页，
 // 直接在详情页切换为 yjs 协同编辑。职责内聚：运行时挂载、Y.Doc 绑定、owner 侧投影、
 // presence 上报与状态条。
@@ -34,6 +35,7 @@ export function CollaborativeEditor(props: {
   /** 在共享与成员 Sheet 里主动结束共享/退出：结果直接回传，宿主据此退出协作态 */
   onCollaborationEnded?: () => void;
 }) {
+  const context = useCollaborationStatusI18n();
   const navigator = useNavigator();
   useCollaborationRuntime();
   const [stalled, setStalled] = useState(false);
@@ -120,20 +122,20 @@ export function CollaborativeEditor(props: {
     return unavailable ? (
       <div className="bg-tag-4-soft text-warn mt-4 flex items-center gap-2.5 rounded-[14px] px-3.5 py-2.5 text-[12.5px] font-semibold">
         <WifiOff size={15} className="shrink-0" />
-        <span className="flex-1">协作会话尚未就绪，正文暂为只读，请重试连接</span>
+        <span className="flex-1">{context.t("status.unavailableHint")}</span>
         <button
           type="button"
           onClick={retry}
           className="bg-surface/70 flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[11.5px] font-bold active:opacity-70"
         >
           <RefreshCw size={12} strokeWidth={2.6} />
-          重试
+          {context.t("status.retry")}
         </button>
       </div>
     ) : (
       <div className="text-ink-2 mt-4 flex items-center gap-2 text-[12.5px] font-semibold">
         <Loader2 size={14} className="animate-spin" />
-        正在连接协作…
+        {context.t("status.connectingCollaboration")}
       </div>
     );
   }
@@ -142,7 +144,7 @@ export function CollaborativeEditor(props: {
     <>
       <button
         type="button"
-        aria-label="协作详情与成员"
+        aria-label={context.t("status.details")}
         // 本页已可原地协作编辑，横条不再跳协作页：点开共享与成员 Sheet
         //（协作码 / 审批 / 移除 / 结束共享）；进协作编辑页的入口保留在 ⋯ 菜单「查看协作」
         onClick={() => void openDetails()}
@@ -150,8 +152,12 @@ export function CollaborativeEditor(props: {
       >
         <Users size={15} className="shrink-0" strokeWidth={2.2} />
         <span className="min-w-0 flex-1">
-          正在协作 · {status?.label ?? "连接中"}
-          {online.length > 0 ? ` · ${online.length} 人` : ""}
+          {context.t("status.collaborating", {
+            state: status ? sessionStatusText(status, context) : context.t("status.connecting"),
+          })}
+          {online.length > 0
+            ? ` · ${context.t("status.people", { count: online.length, amount: online.length.toLocaleString(context.locale) })}`
+            : ""}
         </span>
         {online.length > 0 ? <AvatarStack members={online} /> : null}
         <ChevronRight size={14} className="shrink-0 opacity-70" />
@@ -161,7 +167,11 @@ export function CollaborativeEditor(props: {
         <div className="bg-tag-4-soft text-warn mt-2.5 flex items-center gap-2.5 rounded-[14px] px-3.5 py-2.5 text-[12.5px] font-semibold">
           <WifiOff size={15} className="shrink-0" />
           <span className="flex-1">
-            {status?.label ?? "网络已断开"} · 改动保留在本机，恢复后自动同步
+            {context.t("status.offlineHint", {
+              state: status
+                ? sessionStatusText(status, context)
+                : context.t("status.networkDisconnected"),
+            })}
           </span>
         </div>
       ) : null}
@@ -169,7 +179,11 @@ export function CollaborativeEditor(props: {
       {viewReadonly && !offline ? (
         <div className="bg-tag-4-soft text-warn mt-2.5 flex items-center gap-2.5 rounded-[14px] px-3.5 py-2.5 text-[12.5px] font-semibold">
           <StatusDot tone={status?.tone ?? "idle"} />
-          <span className="flex-1">{status?.label ?? "协作暂不可用"} · 正文暂为只读</span>
+          <span className="flex-1">
+            {context.t("status.readonlyHint", {
+              state: status ? sessionStatusText(status, context) : context.t("status.error"),
+            })}
+          </span>
         </div>
       ) : null}
     </>

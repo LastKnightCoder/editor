@@ -1,3 +1,4 @@
+import { useCollaborationUiI18n, sessionStatusText } from "./i18n";
 /** 状态点 + 文案（瞬时「正在同步」延迟揭示，打字时不闪） */
 
 import type { CollaborationSession } from "@tau/collaboration";
@@ -15,6 +16,7 @@ export function SessionStatus({
   suffix?: string;
   className?: string;
 }) {
+  const context = useCollaborationUiI18n();
   const status = useStableSessionStatus(session) ?? sessionStatus(session);
   return (
     <span
@@ -26,7 +28,7 @@ export function SessionStatus({
     >
       <StatusDot tone={status.tone} />
       <span className="truncate">
-        {status.label}
+        {sessionStatusText(status, context)}
         {suffix && status.tone === "live" ? ` · ${suffix}` : ""}
       </span>
     </span>
