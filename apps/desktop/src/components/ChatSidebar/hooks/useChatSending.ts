@@ -1,3 +1,5 @@
+import { sidebarT, sidebarNumber } from "../sidebar.binding";
+import { SidebarError, sidebarErrorText } from "../sidebar-errors";
 import { currentWhiteboardToolScope } from "@/services/whiteboard-documents/agent-scope";
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import { useMemoizedFn } from "ahooks";
@@ -73,7 +75,7 @@ interface ChatSendingOptions {
   conversationKeyRef: RefObject<string>;
   sendLoading: boolean;
   setSessionPending: (key: string, pending: boolean) => void;
-  setChatError: Dispatch<SetStateAction<string | null>>;
+  setChatError: Dispatch<SetStateAction<string | SidebarError | null>>;
   setChatRetryStatus: Dispatch<SetStateAction<{ attempt: number; maxRetries: number } | null>>;
   setUpdateCounter: Dispatch<SetStateAction<number>>;
   editSessionHistory: (edit: PiSessionEdit) => Promise<ChatMessage | null>;
@@ -156,7 +158,7 @@ export function useChatSending({
       }
     ) => {
       if (!chatProviderConfig || !chatModelConfig) {
-        message.error("请先在设置中配置对话功能的大模型");
+        message.error(sidebarT("config.required"));
         return false;
       }
       const capturedScope =
@@ -262,6 +264,7 @@ export function useChatSending({
           : undefined;
         const submitPrompt = () => piSessionPrompt(sessionId, promptText, images, display, retry);
         let promptOutcome = await submitPrompt();
+        let requestTimedOut = false;
         // 停止后立即发送（pi 仍在收尾）会被拒：等该会话沉淀事件后自动提交，15s 兜底放弃
         if (!promptOutcome.ok && /already processing|正在处理/i.test(promptOutcome.error ?? "")) {
           promptOutcome = await new Promise<typeof promptOutcome>(resolve => {
@@ -280,12 +283,17 @@ export function useChatSending({
             });
             const giveUpTimer = setTimeout(() => {
               cleanup();
+              requestTimedOut = true;
               resolve({ ok: false, error: "会话仍在处理中，请稍后重试" });
             }, 15000);
           });
         }
         if (!promptOutcome.ok) {
-          setChatError(promptOutcome.error ?? "发送失败");
+          setChatError(
+            requestTimedOut
+              ? new SidebarError("error.busy", "会话仍在处理中，请稍后重试")
+              : (promptOutcome.error ?? new SidebarError("error.send", "发送失败"))
+          );
           clearPending();
           const shouldRestoreInput = shouldRestoreInputAfterSendError(
             new Error(promptOutcome.error ?? "")
@@ -302,7 +310,7 @@ export function useChatSending({
         // 流式完成由 agent_settled 事件驱动（onSettled：持久化 + 清 pending）
         return true;
       } catch (error) {
-        const errorMessage = getErrorMessage(error);
+        const errorMessage = error instanceof SidebarError ? error : getErrorMessage(error);
         setChatError(errorMessage);
         clearPending();
         perf.end();
@@ -344,7 +352,7 @@ export function useChatSending({
       }
 
       if (!userContent || userContent.length === 0) {
-        message.warning("请输入内容");
+        message.warning(sidebarT("input.required"));
         return false;
       }
 
@@ -355,7 +363,7 @@ export function useChatSending({
         return true;
       });
       if (!hasMeaningfulContent) {
-        message.warning("请输入内容");
+        message.warning(sidebarT("input.required"));
         return false;
       }
 
@@ -402,7 +410,7 @@ export function useChatSending({
 
       if (editingDraft && !editedEntryId) {
         setEditingDraft(null);
-        message.warning("这条消息还没有保存下来，暂时不能编辑");
+        message.warning(sidebarT("edit.unsaved"));
         return false;
       }
 
@@ -423,13 +431,15 @@ export function useChatSending({
   const compactCurrentChat = async (key: string): Promise<boolean> => {
     const chat = actualChatRef.current;
     if (!chat.sessionFile || !chat.messages.length) {
-      message.info("当前对话还没有可压缩的消息");
+      message.info(sidebarT("compact.empty"));
       return false;
     }
     const controller = new AbortController();
     manualCompactions.set(key, controller);
     setSessionPending(key, true);
-    const progress = message.loading("正在压缩对话上下文…");
+    const progress = message.loading(sidebarT("compact.loading"), {
+      getMessage: () => sidebarT("compact.loading"),
+    });
     try {
       let sessionId = piChatSessionManager.resolveSessionId(chatScope, chat.id, chat.databaseName);
       const run = async (id: string) => {
@@ -456,22 +466,25 @@ export function useChatSending({
         ).sessionId;
         result = await run(sessionId);
       }
-      if (!result.ok) throw new Error(result.error ?? "压缩失败");
+      if (!result.ok)
+        throw result.error !== undefined && result.error !== null
+          ? new Error(result.error)
+          : new SidebarError("error.compact", "压缩失败");
       if (result.unchanged) {
-        message.info("当前对话没有需要压缩的内容");
+        message.info(sidebarT("compact.unchanged"));
         return true;
       }
       message.success(
         result.estimatedTokensAfter === undefined
-          ? "对话上下文已压缩"
-          : `对话上下文已压缩，约 ${result.estimatedTokensAfter.toLocaleString()} tokens`
+          ? sidebarT("compact.done")
+          : sidebarT("compact.tokens", { tokens: sidebarNumber(result.estimatedTokensAfter) })
       );
       return true;
     } catch (error) {
       const reason = getErrorMessage(error);
-      if (controller.signal.aborted) message.info("已停止压缩");
-      else if (reason.includes("already processing")) message.info("请等当前回答结束后再压缩");
-      else message.error(reason);
+      if (controller.signal.aborted) message.info(sidebarT("compact.stopped"));
+      else if (reason.includes("already processing")) message.info(sidebarT("compact.waitAnswer"));
+      else message.error(sidebarErrorText(error));
       return false;
     } finally {
       message.dismiss(progress);
@@ -491,7 +504,7 @@ export function useChatSending({
           piChatRuntime.isStreaming(conversationKey) ||
           manualCompactions.has(conversationKey)
         ) {
-          message.info("请等当前操作结束后再压缩");
+          message.info(sidebarT("compact.waitOperation"));
           return false;
         }
         return compactCurrentChat(conversationKey);

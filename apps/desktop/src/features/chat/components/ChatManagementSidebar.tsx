@@ -1,3 +1,5 @@
+import { useSidebarI18n } from "@/components/ChatSidebar/sidebar.i18n";
+import { sidebarNumber } from "@/components/ChatSidebar/sidebar.binding";
 import { memo, useState, type ReactNode } from "react";
 import { useShallow } from "zustand/react/shallow";
 import {
@@ -18,7 +20,6 @@ import {
   Trash2,
 } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
-import dayjs from "dayjs";
 import { getChatDatabase } from "@/services/chatDatabase";
 import {
   Button,
@@ -76,6 +77,7 @@ type GroupDialogState = {
  */
 const ChatManagementSidebar = memo(
   ({ selectedChatId, onChatSelect }: ChatManagementSidebarProps) => {
+    const { t, locale } = useSidebarI18n();
     const chats = useChatSessionStore(selectMainRows);
     const groups = useChatSessionStore(state => state.groups);
     const {
@@ -154,7 +156,7 @@ const ChatManagementSidebar = memo(
       if (!groupDialog) return;
       const name = groupName.trim();
       if (!name) {
-        toast.warning("请输入分组名称");
+        toast.warning(t("group.required"));
         return;
       }
       try {
@@ -166,7 +168,7 @@ const ChatManagementSidebar = memo(
         closeGroupDialog();
       } catch (error) {
         const err = error as Error;
-        toast.error(err.message || "操作失败");
+        toast.error(err.message || t("group.actionFailed"));
       }
     });
 
@@ -176,7 +178,7 @@ const ChatManagementSidebar = memo(
         await deleteChatGroup(pendingDeleteGroup);
       } catch (error) {
         const err = error as Error;
-        toast.error(err.message || "删除失败");
+        toast.error(err.message || t("group.deleteFailed"));
       }
     });
 
@@ -195,7 +197,7 @@ const ChatManagementSidebar = memo(
         piChatRuntime.disposeConversation(key);
         await useChatSessionStore.getState().deleteChat(pendingDeleteChat, databaseName);
       } catch (error) {
-        toast.error("删除失败");
+        toast.error(t("group.deleteFailed"));
       }
     });
 
@@ -203,7 +205,7 @@ const ChatManagementSidebar = memo(
       try {
         await archiveChatMessage(chatId, archived);
       } catch (error) {
-        toast.error("操作失败");
+        toast.error(t("group.actionFailed"));
       }
     });
 
@@ -215,7 +217,7 @@ const ChatManagementSidebar = memo(
           await pinChatMessage(chatId);
         }
       } catch (error) {
-        toast.error(pinned ? "取消置顶失败" : "置顶失败");
+        toast.error(pinned ? t("unpin.failed") : t("pin.failed"));
       }
     });
 
@@ -227,7 +229,7 @@ const ChatManagementSidebar = memo(
         try {
           await moveChatToGroup(chatId, targetGroupId);
         } catch (error) {
-          toast.error("移动失败");
+          toast.error(t("group.moveFailed"));
         }
       }
     );
@@ -237,13 +239,13 @@ const ChatManagementSidebar = memo(
     const renderGroupMenuItems = (groupId: number) => (
       <>
         <Menu.Item icon={<MessageSquarePlus {...ICON} />} onSelect={() => createChatIn(groupId)}>
-          添加对话
+          {t("group.addChat")}
         </Menu.Item>
         <Menu.Item icon={<FolderPlus {...ICON} />} onSelect={() => handleCreateGroup(groupId)}>
-          添加子分组
+          {t("group.addChild")}
         </Menu.Item>
         <Menu.Item icon={<Pencil {...ICON} />} onSelect={() => handleEditGroup(groupId)}>
-          重命名
+          {t("group.rename")}
         </Menu.Item>
         <Menu.Separator />
         <Menu.Item
@@ -251,7 +253,7 @@ const ChatManagementSidebar = memo(
           icon={<Trash2 {...ICON} />}
           onSelect={() => setPendingDeleteGroup(groupId)}
         >
-          删除分组
+          {t("group.delete")}
         </Menu.Item>
       </>
     );
@@ -292,12 +294,14 @@ const ChatManagementSidebar = memo(
             icon={isPinned ? <PinOff {...ICON} /> : <Pin {...ICON} />}
             onSelect={() => handleTogglePin(chat.id, isPinned)}
           >
-            {isPinned ? "取消置顶" : "置顶"}
+            {isPinned ? t("unpin.action") : t("pin.action")}
           </Menu.Item>
           {!isArchived &&
             (groups.length > 0 ? (
-              <Menu.Submenu icon={<FolderInput {...ICON} />} label="移动至分组">
-                <Menu.Item onSelect={() => handleMoveToGroup(chat.id, null)}>未分组</Menu.Item>
+              <Menu.Submenu icon={<FolderInput {...ICON} />} label={t("group.moveTo")}>
+                <Menu.Item onSelect={() => handleMoveToGroup(chat.id, null)}>
+                  {t("group.ungrouped")}
+                </Menu.Item>
                 <Menu.Separator />
                 {renderMoveTargets(null, chat.id)}
               </Menu.Submenu>
@@ -306,7 +310,7 @@ const ChatManagementSidebar = memo(
                 icon={<FolderInput {...ICON} />}
                 onSelect={() => handleMoveToGroup(chat.id, null)}
               >
-                移到未分组
+                {t("group.moveUngrouped")}
               </Menu.Item>
             ))}
           {!isArchived && (
@@ -314,7 +318,7 @@ const ChatManagementSidebar = memo(
               icon={<Archive {...ICON} />}
               onSelect={() => handleArchiveChat(chat.id, true)}
             >
-              归档
+              {t("chat.archive")}
             </Menu.Item>
           )}
           {isArchived && (
@@ -322,12 +326,12 @@ const ChatManagementSidebar = memo(
               icon={<ArchiveRestore {...ICON} />}
               onSelect={() => handleArchiveChat(chat.id, false)}
             >
-              取消归档
+              {t("chat.unarchive")}
             </Menu.Item>
           )}
           <Menu.Separator />
           <Menu.Item danger icon={<Trash2 {...ICON} />} onSelect={() => askDeleteChat(chat.id)}>
-            删除
+            {t("action.delete")}
           </Menu.Item>
         </>
       );
@@ -382,7 +386,7 @@ const ChatManagementSidebar = memo(
       try {
         await moveChatToGroup(draggedChatId, targetGroupId);
       } catch (error) {
-        toast.error("移动失败");
+        toast.error(t("group.moveFailed"));
       } finally {
         setDraggedChatId(null);
         setDragOverTarget(null);
@@ -436,14 +440,20 @@ const ChatManagementSidebar = memo(
               />
             )}
             <MessageSquare {...ICON} className="text-ink-3 shrink-0" />
-            <span className="min-w-0 flex-1 truncate">{chat.title || "新对话"}</span>
+            <span className="min-w-0 flex-1 truncate">{chat.title || t("chat.new")}</span>
             <span className="text-tau-sm text-ink-3 shrink-0 font-normal tabular-nums">
-              {dayjs(chat.updateTime).format("MM-DD HH:mm")}
+              {new Intl.DateTimeFormat(locale, {
+                month: "2-digit",
+                day: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: false,
+              }).format(chat.updateTime)}
             </span>
             {/* 置顶槽：已置顶常显，未置顶悬停淡入 */}
-            <Tooltip content={isPinned ? "取消置顶" : "置顶"}>
+            <Tooltip content={isPinned ? t("unpin.action") : t("pin.action")}>
               <IconButton
-                aria-label={isPinned ? "取消置顶" : "置顶"}
+                aria-label={isPinned ? t("unpin.action") : t("pin.action")}
                 className={cn(hoverSlot, isPinned && "text-ink-2 opacity-100")}
                 onClick={e => {
                   e.stopPropagation();
@@ -457,7 +467,7 @@ const ChatManagementSidebar = memo(
               align="end"
               trigger={
                 <IconButton
-                  aria-label="更多操作"
+                  aria-label={t("action.more")}
                   className={hoverSlot}
                   onClick={e => e.stopPropagation()}
                 >
@@ -522,7 +532,7 @@ const ChatManagementSidebar = memo(
         />
         {icon}
         <span className="min-w-0 flex-1 truncate font-medium">{label}</span>
-        <span className="shrink-0 tabular-nums">{count}</span>
+        <span className="shrink-0 tabular-nums">{sidebarNumber(count)}</span>
         {actions ?? <span className="size-6 shrink-0" />}
       </div>
     );
@@ -561,7 +571,7 @@ const ChatManagementSidebar = memo(
                     align="end"
                     trigger={
                       <IconButton
-                        aria-label="分组操作"
+                        aria-label={t("group.actions")}
                         className={hoverSlot}
                         onClick={e => e.stopPropagation()}
                       >
@@ -598,10 +608,10 @@ const ChatManagementSidebar = memo(
       <div className="flex h-full min-h-0 flex-col">
         <div className="flex shrink-0 items-center gap-1 px-1 pt-1 pb-2">
           <Button size="sm" variant="ghost" icon={SquarePen} onClick={() => createChatIn(null)}>
-            新建对话
+            {t("chat.create")}
           </Button>
           <Button size="sm" variant="ghost" icon={FolderPlus} onClick={() => handleCreateGroup()}>
-            新建分组
+            {t("group.new")}
           </Button>
         </div>
 
@@ -615,7 +625,9 @@ const ChatManagementSidebar = memo(
           onDragLeave={handleDragLeave}
           onDrop={e => handleDrop(e, null)}
         >
-          {isEmpty && <p className="text-tau-sm text-ink-3 px-2 py-6 text-center">还没有对话</p>}
+          {isEmpty && (
+            <p className="text-tau-sm text-ink-3 px-2 py-6 text-center">{t("chat.none")}</p>
+          )}
 
           {rootGroups.length > 0 && (
             <div className="flex flex-col gap-px">
@@ -627,7 +639,7 @@ const ChatManagementSidebar = memo(
             <div className={cn("flex flex-col gap-px", rootGroups.length > 0 && "mt-3")}>
               {rootGroups.length > 0 && (
                 <div className="text-tau-tiny text-ink-3 flex h-6 items-center px-2 font-medium">
-                  未分组
+                  {t("group.ungrouped")}
                 </div>
               )}
               {ungroupedChats.map(chat => renderChatItem(chat, false, 0))}
@@ -637,7 +649,7 @@ const ChatManagementSidebar = memo(
           {archivedChats.length > 0 && (
             <div className="mt-3 flex flex-col gap-px">
               {renderSectionHeader({
-                label: "已归档",
+                label: t("chat.archived"),
                 icon: <Archive size={13} strokeWidth={1.75} className="shrink-0" />,
                 count: archivedChats.length,
                 expanded: expandedArchived,
@@ -656,19 +668,19 @@ const ChatManagementSidebar = memo(
           }}
           title={
             groupDialog?.mode === "edit"
-              ? "重命名分组"
+              ? t("group.renameTitle")
               : groupDialog?.parentId != null
-                ? "新建子分组"
-                : "新建分组"
+                ? t("group.newChild")
+                : t("group.new")
           }
           size="sm"
           footer={
             <>
               <Button variant="secondary" onClick={closeGroupDialog}>
-                取消
+                {t("action.cancel")}
               </Button>
               <Button variant="primary" onClick={() => void handleGroupDialogOk()}>
-                确定
+                {t("action.confirm")}
               </Button>
             </>
           }
@@ -676,7 +688,7 @@ const ChatManagementSidebar = memo(
           <DialogBody>
             <Input
               data-autofocus
-              placeholder="请输入分组名称"
+              placeholder={t("group.required")}
               value={groupName}
               onChange={e => setGroupName(e.target.value)}
               onKeyDown={e => {
@@ -694,9 +706,9 @@ const ChatManagementSidebar = memo(
           onOpenChange={open => {
             if (!open) setPendingDeleteGroup(null);
           }}
-          title="删除分组"
-          description="确定要删除这个分组吗？分组下的对话将移到未分组。"
-          confirmText="删除"
+          title={t("group.delete")}
+          description={t("group.deleteHint")}
+          confirmText={t("action.delete")}
           danger
           onConfirm={confirmDeleteGroup}
         />
@@ -706,9 +718,9 @@ const ChatManagementSidebar = memo(
           onOpenChange={open => {
             if (!open) setPendingDeleteChat(null);
           }}
-          title="删除对话"
-          description="对话里的所有版本会一起删除，此操作不可恢复。"
-          confirmText="删除"
+          title={t("chat.delete")}
+          description={t("chat.deleteHint")}
+          confirmText={t("action.delete")}
           danger
           onConfirm={confirmDeleteChat}
         />

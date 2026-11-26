@@ -1,3 +1,5 @@
+import { useSidebarI18n } from "@/components/ChatSidebar/sidebar.i18n";
+import { sidebarNumber, type sidebarT } from "@/components/ChatSidebar/sidebar.binding";
 /**
  * 树谱面板：一个对话里全部分支的全貌。节点只画用户消息（回答折叠），没有分叉的直链压成一行，
  * 当前路径高亮，每个分支末端显示进度（从分叉处起问了几轮、最后活动时间）。
@@ -18,15 +20,29 @@ interface ConversationTreePanelProps {
   onSelect: (row: ConversationTreeRow) => void;
 }
 
-const relativeTime = (time: number) => {
+const relativeTime = (time: number, locale: string, t: typeof sidebarT) => {
   if (!time) return "";
+  const number = (value: number) => new Intl.NumberFormat(locale).format(value);
   const now = dayjs();
   const at = dayjs(time);
-  if (now.diff(at, "minute") < 1) return "刚刚";
-  if (now.diff(at, "hour") < 1) return `${now.diff(at, "minute")} 分钟前`;
-  if (now.isSame(at, "day")) return at.format("HH:mm");
-  if (now.diff(at, "day") < 7) return `${now.diff(at, "day")} 天前`;
-  return at.format("MM-DD");
+  if (now.diff(at, "minute") < 1) return t("date.now");
+  if (now.diff(at, "hour") < 1)
+    return t("date.minutes", {
+      count: now.diff(at, "minute"),
+      number: number(now.diff(at, "minute")),
+    });
+  if (now.isSame(at, "day"))
+    return new Intl.DateTimeFormat(locale, {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(at.toDate());
+  if (now.diff(at, "day") < 7)
+    return t("date.days", {
+      count: now.diff(at, "day"),
+      number: number(now.diff(at, "day")),
+    });
+  return new Intl.DateTimeFormat(locale, { month: "2-digit", day: "2-digit" }).format(at.toDate());
 };
 
 export const ConversationTreePanel = memo(function ConversationTreePanel({
@@ -35,17 +51,24 @@ export const ConversationTreePanel = memo(function ConversationTreePanel({
   disabled,
   onSelect,
 }: ConversationTreePanelProps) {
+  const { t, locale } = useSidebarI18n();
   return (
     // 宽度由外层浮层卡片决定（卡片带内边距与 max-w，这里写死宽度会溢出卡片），这里撑满
     <div className="flex max-h-[420px] w-full min-w-0 flex-col">
       <div className="text-tau-meta text-ink-3 flex h-8 shrink-0 items-center justify-between px-2.5">
-        <span className="text-ink-2 font-medium">对话分支</span>
-        <span className="tabular-nums">{branchCount} 条分支</span>
+        <span className="text-ink-2 font-medium">{t("branch.title")}</span>
+        <span className="tabular-nums">
+          {t("branch.count", { count: branchCount, number: sidebarNumber(branchCount) })}
+        </span>
       </div>
-      <ul role="tree" aria-label="对话分支" className="min-h-0 flex-1 overflow-y-auto pb-1">
+      <ul
+        role="tree"
+        aria-label={t("branch.title")}
+        className="min-h-0 flex-1 overflow-y-auto pb-1"
+      >
         {rows.map(row => {
           const current = row.onPath && row.isLeaf;
-          const label = row.node.text || "（空消息）";
+          const label = row.node.text || t("branch.empty");
           return (
             <li
               key={row.node.id}
@@ -83,12 +106,12 @@ export const ConversationTreePanel = memo(function ConversationTreePanel({
                 </span>
                 {row.length > 1 && (
                   <span className="text-tau-tiny text-ink-3 shrink-0 tabular-nums">
-                    +{row.length - 1}
+                    +{sidebarNumber(row.length - 1)}
                   </span>
                 )}
                 {row.isLeaf && (
                   <span className="text-tau-tiny text-ink-3 shrink-0 tabular-nums">
-                    {current ? "当前" : relativeTime(row.lastActive)}
+                    {current ? t("branch.current") : relativeTime(row.lastActive, locale, t)}
                   </span>
                 )}
               </button>
@@ -97,7 +120,7 @@ export const ConversationTreePanel = memo(function ConversationTreePanel({
         })}
       </ul>
       <p className="text-tau-tiny text-ink-3 border-line-1 shrink-0 border-t px-2.5 py-1.5">
-        点一行切到那条分支。编辑、重新生成或「从这里创建分支」会保留新版本；未产出结果的重试不产生分支。
+        {t("branch.hint")}
       </p>
     </div>
   );

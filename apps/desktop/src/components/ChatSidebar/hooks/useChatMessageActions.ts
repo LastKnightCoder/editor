@@ -1,3 +1,4 @@
+import { sidebarT } from "../sidebar.binding";
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import { useMemoizedFn } from "ahooks";
 import { toast } from "@tau/ui";
@@ -85,17 +86,17 @@ export function useChatMessageActions({
   // 删除消息：pi 原生 context_edit 省略（只删那一条；一条回答要把它全部 entry 一起省略）
   const handleDeleteMessage = useMemoizedFn(async (messageIndex: number) => {
     if (sendLoading) {
-      message.warning("回答进行中，请先停止再删除消息");
+      message.warning(sidebarT("delete.busy"));
       return;
     }
     const target = visibleMessagesOf(actualChatRef.current)[messageIndex];
     const entryIds = target?.piEntryIds ?? [];
     if (entryIds.length === 0) {
-      message.warning("这条消息还没有保存下来，暂时不能删除");
+      message.warning(sidebarT("delete.unsaved"));
       return;
     }
     const edited = await editSessionHistory({ kind: "omit", entryIds });
-    if (edited) message.success("消息已删除");
+    if (edited) message.success(sidebarT("delete.done"));
   });
 
   // 未产出有效结果的末尾问题原位重试，其余重新生成保留旧版本。
@@ -103,7 +104,7 @@ export function useChatMessageActions({
     if (sendLoading) return;
     const targetMessage = visibleMessagesOf(actualChatRef.current)[messageIndex];
     if (!targetMessage || targetMessage.role !== Role.User) {
-      message.warning("只能重新生成用户消息");
+      message.warning(sidebarT("regenerate.userOnly"));
       return;
     }
     const entryId = targetMessage.piEntryIds?.[0];
@@ -115,7 +116,7 @@ export function useChatMessageActions({
       return;
     }
     if (!entryId) {
-      message.warning("这条消息还没有保存下来，暂时不能重新生成");
+      message.warning(sidebarT("regenerate.unsaved"));
       return;
     }
     await processMessageSending(targetMessage as RequestMessage, {
@@ -131,7 +132,7 @@ export function useChatMessageActions({
 
     const targetMessage = visibleMessages[messageIndex];
     if (!targetMessage || targetMessage.role !== Role.User) {
-      message.warning("只能编辑用户消息");
+      message.warning(sidebarT("edit.userOnly"));
       return;
     }
 
@@ -155,26 +156,26 @@ export function useChatMessageActions({
   const handleCreateBranch = useMemoizedFn(async (messageIndex: number) => {
     const currentChat = actualChatRef.current;
     if (isDraftChat(currentChat)) {
-      message.warning("请先发送一条消息再建分支");
+      message.warning(sidebarT("branch.firstMessage"));
       return;
     }
     if (sendLoading) {
-      message.warning("回答进行中，请先停止再建分支");
+      message.warning(sidebarT("branch.busy"));
       return;
     }
     const target = visibleMessagesOf(currentChat)[messageIndex];
     const entryId = target?.piEntryIds?.at(-1);
     if (!entryId) {
-      message.warning("这条消息还没有保存下来，暂时不能建分支");
+      message.warning(sidebarT("branch.unsaved"));
       return;
     }
     if (messageIndex === visibleMessagesOf(currentChat).length - 1) {
-      message.info("已经是最新的回答，直接发送消息即可继续");
+      message.info(sidebarT("branch.latest"));
       return;
     }
     const edited = await editSessionHistory({ kind: "fork", entryId });
     if (edited) {
-      message.success("已从这里分叉，发送的消息会成为新分支");
+      message.success(sidebarT("branch.done"));
       editTextRef.current?.focusEnd();
     }
   });
@@ -182,7 +183,7 @@ export function useChatMessageActions({
   /** 切到这条用户消息的另一个版本：后面的整段对话一起换成那个版本的 */
   const handleSwitchVersion = useMemoizedFn(async (messageIndex: number, versionIndex: number) => {
     if (sendLoading) {
-      message.warning("回答进行中，请先停止再切换版本");
+      message.warning(sidebarT("version.busy"));
       return;
     }
     const target = visibleMessagesOf(actualChatRef.current)[messageIndex] as

@@ -1,3 +1,4 @@
+import { useSidebarI18n } from "@/components/ChatSidebar/sidebar.i18n";
 import { useShallow } from "zustand/react/shallow";
 import { useState, memo, lazy, Suspense, useRef, type ReactNode } from "react";
 import { IconButton, Loading, toast } from "@tau/ui";
@@ -41,6 +42,7 @@ export interface RightChatPanelProps {
  */
 export const RightChatPanel = memo(
   ({ open, onOpenBlock, headerActions, onOpenLibrary }: RightChatPanelProps) => {
+    const { t } = useSidebarI18n();
     const { isDark } = useTheme();
     const message = toast;
     const editTitleRef = useRef<EditTextHandle>(null);
@@ -97,7 +99,7 @@ export const RightChatPanel = memo(
       try {
         await rename(currentChat.id, title);
       } catch (error) {
-        message.error("标题更新失败");
+        message.error(t("chat.renameFailed"));
         console.error(error);
       }
     });
@@ -137,7 +139,12 @@ export const RightChatPanel = memo(
                 onOpenLibrary={onOpenLibrary}
               />
             </div>
-            <IconButton title="新对话" aria-label="新对话" onClick={newChat} className="size-7">
+            <IconButton
+              title={t("chat.new")}
+              aria-label={t("chat.new")}
+              onClick={newChat}
+              className="size-7"
+            >
               <SquarePen size={15} strokeWidth={1.75} />
             </IconButton>
             {headerActions}

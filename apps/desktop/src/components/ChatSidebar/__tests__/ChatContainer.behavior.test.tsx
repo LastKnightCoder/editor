@@ -10,6 +10,8 @@
  * store 状态 / IPC 通道与载荷 / runtime 队列 / 对宿主的回调上。
  */
 import { act } from "react";
+import { toast } from "@tau/ui";
+import { desktopLocaleSource } from "@/app/i18n/runtime";
 import { PageProvider } from "@/page/PageProvider";
 import { registerPageMeta } from "@/page/core/pageMeta";
 import { ChatShortcuts } from "@/app/ChatShortcuts";
@@ -419,6 +421,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  act(() => desktopLocaleSource.setLocale("zh-CN"));
   act(() => root.unmount());
   host.remove();
   for (const key of usedSessionKeys) piChatRuntime.disposeConversation(key);
@@ -481,6 +484,50 @@ describe("发送流水线", () => {
     expect(await send(handle, "/compact")).toBe(false);
     expect(piChatRuntime.listQueue(chatSessionKey("main-chat", chat.id))).toEqual([]);
     expect(callsOf("pi-session:compact")).toHaveLength(1);
+  });
+
+  it("压缩进行中换语保留同一任务与常驻反馈，不重发压缩或prompt", async () => {
+    const chat = savedChat("compact-language", [
+      userMessage("原始问题"),
+      assistantMessage("原始回答"),
+    ]);
+    const { handle, Harness } = mountChat({ chat });
+    await act(async () => {
+      root.render(<Harness />);
+      await flushMicrotasks();
+    });
+    let finish!: (result: { ok: true; estimatedTokensAfter: number }) => void;
+    ipc.overrides.set(
+      "pi-session:compact",
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        })
+    );
+    let pending!: Promise<boolean>;
+    await act(async () => {
+      const currentHandle = handle.current;
+      if (!currentHandle) throw new Error("missing chat handle");
+      pending = currentHandle.sendUserMessage(text("/compact"));
+      await flushMicrotasks();
+    });
+    const loading = toast.items().find(item => item.type === "loading");
+    if (!loading?.getMessage) throw new Error("missing dynamic compaction feedback");
+    const initial = loading.getMessage();
+    for (const locale of ["en-US", "zh-TW"] as const) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(toast.items().find(item => item.id === loading.id)).toBe(loading);
+      expect(loading.getMessage()).not.toBe(initial);
+      expect(callsOf("pi-session:compact")).toHaveLength(1);
+      expect(callsOf("pi-session:create")).toHaveLength(1);
+      expect(promptPayloads()).toEqual([]);
+      expect(callsOf("pi-session:abort")).toEqual([]);
+    }
+    await act(async () => {
+      finish({ ok: true, estimatedTokensAfter: 50 });
+      expect(await pending).toBe(true);
+    });
+    expect(toast.items().find(item => item.id === loading.id)).toBeUndefined();
   });
 
   it("首轮发送乐观写入用户消息与助手占位，并把展示形态随 prompt 交给宿主", async () => {
@@ -575,6 +622,20 @@ describe("运行中排队与停止", () => {
     expect(coreShell.props.queuedMessageCount).toBe(1);
     const key = chatSessionKey("main-chat", "draft-q1");
     expect(piChatRuntime.queueSize(key)).toBe(1);
+    const queued = piChatRuntime.listQueue(key)[0];
+    const current = useChatSessionStore.getState().opened[chat.id];
+    act(() => handle.current?.setInputValue("未发送草稿"));
+    const inputState = inputShell.state;
+    for (const locale of ["en-US", "zh-TW"] as const) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(piChatRuntime.listQueue(key)[0]).toBe(queued);
+      expect(useChatSessionStore.getState().opened[chat.id]).toBe(current);
+      expect(inputShell.state).toBe(inputState);
+      expect(inputShell.state?.text).toBe("未发送草稿");
+      expect(promptPayloads().map(payload => payload.text)).toEqual(["第一条"]);
+      expect(callsOf("pi-session:create")).toHaveLength(1);
+      expect(callsOf("pi-session:abort")).toEqual([]);
+    }
 
     emitPiEvent(sessionId, { type: "agent_settled" });
     await settleAct();
@@ -630,6 +691,11 @@ describe("发送失败与恢复", () => {
     expect(await send(handle, "第一问")).toBe(true);
 
     expect(coreShell.props.error).toBe("网络异常");
+    for (const locale of ["en-US", "zh-TW"] as const) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(coreShell.props.error).toBe("网络异常");
+      expect(promptPayloads().map(payload => payload.text)).toEqual(["第一问"]);
+    }
     expect(sendLoadingValues.at(-1)).toBe(false);
     // 发送时清空输入，失败后非中止类错误要恢复草稿（setTimeout 100ms）
     expect(inputShell.state!.clears).toBeGreaterThanOrEqual(1);
@@ -639,6 +705,26 @@ describe("发送失败与恢复", () => {
     // 乐观写入的用户消息与占位不回滚：失败重试语义由用户显式触发
     const opened = useChatSessionStore.getState().opened["draft-e1"];
     expect(opened?.messages).toHaveLength(2);
+  });
+
+  it("自产发送失败按当前语言展示，换语不重发或更换草稿会话", async () => {
+    const chat = draftChat("draft-language-error");
+    const { handle, Harness } = mountChat({ chat });
+    await act(async () => {
+      root.render(<Harness />);
+      await flushMicrotasks();
+    });
+    ipc.overrides.set("pi-session:prompt", () => ({ ok: false }));
+    await send(handle, "原始问题");
+    const original = coreShell.props.error;
+    const opened = useChatSessionStore.getState().opened[chat.id];
+    for (const locale of ["en-US", "zh-TW"] as const) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(coreShell.props.error).not.toBe(original);
+      expect(useChatSessionStore.getState().opened[chat.id]).toBe(opened);
+      expect(promptPayloads().map(payload => payload.text)).toEqual(["原始问题"]);
+      expect(callsOf("pi-session:create")).toHaveLength(1);
+    }
   });
 
   it("宿主还在处理上一轮时，等 settled 事件后自动重提同一载荷", async () => {
@@ -691,6 +777,14 @@ describe("编辑重发", () => {
     act(() => {
       handle.current!.setInputValue("新问题");
     });
+    const editState = inputShell.state;
+    for (const locale of ["en-US", "zh-TW"] as const) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(inputShell.state).toBe(editState);
+      expect(inputShell.state?.text).toBe("新问题");
+      expect(promptPayloads()).toEqual([]);
+      expect(callsOf("pi-session:edit")).toEqual([]);
+    }
 
     // 回退投影：会话树上只剩被编辑的那条用户消息
     ipc.overrides.set("pi-session:edit", () => ({

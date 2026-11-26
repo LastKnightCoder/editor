@@ -1,3 +1,4 @@
+import { useSidebarI18n } from "@/components/ChatSidebar/sidebar.i18n";
 import {
   memo,
   lazy,
@@ -52,21 +53,22 @@ type ChatAreaProps = {
 };
 
 function EmptyHint() {
+  const { t } = useSidebarI18n();
   return (
     <div className="flex h-full flex-col items-center justify-center px-6 pb-10 text-center">
-      <h2 className="text-tau-title-lg text-ink-1 font-semibold">想聊点什么？</h2>
+      <h2 className="text-tau-title-lg text-ink-1 font-semibold">{t("empty.title")}</h2>
       <p className="text-tau-meta text-ink-3 mt-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
         <span className="inline-flex items-center gap-1">
           <CornerDownLeft size={13} strokeWidth={1.75} />
-          ⌘/Ctrl + Enter 发送
+          {t("empty.send")}
         </span>
         <span className="inline-flex items-center gap-1">
           <AtSign size={13} strokeWidth={1.75} />
-          引用卡片、文章、项目文档
+          {t("empty.reference")}
         </span>
         <span className="inline-flex items-center gap-1">
           <FileText size={13} strokeWidth={1.75} />
-          拖入内容作为上下文
+          {t("empty.drop")}
         </span>
       </p>
     </div>
@@ -94,6 +96,7 @@ const ChatArea = memo(
       },
       ref
     ) => {
+      const { t } = useSidebarI18n();
       const { isDark } = useTheme();
       const editTitleRef = useRef<EditTextHandle>(null);
       const chatContainerRef = useRef<ChatContainerHandle>(null);
@@ -113,7 +116,7 @@ const ChatArea = memo(
         try {
           await rename(currentChat.id, title);
         } catch (error) {
-          toast.error("标题更新失败");
+          toast.error(t("chat.renameFailed"));
           console.error(error);
         }
       });
@@ -168,7 +171,12 @@ const ChatArea = memo(
                   onOpenLibrary={onOpenLibrary}
                 />
               </div>
-              <IconButton title="新对话" aria-label="新对话" onClick={newChat} className="size-7">
+              <IconButton
+                title={t("chat.new")}
+                aria-label={t("chat.new")}
+                onClick={newChat}
+                className="size-7"
+              >
                 <SquarePen size={15} strokeWidth={1.75} />
               </IconButton>
               {headerActions}

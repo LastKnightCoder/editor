@@ -1,3 +1,5 @@
+import { createI18nRuntime, createLocaleStore } from "@tau/i18n";
+import { I18nRuntimeProvider } from "@tau/i18n/react";
 /**
  * Toast 时长策略单测 —— 载入中常驻只由 type 判断，duration 只约束落定后的停留：
  * resolve / reject 都必须让胶囊按 duration 自动离场（曾因 loading 的 duration 被兜成 0
@@ -237,4 +239,43 @@ describe("同 key 原位替换与深色外观", () => {
     expect(pill.parentElement!.className).toContain("z-[80]");
     expect(pill.parentElement!.className).not.toContain("z-[360]");
   });
+});
+
+it("展示getter换语保留载入提示身份与关闭时钟，落定后不再读取载入文案", async () => {
+  const source = createLocaleStore("zh-CN");
+  const runtime = createI18nRuntime({ localeSource: source });
+  act(() =>
+    root.render(
+      <I18nRuntimeProvider runtime={runtime}>
+        <ToastHost />
+      </I18nRuntimeProvider>
+    )
+  );
+  let id = 0;
+  act(() => {
+    id = toast.loading("literal snapshot", {
+      getMessage: () => source.getSnapshot(),
+      duration: 1000,
+    });
+  });
+  await flush();
+  const pill = document.querySelector('[role="status"]');
+  const revision = toast.items()[0].revision;
+  const timers = vi.getTimerCount();
+  for (const locale of ["zh-TW", "en-US"]) {
+    act(() => source.setLocale(locale));
+    expect(document.querySelector('[role="status"]')).toBe(pill);
+    expect(pill?.textContent).toBe(locale);
+    expect(toast.items()[0].id).toBe(id);
+    expect(toast.items()[0].message).toBe("literal snapshot");
+    expect(toast.items()[0].revision).toBe(revision);
+    expect(vi.getTimerCount()).toBe(timers);
+  }
+  act(() => toast.resolve(id, "settled payload"));
+  advance(600);
+  act(() => source.setLocale("zh-TW"));
+  expect(pill?.textContent).toBe("settled payload");
+  advance(400 + LEAVE_BUFFER);
+  expect(document.querySelector('[role="status"]')).toBeNull();
+  runtime.dispose();
 });

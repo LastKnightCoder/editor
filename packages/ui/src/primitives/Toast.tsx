@@ -1,3 +1,4 @@
+import { useUiI18n } from "../i18n";
 /**
  * Toast 基础件 —— 轻量内联胶囊。
  *
@@ -25,6 +26,8 @@ export type ToastType = "success" | "error" | "warning" | "info" | "loading";
 export type ToastPosition = "top-center" | "top-right" | "bottom-right" | "bottom-center";
 
 export interface ToastOptions {
+  /** 展示时读取；不会替换提示或重置自动关闭计时。 */
+  getMessage?: () => string;
   /** 同 key 的提示只保留一条：新提示原位替换并重新计时 */
   key?: string;
   /** 内联动作（如「撤销」），点击后 toast 关闭 */
@@ -47,6 +50,8 @@ export interface ToastItem {
   revision?: number;
   type: ToastType;
   message: string;
+  getMessage?: ToastOptions["getMessage"];
+  defaultMessage?: "done" | "failed";
   action?: ToastOptions["action"];
   position: ToastPosition;
   duration: number;
@@ -95,6 +100,8 @@ export const toast = {
       store.update(same.id, {
         type,
         message,
+        getMessage: opts.getMessage,
+        defaultMessage: undefined,
         action: opts.action,
         duration: opts.duration ?? defaults.duration,
         onClose: opts.onClose,
@@ -108,6 +115,7 @@ export const toast = {
       id,
       type,
       message,
+      getMessage: opts.getMessage,
       action: opts.action,
       position: opts.position ?? defaults.position,
       // loading 的常驻由 ToastPill 按 type 判断，不走 duration——落定（resolve / reject）
@@ -135,10 +143,20 @@ export const toast = {
     return this.show("loading", message, opts);
   },
   resolve(id: number, message?: string) {
-    useToastStore.getState().update(id, { type: "success", message: message ?? "完成" });
+    useToastStore.getState().update(id, {
+      type: "success",
+      message: message ?? "完成",
+      getMessage: undefined,
+      defaultMessage: message === undefined ? "done" : undefined,
+    });
   },
   reject(id: number, message?: string) {
-    useToastStore.getState().update(id, { type: "error", message: message ?? "失败" });
+    useToastStore.getState().update(id, {
+      type: "error",
+      message: message ?? "失败",
+      getMessage: undefined,
+      defaultMessage: message === undefined ? "failed" : undefined,
+    });
   },
   /** 当前在显示的提示（按出现顺序），供宿主读取状态与测试断言 */
   items(): readonly ToastItem[] {
@@ -171,6 +189,8 @@ export const toast = {
       err =>
         useToastStore.getState().update(id, {
           type: "error",
+          getMessage: undefined,
+          defaultMessage: messages.error === undefined ? "failed" : undefined,
           message:
             typeof messages.error === "function" ? messages.error(err) : (messages.error ?? "失败"),
         })
@@ -278,6 +298,12 @@ export function ToastPill({
   item: ToastItem;
   variant?: ToastVariant;
 }) {
+  const { t } = useUiI18n();
+  const message = item.getMessage
+    ? item.getMessage()
+    : item.defaultMessage
+      ? t(`toast.${item.defaultMessage}`)
+      : item.message;
   const remove = useToastStore(s => s.remove);
   const [entered, setEntered] = useState(false);
   const [leaving, setLeaving] = useState(false);
@@ -386,7 +412,7 @@ export function ToastPill({
         )}
       />
       {/* 竖直 padding 只在这一层（模板同款 7px），胶囊本身不叠 py——否则高度胀到 ~40px */}
-      <span className="min-w-0 truncate py-[7px]">{item.message}</span>
+      <span className="min-w-0 truncate py-[7px]">{message}</span>
       {action && (
         <button
           type="button"

@@ -17,5 +17,7 @@
   "heatmap.cell": "{{date}} · {{value}} 次操作",
   "heatmap.streak": "連續活躍 {{value}} 天",
   "tag.remove": "移除",
-  "input.clear": "清除"
+  "input.clear": "清除",
+  "toast.done": "完成",
+  "toast.failed": "失敗"
 }

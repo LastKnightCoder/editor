@@ -1,3 +1,5 @@
+import { useSidebarI18n } from "@/components/ChatSidebar/sidebar.i18n";
+import { sidebarNumber } from "@/components/ChatSidebar/sidebar.binding";
 import React, {
   useRef,
   useMemo,
@@ -50,7 +52,7 @@ import {
   SIDEBAR_ITEM_DND_TYPE,
   getChatContentDragReference,
 } from "@/utils/chat-content-dnd";
-import { getErrorMessage } from "@/utils/chat-retry";
+import { SidebarError, sidebarErrorText } from "./sidebar-errors";
 import { useConversationTree } from "@/features/chat/useConversationTree";
 import { ConversationTreePanel } from "@/features/chat/components/ConversationTreePanel";
 import { conversationEntryTail } from "@/features/chat/conversationTree";
@@ -155,6 +157,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     },
     ref
   ) => {
+    const { t } = useSidebarI18n();
     const message = toast;
 
     const {
@@ -445,7 +448,10 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           sessionFile: chat.sessionFile,
           databaseName: chat.databaseName,
         });
-        if (!result.ok) throw new Error(result.error || "读取对话分支失败");
+        if (!result.ok)
+          throw result.error
+            ? new Error(result.error)
+            : new SidebarError("error.tree", "读取对话分支失败");
         return conversationEntryTail(result.nodes ?? [], target);
       },
       scrollTo: index => {
@@ -455,10 +461,10 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       },
       onElsewhere: reason =>
         reason === "other-branch"
-          ? message.info("这条消息在对话的另一个分支，可在对话树里切换过去")
-          : message.warning("原消息已不在这次对话里"),
+          ? message.info(t("branch.elsewhere"))
+          : message.warning(t("branch.missing")),
       onLocated: onEntryLocated,
-      onError: error => message.error(getErrorMessage(error)),
+      onError: error => message.error(sidebarErrorText(error)),
     });
 
     if (!currentChat) {
@@ -549,11 +555,16 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                     trigger={
                       <button
                         type="button"
-                        title="查看对话分支"
+                        title={t("branch.view")}
                         className="hover:bg-hover aria-expanded:bg-hover text-tau-sm text-ink-2 ease-tau-out flex h-7 items-center gap-1.5 rounded-[8px] px-2 transition-colors duration-[160ms]"
                       >
                         <GitBranch size={13} strokeWidth={1.75} />
-                        <span className="tabular-nums">{conversationTree.branchCount} 条分支</span>
+                        <span className="tabular-nums">
+                          {t("branch.count", {
+                            count: conversationTree.branchCount,
+                            number: sidebarNumber(conversationTree.branchCount),
+                          })}
+                        </span>
                       </button>
                     }
                   >
@@ -574,7 +585,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
               isLoading={sendLoading}
               allowSendWhileLoading
               queuedMessageCount={queuedMessages.length}
-              error={chatError}
+              error={chatError instanceof SidebarError ? sidebarErrorText(chatError) : chatError}
               retryStatus={chatRetryStatus}
               forceScrollToBottomKey={
                 sendLoading ? `${actualChatRef.current.id}:${coreMessages.length}` : undefined
@@ -628,8 +639,10 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                               className="shrink-0 animate-spin"
                             />
                             <span>
-                              请求失败，正在重试（第 {retryStatus.attempt}/{retryStatus.maxRetries}{" "}
-                              次）…
+                              {t("status.retry", {
+                                attempt: sidebarNumber(retryStatus.attempt),
+                                max: sidebarNumber(retryStatus.maxRetries),
+                              })}
                             </span>
                           </>
                         ) : (
@@ -650,10 +663,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                   {column(
                     <>
                       {pendingSteers.length > 0 ? (
-                        <div className="mb-2 space-y-1.5" aria-label="插话消息">
-                          <div className="text-tau-meta text-ink-3 px-1">
-                            插话 · 当前步骤结束后送达
-                          </div>
+                        <div className="mb-2 space-y-1.5" aria-label={t("steer.label")}>
+                          <div className="text-tau-meta text-ink-3 px-1">{t("steer.status")}</div>
                           {pendingSteers.map(steer => (
                             <div
                               key={steer.id}
@@ -665,17 +676,17 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                                 className="text-ink-3 mt-0.5 shrink-0"
                               />
                               <div className="text-tau-sm text-ink-1 min-w-0 flex-1 break-words whitespace-pre-wrap">
-                                {queuedMessageText(steer.content) || "（附件消息）"}
+                                {queuedMessageText(steer.content) || t("queue.attachment")}
                               </div>
                             </div>
                           ))}
                         </div>
                       ) : null}
                       {queuedMessages.length > 0 ? (
-                        <div className="mb-2 space-y-1.5" aria-label="待发送消息">
+                        <div className="mb-2 space-y-1.5" aria-label={t("queue.label")}>
                           <div className="text-tau-meta text-ink-3 px-1">
-                            待发送 · {queuedMessages.length}
-                            {queuePaused ? "（已暂停，发送或删除）" : ""}
+                            {t("queue.status", { count: sidebarNumber(queuedMessages.length) })}
+                            {queuePaused ? t("queue.paused") : ""}
                           </div>
                           {queuedMessages.map((content, index) => (
                             <div
@@ -683,14 +694,14 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                               className="bg-accent-soft border-line-1 rounded-tau-md flex items-start gap-2 border px-3 py-2"
                             >
                               <div className="text-tau-sm text-ink-1 min-w-0 flex-1 break-words whitespace-pre-wrap">
-                                {queuedMessageText(content) || "（附件消息）"}
+                                {queuedMessageText(content) || t("queue.attachment")}
                               </div>
                               <div className="flex shrink-0 items-center gap-0.5">
                                 {canSteerNow ? (
                                   <button
                                     type="button"
-                                    aria-label="插话：当前步骤结束后送达"
-                                    title="插话：当前步骤结束后送达本轮"
+                                    aria-label={t("steer.action")}
+                                    title={t("steer.hint")}
                                     className="text-ink-3 hover:bg-hover rounded p-1"
                                     onClick={() => void steerQueuedMessage(index)}
                                   >
@@ -699,7 +710,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                                 ) : null}
                                 <button
                                   type="button"
-                                  aria-label="编辑待发送消息"
+                                  aria-label={t("queue.edit")}
                                   className="text-ink-3 hover:bg-hover rounded p-1"
                                   onClick={() => editQueuedMessage(index)}
                                 >
@@ -707,7 +718,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                                 </button>
                                 <button
                                   type="button"
-                                  aria-label="删除待发送消息"
+                                  aria-label={t("queue.delete")}
                                   className="text-ink-3 hover:bg-hover rounded p-1"
                                   onClick={() => removeQueuedMessage(index)}
                                 >
@@ -724,12 +735,10 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                         <div className="bg-accent-soft text-tau-sm -mb-2 flex items-center justify-between gap-3 rounded-t-[16px] px-3.5 pt-2 pb-4">
                           <div className="text-accent-text min-w-0">
                             <span className="font-semibold">
-                              {editingDraft ? "正在编辑消息" : "正在编辑生成的图片"}
+                              {editingDraft ? t("edit.message") : t("edit.image")}
                             </span>
                             <span className="text-ink-2 ml-2">
-                              {editingDraft
-                                ? "发送后生成这条消息的新版本，原来的内容可以切回去"
-                                : "输入调整要求，发送后基于选中的图片调用编辑工具"}
+                              {editingDraft ? t("edit.messageHint") : t("edit.imageHint")}
                             </span>
                           </div>
                           <button
@@ -739,7 +748,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                               editingDraft ? setEditingDraft(null) : setHiddenPromptContext(null)
                             }
                           >
-                            {editingDraft ? "取消编辑" : "退出编辑"}
+                            {editingDraft ? t("edit.cancel") : t("edit.exit")}
                           </button>
                         </div>
                       ) : null}
@@ -819,7 +828,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                       onDeleteMessage={handleDeleteMessage}
                       onRegenerateMessage={handleRegenerateMessage}
                       regenerateLabel={
-                        canRetryChatMessage(visibleMessages, messageIndex) ? "重试" : "重新生成"
+                        canRetryChatMessage(visibleMessages, messageIndex)
+                          ? t("action.retry")
+                          : t("action.regenerate")
                       }
                       onEditMessage={
                         !hideInput &&
@@ -851,7 +862,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                       >
                         <span aria-hidden className="bg-line-1 h-px flex-1" />
                         <GitBranch size={12} strokeWidth={1.75} aria-hidden />
-                        <span>从这里分出了多条分支 · 查看</span>
+                        <span>{t("branch.forkHint")}</span>
                         <span aria-hidden className="bg-line-1 h-px flex-1" />
                       </button>
                     )}

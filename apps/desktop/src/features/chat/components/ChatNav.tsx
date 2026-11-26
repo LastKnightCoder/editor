@@ -1,3 +1,5 @@
+import { useSidebarI18n } from "@/components/ChatSidebar/sidebar.i18n";
+import { sidebarNumber } from "@/components/ChatSidebar/sidebar.binding";
 /**
  * 侧栏「AI 对话」入口的子项：对话页在栈顶时于入口下方
  * 展开置顶与最近会话，末行「全部会话」打开全量管理弹窗。全局只有一条侧栏，页内不再放会话列。
@@ -21,6 +23,7 @@ export function ChatNavSessions({
   selectedId?: string;
   onSelect: (chatId: string) => void;
 }) {
+  const { t } = useSidebarI18n();
   // 目录行不带消息，流式期间不会变（只有收尾时更新消息数/时间）
   const chats = useChatSessionStore(selectMainRows);
   const openLibrary = useChatLibraryStore(s => s.setOpen);
@@ -34,21 +37,21 @@ export function ChatNavSessions({
     <SubItem
       key={chat.id}
       active={chat.id === currentId}
-      title={chat.title || "新对话"}
+      title={chat.title || t("chat.new")}
       icon={isPinned ? <Pin size={12} strokeWidth={1.75} className="text-ink-3 shrink-0" /> : null}
       onClick={() => onSelect(chat.id)}
     />
   );
 
   return (
-    <div className="mt-0.5 mb-1 space-y-px" role="group" aria-label="AI 会话">
+    <div className="mt-0.5 mb-1 space-y-px" role="group" aria-label={t("chat.groupLabel")}>
       {pinned.map(chat => item(chat, true))}
       {recent.map(chat => item(chat, false))}
       <SubItem
-        title="全部会话"
+        title={t("chat.all")}
         muted
         icon={<Library size={13} strokeWidth={1.75} className="shrink-0" />}
-        trailing={<span className="text-tau-tiny tabular-nums">{total}</span>}
+        trailing={<span className="text-tau-tiny tabular-nums">{sidebarNumber(total)}</span>}
         onClick={() => openLibrary(true)}
       />
     </div>

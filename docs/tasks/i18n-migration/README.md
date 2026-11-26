@@ -248,6 +248,8 @@ P6B共享状态：32路径工程完成，desktop模型/白板10例+remote既有8
 
 P7 SDK文档只读展示：18源码工程完成，原文档28例加真实Editor换语契约及中心11例共40例通过；两端类型及SDK纯类型检查、词典参数/静态检查通过。原synthetic中文正文退休，安全节点仅保留类型/原alt，不保留源URL；真实readonlyEditor/notice身份及解析结果跨语言不变，无img/video/audio/iframe/webview。旧固定UI文案断言移为语义媒体/HTML安全契约，原README/fence/链接过滤不变。
 
+P5桌面Sidebar/Toast联动：22源码及RootToast5工程完成，7文件36例与Toast12例通过；desktop/UI包类型、三语参数/复数、纯binding无DOM及范围静态/格式通过。真实队列/编辑/会话管理与压缩任务换语保留焦点/选区/草稿/在途创建、同toast身份和原payload；getMessage不重放或重计时，resolve/reject清除旧getter。chatError仅存raw string或本域带原message的SidebarError，原clear时机/AI标题prompt/默认名/排序不改；共享prepareChatSession固定配置诊断后续统一码化，不按中文猜。作者UI文档单独提交同步父指针。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

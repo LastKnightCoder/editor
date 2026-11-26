@@ -1,3 +1,4 @@
+import { sidebarT } from "../sidebar.binding";
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import { useMemoizedFn } from "ahooks";
 import { toast } from "@tau/ui";
@@ -5,7 +6,7 @@ import type { ChatMessage } from "@/types";
 import type { PiSessionEdit } from "@/commands/piSession";
 import { adoptTranscript } from "@/services/piChatRuntime";
 import useChatSessionStore from "@/stores/useChatSessionStore";
-import { getErrorMessage } from "@/utils/chat-retry";
+import { sidebarErrorText } from "../sidebar-errors";
 
 interface ChatHistoryEditingOptions {
   actualChatRef: RefObject<ChatMessage>;
@@ -27,14 +28,14 @@ export function useChatHistoryEditing({
     async (edit: PiSessionEdit): Promise<ChatMessage | null> => {
       const chat = actualChatRef.current;
       if (!chat.sessionFile) {
-        message.warning("对话还没有保存下来，暂时不能修改历史");
+        message.warning(sidebarT("history.unsaved"));
         return null;
       }
       let projection: Pick<ChatMessage, "messages" | "compaction">;
       try {
         projection = await useChatSessionStore.getState().editChat(chat.id, edit);
       } catch (error) {
-        message.error(getErrorMessage(error) || "修改对话历史失败");
+        message.error(sidebarErrorText(error, "error.history"));
         return null;
       }
       const next = {

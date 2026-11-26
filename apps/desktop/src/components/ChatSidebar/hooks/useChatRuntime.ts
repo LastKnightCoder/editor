@@ -3,6 +3,7 @@ import { useMemoizedFn } from "ahooks";
 import type { EditTextHandle } from "@tau/ui";
 import type { ChatMessage } from "@/types";
 import type { LLMModelSetting, LLMProviderSetting } from "@/types/pi-llm";
+import type { SidebarError } from "../sidebar-errors";
 import { Role, SUMMARY_TITLE_PROMPT } from "@/constants";
 import { piCompleteChat } from "@/services/piLLM";
 import { chatSessionKey } from "@/services/piChatSession";
@@ -69,7 +70,7 @@ export function useChatRuntime({
     setExternalSendLoading?.(sendLoading);
   }, [sendLoading, setExternalSendLoading]);
 
-  const [chatError, setChatError] = useState<string | null>(null);
+  const [chatError, setChatError] = useState<string | SidebarError | null>(null);
   const [chatRetryStatus, setChatRetryStatus] = useState<{
     attempt: number;
     maxRetries: number;

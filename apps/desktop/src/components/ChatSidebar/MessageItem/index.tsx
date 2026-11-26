@@ -1,3 +1,5 @@
+import { useSidebarI18n } from "@/components/ChatSidebar/sidebar.i18n";
+import { sidebarT } from "@/components/ChatSidebar/sidebar.binding";
 import React, { memo, useCallback, useMemo, useState, type ElementType } from "react";
 import type { ContentBlock, ToolCallExecutionState } from "@tau/shared";
 import { ConfirmDialog, toast } from "@tau/ui";
@@ -118,6 +120,7 @@ const MessageItem: React.FC<MessageItemProps> = memo(
     messageIndex,
     messageMeta,
   }) => {
+    const { t } = useSidebarI18n();
     const isUser = message.role === Role.User;
     const piVersions = isUser ? (message as RequestMessage).piVersions : undefined;
     const versions = piVersions
@@ -147,7 +150,7 @@ const MessageItem: React.FC<MessageItemProps> = memo(
         await showInFolder(targetPath);
       } catch (error) {
         console.error("打开文件失败:", error);
-        toast.error("无法打开文件");
+        toast.error(sidebarT("message.fileFailed"));
       }
     }, []);
 
@@ -196,8 +199,8 @@ const MessageItem: React.FC<MessageItemProps> = memo(
                     }}
                     trigger={
                       <IconButton
-                        aria-label="更多操作"
-                        title="更多操作"
+                        aria-label={t("action.more")}
+                        title={t("action.more")}
                         className="size-[26px] [&_svg]:size-3.5"
                       >
                         <MoreHorizontal strokeWidth={1.75} />
@@ -208,7 +211,7 @@ const MessageItem: React.FC<MessageItemProps> = memo(
               </>
             )
           : undefined,
-      [pluginSessionId, messageIds, isUser, getChatRef, messageIndex]
+      [pluginSessionId, messageIds, isUser, getChatRef, messageIndex, t]
     );
 
     const renderToolCall = useCallback(
@@ -277,9 +280,9 @@ const MessageItem: React.FC<MessageItemProps> = memo(
         <ConfirmDialog
           open={pendingDelete !== null}
           onOpenChange={open => !open && setPendingDelete(null)}
-          title="删除这条消息？"
-          description="删除后无法恢复。"
-          confirmText="删除"
+          title={t("message.deleteTitle")}
+          description={t("message.deleteHint")}
+          confirmText={t("action.delete")}
           danger
           size="sm"
           onConfirm={() => {

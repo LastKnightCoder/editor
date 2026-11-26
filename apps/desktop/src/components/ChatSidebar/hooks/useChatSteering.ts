@@ -1,3 +1,4 @@
+import { sidebarT } from "../sidebar.binding";
 import type { RefObject } from "react";
 import { useMemoizedFn } from "ahooks";
 import { toast } from "@tau/ui";
@@ -48,11 +49,11 @@ export function useChatSteering({
       const conversationKey = conversationKeyRef.current;
       // 编辑重发/图片编辑上下文都要重建会话，插进当前这轮语义就错了
       if (editingDraft || hiddenPromptContext) {
-        message.warning("正在编辑消息，插话请先取消编辑");
+        message.warning(sidebarT("steer.editing"));
         return "rejected";
       }
       if (isCompactCommand(content)) {
-        message.info("请等当前回答结束后再压缩");
+        message.info(sidebarT("compact.waitAnswer"));
         return "rejected";
       }
       if (!piChatRuntime.canSteer(conversationKey)) return "rejected";
@@ -60,7 +61,7 @@ export function useChatSteering({
       if (!sessionId) return "rejected";
       const { promptText, images } = await buildPromptPayload(content);
       if (!promptText.trim() && images.length === 0) {
-        message.warning("请输入内容");
+        message.warning(sidebarT("input.required"));
         return "rejected";
       }
       // 先登记再发 IPC：送达事件可能先于 IPC 返回到达
@@ -76,7 +77,7 @@ export function useChatSteering({
       // 失败退回待发送（settled 兜底可能已经退过，returnPendingSteerToQueue 幂等）
       const returned = piChatRuntime.returnPendingSteerToQueue(conversationKey, steerId);
       if (outcome.reason !== "not-streaming") {
-        message.error(outcome.error ?? "插话失败，已退回待发送");
+        message.error(outcome.error ?? sidebarT("steer.failed"));
       }
       return returned ? "requeued" : "rejected";
     }
@@ -90,7 +91,7 @@ export function useChatSteering({
     if (result === "rejected") return;
     editTextRef.current?.clear();
     if (result === "requeued") {
-      message.info("这轮回答已结束，已加入待发送");
+      message.info(sidebarT("steer.ended"));
     }
   });
 

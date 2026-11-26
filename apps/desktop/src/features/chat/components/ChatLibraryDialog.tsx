@@ -1,3 +1,4 @@
+import { useSidebarI18n } from "@/components/ChatSidebar/sidebar.i18n";
 /**
  * 「全部会话」弹窗：会话的全量管理——分组 / 子分组、置顶、拖拽排序、
  * 归档、移动、分支——一期原样放 legacy ChatManagementSidebar，选中即切换并关闭。
@@ -11,6 +12,7 @@ import { parseChatId } from "../model";
 import { useChatLibraryStore } from "../libraryStore";
 
 export function ChatLibraryDialog() {
+  const { t } = useSidebarI18n();
   const { navigator } = usePage();
   const { id } = usePageParams<{ id?: string }>();
   const open = useChatLibraryStore(s => s.open);
@@ -20,7 +22,7 @@ export function ChatLibraryDialog() {
     <Dialog
       open={open}
       onOpenChange={setOpen}
-      title="全部会话"
+      title={t("chat.all")}
       icon={<MessagesSquare size={16} strokeWidth={1.75} />}
       width={560}
       height={760}

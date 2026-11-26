@@ -19,5 +19,7 @@
   "heatmap.streak_other": "{{value}} active days in a row",
   "heatmap.streak_one": "{{value}} active day in a row",
   "tag.remove": "Remove",
-  "input.clear": "Clear"
+  "input.clear": "Clear",
+  "toast.done": "Done",
+  "toast.failed": "Failed"
 }
