@@ -11,7 +11,7 @@
 
 import type { RecurrenceType, TodoGroup } from "@/types";
 import { extractDateTime } from "@/utils/quickDateTime";
-import { DAY_MS, dateTimeWord, hm, recurrenceText, startOfDay } from "./model";
+import { DAY_MS, startOfDay } from "@/utils/dayWords";
 
 export interface QuickAddRecurrence {
   type: RecurrenceType;
@@ -108,34 +108,4 @@ export function parseQuickAdd(
     };
   }
   return { ...plain, title, type: "normal" };
-}
-
-/** 识别结果的一句话描述：「截止 · 明天 17:00」「安排 · 周六 10:00–12:00」「周期 · 每周一、四」 */
-export function describeQuickAdd(parsed: QuickAddResult, now: number): string {
-  if (parsed.schedule) {
-    const { startDate, startTime, endTime } = parsed.schedule;
-    return `安排 · ${dateTimeWord(startDate + startTime * 60_000, now)}–${hm(startDate + endTime * 60_000)}`;
-  }
-  switch (parsed.type) {
-    case "recurring": {
-      const recurrence = parsed.recurrence;
-      if (recurrence === null) return "普通任务";
-      return `周期 · ${recurrenceText({
-        id: 0,
-        todoItemId: 0,
-        type: recurrence.type,
-        interval: 1,
-        weekdays: recurrence.weekdays ?? null,
-        monthDay: recurrence.monthDay ?? null,
-        excludeHolidays: false,
-        startDate: now,
-        createTime: now,
-        updateTime: now,
-      })}`;
-    }
-    case "deadline":
-      return parsed.dueAt === null ? "普通任务" : `截止 · ${dateTimeWord(parsed.dueAt, now)}`;
-    default:
-      return "普通任务";
-  }
 }

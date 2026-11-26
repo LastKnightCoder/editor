@@ -1,0 +1,10 @@
+{
+  "menu.diary": "Write a diary entry",
+  "menu.calendar": "New event",
+  "menu.article": "New article",
+  "menu.card": "New card",
+  "menu.voice": "Speak a note",
+  "menu.hold": "Hold ＋",
+  "menu.title": "Create",
+  "article.failed": "Could not create article"
+}

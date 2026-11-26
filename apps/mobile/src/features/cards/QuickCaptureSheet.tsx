@@ -1,3 +1,4 @@
+import { useMobileCardsI18n } from "./i18n";
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { useMemoizedFn } from "ahooks";
 import { useMobileContentKit } from "../../services/editorKit";
@@ -32,6 +33,7 @@ type QuickCaptureSheetProps = {
 };
 
 export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
+  const { t } = useMobileCardsI18n();
   const contentKit = useMobileContentKit("edit");
   const wasOpen = useRef(false);
   const notifyContentChange = useMemoizedFn((content: Descendant[]) =>
@@ -120,14 +122,14 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
               disabled={props.saving}
               className="border-line-1 text-ink-2 active:bg-hover rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors disabled:opacity-40"
             >
-              清空
+              {t("capture.clear")}
             </button>
             <button
               type="button"
               onClick={handleCloseRequest}
               disabled={props.saving}
               className="text-ink-3 active:bg-hover flex h-8 w-8 items-center justify-center rounded-full transition-colors disabled:opacity-40"
-              aria-label="关闭快速捕获"
+              aria-label={t("capture.close")}
             >
               <X size={18} aria-hidden="true" />
             </button>
@@ -136,7 +138,7 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
 
         {showDraftPrompt && cachedDraft ? (
           <div className="bg-tag-4-soft text-tag-4 mx-4 mt-3 rounded-2xl px-3.5 py-2.5 text-xs">
-            <p className="font-semibold">检测到上次未保存草稿，是否恢复？</p>
+            <p className="font-semibold">{t("capture.restorePrompt")}</p>
             <div className="mt-2 flex items-center gap-2">
               <button
                 type="button"
@@ -152,7 +154,7 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
                   setShowDraftPrompt(false);
                 }}
               >
-                恢复草稿
+                {t("capture.restore")}
               </button>
               <button
                 type="button"
@@ -163,7 +165,7 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
                   setShowDraftPrompt(false);
                 }}
               >
-                丢弃草稿
+                {t("capture.discard")}
               </button>
             </div>
           </div>
@@ -178,7 +180,7 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
               ref={editorRef}
               initValue={editorSession.value}
               readonly={props.readonly}
-              placeHolder="记录你的想法..."
+              placeHolder={t("capture.placeholder")}
               className="mobile-card-editor-content min-h-[220px] ring-0 outline-none focus:ring-0 focus:outline-none"
               onFocus={toolbarController.handleEditorFocus}
               onBlur={toolbarController.handleEditorBlur}

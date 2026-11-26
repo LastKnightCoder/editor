@@ -1,3 +1,4 @@
+import { mobileLocaleSource } from "../../../services/i18n";
 import { act, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
@@ -45,6 +46,7 @@ vi.mock("@tau/editor", async () => {
 });
 
 it("恢复草稿与清空建立新会话，关闭取得当前内容", async () => {
+  const initialLocale = mobileLocaleSource.getSnapshot();
   const content: Descendant[] = [
     { type: "paragraph", children: [{ type: "formatted", text: "保留的草稿" }] },
   ];
@@ -67,6 +69,16 @@ it("恢复草稿与清空建立新会话，关闭取得当前内容", async () =
     await click("恢复草稿");
     expect(host.querySelector("output")).not.toBe(original);
     expect(host.querySelector("output")?.textContent).toContain("保留的草稿");
+    const restored = host.querySelector("output");
+    const reads = draft.read.mock.calls.length;
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => mobileLocaleSource.setLocale(locale));
+      expect(host.querySelector("output")).toBe(restored);
+      expect(restored?.textContent).toContain("保留的草稿");
+      expect(draft.read).toHaveBeenCalledTimes(reads);
+      expect(close).not.toHaveBeenCalled();
+    }
+    await act(async () => mobileLocaleSource.setLocale(initialLocale));
     await act(async () =>
       root.render(
         <QuickCaptureSheet
@@ -88,6 +100,7 @@ it("恢复草稿与清空建立新会话，关闭取得当前内容", async () =
       "保留的草稿"
     );
   } finally {
+    await act(async () => mobileLocaleSource.setLocale(initialLocale));
     await act(async () => root.unmount());
     host.remove();
   }

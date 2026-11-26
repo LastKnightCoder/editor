@@ -1,0 +1,13 @@
+{
+  "cancelTarget": "Slide up here to cancel",
+  "connecting": "Connecting…",
+  "listening": "Go ahead, I’m listening",
+  "cancel": "Release to cancel",
+  "saveHint": "Release to save a note · Slide up to cancel",
+  "saved": "Saved as a note",
+  "open": "Open",
+  "saveFailed": "Could not save note",
+  "inputFailed": "Voice input failed",
+  "settings": "Open settings",
+  "unavailable": "The recognition plugin account is not configured"
+}

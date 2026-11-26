@@ -43,5 +43,15 @@
   "detail.words_one": "{{amount}} character",
   "detail.words_other": "{{amount}} characters",
   "detail.saved_one": "Saved · {{amount}} character",
-  "detail.saved_other": "Saved · {{amount}} characters"
+  "detail.saved_other": "Saved · {{amount}} characters",
+  "capture.clear": "Clear",
+  "capture.close": "Close quick capture",
+  "capture.restorePrompt": "An unsaved draft was found. Restore it?",
+  "capture.restore": "Restore draft",
+  "capture.discard": "Discard draft",
+  "capture.placeholder": "Write down your thoughts…",
+  "capture.pendingDraft": "An unfinished quick capture draft was found. Tap + to continue.",
+  "capture.saveFailed": "Could not save quick capture. Please retry.",
+  "capture.clearFailed": "Could not clear quick capture. Please retry.",
+  "capture.emptyDeleteFailed": "Could not delete the empty capture card"
 }

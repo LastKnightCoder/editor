@@ -74,5 +74,16 @@
   "links.add": "Add link",
   "links.exists": "Already linked or the same content. No additional link is needed.",
   "links.addFailed": "Could not add link",
-  "meta.relativeTime": "{{day}} {{time}}"
+  "meta.relativeTime": "{{day}} {{time}}",
+  "create.empty": "Card content is empty",
+  "create.success": "Card created",
+  "create.failed": "Could not create card",
+  "create.cancel": "Cancel",
+  "create.save": "Save",
+  "window.noDatabase": "No usable library configuration was found.",
+  "window.preparing": "Preparing card…",
+  "window.failed": "Could not create card",
+  "window.missing": "Card not found or deleted",
+  "window.missingHint": "It may have been deleted in another window, or its library may be unavailable.",
+  "create.placeholder": "Write down your thoughts…"
 }

@@ -1,0 +1,13 @@
+{
+  "cancelTarget": "上滑到此处取消",
+  "connecting": "正在连接…",
+  "listening": "说吧，我在听",
+  "cancel": "松手取消",
+  "saveHint": "松手存进速记 · 上滑取消",
+  "saved": "已存进速记",
+  "open": "打开",
+  "saveFailed": "速记保存失败",
+  "inputFailed": "语音输入失败",
+  "settings": "去设置",
+  "unavailable": "识别插件账号尚未配置"
+}

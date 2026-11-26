@@ -1,3 +1,4 @@
+import { desktopLocaleSource } from "@/app/i18n/runtime";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -72,4 +73,25 @@ it("不预填时沿用草稿，取消清空草稿", async () => {
   expect(document.body.textContent).toContain("我的草稿");
   await click("取消");
   expect(JSON.parse(localStorage.getItem("card-edit-content")!)).not.toEqual(draft);
+});
+
+it("切换语言保留预填草稿、标签和编辑器节点，不保存或清空持久草稿", async () => {
+  const initialLocale = desktopLocaleSource.getSnapshot();
+  const stored = [{ type: "paragraph", children: [{ type: "formatted", text: "持久草稿" }] }];
+  localStorage.setItem("card-edit-content", JSON.stringify(stored));
+  await render(<CreateCardDialog open initial={prefill} onClose={vi.fn()} />);
+  await click("标签：");
+  const editor = document.querySelector('[data-testid="editor"]');
+  try {
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(document.querySelector('[data-testid="editor"]')).toBe(editor);
+      expect(document.body.textContent).toContain("插件预填");
+      expect(document.body.textContent).toContain("标签：读书,新标签");
+      expect(mocks.create).not.toHaveBeenCalled();
+      expect(JSON.parse(localStorage.getItem("card-edit-content") ?? "null")).toEqual(stored);
+    }
+  } finally {
+    await act(async () => desktopLocaleSource.setLocale(initialLocale));
+  }
 });

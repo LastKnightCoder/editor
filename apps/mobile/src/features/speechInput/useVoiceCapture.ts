@@ -1,3 +1,4 @@
+import { voiceCaptureTranslator } from "./capture-i18n";
 import { useCallback, useState } from "react";
 import type { Descendant } from "slate";
 import * as tauri from "../../services/tauri";
@@ -45,14 +46,17 @@ export function useVoiceCapture(options: VoiceCaptureOptions) {
         options.onSaved();
         toast({
           type: "success",
-          text: "已存进速记",
+          text: voiceCaptureTranslator.t("saved"),
           duration: 4000,
-          action: { label: "打开", onClick: () => options.onOpen(card.id) },
+          action: {
+            label: voiceCaptureTranslator.t("open"),
+            onClick: () => options.onOpen(card.id),
+          },
         });
       } catch (error) {
         toast({
           type: "error",
-          text: error instanceof Error ? error.message : "速记保存失败",
+          text: error instanceof Error ? error.message : voiceCaptureTranslator.t("saveFailed"),
         });
       }
     },
@@ -68,12 +72,13 @@ export function useVoiceCapture(options: VoiceCaptureOptions) {
     },
     onError: error => {
       setPreview("");
-      const message = error instanceof Error ? error.message : "语音输入失败";
+      const message =
+        error instanceof Error ? error.message : voiceCaptureTranslator.t("inputFailed");
       toast({
         type: "error",
         text: message,
         action: needsSpeechSettings(message)
-          ? { label: "去设置", onClick: options.onOpenSettings }
+          ? { label: voiceCaptureTranslator.t("settings"), onClick: options.onOpenSettings }
           : undefined,
       });
     },
@@ -83,8 +88,8 @@ export function useVoiceCapture(options: VoiceCaptureOptions) {
     if (unavailableReason) {
       toast({
         type: "info",
-        text: unavailableReason,
-        action: { label: "去设置", onClick: options.onOpenSettings },
+        text: voiceCaptureTranslator.t("unavailable"),
+        action: { label: voiceCaptureTranslator.t("settings"), onClick: options.onOpenSettings },
       });
       return false;
     }

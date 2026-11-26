@@ -71,5 +71,16 @@
   "links.add": "新增連結",
   "links.exists": "已連結或為同一正文，無需重複連結",
   "links.addFailed": "新增連結失敗",
-  "meta.relativeTime": "{{day}}{{time}}"
+  "meta.relativeTime": "{{day}}{{time}}",
+  "create.empty": "卡片內容為空",
+  "create.success": "卡片已建立",
+  "create.failed": "建立失敗",
+  "create.cancel": "取消",
+  "create.save": "儲存",
+  "window.noDatabase": "找不到可用的資料庫設定。",
+  "window.preparing": "正在準備卡片…",
+  "window.failed": "無法新增卡片",
+  "window.missing": "卡片不存在或已被刪除",
+  "window.missingHint": "卡片可能已在其他視窗刪除，或所屬資料庫已無法使用。",
+  "create.placeholder": "記下你的想法…"
 }

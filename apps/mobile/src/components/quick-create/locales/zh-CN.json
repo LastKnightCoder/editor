@@ -1,0 +1,10 @@
+{
+  "menu.diary": "写日记",
+  "menu.calendar": "新日程",
+  "menu.article": "新文章",
+  "menu.card": "新卡片",
+  "menu.voice": "说一段",
+  "menu.hold": "长按 ＋",
+  "menu.title": "新建",
+  "article.failed": "新建文章失败"
+}

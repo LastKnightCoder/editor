@@ -7,7 +7,9 @@ import { useMemo, useState, type Ref } from "react";
 import { Clock, Flag, List, Repeat, Sparkles } from "lucide-react";
 import { cn } from "@tau/ui";
 import type { TodoGroup } from "@/types";
-import { describeQuickAdd, parseQuickAdd, quickAddKind, type QuickAddResult } from "../quickAdd";
+import { parseQuickAdd, quickAddKind, type QuickAddResult } from "../quickAdd";
+import { useQuickAddI18n } from "@/features/shared/quick-add/i18n";
+import { describeTodoQuickAdd } from "@/features/shared/quick-add/format";
 import { GroupDot } from "./TodoBits";
 
 const TOKEN_CLASS = {
@@ -30,6 +32,7 @@ export function QuickAddBar({
   onSubmit(parsed: QuickAddResult, groupId: number): Promise<void>;
   inputRef?: Ref<HTMLInputElement>;
 }) {
+  const { t } = useQuickAddI18n();
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const parsed = useMemo(
@@ -53,7 +56,7 @@ export function QuickAddBar({
 
   return (
     <div className="border-line-1 focus-within:shadow-lift ease-tau-out mb-3 flex flex-none flex-col rounded-[14px] border transition-[box-shadow,border-color] duration-150 focus-within:border-transparent">
-      <div className="flex h-11 items-center gap-2.5 pl-3.5 pr-2">
+      <div className="flex h-11 items-center gap-2.5 pr-2 pl-3.5">
         <Sparkles className="text-accent size-4 shrink-0" strokeWidth={1.75} />
         <input
           ref={inputRef}
@@ -71,17 +74,13 @@ export function QuickAddBar({
               setText("");
             }
           }}
-          placeholder={
-            disabled
-              ? "先新建一个项目，再添加任务"
-              : "添加任务：试试「明天 17:00 交周报 #项目」或「每周一、四 周会」"
-          }
+          placeholder={disabled ? t("todo.noGroup") : t("todo.placeholder")}
           className="text-tau-body-lg placeholder:text-ink-3 min-w-0 flex-1 bg-transparent outline-none"
         />
         <span className="text-ink-3 flex shrink-0 items-center gap-1.5 text-[11px]">
           {parsed ? (
             <>
-              回车添加
+              {t("todo.enter")}
               <kbd className="bg-hover text-ink-2 rounded-[5px] px-[5px] py-0.5 font-mono text-[11px]">
                 ⏎
               </kbd>
@@ -94,8 +93,8 @@ export function QuickAddBar({
         </span>
       </div>
       {parsed && (
-        <div className="text-ink-3 flex flex-wrap items-center gap-1.5 pb-2.5 pl-10 pr-3.5 text-[11.5px]">
-          识别为
+        <div className="text-ink-3 flex flex-wrap items-center gap-1.5 pr-3.5 pb-2.5 pl-10 text-[11.5px]">
+          {t("todo.parsed")}
           <ParsedToken parsed={parsed} now={now} />
           {group && (
             <span
@@ -109,7 +108,16 @@ export function QuickAddBar({
             </span>
           )}
           <span className="ml-1.5">
-            标题：<b className="text-ink-1 font-medium">{parsed.title || "（空）"}</b>
+            {t("todo.title", { title: "\uFFFC" })
+              .split("\uFFFC")
+              .map((part, index) => (
+                <span key={index}>
+                  {index > 0 && (
+                    <b className="text-ink-1 font-medium">{parsed.title || t("todo.empty")}</b>
+                  )}
+                  {part}
+                </span>
+              ))}
           </span>
         </div>
       )}
@@ -120,6 +128,7 @@ export function QuickAddBar({
 const TOKEN_ICON = { normal: List, deadline: Flag, scheduled: Clock, recurring: Repeat } as const;
 
 function ParsedToken({ parsed, now }: { parsed: QuickAddResult; now: number }) {
+  const language = useQuickAddI18n();
   const kind = quickAddKind(parsed);
   const Icon = TOKEN_ICON[kind];
   return (
@@ -130,7 +139,7 @@ function ParsedToken({ parsed, now }: { parsed: QuickAddResult; now: number }) {
       )}
     >
       <Icon strokeWidth={1.75} />
-      {describeQuickAdd(parsed, now)}
+      {describeTodoQuickAdd(parsed, now, language)}
     </span>
   );
 }

@@ -2,17 +2,21 @@
 
 import type { CSSProperties } from "react";
 import { Article, BookOpen, CalendarPlus, Microphone, Stack } from "@phosphor-icons/react";
-import type { QuickCreateAction, QuickCreateKey } from "./useQuickCreate";
+import type { Icon } from "@phosphor-icons/react";
+import { useQuickCreateI18n, type QuickCreateMessageKey } from "./quick-create/i18n";
+import type { QuickCreateKey } from "./useQuickCreate";
 
 /** 创建类入口，自上而下；最常用的放最后，紧挨分隔线与 ＋ 按钮 */
+type QuickCreateAction = { key: QuickCreateKey; message: QuickCreateMessageKey; icon: Icon };
+
 const CREATE_ACTIONS: readonly QuickCreateAction[] = [
-  { key: "diary", label: "写日记", icon: BookOpen },
-  { key: "calendar", label: "新日程", icon: CalendarPlus },
-  { key: "article", label: "新文章", icon: Article },
-  { key: "card", label: "新卡片", icon: Stack },
+  { key: "diary", message: "menu.diary", icon: BookOpen },
+  { key: "calendar", message: "menu.calendar", icon: CalendarPlus },
+  { key: "article", message: "menu.article", icon: Article },
+  { key: "card", message: "menu.card", icon: Stack },
 ];
 
-const VOICE_ACTION: QuickCreateAction = { key: "voice", label: "说一段", icon: Microphone };
+const VOICE_ACTION: QuickCreateAction = { key: "voice", message: "menu.voice", icon: Microphone };
 
 type QuickCreateMenuProps = {
   onSelect: (key: QuickCreateKey) => void;
@@ -21,6 +25,7 @@ type QuickCreateMenuProps = {
 };
 
 export function QuickCreateMenu({ onSelect, className, style }: QuickCreateMenuProps) {
+  const { t } = useQuickCreateI18n();
   const renderItem = (item: QuickCreateAction, voice = false) => {
     const ItemIcon = item.icon;
     return (
@@ -37,15 +42,17 @@ export function QuickCreateMenu({ onSelect, className, style }: QuickCreateMenuP
           color={voice ? "var(--tau-accent)" : "var(--tau-ink-2)"}
           aria-hidden="true"
         />
-        {item.label}
-        {voice ? <span className="text-ink-3 ml-auto text-[11px] font-medium">长按 ＋</span> : null}
+        {t(item.message)}
+        {voice ? (
+          <span className="text-ink-3 ml-auto text-[11px] font-medium">{t("menu.hold")}</span>
+        ) : null}
       </button>
     );
   };
   return (
     <div
       role="menu"
-      aria-label="新建"
+      aria-label={t("menu.title")}
       className={`bg-surface shadow-float w-[232px] rounded-[20px] p-1.5 ${className ?? ""}`}
       style={style}
     >

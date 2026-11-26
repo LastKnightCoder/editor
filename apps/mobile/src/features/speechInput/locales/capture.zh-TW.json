@@ -1,0 +1,13 @@
+{
+  "cancelTarget": "上滑到此處取消",
+  "connecting": "正在連線…",
+  "listening": "說吧，我在聽",
+  "cancel": "放開以取消",
+  "saveHint": "放開以存入速記 · 上滑取消",
+  "saved": "已存入速記",
+  "open": "開啟",
+  "saveFailed": "速記儲存失敗",
+  "inputFailed": "語音輸入失敗",
+  "settings": "前往設定",
+  "unavailable": "辨識外掛帳號尚未設定"
+}

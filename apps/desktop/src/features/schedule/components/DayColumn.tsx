@@ -8,6 +8,8 @@
  * 待安排面板里的待办可拖到空档 / 补记行上 = 安排进该空隙（列表形态算不出任意落点，只接受这两种行）。
  */
 
+import { useQuickAddI18n } from "@/features/shared/quick-add/i18n";
+import { describeEventQuickAdd } from "@/features/shared/quick-add/format";
 import { useMemo, useState, type CSSProperties, type DragEvent } from "react";
 import { ChevronLeft, ChevronRight, CornerDownLeft, Plus } from "lucide-react";
 import { IconButton, cn, toast } from "@tau/ui";
@@ -522,6 +524,8 @@ function RecordGap({
 
 /** 底部快速添加：输入即解析，命中片段以标签回显；回车创建 */
 function QuickAdd({ day }: { day: number }) {
+  const language = useQuickAddI18n();
+  const { t, locale } = language;
   const { calendars } = useCalendarCatalog();
   const candidates = useWritableCalendars();
   const { createEvent } = useScheduleMutations();
@@ -540,11 +544,11 @@ function QuickAdd({ day }: { day: number }) {
   const submit = async () => {
     if (!parsed || saving) return;
     if (!parsed.title) {
-      toast.warning("请写上日程标题");
+      toast.warning(t("event.titleRequired"));
       return;
     }
     if (!calendar) {
-      toast.warning("请先创建一个日历");
+      toast.warning(t("event.calendarRequired"));
       return;
     }
     const timed = parsed.startTime !== null;
@@ -562,25 +566,28 @@ function QuickAdd({ day }: { day: number }) {
         allDay: !timed,
       });
       const d = new Date(parsed.date);
-      toast.success(`已添加到 ${d.getMonth() + 1}月${d.getDate()}日 · ${calendar.title}`);
+      toast.success(
+        t("event.added", {
+          date: new Intl.DateTimeFormat(locale, { month: "numeric", day: "numeric" }).format(d),
+          calendar: calendar.title,
+        })
+      );
       setText("");
     } catch (error) {
       console.error("Failed to quick add event:", error);
-      toast.error("添加失败");
+      toast.error(t("event.failed"));
     } finally {
       setSaving(false);
     }
   };
 
   const whenLabel = parsed
-    ? (() => {
-        const d = new Date(parsed.date);
-        const dayText =
-          parsed.date === day && !parsed.hints.date ? "" : `${d.getMonth() + 1}/${d.getDate()} `;
-        return parsed.startTime !== null && parsed.endTime !== null
-          ? `${dayText}${formatTime(parsed.startTime)}–${formatTime(parsed.endTime)}`
-          : `${dayText}全天`.trim();
-      })()
+    ? describeEventQuickAdd(
+        parsed,
+        Date.now(),
+        language,
+        parsed.date !== day || Boolean(parsed.hints.date)
+      )
     : "";
 
   return (
@@ -605,7 +612,7 @@ function QuickAdd({ day }: { day: number }) {
             }
           }}
           disabled={saving}
-          placeholder="快速添加：明天 3 点 评审 #工作"
+          placeholder={t("event.placeholder")}
           className="text-tau-body placeholder:text-ink-3 min-w-0 flex-1 bg-transparent outline-none"
         />
         {parsed && <CornerDownLeft className="text-ink-3 size-3.5 shrink-0" strokeWidth={1.75} />}

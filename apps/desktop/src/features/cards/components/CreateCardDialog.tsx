@@ -1,10 +1,6 @@
-/**
- * 新建卡片弹窗（新版 CreateCard，旧 motion 版仍在 legacy 服役）：
- * tau Editor + AddTag + 草稿 localStorage 暂存（沿用旧版 key，未保存草稿跨会话保留），
- * 保存后广播 card:created 并整域失效刷新。传入 initial 时为预填模式（插件 card.create），
- * 内容只在本次弹窗中，不改动草稿。
- */
+/** 新建卡片弹窗：正文、标签及本地草稿；插件预填模式不写入共享草稿。 */
 
+import { useCardsI18n } from "../i18n";
 import { useEffect, useRef, useState } from "react";
 import { useLocalStorageState } from "ahooks";
 import type { Descendant } from "slate";
@@ -64,6 +60,7 @@ function useCardDraft(initial: CardDraft | undefined) {
 }
 
 export function CreateCardDialog({ open, onClose, onCreated, initial }: CreateCardDialogProps) {
+  const { t } = useCardsI18n();
   const { content, tags, setContent, setTags, reset } = useCardDraft(initial);
   const contracts = initial?.contracts;
   const [saving, setSaving] = useState(false);
@@ -83,7 +80,7 @@ export function CreateCardDialog({ open, onClose, onCreated, initial }: CreateCa
   const handleSave = async () => {
     const value = content;
     if (isContentEmpty(value)) {
-      toast.warning("卡片内容为空");
+      toast.warning(t("create.empty"));
       return;
     }
     setSaving(true);
@@ -98,9 +95,9 @@ export function CreateCardDialog({ open, onClose, onCreated, initial }: CreateCa
       onCreated?.(card);
       resetDraft();
       onClose();
-      toast.success("卡片已创建");
+      toast.success(t("create.success"));
     } catch {
-      toast.error("创建失败");
+      toast.error(t("create.failed"));
     } finally {
       setSaving(false);
     }
@@ -115,7 +112,7 @@ export function CreateCardDialog({ open, onClose, onCreated, initial }: CreateCa
           onClose();
         }
       }}
-      title="新建卡片"
+      title={t("create")}
       locked={saving}
       width={720}
       footer={
@@ -129,10 +126,10 @@ export function CreateCardDialog({ open, onClose, onCreated, initial }: CreateCa
               onClose();
             }}
           >
-            取消
+            {t("create.cancel")}
           </Button>
           <Button variant="primary" size="sm" loading={saving} onClick={() => void handleSave()}>
-            保存
+            {t("create.save")}
           </Button>
         </>
       }
@@ -146,6 +143,7 @@ export function CreateCardDialog({ open, onClose, onCreated, initial }: CreateCa
               initValue={content}
               contracts={contracts}
               readonly={false}
+              placeHolder={t("create.placeholder")}
               onChange={setContent}
               className="min-h-[260px]"
             />

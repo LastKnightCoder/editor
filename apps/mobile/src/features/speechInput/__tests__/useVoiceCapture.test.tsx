@@ -1,3 +1,5 @@
+import { mobileLocaleSource } from "../../../services/i18n";
+import { useVoiceCaptureI18n } from "../capture-i18n";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -28,6 +30,7 @@ const onOpenSettings = vi.fn();
 const flush = () => act(async () => {});
 
 function Harness() {
+  useVoiceCaptureI18n();
   capture = useVoiceCapture({ onOpen, onSaved, onOpenSettings });
   return null;
 }
@@ -114,4 +117,32 @@ it("识别插件未配置：不开始，提示去设置", () => {
   expect(toast.text).toBe("识别插件账号尚未配置");
   toast.action?.onClick();
   expect(onOpenSettings).toHaveBeenCalled();
+});
+
+it("录音中切换界面语言不重启会话、不改识别原文，松手后只保存一次", async () => {
+  const initialLocale = mobileLocaleSource.getSnapshot();
+  act(() => void capture.begin());
+  await flush();
+  const startedAt = capture.startedAt;
+  try {
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => mobileLocaleSource.setLocale(locale));
+      expect(capture.active).toBe(true);
+      expect(capture.startedAt).toBe(startedAt);
+      expect(mocks.start).toHaveBeenCalledTimes(1);
+      expect(mocks.createQuickCard).not.toHaveBeenCalled();
+    }
+    act(() => capture.finish());
+    await flush();
+    expect(mocks.createQuickCard).toHaveBeenCalledTimes(1);
+    expect(mocks.createQuickCard).toHaveBeenCalledWith({
+      content: [
+        { type: "paragraph", children: [{ type: "formatted", text: "周五前定方案" }] },
+        { type: "paragraph", children: [{ type: "formatted", text: "顺便问一下" }] },
+      ],
+      count: "周五前定方案\n顺便问一下".length,
+    });
+  } finally {
+    await act(async () => mobileLocaleSource.setLocale(initialLocale));
+  }
 });

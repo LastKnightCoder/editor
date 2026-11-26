@@ -39,5 +39,15 @@
   "detail.words": "{{amount}} 字",
   "detail.saving": "儲存中…",
   "detail.saveFailed": "儲存失敗",
-  "detail.saved": "已儲存 · {{amount}} 字"
+  "detail.saved": "已儲存 · {{amount}} 字",
+  "capture.clear": "清除",
+  "capture.close": "關閉快速捕獲",
+  "capture.restorePrompt": "偵測到上次未儲存的草稿，要還原嗎？",
+  "capture.restore": "還原草稿",
+  "capture.discard": "捨棄草稿",
+  "capture.placeholder": "記下你的想法…",
+  "capture.pendingDraft": "偵測到未完成的快速捕獲草稿，可點按 + 繼續編輯",
+  "capture.saveFailed": "快速捕獲儲存失敗，請稍後重試",
+  "capture.clearFailed": "清除快速捕獲內容失敗，請稍後重試",
+  "capture.emptyDeleteFailed": "刪除空白捕獲卡片失敗"
 }

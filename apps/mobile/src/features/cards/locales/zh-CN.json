@@ -39,5 +39,15 @@
   "detail.words": "{{amount}} 字",
   "detail.saving": "保存中…",
   "detail.saveFailed": "保存失败",
-  "detail.saved": "已保存 · {{amount}} 字"
+  "detail.saved": "已保存 · {{amount}} 字",
+  "capture.clear": "清空",
+  "capture.close": "关闭快速捕获",
+  "capture.restorePrompt": "检测到上次未保存草稿，是否恢复？",
+  "capture.restore": "恢复草稿",
+  "capture.discard": "丢弃草稿",
+  "capture.placeholder": "记录你的想法...",
+  "capture.pendingDraft": "检测到未完成的快速捕获草稿，可点击 + 继续编辑",
+  "capture.saveFailed": "快速捕获保存失败，请稍后重试",
+  "capture.clearFailed": "清空快速捕获内容失败，请稍后重试",
+  "capture.emptyDeleteFailed": "删除空白捕获卡片失败"
 }

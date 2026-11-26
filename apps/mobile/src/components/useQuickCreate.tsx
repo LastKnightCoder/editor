@@ -1,9 +1,9 @@
 // 全局新建入口的动作与「长按直接说」：底部 Dock 与左侧导航条共用，
 // 两处只负责各自的按钮与菜单形态。
 
+import { quickCreateTranslator } from "./quick-create/i18n";
 import { diaryTranslator } from "../features/diary/i18n";
 import { useEffect, useRef } from "react";
-import type { Icon } from "@phosphor-icons/react";
 import { useRouterContext } from "../router";
 import { useAppContext } from "../app/AppContext";
 import { useDiaryStore } from "../features/diary/store/useDiaryStore";
@@ -15,12 +15,6 @@ import { useVoiceCapture } from "../features/speechInput/useVoiceCapture";
 import { VoiceCaptureCard } from "../features/speechInput/VoiceCaptureCard";
 
 export type QuickCreateKey = "card" | "article" | "calendar" | "diary" | "voice";
-
-export type QuickCreateAction = {
-  key: QuickCreateKey;
-  label: string;
-  icon: Icon;
-};
 
 type QuickCreateOptions = {
   /** 轻点新建按钮（未达到长按时长）：由各自形态开合菜单 */
@@ -57,7 +51,7 @@ export function useQuickCreate(options: QuickCreateOptions) {
           invalidateArticles();
           navigator.push("articleEditor", { articleId: article.id });
         } catch (error) {
-          app.presentError(error, "新建文章失败");
+          app.presentError(error, quickCreateTranslator.t("article.failed"));
         }
       })();
       return;

@@ -1,6 +1,7 @@
 // 快速捕获控制器：600ms 防抖落库、草稿 localStorage 持久化、
 // 清空即删卡。原先寄生在 AppShell 的约 300 行逻辑下沉至此。
 
+import { cardsTranslator } from "../i18n";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { useMemoizedFn } from "ahooks";
@@ -50,7 +51,7 @@ export function useQuickCaptureController(deps: QuickCaptureControllerDeps) {
   // 页面挂载 = 快速捕获打开：重置会话；存在未完成草稿时提示恢复
   useEffect(() => {
     if (hasQuickCaptureDraft()) {
-      toast.info("检测到未完成的快速捕获草稿，可点击 + 继续编辑");
+      toast.info(cardsTranslator.t("capture.pendingDraft"));
     }
     return () => {
       clearDebounceTimer();
@@ -143,7 +144,7 @@ export function useQuickCaptureController(deps: QuickCaptureControllerDeps) {
       if (JSON.stringify(contentRef.current) === contentKey) clearQuickCaptureDraft();
       return true;
     } catch (error) {
-      presentError(error, "快速捕获保存失败，请稍后重试");
+      presentError(error, cardsTranslator.t("capture.saveFailed"));
       return false;
     } finally {
       setSaving(false);
@@ -215,7 +216,7 @@ export function useQuickCaptureController(deps: QuickCaptureControllerDeps) {
       clearQuickCaptureDraft();
       return true;
     } catch (error) {
-      presentError(error, "清空快速捕获内容失败，请稍后重试");
+      presentError(error, cardsTranslator.t("capture.clearFailed"));
       return false;
     } finally {
       setSaving(false);
@@ -244,7 +245,7 @@ export function useQuickCaptureController(deps: QuickCaptureControllerDeps) {
           throw new Error("CARD_NOT_FOUND: card does not exist");
         }
       } catch (error) {
-        presentError(error, "删除空白捕获卡片失败");
+        presentError(error, cardsTranslator.t("capture.emptyDeleteFailed"));
         return false;
       } finally {
         setSaving(false);

@@ -1,3 +1,4 @@
+import { useVoiceCaptureI18n } from "./capture-i18n";
 import { useEffect, useState, type Ref } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
@@ -30,6 +31,7 @@ function useElapsed(startedAt: number | null, running: boolean) {
 
 /** 首页长按 ＋ 直接说：Dock 上方浮出的识别卡片，✕ 在卡片上方供上滑取消 */
 export function VoiceCaptureCard(props: VoiceCaptureCardProps) {
+  const { t, locale } = useVoiceCaptureI18n();
   const { open, connecting, startedAt, preview, cancelArmed, cancelTargetRef, bottom } = props;
   const elapsed = useElapsed(startedAt, open);
   if (!open) return null;
@@ -46,7 +48,7 @@ export function VoiceCaptureCard(props: VoiceCaptureCardProps) {
       <div className="absolute inset-x-4 flex flex-col items-center" style={{ bottom }}>
         <div
           ref={cancelTargetRef}
-          aria-label="上滑到此处取消"
+          aria-label={t("cancelTarget")}
           className={cn(
             "shadow-float mb-4 flex items-center justify-center rounded-full transition-all duration-150 ease-tau-out",
             cancelArmed
@@ -71,8 +73,8 @@ export function VoiceCaptureCard(props: VoiceCaptureCardProps) {
               )}
             />
             {connecting
-              ? "正在连接…"
-              : `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`}
+              ? t("connecting")
+              : `${Math.floor(seconds / 60).toLocaleString(locale, { useGrouping: false })}:${(seconds % 60).toLocaleString(locale, { minimumIntegerDigits: 2, useGrouping: false })}`}
           </div>
           <p
             className={cn(
@@ -86,7 +88,7 @@ export function VoiceCaptureCard(props: VoiceCaptureCardProps) {
                 <span className="text-ink-3">{tail}</span>
               </>
             ) : (
-              <span className="text-ink-3">说吧，我在听</span>
+              <span className="text-ink-3">{t("listening")}</span>
             )}
           </p>
           <div
@@ -95,7 +97,7 @@ export function VoiceCaptureCard(props: VoiceCaptureCardProps) {
               cancelArmed ? "text-danger font-semibold" : "text-ink-3"
             )}
           >
-            {cancelArmed ? "松手取消" : "松手存进速记 · 上滑取消"}
+            {t(cancelArmed ? "cancel" : "saveHint")}
           </div>
         </div>
       </div>

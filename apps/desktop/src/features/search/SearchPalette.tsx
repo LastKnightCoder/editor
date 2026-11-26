@@ -80,12 +80,12 @@ import { openMarkdownInNewWindow } from "@/commands/file";
 import { exportPerfSnapshot } from "@/commands/perf";
 import { openFeedbackWindow } from "@/commands/feedback";
 import { openMaterialTarget } from "@/services/open-material";
-import { describeQuickAdd, parseQuickAdd as parseTodoQuickAdd } from "@/features/todos/quickAdd";
+import { parseQuickAdd as parseTodoQuickAdd } from "@/features/todos/quickAdd";
 import { createTodoFromQuickAdd, useTodoGroups } from "@/features/todos/queries";
-import { dayWord } from "@/features/todos/model";
+import { useQuickAddI18n } from "@/features/shared/quick-add/i18n";
+import { describeTodoQuickAdd, describeEventQuickAdd } from "@/features/shared/quick-add/format";
 import { parseQuickAdd as parseEventQuickAdd } from "@/features/schedule/quickAdd";
 import { useCalendarCatalog, useScheduleMutations } from "@/features/schedule/queries";
-import { formatTime } from "@/utils/calendar";
 import { extractDateTime } from "@/utils/quickDateTime";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 
@@ -143,6 +143,7 @@ function Highlighted({ text, q }: { text: string; q: string }) {
 
 export function SearchPalette() {
   const { t, locale } = useSearchI18n();
+  const quickAddLanguage = useQuickAddI18n();
   const open = useSearchStore(s => s.open);
   const closePalette = useSearchStore(s => s.closePalette);
   const togglePalette = useSearchStore(s => s.togglePalette);
@@ -301,7 +302,7 @@ export function SearchPalette() {
       icon: ListPlus,
       title: title ? t("capture.todo", { title }) : t("capture.todoEmpty"),
       sub: parsed
-        ? `${describeQuickAdd(parsed, now)} · ${group ? `#${group.title}` : t("capture.groupMissing")}`
+        ? `${describeTodoQuickAdd(parsed, now, quickAddLanguage)} · ${group ? `#${group.title}` : t("capture.groupMissing")}`
         : t("capture.todoExample"),
       tag: { label: t("type.todo"), cls: "bg-warn-soft text-warn" },
       hint: !title,
@@ -334,13 +335,7 @@ export function SearchPalette() {
     const calendar = parsed?.calendarId
       ? calendars.find(c => c.id === parsed.calendarId)
       : calendars[0];
-    const when = parsed
-      ? `${dayWord(parsed.date, now)} ${
-          parsed.startTime !== null && parsed.endTime !== null
-            ? `${formatTime(parsed.startTime)}–${formatTime(parsed.endTime)}`
-            : t("capture.allDay")
-        }`
-      : "";
+    const when = parsed ? describeEventQuickAdd(parsed, now, quickAddLanguage) : "";
     return {
       key: "capture:event",
       icon: CalendarPlus,
@@ -664,6 +659,7 @@ export function SearchPalette() {
     mode,
     pluginEntityMeta,
     textActions.actions,
+    quickAddLanguage,
     t,
     locale,
   ]);

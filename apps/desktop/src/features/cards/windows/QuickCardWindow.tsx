@@ -5,6 +5,7 @@
  * 空卡片不留存：关窗时正文为空即删除；删除没来得及执行时，下次唤起复用这张空卡片而不是再建一张。
  */
 
+import { useCardsI18n } from "../i18n";
 import { useEffect, useRef, useState } from "react";
 import { Button, Loading, ToastHost, initScrollbarAutoHide } from "@tau/ui";
 import { ensureDatabaseReady } from "@/app/databaseReady";
@@ -57,10 +58,11 @@ async function findReusableCard(databaseName: string): Promise<number | null> {
 
 type BootState =
   | { phase: "connecting" }
-  | { phase: "failed"; message: string }
+  | { phase: "failed"; message?: string }
   | { phase: "ready"; cardId: number };
 
 export default function QuickCardWindow() {
+  const { t } = useCardsI18n();
   useThemeRuntime();
   useEffect(() => initScrollbarAutoHide(), []);
 
@@ -80,7 +82,7 @@ export default function QuickCardWindow() {
     void (async () => {
       let error = "";
       if (!(await ensureDatabaseReady(message => (error = message)))) {
-        if (alive) setBoot({ phase: "failed", message: error || "未找到可用的数据库配置。" });
+        if (alive) setBoot({ phase: "failed", message: error || undefined });
         return;
       }
       try {
@@ -115,12 +117,12 @@ export default function QuickCardWindow() {
         <EditorWindowTitlebar icon={cardDriver.icon} label={cardDriver.label} title="" />
         <div className="min-h-0 flex-1">
           {boot.phase === "connecting" ? (
-            <Loading label="正在准备卡片…" />
+            <Loading label={t("window.preparing")} />
           ) : (
             <WindowMessage
-              title="无法新建卡片"
-              description={boot.message}
-              actions={<Button onClick={() => setAttempt(n => n + 1)}>重试</Button>}
+              title={t("window.failed")}
+              description={boot.message || t("window.noDatabase")}
+              actions={<Button onClick={() => setAttempt(n => n + 1)}>{t("retry")}</Button>}
             />
           )}
         </div>
@@ -137,6 +139,7 @@ export default function QuickCardWindow() {
 }
 
 function QuickCardDocument({ cardId, databaseName }: { cardId: number; databaseName: string }) {
+  const { t } = useCardsI18n();
   const { document, status, saveState, updateFields } = useEditorDocument(cardDriver, cardId);
   const emptyRef = useRef(false);
   emptyRef.current = status === "ready" && !!document && isContentEmpty(document.content);
@@ -171,10 +174,7 @@ function QuickCardDocument({ cardId, databaseName }: { cardId: number; databaseN
         {status === "loading" ? (
           <Loading />
         ) : (
-          <WindowMessage
-            title="卡片不存在或已被删除"
-            description="它可能已在其它窗口被删除，或所在数据库已不可用。"
-          />
+          <WindowMessage title={t("window.missing")} description={t("window.missingHint")} />
         )}
       </div>
     </>

@@ -71,5 +71,16 @@
   "links.add": "添加连接",
   "links.exists": "已连接或同一正文，无需重复连接",
   "links.addFailed": "添加连接失败",
-  "meta.relativeTime": "{{day}}{{time}}"
+  "meta.relativeTime": "{{day}}{{time}}",
+  "create.empty": "卡片内容为空",
+  "create.success": "卡片已创建",
+  "create.failed": "创建失败",
+  "create.cancel": "取消",
+  "create.save": "保存",
+  "window.noDatabase": "未找到可用的数据库配置。",
+  "window.preparing": "正在准备卡片…",
+  "window.failed": "无法新建卡片",
+  "window.missing": "卡片不存在或已被删除",
+  "window.missingHint": "它可能已在其它窗口被删除，或所在数据库已不可用。",
+  "create.placeholder": "记录你的想法…"
 }
