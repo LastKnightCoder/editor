@@ -4,14 +4,14 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useMemo, useState } fr
 import { Descendant, Range, Transforms } from "slate";
 import { ReactEditor } from "slate-react";
 import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
-import { cn, IconButton, useEdgeFade } from "@tau/ui";
+import { cn, IconButton, Popover, useEdgeFade } from "@tau/ui";
 import { useProjectContext } from "../ProjectContext";
 import useEdit from "./useEdit";
 import { defaultProjectItemEventBus } from "@/utils";
 import { EditorRef } from "@tau/editor";
 import Editor from "@/components/ContentEditor";
 import { HistoryPanel, composeEditorMarks, useContentHistory } from "@/components/ContentHistory";
-import { History as HistoryIcon } from "lucide-react";
+import { History as HistoryIcon, ListTree } from "lucide-react";
 import AddTag from "@/components/AddTag";
 import ContentCollaborationControl, {
   type ContentCollaborationControlHandle,
@@ -44,8 +44,8 @@ import { getEditorText } from "@/utils/editor";
 import { usePage, usePageParams } from "@/page/PageProvider";
 import { PluginEntityPanels } from "@/app/plugins/entity-panels";
 import { projectItemActionTarget } from "../ProjectList/ProjectItem/projectItemMoreMenuItems";
-
-const DOCUMENT_COLUMNS = "grid grid-cols-[minmax(0,720px)] items-start justify-center gap-7 px-6";
+import { usePageMarginOutlineFits } from "@/hooks/usePageMargin";
+import { SYMMETRIC_PAGE_GRID_STYLE } from "@/utils/pageMargin";
 
 const cloneRange = (selection: Range | null): Range | null => {
   if (!selection) return null;
@@ -72,6 +72,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
   const { projectId, documentAction, clearDocumentAction } = useProjectContext();
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
   useEdgeFade(scrollEl);
+  const outlineFits = usePageMarginOutlineFits(scrollEl);
   const [outlineScrollEl, setOutlineScrollEl] = useState<HTMLDivElement | null>(null);
   useEdgeFade(outlineScrollEl);
   const [outlineMaxHeight, setOutlineMaxHeight] = useState<number>();
@@ -219,6 +220,9 @@ const EditProjectItem = (props: { projectItemId: number }) => {
 
   if (!projectItem) return null;
 
+  const showInlineOutline = !composing && headers.length > 0 && outlineFits;
+  const showPopoverOutline = !composing && headers.length > 0 && !outlineFits;
+
   const setComposing = (next: boolean) =>
     navigator.push("project-detail", {
       id: projectId,
@@ -250,16 +254,8 @@ const EditProjectItem = (props: { projectItemId: number }) => {
               ref={setScrollEl}
               className="edge-fade-scroll tau-sheet-scroll @container/editor min-h-0 flex-1 overflow-y-auto [--edge-fade-bottom-size:24px] [--edge-fade-top-size:24px]"
             >
-              <div
-                className={cn(
-                  DOCUMENT_COLUMNS,
-                  "pt-5",
-                  !composing &&
-                    headers.length > 0 &&
-                    "@[960px]/editor:grid-cols-[minmax(0,720px)_208px]"
-                )}
-              >
-                <article className="min-w-0">
+              <div className="grid items-start pt-5" style={SYMMETRIC_PAGE_GRID_STYLE}>
+                <article className="col-start-2 min-w-0">
                   <header className="min-w-0">
                     <div className={`mb-5 border-b ${borderClass} pb-2.5 text-[2.2em] font-bold`}>
                       <EditText
@@ -325,6 +321,29 @@ const EditProjectItem = (props: { projectItemId: number }) => {
                       <ComposeModeToggle active={composing} onChange={setComposing} />
                       {/* 协作：已共享时常驻成员条（点开成员 Popover）；未共享不占位，由列表菜单「发起协作」打开对话框 */}
                       <span className="ml-auto flex max-w-full flex-wrap items-center justify-end gap-1">
+                        {showPopoverOutline && (
+                          <Popover
+                            placement="bottom-end"
+                            arrow={false}
+                            className="w-[240px] p-2"
+                            trigger={
+                              <IconButton
+                                title={t("outline")}
+                                aria-label={t("outline")}
+                                className="size-[30px]"
+                              >
+                                <ListTree className="size-4" />
+                              </IconButton>
+                            }
+                          >
+                            <ContentOutline
+                              headers={headers}
+                              scrollEl={scrollEl}
+                              resolveAnchor={resolveAnchor}
+                              className="w-full"
+                            />
+                          </Popover>
+                        )}
                         <IconButton
                           title={t("history")}
                           aria-label={t("history")}
@@ -425,17 +444,17 @@ const EditProjectItem = (props: { projectItemId: number }) => {
                     }
                   />
                 </article>
-                {!composing && headers.length > 0 && (
+                {showInlineOutline && (
                   <div
                     ref={setOutlineScrollEl}
-                    className="edge-fade-scroll sticky top-5 hidden overflow-y-auto overscroll-y-contain @[960px]/editor:block"
+                    className="edge-fade-scroll sticky top-5 col-start-3 min-w-0 overflow-y-auto overscroll-y-contain pr-4 pl-6"
                     style={{ maxHeight: outlineMaxHeight }}
                   >
                     <ContentOutline
                       headers={headers}
                       scrollEl={scrollEl}
                       resolveAnchor={resolveAnchor}
-                      className="w-full"
+                      className="w-full max-w-[240px]"
                     />
                   </div>
                 )}

@@ -14,6 +14,7 @@ import {
 } from "@tau/shared";
 
 import useSyncFont from "@/hooks/useSyncFont.ts";
+import { useSyncPageMargin } from "@/hooks/usePageMargin";
 import useSearchWarmUp from "@/hooks/useSearchWarmUp";
 import { useItemUpdateListener } from "@/hooks/useItemUpdateListener";
 import useArticleDeletedCleanup from "@/hooks/useArticleDeletedCleanup";
@@ -52,6 +53,7 @@ const Application = () => {
   useItemUpdateListener();
   useArticleDeletedCleanup();
   useSyncFont();
+  useSyncPageMargin();
   useSearchWarmUp();
   useInitChatData(); // 全局初始化聊天数据
 

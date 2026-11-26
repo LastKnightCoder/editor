@@ -4,6 +4,8 @@
   --font: sans-serif;
   --mono-font: monospace;
   --font-size: 16px;
+  --tau-page-margin-ratio: 16cqi;
+  --tau-page-margin-cap: 220px;
 }
 
 html,

@@ -28,7 +28,6 @@ import {
   MoreHorizontal,
   PanelLeft,
   Search,
-  StretchHorizontal,
   X,
 } from "lucide-react";
 import type { Descendant } from "slate";
@@ -50,6 +49,8 @@ import {
 import { on, off } from "@/electron";
 import { revealInFileManagerLabel } from "@/platform";
 import { copyWechatHtmlToClipboard, downloadMarkdown } from "@/utils";
+import { usePageMargin } from "@/hooks/usePageMargin";
+import { outlineFitsInPageMargin } from "@/utils/pageMargin";
 import "@/app/base.css";
 import { getFileCategory } from "./fileTypes";
 import { baseName, dirName, isWithin, rebasePath, splitExtension } from "./paths";
@@ -69,8 +70,6 @@ const rootClass =
   "app flex h-screen flex-col overflow-hidden bg-page font-tau text-tau-body text-ink-1 antialiased";
 const MENU_ICON = "size-[15px] shrink-0";
 const MARKDOWN_FILTERS = [{ name: "Markdown", extensions: ["md", "markdown"] }];
-/** 大纲贴正文右缘所需的最小富余宽度（大纲列至少 208px + 两侧呼吸） */
-const OUTLINE_COLUMN_MIN_EXTRA = 240;
 const toastAdapter = {
   success: (msg: string) => toast.success(msg),
   error: (msg: string) => toast.error(msg),
@@ -278,9 +277,10 @@ export default function MarkdownWindowPage() {
     }
     if (content) setExporting({ kind, content, title: fileTitle || "未命名文档" });
   };
+  const pageMargin = usePageMargin();
   const isMarkdown = category === "markdown";
   const outline = isMarkdown ? status.outline : undefined;
-  const outlineFits = sheetWidth >= (prefs.wide ? 1040 : 800) + OUTLINE_COLUMN_MIN_EXTRA;
+  const outlineFits = outlineFitsInPageMargin(sheetWidth, pageMargin);
   const outlineAsColumn = Boolean(prefs.outlineOpen && outlineFits && outline);
 
   const outlineButton = (
@@ -313,15 +313,6 @@ export default function MarkdownWindowPage() {
           onCheckedChange={() => viewRef.current?.toggleSource?.()}
         >
           源码模式
-        </Menu.CheckboxItem>
-      )}
-      {isMarkdown && (
-        <Menu.CheckboxItem
-          icon={<StretchHorizontal className={MENU_ICON} strokeWidth={1.75} />}
-          checked={prefs.wide}
-          onCheckedChange={prefs.toggleWide}
-        >
-          宽版心
         </Menu.CheckboxItem>
       )}
       <Menu.Item
@@ -453,7 +444,6 @@ export default function MarkdownWindowPage() {
         key={activePath}
         ref={setViewHandle}
         path={activePath}
-        wide={prefs.wide}
         outlineColumn={outlineAsColumn}
         onStatus={setStatus}
         onOpenMarkdown={path => void openFile(path)}

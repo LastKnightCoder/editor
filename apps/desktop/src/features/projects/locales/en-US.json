@@ -87,6 +87,7 @@
   "meta.updated": "Last updated {{date}}",
   "meta.relativeTime": "{{day}} {{time}}",
   "history": "Edit history",
+  "outline": "Outline",
   "add.root": "Add root item",
   "add.child": "Add child item",
   "html.uploading": "Uploading HTML file…",

@@ -65,6 +65,7 @@ import useSettingStore from "@/stores/useSettingStore";
 import { openCardInNewWindow } from "@/commands/card";
 import { copyMarkdownToClipboard, copyWechatHtmlToClipboard, formatDate } from "@/utils";
 import { Button, ConfirmDialog, IconButton, Loading, Menu, cn, toast } from "@tau/ui";
+import { PAGE_MARGIN_INLINE_STYLE } from "@/utils/pageMargin";
 import { loadCardTagSuggestions, useCardDetail, useCardsMutations } from "../queries";
 import { AddContentLinkDialog } from "@/features/context/components/ContextLinks";
 import { ContextBadge } from "@/features/context/components/ContextBadge";
@@ -216,9 +217,9 @@ export function CardDetailView() {
         className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden"
       >
         <div ref={paperRowRef} className="relative flex min-h-0 flex-1">
-          <FadeScroll className="my-4 min-h-0 min-w-0 flex-1">
-            <div className="grid grid-cols-[1fr_minmax(0,640px)_1fr] items-start px-[26px] pt-6 pb-8">
-              <article className="col-start-2 min-w-0">
+          <FadeScroll className="@container my-4 min-h-0 min-w-0 flex-1">
+            <div className="w-full pt-6 pb-8" style={PAGE_MARGIN_INLINE_STYLE}>
+              <article className="min-w-0">
                 {/* 卡头 meta：时间 · ⋯ 菜单（时间右侧）；置顶操作在列表页承担
                 （详情页不做） */}
                 <div className="mb-5 flex items-center gap-2.5">

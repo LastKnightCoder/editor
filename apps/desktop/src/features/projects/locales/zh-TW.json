@@ -90,6 +90,7 @@
   "meta.words": "{{amount}} 字",
   "meta.relativeTime": "{{day}}{{time}}",
   "history": "編輯歷史",
+  "outline": "大綱",
   "add.root": "新增根節點",
   "add.child": "新增子節點",
   "html.uploading": "正在上傳 HTML 檔案…",

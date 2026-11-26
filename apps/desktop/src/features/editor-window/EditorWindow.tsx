@@ -62,9 +62,9 @@ import { EditorWindowTitlebar } from "./EditorWindowTitlebar";
 import { EditorStatusBar } from "./EditorStatusBar";
 import { cardTitle } from "@/utils/card-title";
 import { exportContentAsWord, exportContentAsMarkdown } from "@/services/content-transfer";
+import { usePageMarginOutlineFits } from "@/hooks/usePageMargin";
+import { SYMMETRIC_PAGE_GRID_STYLE } from "@/utils/pageMargin";
 
-/** 低于该宽度大纲不再常驻右栏，改由标题栏按钮弹出 */
-const OUTLINE_COLUMN_MIN_WIDTH = 900;
 /** 建议右栏 300px：窗口不够宽时不占列，建议仍可在正文痕迹与主窗口对话里处理 */
 
 const toastAdapter = {
@@ -73,16 +73,6 @@ const toastAdapter = {
 };
 
 const iconClass = "size-[15px] shrink-0";
-
-function useWindowWidth() {
-  const [width, setWidth] = useState(() => window.innerWidth);
-  useEffect(() => {
-    const onResize = () => setWidth(window.innerWidth);
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
-  return width;
-}
 
 export function EditorWindow({
   driver,
@@ -122,7 +112,7 @@ export function EditorWindow({
   const [editorEl, setEditorEl] = useState<HTMLDivElement | null>(null);
   useEdgeFade(scrollEl);
 
-  const windowWidth = useWindowWidth();
+  const outlineFits = usePageMarginOutlineFits(scrollEl);
   const outlineOn = useEditorWindowPrefs(s => s.outline[driver.kind]);
   const toggleOutline = useEditorWindowPrefs(s => s.toggleOutline);
   const typewriter = useEditorWindowPrefs(s => s.typewriter);
@@ -157,7 +147,7 @@ export function EditorWindow({
       resolveEditorHeaderAnchor(editorRef.current?.getEditor(), index),
     []
   );
-  const outlineAsColumn = outlineOn && windowWidth >= OUTLINE_COLUMN_MIN_WIDTH;
+  const outlineAsColumn = outlineOn && outlineFits && headers.length > 0;
 
   /* 选中字数 + 打字机滚动：都跟随编辑区内的 DOM 选区 */
   useEffect(() => {
@@ -394,18 +384,11 @@ export function EditorWindow({
             正在切换共享状态… 正文暂时只读
           </div>
         )}
-        <div ref={setScrollEl} className={cn(FADE_SCROLL_CLASS, "min-h-0 flex-1")}>
-          {/* 版心居中：正文列两侧等分余量；大纲常驻时右列至少留 208px，不够由正文列让位 */}
-          <div
-            className={cn(
-              "grid min-h-full",
-              outlineAsColumn && !focusMode
-                ? "grid-cols-[minmax(0,1fr)_minmax(0,720px)_minmax(208px,1fr)]"
-                : "grid-cols-[1fr_minmax(0,720px)_1fr]"
-            )}
-          >
+        <div ref={setScrollEl} className={cn(FADE_SCROLL_CLASS, "@container min-h-0 flex-1")}>
+          {/* 严格对称三列：左留白 | 居中正文 | 右留白；右留白足够宽时大纲落在第 3 列 */}
+          <div className="grid min-h-full" style={SYMMETRIC_PAGE_GRID_STYLE}>
             {/* 纵向 flex：正文区撑满余高，标签行内容短时贴纸面底部、内容长时跟在正文末 */}
-            <div className="col-start-2 flex min-w-0 flex-col px-10 pt-8 pb-8">
+            <div className="col-start-2 flex min-w-0 flex-col pt-8 pb-8">
               {driver.hasTitle && (
                 <CollaborativeTitleField
                   binding={collab.binding}
@@ -472,7 +455,7 @@ export function EditorWindow({
               )}
             </div>
             {outlineAsColumn && !focusMode && (
-              <div className="col-start-3 min-w-0 pt-8 pr-3 pl-4">
+              <div className="col-start-3 min-w-0 pt-8 pr-4 pl-6">
                 <div className="sticky top-8 max-w-[240px]">{outlineNode}</div>
               </div>
             )}

@@ -13,6 +13,7 @@ import type { IArticle } from "@/types";
 import { getContentLength } from "@/utils/helper";
 import { formatRecentDateTime } from "@/features/shared/list/format";
 import LocalImage from "@/components/LocalImage";
+import { PAGE_MARGIN_INLINE_STYLE } from "@/utils/pageMargin";
 import { cn } from "@tau/ui";
 
 interface ArticleHeroProps {
@@ -88,7 +89,7 @@ export function ArticleHero({
         </div>
       )}
 
-      <div className={cn("mx-auto w-[720px] max-w-[calc(100%-52px)]", banner ? "mt-7" : "mt-3")}>
+      <div className={cn("w-full", banner ? "mt-7" : "mt-3")} style={PAGE_MARGIN_INLINE_STYLE}>
         {/* 无封面：页头上方留一行，hover 页头浮出「添加封面」 */}
         {!banner && (
           <button

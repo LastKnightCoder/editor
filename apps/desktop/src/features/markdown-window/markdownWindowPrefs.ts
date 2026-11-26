@@ -6,10 +6,8 @@ interface MarkdownWindowPrefs {
   sidebarOpen: boolean;
   /** 左栏宽度（拖拽调宽，双击手柄回默认） */
   sidebarWidth: number;
-  /** 大纲开关：sheet 够宽时贴正文右缘常驻，不够时由标题栏按钮弹层 */
+  /** 大纲开关：右侧留白足够宽时贴正文右缘常驻，不够时由标题栏按钮弹层 */
   outlineOpen: boolean;
-  /** 宽版心（1040）/ 标准（720） */
-  wide: boolean;
   /** 显示点开头的文件、node_modules 与不支持的文件类型 */
   showAllFiles: boolean;
   /** 各根目录下展开的文件夹 */
@@ -17,7 +15,6 @@ interface MarkdownWindowPrefs {
   setSidebarOpen(open: boolean): void;
   setSidebarWidth(width: number): void;
   toggleOutline(): void;
-  toggleWide(): void;
   toggleShowAllFiles(): void;
   setExpanded(root: string, paths: string[]): void;
 }
@@ -38,13 +35,11 @@ export const useMarkdownWindowPrefs = create<MarkdownWindowPrefs>()(
       sidebarOpen: true,
       sidebarWidth: SIDEBAR_DEFAULT_WIDTH,
       outlineOpen: true,
-      wide: false,
       showAllFiles: false,
       expanded: {},
       setSidebarOpen: sidebarOpen => set({ sidebarOpen }),
       setSidebarWidth: width => set({ sidebarWidth: clampSidebarWidth(width) }),
       toggleOutline: () => set(state => ({ outlineOpen: !state.outlineOpen })),
-      toggleWide: () => set(state => ({ wide: !state.wide })),
       toggleShowAllFiles: () => set(state => ({ showAllFiles: !state.showAllFiles })),
       setExpanded: (root, paths) =>
         set(state => {

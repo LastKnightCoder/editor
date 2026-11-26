@@ -5,6 +5,7 @@ import { queryClient } from "@/queryClient";
 import { useBackendWebsocketStore } from "@/stores/useBackendWebsocketStore";
 import useSyncSetting from "@/hooks/useSyncSetting";
 import useSyncFont from "@/hooks/useSyncFont";
+import { useSyncPageMargin } from "@/hooks/usePageMargin";
 import { send } from "@/electron";
 import { startPerfObserver } from "@/utils/perf-observer";
 import { connectPomodoroAudio } from "@/features/pomodoro/background-audio";
@@ -15,6 +16,7 @@ import "./window.css";
 function AuxiliaryWindow({ Page }: { Page: ComponentType }) {
   useSyncSetting();
   useSyncFont();
+  useSyncPageMargin();
   useEffect(() => {
     send("auxiliary:ready");
   }, []);

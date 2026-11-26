@@ -222,7 +222,6 @@ async function mount(text: string, strict = false, outlineColumn = false) {
       <MarkdownFileView
         ref={ref}
         path="/test/doc.md"
-        wide={false}
         outlineColumn={column}
         onStatus={() => undefined}
         onOpenMarkdown={() => undefined}

@@ -8,6 +8,7 @@ import {
   type ImageShadowPreset,
 } from "@tau/editor/extensions/media/types";
 import type { HighlightStyle } from "@tau/editor/extensions/text-formatting/types";
+import { DEFAULT_PAGE_MARGIN, type PageMarginPreset } from "@/utils/pageMargin";
 
 import type { TTSProviderSetting, TTSUsageConfig } from "@/types/tts";
 import type { EmbeddingSetting } from "@/types/embedding";
@@ -129,6 +130,8 @@ export interface ISetting {
       /** 色团缓慢漂移；系统开启「减少动态效果」时始终静止 */
       motion?: boolean;
     };
+    /** 正文左右留白档位：narrow / medium（默认）/ wide */
+    pageMargin?: PageMarginPreset;
   };
   imageBed: {
     active: EImageBed;
@@ -359,6 +362,7 @@ const initialState: IState = {
         shadow: "none",
       },
       backdrop: { enabled: true, motion: true },
+      pageMargin: DEFAULT_PAGE_MARGIN,
     },
     imageBed: {
       active: EImageBed.Local,

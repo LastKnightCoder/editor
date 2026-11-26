@@ -11,6 +11,7 @@ import type { Descendant } from "slate";
 import type { EditorRef } from "@tau/editor";
 import { Button, ConfirmDialog, IconButton, Loading, Menu, Tooltip, cn, toast } from "@tau/ui";
 import Editor from "@/components/ContentEditor";
+import { PAGE_MARGIN_INLINE_STYLE } from "@/utils/pageMargin";
 import {
   createContent,
   createVideoNoteItem,
@@ -307,8 +308,8 @@ export const NotesStage = forwardRef<NotesStageHandle, NotesStageProps>(function
         </Menu>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto">
-        <div className="mx-auto max-w-[720px] px-7 pt-2 pb-16">
+      <div className="@container min-h-0 flex-1 overflow-auto">
+        <div className="w-full pt-2 pb-16" style={PAGE_MARGIN_INLINE_STYLE}>
           <input
             type="text"
             value={titleDraft}

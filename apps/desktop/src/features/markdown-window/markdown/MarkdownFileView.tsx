@@ -38,6 +38,7 @@ import {
   type OutlineHeader,
 } from "@/components/ContentOutline";
 import { getContentLength, importFromMarkdown } from "@/utils";
+import { SYMMETRIC_PAGE_GRID_STYLE } from "@/utils/pageMargin";
 import { FileBanner, FileStatusBar } from "../FileChrome";
 import { useTextFileSession } from "../useTextFileSession";
 import type { FileViewStatus, MarkdownViewHandle } from "../types";
@@ -76,15 +77,14 @@ export const MarkdownFileView = forwardRef<
   MarkdownViewHandle,
   {
     path: string;
-    wide: boolean;
-    /** 大纲贴正文右缘常驻（页面按 sheet 宽度判定）；不够宽时由页面降级为弹层 */
+    /** 大纲贴正文右缘常驻（页面按右留白宽度判定）；不够宽时由页面降级为弹层 */
     outlineColumn?: boolean;
     onStatus(status: FileViewStatus): void;
     onOpenMarkdown(path: string): void;
     onSaveAs(text: string): void;
   }
 >(function MarkdownFileView(
-  { path, wide, outlineColumn = false, onStatus, onOpenMarkdown, onSaveAs },
+  { path, outlineColumn = false, onStatus, onOpenMarkdown, onSaveAs },
   ref
 ) {
   const editorRef = useRef<EditorRef>(null);
@@ -407,8 +407,6 @@ export const MarkdownFileView = forwardRef<
   }
   if (!snapshot.loaded) return <Loading />;
 
-  const column = cn("mx-auto w-full px-10 pb-24 pt-8", wide ? "max-w-[1040px]" : "max-w-[800px]");
-
   const sourceView = (
     <div className={cn(!sourceMode && "hidden")}>
       {sourceCreated && (
@@ -499,25 +497,14 @@ export const MarkdownFileView = forwardRef<
           文件已不在磁盘上（被删除或移动），内容仍保留在窗口里
         </FileBanner>
       )}
-      <div ref={setScrollEl} className={cn(FADE_SCROLL_CLASS, "min-h-0 flex-1")}>
-        <div
-          className={
-            outlineAsColumn
-              ? cn(
-                  "grid min-h-full",
-                  wide
-                    ? "grid-cols-[minmax(0,1fr)_minmax(0,1040px)_minmax(208px,1fr)]"
-                    : "grid-cols-[minmax(0,1fr)_minmax(0,800px)_minmax(208px,1fr)]"
-                )
-              : column
-          }
-        >
-          <div className={outlineAsColumn ? "col-start-2 min-w-0 px-10 pt-8 pb-24" : undefined}>
+      <div ref={setScrollEl} className={cn(FADE_SCROLL_CLASS, "@container min-h-0 flex-1")}>
+        <div className="grid min-h-full" style={SYMMETRIC_PAGE_GRID_STYLE}>
+          <div className="col-start-2 min-w-0 pt-8 pb-24">
             {sourceView}
             {richView}
           </div>
           {outlineAsColumn && (
-            <div className="col-start-3 min-w-0 pt-8 pr-3 pl-4">
+            <div className="col-start-3 min-w-0 pt-8 pr-4 pl-6">
               <div
                 ref={setOutlineScrollEl}
                 className={cn(

@@ -30,6 +30,7 @@ import {
   FileType,
   FileText,
   Image as ImageIcon,
+  ListTree,
   Maximize2,
   MessageSquare,
   Copy,
@@ -73,7 +74,9 @@ import {
   defaultArticleEventBus,
 } from "@/utils";
 import AddTag from "@/components/AddTag";
-import { ConfirmDialog, IconButton, Loading, Menu, cn, toast } from "@tau/ui";
+import { ConfirmDialog, IconButton, Loading, Menu, Popover, cn, toast } from "@tau/ui";
+import { usePageMarginOutlineFits } from "@/hooks/usePageMargin";
+import { SYMMETRIC_PAGE_GRID_STYLE } from "@/utils/pageMargin";
 
 import { loadArticleTagSuggestions, useArticleMutations } from "../queries";
 import { ArticleHero } from "../components/ArticleHero";
@@ -162,6 +165,7 @@ export function ArticleDetailView() {
 
   /* 版心滚动容器：callback ref（挂载后接线目录同步与阅读进度） */
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
+  const outlineFits = usePageMarginOutlineFits(scrollEl);
 
   const [presenting, setPresenting] = useState<Descendant[] | null>(null);
   const [immersive, setImmersive] = useState(false);
@@ -474,6 +478,8 @@ export function ArticleDetailView() {
   }
 
   const headers = extractContentHeaders(editingArticle.content);
+  const showInlineOutline = !composing && headers.length > 0 && outlineFits;
+  const showPopoverOutline = !composing && headers.length > 0 && !outlineFits;
 
   const setComposing = (next: boolean) =>
     navigator.push("article-detail", {
@@ -511,7 +517,10 @@ export function ArticleDetailView() {
             className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden"
           >
             <div ref={paperRowRef} className="relative flex min-h-0 flex-1">
-              <FadeScroll scrollRef={setScrollEl} className="min-h-0 min-w-0 flex-1 border-r-[3px]">
+              <FadeScroll
+                scrollRef={setScrollEl}
+                className="@container min-h-0 min-w-0 flex-1 border-r-[3px]"
+              >
                 <ArticleHero
                   article={editingArticle}
                   onTitleChange={title => {
@@ -555,6 +564,29 @@ export function ArticleDetailView() {
                           sourceTitle: editingArticle.title,
                         }}
                       />
+                      {showPopoverOutline && (
+                        <Popover
+                          placement="bottom-end"
+                          arrow={false}
+                          className="w-[240px] p-2"
+                          trigger={
+                            <IconButton
+                              title={t("menu.outline")}
+                              aria-label={t("menu.outline")}
+                              className="size-[30px]"
+                            >
+                              <ListTree className="size-4" />
+                            </IconButton>
+                          }
+                        >
+                          <ContentOutline
+                            headers={headers}
+                            scrollEl={scrollEl}
+                            resolveAnchor={resolveAnchor}
+                            className="w-full"
+                          />
+                        </Popover>
+                      )}
                       <IconButton
                         title={t("menu.history")}
                         aria-label={t("menu.history")}
@@ -572,7 +604,7 @@ export function ArticleDetailView() {
                   }
                 />
 
-                <div className="grid grid-cols-[1fr_minmax(0,720px)_1fr] items-start px-[26px] pt-8 pb-10">
+                <div className="grid items-start pt-8 pb-10" style={SYMMETRIC_PAGE_GRID_STYLE}>
                   <article className="col-start-2 min-w-0">
                     {insights.report && <div className="mb-6">{insights.report}</div>}
                     <PluginEntityPanels
@@ -614,12 +646,13 @@ export function ArticleDetailView() {
                     />
                   </article>
 
-                  {!composing && (
-                    <div className="sticky top-4 col-start-3 ml-7">
+                  {showInlineOutline && (
+                    <div className="sticky top-4 col-start-3 min-w-0 pr-4 pl-6">
                       <ContentOutline
                         headers={headers}
                         scrollEl={scrollEl}
                         resolveAnchor={resolveAnchor}
+                        className="w-full max-w-[240px]"
                       />
                     </div>
                   )}

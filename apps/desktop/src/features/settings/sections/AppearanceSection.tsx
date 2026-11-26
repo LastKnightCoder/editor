@@ -36,6 +36,7 @@ import {
 import { SettingRow, Select, Switch } from "@tau/ui";
 import useSettingStore, { type ISetting } from "@/stores/useSettingStore";
 import { getAllFonts } from "@/commands";
+import { normalizePageMargin, PAGE_MARGIN_SPECS, type PageMarginPreset } from "@/utils/pageMargin";
 import { FontSelect } from "../components/FontSelect";
 import { SettingsGroup } from "../components/SettingsGroup";
 
@@ -97,6 +98,7 @@ export function AppearanceSection() {
 
   const imageShadow: ImageShadowPreset = appearance?.image?.shadow ?? "none";
   const highlightStyle: HighlightStyle = appearance?.highlight?.style ?? "flat";
+  const pageMargin: PageMarginPreset = normalizePageMargin(appearance?.pageMargin);
 
   const backdropEnabled = appearance?.backdrop?.enabled !== false;
   const backdropMotion = appearance?.backdrop?.motion !== false;
@@ -114,6 +116,15 @@ export function AppearanceSection() {
       setting: produce(s.setting, draft => {
         if (!draft.appearance) draft.appearance = {};
         draft.appearance.highlight = { ...draft.appearance.highlight, style };
+      }),
+    }));
+  };
+
+  const updatePageMargin = (next: PageMarginPreset) => {
+    useSettingStore.setState(s => ({
+      setting: produce(s.setting, draft => {
+        if (!draft.appearance) draft.appearance = {};
+        draft.appearance.pageMargin = next;
       }),
     }));
   };
@@ -218,6 +229,21 @@ export function AppearanceSection() {
         </SettingRow>
       </SettingsGroup>
 
+      <SettingsGroup title={t("pageMargin.title")} description={t("pageMargin.description")}>
+        <div className="grid grid-cols-3 gap-3 px-1.5 pt-2.5 pb-2.5">
+          {PAGE_MARGIN_SPECS.map(spec => (
+            <ChoiceCard
+              key={spec.id}
+              active={pageMargin === spec.id}
+              onSelect={() => updatePageMargin(spec.id)}
+              caption={t(`pageMargin.${spec.id}`)}
+            >
+              <PageMarginPreview preset={spec.id} lit={pageMargin === spec.id} />
+            </ChoiceCard>
+          ))}
+        </div>
+      </SettingsGroup>
+
       <SettingsGroup title={t("highlight.title")} description={t("highlight.description")}>
         <div className="grid grid-cols-4 gap-3 px-1.5 pt-2.5 pb-2.5">
           {HIGHLIGHT_STYLES.map(style => (
@@ -306,6 +332,32 @@ function ChoiceCard({
         {caption}
       </div>
     </button>
+  );
+}
+
+const PAGE_MARGIN_PREVIEW_PADDING: Record<PageMarginPreset, string> = {
+  narrow: "10%",
+  medium: "20%",
+  wide: "30%",
+};
+
+/** 页边距示意：三档不同左右留白的迷你纸面，居中排布标题行与正文行 */
+function PageMarginPreview({ preset, lit }: { preset: PageMarginPreset; lit: boolean }) {
+  return (
+    <div
+      className="bg-page absolute inset-0 flex flex-col justify-center gap-1.5"
+      style={{ paddingInline: PAGE_MARGIN_PREVIEW_PADDING[preset] }}
+    >
+      <div
+        className={clsx(
+          "h-[7px] w-[58%] rounded-full transition-colors duration-[160ms]",
+          lit ? "bg-accent" : "bg-sunken"
+        )}
+      />
+      <div className="bg-sunken h-[5px] w-full rounded-full" />
+      <div className="bg-sunken h-[5px] w-[90%] rounded-full" />
+      <div className="bg-sunken h-[5px] w-[74%] rounded-full" />
+    </div>
   );
 }
 
