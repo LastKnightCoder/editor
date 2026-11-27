@@ -434,6 +434,9 @@ SDK首版接线整合：T1十四主仓+starter六路径（含README）冻结，S
 - 版本：根与desktop当前仍为0.67.0，尚未决定或修改正式版本；新模板声明最低0.68.0是桌面客户端约束，与UI库版本无关。
 - 分发：目前仅生产JS资产，未构建原生安装包、签名公证或上传更新渠道。新版官方插件仍是候选，不并入宿主首发；旧插件继续兼容，部分中文/原文可作为渐进式首版保留。
 - 后续完整目标：剩余零散UI、官方插件全适配、Provider错误ref与display/default数据分离、AI显示投影和移动端/iOS完整验收。首版可发布性不等于全域目标完成；不以扫字数量计算百分比。
+  - [x] 剩余零散UI、官方插件全适配：已随 P7C 收尾批与 P7B 完成 clearing。
+  - [x] AI显示投影：2026-11-27 全量盘点收束——语义可枚举的 AI 输出字段（闪卡/测验 type+difficulty、洞见 mark/pair type、task-assistant choice、content-edit op/position、白板 kind/shape、questions status/tone、expense 分类、weight kind、assistant-memory 全部枚举、公式 AST、Notebook 风格/阶段、子 Agent mode/status）均已是稳定 key 并经 i18n 投影，无残余；自由内容字段（标题/摘要/理由/台词等）按边界保持原文。唯一「有界中文进值」的「还缺：/这里还薄：」前缀，渲染侧 `stripGapPrefix`（knowledge-map/insights/model.ts、services/pattern-card.ts）已剥离，语言中立；可选协议加固（让 AI 出 kind 字段替代前缀、podcast 台词输出说话人序号替代名字匹配）留待协议扩展时顺手做。洞见「写成卡片」占位（services/pattern-card.ts）为最后一处 UI chrome 残余，已接三语（创建时点快照）。
+  - [ ] Provider错误ref与display/default数据分离、移动端/iOS完整验收：随 SDK 发版批次与真机验收排期。
 
 ## 当前子批任务
 
