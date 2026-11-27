@@ -94,7 +94,7 @@ import）注册期即被调用，因此记录数据挂在模块级、import 期�
 - Vite 开发、样板间与构建命令统一 `--configLoader runner`（默认 bundle 加载器会把工作区 TS 配置依赖外部化导致 `ERR_UNKNOWN_FILE_EXTENSION`）；配置用 `fileURLToPath(import.meta.url)` 取目录。
 - `node apps/desktop/scripts/verify-plugin-content.mjs --production` 使用已经构建的 dist 内容页面，在隔离的临时 Electron 工作区验证真实内容插件；不带该参数时独立编译源码进行验证。
 - 桌面消费的编辑器扩展包、@tau/ui、@tau/themes 由 Vite 编入产物，统一声明在桌面 devDependencies——放 dependencies 会让 electron-builder 再收集整条生产依赖链；运行时从磁盘加载的外置模块与原生依赖保留生产声明，调整后检查实际安装包与原生运行时。
-- 安装包排除依赖 `.js.map`/`.mjs.map`/`.cjs.map`（afterPack 补复制同样规则），不泛删 `.map` 数据文件；`verify:native-runtime` 用包内 Electron 逐项执行包内依赖的原生模块加载断言。
+- 安装包排除依赖 `.js.map`/`.mjs.map`/`.cjs.map`（afterPack 补复制同样规则），不泛删 `.map` 数据文件；原生平台子包的 afterPack 裁剪与产物检查共用平台 token 规则，`linuxmusl` 作为独立 token 识别，禁止混入 macOS、Windows 与 glibc Linux 包；`verify:native-runtime` 用包内 Electron 逐项执行包内依赖的原生模块加载断言。
 - pi 只带 SDK（不打包独立 CLI bundle 与 esbuild），`pi-packaging-boundary.mjs` 检查已审核版本与消费者，边界变化必须重新审核；主进程 Vite 的 `resolve.dedupe` 统一桌面入口的 `@earendil-works/pi-ai`（避免 peer 解析重复进 bundle 触发 Anthropic SDK 代码生成错误）。分词词典由外置 `@node-rs/jieba/dict` 从包内加载，不复制不劫持。
 - macOS 双架构：`pnpm build` 同时产出 x64 与 arm64 的 DMG/ZIP（共用一份 latest-mac.yml；DMG 供官网、ZIP 供自动更新），`supportedArchitectures.cpu` 含两架构；afterPack 按目标裁剪原生依赖，构建结束恢复本机 better-sqlite3。双架构发行经 `run-mac-builder.mjs`：顺序构建签名（原生依赖原地重编，禁止并发）→ 并行公证附票 → 全部成功才出 target；blockmap 与合并 latest-mac.yml 由同一 PublishManager 生成，不改包不手工合并；任一签名/公证失败不产发行物。凭据推荐 `APPLE_KEYCHAIN_PROFILE`（保留 electron-builder.env）。回归：`node --test scripts/parallel-mac-packager.test.mjs scripts/release-artifacts.test.mjs`。发布前校验清单引用文件、大小、摘要与双架构四件套，禁止半套产物覆盖更新源；官网 Pages 读发布清单缓存 60 秒。
 - macOS 本机打包复用桌面构建，以同一 arm64 目标编译语音助手、裁剪原生依赖、生成安装包和执行原生运行时检查。独立输出目录隔离双架构发行产物。操作见 [Apple 芯片本机打包](/docs/guides/ops-macos-code-signing.md#apple-芯片本机打包)。

@@ -29,6 +29,7 @@ const knownPlatformTokens = [
   "gnu",
   "ia32",
   "linux",
+  "linuxmusl",
   "metal",
   "msvc",
   "musl",

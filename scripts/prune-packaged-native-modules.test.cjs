@@ -55,6 +55,31 @@ test("mac 两种架构的包互相排除对方的原生模块", () => {
   assert.equal(findForeignPlatformToken("@img/sharp-win32-x64", "darwin", "x64"), "win32");
 });
 
+test("sharp 的 linuxmusl 子包被识别为 macOS、Windows 与 glibc Linux 的外来模块", () => {
+  // 发布包曾混入 linuxmusl 的 ELF 文件，直到 lipo 检查才失败。
+  const packages = [
+    "@img/sharp-linuxmusl-x64",
+    "@img/sharp-libvips-linuxmusl-x64",
+    "@img/sharp-linuxmusl-arm64",
+    "@img/sharp-libvips-linuxmusl-arm64",
+  ];
+  const targets = [
+    ["darwin", "x64"],
+    ["darwin", "arm64"],
+    ["win32", "x64"],
+    ["linux", "x64"],
+  ];
+  for (const [platform, arch] of targets) {
+    for (const name of packages) {
+      assert.notEqual(
+        findForeignPlatformToken(name, platform, arch),
+        null,
+        `${platform}-${arch}: ${name}`
+      );
+    }
+  }
+});
+
 test("mac 每个架构只带自己的 llama.cpp 后端", () => {
   assert.deepEqual(llamaBackendAllowlist("darwin", "arm64"), ["mac-arm64-metal"]);
   assert.deepEqual(llamaBackendAllowlist("darwin", "x64"), ["mac-x64"]);
