@@ -527,6 +527,7 @@ const Richtext = (props: RichTextProps) => {
             <ErrorBoundary>
               <RichTextEditor
                 document={collaborativeDocument}
+                showDragHandle={false}
                 contentId={contentId}
                 ref={editorRef}
                 style={fadeStyle}
