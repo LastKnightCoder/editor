@@ -10,6 +10,7 @@ import { MarkdownMessageMeta } from "../MarkdownContext";
 import { showInFolder, getHomeDir } from "@/commands";
 import { remoteResourceToLocal } from "@/utils";
 import LocalImage from "@/components/LocalImage";
+import LocalImagePreviewPortal from "@/components/LocalImagePreviewPortal";
 import {
   MessageView,
   type MessageMarkdownParams,
@@ -25,6 +26,29 @@ import { SubagentToolGroup } from "@/features/chat/components/subagents/Subagent
 import { isSubagentDispatch } from "@/features/chat/components/subagents/dispatch";
 import { IconButton } from "@tau/ui";
 import { MoreHorizontal } from "lucide-react";
+
+const ZoomableImage = ({ image, className }: { image: MessageViewImage; className: string }) => {
+  const [previewOpen, setPreviewOpen] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        className="block"
+        onClick={() => setPreviewOpen(true)}
+        aria-label="点击放大图片"
+      >
+        <LocalImage url={image.url} alt={image.alt} className={className} />
+      </button>
+      {previewOpen ? (
+        <LocalImagePreviewPortal
+          url={image.url}
+          alt={image.alt}
+          onClose={() => setPreviewOpen(false)}
+        />
+      ) : null}
+    </>
+  );
+};
 
 interface MessageItemProps {
   message: ChatSessionMessage;
@@ -267,12 +291,7 @@ const MessageItem: React.FC<MessageItemProps> = memo(
           onOpenFile={file => void openFileInExplorer(file)}
           renderMarkdown={renderMarkdown}
           renderImage={(image, index, className) => (
-            <LocalImage
-              key={`${image.url}-${index}`}
-              url={image.url}
-              alt={image.alt}
-              className={className}
-            />
+            <ZoomableImage key={`${image.url}-${index}`} image={image} className={className} />
           )}
           renderToolCall={renderToolCall}
           renderToolGroup={renderToolGroup}
