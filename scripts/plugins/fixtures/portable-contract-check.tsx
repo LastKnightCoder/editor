@@ -6,6 +6,21 @@ import {
   type PortablePluginManifest,
 } from "@tau/plugins/portable";
 
+export function notificationContract(context: PluginContext, isOnSurface: () => boolean) {
+  const options = {
+    title: "任务完成",
+    isOnSurface,
+    actions: [{ label: "查看", reveal: true, onClick: () => Promise.resolve() }],
+  } satisfies import("@tau/plugins").PluginNotificationOptions;
+  const invalid: import("@tau/plugins").PluginNotificationOptions = {
+    title: "任务完成",
+    // @ts-expect-error 可见面判断必须同步完成。
+    isOnSurface: async () => true,
+  };
+  void invalid;
+  return context.notifications.send(options);
+}
+
 export function Page({ context }: PluginPageProps) {
   const environment = usePluginEnvironment();
   return (
