@@ -126,6 +126,39 @@ describe("computeAnchoredPosition", () => {
     });
     expect(r.y).toBe(340 + 4);
   });
+
+  describe("avoid：浮层不压住指定矩形（白板属性弹层避让选中图形）", () => {
+    it("常规位压住 avoid 时改贴 avoid 一侧，且不与 avoid、锚点相交", () => {
+      // 属性条被夹在选区内部（选区顶到视口上缘），向下展开会盖住图形
+      const anchor = rect(462, 60, 100, 40);
+      const avoid = { left: 300, top: 0, right: 724, bottom: 400 };
+      const r = computeAnchoredPosition(anchor, size(280, 200), "bottom", { avoid });
+      const pop = { left: r.x, top: r.y, right: r.x + 280, bottom: r.y + 200 };
+      const overlaps = (b: typeof avoid) =>
+        pop.left < b.right && pop.right > b.left && pop.top < b.bottom && pop.bottom > b.top;
+      expect(overlaps(avoid)).toBe(false);
+      expect(overlaps(anchor)).toBe(false);
+      expect(r.y).toBe(400 + 8); // 选区下方最近
+    });
+
+    it("常规位本就不压 avoid 时位置不变", () => {
+      const anchor = rect(462, 300, 100, 40);
+      const plain = computeAnchoredPosition(anchor, size(120, 30), "top");
+      const r = computeAnchoredPosition(anchor, size(120, 30), "top", {
+        avoid: { left: 462, top: 348, right: 562, bottom: 500 },
+      });
+      expect(r).toEqual(plain);
+    });
+
+    it("四周都放不下时保常规位", () => {
+      const anchor = rect(462, 300, 100, 40);
+      const plain = computeAnchoredPosition(anchor, size(280, 200), "bottom");
+      const r = computeAnchoredPosition(anchor, size(280, 200), "bottom", {
+        avoid: { left: 0, top: 0, right: 1024, bottom: 768 },
+      });
+      expect(r).toEqual(plain);
+    });
+  });
 });
 
 describe("applyArrowPosition", () => {

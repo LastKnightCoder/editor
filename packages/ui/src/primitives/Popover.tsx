@@ -41,7 +41,7 @@ import { AnchoredPanel, PanelHasHeaderContext } from "./AnchoredPanel";
 import { mergeRefs } from "./mergeRefs";
 import { useLayerDismiss } from "./useLayerDismiss";
 import { useUiI18n } from "../i18n";
-import type { AnchoredPlacement } from "./anchoredPosition";
+import type { AnchoredPlacement, AnchoredRect } from "./anchoredPosition";
 
 /* ───────── 上下文 ───────── */
 
@@ -72,6 +72,8 @@ export interface PopoverProps {
   children: ReactNode;
   /** 12 向全表（引擎 flip/shift 兜底），默认 top */
   placement?: AnchoredPlacement;
+  /** 浮层需避开的矩形（视口坐标，每次定位时调用），如工具条服务的选中对象 */
+  avoid?: () => AnchoredRect | null;
   /** 浮层受控（§5.3 契约；样板间常显标本用它） */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -87,6 +89,7 @@ export function Popover({
   locked = false,
   children,
   placement = "top",
+  avoid,
   open: openProp,
   onOpenChange,
   arrow = true,
@@ -221,6 +224,7 @@ export function Popover({
         anchor={anchorEl}
         open={open}
         placement={placement}
+        avoid={avoid}
         arrow={arrow}
         ref={cardRef}
         role="dialog"

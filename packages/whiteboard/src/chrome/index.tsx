@@ -12,6 +12,8 @@ import { useAttributeI18n } from "../attributes-i18n";
 import {
   createContext,
   useContext,
+  useEffect,
+  useState,
   type ComponentProps,
   type CSSProperties,
   type ReactNode,
@@ -158,8 +160,17 @@ export function ChromeButton({
 
 /* ───────── 属性浮动条条目 ───────── */
 
-/** 属性条的弹层方向：条在元素上方 → 向上展开；翻到元素下方 → 向下展开 */
-export const AttrBarContext = createContext<{ side: "top" | "bottom" }>({ side: "top" });
+/**
+ * 属性条的弹层方向：条在元素上方 → 向上展开；翻到元素下方 → 向下展开。
+ * getAvoid 返回选区的视口矩形，弹层压住选区时改贴选区四周。
+ */
+export const AttrBarContext = createContext<{
+  side: "top" | "bottom";
+  getAvoid?: () => { left: number; top: number; right: number; bottom: number } | null;
+}>({ side: "top" });
+
+/** 拖动弹层内滑杆期间弹层变淡，透出下面的元素看实时效果 */
+const AttrPeekContext = createContext<(peek: boolean) => void>(() => {});
 
 export interface AttrPopoverProps {
   label: string;
@@ -182,22 +193,26 @@ export function AttrPopover({
   children,
   width = 280,
 }: AttrPopoverProps) {
-  const { side } = useContext(AttrBarContext);
+  const { side, getAvoid } = useContext(AttrBarContext);
+  const [peek, setPeek] = useState(false);
   return (
     <Popover
       placement={side}
+      avoid={getAvoid}
       arrow={false}
-      className="p-0"
+      className={cn("p-0", peek && "opacity-25")}
       trigger={
         <ChromeButton label={label} tooltipPlacement={side}>
           {swatch ? <SwatchDot look={swatch} /> : icon}
         </ChromeButton>
       }
     >
-      <div {...stopCanvasEvents} className="px-3.5 pt-3 pb-3.5" style={{ width }}>
-        <SectionHead label={label} toggle={toggle} />
-        {children}
-      </div>
+      <AttrPeekContext.Provider value={setPeek}>
+        <div {...stopCanvasEvents} className="px-3.5 pt-3 pb-3.5" style={{ width }}>
+          <SectionHead label={label} toggle={toggle} />
+          {children}
+        </div>
+      </AttrPeekContext.Provider>
     </Popover>
   );
 }
@@ -412,6 +427,21 @@ export function Slider({
   label?: string;
 }) {
   const p = max === min ? 0 : ((value - min) / (max - min)) * 100;
+  const setPeek = useContext(AttrPeekContext);
+  const [dragging, setDragging] = useState(false);
+  // 松手可能落在滑杆外，监听 window 收尾
+  useEffect(() => {
+    if (!dragging) return;
+    setPeek(true);
+    const end = () => setDragging(false);
+    window.addEventListener("pointerup", end);
+    window.addEventListener("pointercancel", end);
+    return () => {
+      setPeek(false);
+      window.removeEventListener("pointerup", end);
+      window.removeEventListener("pointercancel", end);
+    };
+  }, [dragging, setPeek]);
   return (
     <div className="flex items-center gap-2.5">
       <input
@@ -422,6 +452,7 @@ export function Slider({
         step={step}
         value={value}
         onChange={e => onChange(Number(e.target.value))}
+        onPointerDown={() => setDragging(true)}
         onPointerUp={e => onCommit?.(Number((e.target as HTMLInputElement).value))}
         onKeyUp={e => onCommit?.(Number((e.target as HTMLInputElement).value))}
         className={cn(

@@ -25,7 +25,7 @@ import { createPortal } from "react-dom";
 import { usePortalContainer } from "../UiProvider";
 import { cn } from "../cn";
 import { useEdgeFade } from "../hooks/useEdgeFade";
-import { applyArrowPosition, type AnchoredPlacement } from "./anchoredPosition";
+import { applyArrowPosition, type AnchoredPlacement, type AnchoredRect } from "./anchoredPosition";
 import { FloatingArrow } from "./FloatingArrow";
 import { mergeRefs } from "./mergeRefs";
 import { useAnchoredPosition } from "./useAnchoredPosition";
@@ -41,6 +41,8 @@ export interface AnchoredPanelProps extends Omit<
   anchor: HTMLElement | null;
   /** 12 向全表（引擎 flip/shift 兜底），默认 bottom-start */
   placement?: AnchoredPlacement;
+  /** 浮层需避开的矩形（视口坐标，每次定位时调用）：常规位压住它时改贴它的四周 */
+  avoid?: () => AnchoredRect | null;
   /** 让可滚动预览适应锚点一侧的可用高度。 */
   fitVerticalSpace?: boolean;
   /** 显隐由宿主驱动；缺省锚点存在即显示（宿主托管用法） */
@@ -57,6 +59,7 @@ export interface AnchoredPanelProps extends Omit<
 export function AnchoredPanel({
   anchor,
   placement = "bottom-start",
+  avoid,
   fitVerticalSpace = false,
   open,
   arrow = false,
@@ -75,6 +78,7 @@ export function AnchoredPanel({
     getAnchor: () => anchor?.getBoundingClientRect() ?? null,
     popRef,
     placement,
+    getAvoid: avoid,
     fitVerticalSpace,
     onPlace: (pos, pop) => {
       pop.dataset.side = pos.side;

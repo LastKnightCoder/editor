@@ -16,6 +16,7 @@ import {
   fitVerticalPreview,
   type AnchoredPlacement,
   type AnchoredPosition,
+  type AnchoredRect,
 } from "./anchoredPosition";
 
 export interface UseAnchoredPositionOptions {
@@ -32,6 +33,8 @@ export interface UseAnchoredPositionOptions {
   popRef: RefObject<HTMLElement | null>;
   placement: AnchoredPlacement;
   gap?: number;
+  /** 浮层需避开的矩形（视口坐标），每次定位时取最新值 */
+  getAvoid?: () => AnchoredRect | null;
   fitVerticalSpace?: boolean;
   /** rAF 轮询锚 rect 变化并重定位（动态锚场景，默认关） */
   pollAnchor?: boolean;
@@ -45,13 +48,16 @@ export function useAnchoredPosition({
   popRef,
   placement,
   gap,
+  getAvoid,
   fitVerticalSpace = false,
   pollAnchor = false,
   onPlace,
 }: UseAnchoredPositionOptions) {
   const getAnchorRef = useRef(getAnchor);
+  const getAvoidRef = useRef(getAvoid);
   const onPlaceRef = useRef(onPlace);
   getAnchorRef.current = getAnchor;
+  getAvoidRef.current = getAvoid;
   onPlaceRef.current = onPlace;
 
   useLayoutEffect(() => {
@@ -65,11 +71,12 @@ export function useAnchoredPosition({
       const fit =
         fitVerticalSpace && fitVerticalPreview(anchor, placement, window.innerHeight, gap);
       if (fit) pop.style.maxHeight = `${fit.maxHeight}px`;
+      const avoid = getAvoidRef.current?.() ?? null;
       const pos = computeAnchoredPosition(
         anchor,
         pop,
         fit ? fit.placement : placement,
-        gap !== undefined ? { gap } : undefined
+        gap !== undefined || avoid ? { gap, avoid } : undefined
       );
       pop.style.left = `${pos.x}px`;
       pop.style.top = `${pos.y}px`;
@@ -118,7 +125,7 @@ export function useAnchoredPosition({
       if (fitVerticalSpace) pop.style.maxHeight = originalMaxHeight;
       cancelAnimationFrame(raf);
     };
-    // placement / gap / pollAnchor 属定位参数；getAnchor / onPlace 经 ref 稳定化不参与重挂
+    // placement / gap / pollAnchor 属定位参数；getAnchor / getAvoid / onPlace 经 ref 稳定化不参与重挂
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, placement, gap, pollAnchor, fitVerticalSpace]);
 }

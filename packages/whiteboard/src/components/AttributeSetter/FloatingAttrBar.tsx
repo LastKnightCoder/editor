@@ -17,7 +17,7 @@ function getMindNodeSelfBounds({ x, y, width, height }: MindNodeElement) {
 
 /**
  * 属性浮动条：浮在选中元素上方 12px、水平居中；上方放不下时翻到元素下方，
- * 此时条目弹层改为向下展开（AttrBarContext.side）。拖动 / 缩放元素时隐去，松手回来。
+ * 此时条目弹层改为向下展开（AttrBarContext.side），并避开选区（AttrBarContext.getAvoid）。拖动 / 缩放元素时隐去，松手回来。
  * 选区完全移出视口时不显示。
  */
 export default function FloatingAttrBar({
@@ -88,8 +88,23 @@ export default function FloatingAttrBar({
     left = Math.max(EDGE, Math.min((box.left + box.right) / 2 - size.w / 2, cw - size.w - EDGE));
   }
 
+  // 弹层避让选区：传视口坐标（弹层 portal 到 body，fixed 定位）
+  const boxRef = useRef(box);
+  boxRef.current = box;
+  const [getAvoid] = useState(() => () => {
+    const b = boxRef.current;
+    const rect = BOARD_TO_CONTAINER.get(board)?.getBoundingClientRect();
+    if (!b || !rect) return null;
+    return {
+      left: rect.left + b.left,
+      top: rect.top + b.top,
+      right: rect.left + b.right,
+      bottom: rect.top + b.bottom,
+    };
+  });
+
   return (
-    <AttrBarContext.Provider value={{ side }}>
+    <AttrBarContext.Provider value={{ side, getAvoid }}>
       <ChromeBar
         ref={barRef}
         style={{ left, top }}
