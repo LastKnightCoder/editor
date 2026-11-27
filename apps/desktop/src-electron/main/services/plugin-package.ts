@@ -18,6 +18,7 @@ import {
   assertSkillPackageCompatibility,
   type SkillPackageManifest,
   type TemplateManifest,
+  type TemplateI18nResources,
 } from "@tau/plugins/template";
 import { readTemplatePackage } from "./template-package";
 
@@ -30,11 +31,12 @@ export function setPluginPackageIntegrityCache(cache: PluginPackageIntegrityCach
 
 export type DistributionPackage =
   | DevelopmentPluginPackage
-  | { manifest: TemplateManifest }
+  | { manifest: TemplateManifest; messages?: TemplateI18nResources }
   | { manifest: SkillPackageManifest };
 export const isTemplatePackage = (
   artifact: DistributionPackage
-): artifact is { manifest: TemplateManifest } => isTemplateManifest(artifact.manifest);
+): artifact is { manifest: TemplateManifest; messages?: TemplateI18nResources } =>
+  isTemplateManifest(artifact.manifest);
 export const isSkillPackage = (
   artifact: DistributionPackage
 ): artifact is { manifest: SkillPackageManifest } => isSkillPackageManifest(artifact.manifest);
@@ -50,7 +52,10 @@ export async function readDistributionPackage(
   const manifest = readDesktopDistributionManifest(value);
   if (isTemplateManifest(manifest)) {
     const template = await readTemplatePackage(directory, clientVersion);
-    return { manifest: template.manifest };
+    return {
+      manifest: template.manifest,
+      ...(template.messages ? { messages: template.messages } : {}),
+    };
   }
   if (isSkillPackageManifest(manifest)) return readSkillPackage(directory, clientVersion, cache);
   return readPluginPackage(directory, clientVersion, cache);

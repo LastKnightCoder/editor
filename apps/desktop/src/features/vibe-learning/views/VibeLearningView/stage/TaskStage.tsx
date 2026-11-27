@@ -36,9 +36,9 @@ const t = notebookTranslator.t;
 const DOC_KINDS: VLTaskKind[] = ["outline", "highlights", "article"];
 const HTML_KINDS: VLTaskKind[] = ["ppt", "report", "ppt_edit", "report_edit"];
 
-const kindLabel = (task: VLTask) =>
+const kindLabel = (task: VLTask, pluginTitle?: string) =>
   task.plugin
-    ? task.plugin.label
+    ? (pluginTitle ?? task.plugin.label)
     : task.kind === "ppt_edit" || task.kind === "report_edit"
       ? t("kind.aiEdit")
       : (GENERATE_APPS.find(a => a.key === task.kind)?.label ?? t("kind.generate"));
@@ -297,7 +297,7 @@ export function TaskStage({
       <StageHeader
         icon={<Icon className="size-4" strokeWidth={1.75} />}
         title={task.title}
-        meta={t("stage.meta", { kind: kindLabel(task) })}
+        meta={t("stage.meta", { kind: kindLabel(task, pluginOutput?.definition.title) })}
         chatOpen={chatOpen}
         onToggleChat={onToggleChat}
         onClose={onClose}

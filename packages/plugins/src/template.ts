@@ -1,3 +1,9 @@
+import {
+  canonicalLocale,
+  snapshotDisplayText,
+  type DisplayText,
+  type I18nDefinition,
+} from "@tau/i18n";
 import { readPluginIdentity } from "./package-fields.ts";
 import { comparePluginVersions } from "./version.ts";
 import { validatePluginManifest, type PluginManifest } from "./package.ts";
@@ -23,25 +29,37 @@ import {
 } from "./unified.ts";
 export { hasSkillScripts, SKILL_README, SKILL_ROOT } from "./skills.ts";
 
-interface SiteFieldBase {
+interface SiteFieldBase<Text extends DisplayText> {
   /** 模板从 `site.fields[key]` 读取 */
   key: string;
-  label: string;
-  description?: string;
+  label: Text;
+  description?: Text;
 }
 /** 模板声明的站点字段，宿主据此渲染「博客模板」设置并在发布时按声明解析取值。 */
-export type TemplateSiteField =
-  | (SiteFieldBase & {
+export type TemplateSiteField<Text extends DisplayText = string> =
+  | (SiteFieldBase<Text> & {
       type: "text" | "textarea" | "url";
-      placeholder?: string;
+      placeholder?: Text;
       default?: string;
     })
-  | (SiteFieldBase & {
+  | (SiteFieldBase<Text> & {
       type: "select";
-      options: { value: string; label: string }[];
+      options: { value: string; label: Text }[];
       default?: string;
     })
-  | (SiteFieldBase & { type: "switch"; default?: boolean });
+  | (SiteFieldBase<Text> & { type: "switch"; default?: boolean });
+export type TemplateSiteFieldDeclaration = TemplateSiteField<DisplayText>;
+export const TEMPLATE_I18N_MIN_APP_VERSION = "0.68.0";
+export interface TemplateI18nDeclaration {
+  readonly fallbackLocale: string;
+  /** JSON 文件路径相对于 template.root，文件仍须列入 integrity。 */
+  readonly resources: Readonly<Record<string, string>>;
+}
+export type TemplateI18nResources = Pick<I18nDefinition, "fallbackLocale" | "resources">;
+export interface TemplateListing {
+  readonly manifest: TemplateManifest;
+  readonly messages?: TemplateI18nResources;
+}
 export type SiteFieldValue = string | boolean;
 
 export interface LegacyTemplateManifest extends PluginCatalogFields {
@@ -56,7 +74,8 @@ export interface LegacyTemplateManifest extends PluginCatalogFields {
     protocolVersion: 1;
     root: string;
     entries: string[];
-    siteFields?: TemplateSiteField[];
+    siteFields?: TemplateSiteFieldDeclaration[];
+    i18n?: TemplateI18nDeclaration;
   };
   integrity: Record<string, string>;
 }
@@ -127,11 +146,45 @@ const requiredText = (value: unknown, name: string) => {
   return value;
 };
 
-function readSiteFields(value: unknown): TemplateSiteField[] | undefined {
+function readTemplateI18n(
+  value: unknown,
+  root: string,
+  integrity: Record<string, string>
+): TemplateI18nDeclaration | undefined {
+  if (value === undefined) return undefined;
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new Error("模板词典声明无效");
+  const item = value as Record<string, unknown>;
+  if (typeof item.fallbackLocale !== "string") throw new Error("模板回退语言无效");
+  const fallbackLocale = canonicalLocale(item.fallbackLocale);
+  if (!item.resources || typeof item.resources !== "object" || Array.isArray(item.resources))
+    throw new Error("模板词典路径无效");
+  const resources: Record<string, string> = Object.create(null);
+  for (const [language, file] of Object.entries(item.resources)) {
+    const locale = canonicalLocale(language);
+    if (Object.hasOwn(resources, locale)) throw new Error("模板词典语言重复");
+    assertPackagePath(file);
+    if (!file.endsWith(".json") || !integrity[root + "/" + file])
+      throw new Error("模板词典必须为摘要清单内的 JSON 文件");
+    resources[locale] = file;
+  }
+  if (!Object.hasOwn(resources, fallbackLocale)) throw new Error("模板缺少回退词典");
+  return Object.freeze({ fallbackLocale, resources: Object.freeze(resources) });
+}
+
+function readSiteFields(
+  value: unknown,
+  i18n?: TemplateI18nDeclaration
+): TemplateSiteFieldDeclaration[] | undefined {
   if (value === undefined) return undefined;
   if (!Array.isArray(value)) throw new Error("站点字段必须是数组");
+  const displayText = (value: unknown, name: string, required = false): DisplayText => {
+    if (typeof value === "string") return required ? requiredText(value, name) : value;
+    if (!i18n) throw new Error(`站点字段${name}无效`);
+    return snapshotDisplayText(value as DisplayText);
+  };
   const keys = new Set<string>();
-  const fields = value.map((raw): TemplateSiteField => {
+  const fields = value.map((raw): TemplateSiteFieldDeclaration => {
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("站点字段无效");
     const item = raw as Record<string, unknown>;
     if (typeof item.key !== "string" || !/^[a-zA-Z][a-zA-Z0-9_]*$/.test(item.key))
@@ -142,10 +195,10 @@ function readSiteFields(value: unknown): TemplateSiteField[] | undefined {
       throw new Error(`站点字段类型不支持：${String(item.type)}`);
     const base = {
       key: item.key,
-      label: requiredText(item.label, "名称"),
+      label: displayText(item.label, "名称", true),
       ...(item.description === undefined
         ? {}
-        : { description: optionalText(item.description, "说明") }),
+        : { description: displayText(item.description, "说明") }),
     };
     if (item.type === "switch") {
       if (item.default !== undefined && typeof item.default !== "boolean")
@@ -163,7 +216,7 @@ function readSiteFields(value: unknown): TemplateSiteField[] | undefined {
         const entry = (option ?? {}) as Record<string, unknown>;
         return Object.freeze({
           value: requiredText(entry.value, "选项值"),
-          label: requiredText(entry.label, "选项名称"),
+          label: displayText(entry.label, "选项名称", true),
         });
       });
       if (new Set(options.map(option => option.value)).size !== options.length)
@@ -173,11 +226,13 @@ function readSiteFields(value: unknown): TemplateSiteField[] | undefined {
       return Object.freeze({
         ...base,
         type: "select",
-        options: Object.freeze(options) as unknown as { value: string; label: string }[],
+        options: Object.freeze(options) as unknown as { value: string; label: DisplayText }[],
         ...(fallback === undefined ? {} : { default: fallback }),
       });
     }
-    const placeholder = optionalText(item.placeholder, "占位文字");
+    const rawPlaceholder = item.placeholder;
+    const placeholder =
+      rawPlaceholder === undefined ? undefined : displayText(rawPlaceholder, "占位文字");
     return Object.freeze({
       ...base,
       type: item.type as "text" | "textarea" | "url",
@@ -185,12 +240,12 @@ function readSiteFields(value: unknown): TemplateSiteField[] | undefined {
       ...(fallback === undefined ? {} : { default: fallback }),
     });
   });
-  return Object.freeze(fields) as unknown as TemplateSiteField[];
+  return Object.freeze(fields) as unknown as TemplateSiteFieldDeclaration[];
 }
 
 /** 按模板声明解析站点字段：只输出声明过的 key，类型不符或越界的存量值回落到默认值。 */
 export function resolveSiteFields(
-  fields: readonly TemplateSiteField[] | undefined,
+  fields: readonly TemplateSiteFieldDeclaration[] | undefined,
   values: Record<string, JsonValue> | undefined
 ): Record<string, SiteFieldValue> {
   const result: Record<string, SiteFieldValue> = {};
@@ -397,7 +452,14 @@ export function validateDistributionManifest(value: unknown): DistributionManife
   }
   for (const entry of entries)
     if (!integrity[template.root + "/" + entry]) throw new Error("模板入口未包含在摘要清单");
-  const siteFields = readSiteFields(template.siteFields);
+  const i18n = readTemplateI18n(template.i18n, template.root, integrity);
+  if (
+    i18n &&
+    (!identity.minAppVersion ||
+      comparePluginVersions(identity.minAppVersion, TEMPLATE_I18N_MIN_APP_VERSION) < 0)
+  )
+    throw new Error(`模板词典要求最低客户端版本 ${TEMPLATE_I18N_MIN_APP_VERSION}`);
+  const siteFields = readSiteFields(template.siteFields, i18n);
   const catalog = readCatalogFields(item);
   return Object.freeze({
     formatVersion: 1 as const,
@@ -410,6 +472,7 @@ export function validateDistributionManifest(value: unknown): DistributionManife
       root: template.root,
       entries: Object.freeze(entries) as unknown as string[],
       ...(siteFields ? { siteFields } : {}),
+      ...(i18n ? { i18n } : {}),
     }),
     integrity: Object.freeze(integrity),
   });
@@ -428,3 +491,5 @@ export function requiresSystemReview(manifest: {
 export function distributionFiles(manifest: DistributionManifest): string[] {
   return Object.keys(manifest.integrity);
 }
+
+export { readTemplateI18nResources, resolveTemplateSiteFields } from "./template-i18n.ts";

@@ -295,7 +295,11 @@ export class DesktopPluginRuntime {
         registerEntry: (context, definition) =>
           this.registerSidebarItem(
             context,
-            { ...definition, id: `navigation:${definition.id}` },
+            Object.defineProperty(
+              { ...definition, id: `navigation:${definition.id}` },
+              "title",
+              Object.getOwnPropertyDescriptors(definition).title
+            ),
             definition.page.id.slice(context.pluginId.length + 1)
           ),
       },

@@ -1,4 +1,5 @@
 import { usePublishI18n } from "./publish.i18n";
+import { resolvePublishTemplateFields } from "./template-i18n";
 import { publishFeedback } from "./publish.binding";
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -118,8 +119,9 @@ export function usePublishConfig() {
       draft.publish.site[field] = value;
     });
   const templateId = publish.site.templateId ?? "";
-  const template = templatesQuery.data?.find(item => item.id === templateId);
-  const templateFields = template?.template.siteFields ?? [];
+  const listing = templatesQuery.data?.find(item => item.manifest.id === templateId);
+  const template = listing?.manifest;
+  const templateFields = useMemo(() => resolvePublishTemplateFields(listing), [listing]);
   const templateFieldValues = useMemo(
     () => resolveSiteFields(template?.template.siteFields, publish.site.fields[templateId]),
     [template, publish.site.fields, templateId]
@@ -255,7 +257,7 @@ export function usePublishConfig() {
     templateFields,
     templateFieldValues,
     setTemplateField,
-    templateOptions: (templatesQuery.data ?? []).map(template => ({
+    templateOptions: (templatesQuery.data ?? []).map(({ manifest: template }) => ({
       label: `${template.name} · ${template.version}`,
       value: template.id,
     })),

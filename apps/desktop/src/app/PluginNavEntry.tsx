@@ -9,6 +9,7 @@ import { Plus } from "lucide-react";
 import { ContextMenu, Menu } from "@tau/ui";
 import type { PluginSidebarChild } from "@tau/plugins";
 import { NavChild } from "@/components/NavChild";
+import { pluginTranslator, usePluginI18n } from "@/features/plugins/i18n";
 import { appNotify } from "@/features/notifications/notify";
 import { TONE_DOT } from "@/utils/groupTone";
 import { isNavItemActive, type NavItem } from "./navigation";
@@ -20,8 +21,9 @@ type CurrentPage = { key: string; params: Record<string, unknown> } | undefined;
 
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
-function invoke(run: () => unknown, title: string) {
-  const report = (error: unknown) => appNotify({ title, body: errorText(error), tone: "danger" });
+function invoke(run: () => unknown, title: () => string) {
+  const report = (error: unknown) =>
+    appNotify({ title: title(), body: errorText(error), tone: "danger" });
   try {
     void Promise.resolve(run()).catch(report);
   } catch (error) {
@@ -59,6 +61,7 @@ export function PluginNavEntry({
   current: CurrentPage;
   collapsed: boolean;
 }) {
+  const { t } = usePluginI18n();
   const plugin = item.plugin as PluginNavItem;
   const state = useSyncExternalStore(plugin.subscribe, plugin.getState);
   const [dropId, setDropId] = useState<string | null>(null);
@@ -70,8 +73,10 @@ export function PluginNavEntry({
     (active || Boolean(selected)) &&
     (state.children.length > 0 || state.action !== null);
 
-  const open = (run: () => Promise<void>) => invoke(run, "无法打开插件页面");
-  const run = (callback: () => unknown) => invoke(callback, "插件操作失败");
+  const open = (run: () => Promise<void>) =>
+    invoke(run, () => pluginTranslator.t("nav.openFailed"));
+  const run = (callback: () => unknown) =>
+    invoke(callback, () => pluginTranslator.t("action.failed"));
 
   const dropProps = (child: PluginSidebarChild) => {
     const drop = child.onDrop;
@@ -128,7 +133,7 @@ export function PluginNavEntry({
                     />
                   ) : null
                 }
-                title={isSelected ? `再点一次回到「${item.label}」` : child.title}
+                title={isSelected ? t("nav.returnRoot", { title: item.label }) : child.title}
                 onClick={() =>
                   open(isSelected ? plugin.open : () => plugin.openWith({ ...child.params }))
                 }

@@ -1,3 +1,9 @@
+import {
+  bindContributionText,
+  bindLiveTextDescriptor,
+  readContributionText,
+  snapshotContributionText,
+} from "./contribution-i18n";
 import type { PluginHomePanelInput } from "./home";
 import type { PluginWindowDefinition } from "./windows";
 import {
@@ -85,17 +91,22 @@ import {
   snapshotSidebarUpdate,
   type PluginSidebarItemHandle,
   type PluginSidebarItemState,
-  type PluginSidebarItemUpdate,
+  type PluginSidebarItemUpdateDeclaration,
 } from "./sidebar";
 import type { RegisteredHomePanelDefinition } from "./home";
 import {
   PLUGIN_ACTION_TARGET_KINDS,
   snapshotActionTarget,
   type PluginActionDefinition,
+  type PluginActionDeclaration,
   type PluginActionTargetKind,
 } from "./actions";
 import { PLUGIN_ENTITY_PANEL_KINDS, type PluginEntityPanelDefinition } from "./views";
-import type { PluginNotebookOutputDefinition, PluginNotebookOutputPlan } from "./notebooks";
+import type {
+  PluginNotebookOutputDefinition,
+  PluginNotebookOutputPlan,
+  PluginNotebookOutputDeclaration,
+} from "./notebooks";
 import {
   CONTENT_INPUT_LIMITS,
   EDITOR_NODE_SCHEMA_VERSION,
@@ -2682,6 +2693,11 @@ export class PluginHost {
         assertLocalId(bound.id);
         if (!bound.title.trim()) throw new Error("设置分区标题不能为空");
         const descriptors = Object.getOwnPropertyDescriptors(bound);
+        if (descriptors.description)
+          descriptors.description = bindLiveTextDescriptor(
+            descriptors.description,
+            context.i18n.resolve
+          );
         const form = bound.form;
         if (form) {
           if (!bound.target) throw new Error("form 需要声明提供方目标");
@@ -4207,12 +4223,13 @@ export class PluginHost {
             return run(...args);
           };
         const handle: PluginSidebarItemHandle = {
-          update: (patch: PluginSidebarItemUpdate) => {
+          update: (patch: PluginSidebarItemUpdateDeclaration) => {
             this.assertActive(entry, activation);
             if (removed) throw new Error("侧边栏条目已移除");
             state = snapshotSidebarUpdate(state, patch, {
               wrap,
               dragType: type => sidebarDragType(scope.pluginId, type),
+              resolveText: context.i18n.resolve,
             });
             resource.update(state);
           },
@@ -4259,11 +4276,14 @@ export class PluginHost {
   private buildNotebooksContext(deps: ContextDeps): PluginContext["notebooks"] {
     const { context, entry, activation, scope, registerAs } = deps;
     return Object.freeze({
-      registerOutput: (definition: PluginNotebookOutputDefinition) => {
+      registerOutput: (definition: PluginNotebookOutputDeclaration) => {
         this.assertActive(entry, activation);
         assertLocalId(definition.id);
         assertLocalId(definition.kind);
-        if (typeof definition.title !== "string" || !definition.title.trim())
+        if (
+          typeof readContributionText(definition.title, context.i18n.resolve) !== "string" ||
+          !readContributionText(definition.title, context.i18n.resolve).trim()
+        )
           throw new Error("Notebook 输出的名称不能为空");
         if (definition.icon !== undefined && !isComponentType(definition.icon))
           throw new Error("Notebook 输出的图标必须是 React 组件");
@@ -4285,59 +4305,74 @@ export class PluginHost {
           "notebook-output",
           this.options.notebooks.registerOutput(
             context,
-            Object.freeze({
-              id: definition.id,
-              title: definition.title.trim(),
-              ...(definition.icon ? { icon: definition.icon } : {}),
-              ...(typeof definition.description === "string" && definition.description.trim()
-                ? { description: definition.description.trim() }
-                : {}),
-              kind: definition.kind,
-              ...(definition.options ? { options: definition.options } : {}),
-              view: definition.view,
-              prepare: async (input: Parameters<PluginNotebookOutputDefinition["prepare"]>[0]) => {
-                guardCall();
-                const plan = readNotebookOutputPlan(
-                  await prepare({
-                    notebook: { ...input.notebook },
-                    resources: input.resources.map(item => ({
-                      id: String(item.id),
-                      name: String(item.name),
-                    })),
-                    userPrompt: input.userPrompt,
-                    options: input.options === undefined ? undefined : copyJson(input.options),
+            bindContributionText(
+              {
+                id: definition.id,
+                title: snapshotContributionText(definition.title, true),
+                ...(definition.icon ? { icon: definition.icon } : {}),
+                ...(typeof readContributionText(definition.description, context.i18n.resolve) ===
+                  "string" &&
+                (
+                  readContributionText(definition.description, context.i18n.resolve) as string
+                ).trim()
+                  ? {
+                      description: snapshotContributionText(
+                        definition.description as DisplayText,
+                        true
+                      ),
+                    }
+                  : {}),
+                kind: definition.kind,
+                ...(definition.options ? { options: definition.options } : {}),
+                view: definition.view,
+                prepare: async (
+                  input: Parameters<PluginNotebookOutputDefinition["prepare"]>[0]
+                ) => {
+                  guardCall();
+                  const plan = readNotebookOutputPlan(
+                    await prepare({
+                      notebook: { ...input.notebook },
+                      resources: input.resources.map(item => ({
+                        id: String(item.id),
+                        name: String(item.name),
+                      })),
+                      userPrompt: input.userPrompt,
+                      options: input.options === undefined ? undefined : copyJson(input.options),
+                      signal: AbortSignal.any([input.signal, scope.signal]),
+                    })
+                  );
+                  guardCall();
+                  return plan;
+                },
+                complete: async (
+                  input: Parameters<PluginNotebookOutputDefinition["complete"]>[0]
+                ) => {
+                  guardCall();
+                  await complete({
+                    entity: input.entity,
+                    text: String(input.text),
+                    task: input.task,
                     signal: AbortSignal.any([input.signal, scope.signal]),
-                  })
-                );
-                guardCall();
-                return plan;
+                  });
+                },
+                ...(fail
+                  ? {
+                      fail: async (
+                        input: Parameters<NonNullable<PluginNotebookOutputDefinition["fail"]>>[0]
+                      ) => {
+                        guardCall();
+                        await fail({
+                          entity: input.entity,
+                          reason: input.reason,
+                          message: String(input.message),
+                        });
+                      },
+                    }
+                  : {}),
               },
-              complete: async (
-                input: Parameters<PluginNotebookOutputDefinition["complete"]>[0]
-              ) => {
-                guardCall();
-                await complete({
-                  entity: input.entity,
-                  text: String(input.text),
-                  task: input.task,
-                  signal: AbortSignal.any([input.signal, scope.signal]),
-                });
-              },
-              ...(fail
-                ? {
-                    fail: async (
-                      input: Parameters<NonNullable<PluginNotebookOutputDefinition["fail"]>>[0]
-                    ) => {
-                      guardCall();
-                      await fail({
-                        entity: input.entity,
-                        reason: input.reason,
-                        message: String(input.message),
-                      });
-                    },
-                  }
-                : {}),
-            })
+              ["title", "description"],
+              text => context.i18n.resolve(text).trim()
+            )
           )
         );
         return Object.freeze({
@@ -4353,11 +4388,14 @@ export class PluginHost {
   private buildActionsContext(deps: ContextDeps): PluginContext["actions"] {
     const { context, entry, activation, registerAs } = deps;
     return Object.freeze({
-      register: <K extends PluginActionTargetKind>(input: PluginActionDefinition<K>) => {
+      register: <K extends PluginActionTargetKind>(input: PluginActionDeclaration<K>) => {
         this.assertActive(entry, activation);
-        const definition = input as unknown as PluginActionDefinition;
+        const definition = input as unknown as PluginActionDeclaration;
         assertLocalId(definition.id);
-        if (typeof definition.title !== "string" || !definition.title.trim())
+        if (
+          typeof readContributionText(definition.title, context.i18n.resolve) !== "string" ||
+          !readContributionText(definition.title, context.i18n.resolve).trim()
+        )
           throw new Error("对象动作标题不能为空");
         if (definition.icon !== undefined && !isComponentType(definition.icon))
           throw new Error("对象动作图标必须是 React 组件");
@@ -4374,17 +4412,21 @@ export class PluginHost {
           "action",
           this.options.actions.register(
             context,
-            Object.freeze({
-              id: definition.id,
-              title: definition.title,
-              ...(definition.icon ? { icon: definition.icon } : {}),
-              targets: Object.freeze([...new Set(targets)]),
-              run: (target: Parameters<PluginActionDefinition["run"]>[0]) => {
-                this.assertActive(entry, activation);
-                if (removed) throw new Error("对象动作已注销");
-                return run(snapshotActionTarget(target));
+            bindContributionText(
+              {
+                id: definition.id,
+                title: definition.title,
+                ...(definition.icon ? { icon: definition.icon } : {}),
+                targets: Object.freeze([...new Set(targets)]),
+                run: (target: Parameters<PluginActionDefinition["run"]>[0]) => {
+                  this.assertActive(entry, activation);
+                  if (removed) throw new Error("对象动作已注销");
+                  return run(snapshotActionTarget(target));
+                },
               },
-            })
+              ["title"],
+              context.i18n.resolve
+            )
           )
         );
         return {

@@ -46,7 +46,7 @@ export async function getPublishHistory(): Promise<IPublishHistory[]> {
 // ============ 发布操作相关 ============
 
 export async function listPublishTemplates(): Promise<
-  import("@tau/plugins/template").TemplateManifest[]
+  import("@tau/plugins/template").TemplateListing[]
 > {
   await ensureModule("publish");
   return invoke("list-publish-templates");

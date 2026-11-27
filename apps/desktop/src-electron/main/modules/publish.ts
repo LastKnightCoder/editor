@@ -111,7 +111,16 @@ class PublishModule implements Module {
 
     ipcMain.handle("list-publish-templates", async () => {
       const scan = await discoverPlugins(join(PathUtil.getAppDir(), "plugins"), app.getVersion());
-      return scan.entries.flatMap(entry => (entry.template ? [entry.template] : []));
+      return scan.entries.flatMap(entry =>
+        entry.template
+          ? [
+              {
+                manifest: entry.template,
+                ...(entry.templateMessages ? { messages: entry.templateMessages } : {}),
+              },
+            ]
+          : []
+      );
     });
 
     ipcMain.handle("execute-publish", async (event, config: PublishRequest) => {

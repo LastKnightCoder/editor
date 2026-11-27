@@ -422,6 +422,8 @@ WhiteboardEmbed八路径完成；原Skill/引用11基线加实际Skill Editor1/�
 
 首版整合批：TTS能力11、音频显示5、ItemCard9、数据库9、ChatRef15、手机正文错误13及媒体测试facade1共63源路径，沿已完成验证交付，不扩普通文案测试。手机直接33基线至34例与type通过；TTS13、音频4、数据库shared8/desktop32、Chat7及各域类型/词典检查通过。Chat引用HTML/markdown完整保原，音频节点数据与播放实例保持；手机issue跨语不重读/写，重试仍原payload。实际starter已在隔离目录用原锁定依赖完成原renderer1例、type与真实build，静态reader验证0.67拒绝、0.68支持、词典校验且不导出站点、用户字段保持。
 
+SDK首版接线整合：T1十四主仓+starter六路径（含README）冻结，SDK39/desktop46与类型通过；Root在隔离worktree按原lock安装并禁用生命周期脚本，唯一缺失依赖经固定registry包补齐，lock字节不变，原renderer1例/type/Vite真实build与静态读取均通过。T2二十一源，SDK24/desktop9/mobile8共41例、三端类型与协议对照通过，不再扩测试；host/runtime按冻结own patch相对当前HEAD重建，website plugins仅own段落隔离提交。官方9仓纯UI改动仍是候选，正式依赖/版本门槛和未翻译提示后续处理，不推送或发包；T3/T4停止扩围。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

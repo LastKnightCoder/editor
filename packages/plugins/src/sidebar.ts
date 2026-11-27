@@ -1,4 +1,5 @@
-import type { Localized } from "@tau/i18n";
+import { bindI18nFields, type DisplayText, type Localized } from "@tau/i18n";
+import { readContributionText, snapshotContributionText } from "./contribution-i18n.ts";
 import type { Disposable } from "./contract";
 import type { PluginPageHandle, PluginPageParams } from "./pages";
 import type { PluginIcon, PluginIconProps } from "./icons";
@@ -79,8 +80,21 @@ export interface PluginSidebarItemUpdate {
   action?: PluginSidebarAction | null;
 }
 
+export type PluginSidebarMenuDeclaration = Localized<PluginSidebarMenuEntry>;
+export type PluginSidebarActionDeclaration = Localized<PluginSidebarAction>;
+export type PluginSidebarChildDeclaration = Omit<PluginSidebarChild, "menu"> & {
+  menu?: readonly PluginSidebarMenuDeclaration[];
+};
+export type PluginSidebarItemUpdateDeclaration = Omit<
+  PluginSidebarItemUpdate,
+  "children" | "action"
+> & {
+  children?: readonly PluginSidebarChildDeclaration[];
+  action?: PluginSidebarActionDeclaration | null;
+};
+
 export interface PluginSidebarItemHandle extends Disposable {
-  update(patch: PluginSidebarItemUpdate): void;
+  update(patch: PluginSidebarItemUpdateDeclaration): void;
 }
 
 export interface PluginSidebar {
@@ -141,13 +155,23 @@ function readCallback<T extends (...args: never[]) => unknown>(value: unknown, l
  */
 export function snapshotSidebarUpdate(
   previous: PluginSidebarItemState,
-  patch: PluginSidebarItemUpdate,
+  patch: PluginSidebarItemUpdateDeclaration,
   options: {
     wrap: <A extends unknown[]>(run: (...args: A) => unknown) => (...args: A) => unknown;
     dragType: (type: string) => string;
+    resolveText?: (text: DisplayText) => string;
   }
 ): PluginSidebarItemState {
   if (!patch || typeof patch !== "object") throw new Error("侧边栏更新必须是对象");
+  const resolve = (text: DisplayText): string => {
+    if (typeof text === "string") return text;
+    if (!options.resolveText) throw new Error("侧边栏文案缺少所属插件词典");
+    return options.resolveText(text);
+  };
+  const title = (text: DisplayText, label: string): DisplayText => {
+    readTitle(readContributionText(text, resolve), label);
+    return snapshotContributionText(text);
+  };
   const badge = patch.badge === undefined ? previous.badge : readCount(patch.badge, "角标");
   let children = previous.children;
   if (patch.children !== undefined) {
@@ -155,7 +179,7 @@ export function snapshotSidebarUpdate(
     if (patch.children.length > MAX_CHILDREN) throw new Error(`侧边栏子项最多 ${MAX_CHILDREN} 个`);
     const ids = new Set<string>();
     children = Object.freeze(
-      patch.children.map((child: PluginSidebarChild) => {
+      patch.children.map((child: PluginSidebarChildDeclaration) => {
         if (!child || typeof child !== "object") throw new Error("侧边栏子项必须是对象");
         if (typeof child.id !== "string" || !child.id || child.id.length > 128)
           throw new Error("侧边栏子项 ID 须为 1 至 128 个字符");
@@ -185,12 +209,16 @@ export function snapshotSidebarUpdate(
           ...(child.tone ? { tone: child.tone } : {}),
           count: readCount(child.count, "子项计数"),
           menu: Object.freeze(
-            menu.map((entry: PluginSidebarMenuEntry) =>
-              Object.freeze({
-                title: readTitle(entry?.title, "菜单条目"),
-                danger: Boolean(entry.danger),
-                run: options.wrap(readCallback<() => unknown>(entry.run, "菜单回调")),
-              })
+            menu.map((entry: PluginSidebarMenuDeclaration) =>
+              bindI18nFields<PluginSidebarMenuDeclaration, "title">(
+                {
+                  title: title(entry?.title, "菜单条目"),
+                  danger: Boolean(entry.danger),
+                  run: options.wrap(readCallback<() => unknown>(entry.run, "菜单回调")),
+                },
+                ["title"],
+                resolve
+              )
             )
           ),
           ...(onDrop ? { onDrop } : {}),
@@ -203,11 +231,15 @@ export function snapshotSidebarUpdate(
     action =
       patch.action === null
         ? null
-        : Object.freeze({
-            title: readTitle(patch.action?.title, "侧边栏动作"),
-            ...(patch.action.icon ? { icon: patch.action.icon } : {}),
-            run: options.wrap(readCallback<() => unknown>(patch.action.run, "动作回调")),
-          });
+        : bindI18nFields<PluginSidebarActionDeclaration, "title">(
+            {
+              title: title(patch.action?.title, "侧边栏动作"),
+              ...(patch.action.icon ? { icon: patch.action.icon } : {}),
+              run: options.wrap(readCallback<() => unknown>(patch.action.run, "动作回调")),
+            },
+            ["title"],
+            resolve
+          );
   }
   return Object.freeze({ badge, children, action });
 }

@@ -145,3 +145,38 @@ it("旧客户端继续选择旧发行版，新客户端选择统一协议；指�
     ).status
   ).toBe("incompatible");
 });
+
+it("统一模板在targets归一化后校验词典能力版本并保留原引用与路径", () => {
+  const input = {
+    formatVersion: 4,
+    kind: "template",
+    apiVersion: 1,
+    platform: "portable",
+    id: "example.localized-template",
+    name: "模板",
+    version: "1.0.0",
+    targets: { desktop: { minAppVersion: "0.68.0" } },
+    template: {
+      protocolVersion: 1,
+      root: "site",
+      entries: ["index.html"],
+      i18n: { fallbackLocale: "zh-CN", resources: { "zh-CN": "locales/cn.json" } },
+      siteFields: [
+        {
+          key: "tagline",
+          type: "text",
+          label: { kind: "i18n", key: "field" },
+          default: "保留正文",
+        },
+      ],
+    },
+    integrity: { "site/index.html": "a".repeat(64), "site/locales/cn.json": "b".repeat(64) },
+  };
+  const parsed = validateUnifiedPackageManifest(JSON.parse(JSON.stringify(input)));
+  if (parsed.kind !== "template") throw new Error("Expected template");
+  expect(parsed.template).toEqual(input.template);
+  expect(validateUnifiedPackageManifest(JSON.parse(JSON.stringify(parsed)))).toEqual(parsed);
+  expect(() =>
+    validateUnifiedPackageManifest({ ...input, targets: { desktop: { minAppVersion: "0.67.0" } } })
+  ).toThrow("最低客户端版本");
+});

@@ -1,3 +1,4 @@
+import type { Localized } from "@tau/i18n";
 import type { Disposable } from "./contract";
 import type { PluginIcon } from "./icons";
 
@@ -6,7 +7,12 @@ import type { PluginIcon } from "./icons";
  * chat-message 为对话里的一条消息；text 为用户在命令面板里输入的文字。
  */
 export type PluginActionTargetKind =
-  "card" | "article" | "document" | "material" | "chat-message" | "text";
+  | "card"
+  | "article"
+  | "document"
+  | "material"
+  | "chat-message"
+  | "text";
 
 type PluginActionEntityKind = "card" | "article" | "document" | "material";
 
@@ -35,7 +41,9 @@ export interface PluginTextTarget {
 }
 
 export type PluginActionTarget =
-  PluginActionEntityTarget | PluginChatMessageTarget | PluginTextTarget;
+  | PluginActionEntityTarget
+  | PluginChatMessageTarget
+  | PluginTextTarget;
 
 /** 某几类目标对应的对象：run 的参数随 targets 收窄 */
 export type PluginActionTargetOf<K extends PluginActionTargetKind> = Extract<
@@ -57,9 +65,12 @@ export interface PluginActionDefinition<K extends PluginActionTargetKind = Plugi
   run(target: PluginActionTargetOf<K>): unknown;
 }
 
+export type PluginActionDeclaration<K extends PluginActionTargetKind = PluginActionTargetKind> =
+  Localized<PluginActionDefinition<K>>;
+
 export interface PluginActions {
   /** 只在主窗口出现，独立编辑窗口不列插件动作 */
-  register<K extends PluginActionTargetKind>(definition: PluginActionDefinition<K>): Disposable;
+  register<K extends PluginActionTargetKind>(definition: PluginActionDeclaration<K>): Disposable;
 }
 
 export const PLUGIN_ACTION_TARGET_KINDS: readonly PluginActionTargetKind[] = Object.freeze([

@@ -8,11 +8,14 @@ import {
   DISTRIBUTION_LIMITS,
   assertPublishPath,
   type TemplateManifest,
+  type TemplateI18nResources,
+  readTemplateI18nResources,
 } from "@tau/plugins/template";
 import { replaceTemplatePaths } from "@tau/plugins/template-html";
 
 export interface TemplatePackage {
   manifest: TemplateManifest;
+  messages?: TemplateI18nResources;
   files: Array<{ path: string; content: Buffer }>;
 }
 
@@ -38,6 +41,10 @@ export async function readTemplatePackage(
   const files: TemplatePackage["files"] = [];
   let expanded = 0;
   const seen = new Set<string>();
+  const dictionaryPaths = new Set(
+    Object.values(manifest.template.i18n?.resources ?? {}).map(file => templateRoot + "/" + file)
+  );
+  const dictionaries = new Map<string, unknown>();
   async function walk(relative: string) {
     const absolute = path.join(root, relative);
     const info = await lstat(absolute);
@@ -53,7 +60,7 @@ export async function readTemplatePackage(
     if (!info.isFile()) throw new Error("模板资源必须为普通文件");
     if (!manifest.integrity[relative]) return;
     expanded += info.size;
-    if (expanded > DISTRIBUTION_LIMITS.expandedBytes || files.length >= DISTRIBUTION_LIMITS.entries)
+    if (expanded > DISTRIBUTION_LIMITS.expandedBytes || seen.size >= DISTRIBUTION_LIMITS.entries)
       throw new Error("模板资源大小或数量超限");
     const content = await readFile(absolute);
     if (createHash("sha256").update(content).digest("hex") !== manifest.integrity[relative])
@@ -63,6 +70,10 @@ export async function readTemplatePackage(
     assertPublishPath(sitePath);
     if (/^(?:data|_tau|plugin-assets)(?:\/|$)/.test(sitePath))
       throw new Error("模板覆盖了协议资源目录");
+    if (dictionaryPaths.has(relative)) {
+      dictionaries.set(relative, JSON.parse(content.toString("utf8")));
+      return;
+    }
     if (entries.includes(sitePath))
       replaceTemplatePaths(content.toString("utf8"), {
         MANIFEST: "/data/site.json",
@@ -75,5 +86,19 @@ export async function readTemplatePackage(
     if (!seen.has(name)) throw new Error("模板资产缺失");
   if ((await readFile(path.join(root, "manifest.json"), "utf8")) !== manifestText)
     throw new Error("模板构建仍在变化，请完成构建后重试");
-  return { manifest, files };
+  const declaration = manifest.template.i18n;
+  const messages = declaration
+    ? readTemplateI18nResources(
+        declaration,
+        Object.fromEntries(
+          Object.entries(declaration.resources).map(([locale, file]) => {
+            const dictionary = dictionaries.get(templateRoot + "/" + file);
+            if (!dictionaries.has(templateRoot + "/" + file)) throw new Error("模板词典缺失");
+            return [locale, dictionary];
+          })
+        ),
+        manifest.template.siteFields
+      )
+    : undefined;
+  return { manifest, files, ...(messages ? { messages } : {}) };
 }

@@ -1,4 +1,5 @@
 import { act } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
@@ -31,6 +32,15 @@ const notify = vi.hoisted(() => vi.fn());
 vi.mock("@/features/notifications/notify", () => ({ appNotify: notify }));
 
 definePage({ key: "home", label: "首页", params: {}, component: () => <p>首页</p> });
+const clients: QueryClient[] = [];
+function queryClient() {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  });
+  client.setQueryData(["workspace", "preferences"], { disabledFeatures: [], onboarding: "done" });
+  clients.push(client);
+  return client;
+}
 const runtimes: DesktopPluginRuntime[] = [];
 const makeRuntime = () => {
   const runtime = new DesktopPluginRuntime({
@@ -67,6 +77,7 @@ async function activate(
 const pageDefinition = { id: "page", title: "页面", component: () => <p>插件正文</p> };
 afterEach(async () => {
   for (const runtime of runtimes.splice(0)) await runtime.dispose();
+  for (const client of clients.splice(0)) client.clear();
 });
 
 describe("插件侧边栏", () => {
@@ -226,9 +237,11 @@ describe("插件侧边栏", () => {
       useShellStore.setState({ sidebarCollapsed: false, navSectionCollapsed: {} });
       await act(async () =>
         root.render(
-          <PageProvider initialKey="home">
-            <App />
-          </PageProvider>
+          <QueryClientProvider client={queryClient()}>
+            <PageProvider initialKey="home">
+              <App />
+            </PageProvider>
+          </QueryClientProvider>
         )
       );
       runtimes.push(runtime);
@@ -332,9 +345,11 @@ describe("插件侧边栏", () => {
       useShellStore.setState({ sidebarCollapsed: false, navSectionCollapsed: {} });
       await act(async () =>
         root.render(
-          <PageProvider initialKey="home">
-            <App />
-          </PageProvider>
+          <QueryClientProvider client={queryClient()}>
+            <PageProvider initialKey="home">
+              <App />
+            </PageProvider>
+          </QueryClientProvider>
         )
       );
       runtimes.push(runtime);

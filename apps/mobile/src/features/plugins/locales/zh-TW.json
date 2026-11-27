@@ -257,5 +257,6 @@
   "detail.offlineReadme": "未連線至外掛中心，暫時無法讀取說明。",
   "install.confirmUpdateVersion": "更新 v{{version}}",
   "manage.installFinished": "安裝操作已結束",
-  "detail.version": "版本"
+  "detail.version": "版本",
+  "action.failed": "外掛操作失敗：{{error}}"
 }

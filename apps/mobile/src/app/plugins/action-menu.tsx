@@ -1,5 +1,6 @@
 import { Plug } from "lucide-react";
 import type { ActionSheetItem } from "../../components/ActionSheet";
+import { pluginTranslator, usePluginI18n } from "../../features/plugins/i18n";
 import { toast } from "../../components/toast";
 import { useMobilePlugins } from "./context";
 import type { MobileActionTarget } from "./runtime";
@@ -7,6 +8,7 @@ import type { MobileActionTarget } from "./runtime";
 export function useMobilePluginActionItems(
   target: (MobileActionTarget & { createTime: number }) | null
 ): ActionSheetItem[] {
+  usePluginI18n();
   const runtime = useMobilePlugins();
   if (!runtime || !target) return [];
   const ref = { kind: target.kind, id: target.id };
@@ -24,7 +26,9 @@ export function useMobilePluginActionItems(
           if (!runtime.active(action.context)) return;
           toast({
             type: "warning",
-            text: `插件操作失败：${error instanceof Error ? error.message : String(error)}`,
+            text: pluginTranslator.t("action.failed", {
+              error: error instanceof Error ? error.message : String(error),
+            }),
           });
         });
       },

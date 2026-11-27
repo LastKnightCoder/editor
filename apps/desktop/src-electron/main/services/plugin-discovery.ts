@@ -27,7 +27,12 @@ export async function discoverPlugins(
         if (artifact.manifest.id !== folder.name)
           throw new Error("插件目录名必须与 manifest.id 一致");
         entries[index] = isTemplatePackage(artifact)
-          ? { id: folder.name, directory: location, template: artifact.manifest }
+          ? {
+              id: folder.name,
+              directory: location,
+              template: artifact.manifest,
+              ...(artifact.messages ? { templateMessages: artifact.messages } : {}),
+            }
           : isSkillPackage(artifact)
             ? { id: folder.name, directory: location, skillPackage: artifact.manifest }
             : { id: folder.name, directory: location, artifact };

@@ -8,6 +8,7 @@ import type { ReactElement, ReactNode } from "react";
 import { Plug } from "lucide-react";
 import { Menu } from "@tau/ui";
 import type { PluginActionTarget } from "@tau/plugins";
+import { pluginTranslator, usePluginI18n } from "@/features/plugins/i18n";
 import { appNotify } from "@/features/notifications/notify";
 import { useDesktopPlugins } from "./context";
 import type { RegisteredPluginAction } from "./runtime";
@@ -16,13 +17,14 @@ export function usePluginActions(target: PluginActionTarget | null): {
   actions: RegisteredPluginAction[];
   run(action: RegisteredPluginAction): void;
 } {
+  usePluginI18n();
   const runtime = useDesktopPlugins();
   const actions = target && runtime ? runtime.listActions(target.kind) : [];
   const run = (action: RegisteredPluginAction) => {
     if (!runtime || !target) return;
     void runtime.runAction(action, target).catch(error =>
       appNotify({
-        title: "插件操作失败",
+        title: pluginTranslator.t("action.failed"),
         body: error instanceof Error ? error.message : String(error),
         tone: "danger",
       })

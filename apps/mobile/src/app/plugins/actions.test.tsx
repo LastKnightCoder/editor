@@ -1,7 +1,7 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
-import { definePlugin, type PluginContext } from "@tau/plugins";
+import { defineI18n, definePlugin, type PluginContext } from "@tau/plugins";
 import { createMemoryStorage } from "@tau/plugins/host";
 import { createPluginEnvironmentStore } from "@tau/plugins/environment-host";
 import { MobilePluginRuntime } from "./runtime";
@@ -10,6 +10,8 @@ import { MobilePluginsContext } from "./context";
 import { useMobilePluginActionItems } from "./action-menu";
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "../../components/toast";
+import { mobileLocaleSource } from "../../services/i18n";
+import { pluginTranslator } from "../../features/plugins/i18n";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("../../components/toast", () => ({ toast: vi.fn() }));
@@ -187,4 +189,132 @@ it("重复注册导致激活失败时清理动作，重新启用不会复活旧�
     "test.actions",
   ]);
   expect(run).not.toHaveBeenCalled();
+});
+
+it("两个插件的同key动作菜单换语保持DOM与在途授权，执行仍传原始引用", async () => {
+  vi.stubGlobal("navigator", { userActivation: { isActive: true } });
+  const environment = createPluginEnvironmentStore({
+    platform: "android",
+    locale: "zh-CN",
+    input: { coarsePointer: true, finePointer: false },
+  });
+  const runtime = new MobilePluginRuntime(
+    environment,
+    createMemoryStorage(),
+    "test.db",
+    { push: vi.fn() },
+    "0.2.13"
+  );
+  runtimes.push(runtime);
+  runtime.app = createMobileApp("test.db", "session", { push: vi.fn() }, async () => false);
+  const activations: string[] = [],
+    executions: unknown[] = [];
+  for (const id of ["owner.a", "owner.b"]) {
+    const messages = defineI18n({
+      fallbackLocale: "zh-CN",
+      resources: {
+        "zh-CN": { action: id + "/cn" },
+        "zh-TW": { action: id + "/tw" },
+        "en-US": { action: id + "/en" },
+      },
+    });
+    const definition = definePlugin({
+      id,
+      name: id,
+      version: "1.0.0",
+      i18n: messages,
+      create: () => ({
+        activate(context) {
+          activations.push(id);
+          context.actions.register({
+            id: "action",
+            title: messages.ref("action"),
+            targets: ["article"],
+            run(target) {
+              executions.push(target);
+              throw new Error("RAW_REMOTE");
+            },
+          });
+        },
+      }),
+    });
+    runtime.host.registerTrusted(definition);
+    await runtime.host.enable(id);
+  }
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const target = { kind: "article" as const, id: "raw-article", createTime: 42 };
+  function Menu() {
+    return useMobilePluginActionItems(target).map(item => (
+      <button key={item.key} data-action={item.key} onClick={item.onClick}>
+        {item.label}
+      </button>
+    ));
+  }
+  let grant!: (value: unknown) => void;
+  vi.mocked(invoke).mockImplementation(
+    () =>
+      new Promise(resolve => {
+        grant = resolve;
+      })
+  );
+  try {
+    await act(async () =>
+      root.render(
+        <MobilePluginsContext.Provider value={runtime}>
+          <Menu />
+        </MobilePluginsContext.Provider>
+      )
+    );
+    const button = container.querySelector("button");
+    if (!button) throw new Error("Missing actual menu button");
+    const key = button.getAttribute("data-action"),
+      action = runtime.listActions("article")[0];
+    await act(async () => button.click());
+    const requests = vi.mocked(invoke).mock.calls.length;
+    for (const [locale, marker] of [
+      ["en-US", "en"],
+      ["zh-TW", "tw"],
+    ] as const) {
+      await act(async () => {
+        environment.update({ locale });
+        mobileLocaleSource.setLocale(locale);
+      });
+      expect(container.querySelector("button")).toBe(button);
+      expect(button.getAttribute("data-action")).toBe(key);
+      expect(button.textContent).toBe("owner.a/" + marker);
+      expect(container.querySelectorAll("button")[1].textContent).toBe("owner.b/" + marker);
+      expect(runtime.listActions("article")[0]).toBe(action);
+      expect(activations).toEqual(["owner.a", "owner.b"]);
+      expect(executions).toEqual([]);
+      expect(vi.mocked(invoke).mock.calls).toHaveLength(requests);
+    }
+    await act(async () => {
+      grant([]);
+    });
+    await vi.waitFor(() => expect(executions).toEqual([{ kind: "article", id: "raw-article" }]));
+    expect(toast).toHaveBeenLastCalledWith({
+      type: "warning",
+      text: pluginTranslator.t("action.failed", { error: "RAW_REMOTE" }),
+    });
+    expect(invoke).toHaveBeenLastCalledWith(
+      "plugin_app_refs",
+      expect.objectContaining({
+        request: {
+          method: "grant",
+          selections: [{ ref: { kind: "article", id: "raw-article" }, identity: "42" }],
+        },
+      })
+    );
+    await act(async () => runtime.host.disable("owner.a"));
+    await expect(
+      runtime.runAction(action, { kind: "article", id: "raw-article" }, "42")
+    ).rejects.toThrow();
+    expect(executions).toEqual([{ kind: "article", id: "raw-article" }]);
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+    mobileLocaleSource.setLocale("zh-CN");
+  }
 });

@@ -260,5 +260,6 @@
   "install.updateBatch_one": "Update {{amount}} plugin",
   "install.updateBatch_other": "Update {{amount}} plugins",
   "manage.installFinished": "The installation has ended",
-  "detail.version": "Version"
+  "detail.version": "Version",
+  "action.failed": "Plugin action failed: {{error}}"
 }

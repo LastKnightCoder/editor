@@ -67,8 +67,10 @@ export type PluginSettingsDefinition =
   | PluginComponentSettingsDefinition;
 
 export type PluginSettingsDeclaration =
-  | Localized<PluginComponentSettingsDefinition>
-  | (Omit<Localized<PluginProviderSettingsDefinition>, "form"> & { form: ProviderFormDeclaration });
+  | Localized<PluginComponentSettingsDefinition, "title" | "description">
+  | (Omit<Localized<PluginProviderSettingsDefinition, "title" | "description">, "form"> & {
+      form: ProviderFormDeclaration;
+    });
 
 export interface PluginSettingsHandle extends Disposable {
   readonly id: string;

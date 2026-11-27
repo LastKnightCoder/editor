@@ -1,3 +1,4 @@
+import type { Localized } from "@tau/i18n";
 import type { ComponentType } from "react";
 import type { Disposable, PluginContext } from "./contract";
 import type { PluginIcon } from "./icons";
@@ -98,7 +99,12 @@ export interface PluginNotebookOutputDefinition {
   fail?(input: PluginNotebookOutputFailInput): Promise<void> | void;
 }
 
+export type PluginNotebookOutputDeclaration = Localized<
+  PluginNotebookOutputDefinition,
+  "title" | "description"
+>;
+
 export interface PluginNotebooks {
   /** 只在主窗口的 Notebook 里出现；目前只有桌面支持 */
-  registerOutput(definition: PluginNotebookOutputDefinition): Disposable;
+  registerOutput(definition: PluginNotebookOutputDeclaration): Disposable;
 }

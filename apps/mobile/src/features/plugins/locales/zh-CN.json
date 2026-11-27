@@ -257,5 +257,6 @@
   "detail.offlineReadme": "未连上插件中心，暂时读取不到说明。",
   "install.confirmUpdateVersion": "更新 v{{version}}",
   "manage.installFinished": "安装操作已结束",
-  "detail.version": "版本"
+  "detail.version": "版本",
+  "action.failed": "插件操作失败：{{error}}"
 }

@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { mkdir, mkdtemp, readFile, rm, writeFile, symlink } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile, symlink, truncate } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -218,4 +218,159 @@ describe("开发插件包读取", () => {
     await symlink(path.join(outside, "main.js"), path.join(directory, "main.js"));
     await expect(readPluginPackage(directory)).rejects.toThrow("插件目录内");
   });
+});
+
+async function templateResourcesFixture() {
+  const root = await mkdtemp(path.join(tmpdir(), "tau-template-messages-"));
+  directories.push(root);
+  const directory = path.join(root, "example.template");
+  const files: Record<string, string> = {
+    "site/index.html": "<h1>用户原始正文</h1>",
+    "site/site-data.json": JSON.stringify({ label: "站点自己的JSON" }),
+    "site/locales/cn.json": JSON.stringify({ name: "名称", hint: "提示/{{site}}" }),
+    "site/locales/tw.json": JSON.stringify({ name: "名稱", hint: "提示/{{site}}" }),
+  };
+  const manifest = {
+    formatVersion: 1,
+    apiVersion: 1,
+    platform: "desktop",
+    id: "example.template",
+    name: "模板",
+    version: "1.0.0",
+    minAppVersion: "0.68.0",
+    template: {
+      protocolVersion: 1,
+      root: "site",
+      entries: ["index.html"],
+      i18n: {
+        fallbackLocale: "zh-CN",
+        resources: { "zh-CN": "locales/cn.json", "zh-TW": "locales/tw.json" },
+      },
+      siteFields: [
+        {
+          key: "tagline",
+          type: "text",
+          label: { kind: "i18n", key: "name" },
+          placeholder: { kind: "i18n", key: "hint", values: { site: "original" } },
+          default: "原默认正文",
+        },
+      ],
+    },
+    integrity: Object.fromEntries(
+      Object.entries(files).map(([file, content]) => [
+        file,
+        createHash("sha256").update(content).digest("hex"),
+      ])
+    ),
+  };
+  for (const [file, content] of Object.entries(files)) {
+    await mkdir(path.dirname(path.join(directory, file)), { recursive: true });
+    await writeFile(path.join(directory, file), content);
+  }
+  const save = () => writeFile(path.join(directory, "manifest.json"), JSON.stringify(manifest));
+  await save();
+  return { root, directory, files, manifest, save };
+}
+
+it("模板词典经过真实扫描与JSON传输，只有声明的UI词典从站点文件排除", async () => {
+  const fixture = await templateResourcesFixture();
+  const { readTemplatePackage } = await import("../template-package");
+  const { discoverPlugins } = await import("../plugin-discovery");
+  const snapshot = await readTemplatePackage(fixture.directory, "0.68.0");
+  expect(
+    Object.fromEntries(
+      snapshot.files.map(file => ["site/" + file.path, file.content.toString("utf8")])
+    )
+  ).toEqual({
+    "site/index.html": fixture.files["site/index.html"],
+    "site/site-data.json": fixture.files["site/site-data.json"],
+  });
+  const artifact = await readDistributionPackage(fixture.directory, "0.68.0");
+  if (!isTemplatePackage(artifact)) throw new Error("Expected template");
+  expect(artifact.messages).toEqual(snapshot.messages);
+  const scan = await discoverPlugins(fixture.root, "0.68.0");
+  const entry = scan.entries.find(item => item.id === fixture.manifest.id);
+  const payload = JSON.parse(
+    JSON.stringify({ manifest: entry?.template, messages: entry?.templateMessages })
+  );
+  expect(payload).toEqual({ manifest: snapshot.manifest, messages: snapshot.messages });
+  expect(payload.manifest.template.siteFields).toEqual(fixture.manifest.template.siteFields);
+  expect(payload.messages.resources["zh-TW"]).toEqual(
+    JSON.parse(fixture.files["site/locales/tw.json"])
+  );
+});
+
+it.each([
+  "digest",
+  "missing",
+  "json",
+  "schema",
+  "fallback-key",
+  "parameter",
+  "reserved-directory",
+  "file-symlink",
+  "directory-symlink",
+])("模板词典在外部格式边界拒绝损坏数据 %s", async failure => {
+  const fixture = await templateResourcesFixture();
+  const file = "site/locales/cn.json",
+    absolute = path.join(fixture.directory, file);
+  if (failure === "missing") await rm(absolute);
+  else if (failure === "fallback-key") {
+    fixture.manifest.template.siteFields[0].label.key = "missing";
+    await fixture.save();
+  } else if (failure === "parameter") {
+    const invalid = JSON.parse(JSON.stringify(fixture.manifest));
+    invalid.template.siteFields[0].placeholder.values.site = { nested: true };
+    await writeFile(path.join(fixture.directory, "manifest.json"), JSON.stringify(invalid));
+  } else if (failure === "reserved-directory") {
+    await mkdir(path.join(fixture.directory, "site/data"));
+    await writeFile(path.join(fixture.directory, "site/data/cn.json"), fixture.files[file]);
+    fixture.manifest.template.i18n.resources["zh-CN"] = "data/cn.json";
+    fixture.manifest.integrity["site/data/cn.json"] = fixture.manifest.integrity[file];
+    await fixture.save();
+  } else if (failure.endsWith("symlink")) {
+    const outside = path.join(fixture.root, "outside");
+    await mkdir(outside);
+    if (failure === "file-symlink") {
+      await writeFile(path.join(outside, "cn.json"), fixture.files[file]);
+      await rm(absolute);
+      await symlink(path.join(outside, "cn.json"), absolute);
+    } else {
+      await writeFile(path.join(outside, "cn.json"), fixture.files[file]);
+      await writeFile(path.join(outside, "tw.json"), fixture.files["site/locales/tw.json"]);
+      await rm(path.dirname(absolute), { recursive: true });
+      await symlink(outside, path.dirname(absolute));
+    }
+  } else {
+    const content =
+      failure === "json" ? "{" : failure === "schema" ? JSON.stringify({ name: 1 }) : "{}";
+    await writeFile(absolute, content);
+    if (failure !== "digest") {
+      fixture.manifest.integrity[file] = createHash("sha256").update(content).digest("hex");
+      await fixture.save();
+    }
+  }
+  await expect(readDistributionPackage(fixture.directory, "0.68.0")).rejects.toThrow();
+});
+
+it("不导出的词典文件仍占用分发大小与文件预算", async () => {
+  // 真实包边界：若只计导出files，全部词典会绕过entries上限。
+  const fixture = await templateResourcesFixture();
+  const { DISTRIBUTION_LIMITS } = await import("@tau/plugins/template");
+  const dictionary = path.join(fixture.directory, "site/locales/cn.json");
+  await truncate(dictionary, DISTRIBUTION_LIMITS.expandedBytes + 1);
+  await expect(readDistributionPackage(fixture.directory, "0.68.0")).rejects.toThrow("超限");
+  await writeFile(dictionary, fixture.files["site/locales/cn.json"]);
+  const resources: Record<string, string> = {};
+  for (let index = 0; index < DISTRIBUTION_LIMITS.entries; index++) {
+    const file = `locales/${index}.json`,
+      content = fixture.files["site/locales/cn.json"];
+    resources[`en-x-r${index}`] = file;
+    await writeFile(path.join(fixture.directory, "site", file), content);
+    fixture.manifest.integrity["site/" + file] = createHash("sha256").update(content).digest("hex");
+  }
+  const raw = JSON.parse(JSON.stringify(fixture.manifest));
+  raw.template.i18n = { fallbackLocale: "en-x-r0", resources };
+  await writeFile(path.join(fixture.directory, "manifest.json"), JSON.stringify(raw));
+  await expect(readDistributionPackage(fixture.directory, "0.68.0")).rejects.toThrow("超限");
 });

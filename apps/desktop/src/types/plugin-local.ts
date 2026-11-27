@@ -17,6 +17,7 @@ export type LocalPluginSource =
 
 export interface LocalPluginEntry {
   template?: import("@tau/plugins/template").TemplateManifest;
+  templateMessages?: import("@tau/plugins/template").TemplateI18nResources;
   /** 独立 Skill 包：不进入插件宿主，安装后其 Skill 即出现在 Skill 页。 */
   skillPackage?: import("@tau/plugins/template").SkillPackageManifest;
   id: string;
