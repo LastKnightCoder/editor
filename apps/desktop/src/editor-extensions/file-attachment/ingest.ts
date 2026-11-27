@@ -1,6 +1,7 @@
 import type { IngestContext } from "@tau/editor";
 import { notifierOf } from "@tau/editor";
 import { uploadResource } from "@/hooks/useUploadResource";
+import { fileAttachmentTranslator } from "./i18n";
 import { insertFileAttachment } from "./utils";
 
 /**
@@ -19,7 +20,9 @@ export const fileAttachmentIngestSpec = {
           await insertFileAttachment(ctx.editor, url, false, file.name);
         } catch (error) {
           console.error("附件上传失败:", error);
-          notifierOf(ctx.editor).error(`「${file.name}」上传失败`);
+          notifierOf(ctx.editor).error(
+            fileAttachmentTranslator.t("upload.failed", { name: file.name })
+          );
         }
       }
     },

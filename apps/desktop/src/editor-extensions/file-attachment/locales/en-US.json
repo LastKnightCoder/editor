@@ -1,0 +1,17 @@
+{
+  "title": "File attachment",
+  "insert.title": "Insert file attachment",
+  "select.required": "Select a file first",
+  "cancel": "Cancel",
+  "insert": "Insert",
+  "upload.pending": "Uploading…",
+  "insert.pending": "Inserting…",
+  "select.local": "Choose a local file",
+  "select.anyType": "Any file type",
+  "upload.label": "Upload to cloud (configured in image hosting settings)",
+  "file.missing": "File not found",
+  "file.downloadPending": "Downloading file",
+  "file.revealed": "Shown in folder",
+  "file.downloadFailed": "Download failed",
+  "upload.failed": "Could not upload “{name}”"
+}

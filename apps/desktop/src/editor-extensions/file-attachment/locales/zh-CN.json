@@ -1,0 +1,17 @@
+{
+  "title": "文件附件",
+  "insert.title": "插入文件附件",
+  "select.required": "请先选择文件",
+  "cancel": "取消",
+  "insert": "插入",
+  "upload.pending": "正在上传…",
+  "insert.pending": "正在插入…",
+  "select.local": "选择本地文件",
+  "select.anyType": "任意类型的文件",
+  "upload.label": "上传到云端（图床配置中设置）",
+  "file.missing": "文件不存在",
+  "file.downloadPending": "正在下载文件",
+  "file.revealed": "已在文件夹中显示",
+  "file.downloadFailed": "下载失败",
+  "upload.failed": "「{name}」上传失败"
+}

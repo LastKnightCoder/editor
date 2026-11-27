@@ -5,6 +5,8 @@ import { AddParagraph, useNotifier, type EditorLoadingHandle } from "@tau/editor
 import { showInFolder } from "@/commands";
 import { remoteResourceToLocal } from "@/utils";
 
+import { fileAttachmentTranslator } from "../../i18n";
+
 interface IFileAttachmentProps {
   element: FileAttachmentElement;
   attributes: RenderElementProps["attributes"];
@@ -22,20 +24,20 @@ const FileAttachment = (props: IFileAttachmentProps) => {
       try {
         await showInFolder(localFilePath);
       } catch (e) {
-        notifier.error("文件不存在");
+        notifier.error(fileAttachmentTranslator.t("file.missing"));
         console.error(e);
       }
       return;
     }
     let progress: EditorLoadingHandle | undefined;
     try {
-      progress = notifier.loading("正在下载文件");
+      progress = notifier.loading(fileAttachmentTranslator.t("file.downloadPending"));
       const localPath = await remoteResourceToLocal(filePath);
       await showInFolder(localPath);
-      progress.success("已在文件夹中显示");
+      progress.success(fileAttachmentTranslator.t("file.revealed"));
     } catch (e) {
-      if (progress) progress.error("下载失败");
-      else notifier.error("下载失败");
+      if (progress) progress.error(fileAttachmentTranslator.t("file.downloadFailed"));
+      else notifier.error(fileAttachmentTranslator.t("file.downloadFailed"));
       console.error(e);
     }
   };
@@ -48,7 +50,7 @@ const FileAttachment = (props: IFileAttachmentProps) => {
           onClick={handleClickCard}
         >
           <div className="text-ink-1 text-[1em] font-medium">{fileName}</div>
-          <div className="text-ink-3 overflow-hidden text-ellipsis whitespace-nowrap text-[0.75em]">
+          <div className="text-ink-3 overflow-hidden text-[0.75em] text-ellipsis whitespace-nowrap">
             {filePath}
           </div>
         </div>

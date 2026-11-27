@@ -1,0 +1,17 @@
+{
+  "title": "檔案附件",
+  "insert.title": "插入檔案附件",
+  "select.required": "請先選擇檔案",
+  "cancel": "取消",
+  "insert": "插入",
+  "upload.pending": "正在上傳…",
+  "insert.pending": "正在插入…",
+  "select.local": "選擇本機檔案",
+  "select.anyType": "任何類型的檔案",
+  "upload.label": "上傳至雲端（於圖床設定中配置）",
+  "file.missing": "檔案不存在",
+  "file.downloadPending": "正在下載檔案",
+  "file.revealed": "已在資料夾中顯示",
+  "file.downloadFailed": "下載失敗",
+  "upload.failed": "「{name}」上傳失敗"
+}

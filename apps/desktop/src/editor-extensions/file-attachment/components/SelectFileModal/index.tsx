@@ -5,6 +5,8 @@ import { Button, Dialog, DialogBody, Spinner, Switch, cn, toast } from "@tau/ui"
 import { selectFile, readBinaryFile, getFileBaseName } from "@/commands";
 import useUploadResource from "@/hooks/useUploadResource.ts";
 
+import { fileAttachmentTranslator, useFileAttachmentI18n } from "../../i18n";
+
 interface SelectFileModalProps {
   open: boolean;
   onOk: (filePath: string, isLocal: boolean, fileName?: string) => void;
@@ -13,6 +15,7 @@ interface SelectFileModalProps {
 
 /** 文件附件：选本地文件，可选上传到图床后以远程地址插入 */
 const SelectFileModal = ({ open, onOk, onCancel }: SelectFileModalProps) => {
+  const { t } = useFileAttachmentI18n();
   const uploadFile = useUploadResource();
   const [filePath, setFilePath] = useState<string>();
   const [fileName, setFileName] = useState<string>();
@@ -35,7 +38,7 @@ const SelectFileModal = ({ open, onOk, onCancel }: SelectFileModalProps) => {
 
   const handleOk = async () => {
     if (!file || !filePath || !fileName) {
-      toast.warning("请先选择文件");
+      toast.warning(fileAttachmentTranslator.t("select.required"));
       return;
     }
     setSubmitting(true);
@@ -51,23 +54,23 @@ const SelectFileModal = ({ open, onOk, onCancel }: SelectFileModalProps) => {
     <Dialog
       open={open}
       onOpenChange={next => !next && onCancel()}
-      title="插入文件附件"
+      title={t("insert.title")}
       icon={<Paperclip className="size-4" strokeWidth={1.75} />}
       locked={submitting}
       footer={
         <>
           <Button variant="secondary" size="sm" disabled={submitting} onClick={onCancel}>
-            取消
+            {t("cancel")}
           </Button>
           <Button
             variant="primary"
             size="sm"
             disabled={!file}
             loading={submitting}
-            loadingText={isUpload ? "正在上传…" : "正在插入…"}
+            loadingText={isUpload ? t("upload.pending") : t("insert.pending")}
             onClick={() => void handleOk()}
           >
-            插入
+            {t("insert")}
           </Button>
         </>
       }
@@ -91,17 +94,17 @@ const SelectFileModal = ({ open, onOk, onCancel }: SelectFileModalProps) => {
               <Upload className="text-ink-2 size-5" strokeWidth={1.75} />
             )}
             <span className="text-tau-body text-ink-1 max-w-full truncate font-medium">
-              {fileName || "选择本地文件"}
+              {fileName || t("select.local")}
             </span>
             <span className="text-tau-sm text-ink-3 max-w-full truncate" title={filePath}>
-              {filePath || "任意类型的文件"}
+              {filePath || t("select.anyType")}
             </span>
           </button>
           <Switch
             size="sm"
             checked={isUpload}
             onCheckedChange={setIsUpload}
-            label="上传到云端（图床配置中设置）"
+            label={t("upload.label")}
           />
         </div>
       </DialogBody>

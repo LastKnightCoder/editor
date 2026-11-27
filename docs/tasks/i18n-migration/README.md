@@ -410,6 +410,8 @@ DocTasks七路径完成；原doc12与element definitions1基线/最终通过，�
 
 Blank七路径完成；既有真实Editor配置增强契约与DocTasks/element合计14例通过，13key三语/参数、范围检查和联动desktop type0。草稿/焦点/caret跨语不写，显式保存单次保原节点值；暴露的旧div-in-p结构warning未借本批扩修。
 
+附件九路径完成；editorVoid原26基线至联动27例通过，真实Dialog/同File/上传开关/inflight跨语保原onOk参数；15key三语、scope lint/diff与desktop type0。渲染数据根无新locale订阅，原上传与插入守卫保持。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

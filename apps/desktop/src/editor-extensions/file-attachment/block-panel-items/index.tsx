@@ -4,12 +4,19 @@ import SelectFileModal from "../components/SelectFileModal";
 import { insertFileAttachment } from "../utils.ts";
 import { showMediaNode } from "@/editor-providers/mediaModalHost";
 
+import { fileAttachmentTranslator } from "../i18n";
+
 const items: IBlockPanelListItem[] = [
   {
+    id: "host.file-attachment.insert",
     icon: Paperclip,
-    title: "文件附件",
+    get title() {
+      return fileAttachmentTranslator.t("title");
+    },
     keywords: ["文件", "附件", "file", "attachment"],
-    description: "文件附件",
+    get description() {
+      return fileAttachmentTranslator.t("title");
+    },
     onClick: async editor => {
       const close = showMediaNode(
         <SelectFileModal
