@@ -15,6 +15,7 @@ import type { ContentDetailResponse } from "../../types";
 import { mobileContentMetrics, mobileContentPlugins } from "./content";
 import { getMobileContentKit } from "../../services/editorKit";
 import { prepareContentWrite } from "../../services/contentWriteCoordinator";
+import { notifyReminderSourceChanged } from "../../features/reminders/changes";
 import { publishContentUpdate } from "../../features/cards/contentSyncBus";
 import {
   readPluginSharedContent,
@@ -61,13 +62,17 @@ const findTask = (nodes: Descendant[], id: string): Record<string, unknown> | un
 export function createMobileTasks(
   database: string,
   token: string,
-  changed: () => void,
+  onChanged: () => void,
   checkPermission?: (context: PluginContext, permission: PluginPermission) => Promise<void>,
   prepareContent?: (
     context: PluginContext,
     input: PluginContentInput
   ) => Promise<{ nodes: Descendant[]; contracts: ContentContractDictionary; count: number }>
 ) {
+  const changed = () => {
+    notifyReminderSourceChanged("plugin_tasks_write");
+    onChanged();
+  };
   let disposed = false;
   const activeOperations = new Set<number>();
   const assert = (context?: PluginContext) => {

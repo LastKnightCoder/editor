@@ -5,8 +5,11 @@ import { executeDatabaseCommand } from "../../database-command";
 import { ensureMainSchema } from "../../main-schema";
 import { must } from "../../../test-support";
 import TodoItemTable from "../todo-item";
+import ItemReminderTable from "../item-reminder";
 import TodoRecurrenceTable from "../todo-recurrence";
 import TodoRecurrenceCompletionTable from "../todo-recurrence-completion";
+import { assistantReminders } from "../../task-assistant/reminders";
+import { hmToClockOffset } from "@tau/shared/reminders";
 import type { TodoItemType } from "@/types";
 
 vi.mock("electron");
@@ -141,4 +144,53 @@ it("旧库升级补齐 todo_item 的 priority 与 tags 列并保留已有任务"
   } finally {
     legacy.close();
   }
+});
+
+it("重复独立待办支持多钟点、并发冲突保护、当天完成后取消剩余提醒，切换类型时清空不兼容提醒", () => {
+  changeType("recurring");
+  const rule = must(TodoRecurrenceTable.getRecurrenceByItemId(db, { todoItemId: id }));
+  const today = new Date(2026, 10, 28, 0, 0, 0).getTime();
+  TodoRecurrenceTable.updateRecurrence(db, {
+    id: rule.id,
+    type: "daily",
+    interval: 1,
+    startDate: today,
+  });
+
+  const o0800 = hmToClockOffset(8, 0);
+  const o2000 = hmToClockOffset(20, 0);
+  const saved = ItemReminderTable.setTodoReminders(db, id, [o0800, o2000], []);
+  expect(saved).toEqual([o2000, o0800]);
+  // 旧预期基线写入被拒绝，不覆盖新值
+  expect(() => ItemReminderTable.setTodoReminders(db, id, [o0800], [])).toThrow(
+    "REMINDER_CONFLICT"
+  );
+
+  // 当天未完成时，当天 08:00 与 20:00 均在排期中
+  const beforeComplete = assistantReminders(
+    db,
+    undefined,
+    new Date(2026, 10, 28, 21, 0, 0).getTime()
+  );
+  expect(beforeComplete.map(entry => entry.remindAt)).toEqual([
+    new Date(2026, 10, 28, 20, 0, 0).getTime(),
+    new Date(2026, 10, 28, 8, 0, 0).getTime(),
+  ]);
+
+  // 当天完成后：取消当天剩余提醒，次日仍按 08:00 和 20:00 提醒
+  TodoRecurrenceCompletionTable.completeRecurrence(db, {
+    recurrenceId: rule.id,
+    scheduledDate: today,
+  });
+  expect(assistantReminders(db, undefined, new Date(2026, 10, 28, 21, 0, 0).getTime())).toEqual([]);
+  const nextDay = assistantReminders(db, undefined, new Date(2026, 10, 29, 21, 0, 0).getTime());
+  expect(nextDay.map(entry => entry.remindAt).sort((a, b) => a - b)).toEqual([
+    new Date(2026, 10, 29, 8, 0, 0).getTime(),
+    new Date(2026, 10, 29, 20, 0, 0).getTime(),
+  ]);
+
+  // 切换待办类型时清空不兼容提醒
+  const switched = changeType("deadline");
+  expect(switched.remindBefore).toBeNull();
+  expect(ItemReminderTable.list(db, "todo", id)).toEqual([]);
 });

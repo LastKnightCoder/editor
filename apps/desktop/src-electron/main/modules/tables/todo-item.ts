@@ -291,12 +291,17 @@ export default class TodoItemTable {
   ): TodoItem {
     const { id, type } = payload;
     const today = new Date().setHours(0, 0, 0, 0);
+    const current = db.prepare("SELECT type, due_at FROM todo_item WHERE id = ?").get(id) as
+      | { type: string; due_at: number | null }
+      | undefined;
     const patch: UpdateTodoItem = { id, type };
-    if (type === "deadline") {
-      const current = db.prepare("SELECT due_at FROM todo_item WHERE id = ?").get(id) as
-        | { due_at: number | null }
-        | undefined;
-      if (current?.due_at == null) patch.dueAt = today;
+    if (type === "deadline" && current?.due_at == null) {
+      patch.dueAt = today;
+    }
+    // 跨任务类型时清理不兼容提醒（截止任务为提前毫秒，重复任务为当天负数钟点）
+    if (current && current.type !== type) {
+      patch.remindBefore = null;
+      ItemReminderTable.replace(db, "todo", id, []);
     }
     const item = this.updateItem(db, patch);
     if (

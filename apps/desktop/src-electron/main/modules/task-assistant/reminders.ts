@@ -1,6 +1,9 @@
+import { documentReminderAccess } from "../doc-tasks/settings";
+import { canScheduleDocumentReminder } from "@tau/shared/reminders";
 import type Database from "better-sqlite3";
 import {
   taskKey,
+  taskReminderOnDay,
   occurrenceKey,
   TaskAssistantError,
   type TaskRef,
@@ -45,15 +48,14 @@ export function assistantReminders(
         "SELECT content_id,task_id FROM doc_task_attributes WHERE reminder_at IS NOT NULL AND archived=0"
       )
       .all() as Array<{ content_id: number; task_id: string }>;
+    const accessByContent = new Map<number, ReturnType<typeof documentReminderAccess>>();
     for (const row of rows) {
-      if (
-        db
-          .prepare(
-            "SELECT 1 FROM doc_task_settings WHERE content_id=? AND (kind='excluded' OR (kind='promoted' AND task_id=?))"
-          )
-          .get(row.content_id, row.task_id)
-      )
-        continue;
+      let access = accessByContent.get(row.content_id);
+      if (!access) {
+        access = documentReminderAccess(db, row.content_id);
+        accessByContent.set(row.content_id, access);
+      }
+      if (!canScheduleDocumentReminder(access, row.task_id)) continue;
       const content = db
         .prepare("SELECT create_time FROM content_snapshots WHERE id=?")
         .get(row.content_id) as { create_time: number } | undefined;
@@ -82,19 +84,28 @@ export function assistantReminders(
         );
       continue;
     }
-    if (!task.reminderAt || task.archived) continue;
+    if (task.archived) continue;
     if (!task.recurrence?.length) {
-      const remindAt = dateTime(task.reminderAt);
-      if (!task.completed && remindAt > now - 86_400_000 && remindAt <= now)
-        result.push({
-          taskRef: ref,
-          title: task.title,
-          dueAt: task.dueAt ? dateTime(task.dueAt) : null,
-          allDay: task.dueAt?.length === 10,
-          remindAt,
-        });
+      if (task.completed) continue;
+      for (const reminder of task.reminders ?? []) {
+        if (!("at" in reminder)) continue;
+        const remindAt = dateTime(reminder.at);
+        if (remindAt > now - 86_400_000 && remindAt <= now)
+          result.push({
+            taskRef: ref,
+            title: task.title,
+            dueAt: task.dueAt ? dateTime(task.dueAt) : null,
+            allDay: task.dueAt?.length === 10,
+            remindAt,
+          });
+      }
       continue;
     }
+    const offsets =
+      task.reminderOffsets ??
+      task.reminders?.flatMap(r => ("offsetMs" in r ? [r.offsetMs] : [])) ??
+      [];
+    if (!offsets.length) continue;
     const states =
       ref.kind === "todo"
         ? independentStates(db, ref)
@@ -104,8 +115,6 @@ export function assistantReminders(
               ref.taskId
             ) as DocumentTaskAttributes
           )?.taskOccurrenceState ?? {});
-    const configured = dateTime(task.reminderAt),
-      offset = configured - dateTime(localDate(configured));
     let holidays: Set<number> | undefined;
     if (task.recurrence.some(segment => segment.rule?.excludeHolidays)) {
       try {
@@ -131,21 +140,19 @@ export function assistantReminders(
       holidays
     )) {
       const dueAt = dateTime(entry.scheduledAt);
-      const remindAt = dateTime(localDate(dueAt)) + offset;
-      if (
-        !entry.state.completedAt &&
-        !entry.state.skipped &&
-        remindAt > now - 86_400_000 &&
-        remindAt <= now
-      )
-        result.push({
-          taskRef: ref,
-          occurrence: entry.occurrence,
-          title: task.title,
-          dueAt: dateTime(localDate(dueAt)),
-          allDay: true,
-          remindAt,
-        });
+      if (entry.state.completedAt != null || entry.state.skipped) continue;
+      for (const offset of offsets) {
+        const remindAt = taskReminderOnDay(dueAt, offset);
+        if (remindAt !== null && remindAt > now - 86_400_000 && remindAt <= now)
+          result.push({
+            taskRef: ref,
+            occurrence: entry.occurrence,
+            title: task.title,
+            dueAt: dateTime(localDate(dueAt)),
+            allDay: true,
+            remindAt,
+          });
+      }
     }
   }
   return result;

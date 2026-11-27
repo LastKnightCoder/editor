@@ -21,6 +21,9 @@ type DateTimePickerSheetProps = {
   value: number | null;
   /** 未设置时的默认钟点（开始时间传 9、截止时间传 18 之类） */
   defaultHour?: number;
+  /** 允许在 5 分钟 / 1 分钟步进之间切换 */
+  allowFineStep?: boolean;
+  stepLabel?: (stepMinutes: number) => string;
   onConfirm: (timestamp: number) => void;
   /** 传入则显示「清除」入口（清空字段） */
   onClear?: () => void;
@@ -75,6 +78,8 @@ export function DateTimePickerSheet({
   title,
   value,
   defaultHour = 9,
+  allowFineStep = false,
+  stepLabel,
   onConfirm,
   onClear,
   onClose,
@@ -88,11 +93,14 @@ export function DateTimePickerSheet({
       hourCycle: "h23",
     }).format(new Date(2023, 0, 1, hour, minute));
   const [draft, setDraft] = useState<DateTimeDraft>(() => defaultDraft(defaultHour));
+  const [minuteStep, setMinuteStep] = useState<5 | 1>(MINUTE_STEP);
 
   // 每次打开重置草稿：有值回填，无值落到今天 + defaultHour
   useEffect(() => {
     if (!open) return;
-    setDraft(value != null ? draftFromValue(value) : defaultDraft(defaultHour));
+    const next = value != null ? draftFromValue(value) : defaultDraft(defaultHour);
+    setDraft(next);
+    setMinuteStep(allowFineStep && next.minute % 5 !== 0 ? 1 : MINUTE_STEP);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -248,8 +256,8 @@ export function DateTimePickerSheet({
         <div className="flex items-center gap-2.5">
           <button
             type="button"
-            aria-label={t("time.minusMinutes", { count: MINUTE_STEP })}
-            onClick={() => patchTime({ minute: shiftMinute(draft.minute, -MINUTE_STEP) })}
+            aria-label={t("time.minusMinutes", { count: minuteStep })}
+            onClick={() => patchTime({ minute: shiftMinute(draft.minute, -minuteStep) })}
             className="bg-page text-ink-2 grid h-9 w-9 place-items-center rounded-full transition-transform active:scale-90"
           >
             <Minus size={15} />
@@ -262,14 +270,26 @@ export function DateTimePickerSheet({
           </div>
           <button
             type="button"
-            aria-label={t("time.plusMinutes", { count: MINUTE_STEP })}
-            onClick={() => patchTime({ minute: shiftMinute(draft.minute, MINUTE_STEP) })}
+            aria-label={t("time.plusMinutes", { count: minuteStep })}
+            onClick={() => patchTime({ minute: shiftMinute(draft.minute, minuteStep) })}
             className="bg-page text-ink-2 grid h-9 w-9 place-items-center rounded-full transition-transform active:scale-90"
           >
             <Plus size={15} />
           </button>
         </div>
       </div>
+
+      {allowFineStep ? (
+        <div className="mt-2 flex justify-center">
+          <button
+            type="button"
+            onClick={() => setMinuteStep(prev => (prev === 5 ? 1 : 5))}
+            className="border-line-1 bg-surface text-ink-2 active:bg-hover rounded-full border px-3 py-1 text-[11.5px] font-semibold tabular-nums"
+          >
+            {stepLabel ? stepLabel(minuteStep) : `${minuteStep} min`}
+          </button>
+        </div>
+      ) : null}
 
       {/* 快捷时间 */}
       <div className="mt-3 flex flex-wrap gap-2">

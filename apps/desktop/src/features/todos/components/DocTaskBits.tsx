@@ -5,8 +5,11 @@ import { dayWord, monthDay } from "@/utils/date-format";
  * 文档条目没有删除 / 改期 / 移动菜单——这些都在原文里改。
  */
 
-import { FileText } from "lucide-react";
+import { Bell, FileText } from "lucide-react";
+import { useI18n } from "@tau/i18n/react";
+import { desktopI18n } from "@/app/i18n/runtime";
 import { cn } from "@tau/ui";
+import { reminderMessages, summarizeDocumentReminders } from "@tau/shared/reminders";
 import { openEntity } from "@/services/open-content";
 import type { DocTaskItem, DocTaskSource } from "@/types/doc-tasks";
 import { bucketForDay, dayDiff } from "../model";
@@ -43,7 +46,9 @@ export function DocTaskRow({
   onOpen(task: DocTaskItem): void;
 }) {
   const { locale } = useTodosI18n();
+  const { t: tReminder } = useI18n(reminderMessages, desktopI18n);
   const overdue = !task.checked && task.dueAt != null && dayDiff(task.dueAt, now) < 0;
+  const hasReminders = Boolean(task.reminders?.length);
   return (
     <div
       role="button"
@@ -77,11 +82,24 @@ export function DocTaskRow({
         <span className={cn("text-tau-body truncate", task.checked && "text-ink-3 line-through")}>
           {task.title || t("common.untitled")}
         </span>
-        {task.dueAt != null && (
-          <span className={cn("text-ink-3 text-[11.5px] tabular-nums", overdue && "text-danger")}>
-            {overdue
-              ? t("doc.overdueDate", { date: monthDay(task.dueAt, locale) })
-              : dayWord(task.dueAt, now, locale)}
+        {(task.dueAt != null || hasReminders) && (
+          <span className="text-ink-3 flex flex-wrap items-center gap-2 text-[11.5px] tabular-nums">
+            {task.dueAt != null && (
+              <span className={cn(overdue && "text-danger")}>
+                {overdue
+                  ? t("doc.overdueDate", { date: monthDay(task.dueAt, locale) })
+                  : dayWord(task.dueAt, now, locale)}
+              </span>
+            )}
+            {hasReminders && (
+              <span className="inline-flex items-center gap-1">
+                <Bell className="size-[11px] shrink-0" strokeWidth={1.75} />
+                {summarizeDocumentReminders(task.reminders ?? [], Boolean(task.recurring), now, {
+                  locale,
+                  t: tReminder,
+                })}
+              </span>
+            )}
           </span>
         )}
       </span>

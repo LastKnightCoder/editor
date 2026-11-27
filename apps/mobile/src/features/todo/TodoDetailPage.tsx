@@ -51,9 +51,17 @@ import { useMobileEditorToolbarController } from "../cards/editorToolbar/useMobi
 import { ContentLinkPickerSheet } from "../cards/editorExtensions/ContentLinkPickerSheet";
 import { useOptionalPageInstanceContext } from "../../router/pageLifecycle";
 import { useMobileEntityHostRevision } from "../../services/pluginEntities";
-import { summarizeReminders } from "@tau/shared/reminders";
+import { useI18n } from "@tau/i18n/react";
+import {
+  reminderMessages,
+  summarizeClockReminders,
+  summarizeReminders,
+} from "@tau/shared/reminders";
+import { mobileI18n } from "../../services/i18n";
+import { toast } from "../../components/toast";
 import { ReminderSheet } from "../reminders/ReminderSheet";
-import { saveReminders, useReminders } from "../reminders/queries";
+import { TaskRemindersSheet } from "../reminders/TaskRemindersSheet";
+import { isReminderConflictError, saveReminders, useReminders } from "../reminders/queries";
 
 type TodoDetailPageProps = {
   todoId: number;
@@ -139,6 +147,7 @@ function recurrenceTypeLabel(type: RecurrenceType): string {
 
 export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailPageProps) {
   const { t: translate, locale } = useTodoI18n();
+  const { t: reminderT } = useI18n(reminderMessages, mobileI18n);
   const contentKit = useMobileContentKit("edit");
   const store = useTodoStore();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -165,8 +174,11 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
   const [startTimeSheetOpen, setStartTimeSheetOpen] = useState(false);
   const [dueTimeSheetOpen, setDueTimeSheetOpen] = useState(false);
   const [reminderSheetOpen, setReminderSheetOpen] = useState(false);
-  // 首个提醒在 remindBefore 上，变化即重读整组（其他入口改了提醒）
-  const reminders = useReminders("todo", todoId, current?.remindBefore);
+  const [expectedReminderOffsets, setExpectedReminderOffsets] = useState<number[] | undefined>(
+    undefined
+  );
+  // 任何提醒或待办更新都会刷新 updateTime，避免只改第 2 条提醒时漏刷新
+  const reminders = useReminders("todo", todoId, current?.updateTime);
 
   // 更多操作 / 删除
   const [moreSheetOpen, setMoreSheetOpen] = useState(false);
@@ -426,7 +438,33 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
 
   const reminderOffsets =
     current?.remindBefore != null ? (reminders.data ?? [current.remindBefore]) : [];
-  const reminderLabel = summarizeReminders(reminderOffsets, false, { locale });
+  const reminderLabel =
+    current?.type === "recurring"
+      ? summarizeClockReminders(reminderOffsets, { locale })
+      : summarizeReminders(reminderOffsets, false, { locale });
+
+  const openReminderSheet = () => {
+    setExpectedReminderOffsets([...reminderOffsets]);
+    setReminderSheetOpen(true);
+  };
+
+  const handleSaveTodoReminders = async (offsets: number[]): Promise<boolean> => {
+    if (!current) return false;
+    try {
+      const saved = await saveReminders("todo", current.id, offsets, expectedReminderOffsets);
+      setExpectedReminderOffsets(saved);
+      return true;
+    } catch (error) {
+      if (isReminderConflictError(error)) {
+        const refreshed = await reminders.refetch();
+        if (refreshed.data) setExpectedReminderOffsets([...refreshed.data]);
+        toast.info(reminderT("ui.conflict"));
+        return false;
+      }
+      onError(error, todoTranslator.t("error.reminder"));
+      return false;
+    }
+  };
 
   if (!current) {
     return (
@@ -566,7 +604,7 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
                 </button>
                 <button
                   type="button"
-                  onClick={() => setReminderSheetOpen(true)}
+                  onClick={openReminderSheet}
                   className={`${chipBaseClass} ${
                     current.remindBefore != null
                       ? "bg-accent-soft text-accent-text"
@@ -586,6 +624,20 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
                   amount: Math.max(1, recurringStatus.recurrence.interval).toLocaleString(locale),
                 })}
               </span>
+            )}
+            {current.type === "recurring" && (
+              <button
+                type="button"
+                onClick={openReminderSheet}
+                className={`${chipBaseClass} ${
+                  reminderOffsets.length > 0
+                    ? "bg-accent-soft text-accent-text"
+                    : "bg-page text-ink-3"
+                }`}
+              >
+                <Bell size={12} />
+                {reminderLabel}
+              </button>
             )}
           </div>
 
@@ -751,18 +803,26 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
         onClose={() => setTypeSheetOpen(false)}
       />
 
-      {/* 提醒选择（多选） */}
-      <ReminderSheet
-        open={reminderSheetOpen}
-        value={reminderOffsets}
-        anchor={current.dueAt ?? null}
-        onChange={offsets =>
-          void saveReminders("todo", current.id, offsets).catch(error =>
-            onError(error, todoTranslator.t("error.reminder"))
-          )
-        }
-        onClose={() => setReminderSheetOpen(false)}
-      />
+      {/* 提醒选择：重复待办用多钟点面板，其余沿用提前量多选面板 */}
+      {current.type === "recurring" ? (
+        <TaskRemindersSheet
+          open={reminderSheetOpen}
+          mode="clock"
+          value={reminderOffsets}
+          onCommit={handleSaveTodoReminders}
+          onClose={() => setReminderSheetOpen(false)}
+        />
+      ) : (
+        <ReminderSheet
+          open={reminderSheetOpen}
+          value={reminderOffsets}
+          anchor={current.dueAt ?? null}
+          onChange={offsets => {
+            void handleSaveTodoReminders(offsets);
+          }}
+          onClose={() => setReminderSheetOpen(false)}
+        />
+      )}
 
       {/* 更多操作 */}
       <ActionSheet

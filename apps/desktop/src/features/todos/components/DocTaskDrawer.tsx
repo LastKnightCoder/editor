@@ -6,11 +6,15 @@ import { dayWord, monthDay } from "@/utils/date-format";
  */
 
 import type { ReactNode } from "react";
-import { FileText } from "lucide-react";
+import { Bell, ChevronDown, FileText } from "lucide-react";
+import { useI18n } from "@tau/i18n/react";
+import { desktopI18n } from "@/app/i18n/runtime";
 import { Button, Drawer, cn, useRetainedValue } from "@tau/ui";
 import { useOverlayDismiss } from "@/page/PageProvider";
 import type { DocTaskItem, DocTaskSource } from "@/types/doc-tasks";
-import { useDocTasksOf } from "@/hooks/useDocTasks";
+import { useDocTaskReminders, useDocTasksOf, useSetDocTaskReminders } from "@/hooks/useDocTasks";
+import { reminderMessages, summarizeDocumentReminders } from "@tau/shared/reminders";
+import { TaskRemindersPopover } from "@/components/TaskRemindersPopover";
 
 import { openDocTask } from "./DocTaskBits";
 import { TodoCheck } from "./TodoBits";
@@ -36,11 +40,22 @@ export function DocTaskDrawer({
   onExclude(source: DocTaskSource): void;
 }) {
   const { locale } = useTodosI18n();
+  const { t: tReminder } = useI18n(reminderMessages, desktopI18n);
   const open = task !== null;
   useOverlayDismiss(onClose, open);
   const current = useRetainedValue(task);
   const currentSource = useRetainedValue(source);
   const siblings = useDocTasksOf(current?.contentId ?? null).data ?? [];
+  const liveReminders = useDocTaskReminders(
+    open && current ? current.contentId : null,
+    open && current ? current.taskId : null
+  );
+  const saveDocReminders = useSetDocTaskReminders();
+  const reminderDetail = liveReminders.data?.ok ? liveReminders.data : null;
+  const reminders = reminderDetail?.reminders ?? current?.reminders ?? [];
+  const recurring = reminderDetail?.recurring ?? current?.recurring ?? false;
+  const remindersWritable = reminderDetail ? reminderDetail.writable : false;
+  const reminderDigest = reminderDetail?.digest ?? "";
   const index = current ? siblings.findIndex(t => t.taskId === current.taskId) : -1;
   const parent = current?.parentTaskId
     ? siblings.find(t => t.taskId === current.parentTaskId)
@@ -93,6 +108,63 @@ export function DocTaskDrawer({
               : "—"}
           </Field>
           <Field label={t("doc.group")}>{groupTitle ?? "—"}</Field>
+          <Field label={t("field.reminder")}>
+            {recurring ? (
+              <TaskRemindersPopover
+                mode="clock"
+                value={reminders.flatMap(item => ("offsetMs" in item ? [item.offsetMs] : []))}
+                disabled={!remindersWritable || !reminderDigest}
+                onChange={async offsets => {
+                  await saveDocReminders(
+                    current.contentId,
+                    current.taskId,
+                    offsets.map(offsetMs => ({ offsetMs })),
+                    reminderDigest
+                  );
+                }}
+                trigger={
+                  <button
+                    type="button"
+                    className={cn(
+                      "border-line-1 bg-surface hover:border-ink-3 inline-flex h-[26px] items-center gap-1.5 rounded-[7px] border px-2.5 text-[12.5px] tabular-nums outline-none focus-visible:shadow-[var(--tau-focus-ring)]",
+                      reminders.length ? "text-ink-1" : "text-ink-3"
+                    )}
+                  >
+                    <Bell className="text-ink-3 size-[12px] shrink-0" strokeWidth={1.75} />
+                    <span>
+                      {summarizeDocumentReminders(reminders, true, now, { locale, t: tReminder })}
+                    </span>
+                    <ChevronDown className="text-ink-3 size-[13px]" strokeWidth={1.75} />
+                  </button>
+                }
+              />
+            ) : (
+              <TaskRemindersPopover
+                mode="absolute"
+                value={reminders}
+                dueAt={current.dueAt}
+                disabled={!remindersWritable || !reminderDigest}
+                onChange={async next => {
+                  await saveDocReminders(current.contentId, current.taskId, next, reminderDigest);
+                }}
+                trigger={
+                  <button
+                    type="button"
+                    className={cn(
+                      "border-line-1 bg-surface hover:border-ink-3 inline-flex h-[26px] items-center gap-1.5 rounded-[7px] border px-2.5 text-[12.5px] tabular-nums outline-none focus-visible:shadow-[var(--tau-focus-ring)]",
+                      reminders.length ? "text-ink-1" : "text-ink-3"
+                    )}
+                  >
+                    <Bell className="text-ink-3 size-[12px] shrink-0" strokeWidth={1.75} />
+                    <span>
+                      {summarizeDocumentReminders(reminders, false, now, { locale, t: tReminder })}
+                    </span>
+                    <ChevronDown className="text-ink-3 size-[13px]" strokeWidth={1.75} />
+                  </button>
+                }
+              />
+            )}
+          </Field>
           {context.length > 0 && (
             <div>
               <div className="text-ink-3 mb-1.5 text-[11.5px]">{t("doc.context")}</div>

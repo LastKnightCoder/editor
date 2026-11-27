@@ -23,7 +23,11 @@ import { minimalTextEdit } from "@/entity/text-edits";
 import ContentTable from "../tables/content";
 import { reportStoredJsonFailure } from "../../utils/stored-json";
 import type { TaskContentNode } from "../content-task-patches";
-import { documentTaskIsChecked } from "@tau/shared/task-assistant";
+import {
+  documentTaskIsChecked,
+  documentTaskReminders,
+  type DocumentTaskAttributes,
+} from "@tau/shared/task-assistant";
 import { listTaskGroups, rememberGroupNames, rewriteGroupAliases } from "./group-names";
 export { listTaskGroups } from "./group-names";
 
@@ -235,6 +239,9 @@ export function reindexDocTasks(
   }
 
   const storedOf = indexDb.prepare(`SELECT * FROM doc_tasks WHERE content_id = ?`);
+  const storedAttrsOf = indexDb.prepare(
+    `SELECT task_id, attributes_json FROM doc_task_attributes WHERE content_id = ?`
+  );
   const deleteTasks = indexDb.prepare(`DELETE FROM doc_tasks WHERE content_id = ?`);
   const deleteAttributes = indexDb.prepare(`DELETE FROM doc_task_attributes WHERE content_id = ?`);
   const insertAttributes = indexDb.prepare(`INSERT INTO doc_task_attributes VALUES (?,?,?,?,?,?)`);
@@ -255,6 +262,12 @@ export function reindexDocTasks(
   indexDb.transaction(() => {
     for (const id of ids) {
       const before = new Map((storedOf.all(id) as StoredTask[]).map(task => [task.task_id, task]));
+      const beforeAttrs = new Map(
+        (storedAttrsOf.all(id) as Array<{ task_id: string; attributes_json: string }>).map(row => [
+          row.task_id,
+          row.attributes_json,
+        ])
+      );
       deleteTasks.run(id);
       deleteAttributes.run(id);
       const row = rows.get(id);
@@ -279,15 +292,21 @@ export function reindexDocTasks(
         const attributes = Object.fromEntries(
           Object.entries(node ?? {}).filter(([key]) => key.startsWith("task") && key !== "taskId")
         );
-        const reminder = attributes.taskReminder as { at?: string } | undefined;
+        const firstReminder = documentTaskReminders(attributes as DocumentTaskAttributes)[0];
         const recurrence = attributes.taskRecurrence as { segments?: unknown[] } | undefined;
+        const attributesJson = JSON.stringify(attributes);
+        if (beforeAttrs.get(task.taskId) !== attributesJson) differs = true;
         insertAttributes.run(
           id,
           task.taskId,
-          JSON.stringify(attributes),
+          attributesJson,
           attributes.taskArchived ? 1 : 0,
           recurrence?.segments?.length ? 1 : 0,
-          reminder?.at ?? null
+          firstReminder
+            ? "at" in firstReminder
+              ? firstReminder.at
+              : new Date(-firstReminder.offsetMs).toISOString().slice(11, 23)
+            : null
         );
         const prev = before.get(task.taskId);
         // 相对日期沿用上次的锚点，只有日期原文变化（或新出现）才以此刻为锚

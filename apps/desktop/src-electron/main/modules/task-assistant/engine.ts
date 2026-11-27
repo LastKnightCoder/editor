@@ -12,6 +12,7 @@ import {
   type TaskRef,
   type TaskOccurrenceRef,
   type TaskRecurrenceRule,
+  type TaskReminder,
   occurrenceKey,
 } from "@tau/shared/task-assistant";
 import {
@@ -70,6 +71,7 @@ export interface TaskInput {
   dueAt?: string | null;
   reminderAt?: string | null;
   reminderOffsets?: number[];
+  reminders?: TaskReminder[];
   priority?: import("@tau/shared/task-assistant").TodoPriority;
   tags?: string[];
   startAt?: string | null;

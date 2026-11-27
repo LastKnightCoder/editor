@@ -91,17 +91,16 @@ const todoMetadata = {
   priority: choice(...todoPriorities),
   tags: { type: "array", items: { type: "string" } },
 };
+const documentReminders: TaskSchema = {
+  description: "正文勾选项的提醒列表，普通项使用 at，重复项使用当日 offsetMs。",
+  type: "array",
+  items: {
+    anyOf: [object({ offsetMs: { type: "integer" } }, ["offsetMs"]), object({ at: time }, ["at"])],
+  },
+};
 const patch = object({
   ...todoMetadata,
-  reminders: {
-    type: "array",
-    items: {
-      anyOf: [
-        object({ offsetMs: { type: "integer" } }, ["offsetMs"]),
-        object({ at: time }, ["at"]),
-      ],
-    },
-  },
+  reminders: documentReminders,
   title: { ...text, maxLength: 500 },
   startAt: nullable(time),
   ensureDescription: boolean,
@@ -130,6 +129,7 @@ export const TASK_WRITE_SCHEMAS = {
       description: { type: "object", additionalProperties: true },
       dueAt: nullable(time),
       reminderAt: nullable(time),
+      reminders: documentReminders,
       reminderOffsets,
       recurrence: rule,
       schedule,
@@ -357,6 +357,13 @@ export function validateTaskValue(schema: TaskSchema, value: unknown, path = "�
         "tags" in patch
       )
         fail("此字段仅适用于独立待办");
+    }
+    if (schema === TASK_WRITE_SCHEMAS.create_todo || schema === TASK_WRITE_SCHEMAS.update_todo) {
+      const create = schema === TASK_WRITE_SCHEMAS.create_todo;
+      const fields = create ? record : (record.patch as Record<string, unknown>);
+      const document = create ? !!record.document : (record.taskRef as TaskRef).kind === "document";
+      if (document && "reminderOffsets" in fields) fail("正文待办请使用 reminders");
+      if (!document && "reminders" in fields) fail("独立待办请使用 reminderOffsets");
     }
     if (schema === taskRef) {
       const valid =

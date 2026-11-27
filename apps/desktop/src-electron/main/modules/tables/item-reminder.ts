@@ -1,5 +1,10 @@
 import type Database from "better-sqlite3";
-import { joinTodoReminders, normalizeReminders, splitTodoReminders } from "@tau/shared/reminders";
+import {
+  joinTodoReminders,
+  normalizeReminders,
+  offsetsDigest,
+  splitTodoReminders,
+} from "@tau/shared/reminders";
 
 export type ReminderOwner = "todo" | "event";
 
@@ -14,8 +19,8 @@ export default class ItemReminderTable {
         this.getTodoReminders(db, todoId),
       "todo:update-reminders": (
         db: Database.Database,
-        payload: { todoId: number; offsets: number[] }
-      ) => this.setTodoReminders(db, payload.todoId, payload.offsets),
+        payload: { todoId: number; offsets: number[]; expectedOffsets?: number[] }
+      ) => this.setTodoReminders(db, payload.todoId, payload.offsets, payload.expectedOffsets),
       "calendar-event:get-reminders": (db: Database.Database, eventId: number) =>
         this.list(db, "event", eventId),
       "calendar-event:update-reminders": (
@@ -63,10 +68,21 @@ export default class ItemReminderTable {
     return joinTodoReminders(row.remind_before, this.list(db, "todo", todoId));
   }
 
-  /** 先写 remind_before（触发器会清空追加提醒），再写追加提醒 */
-  static setTodoReminders(db: Database.Database, todoId: number, offsets: readonly number[]) {
+  /** 先写 remind_before（触发器会清空追加提醒），再写追加提醒；提供 expectedOffsets 时校验并发冲突 */
+  static setTodoReminders(
+    db: Database.Database,
+    todoId: number,
+    offsets: readonly number[],
+    expectedOffsets?: readonly number[]
+  ) {
     const { first, extras } = splitTodoReminders(offsets);
     db.transaction(() => {
+      if (expectedOffsets !== undefined) {
+        const current = this.getTodoReminders(db, todoId);
+        if (offsetsDigest(current) !== offsetsDigest(expectedOffsets)) {
+          throw new Error("REMINDER_CONFLICT: reminders changed externally");
+        }
+      }
       const changes = db
         .prepare("UPDATE todo_item SET remind_before = ?, update_time = ? WHERE id = ?")
         .run(first, Date.now(), todoId).changes;

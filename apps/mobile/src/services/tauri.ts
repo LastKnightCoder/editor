@@ -73,7 +73,7 @@ import type {
 } from "../features/calendar/types";
 import { logPerf } from "../utils/perf";
 import { invalidateCalendarAfterMutation } from "../features/calendar/cache";
-import { notifyReminderSourceChanged } from "../features/reminders/changes";
+import { notifyReminderSourceChanged, publishReminderChange } from "../features/reminders/changes";
 import type { ContextEntity, EntityContext, PendingRefBatch } from "../features/context/types";
 import { databaseReplacementState } from "./database-runtime";
 import {
@@ -1162,7 +1162,7 @@ export function collabUnbindContent(
 }
 
 /** 协作投影专用写通道：绑定漂移时服务端侧自动解绑并返回 reason=drift */
-export function collabProjectContent(params: {
+export async function collabProjectContent(params: {
   plugin?: {
     token: string;
     database: string;
@@ -1180,7 +1180,7 @@ export function collabProjectContent(params: {
   content: unknown[];
   count: number;
 }) {
-  return trackedInvoke<{
+  const result = await trackedInvoke<{
     projected: boolean;
     changed?: boolean;
     reason?: string;
@@ -1188,6 +1188,8 @@ export function collabProjectContent(params: {
   }>("collab_project_content", {
     payload: { ...params, count: mobileContentMetrics.count(params.content) },
   });
+  if (result.projected && result.changed) publishReminderChange();
+  return result;
 }
 
 /* ── 闪卡 ── */
@@ -1422,13 +1424,32 @@ export interface UpcomingReminder {
   recurring: boolean;
 }
 
+export function documentReminderAccess(contentId: number) {
+  return trackedInvoke<import("@tau/shared/reminders").DocumentReminderAccess>(
+    "reminder_document_access",
+    { contentId }
+  );
+}
+
 /** 提醒列表（基准前毫秒数，升序）；待办首个提醒即 remindBefore */
 export function reminderList(kind: ReminderOwnerKind, id: number) {
   return trackedInvoke<number[]>("reminder_list", { payload: { kind, id } });
 }
 
-export function reminderSet(kind: ReminderOwnerKind, id: number, offsets: number[]) {
-  return trackedInvoke<number[]>("reminder_set", { payload: { kind, id, offsets } });
+export function reminderSet(
+  kind: ReminderOwnerKind,
+  id: number,
+  offsets: number[],
+  expectedOffsets?: number[]
+) {
+  return trackedInvoke<number[]>("reminder_set", {
+    payload: {
+      kind,
+      id,
+      offsets,
+      ...(expectedOffsets !== undefined ? { expectedOffsets } : {}),
+    },
+  });
 }
 
 /** (from, to] 内待送达的提醒，以及仍有效的提醒归属（`todo:<id>` / `event:<id>`） */

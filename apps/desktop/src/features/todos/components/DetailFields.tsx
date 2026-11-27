@@ -52,8 +52,15 @@ import type {
   TodoRecurrence,
 } from "@/types";
 import type { ComponentProps, ReactNode } from "react";
-import { summarizeReminders } from "@tau/shared/reminders";
+import {
+  reminderMessages,
+  summarizeClockReminders,
+  summarizeReminders,
+} from "@tau/shared/reminders";
+import { useI18n } from "@tau/i18n/react";
+import { desktopI18n } from "@/app/i18n/runtime";
 import { ReminderMenu } from "@/components/ReminderMenu";
+import { TaskRemindersPopover } from "@/components/TaskRemindersPopover";
 import { priorityOf, tagsOf, todoReminders } from "../model";
 import type { TodoMutations } from "../queries";
 import type { TodoEntry } from "../types";
@@ -105,6 +112,7 @@ export function DetailFields({
   tagSuggestions?: TagCount[];
 }) {
   const { locale } = useTodosI18n();
+  const { t: tReminder } = useI18n(reminderMessages, desktopI18n);
   const group = groups.find(g => g.id === entry.groupId);
   const isChild = entry.parentId != null;
   const currentTags = tagsOf(entry);
@@ -244,7 +252,7 @@ export function DetailFields({
         <Field icon={Bell} label={t("field.reminder")}>
           <ReminderMenu
             value={todoReminders(entry)}
-            onChange={offsets => void mutations.setReminders(entry, offsets)}
+            onChange={offsets => void mutations.setReminders(entry, offsets, todoReminders(entry))}
             trigger={
               <FieldButton muted={entry.remindBefore == null}>
                 {summarizeReminders(todoReminders(entry), false, { locale })}
@@ -252,6 +260,27 @@ export function DetailFields({
               </FieldButton>
             }
           />
+        </Field>
+      )}
+
+      {entry.type === "recurring" && (
+        <Field icon={Bell} label={t("field.reminder")}>
+          <TaskRemindersPopover
+            mode="clock"
+            value={todoReminders(entry)}
+            onChange={offsets => mutations.setReminders(entry, offsets, todoReminders(entry))}
+            trigger={
+              <FieldButton muted={entry.remindBefore == null}>
+                <span className="tabular-nums">
+                  {summarizeClockReminders(todoReminders(entry), { locale, t: tReminder })}
+                </span>
+                <ChevronDown className="text-ink-3 size-[13px]" strokeWidth={1.75} />
+              </FieldButton>
+            }
+          />
+          {entry.remindBefore != null && (
+            <span className="text-ink-3 text-[11.5px]">{tReminder("ui.seriesTag")}</span>
+          )}
         </Field>
       )}
 

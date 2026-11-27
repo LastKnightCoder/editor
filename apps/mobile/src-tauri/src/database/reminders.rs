@@ -6,6 +6,7 @@
 
 use std::collections::{BTreeSet, HashSet};
 
+use chrono::TimeZone;
 use rusqlite::{params, Connection, Transaction};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -15,9 +16,9 @@ use super::calendar_holidays::HolidayDays;
 use super::calendar_time::CalendarTimeZone;
 use super::common::{now_millis, write_operation};
 use super::document_task_header::parse as parse_header;
-use super::plugin_document_tasks::{meta, visible};
+use super::plugin_document_tasks::{document_reminder_access, meta, DocumentReminderAccess};
 use super::schema;
-use super::todo_calendar_sync::{occurrences_for_metadata, recurring_occurrences};
+use super::todo_calendar_sync::occurrences_for_metadata;
 
 const MINUTE: i64 = 60_000;
 
@@ -121,6 +122,8 @@ pub struct SetRemindersPayload {
     pub kind: String,
     pub id: i64,
     pub offsets: Vec<i64>,
+    #[serde(default)]
+    pub expected_offsets: Option<Vec<i64>>,
 }
 
 fn owner_type(kind: &str) -> Result<&'static str, String> {
@@ -129,6 +132,46 @@ fn owner_type(kind: &str) -> Result<&'static str, String> {
         "event" => Ok("event"),
         _ => Err(format!("REMINDER_INVALID_KIND: {kind}")),
     }
+}
+
+pub(super) fn reminder_set_in_tx(
+    tx: &Transaction<'_>,
+    payload: &SetRemindersPayload,
+) -> Result<Vec<i64>, String> {
+    match owner_type(&payload.kind)? {
+        "todo" => {
+            if let Some(expected) = payload.expected_offsets.as_deref() {
+                let current = stored_todo_reminders(tx, payload.id)?;
+                if normalize(&current) != normalize(expected) {
+                    return Err("REMINDER_CONFLICT: reminders changed externally".into());
+                }
+            }
+            let list = set_todo_reminders(tx, payload.id, &payload.offsets)?;
+            write_operation(tx, "todo", "update", 0, now_millis())?;
+            Ok(list)
+        }
+        owner => {
+            if let Some(expected) = payload.expected_offsets.as_deref() {
+                let current = list_owner(tx, owner, payload.id)?;
+                if normalize(&current) != normalize(expected) {
+                    return Err("REMINDER_CONFLICT: reminders changed externally".into());
+                }
+            }
+            let list = normalize(&payload.offsets);
+            replace_owner(tx, owner, payload.id, &list)?;
+            write_operation(tx, "calendar_event", "update", payload.id, now_millis())?;
+            Ok(list)
+        }
+    }
+}
+
+#[tauri::command]
+pub fn reminder_document_access(
+    app: AppHandle,
+    content_id: i64,
+) -> Result<DocumentReminderAccess, String> {
+    let conn = schema::open_active_database(&app)?;
+    document_reminder_access(&conn, content_id)
 }
 
 #[tauri::command]
@@ -146,19 +189,7 @@ pub fn reminder_set(app: AppHandle, payload: SetRemindersPayload) -> Result<Vec<
     let tx = conn
         .transaction()
         .map_err(|e| db_err("REMINDER_UPDATE_FAILED", "begin transaction", e))?;
-    let list = match owner_type(&payload.kind)? {
-        "todo" => {
-            let list = set_todo_reminders(&tx, payload.id, &payload.offsets)?;
-            write_operation(&tx, "todo", "update", 0, now_millis())?;
-            list
-        }
-        owner => {
-            let list = normalize(&payload.offsets);
-            replace_owner(&tx, owner, payload.id, &list)?;
-            write_operation(&tx, "calendar_event", "update", payload.id, now_millis())?;
-            list
-        }
-    };
+    let list = reminder_set_in_tx(&tx, &payload)?;
     tx.commit()
         .map_err(|e| db_err("REMINDER_UPDATE_FAILED", "commit transaction", e))?;
     Ok(list)
@@ -168,7 +199,7 @@ pub fn reminder_set(app: AppHandle, payload: SetRemindersPayload) -> Result<Vec<
 #[serde(rename_all = "camelCase")]
 pub struct UpcomingReminder {
     /// 稳定身份，前缀即归属：`todo:<id>:<offset>`、`todo:<id>:<offset>:<原定日>`（周期）、
-    /// `event:<id>:<offset>`、`doc:<内容 id>:<待办 id>:<原定日或 once>`
+    /// `event:<id>:<offset>`、`doc:<内容 id>:<待办 id>:<原定日或 once>:<提醒时刻>`
     pub key: String,
     /// 归属：`todo:<id>` / `event:<id>` / `doc:<内容 id>:<待办 id>`
     pub owner: String,
@@ -222,10 +253,32 @@ fn parse_time(value: &str) -> Option<i64> {
         .map(|time| time.timestamp_millis())
 }
 
-fn day_key(day: i64) -> String {
-    (chrono::NaiveDate::from_ymd_opt(1970, 1, 1).unwrap() + chrono::Duration::days(day))
-        .format("%Y-%m-%d")
-        .to_string()
+fn open_occurrences(
+    metadata: &Value,
+    start: i64,
+    end: i64,
+    zone: CalendarTimeZone,
+    holidays: &HolidayDays,
+) -> Result<std::collections::BTreeMap<i64, i64>, String> {
+    let mut occurrences =
+        occurrences_for_metadata(metadata, start, end, zone, holidays)?.unwrap_or_default();
+    if let Some(segments) = metadata["segments"].as_array() {
+        occurrences.retain(|original, _| {
+            let date = super::plugin_task_dates::day_text(*original);
+            let series = segments
+                .iter()
+                .rev()
+                .find(|segment| {
+                    segment["effectiveDate"]
+                        .as_str()
+                        .is_some_and(|d| d <= date.as_str())
+                })
+                .and_then(|segment| segment["seriesId"].as_str())
+                .unwrap_or("");
+            metadata["occurrenceState"][format!("{series}/{date}")]["completedAt"].is_null()
+        });
+    }
+    Ok(occurrences)
 }
 
 fn deadline_todos(
@@ -284,6 +337,18 @@ fn deadline_todos(
     Ok(())
 }
 
+fn recurring_reminder_at(day: i64, offset: i64, zone: CalendarTimeZone) -> Option<i64> {
+    if !(-86_399_999..=0).contains(&offset) {
+        return None;
+    }
+    let date = chrono::NaiveDate::from_ymd_opt(1970, 1, 1)? + chrono::Duration::days(day);
+    let local = date.and_hms_opt(0, 0, 0)? - chrono::Duration::milliseconds(offset);
+    zone.0
+        .from_local_datetime(&local)
+        .earliest()
+        .map(|t| t.timestamp_millis())
+}
+
 /// 周期待办：remind_before 为当次所在日内的时刻（负数，与桌面同口径），已打卡的实例不提醒
 fn recurring_todos(
     tx: &Transaction<'_>,
@@ -307,46 +372,39 @@ fn recurring_todos(
             .map_err(|e| db_err("REMINDER_QUERY_FAILED", "read recurring", e))?
     };
     let (start_day, end_day) = (zone.day(window.from) - 1, zone.day(window.to) + 1);
-    for (id, title, offset) in rows {
+    for (id, title, first) in rows {
+        let mut offsets = list_owner(tx, "todo", id)?;
+        offsets.push(first);
+        let offsets = normalize(&offsets);
         owners.insert(format!("todo:{id}"));
-        let done: HashSet<i64> = {
-            let mut stmt = tx
-                .prepare(
-                    "SELECT c.scheduled_date FROM todo_recurrence_completion c
-                     JOIN todo_recurrence r ON r.id = c.recurrence_id
-                     WHERE r.todo_item_id = ?1 AND c.completed_at IS NOT NULL",
-                )
-                .map_err(|e| db_err("REMINDER_QUERY_FAILED", "prepare completions", e))?;
-            let rows = stmt
-                .query_map([id], |row| row.get::<_, i64>(0))
-                .map_err(|e| db_err("REMINDER_QUERY_FAILED", "query completions", e))?;
-            rows.filter_map(Result::ok)
-                .map(|day| zone.day(day))
-                .collect()
+        let Ok(occurrences) = super::plugin_tasks::metadata_by_id(tx, id, zone)
+            .and_then(|metadata| open_occurrences(&metadata, start_day, end_day, zone, holidays))
+        else {
+            continue;
         };
-        let occurrences =
-            recurring_occurrences(tx, id, start_day, end_day, zone, holidays).unwrap_or_default();
         for (original, actual) in occurrences {
-            if done.contains(&original) {
-                continue;
-            }
             let anchor = zone.day_start(actual);
-            window.push(
-                list,
-                UpcomingReminder {
-                    key: format!("todo:{id}:{offset}:{original}"),
-                    owner: format!("todo:{id}"),
-                    kind: "todo".into(),
-                    owner_id: id,
-                    task_id: None,
-                    title: title.clone(),
-                    anchor: Some(anchor),
-                    remind_at: anchor - offset,
-                    all_day: true,
-                    end_at: None,
-                    recurring: true,
-                },
-            );
+            for &offset in &offsets {
+                let Some(remind_at) = recurring_reminder_at(actual, offset, zone) else {
+                    continue;
+                };
+                window.push(
+                    list,
+                    UpcomingReminder {
+                        key: format!("todo:{id}:{offset}:{original}"),
+                        owner: format!("todo:{id}"),
+                        kind: "todo".into(),
+                        owner_id: id,
+                        task_id: None,
+                        title: title.clone(),
+                        anchor: Some(anchor),
+                        remind_at,
+                        all_day: true,
+                        end_at: None,
+                        recurring: true,
+                    },
+                );
+            }
         }
     }
     Ok(())
@@ -430,7 +488,7 @@ fn events(
     Ok(())
 }
 
-/// 正文里的待办（taskReminder.at）：单次按原时刻提醒；周期按该时刻的钟点提醒每个未完成实例。
+/// 正文里的单次提醒按绝对时间送达；周期提醒按每个未完成实例当日的钟点送达。
 /// 排除的文档与已提升为独立待办的条目不提醒（与桌面文档待办口径一致）。
 fn document_tasks(
     conn: &Connection,
@@ -449,7 +507,7 @@ fn document_tasks(
                  WHERE j.type = 'object'
                    AND json_extract(j.value, '$.type') = 'check-list-item'
                    AND COALESCE(json_extract(j.value, '$.taskId'), '') <> ''
-                   AND json_extract(j.value, '$.taskReminder.at') IS NOT NULL
+                   AND json_type(j.value, '$.taskReminder') = 'object'
                    AND COALESCE(json_extract(j.value, '$.taskArchived'), 0) = 0",
             )
             .map_err(|e| db_err("REMINDER_QUERY_FAILED", "prepare documents", e))?;
@@ -460,6 +518,7 @@ fn document_tasks(
             .map_err(|e| db_err("REMINDER_QUERY_FAILED", "read documents", e))?
     };
     let (start_day, end_day) = (zone.day(window.from) - 1, zone.day(window.to) + 1);
+    let mut access_by_content = std::collections::HashMap::new();
     for (content, raw) in nodes {
         let Ok(node) = serde_json::from_str::<Value>(&raw) else {
             continue;
@@ -468,10 +527,17 @@ fn document_tasks(
             continue;
         };
         // 解析失败（结构损坏、未知周期规则）的条目跳过，不影响其他提醒
-        if !visible(conn, content, task).unwrap_or(false) {
+        let access = match access_by_content.entry(content) {
+            std::collections::hash_map::Entry::Occupied(entry) => entry.into_mut(),
+            std::collections::hash_map::Entry::Vacant(entry) => {
+                entry.insert(document_reminder_access(conn, content)?)
+            }
+        };
+        if !access.allows(task) {
             continue;
         }
-        let Some(configured) = node["taskReminder"]["at"].as_str().and_then(parse_time) else {
+        let Ok(reminders) = super::plugin_task_recurrence::read_document_reminders(&node, zone)
+        else {
             continue;
         };
         let Ok(metadata) = meta(&node) else {
@@ -504,65 +570,57 @@ fn document_tasks(
                 Some(value) => (parse_time(value), false),
                 None => (None, false),
             };
-            window.push(
-                list,
-                UpcomingReminder {
-                    key: format!("{owner}:once"),
-                    owner,
-                    kind: "doc".into(),
-                    owner_id: content,
-                    task_id: Some(task.to_owned()),
-                    title,
-                    anchor,
-                    remind_at: configured,
-                    all_day,
-                    end_at: None,
-                    recurring: false,
-                },
-            );
+            for configured in reminders
+                .iter()
+                .filter_map(|r| r["at"].as_str().and_then(parse_time))
+            {
+                window.push(
+                    list,
+                    UpcomingReminder {
+                        key: format!("{owner}:once:{configured}"),
+                        owner: owner.clone(),
+                        kind: "doc".into(),
+                        owner_id: content,
+                        task_id: Some(task.to_owned()),
+                        title: title.clone(),
+                        anchor,
+                        remind_at: configured,
+                        all_day,
+                        end_at: None,
+                        recurring: false,
+                    },
+                );
+            }
             continue;
         }
         owners.insert(owner.clone());
-        let clock = configured - zone.start_of_day(configured);
-        let Ok(Some(occurrences)) =
-            occurrences_for_metadata(&metadata, start_day, end_day, zone, holidays)
+        let Ok(occurrences) = open_occurrences(&metadata, start_day, end_day, zone, holidays)
         else {
             continue;
         };
         for (original, actual) in occurrences {
-            let date = day_key(original);
-            // 实例状态按 series/日期 存；同一原定日只属于生效段之一
-            let series = segments
-                .iter()
-                .rev()
-                .find(|segment| {
-                    segment["effectiveDate"]
-                        .as_str()
-                        .is_some_and(|d| d <= date.as_str())
-                })
-                .and_then(|segment| segment["seriesId"].as_str())
-                .unwrap_or("");
-            let state = &metadata["occurrenceState"][format!("{series}/{date}")];
-            if !state["completedAt"].is_null() {
-                continue;
-            }
             let anchor = zone.day_start(actual);
-            window.push(
-                list,
-                UpcomingReminder {
-                    key: format!("{owner}:{original}"),
-                    owner: owner.clone(),
-                    kind: "doc".into(),
-                    owner_id: content,
-                    task_id: Some(task.to_owned()),
-                    title: title.clone(),
-                    anchor: Some(anchor),
-                    remind_at: anchor + clock,
-                    all_day: true,
-                    end_at: None,
-                    recurring: true,
-                },
-            );
+            for offset in reminders.iter().filter_map(|r| r["offsetMs"].as_i64()) {
+                let Some(remind_at) = recurring_reminder_at(actual, offset, zone) else {
+                    continue;
+                };
+                window.push(
+                    list,
+                    UpcomingReminder {
+                        key: format!("{owner}:{original}:{offset}"),
+                        owner: owner.clone(),
+                        kind: "doc".into(),
+                        owner_id: content,
+                        task_id: Some(task.to_owned()),
+                        title: title.clone(),
+                        anchor: Some(anchor),
+                        remind_at,
+                        all_day: true,
+                        end_at: None,
+                        recurring: true,
+                    },
+                );
+            }
         }
     }
     Ok(())
@@ -748,12 +806,29 @@ mod tests {
     }
 
     #[test]
+    fn local_reminders_follow_the_clock_across_dst_changes() {
+        let zone = CalendarTimeZone(chrono_tz::America::New_York);
+        let spring = super::super::plugin_task_dates::day("2026-03-08").unwrap();
+        let autumn = super::super::plugin_task_dates::day("2026-11-01").unwrap();
+        assert_eq!(recurring_reminder_at(spring, -150 * MINUTE, zone), None);
+        assert_eq!(
+            recurring_reminder_at(spring, -540 * MINUTE, zone),
+            parse_time("2026-03-08T13:00:00Z")
+        );
+        assert_eq!(
+            recurring_reminder_at(autumn, -90 * MINUTE, zone),
+            parse_time("2026-11-01T05:30:00Z")
+        );
+    }
+
+    #[test]
     fn recurring_todo_reminds_each_open_day_at_its_clock() {
         let mut conn = db();
-        // 每天 9:00 提醒（remind_before 为当天内时刻的负数），第 2 天已打卡
+        // 每天早晚各提醒一次，第 2 天已打卡
         conn.execute_batch(
             "INSERT INTO todo_item(id,group_id,title,type,remind_before,create_time,update_time)
                VALUES(2,1,'喝水','recurring',-32400000,1,1);
+             INSERT INTO item_reminder(owner_type,owner_id,offset_ms) VALUES('todo',2,-72000000);
              INSERT INTO todo_recurrence(id,todo_item_id,type,interval,start_date,create_time,update_time)
                VALUES(1,2,'daily',1,0,1,1);
              INSERT INTO todo_recurrence_completion(recurrence_id,scheduled_date,completed_at,skipped,create_time)
@@ -767,8 +842,18 @@ mod tests {
             .filter(|item| item.owner == "todo:2")
             .map(|item| (item.remind_at, item.recurring))
             .collect();
-        let at = |day: i64| (day * DAY + 9 * 3_600_000, true);
-        assert_eq!(days, vec![at(0), at(1), at(3)]);
+        let at = |day: i64, hour: i64| (day * DAY + hour * 3_600_000, true);
+        assert_eq!(
+            days,
+            vec![
+                at(0, 9),
+                at(0, 20),
+                at(1, 9),
+                at(1, 20),
+                at(3, 9),
+                at(3, 20)
+            ]
+        );
     }
 
     #[test]
@@ -802,6 +887,49 @@ mod tests {
         assert_eq!(found[0].owner, "doc:7:t1");
         assert_eq!(found[0].remind_at, 2 * DAY + 8 * 3_600_000);
         assert_eq!(found[0].title, "写周报");
+        let mut body: Value = serde_json::from_str(&node(false)).unwrap();
+        body[0]["taskReminder"] = serde_json::json!({"version":2,"reminders":[
+            {"at":"1970-01-03T08:00:00Z"},{"at":"1970-01-03T20:00:00Z"}]});
+        conn.execute(
+            "UPDATE contents SET content=?1 WHERE id=7",
+            [body.to_string()],
+        )
+        .unwrap();
+        let added = docs(&mut conn);
+        assert_eq!(
+            added.iter().map(|r| r.remind_at).collect::<Vec<_>>(),
+            vec![2 * DAY + 8 * 3_600_000, 2 * DAY + 20 * 3_600_000]
+        );
+        assert_ne!(added[0].key, added[1].key);
+        body[0]["taskReminder"] = serde_json::json!({"version":2,"reminders":[
+            {"offsetMs":-28800000},{"offsetMs":-72000000}]});
+        body[0]["taskRecurrence"] = serde_json::json!({"version":1,"segments":[{"seriesId":"s","effectiveDate":"1970-01-03","rule":{"type":"daily","interval":1,"startDate":"1970-01-03","endDate":"1970-01-04"}}]});
+        body[0]["taskOccurrenceState"] = serde_json::json!({"s/1970-01-03":{"completedAt":1}});
+        conn.execute(
+            "UPDATE contents SET content=?1 WHERE id=7",
+            [body.to_string()],
+        )
+        .unwrap();
+        let next = docs(&mut conn);
+        assert_eq!(
+            next.iter().map(|r| r.remind_at).collect::<Vec<_>>(),
+            vec![3 * DAY + 8 * 3_600_000, 3 * DAY + 20 * 3_600_000]
+        );
+        assert_ne!(next[0].key, next[1].key);
+        body[0]["taskReminder"] = serde_json::json!({"version":1,"at":"1970-01-03T08:00:00Z"});
+        conn.execute(
+            "UPDATE contents SET content=?1 WHERE id=7",
+            [body.to_string()],
+        )
+        .unwrap();
+        assert_eq!(
+            docs(&mut conn)
+                .iter()
+                .map(|r| r.remind_at)
+                .collect::<Vec<_>>(),
+            vec![3 * DAY + 8 * 3_600_000]
+        );
+
         conn.execute("UPDATE contents SET content=?1 WHERE id=7", [node(true)])
             .unwrap();
         assert!(docs(&mut conn).is_empty());
@@ -813,5 +941,103 @@ mod tests {
         )
         .unwrap();
         assert!(docs(&mut conn).is_empty());
+    }
+
+    #[test]
+    fn reminder_set_rejects_stale_expected_offsets_without_overwriting() {
+        let mut conn = db();
+        let tx = conn.transaction().unwrap();
+        let initial = stored_todo_reminders(&tx, 1).unwrap();
+        let first = reminder_set_in_tx(
+            &tx,
+            &SetRemindersPayload {
+                kind: "todo".into(),
+                id: 1,
+                offsets: vec![-28_800_000, -72_000_000],
+                expected_offsets: Some(initial.clone()),
+            },
+        )
+        .unwrap();
+        assert_eq!(first, vec![-72_000_000, -28_800_000]);
+
+        let conflict = reminder_set_in_tx(
+            &tx,
+            &SetRemindersPayload {
+                kind: "todo".into(),
+                id: 1,
+                offsets: vec![-28_800_000],
+                expected_offsets: Some(initial),
+            },
+        );
+        assert!(conflict.unwrap_err().starts_with("REMINDER_CONFLICT:"));
+        assert_eq!(
+            stored_todo_reminders(&tx, 1).unwrap(),
+            vec![-72_000_000, -28_800_000]
+        );
+        tx.commit().unwrap();
+    }
+
+    #[test]
+    fn legacy_doc_walkthrough_and_todo_type_switch_clear_incompatible_reminders() {
+        let mut conn = db();
+        // 老笔记单条 08:00 → 加 20:00 → 改 19:30 → 删 08:00，最终只为 19:30 排期
+        let mut body = serde_json::json!([{
+            "type": "check-list-item",
+            "checked": false,
+            "taskId": "legacy-doc",
+            "taskReminder": {"version": 1, "at": "1970-01-03T08:00:00Z"},
+            "children": [{"type": "paragraph", "children": [{"text": "老笔记"}]}]
+        }]);
+        conn.execute(
+            "INSERT INTO contents(id,create_time,update_time,content) VALUES(9,1,1,?1)",
+            [body.to_string()],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO cards(id,create_time,update_time,content_id) VALUES(2,1,1,9)",
+            [],
+        )
+        .unwrap();
+        body[0]["taskReminder"] = serde_json::json!({
+            "version": 2,
+            "reminders": [
+                {"at": "1970-01-03T08:00:00Z"},
+                {"at": "1970-01-03T20:00:00Z"}
+            ]
+        });
+        conn.execute(
+            "UPDATE contents SET content=?1 WHERE id=9",
+            [body.to_string()],
+        )
+        .unwrap();
+        body[0]["taskReminder"] = serde_json::json!({
+            "version": 2,
+            "reminders": [{"at": "1970-01-03T19:30:00Z"}]
+        });
+        conn.execute(
+            "UPDATE contents SET content=?1 WHERE id=9",
+            [body.to_string()],
+        )
+        .unwrap();
+        let scheduled: Vec<_> = run(&mut conn, 0, 10 * DAY, 50)
+            .items
+            .into_iter()
+            .filter(|item| item.owner == "doc:9:legacy-doc")
+            .map(|item| item.remind_at)
+            .collect();
+        assert_eq!(scheduled, vec![2 * DAY + (19 * 60 + 30) * MINUTE]);
+
+        // 独立待办切换类型清空不兼容提醒
+        let tx = conn.transaction().unwrap();
+        set_todo_reminders(&tx, 1, &[-28_800_000, -72_000_000]).unwrap();
+        let payload: super::super::todo::UpdateTodoItemPayload =
+            serde_json::from_value(serde_json::json!({"id": 1, "type": "recurring"})).unwrap();
+        let updated =
+            super::super::todo::update_item_in_tx(&tx, &payload, CalendarTimeZone(chrono_tz::UTC))
+                .unwrap();
+        assert_eq!(updated.r#type, "recurring");
+        assert_eq!(updated.remind_before, None);
+        assert!(list_owner(&tx, "todo", 1).unwrap().is_empty());
+        tx.commit().unwrap();
     }
 }

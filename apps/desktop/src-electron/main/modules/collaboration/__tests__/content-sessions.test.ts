@@ -34,6 +34,8 @@ import {
 } from "../content-sessions";
 import type { RuntimeSession } from "../types";
 import { SqliteContentProjection } from "../../content-runtime/sqlite-content-projection";
+import { setDocTaskReminders } from "../../doc-tasks/query";
+import { remindersDigest } from "@tau/shared/reminders";
 import ContentTable from "../../tables/content";
 import { createTaskIdPatcher } from "@tau/editor/extensions/list/task-ids";
 import MAIN_SCHEMA_SQL from "../../../../../../../packages/db-schema/schema/main.sql?raw";
@@ -337,6 +339,34 @@ describe("本机内容会话", () => {
         { text: " 后 #上线", italic: true },
       ],
     });
+  });
+
+  it("抽屉写入时重新检查活跃共享会话的正文权限", async () => {
+    const db = database();
+    db.prepare("INSERT INTO cards(create_time,update_time,content_id) VALUES(1,1,7)").run();
+    const session = await runtime([
+      {
+        type: "check-list-item",
+        taskId: "a",
+        children: [{ type: "paragraph", children: [{ text: "原文" }] }],
+      },
+    ]);
+    registerContentSession(db, 7, session);
+    const digest = remindersDigest([], false);
+    session.info.mode = "shared";
+    session.info.serverUrl = "https://example.test";
+    db.prepare(
+      "INSERT INTO collaboration_bindings(content_id,content_created_at,server_url,document_id) VALUES(7,100,?,?)"
+    ).run(session.info.serverUrl, session.info.id);
+    const index = new Database(":memory:");
+    try {
+      expect(setDocTaskReminders(db, index, 7, "a", [{ at: "2026-11-28T08:00:00Z" }], digest)).toBe(
+        "readonly"
+      );
+      expect(readSessionContent(session).content[0]).not.toHaveProperty("taskReminder");
+    } finally {
+      index.close();
+    }
   });
 
   it("冻结会话补身份会暂缓，不影响已有输入更新", async () => {

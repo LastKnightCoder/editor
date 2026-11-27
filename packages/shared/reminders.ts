@@ -3,6 +3,7 @@ import {
   type ReminderMessageKey,
   type ReminderTranslator,
 } from "./reminders.i18n.ts";
+import type { DocumentTaskAttributes, TaskReminder } from "./src/task-assistant/contracts.ts";
 export {
   reminderMessages,
   getReminderTranslator,
@@ -232,4 +233,165 @@ export function reminderBody(
   }
   const day = dayWord(anchor, remindAt, options);
   return t(kind === "todo" ? "detail.todoAt" : "detail.eventAt", { day, range });
+}
+
+/** 重复待办与重复正文勾选项的常用当天钟点（负数毫秒，以当天零点为锚） */
+export const CLOCK_REMINDER_PRESETS: readonly number[] = [
+  -8 * HOUR,
+  -9 * HOUR,
+  -12 * HOUR,
+  -18 * HOUR,
+  -20 * HOUR,
+  -21 * HOUR,
+];
+
+export function isValidClockOffset(offset: number): boolean {
+  return Number.isSafeInteger(offset) && offset <= 0 && offset > -DAY;
+}
+
+/** 去重并按当天钟点升序排列（08:00 在 20:00 前，即 -offset 升序 / offset 降序） */
+export function normalizeClockOffsets(offsets: readonly number[]): number[] {
+  return [...new Set(offsets.filter(isValidClockOffset))].sort((a, b) => b - a);
+}
+
+export function clockOffsetToHm(offset: number): { hour: number; minute: number } {
+  const clockMs = Math.max(0, Math.min(DAY - 1, -offset));
+  return {
+    hour: Math.floor(clockMs / HOUR),
+    minute: Math.floor((clockMs % HOUR) / MINUTE),
+  };
+}
+
+export function hmToClockOffset(hour: number, minute: number): number {
+  const h = Math.max(0, Math.min(23, Math.floor(hour)));
+  const m = Math.max(0, Math.min(59, Math.floor(minute)));
+  return -(h * HOUR + m * MINUTE);
+}
+
+export function formatClockOffset(offset: number, locale = "zh-CN"): string {
+  const { hour, minute } = clockOffsetToHm(offset);
+  return new Intl.DateTimeFormat(locale, {
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(new Date(2026, 0, 1, hour, minute));
+}
+
+export function summarizeClockReminders(
+  offsets: readonly number[],
+  options: ReminderFormatOptions = {}
+): string {
+  const { locale, t, number } = formatOptions(options);
+  const list = normalizeClockOffsets(offsets);
+  if (!list.length) return t("none");
+  if (list.length > 2)
+    return t("summary.more", {
+      first: formatClockOffset(list[0], locale),
+      amount: number(list.length - 1),
+    });
+  return list.map(offset => formatClockOffset(offset, locale)).join(" · ");
+}
+
+function absoluteDayLabel(time: number, now: number, options: ReminderFormatOptions): string {
+  const { locale, t } = formatOptions(options);
+  const days = dayDifference(time, now);
+  if (days === 0) return t("day.today");
+  if (days === 1) return t("day.tomorrow");
+  if (days === 2) return t("day.afterTomorrow");
+  const sameYear = new Date(time).getFullYear() === new Date(now).getFullYear();
+  return new Intl.DateTimeFormat(locale, {
+    year: sameYear ? undefined : "numeric",
+    month: "short",
+    day: "numeric",
+  }).format(time);
+}
+
+export function formatAbsoluteReminder(
+  at: string | number,
+  now: number,
+  options: ReminderFormatOptions = {}
+): string {
+  const ms = typeof at === "number" ? at : Date.parse(at);
+  if (!Number.isFinite(ms)) return "";
+  const { locale } = formatOptions(options);
+  return `${absoluteDayLabel(ms, now, options)} ${clock(ms, locale)}`;
+}
+
+/** 按普通/重复模式过滤、去重并按触发先后排序 */
+export function normalizeDocumentReminders(
+  reminders: readonly TaskReminder[],
+  recurring: boolean
+): TaskReminder[] {
+  if (recurring) {
+    const offsets = reminders.flatMap(item => ("offsetMs" in item ? [item.offsetMs] : []));
+    return normalizeClockOffsets(offsets).map(offsetMs => ({ offsetMs }));
+  }
+  const unique = new Map<number, string>();
+  for (const item of reminders) {
+    if (!("at" in item) || typeof item.at !== "string" || item.at.length <= 10) continue;
+    const ms = Date.parse(item.at);
+    if (!Number.isFinite(ms)) continue;
+    if (!unique.has(ms)) unique.set(ms, item.at);
+  }
+  return [...unique.entries()].sort((a, b) => a[0] - b[0]).map(([, at]) => ({ at }));
+}
+
+export function toStoredTaskReminder(
+  reminders: readonly TaskReminder[],
+  recurring: boolean
+): DocumentTaskAttributes["taskReminder"] {
+  const list = normalizeDocumentReminders(reminders, recurring);
+  return list.length ? { version: 2, reminders: list } : null;
+}
+
+export function summarizeDocumentReminders(
+  reminders: readonly TaskReminder[],
+  recurring: boolean,
+  now: number,
+  options: ReminderFormatOptions = {}
+): string {
+  if (recurring) {
+    const offsets = reminders.flatMap(item => ("offsetMs" in item ? [item.offsetMs] : []));
+    return summarizeClockReminders(offsets, options);
+  }
+  const { locale, t, number } = formatOptions(options);
+  const list = normalizeDocumentReminders(reminders, false) as Array<{ at: string }>;
+  if (!list.length) return t("none");
+  const first = formatAbsoluteReminder(list[0].at, now, options);
+  if (list.length === 1) return first;
+  if (list.length === 2) {
+    const t0 = Date.parse(list[0].at);
+    const t1 = Date.parse(list[1].at);
+    if (dayDifference(t0, t1) === 0) return `${first} · ${clock(t1, locale)}`;
+    return `${first} · ${formatAbsoluteReminder(t1, now, options)}`;
+  }
+  return t("summary.more", { first, amount: number(list.length - 1) });
+}
+
+/** 规范化指纹：供编辑器与主进程条件写入比对并发改动 */
+export function remindersDigest(reminders: readonly TaskReminder[], recurring: boolean): string {
+  const list = normalizeDocumentReminders(reminders, recurring);
+  const items = recurring
+    ? list.map(item => ("offsetMs" in item ? item.offsetMs : 0))
+    : list.map(item => ("at" in item ? Date.parse(item.at) : 0));
+  return JSON.stringify({ recurring, items });
+}
+
+export interface DocumentReminderAccess {
+  collectable: boolean;
+  excluded: boolean;
+  promotedTaskIds: string[];
+}
+
+export function canScheduleDocumentReminder(
+  access: DocumentReminderAccess | undefined,
+  taskId?: string | null
+): boolean {
+  return Boolean(
+    access?.collectable && !access.excluded && !(taskId && access.promotedTaskIds.includes(taskId))
+  );
+}
+
+export function offsetsDigest(offsets: readonly number[]): string {
+  return JSON.stringify(normalizeReminders(offsets));
 }

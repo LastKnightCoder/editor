@@ -30,6 +30,7 @@ export function instanceRevision(
     groupId: task.groupId,
     reminderAt: task.reminderAt,
     reminderOffsets: task.reminderOffsets,
+    ...(task.reminders ? { reminders: task.reminders } : {}),
     recurrence: task.recurrence,
     occurrence,
     state,

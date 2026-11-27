@@ -3,9 +3,12 @@ import type {
   DocTaskContentStatus,
   DocTaskItem,
   DocTaskPromoteResult,
+  DocTaskReminderReadResult,
+  DocTaskReminderWriteResult,
   DocTaskSnapshot,
   DocTaskToggleResult,
 } from "@/types/doc-tasks";
+import type { TaskReminder } from "@tau/shared/task-assistant";
 import { withModule } from "./module-init";
 import useSettingStore from "@/stores/useSettingStore";
 import { bindDatabaseCommands, currentCommandScope } from "@/services/command-context";
@@ -53,6 +56,30 @@ export function toggleDocTask(
   database?: string
 ) {
   return request<DocTaskToggleResult>("doc-tasks:toggle", [contentId, taskId, checked], database);
+}
+
+/** 读取正文勾选项当前提醒与并发指纹 */
+export function readDocTaskReminders(contentId: number, taskId: string, database?: string) {
+  return request<DocTaskReminderReadResult>(
+    "doc-tasks:read-reminders",
+    [contentId, taskId],
+    database
+  );
+}
+
+/** 条件写回正文勾选项提醒 */
+export function setDocTaskReminders(
+  contentId: number,
+  taskId: string,
+  reminders: readonly TaskReminder[],
+  expectedDigest: string,
+  database?: string
+) {
+  return request<DocTaskReminderWriteResult>(
+    "doc-tasks:set-reminders",
+    [contentId, taskId, reminders, expectedDigest],
+    database
+  );
 }
 
 /** 编辑器底部状态条：是否排除、未完成数 */

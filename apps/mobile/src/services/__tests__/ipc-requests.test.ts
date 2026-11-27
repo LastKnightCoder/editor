@@ -1,12 +1,17 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import { settleLibraryRequests } from "../ipc-requests";
-import { resourceSyncRefresh, syncCheckVersions, todoCreateGroup } from "../tauri";
+import { onReminderSourceChanged } from "../../features/reminders/changes";
+import {
+  collabProjectContent,
+  resourceSyncRefresh,
+  syncCheckVersions,
+  todoCreateGroup,
+} from "../tauri";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("../../utils/perf", () => ({ logPerf: vi.fn() }));
 vi.mock("../../features/calendar/cache", () => ({ invalidateCalendarAfterMutation: vi.fn() }));
-vi.mock("../../features/reminders/changes", () => ({ notifyReminderSourceChanged: vi.fn() }));
 
 const cleanups: Array<() => void> = [];
 function deferred() {
@@ -26,6 +31,25 @@ afterEach(async () => {
   vi.restoreAllMocks();
   vi.resetAllMocks();
   vi.useRealTimers();
+});
+
+it("协作投影提交了正文变更后才触发提醒重排", async () => {
+  let changes = 0;
+  const unsubscribe = onReminderSourceChanged(() => changes++);
+  const project = () =>
+    collabProjectContent({ contentId: 1, documentId: "shared", content: [], count: 0 });
+  try {
+    for (const result of [{ projected: false }, { projected: true, changed: false }]) {
+      vi.mocked(invoke).mockResolvedValueOnce(result);
+      await project();
+    }
+    expect(changes).toBe(0);
+    vi.mocked(invoke).mockResolvedValueOnce({ projected: true, changed: true });
+    await project();
+    expect(changes).toBe(1);
+  } finally {
+    unsubscribe();
+  }
 });
 
 it("云端版本检查与资源账本刷新未完成时，不阻止主库替换", async () => {

@@ -4,6 +4,15 @@ import { execFileSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 import {
   normalizeReminders,
+  normalizeClockOffsets,
+  clockOffsetToHm,
+  hmToClockOffset,
+  formatClockOffset,
+  summarizeClockReminders,
+  normalizeDocumentReminders,
+  toStoredTaskReminder,
+  summarizeDocumentReminders,
+  remindersDigest,
   joinTodoReminders,
   splitTodoReminders,
   reminderLabel,
@@ -106,5 +115,37 @@ describe("提醒的格式与存储边界", () => {
     expect(dom).toBe("undefined");
     expect(split).toEqual({ first: 0, extras: [300000] });
     expect(JSON.parse(label)).toEqual({ count: 15, amount: "15" });
+  });
+  it("当天钟点按早到晚排序，文档提醒规范化、指纹与三语摘要保持一致", () => {
+    const eight = hmToClockOffset(8, 0);
+    const nineteenThirty = hmToClockOffset(19, 30);
+    const twenty = hmToClockOffset(20, 0);
+    expect(clockOffsetToHm(eight)).toEqual({ hour: 8, minute: 0 });
+    expect(formatClockOffset(nineteenThirty)).toBe("19:30");
+    // 数值上 -72000000 < -28800000，钟点顺序必须是 08:00 在 20:00 前面
+    expect(normalizeClockOffsets([twenty, eight, twenty, 60_000, -86_400_000])).toEqual([
+      eight,
+      twenty,
+    ]);
+
+    const t1 = "2026-12-01T08:00:00.000Z";
+    const t2 = "2026-12-01T20:00:00.000Z";
+    const abs = normalizeDocumentReminders(
+      [{ at: t2 }, { at: t1 }, { at: t1 }, { offsetMs: eight }],
+      false
+    );
+    expect(abs).toEqual([{ at: t1 }, { at: t2 }]);
+    expect(toStoredTaskReminder(abs, false)).toEqual({ version: 2, reminders: abs });
+    expect(toStoredTaskReminder([], true)).toBeNull();
+    expect(remindersDigest([{ at: t2 }, { at: t1 }], false)).toBe(
+      remindersDigest([{ at: t1 }, { at: t2 }], false)
+    );
+
+    const now = Date.parse("2026-12-01T00:00:00.000Z");
+    for (const locale of ["zh-CN", "zh-TW", "en-US"]) {
+      expect(summarizeClockReminders([twenty, eight], { locale })).toBe("08:00 · 20:00");
+      expect(summarizeClockReminders([], { locale }).length).toBeGreaterThan(0);
+      expect(summarizeDocumentReminders(abs, false, now, { locale }).length).toBeGreaterThan(0);
+    }
   });
 });

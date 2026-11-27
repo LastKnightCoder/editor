@@ -14,14 +14,19 @@ import {
   useRef,
   useState,
   type ComponentProps,
+  type ReactNode,
 } from "react";
 import { useContentLocation } from "./useContentLocation";
+import { useDocTaskContentStatus } from "@/hooks/useDocTasks";
+import { DocTaskReminderAccessContext } from "@/editor-extensions/doc-tasks/reminderMenu";
 import { DocTasksStatusBar } from "./DocTasksStatusBar";
 import { useScopedEditMarks } from "./ScopedEditMarks";
 import { createAgentCommentExtension, type AgentCommentTarget } from "./AgentCommentExtension";
 import { isMainWindow } from "@/utils/window-role";
 import { Loading } from "@tau/ui";
-import { Editor, type EditorRef } from "@tau/editor";
+import { Editor, type EditorKit, type EditorRef } from "@tau/editor";
+import { ICheckListItemReminder } from "@tau/editor/extensions/list";
+import { CheckListReminderTrailing } from "@/editor-extensions/doc-tasks/CheckListReminderTrailing";
 import { useInlineSuggestionProvider } from "@/hooks/useInlineSuggestionProvider";
 import { useCollaborationKit } from "@/hooks/useCollaborationKit";
 import useCollaborationStore from "@/stores/useCollaborationStore";
@@ -70,6 +75,44 @@ const containsContract = (nodes: readonly Descendant[]): boolean =>
   nodes.some(
     node => "tauContract" in node || ("children" in node && containsContract(node.children))
   );
+
+function ReminderAccessProvider({
+  contentId,
+  children,
+}: {
+  contentId: number;
+  children: ReactNode;
+}) {
+  const { data, refetch } = useDocTaskContentStatus(contentId);
+  const value = useMemo(
+    () => ({
+      access: data,
+      refresh: async () => (await refetch({ throwOnError: true })).data,
+    }),
+    [data, refetch]
+  );
+  return (
+    <DocTaskReminderAccessContext.Provider value={value}>
+      {children}
+    </DocTaskReminderAccessContext.Provider>
+  );
+}
+
+const reminderKitCache = new WeakMap<EditorKit, EditorKit>();
+function withDocTaskReminderService(kit: EditorKit): EditorKit {
+  const cached = reminderKitCache.get(kit);
+  if (cached) return cached;
+  const extended = kit.extend({
+    services: [
+      register =>
+        register(ICheckListItemReminder, {
+          renderTrailing: props => <CheckListReminderTrailing {...props} />,
+        }),
+    ],
+  });
+  reminderKitCache.set(kit, extended);
+  return extended;
+}
 
 const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
   ({ contentId, contracts, source, onLoadError, editingContext, at, ...props }, ref) => {
@@ -138,7 +181,19 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
     }, []);
     const presence = useCollaborationPresence(binding, readonly || frozen);
     // 场景 kit 要经协作派生（共享模式下资源与音视频服务被覆盖），不能让 props.kit 直接覆盖
-    const kit = useCollaborationKit(binding, props.kit);
+    const baseKit = useCollaborationKit(binding, props.kit);
+    const reminderSourceType = editingContext?.entityType ?? source?.sourceType;
+    const supportsDocTaskReminders = Boolean(
+      contentId &&
+      (reminderSourceType === "card" ||
+        reminderSourceType === "article" ||
+        reminderSourceType === "project-item" ||
+        reminderSourceType === "diary-moment")
+    );
+    const kit = useMemo(
+      () => (supportsDocTaskReminders ? withDocTaskReminderService(baseKit) : baseKit),
+      [baseKit, supportsDocTaskReminders]
+    );
     const hasContracts =
       !contentId && (contracts !== undefined || containsContract(props.initValue ?? []));
     const transient = useTransientContentDocument(
@@ -253,7 +308,7 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
         <Loading minHeight={160} />
       );
     }
-    return (
+    const view = (
       <DecorationViewContext.Provider value={decorations.view}>
         {at && !swapping && !frozen && (
           <ContentLocation
@@ -321,8 +376,18 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
         />
         {/* 只给声明了编辑身份的正文（卡片 / 文章 / 项目文档 / 日记）；预览、描述等场景不出现 */}
         {canRegisterEditing && <DocTasksStatusBar contentId={contentId} />}
-        {decorations.view && <TextDecorationLayer view={decorations.view} allowPreview={!binding || binding.mode === "local" || binding.role === "owner"} />}
+        {decorations.view && (
+          <TextDecorationLayer
+            view={decorations.view}
+            allowPreview={!binding || binding.mode === "local" || binding.role === "owner"}
+          />
+        )}
       </DecorationViewContext.Provider>
+    );
+    return supportsDocTaskReminders && contentId ? (
+      <ReminderAccessProvider contentId={contentId}>{view}</ReminderAccessProvider>
+    ) : (
+      view
     );
   }
 );

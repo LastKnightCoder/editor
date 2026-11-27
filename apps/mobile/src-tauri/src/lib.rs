@@ -240,6 +240,7 @@ pub fn run() {
             database::todo_create_item_relative,
             database::todo_update_item,
             database::reminder_list,
+            database::reminder_document_access,
             database::reminder_set,
             database::reminder_upcoming,
             database::todo_toggle_complete_cascade,

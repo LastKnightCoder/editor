@@ -3,12 +3,17 @@
  * 都是非模态浮层，经 OverlayBackDismiss 接宿主 Esc 仲裁。
  */
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useContext, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { ReactEditor, useSlateStatic } from "slate-react";
 import { Plus } from "lucide-react";
-import { AnchoredPanel, cn } from "@tau/ui";
+import { AnchoredPanel, cn, toast } from "@tau/ui";
 import { OverlayBackDismiss, type ExtensionLayerProps } from "@tau/editor/api";
+import { useI18n } from "@tau/i18n/react";
+import { desktopI18n } from "@/app/i18n/runtime";
+import { canScheduleDocumentReminder, reminderMessages } from "@tau/shared/reminders";
+import type { TaskReminder } from "@tau/shared/task-assistant";
 import { startOfDay, DAY_MS } from "@/utils/dayWords";
+import { AbsoluteRemindersPanel, ClockRemindersPanel } from "@/components/TaskRemindersPopover";
 import { docTaskGroupsOf } from "./service";
 import {
   closeTagPicker,
@@ -17,6 +22,12 @@ import {
   type TagPickerItem,
 } from "./store";
 import { closeChipMenu, removeChip, setChipDate, setChipGroup, useChipMenuStore } from "./chipMenu";
+import {
+  closeDocTaskReminderMenu,
+  commitDocTaskReminders,
+  DocTaskReminderAccessContext,
+  useDocTaskReminderMenuStore,
+} from "./reminderMenu";
 
 import { useDocTasksI18n } from "./i18n";
 
@@ -30,15 +41,17 @@ export function DocTaskLayer({ readOnly }: ExtensionLayerProps) {
     const dismiss = () => {
       if (useTagPickerStore.getState().editor === editor) closeTagPicker();
       if (useChipMenuStore.getState().editor === editor) closeChipMenu();
+      if (useDocTaskReminderMenuStore.getState().editor === editor) closeDocTaskReminderMenu();
     };
     if (readOnly) dismiss();
     return dismiss;
   }, [editor, readOnly]);
-  if (!groups || readOnly) return null;
+  if (readOnly) return null;
   return (
     <>
-      <TagPicker />
-      <ChipMenu />
+      {groups && <TagPicker />}
+      {groups && <ChipMenu />}
+      <ReminderPopover />
     </>
   );
 }
@@ -245,6 +258,73 @@ function ChipMenu() {
         <button type="button" className={cn(item, "text-ink-2")} onClick={removeChip}>
           {kind === "date" ? t("chip.clearDate") : t("chip.removeGroup")}
         </button>
+      </AnchoredPanel>
+    </>
+  );
+}
+
+function ReminderPopover() {
+  const { t } = useI18n(reminderMessages, desktopI18n);
+  const editor = useSlateStatic();
+  const access = useContext(DocTaskReminderAccessContext);
+  const open = useDocTaskReminderMenuStore(s => s.editor === editor);
+  const anchor = useDocTaskReminderMenuStore(s => s.anchor);
+  const recurring = useDocTaskReminderMenuStore(s => s.recurring);
+  const reminders = useDocTaskReminderMenuStore(s => s.reminders);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: Event) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+      if (anchor?.contains(target)) return;
+      if (target.closest?.("[data-float-card], [role='dialog'], [role='listbox']")) return;
+      closeDocTaskReminderMenu();
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => document.removeEventListener("pointerdown", onPointerDown, true);
+  }, [open, anchor]);
+
+  if (!open || !anchor) return null;
+
+  const handleCommit = async (next: TaskReminder[]) => {
+    const target = useDocTaskReminderMenuStore.getState();
+    if (!access || target.editor !== editor) return;
+    try {
+      const current = await access.refresh();
+      if (useDocTaskReminderMenuStore.getState() !== target) return;
+      if (!canScheduleDocumentReminder(current, target.taskId)) {
+        closeDocTaskReminderMenu();
+        toast.info(t("ui.unavailable"));
+        return;
+      }
+    } catch {
+      toast.error(t("ui.saveFailed"));
+      return;
+    }
+    const status = commitDocTaskReminders(next);
+    if (status === "conflict") toast.info(t("ui.conflict"));
+    else if (status === "missing") toast.info(t("ui.missing"));
+  };
+
+  return (
+    <>
+      <OverlayBackDismiss
+        open={open}
+        onDismiss={() => {
+          closeDocTaskReminderMenu();
+          ReactEditor.focus(editor);
+        }}
+      />
+      <AnchoredPanel anchor={anchor} placement="bottom-start" className="w-[300px] p-0">
+        {recurring ? (
+          <ClockRemindersPanel
+            value={reminders.flatMap(item => ("offsetMs" in item ? [item.offsetMs] : []))}
+            onChange={offsets => handleCommit(offsets.map(offsetMs => ({ offsetMs })))}
+          />
+        ) : (
+          <AbsoluteRemindersPanel value={reminders} onChange={handleCommit} />
+        )}
       </AnchoredPanel>
     </>
   );

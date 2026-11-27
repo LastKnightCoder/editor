@@ -21,7 +21,7 @@ export interface TimeFieldProps {
   /** 网格步长（分钟），默认 15 */
   step?: number;
   /** Enter 时归一化后一并触发（父级接「确定」提交） */
-  onSubmit?: () => void;
+  onSubmit?: (time: string) => void;
   /** 网格里标记当前时段（默认开；jsdom 环境的时间不稳定，测试关掉） */
   nowMark?: boolean;
   disabled?: boolean;
@@ -57,6 +57,7 @@ export function TimeField({
         .forEach(cell => (cell.dataset.on = String(cell.dataset.time === (normalized ?? value))));
     }
     scrollTo(normalized ?? value);
+    return normalized;
   };
   const scrollTo = (time: string) => {
     gridRef.current
@@ -74,8 +75,8 @@ export function TimeField({
     if (e.key === "Enter") {
       e.preventDefault();
       e.stopPropagation();
-      commitDraft(e.currentTarget.value);
-      onSubmit?.();
+      const time = commitDraft(e.currentTarget.value);
+      if (time) onSubmit?.(time);
     } else if (e.key === "Escape" && gridOpen) {
       e.preventDefault();
       e.stopPropagation(); // 逐层退场：先收网格，面板 Esc 归父级

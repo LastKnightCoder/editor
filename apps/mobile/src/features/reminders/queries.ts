@@ -4,7 +4,17 @@ import * as tauri from "../../services/tauri";
 
 const key = (kind: tauri.ReminderOwnerKind, id: number) => ["reminders", kind, id] as const;
 
-/** 事项的提醒列表；待办改了 remindBefore（其他入口）时随 ["todo"] 失效一起刷新 */
+export function isReminderConflictError(error: unknown): boolean {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : String(error ?? "");
+  return message.includes("REMINDER_CONFLICT");
+}
+
+/** 事项的提醒列表；待办改了提醒或时间戳时随 ["todo"] 失效一起刷新 */
 export function useReminders(kind: tauri.ReminderOwnerKind, id: number, revision?: unknown) {
   return useQuery({
     queryKey: [...key(kind, id), revision],
@@ -14,10 +24,23 @@ export function useReminders(kind: tauri.ReminderOwnerKind, id: number, revision
   });
 }
 
-export async function saveReminders(kind: tauri.ReminderOwnerKind, id: number, offsets: number[]) {
-  const saved = await tauri.reminderSet(kind, id, offsets);
+export async function saveReminders(
+  kind: tauri.ReminderOwnerKind,
+  id: number,
+  offsets: number[],
+  expectedOffsets?: number[]
+) {
   const client = getQueryClient();
-  void client.invalidateQueries({ queryKey: key(kind, id) });
-  if (kind === "todo") void client.invalidateQueries({ queryKey: ["todo"] });
-  return saved;
+  try {
+    const saved = await tauri.reminderSet(kind, id, offsets, expectedOffsets);
+    void client.invalidateQueries({ queryKey: key(kind, id) });
+    if (kind === "todo") void client.invalidateQueries({ queryKey: ["todo"] });
+    return saved;
+  } catch (error) {
+    if (isReminderConflictError(error)) {
+      void client.invalidateQueries({ queryKey: key(kind, id) });
+      if (kind === "todo") void client.invalidateQueries({ queryKey: ["todo"] });
+    }
+    throw error;
+  }
 }

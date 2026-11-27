@@ -270,64 +270,70 @@ pub(super) fn missing_instance(error: &str) -> bool {
     .contains(&error)
 }
 
+pub(super) fn read_document_reminders(
+    node: &Value,
+    zone: CalendarTimeZone,
+) -> Result<Vec<Value>, String> {
+    let stored = &node["taskReminder"];
+    if stored["version"] == 2 {
+        return stored["reminders"]
+            .as_array()
+            .cloned()
+            .ok_or_else(|| "正文提醒列表无效".into());
+    }
+    let Some(at) = stored["at"].as_str() else {
+        return Ok(vec![]);
+    };
+    if node["taskRecurrence"]["segments"]
+        .as_array()
+        .is_some_and(|s| !s.is_empty())
+    {
+        let time = dates::timestamp(at, zone)?;
+        let local = zone
+            .0
+            .timestamp_millis_opt(time)
+            .single()
+            .ok_or("提醒时间无效")?;
+        let clock = local.num_seconds_from_midnight() * 1000 + local.timestamp_subsec_millis();
+        Ok(vec![json!({"offsetMs": -i64::from(clock)})])
+    } else {
+        Ok(vec![json!({"at": at})])
+    }
+}
+
 pub(super) fn document_reminders(
     node: &mut Value,
     reminders: &Value,
     zone: CalendarTimeZone,
 ) -> Result<(), String> {
-    let reminders = reminders
+    let recurring = node["taskRecurrence"]["segments"]
         .as_array()
-        .filter(|v| v.len() <= 1)
-        .ok_or("正文待办只支持一条提醒")?;
-    let Some(reminder) = reminders.first() else {
-        node["taskReminder"] = Value::Null;
-        return Ok(());
-    };
-    if node["taskRecurrence"]["segments"]
-        .as_array()
-        .is_some_and(|v| !v.is_empty())
-    {
-        let offset = reminder["offsetMs"]
-            .as_i64()
-            .filter(|v| (-86_399_999..=0).contains(v))
-            .ok_or("重复正文提醒需要当日偏移")?;
-        if reminder.get("at").is_some() {
-            return Err("重复提醒不能指定绝对时刻".into());
+        .is_some_and(|v| !v.is_empty());
+    let mut seen = std::collections::HashSet::new();
+    let mut values = vec![];
+    for reminder in reminders.as_array().ok_or("正文提醒列表无效")? {
+        let (time, value) = if recurring {
+            let offset = reminder["offsetMs"]
+                .as_i64()
+                .filter(|v| (-86_399_999..=0).contains(v) && reminder.get("at").is_none())
+                .ok_or("重复正文提醒需要当日时刻偏移")?;
+            (offset, json!({"offsetMs":offset}))
+        } else {
+            let at = reminder["at"]
+                .as_str()
+                .filter(|v| v.len() > 10 && reminder.get("offsetMs").is_none())
+                .ok_or("普通正文提醒需要绝对时刻")?;
+            (dates::timestamp(at, zone)?, json!({"at":at}))
+        };
+        if seen.insert(time) {
+            values.push(value);
         }
-        let now = common::now_millis();
-        let at = zone.start_of_day(now) - offset;
-        let local = zone
-            .0
-            .timestamp_millis_opt(at)
-            .single()
-            .ok_or("提醒时刻无效")?;
-        let clock = i64::from(
-            local.hour() * 3600000
-                + local.minute() * 60000
-                + local.second() * 1000
-                + local.timestamp_subsec_millis(),
-        );
-        if clock != -offset
-            || zone
-                .0
-                .from_local_datetime(&local.naive_local())
-                .single()
-                .is_none()
-        {
-            return Err("提醒时刻存在夏令时歧义".into());
-        }
-        node["taskReminder"] = json!({"version":1,"at":dates::iso(at)?});
-    } else {
-        let at = reminder["at"]
-            .as_str()
-            .filter(|v| v.len() > 10)
-            .ok_or("普通正文提醒需要绝对时刻")?;
-        if reminder.get("offsetMs").is_some() {
-            return Err("提醒不能同时指定偏移".into());
-        }
-        dates::timestamp(at, zone)?;
-        node["taskReminder"] = json!({"version":1,"at":at});
     }
+    node["taskReminder"] = if values.is_empty() {
+        Value::Null
+    } else {
+        json!({"version":2,"reminders":values})
+    };
     Ok(())
 }
 
@@ -342,11 +348,7 @@ fn state_source(
         return Err("根任务已失效".into());
     }
     let meta = match plugin_tasks::parse_task(id)? {
-        plugin_tasks::TaskId::Todo(id, _, None) => plugin_tasks::metadata(
-            conn,
-            &snapshots::row(conn, "todo_item", id)?.ok_or("任务已删除")?,
-            zone,
-        )?,
+        plugin_tasks::TaskId::Todo(id, _, None) => plugin_tasks::metadata_by_id(conn, id, zone)?,
         plugin_tasks::TaskId::Document(_, _, task, None) => {
             let body = super::plugin_document_tasks::read(conn, id, zone, holidays)?;
             super::plugin_document_tasks::meta(

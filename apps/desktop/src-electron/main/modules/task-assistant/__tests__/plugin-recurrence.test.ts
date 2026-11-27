@@ -13,6 +13,10 @@ import Database from "better-sqlite3";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("electron");
 vi.mock("../../video-note-index-queue");
+import { must } from "../../../test-support";
+import indexSchema from "@tau/db-schema/schema/index.sql?raw";
+import { reindexDocTasks } from "../../doc-tasks/indexer";
+import { assistantReminders } from "../reminders";
 import schema from "@tau/db-schema/schema/main.sql?raw";
 import { TaskAssistantEngine, readTask, type TaskInput } from "../engine";
 import { readTaskInstance, queryOccurrenceStates } from "../occurrences";
@@ -75,7 +79,7 @@ describe("插件重复与正文待办契约", () => {
     expect(result, JSON.stringify(result.error)).toMatchObject({ status: "succeeded" });
     return result.result as AssistantTask;
   };
-  const document = (): TaskRef => {
+  const document = (): Extract<TaskRef, { kind: "document" }> => {
     const contentId = ContentTable.createContent(db, {
       content: [
         {
@@ -462,6 +466,97 @@ describe("插件重复与正文待办契约", () => {
     expect(stale).toMatchObject({ status: "failed", error: { code: "VERSION_CONFLICT" } });
     expect(readTask(db, ref).title).toBe(latest.title);
   });
+  it("旧正文单提醒可直接送达，扩为多个时刻后按新列表排期", () => {
+    const ref = document();
+    const index = new Database(":memory:");
+    try {
+      index.exec(indexSchema);
+      const due = (hour: number) => new Date(2026, 10, 25, hour).getTime();
+      const list = () => {
+        reindexDocTasks(db, index, [ref.contentId]);
+        return assistantReminders(db, index, due(21))
+          .map(r => r.remindAt)
+          .sort((a, b) => a - b);
+      };
+      let current = write("update_todo", {
+        taskRef: ref,
+        revision: readTask(db, ref).revision,
+        patch: { reminderAt: new Date(due(8)).toISOString() },
+      });
+      expect(list()).toEqual([due(8)]);
+      const times = [due(8), due(20)].map(time => ({ at: new Date(time).toISOString() }));
+      current = write("update_todo", {
+        taskRef: ref,
+        revision: current.revision,
+        patch: { reminders: times },
+      });
+      expect(list()).toEqual([due(8), due(20)]);
+      write("update_todo", {
+        taskRef: ref,
+        revision: current.revision,
+        patch: { reminders: [times[1]] },
+      });
+      expect(list()).toEqual([due(20)]);
+    } finally {
+      index.close();
+    }
+  });
+
+  it("重复独立和正文待办各自排出两个当日时刻，完成的实例取消后续提醒", () => {
+    const ref = document();
+    const rule = { type: "daily" as const, interval: 1, startDate: "2026-11-25" };
+    const offsets = [-8 * 3600000, -20 * 3600000];
+    const root = write("create_todo", {
+      title: "独立",
+      groupId,
+      recurrence: rule,
+      reminderOffsets: [0, offsets[0]],
+    });
+    write("update_todo", {
+      taskRef: root.taskRef,
+      revision: root.revision,
+      patch: { reminderOffsets: offsets },
+    });
+    const doc = write("create_todo", {
+      title: "正文",
+      document: {
+        contentId: ref.contentId,
+        createdAt: ref.createdAt,
+        revision: must(readTask(db, ref).documentRevision, "正文版本"),
+      },
+      recurrence: rule,
+      reminders: offsets.map(offsetMs => ({ offsetMs })),
+    });
+    const index = new Database(":memory:");
+    try {
+      index.exec(indexSchema);
+      reindexDocTasks(db, index, [ref.contentId]);
+      const list = () =>
+        assistantReminders(db, index, new Date(2026, 10, 25, 21).getTime())
+          .sort((a, b) => a.taskRef.kind.localeCompare(b.taskRef.kind) || a.remindAt - b.remindAt)
+          .map(r => [r.taskRef.kind, new Date(r.remindAt).getHours()]);
+      expect(list()).toEqual([
+        ["document", 8],
+        ["document", 20],
+        ["todo", 8],
+        ["todo", 20],
+      ]);
+      for (const target of [root.taskRef, doc.taskRef]) {
+        const instance = readTaskInstance(db, target, rule.startDate);
+        write("update_todo_occurrence", {
+          taskRef: target,
+          revision: instance.revision,
+          occurrence: instance.occurrence,
+          action: "patch",
+          statePatch: { completed: true },
+        });
+      }
+      expect(list()).toEqual([]);
+    } finally {
+      index.close();
+    }
+  });
+
   it("正文无截止提醒完整往返，清单修改保留任务身份，重复转换要求显式清空提醒", () => {
     const ref = document();
     let task = readTask(db, ref);

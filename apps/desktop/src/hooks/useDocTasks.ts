@@ -11,9 +11,14 @@ import {
   getDocTaskSnapshot,
   getDocTasksOf,
   promoteDocTask,
+  readDocTaskReminders,
+  setDocTaskReminders,
   setDocTasksExcluded,
   toggleDocTask,
 } from "@/commands/doc-tasks";
+import { getReminderTranslator } from "@tau/shared/reminders";
+import { desktopI18n } from "@/app/i18n/runtime";
+import type { TaskReminder } from "@tau/shared/task-assistant";
 import { on } from "@/electron";
 import { emitTodoMutation, TODO_MUTATION_ACTIONS } from "@/mcp/todo/mutation";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
@@ -31,6 +36,8 @@ const docTaskKeys = {
     [...docTaskKeys.root(database), "content", contentId] as const,
   status: (database: string, contentId: number) =>
     [...docTaskKeys.root(database), "status", contentId] as const,
+  reminders: (database: string, contentId: number, taskId: string) =>
+    [...docTaskKeys.root(database), "reminders", contentId, taskId] as const,
 };
 
 on("doc-tasks:changed", (_event, { databaseName }: { databaseName: string }) => {
@@ -116,7 +123,9 @@ export function useToggleDocTask() {
                   .then(result => {
                     if (result !== "ok") toast.info(t("docTasks.undoBusy"));
                   })
-                  .catch(error => toast.error(error instanceof Error ? error.message : t("docTasks.undoFailed"))),
+                  .catch(error =>
+                    toast.error(error instanceof Error ? error.message : t("docTasks.undoFailed"))
+                  ),
             },
           });
     } catch {
@@ -180,6 +189,52 @@ export function usePromoteDocTask() {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "转为独立待办失败");
       return null;
+    }
+  };
+}
+
+/** 读取单条文档勾选项的最新提醒与并发指纹（抽屉打开时拉取，随 doc-tasks:changed 失效） */
+export function useDocTaskReminders(contentId: number | null, taskId: string | null) {
+  const database = useActiveDatabase();
+  const connected = useDatabaseConnected();
+  return useQuery({
+    queryKey: docTaskKeys.reminders(database, contentId ?? 0, taskId ?? ""),
+    queryFn: () => readDocTaskReminders(contentId ?? 0, taskId ?? "", database),
+    enabled: connected && contentId != null && contentId > 0 && Boolean(taskId),
+    staleTime: 0,
+  });
+}
+
+/** 条件写回单条文档勾选项提醒，冲突或只读时不覆盖新值并给出明确提示 */
+export function useSetDocTaskReminders() {
+  const client = useQueryClient();
+  const database = useActiveDatabase();
+  return async (
+    contentId: number,
+    taskId: string,
+    reminders: readonly TaskReminder[],
+    expectedDigest: string
+  ) => {
+    const tr = getReminderTranslator(desktopI18n.getSnapshot()).t;
+    try {
+      const result = await setDocTaskReminders(
+        contentId,
+        taskId,
+        reminders,
+        expectedDigest,
+        database
+      );
+      if (result === "conflict") toast.info(tr("ui.conflict"));
+      else if (result === "unavailable") toast.info(tr("ui.unavailable"));
+      else if (result === "readonly") toast.info(tr("ui.readonly"));
+      else if (result === "busy") toast.info(tr("ui.busy"));
+      else if (result === "not-found") toast.info(tr("ui.missing"));
+      return result;
+    } catch {
+      toast.error(tr("ui.saveFailed"));
+      return "error" as const;
+    } finally {
+      void client.invalidateQueries({ queryKey: docTaskKeys.root(database) });
     }
   };
 }

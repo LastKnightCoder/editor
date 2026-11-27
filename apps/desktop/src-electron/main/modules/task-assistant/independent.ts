@@ -4,6 +4,8 @@ import {
   isTodoPriority,
   type TodoPriority,
   occurrenceKey,
+  recurringReminderOffset,
+  taskReminderOnDay,
   patchOccurrenceState,
   type TaskOccurrencePatch,
   type AssistantTask,
@@ -57,6 +59,13 @@ export function readIndependentTask(
     row.type === "recurring" && segments.length
       ? dateTime(segments.at(-1)?.rule?.startDate ?? localDate(Date.now()))
       : due;
+  const offset = row.remind_before == null ? null : Number(row.remind_before);
+  const remindAt =
+    reminderBase == null || offset === null
+      ? null
+      : row.type === "recurring"
+        ? taskReminderOnDay(reminderBase, offset)
+        : reminderBase - offset;
   return {
     taskRef: ref,
     isSeries: row.type === "recurring",
@@ -80,10 +89,7 @@ export function readIndependentTask(
     dueAt: due == null ? null : new Date(due).toISOString(),
     groupId: Number(row.group_id),
     reminderOffsets: ItemReminderTable.getTodoReminders(db, ref.todoId),
-    reminderAt:
-      reminderBase == null || row.remind_before == null
-        ? null
-        : new Date(reminderBase - Number(row.remind_before)).toISOString(),
+    reminderAt: remindAt === null ? null : new Date(remindAt).toISOString(),
     recurrence: segments,
     writable: TodoGroupTable.isWritable(db, Number(row.group_id)),
   };
@@ -103,7 +109,7 @@ function reminderBefore(
 ): number | null {
   if (reminder == null) return null;
   if (reminder.length === 10) return fail("INVALID_ARGUMENT", "提醒需要明确时刻");
-  if (recurring) return -(dateTime(reminder) - dateTime(localDate(dateTime(reminder))));
+  if (recurring) return recurringReminderOffset(new Date(dateTime(reminder)));
   if (due == null) return fail("INVALID_ARGUMENT", "普通待办提醒需要截止时间");
   const difference = due - dateTime(reminder);
   if (difference < 0) fail("INVALID_ARGUMENT", "提醒不能晚于截止时间");
@@ -158,8 +164,6 @@ export function createIndependent(
   if (input.reminderOffsets !== undefined) {
     if (input.recurrence && input.reminderOffsets.some(offset => offset > 0 || offset <= -86400000))
       fail("INVALID_ARGUMENT", "周期提醒需要当日时刻偏移");
-    if (input.recurrence && input.reminderOffsets.length > 1)
-      fail("INVALID_ARGUMENT", "周期待办只支持一条提醒");
     if (input.reminderOffsets.length && dueAt == null && !input.recurrence)
       fail("INVALID_ARGUMENT", "提醒需要截止时间");
     ItemReminderTable.setTodoReminders(db, item.id, input.reminderOffsets);
@@ -197,8 +201,6 @@ export function mutateIndependent(
     const dueAt =
       "dueAt" in patch ? deadline(patch.dueAt as string | null) : (row.due_at as number | null);
     const recurring = row.type === "recurring";
-    if (recurring && "reminderOffsets" in patch && (patch.reminderOffsets as number[]).length > 1)
-      fail("INVALID_ARGUMENT", "周期待办只支持一条提醒");
     const remindBefore =
       "reminderAt" in patch
         ? reminderBefore(dueAt, patch.reminderAt as string | null, recurring)

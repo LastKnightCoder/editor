@@ -132,6 +132,24 @@ describe("DatePicker（A+ 单日期）", () => {
     expect(trigger.textContent).toContain("10:37");
   });
 
+  it("直接回车会向调用方提交本次键入的钟点", () => {
+    let submitted: string | undefined;
+    const h = render(
+      <TimeField
+        value="08:00"
+        onValueChange={() => {}}
+        onSubmit={value => {
+          submitted = value;
+        }}
+      />
+    );
+    cleanups.push(h.cleanup);
+    const input = h.container.querySelector("input")!;
+    typeInto(input, "19:30");
+    key(input, "Enter");
+    expect(submitted).toBe("19:30");
+  });
+
   it("minute 精度：时刻框键入后直接 Enter，提交键入的新时刻", () => {
     const onValueChange = vi.fn();
     const h = render(

@@ -31,6 +31,22 @@ const NOTE_LINK_TYPE: Record<EntityRefKind, string> = {
   "plugin-entity": "plugin-entity",
 };
 
+export function documentReminderAccess(db: Database.Database, contentId: number) {
+  const collectable = Boolean(
+    db
+      .prepare("SELECT 1 FROM document_task_source_contents WHERE content_id=? LIMIT 1")
+      .get(contentId)
+  );
+  const settings = db
+    .prepare("SELECT kind, task_id FROM doc_task_settings WHERE content_id=?")
+    .all(contentId) as Array<{ kind: string; task_id: string }>;
+  return {
+    collectable,
+    excluded: settings.some(row => row.kind === "excluded"),
+    promotedTaskIds: settings.filter(row => row.kind === "promoted").map(row => row.task_id),
+  };
+}
+
 /** 整篇排除的正文 id */
 export function excludedContentIds(mainDb: Database.Database): Set<number> {
   return new Set(

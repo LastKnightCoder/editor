@@ -11,6 +11,7 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUp,
+  Bell,
   Bold,
   Check,
   ChevronDown,
@@ -51,6 +52,15 @@ import {
 } from "../../../components/KeyboardViewportProvider";
 import { ActionSheet, type ActionSheetItem } from "../../../components/ActionSheet";
 import { Editor as SlateEditor, Node as SlateNode, Transforms } from "slate";
+import type { CheckListItemElement } from "@tau/editor/extensions/list";
+import { useI18n } from "@tau/i18n/react";
+import {
+  canScheduleDocumentReminder,
+  type DocumentReminderAccess,
+  reminderMessages,
+} from "@tau/shared/reminders";
+import { mobileI18n } from "../../../services/i18n";
+import { findActiveCheckListItem, readCheckListReminders } from "../docTaskReminders";
 
 import ContentLinkPickerSheet from "../editorExtensions/ContentLinkPickerSheet";
 import ContentLinkPreviewSheet from "../editorExtensions/ContentLinkPreviewSheet";
@@ -177,6 +187,9 @@ type MobileEditorBottomToolbarProps = {
   showDoneButton?: boolean;
   /** 挂载后（编辑器就绪时）直接打开语音面板并开始录音，用于「说一段」入口 */
   autoStartVoice?: boolean;
+  /** 光标在正文勾选项内时显示「提醒」按钮，点击打开该勾选项的多条提醒面板 */
+  docTaskReminderAccess?: DocumentReminderAccess;
+  onOpenDocTaskReminder?: (element: CheckListItemElement) => void;
 };
 
 /** 浮岛配件栏高度与离键盘/屏幕边缘的间距 */
@@ -561,6 +574,7 @@ function resolveSourceContext(
 
 export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps) {
   useMobileEditorI18n();
+  const { t: reminderT } = useI18n(reminderMessages, mobileI18n);
   const {
     controller,
     portalContainer,
@@ -568,6 +582,8 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
     visibleButtons,
     showDoneButton,
     autoStartVoice = false,
+    docTaskReminderAccess,
+    onOpenDocTaskReminder,
   } = props;
   const keyboardViewport = useKeyboardViewport();
   const [panelSearching, setPanelSearching] = useState(false);
@@ -867,9 +883,33 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
   else if (linkContext) middleNodes = renderContentLinkItems();
   else if (tableContext) middleNodes = renderTableItems(tableContext);
   else {
-    middleNodes = (isFormatMode ? FORMAT_MIDDLE_ITEMS : GENERAL_MIDDLE_ITEMS)
-      .filter(isVisible)
-      .map(renderItem);
+    const baseItems = (isFormatMode ? FORMAT_MIDDLE_ITEMS : GENERAL_MIDDLE_ITEMS).filter(isVisible);
+    const activeEditor = !isFormatMode && onOpenDocTaskReminder ? controller.getEditor() : null;
+    const activeCheckList = activeEditor
+      ? findActiveCheckListItem(activeEditor, controller.panelSelection ?? activeEditor.selection)
+      : null;
+    const reminderButton =
+      activeCheckList &&
+      !activeCheckList[0].taskArchived &&
+      canScheduleDocumentReminder(docTaskReminderAccess, activeCheckList[0].taskId) ? (
+        <AccessoryButton
+          key="doc-task-reminder"
+          label={reminderT("ui.button")}
+          active={readCheckListReminders(activeCheckList[0]).length > 0}
+          onPress={() => {
+            controller.closePanel({ showKeyboard: false });
+            controller.dismissKeyboard();
+            onOpenDocTaskReminder?.(activeCheckList[0]);
+          }}
+        >
+          <Bell size={ICON_SIZE} strokeWidth={ICON_STROKE} />
+        </AccessoryButton>
+      ) : null;
+    middleNodes = baseItems.flatMap(item =>
+      item === "check-list" && reminderButton
+        ? [renderItem(item), reminderButton]
+        : [renderItem(item)]
+    );
   }
 
   // 输入方式切换键只在通用模式出现：上下文、格式模式都不适合口述

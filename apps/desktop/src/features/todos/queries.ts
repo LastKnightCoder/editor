@@ -43,7 +43,9 @@ import {
   updateTodoItem,
   updateTodoReminders,
 } from "@/commands/todo";
-import { splitTodoReminders } from "@tau/shared/reminders";
+import { splitTodoReminders, getReminderTranslator } from "@tau/shared/reminders";
+import { desktopI18n } from "@/app/i18n/runtime";
+import { toast } from "@tau/ui";
 import { createContent } from "@/commands/content";
 import { getContentLength } from "@/utils/helper";
 import { emitTodoMutation, TODO_MUTATION_ACTIONS } from "@/mcp/todo/mutation";
@@ -322,15 +324,24 @@ export function useTodoMutations() {
       });
     },
 
-    /** 截止任务的多个提醒（截止前毫秒数） */
-    async setReminders(entry: TodoEntry, offsets: number[]) {
+    /** 截止任务（提前毫秒）或重复待办（当天负数钟点）的多条提醒；传入 expectedOffsets 防并发覆盖 */
+    async setReminders(entry: TodoEntry, offsets: number[], expectedOffsets?: number[]) {
       const { first, extras } = splitTodoReminders(offsets);
       patchEntry(queryClient, entry.id, e => ({
         ...e,
         remindBefore: first,
         extraReminders: extras,
       }));
-      await updateTodoReminders(entry.id, offsets);
+      try {
+        await updateTodoReminders(entry.id, offsets, expectedOffsets);
+      } catch (error) {
+        void queryClient.invalidateQueries({ queryKey: ["todos"] });
+        if (error instanceof Error && error.message.includes("REMINDER_CONFLICT")) {
+          toast.info(getReminderTranslator(desktopI18n.getSnapshot()).t("ui.conflict"));
+          return;
+        }
+        throw error;
+      }
       emit("item", TODO_MUTATION_ACTIONS.UPDATE_ITEM, {
         entityId: entry.id,
         groupId: entry.groupId,

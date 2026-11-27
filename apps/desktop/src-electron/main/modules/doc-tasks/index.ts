@@ -17,7 +17,15 @@ import { broadcastDatabaseChange } from "../database-notifications";
 import { broadcastScheduleChange } from "../schedule-changes";
 import { listTaskGroups } from "./group-names";
 import { reconcileDocTasks, regroupDocTasks, reindexDocTasks } from "./indexer";
-import { getDocTaskContentStatus, getDocTaskSnapshot, getDocTasksOf, toggleDocTask } from "./query";
+import {
+  getDocTaskContentStatus,
+  getDocTaskSnapshot,
+  getDocTasksOf,
+  readDocTaskReminders,
+  setDocTaskReminders,
+  toggleDocTask,
+} from "./query";
+import type { TaskReminder } from "@tau/shared/task-assistant";
 import {
   detectGroupRenames,
   promoteDocTask,
@@ -108,6 +116,40 @@ class DocTasksModule implements Module {
           checked === true
         );
         broadcastDatabaseChange(DOC_TASKS_CHANGED, dbName);
+        return result;
+      }
+    );
+    ipcMain.handle(
+      "doc-tasks:read-reminders",
+      async (event, contentId: unknown, taskId: unknown, scope: unknown) => {
+        if (typeof taskId !== "string" || !taskId) throw new Error("taskId 无效");
+        const dbs = await this.senderDatabases(event.sender, "ipc:doc-tasks", scope);
+        return readDocTaskReminders(dbs.mainDb, this.parseContentId(contentId), taskId);
+      }
+    );
+    ipcMain.handle(
+      "doc-tasks:set-reminders",
+      async (
+        event,
+        contentId: unknown,
+        taskId: unknown,
+        reminders: unknown,
+        expectedDigest: unknown,
+        scope: unknown
+      ) => {
+        if (typeof taskId !== "string" || !taskId) throw new Error("taskId 无效");
+        if (!Array.isArray(reminders)) throw new Error("reminders 无效");
+        if (typeof expectedDigest !== "string") throw new Error("expectedDigest 无效");
+        const { dbName, ...dbs } = await this.senderDatabases(event.sender, "ipc:doc-tasks", scope);
+        const result = setDocTaskReminders(
+          dbs.mainDb,
+          dbs.indexDb,
+          this.parseContentId(contentId),
+          taskId,
+          reminders as TaskReminder[],
+          expectedDigest
+        );
+        if (result === "ok") broadcastDatabaseChange(DOC_TASKS_CHANGED, dbName);
         return result;
       }
     );

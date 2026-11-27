@@ -12,6 +12,7 @@ import {
   documentTaskIsChecked,
   documentTaskOccurrence,
 } from "@tau/shared/task-assistant";
+import { ICheckListItemReminder } from "../../reminderService";
 
 interface CheckListItemProps {
   attributes: RenderElementProps["attributes"];
@@ -25,6 +26,7 @@ const CheckListItem: React.FC<PropsWithChildren<CheckListItemProps>> = props => 
 
   const editor = useSlateStatic();
   const readonly = useReadOnly();
+  const reminderService = editor.tryGetService?.(ICheckListItemReminder);
 
   const onClick = useMemoizedFn(() => {
     const path = getCommandElementPath(editor, { element });
@@ -46,7 +48,8 @@ const CheckListItem: React.FC<PropsWithChildren<CheckListItemProps>> = props => 
           onChange={onClick}
           readonly={readonly || unavailable}
         />
-        <div className="flex-1">{children}</div>
+        <div className="min-w-0 flex-1">{children}</div>
+        {reminderService?.renderTrailing({ editor, element, readOnly: readonly })}
       </li>
     </div>
   );

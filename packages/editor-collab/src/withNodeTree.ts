@@ -511,18 +511,23 @@ export function withNodeTree<T extends Editor>(
           }
         } else if (operation.type === "set_node") {
           if (Element.isElement(node)) {
+            // Slate 将删除的属性只放入 properties，节点树使用 undefined 删除键。
+            const changes = {
+              ...Object.fromEntries(Object.keys(operation.properties).map(key => [key, undefined])),
+              ...operation.newProperties,
+            };
             const nextType = (operation.newProperties as { type?: string }).type;
             if (nextType && nextType !== node.type && tree.contract(requireIdentity(node))) {
               const target = configuration.currentContract?.(nextType);
               if (!target) throw new Error("目标节点版本不可用");
               const previous = (node as unknown as Record<string, unknown>)[NODE_CONTRACT_PROPERTY];
-              tree.convertNode(requireIdentity(node), target, operation.newProperties, origin);
+              tree.convertNode(requireIdentity(node), target, changes, origin);
               operation = {
                 ...operation,
                 properties: { ...operation.properties, [NODE_CONTRACT_PROPERTY]: previous },
                 newProperties: { ...operation.newProperties, [NODE_CONTRACT_PROPERTY]: target },
               } as unknown as Operation;
-            } else tree.setProperties(requireIdentity(node), operation.newProperties, origin);
+            } else tree.setProperties(requireIdentity(node), changes, origin);
           } else {
             if (!location.parent) throw new Error("正文根不能格式化文本");
             // Slate 省略已删除的标记，Yjs 需要用 null 显式清除。

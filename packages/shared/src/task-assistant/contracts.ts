@@ -41,12 +41,54 @@ export interface TaskOccurrenceState {
   scheduledAt?: string | null;
 }
 
+export type TaskReminder = { at: string } | { offsetMs: number };
+
 export interface DocumentTaskAttributes {
-  taskReminder?: { version: 1; at: string } | null;
+  taskReminder?: { version: 1; at: string } | { version: 2; reminders: TaskReminder[] } | null;
   taskRecurrence?: { version: 1; segments: TaskRecurrenceSegment[] } | null;
   taskOccurrenceState?: Record<string, TaskOccurrenceState>;
   taskArchived?: boolean;
   taskCompletedAt?: number | null;
+}
+
+export function recurringReminderOffset(local: Date): number {
+  return -(
+    ((local.getHours() * 60 + local.getMinutes()) * 60 + local.getSeconds()) * 1000 +
+    local.getMilliseconds()
+  );
+}
+
+/** 旧正文的重复提醒用绝对时间保存当日钟点。 */
+export function documentTaskReminders(node: DocumentTaskAttributes): TaskReminder[] {
+  const stored = node.taskReminder;
+  if (!stored) return [];
+  if (stored.version === 2)
+    return Array.isArray(stored.reminders)
+      ? stored.reminders.filter(reminder => {
+          if (!reminder || typeof reminder !== "object") return false;
+          if ("at" in reminder)
+            return typeof reminder.at === "string" && Number.isFinite(Date.parse(reminder.at));
+          return (
+            Number.isSafeInteger(reminder.offsetMs) &&
+            reminder.offsetMs <= 0 &&
+            reminder.offsetMs > -86400000
+          );
+        })
+      : [];
+  if (typeof stored.at !== "string" || !Number.isFinite(Date.parse(stored.at))) return [];
+  if (!node.taskRecurrence?.segments.length) return [{ at: stored.at }];
+  return [{ offsetMs: recurringReminderOffset(new Date(stored.at)) }];
+}
+
+/** 跳时日不存在的钟点不排期；重叠时只取较早的一次。 */
+export function taskReminderOnDay(day: number, offsetMs: number): number | null {
+  const clock = -offsetMs;
+  if (!Number.isInteger(clock) || clock < 0 || clock >= 86400000) return null;
+  const local = new Date(day);
+  const hour = Math.floor(clock / 3600000);
+  const minute = Math.floor(clock / 60000) % 60;
+  local.setHours(hour, minute, Math.floor(clock / 1000) % 60, clock % 1000);
+  return local.getHours() === hour && local.getMinutes() === minute ? local.getTime() : null;
 }
 
 export const todoPriorities = ["none", "low", "medium", "high"] as const;
@@ -80,6 +122,7 @@ export interface AssistantTask {
   documentRevision?: string;
   occurrence?: TaskOccurrenceRef;
   reminderAt?: string | null;
+  reminders?: TaskReminder[];
   reminderOffsets?: number[];
   occurrenceState?: TaskOccurrenceState;
   recurrence?: TaskRecurrenceSegment[];

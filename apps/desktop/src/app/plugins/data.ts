@@ -23,6 +23,7 @@ import {
 } from "@tau/plugins";
 import {
   taskKey,
+  recurringReminderOffset,
   type AssistantCalendarEvent,
   type AssistantQueryResult,
   type AssistantTask,
@@ -156,6 +157,16 @@ const SOURCE_KINDS = {
 } as const;
 
 function toTodo(task: AssistantTask): PluginTodo {
+  // 旧操作回执可能只有 reminderAt，重放时保留其中的正文提醒。
+  const documentReminders =
+    task.reminders ??
+    (task.reminderAt
+      ? [
+          task.recurrence?.length
+            ? { offsetMs: recurringReminderOffset(new Date(task.reminderAt)) }
+            : { at: task.reminderAt },
+        ]
+      : []);
   return {
     id: task.occurrence
       ? `${taskKey(task.taskRef)}@${task.occurrence.occurrenceDate}`
@@ -171,20 +182,7 @@ function toTodo(task: AssistantTask): PluginTodo {
     listId: task.groupId === null ? null : String(task.groupId),
     reminders:
       task.taskRef.kind === "document"
-        ? !task.reminderAt
-          ? []
-          : task.recurrence?.length
-            ? [
-                {
-                  offsetMs: -(
-                    new Date(task.reminderAt).getHours() * 3600000 +
-                    new Date(task.reminderAt).getMinutes() * 60000 +
-                    new Date(task.reminderAt).getSeconds() * 1000 +
-                    new Date(task.reminderAt).getMilliseconds()
-                  ),
-                },
-              ]
-            : [{ at: task.reminderAt }]
+        ? documentReminders
         : (task.reminderOffsets ?? []).map(offsetMs => ({ offsetMs })),
     recurrence: task.recurrence?.length ? { segments: task.recurrence } : null,
     writable: task.writable,

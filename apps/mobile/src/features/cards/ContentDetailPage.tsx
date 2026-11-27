@@ -19,7 +19,30 @@ import type { LucideIcon } from "lucide-react";
 import { PageHeader, PageHeaderButton } from "../../components/PageHeader";
 import { useEdgeFade } from "../../hooks/useScrollState";
 import { Editor, type EditorDocument, type EditorRef } from "@tau/editor";
+import type { CheckListItemElement } from "@tau/editor/extensions/list";
+import { useI18n } from "@tau/i18n/react";
+import { useQuery } from "@tanstack/react-query";
+import { getQueryClient } from "../../router/query/PageQueryProvider";
+import { activeDatabase } from "../../services/database-runtime";
+import {
+  canScheduleDocumentReminder,
+  reminderMessages,
+  remindersDigest,
+} from "@tau/shared/reminders";
+import type { TaskReminder } from "@tau/shared/task-assistant";
+import type { Editor as SlateEditor } from "slate";
 import { cn } from "@tau/ui";
+import { mobileI18n } from "../../services/i18n";
+import { TaskRemindersSheet } from "../reminders/TaskRemindersSheet";
+import {
+  commitMobileDocTaskReminders,
+  createMobileDocTaskReminderTarget,
+  type MobileDocTaskReminderTarget,
+} from "./docTaskReminders";
+import {
+  MobileDocTaskReminderContext,
+  withMobileDocTaskReminderService,
+} from "./MobileCheckListReminderTrailing";
 import * as tauri from "../../services/tauri";
 import type { ContentDetailResponse } from "../../types";
 import { formatContentDateTime } from "../../utils/contentTime";
@@ -167,6 +190,7 @@ function detailEditMode(hasCollaboration: boolean, mode: CollaborativeEditorMode
 export function ContentDetailPage(props: ContentDetailPageProps) {
   const { t, locale } = useMobileCardsI18n();
   const { t: readingT } = useReadingI18n();
+  const { t: reminderT } = useI18n(reminderMessages, mobileI18n);
   // 全页只有一个编辑器实例：本机与协作是同谱系的两个文档源，切换即换源（01 §7.3 第 3 层）
   const editorRef = useRef<EditorRef | null>(null);
   const localDocumentRef = useRef<LocalContentDocument | undefined>(undefined);
@@ -351,7 +375,111 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
     !readingMode.editing && readingMode.canEdit && !blockSelection.active
   );
   const [editorWrapEl, setEditorWrapEl] = useState<HTMLDivElement | null>(null);
-  const kit = useMobileContentKit("edit");
+  const baseKit = useMobileContentKit("edit");
+  const kit = useMemo(
+    () => (baseKit ? withMobileDocTaskReminderService(baseKit) : undefined),
+    [baseKit]
+  );
+  const [activeReminderTarget, setActiveReminderTarget] =
+    useState<MobileDocTaskReminderTarget | null>(null);
+  const { data: reminderAccess, refetch: refreshReminderAccess } = useQuery(
+    {
+      queryKey: ["doc-task-reminder-access", activeDatabase(), props.contentId],
+      queryFn: () => tauri.documentReminderAccess(props.contentId),
+      enabled: Boolean(document && props.contentId),
+      refetchOnWindowFocus: true,
+    },
+    getQueryClient()
+  );
+  const openDocTaskReminder = useCallback(
+    (element: CheckListItemElement) => {
+      if (forcedReadonly) {
+        toast.info(reminderT("ui.readonly"));
+        return;
+      }
+      if (element.taskArchived || !canScheduleDocumentReminder(reminderAccess, element.taskId))
+        return;
+      if (readingMode.editing) {
+        toolbarController.closePanel({ showKeyboard: false });
+        toolbarController.dismissKeyboard();
+      }
+      setActiveReminderTarget(createMobileDocTaskReminderTarget(element));
+    },
+    [forcedReadonly, readingMode.editing, reminderAccess, reminderT, toolbarController]
+  );
+  const docTaskReminderHost = useMemo(
+    () => ({
+      access: reminderAccess,
+      disabled: forcedReadonly || blockSelection.active,
+      onOpen: openDocTaskReminder,
+    }),
+    [blockSelection.active, forcedReadonly, openDocTaskReminder, reminderAccess]
+  );
+  const currentTarget = useRef(activeReminderTarget);
+  currentTarget.current = activeReminderTarget;
+  const handleCommitDocTaskReminders = useCallback(
+    async (nextReminders: TaskReminder[]): Promise<boolean> => {
+      const target = activeReminderTarget;
+      const editor = editorRef.current?.getEditor() as SlateEditor | undefined;
+      if (!target || !editor) return false;
+      if (forcedReadonly) {
+        toast.info(reminderT("ui.readonly"));
+        return false;
+      }
+      let result;
+      try {
+        const { data: access } = await refreshReminderAccess({ throwOnError: true });
+        if (
+          !access ||
+          currentTarget.current !== target ||
+          editorRef.current?.getEditor() !== editor
+        )
+          return false;
+        result = await commitMobileDocTaskReminders({
+          editor,
+          target,
+          access,
+          nextReminders,
+          flushNow: editMode === "local" ? flushNow : undefined,
+        });
+      } catch {
+        toast.error(reminderT("ui.saveFailed"));
+        return false;
+      }
+      if (result.status === "unavailable") {
+        toast.info(reminderT("ui.unavailable"));
+        setActiveReminderTarget(null);
+        return true;
+      }
+      if (result.status === "saved") {
+        setActiveReminderTarget(null);
+        return true;
+      }
+      if (result.status === "conflict") {
+        setActiveReminderTarget(prev =>
+          prev
+            ? {
+                ...prev,
+                taskId: result.taskId ?? prev.taskId,
+                recurring: result.recurring,
+                reminders: result.reminders,
+                baselineDigest: remindersDigest(result.reminders, result.recurring),
+              }
+            : null
+        );
+        toast.info(reminderT("ui.conflict"));
+        return false;
+      }
+      if (result.status === "missing") {
+        toast.info(reminderT("ui.missing"));
+        setActiveReminderTarget(null);
+        return true;
+      }
+      toast.error(reminderT("ui.saveFailed"));
+      return false;
+    },
+    [activeReminderTarget, editMode, flushNow, forcedReadonly, refreshReminderAccess, reminderT]
+  );
   useContentLocation({
     editorRef,
     container: editorWrapEl,
@@ -718,7 +846,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
           {...(blockSelection.active ? {} : readingMode.readingSurfaceProps)}
         >
           {kit ? (
-            <>
+            <MobileDocTaskReminderContext.Provider value={docTaskReminderHost}>
               <Editor
                 kit={kit}
                 ref={editorRef}
@@ -735,7 +863,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
                 }}
                 onSelectionChange={toolbarController.syncSelection}
               />
-            </>
+            </MobileDocTaskReminderContext.Provider>
           ) : (
             <EditorKitPending />
           )}
@@ -896,7 +1024,34 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
           portalContainer={pageRootEl}
           readonly={toolbarReadonly}
           showDoneButton
+          docTaskReminderAccess={reminderAccess}
+          onOpenDocTaskReminder={forcedReadonly ? undefined : openDocTaskReminder}
         />
+        {activeReminderTarget ? (
+          activeReminderTarget.recurring ? (
+            <TaskRemindersSheet
+              open
+              mode="clock"
+              subtitle={activeReminderTarget.title || undefined}
+              value={activeReminderTarget.reminders
+                .filter((item): item is { offsetMs: number } => "offsetMs" in item)
+                .map(item => item.offsetMs)}
+              onCommit={offsets =>
+                handleCommitDocTaskReminders(offsets.map(offsetMs => ({ offsetMs })))
+              }
+              onClose={() => setActiveReminderTarget(null)}
+            />
+          ) : (
+            <TaskRemindersSheet
+              open
+              mode="absolute"
+              subtitle={activeReminderTarget.title || undefined}
+              value={activeReminderTarget.reminders}
+              onCommit={handleCommitDocTaskReminders}
+              onClose={() => setActiveReminderTarget(null)}
+            />
+          )
+        ) : null}
         {blockSelection.active && kit ? (
           <BlockActionBar
             editorRef={editorRef}

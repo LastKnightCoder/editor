@@ -13,6 +13,12 @@ import docTasksExtension, { absolutizeDateBeforeCursor } from "..";
 import { IDocTaskGroups, type DocTaskGroupsService } from "../service";
 import { useTagPickerStore } from "../store";
 import { openChipMenu, setChipGroup, closeChipMenu, useChipMenuStore } from "../chipMenu";
+import {
+  closeDocTaskReminderMenu,
+  commitDocTaskReminders,
+  openDocTaskReminderMenu,
+  useDocTaskReminderMenuStore,
+} from "../reminderMenu";
 
 const groups = [
   { id: 1, title: "笔记" },
@@ -42,6 +48,7 @@ afterEach(async () => {
   for (const done of cleanup.splice(0)) await done();
   useTagPickerStore.setState({ editor: null, query: "", activeIndex: 0, items: [] });
   closeChipMenu();
+  closeDocTaskReminderMenu();
 });
 
 async function mount(
@@ -314,4 +321,76 @@ it("换语只刷新日期胶囊附注，原文节点、选区与正文数据保�
     await act(async () => desktopLocaleSource.setLocale(original));
     vi.useRealTimers();
   }
+});
+
+it("正文勾选项提醒菜单保留老笔记 taskId 与格式，并发修改时拒绝覆盖并刷新到最新值", async () => {
+  const at0800 = "2026-11-28T08:00:00.000Z";
+  const at2000 = "2026-11-28T20:00:00.000Z";
+  const at1930 = "2026-11-28T19:30:00.000Z";
+  const legacyList = {
+    type: "check-list",
+    children: [
+      {
+        type: "check-list-item",
+        checked: false,
+        taskId: "legacy-editor-1",
+        taskReminder: { version: 1, at: at0800 },
+        children: [
+          {
+            type: "paragraph",
+            children: [
+              { type: "formatted", text: "粗体任务", bold: true },
+              { type: "formatted", text: " 未保存草稿" },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+
+  const { container, editor } = await mount([legacyList as never]);
+  const anchor = container.querySelector("[data-check-list-item]") as HTMLElement;
+  const targetElement = (editor.children[0] as { children: unknown[] }).children[0] as never;
+
+  await act(async () => {
+    openDocTaskReminderMenu(editor, anchor, targetElement);
+  });
+  expect(useDocTaskReminderMenuStore.getState()).toMatchObject({
+    taskId: "legacy-editor-1",
+    recurring: false,
+    reminders: [{ at: at0800 }],
+  });
+
+  // 添加 20:00：保留 08:00、保留 taskId 与粗体格式
+  await act(async () => {
+    expect(commitDocTaskReminders([{ at: at0800 }, { at: at2000 }])).toBe("ok");
+  });
+  const afterAdd = (editor.children[0] as { children: Record<string, unknown>[] }).children[0];
+  expect(afterAdd.taskId).toBe("legacy-editor-1");
+  expect(afterAdd.taskReminder).toEqual({
+    version: 2,
+    reminders: [{ at: at0800 }, { at: at2000 }],
+  });
+  expect(
+    (afterAdd.children as Array<{ children: Array<{ text: string; bold?: boolean }> }>)[0].children
+  ).toEqual([
+    { type: "formatted", text: "粗体任务", bold: true },
+    { type: "formatted", text: " 未保存草稿" },
+  ]);
+
+  // 模拟另一端或插件并发修改了同一条提醒，旧会话提交必须拒绝覆盖并刷新为最新值
+  await act(async () => {
+    Transforms.setNodes(
+      editor,
+      { taskReminder: { version: 2, reminders: [{ at: at1930 }] } } as never,
+      { at: [0, 0] }
+    );
+  });
+  await act(async () => {
+    expect(commitDocTaskReminders([{ at: at0800 }])).toBe("conflict");
+  });
+  expect(useDocTaskReminderMenuStore.getState().reminders).toEqual([{ at: at1930 }]);
+  expect(
+    (editor.children[0] as { children: Record<string, unknown>[] }).children[0].taskReminder
+  ).toEqual({ version: 2, reminders: [{ at: at1930 }] });
 });

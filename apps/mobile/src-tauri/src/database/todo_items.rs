@@ -558,6 +558,58 @@ pub fn todo_create_item_relative(
     Ok(created)
 }
 
+pub(crate) fn update_item_in_tx(
+    tx: &Transaction<'_>,
+    payload: &UpdateTodoItemPayload,
+    time_zone: crate::database::calendar_time::CalendarTimeZone,
+) -> Result<TodoItem, String> {
+    let current = get_item_by_id(tx, payload.id)?
+        .ok_or_else(|| "TODO_NOT_FOUND: todo item does not exist".to_string())?;
+    let now = now_millis();
+    reject_retired_type(&payload.item_type)?;
+    let next_type = normalize_item_type(
+        payload
+            .item_type
+            .clone()
+            .or_else(|| Some(current.r#type.clone())),
+    );
+    let type_changed = next_type != current.r#type;
+    // 切换待办类型时（deadline ↔ recurring ↔ normal），提醒口径不再兼容，一并清空
+    let next_remind_before = if type_changed {
+        None
+    } else {
+        payload.remind_before.or(current.remind_before)
+    };
+    tx.execute(
+        "
+        UPDATE todo_item
+        SET title = ?1, type = ?2, description_content_id = ?3, start_at = ?4, due_at = ?5, remind_before = ?6, update_time = ?7
+        WHERE id = ?8
+        ",
+        params![
+            payload.title.clone().unwrap_or(current.title),
+            next_type,
+            payload.description_content_id.or(current.description_content_id),
+            payload.start_at.or(current.start_at),
+            payload.due_at.or(current.due_at),
+            next_remind_before,
+            now,
+            payload.id
+        ],
+    )
+    .map_err(|e| format_db_error("TODO_UPDATE_FAILED", "update todo item", e))?;
+
+    if type_changed {
+        super::super::reminders::replace_owner(tx, "todo", payload.id, &[])?;
+    }
+
+    todo_calendar_sync::sync_single_item(tx, payload.id, time_zone)?;
+    let item = get_item_by_id(tx, payload.id)?
+        .ok_or_else(|| "TODO_NOT_FOUND: todo item does not exist".to_string())?;
+    super::super::common::write_operation(tx, "todo", "update", 0, now_millis())?;
+    Ok(item)
+}
+
 #[tauri::command]
 pub fn todo_update_item(
     app: AppHandle,
@@ -568,39 +620,7 @@ pub fn todo_update_item(
     let tx = conn
         .transaction()
         .map_err(|e| format_db_error("TODO_UPDATE_FAILED", "begin transaction", e))?;
-    let current = get_item_by_id(&tx, payload.id)?
-        .ok_or_else(|| "TODO_NOT_FOUND: todo item does not exist".to_string())?;
-    let now = now_millis();
-    reject_retired_type(&payload.item_type)?;
-    let next_type = normalize_item_type(
-        payload
-            .item_type
-            .clone()
-            .or_else(|| Some(current.r#type.clone())),
-    );
-    tx.execute(
-        "
-        UPDATE todo_item
-        SET title = ?1, type = ?2, description_content_id = ?3, start_at = ?4, due_at = ?5, remind_before = ?6, update_time = ?7
-        WHERE id = ?8
-        ",
-        params![
-            payload.title.unwrap_or(current.title),
-            next_type,
-            payload.description_content_id.or(current.description_content_id),
-            payload.start_at.or(current.start_at),
-            payload.due_at.or(current.due_at),
-            payload.remind_before.or(current.remind_before),
-            now,
-            payload.id
-        ],
-    )
-    .map_err(|e| format_db_error("TODO_UPDATE_FAILED", "update todo item", e))?;
-
-    todo_calendar_sync::sync_single_item(&tx, payload.id, time_zone)?;
-    let item = get_item_by_id(&tx, payload.id)?
-        .ok_or_else(|| "TODO_NOT_FOUND: todo item does not exist".to_string())?;
-    super::super::common::write_operation(&tx, "todo", "update", 0, now_millis())?;
+    let item = update_item_in_tx(&tx, &payload, time_zone)?;
     tx.commit()
         .map_err(|e| format_db_error("TODO_UPDATE_FAILED", "commit transaction", e))?;
     Ok(item)

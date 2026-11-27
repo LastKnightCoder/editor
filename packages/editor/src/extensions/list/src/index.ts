@@ -23,3 +23,8 @@ export type {
 } from "./types";
 export { insertBulletList, insertNumberedList, insertCheckList } from "./operations";
 export { isListItemElement, isCheckListItemElement } from "./utils";
+export {
+  ICheckListItemReminder,
+  type CheckListItemReminderProps,
+  type CheckListItemReminderService,
+} from "./extensions/check-list/reminderService";

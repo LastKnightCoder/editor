@@ -115,7 +115,7 @@ pnpm --filter @example/plugin-workbench demo
 
 `data.changes.query` 的游标状态机由 SDK 共用，两端数据层在短事务内返回身份页、水位和保留边界。首次全量补偿扫描期间的变化，之后固定增量上界；checkpoint 只在整轮结束返回。删除保留原身份，作用域/范围/历史失效返回 PluginSyncResetRequiredError。作者契约见[按游标读取变化](/plugins/tau-plugin-template/docs/task-data.md#按游标读取变化)。
 
-重复与正文待办通过 `DataAdapter.todoRecurrence` 接线：规则创建/分段修改、原子实例状态补丁与持久状态分页；实例 CRUD 使用 `writeTodoOccurrence`，不会回退为整系列操作。正文单提醒可为绝对时刻，重复提醒以本地实例日零点为基准。`readChanges` 必须贯通 todoSource 并回传已支持来源；SDK 拒绝未完整支持正文来源的宿主结果。具体签名与边界见作者手册，宿主不实现远端协议。
+重复与正文待办通过 `DataAdapter.todoRecurrence` 接线：规则创建/分段修改、原子实例状态补丁与持久状态分页；实例 CRUD 使用 `writeTodoOccurrence`，不会回退为整系列操作。普通正文待办可以设置多个绝对时刻。重复独立待办和重复正文待办可以设置多个偏移，以本地实例日零点为基准。`readChanges` 必须贯通 todoSource 并回传已支持来源；SDK 拒绝未完整支持正文来源的宿主结果。具体签名与边界见作者手册，宿主不实现远端协议。
 
 目录写入由可选 `DataAdapter.directoryWrites` 接线，沿用 todos/calendar 的 write 权限、条件版本和创建防重。`editable` 表示目录元数据资格，`writable` 继续表示内容写入资格；归档用户目录可改名而不解除归档，系统目录不可改。目录领域入口负责局部更新、曾用名和事务，回执支持 todo-list/calendar，旧库保数据升级后继续保留已退役请求。作者用法见[创建和修改目录](/plugins/tau-plugin-template/docs/task-data.md#创建和修改待办项目日历)。
 

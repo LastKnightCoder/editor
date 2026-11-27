@@ -42,6 +42,7 @@ export * from "./primitives/ResizeHandle";
 export * from "./primitives/Tag";
 export * from "./primitives/ValueDisplay";
 export * from "./primitives/datepicker/DatePicker";
+export * from "./primitives/datepicker/TimeField";
 export * from "./primitives/datepicker/DateRangePicker";
 export * from "./primitives/ImagePreview";
 export * from "./primitives/Tabs";

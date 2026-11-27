@@ -134,7 +134,13 @@ pub(super) fn metadata(
     row: &Value,
     zone: CalendarTimeZone,
 ) -> Result<Value, String> {
-    let id = row["id"].as_i64().ok_or("待办身份无效")?;
+    metadata_by_id(conn, row["id"].as_i64().ok_or("待办身份无效")?, zone)
+}
+pub(super) fn metadata_by_id(
+    conn: &Connection,
+    id: i64,
+    zone: CalendarTimeZone,
+) -> Result<Value, String> {
     let mut result = assistant_tasks::recurrence_state(conn, id)?;
     if let Some(rule) =
         snapshots::rows(conn, "todo_recurrence", "todo_item_id=?1", vec![id.into()])?.first()
@@ -279,7 +285,7 @@ pub(super) fn task_dto(
 ) -> Result<Value, String> {
     let id = row["id"].as_i64().ok_or("待办身份无效")?;
     let created = row["create_time"].as_i64().ok_or("待办身份无效")?;
-    let meta = metadata(conn, row, zone)?;
+    let meta = metadata_by_id(conn, id, zone)?;
     let mut title = json!({"id":format!("todo:{id}:{created}"),"title":row["title"],"completed":row["is_completed"]==1,"archived":row["is_archived"]==1,"dueAt":row["due_at"].as_i64().map(dates::iso).transpose()?});
     let mut snapshot = snapshots::capture_todo(conn, id)?;
     if let Some(date) = date {
@@ -959,9 +965,6 @@ pub(super) fn write_todo(
             {
                 return Err("周期提醒需要当日偏移".into());
             }
-            if recurring && reminders.as_array().is_none_or(|v| v.len() > 1) {
-                return Err("周期待办只支持一条提醒".into());
-            }
             super::plugin_schedule_data::set_reminders(
                 &tx,
                 "todo",
@@ -1018,7 +1021,7 @@ pub(super) fn write_todo(
         } else {
             match action {
                 "recurrence" => {
-                    let metadata = metadata(&tx, &row, zone)?;
+                    let metadata = metadata_by_id(&tx, id, zone)?;
                     if metadata["segments"]
                         .as_array()
                         .is_some_and(|v| v.is_empty())
@@ -1054,13 +1057,6 @@ pub(super) fn write_todo(
                 "state" => return Err("实例操作需要实例身份".into()),
                 "update" => {
                     let patch = &write["patch"];
-                    if !current["recurrence"].is_null()
-                        && patch
-                            .get("reminders")
-                            .is_some_and(|v| v.as_array().is_none_or(|r| r.len() > 1))
-                    {
-                        return Err("周期待办只支持一条提醒".into());
-                    }
                     if patch.get("parentId").is_some() || patch.get("listId").is_some() {
                         let parent = parent_todo(&tx, &patch["parentId"])?;
                         let old_group = row["group_id"].as_i64().ok_or("缺少清单")?;
@@ -1733,7 +1729,22 @@ mod tests {
     #[test]
     fn phase_three_rule_writes_and_instance_patches_preserve_original_identity() {
         let mut db = database();
-        let root=write_todo(&mut db,"fixture",&json!({"action":"create","input":{"title":"新系列","recurrence":{"type":"daily","interval":1,"startDate":"2026-10-01"},"reminders":[{"offsetMs":-32400000}]}}),ZONE,&HolidayDays::new()).unwrap();
+        let root=write_todo(&mut db,"fixture",&json!({"action":"create","input":{"title":"新系列","recurrence":{"type":"daily","interval":1,"startDate":"2026-10-01"},"reminders":[{"offsetMs":-32400000},{"offsetMs":-72000000}]}}),ZONE,&HolidayDays::new()).unwrap();
+        let edited = write_todo(
+            &mut db,
+            "fixture",
+            &json!({
+                "action":"update", "id":root["id"], "expectedRevision":root["revision"],
+                "patch":{"reminders":[{"offsetMs":-28800000},{"offsetMs":-72000000}]}
+            }),
+            ZONE,
+            &HolidayDays::new(),
+        )
+        .unwrap();
+        assert_eq!(
+            edited["reminders"],
+            json!([{"offsetMs":-72000000},{"offsetMs":-28800000}])
+        );
         let id = root["id"].as_str().unwrap();
         let instance_id = format!("{id}@2026-10-02");
         let first = super::super::plugin_schedule_data::get(

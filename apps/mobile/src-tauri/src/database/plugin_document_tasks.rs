@@ -6,7 +6,6 @@ use super::{
     plugin_task_dates as dates, plugin_task_snapshots as snapshots,
     plugin_tasks::{parse_task, TaskId},
 };
-use chrono::{TimeZone, Timelike};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::{json, Value};
 
@@ -57,8 +56,52 @@ fn source(conn: &Connection, content: i64) -> Result<Option<Value>, String> {
     let query="SELECT kind,id,title FROM (SELECT 'card' AS kind,id,'' AS title,0 AS priority FROM cards WHERE content_id=?1 UNION ALL SELECT 'article',id,title,1 FROM articles WHERE content_id=?1 AND is_delete=0 UNION ALL SELECT 'document',id,title,2 FROM project_item WHERE content_id=?1 UNION ALL SELECT 'diary',id,'日记',3 FROM diary_segments WHERE content_id=?1 UNION ALL SELECT 'diary',id,date,4 FROM diary_entries WHERE content_id=?1) ORDER BY priority,id LIMIT 1";
     conn.query_row(query,[content],|row|Ok(json!({"kind":row.get::<_,String>(0)?,"id":row.get::<_,i64>(1)?.to_string(),"title":row.get::<_,String>(2)?}))).optional().map_err(sql_error)
 }
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DocumentReminderAccess {
+    collectable: bool,
+    excluded: bool,
+    promoted_task_ids: std::collections::BTreeSet<String>,
+}
+
+impl DocumentReminderAccess {
+    pub(super) fn allows(&self, task: &str) -> bool {
+        self.collectable && !self.excluded && !self.promoted_task_ids.contains(task)
+    }
+}
+
+pub(super) fn document_reminder_access(
+    conn: &Connection,
+    content: i64,
+) -> Result<DocumentReminderAccess, String> {
+    let mut access = DocumentReminderAccess {
+        collectable: source(conn, content)?.is_some(),
+        excluded: false,
+        promoted_task_ids: Default::default(),
+    };
+    let mut statement = conn
+        .prepare("SELECT kind, task_id FROM doc_task_settings WHERE content_id=?1")
+        .map_err(sql_error)?;
+    let rows = statement
+        .query_map([content], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })
+        .map_err(sql_error)?;
+    for row in rows {
+        let (kind, task_id) = row.map_err(sql_error)?;
+        match kind.as_str() {
+            "excluded" => access.excluded = true,
+            "promoted" => {
+                access.promoted_task_ids.insert(task_id);
+            }
+            _ => {}
+        }
+    }
+    Ok(access)
+}
+
 pub(super) fn visible(conn: &Connection, content: i64, task: &str) -> Result<bool, String> {
-    Ok(source(conn,content)?.is_some()&&!conn.query_row("SELECT EXISTS(SELECT 1 FROM doc_task_settings WHERE content_id=?1 AND (kind='excluded' OR (kind='promoted' AND task_id=?2)))",params![content,task],|row|row.get::<_,bool>(0)).map_err(sql_error)?)
+    Ok(document_reminder_access(conn, content)?.allows(task))
 }
 pub(super) fn candidates(
     conn: &Connection,
@@ -196,24 +239,9 @@ fn dto(
     result["listId"] = super::document_task_header::group_id(conn, node, group.as_deref())?
         .map(|v| json!(v.to_string()))
         .unwrap_or(Value::Null);
-    result["reminders"] = if let Some(at) = node["taskReminder"]["at"].as_str() {
-        if _metadata["segments"]
-            .as_array()
-            .is_some_and(|v| !v.is_empty())
-        {
-            let time = dates::timestamp(at, zone)?;
-            let local = zone
-                .0
-                .timestamp_millis_opt(time)
-                .single()
-                .ok_or("提醒时间无效")?;
-            json!([{"offsetMs":-i64::from(local.hour()*3600000+local.minute()*60000+local.second()*1000+local.timestamp_subsec_millis())}])
-        } else {
-            json!([{"at":at}])
-        }
-    } else {
-        json!([])
-    };
+    result["reminders"] = json!(super::plugin_task_recurrence::read_document_reminders(
+        node, zone
+    )?);
     result["recurrence"] = if _metadata["segments"]
         .as_array()
         .is_some_and(|segments| !segments.is_empty())
@@ -1146,9 +1174,9 @@ mod tests {
         convert["expectedRevision"] = current["task"]["revision"].clone();
         current = apply(&mut db, &convert).unwrap();
         let mut reminder = request(&current, "update");
-        reminder["patch"] = json!({"reminders":[{"offsetMs":-32400000}]});
+        reminder["patch"] = json!({"reminders":[{"offsetMs":-32400000},{"offsetMs":-72000000}]});
         current = apply(&mut db, &reminder).unwrap();
-        assert_eq!(current["task"]["reminders"][0]["offsetMs"], -32400000);
+        assert_eq!(current["task"]["reminders"], reminder["patch"]["reminders"]);
         let id = format!("{}@2026-10-02", current["task"]["id"].as_str().unwrap());
         let instance = read(&db, &id, ZONE, &HolidayDays::new()).unwrap();
         let mut state = request(&instance, "state");

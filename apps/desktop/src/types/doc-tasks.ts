@@ -1,4 +1,6 @@
+import type { DocumentReminderAccess } from "@tau/shared/reminders";
 import type { EntityRef } from "@/entity/ref";
+import type { TaskReminder } from "@tau/shared/task-assistant";
 
 /** 文档待办所在的文档（卡片 / 文章 / 项目文档 / 日记） */
 export interface DocTaskSource {
@@ -29,17 +31,38 @@ export interface DocTaskItem {
   dueAt: number | null;
   /** 已转为独立待办（只在单篇条目列表里出现） */
   promoted?: boolean;
+  /** 正文勾选项上的提醒列表（兼容老单提醒与多提醒） */
+  reminders?: TaskReminder[];
+  /** 是否为重复正文勾选项 */
+  recurring?: boolean;
 }
 
+export type DocTaskReminderReadResult =
+  | {
+      ok: true;
+      reminders: TaskReminder[];
+      recurring: boolean;
+      digest: string;
+      writable: boolean;
+    }
+  | { ok: false; reason: "not-found" };
+
+export type DocTaskReminderWriteResult =
+  | "unavailable"
+  | "ok"
+  | "conflict"
+  | "not-found"
+  | "readonly"
+  | "busy";
+
 /** 编辑器里一篇文档的收集状态（文档底部状态条） */
-export interface DocTaskContentStatus {
-  excluded: boolean;
+export interface DocTaskContentStatus extends DocumentReminderAccess {
   openCount: number;
-  collectable: boolean;
 }
 
 export type DocTaskPromoteResult =
-  { ok: true; todoId: number } | { ok: false; reason: "not-found" | "no-group" };
+  | { ok: true; todoId: number }
+  | { ok: false; reason: "not-found" | "no-group" };
 
 /** 待办页一次取到的快照：未完成条目全量 + 各文档计数 */
 export interface DocTaskSnapshot {

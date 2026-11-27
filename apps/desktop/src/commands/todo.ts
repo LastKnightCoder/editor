@@ -223,9 +223,17 @@ export const updateNoteTitleSnapshot = async (linkId: number, title: string): Pr
 
 // ==================== Reminders ====================
 
-/** 待办提醒列表（截止前毫秒数，升序）：首个写 remind_before，其余写 item_reminder */
-export const updateTodoReminders = async (todoId: number, offsets: number[]): Promise<number[]> => {
-  return invoke("todo:update-reminders", { todoId, offsets });
+/** 待办提醒列表（截止前毫秒数，或重复待办当天负数钟点）：首个写 remind_before，其余写 item_reminder */
+export const updateTodoReminders = async (
+  todoId: number,
+  offsets: number[],
+  expectedOffsets?: number[]
+): Promise<number[]> => {
+  return invoke("todo:update-reminders", {
+    todoId,
+    offsets,
+    ...(expectedOffsets === undefined ? {} : { expectedOffsets }),
+  });
 };
 
 // ==================== Tags ====================

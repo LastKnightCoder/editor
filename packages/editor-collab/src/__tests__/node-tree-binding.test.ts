@@ -45,6 +45,27 @@ function setup(initial = [paragraph("A"), paragraph("B"), paragraph("C")]) {
 }
 
 describe("稳定节点的 Slate 操作绑定", () => {
+  it("清除最后一条正文提醒后，重开或同步仍保持清空", () => {
+    const { left, right, exchange, dispose } = setup([
+      {
+        ...paragraph("A"),
+        type: "check-list-item",
+        taskId: "task",
+        taskReminder: { version: 1, at: "2026-11-28T08:00:00Z" },
+      },
+    ]);
+    try {
+      Transforms.unsetNodes(left.editor, "taskReminder", { at: [0] });
+      exchange();
+      expect(right.tree.read()[0]).not.toHaveProperty("taskReminder");
+      left.editor.disconnectNodeTree();
+      left.editor.connectNodeTree();
+      expect(left.editor.children[0]).not.toHaveProperty("taskReminder");
+    } finally {
+      dispose();
+    }
+  });
+
   it("删除父元素只删除观察到的子树，远端新增子节点可恢复并随撤销归位", () => {
     const { left, right, exchange, dispose } = setup([
       { type: "blockquote", collabId: "P", children: [paragraph("A")] },

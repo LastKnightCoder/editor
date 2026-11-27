@@ -7,6 +7,9 @@ import {
   patchOccurrenceState,
   type TaskOccurrencePatch,
   documentTaskIsChecked,
+  documentTaskReminders,
+  taskReminderOnDay,
+  type TaskReminder,
   type AssistantTask,
   type DocumentTaskAttributes,
   type TaskOccurrenceRef,
@@ -161,6 +164,13 @@ export function readDocumentTask(
   }
   const source = resolveDocTaskSources(db, [ref.contentId]).get(ref.contentId);
   if (!source) readonlyReason = "原文来源已删除，不能继续修改或安排该待办";
+  const reminders = documentTaskReminders(node);
+  const first = reminders[0];
+  const start = node.taskRecurrence?.segments[0]?.effectiveDate;
+  const firstTime =
+    first && "offsetMs" in first && start
+      ? taskReminderOnDay(dateTime(start), first.offsetMs)
+      : null;
   return {
     taskRef: ref,
     revision: revision({
@@ -189,7 +199,15 @@ export function readDocumentTask(
           ? new Date(due).toISOString()
           : localDate(due),
     groupId: parsed.groupId,
-    reminderAt: node.taskReminder?.at ?? null,
+    reminders,
+    reminderAt:
+      node.taskReminder?.version === 1
+        ? node.taskReminder.at
+        : first && "at" in first
+          ? first.at
+          : firstTime === null
+            ? null
+            : new Date(firstTime).toISOString(),
     recurrence: (node.taskRecurrence?.segments ?? []).map(segment => ({
       ...segment,
       rule: segment.rule ? normalizeTaskRecurrenceRule(segment.rule) : null,
@@ -220,6 +238,7 @@ export function prepareDocumentCreate(
     groupId?: number;
     dueAt?: string | null;
     reminderAt?: string | null;
+    reminders?: TaskReminder[];
     recurrence?: TaskRecurrenceRule;
   }
 ): DocumentEdit {
@@ -242,12 +261,12 @@ export function prepareDocumentCreate(
     checked: false,
     children: [{ type: "paragraph", children: [{ type: "formatted", text: input.title }] }],
   };
-  patchDocumentFields(db, node, input);
   if (input.recurrence)
     node.taskRecurrence = {
       version: 1,
       segments: amendSegments([], input.recurrence.startDate, input.recurrence),
     };
+  patchDocumentFields(db, node, input);
   const parent = input.parentRef;
   if (
     parent &&
@@ -324,38 +343,29 @@ function patchDocumentFields(
       patch.reminderAt == null ? null : { version: 1, at: String(patch.reminderAt) };
   }
   if ("reminders" in patch) {
-    const reminders = patch.reminders as Array<{ offsetMs?: number; at?: string }>;
-    if (reminders.length > 1) fail("INVALID_ARGUMENT", "正文待办只支持一条提醒");
-    const reminder = reminders[0];
-    if (!reminder) node.taskReminder = null;
-    else if (node.taskRecurrence?.segments.length) {
-      const offset = reminder.offsetMs;
-      if (reminder.at !== undefined || offset === undefined || offset > 0 || offset <= -86400000)
-        fail("INVALID_ARGUMENT", "重复正文提醒需要当日时刻偏移");
-      const midnight = dateTime(localDate(Date.now()));
-      const anchor = new Date(midnight),
-        clock = -offset!;
-      anchor.setHours(
-        Math.floor(clock / 3600000),
-        Math.floor(clock / 60000) % 60,
-        Math.floor(clock / 1000) % 60,
-        clock % 1000
-      );
-      if (
-        anchor.getHours() * 3600000 +
-          anchor.getMinutes() * 60000 +
-          anchor.getSeconds() * 1000 +
-          anchor.getMilliseconds() !==
-          clock ||
-        anchor.getTime() - midnight !== clock
-      )
-        fail("AMBIGUOUS_TIME", "提醒时刻存在夏令时歧义");
-      node.taskReminder = { version: 1, at: anchor.toISOString() };
-    } else {
-      if (!reminder.at || reminder.at.length <= 10 || reminder.offsetMs !== undefined)
-        fail("INVALID_ARGUMENT", "普通正文提醒需要绝对时刻");
-      node.taskReminder = { version: 1, at: reminder.at! };
+    const reminders = patch.reminders as TaskReminder[];
+    const recurring = !!node.taskRecurrence?.segments.length;
+    const unique = new Map<number, TaskReminder>();
+    for (const reminder of reminders) {
+      if ("offsetMs" in reminder) {
+        const offset = reminder.offsetMs;
+        if (
+          !recurring ||
+          "at" in reminder ||
+          !Number.isSafeInteger(offset) ||
+          offset > 0 ||
+          offset <= -86400000
+        )
+          fail("INVALID_ARGUMENT", "仅重复正文提醒可使用当日时刻偏移");
+        unique.set(offset, { offsetMs: offset });
+      } else {
+        const time = dateTime(reminder.at);
+        if (recurring || reminder.at.length <= 10 || !Number.isFinite(time))
+          fail("INVALID_ARGUMENT", "普通正文提醒需要绝对时刻");
+        if (!unique.has(time)) unique.set(time, { at: reminder.at });
+      }
     }
+    node.taskReminder = unique.size ? { version: 2, reminders: [...unique.values()] } : null;
   }
   if ("archived" in patch) node.taskArchived = patch.archived === true;
 }
