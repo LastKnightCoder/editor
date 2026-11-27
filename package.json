@@ -39,6 +39,8 @@
     "db:schema:build": "node scripts/db/build-schema-bundles.mjs",
     "db:schema:check": "node scripts/db/check-schema-parity.mjs",
     "db:schema:prepare": "pnpm db:schema:build && pnpm db:schema:check && node --experimental-sqlite scripts/db/validate-schema-sql.mjs",
+    "docs:skill:build": "node scripts/build-user-docs-skill.mjs",
+    "docs:skill:check": "node scripts/build-user-docs-skill.mjs --check",
     "check": "pnpm --filter desktop exec tsc --noEmit",
     "lint": "node scripts/quality.mjs lint",
     "lint:all": "node scripts/quality.mjs lint:all",

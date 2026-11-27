@@ -128,11 +128,15 @@ it("图片编辑从注册服务的当前运行快照读取附件，不重读会�
   );
 });
 
-it("内置技能可被技能注册表解析，含 database-schema", async () => {
+it("内置技能可被技能注册表解析，含 database-schema 与 tau-docs 参考文档", async () => {
   const skills = new AiSkillRegistry();
   skills.registerSource(internalSkillSource);
   const list = await skills.list();
   expect(list.map(skill => skill.name)).toContain("主数据库结构与只读 SQL 查询");
+  expect(list.map(skill => skill.id)).toContain("internal:tau-docs");
+  const mobileDoc = await skills.readResource("internal:tau-docs", "references/mobile.md");
+  expect(mobileDoc).toContain("# 手机端");
+  expect(mobileDoc).not.toContain("::demo{");
 });
 
 it("系统提示带会话日期，并说明写入需确认", () => {

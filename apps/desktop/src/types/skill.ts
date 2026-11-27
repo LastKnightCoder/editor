@@ -25,6 +25,10 @@ export interface Skill extends SkillMeta {
   pluginName?: string;
   isInternal?: boolean; // 是否为内部 skill
   readmeContent?: string; // 内部 skill 的 SKILL.md 内容
+  /** 内部 skill 附带的只读参考资料相对路径列表 */
+  resourcePaths?: readonly string[];
+  /** 按相对路径读取内部 skill 的附属文件 */
+  readResource?: (relativePath: string) => Promise<string | undefined>;
   /** front-matter `disable-model-invocation: true` → 默认仅手动 */
   defaultInvocation?: SkillInvocation;
   allowedTools?: string[];
@@ -39,6 +43,8 @@ export interface InternalSkill {
   name: string;
   description: string;
   readmeContent: string; // SKILL.md 的完整内容
+  resourcePaths?: readonly string[];
+  readResource?: (relativePath: string) => Promise<string | undefined>;
   isInternal: true;
 }
 

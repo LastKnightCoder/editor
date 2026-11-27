@@ -5,7 +5,7 @@ import type { TranslationValues } from "@tau/i18n";
  */
 
 import { toast } from "@tau/ui";
-import { commitSkillImport, inspectSkillImport } from "@/commands/skill";
+import { commitSkillImport, inspectSkillImport, writeSkillFile } from "@/commands/skill";
 import useSkillStore from "@/stores/useSkillStore";
 import { splitSkillDocument } from "@/utils/skill-frontmatter";
 import type { Skill } from "@/types";
@@ -29,7 +29,20 @@ export async function copySkillToMine(skill: Skill): Promise<void> {
   try {
     if (skill.readmeContent !== undefined) {
       const { body } = splitSkillDocument(skill.readmeContent ?? "");
-      await store.createSkill({ name: skill.name, description: skill.description, body });
+      const created = await store.createSkill({
+        name: skill.name,
+        description: skill.description,
+        body,
+      });
+      if (skill.resourcePaths?.length && skill.readResource) {
+        for (const relativePath of skill.resourcePaths) {
+          const content = await skill.readResource(relativePath);
+          if (content !== undefined) {
+            await writeSkillFile(`${created.path}/${relativePath}`, content);
+          }
+        }
+        await store.loadSkills();
+      }
     } else {
       const inspection = await inspectSkillImport({ type: "folder", path: skill.path });
       const [candidate] = inspection.candidates;

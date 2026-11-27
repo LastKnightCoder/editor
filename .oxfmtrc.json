@@ -25,7 +25,8 @@
     "**/data",
     "pnpm-lock.yaml",
     "package-lock.json",
-    "**/__fixtures__/*.md"
+    "**/__fixtures__/*.md",
+    "packages/ai/src/skills/internal/*.generated.ts"
   ],
   "overrides": [
     {

@@ -111,7 +111,7 @@ function OverviewPane({
   const { skill } = item;
   const fileList =
     skill.readmeContent !== undefined
-      ? ["SKILL.md"]
+      ? ["SKILL.md", ...(skill.resourcePaths ?? [])]
       : files.filter(f => !f.isDirectory).map(f => f.relativePath ?? f.name);
 
   return (

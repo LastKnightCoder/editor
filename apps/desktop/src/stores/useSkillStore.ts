@@ -76,8 +76,10 @@ const toInternalSkills = (): Skill[] =>
     source: "builtin",
     isInternal: true,
     readmeContent: skill.readmeContent,
+    resourcePaths: skill.resourcePaths,
+    readResource: skill.readResource,
     defaultInvocation: "auto",
-    fileCount: 1,
+    fileCount: 1 + (skill.resourcePaths?.length ?? 0),
   }));
 
 /** 同名只保留优先级最高的一个 */

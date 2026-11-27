@@ -5,6 +5,11 @@ import markdownReadme from "./markdown.md?raw";
 import mindmapReadme from "./mindmap.md?raw";
 import queryDatabaseReadme from "./query-database.md?raw";
 import { QUERY_DATABASE_REFERENCE } from "../../query-database";
+import {
+  USER_DOCS_SKILL_README,
+  USER_DOCS_SKILL_RESOURCE_PATHS,
+  loadUserDocsSkillResource,
+} from "./user-docs.generated";
 
 export interface InternalSkillDefinition {
   /** 唯一标识，兼作 Skill 目录名 */
@@ -13,9 +18,22 @@ export interface InternalSkillDefinition {
   description: string;
   /** SKILL.md 的完整内容 */
   readmeContent: string;
+  /** 可选的只读附属文件相对路径列表（如 references/*.md） */
+  resourcePaths?: readonly string[];
+  /** 按相对路径读取内置 Skill 的附属文件 */
+  readResource?: (relativePath: string) => Promise<string | undefined>;
 }
 
 export const INTERNAL_SKILLS: readonly InternalSkillDefinition[] = [
+  {
+    folderName: "tau-docs",
+    name: "Tau 使用文档",
+    description:
+      "解答 Tau 的功能用法、界面入口、快捷键、配置、同步、协作、插件、手机端与常见问题时使用；不用于检索用户自己的笔记内容。",
+    readmeContent: USER_DOCS_SKILL_README,
+    resourcePaths: USER_DOCS_SKILL_RESOURCE_PATHS,
+    readResource: loadUserDocsSkillResource,
+  },
   {
     folderName: "query-database",
     name: "查询数据库",

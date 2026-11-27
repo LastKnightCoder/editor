@@ -38,6 +38,54 @@ const FOLDER_PARAM: ToolParameterSchema = {
 
 const normalizeRelative = (p: string) => p.replace(/\\/g, "/").replace(/^\.?\//, "");
 
+interface InternalTreeNode {
+  dirs: Map<string, InternalTreeNode>;
+  files: string[];
+}
+
+function formatInternalSkillTree(folderName: string, resourcePaths?: readonly string[]): string {
+  const root: InternalTreeNode = { dirs: new Map(), files: ["SKILL.md"] };
+  for (const rawPath of resourcePaths ?? []) {
+    const parts = normalizeRelative(rawPath).split("/").filter(Boolean);
+    if (!parts.length) continue;
+    let node = root;
+    for (let i = 0; i < parts.length - 1; i++) {
+      let next = node.dirs.get(parts[i]);
+      if (!next) {
+        next = { dirs: new Map(), files: [] };
+        node.dirs.set(parts[i], next);
+      }
+      node = next;
+    }
+    const fileName = parts[parts.length - 1];
+    if (!node.files.includes(fileName)) node.files.push(fileName);
+  }
+
+  const lines = [`${folderName}/ [只读]`];
+  const render = (node: InternalTreeNode, prefix: string) => {
+    const entries: Array<
+      { kind: "dir"; name: string; node: InternalTreeNode } | { kind: "file"; name: string }
+    > = [
+      ...[...node.dirs.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([name, child]) => ({ kind: "dir" as const, name, node: child })),
+      ...[...node.files]
+        .sort((a, b) => a.localeCompare(b))
+        .map(name => ({ kind: "file" as const, name })),
+    ];
+    entries.forEach((entry, index) => {
+      const isLast = index === entries.length - 1;
+      const branch = isLast ? "└── " : "├── ";
+      lines.push(`${prefix}${branch}${entry.name}${entry.kind === "dir" ? "/" : ""}`);
+      if (entry.kind === "dir") {
+        render(entry.node, `${prefix}${isLast ? "    " : "│   "}`);
+      }
+    });
+  };
+  render(root, "");
+  return lines.join("\n");
+}
+
 const RUN_SKILL_SCRIPT_TOOL_NAME = "run_skill_script";
 
 const runSkillScriptTool: ToolDefinition = {
@@ -185,7 +233,7 @@ export const skillToolsProvider: MCPProviderDefinition = {
         const skill = await findSkill(args.folderName);
         if (typeof skill === "string") return fail(skill);
         if (skill.readmeContent !== undefined)
-          return ok({ tree: `${skill.folderName}/ [只读]\n└── SKILL.md` });
+          return ok({ tree: formatInternalSkillTree(skill.folderName, skill.resourcePaths) });
         try {
           return ok({ tree: await getSkillTree(skill.path) });
         } catch (error) {
@@ -216,8 +264,17 @@ export const skillToolsProvider: MCPProviderDefinition = {
         }
         try {
           if (skill.readmeContent !== undefined) {
-            if (relativePath !== "SKILL.md") return fail("只读 Skill 只包含 SKILL.md");
-            return ok({ folderName: skill.folderName, relativePath, content: skill.readmeContent });
+            if (relativePath === "SKILL.md") {
+              return ok({
+                folderName: skill.folderName,
+                relativePath,
+                content: skill.readmeContent,
+              });
+            }
+            if (!skill.readResource) return fail("只读 Skill 只包含 SKILL.md");
+            const content = await skill.readResource(relativePath);
+            if (content === undefined) return fail(`未找到文件「${relativePath}」`);
+            return ok({ folderName: skill.folderName, relativePath, content });
           }
           const content = await readSkillFile(`${skill.path}/${relativePath}`);
           return ok({ folderName: skill.folderName, relativePath, content });
