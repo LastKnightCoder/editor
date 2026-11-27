@@ -94,6 +94,8 @@
 
 [平板适配](./tasks/tablet-layout.md) 记录窗口三档、左导航条、浮层居中与宽屏排版的方案、批次与验证。
 
+[桌面与移动正文 Yjs 合并同步](./tasks/content-sync/README.md) 记录三种同步偏好、共同 Yjs 基线、正文状态发布、两端适配与一致性验证方案。
+
 当前作者清单、统一 API 与平台支持以 [SDK 跨端契约](/plugins/tau-plugin-template/docs/portability.md)、[SDK 支持矩阵](/plugins/tau-plugin-template/docs/portability.md#各平台可用的接口) 为准；宿主装配与必要校验边界见 [跨端插件架构](./architecture/plugin-portability.md)。官方插件和模板在 [plugins/](/plugins/README.md) 以子模块维护；豆包语音合成的协议与发行流程见其 [开发文档](/plugins/tau-plugin-tts-seed/DEVELOPMENT.md)。
 
 ## notes/ — 一次性产物
