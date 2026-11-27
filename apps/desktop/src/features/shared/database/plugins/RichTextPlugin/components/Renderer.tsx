@@ -11,6 +11,7 @@ import { ContentEditDialog } from "@/components/ContentEditDialog";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import { createPendingContent } from "@/commands/content";
 import { buildCardFromContent, isContentIsCard } from "@/commands/card";
+import { useSharedDatabaseI18n } from "@/features/shared/database/i18n";
 import { defaultCardEventBus } from "@/utils";
 import { SearchResult } from "@/types";
 import { Descendant } from "slate";
@@ -25,6 +26,7 @@ interface RichTextRendererProps {
 
 const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
   ({ value, readonly, theme, onCellValueChange }) => {
+    const { t } = useSharedDatabaseI18n();
     const richTextList = Array.isArray(value) ? value : [];
 
     const [addPopoverVisible, setAddPopoverVisible] = useState(false);
@@ -79,10 +81,10 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
         // 正文引用由数据表保存时按差集维护，这里只更新单元格值
         const newValue = richTextList.filter(item => item.id !== itemToDelete.id);
         onCellValueChange(newValue);
-        toast.success("文档删除成功");
+        toast.success(t("editor.toast.deleted"));
       } catch (error) {
         console.error("删除文档失败:", error);
-        toast.error("删除文档失败");
+        toast.error(t("editor.toast.deleteFailed"));
       }
     });
 
@@ -122,11 +124,11 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
           setCurrentEditingTitle("未命名文档");
           setEditModalVisible(true);
 
-          toast.success("文档创建成功");
+          toast.success(t("editor.toast.created"));
         }
       } catch (error) {
         console.error("创建文档失败:", error);
-        toast.error("创建文档失败");
+        toast.error(t("editor.toast.createFailed"));
       }
     });
 
@@ -137,7 +139,7 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
 
       const exists = richTextList.some(doc => doc.contentId === item.contentId);
       if (exists) {
-        toast.warning("该文档已经关联");
+        toast.warning(t("editor.toast.alreadyLinked"));
         return;
       }
 
@@ -152,10 +154,10 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
 
         const newValue = [...richTextList, newRichTextItem];
         onCellValueChange(newValue);
-        toast.success("文档关联成功");
+        toast.success(t("editor.toast.linked"));
       } catch (error) {
         console.error("关联文档失败:", error);
-        toast.error("关联文档失败");
+        toast.error(t("editor.toast.linkFailed"));
       }
     });
 
@@ -194,10 +196,10 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
         handleTypeChange("card");
         setEditingIsCard(true);
         defaultCardEventBus.createEditor().publishCardEvent("card:created", card);
-        toast.success("已转为卡片");
+        toast.success(t("editor.toast.toCardDone"));
       } catch (error) {
         console.error("转为卡片失败:", error);
-        toast.error("转为卡片失败");
+        toast.error(t("editor.toast.toCardFailed"));
       } finally {
         setBuildingCard(false);
       }
@@ -280,7 +282,7 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
             ref={addTriggerRef}
             className="bg-hover hover:bg-press text-ink-2 hover:text-ink-1 rounded-tau-sm absolute top-1/2 right-1 flex -translate-y-1/2 cursor-pointer items-center gap-1 px-1.5 py-1 transition-colors"
             role="button"
-            aria-label="添加富文本"
+            aria-label={t("editor.add.aria")}
             onClick={() => setAddPopoverVisible(v => !v)}
           >
             <Plus className="h-4 w-4" strokeWidth={1.75} />
@@ -292,11 +294,11 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
           onOpenChange={open => {
             if (!open) setConfirmDeleteItem(null);
           }}
-          title="确认删除"
+          title={t("editor.delete.title")}
           context={confirmDeleteItem?.title}
-          impact="确定要删除这个富文本文档吗？"
+          impact={t("editor.delete.impact")}
           danger
-          confirmText="确定"
+          confirmText={t("editor.delete.confirm")}
           onConfirm={() => handleConfirmDelete()}
         />
 
@@ -306,8 +308,8 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
           onCancel={() => setSelectorModalVisible(false)}
           onSelect={handleSelectDocument}
           contentType={["card", "article", "project-item", "diary-moment"]}
-          title="选择要关联的文档"
-          emptyDescription="未找到相关文档"
+          title={t("editor.selector.title")}
+          emptyDescription={t("editor.selector.empty")}
           multiple={false}
           excludeContentIds={richTextList.map(item => item.contentId)}
         />
@@ -315,9 +317,9 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
         <ContentEditDialog
           open={editModalVisible && currentEditingContentId !== null}
           contentId={currentEditingContentId}
-          heading="编辑文档"
+          heading={t("editor.edit.heading")}
           title={currentEditingTitle}
-          titlePlaceholder="未命名文档"
+          titlePlaceholder={t("editor.edit.titlePlaceholder")}
           onTitleChange={title => {
             setCurrentEditingTitle(title);
             handleEditSave(title);
@@ -328,10 +330,10 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
                 variant="secondary"
                 size="sm"
                 loading={buildingCard}
-                loadingText="正在转换…"
+                loadingText={t("editor.edit.converting")}
                 onClick={() => void handleBuildCard()}
               >
-                转为卡片
+                {t("editor.edit.toCard")}
               </Button>
             )
           }

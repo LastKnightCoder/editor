@@ -1,5 +1,6 @@
 import React, { memo } from "react";
 import { FilePlus2, Search } from "lucide-react";
+import { useSharedDatabaseI18n } from "@/features/shared/database/i18n";
 
 interface DropdownMenuProps {
   theme: "light" | "dark";
@@ -8,18 +9,19 @@ interface DropdownMenuProps {
 }
 
 const DropdownMenu: React.FC<DropdownMenuProps> = memo(({ onLinkDocument, onCreateDocument }) => {
+  const { t } = useSharedDatabaseI18n();
   const menuItems = [
     {
       icon: <Search className="h-4 w-4" strokeWidth={1.75} />,
-      text: "关联文档",
+      text: t("editor.menu.link"),
       onClick: onLinkDocument,
-      description: "搜索并关联现有文档",
+      description: t("editor.menu.linkHint"),
     },
     {
       icon: <FilePlus2 className="h-4 w-4" strokeWidth={1.75} />,
-      text: "新建文档",
+      text: t("editor.menu.create"),
       onClick: onCreateDocument,
-      description: "创建新的富文本文档",
+      description: t("editor.menu.createHint"),
     },
   ];
 

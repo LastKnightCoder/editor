@@ -29,6 +29,7 @@ import {
 } from "../../features/cards/editorExtensions/useContentMention";
 import { ContentAccessNotice, usePluginContentAccess } from "./content-components-access";
 import { usePluginContentLocation } from "./content-components-location";
+import { usePluginHostI18n } from "./i18n";
 
 const COMPACT_BUTTONS = new Set<AccessoryItemId>([
   "context-media",
@@ -86,7 +87,9 @@ export function previewBlockLimit(value: number | undefined): number {
 export function PluginContentPreview({ contentRef, maxBlocks, kit = "full" }: ContentPreviewProps) {
   const state = usePluginContentAccess(contentRef, "read");
   const editorKit = useMobileContentKit("read", kit === "compact" ? "compact" : "full");
-  if (kit !== "full" && kit !== "compact") return <p role="alert">不支持的编辑器套件</p>;
+  const { t } = usePluginHostI18n();
+  if (kit !== "full" && kit !== "compact")
+    return <p role="alert">{t("components.unsupportedKit")}</p>;
   if (!state.snapshot) return <ContentAccessNotice state={state} />;
   const nodes = state.snapshot.document.content.slice(0, previewBlockLimit(maxBlocks));
   return (
@@ -110,7 +113,9 @@ export function PluginContentEditor({
   kit = "full",
 }: ContentEditorProps) {
   const state = usePluginContentAccess(contentRef, readonly ? "read" : "write");
-  if (kit !== "full" && kit !== "compact") return <p role="alert">不支持的编辑器套件</p>;
+  const { t } = usePluginHostI18n();
+  if (kit !== "full" && kit !== "compact")
+    return <p role="alert">{t("components.unsupportedKit")}</p>;
   if (!state.snapshot || !state.scope || !state.runtime?.data)
     return <ContentAccessNotice state={state} />;
   return (

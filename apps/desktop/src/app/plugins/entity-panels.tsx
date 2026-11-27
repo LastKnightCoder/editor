@@ -9,6 +9,7 @@ import type { PluginEntityPanelTarget } from "@tau/plugins";
 import { RecoverableBoundary } from "@/components/ErrorState";
 import { useDesktopPlugins } from "./context";
 import { PluginComponentScope } from "./content-components";
+import { usePluginHostI18n } from "./i18n";
 import type { RegisteredPluginEntityPanel } from "./runtime";
 
 function EntityPanel({
@@ -21,17 +22,19 @@ function EntityPanel({
   className?: string;
 }) {
   const Component = panel.definition.component;
+  const { t } = usePluginHostI18n();
   return (
     <RecoverableBoundary
       resetKeys={[target.kind, target.id]}
       fallback={({ error, reset }) => (
         <div className={cn("flex items-center gap-3", className)}>
           <EmptyNote className="mt-0 min-w-0 flex-1">
-            插件区块出错了：
-            {error instanceof Error ? error.message : String(error)}
+            {t("panels.failed", {
+              message: error instanceof Error ? error.message : String(error),
+            })}
           </EmptyNote>
           <Button size="sm" variant="ghost" onClick={reset}>
-            重试
+            {t("common.retry")}
           </Button>
         </div>
       )}

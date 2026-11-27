@@ -93,5 +93,15 @@
   "assist.failed": "{{name}}出错了",
   "assist.failureDescription": "右栏渲染时发生了意外错误，你的数据没有丢失。",
   "assist.retry": "重试",
-  "assist.webLabel": "网页"
+  "assist.webLabel": "网页",
+  "shell.dbConnecting": "正在连接数据库…",
+  "shell.dbFailed": "数据库连接失败，数据区块将不可用。",
+  "shell.retry": "重试",
+  "shell.enterAnyway": "仍要进入",
+  "nav.itemOpen": "打开",
+  "nav.itemUndo": "撤销",
+  "nav.itemHide": "从侧栏隐藏「{{name}}」",
+  "nav.itemHideWith": "从侧栏隐藏「{{name}}」，连同 {{dependents}}",
+  "nav.itemHideToast": "已隐藏「{{name}}」，内容都还在",
+  "nav.itemManageFeatures": "管理侧栏功能…"
 }

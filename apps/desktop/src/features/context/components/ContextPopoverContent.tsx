@@ -19,6 +19,7 @@ import type {
   EntityContext,
 } from "@/types/entity-context";
 import { ENTITY_KIND_META, LINEAGE_KIND_META, USAGE_KIND_ICON } from "../model";
+import { useContextI18n } from "../i18n";
 import { useEntityKindMeta } from "@/components/EntityKind";
 import { ContextRow as Row, ContextSection as Section } from "./ContextList";
 import { ContextLinksSection } from "./ContextLinks";
@@ -52,11 +53,12 @@ function SourceLine({ entity }: { entity: ContextEntity }) {
 
 function LineageLine({ item }: { item: ContextLineageItem }) {
   const { icon: Icon, label } = LINEAGE_KIND_META[item.node.kind];
+  const { t } = useContextI18n();
   return (
     <span className="text-ink-3 flex min-w-0 items-center gap-1.5 text-[12px]">
       <Icon className="size-[13px] shrink-0" strokeWidth={1.75} />
       {item.missing ? (
-        <span className="min-w-0 truncate">{label}已删除</span>
+        <span className="min-w-0 truncate">{t("lineage.deleted", { label })}</span>
       ) : (
         <>
           <b className="text-ink-2 min-w-0 truncate font-medium">{item.title}</b>
@@ -92,13 +94,14 @@ function LineageRows({
 
 function UsageLine({ usage }: { usage: ContextUsage }) {
   const Icon = USAGE_KIND_ICON[usage.kind];
+  const { t } = useContextI18n();
   const meta =
     usage.kind === "whiteboard"
       ? usage.meta
       : usage.kind === "todo"
         ? usage.completed
-          ? "待办 · 已完成"
-          : "待办"
+          ? t("usage.todoCompleted")
+          : t("usage.todo")
         : "Notebook";
   return (
     <span className="text-ink-3 flex min-w-0 items-center gap-1.5 text-[12px]">
@@ -163,12 +166,13 @@ export function ContextPopoverContent({
     usages,
   } = context ?? { ...EMPTY, selfContentIds: [] };
   const hidden = backlinkTotal - backlinks.length;
+  const { t } = useContextI18n();
   const openEntityRow = (entity: ContextEntity) =>
     entity.open ? onOpenTarget(entity.open) : onOpenEntity(entity.ref);
   return (
-    <div className="px-1.5 pb-2 pt-2.5">
+    <div className="px-1.5 pt-2.5 pb-2">
       {sources.length > 0 && (
-        <Section title="来源">
+        <Section title={t("section.sources")}>
           <LineageRows items={sources} onOpenTarget={onOpenTarget} />
         </Section>
       )}
@@ -181,7 +185,7 @@ export function ContextPopoverContent({
         onDialogOpenChange={onDialogOpenChange}
       />
       {backlinks.length > 0 && (
-        <Section title="被引用">
+        <Section title={t("section.referencedBy")}>
           {backlinks.map(({ source, snippets }) => (
             <Row key={`${source.ref.kind}:${source.ref.id}`} onClick={() => openEntityRow(source)}>
               <SourceLine entity={source} />
@@ -191,12 +195,14 @@ export function ContextPopoverContent({
             </Row>
           ))}
           {hidden > 0 && (
-            <p className="text-ink-3 mx-2.5 mt-1 text-[12px]">还有 {hidden} 处未列出</p>
+            <p className="text-ink-3 mx-2.5 mt-1 text-[12px]">
+              {t("section.referencedMore", { count: hidden })}
+            </p>
           )}
         </Section>
       )}
       {projections.length + notebookProjections.length > 0 && (
-        <Section title="也出现在">
+        <Section title={t("section.alsoIn")}>
           {projections.map(entity => (
             <Row key={`${entity.ref.kind}:${entity.ref.id}`} onClick={() => openEntityRow(entity)}>
               <SourceLine entity={entity} />
@@ -206,12 +212,12 @@ export function ContextPopoverContent({
         </Section>
       )}
       {derived.length > 0 && (
-        <Section title="衍生">
+        <Section title={t("section.derived")}>
           <LineageRows items={derived} onOpenTarget={onOpenTarget} />
         </Section>
       )}
       {usages.length > 0 && (
-        <Section title="被使用">
+        <Section title={t("section.usedIn")}>
           {usages.map(usage => (
             <Row key={usage.key} onClick={() => onOpenTarget(usage.open)}>
               <UsageLine usage={usage} />
@@ -220,7 +226,7 @@ export function ContextPopoverContent({
         </Section>
       )}
       {pluginLinks.length > 0 && (
-        <Section title="被关联">
+        <Section title={t("section.linkedBy")}>
           {pluginLinks.map(entity => (
             <Row key={`${entity.ref.kind}:${entity.ref.id}`} onClick={() => openEntityRow(entity)}>
               <SourceLine entity={entity} />
@@ -229,7 +235,7 @@ export function ContextPopoverContent({
         </Section>
       )}
       {related.length > 0 && (
-        <Section title="相关">
+        <Section title={t("section.related")}>
           {related.map(({ entity, summary }) => (
             <Row
               key={`${entity.ref.kind}:${entity.ref.id}`}
@@ -238,8 +244,8 @@ export function ContextPopoverContent({
                 onConnect ? (
                   <button
                     type="button"
-                    title="添加连接"
-                    aria-label={`与「${entity.title}」添加连接`}
+                    title={t("links.add")}
+                    aria-label={t("section.connectWith", { title: entity.title })}
                     onClick={() => onConnect(entity.ref)}
                     className="text-ink-3 hover:bg-accent-soft hover:text-accent-text rounded-tau-sm grid size-[22px] place-items-center"
                   >

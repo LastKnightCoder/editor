@@ -17,16 +17,18 @@ import { createDatabaseItem } from "@/commands/database-item";
 import { emptyQuery, queueQueryOpenIntent } from "@/features/shared/query-database/headerSlot";
 import { starterQuery } from "@/features/shared/query-database/summary";
 import { useCodeAssist } from "@/features/shared/database/useFormulaAssist";
+import { useDatabasesI18n, type DatabasesMessageKey } from "./i18n";
 
-const STARTERS: { source: QuerySource; icon: LucideIcon; hint: string }[] = [
-  { source: "cards", icon: StickyNote, hint: "标题、标签、字数、更新时间" },
-  { source: "articles", icon: BookOpen, hint: "标题、标签、字数、置顶" },
-  { source: "documents", icon: FileText, hint: "标题、所属项目、类型" },
-  { source: "projects", icon: Folder, hint: "标题、归档、根文档数" },
-  { source: "todos", icon: SquareCheck, hint: "待办、完成、截止日期、清单" },
-  { source: "calendar", icon: Calendar, hint: "日程、开始、结束、全天" },
-  { source: "diary", icon: NotebookPen, hint: "日期、标签、字数" },
-  { source: "whiteboards", icon: PenTool, hint: "标题、标签、页数" },
+/* 来源提示走词典投影：source id 稳定，hint 文案随语言解析 */
+const STARTERS: { source: QuerySource; icon: LucideIcon; hintKey: DatabasesMessageKey }[] = [
+  { source: "cards", icon: StickyNote, hintKey: "create.hint.cards" },
+  { source: "articles", icon: BookOpen, hintKey: "create.hint.articles" },
+  { source: "documents", icon: FileText, hintKey: "create.hint.documents" },
+  { source: "projects", icon: Folder, hintKey: "create.hint.projects" },
+  { source: "todos", icon: SquareCheck, hintKey: "create.hint.todos" },
+  { source: "calendar", icon: Calendar, hintKey: "create.hint.calendar" },
+  { source: "diary", icon: NotebookPen, hintKey: "create.hint.diary" },
+  { source: "whiteboards", icon: PenTool, hintKey: "create.hint.whiteboards" },
 ];
 
 export interface CreateDatabaseDialogProps {
@@ -37,6 +39,7 @@ export interface CreateDatabaseDialogProps {
 
 /** 新建实时查询：只选起点（一句话或来源），编辑都在创建后的数据库页里完成 */
 export function CreateDatabaseDialog({ open, onClose, onCreated }: CreateDatabaseDialogProps) {
+  const { t } = useDatabasesI18n();
   const assist = useCodeAssist("queryDatabase");
   const [request, setRequest] = useState("");
   const [source, setSource] = useState<QuerySource>();
@@ -53,7 +56,7 @@ export function CreateDatabaseDialog({ open, onClose, onCreated }: CreateDatabas
       onClose();
       onCreated(created);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "创建失败");
+      toast.error(error instanceof Error ? error.message : t("create.failed"));
     } finally {
       setSaving(false);
     }
@@ -84,15 +87,13 @@ export function CreateDatabaseDialog({ open, onClose, onCreated }: CreateDatabas
         setRequest("");
         setSource(undefined);
       }}
-      title="新建实时查询"
+      title={t("create.title")}
       locked={saving}
       width={720}
       footer={
         <>
           <span className="text-ink-3 mr-auto text-[12px]">
-            {request.trim()
-              ? "AI 会在打开的数据库里编写查询，写完即保存。"
-              : "结果随原内容自动更新，只能查看。"}
+            {request.trim() ? t("create.assist.hintAi") : t("create.assist.hintReadonly")}
           </span>
           <Button
             variant="ghost"
@@ -100,7 +101,7 @@ export function CreateDatabaseDialog({ open, onClose, onCreated }: CreateDatabas
             disabled={saving}
             onClick={() => void create({ query: emptyQuery(), title: "实时查询" })}
           >
-            写代码
+            {t("create.writeCode")}
           </Button>
           <Button
             variant="primary"
@@ -109,7 +110,7 @@ export function CreateDatabaseDialog({ open, onClose, onCreated }: CreateDatabas
             disabled={!ready}
             onClick={() => void submit()}
           >
-            {request.trim() ? "生成并打开" : "创建"}
+            {request.trim() ? t("create.submit.generate") : t("create.submit.create")}
           </Button>
         </>
       }
@@ -137,16 +138,16 @@ export function CreateDatabaseDialog({ open, onClose, onCreated }: CreateDatabas
                   if (event.key === "Enter" && !event.nativeEvent.isComposing && ready)
                     void submit();
                 }}
-                placeholder="描述你想看的数据，AI 写好查询"
-                aria-label="描述想看的数据"
+                placeholder={t("create.request.placeholder")}
+                aria-label={t("create.request.aria")}
                 className="text-ink-1 placeholder:text-ink-3 min-w-0 flex-1 bg-transparent text-[13px] outline-none"
               />
             </label>
-            <p className="text-ink-3 mt-[18px] mb-2 text-[12px]">或者从一个来源开始</p>
+            <p className="text-ink-3 mt-[18px] mb-2 text-[12px]">{t("create.source.divider")}</p>
           </>
         )}
         <div className="grid grid-cols-3 gap-2">
-          {STARTERS.map(({ source: kind, icon: Icon, hint }) => (
+          {STARTERS.map(({ source: kind, icon: Icon, hintKey }) => (
             <button
               key={kind}
               type="button"
@@ -172,10 +173,10 @@ export function CreateDatabaseDialog({ open, onClose, onCreated }: CreateDatabas
               <span className="min-w-0">
                 <b className="text-ink-1 block text-[13px] font-medium">
                   {QUERY_SOURCES[kind].title === "普通数据库行"
-                    ? "数据库"
+                    ? t("create.source.title.database")
                     : QUERY_SOURCES[kind].title}
                 </b>
-                <span className="text-ink-3 block truncate text-[11.5px]">{hint}</span>
+                <span className="text-ink-3 block truncate text-[11.5px]">{t(hintKey)}</span>
               </span>
             </button>
           ))}

@@ -1,0 +1,19 @@
+{
+  "ref.kindCard": "Card",
+  "ref.kindArticle": "Article",
+  "ref.kindDocument": "Project document",
+  "ref.kindDiary": "Diary",
+  "ref.kindProject": "Project",
+  "ref.kindTodo": "To-do",
+  "ref.kindEvent": "Event",
+  "ref.kindPluginEntity": "Plugin content",
+  "ref.kindFallback": "Content reference",
+  "ref.pluginPageUnavailable": "{{name}} (plugin page unavailable)",
+  "ref.readFailed": "{{name}} (failed to load)",
+  "ref.deleted": "Deleted",
+  "ref.allowAccess": "Allow access",
+  "ref.notAllowed": "Not allowed",
+  "ref.invalidated": "{{name}} (reference no longer available)",
+  "ref.untitled": "Untitled {{name}}",
+  "components.unsupportedKit": "Unsupported editor kit"
+}

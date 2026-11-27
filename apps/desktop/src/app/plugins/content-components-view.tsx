@@ -15,6 +15,7 @@ import { useDesktopPlugins } from "./context";
 import { usePluginComponentScope } from "./component-scope";
 import { resolvePluginContentTarget, type PluginContentTarget } from "./content-target";
 import { PLUGIN_DETAIL_KEY } from "./runtime";
+import { usePluginHostI18n } from "./i18n";
 
 type Mode = "read" | "write";
 type Access =
@@ -107,18 +108,19 @@ function AccessNotice({
   request,
   requesting,
 }: ReturnType<typeof useContentAccess> & { mode: Mode }) {
+  const { t } = usePluginHostI18n();
   if (access.status === "loading" || access.status === "granted") return null;
-  const verb = mode === "write" ? "编辑" : "查看";
+  const verb = mode === "write" ? t("components.verbEdit") : t("components.verbView");
   const message =
     access.status === "outside"
-      ? "正文组件只能在插件页面中使用"
+      ? t("components.pluginPageOnly")
       : access.status === "missing"
-        ? "内容不存在或已删除"
+        ? t("components.missing")
         : access.status === "error"
-          ? `无法读取这段内容：${access.message}`
+          ? t("components.readFailed", { message: access.message })
           : access.status === "prompt"
-            ? `插件需要你的允许才能${verb}这段内容`
-            : `插件没有获准${verb}这段内容，可在插件详情页的「权限」中修改`;
+            ? t("components.prompt", { verb })
+            : t("components.denied", { verb });
   return (
     <div
       role={access.status === "error" ? "alert" : "status"}
@@ -128,7 +130,7 @@ function AccessNotice({
       <span className="min-w-0 flex-1">{message}</span>
       {access.status === "prompt" && (
         <Button size="sm" variant="soft" loading={requesting} onClick={() => void request()}>
-          允许访问
+          {t("ref.allowAccess")}
         </Button>
       )}
       {access.status === "denied" && context && (
@@ -142,7 +144,7 @@ function AccessNotice({
             })
           }
         >
-          查看权限
+          {t("components.viewPermissions")}
         </Button>
       )}
     </div>

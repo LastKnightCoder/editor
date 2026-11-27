@@ -1,0 +1,19 @@
+{
+  "ref.kindCard": "卡片",
+  "ref.kindArticle": "文章",
+  "ref.kindDocument": "專案文件",
+  "ref.kindDiary": "日記",
+  "ref.kindProject": "專案",
+  "ref.kindTodo": "待辦",
+  "ref.kindEvent": "行程",
+  "ref.kindPluginEntity": "外掛內容",
+  "ref.kindFallback": "內容引用",
+  "ref.pluginPageUnavailable": "{{name}}（外掛頁面不可用）",
+  "ref.readFailed": "{{name}}（讀取失敗）",
+  "ref.deleted": "已刪除",
+  "ref.allowAccess": "允許存取",
+  "ref.notAllowed": "未獲准查看",
+  "ref.invalidated": "{{name}}（引用已失效）",
+  "ref.untitled": "無標題{{name}}",
+  "components.unsupportedKit": "不支援的編輯器套件"
+}

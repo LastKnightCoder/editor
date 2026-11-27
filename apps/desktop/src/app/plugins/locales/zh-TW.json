@@ -1,0 +1,21 @@
+{
+  "ref.displayOnlyInPluginPage": "{{name}}（只能在外掛頁面中顯示）",
+  "ref.readFailed": "{{name}}（讀取失敗）",
+  "ref.deleted": "已刪除",
+  "ref.allowAccess": "允許存取",
+  "ref.notAllowed": "未獲准查看",
+  "ref.openFailed": "開啟失敗",
+  "ref.untitled": "無標題{{name}}",
+  "outputs.failed": "外掛出錯了：{{message}}",
+  "panels.failed": "外掛區塊出錯了：{{message}}",
+  "common.retry": "重試",
+  "components.pluginPageOnly": "正文元件只能在外掛頁面中使用",
+  "components.missing": "內容不存在或已刪除",
+  "components.readFailed": "無法讀取這段內容：{{message}}",
+  "components.verbEdit": "編輯",
+  "components.verbView": "檢視",
+  "components.prompt": "外掛需要你的允許才能{{verb}}這段內容",
+  "components.denied": "外掛沒有獲准{{verb}}這段內容，可在外掛詳細資料頁的「權限」中修改",
+  "components.viewPermissions": "查看權限",
+  "window.close": "關閉視窗"
+}

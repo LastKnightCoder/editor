@@ -14,6 +14,7 @@ import type { SearchResult } from "@/types/search";
 import type { ContextLink } from "@/types/entity-context";
 import { useAddContentLink, useRemoveContentLink } from "../queries";
 import { ENTITY_KIND_META } from "../model";
+import { useContextI18n } from "../i18n";
 import { EntityKindIcon, EntityKindLabel } from "@/components/EntityKind/EntityKindIcon";
 import { ContextRow, ContextSection } from "./ContextList";
 
@@ -41,6 +42,7 @@ export function AddContentLinkDialog({
   excludeContentIds,
 }: AddContentLinkDialogProps) {
   const addLink = useAddContentLink();
+  const { t } = useContextI18n();
   return (
     <ContentSelectorModal
       open={open}
@@ -54,16 +56,17 @@ export function AddContentLinkDialog({
           { from, to: { kind, id: picked.id } },
           {
             onSuccess: linked => {
-              if (!linked) toast.info("已连接或同一正文，无需重复连接");
+              if (!linked) toast.info(t("links.alreadyLinked"));
             },
-            onError: error => toast.error(error instanceof Error ? error.message : "添加连接失败"),
+            onError: error =>
+              toast.error(error instanceof Error ? error.message : t("links.addFailed")),
           }
         );
       }}
       contentType={["card", "article", "project-item", "diary-moment"]}
       excludeContentIds={excludeContentIds}
-      title="添加连接"
-      subtitle="连接绑定正文：卡片、文章、项目文档与日记之间可互连"
+      title={t("links.addTitle")}
+      subtitle={t("links.addSubtitle")}
     />
   );
 }
@@ -90,6 +93,7 @@ export function ContextLinksSection({
 }: ContextLinksSectionProps) {
   const [addOpen, setAddOpen] = useState(false);
   const removeLink = useRemoveContentLink();
+  const { t } = useContextI18n();
   const setDialogOpen = (open: boolean) => {
     setAddOpen(open);
     onDialogOpenChange?.(open);
@@ -101,7 +105,7 @@ export function ContextLinksSection({
   ];
 
   return (
-    <ContextSection title="连接">
+    <ContextSection title={t("links.sectionTitle")}>
       {links.map(({ entity, inlineOnly }) => {
         const kindMeta = ENTITY_KIND_META[entity.ref.kind];
         const isCard = entity.ref.kind === "card";
@@ -117,14 +121,16 @@ export function ContextLinksSection({
               inlineOnly ? undefined : (
                 <button
                   type="button"
-                  aria-label="解除连接"
-                  title="解除连接"
+                  aria-label={t("links.remove")}
+                  title={t("links.remove")}
                   onClick={() =>
                     removeLink.mutate(
                       { from: self, to: entity.ref },
                       {
                         onError: error =>
-                          toast.error(error instanceof Error ? error.message : "解除连接失败"),
+                          toast.error(
+                            error instanceof Error ? error.message : t("links.removeFailed")
+                          ),
                       }
                     )
                   }
@@ -151,7 +157,7 @@ export function ContextLinksSection({
               <LinkIcon
                 className="text-ink-3 size-3 shrink-0"
                 strokeWidth={1.75}
-                aria-label={inlineOnly ? "正文内联引用" : "显式连接"}
+                aria-label={inlineOnly ? t("links.inlineRefLabel") : t("links.explicitLabel")}
               />
             </span>
           </ContextRow>
@@ -163,7 +169,7 @@ export function ContextLinksSection({
         className="text-ink-3 hover:bg-hover hover:text-ink-2 rounded-tau-sm flex w-full items-center gap-1.5 px-2.5 py-[7px] text-[13px] transition-colors"
       >
         <Plus className="size-[13px]" strokeWidth={1.75} />
-        添加连接
+        {t("links.add")}
       </button>
       <AddContentLinkDialog
         open={addOpen}

@@ -10,6 +10,7 @@ import { Button, EmptyNote, UiProvider } from "@tau/ui";
 import { RecoverableBoundary } from "@/components/ErrorState";
 import { useDesktopPlugins } from "./context";
 import { PluginComponentScope } from "./component-scope";
+import { usePluginHostI18n } from "./i18n";
 import type { RegisteredPluginNotebookOutput } from "./runtime";
 
 export type { RegisteredPluginNotebookOutput };
@@ -47,16 +48,19 @@ export function PluginNotebookSlot({
   resetKeys: unknown[];
   children: ReactNode;
 }) {
+  const { t } = usePluginHostI18n();
   return (
     <RecoverableBoundary
       resetKeys={resetKeys}
       fallback={({ error, reset }) => (
         <div className="flex items-center gap-3">
           <EmptyNote className="mt-0 min-w-0 flex-1">
-            插件出错了：{error instanceof Error ? error.message : String(error)}
+            {t("outputs.failed", {
+              message: error instanceof Error ? error.message : String(error),
+            })}
           </EmptyNote>
           <Button size="sm" variant="ghost" onClick={reset}>
-            重试
+            {t("common.retry")}
           </Button>
         </div>
       )}

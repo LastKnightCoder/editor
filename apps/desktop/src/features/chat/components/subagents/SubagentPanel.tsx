@@ -14,16 +14,17 @@ import {
 } from "./focusStore";
 import { isActive, needsUser } from "./model";
 import { useSubagentItems, type SubagentItem } from "./useSubagentItems";
+import { useSubagentsI18n } from "../../subagents.i18n";
 import type { SubagentParentRef } from "@/types/subagent";
 
 const GROUPS = [
-  { title: "等你处理", match: (item: SubagentItem) => needsUser(item.status) },
+  { id: "awaiting", match: (item: SubagentItem) => needsUser(item.status) },
   {
-    title: "工作中",
+    id: "working",
     match: (item: SubagentItem) => item.status === "running" || item.status === "queued",
   },
-  { title: "已结束", match: (item: SubagentItem) => !isActive(item.status) },
-];
+  { id: "ended", match: (item: SubagentItem) => !isActive(item.status) },
+] as const;
 
 /** 对话顶部常驻入口：本会话全部子 Agent 的汇总胶囊，点开分组列表，再点一行进详情 */
 export function SubagentHub({
@@ -37,6 +38,7 @@ export function SubagentHub({
   onLocate?: (agentId: string) => void;
 }) {
   const parentScope = parent.scope;
+  const { t } = useSubagentsI18n();
   const { items } = useSubagentItems(parent);
   const [open, setOpen] = useState(false);
   const now = useNow(open && items.some(item => item.status === "running"));
@@ -46,10 +48,10 @@ export function SubagentHub({
     item => item.status === "running" || item.status === "queued"
   ).length;
   const label = attention
-    ? `${attention} 个等你处理`
+    ? t("panel.count.attention", { count: attention })
     : working
-      ? `${working} 个子 Agent 工作中`
-      : `${items.length} 个子 Agent · 已结束`;
+      ? t("panel.count.working", { count: working })
+      : t("panel.count.ended", { count: items.length });
   const ring = attention ? "border-warn-soft" : "border-page";
   return (
     <Popover
@@ -62,7 +64,7 @@ export function SubagentHub({
         <button
           type="button"
           title={label}
-          aria-label={`子 Agent：${label}`}
+          aria-label={t("panel.triggerLabel", { summary: label })}
           className={cn(
             "text-tau-sm ease-tau-out flex h-7 items-center gap-[7px] rounded-full pr-2.5 pl-[5px] whitespace-nowrap transition-colors duration-[160ms]",
             attention
@@ -90,7 +92,7 @@ export function SubagentHub({
       }
     >
       <div className="text-tau-sm text-ink-3 flex items-center gap-2 px-2 pt-1.5 pb-2">
-        <b className="text-tau-meta text-ink-1 font-semibold">本对话的子 Agent</b>
+        <b className="text-tau-meta text-ink-1 font-semibold">{t("panel.header")}</b>
         <span className="tabular-nums">{items.length}</span>
       </div>
       <FadeScroll className="flex min-h-0 flex-col border-r-[3px]">
@@ -98,9 +100,9 @@ export function SubagentHub({
           const list = items.filter(group.match);
           if (!list.length) return null;
           return (
-            <div key={group.title} className="flex flex-col">
+            <div key={group.id} className="flex flex-col">
               <div className="text-tau-micro text-ink-3 px-2.5 pt-2 pb-1">
-                {group.title} · {list.length}
+                {t(`status.${group.id}`)} · {list.length}
               </div>
               {list.map(item => (
                 <div key={item.view.agent.agentId} className="group/hub relative min-w-0">
@@ -115,8 +117,8 @@ export function SubagentHub({
                   />
                   {onLocate && (
                     <IconButton
-                      title="定位到派发消息"
-                      aria-label="定位到派发消息"
+                      title={t("panel.locate")}
+                      aria-label={t("panel.locate")}
                       className="bg-surface absolute top-1.5 right-[118px] size-6 opacity-0 transition-opacity group-hover/hub:opacity-100 focus-visible:opacity-100 [&_svg]:size-3.5"
                       onClick={() => {
                         setOpen(false);
@@ -150,6 +152,7 @@ export function SubagentDetailLayer({
   isDark: boolean;
 }) {
   const parentScope = parent.scope;
+  const { t } = useSubagentsI18n();
   const { items } = useSubagentItems(parent);
   const openedId = useOpenedSubagent(parentScope);
   const opened = items.find(item => item.view.agent.agentId === openedId) ?? null;
@@ -175,7 +178,7 @@ export function SubagentDetailLayer({
             key={item.view.agent.agentId}
             type="button"
             title={item.view.agent.title}
-            aria-label={`切换到「${item.view.agent.title}」`}
+            aria-label={t("panel.switchTo", { title: item.view.agent.title })}
             aria-pressed={item.view.agent.agentId === openedId}
             onClick={() => openSubagentDetail(parentScope, item.view.agent.agentId)}
             className="hover:bg-hover aria-pressed:bg-selected grid size-[26px] place-items-center rounded-[8px]"
@@ -191,7 +194,7 @@ export function SubagentDetailLayer({
     return (
       <div
         role="dialog"
-        aria-label={`子 Agent「${opened.view.agent.title}」`}
+        aria-label={t("panel.layerLabel", { title: opened.view.agent.title })}
         className="bg-surface rounded-tau-lg animate-subagent-drill-in absolute inset-0 z-20 flex flex-col overflow-hidden motion-reduce:animate-none"
       >
         <div className="border-line-2 flex h-11 flex-none items-center gap-1 border-b pr-2 pl-1.5">
@@ -201,7 +204,7 @@ export function SubagentDetailLayer({
             className="text-tau-meta text-ink-2 hover:bg-hover hover:text-ink-1 flex h-7 items-center gap-1 rounded-[8px] pr-2 pl-1"
           >
             <ChevronLeft size={16} strokeWidth={1.75} />
-            返回对话
+            {t("panel.backToChat")}
           </button>
           <span className="flex-1" />
           {peers}
@@ -223,8 +226,10 @@ export function SubagentDetailLayer({
       minWidth={SUBAGENT_DRAWER_MIN_W}
       // 抽屉在对话容器内定位，最宽留出左侧一窄条对话，便于点回任务卡
       maxWidth={Math.max(SUBAGENT_DRAWER_MIN_W, containerWidth - 120)}
-      label={shown ? `子 Agent「${shown.view.agent.title}」` : "子 Agent"}
-      closeLabel="关闭子 Agent 详情"
+      label={
+        shown ? t("panel.layerLabel", { title: shown.view.agent.title }) : t("panel.drawerFallback")
+      }
+      closeLabel={t("panel.drawerClose")}
       className="z-20"
       ref={setPanel}
     >

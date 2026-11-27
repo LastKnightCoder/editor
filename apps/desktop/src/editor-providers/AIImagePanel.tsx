@@ -11,6 +11,7 @@ import LocalImage from "@/components/LocalImage";
 import { generateImageResources } from "@/services/image-generation";
 import { useImageCapabilities } from "@/services/image-capabilities";
 import { uploadResource as uploadResourceCommand } from "@/hooks/useUploadResource";
+import { aiImageT, useAIImageI18n } from "./ai-image.i18n";
 
 /**
  * AI 生图/修图弹窗（desktop）：
@@ -24,17 +25,16 @@ type PendingAIImage = {
   id: string;
   url: string;
   prompt: string;
-  label: string;
+  /** 展示类别与创建时固定的序号，渲染时投影为「结果 N」「参考 N」 */
+  kind: "result" | "reference";
+  index: number;
   fileName?: string;
   mimeType?: string;
 };
 
-type AIReferenceItem = {
-  id: string;
-  label: string;
-  url?: string;
-  kind: "empty" | "original" | "result";
-};
+type AIReferenceItem =
+  | { id: string; kind: "empty" | "original"; url?: string }
+  | { id: string; kind: "result" | "reference"; index: number; url?: string };
 
 const isImageGenerationConfigured = () => useImageCapabilities.getState().canGenerate;
 const isImageEditingConfigured = () => useImageCapabilities.getState().canEdit;
@@ -57,6 +57,7 @@ export const AIImageDialog = ({
   onConfirm,
 }: AIImageDialogProps) => {
   const capabilities = useImageCapabilities();
+  const { t } = useAIImageI18n();
   const taskRef = useRef<AbortController | null>(null);
   useEffect(() => {
     setAiSubmitting(false);
@@ -75,15 +76,24 @@ export const AIImageDialog = ({
   const [selectedEditResultId, setSelectedEditResultId] = useState<string | null>(null);
   const [previewingReference, setPreviewingReference] = useState<AIReferenceItem | null>(null);
 
+  const referenceLabel = (item: AIReferenceItem) =>
+    item.kind === "result"
+      ? t("candidate.result", { index: item.index })
+      : item.kind === "reference"
+        ? t("candidate.reference", { index: item.index })
+        : item.kind === "original"
+          ? t("candidate.original")
+          : t("candidate.none");
+
   const getAIReferenceItems = (action: AIAction): AIReferenceItem[] => {
     if (action === "generate") {
       return [
-        { id: "empty", label: "无参考", kind: "empty" },
+        { id: "empty", kind: "empty" },
         ...generatedCandidates.map(item => ({
           id: item.id,
-          label: item.label,
+          kind: item.kind,
+          index: item.index,
           url: item.url,
-          kind: "result" as const,
         })),
       ];
     }
@@ -91,15 +101,14 @@ export const AIImageDialog = ({
     return [
       {
         id: "original",
-        label: "原始图",
-        url: originalUrl,
         kind: "original",
+        url: originalUrl,
       },
       ...editReferenceCandidates.map(item => ({
         id: item.id,
-        label: item.label,
+        kind: item.kind,
+        index: item.index,
         url: item.url,
-        kind: "result" as const,
       })),
     ];
   };
@@ -131,7 +140,7 @@ export const AIImageDialog = ({
     const isGenerate = action === "generate";
     const prompt = (isGenerate ? generatePrompt : editPrompt).trim();
     if (!prompt) {
-      toast.warning("请输入图片要求");
+      toast.warning(t("feedback.promptRequired"));
       return;
     }
 
@@ -140,7 +149,7 @@ export const AIImageDialog = ({
       .map(item => item.url)
       .filter((item): item is string => Boolean(item));
     if (selectedReferenceUrls.length ? !capabilities.canEdit : !capabilities.canGenerate) {
-      toast.warning("当前图片插件未就绪或不支持该操作");
+      toast.warning(t("feedback.capabilityUnavailable"));
       return;
     }
     taskRef.current?.abort();
@@ -154,13 +163,14 @@ export const AIImageDialog = ({
         signal: controller.signal,
       });
       controller.signal.throwIfAborted();
-      if (!result) throw new Error("图片生成服务未返回图片");
+      if (!result) throw new Error(t("feedback.noResult"));
       const candidates = isGenerate ? generatedCandidates : editedCandidates;
       const pendingImage: PendingAIImage = {
         id: getUuid(),
         url: result.url,
         prompt,
-        label: `结果 ${candidates.length + 1}`,
+        kind: "result",
+        index: candidates.length + 1,
         fileName: result.fileName,
         mimeType: result.mimeType,
       };
@@ -174,7 +184,7 @@ export const AIImageDialog = ({
     } catch (error) {
       if (controller.signal.aborted || (error as Error).name === "AbortError") return;
       console.error("AI 图片处理失败:", error);
-      toast.error((error as Error).message || "AI 图片处理失败");
+      toast.error((error as Error).message || t("feedback.processFailed"));
     } finally {
       if (taskRef.current === controller && !controller.signal.aborted) setAiSubmitting(false);
     }
@@ -183,7 +193,7 @@ export const AIImageDialog = ({
   const handleConfirmAIImage = useMemoizedFn(() => {
     const selectedResult = getSelectedResult(mode);
     if (!selectedResult) {
-      toast.warning("请先生成一张候选图片");
+      toast.warning(t("feedback.resultRequired"));
       return;
     }
     onConfirm(selectedResult.url);
@@ -196,7 +206,7 @@ export const AIImageDialog = ({
       setSelectedEditReferenceIds(["original"]);
       setSelectedEditResultId(null);
     }
-    toast.success(mode === "generate" ? "图片已插入" : "图片已替换");
+    toast.success(mode === "generate" ? t("feedback.inserted") : t("feedback.replaced"));
   });
 
   const handleUploadReference = useMemoizedFn(async (action: AIAction) => {
@@ -218,7 +228,8 @@ export const AIImageDialog = ({
             id: getUuid(),
             url: uploadedUrl,
             prompt: "",
-            label: `参考 ${generatedCandidates.length + index + 1}`,
+            kind: "reference" as const,
+            index: generatedCandidates.length + index + 1,
           }));
           setGeneratedCandidates(prev => [...prev, ...pendingRefs]);
           setSelectedGenerateReference(pendingRefs[pendingRefs.length - 1]?.id ?? "empty");
@@ -228,7 +239,8 @@ export const AIImageDialog = ({
               id: getUuid(),
               url: uploadedUrl,
               prompt: "",
-              label: `参考 ${prev.length + index + 1}`,
+              kind: "reference" as const,
+              index: prev.length + index + 1,
             }));
             setSelectedEditReferenceIds(current => [
               ...current,
@@ -239,7 +251,7 @@ export const AIImageDialog = ({
         }
       } catch (error) {
         console.error("上传参考图失败:", error);
-        toast.error("参考图上传失败");
+        toast.error(t("feedback.uploadFailed"));
       }
     };
     input.click();
@@ -279,9 +291,9 @@ export const AIImageDialog = ({
     return (
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center gap-2">
-          <span className="text-ink-2 text-[12px]">参考图</span>
+          <span className="text-ink-2 text-[12px]">{t("candidate.section")}</span>
           {!isGenerate && (
-            <span className="text-ink-3 text-[11.5px]">⌘/Ctrl + 点击多选，点已选中的图放大</span>
+            <span className="text-ink-3 text-[11.5px]">{t("candidate.multiSelectHint")}</span>
           )}
           <Button
             variant="ghost"
@@ -291,10 +303,10 @@ export const AIImageDialog = ({
             disabled={aiSubmitting || !capabilities.canEdit}
           >
             <Plus className="size-3.5" strokeWidth={1.75} />
-            上传参考图
+            {t("candidate.upload")}
           </Button>
         </div>
-        <div className="flex gap-2 overflow-x-auto pb-1 pt-1.5">
+        <div className="flex gap-2 overflow-x-auto pt-1.5 pb-1">
           {items.map(item => {
             const selected = selectedIds.includes(item.id);
             const canRemove = item.kind === "result" && !aiSubmitting;
@@ -331,28 +343,28 @@ export const AIImageDialog = ({
                     });
                   }}
                   disabled={aiSubmitting}
-                  title={selected && item.url ? "点击放大查看" : item.label}
+                  title={selected && item.url ? t("candidate.enlarge") : referenceLabel(item)}
                 >
                   {item.url ? (
                     <LocalImage
                       className="block h-full w-full object-cover"
                       url={item.url}
-                      alt={item.label}
+                      alt={referenceLabel(item)}
                     />
                   ) : (
                     <span className="bg-sunken text-ink-3 text-tau-tiny flex h-full w-full flex-col items-center justify-center gap-0.5">
                       <ImageIcon className="size-4" strokeWidth={1.5} />
-                      无参考
+                      {t("candidate.none")}
                     </span>
                   )}
                 </button>
                 {canRemove && (
                   <button
                     type="button"
-                    className="bg-ink-2 text-ink-inverse hover:bg-danger absolute -right-1 -top-1 z-10 grid size-4 cursor-pointer place-items-center rounded-full transition-colors"
+                    className="bg-ink-2 text-ink-inverse hover:bg-danger absolute -top-1 -right-1 z-10 grid size-4 cursor-pointer place-items-center rounded-full transition-colors"
                     onClick={() => handleRemoveReference(action, item.id)}
-                    title="移除"
-                    aria-label="移除"
+                    title={t("candidate.remove")}
+                    aria-label={t("candidate.remove")}
                   >
                     <X className="size-2.5" strokeWidth={2.5} />
                   </button>
@@ -372,10 +384,11 @@ export const AIImageDialog = ({
 
     return (
       <div className="flex flex-col gap-1.5">
-        <span className="text-ink-2 text-[12px]">候选结果</span>
+        <span className="text-ink-2 text-[12px]">{t("candidate.results")}</span>
         <div className="flex gap-2 overflow-x-auto pb-1">
           {editedCandidates.map(item => {
             const selected = item.id === selectedEditResultId;
+            const label = t("candidate.result", { index: item.index });
             return (
               <button
                 key={item.id}
@@ -385,21 +398,21 @@ export const AIImageDialog = ({
                   if (selected) {
                     setPreviewingReference({
                       id: item.id,
-                      label: item.label,
-                      url: item.url,
                       kind: "result",
+                      index: item.index,
+                      url: item.url,
                     });
                     return;
                   }
                   setSelectedEditResultId(item.id);
                 }}
                 disabled={aiSubmitting}
-                title={selected ? "点击放大查看" : item.label}
+                title={selected ? t("candidate.enlarge") : label}
               >
                 <LocalImage
                   className="block h-full w-full object-cover"
                   url={item.url}
-                  alt={item.label}
+                  alt={label}
                 />
               </button>
             );
@@ -415,14 +428,18 @@ export const AIImageDialog = ({
   const selectedResult = getSelectedResult(mode);
   const selectedReference = getSelectedReference(mode);
   const selectedReferenceCount = selectedReference.items.filter(item => Boolean(item.url)).length;
-  const actionText = selectedReferenceCount > 0 ? "基于参考图生成" : isGenerate ? "生成" : "编辑";
+  const actionText = selectedReferenceCount
+    ? t("action.fromReference")
+    : isGenerate
+      ? t("action.generate")
+      : t("action.edit");
 
   return (
     <Dialog
       open={open}
       onOpenChange={next => !next && onClose()}
-      title={isGenerate ? "AI 生成图片" : "AI 编辑图片"}
-      subtitle={isGenerate ? "描述想要的画面，可选参考图" : "描述想如何调整这张图片"}
+      title={isGenerate ? t("dialog.title.generate") : t("dialog.title.edit")}
+      subtitle={isGenerate ? t("dialog.subtitle.generate") : t("dialog.subtitle.edit")}
       icon={
         isGenerate ? (
           <Sparkles className="size-4" strokeWidth={1.75} />
@@ -435,13 +452,13 @@ export const AIImageDialog = ({
       footer={
         <>
           <Button variant="secondary" size="sm" disabled={aiSubmitting} onClick={onClose}>
-            取消
+            {t("dialog.cancel")}
           </Button>
           <Button
             variant="secondary"
             size="sm"
             loading={aiSubmitting}
-            loadingText="生成中…"
+            loadingText={t("dialog.running")}
             disabled={!prompt.trim()}
             onClick={() => handleRunAIImage(mode)}
           >
@@ -453,7 +470,7 @@ export const AIImageDialog = ({
             disabled={!selectedResult || aiSubmitting}
             onClick={handleConfirmAIImage}
           >
-            {isGenerate ? "确认插入" : "确认替换"}
+            {isGenerate ? t("dialog.confirm.generate") : t("dialog.confirm.edit")}
           </Button>
         </>
       }
@@ -462,15 +479,15 @@ export const AIImageDialog = ({
         <div className="flex flex-col gap-3.5">
           {renderAIReferencePicker(mode)}
           <label className="flex flex-col gap-1.5">
-            <span className="text-ink-2 text-[12px]">{isGenerate ? "画面描述" : "修改要求"}</span>
+            <span className="text-ink-2 text-[12px]">
+              {isGenerate ? t("prompt.label.generate") : t("prompt.label.edit")}
+            </span>
             <Textarea
               data-autofocus
               value={prompt}
               onChange={event => setPrompt(event.target.value)}
               placeholder={
-                isGenerate
-                  ? "例如：一张白底的产品示意图，温暖手绘风格"
-                  : "例如：改成透明背景，并增强主体光影"
+                isGenerate ? t("prompt.placeholder.generate") : t("prompt.placeholder.edit")
               }
               disabled={aiSubmitting}
               rows={3}
@@ -483,7 +500,7 @@ export const AIImageDialog = ({
               {aiSubmitting ? (
                 <>
                   <Spinner className="size-5" />
-                  <span className="text-tau-sm text-ink-3">正在生成…</span>
+                  <span className="text-tau-sm text-ink-3">{t("dialog.generating")}</span>
                 </>
               ) : selectedResult ? (
                 <>
@@ -493,7 +510,7 @@ export const AIImageDialog = ({
                     alt={selectedResult.prompt}
                   />
                   <span className="text-tau-sm text-ink-3">
-                    确认后{isGenerate ? "插入" : "替换"}到文档
+                    {isGenerate ? t("dialog.afterConfirm.generate") : t("dialog.afterConfirm.edit")}
                   </span>
                 </>
               ) : null}
@@ -506,7 +523,7 @@ export const AIImageDialog = ({
         onOpenChange={next => !next && setPreviewingReference(null)}
         images={
           previewingReference?.url
-            ? [{ src: previewingReference.url, alt: previewingReference.label }]
+            ? [{ src: previewingReference.url, alt: referenceLabel(previewingReference) }]
             : []
         }
         index={previewIndex}
@@ -521,7 +538,9 @@ export const AIImageDialog = ({
 
 export const aiImageInsertSource: MediaInsertSource = {
   id: "ai-image",
-  label: "AI 生成",
+  get label() {
+    return aiImageT("source.generate");
+  },
   icon: Sparkles,
   mediaTypes: ["image"],
   isAvailable: isImageGenerationConfigured,
@@ -556,7 +575,7 @@ const AIEditModal = ({
 
   useEffect(() => {
     if (open && !originalUrl) {
-      toast.warning("请先插入一张图片后再编辑");
+      toast.warning(aiImageT("feedback.imageRequired"));
       onCancel();
     }
   }, [open, originalUrl, onCancel]);
@@ -578,7 +597,9 @@ const AIEditModal = ({
 
 export const aiImageEditAction: MediaAction = {
   id: "ai-image-edit",
-  label: "AI 编辑图片",
+  get label() {
+    return aiImageT("source.edit");
+  },
   mediaTypes: ["image"],
   icon: <WandSparkles size={14} strokeWidth={1.75} />,
   isAvailable: isImageEditingConfigured,

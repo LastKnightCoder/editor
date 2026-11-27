@@ -93,5 +93,15 @@
   "assist.failed": "Something went wrong in {{name}}",
   "assist.failureDescription": "An unexpected error occurred in the side panel. Your data is preserved.",
   "assist.retry": "Retry",
-  "assist.webLabel": "Web page"
+  "assist.webLabel": "Web page",
+  "shell.dbConnecting": "Connecting to the database…",
+  "shell.dbFailed": "Database connection failed. Data blocks will be unavailable.",
+  "shell.retry": "Retry",
+  "shell.enterAnyway": "Enter anyway",
+  "nav.itemOpen": "Open",
+  "nav.itemUndo": "Undo",
+  "nav.itemHide": "Hide {{name}} from the sidebar",
+  "nav.itemHideWith": "Hide {{name}} from the sidebar, along with {{dependents}}",
+  "nav.itemHideToast": "Hidden {{name}} — your content is safe",
+  "nav.itemManageFeatures": "Manage sidebar features…"
 }

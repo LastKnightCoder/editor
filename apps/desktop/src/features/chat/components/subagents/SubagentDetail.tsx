@@ -13,6 +13,7 @@ import { SubagentActivityLine, SubagentAvatar, SubagentStatus } from "./parts";
 import { useNow } from "./focusStore";
 import { useSubagentParent } from "./parentContext";
 import { errorText, formatElapsed, needsUser, runElapsed } from "./model";
+import { useSubagentsI18n } from "../../subagents.i18n";
 import type { SubagentItem } from "./useSubagentItems";
 
 const markdownComponents = {};
@@ -26,6 +27,7 @@ export function SubagentDetailHeader({
   actions?: React.ReactNode;
 }) {
   const now = useNow(item.status === "running");
+  const { t } = useSubagentsI18n();
   const elapsed = runElapsed(item.run, now);
   return (
     <div className="flex items-center gap-2.5 px-4 pt-3.5 pb-3">
@@ -36,7 +38,7 @@ export function SubagentDetailHeader({
         </div>
         <div className="text-tau-sm text-ink-3 flex items-center gap-2">
           <SubagentStatus status={item.status} />
-          <span>第 {item.view.runs.length} 次任务</span>
+          <span>{t("detail.runCount", { count: item.view.runs.length })}</span>
           {elapsed !== undefined && <span className="tabular-nums">{formatElapsed(elapsed)}</span>}
         </div>
       </div>
@@ -46,11 +48,14 @@ export function SubagentDetailHeader({
 }
 
 function TaskBrief({ run }: { run: SubagentRun }) {
+  const { t } = useSubagentsI18n();
   return (
     <div className="bg-page rounded-tau-md text-tau-body text-ink-2 px-3 py-2.5">
       <div className="text-tau-micro text-ink-3 mb-0.5 flex items-center gap-1.5 [&_svg]:size-3">
-        <CornerDownRight strokeWidth={1.75} />主 Agent 的任务 ·{" "}
-        {run.mode === "sync" ? "同步" : "异步"}
+        <CornerDownRight strokeWidth={1.75} />
+        {t("detail.brief", {
+          mode: run.mode === "sync" ? t("detail.mode.sync") : t("detail.mode.async"),
+        })}
       </div>
       <div className="break-words whitespace-pre-wrap">{run.input}</div>
     </div>
@@ -58,27 +63,28 @@ function TaskBrief({ run }: { run: SubagentRun }) {
 }
 
 function RunOutcome({ run }: { run: SubagentRun }) {
+  const { t } = useSubagentsI18n();
   if (run.status === "completed")
     return (
       <div className="text-tau-sm text-ok flex items-center gap-1.5 font-medium [&_svg]:size-[13px]">
         <Check strokeWidth={2} />
-        结果已回传给主 Agent
+        {t("detail.returned")}
       </div>
     );
   if (run.status === "cancelled")
     return (
-      <Notice tone="warn" icon={<Ban strokeWidth={1.75} />} title="已取消">
-        会话和历史仍保留。
+      <Notice tone="warn" icon={<Ban strokeWidth={1.75} />} title={t("detail.cancelled")}>
+        {t("detail.cancelledHint")}
       </Notice>
     );
   const error = errorText(run);
   if (!error) return null;
   return run.status === "interrupted" ? (
-    <Notice tone="warn" icon={<CirclePause strokeWidth={1.75} />} title="已中断">
-      {error}。会话历史保留，主 Agent 再次发送即可继续。
+    <Notice tone="warn" icon={<CirclePause strokeWidth={1.75} />} title={t("detail.interrupted")}>
+      {t("detail.interruptedHint", { error })}
     </Notice>
   ) : (
-    <Notice tone="danger" icon={<CircleAlert strokeWidth={1.75} />} title="执行失败">
+    <Notice tone="danger" icon={<CircleAlert strokeWidth={1.75} />} title={t("detail.failed")}>
       {error}
     </Notice>
   );
@@ -113,6 +119,7 @@ function Notice({
 }
 
 function RunsList({ runs, now }: { runs: SubagentRun[]; now: number }) {
+  const { t } = useSubagentsI18n();
   return (
     <div className="flex flex-col">
       {[...runs].reverse().map((run, index) => {
@@ -125,7 +132,7 @@ function RunsList({ runs, now }: { runs: SubagentRun[]; now: number }) {
             <span className="text-tau-micro text-ink-3 tabular-nums">#{runs.length - index}</span>
             <SubagentStatus status={run.status} />
             <span className="text-tau-micro text-ink-3 tabular-nums">
-              {run.mode === "sync" ? "同步" : "异步"}
+              {run.mode === "sync" ? t("detail.mode.sync") : t("detail.mode.async")}
               {elapsed !== undefined && ` · ${formatElapsed(elapsed)}`}
             </span>
             <span className="text-ink-1 col-span-2 col-start-2 line-clamp-3 break-words">
@@ -144,6 +151,7 @@ function RunsList({ runs, now }: { runs: SubagentRun[]; now: number }) {
  */
 export function SubagentDetailBody({ item, isDark }: { item: SubagentItem; isDark: boolean }) {
   const agentId = item.view.agent.agentId;
+  const { t } = useSubagentsI18n();
   const query = useSubagentDetail(agentId, useSubagentParent());
   const [tab, setTab] = useState<"talk" | "runs">("talk");
   const [cancelling, setCancelling] = useState(false);
@@ -161,7 +169,7 @@ export function SubagentDetailBody({ item, isDark }: { item: SubagentItem; isDar
     try {
       await cancelSubagentRun(agentId, stoppable.runId);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "取消子 Agent 执行失败");
+      toast.error(error instanceof Error ? error.message : t("detail.cancelFailed"));
     } finally {
       setCancelling(false);
     }
@@ -172,9 +180,12 @@ export function SubagentDetailBody({ item, isDark }: { item: SubagentItem; isDar
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="px-4 pb-2">
-        <Segmented label="详情内容" value={tab} onValueChange={setTab}>
-          <Segmented.Item value="talk" label="对话" />
-          <Segmented.Item value="runs" label={`执行记录 ${item.view.runs.length}`} />
+        <Segmented label={t("detail.tabsLabel")} value={tab} onValueChange={setTab}>
+          <Segmented.Item value="talk" label={t("detail.tab.talk")} />
+          <Segmented.Item
+            value="runs"
+            label={t("detail.tab.runs", { count: item.view.runs.length })}
+          />
         </Segmented>
       </div>
       {/* 透明右边加宽到 10px，滚动条离抽屉圆角外框留出呼吸；右内边距 = 16px 减 10px */}
@@ -187,9 +198,9 @@ export function SubagentDetailBody({ item, isDark }: { item: SubagentItem; isDar
             {query.isPending && <Spinner />}
             {query.isError && (
               <div role="alert" className="text-tau-meta text-danger flex items-center gap-2">
-                子 Agent 记录读取失败：{query.error.message}
+                {t("detail.loadFailed", { message: query.error.message })}
                 <Button size="sm" variant="ghost" onClick={() => void query.refetch()}>
-                  重新读取
+                  {t("detail.retry")}
                 </Button>
               </div>
             )}
@@ -217,7 +228,7 @@ export function SubagentDetailBody({ item, isDark }: { item: SubagentItem; isDar
       </FadeScroll>
       <div className="border-line-2 text-tau-sm text-ink-3 flex flex-none items-center gap-2 border-t px-3.5 py-2.5 [&>svg]:size-3.5">
         <Info strokeWidth={1.75} />
-        <span className="min-w-0 truncate">子 Agent 只接收主 Agent 的指令</span>
+        <span className="min-w-0 truncate">{t("detail.footerHint")}</span>
         <span className="flex-1" />
         {stoppable && (
           <Button
@@ -227,7 +238,7 @@ export function SubagentDetailBody({ item, isDark }: { item: SubagentItem; isDar
             disabled={cancelling}
             onClick={() => void stop()}
           >
-            {stoppable.status === "queued" ? "取消排队" : "停止执行"}
+            {stoppable.status === "queued" ? t("detail.cancelQueued") : t("detail.stop")}
           </Button>
         )}
       </div>

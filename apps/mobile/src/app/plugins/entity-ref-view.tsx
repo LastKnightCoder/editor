@@ -18,6 +18,7 @@ import type {
 } from "@tau/plugins";
 import type { EntityRefProps } from "@tau/plugins/components";
 import { usePluginComponentState } from "./component-scope";
+import { usePluginHostI18n, type PluginHostMessageKey } from "./i18n";
 import { EntityKindIcon } from "../../features/context/EntityKindIcon";
 
 const pending = new WeakMap<
@@ -57,23 +58,27 @@ function describeBatched(context: PluginContext, ref: PluginEntityRef) {
     queue.push({ ref, resolve, reject });
   });
 }
-const META = {
-  card: { label: "卡片", icon: Layers },
-  article: { label: "文章", icon: FileText },
-  document: { label: "项目文档", icon: FileText },
-  diary: { label: "日记", icon: BookOpen },
-  project: { label: "项目", icon: FolderKanban },
-  todo: { label: "待办", icon: ListTodo },
-  event: { label: "日程", icon: Calendar },
-  "plugin-entity": { label: "插件内容", icon: Puzzle },
+type KindMeta = { labelKey: PluginHostMessageKey; icon: typeof Link };
+const FALLBACK_META: KindMeta = { labelKey: "ref.kindFallback", icon: Link };
+const META: Record<string, KindMeta> = {
+  card: { labelKey: "ref.kindCard", icon: Layers },
+  article: { labelKey: "ref.kindArticle", icon: FileText },
+  document: { labelKey: "ref.kindDocument", icon: FileText },
+  diary: { labelKey: "ref.kindDiary", icon: BookOpen },
+  project: { labelKey: "ref.kindProject", icon: FolderKanban },
+  todo: { labelKey: "ref.kindTodo", icon: ListTodo },
+  event: { labelKey: "ref.kindEvent", icon: Calendar },
+  "plugin-entity": { labelKey: "ref.kindPluginEntity", icon: Puzzle },
 };
 
 export function PluginEntityRef({ target, openable = true }: EntityRefProps) {
   const state = usePluginComponentState();
+  const { t } = usePluginHostI18n();
   const { scope, runtime, revision, active } = state;
   const client = useQueryClient();
-  const meta = META[target.kind as keyof typeof META] ?? { label: "内容引用", icon: Link };
+  const meta = META[target.kind] ?? FALLBACK_META;
   const Icon = meta.icon;
+  const kindName = t(meta.labelKey);
   const query = useQuery({
     queryKey: ["plugin-entity-component", scope?.id, target.kind, target.id, revision],
     enabled: active,
@@ -120,7 +125,7 @@ export function PluginEntityRef({ target, openable = true }: EntityRefProps) {
   const result = active ? query.data?.description : undefined;
   const presentation =
     result?.status === "ok" && !query.data?.unavailable ? query.data?.presentation : null;
-  const label = presentation?.label || meta.label;
+  const label = presentation?.label || kindName;
   const icon = (
     <EntityKindIcon
       svg={presentation?.icon}
@@ -133,29 +138,29 @@ export function PluginEntityRef({ target, openable = true }: EntityRefProps) {
     return (
       <span className={`${shell} text-ink-3`}>
         {icon}
-        {meta.label}（插件页面不可用）
+        {t("ref.pluginPageUnavailable", { name: kindName })}
       </span>
     );
   if (!result)
     return (
       <span className={`${shell} text-ink-3`} aria-busy={!query.error}>
         {icon}
-        {meta.label}
-        {query.error ? "（读取失败）" : ""}
+        {query.error ? t("ref.readFailed", { name: kindName }) : kindName}
       </span>
     );
   if (result.status === "missing")
     return (
       <span className={`${shell} text-ink-3`}>
         {icon}
-        <span className="line-through">{meta.label}</span>已删除
+        <span className="line-through">{kindName}</span>
+        {t("ref.deleted")}
       </span>
     );
   if (result.status === "denied")
     return (
       <span className={`${shell} text-ink-2`}>
         {icon}
-        {meta.label}
+        {kindName}
         {result.permission ? (
           <button
             type="button"
@@ -163,10 +168,10 @@ export function PluginEntityRef({ target, openable = true }: EntityRefProps) {
             className="text-accent-text text-tau-meta px-1 py-1"
             onClick={() => result.permission && void request(result.permission)}
           >
-            允许访问
+            {t("ref.allowAccess")}
           </button>
         ) : (
-          <span>未获准查看</span>
+          <span>{t("ref.notAllowed")}</span>
         )}
         {error && <span role="alert">{error}</span>}
       </span>
@@ -175,10 +180,10 @@ export function PluginEntityRef({ target, openable = true }: EntityRefProps) {
     return (
       <span className={`${shell} text-ink-3`}>
         {icon}
-        {meta.label}（引用已失效）
+        {t("ref.invalidated", { name: kindName })}
       </span>
     );
-  const title = result.title || `无标题${label}`;
+  const title = result.title || t("ref.untitled", { name: label });
   const kindLabel = presentation ? (
     <span className="text-ink-3 text-tau-meta shrink-0">{label}</span>
   ) : null;

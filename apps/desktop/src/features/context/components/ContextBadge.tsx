@@ -12,6 +12,7 @@ import type { ContextOpenTarget } from "@/types/entity-context";
 import { contextCount } from "../model";
 import { openContextTarget } from "../open";
 import { useAddContentLink, useEntityContext, useEntityRelated } from "../queries";
+import { useContextI18n } from "../i18n";
 import { ContextPopoverContent } from "./ContextPopoverContent";
 
 interface ContextBadgeProps {
@@ -26,6 +27,7 @@ export function ContextBadge({ entity, className, extra }: ContextBadgeProps) {
   const [open, setOpen] = useState(false);
   const relatedQuery = useEntityRelated(entity, open);
   const addLink = useAddContentLink();
+  const { t } = useContextI18n();
   /** 连接选择器弹窗期间锁定浮层：弹窗挂在 body，点击它会被判为浮层外点而误关 */
   const [linksDialogOpen, setLinksDialogOpen] = useState(false);
   const count = contextCount(context);
@@ -35,7 +37,7 @@ export function ContextBadge({ entity, className, extra }: ContextBadgeProps) {
   const openTarget = (target: ContextOpenTarget) => {
     close();
     openContextTarget(target).catch(error =>
-      toast.error(error instanceof Error ? error.message : "无法打开内容")
+      toast.error(error instanceof Error ? error.message : t("badge.openFailed"))
     );
   };
   const openRef = (ref: EntityRef) => openTarget({ page: "entity", ref });
@@ -45,7 +47,8 @@ export function ContextBadge({ entity, className, extra }: ContextBadgeProps) {
       { from: entity, to: ref },
       {
         onSuccess: () => void relatedQuery.refetch(),
-        onError: error => toast.error(error instanceof Error ? error.message : "添加连接失败"),
+        onError: error =>
+          toast.error(error instanceof Error ? error.message : t("links.addFailed")),
       }
     );
   };
@@ -61,7 +64,7 @@ export function ContextBadge({ entity, className, extra }: ContextBadgeProps) {
       trigger={
         <button
           type="button"
-          title="查看与其他内容的关联"
+          title={t("badge.triggerTitle")}
           className={cn(
             "text-tau-meta text-ink-2 hover:bg-hover hover:text-ink-1 inline-flex h-[22px] shrink-0 items-center gap-[5px] rounded-full px-2 tabular-nums transition-colors",
             open && "bg-hover text-ink-1",
@@ -69,7 +72,7 @@ export function ContextBadge({ entity, className, extra }: ContextBadgeProps) {
           )}
         >
           <Waypoints className="size-[13px]" strokeWidth={1.75} />
-          {count} 处关联
+          {t("badge.associatedCount", { count })}
         </button>
       }
     >

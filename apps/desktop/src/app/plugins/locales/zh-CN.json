@@ -1,0 +1,21 @@
+{
+  "ref.displayOnlyInPluginPage": "{{name}}（只能在插件页面中显示）",
+  "ref.readFailed": "{{name}}（读取失败）",
+  "ref.deleted": "已删除",
+  "ref.allowAccess": "允许访问",
+  "ref.notAllowed": "未获准查看",
+  "ref.openFailed": "打开失败",
+  "ref.untitled": "无标题{{name}}",
+  "outputs.failed": "插件出错了：{{message}}",
+  "panels.failed": "插件区块出错了：{{message}}",
+  "common.retry": "重试",
+  "components.pluginPageOnly": "正文组件只能在插件页面中使用",
+  "components.missing": "内容不存在或已删除",
+  "components.readFailed": "无法读取这段内容：{{message}}",
+  "components.verbEdit": "编辑",
+  "components.verbView": "查看",
+  "components.prompt": "插件需要你的允许才能{{verb}}这段内容",
+  "components.denied": "插件没有获准{{verb}}这段内容，可在插件详情页的「权限」中修改",
+  "components.viewPermissions": "查看权限",
+  "window.close": "关闭窗口"
+}

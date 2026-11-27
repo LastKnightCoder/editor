@@ -1,0 +1,19 @@
+{
+  "ref.kindCard": "卡片",
+  "ref.kindArticle": "文章",
+  "ref.kindDocument": "项目文档",
+  "ref.kindDiary": "日记",
+  "ref.kindProject": "项目",
+  "ref.kindTodo": "待办",
+  "ref.kindEvent": "日程",
+  "ref.kindPluginEntity": "插件内容",
+  "ref.kindFallback": "内容引用",
+  "ref.pluginPageUnavailable": "{{name}}（插件页面不可用）",
+  "ref.readFailed": "{{name}}（读取失败）",
+  "ref.deleted": "已删除",
+  "ref.allowAccess": "允许访问",
+  "ref.notAllowed": "未获准查看",
+  "ref.invalidated": "{{name}}（引用已失效）",
+  "ref.untitled": "无标题{{name}}",
+  "components.unsupportedKit": "不支持的编辑器套件"
+}

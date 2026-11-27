@@ -15,6 +15,7 @@ import useSettingStore from "@/stores/useSettingStore";
 import { PICKER_KINDS } from "./app";
 import { useDesktopPlugins } from "./context";
 import { usePluginComponentScope } from "./component-scope";
+import { usePluginHostI18n } from "./i18n";
 
 const noopSubscribe = () => () => undefined;
 const zero = () => 0;
@@ -60,6 +61,7 @@ function kindOf(target: PluginEntityRef): EntityKind {
 
 export function PluginEntityRef({ target, openable = true }: EntityRefProps) {
   const context = usePluginComponentScope();
+  const { t } = usePluginHostI18n();
   const broker = useDesktopPlugins()?.permissions;
   const revision = useSyncExternalStore(
     broker?.subscribe ?? noopSubscribe,
@@ -95,7 +97,7 @@ export function PluginEntityRef({ target, openable = true }: EntityRefProps) {
   const open = () => {
     if (!context) return;
     context.app.open(target).catch(error => {
-      toast.error(error instanceof Error ? error.message : "打开失败");
+      toast.error(error instanceof Error ? error.message : t("ref.openFailed"));
     });
   };
   const request = async (permission: PluginPermission) => {
@@ -118,14 +120,14 @@ export function PluginEntityRef({ target, openable = true }: EntityRefProps) {
     return (
       <span className={cn(shell, "text-ink-3")}>
         {icon}
-        {meta.label}（只能在插件页面中显示）
+        {t("ref.displayOnlyInPluginPage", { name: meta.label })}
       </span>
     );
   if (!result)
     return (
       <span className={cn(shell, "text-ink-3")} aria-busy>
         {icon}
-        {description.error ? `${meta.label}（读取失败）` : meta.label}
+        {description.error ? t("ref.readFailed", { name: meta.label }) : meta.label}
       </span>
     );
   if (result.status === "missing")
@@ -133,7 +135,7 @@ export function PluginEntityRef({ target, openable = true }: EntityRefProps) {
       <span className={cn(shell, "text-ink-3")}>
         {icon}
         <span className="line-through">{meta.label}</span>
-        <span>已删除</span>
+        <span>{t("ref.deleted")}</span>
       </span>
     );
   if (result.status === "denied")
@@ -151,14 +153,14 @@ export function PluginEntityRef({ target, openable = true }: EntityRefProps) {
               if (permission) void request(permission);
             }}
           >
-            允许访问
+            {t("ref.allowAccess")}
           </button>
         ) : (
-          <span className="text-ink-3 text-tau-meta shrink-0">未获准查看</span>
+          <span className="text-ink-3 text-tau-meta shrink-0">{t("ref.notAllowed")}</span>
         )}
       </span>
     );
-  const title = result.title || `无标题${meta.label}`;
+  const title = result.title || t("ref.untitled", { name: meta.label });
   if (!openable)
     return (
       <span className={cn(shell, "text-ink-1")} title={title}>

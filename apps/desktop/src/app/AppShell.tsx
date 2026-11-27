@@ -53,6 +53,57 @@ import "./base.css";
 import "../pages";
 import { useFeatureEnabled, useWorkspacePreferences } from "./featureQueries";
 import { FeatureOnboarding } from "./FeatureOnboarding";
+import { useAppI18n } from "./i18n/react";
+
+/** 启动态叶子：只订阅语言刷新启动文案，不连带壳层主树重渲染。 */
+function BootState({
+  boot,
+  bootError,
+  onRetry,
+  onEnterAnyway,
+  enterAnywayDisabled,
+}: {
+  boot: "connecting" | "failed";
+  bootError: string;
+  onRetry: () => void;
+  onEnterAnyway: () => void;
+  enterAnywayDisabled: boolean;
+}) {
+  const { t } = useAppI18n();
+  return (
+    <div className={shellRootClass}>
+      {boot === "connecting" ? (
+        <div className="col-span-full flex min-w-0 flex-col items-center justify-center p-6">
+          <Loading label={t("shell.dbConnecting")} minHeight={0} className="h-auto" />
+        </div>
+      ) : (
+        <div className="text-ink-1 p-6">
+          <p className="text-danger mb-3">{t("shell.dbFailed")}</p>
+          {bootError && (
+            <p className="text-ink-2 text-tau-caption mb-3 max-w-2xl break-words">{bootError}</p>
+          )}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={onRetry}
+              className="rounded-tau-md bg-accent text-ink-inverse px-4 py-1.5"
+            >
+              {t("shell.retry")}
+            </button>
+            <button
+              type="button"
+              onClick={onEnterAnyway}
+              disabled={enterAnywayDisabled}
+              className="rounded-tau-md bg-hover text-ink-2 px-4 py-1.5"
+            >
+              {t("shell.enterAnyway")}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // 壳层根：三列骨架（侧栏 / 拖宽热区 / 右列）；排版基准 text-tau-body = 13px/1.65。
 // 行必须显式 100vh：grid 隐式 auto 行会让右列随内容撑高，滚动链整条失效。
@@ -127,37 +178,13 @@ function ShellBody() {
 
   if (boot !== "ready") {
     return (
-      <div className={shellRootClass}>
-        {boot === "connecting" ? (
-          <div className="col-span-full flex min-w-0 flex-col items-center justify-center p-6">
-            <Loading label="正在连接数据库…" minHeight={0} className="h-auto" />
-          </div>
-        ) : (
-          <div className="text-ink-1 p-6">
-            <p className="text-danger mb-3">数据库连接失败，数据区块将不可用。</p>
-            {bootError && (
-              <p className="text-ink-2 text-tau-caption mb-3 max-w-2xl break-words">{bootError}</p>
-            )}
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={connect}
-                className="rounded-tau-md bg-accent text-ink-inverse px-4 py-1.5"
-              >
-                重试
-              </button>
-              <button
-                type="button"
-                onClick={() => setBoot("ready")}
-                disabled={/KNOWLEDGE_MIGRATION|DB_MODEL_INCOMPATIBLE|DB_SCHEMA_/.test(bootError)}
-                className="rounded-tau-md bg-hover text-ink-2 px-4 py-1.5"
-              >
-                仍要进入
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+      <BootState
+        boot={boot}
+        bootError={bootError}
+        onRetry={connect}
+        onEnterAnyway={() => setBoot("ready")}
+        enterAnywayDisabled={/KNOWLEDGE_MIGRATION|DB_MODEL_INCOMPATIBLE|DB_SCHEMA_/.test(bootError)}
+      />
     );
   }
 

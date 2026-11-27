@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import type { DataTable } from "@tau/shared/database-types";
 import { DesktopDatabase, type DesktopDatabaseProps } from "./DesktopDatabase";
+import { useSharedDatabaseI18n } from "./i18n";
 import useSettingStore from "@/stores/useSettingStore";
 import { useDatabaseConnectionId } from "@/hooks/useDatabaseCommands";
 
@@ -27,10 +28,11 @@ function QueryDatabaseHost({
   query: NonNullable<DataTable["query"]>;
   reload?: () => Promise<void>;
 }) {
+  const { t } = useSharedDatabaseI18n();
   const databaseName = useSettingStore(state => state.setting.database.active);
   const connectionId = useDatabaseConnectionId(databaseName);
   return (
-    <Suspense fallback={<div className="text-ink-3 p-4">正在加载查询…</div>}>
+    <Suspense fallback={<div className="text-ink-3 p-4">{t("editor.loadingQuery")}</div>}>
       <StoredQueryDatabase
         key={`${databaseName}:${connectionId}:${props.tableId}`}
         {...props}

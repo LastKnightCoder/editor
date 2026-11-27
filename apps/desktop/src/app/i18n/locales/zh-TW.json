@@ -93,5 +93,15 @@
   "assist.failed": "{{name}}發生錯誤",
   "assist.failureDescription": "右欄顯示時發生了非預期錯誤，你的資料沒有遺失。",
   "assist.retry": "重試",
-  "assist.webLabel": "網頁"
+  "assist.webLabel": "網頁",
+  "shell.dbConnecting": "正在連線資料庫…",
+  "shell.dbFailed": "資料庫連線失敗，資料區塊將無法使用。",
+  "shell.retry": "重試",
+  "shell.enterAnyway": "仍要進入",
+  "nav.itemOpen": "開啟",
+  "nav.itemUndo": "復原",
+  "nav.itemHide": "從側欄隱藏「{{name}}」",
+  "nav.itemHideWith": "從側欄隱藏「{{name}}」，連同 {{dependents}}",
+  "nav.itemHideToast": "已隱藏「{{name}}」，內容都還在",
+  "nav.itemManageFeatures": "管理側欄功能…"
 }

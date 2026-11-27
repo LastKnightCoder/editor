@@ -2,7 +2,7 @@ import {
   createBrowserPluginEnvironment,
   PluginEnvironmentProvider,
 } from "@tau/plugins/environment-host";
-import { createI18nRuntime, createLocaleStore } from "@tau/i18n";
+import { createI18nRuntime, createLocaleStore, defineI18n } from "@tau/i18n";
 import { createRoot } from "react-dom/client";
 import { Component, useLayoutEffect, type ReactNode } from "react";
 import { sharedPluginModules } from "@tau/plugins/shared-modules";
@@ -19,7 +19,15 @@ import type {
 } from "../../../../shared/plugin-window-protocol";
 import { applyWindowFont } from "@/hooks/applyWindowFont";
 import { connectWindowCommunication } from "../window-communication";
+import chromeZhCN from "./locales/chrome.zh-CN.json";
+import chromeZhTW from "./locales/chrome.zh-TW.json";
+import chromeEnUS from "./locales/chrome.en-US.json";
 import "./window.css";
+
+const chromeMessages = defineI18n({
+  fallbackLocale: "zh-CN",
+  resources: { "zh-CN": chromeZhCN, "zh-TW": chromeZhTW, "en-US": chromeEnUS },
+});
 
 const transport = (window as Window & { tauPluginWindow?: WindowTransport<PluginWindowCalls> })
   .tauPluginWindow;
@@ -191,7 +199,7 @@ async function start() {
                       <span className="truncate">{title()}</span>
                       <IconButton
                         className="app-region-no-drag"
-                        aria-label="关闭窗口"
+                        aria-label={translations.get(chromeMessages).t("window.close")}
                         onClick={() => void close().catch(console.error)}
                       >
                         <X />

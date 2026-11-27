@@ -16,8 +16,10 @@ import {
   useDatabaseMutations,
   useRecordDatabaseOpen,
 } from "../queries";
+import { useDatabasesI18n } from "../i18n";
 
 const DatabaseDetailView = memo(() => {
+  const { t } = useDatabasesI18n();
   const { id } = usePageParams<{ id: number }>();
   const { navigator } = usePage();
   const { item, loading } = useDatabaseDetail(id);
@@ -31,10 +33,10 @@ const DatabaseDetailView = memo(() => {
   const breadcrumbNode = useMemo(
     () => (
       <span className="text-tau-meta text-ink-2 min-w-0 truncate px-1.5 py-0.5">
-        {item?.title || `数据库 #${id}`}
+        {item?.title || t("view.item.fallback", { id })}
       </span>
     ),
-    [item?.title, id]
+    [item?.title, id, t]
   );
   usePageBreadcrumb("database-detail", breadcrumbNode);
 
@@ -63,7 +65,7 @@ const DatabaseDetailView = memo(() => {
           trigger={
             <button
               type="button"
-              title="切换数据库"
+              title={t("view.switch")}
               className="text-ink-2 hover:bg-hover hover:text-ink-1 grid size-8 shrink-0 place-items-center rounded-[8px] transition-colors duration-[160ms]"
             >
               <ChevronDown

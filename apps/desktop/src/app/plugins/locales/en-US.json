@@ -1,0 +1,21 @@
+{
+  "ref.displayOnlyInPluginPage": "{{name}} (renders on plugin pages only)",
+  "ref.readFailed": "{{name}} (failed to load)",
+  "ref.deleted": "Deleted",
+  "ref.allowAccess": "Allow access",
+  "ref.notAllowed": "Not allowed",
+  "ref.openFailed": "Failed to open",
+  "ref.untitled": "Untitled {{name}}",
+  "outputs.failed": "Plugin error: {{message}}",
+  "panels.failed": "Plugin block error: {{message}}",
+  "common.retry": "Retry",
+  "components.pluginPageOnly": "Content components only work on plugin pages",
+  "components.missing": "The content doesn't exist or has been deleted",
+  "components.readFailed": "Failed to read this content: {{message}}",
+  "components.verbEdit": "edit",
+  "components.verbView": "view",
+  "components.prompt": "The plugin needs your permission to {{verb}} this content",
+  "components.denied": "The plugin isn't allowed to {{verb}} this content. Change it under \"Permissions\" on the plugin's detail page",
+  "components.viewPermissions": "View permissions",
+  "window.close": "Close window"
+}

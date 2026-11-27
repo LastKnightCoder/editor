@@ -10,6 +10,7 @@ import { usePage } from "@/page/PageProvider";
 import { EntityCockpit } from "@/features/shared/cockpit/EntityCockpit";
 import type { CockpitCopy, CockpitItem, CockpitVisual } from "@/features/shared/cockpit/types";
 import { useDatabasesSnapshot, useDatabaseMutations } from "../queries";
+import { useDatabasesI18n } from "../i18n";
 import { CreateDatabaseDialog } from "../CreateDatabaseDialog";
 
 /* 模块色沿用原 projectTypeMeta 的数据表格紫罗兰（数据色，不进主题词表） */
@@ -20,26 +21,25 @@ const VISUAL: CockpitVisual = {
   barClass: "bg-gradient-to-r from-[#6f5396] to-transparent",
 };
 
-const COPY: CockpitCopy = {
-  title: "数据库",
-  itemTitle: id => `数据库 #${id}`,
-  entityCount: (_count, amount) => `${amount} 个数据库`,
-  metricCount: (_count, amount) => `${amount} 行`,
-  metricLabel: "行数",
-  recentHint: "最近打开过的数据库",
-  createLabel: "新建数据库",
-  createTitle: "新建数据库",
-  editTitle: "编辑数据库",
-  descPlaceholder: "这张表用来记录什么",
-  emptyTitle: "还没有数据库",
-  emptyHint: "用表格管理结构化数据，支持多视图与筛选排序",
-  deleteTitle: "删除数据库",
-  deleteDescription: "数据库将被永久删除。",
-  deleteImpact:
-    "将解除与表格的关联，并清理不再被引用的行详情内容。若表格仍被文档或文档树条目引用则会保留。此操作不可恢复。",
-};
-
 export function DatabasesView() {
+  const { t } = useDatabasesI18n();
+  const copy: CockpitCopy = {
+    title: t("view.title"),
+    itemTitle: id => t("view.item.fallback", { id }),
+    entityCount: (count, amount) => t("view.entity.count", { count, amount }),
+    metricCount: (count, amount) => t("view.metric.count", { count, amount }),
+    metricLabel: t("view.metric.label"),
+    recentHint: t("view.recent.hint"),
+    createLabel: t("view.create"),
+    createTitle: t("view.create"),
+    editTitle: t("view.edit"),
+    descPlaceholder: t("view.desc.placeholder"),
+    emptyTitle: t("view.empty.title"),
+    emptyHint: t("view.empty.hint"),
+    deleteTitle: t("view.delete.title"),
+    deleteDescription: t("view.delete.description"),
+    deleteImpact: t("view.delete.impact"),
+  };
   const { navigator } = usePage();
   const { items, loading } = useDatabasesSnapshot();
   const mutations = useDatabaseMutations();
@@ -51,10 +51,10 @@ export function DatabasesView() {
       items.map(item => ({
         ...item,
         metric: item.rowCount,
-        metricText: item.rowCount === null ? "实时查询" : undefined,
+        metricText: item.rowCount === null ? t("view.liveQuery") : undefined,
         lastItemTitle: null,
       })),
-    [items]
+    [items, t]
   );
 
   return (
@@ -64,7 +64,7 @@ export function DatabasesView() {
         items={cockpitItems}
         loading={loading}
         visual={VISUAL}
-        copy={COPY}
+        copy={copy}
         mutations={mutations}
         onOpen={id => navigator.push("database-detail", { id })}
         onCreated={created => navigator.push("database-detail", { id: created.id })}
@@ -72,16 +72,14 @@ export function DatabasesView() {
           <>
             <Menu.Item icon={<Table />} onSelect={openBlank}>
               <span className="flex flex-col">
-                空白数据库
-                <span className="text-ink-3 text-[11.5px]">自己定义列，手动录入</span>
+                {t("view.menu.blank.title")}
+                <span className="text-ink-3 text-[11.5px]">{t("view.menu.blank.hint")}</span>
               </span>
             </Menu.Item>
             <Menu.Item icon={<Radio />} onSelect={() => setCreating(true)}>
               <span className="flex flex-col">
-                实时查询
-                <span className="text-ink-3 text-[11.5px]">
-                  从卡片、待办、日记等汇总，随原文更新
-                </span>
+                {t("view.menu.live.title")}
+                <span className="text-ink-3 text-[11.5px]">{t("view.menu.live.hint")}</span>
               </span>
             </Menu.Item>
           </>
