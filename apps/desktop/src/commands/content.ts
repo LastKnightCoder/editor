@@ -4,6 +4,7 @@ import { invoke } from "@/electron";
 import { Descendant } from "slate";
 import { IContent } from "@/types";
 import { withModule } from "./module-init";
+import { currentPerfTrace, runWithPerfTrace } from "@/utils/perf-trace";
 import type {
   AgentPermissionLevel,
   ContentAgentPermission,
@@ -112,7 +113,10 @@ export interface ContentSuggestionOutcome {
 
 export const contentAgentCommand = <T>(channel: string, ...args: unknown[]) => {
   const commands = bindDatabaseCommands({ invoke }, currentCommandScope());
-  return withModule("local-content", () => commands.invoke<T>(channel, ...args));
+  const trace = currentPerfTrace();
+  return withModule("local-content", () =>
+    runWithPerfTrace(trace, () => commands.invoke<T>(channel, ...args))
+  );
 };
 
 export const listContentSuggestions = (query: ContentSuggestionQuery) =>

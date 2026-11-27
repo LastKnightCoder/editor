@@ -29,6 +29,8 @@
     "build:website": "pnpm --filter @tau/website build",
     "deploy:website": "pnpm --filter @tau/website deploy:pages",
     "publish:desktop": "node scripts/publish-desktop.mjs",
+    "publish:desktop-symbols": "node scripts/desktop-symbols-r2.mjs upload",
+    "fetch:desktop-symbols": "node scripts/desktop-symbols-r2.mjs download",
     "publish:mobile": "node scripts/publish-mobile.mjs",
     "publish:extension": "node scripts/publish-extension.mjs",
     "build:qwen-runtime": "python3 scripts/build-qwen-runtime.py",

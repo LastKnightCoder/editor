@@ -81,8 +81,10 @@ Sqlite.prototype.transaction = function (...args) {
 };
 
 ipcMain.on("perf-monitor:renderer-event", (_event, payload) => {
-  if (payload?.kind === "stage" && !audit.stages.includes(payload.label))
-    audit.stages.push(payload.label);
+  if (!Array.isArray(payload?.events)) return;
+  for (const event of payload.events)
+    if (event.kind === "stage" && !audit.stages.includes(event.label))
+      audit.stages.push(event.label);
 });
 const loopback = host => ["localhost", "127.0.0.1", "::1", "[::1]"].includes(host);
 const allowedPort = value => Number(value) === port || Number(value) === collaborationPort;

@@ -21,32 +21,25 @@ IMMEDIATE（窗口显示前）/ BACKGROUND（窗口显示后并行）。所有�
 重试放弃各记一条，三者均按通道 30 秒节流。渲染进程 `utils/WebSocketClient.ts` 的传输层失败
 （未连接、等待超时、连接断开）以 `[backend-ws]` 请求失败留痕，服务端返回的业务错误由服务端落日志。
 
-**数据库调用不逐条记**：数据库事件是主要 IPC 流量（一次启动上万次），`modules/database.ts` 不再为每次调用写开始与完成行。耗时达到 1 秒的调用在完成时记「慢调用完成」，超过 5 秒仍未完成时先记「调用仍在执行」（界面卡死时不必等调用结束就能定位），失败照常记 error；同步阻塞期间定时器走不动，由完成行补上耗时。调用在执行中被硬崩溃打断时不再留痕，下一次启动的「上次会话未正常结束」负责标记这种情况。更细的慢调用（IPC 100ms、SQL 50ms）只在性能快照里。
+**数据库调用不逐条记**：数据库事件是主要 IPC 流量（一次启动上万次），`modules/database.ts` 不再为每次调用写开始与完成行。耗时达到 1 秒的调用在完成时记「慢调用完成」，超过 5 秒仍未完成时先记「调用仍在执行」（界面卡死时不必等调用结束就能定位），失败照常记 error；同步阻塞期间定时器走不动，由完成行补上耗时。普通调用日志在硬崩溃时可能缺少完成行；下一次启动的「上次会话未正常结束」与本机性能片段用于补充判断。更细的慢调用（IPC 100ms、数据库命令 50ms）进入性能时间线；命令耗时包含其内部等待与转换。
 
 **表注册表按需汇总**：`modules/database.ts` 的表清单与事件注册表在首次使用时构建，不在模块求值期构建。表模块经视频笔记索引队列回到 database，存在静态循环；求值期若从表一侧进入，尚未求值完的表是 undefined。新增模块时不要让表模块直接或间接引用 database 及依赖它的模块。
 
 「启动与后台运行」的三项偏好由主进程 `setting` 模块提供读写接口，`background-preferences` 服务负责系统登录项和本机偏好。在非 macOS 平台，最后一个可见窗口关闭时，若已开启「关闭窗口时不退出」且托盘可用，主进程继续运行。该判断只读取应用偏好与托盘状态。托盘菜单中的「退出」走受控退出流程。
 
-**卡顿诊断（perf-monitor）**：BACKGROUND 模块 `src-electron/main/modules/perf-monitor.ts`
-持续采集主进程事件循环直方图（启动前 15s 每秒、之后每 15s 采样 mean/p99/max）、内存与 CPU 趋势、慢 IPC 与慢 SQL
-（契约桥 `register` 包装与 database 事件注册循环计时，>100ms / >50ms 记明细，IPC 另按分钟
-聚合计数检测洪水）；渲染端 `src/utils/perf-observer.ts`（init.ts 安装）采集事件循环心跳
-延迟、longtask 脚本归因、掉帧片段、JS 堆曲线与 react-query 刷新率，经
-`perf-monitor:renderer-event` 独立通道按窗口汇聚（不走 logger 的 sendLog，避开限流）。
-除启动阶段（`startup:*`）镜像为 `[startup]` 日志外，数据只存内存 ring buffer；「导出性能快照」由命令面板（`export-perf-snapshot` 动作）或
-托盘/Dock 菜单触发（渲染端冻结时的兜底入口），落盘 `~/.editor/logs/perf-snapshot-*.json`
-后打开所在文件夹并高亮该文件（shell.showItemInFolder），文件夹本身即结果反馈，不另发通知。`recordIpcCall` / `recordSqlCall` 在 command-bridge-install（主入口首个
-import）注册期即被调用，因此记录数据挂在模块级、import 期可用；`init()` 只启动采样器。
+**性能诊断**：BACKGROUND 模块 `perf-monitor` 汇聚有界时间线、操作与阶段、统一 CPU/内存采样，异常时自动固定前后片段并在本机留档。「导出性能快照」和反馈共用 schemaVersion 2 协议；数据结构、采集预算、触发条件与限制以 [性能诊断](./performance.md) 为准。
 
 启动诊断参数 `--tau-profile-startup` 按需开启主进程 CPU profile：入口依赖加载阶段启动进程内 inspector，约 10 秒后保存 `~/.editor/logs/startup-main-*.cpuprofile`，不开调试端口；普通启动不采集。需完整退出后带参数重启，第二实例转发参数不会为已运行进程补录启动。性能快照 `main.startupCpuProfile` 包含采集状态与文件路径；持续阻塞可能延后停止计时器，实际时长以 profile 为准。
 
 **窗口与进程异常**：`createWindow` 为每个窗口记录渲染进程退出（原因与退出码）、preload 加载失败、无响应及恢复，日志中的窗口身份为「文档类型或角色:路由」；主进程主动回收的渲染进程（内容执行超时或取消后的强制结束）不按崩溃记录。应用级记录 GPU 等子进程的异常退出，`clean-exit` 不记。内容执行窗口的启动超时、执行超时与执行失败以 `[content-runtime]` 记录，用户取消不记。番茄钟背景音的隐藏视图不经过 `createWindow`，由 `windows/pomodoro-audio.ts` 自行记录；该视图的 preload 只暴露播放控制与 `sendLog`，console 劫持把日志写入同一 session 文件。
 
+**渲染异常堆栈**：`src/utils/console-logger.ts` 将全局未捕获异常的来源位置与异常对象堆栈写入 session 日志，未处理 Promise 拒绝同样保留异常堆栈。主渲染入口、辅助窗口与正文内白板选择弹窗的 React 根节点接入统一 `onCaughtError` / `onUncaughtError` / `onRecoverableError`；异常堆栈和 `componentStack` 分条记录，避免共享单条日志额度。辅助窗口记录堆栈后仍执行原有失败回调；插件隔离窗口沿用自己的失败回报通道。日志仍遵循每条长度上限与每窗口速率限制。
+
 **节流不丢信息**：会反复触发的日志按来源节流（渲染端 `src/utils/throttled-log.ts`，主进程 `utils/throttled-log.ts` 与 `utils/stored-json.ts`）。窗口内的第一条立即写出，其后的重复只计数，窗口结束时补一条带 `suppressed` 的汇总行；不允许静默丢弃。存库字段解析失败是持续状态，同一字段的同一行每次运行只报一次。
 
 **会话头与数据变更留痕**：启动时记录应用版本与打包版或开发版。取得单例锁后写入 `session.incomplete`，受控退出的最终动作前删除；下次启动发现它仍在，即记录「上次会话未正常结束」（崩溃、被强制退出或断电），第二实例不碰这个标记。渲染进程日志的来源是「窗口角色#窗口编号」，角色由 preload 随日志上报，不取窗口标题（标题是笔记标题）。`domain-events` 在每次合并广播前把变更写入 `[data-change]`：新增与删除必记，修改只在插件写入或一次合并里同类达到 5 条时记；每行一个「实体.动作」，只有实体类型、ID、数量与来源插件，正常编辑正文不产生日志。
 
-知识地图读取 `knowledge-map:get` 显式接入 IPC 计时；快照的 `renderer[*].stages` 记录加载、建图及超过 50ms 的绘制，`main.stages` 记录向量候选扫描，只有阶段、耗时与规模，不记录正文。渲染事件携带发生时间，避免主进程积压把接收时间当作起点；堆采样每次重新读取 memory。长帧的 renderMs 为 renderStart 到帧末，styleLayoutMs 为 styleAndLayoutStart 到帧末（含后续渲染），无法取得的 paintMs 为 null，不能当成零开销。
+知识地图读取 `knowledge-map:get` 显式接入 IPC 计时；加载、建图及超过 50ms 的绘制、主进程向量候选扫描均以阶段事件进入性能时间线，只记录阶段、耗时与规模。
 
 主内容全文队列（`main-content-fts-index-queue`）在连库对账之外订阅正文写入总线。总线使用实际连接登记的库名，派生队列据此解析当前连接。队列按库合并 1 秒（持续写入最长 5 秒），经 `EntitySearchTable.locateAll` 找到引用这些正文的卡片 / 文章 / 项目文档 / 日记逐个重建，正文清空则移除。索引未就绪（构建中或待重建）时交给对账，实体删除和标题等元数据变化也由连库对账处理。
 

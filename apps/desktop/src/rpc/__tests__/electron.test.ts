@@ -84,4 +84,35 @@ describe("electron 门面（原生 IPC）", () => {
     expect(consoleError).toHaveBeenCalledTimes(1);
     await expect(invoke("any-channel")).rejects.toThrow("Electron API is not available");
   });
+
+  it("正文诊断元信息与数据库作用域共用尾参数，业务参数和返回值保持原语义", async () => {
+    const { invoke } = await importElectronModule({
+      invoke: async (_channel: string, ...args: unknown[]) => structuredClone(args),
+      send: vi.fn(),
+    });
+    const { bindDatabaseCommands } = await import("@/services/command-context");
+    const { parsePerfTrace } = await import("../../../shared/perf-diagnostics");
+    const commands = bindDatabaseCommands(
+      { invoke },
+      {
+        databaseName: "library.db",
+        connectionId: "connection-1",
+      }
+    );
+    const content = { content: [{ type: "paragraph", text: "业务正文" }], expectedRevision: 7 };
+    const args = await commands.invoke<unknown[]>("content:update", 42, content);
+    const metadata = args.pop() as {
+      toolDatabaseName: string;
+      toolDatabaseConnection: string;
+      perfTrace: unknown;
+    };
+    expect(args).toEqual([42, content]);
+    expect(metadata.toolDatabaseName).toBe("library.db");
+    expect(metadata.toolDatabaseConnection).toBe("connection-1");
+    const trace = parsePerfTrace(metadata.perfTrace);
+    expect(trace?.context).toMatchObject({ contentId: 42, connectionId: "connection-1" });
+    expect(trace?.operationId).toEqual(expect.any(String));
+    expect(JSON.stringify(trace)).not.toContain("业务正文");
+    expect(await invoke("untraced-command", content)).toEqual([content]);
+  });
 });

@@ -8,6 +8,7 @@ import path from "node:path";
 import { unzipSync } from "node:zlib";
 import { createPlatformPackagerFactory } from "../apps/desktop/scripts/parallel-mac-packager.mjs";
 import { assertReleaseArtifacts } from "./release-artifacts.mjs";
+import { readArtifactBuilds } from "./desktop-artifact-build.mjs";
 
 const require = createRequire(new URL("../apps/desktop/package.json", import.meta.url));
 const builderRequire = createRequire(require.resolve("electron-builder"));
@@ -300,6 +301,10 @@ test(
   },
   async () => {
     const dir = await mkdtemp(path.join(tmpdir(), "tau-mac-builder-"));
+    const previousBuildId = process.env.TAU_DESKTOP_BUILD_ID;
+    const previousBuildVersion = process.env.TAU_DESKTOP_BUILD_VERSION;
+    process.env.TAU_DESKTOP_BUILD_ID = "packaged-fixture";
+    process.env.TAU_DESKTOP_BUILD_VERSION = "0.59.0";
     const events = [];
     const bothSubmitted = deferred();
     try {
@@ -316,6 +321,7 @@ test(
       const original = parse(
         await readFile(new URL("../apps/desktop/electron-builder.yml", import.meta.url), "utf8")
       );
+      const artifactBuildCompleted = require("./" + original.artifactBuildCompleted);
       class FixtureMacPackager extends builder.MacPackager {
         async doPack(context) {
           const app = path.join(context.appOutDir, "Tau.app");
@@ -347,6 +353,7 @@ test(
             target: [{ target: "zip", arch: ["x64", "arm64"] }],
           },
           publish: original.publish,
+          artifactBuildCompleted,
           artifactBuildStarted: async event => {
             assert.equal(events.filter(event => event.startsWith("submit:")).length, 2);
             for (const output of ["mac", "mac-arm64"]) {
@@ -378,6 +385,15 @@ test(
       const releaseDir = path.join(dir, "release");
       const feed = parse(await readFile(path.join(releaseDir, "latest-mac.yml"), "utf8"));
       assert.equal(feed.files.length, 2);
+      const builds = await readArtifactBuilds({
+        releaseDir,
+        version: "0.59.0",
+        artifacts: feed.files.flatMap(file => [file.url, `${file.url}.blockmap`]),
+      });
+      assert.deepEqual(
+        builds.map(value => value.buildId),
+        ["packaged-fixture"]
+      );
       for (const arch of ["x64", "arm64"]) {
         const name = `Tau-v0.59.0-darwin-${arch}.zip`;
         const file = feed.files.find(file => file.url === name);
@@ -396,6 +412,10 @@ test(
         );
       }
     } finally {
+      if (previousBuildId === undefined) delete process.env.TAU_DESKTOP_BUILD_ID;
+      else process.env.TAU_DESKTOP_BUILD_ID = previousBuildId;
+      if (previousBuildVersion === undefined) delete process.env.TAU_DESKTOP_BUILD_VERSION;
+      else process.env.TAU_DESKTOP_BUILD_VERSION = previousBuildVersion;
       await rm(dir, { recursive: true, force: true });
     }
   }

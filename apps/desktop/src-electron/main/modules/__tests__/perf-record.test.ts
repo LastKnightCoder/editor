@@ -1,49 +1,56 @@
-/**
- * 性能记录侧的最小行为验证：阈值过滤、慢 IPC 结果大小估算与 ring buffer 封顶。
- */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
-  pushCapped,
+  perfDiagnostics,
   recordIpcCall,
-  recordSqlCall,
-  recordSyncIo,
-  slowIpc,
-  slowSql,
-  slowSyncIo,
+  recordDatabaseCommand,
+  withPerfTrace,
 } from "../perf-record";
 
-describe("perf-record", () => {
-  it("同步 IO 低于阈值不记录，达到阈值记录并截断超长 label", () => {
-    const before = slowSyncIo.length;
-    recordSyncIo("read:small.json", 1024, 10);
-    expect(slowSyncIo.length).toBe(before);
-
-    recordSyncIo("x".repeat(300), 1024, 60);
-    expect(slowSyncIo.length).toBe(before + 1);
-    expect(slowSyncIo[slowSyncIo.length - 1].label.length).toBeLessThanOrEqual(200);
+describe("性能记录边界", () => {
+  it("慢调用诊断不再次序列化业务返回对象", () => {
+    const toJSON = vi.fn(() => {
+      throw new Error("不允许再次遍历");
+    });
+    recordIpcCall("test:large-result", 120, true, { toJSON });
+    expect(toJSON).not.toHaveBeenCalled();
+    expect(
+      perfDiagnostics.snapshot().events.find(event => event.label === "test:large-result")
+    ).toMatchObject({ kind: "ipc", ms: 120 });
   });
 
-  it("慢 IPC 附带结果大小：字符串按长度、对象按序列化长度、未传 result 不带字段", () => {
-    recordIpcCall("perf:test:string", 120, true, "x".repeat(500));
-    recordIpcCall("perf:test:object", 120, true, { items: ["a", "b"] });
-    recordIpcCall("perf:test:no-result", 120, true);
-
-    const rows = slowIpc.slice(-3);
-    expect(rows[0].resultBytes).toBe(500);
-    expect(rows[1].resultBytes).toBe(JSON.stringify({ items: ["a", "b"] }).length);
-    expect(rows[2].resultBytes).toBeUndefined();
-  });
-
-  it("SQL 低于阈值不记录", () => {
-    const before = slowSql.length;
-    recordSqlCall("data.db", "fast-query", 40, true);
-    expect(slowSql.length).toBe(before);
-  });
-
-  it("ring buffer 封顶时丢弃最旧样本", () => {
-    const buffer: number[] = [];
-    for (let i = 0; i < 700; i += 1) pushCapped(buffer, i);
-    expect(buffer.length).toBe(600);
-    expect(buffer[0]).toBe(100);
+  it("并发异步命令各自保留发起窗口和操作，不随完成顺序串线", async () => {
+    let release!: () => void;
+    const waiting = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    const first = withPerfTrace(
+      { operationId: "op-first", context: { contentId: 1 } },
+      { pid: 100, type: "main", webContentsId: 11 },
+      async () => {
+        await waiting;
+        recordDatabaseCommand("data.db", "test:first", 1, true);
+      }
+    );
+    await withPerfTrace(
+      { operationId: "op-second", context: { contentId: 2 } },
+      { pid: 100, type: "main", webContentsId: 22 },
+      async () => {
+        await Promise.resolve();
+        recordDatabaseCommand("data.db", "test:second", 1, true);
+      }
+    );
+    release();
+    await first;
+    const events = perfDiagnostics.snapshot().events;
+    expect(events.find(event => event.label === "test:first")).toMatchObject({
+      operationId: "op-first",
+      context: { contentId: 1 },
+      source: { webContentsId: 11 },
+    });
+    expect(events.find(event => event.label === "test:second")).toMatchObject({
+      operationId: "op-second",
+      context: { contentId: 2 },
+      source: { webContentsId: 22 },
+    });
   });
 });

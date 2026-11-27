@@ -1,5 +1,6 @@
 import { Descendant } from "slate";
 import { getMarkdownWithPositions } from "@/utils/markdown";
+import { beginPerfOperation } from "@/utils/perf-trace";
 import type { ContentSnapshot, MarkdownPoint, SnapshotSource } from "./types";
 
 const FNV_OFFSET_BASIS = 0x811c9dc5;
@@ -61,22 +62,37 @@ export const offsetToMarkdownPoint = (offset: number, lineOffsets: number[]): Ma
 
 export const createContentSnapshot = (
   content: Descendant[],
-  source: SnapshotSource
+  source: SnapshotSource,
+  contentId?: number
 ): ContentSnapshot => {
-  const { markdown, positionMap, blockRanges } = getMarkdownWithPositions(content);
-  const lineOffsets = buildLineOffsets(markdown);
-  const hash = hashMarkdown(markdown);
-  const createdAt = Date.now();
+  const operation = beginPerfOperation(
+    "content.snapshot",
+    { contentId },
+    { inputCount: content.length }
+  );
+  try {
+    const { markdown, positionMap, blockRanges } = operation.stage("snapshot.markdown", () =>
+      getMarkdownWithPositions(content)
+    );
+    const lineOffsets = operation.stage("snapshot.offsets", () => buildLineOffsets(markdown));
+    const hash = operation.stage("snapshot.hash", () => hashMarkdown(markdown));
+    const createdAt = Date.now();
 
-  return {
-    id: `${createdAt}-${crypto.randomUUID()}`,
-    createdAt,
-    content,
-    markdown,
-    hash,
-    lineOffsets,
-    positionMap,
-    blockRanges,
-    source,
-  };
+    return {
+      id: `${createdAt}-${crypto.randomUUID()}`,
+      createdAt,
+      content,
+      markdown,
+      hash,
+      lineOffsets,
+      positionMap,
+      blockRanges,
+      source,
+    };
+  } catch (error) {
+    operation.end("error");
+    throw error;
+  } finally {
+    operation.end();
+  }
 };

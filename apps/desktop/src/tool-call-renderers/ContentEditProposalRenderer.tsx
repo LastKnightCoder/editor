@@ -21,6 +21,7 @@ import { CompactSummary, ChangePreviewCard, FeedbackTemplates } from "./change-p
 import { generateChangePreviews } from "@/utils/review-change-preview";
 import { buildMergedReviewContent } from "@/utils/review-merged-content";
 import { SuggestionProposalCard } from "./SuggestionProposalCard";
+import { measurePerf } from "@/utils/perf-trace";
 
 import { useReviewToolI18n, reviewFeedback, reviewFailure } from "./review.i18n";
 
@@ -203,6 +204,7 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
 
   const mergedReviewContent = useMemo(() => {
     if (!proposal?.proposedMarkdown) return null;
+    const proposedMarkdown = proposal.proposedMarkdown;
     const beforeMarkdown =
       proposal.beforeMarkdown ||
       (proposal.snapshotId ? getSnapshot(proposal.snapshotId)?.markdown : null);
@@ -211,20 +213,31 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
     }
 
     try {
-      return buildMergedReviewContent({
-        beforeMarkdown,
-        afterMarkdown: proposal.proposedMarkdown,
-        patches: proposal.patches,
-        options: {
-          collapseUnchanged: true,
-          contextRadius: 1,
-        },
-      }).content;
+      return measurePerf(
+        "review.merge",
+        () =>
+          buildMergedReviewContent({
+            beforeMarkdown,
+            afterMarkdown: proposedMarkdown,
+            patches: proposal.patches,
+            options: {
+              collapseUnchanged: true,
+              contextRadius: 1,
+            },
+          }).content,
+        { contentId: proposal.contentId }
+      );
     } catch (error) {
       console.warn("构建审阅 merged 内容失败:", error);
       return null;
     }
-  }, [proposal?.patches, proposal?.proposedMarkdown, proposal?.snapshotId]);
+  }, [
+    proposal?.patches,
+    proposal?.proposedMarkdown,
+    proposal?.snapshotId,
+    proposal?.beforeMarkdown,
+    proposal?.contentId,
+  ]);
 
   const changePreviews = useMemo(() => {
     if (!proposal?.patches) return [];

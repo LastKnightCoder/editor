@@ -144,7 +144,7 @@ async function submit(input: AppFeedbackSubmitInput): Promise<AppFeedbackResult>
     meta: { kind: input.kind, message, context, clientRequestId: input.clientRequestId },
     images: input.images,
     log: input.logs.app ? await collectAppLog(logDir, sessionLogPath) : null,
-    perf: input.logs.perf ? await compressPerfSnapshot(buildSnapshot()) : null,
+    perf: input.logs.perf ? await compressPerfSnapshot(await buildSnapshot()) : null,
   });
   let headers: Record<string, string>;
   try {

@@ -3,6 +3,7 @@ import fs from "node:fs";
 import { ipcMain } from "electron";
 import log from "electron-log";
 import PathUtil from "../utils/PathUtil";
+import { perfWindowRole, recordPerf } from "./perf-record";
 
 // 日志统一落盘到 ~/.editor/logs，session 粒度：每次启动一个文件，便于按会话排查问题
 const LOG_DIR = path.join(PathUtil.getAppDir(), "logs");
@@ -72,6 +73,29 @@ function installRendererLogHandler() {
     const level = isRendererLogLevel(payload.level) ? payload.level : "info";
     const role = typeof payload.role === "string" && payload.role ? payload.role : "window";
     rendererLog[level](`[${role}#${event.sender.id}] ${payload.message}`);
+    if (level === "error") {
+      const label = /Maximum update depth|React error #185/.test(payload.message)
+        ? "react-loop"
+        : payload.message.includes("节点身份不存在")
+          ? "node-identity"
+          : /^\[react:/.test(payload.message) && !payload.message.includes("componentStack:")
+            ? "react-error"
+            : payload.message.startsWith("UnhandledRejection ")
+              ? "unhandled-rejection"
+              : payload.message.startsWith("Uncaught ")
+                ? "uncaught-error"
+                : undefined;
+      if (label)
+        recordPerf(
+          { t: Date.now(), kind: "exception", label },
+          {
+            pid: event.sender.getOSProcessId(),
+            type: "renderer",
+            webContentsId: event.sender.id,
+            role: perfWindowRole(event.sender.id),
+          }
+        );
+    }
   });
 }
 

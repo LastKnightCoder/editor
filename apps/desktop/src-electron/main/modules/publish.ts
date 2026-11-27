@@ -266,7 +266,7 @@ class PublishModule implements Module {
       }
       const syncIoStart = Date.now();
       writeFileSync(filePath, file.content);
-      recordSyncIo(`write:${filePath}`, file.content.length, Date.now() - syncIoStart);
+      recordSyncIo("publish:write", file.content.length, Date.now() - syncIoStart);
     }
 
     return { files: files.map(file => join(targetDir, file.path)), imageWarnings };

@@ -1,6 +1,8 @@
 // 渲染进程 console 劫持：重写 console.* 方法，保留原输出行为的同时转发主进程，
 // 由主进程写入 session 日志文件。Web 环境无主进程通道，跳过安装保留原生 console
 
+import type { RootOptions } from "react-dom/client";
+
 type ConsoleMethodName = "log" | "info" | "warn" | "error" | "debug";
 
 // console 方法到日志级别的映射（console.log 归并为 info）
@@ -32,6 +34,22 @@ function formatValue(value: unknown): string {
     return String(value);
   }
 }
+
+function reportReactError(
+  kind: "caught" | "uncaught" | "recoverable",
+  error: unknown,
+  componentStack?: string
+): void {
+  console.error(`[react:${kind}]`, error);
+  // 分条记录，避免组件栈被较长的异常堆栈挤出单条日志上限。
+  if (componentStack) console.error(`[react:${kind}] componentStack:\n${componentStack}`);
+}
+
+export const reactRootErrorHandlers = {
+  onCaughtError: (error, info) => reportReactError("caught", error, info.componentStack),
+  onUncaughtError: (error, info) => reportReactError("uncaught", error, info.componentStack),
+  onRecoverableError: (error, info) => reportReactError("recoverable", error, info.componentStack),
+} satisfies RootOptions;
 
 export function setupConsoleLogger(): void {
   // 番茄钟背景音的隐藏窗口只有 tauPomodoroAudio 这一个最小桥，没有 window.electron
@@ -77,9 +95,11 @@ export function setupConsoleLogger(): void {
   window.addEventListener("error", event => {
     // 资源加载失败的 error 事件没有 message，属噪音不上报
     if (event.message) {
+      const error: unknown = event.error;
+      const stack = error == null ? "" : `\n${formatValue(error)}`;
       report(
         "error",
-        `Uncaught ${event.message} @ ${event.filename}:${event.lineno}:${event.colno}`
+        `Uncaught ${event.message} @ ${event.filename}:${event.lineno}:${event.colno}${stack}`
       );
     }
   });

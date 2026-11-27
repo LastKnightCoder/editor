@@ -3,6 +3,7 @@ import { existsSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { macArmBuild } from "./mac-arm-build.mjs";
+import { verifyPerfSymbols } from "./verify-perf-symbols.mjs";
 import pruneNativeModules from "./prune-packaged-native-modules.cjs";
 import { assertPiPackagingBoundary } from "./pi-packaging-boundary.mjs";
 
@@ -79,6 +80,8 @@ const ensureLlamaCppBackends = () => {
   }
 };
 
+const perfBuild = await verifyPerfSymbols(desktopDir);
+console.log(`[perf-symbols] 打包构建 ${perfBuild.buildId}：${perfBuild.files} 份产物与映射已核对`);
 ensureLlamaCppBackends();
 
 const electronMirrorEnvKeys = [
@@ -111,7 +114,11 @@ const electronMirrorEnvKeys = [
   "npm_package_config_electron_custom_version",
 ];
 
-const env = { ...process.env };
+const env = {
+  ...process.env,
+  TAU_DESKTOP_BUILD_ID: perfBuild.buildId,
+  TAU_DESKTOP_BUILD_VERSION: perfBuild.version,
+};
 
 // electron-builder 26 下载 DMG 辅助二进制时会复用 @electron/get；
 // 清理 Electron 本体镜像变量，避免把 builder-binaries 错拼到 electron 镜像目录。

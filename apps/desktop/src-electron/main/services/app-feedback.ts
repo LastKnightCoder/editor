@@ -83,16 +83,62 @@ export async function collectAppLog(logDir: string, current: string): Promise<Bu
   return gzip(text || "（没有可用的日志）");
 }
 
-/** 性能快照超限时依次去掉体积最大的启动 CPU 剖析，仍超限则放弃 */
-export async function compressPerfSnapshot(snapshot: {
-  main: Record<string, unknown>;
-}): Promise<Buffer> {
+/** 超限时保留摘要，依次裁剪启动剖析、存档明细和当前时间线；省略量随包说明。 */
+export async function compressPerfSnapshot(
+  snapshot: {
+    main: Record<string, unknown>;
+    timeline?: unknown[];
+    incidents?: unknown[];
+    collector?: Record<string, unknown>;
+  },
+  limitBytes = APP_FEEDBACK_LIMITS.logBytes
+): Promise<Buffer> {
   const packed = await gzip(JSON.stringify(snapshot));
-  if (packed.length <= APP_FEEDBACK_LIMITS.logBytes) return packed;
-  const trimmed = await gzip(
-    JSON.stringify({ ...snapshot, main: { ...snapshot.main, startupCpuProfile: null } })
-  );
-  if (trimmed.length <= APP_FEEDBACK_LIMITS.logBytes) return trimmed;
+  if (packed.length <= limitBytes) return packed;
+  const value = { ...snapshot, main: { ...snapshot.main, startupCpuProfile: null } };
+  let trimmed = await gzip(JSON.stringify(value));
+  if (trimmed.length <= limitBytes) return trimmed;
+  let omittedCpuProfiles = 0;
+  value.incidents = value.incidents?.map(incident => {
+    if (
+      !incident ||
+      typeof incident !== "object" ||
+      !("cpu" in incident) ||
+      !incident.cpu ||
+      typeof incident.cpu !== "object" ||
+      !("profile" in incident.cpu) ||
+      !incident.cpu.profile
+    )
+      return incident;
+    omittedCpuProfiles++;
+    return { ...incident, cpu: { ...incident.cpu, profile: undefined, profileOmitted: true } };
+  });
+  value.collector = { ...value.collector, omittedCpuProfiles };
+  trimmed = await gzip(JSON.stringify(value));
+  if (trimmed.length <= limitBytes) return trimmed;
+  let omittedIncidentEvents = 0;
+  let omittedTimelineEvents = 0;
+  value.incidents = value.incidents?.map(incident => {
+    if (
+      !incident ||
+      typeof incident !== "object" ||
+      !("events" in incident) ||
+      !Array.isArray(incident.events)
+    )
+      return incident;
+    omittedIncidentEvents += incident.events.length;
+    return { ...incident, events: [] };
+  });
+  value.collector = { ...value.collector, omittedIncidentEvents, omittedTimelineEvents: 0 };
+  trimmed = await gzip(JSON.stringify(value));
+  while (trimmed.length > limitBytes && value.timeline?.length) {
+    const removed = Math.ceil(value.timeline.length / 2);
+    value.timeline = value.timeline.slice(removed);
+    omittedTimelineEvents += removed;
+    value.collector.omittedTimelineEvents = omittedTimelineEvents;
+    trimmed = await gzip(JSON.stringify(value));
+  }
+  if (trimmed.length <= limitBytes) return trimmed;
   throw new Error("性能日志过大，请取消勾选后再发送");
 }
 

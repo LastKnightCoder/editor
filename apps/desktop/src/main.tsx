@@ -13,13 +13,14 @@ import "./app/base.css";
 // 插件设置页的外观预览也复用这套样式，所以随主入口全局加载。
 import "./app/text-decorations.css";
 import { recordPerfStage } from "./utils/perf-observer";
+import { reactRootErrorHandlers } from "./utils/console-logger";
 
 if (isMainWindow()) connectPomodoroAudio();
 dayjs.locale("zh-cn");
 
 const rootElement = document.getElementById("root");
 if (!rootElement) throw new Error("找不到 #root 挂载节点");
-const root = ReactDOM.createRoot(rootElement);
+const root = ReactDOM.createRoot(rootElement, reactRootErrorHandlers);
 
 // 先挂载轻量启动界面，避免后台模块和编辑器扩展加载期间出现白屏。
 root.render(<StartupSplash label="正在启动…" />);

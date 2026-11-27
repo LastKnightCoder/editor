@@ -9,11 +9,12 @@ import { WhiteboardContent, Whiteboard } from "@/types";
 import { I18nRuntimeProvider } from "@tau/i18n/react";
 import { desktopI18n } from "@/app/i18n/runtime";
 import { whiteboardEmbedTranslator } from "./i18n";
+import { reactRootErrorHandlers } from "@/utils/console-logger";
 
 const showSelectWhiteboardModal = (editor: Editor) => {
   const container = document.createElement("div");
   document.body.appendChild(container);
-  const root = createRoot(container);
+  const root = createRoot(container, reactRootErrorHandlers);
 
   const handleOk = async (whiteboardContent: WhiteboardContent, _whiteboard: Whiteboard) => {
     await insertExistingWhiteboard(editor, whiteboardContent);

@@ -1,25 +1,17 @@
-import { send } from "@/electron";
+import { flushPerfEvents, reportPerfEvent } from "./perf-trace";
+import { perfToken, type PerfKind } from "../../shared/perf-diagnostics";
 import { queryClient } from "@/queryClient";
 
 /**
- * 渲染端性能采集：事件循环延迟 / 长任务 / 掉帧片段 / JS 堆内存 / react-query 刷新频率。
- * 全部为被动低频采样，事件经独立 IPC 通道（不走 logger 的 sendLog，避免限流与日志污染）
- * 汇聚到主进程 perf-monitor 的 ring buffer，由「导出性能快照」落盘；启动阶段每次仅数条，
- * 额外镜像到 session 日志（`[startup]`），排查启动慢或卡住时不必导出快照。
+ * 渲染端性能采集：事件循环延迟、长任务、长帧、JS 堆与查询频率。
+ * 事件批量送往主进程的有界时间线，异常自动留档；启动阶段额外镜像到 session 日志。
  * 在 init.ts 最早安装；非 Electron 环境（测试 / 浏览器预览）不启动。
  */
-
-const RENDERER_EVENT_CHANNEL = "perf-monitor:renderer-event";
 
 // 事件循环心跳：250ms 预期间隔，实测偏差超 120ms 视为一次阻塞
 const HEARTBEAT_MS = 250;
 const EVENT_LOOP_THRESHOLD_MS = 120;
-// 掉帧聚合：单帧 >50ms（<20fps）记坏帧，连续 ≥5 帧坏帧聚成一个 jank 片段；
-// 片段超 2s 先行上报并重新累计——持续冻结时不能等到恢复才留下记录
-const BAD_FRAME_MS = 50;
-const JANK_MIN_FRAMES = 5;
-const JANK_FLUSH_MS = 2_000;
-const HEAP_SAMPLE_MS = 30_000;
+const HEAP_SAMPLE_MS = 5000;
 const QUERY_RATE_MS = 60_000;
 const SLOW_INTERACTION_MS = 200;
 
@@ -28,17 +20,47 @@ interface PerformanceMemoryLike {
   totalJSHeapSize: number;
 }
 
-interface LongTaskEntry extends PerformanceEntry {
-  attribution?: Array<{ sourceURL?: string }>;
-}
-
 interface EventTimingEntry extends PerformanceEntry {
   interactionId: number;
-  target: Node | null;
 }
 
 function report(payload: Record<string, unknown>): void {
-  send(RENDERER_EVENT_CHANNEL, { t: Date.now(), ...payload });
+  const kinds: Record<string, PerfKind> = {
+    stage: "stage",
+    "event-loop": "event-loop",
+    longtask: "longtask",
+    "event-timing": "interaction",
+    loaf: "frame",
+    heap: "heap",
+    "query-rate": "query",
+  };
+  const kind = kinds[String(payload.kind)];
+  if (!kind) return;
+  const values: Record<string, number> = {};
+  for (const key of [
+    "usedMB",
+    "totalMB",
+    "count",
+    "scriptMs",
+    "renderMs",
+    "styleLayoutMs",
+    "paintMs",
+  ])
+    if (typeof payload[key] === "number") values[key] = payload[key];
+  reportPerfEvent({
+    kind,
+    t: typeof payload.t === "number" ? payload.t : Date.now(),
+    label: perfToken(payload.label) ?? perfToken(payload.name),
+    ms:
+      typeof payload.ms === "number"
+        ? payload.ms
+        : typeof payload.durationMs === "number"
+          ? payload.durationMs
+          : typeof payload.delayMs === "number"
+            ? payload.delayMs
+            : undefined,
+    values,
+  });
 }
 
 /** 只上报阶段名、耗时和规模，不包含正文或节点标题。 */
@@ -77,25 +99,23 @@ function watchEventLoopDelay(): void {
   }, HEARTBEAT_MS);
 }
 
-// --- 长任务（PerformanceObserver longtask，带脚本归因） ---
+// --- 长任务 ---
 function watchLongTasks(): void {
   if (typeof PerformanceObserver === "undefined") return;
   try {
     const observer = new PerformanceObserver(list => {
       for (const raw of list.getEntries()) {
-        const entry = raw as LongTaskEntry;
-        const source = entry.attribution?.[0]?.sourceURL ?? "";
+        const entry = raw;
         report({
           kind: "longtask",
           t: performance.timeOrigin + entry.startTime,
           durationMs: Math.round(entry.duration),
-          source,
         });
       }
     });
     observer.observe({ entryTypes: ["longtask"] });
   } catch {
-    // longtask 不受支持时静默降级（事件循环心跳与掉帧片段仍可诊断渲染端阻塞）
+    // longtask 不受支持时保留心跳与长帧诊断。
   }
 }
 
@@ -137,21 +157,20 @@ function watchLongAnimationFrames(): void {
     const observer = new PerformanceObserver(list => {
       for (const raw of list.getEntries()) {
         const entry = raw as LoafEntry;
-        const script = entry.scripts?.reduce((sum, s) => sum + (s.duration ?? 0), 0) ?? 0;
-        // top3 脚本归因（时长 + 函数名/调用方@文件），定位周期性任务的具体来源
-        const topScripts =
-          entry.scripts
-            ?.slice()
-            .sort((a, b) => (b.duration ?? 0) - (a.duration ?? 0))
-            .slice(0, 3)
-            .map(s => `${loafScriptLabel(s)}:${Math.round(s.duration ?? 0)}ms`)
-            .join("; ")
-            .slice(0, 240) ?? "";
+        let scriptMs: number | undefined;
+        let longest: NonNullable<LoafEntry["scripts"]>[number] | undefined;
+        for (const script of entry.scripts ?? []) {
+          if (script.duration !== undefined) {
+            scriptMs = (scriptMs ?? 0) + script.duration;
+            if (!longest || script.duration > (longest.duration ?? 0)) longest = script;
+          }
+        }
         report({
           kind: "loaf",
           t: performance.timeOrigin + entry.startTime,
           durationMs: Math.round(entry.duration),
-          scriptMs: Math.round(script),
+          scriptMs: scriptMs === undefined ? undefined : Math.round(scriptMs),
+          label: longest ? loafScriptLabel(longest) : undefined,
           renderMs: entry.renderStart
             ? Math.round(entry.startTime + entry.duration - entry.renderStart)
             : null,
@@ -159,7 +178,6 @@ function watchLongAnimationFrames(): void {
             ? Math.round(entry.startTime + entry.duration - entry.styleAndLayoutStart)
             : null,
           paintMs: entry.paintDuration === undefined ? null : Math.round(entry.paintDuration),
-          source: topScripts,
         });
       }
     });
@@ -169,19 +187,7 @@ function watchLongAnimationFrames(): void {
   }
 }
 
-// --- 慢交互（Event Timing API，带事件目标归因） ---
-// longtask 在 Chromium 拿不到脚本归因（attribution 恒空），交互时长条目自带目标元素，
-// 能回答「哪次操作卡了多久」；interactionId 为 0 的是非交互事件（程序触发），跳过
-function describeTarget(node: Node | null): string {
-  if (!(node instanceof Element)) return "";
-  const id = node.id ? `#${node.id}` : "";
-  const classes =
-    typeof node.className === "string" && node.className
-      ? `.${node.className.trim().split(/\s+/).slice(0, 3).join(".")}`
-      : "";
-  return `${node.tagName.toLowerCase()}${id}${classes}`.slice(0, 120);
-}
-
+// --- 慢交互：只记录事件类型与耗时，不读取 DOM 文本和属性。 ---
 function watchSlowInteractions(): void {
   if (typeof PerformanceObserver === "undefined") return;
   try {
@@ -194,7 +200,6 @@ function watchSlowInteractions(): void {
           t: performance.timeOrigin + entry.startTime,
           durationMs: Math.round(entry.duration),
           name: entry.name,
-          target: describeTarget(entry.target),
         });
       }
     });
@@ -209,66 +214,10 @@ function watchSlowInteractions(): void {
   }
 }
 
-// --- 掉帧片段（rAF 帧间隔聚合） ---
-function watchJank(): void {
-  let last = performance.now();
-  let badFrames = 0;
-  let spanStart = 0;
-  let worstFrameMs = 0;
-  let frameSum = 0;
-
-  const reset = () => {
-    badFrames = 0;
-    worstFrameMs = 0;
-    frameSum = 0;
-  };
-
-  const flushSpan = (end: number) => {
-    const durationMs = end - spanStart;
-    report({
-      kind: "jank",
-      durationMs: Math.round(durationMs),
-      worstFrameMs: Math.round(worstFrameMs),
-      avgFps: Math.round((badFrames / Math.max(frameSum, 1)) * 1000),
-    });
-    reset();
-  };
-
-  const frame = (now: number) => {
-    const delta = now - last;
-    last = now;
-    if (document.hidden || !document.hasFocus()) {
-      // rAF 在隐藏/遮挡/失焦窗口被节流到 ~1Hz，帧间隔是节流档位不是掉帧，恢复后首帧同样无意义
-      reset();
-      requestAnimationFrame(frame);
-      return;
-    }
-    if (delta >= BAD_FRAME_MS) {
-      if (badFrames === 0) {
-        spanStart = now - delta;
-        worstFrameMs = delta;
-        frameSum = delta;
-      } else {
-        worstFrameMs = Math.max(worstFrameMs, delta);
-        frameSum += delta;
-      }
-      badFrames += 1;
-      if (badFrames >= JANK_MIN_FRAMES && now - spanStart >= JANK_FLUSH_MS) {
-        flushSpan(now);
-      }
-    } else if (badFrames >= JANK_MIN_FRAMES) {
-      flushSpan(now);
-    } else if (badFrames > 0) {
-      reset();
-    }
-    requestAnimationFrame(frame);
-  };
-  requestAnimationFrame(frame);
-}
-
 // --- JS 堆内存趋势（泄漏检测） ---
 function watchHeap(): void {
   window.setInterval(() => {
+    reportPerfEvent({ kind: "context" });
     const memory = (performance as unknown as { memory?: PerformanceMemoryLike }).memory;
     if (!memory) return;
     report({
@@ -284,18 +233,18 @@ function watchQueryRate(): void {
   const fetchesByKey = new Map<string, number>();
   queryClient.getQueryCache().subscribe(event => {
     if (event.type !== "updated" || event.action.type !== "fetch") return;
-    const key = JSON.stringify(event.query.queryKey).slice(0, 120);
+    let key = perfToken(event.query.queryKey[0]) ?? "other";
+    if (fetchesByKey.size >= 256 && !fetchesByKey.has(key)) key = "other";
     fetchesByKey.set(key, (fetchesByKey.get(key) ?? 0) + 1);
   });
   window.setInterval(() => {
     let total = 0;
     for (const count of fetchesByKey.values()) total += count;
     if (total > 0) {
-      const topQueryKeys = [...fetchesByKey.entries()]
+      for (const [label, count] of [...fetchesByKey.entries()]
         .sort((a, b) => b[1] - a[1])
-        .slice(0, 5)
-        .map(([key, count]) => `${key}×${count}`);
-      report({ kind: "query-rate", eventsPerMin: total, topQueryKeys });
+        .slice(0, 5))
+        reportPerfEvent({ kind: "query", label, values: { count } });
     }
     fetchesByKey.clear();
   }, QUERY_RATE_MS);
@@ -307,7 +256,7 @@ export function startPerfObserver(): void {
   watchLongTasks();
   watchLongAnimationFrames();
   watchSlowInteractions();
-  watchJank();
   watchHeap();
   watchQueryRate();
+  window.addEventListener("pagehide", flushPerfEvents);
 }

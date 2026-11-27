@@ -13,9 +13,12 @@ const fail = message => {
   failure ??= new Error(message);
 };
 ipcMain.on("perf-monitor:renderer-event", (_event, payload) => {
-  if (payload?.kind !== "stage") return;
-  stages.add(payload.label);
-  if (payload.label === "startup:database-failed") fail("主窗口数据库初始化失败");
+  if (!Array.isArray(payload?.events)) return;
+  for (const event of payload.events) {
+    if (event.kind !== "stage") continue;
+    stages.add(event.label);
+    if (event.label === "startup:database-failed") fail("主窗口数据库初始化失败");
+  }
 });
 ipcMain.on("logger:renderer-log", (_event, payload) => {
   if (

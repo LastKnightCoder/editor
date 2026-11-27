@@ -119,4 +119,30 @@ describe("logger 模块", () => {
     // 旧版单文件日志的清理兼容已删除，logs 目录外的遗留文件不再动
     expect(fs.existsSync(legacyNotes)).toBe(true);
   });
+
+  it("未捕获异常会固定窗口现场，异常正文只留在普通日志", async () => {
+    const { perfDiagnostics, registerPerfWindow, setPerfWindowContext } =
+      await import("../perf-record");
+    const dispose = registerPerfWindow(7, "main");
+    setPerfWindowContext(7, { pageKey: "projects", contentId: 42 });
+    const handler = ipcMainOn.mock.calls[0][1] as (event: unknown, payload: unknown) => void;
+    handler(
+      { sender: { id: 7, getOSProcessId: () => 70 } },
+      {
+        level: "error",
+        message: "Uncaught private-error-body",
+        role: "untrusted-role",
+      }
+    );
+    const incident = perfDiagnostics.snapshot().incidents.at(-1);
+    if (!incident) throw new Error("异常未触发留档");
+    expect(incident.status).toBe("recording");
+    expect(incident.events.at(-1)).toMatchObject({
+      label: "uncaught-error",
+      source: { pid: 70, role: "main", webContentsId: 7 },
+      context: { pageKey: "projects", contentId: 42 },
+    });
+    expect(JSON.stringify(incident)).not.toContain("private-error-body");
+    dispose();
+  });
 });

@@ -6,6 +6,7 @@ import useContentSessionStore, {
   contentSessionKey,
   openContentSession,
 } from "@/stores/useContentSessionStore";
+import { beginPerfOperation } from "@/utils/perf-trace";
 
 export default function useContentSession(
   contentId?: number,
@@ -22,15 +23,22 @@ export default function useContentSession(
   useEffect(() => {
     if (!contentId) return;
     let active = true;
-    void openContentSession(databaseName, { contentId, ...sourceRef.current })
+    const operation = beginPerfOperation("content.open", { contentId });
+    void operation
+      .stage("content.session", () =>
+        openContentSession(databaseName, { contentId, ...sourceRef.current })
+      )
       .then(() => {
+        operation.end();
         if (active) setError(undefined);
       })
       .catch(failure => {
+        operation.end("error");
         if (active) setError(failure instanceof Error ? failure.message : t("content.loadFailed"));
       });
     return () => {
       active = false;
+      operation.end("cancelled");
     };
   }, [contentId, databaseName, revision, source?.sourceType, source?.sourceId]);
   return { entry, error, databaseName };

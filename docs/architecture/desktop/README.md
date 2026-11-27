@@ -22,6 +22,7 @@
 | [plugins](./plugins.md)               | 插件宿主全量：页面与作者 API / 窗口 / 聊天渲染 / ASR 与语音输入 / 领域提供方 / MCP 与 AI / 独立后台 / 静态内容 / 博客发布 / 服务与数据授权 / 中心管理 / 贡献位 |
 | [whiteboard](./whiteboard.md)         | 白板画布与扩展装配、文档会话、整库同步与文档保存、文档卡与日记正文身份                                                                                         |
 | [main-process](./main-process.md)     | 主进程模块就绪与启动分层、卡顿诊断、索引与嵌入、通知分流、构建与打包                                                                                           |
+| [performance](./performance.md)       | 性能上下文、操作与阶段、有界采集、异常自动留档、诊断摘要和反馈协议                                                                                             |
 | [ai-chat](./ai-chat.md)               | 对话工作目录、pi 聊天运行时与工具审批、个人助手记忆                                                                                                            |
 | [home-features](./home-features.md)   | 今日页数据契约与各业务域接线（测验 / 日程 / 番茄 / 待办 / 闪卡 / 卡片库 / 脉络 / 洞见 / 创作模式 / 知识地图 / Database / PDF / 列表排布）                      |
 

@@ -44,6 +44,23 @@ import {
 import type { EntityType } from "@/services/content-editing";
 import type { ContentSessionTarget } from "@tau/collaboration";
 import type { Descendant } from "slate";
+import { measurePerf, registerPerfEditor, reportPerfEvent } from "@/utils/perf-trace";
+
+const commandContexts = new WeakMap<ReturnType<EditorRef["getEditor"]>, { contentId?: number }>();
+
+function traceEditorCommands(editor: ReturnType<EditorRef["getEditor"]>, contentId?: number) {
+  const existing = commandContexts.get(editor);
+  if (existing) {
+    existing.contentId = contentId;
+    return;
+  }
+  if (!editor.commands) return;
+  const context = { contentId };
+  commandContexts.set(editor, context);
+  const execute = editor.commands.execute;
+  editor.commands.execute = (id, ...args) =>
+    measurePerf(`editor.command:${id}`, () => execute(id, ...args), context);
+}
 
 type ContentEditorProps = ComponentProps<typeof Editor> & {
   at?: string;
@@ -116,6 +133,15 @@ function withDocTaskReminderService(kit: EditorKit): EditorKit {
 
 const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
   ({ contentId, contracts, source, onLoadError, editingContext, at, ...props }, ref) => {
+    const perfEditor = useRef<ReturnType<typeof registerPerfEditor> | undefined>(undefined);
+    useEffect(() => {
+      const registration = registerPerfEditor(contentId);
+      perfEditor.current = registration;
+      return () => {
+        registration.dispose();
+        perfEditor.current = undefined;
+      };
+    }, [contentId]);
     const [locationEditor, setLocationEditor] = useState<{
       editor: ReturnType<EditorRef["getEditor"]>;
       contentId?: number;
@@ -127,6 +153,13 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
     const initializedEditor = useRef<typeof locationEditor>(null);
     const handleInit = useCallback(
       (editor: ReturnType<EditorRef["getEditor"]>, content: Descendant[]) => {
+        traceEditorCommands(editor, contentId);
+        reportPerfEvent({
+          kind: "stage",
+          label: "editor.ready",
+          context: { contentId },
+          values: { inputCount: content.length },
+        });
         initializedEditor.current = { editor, contentId };
         if (atRef.current)
           setLocationEditor(previous =>
@@ -353,6 +386,7 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
             );
           }}
           onFocus={() => {
+            perfEditor.current?.focus(true);
             presence.onFocus();
             props.onFocus?.();
             if (!editingSessionRef.current) return;
@@ -367,6 +401,7 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
             );
           }}
           onBlur={() => {
+            perfEditor.current?.focus(false);
             presence.onBlur();
             props.onBlur?.();
             if (editingSessionRef.current) {

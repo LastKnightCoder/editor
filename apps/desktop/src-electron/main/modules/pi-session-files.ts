@@ -95,7 +95,7 @@ export function writeSessionFile(options: {
   const content = `${lines.map(line => JSON.stringify(line)).join("\n")}\n`;
   const syncIoStart = Date.now();
   writeFileSync(sessionFilePath, content);
-  recordSyncIo(`write:${sessionFilePath}`, content.length, Date.now() - syncIoStart);
+  recordSyncIo("pi-session:import-write", content.length, Date.now() - syncIoStart);
   return fileName;
 }
 
@@ -417,6 +417,6 @@ function ensureFlushed(manager: SessionManager): void {
   const content = `${entries.map(entry => JSON.stringify(entry)).join("\n")}\n`;
   const syncIoStart = Date.now();
   writeFileSync(file, content, { flag: "wx" });
-  recordSyncIo(`write:${file}`, content.length, Date.now() - syncIoStart);
+  recordSyncIo("pi-session:initial-write", content.length, Date.now() - syncIoStart);
   manager.setSessionFile(file);
 }

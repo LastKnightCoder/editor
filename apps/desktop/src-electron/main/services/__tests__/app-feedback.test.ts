@@ -53,6 +53,65 @@ it("性能快照超限时先去掉启动剖析", async () => {
   });
 });
 
+it("反馈预算不足时保留异常摘要并记录被省略的明细", async () => {
+  const timeline = Array.from({ length: 80 }, (_, index) => ({
+    label: `operation-${index}`,
+    token: `diagnostic-${index * 7919}-${index * 104729}`,
+  }));
+  const packed = await compressPerfSnapshot(
+    {
+      main: {},
+      timeline,
+      incidents: [{ id: "incident", summary: { reason: "ui-blocked" }, events: timeline }],
+    },
+    400
+  );
+  const result = JSON.parse(gunzipSync(packed).toString());
+  expect(result.incidents[0].summary).toEqual({ reason: "ui-blocked" });
+  expect(result.collector.omittedIncidentEvents).toBe(timeline.length);
+  expect(result.collector.omittedTimelineEvents).toBeGreaterThan(0);
+  expect(result.timeline.length + result.collector.omittedTimelineEvents).toBe(timeline.length);
+});
+
+it("CPU 明细超预算时保留热点摘要，反馈仍能发送并标记省略", async () => {
+  const nodes = Array.from({ length: 100 }, (_, id) => ({
+    id,
+    callFrame: {
+      functionName: `stage-${id * 7919}`,
+      scriptId: "1",
+      url: `renderer/assets/chunk-${id * 104729}.js`,
+      lineNumber: id,
+      columnNumber: id * 97,
+    },
+  }));
+  const packed = await compressPerfSnapshot(
+    {
+      main: {},
+      incidents: [
+        {
+          cpu: {
+            status: "complete",
+            summary: { samples: 100 },
+            profile: {
+              startTime: 0,
+              endTime: 1000,
+              nodes,
+              samples: [1],
+              timeDeltas: [1000],
+            },
+          },
+        },
+      ],
+    },
+    400
+  );
+  const result = JSON.parse(gunzipSync(packed).toString());
+  expect(result.incidents[0].cpu.summary).toEqual({ samples: 100 });
+  expect(result.incidents[0].cpu.profileOmitted).toBe(true);
+  expect(result.incidents[0].cpu).not.toHaveProperty("profile");
+  expect(result.collector.omittedCpuProfiles).toBe(1);
+});
+
 it("校验正文与截图数量", () => {
   expect(validateInput(input())).toEqual({ message: "卡住了" });
   expect(() => validateInput(input({ message: "  " }))).toThrow("反馈内容");

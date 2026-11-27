@@ -9,6 +9,7 @@ import { isDev, loadRoute, loadContentRuntime, windowContext } from "./context";
 import { registerPomodoroAudioHost } from "./pomodoro-audio";
 import { routeWindowOpen } from "./open-handler";
 import { shouldKeepBackgroundAlive } from "../services/background-preferences";
+import { recordPerf, registerPerfWindow } from "../modules/perf-record";
 
 /**
  * 标题栏形态：
@@ -96,6 +97,8 @@ export function createWindow({
   // 日志里的窗口身份：隐藏与辅助窗口没有可辨识的标题
   const logSource = `${document ?? role ?? "window"}:${route || "/"}`;
   const contents = win.webContents;
+  const perfRole = document ?? role ?? "window";
+  win.once("closed", registerPerfWindow(contents.id, perfRole));
   contents.on("render-process-gone", (_event, details) => {
     if (!expectedRendererExit.has(contents))
       log.error("[window] 渲染进程已退出", { window: logSource, ...details });
@@ -103,7 +106,19 @@ export function createWindow({
   contents.on("preload-error", (_event, preloadPath, error) => {
     log.error("[window] preload 加载失败", { window: logSource, preloadPath }, error);
   });
-  win.on("unresponsive", () => log.warn("[window] 窗口无响应", { window: logSource }));
+  win.on("unresponsive", () => {
+    log.warn("[window] 窗口无响应", { window: logSource });
+    recordPerf(
+      { t: Date.now(), kind: "unresponsive" },
+      {
+        pid: contents.getOSProcessId(),
+        type: "renderer",
+        windowId: win.id,
+        webContentsId: contents.id,
+        role: perfRole,
+      }
+    );
+  });
   win.on("responsive", () => log.info("[window] 窗口恢复响应", { window: logSource }));
 
   forwardWindowEvents(win);

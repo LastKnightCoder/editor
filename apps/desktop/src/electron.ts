@@ -1,5 +1,7 @@
 import { invokingCommandScope, type CommandScope } from "@/services/command-context";
 import { logThrottled } from "@/utils/throttled-log";
+import { beginPerfOperation, currentPerfTrace } from "@/utils/perf-trace";
+import { isTracedDatabaseCommand } from "../shared/perf-diagnostics";
 
 const bridge = window.electron;
 
@@ -101,18 +103,40 @@ async function invokeWithRetry<T>(
 
 export const invoke = <T = unknown>(channel: string, ...args: unknown[]): Promise<T> => {
   const scope = invokingCommandScope();
-  return invokeWithRetry<T>(
+  const operation =
+    isTracedDatabaseCommand(channel) && bridge
+      ? beginPerfOperation(channel, {
+          ...currentPerfTrace()?.context,
+          ...(typeof args[0] === "number" && channel.startsWith("content:")
+            ? { contentId: args[0] }
+            : {}),
+          connectionId: scope?.connectionId,
+        })
+      : undefined;
+  const metadata = {
+    ...(scope?.databaseName
+      ? {
+          toolDatabaseName: scope.databaseName,
+          ...(scope.connectionId ? { toolDatabaseConnection: scope.connectionId } : {}),
+        }
+      : {}),
+    ...(operation ? { perfTrace: operation.trace } : {}),
+  };
+  const request = invokeWithRetry<T>(
     channel,
-    scope?.databaseName
-      ? [
-          ...args,
-          {
-            toolDatabaseName: scope.databaseName,
-            ...(scope.connectionId ? { toolDatabaseConnection: scope.connectionId } : {}),
-          },
-        ]
-      : args,
+    Object.keys(metadata).length ? [...args, metadata] : args,
     scope
+  );
+  if (!operation) return request;
+  return request.then(
+    value => {
+      operation.end();
+      return value;
+    },
+    error => {
+      operation.end(scope?.signal?.aborted ? "cancelled" : "error");
+      throw error;
+    }
   );
 };
 

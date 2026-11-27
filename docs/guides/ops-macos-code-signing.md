@@ -47,14 +47,14 @@ xcrun stapler validate "apps/desktop/release/mac-arm64/Tau.app"
 仅构建或交付测试安装包时到此为止。需要正式更新发行时：
 
 1. 在 `apps/desktop/release-notes/<版本>.md` 准备升级公告。核对根目录和 apps/desktop 两处 package.json 的版本。
-2. 默认目标是 R2，客户端更新源为 `https://dl.taunote.app/desktop`。通过私有环境配置 R2_ACCOUNT_ID、R2_ACCESS_KEY_ID、R2_SECRET_ACCESS_KEY；不在聊天或仓库保存取值。
+2. 默认目标是 R2，客户端更新源为 `https://dl.taunote.app/desktop`。通过私有环境配置 R2_ACCOUNT_ID、R2_ACCESS_KEY_ID、R2_SECRET_ACCESS_KEY，并设置独立私有诊断桶 R2_SYMBOLS_BUCKET；Token 需能读写两个桶，不在聊天或仓库保存取值。源码映射归档配置见 [桌面性能排查](/docs/guides/ops-desktop-performance.md#r2-归档上传与取回)。
 3. 先执行本地发布预检：
 
    ```sh
    pnpm publish:desktop --skip-build --dry-run
    ```
 
-   该命令不上传，但会校验产物并把公告写入本地 latest*.yml，不是完全只读。确认版本、摘要与产物集合匹配。
+   该命令不访问 R2，但会校验产物、构建绑定和 map，临时打包映射，并把公告写入本地 latest*.yml，不是完全只读。确认版本、摘要与产物集合匹配；缺少 `.build-receipts/` 的旧产物须重新构建。
 
 4. 在已批准的发行范围内发布已验产物：
 
@@ -62,7 +62,7 @@ xcrun stapler validate "apps/desktop/release/mac-arm64/Tau.app"
    pnpm publish:desktop --skip-build
    ```
 
-   需要先改版本再重新构建时使用 `pnpm publish:desktop --version x.y.z`。脚本上传成功后尝试创建版本 tag，不自动推送；核对日志与 tag 结果，不能把上传成功当作 Git 已推送。不要用 `--force` 覆盖已发布版本来修复客户端。
+   需要先改版本再重新构建时使用 `pnpm publish:desktop --version x.y.z`。发布会自动先归档各安装包对应 buildId 的私有 map，再上传安装包，最后更新 latest 清单；映射失败即中止。`--skip-build` 保留原 buildId，`--force` 不能绕过构建绑定检查。脚本上传成功后尝试创建版本 tag，不自动推送；核对日志与 tag 结果，不能把上传成功当作 Git 已推送。不要用 `--force` 覆盖已发布版本来修复客户端。
 
 ## 安装、更新与失败处理
 

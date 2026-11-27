@@ -1,11 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const sent = vi.hoisted(() => vi.fn());
-vi.mock("@/electron", () => ({ send: sent }));
+const sent = vi.hoisted(() => vi.fn<(channel: string, batch: PerfBatch) => void>());
 vi.mock("@/queryClient", () => ({
   queryClient: { getQueryCache: () => ({ subscribe: vi.fn() }) },
 }));
 import { startPerfObserver } from "../perf-observer";
+import { flushPerfEvents } from "../perf-trace";
+import type { PerfBatch } from "../../../shared/perf-diagnostics";
+
+const events = () => sent.mock.calls.flatMap(([, batch]) => batch.events);
 
 afterEach(() => {
   vi.useRealTimers();
@@ -16,7 +19,7 @@ afterEach(() => {
 describe("性能采集", () => {
   it("堆采样每次读取最新 memory，并保留长帧真实起点及未知渲染指标", () => {
     vi.useFakeTimers();
-    Object.defineProperty(window, "electron", { configurable: true, value: {} });
+    Object.defineProperty(window, "electron", { configurable: true, value: { send: sent } });
     let heap = 1024 * 1024;
     Object.defineProperty(performance, "memory", {
       configurable: true,
@@ -28,20 +31,26 @@ describe("性能采集", () => {
       class {
         constructor(private callback: PerformanceObserverCallback) {}
         observe(options: PerformanceObserverInit) {
-          observers.set(options.type ?? options.entryTypes![0], this.callback);
+          const type = options.type ?? options.entryTypes?.[0];
+          if (type) observers.set(type, this.callback);
         }
       }
     );
-    vi.spyOn(window, "requestAnimationFrame").mockReturnValue(1);
     sent.mockClear();
     startPerfObserver();
-    vi.advanceTimersByTime(30000);
+    vi.advanceTimersByTime(5000);
+    flushPerfEvents();
     heap *= 3;
-    vi.advanceTimersByTime(30000);
+    vi.advanceTimersByTime(5000);
+    flushPerfEvents();
     expect(
-      sent.mock.calls.filter(([, event]) => event.kind === "heap").map(([, event]) => event.usedMB)
+      events()
+        .filter(event => event.kind === "heap")
+        .map(event => event.values?.usedMB)
     ).toEqual([1, 3]);
-    observers.get("long-animation-frame")!(
+    const onFrame = observers.get("long-animation-frame");
+    if (!onFrame) throw new Error("未安装长帧观察器");
+    onFrame(
       {
         getEntries: () => [
           {
@@ -55,12 +64,11 @@ describe("性能采集", () => {
       } as unknown as PerformanceObserverEntryList,
       {} as PerformanceObserver
     );
-    expect(sent.mock.calls.at(-1)![1]).toMatchObject({
+    flushPerfEvents();
+    expect(events().at(-1)).toMatchObject({
       t: performance.timeOrigin + 123,
-      renderMs: 123,
-      styleLayoutMs: 103,
-      paintMs: null,
-      source: "draw@map.js:50ms",
+      kind: "frame",
+      values: { renderMs: 123, styleLayoutMs: 103 },
     });
     delete (performance as unknown as { memory?: unknown }).memory;
   });

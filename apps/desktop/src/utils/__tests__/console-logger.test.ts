@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ReactNode } from "react";
 
 // setupConsoleLogger 会整体替换 console 方法与 window 环境依赖，
 // 每个用例通过 resetModules + 动态 import 获取全新模块状态，避免限流计数互相污染
@@ -109,24 +110,66 @@ describe("setupConsoleLogger", () => {
     const { setupConsoleLogger } = await loadFreshModule();
     setupConsoleLogger();
 
+    const error = new Error("Script error");
+    error.stack = "Error: Script error\n    at brokenOperation (app.js:42:7)";
     window.dispatchEvent(
       new ErrorEvent("error", {
         message: "Script error",
         filename: "app.js",
         lineno: 1,
         colno: 2,
-        error: new Error("Script error"),
+        error,
       })
     );
     expect(sendLog).toHaveBeenCalledWith(
       "error",
       expect.stringContaining("Uncaught Script error @ app.js:1:2")
     );
+    expect(sendLog).toHaveBeenCalledWith("error", expect.stringContaining("brokenOperation"));
 
     // jsdom 未实现 PromiseRejectionEvent 构造器，用普通事件携带 reason 模拟
     const rejectionEvent = new Event("unhandledrejection");
     (rejectionEvent as unknown as { reason: unknown }).reason = "网络超时";
     window.dispatchEvent(rejectionEvent);
     expect(vi.mocked(sendLog).mock.lastCall?.[1]).toContain("UnhandledRejection");
+  });
+
+  // 用户日志中的 React 循环更新只剩压缩包行号；异常栈与组件栈必须都进入 session 通道。
+  it("React 错误被边界接住后仍保留异常栈和组件栈", async () => {
+    console.error = vi.fn();
+    const sendLog = installBridge();
+    const { setupConsoleLogger, reactRootErrorHandlers } = await loadFreshModule();
+    setupConsoleLogger();
+    const { act, Component, createElement } = await import("react");
+    const { createRoot } = await import("react-dom/client");
+    const error = new Error("preview failed");
+    error.stack = `Error: preview failed\n    at renderTable (table.js:42:7)${"\n".repeat(4000)}`;
+
+    function BrokenPreview(): ReactNode {
+      throw error;
+    }
+
+    class PreviewBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+      state = { failed: false };
+      static getDerivedStateFromError() {
+        return { failed: true };
+      }
+      render() {
+        return this.state.failed ? null : this.props.children;
+      }
+    }
+
+    const container = document.createElement("div");
+    const root = createRoot(container, reactRootErrorHandlers);
+    try {
+      await act(() => {
+        const preview = createElement(BrokenPreview);
+        root.render(createElement(PreviewBoundary, { children: preview }));
+      });
+      expect(sendLog).toHaveBeenCalledWith("error", expect.stringContaining("renderTable"));
+      expect(sendLog).toHaveBeenCalledWith("error", expect.stringContaining("BrokenPreview"));
+    } finally {
+      await act(() => root.unmount());
+    }
   });
 });

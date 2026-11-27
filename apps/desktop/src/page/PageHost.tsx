@@ -8,7 +8,8 @@
  * 每页一个错误边界：单页渲染崩溃只替换该页内容区，侧栏 / 标题栏 / 其它保活页不受影响。
  */
 
-import { Activity, useMemo } from "react";
+import { Activity, useEffect, useMemo } from "react";
+import { setPerfPageContext } from "@/utils/perf-trace";
 import * as sm from "./core/stackMachine";
 import { getPageDefinition } from "./registry";
 import { PageParamsProvider, usePage } from "./PageProvider";
@@ -23,6 +24,15 @@ export function PageHost({ state }: { state: sm.StackMachineState }) {
     const evict = new Set(sm.lruEvict(state).map(e => e.id));
     return evict.size === 0 ? state.back : state.back.filter(e => !evict.has(e.id));
   }, [state]);
+
+  const active = sm.current(state);
+  useEffect(() => {
+    setPerfPageContext({
+      pageKey: active?.key,
+      pageId: active?.id,
+      livePageCount: visibleEntries.length,
+    });
+  }, [active?.key, active?.id, visibleEntries.length]);
 
   return (
     <>

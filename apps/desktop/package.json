@@ -28,6 +28,9 @@
     "bench:whiteboard-acceptance": "vite build --mode whiteboard-benchmark --configLoader runner && cross-env WHITEBOARD_COMPLEX=1 WHITEBOARD_RENDERER_HTML=output/whiteboard-acceptance/renderer/index.html playwright test e2e/whiteboard-pdf-pan.spec.ts --output=output/whiteboard-acceptance/results",
     "bench:whiteboard-hit": "pnpm --filter @tau/whiteboard bench:hit",
     "bench:whiteboard-render-profile": "pnpm --filter @tau/whiteboard bench:render",
+    "test:perf-cpu": "cross-env TAU_PERF_BENCH=1 node scripts/verify-perf-cpu.mjs",
+    "perf:symbolicate": "node scripts/perf-symbolicate.mjs",
+    "bench:perf-diagnostics": "cross-env TAU_PERF_BENCH=1 node scripts/bench-perf-diagnostics.mjs",
     "build:native-speech": "node scripts/build-native-speech.mjs",
     "preview:ppt": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/preview-ppt-templates.mjs"
   },
@@ -242,6 +245,7 @@
     "yaml": "^2.7.1",
     "yjs": "13.6.32",
     "zustand": "^4.3.8",
-    "@tau/ai": "workspace:*"
+    "@tau/ai": "workspace:*",
+    "@jridgewell/trace-mapping": "0.3.31"
   }
 }

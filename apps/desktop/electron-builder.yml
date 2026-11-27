@@ -27,6 +27,7 @@ asarUnpack:
   - "node_modules/7zip-bin/**/*"
   - "node_modules/font-list/**/*"
 afterPack: "scripts/prune-packaged-native-modules.cjs"
+artifactBuildCompleted: "scripts/record-artifact-build.cjs"
 directories:
   output: release/
   buildResources: build
@@ -34,6 +35,8 @@ directories:
 files:
   - "dist/**/*"
   - "dist-electron/**/*"
+  - "!dist/**/*.map"
+  - "!dist-electron/**/*.map"
   - "package.json"
   - "build/**/*"
   - "!build/bundled-plugins/**/*"

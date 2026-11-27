@@ -1,4 +1,6 @@
-import { createReadStream } from "node:fs";
+import { createReadStream, createWriteStream } from "node:fs";
+import { Transform } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
 
@@ -25,7 +27,7 @@ function contentTypeOf(key) {
 }
 
 /** 发布脚本共用的 R2 原语：key 为 bucket 内对象 key，404 统一表现为返回 null */
-export function createR2Client() {
+export function createR2Client({ bucket = R2_BUCKET } = {}) {
   const client = new S3Client({
     region: "auto",
     endpoint: `https://${requiredEnv("R2_ACCOUNT_ID")}.r2.cloudflarestorage.com`,
@@ -37,7 +39,7 @@ export function createR2Client() {
   const isNotFound = error =>
     error?.$metadata?.httpStatusCode === 404 || error?.name === "NoSuchKey";
   const putParams = (key, body, cacheControl) => ({
-    Bucket: R2_BUCKET,
+    Bucket: bucket,
     Key: key,
     Body: body,
     ContentType: contentTypeOf(key),
@@ -46,10 +48,32 @@ export function createR2Client() {
   return {
     async getText(key) {
       try {
-        const result = await client.send(new GetObjectCommand({ Bucket: R2_BUCKET, Key: key }));
+        const result = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
         return await result.Body.transformToString("utf8");
       } catch (error) {
         if (isNotFound(error)) return null;
+        throw error;
+      }
+    },
+    async getFile(key, target, maxBytes) {
+      if (!Number.isSafeInteger(maxBytes) || maxBytes <= 0) throw new Error("无效的 R2 下载预算");
+      try {
+        const result = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+        if (result.ContentLength > maxBytes) {
+          result.Body?.destroy?.();
+          throw new Error("R2 文件超过下载预算");
+        }
+        let bytes = 0;
+        const limit = new Transform({
+          transform(chunk, _encoding, callback) {
+            bytes += chunk.length;
+            callback(bytes > maxBytes ? new Error("R2 文件超过下载预算") : null, chunk);
+          },
+        });
+        await pipeline(result.Body, limit, createWriteStream(target, { flags: "wx" }));
+        return true;
+      } catch (error) {
+        if (isNotFound(error)) return false;
         throw error;
       }
     },
@@ -71,8 +95,13 @@ export function createR2Client() {
         body.destroy();
       }
     },
-    async putText(key, content, cacheControl) {
-      await client.send(new PutObjectCommand(putParams(key, content, cacheControl)));
+    async putText(key, content, cacheControl, { ifNoneMatch } = {}) {
+      await client.send(
+        new PutObjectCommand({
+          ...putParams(key, content, cacheControl),
+          IfNoneMatch: ifNoneMatch,
+        })
+      );
     },
   };
 }

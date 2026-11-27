@@ -1,4 +1,5 @@
 import type { RuntimeSession } from "./types";
+import { recordPerf } from "../perf-record";
 
 export const CONTENT_SAVE_LOG = "[content-save]";
 const LOG_INTERVAL_MS = 30_000;
@@ -178,6 +179,20 @@ export function reportContentSaveComplete(
     storageAfter?: number | null;
   }
 ) {
+  if (details.changed || details.elapsedMs >= 100)
+    recordPerf({
+      t: Date.now(),
+      kind: "stage",
+      label: details.path === "delta" ? "content.delta" : "content.projection",
+      ms: details.elapsedMs,
+      context: { contentId: session.info.source?.contentId },
+      values: {
+        pendingNodes: session.projectionNodes?.size ?? 0,
+        selectedBlocks: details.selectedBlocks,
+        writtenBlocks: details.writtenBlocks,
+        ...(details.bytes === undefined ? {} : { bytes: details.bytes }),
+      },
+    });
   const state = stateFor(session, details.path === "delta" ? "delta" : "projection"),
     now = performance.now();
   const recovered = Boolean(state.failure);

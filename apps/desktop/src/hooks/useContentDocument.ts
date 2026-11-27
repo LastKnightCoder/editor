@@ -19,6 +19,7 @@ import {
 } from "@/services/contentBindings";
 import { collaborationKit } from "./useCollaborationKit";
 import { desktopContentPlugins } from "../../shared/content-plugins";
+import { beginPerfOperation } from "@/utils/perf-trace";
 
 const nodeTrees = new WeakMap<ContentCollaborationBinding, NodeTree>();
 function treeFor(binding: ContentCollaborationBinding) {
@@ -70,6 +71,7 @@ export default function useContentDocument(
     kit,
     extensions,
     lineage,
+    contentId,
     readonly: readonlyPreview,
   });
   useEffect(() => {
@@ -93,10 +95,18 @@ export function useBoundContentDocument(
     kit?: EditorKit;
     extensions?: readonly EditorExtension[];
     lineage?: string;
+    contentId?: number;
     readonly?: boolean;
   } = {}
 ) {
-  const { frozen = false, kit: scenarioKit, extensions, lineage, readonly = false } = options;
+  const {
+    frozen = false,
+    kit: scenarioKit,
+    extensions,
+    lineage,
+    readonly = false,
+    contentId,
+  } = options;
   const current = useRef<{ binding: ContentCollaborationBinding; document: EditorDocument }>(null);
   const retainedDoc = binding?.doc ?? current.current?.binding.doc;
   useSyncExternalStore(
@@ -128,28 +138,37 @@ export function useBoundContentDocument(
     setPreparationError(undefined);
     if (!binding || !structured || !kit) return;
     let cancelled = false;
-    void desktopContentPlugins
-      .prepareEditorContracts(kit.extensions)
+    const operation = beginPerfOperation("content.bind", { contentId });
+    void operation
+      .stage("contracts.prepare", () =>
+        desktopContentPlugins.prepareEditorContracts(kit.extensions)
+      )
       .then(async catalog => {
         if (cancelled || binding.doc.isDestroyed) return;
         const tree = treeFor(binding);
         if (!frozen && !readonly)
-          await tree.installContracts(
-            catalog.additionalContracts(tree.contracts.toJSON()),
-            binding.origin
+          await operation.stage("contracts.install", () =>
+            tree.installContracts(
+              catalog.additionalContracts(tree.contracts.toJSON()),
+              binding.origin
+            )
           );
         if (cancelled || binding.doc.isDestroyed) return;
-        const document = createNodeTreeDocument(tree, {
-          lineage,
-          collaboration: binding,
-          versions: catalog,
-          readonly: frozen || readonly,
-          cursors: !readonly,
-          normalizeOnConnect: false,
-        });
+        const document = operation.stage("document.bind", () =>
+          createNodeTreeDocument(tree, {
+            lineage,
+            collaboration: binding,
+            versions: catalog,
+            readonly: frozen || readonly,
+            cursors: !readonly,
+            normalizeOnConnect: false,
+          })
+        );
         setPrepared({ binding, kit, revision: pluginRevision, document });
+        operation.end();
       })
       .catch(failure => {
+        operation.end("error");
         if (!cancelled) {
           // 界面上只有一句错误文案；编辑器打不开时需要知道是哪篇、因为什么
           console.error("[content] 文档契约准备失败", { lineage }, failure);
@@ -158,8 +177,9 @@ export function useBoundContentDocument(
       });
     return () => {
       cancelled = true;
+      operation.end("cancelled");
     };
-  }, [binding, structured, kit, pluginRevision, lineage, frozen, readonly]);
+  }, [binding, structured, kit, pluginRevision, lineage, frozen, readonly, contentId]);
   const contractReady =
     !structured ||
     Boolean(

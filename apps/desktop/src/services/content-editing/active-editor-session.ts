@@ -45,7 +45,7 @@ export const upsertActiveEditingSession = (payload: {
     tabType: payload.tabType,
     focused: current?.focused ?? false,
     selection: current?.selection ?? null,
-    snapshot: createContentSnapshot(payload.content, "active-session"),
+    snapshot: createContentSnapshot(payload.content, "active-session", payload.contentId),
     updatedAt: ts,
     focusedAt: current?.focusedAt ?? 0,
   };
@@ -87,7 +87,7 @@ export const updateActiveEditingSessionContent = (sessionId: string, content: De
   if (!current) return null;
   const updated: ActiveEditingSession = {
     ...current,
-    snapshot: createContentSnapshot(content, "active-session"),
+    snapshot: createContentSnapshot(content, "active-session", current.contentId),
     updatedAt: now(),
   };
   sessions.set(sessionId, updated);

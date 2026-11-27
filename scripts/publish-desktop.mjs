@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 import { assertReleaseNote, injectReleaseNotes, releaseNotesUpTo } from "./release-notes.mjs";
 import { assertReleaseArtifacts } from "./release-artifacts.mjs";
 import { runPnpm } from "./run-pnpm.mjs";
+import { publishReleaseSymbols } from "./desktop-publish-symbols.mjs";
+import { symbolsBucket } from "./desktop-symbols-r2.mjs";
 import {
   R2_BUCKET,
   R2_ENV_KEYS,
@@ -26,6 +28,7 @@ const releaseDir = join(desktopDir, "release");
 const releaseNotesDir = join(desktopDir, "release-notes");
 const desktopPackageFile = join(desktopDir, "package.json");
 const rootPackageFile = join(root, "package.json");
+const symbolsRoot = join(desktopDir, "output", "diagnostics-symbols");
 
 function printHelp() {
   console.log(`用法: pnpm publish:desktop [选项]
@@ -36,6 +39,8 @@ function printHelp() {
 公告会写进 latest*.yml，供旧版本在升级前展示。
 指定 --version 时会先回写根目录与 apps/desktop 两处 package.json 再构建；
 若后续构建或上传失败，版本号不回滚，修复后可用 --skip-build 重试。
+构建时自动生成独立 buildId，打包完成后绑定安装包哈希；自动先上传对应私有源码映射，再发布安装包和更新清单。
+--skip-build 按安装包绑定保留原 buildId；缺少绑定或哈希不符时拒绝发布，需要重新构建。
 上传全部成功后自动创建 vX.Y.Z 版本 tag（已存在则跳过，不自动推送）。
 
 选项:
@@ -46,7 +51,7 @@ function printHelp() {
   -h, --help       显示帮助
 
 环境变量:
-  R2_ACCOUNT_ID / R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY
+  R2_ACCOUNT_ID / R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY / R2_SYMBOLS_BUCKET（独立私有桶）
 分发地址：${R2_PUBLIC_BASE_URL}`);
 }
 
@@ -248,6 +253,7 @@ async function main() {
   // 提前校验凭据，避免构建完成后才发现无法上传
   if (!options.dryRun) {
     for (const key of target.envKeys) requiredEnv(key);
+    symbolsBucket(requiredEnv("R2_SYMBOLS_BUCKET"));
   }
 
   const desktopPkg = readJson(desktopPackageFile);
@@ -292,6 +298,14 @@ async function main() {
   for (const name of latestFiles) console.log(`    ${DESKTOP_PREFIX}/${name}`);
 
   if (options.dryRun) {
+    const symbols = await publishReleaseSymbols({
+      releaseDir,
+      version,
+      artifacts: versionedArtifacts,
+      symbolsRoot,
+      dryRun: true,
+    });
+    console.log(`▶ 源码映射本地校验与打包通过：${symbols.map(value => value.buildId).join(", ")}`);
     console.log(`▶ --dry-run: 本地流程全部通过，跳过上传`);
     return;
   }
@@ -304,6 +318,16 @@ async function main() {
       `远端已是版本 ${version}，electron-updater 不会重发同版本；请升版本或使用 --force 覆盖`
     );
   }
+
+  const symbols = await publishReleaseSymbols({
+    releaseDir,
+    version,
+    artifacts: versionedArtifacts,
+    symbolsRoot,
+    dryRun: false,
+    client: createR2Client({ bucket: symbolsBucket(requiredEnv("R2_SYMBOLS_BUCKET")) }),
+  });
+  console.log(`▶ 对应源码映射已归档：${symbols.map(value => value.buildId).join(", ")}`);
 
   // 先传版本产物再写 latest*.yml，保证 yml 指向的产物一定已存在。
   // 产物（含 Windows 与 macOS 双平台）并发上传，小文件优先以缩短尾部等待。

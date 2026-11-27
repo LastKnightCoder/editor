@@ -58,7 +58,7 @@ export const loadSnapshotForContent = async (
     const state = await bindDatabaseCommands({ readContentEditState }, scope).readContentEditState(
       contentId
     );
-    const snapshot = createContentSnapshot(state.content, "database");
+    const snapshot = createContentSnapshot(state.content, "database", contentId);
     snapshot.revision = state.revision;
     const session =
       databaseName === getChatDatabase()
@@ -81,7 +81,7 @@ export const loadSnapshotForContent = async (
       : undefined;
   const content = await bindDatabaseCommands({ getContentById }, scope).getContentById(contentId);
   if (content?.revision) {
-    const snapshot = createContentSnapshot(content.content, "database");
+    const snapshot = createContentSnapshot(content.content, "database", contentId);
     snapshot.revision = content.revision;
     putSnapshot(snapshot);
     return { snapshot, source: "database" };
@@ -98,7 +98,7 @@ export const loadSnapshotForContent = async (
     throw new Error(`TARGET_NOT_FOUND: 未找到 content ${contentId}`);
   }
 
-  const snapshot = createContentSnapshot(content.content, "database");
+  const snapshot = createContentSnapshot(content.content, "database", contentId);
   putSnapshot(snapshot);
   return {
     snapshot,

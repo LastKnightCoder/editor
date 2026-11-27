@@ -1,4 +1,5 @@
 import { resolveEditRequest, prepareEditRequest } from "./prepare-edit";
+import { measurePerf } from "@/utils/perf-trace";
 import { cacheFileExists } from "@/commands/cache";
 import {
   createContentSuggestions,
@@ -143,7 +144,11 @@ export const createContentEditProposal = async (params: CreateProposalParams) =>
         items: previous.items,
       };
   }
-  const prepared = await prepareEditRequest(params, request);
+  const prepared = await measurePerf(
+    "content.prepare-edit",
+    () => prepareEditRequest(params, request),
+    { contentId: resolvedTarget.contentId }
+  );
   if (!prepared.success) return prepared;
   const { snapshot, source, editResult, scopedPlan } = prepared;
   const proposalId = createProposalId();
@@ -173,7 +178,9 @@ export const createContentEditProposal = async (params: CreateProposalParams) =>
     snapshotSource: source,
     targetSource: resolvedTarget.source,
     proposalFilePath,
-    diffSummary: buildDiffSummary(editResult.patches),
+    diffSummary: measurePerf("review.diff-summary", () => buildDiffSummary(editResult.patches), {
+      contentId: resolvedTarget.contentId,
+    }),
     patches: editResult.patches,
     createdAt: timestamp,
     updatedAt: timestamp,

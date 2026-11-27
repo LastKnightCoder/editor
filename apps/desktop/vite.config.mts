@@ -7,6 +7,7 @@ import tailwindcss from "@tailwindcss/vite";
 import electron from "vite-plugin-electron/simple";
 import fs from "fs-extra";
 import { createThemeBootstrapScript } from "@tau/themes";
+import { createPerfBuild, perfSymbolsPlugin } from "./scripts/perf-symbols-build.mjs";
 
 import * as path from "path";
 
@@ -54,12 +55,15 @@ const rendererLibGuard = (distDir: string) => ({
   },
 });
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, command }) => {
   const rendererOnly = mode === "whiteboard-benchmark";
+  const perfBuild = command === "build" && !rendererOnly ? createPerfBuild(__dirname) : undefined;
+  const perfDefine = { __TAU_PERF_BUILD_ID__: JSON.stringify(perfBuild?.id ?? "development") };
   const desktopRuntime = rendererOnly ? () => false as const : electron;
   if (!rendererOnly) rmSync("dist-electron", { recursive: true, force: true });
 
   return {
+    define: perfDefine,
     base: rendererOnly ? "./" : undefined,
     resolve: {
       dedupe: [
@@ -84,6 +88,7 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       queryDatabaseWorkerPlugin(build),
+      ...(perfBuild ? [perfSymbolsPlugin(perfBuild, "renderer")] : []),
       {
         name: "tau-theme-bootstrap",
         transformIndexHtml: () => [
@@ -105,6 +110,7 @@ export default defineConfig(({ mode }) => {
             "pi-conversation-turn-worker":
               "src-electron/main/workers/pi-conversation-turn.worker.ts",
             "local-inference-worker": "src-electron/main/workers/local-inference.worker.ts",
+            "perf-cpu-worker": "src-electron/main/workers/perf-cpu.worker.ts",
             "plugin-backend-worker": "src-electron/main/workers/plugin-backend.worker.ts",
           },
           onstart(args) {
@@ -115,6 +121,7 @@ export default defineConfig(({ mode }) => {
             }
           },
           vite: {
+            define: perfDefine,
             resolve: {
               // 主进程共用桌面入口的 pi-ai，避免不同 peer 实例重复进入同一 bundle。
               dedupe: ["@earendil-works/pi-ai"],
@@ -127,7 +134,7 @@ export default defineConfig(({ mode }) => {
               },
             },
             build: {
-              sourcemap: false,
+              sourcemap: perfBuild ? "hidden" : false,
               minify: true,
               outDir: "dist-electron/main",
               rolldownOptions: {
@@ -146,6 +153,7 @@ export default defineConfig(({ mode }) => {
                 // 告警；真正的泄漏由 rendererLibGuard 在产物级把关
                 checks: { moduleLevelDirective: false },
                 plugins: [
+                  ...(perfBuild ? [perfSymbolsPlugin(perfBuild, "main")] : []),
                   rendererLibGuard("dist-electron/main"),
                   {
                     name: "copy-tailwind-runtime-worker",
@@ -175,6 +183,7 @@ export default defineConfig(({ mode }) => {
         preload: {
           input: "src-electron/preload/index.ts",
           vite: {
+            define: perfDefine,
             resolve: {
               alias: {
                 "@": path.resolve(__dirname, "src"),
@@ -182,12 +191,15 @@ export default defineConfig(({ mode }) => {
               },
             },
             build: {
-              sourcemap: false,
+              sourcemap: perfBuild ? "hidden" : false,
               minify: true,
               outDir: "dist-electron/preload",
               rolldownOptions: {
                 external: runtimeDependencyExternals,
-                plugins: [rendererLibGuard("dist-electron/preload")],
+                plugins: [
+                  ...(perfBuild ? [perfSymbolsPlugin(perfBuild, "preload")] : []),
+                  rendererLibGuard("dist-electron/preload"),
+                ],
               },
             },
           },
@@ -211,7 +223,7 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: rendererOnly ? "output/whiteboard-acceptance/renderer" : "dist",
       minify: "oxc" as const,
-      sourcemap: false,
+      sourcemap: perfBuild ? "hidden" : false,
       reportCompressedSize: false,
       chunkSizeWarningLimit: 2000,
       rolldownOptions: {

@@ -349,7 +349,7 @@ export const createRequestDumpExtension = (dumpDir: string): InlineExtension => 
         const dump = JSON.stringify(sanitizePayload(event.payload), null, 2);
         const syncIoStart = Date.now();
         writeFileSync(dumpPath, dump);
-        recordSyncIo(`write:${dumpPath}`, dump.length, Date.now() - syncIoStart);
+        recordSyncIo("pi-session:request-dump", dump.length, Date.now() - syncIoStart);
       } catch (error) {
         console.error("[PiSessionHost] 请求 dump 写入失败:", error);
       }

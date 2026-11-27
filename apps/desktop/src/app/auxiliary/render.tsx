@@ -8,6 +8,7 @@ import useSyncFont from "@/hooks/useSyncFont";
 import { useSyncPageMargin } from "@/hooks/usePageMargin";
 import { send } from "@/electron";
 import { startPerfObserver } from "@/utils/perf-observer";
+import { reactRootErrorHandlers } from "@/utils/console-logger";
 import { connectPomodoroAudio } from "@/features/pomodoro/background-audio";
 import "./window.css";
 
@@ -36,5 +37,11 @@ export function renderAuxiliary(
   Page: ComponentType,
   onError: (error: unknown) => void
 ) {
-  createRoot(container, { onUncaughtError: onError }).render(<AuxiliaryWindow Page={Page} />);
+  createRoot(container, {
+    ...reactRootErrorHandlers,
+    onUncaughtError(error, info) {
+      reactRootErrorHandlers.onUncaughtError(error, info);
+      onError(error);
+    },
+  }).render(<AuxiliaryWindow Page={Page} />);
 }

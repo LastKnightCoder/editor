@@ -8,7 +8,9 @@ import { randomUUID } from "node:crypto";
 import type { DatabaseConnection } from "@/types/database-connection";
 import { join } from "node:path";
 import log from "electron-log";
-import { recordIpcCall, recordSqlCall } from "./perf-monitor";
+import { recordIpcCall, recordDatabaseCommand } from "./perf-monitor";
+import { withPerfTrace } from "./perf-record";
+import { isTracedDatabaseCommand, parsePerfTrace } from "../../../shared/perf-diagnostics";
 import { executeDatabaseCommand } from "./database-command";
 import { createContentAgentCommands } from "./content-runtime/agent/commands";
 import { bindContentWriteConnection } from "./content-events";
@@ -932,10 +934,13 @@ class DatabaseModule implements Module {
         if (!win) throw new Error("No window found");
 
         const scope = args.at(-1);
+        const perfTrace = isTracedDatabaseCommand(eventName)
+          ? parsePerfTrace(scope?.perfTrace)
+          : undefined;
         if (!this.windowToDatabase.has(win.id)) throw new Error("资料库窗口尚未连接");
         const explicit =
           scope && typeof scope.toolDatabaseName === "string" ? scope.toolDatabaseName : undefined;
-        if (explicit !== undefined) args.pop();
+        if (explicit !== undefined || perfTrace) args.pop();
         const dbName = explicit
           ? [...this.databases.keys()].find(
               name => this.formatDatabaseName(name) === this.formatDatabaseName(explicit)
@@ -950,22 +955,50 @@ class DatabaseModule implements Module {
 
         const call = trackDatabaseCall("调用", dbName, eventName);
         try {
-          const res = await executeDatabaseCommand(
-            db,
-            this.eventAndHandlers[eventName],
-            db,
-            ...args,
-            createWindowCommandContext(win)
+          const res = await withPerfTrace(
+            perfTrace,
+            {
+              pid: process.pid,
+              type: "main",
+              windowId: win.id,
+              webContentsId: sender.id,
+            },
+            () =>
+              executeDatabaseCommand(
+                db,
+                this.eventAndHandlers[eventName],
+                db,
+                ...args,
+                createWindowCommandContext(win)
+              )
           );
           const elapsedMs = call.done();
-          recordSqlCall(dbName, eventName, elapsedMs, true);
+          withPerfTrace(
+            perfTrace,
+            {
+              pid: process.pid,
+              type: "main",
+              windowId: win.id,
+              webContentsId: sender.id,
+            },
+            () => recordDatabaseCommand(dbName, eventName, elapsedMs, true)
+          );
           // database 事件是主要 IPC 流量，计入速率统计供洪水检测（聚焦刷新风暴等）
           recordIpcCall(eventName, elapsedMs, true);
           this.notifyDatabaseWrite(dbName, eventName);
           return res;
         } catch (e) {
           const elapsedMs = call.failed();
-          recordSqlCall(dbName, eventName, elapsedMs, false);
+          withPerfTrace(
+            perfTrace,
+            {
+              pid: process.pid,
+              type: "main",
+              windowId: win.id,
+              webContentsId: sender.id,
+            },
+            () => recordDatabaseCommand(dbName, eventName, elapsedMs, false)
+          );
           recordIpcCall(eventName, elapsedMs, false);
           log.error(
             `[database] event failed: db=${dbName}, event=${eventName}, elapsedMs=${elapsedMs}`,
@@ -1026,12 +1059,12 @@ class DatabaseModule implements Module {
               createWindowCommandContext(win)
             );
             const elapsedMs = call.done();
-            recordSqlCall(dbName, eventName, elapsedMs, true);
+            recordDatabaseCommand(dbName, eventName, elapsedMs, true);
             recordIpcCall(eventName, elapsedMs, true);
             return res;
           } catch (e) {
             const elapsedMs = call.failed();
-            recordSqlCall(dbName, eventName, elapsedMs, false);
+            recordDatabaseCommand(dbName, eventName, elapsedMs, false);
             recordIpcCall(eventName, elapsedMs, false);
             log.error(
               `[database] index event failed: db=${dbName}, event=${eventName}, elapsedMs=${elapsedMs}`,
@@ -1051,12 +1084,12 @@ class DatabaseModule implements Module {
             createWindowCommandContext(win)
           );
           const elapsedMs = call.done();
-          recordSqlCall(dbName, eventName, elapsedMs, true);
+          recordDatabaseCommand(dbName, eventName, elapsedMs, true);
           recordIpcCall(eventName, elapsedMs, true);
           return res;
         } catch (e) {
           const elapsedMs = call.failed();
-          recordSqlCall(dbName, eventName, elapsedMs, false);
+          recordDatabaseCommand(dbName, eventName, elapsedMs, false);
           recordIpcCall(eventName, elapsedMs, false);
           log.error(
             `[database] index event failed: db=${dbName}, event=${eventName}, elapsedMs=${elapsedMs}`,
