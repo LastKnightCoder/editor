@@ -73,6 +73,7 @@ describe("插件通知", () => {
       { title: "通知", mode: "other" },
       { title: "通知", tone: "other" },
       { title: "通知", sticky: "yes" },
+      { title: "通知", isOnSurface: true },
       { title: "通知", actions: [{ label: "打开" }] },
       { title: "通知", actions: new Array(3).fill({ label: "打开", onClick: vi.fn() }) },
     ]) {

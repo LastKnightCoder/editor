@@ -11,6 +11,15 @@ import { Loader2, Sparkles, CornerDownRight, PenLine, X } from "lucide-react";
 import { AnchoredPanel, Button, IconButton, cn, toast } from "@tau/ui";
 import { addChildProjectItem } from "@/commands";
 import { useOverlayDismiss, usePage } from "@/page/PageProvider";
+import { useSettingsStore } from "@/app/settingsStore";
+import { aiNotifyText } from "@/services/notifications/ai.i18n";
+import {
+  currentDatabaseName,
+  isCurrentDatabase,
+  isViewingPage,
+  notifyAiTask,
+} from "@/services/notifications/aiNotify";
+import { openPage } from "@/services/page-navigation";
 import { openEntity } from "@/services/open-content";
 import { discussInsight } from "@/services/insight-chat";
 import { EProjectItemType, type ProjectItem } from "@/types";
@@ -53,17 +62,62 @@ export function useProjectReview(options: {
   const write = useCallback(() => {
     setCurrent(null);
     setView("reading");
-    review.mutate(undefined, {
-      onSuccess: node => {
+    const dbName = currentDatabaseName();
+    const isOnProject = () =>
+      isViewingPage("project-detail", params => Number(params.id) === projectId);
+    const openProject = () => {
+      useSettingsStore.getState().closeSettings();
+      openPage("project-detail", { id: projectId, review: "1" });
+    };
+    void review.mutateAsync().then(
+      node => {
         setView("on");
         seenIfNeeded(node);
+        notifyAiTask({
+          id: `project-review:${projectId}`,
+          title: aiNotifyText("projectReview.doneTitle"),
+          body: aiNotifyText("projectReview.doneBody", { title: projectTitle }),
+          source: aiNotifyText("source.projectReview"),
+          icon: "sparkles",
+          tone: "ok",
+          databaseName: dbName,
+          isOnSurface: isOnProject,
+          actions: [
+            {
+              label: aiNotifyText("action.view"),
+              primary: true,
+              reveal: true,
+              onClick: openProject,
+            },
+          ],
+        });
       },
-      onError: error => {
+      error => {
         setView(data ? "on" : "off");
-        toast.error(error instanceof Error ? error.message : projectT("review.failed"));
-      },
-    });
-  }, [data, review, seenIfNeeded]);
+        const message = error instanceof Error ? error.message : projectT("review.failed");
+        const notified = notifyAiTask({
+          id: `project-review:${projectId}`,
+          title: aiNotifyText("projectReview.failedTitle"),
+          body: message,
+          source: aiNotifyText("source.projectReview"),
+          icon: "sparkles",
+          tone: "danger",
+          sticky: true,
+          databaseName: dbName,
+          isOnSurface: isOnProject,
+          actions: [
+            {
+              label: aiNotifyText("action.view"),
+              primary: true,
+              reveal: true,
+              onClick: openProject,
+            },
+          ],
+        });
+        if (!notified && isCurrentDatabase(dbName)) toast.error(message);
+      }
+    );
+  }, [data, projectId, projectTitle, review, seenIfNeeded]);
 
   const enter = useCallback(() => {
     setFresh(false);
@@ -86,10 +140,18 @@ export function useProjectReview(options: {
 
   const autoOpened = useRef(false);
   useEffect(() => {
-    if (!autoOpen || autoOpened.current || !enabled || review.isPending) return;
+    if (!autoOpen) {
+      autoOpened.current = false;
+      return;
+    }
+    if (autoOpened.current || !enabled || review.isPending) return;
     autoOpened.current = true;
     enter();
-  }, [autoOpen, enabled, enter, review.isPending]);
+    const current = navigator.current();
+    if (current?.key === "project-detail" && Number(current.params.id) === projectId) {
+      navigator.push("project-detail", { ...current.params, review: undefined });
+    }
+  }, [autoOpen, enabled, enter, review.isPending, navigator, projectId]);
 
   useOverlayDismiss(() => {
     if (current) setCurrent(null);

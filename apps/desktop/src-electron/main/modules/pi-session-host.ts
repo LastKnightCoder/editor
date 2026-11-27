@@ -119,6 +119,7 @@ export interface PiSessionClient {
 }
 
 export interface HostedSession {
+  runStartedAt?: number;
   chatScope?: string;
   manualCompaction?: boolean;
   databaseName: string;
@@ -638,6 +639,9 @@ class PiSessionHostModule {
         if (hosted.scope === scope && hosted.sender === event.sender) found = sessionId;
       }
       const hosted = found ? PiSessionHostModule.sessions.get(found) : undefined;
+      const lastAssistant = hosted?.session.state.messages.findLast(
+        message => message.role === "assistant"
+      );
       return {
         ok: true,
         sessionId: found,
@@ -649,6 +653,11 @@ class PiSessionHostModule {
         busy: found ? PiSessionHostModule.states().find(state => state.id === found)?.busy : false,
         ...(hosted ? chatTranscriptOf(hosted.session.sessionManager) : {}),
         manualCompaction: hosted?.manualCompaction,
+        runStartedAt: hosted?.runStartedAt,
+        lastAssistantOutcome:
+          lastAssistant?.role === "assistant"
+            ? { finishReason: lastAssistant.stopReason, errorMessage: lastAssistant.errorMessage }
+            : undefined,
         streamingMessage: hosted?.session.state.streamingMessage,
       };
     });
@@ -1007,6 +1016,11 @@ class PiSessionHostModule {
         input => modelUsageModule.record(input)
       );
       const unsubscribe = session.subscribe(sessionEvent => {
+        const hosted = PiSessionHostModule.sessions.get(request.sessionId);
+        if (hosted) {
+          if (sessionEvent.type === "agent_start") hosted.runStartedAt ??= Date.now();
+          else if (sessionEvent.type === "agent_settled") hosted.runStartedAt = undefined;
+        }
         if (sessionEvent.type === "agent_start") setMemoryForeground(request.sessionId, true);
         if (sessionEvent.type === "agent_end") {
           if (memoryDatabase && session.sessionFile)

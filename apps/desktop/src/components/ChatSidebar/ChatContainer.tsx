@@ -196,6 +196,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       chatModelConfig,
       titleRef,
       setExternalSendLoading,
+      isVisible,
     });
 
     const editTextRef = useRef<ChatInputAreaHandle>(null);

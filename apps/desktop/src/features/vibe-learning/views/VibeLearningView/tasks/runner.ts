@@ -31,7 +31,17 @@ import { addPluginLink } from "@/commands/plugin-links";
 import { locatePluginEntity } from "@/commands/plugin-entities";
 import type { JsonValue, PluginNotebookOutputPlan } from "@tau/plugins";
 import type { RegisteredPluginNotebookOutput } from "@/app/plugins/runtime";
-import { useVLTaskStore, type VLTask, type VLTaskKind, type VLTaskTurn } from "./store";
+import { useSettingsStore } from "@/app/settingsStore";
+import { openPage } from "@/services/page-navigation";
+import { aiNotifyText } from "@/services/notifications/ai.i18n";
+import { isViewingPage, notifyAiTask } from "@/services/notifications/aiNotify";
+import {
+  useVLTaskStore,
+  type VLOpenTarget,
+  type VLTask,
+  type VLTaskKind,
+  type VLTaskTurn,
+} from "./store";
 
 export interface VLTaskInput {
   /** 只约束任务交接前的准备；已启动任务由 cancelVLTask 管理。 */
@@ -494,11 +504,74 @@ async function executeInner(
     }, 3000);
   }
 
+  const openTaskResult = () => {
+    useSettingsStore.getState().closeSettings();
+    openPage("vibe-learning-detail", { id: input.projectId });
+    const latestTask = store().tasks[taskId];
+    const target: VLOpenTarget =
+      latestTask?.noteId !== undefined
+        ? { kind: "note", id: latestTask.noteId }
+        : latestTask?.quizSetId !== undefined
+          ? { kind: "quiz", id: latestTask.quizSetId }
+          : latestTask?.plugin
+            ? { kind: "plugin-output", id: latestTask.plugin.entityId }
+            : { kind: "task", id: taskId };
+    store().requestOpen(input.projectId, target);
+  };
+
   const finish = (patch: Partial<VLTask>) => {
     if (liveTimer) clearInterval(liveTimer);
     writer.flush();
     store().patch(taskId, { ...patch, phaseSource: "builtin", finishedAt: Date.now() });
     store().bumpProducts(input.projectId);
+    const completedTask = store().tasks[taskId];
+    const title = completedTask?.title || input.title || aiNotifyText("notebook.untitledProduct");
+    const isOnNotebook = () =>
+      isViewingPage("vibe-learning-detail", params => Number(params.id) === input.projectId);
+    if (patch.status === "succeeded" && input.kind !== "plugin") {
+      notifyAiTask({
+        id: `vl-task:${taskId}`,
+        title: aiNotifyText("notebook.doneTitle", { title }),
+        body: aiNotifyText("notebook.doneBody"),
+        source: aiNotifyText("source.notebook"),
+        icon: "sparkles",
+        tone: "ok",
+        databaseName: input.mainDbName,
+        isOnSurface: isOnNotebook,
+        actions: [
+          {
+            label: aiNotifyText("action.view"),
+            primary: true,
+            reveal: true,
+            onClick: openTaskResult,
+          },
+        ],
+      });
+    } else if (patch.status === "failed") {
+      notifyAiTask({
+        id: `vl-task:${taskId}`,
+        title: aiNotifyText("notebook.failedTitle", { title }),
+        body: patch.error,
+        source: aiNotifyText("source.notebook"),
+        icon: "sparkles",
+        tone: "danger",
+        sticky: true,
+        databaseName: input.mainDbName,
+        isOnSurface: isOnNotebook,
+        actions: [
+          {
+            label: aiNotifyText("action.view"),
+            reveal: true,
+            onClick: openTaskResult,
+          },
+          {
+            label: aiNotifyText("action.retry"),
+            primary: true,
+            onClick: () => retryVLTask(taskId),
+          },
+        ],
+      });
+    }
   };
 
   let content: string;

@@ -1,7 +1,20 @@
 import { BrowserWindow } from "electron";
 import type { VibeLearningIndexQueue } from "./index";
-import type { TaskProgress } from "@/types/vibe-learning";
-import type { TaskStatus } from "./types";
+import type { TaskProgress, VLResourceTaskStatus } from "@/types/vibe-learning";
+import type { IndexTask, TaskStatus } from "./types";
+
+export function resourceTaskStatus(
+  task: IndexTask,
+  status: VLResourceTaskStatus["status"]
+): VLResourceTaskStatus {
+  return {
+    taskId: (task.taskId ??= crypto.randomUUID()),
+    resourceId: task.resourceId,
+    projectId: task.projectId,
+    mainDbName: task.mainDbName,
+    status,
+  };
+}
 
 /**
  * 向所有窗口发送消息
@@ -33,7 +46,9 @@ export function sendStatusWithProgress(
     manager.taskProgressMap.delete(resourceId);
   }
 
+  const task = manager.queue.find(task => task.resourceId === resourceId);
   sendToAllWindows("vibe-learning-status-change", {
+    ...(task ? resourceTaskStatus(task, status) : {}),
     resourceId,
     status,
     taskProgress,

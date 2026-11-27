@@ -37,7 +37,7 @@ import useChatSessionStore from "@/stores/useChatSessionStore";
 import { useVideoNoteChat } from "@/components/VideoNotePanel/useVideoNoteChat";
 import { buildVideoNoteSystemPrompt } from "@/tools/videoNoteSearchTool";
 import { useOwnAssist, usePageChatPanel } from "@/app/assistOwner";
-import { useOverlayDismiss } from "@/page/PageProvider";
+import { useOverlayDismiss, usePage, usePageParams } from "@/page/PageProvider";
 import { useProjectTreeStore } from "@/features/projects/projectTreeStore";
 import VideoNoteChatPanel, {
   type TranscriptQuote,
@@ -82,6 +82,8 @@ interface VideoNoteViewProps {
 const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
   const { t } = useProjectVideoI18n();
   const mainDbName = useSettingStore(state => state.setting.database.active);
+  const params = usePageParams<{ id: number; itemId?: number; chatId?: string }>();
+  const { navigator } = usePage();
   const { itemId: activeProjectItemId, containerWidth } = useProjectContext();
   const uploadResource = useUploadResource();
   const ebookLLM = useLLMConfig("videoEbookRewrite");
@@ -106,6 +108,14 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
     defaultValue: false,
   });
   const [chatOpen, setChatOpen] = usePageChatPanel(!!preferredOpen, setPreference);
+  useEffect(() => {
+    if (!params.chatId || params.itemId !== activeProjectItemId) return;
+    useChatSessionStore
+      .getState()
+      .setCurrent({ scope: "video-note-chat", domainRef: String(videoNoteId) }, params.chatId);
+    setChatOpen(true);
+    navigator.push("project-detail", { ...params, chatId: undefined });
+  }, [params, activeProjectItemId, videoNoteId, setChatOpen, navigator]);
   // 首次打开才挂载，之后收起只隐藏（保留进行中的回答）
   const [chatMounted, setChatMounted] = useState(!!chatOpen);
   if (chatOpen && !chatMounted) setChatMounted(true);
@@ -475,6 +485,7 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
               />
             )}
             <VideoNoteChatPanel
+              isVisible={chatOpen}
               ref={onChatRef}
               videoNoteId={videoNoteId}
               toolScope={toolScope}

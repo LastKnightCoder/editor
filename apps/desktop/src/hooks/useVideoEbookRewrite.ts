@@ -3,6 +3,8 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useMemoizedFn, useThrottleFn } from "ahooks";
 import { Descendant } from "slate";
 import { piStreamText, type PiChatHandle } from "@/services/piLLM";
+import { aiNotifyText } from "@/services/notifications/ai.i18n";
+import { notifyAiTask } from "@/services/notifications/aiNotify";
 import {
   VIDEO_EBOOK_REWRITE_SYSTEM_PROMPT,
   buildVideoEbookRewriteUserPrompt,
@@ -128,15 +130,46 @@ export const useVideoEbookRewrite = (
         flushParse();
 
         if (!result.text.trim()) {
-          setError(new Error(ebookTranslator.t("rewrite.emptyResult")));
+          const emptyErr = new Error(ebookTranslator.t("rewrite.emptyResult"));
+          setError(emptyErr);
+          notifyAiTask({
+            id: "video-ebook-rewrite",
+            mode: "unfocused-only",
+            title: aiNotifyText("ebook.failedTitle"),
+            body: emptyErr.message,
+            source: aiNotifyText("source.ebook"),
+            icon: "sparkles",
+            tone: "danger",
+            sticky: true,
+          });
           return;
         }
 
         try {
           const parsed = importFromMarkdown(result.text);
           setEbookContent(parsed);
+          notifyAiTask({
+            id: "video-ebook-rewrite",
+            mode: "unfocused-only",
+            title: aiNotifyText("ebook.doneTitle"),
+            body: aiNotifyText("ebook.doneBody"),
+            source: aiNotifyText("source.ebook"),
+            icon: "sparkles",
+            tone: "ok",
+          });
         } catch (parseError) {
-          setError(new Error(ebookTranslator.t("rewrite.parseFailed")));
+          const parseErr = new Error(ebookTranslator.t("rewrite.parseFailed"));
+          setError(parseErr);
+          notifyAiTask({
+            id: "video-ebook-rewrite",
+            mode: "unfocused-only",
+            title: aiNotifyText("ebook.failedTitle"),
+            body: parseErr.message,
+            source: aiNotifyText("source.ebook"),
+            icon: "sparkles",
+            tone: "danger",
+            sticky: true,
+          });
           console.error("[VideoEbookRewrite] Final markdown parse failed:", parseError);
         }
         return;
@@ -146,6 +179,16 @@ export const useVideoEbookRewrite = (
         setIsPending(false);
         const streamError = new Error(result.error ?? ebookTranslator.t("rewrite.requestFailed"));
         setError(streamError);
+        notifyAiTask({
+          id: "video-ebook-rewrite",
+          mode: "unfocused-only",
+          title: aiNotifyText("ebook.failedTitle"),
+          body: streamError.message,
+          source: aiNotifyText("source.ebook"),
+          icon: "sparkles",
+          tone: "danger",
+          sticky: true,
+        });
         console.error("[VideoEbookRewrite] Error:", streamError);
       }
     });

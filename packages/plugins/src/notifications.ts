@@ -16,6 +16,8 @@ export interface PluginNotificationOptions {
   body?: string;
   /** 默认 auto：插件所在窗口聚焦时应用内展示，否则进入独立通知窗口。 */
   mode?: PluginNotificationMode;
+  /** 当前是否正在展示任务结果；auto 模式由宿主结合焦点和覆盖浮层决定是否抑制。 */
+  isOnSurface?: () => boolean;
   tone?: "neutral" | "ok" | "danger";
   /** 常驻到用户处理或关闭，默认 false。 */
   sticky?: boolean;
@@ -44,6 +46,8 @@ export function readNotificationOptions(
   if (!["neutral", "ok", "danger"].includes(tone)) throw new Error("通知语义无效");
   if (input.sticky !== undefined && typeof input.sticky !== "boolean")
     throw new Error("通知 sticky 无效");
+  if (input.isOnSurface !== undefined && typeof input.isOnSurface !== "function")
+    throw new Error("通知可见面回调无效");
   if (input.actions !== undefined && (!Array.isArray(input.actions) || input.actions.length > 2))
     throw new Error("通知最多支持两个按钮");
   const actions =
@@ -73,6 +77,7 @@ export function readNotificationOptions(
     title: text(input.title, "通知标题", 200),
     body: input.body === undefined ? undefined : text(input.body, "通知正文", 5000),
     mode,
+    isOnSurface: input.isOnSurface,
     tone,
     sticky: input.sticky,
     actions,

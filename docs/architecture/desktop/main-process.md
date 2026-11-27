@@ -70,20 +70,21 @@ import）注册期即被调用，因此记录数据挂在模块级、import 期�
 
 ## 通知分流
 
-插件通过 `context.notifications.send` 发送纯文本通知：`mode` 为 `auto`（默认，按插件所在窗口焦点分流）、`in-app`（固定应用内）或 `system`（固定独立通知窗口）。桌面适配经 `appNotify`，来源由宿主填写插件名，通知 ID 由宿主生成；返回的 `Disposable` 只能撤销本条通知，停用、激活失败和切库自动清理。最多两个操作按钮，其中至多一个标记 `reveal: true`。回调留在插件所在渲染窗口，执行前校验激活与句柄有效性。作者示例见 [插件通知](/plugins/tau-plugin-template/docs/notifications-and-voice.md#通知)。
+插件通过 `context.notifications.send` 发送纯文本通知：`mode` 为 `auto`（默认，按插件所在窗口焦点分流）、`in-app`（固定应用内）或 `system`（固定独立通知窗口）。桌面适配经 `appNotify`，来源由宿主填写插件名，通知 ID 由宿主生成；返回的 `Disposable` 只能撤销本条通知，停用、激活失败和切库自动清理。最多两个操作按钮，其中至多一个标记 `reveal: true`。回调留在插件所在渲染窗口，执行前校验激活与句柄有效性。auto 模式可传 `isOnSurface`，宿主只在窗口聚焦、设置未覆盖且目标可见时抑制；reveal 动作先校验发起库身份并关闭设置。作者示例见 [插件通知](/plugins/tau-plugin-template/docs/notifications-and-voice.md#通知)。
 
 渲染端通知按来源窗口焦点分流。主进程通知只直投聚焦的主窗口，其余交给独立通知窗口。两处卡栈分别维护。
 
-- **渲染端业务一律 `appNotify`**（`features/notifications/notify.ts`），禁止直接调用
+- **渲染端业务一律 `appNotify`**（`services/notifications/notify.ts`），禁止直接调用
   `@tau/ui` 的 `notify`（showcase 样板间与系统通知窗口页除外，Oxlint 守护）。`icon` 传
-  注册表键（`features/notifications/icons.ts` 的 `NOTIFICATION_ICONS`），不传组件；
+  注册表键（`services/notifications/icons.ts` 的 `NOTIFICATION_ICONS`），不传组件；
   主进程侧 icon 字符串键与注册表的对账由
-  `features/notifications/__tests__/main-process-icons.test.ts` 守护。
+  `services/notifications/__tests__/main-process-icons.test.ts` 守护。
 - **主进程用 `routeNotification(payload, origin)`**（`src-electron/main/windows/`），
   禁止 `new Notification(...)` 原生通知（Oxlint 守护）；按钮回调放 `origin.handlers`，
   收尾放 `origin.onClose`，关闭走 `dismissNotification(id)`。
 - **查看详情**：需要打开内容的通知按钮标 `reveal: true`，点击正文和该按钮共用执行路径。独立通知窗口先激活来源窗口（main origin 激活主窗口）再执行回调，应用内直接执行。失败在通知内显示错误。没有查看动作的通知在独立窗口点击正文时只唤回来源窗口，「同意」「重试」等按钮默认在原地执行。`revealWindow` / `showOrCreateMainWindow` 在 macOS 上用 `app.focus({ steal: true })` 抢占激活。
 - **待办与日程提醒**：查看动作携带提醒所属资料库及目标，待办和日程打开相应页面，正文待办按正文 ID 反查原文并按任务 ID 定位。切库后拒绝打开旧库目标。
+- **AI 任务通知与可见面抑制**：渲染端长耗时 AI 任务与阻塞等待交互统一经 `services/notifications/aiNotify.ts`（`notifyAiTask`）与壳层常驻的 `AiTaskNotificationHost` 发牌，按「应用聚焦且正在看目标可见面 → 抑制；聚焦但已离面 → 应用内卡栈；应用失焦 → 系统独立通知窗」三态分流。弹窗内中耗时任务（生图、闪卡、电子书重写、语音合成、音色复刻、AI 创建 Skill）采用 `unfocused-only` 仅在应用失焦时提醒；对话回复完成带最短耗时门槛，工具审批、AI 提问、正文改写待审阅与失败通知不受耗时门槛限制且 `sticky: true`，阻塞项处理完成、任务取消或切库后自动撤销；静默后台任务（笔记元信息、个人助手记忆、自动调度的洞见与本地增量索引）不发通知。查看动作同样校验发起时的资料库身份，切库后拒绝跳转。任务 Promise 的收尾独立于 React Query 的视图订阅，视频断句优化也在任务链内保存与通知；Activity 隐藏只撤销可见面登记，不承担任务收尾。PDF、Notebook 与项目视频对话栏的 CSS 隐藏由实际开闭状态撤销登记。剪藏任务的事件和保存命令均携带发起库身份，旧库迟到结果不再创建通知；正文反查等异步定位在返回后再次核验库身份。Notebook 队列事件携带 taskId、projectId、mainDbName，宿主先订阅并缓存事件，再合入活动队列快照，按任务终态去重、按 Notebook 聚合；取消只解除批次等待。
 
 ## 构建与打包
 

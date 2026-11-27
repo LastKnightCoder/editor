@@ -30,6 +30,7 @@ import { formatTimestamp } from "./extensions/VideoTimestamp";
 const ChatContainer = lazy(() => import("@/components/ChatSidebar/ChatContainer"));
 
 interface VideoNoteChatPanelProps {
+  isVisible?: boolean;
   videoNoteId: number;
   toolScope: string;
   transcript: string;
@@ -106,7 +107,7 @@ function ChatEmptyState({
 
 const VideoNoteChatPanel = forwardRef<VideoNoteChatPanelHandle, VideoNoteChatPanelProps>(
   function VideoNoteChatPanel(
-    { videoNoteId, toolScope, transcript, docked = false, onClose },
+    { videoNoteId, toolScope, transcript, docked = false, onClose, isVisible = true },
     ref
   ) {
     const { t } = useVideoWatchI18n();
@@ -206,7 +207,7 @@ const VideoNoteChatPanel = forwardRef<VideoNoteChatPanelHandle, VideoNoteChatPan
     }
 
     return (
-      <MarkdownProvider isDark={isDark} isVisible={true}>
+      <MarkdownProvider isDark={isDark} isVisible={isVisible}>
         <div
           className={cn("box-border flex h-full min-h-0 flex-col pb-3", docked ? "px-3" : "px-5")}
         >
@@ -249,7 +250,7 @@ const VideoNoteChatPanel = forwardRef<VideoNoteChatPanelHandle, VideoNoteChatPan
               currentChat={currentChat}
               isDark={isDark}
               markdownComponents={markdownComponents}
-              isVisible={true}
+              isVisible={isVisible}
               chatScope={`video-note-chat:${videoNoteId}`}
               toolScope={toolScope}
               sendLoading={sendLoading}

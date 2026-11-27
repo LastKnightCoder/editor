@@ -119,6 +119,7 @@ const buildVLSystemPrompt = (resources: VLResource[], goalSection: string): stri
 };
 
 interface ChatPanelProps {
+  isVisible: boolean;
   projectId: number;
   mainDbName: string;
   resources: VLResource[];
@@ -130,6 +131,7 @@ interface ChatPanelProps {
 }
 
 const ChatPanel: React.FC<ChatPanelProps> = ({
+  isVisible,
   projectId,
   mainDbName,
   resources,
@@ -198,7 +200,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   }
 
   return (
-    <MarkdownProvider isDark={isDark} isVisible={true}>
+    <MarkdownProvider isDark={isDark} isVisible={isVisible}>
       <div className="box-border h-full min-h-0">
         <div className={cn("box-border flex h-full flex-col pb-3", docked ? "px-3" : "px-5")}>
           <div className="flex h-[52px] shrink-0 items-center gap-1">
@@ -228,7 +230,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
               currentChat={currentChat}
               isDark={isDark}
               markdownComponents={markdownComponents}
-              isVisible={true}
+              isVisible={isVisible}
               chatScope={`vibe-learning-chat:${projectId}`}
               toolScope={toolScope}
               sendLoading={sendLoading}

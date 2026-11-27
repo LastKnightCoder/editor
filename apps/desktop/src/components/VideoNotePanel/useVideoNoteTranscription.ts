@@ -20,6 +20,15 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import { toast } from "@tau/ui";
+import { useSettingsStore } from "@/app/settingsStore";
+import { aiNotifyText } from "@/services/notifications/ai.i18n";
+import {
+  isCurrentDatabase,
+  isSurfaceActive,
+  notifyAiTask,
+  registerActiveSurface,
+} from "@/services/notifications/aiNotify";
+import { bindDatabaseCommands } from "@/services/command-context";
 import useSettingStore from "@/stores/useSettingStore";
 import { getModels } from "@/commands/model-downloader";
 import { requiredModels } from "../../../shared/local-transcription";
@@ -79,40 +88,47 @@ export function useVideoNoteTranscription({
     model,
     thinkingLevel: transcriptionThinkingLevel,
   } = useLLMConfig("transcriptionOptimization");
-  const {
-    isOptimizing,
-    streamingSegments,
-    finalSegments: optimizedFinalSegments,
-    startOptimization,
-    stopOptimization,
-    error: optimizationError,
-  } = useTranscriptionOptimization(provider, model, transcriptionThinkingLevel);
+  const { isOptimizing, streamingSegments, startOptimization, stopOptimization } =
+    useTranscriptionOptimization(provider, model, transcriptionThinkingLevel);
 
   const [isTranscribing, setIsTranscribing] = useState(false);
   const isLoadingCaptions = useVideoNoteCaptions(videoNote, isTranscribing, onTranscriptSaved);
   const [progress, setProgress] = useState<VideoTranscriptionProgress | null>(null);
-  const [pendingWordSegments, setPendingWordSegments] = useState<TranscriptSegment[] | null>(null);
   const [optionsRequest, setOptionsRequest] = useState<{
     language: string;
     initialSelection: LocalTranscriptionSelection;
   } | null>(null);
-  const retainPendingWords = useRef(true);
   const [detectedLanguage, setDetectedLanguage] = useState<string | null>(null);
   /** LLM 配置缺失时请宿主弹确认框（打开设置） */
   const [llmConfirm, setLlmConfirm] = useState<LLMConfirmRequest | null>(null);
 
   const videoNoteId = videoNote?.id;
+  const databaseName = useSettingStore(state => state.setting.database.active);
+  const visibleVideo = useRef(videoNoteId);
+  const optimizationTask = useRef<AbortController | null>(null);
+  visibleVideo.current = videoNoteId;
+  const transcriptCommands = bindDatabaseCommands({ updateVideoNoteTranscript }, { databaseName });
 
   useEffect(() => {
     setDetectedLanguage(null);
   }, [videoNoteId]);
+
+  useEffect(() => {
+    if (!videoNoteId) return;
+    return registerActiveSurface(`video-note:${videoNoteId}`);
+  }, [videoNoteId]);
+
+  const isOnVideoSurface = () =>
+    Boolean(videoNoteId) &&
+    !useSettingsStore.getState().open &&
+    isSurfaceActive(`video-note:${videoNoteId}`);
 
   const finish = () => {
     setIsTranscribing(false);
     setProgress(null);
   };
 
-  const getVideoLocalPath = useMemoizedFn(async (): Promise<string | null> => {
+  const getVideoLocalPath = async (): Promise<string | null> => {
     if (!videoNote) return null;
     const { metaInfo } = videoNote;
 
@@ -151,18 +167,81 @@ export function useVideoNoteTranscription({
       }
     );
     return result.localPath;
-  });
+  };
 
   const saveTranscript = async (patch: TranscriptPatch) => {
     if (videoNoteId == null) return;
-    await updateVideoNoteTranscript(
+    await transcriptCommands.updateVideoNoteTranscript(
       videoNoteId,
       patch.transcript,
       patch.transcriptSegments,
       // 同时保存词级时间戳，以便后续重新 AI 优化
       patch.transcriptWordSegments
     );
-    onTranscriptSaved(patch);
+    if (visibleVideo.current === videoNoteId && isCurrentDatabase(databaseName))
+      onTranscriptSaved(patch);
+  };
+
+  const optimizeAndSave = async (
+    wordSegments: TranscriptSegment[],
+    language: string,
+    keepWords = true
+  ) => {
+    const controller = new AbortController();
+    optimizationTask.current?.abort();
+    optimizationTask.current = controller;
+    let cancelled = false;
+    try {
+      const result = await startOptimization(wordSegments, language);
+      if (!result || controller.signal.aborted) {
+        cancelled = true;
+        return;
+      }
+      setProgress({ kind: "saving" });
+      await saveTranscript({
+        transcript: result.segments.map(segment => segment.text).join(" "),
+        transcriptSegments: result.segments,
+        transcriptWordSegments: keepWords ? wordSegments : undefined,
+      });
+      if (controller.signal.aborted) {
+        cancelled = true;
+        return;
+      }
+      const notified = notifyAiTask({
+        id: `video-transcription:${databaseName}:${videoNoteId}`,
+        title: aiNotifyText(
+          result.error ? "transcription.partialDoneTitle" : "transcription.optimizedDoneTitle"
+        ),
+        body: aiNotifyText("transcription.bodyUntitled"),
+        source: aiNotifyText("source.transcription"),
+        icon: "audioLines",
+        tone: result.error ? "neutral" : "ok",
+        databaseName,
+        isOnSurface: isOnVideoSurface,
+      });
+      if (!notified && isCurrentDatabase(databaseName)) {
+        if (result.error) toast.warning(videoTranscriptionT("notice.partialOptimization"));
+        else toast.success(videoTranscriptionT("notice.optimizedComplete"));
+      }
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      console.error("Failed to save optimized transcript:", error);
+      const message = videoTranscriptionT("notice.saveFailed");
+      const notified = notifyAiTask({
+        id: `video-transcription:${databaseName}:${videoNoteId}`,
+        title: aiNotifyText("transcription.failedTitle"),
+        body: message,
+        source: aiNotifyText("source.transcription"),
+        icon: "audioLines",
+        tone: "danger",
+        sticky: true,
+        databaseName,
+        isOnSurface: isOnVideoSurface,
+      });
+      if (!notified && isCurrentDatabase(databaseName)) toast.error(message);
+    } finally {
+      if (!cancelled && optimizationTask.current === controller) finish();
+    }
   };
 
   /** languageOverride：本次转录用指定语言（宿主刚切换语言、状态尚未生效时）；
@@ -251,11 +330,12 @@ export function useVideoNoteTranscription({
         if (options.useLLMOptimization && result.data.text.trim() && !wordSegments?.length)
           throw new VideoTranscriptionFailure("words");
         if (options.useLLMOptimization && wordSegments?.length) {
-          retainPendingWords.current = selection.keepWords;
-          // 流式优化完成后由下方 effect 落库并结束
           setProgress({ kind: "optimizing" });
-          setPendingWordSegments(wordSegments);
-          startOptimization(wordSegments, resolveVideoNoteOptimizationLanguage(lang, detected));
+          void optimizeAndSave(
+            wordSegments,
+            resolveVideoNoteOptimizationLanguage(lang, detected),
+            selection.keepWords
+          );
           return;
         }
 
@@ -266,46 +346,44 @@ export function useVideoNoteTranscription({
           transcriptWordSegments: selection.keepWords ? wordSegments : undefined,
         });
         finish();
-        toast.success(videoTranscriptionT("notice.complete"));
+        const notified = notifyAiTask({
+          id: `video-transcription:${videoNoteId ?? "current"}`,
+          title: aiNotifyText("transcription.doneTitle"),
+          body: aiNotifyText("transcription.bodyUntitled"),
+          source: aiNotifyText("source.transcription"),
+          icon: "audioLines",
+          tone: "ok",
+          databaseName,
+          isOnSurface: isOnVideoSurface,
+        });
+        if (!notified && isCurrentDatabase(databaseName))
+          toast.success(videoTranscriptionT("notice.complete"));
       } catch (error) {
         console.error("Transcription error:", error);
-        toast.error(
-          videoTranscriptionT("error.transcribe", { error: videoTranscriptionFailureText(error) })
-        );
+        const message = videoTranscriptionT("error.transcribe", {
+          error: videoTranscriptionFailureText(error),
+        });
+        const notified = notifyAiTask({
+          id: `video-transcription:${videoNoteId ?? "current"}`,
+          title: aiNotifyText("transcription.failedTitle"),
+          body: message,
+          source: aiNotifyText("source.transcription"),
+          icon: "audioLines",
+          tone: "danger",
+          sticky: true,
+          databaseName,
+          isOnSurface: isOnVideoSurface,
+        });
+        if (!notified && isCurrentDatabase(databaseName)) toast.error(message);
         finish();
       }
     }
   );
 
-  // 流式优化完成后落库
-  useEffect(() => {
-    if (!optimizedFinalSegments || isOptimizing || !pendingWordSegments) return;
-    const run = async () => {
-      try {
-        setProgress({ kind: "saving" });
-        await saveTranscript({
-          transcript: optimizedFinalSegments.map(s => s.text).join(" "),
-          transcriptSegments: optimizedFinalSegments,
-          transcriptWordSegments: retainPendingWords.current ? pendingWordSegments : undefined,
-        });
-        if (optimizationError) toast.warning(videoTranscriptionT("notice.partialOptimization"));
-        else toast.success(videoTranscriptionT("notice.optimizedComplete"));
-      } catch (error) {
-        console.error("Failed to save optimized transcript:", error);
-        toast.error(videoTranscriptionT("notice.saveFailed"));
-      } finally {
-        finish();
-        setPendingWordSegments(null);
-      }
-    };
-    void run();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [optimizedFinalSegments, isOptimizing, pendingWordSegments, optimizationError]);
-
   const cancelOptimization = useMemoizedFn(() => {
+    optimizationTask.current?.abort();
     stopOptimization();
     finish();
-    setPendingWordSegments(null);
     toast.info(videoTranscriptionT("notice.cancelled"));
   });
 
@@ -323,10 +401,8 @@ export function useVideoNoteTranscription({
     }
     setIsTranscribing(true);
     setProgress({ kind: "optimizing" });
-    setPendingWordSegments(wordSegments);
-    retainPendingWords.current = true;
     // 自动模式下无检测结果时回退中文
-    startOptimization(
+    void optimizeAndSave(
       wordSegments,
       resolveVideoNoteOptimizationLanguage(language, detectedLanguage)
     );

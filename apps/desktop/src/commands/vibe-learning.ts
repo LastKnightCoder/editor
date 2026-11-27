@@ -10,6 +10,7 @@ import type {
   CreateVLNote,
   UpdateVLNote,
   VLNoteType,
+  VLResourceTaskStatus,
 } from "@/types/vibe-learning";
 
 export type VLAddTaskResult =
@@ -139,6 +140,11 @@ export const getVLResourceStatuses = async (
   resourceIds: number[]
 ): Promise<Record<number, { status: VLResourceStatus | null; taskProgress?: TaskProgress }>> => {
   return await invoke("vl-get-resource-statuses", resourceIds);
+};
+
+export const getVLActiveTasks = async (): Promise<VLResourceTaskStatus[]> => {
+  const { withModule } = await import("./module-init");
+  return withModule("vibe-learning-index-queue", () => invoke("vl-get-active-tasks"));
 };
 
 /**

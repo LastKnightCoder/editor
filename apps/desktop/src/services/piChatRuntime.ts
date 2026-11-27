@@ -43,6 +43,8 @@ import { withStreamingUpdateTime } from "@/components/ChatSidebar/streamingUtils
 
 /** 组件提供的会话依赖（必须无组件生命周期：store action / IPC command） */
 export interface PiChatRuntimeDeps {
+  /** 完整会话域标识（如 `main-chat`、`pdf-chat:12`、`vibe-learning-chat:5`） */
+  chatScope?: string;
   /** 聊天行更新进 store（驱动 UI 订阅） */
   publish(chat: ChatMessage): void;
   /**
@@ -110,6 +112,27 @@ interface ConversationEntry {
 /** 空闲条目最多保留几条：超出按最近使用淘汰；在跑、等待交互、有队列/插话、挂着的不计入也不淘汰 */
 const MAX_IDLE_CONVERSATIONS = 20;
 
+/** 一轮对话结束或失败时发布给壳层观察者（如 AI 任务通知），避免运行时耦合 UI */
+export interface PiChatRunOutcome {
+  conversationKey: string;
+  chatScope: string;
+  chatId: string;
+  databaseName?: string;
+  title: string;
+  kind: "settled" | "error";
+  elapsedMs: number;
+  stopped: boolean;
+  errorMessage?: string;
+}
+
+export interface PiChatSessionMeta {
+  conversationKey: string;
+  chatScope: string;
+  chatId: string;
+  databaseName?: string;
+  title: string;
+}
+
 /** 一轮对话运行（一条用户消息到沉淀）的排障计数：起跑时登记，settled 时写成一行摘要后移除 */
 interface RunStats {
   startedAt: number;
@@ -119,8 +142,20 @@ interface RunStats {
   inputTokens: number;
   outputTokens: number;
   finishReason: string | null;
+  errorMessage?: string;
 }
 const runStats = new WeakMap<ConversationEntry, RunStats>();
+
+function createRunStats(startedAt = performance.now()): RunStats {
+  return {
+    startedAt,
+    toolCallsByTurn: new Map(),
+    finishedTurns: 0,
+    inputTokens: 0,
+    outputTokens: 0,
+    finishReason: null,
+  };
+}
 
 /**
  * 投影回写容器：投影是事实源，但按位置沿用原 clientId（列表按 clientId 做 key，
@@ -147,11 +182,50 @@ export const adoptTranscript = (
 class PiChatRuntime {
   private readonly conversations = new Map<string, ConversationEntry>();
   private readonly listeners = new Set<(conversationKey: string) => void>();
+  private readonly outcomeListeners = new Set<(outcome: PiChatRunOutcome) => void>();
 
   /** 订阅会话运行态变化（streaming 置/清），组件据此刷新 sendLoading */
   public subscribe(listener: (conversationKey: string) => void): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
+  }
+
+  /** 订阅一轮对话结束或报错（不带 UI 依赖） */
+  public onRunOutcome(listener: (outcome: PiChatRunOutcome) => void): () => void {
+    this.outcomeListeners.add(listener);
+    return () => this.outcomeListeners.delete(listener);
+  }
+
+  private emitOutcome(outcome: PiChatRunOutcome): void {
+    this.outcomeListeners.forEach(listener => listener(outcome));
+  }
+
+  /** 按 conversationKey 反查会话元数据（供子 Agent 与改写审阅通知回跳） */
+  public findByKey(conversationKey: string): PiChatSessionMeta | undefined {
+    const entry = this.conversations.get(conversationKey);
+    if (!entry) return undefined;
+    return {
+      conversationKey,
+      chatScope: entry.deps.chatScope ?? "",
+      chatId: entry.chat.current.id,
+      databaseName: entry.chat.current.databaseName,
+      title: entry.chat.current.title,
+    };
+  }
+
+  /** 按 pi sessionId 反查会话元数据（供交互通知路由与标题展示） */
+  public findBySessionId(sessionId: string): PiChatSessionMeta | undefined {
+    for (const [conversationKey, entry] of this.conversations) {
+      if (entry.sessionId !== sessionId) continue;
+      return {
+        conversationKey,
+        chatScope: entry.deps.chatScope ?? "",
+        chatId: entry.chat.current.id,
+        databaseName: entry.chat.current.databaseName,
+        title: entry.chat.current.title,
+      };
+    }
+    return undefined;
   }
 
   private notify(conversationKey: string): void {
@@ -479,6 +553,14 @@ class PiChatRuntime {
 
   private applySessionRecovery(key: string, entry: ConversationEntry, snapshot: PiSessionRecovery) {
     if (!snapshot.sessionId) return;
+    if (snapshot.busy && !snapshot.manualCompaction && !runStats.has(entry)) {
+      runStats.set(
+        entry,
+        createRunStats(
+          performance.now() - Math.max(0, Date.now() - (snapshot.runStartedAt ?? Date.now()))
+        )
+      );
+    }
     entry.reducer?.reset();
     if (snapshot.messages)
       entry.chat.current = {
@@ -510,6 +592,13 @@ class PiChatRuntime {
         message: snapshot.streamingMessage,
         assistantMessageEvent: { type: "start", partial: snapshot.streamingMessage },
       } as AgentSessionEvent);
+    }
+    const stats = runStats.get(entry);
+    if (snapshot.busy === false && stats) {
+      stats.finishedTurns = Math.max(stats.finishedTurns, 1);
+      stats.finishReason = snapshot.lastAssistantOutcome?.finishReason ?? "stop";
+      stats.errorMessage = snapshot.lastAssistantOutcome?.errorMessage;
+      reducer.handle({ type: "agent_settled" } as AgentSessionEvent);
     }
   }
 
@@ -595,19 +684,15 @@ class PiChatRuntime {
           if (stats) {
             stats.finishedTurns++;
             stats.finishReason = finishReason;
+            if (finishReason !== "error") stats.errorMessage = undefined;
           }
         },
         onAgentStart: () => {
           entry.stopRequested = false;
+          if (!runStats.has(entry)) {
+            runStats.set(entry, createRunStats());
+          }
           if (!entry.streaming) {
-            runStats.set(entry, {
-              startedAt: performance.now(),
-              toolCallsByTurn: new Map(),
-              finishedTurns: 0,
-              inputTokens: 0,
-              outputTokens: 0,
-              finishReason: null,
-            });
             const last = entry.chat.current.messages.at(-1);
             if (
               last?.role === Role.Assistant &&
@@ -660,6 +745,9 @@ class PiChatRuntime {
             console.info("[piChatRuntime] 停止后的收尾报错已忽略:", errorMessage);
             return;
           }
+          const stats = runStats.get(entry) ?? createRunStats();
+          stats.errorMessage = errorMessage;
+          runStats.set(entry, stats);
           entry.deps.ui?.onStreamError?.(errorMessage);
           console.error("[piChatRuntime] 聊天请求失败:", errorMessage);
         },
@@ -674,6 +762,7 @@ class PiChatRuntime {
           if (stats) {
             // 一轮运行只留这一行：答到一半停了、答非所问时先看结束原因与工具调用数
             runStats.delete(entry);
+            const elapsedMs = Math.round(performance.now() - stats.startedAt);
             const model = entry.deps.usageModel;
             console.info("[ai-run] 对话运行结束", {
               sessionId: entry.sessionId,
@@ -684,9 +773,26 @@ class PiChatRuntime {
               toolCalls: [...stats.toolCallsByTurn.values()].reduce((sum, count) => sum + count, 0),
               inputTokens: stats.inputTokens,
               outputTokens: stats.outputTokens,
-              elapsedMs: Math.round(performance.now() - stats.startedAt),
+              elapsedMs,
               stopped: entry.stopRequested,
             });
+            if (
+              !entry.stopRequested &&
+              stats.finishReason !== "aborted" &&
+              (stats.finishedTurns > 0 || stats.errorMessage)
+            ) {
+              this.emitOutcome({
+                conversationKey: key,
+                chatScope: entry.deps.chatScope ?? "",
+                chatId: entry.chat.current.id,
+                databaseName: entry.chat.current.databaseName,
+                title: entry.chat.current.title,
+                kind: stats.errorMessage || stats.finishReason === "error" ? "error" : "settled",
+                errorMessage: stats.errorMessage,
+                elapsedMs,
+                stopped: false,
+              });
+            }
           }
           // 本轮结束还挂着的插话就是没送达的（中止、或提交时这轮刚好已收尾）：
           // 退回待发送队首，由排空按普通消息发出（用户按过停止时队列是暂停的，等他处置）

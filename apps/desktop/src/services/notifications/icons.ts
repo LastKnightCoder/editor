@@ -1,11 +1,15 @@
 import {
+  AudioLines,
   Bell,
   CalendarClock,
   Check,
   Download,
+  FilePen,
   Globe,
+  MessageSquare,
   RotateCw,
   Rocket,
+  ShieldAlert,
   Sparkles,
   Timer,
   type LucideIcon,
@@ -29,12 +33,20 @@ export const NOTIFICATION_ICONS = {
   download: Download,
   /** 应用更新（与 useAutoUpdateCheck 的「新版本已就绪」一致） */
   rotateCw: RotateCw,
-  /** 升级后的更新公告（与 useAutoUpdateCheck 的「已更新到 vX」一致） */
+  /** 升级后的更新公告与 AI 后台生成任务 */
   sparkles: Sparkles,
   /** 站点发布（publishRunStore 的发布结果） */
   rocket: Rocket,
   /** 浏览器扩展请求连接（browser-companion 配对） */
   globe: Globe,
+  /** AI 对话回复与提问 */
+  messageSquare: MessageSquare,
+  /** AI 工具审批等需要确认的阻塞动作 */
+  shieldAlert: ShieldAlert,
+  /** AI 正文改写待审阅 */
+  filePen: FilePen,
+  /** 音视频转录、语音合成与音色复刻 */
+  audioLines: AudioLines,
 } satisfies Record<string, LucideIcon>;
 
 export type NotificationIconKey = keyof typeof NOTIFICATION_ICONS;

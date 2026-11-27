@@ -7,6 +7,8 @@ import { Mic, Play, Pause, RefreshCw } from "lucide-react";
 import { Button, Dialog, DialogBody, IconButton, Select, Textarea } from "@tau/ui";
 import { ResourceSelectError, ResourceSelectField } from "@/components/ResourceSelectDialog";
 import { TTSProviderFactory } from "@/utils/tts/TTSProviderFactory";
+import { aiNotifyText } from "@/services/notifications/ai.i18n";
+import { notifyAiTask } from "@/services/notifications/aiNotify";
 
 interface VoiceOption {
   id: string;
@@ -120,9 +122,28 @@ const TTSGenerateModal: React.FC<TTSGenerateModalProps> = ({ open, onCancel, onC
       setAudioBlob(blob);
       const url = URL.createObjectURL(blob);
       setAudioUrl(url);
+      notifyAiTask({
+        id: "tts-generate",
+        mode: "unfocused-only",
+        title: aiNotifyText("tts.doneTitle"),
+        body: aiNotifyText("tts.doneBody"),
+        source: aiNotifyText("source.tts"),
+        icon: "audioLines",
+        tone: "ok",
+      });
     } catch (err) {
       console.error("TTS error:", err);
       setError(new TtsWorkspaceFailure("settings", { cause: err }));
+      notifyAiTask({
+        id: "tts-generate",
+        mode: "unfocused-only",
+        title: aiNotifyText("tts.failedTitle"),
+        body: err instanceof Error ? err.message : undefined,
+        source: aiNotifyText("source.tts"),
+        icon: "audioLines",
+        tone: "danger",
+        sticky: true,
+      });
     } finally {
       await synthesizer?.dispose?.();
       setGenerating(false);

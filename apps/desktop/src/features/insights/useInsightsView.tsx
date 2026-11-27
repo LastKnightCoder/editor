@@ -27,6 +27,15 @@ import {
   type InsightFocus,
 } from "@/services/insight-focus";
 import { discussInsight, type InsightNote } from "@/services/insight-chat";
+import { useSettingsStore } from "@/app/settingsStore";
+import { aiNotifyText } from "@/services/notifications/ai.i18n";
+import {
+  currentDatabaseName,
+  isCurrentDatabase,
+  isSurfaceActive,
+  notifyAiTask,
+  registerActiveSurface,
+} from "@/services/notifications/aiNotify";
 import { openEntity } from "@/services/open-content";
 import type { InsightAsk, InsightKind, InsightMark } from "@/types/content-insights";
 import { createInsightDecorate } from "./anchors";
@@ -110,6 +119,17 @@ export function useInsightsView({
 
   // 切到另一篇时收起
   useEffect(() => exit(), [ref.kind, ref.id, exit]);
+  useEffect(() => registerActiveSurface(`insights:${ref.kind}:${ref.id}`), [ref.kind, ref.id]);
+
+  const isOnInsightsSurface = useCallback(
+    () => !useSettingsStore.getState().open && isSurfaceActive(`insights:${ref.kind}:${ref.id}`),
+    [ref.kind, ref.id]
+  );
+
+  const openThisEntity = useCallback(() => {
+    useSettingsStore.getState().closeSettings();
+    return openEntity(ref);
+  }, [ref]);
 
   // 从知识地图「去连接」过来：只画那一处并弹出气泡
   useEffect(() => {
@@ -133,27 +153,124 @@ export function useInsightsView({
       return;
     }
     setView("reading");
-    analyze.mutate(undefined, {
-      onSuccess: () => setView("on"),
-      onError: error => {
-        setView("off");
-        toast.error(insightsFailure("insights.analyzeFailed", error));
+    const dbName = currentDatabaseName();
+    const title = context?.self.title;
+    void analyze.mutateAsync().then(
+      () => {
+        setView("on");
+        notifyAiTask({
+          id: `content-insights:${ref.kind}:${ref.id}`,
+          title: aiNotifyText("insights.contentDoneTitle"),
+          body: title
+            ? aiNotifyText("insights.contentDoneBody", { title })
+            : aiNotifyText("insights.contentDoneUntitled"),
+          source: aiNotifyText("source.insights"),
+          icon: "sparkles",
+          tone: "ok",
+          databaseName: dbName,
+          isOnSurface: isOnInsightsSurface,
+          actions: [
+            {
+              label: aiNotifyText("action.view"),
+              primary: true,
+              reveal: true,
+              onClick: openThisEntity,
+            },
+          ],
+        });
       },
-    });
-  }, [analyze, getEditor, insights]);
+      error => {
+        setView("off");
+        const message = insightsFailure("insights.analyzeFailed", error);
+        const notified = notifyAiTask({
+          id: `content-insights:${ref.kind}:${ref.id}`,
+          title: aiNotifyText("insights.contentFailedTitle"),
+          body: message(),
+          source: aiNotifyText("source.insights"),
+          icon: "sparkles",
+          tone: "danger",
+          sticky: true,
+          databaseName: dbName,
+          isOnSurface: isOnInsightsSurface,
+          actions: [
+            {
+              label: aiNotifyText("action.view"),
+              primary: true,
+              reveal: true,
+              onClick: openThisEntity,
+            },
+          ],
+        });
+        if (!notified && isCurrentDatabase(dbName)) toast.error(message);
+      }
+    );
+  }, [
+    analyze,
+    context?.self.title,
+    getEditor,
+    insights,
+    isOnInsightsSurface,
+    openThisEntity,
+    ref.id,
+    ref.kind,
+  ]);
 
   const reanalyze = useCallback(() => {
     setCurrent(null);
     setWalking(false);
     setView("reading");
-    analyze.mutate(undefined, {
-      onSuccess: () => setView("on"),
-      onError: error => {
+    const dbName = currentDatabaseName();
+    const title = context?.self.title;
+    void analyze.mutateAsync().then(
+      () => {
         setView("on");
-        toast.error(insightsFailure("insights.analyzeFailed", error));
+        notifyAiTask({
+          id: `content-insights:${ref.kind}:${ref.id}`,
+          title: aiNotifyText("insights.contentDoneTitle"),
+          body: title
+            ? aiNotifyText("insights.contentDoneBody", { title })
+            : aiNotifyText("insights.contentDoneUntitled"),
+          source: aiNotifyText("source.insights"),
+          icon: "sparkles",
+          tone: "ok",
+          databaseName: dbName,
+          isOnSurface: isOnInsightsSurface,
+          actions: [
+            {
+              label: aiNotifyText("action.view"),
+              primary: true,
+              reveal: true,
+              onClick: openThisEntity,
+            },
+          ],
+        });
       },
-    });
-  }, [analyze]);
+      error => {
+        setView("on");
+        const message = insightsFailure("insights.analyzeFailed", error);
+        const notified = notifyAiTask({
+          id: `content-insights:${ref.kind}:${ref.id}`,
+          title: aiNotifyText("insights.contentFailedTitle"),
+          body: message(),
+          source: aiNotifyText("source.insights"),
+          icon: "sparkles",
+          tone: "danger",
+          sticky: true,
+          databaseName: dbName,
+          isOnSurface: isOnInsightsSurface,
+          actions: [
+            {
+              label: aiNotifyText("action.view"),
+              primary: true,
+              reveal: true,
+              onClick: openThisEntity,
+            },
+          ],
+        });
+        if (!notified && isCurrentDatabase(dbName)) toast.error(message);
+      }
+    );
+  }, [analyze, context?.self.title, isOnInsightsSurface, openThisEntity, ref.id, ref.kind]);
 
   useOverlayDismiss(() => {
     if (current && !walking) setCurrent(null);

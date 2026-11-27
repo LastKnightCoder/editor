@@ -26,7 +26,7 @@ import {
   updateResourceMarkdownPath,
   getAbsoluteMarkdownPath,
 } from "./markdown-store";
-import { sendToAllWindows } from "./broadcast";
+import { sendToAllWindows, resourceTaskStatus } from "./broadcast";
 
 export function isTaskStale(
   manager: VibeLearningIndexQueue,
@@ -69,6 +69,9 @@ export function clearQueueForNewGeneration(manager: VibeLearningIndexQueue): {
   droppedPending: number;
 } {
   const droppedPending = manager.queue.filter(task => task.status === "pending").length;
+
+  for (const task of manager.queue)
+    sendToAllWindows("vibe-learning-status-change", resourceTaskStatus(task, "cancelled"));
 
   manager.queue = [];
   manager.processingStatus.clear();
@@ -537,6 +540,10 @@ export async function deleteResourceComplete(
     // 1. 从队列中移除待处理任务（如果存在）
     const taskIndex = manager.queue.findIndex(t => t.resourceId === resourceId);
     if (taskIndex >= 0) {
+      sendToAllWindows(
+        "vibe-learning-status-change",
+        resourceTaskStatus(manager.queue[taskIndex], "cancelled")
+      );
       manager.queue.splice(taskIndex, 1);
       log.info(`[VibeLearningIndexQueue] Removed pending task for resource ${resourceId}`);
     }

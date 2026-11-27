@@ -10,6 +10,8 @@ import { type MediaAction, type MediaInsertSource } from "@tau/editor/extensions
 import LocalImage from "@/components/LocalImage";
 import { generateImageResources } from "@/services/image-generation";
 import { useImageCapabilities } from "@/services/image-capabilities";
+import { aiNotifyText } from "@/services/notifications/ai.i18n";
+import { notifyAiTask } from "@/services/notifications/aiNotify";
 import { uploadResource as uploadResourceCommand } from "@/hooks/useUploadResource";
 import { aiImageT, useAIImageI18n } from "./ai-image.i18n";
 
@@ -181,10 +183,30 @@ export const AIImageDialog = ({
         setEditedCandidates(prev => [...prev, pendingImage]);
         setSelectedEditResultId(pendingImage.id);
       }
+      notifyAiTask({
+        id: "ai-image-panel",
+        mode: "unfocused-only",
+        title: aiNotifyText(isGenerate ? "image.generateDoneTitle" : "image.editDoneTitle"),
+        body: aiNotifyText("image.doneBody"),
+        source: aiNotifyText("source.image"),
+        icon: "sparkles",
+        tone: "ok",
+      });
     } catch (error) {
       if (controller.signal.aborted || (error as Error).name === "AbortError") return;
       console.error("AI 图片处理失败:", error);
-      toast.error((error as Error).message || t("feedback.processFailed"));
+      const message = (error as Error).message || t("feedback.processFailed");
+      const notified = notifyAiTask({
+        id: "ai-image-panel",
+        mode: "unfocused-only",
+        title: aiNotifyText("image.failedTitle"),
+        body: message,
+        source: aiNotifyText("source.image"),
+        icon: "sparkles",
+        tone: "danger",
+        sticky: true,
+      });
+      if (!notified) toast.error(message);
     } finally {
       if (taskRef.current === controller && !controller.signal.aborted) setAiSubmitting(false);
     }

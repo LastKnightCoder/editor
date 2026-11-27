@@ -11,6 +11,7 @@ import { getContentLength } from "@/utils/helper";
 import { importFromMarkdown } from "@/utils/markdown";
 import { normalizeThinkTaggedText } from "@/utils/thinkTagNormalizer";
 import type { Descendant } from "slate";
+import { bindDatabaseCommands } from "./command-context";
 
 export interface WebClipStartParams {
   projectItemId: number;
@@ -21,12 +22,14 @@ export interface WebClipStartParams {
 }
 
 export interface WebClipProgressData {
+  databaseName: string;
   projectItemId: number;
   markdown: string;
   delta: string;
 }
 
 export interface WebClipCompleteData {
+  databaseName: string;
   projectItemId: number;
   markdown: string;
   url: string;
@@ -36,6 +39,7 @@ export interface WebClipCompleteData {
 }
 
 export interface WebClipErrorData {
+  databaseName: string;
   projectItemId: number;
   error: string;
 }
@@ -59,6 +63,7 @@ export interface WebClipTaskRunnerDeps {
   };
   chatStream: typeof piStreamChat;
   saveWebClip: (params: {
+    databaseName: string;
     projectItemId: number;
     markdown: string;
     url: string;
@@ -69,6 +74,7 @@ export interface WebClipTaskRunnerDeps {
 type Handler<T> = (data: T) => void;
 
 interface WebClipTask {
+  databaseName: string;
   projectItemId: number;
   url: string;
   title: string;
@@ -117,19 +123,32 @@ const getDefaultLLMConfig = () => {
 };
 
 const saveWebClipToDatabase = async (params: {
+  databaseName: string;
   projectItemId: number;
   markdown: string;
   url: string;
   title: string;
 }): Promise<SavedWebClipResult | null> => {
+  const commands = bindDatabaseCommands(
+    {
+      findClippedWebClipId,
+      getWebClipById,
+      replaceContent,
+      updateWebClip,
+      createContent,
+      createWebClip,
+      recordWebClip,
+    },
+    { databaseName: params.databaseName }
+  );
   const content = parseMarkdownToContent(params.markdown);
-  const existingWebClipId = await findClippedWebClipId(params.projectItemId);
+  const existingWebClipId = await commands.findClippedWebClipId(params.projectItemId);
 
   if (existingWebClipId) {
-    const existingWebClip = await getWebClipById(existingWebClipId);
+    const existingWebClip = await commands.getWebClipById(existingWebClipId);
     if (existingWebClip) {
-      await replaceContent(existingWebClip.contentId, { nodes: content });
-      const updatedWebClip = await updateWebClip({
+      await commands.replaceContent(existingWebClip.contentId, { nodes: content });
+      const updatedWebClip = await commands.updateWebClip({
         id: existingWebClip.id,
         url: params.url || existingWebClip.url,
         title: params.title || existingWebClip.title,
@@ -141,17 +160,17 @@ const saveWebClipToDatabase = async (params: {
     }
   }
 
-  const contentId = await createContent(content, getContentLength(content));
+  const contentId = await commands.createContent(content, getContentLength(content));
   if (!contentId) {
     throw new Error("创建内容失败");
   }
 
-  const createdWebClip = await createWebClip({
+  const createdWebClip = await commands.createWebClip({
     contentId,
     url: params.url,
     title: params.title || "解析文档",
   });
-  await recordWebClip(params.projectItemId, createdWebClip.id);
+  await commands.recordWebClip(params.projectItemId, createdWebClip.id);
 
   return {
     webClipId: createdWebClip.id,
@@ -160,7 +179,7 @@ const saveWebClipToDatabase = async (params: {
 };
 
 export class WebClipTaskRunner {
-  private readonly activeTasks = new Map<number, WebClipTask>();
+  private readonly activeTasks = new Map<string, WebClipTask>();
   private readonly progressHandlers = new Set<Handler<WebClipProgressData>>();
   private readonly completeHandlers = new Set<Handler<WebClipCompleteData>>();
   private readonly errorHandlers = new Set<Handler<WebClipErrorData>>();
@@ -191,14 +210,24 @@ export class WebClipTaskRunner {
     };
   }
 
+  private taskKey(
+    projectItemId: number,
+    databaseName = useSettingStore.getState().setting.database.active
+  ) {
+    return JSON.stringify([databaseName.replace(/\.db$/, ""), projectItemId]);
+  }
+
   async start(params: WebClipStartParams) {
-    const existingTask = this.activeTasks.get(params.projectItemId);
+    const databaseName = useSettingStore.getState().setting.database.active;
+    const key = this.taskKey(params.projectItemId, databaseName);
+    const existingTask = this.activeTasks.get(key);
     if (existingTask?.status === "processing") {
       existingTask.chatHandle?.cancel();
       existingTask.status = "cancelled";
     }
 
     const task: WebClipTask = {
+      databaseName,
       projectItemId: params.projectItemId,
       url: params.url,
       title: params.title,
@@ -206,14 +235,14 @@ export class WebClipTaskRunner {
       status: "processing",
       markdown: "",
     };
-    this.activeTasks.set(params.projectItemId, task);
+    this.activeTasks.set(key, task);
 
     void this.runTask(params, task);
     return { ok: true, projectItemId: params.projectItemId };
   }
 
   async cancel(projectItemId: number) {
-    const task = this.activeTasks.get(projectItemId);
+    const task = this.activeTasks.get(this.taskKey(projectItemId));
     if (task?.status === "processing") {
       task.chatHandle?.cancel();
       task.status = "cancelled";
@@ -222,7 +251,7 @@ export class WebClipTaskRunner {
   }
 
   async getStatus(projectItemId: number): Promise<WebClipStatusResult | null> {
-    const task = this.activeTasks.get(projectItemId);
+    const task = this.activeTasks.get(this.taskKey(projectItemId));
     if (!task) {
       return null;
     }
@@ -259,7 +288,7 @@ export class WebClipTaskRunner {
           model,
           ...(thinkingLevel ? { thinking: thinkingLevel } : {}),
           messages,
-          source: { feature: "webClip" },
+          source: { feature: "webClip", library: task.databaseName },
         },
         event => {
           if (task.status !== "processing") {
@@ -273,6 +302,7 @@ export class WebClipTaskRunner {
             event.type === "text_delta" ? normalizeThinkTaggedText(event.delta).content : "";
           task.markdown = markdown;
           this.emitProgress({
+            databaseName: task.databaseName,
             projectItemId: task.projectItemId,
             markdown,
             delta,
@@ -285,21 +315,24 @@ export class WebClipTaskRunner {
       if (task.status !== "processing") {
         return;
       }
+      if (result.aborted) {
+        task.status = "cancelled";
+        return;
+      }
       if (!result.ok) {
         task.status = "error";
         this.emitError({
+          databaseName: task.databaseName,
           projectItemId: task.projectItemId,
           error: result.error ?? "模型请求失败",
         });
-        return;
-      }
-      if (result.aborted) {
         return;
       }
 
       const markdown = normalizeThinkTaggedText(result.text).content;
       task.markdown = markdown;
       const savedData = await this.deps.saveWebClip({
+        databaseName: task.databaseName,
         projectItemId: task.projectItemId,
         markdown,
         url: task.url,
@@ -310,6 +343,7 @@ export class WebClipTaskRunner {
       }
       task.status = "completed";
       this.emitComplete({
+        databaseName: task.databaseName,
         projectItemId: task.projectItemId,
         markdown,
         url: task.url,
@@ -323,6 +357,7 @@ export class WebClipTaskRunner {
       }
       task.status = "error";
       this.emitError({
+        databaseName: task.databaseName,
         projectItemId: task.projectItemId,
         error: error instanceof Error ? error.message : "解析失败",
       });

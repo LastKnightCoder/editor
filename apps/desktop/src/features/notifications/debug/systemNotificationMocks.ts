@@ -3,7 +3,7 @@
  * 让应用聚焦时也能测试窗口外的通知样式与作答交互（开发悬浮球「系统通知窗口」组调用）。
  */
 
-import { appNotify } from "../notify";
+import { appNotify } from "@/services/notifications/notify";
 
 /** mock id 统一前缀，便于与业务通知区分 */
 function debugId(seq: number): string {

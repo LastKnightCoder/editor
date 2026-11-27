@@ -27,7 +27,7 @@ vi.mock("@/commands/updater", () => ({
   },
   onUpdateError: () => () => undefined,
 }));
-vi.mock("@/features/notifications/notify", () => ({ appNotify: transport.notify }));
+vi.mock("@/services/notifications/notify", () => ({ appNotify: transport.notify }));
 const initial = useUpdateStore.getState();
 let host: HTMLDivElement, root: Root;
 function Probe() {

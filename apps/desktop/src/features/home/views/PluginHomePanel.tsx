@@ -10,7 +10,7 @@ import { ChevronRight } from "lucide-react";
 import { Button, EmptyNote, Panel, PanelAction, PanelTitle, UiProvider } from "@tau/ui";
 import { RecoverableBoundary } from "@/components/ErrorState";
 import { PluginComponentScope } from "@/app/plugins/content-components";
-import { appNotify } from "@/features/notifications/notify";
+import { appNotify } from "@/services/notifications/notify";
 import type { RegisteredPluginHomePanel } from "@/app/plugins/runtime";
 import { usePageOptional } from "@/page/PageProvider";
 import type { HomePanelDefinition } from "../layout";

@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => {
   return { appNotify };
 });
 
-vi.mock("../notify", () => ({ appNotify: mocks.appNotify }));
+vi.mock("@/services/notifications/notify", () => ({ appNotify: mocks.appNotify }));
 
 import {
   dismissAllNotifications,

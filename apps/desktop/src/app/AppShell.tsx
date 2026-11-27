@@ -46,6 +46,7 @@ import {
 import { ensureDatabaseReady } from "./databaseReady";
 import { recordPerfStage } from "@/utils/perf-observer";
 import { useNotificationBridge } from "@/features/notifications/useNotificationBridge";
+import { AiTaskNotificationHost } from "@/features/notifications/AiTaskNotificationHost";
 import { useReminderOpen } from "./useReminderOpen";
 import JoinRequestNotifications from "@/components/JoinRequestNotifications";
 import AutoUpdateChecker from "@/components/AutoUpdateChecker";
@@ -313,6 +314,7 @@ function ShellLayout({ startedAt }: { startedAt: number }) {
           路由直投（如系统通知窗口自带 Host 会双显） */}
       <JoinRequestNotifications />
       <AutoUpdateChecker />
+      <AiTaskNotificationHost />
       {/* 全局 toast（z 高于命令面板与通知卡栈，面板打开时反馈仍可见） */}
       <ToastHost />
       {DevFloatingBall && (

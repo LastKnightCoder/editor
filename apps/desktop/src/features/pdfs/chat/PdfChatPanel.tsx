@@ -44,6 +44,7 @@ export interface PdfChatPanelHandle {
 }
 
 interface PdfChatPanelProps {
+  isVisible: boolean;
   pdf: Pdf;
   toolScope: string;
   systemPrompt: string;
@@ -137,6 +138,7 @@ function IndexBanner({ status, preparing }: { status: PdfIndexStatus | null; pre
 const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
   (
     {
+      isVisible,
       pdf,
       toolScope,
       systemPrompt,
@@ -316,7 +318,7 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
     ) : null;
 
     return (
-      <MarkdownProvider isDark={isDark} isVisible>
+      <MarkdownProvider isDark={isDark} isVisible={isVisible}>
         <div className="flex h-full min-h-0 flex-col">
           <div className="flex h-11 shrink-0 items-center gap-0.5 pr-2 pl-2.5">
             <div className="min-w-0 flex-1">
@@ -361,7 +363,7 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
                   currentChat={currentChat}
                   isDark={isDark}
                   markdownComponents={markdownComponents}
-                  isVisible
+                  isVisible={isVisible}
                   chatScope={`pdf-chat:${pdf.id}`}
                   toolScope={toolScope}
                   sendLoading={sendLoading}

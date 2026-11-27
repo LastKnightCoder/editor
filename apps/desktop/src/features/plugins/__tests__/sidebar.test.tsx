@@ -29,7 +29,7 @@ vi.mock("@/app/navSlots", () => ({
 vi.mock("@/app/WindowControls", () => ({ MacTrafficLights: () => null }));
 vi.mock("@/app/useFullScreen", () => ({ useFullScreen: () => false }));
 const notify = vi.hoisted(() => vi.fn());
-vi.mock("@/features/notifications/notify", () => ({ appNotify: notify }));
+vi.mock("@/services/notifications/notify", () => ({ appNotify: notify }));
 
 definePage({ key: "home", label: "首页", params: {}, component: () => <p>首页</p> });
 const clients: QueryClient[] = [];

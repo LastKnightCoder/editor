@@ -13,7 +13,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { notify } from "@tau/ui";
 import { platform } from "@/platform";
 import { toNotifyOptions } from "./payload";
-import { runLocal } from "./notify";
+import { runLocal } from "@/services/notifications/notify";
 
 export function useNotificationBridge(): (ids: string[]) => void {
   /** main origin 直投的卡 id：关闭时需要回报主进程清理 */

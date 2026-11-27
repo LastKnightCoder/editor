@@ -10,7 +10,7 @@ import {
   getImageDescriptionConfig,
   clearImageDescriptionConfigCache,
 } from "./llm-configs";
-import { sendStatusWithProgress } from "./broadcast";
+import { sendStatusWithProgress, resourceTaskStatus } from "./broadcast";
 import {
   isTaskStale,
   throwIfTaskStale,
@@ -123,6 +123,16 @@ export class VibeLearningIndexQueue extends EventEmitter implements Module {
     ipcMain.handle("vl-get-queue-status", async () => {
       return this.getQueueStatus();
     });
+    ipcMain.handle("vl-get-active-tasks", async () =>
+      this.queue.map(task =>
+        resourceTaskStatus(
+          task,
+          task.status === "pending"
+            ? "pending"
+            : (this.processingStatus.get(task.resourceId) ?? task.status)
+        )
+      )
+    );
 
     ipcMain.handle("vl-get-resource-status", async (_event, resourceId: number) => {
       return this.getResourceStatus(resourceId);
@@ -264,9 +274,11 @@ export class VibeLearningIndexQueue extends EventEmitter implements Module {
 
     // 监听状态变更并通知所有窗口
     this.on("status-change", (resourceId: number, status: TaskStatus, error?: string) => {
+      const task = this.queue.find(task => task.resourceId === resourceId);
       BrowserWindow.getAllWindows().forEach(win => {
         if (!win.isDestroyed()) {
           win.webContents.send("vibe-learning-status-change", {
+            ...(task ? resourceTaskStatus(task, status) : {}),
             resourceId,
             status,
             error,

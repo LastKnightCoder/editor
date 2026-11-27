@@ -4,7 +4,7 @@
  * 移走召集来的资料记为「不要」；写作时亮起的那张在视野外时给一个指路胶囊。
  */
 
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import { ArrowUpRight, Loader2, Sparkles, X } from "lucide-react";
 import { Loading, cn, toast } from "@tau/ui";
@@ -24,6 +24,16 @@ import {
   type DocumentHost,
 } from "@/features/shared/whiteboard/components/Document/DocumentHostContext";
 import { getEntityContext } from "@/commands/entity-context";
+import { useSettingsStore } from "@/app/settingsStore";
+import { aiNotifyText } from "@/services/notifications/ai.i18n";
+import {
+  currentDatabaseName,
+  isCurrentDatabase,
+  isSurfaceActive,
+  notifyAiTask,
+  registerActiveSurface,
+} from "@/services/notifications/aiNotify";
+import { openEntity } from "@/services/open-content";
 import type { EntityRef, EntityRefKind } from "@/entity/ref";
 import type { GatherGroup, GatherPhase, GatherResult } from "@/types/compose";
 import {
@@ -185,8 +195,9 @@ export function ComposeBoard({
   const phase = useGatherPhase(contentId, status.state === "running");
   /** 画布还没挂上时先排队，按到达顺序摆（已关联的总在召集结果之前） */
   const queue = useRef<Placement[]>([]);
+  const gatherController = useRef<AbortController | null>(null);
 
-  const flush = useMemoizedFn(() => {
+  const flush = useCallback(() => {
     const target = session.getState().board;
     if (!target || !queue.current.length) return;
     const placements = queue.current;
@@ -213,31 +224,95 @@ export function ComposeBoard({
         });
       }
     }
-  });
-  const place = useMemoizedFn((placement: Placement) => {
-    queue.current.push(placement);
-    flush();
-  });
+  }, [session]);
+  const place = useCallback(
+    (placement: Placement) => {
+      queue.current.push(placement);
+      flush();
+    },
+    [flush]
+  );
 
-  useEffect(() => session.subscribe(state => state.board && flush()), [session, flush]);
+  useEffect(() => {
+    flush();
+    return session.subscribe(state => state.board && flush());
+  }, [session, flush]);
+  useEffect(
+    () => registerActiveSurface(`compose:${hostRef.kind}:${hostRef.id}`),
+    [hostRef.kind, hostRef.id]
+  );
 
   const run = useMemoizedFn((intent: string, kinds: EntityRefKind[], more = false) => {
     setStatus({ state: "running" });
-    gather.mutate(
-      {
+    const dbName = currentDatabaseName();
+    const controller = new AbortController();
+    gatherController.current = controller;
+    const isOnCompose = () =>
+      !useSettingsStore.getState().open && isSurfaceActive(`compose:${hostRef.kind}:${hostRef.id}`);
+    const openCompose = () => {
+      useSettingsStore.getState().closeSettings();
+      return openEntity(hostRef, { compose: true });
+    };
+    void gather
+      .mutateAsync({
         intent,
         kinds,
         more,
         exclude: session.getState().documents.map(doc => doc.key),
-      },
-      {
-        onSuccess: (result: GatherResult) => place({ groups: result.groups, gathered: true }),
-        onError: error => {
-          setStatus({ state: "idle" });
-          toast.error(composeGatherFailure(error));
+      })
+      .then(
+        (result: GatherResult) => {
+          if (controller.signal.aborted || !isCurrentDatabase(dbName)) return;
+          place({ groups: result.groups, gathered: true });
+          const count = result.groups.reduce((sum, group) => sum + group.items.length, 0);
+          notifyAiTask({
+            id: `compose-gather:${hostRef.kind}:${hostRef.id}`,
+            title: aiNotifyText("compose.doneTitle"),
+            body:
+              count > 0
+                ? aiNotifyText("compose.doneBody", { count })
+                : aiNotifyText("compose.doneEmptyBody"),
+            source: aiNotifyText("source.compose"),
+            icon: "sparkles",
+            tone: "ok",
+            databaseName: dbName,
+            isOnSurface: isOnCompose,
+            actions: [
+              {
+                label: aiNotifyText("action.view"),
+                primary: true,
+                reveal: true,
+                onClick: openCompose,
+              },
+            ],
+          });
         },
-      }
-    );
+        error => {
+          if (controller.signal.aborted || !isCurrentDatabase(dbName)) return;
+          setStatus({ state: "idle" });
+          const message = composeGatherFailure(error);
+          const notified = notifyAiTask({
+            id: `compose-gather:${hostRef.kind}:${hostRef.id}`,
+            title: aiNotifyText("compose.failedTitle"),
+            body: message(),
+            source: aiNotifyText("source.compose"),
+            icon: "sparkles",
+            tone: "danger",
+            sticky: true,
+            databaseName: dbName,
+            isOnSurface: isOnCompose,
+            actions: [
+              {
+                label: aiNotifyText("action.view"),
+                primary: true,
+                reveal: true,
+                onClick: openCompose,
+              },
+            ],
+          });
+          if (!notified) toast.error(message);
+        }
+      );
   });
 
   const undoAll = useMemoizedFn((frameIds: string[]) => {
@@ -311,6 +386,7 @@ export function ComposeBoard({
               status={status}
               phase={phase}
               cancel={() => {
+                gatherController.current?.abort();
                 void cancelGather(contentId);
                 setStatus({ state: "idle" });
               }}

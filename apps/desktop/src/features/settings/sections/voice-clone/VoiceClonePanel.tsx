@@ -7,6 +7,8 @@ import { Field } from "./Field";
 import type { CloneVoiceItem, NoticeType } from "./types";
 import type { VoiceOption } from "./types";
 import { TTSProviderFactory } from "@/utils/tts";
+import { aiNotifyText } from "@/services/notifications/ai.i18n";
+import { notifyAiTask, isWindowAttended } from "@/services/notifications/aiNotify";
 import type { VoiceCloneCapability } from "@/types/tts";
 
 export interface VoiceClonePanelProps {
@@ -31,10 +33,16 @@ export const VoiceClonePanel = ({
   setCloneLoading,
   voices,
   addVoiceToList,
-  notify,
+  notify: notifyOnPage,
   getCloner,
 }: VoiceClonePanelProps) => {
   useTtsSettingsI18n();
+  const notify = useCallback(
+    (type: NoticeType, text: string) => {
+      if (isWindowAttended()) notifyOnPage(type, text);
+    },
+    [notifyOnPage]
+  );
 
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const controllerRef = useRef<AbortController | null>(null);
@@ -260,14 +268,30 @@ export const VoiceClonePanel = ({
 
       if (successCount === totalVoices) {
         notify("success", ttsText("message.voicesCloned", { count: ttsValue(successCount) }));
+        notifyAiTask({
+          id: "voice-clone",
+          mode: "unfocused-only",
+          title: aiNotifyText("voiceClone.doneTitle"),
+          body: aiNotifyText("voiceClone.doneBody", { count: successCount }),
+          source: aiNotifyText("source.voiceClone"),
+          icon: "audioLines",
+          tone: "ok",
+        });
       } else {
-        notify(
-          "warning",
-          ttsText("message.partiallyCompleteClonedVoices", {
-            succeeded: ttsValue(successCount),
-            total: ttsValue(totalVoices),
-          })
-        );
+        const partial = ttsText("message.partiallyCompleteClonedVoices", {
+          succeeded: ttsValue(successCount),
+          total: ttsValue(totalVoices),
+        });
+        notify("warning", partial);
+        notifyAiTask({
+          id: "voice-clone",
+          mode: "unfocused-only",
+          title: aiNotifyText("voiceClone.doneTitle"),
+          body: partial,
+          source: aiNotifyText("source.voiceClone"),
+          icon: "audioLines",
+          tone: "neutral",
+        });
       }
 
       setShowCloneForm(false);
@@ -280,7 +304,20 @@ export const VoiceClonePanel = ({
         },
       ]);
     } catch (error) {
-      if (!controller.signal.aborted) notify("error", ttsErrorText(error));
+      if (!controller.signal.aborted) {
+        const message = ttsErrorText(error);
+        notify("error", message);
+        notifyAiTask({
+          id: "voice-clone",
+          mode: "unfocused-only",
+          title: aiNotifyText("voiceClone.failedTitle"),
+          body: message,
+          source: aiNotifyText("source.voiceClone"),
+          icon: "audioLines",
+          tone: "danger",
+          sticky: true,
+        });
+      }
     } finally {
       await cloner.dispose?.();
       if (controllerRef.current === controller) {

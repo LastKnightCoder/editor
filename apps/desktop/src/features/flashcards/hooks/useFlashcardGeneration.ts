@@ -3,6 +3,8 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import type { Descendant } from "slate";
 import { useMemoizedFn, useThrottleFn } from "ahooks";
 import { piStreamText, type PiChatHandle } from "@/services/piLLM";
+import { aiNotifyText } from "@/services/notifications/ai.i18n";
+import { notifyAiTask } from "@/services/notifications/aiNotify";
 import { getMarkdown } from "@/utils/markdown";
 import { FLASHCARD_GENERATION_PROMPT, FLASHCARD_GENERATION_USER_PROMPT } from "@/constants/prompts";
 import { Role } from "@/constants";
@@ -95,15 +97,35 @@ export const useFlashcardGeneration = (
       void generate(content, controller.signal)
         .then(drafts => {
           if (revision !== generationRevision.current || controller.signal.aborted) return;
-          setGeneratedCards(parseFlashcardResponse(JSON.stringify(drafts)));
+          const cards = parseFlashcardResponse(JSON.stringify(drafts));
+          setGeneratedCards(cards);
+          notifyAiTask({
+            id: "flashcard-generation",
+            mode: "unfocused-only",
+            title: aiNotifyText("flashcards.doneTitle"),
+            body: aiNotifyText("flashcards.doneBody", { count: cards.length }),
+            source: aiNotifyText("source.flashcards"),
+            icon: "sparkles",
+            tone: "ok",
+          });
         })
         .catch(error => {
           if (revision !== generationRevision.current || controller.signal.aborted) return;
-          setError(
+          const failure =
             error instanceof Error
               ? error
-              : new FlashcardsError("闪卡生成失败", "ui.couldNotGenerateFlashcards")
-          );
+              : new FlashcardsError("闪卡生成失败", "ui.couldNotGenerateFlashcards");
+          setError(failure);
+          notifyAiTask({
+            id: "flashcard-generation",
+            mode: "unfocused-only",
+            title: aiNotifyText("flashcards.failedTitle"),
+            body: failure.message,
+            source: aiNotifyText("source.flashcards"),
+            icon: "sparkles",
+            tone: "danger",
+            sticky: true,
+          });
         })
         .finally(() => {
           if (revision !== generationRevision.current) return;
@@ -155,18 +177,51 @@ export const useFlashcardGeneration = (
           const cards = parseFlashcardResponse(result.text);
           setGeneratedCards(cards);
           setRawOutput(result.text);
+          notifyAiTask({
+            id: "flashcard-generation",
+            mode: "unfocused-only",
+            title: aiNotifyText("flashcards.doneTitle"),
+            body: aiNotifyText("flashcards.doneBody", { count: cards.length }),
+            source: aiNotifyText("source.flashcards"),
+            icon: "sparkles",
+            tone: "ok",
+          });
         } catch (err) {
-          setError(
-            new FlashcardsError(`解析闪卡失败: ${(err as Error).message}`, "error.parseFailed", err)
+          const parseErr = new FlashcardsError(
+            `解析闪卡失败: ${(err as Error).message}`,
+            "error.parseFailed",
+            err
           );
+          setError(parseErr);
           setRawOutput(result.text);
+          notifyAiTask({
+            id: "flashcard-generation",
+            mode: "unfocused-only",
+            title: aiNotifyText("flashcards.failedTitle"),
+            body: parseErr.message,
+            source: aiNotifyText("source.flashcards"),
+            icon: "sparkles",
+            tone: "danger",
+            sticky: true,
+          });
         }
         return;
       }
       if (!result.aborted) {
         setIsGenerating(false);
         setIsPending(false);
-        setError(new Error(result.error ?? "模型请求失败"));
+        const failure = new Error(result.error ?? "模型请求失败");
+        setError(failure);
+        notifyAiTask({
+          id: "flashcard-generation",
+          mode: "unfocused-only",
+          title: aiNotifyText("flashcards.failedTitle"),
+          body: failure.message,
+          source: aiNotifyText("source.flashcards"),
+          icon: "sparkles",
+          tone: "danger",
+          sticky: true,
+        });
       }
     });
   });

@@ -107,6 +107,7 @@ export interface RecoverResourcesOptions {
 }
 
 export interface IndexTask {
+  taskId?: string;
   resourceId: number;
 
   projectId: number;

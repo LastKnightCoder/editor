@@ -8,6 +8,7 @@ import { Role, SUMMARY_TITLE_PROMPT } from "@/constants";
 import { piCompleteChat } from "@/services/piLLM";
 import { chatSessionKey } from "@/services/piChatSession";
 import { piChatRuntime, type PiChatRuntimeDeps } from "@/services/piChatRuntime";
+import { registerActiveSurface } from "@/services/notifications/aiNotify";
 import useChatSessionStore from "@/stores/useChatSessionStore";
 import useLLMConfig from "@/hooks/useLLMConfig";
 import {
@@ -25,6 +26,8 @@ interface ChatRuntimeOptions {
   chatModelConfig: LLMModelSetting | null;
   titleRef?: RefObject<EditTextHandle | null>;
   setExternalSendLoading?: (loading: boolean) => void;
+  /** 容器当前是否对用户可见（停靠栏收起时为 false，页面保活由 Activity 自动停驻 effect） */
+  isVisible?: boolean;
 }
 
 /**
@@ -38,6 +41,7 @@ export function useChatRuntime({
   chatModelConfig,
   titleRef,
   setExternalSendLoading,
+  isVisible,
 }: ChatRuntimeOptions) {
   const { provider: titleProviderConfig, model: titleModelConfig } = useLLMConfig("titleSummary");
 
@@ -123,6 +127,7 @@ export function useChatRuntime({
   // 事件归约与持久化仍在 runtime 中继续（后台运行），重挂载时拿回同一容器无缝接续。
   // deps 每次渲染刷新（均为无组件生命周期的引用：store action / IPC command / 安全闭包）
   const runtimeDeps: PiChatRuntimeDeps = {
+    chatScope,
     publish: chat => useChatSessionStore.getState().publishChat(chat),
     settle: chat =>
       useChatSessionStore.getState().settleChat(chat.id, chat.databaseName, chat.sessionFile),
@@ -161,6 +166,11 @@ export function useChatRuntime({
   const actualChatRef = piChatRuntime.ensureConversation(sessionKey, currentChat, runtimeDeps);
   // 挂载引用：挂着的条目不回收；卸载后条目常驻（后台运行），空闲时才可能被 LRU 回收
   useEffect(() => piChatRuntime.retain(sessionKey), [sessionKey]);
+  // 登记当前可见对话面：供 AI 通知在用户正注视本对话时抑制提醒
+  useEffect(() => {
+    if (isVisible === false) return;
+    return registerActiveSurface(`chat:${sessionKey}`);
+  }, [sessionKey, isVisible]);
   useEffect(() => {
     void piChatRuntime
       .restoreSession(sessionKey, chatScope, currentChat.id)

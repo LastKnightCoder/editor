@@ -25,6 +25,15 @@ import type {
   KnowledgeMark,
   KnowledgeMarkKind,
 } from "@/types/knowledge-insights";
+import { useSettingsStore } from "@/app/settingsStore";
+import { aiNotifyText } from "@/services/notifications/ai.i18n";
+import {
+  currentDatabaseName,
+  isCurrentDatabase,
+  isViewingPage,
+  notifyAiTask,
+} from "@/services/notifications/aiNotify";
+import { openPage } from "@/services/page-navigation";
 import { useKnowledgeInsights, useKnowledgeInsightsPhase } from "../insightsQueries";
 import { MapInsightPopover } from "./MapInsightPopover";
 import { MapInsightsOverlay } from "./MapInsightsOverlay";
@@ -129,16 +138,50 @@ export function useMapInsights(
     setCurrent(null);
     setWalking(false);
     setView("reading");
-    analyze.mutate(undefined, {
-      onSuccess: () => {
+    const dbName = currentDatabaseName();
+    const isOnMap = () => isViewingPage("knowledge-map");
+    const openMap = () => {
+      useSettingsStore.getState().closeSettings();
+      openPage("knowledge-map");
+    };
+    void analyze.mutateAsync().then(
+      () => {
         setView("on");
         setRevealKey(key => key + 1);
+        notifyAiTask({
+          id: "knowledge-map-insights",
+          title: aiNotifyText("insights.mapDoneTitle"),
+          body: aiNotifyText("insights.mapDoneBody"),
+          source: aiNotifyText("source.insights"),
+          icon: "sparkles",
+          tone: "ok",
+          databaseName: dbName,
+          isOnSurface: isOnMap,
+          actions: [
+            { label: aiNotifyText("action.view"), primary: true, reveal: true, onClick: openMap },
+          ],
+        });
       },
-      onError: error => {
+      error => {
         setView(data?.global ? "on" : "off");
-        toast.error(insightsFailure("insights.analyzeFailed", error));
-      },
-    });
+        const message = insightsFailure("insights.analyzeFailed", error);
+        const notified = notifyAiTask({
+          id: "knowledge-map-insights",
+          title: aiNotifyText("insights.mapFailedTitle"),
+          body: message(),
+          source: aiNotifyText("source.insights"),
+          icon: "sparkles",
+          tone: "danger",
+          sticky: true,
+          databaseName: dbName,
+          isOnSurface: isOnMap,
+          actions: [
+            { label: aiNotifyText("action.view"), primary: true, reveal: true, onClick: openMap },
+          ],
+        });
+        if (!notified && isCurrentDatabase(dbName)) toast.error(message);
+      }
+    );
   }, [analyze, data]);
 
   const enter = useCallback(() => {

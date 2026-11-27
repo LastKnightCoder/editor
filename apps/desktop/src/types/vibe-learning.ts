@@ -63,6 +63,14 @@ export interface TaskProgress {
   inProgress: number; // 进行中
 }
 
+export interface VLResourceTaskStatus {
+  taskId: string;
+  resourceId: number;
+  projectId: number;
+  mainDbName: string;
+  status: VLResourceStatus | "embedding" | "cancelled";
+}
+
 export type VLResourceStatus =
   | "pending" // 待处理：markdown_path 为空
   | "downloading" // 下载中：正在下载远程视频（内存队列状态）

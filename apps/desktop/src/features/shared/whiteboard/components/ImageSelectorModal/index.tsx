@@ -6,6 +6,7 @@ import { toast } from "@tau/ui";
 
 import { Board as Board } from "@tau/whiteboard";
 import { ImageUtil } from "@tau/whiteboard";
+import { isWindowAttended } from "@/services/notifications/aiNotify";
 import ImageAIGenerateModal from "./ImageAIGenerateModal";
 import ImageUrlModal from "./ImageUrlModal";
 import { generateWhiteboardImage } from "./imageActions";
@@ -71,7 +72,7 @@ const ImageSelectorModal = ({ open, onClose, board, action }: ImageSelectorModal
     const result = await generateWhiteboardImage(prompt, signal);
     signal.throwIfAborted();
     await ImageUtil.insertImageFromPath(await prepareWhiteboardImage(board, result.url), board);
-    toast.success(imageWebviewTranslator.t("image.generated"));
+    if (isWindowAttended()) toast.success(imageWebviewTranslator.t("image.generated"));
     setAiGenerateOpen(false);
     onClose();
   });

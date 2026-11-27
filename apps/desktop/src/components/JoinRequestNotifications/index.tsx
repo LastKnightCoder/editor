@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { JoinRequest } from "@tau/collaboration";
 import { decideJoinRequest } from "@/commands";
-import { appNotify } from "@/features/notifications/notify";
+import { appNotify } from "@/services/notifications/notify";
 import useCollaborationStore from "@/stores/useCollaborationStore";
 
 const noticeId = (requestId: string) => `join-request:${requestId}`;

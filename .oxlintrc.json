@@ -323,6 +323,7 @@
       "files": ["apps/desktop/src/**/*.{ts,tsx}"],
       "excludeFiles": [
         "apps/desktop/src/features/notifications/**",
+        "apps/desktop/src/services/notifications/notify.ts",
         "apps/desktop/src/showcase/**",
         "apps/desktop/src/**/__tests__/**"
       ],
@@ -334,7 +335,7 @@
               {
                 "name": "@tau/ui",
                 "importNames": ["notify"],
-                "message": "业务通知走 appNotify（features/notifications/notify.ts），icon 传注册表键；详见 03 指南 §2.6"
+                "message": "业务通知走 appNotify（services/notifications/notify.ts），icon 传注册表键；详见 03 指南 §2.6"
               }
             ],
             "patterns": [

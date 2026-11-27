@@ -12,6 +12,8 @@ import React, { useEffect, useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
 import { Button, Dialog, DialogBody, Textarea } from "@tau/ui";
+import { aiNotifyText } from "@/services/notifications/ai.i18n";
+import { notifyAiTask } from "@/services/notifications/aiNotify";
 import { useImageCapabilities } from "@/services/image-capabilities";
 
 interface ImageAIGenerateModalProps {
@@ -60,6 +62,15 @@ const ImageAIGenerateModal: React.FC<ImageAIGenerateModalProps> = ({
       setError(null);
       setSubmitting(true);
       await onConfirm(finalPrompt, controller.signal);
+      notifyAiTask({
+        id: "whiteboard-ai-image",
+        mode: "unfocused-only",
+        title: aiNotifyText("image.generateDoneTitle"),
+        body: aiNotifyText("image.doneBody"),
+        source: aiNotifyText("source.image"),
+        icon: "sparkles",
+        tone: "ok",
+      });
     } catch (err) {
       if (
         controller.signal.aborted ||
@@ -67,6 +78,16 @@ const ImageAIGenerateModal: React.FC<ImageAIGenerateModalProps> = ({
       )
         return;
       setError({ kind: "generate", cause: err });
+      notifyAiTask({
+        id: "whiteboard-ai-image",
+        mode: "unfocused-only",
+        title: aiNotifyText("image.failedTitle"),
+        body: imageModalIssueText({ kind: "generate", cause: err }),
+        source: aiNotifyText("source.image"),
+        icon: "sparkles",
+        tone: "danger",
+        sticky: true,
+      });
     } finally {
       if (!controller.signal.aborted) setSubmitting(false);
     }

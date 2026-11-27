@@ -2,7 +2,7 @@ import { executionTranslator, publishRunErrorText } from "./execution.binding";
 /** 发布运行态与进度订阅由壳层持有，离开发布页后继续运行。 */
 
 import { create } from "zustand";
-import { appNotify, type AppNotifyAction } from "@/features/notifications/notify";
+import { appNotify, type AppNotifyAction } from "@/services/notifications/notify";
 import { EPublishProvider } from "@/stores/useSettingStore";
 import { useBackendWebsocketStore } from "@/stores/useBackendWebsocketStore";
 import { executePublish } from "@/commands";

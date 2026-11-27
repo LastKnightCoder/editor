@@ -196,6 +196,8 @@ export type PiSessionRecovery = Outcome & {
   toolSpecs?: PiHostToolSpec[];
   toolScope?: string;
   busy?: boolean;
+  runStartedAt?: number;
+  lastAssistantOutcome?: { finishReason: string; errorMessage?: string };
   manualCompaction?: boolean;
   compaction?: ChatMessage["compaction"];
   messages?: ChatSessionMessage[];

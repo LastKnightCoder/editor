@@ -9,7 +9,7 @@ import { PluginRuntimeContext } from "@/app/plugins/context";
 import { PluginActionMenuItems, PluginActionsMenu } from "@/app/plugins/action-menu";
 
 const notify = vi.hoisted(() => vi.fn());
-vi.mock("@/features/notifications/notify", () => ({ appNotify: notify }));
+vi.mock("@/services/notifications/notify", () => ({ appNotify: notify }));
 
 describe("插件对象动作", () => {
   let container: HTMLDivElement;

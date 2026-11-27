@@ -9,7 +9,7 @@ import { Plug } from "lucide-react";
 import { Menu } from "@tau/ui";
 import type { PluginActionTarget } from "@tau/plugins";
 import { pluginTranslator, usePluginI18n } from "@/features/plugins/i18n";
-import { appNotify } from "@/features/notifications/notify";
+import { appNotify } from "@/services/notifications/notify";
 import { useDesktopPlugins } from "./context";
 import type { RegisteredPluginAction } from "./runtime";
 

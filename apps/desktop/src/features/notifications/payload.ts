@@ -1,6 +1,6 @@
 import type { NotificationOptions } from "@tau/ui";
 import type { SystemNotificationPayload } from "@tau/platform";
-import { NOTIFICATION_ICONS, type NotificationIconKey } from "./icons";
+import { NOTIFICATION_ICONS, type NotificationIconKey } from "@/services/notifications/icons";
 
 /**
  * 系统通知 payload → 应用内 NotificationOptions：可序列化字段直通，icon 字符串键查

@@ -35,6 +35,8 @@ import { usePage } from "@/page/PageProvider";
 import useSkillStore from "@/stores/useSkillStore";
 import useLLMConfig from "@/hooks/useLLMConfig";
 import { piStreamText, type PiChatHandle } from "@/services/piLLM";
+import { aiNotifyText } from "@/services/notifications/ai.i18n";
+import { notifyAiTask } from "@/services/notifications/aiNotify";
 import { Role } from "@/constants";
 import {
   commitSkillImport,
@@ -611,6 +613,15 @@ export function AddSkillDialog({
     void handle.result.then(result => {
       if (result.ok && !result.aborted) {
         setGenerating(false);
+        notifyAiTask({
+          id: "skill-ai-draft",
+          mode: "unfocused-only",
+          title: aiNotifyText("skill.doneTitle"),
+          body: aiNotifyText("skill.doneBody"),
+          source: aiNotifyText("source.skill"),
+          icon: "sparkles",
+          tone: "ok",
+        });
         return;
       }
       if (!result.aborted) {
@@ -619,7 +630,17 @@ export function AddSkillDialog({
           skillWorkbenchTranslator.t("workbench.draftFailed", {
             reason: result.error ?? skillWorkbenchTranslator.t("workbench.modelFailed"),
           });
-        toast.error(getMessage);
+        const notified = notifyAiTask({
+          id: "skill-ai-draft",
+          mode: "unfocused-only",
+          title: aiNotifyText("skill.failedTitle"),
+          body: getMessage(),
+          source: aiNotifyText("source.skill"),
+          icon: "sparkles",
+          tone: "danger",
+          sticky: true,
+        });
+        if (!notified) toast.error(getMessage);
       }
     });
   };

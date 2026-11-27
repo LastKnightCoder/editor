@@ -23,6 +23,7 @@ import type { VibeLearningProject } from "@/types";
 import type { VLNote, VLResource } from "@/types/vibe-learning";
 
 import ChatPanel from "./ChatPanel";
+import useChatSessionStore from "@/stores/useChatSessionStore";
 import AddResourceModal from "./AddResourceModal";
 import GenerationHost, { type GenerationHostRef, type TaskStarted } from "./generate";
 import type { GenerateAppKey } from "./appMeta";
@@ -83,9 +84,12 @@ const VibeLearningView = memo((props: VibeLearningViewProps) => {
   });
   useEffect(() => {
     if (!requestedChatId) return;
+    useChatSessionStore
+      .getState()
+      .setCurrent({ scope: "vibe-learning-chat", domainRef: String(projectId) }, requestedChatId);
     setChatOpen(true);
     onChatOpened?.();
-  }, [requestedChatId, onChatOpened, setChatOpen]);
+  }, [requestedChatId, projectId, onChatOpened, setChatOpen]);
   const [opened, setOpened] = useLocalStorageState<Opened | null>(
     `vibe-learning-opened-${projectId}`,
     { defaultValue: null }
@@ -430,6 +434,7 @@ const VibeLearningView = memo((props: VibeLearningViewProps) => {
             />
           )}
           <ChatPanel
+            isVisible={!dockChat || !!chatOpen}
             projectId={projectId}
             mainDbName={mainDbName}
             resources={resources}

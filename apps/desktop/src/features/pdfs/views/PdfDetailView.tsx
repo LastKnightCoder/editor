@@ -179,6 +179,9 @@ function PdfReaderPage({ pdf, annotationId }: { pdf: Pdf; annotationId: number |
   const [chatOpen, setChatOpen] = usePageChatPanel(preferredOpen, setPreference);
   useEffect(() => {
     if (!chatId) return;
+    useChatSessionStore
+      .getState()
+      .setCurrent({ scope: "pdf-chat", domainRef: String(pdf.id) }, chatId);
     setChatOpen(true);
     navigator.push("pdf-detail", { pdfId: pdf.id, annotation: annotationId ?? undefined });
   }, [chatId, pdf.id, annotationId, navigator, setChatOpen]);
@@ -277,6 +280,7 @@ function PdfReaderPage({ pdf, annotationId }: { pdf: Pdf; annotationId: number |
           />
           <div className="h-full" style={{ width: chatWidth }}>
             <PdfChatPanel
+              isVisible={chatOpen}
               ref={onChatRef}
               pdf={pdf}
               toolScope={toolScope}

@@ -7,6 +7,10 @@ import { pdfText, pdfValue } from "./i18n";
 import { useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { v4 as uuid } from "uuid";
+import { useSettingsStore } from "@/app/settingsStore";
+import { aiNotifyText } from "@/services/notifications/ai.i18n";
+import { isViewingPage, notifyAiTask } from "@/services/notifications/aiNotify";
+import { openPage } from "@/services/page-navigation";
 import { toast } from "@tau/ui";
 import {
   convertFileSrc,
@@ -241,6 +245,13 @@ export function usePdfActions() {
     },
 
     async buildIndex(entry: PdfEntry) {
+      const isOnPdf = () =>
+        isViewingPage("pdfs") ||
+        isViewingPage("pdf-detail", params => Number(params.pdfId) === entry.id);
+      const openPdf = () => {
+        useSettingsStore.getState().closeSettings();
+        openPage("pdf-detail", { pdfId: entry.id });
+      };
       try {
         const resolvedPath = await resolvePdfPath(entry.raw);
         // 建索引耗时长：发起后立即刷新状态，之后由状态查询轮询到落定
@@ -252,9 +263,37 @@ export function usePdfActions() {
         });
         await invalidate();
         await task;
+        notifyAiTask({
+          id: `pdf-index:${entry.id}`,
+          title: aiNotifyText("index.pdfDoneTitle"),
+          body: aiNotifyText("index.pdfDoneBody", { title: pdfValue(entry.title) }),
+          source: aiNotifyText("source.index"),
+          icon: "sparkles",
+          tone: "ok",
+          databaseName: mainDbName,
+          isOnSurface: isOnPdf,
+          actions: [
+            { label: aiNotifyText("action.view"), primary: true, reveal: true, onClick: openPdf },
+          ],
+        });
       } catch (error) {
         console.error("[pdfs] 建立索引失败", error);
-        toast.error(pdfText("feedback.indexFailed", { title: pdfValue(entry.title) }));
+        const message = pdfText("feedback.indexFailed", { title: pdfValue(entry.title) });
+        const notified = notifyAiTask({
+          id: `pdf-index:${entry.id}`,
+          title: aiNotifyText("index.pdfFailedTitle"),
+          body: message,
+          source: aiNotifyText("source.index"),
+          icon: "sparkles",
+          tone: "danger",
+          sticky: true,
+          databaseName: mainDbName,
+          isOnSurface: isOnPdf,
+          actions: [
+            { label: aiNotifyText("action.view"), primary: true, reveal: true, onClick: openPdf },
+          ],
+        });
+        if (!notified) toast.error(message);
       }
       await invalidate();
     },

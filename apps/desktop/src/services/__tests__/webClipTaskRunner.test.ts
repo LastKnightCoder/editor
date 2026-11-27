@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { AssistantMessageEvent } from "@earendil-works/pi-ai";
 import type { PiChatOptions, PiChatHandle, PiChatResult } from "@/services/piLLM";
 import { WebClipTaskRunner, type WebClipTaskRunnerDeps } from "../webClipTaskRunner";
+import useSettingStore from "@/stores/useSettingStore";
 
 const provider: import("@/types/pi-llm").LLMProviderSetting = {
   id: "provider-1",
@@ -91,6 +92,7 @@ const waitForAsyncWork = () =>
 
 describe("WebClipTaskRunner", () => {
   it("通过 pi 流事件推送进度并在完成后保存网页解析结果", async () => {
+    const databaseName = useSettingStore.getState().setting.database.active;
     const { runner, chatStream, saveWebClip } = createRunner();
     const progress = vi.fn();
     const complete = vi.fn();
@@ -102,17 +104,20 @@ describe("WebClipTaskRunner", () => {
 
     expect(chatStream.mock.calls[0]?.[0].source?.feature).toBe("webClip");
     expect(progress).toHaveBeenCalledWith({
+      databaseName,
       projectItemId: 1,
       markdown: "# 标题",
       delta: "# 标题",
     });
     expect(saveWebClip).toHaveBeenCalledWith({
+      databaseName,
       projectItemId: 1,
       markdown: "# 标题",
       url: "https://example.test/post",
       title: "页面标题",
     });
     expect(complete).toHaveBeenCalledWith({
+      databaseName,
       projectItemId: 1,
       markdown: "# 标题",
       url: "https://example.test/post",
@@ -201,5 +206,53 @@ describe("WebClipTaskRunner", () => {
 
     releaseRun();
     await waitForAsyncWork();
+  });
+  it("跨库同 ID 任务各自保存并在完成事件中保留发起库身份", async () => {
+    const original = useSettingStore.getState().setting;
+    const switchDatabase = (active: string) =>
+      useSettingStore.setState(state => ({
+        setting: { ...state.setting, database: { ...state.setting.database, active } },
+      }));
+    let release!: () => void;
+    const first = createChatStreamMock(
+      "A 的结果",
+      "A",
+      new Promise<void>(resolve => {
+        release = resolve;
+      })
+    );
+    const second = createChatStreamMock("B 的结果", "B");
+    let invoked = false;
+    const chatStream = vi.fn((...args: Parameters<typeof first.fn>) => {
+      const selected = invoked ? second : first;
+      invoked = true;
+      return selected.fn(...args);
+    });
+    const save = vi.fn<WebClipTaskRunnerDeps["saveWebClip"]>(async () => ({
+      webClipId: 11,
+      contentId: 22,
+    }));
+    const runner = new WebClipTaskRunner({
+      getLLMConfig: () => ({ provider, model }),
+      chatStream,
+      saveWebClip: save,
+    });
+    const complete = vi.fn();
+    runner.onComplete(complete);
+    try {
+      switchDatabase("a.db");
+      await runner.start(startParams);
+      switchDatabase("b.db");
+      await runner.start(startParams);
+      await vi.waitFor(() => expect(complete).toHaveBeenCalledTimes(1));
+      release();
+      await vi.waitFor(() => expect(complete).toHaveBeenCalledTimes(2));
+      expect(first.cancelSpy).not.toHaveBeenCalled();
+      expect(save.mock.calls.map(call => call[0].databaseName)).toEqual(["b.db", "a.db"]);
+      expect(complete.mock.calls.map(call => call[0].databaseName)).toEqual(["b.db", "a.db"]);
+      expect((await runner.getStatus(1))?.markdown).toBe("B 的结果");
+    } finally {
+      useSettingStore.setState({ setting: original });
+    }
   });
 });

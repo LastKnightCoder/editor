@@ -1,3 +1,4 @@
+import useSettingStore from "@/stores/useSettingStore";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
@@ -73,9 +74,21 @@ it("网页生成丢弃旧状态读取、完成前的节流尾帧及取消后的�
     await act(async () => status({ status: "processing", markdown: "上次任务的旧状态" }));
     expect(current?.markdown).toBe("");
     await act(async () => {
-      api.progress?.({ projectItemId: 1, markdown: "第一帧" } as WebClipProgressData);
-      api.progress?.({ projectItemId: 1, markdown: "待节流帧" } as WebClipProgressData);
-      api.complete?.({ projectItemId: 1, markdown: "最终正文" } as WebClipCompleteData);
+      api.progress?.({
+        databaseName: useSettingStore.getState().setting.database.active,
+        projectItemId: 1,
+        markdown: "第一帧",
+      } as WebClipProgressData);
+      api.progress?.({
+        databaseName: useSettingStore.getState().setting.database.active,
+        projectItemId: 1,
+        markdown: "待节流帧",
+      } as WebClipProgressData);
+      api.complete?.({
+        databaseName: useSettingStore.getState().setting.database.active,
+        projectItemId: 1,
+        markdown: "最终正文",
+      } as WebClipCompleteData);
     });
     await act(async () => {
       vi.advanceTimersByTime(150);
@@ -86,7 +99,11 @@ it("网页生成丢弃旧状态读取、完成前的节流尾帧及取消后的�
     await act(async () => current?.startClip("html", "https://example.test", "标题"));
     await act(async () => current?.cancelClip());
     await act(async () =>
-      api.progress?.({ projectItemId: 1, markdown: "取消后迟到" } as WebClipProgressData)
+      api.progress?.({
+        databaseName: useSettingStore.getState().setting.database.active,
+        projectItemId: 1,
+        markdown: "取消后迟到",
+      } as WebClipProgressData)
     );
     expect(current?.markdown).toBe("");
     expect(current?.isClipping).toBe(false);

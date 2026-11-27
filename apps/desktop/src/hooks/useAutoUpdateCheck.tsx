@@ -1,6 +1,6 @@
 import { aboutTranslator } from "../features/settings/about/i18n";
 import { useEffect, useRef } from "react";
-import { appNotify } from "@/features/notifications/notify";
+import { appNotify } from "@/services/notifications/notify";
 import useSettingStore from "@/stores/useSettingStore";
 import { initUpdateListeners, useUpdateStore } from "@/stores/useUpdateStore";
 import { takeVersionChange } from "@/commands/updater";

@@ -353,4 +353,119 @@ describe("pi 待处理交互恢复与后台归约", () => {
     expect(mocks.listeners.has(sessionId)).toBe(false);
     expect(usePiInteractionStore.getState().readySessions[sessionId]).toBe(false);
   });
+  it("自动重试成功只在整轮沉淀后报告成功，中间错误不形成失败结果", () => {
+    piChatRuntime.ensureConversation(key, waitingChat(), {
+      publish: vi.fn(),
+      settle: async chat => chat.messages,
+    });
+    piChatRuntime.bindSession(key, sessionId);
+    const outcomes = vi.fn();
+    const off = piChatRuntime.onRunOutcome(outcomes);
+    const emit = (event: AgentSessionEvent) => mocks.listeners.get(sessionId)?.(event);
+    try {
+      emit({ type: "agent_start" } as AgentSessionEvent);
+      emit(assistantMessageEvent("message_start"));
+      emit(
+        assistantMessageEvent("message_end", { stopReason: "error", errorMessage: "temporary 503" })
+      );
+      emit({
+        type: "auto_retry_start",
+        attempt: 1,
+        maxAttempts: 3,
+        delayMs: 100,
+      } as AgentSessionEvent);
+      expect(outcomes).not.toHaveBeenCalled();
+      emit({ type: "agent_start" } as AgentSessionEvent);
+      emit(assistantMessageEvent("message_start"));
+      emit(
+        assistantMessageEvent("message_end", {
+          stopReason: "stop",
+          content: [{ type: "text", text: "恢复成功" }],
+        })
+      );
+      emit({ type: "auto_retry_end", success: true, attempt: 1 } as AgentSessionEvent);
+      expect(outcomes).not.toHaveBeenCalled();
+      emit({ type: "agent_settled" } as AgentSessionEvent);
+      expect(outcomes).toHaveBeenCalledTimes(1);
+      expect(outcomes).toHaveBeenCalledWith(
+        expect.objectContaining({ kind: "settled", errorMessage: undefined })
+      );
+    } finally {
+      off();
+    }
+  });
+
+  it("重试耗尽只报告一次最终失败，用户停止时不报告失败", () => {
+    piChatRuntime.ensureConversation(key, waitingChat(), {
+      publish: vi.fn(),
+      settle: async chat => chat.messages,
+    });
+    piChatRuntime.bindSession(key, sessionId);
+    const outcomes = vi.fn();
+    const off = piChatRuntime.onRunOutcome(outcomes);
+    const emit = (event: AgentSessionEvent) => mocks.listeners.get(sessionId)?.(event);
+    const fail = () => {
+      emit(assistantMessageEvent("message_start"));
+      emit(
+        assistantMessageEvent("message_end", {
+          stopReason: "error",
+          errorMessage: "gateway failed",
+        })
+      );
+      emit({
+        type: "auto_retry_end",
+        success: false,
+        attempt: 3,
+        finalError: "gateway failed",
+      } as AgentSessionEvent);
+    };
+    try {
+      emit({ type: "agent_start" } as AgentSessionEvent);
+      fail();
+      expect(outcomes).not.toHaveBeenCalled();
+      emit({ type: "agent_settled" } as AgentSessionEvent);
+      expect(outcomes).toHaveBeenCalledTimes(1);
+      expect(outcomes).toHaveBeenCalledWith(
+        expect.objectContaining({ kind: "error", errorMessage: "gateway failed" })
+      );
+      outcomes.mockClear();
+      emit({ type: "agent_start" } as AgentSessionEvent);
+      piChatRuntime.forceStopStreaming(key);
+      fail();
+      emit({ type: "agent_settled" } as AgentSessionEvent);
+      expect(outcomes).not.toHaveBeenCalled();
+    } finally {
+      off();
+    }
+  });
+
+  it("恢复运行中的会话沿用主进程起跑时间，并在续流结束后发布完成结果", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(20_000);
+    mocks.adopt.mockResolvedValue({
+      ok: true,
+      sessionId,
+      busy: true,
+      runStartedAt: Date.now() - 6_000,
+      streamingMessage: { role: "assistant", content: [{ type: "text", text: "生成中" }] },
+    });
+    piChatRuntime.ensureConversation(key, waitingChat(), {
+      publish: vi.fn(),
+      settle: async chat => chat.messages,
+    });
+    const outcomes = vi.fn();
+    const off = piChatRuntime.onRunOutcome(outcomes);
+    try {
+      await piChatRuntime.restoreSession(key, "main-chat", chatId);
+      mocks.listeners.get(sessionId)?.(
+        assistantMessageEvent("message_end", { stopReason: "stop" })
+      );
+      mocks.listeners.get(sessionId)?.({ type: "agent_settled" } as AgentSessionEvent);
+      expect(outcomes).toHaveBeenCalledWith(expect.objectContaining({ kind: "settled" }));
+      expect(outcomes.mock.calls[0][0].elapsedMs).toBe(6_000);
+    } finally {
+      off();
+      vi.useRealTimers();
+    }
+  });
 });

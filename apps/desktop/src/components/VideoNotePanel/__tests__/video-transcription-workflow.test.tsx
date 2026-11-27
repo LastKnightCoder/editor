@@ -1,4 +1,4 @@
-import { act } from "react";
+import { act, Activity } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ConfirmDialog } from "@tau/ui";
@@ -94,11 +94,16 @@ function View({ current = note, language = "ja" }: { current?: VideoNote; langua
     </>
   );
 }
-const render = async (props: { current?: VideoNote; language?: string } = {}) => {
+const render = async (
+  props: { current?: VideoNote; language?: string } = {},
+  mode: "visible" | "hidden" = "visible"
+) => {
   await act(async () =>
     root.render(
       <QueryClientProvider client={client}>
-        <View {...props} />
+        <Activity mode={mode}>
+          <View {...props} />
+        </Activity>
       </QueryClientProvider>
     )
   );
@@ -265,7 +270,7 @@ it("缺少本地模型时换语保留原识别语言与选项草稿，不重新�
   }
 });
 
-it("AI断句与保存中换语不重开流或重复保存，优化提示与字幕原文保持", async () => {
+it("AI断句中换语不重开流，离页后仍保存一次并保留字幕原文", async () => {
   const provider = {
     id: "raw-provider",
     name: "服务商原名",
@@ -308,6 +313,7 @@ it("AI断句与保存中换语不重开流或重复保存，优化提示与字�
     expect(wire.cancel).not.toHaveBeenCalled();
     expect(wire.save).not.toHaveBeenCalled();
   }
+  await render({ language: "auto" }, "hidden");
   await act(async () =>
     complete({
       ok: true,

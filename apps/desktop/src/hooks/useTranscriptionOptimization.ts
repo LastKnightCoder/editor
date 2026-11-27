@@ -34,7 +34,13 @@ interface UseTranscriptionOptimizationResult {
   rawOutput: string;
 
   // 方法
-  startOptimization: (wordSegments: TranscriptSegment[], language: string) => void;
+  startOptimization: (
+    wordSegments: TranscriptSegment[],
+    language: string
+  ) => Promise<{
+    segments: TranscriptSegment[];
+    error?: Error;
+  } | null>;
   stopOptimization: () => void;
 
   // 最终结果（完成后可用）
@@ -232,8 +238,7 @@ export const useTranscriptionOptimization = (
 
   // Refs
   const chatHandleRef = useRef<PiChatHandle | null>(null);
-  const parserRef = useRef<IncrementalTranscriptParser | null>(null);
-  const originalSegmentsRef = useRef<TranscriptSegment[]>([]);
+  const optimizationRevision = useRef(0);
 
   // 节流更新 UI（100ms）
   const { run: throttledUpdateSegments, flush: flushThrottledUpdate } = useThrottleFn(
@@ -243,132 +248,75 @@ export const useTranscriptionOptimization = (
     { wait: 100 }
   );
 
-  const startOptimization = useMemoizedFn((wordSegments: TranscriptSegment[], language: string) => {
-    console.log(
-      `[TranscriptionOptimization] Starting optimization with ${wordSegments.length} word segments`
-    );
-
-    if (!provider || !model) {
-      const errorMsg = "未配置转录优化模型";
-      console.error(`[TranscriptionOptimization] ${errorMsg}`);
-      setError(new Error(errorMsg));
-      return;
-    }
-
-    if (wordSegments.length === 0) {
-      console.warn("[TranscriptionOptimization] No word segments to optimize");
-      setFinalSegments([]);
-      return;
-    }
-
-    // 重置状态
-    setIsOptimizing(true);
-    setIsPending(true);
-    setError(null);
-    setStreamingSegments([]);
-    setRawOutput("");
-    setFinalSegments(null);
-
-    originalSegmentsRef.current = wordSegments;
-
-    // 单次流式 LLM 调用
-    parserRef.current = new IncrementalTranscriptParser();
-
-    const userPrompt = buildTranscriptionOptimizationUserPrompt(wordSegments, language);
-    const messages: RequestMessage[] = [
-      {
-        role: Role.System,
-        content: [{ type: "text", text: TRANSCRIPTION_OPTIMIZATION_SYSTEM_PROMPT }],
-      },
-      {
-        role: Role.User,
-        content: [{ type: "text", text: userPrompt }],
-      },
-    ];
-
-    const handle = piStreamText(
-      {
-        provider,
-        model,
-        ...(thinkingLevel ? { thinking: thinkingLevel } : {}),
-        messages,
-        source: { feature: "transcriptionOptimization" },
-      },
-      ({ text }) => {
-        setIsPending(false);
-        setRawOutput(text);
-
-        if (!parserRef.current) return;
-
-        parserRef.current.reset();
-        parserRef.current.processChunk(text);
-
-        const allParsed = parserRef.current.getAllSegments();
-        const lastOriginalEnd =
-          originalSegmentsRef.current[originalSegmentsRef.current.length - 1]?.end || 0;
-        const withEndTimes = calculateStreamingEndTimes(allParsed, lastOriginalEnd);
-
-        throttledUpdateSegments(withEndTimes);
+  const startOptimization = useMemoizedFn(
+    async (wordSegments: TranscriptSegment[], language: string) => {
+      chatHandleRef.current?.cancel();
+      const revision = ++optimizationRevision.current;
+      if (!provider || !model) {
+        const failure = new Error("未配置转录优化模型");
+        setError(failure);
+        return { segments: wordSegments, error: failure };
       }
-    );
-    chatHandleRef.current = handle;
-    void handle.result.then(result => {
-      if (result.ok && !result.aborted) {
-        setIsOptimizing(false);
-        setIsPending(false);
-        flushThrottledUpdate();
+      if (wordSegments.length === 0) return { segments: [] };
 
-        if (!parserRef.current) return;
-
-        parserRef.current.reset();
-        parserRef.current.processChunk(result.text);
-        parserRef.current.finalize();
-
-        const allParsed = parserRef.current.getAllSegments();
-
-        if (allParsed.length === 0) {
-          console.warn("[TranscriptionOptimization] No valid segments parsed");
-          setFinalSegments(originalSegmentsRef.current);
-          return;
+      setIsOptimizing(true);
+      setIsPending(true);
+      setError(null);
+      setStreamingSegments([]);
+      setRawOutput("");
+      setFinalSegments(null);
+      const parser = new IncrementalTranscriptParser();
+      const userPrompt = buildTranscriptionOptimizationUserPrompt(wordSegments, language);
+      const messages: RequestMessage[] = [
+        {
+          role: Role.System,
+          content: [{ type: "text", text: TRANSCRIPTION_OPTIMIZATION_SYSTEM_PROMPT }],
+        },
+        { role: Role.User, content: [{ type: "text", text: userPrompt }] },
+      ];
+      const handle = piStreamText(
+        {
+          provider,
+          model,
+          ...(thinkingLevel ? { thinking: thinkingLevel } : {}),
+          messages,
+          source: { feature: "transcriptionOptimization" },
+        },
+        ({ text }) => {
+          if (revision !== optimizationRevision.current) return;
+          setIsPending(false);
+          setRawOutput(text);
+          parser.reset();
+          parser.processChunk(text);
+          const lastEnd = wordSegments.at(-1)?.end ?? 0;
+          throttledUpdateSegments(calculateStreamingEndTimes(parser.getAllSegments(), lastEnd));
         }
-
-        const final = finalizeSegments(allParsed, originalSegmentsRef.current);
-
-        const lastOriginalEnd =
-          originalSegmentsRef.current[originalSegmentsRef.current.length - 1]?.end || 0;
-        const withEndTimes = calculateStreamingEndTimes(allParsed, lastOriginalEnd);
-        setStreamingSegments(withEndTimes);
-
-        setFinalSegments(final);
-
-        console.log(`[TranscriptionOptimization] Parsed ${final.length} sentences`);
-        return;
+      );
+      chatHandleRef.current = handle;
+      const result = await handle.result;
+      if (revision !== optimizationRevision.current || result.aborted) return null;
+      setIsOptimizing(false);
+      setIsPending(false);
+      flushThrottledUpdate();
+      let failure: Error | undefined;
+      if (result.ok) {
+        parser.reset();
+        parser.processChunk(result.text);
+        parser.finalize();
+      } else {
+        failure = new Error(result.error ?? "模型请求失败");
+        setError(failure);
       }
-      if (!result.aborted) {
-        setIsOptimizing(false);
-        setIsPending(false);
-        const err = new Error(result.error ?? "模型请求失败");
-        setError(err);
-        console.error("[TranscriptionOptimization] Stream error:", err);
-
-        if (parserRef.current) {
-          const allParsed = parserRef.current.getAllSegments();
-          if (allParsed.length > 0) {
-            const partial = finalizeSegments(allParsed, originalSegmentsRef.current);
-            setFinalSegments(partial);
-            console.log(
-              `[TranscriptionOptimization] Using ${partial.length} partial segments after error`
-            );
-            return;
-          }
-        }
-
-        setFinalSegments(originalSegmentsRef.current);
-      }
-    });
-  });
+      const parsed = parser.getAllSegments();
+      const segments = parsed.length ? finalizeSegments(parsed, wordSegments) : wordSegments;
+      setFinalSegments(segments);
+      setStreamingSegments(calculateStreamingEndTimes(parsed, wordSegments.at(-1)?.end ?? 0));
+      return { segments, error: failure };
+    }
+  );
 
   const stopOptimization = useCallback(() => {
+    optimizationRevision.current++;
     chatHandleRef.current?.cancel();
     chatHandleRef.current = null;
     setIsOptimizing(false);

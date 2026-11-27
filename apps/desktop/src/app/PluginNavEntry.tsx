@@ -10,7 +10,7 @@ import { ContextMenu, Menu } from "@tau/ui";
 import type { PluginSidebarChild } from "@tau/plugins";
 import { NavChild } from "@/components/NavChild";
 import { pluginTranslator, usePluginI18n } from "@/features/plugins/i18n";
-import { appNotify } from "@/features/notifications/notify";
+import { appNotify } from "@/services/notifications/notify";
 import { TONE_DOT } from "@/utils/groupTone";
 import { isNavItemActive, type NavItem } from "./navigation";
 import { NavItemButton } from "./NavItemButton";

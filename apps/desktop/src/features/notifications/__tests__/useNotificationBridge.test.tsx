@@ -12,7 +12,10 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@tau/ui", () => ({ notify: mocks.notify }));
-vi.mock("../notify", () => ({ appNotify: vi.fn(), runLocal: mocks.runLocal }));
+vi.mock("@/services/notifications/notify", () => ({
+  appNotify: vi.fn(),
+  runLocal: mocks.runLocal,
+}));
 vi.mock("@/platform", () => ({
   platform: {
     notification: {

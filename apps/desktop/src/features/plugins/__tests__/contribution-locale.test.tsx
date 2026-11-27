@@ -25,7 +25,7 @@ vi.mock("@/app/navSlots", () => ({
 }));
 vi.mock("@/app/WindowControls", () => ({ MacTrafficLights: () => null }));
 vi.mock("@/app/useFullScreen", () => ({ useFullScreen: () => false }));
-vi.mock("@/features/notifications/notify", () => ({ appNotify: vi.fn() }));
+vi.mock("@/services/notifications/notify", () => ({ appNotify: vi.fn() }));
 
 definePage({ key: "home", label: "Home", params: {}, component: () => null });
 

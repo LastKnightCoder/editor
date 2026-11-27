@@ -1,4 +1,6 @@
 import { ProjectWebFailure } from "@/services/project-web-failure";
+import useSettingStore from "@/stores/useSettingStore";
+import { normalizeDbName } from "@/services/notifications/aiNotify";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useThrottleFn, useMemoizedFn } from "ahooks";
 import { Descendant } from "slate";
@@ -51,6 +53,7 @@ const DEFAULT_CONTENT: Descendant[] = [
 
 export const useWebClip = (options: UseWebClipOptions): UseWebClipReturn => {
   const { projectItemId, onProgress, onComplete, onError } = options;
+  const databaseName = useSettingStore(state => state.setting.database.active);
 
   const [isClipping, setIsClipping] = useState(false);
   const [markdown, setMarkdown] = useState("");
@@ -59,6 +62,10 @@ export const useWebClip = (options: UseWebClipOptions): UseWebClipReturn => {
 
   const requestVersion = useRef(0);
   const accepting = useRef(true);
+  const accepts = (data: WebClipProgressData | WebClipCompleteData | WebClipErrorData) =>
+    data.projectItemId === projectItemId &&
+    normalizeDbName(data.databaseName) === normalizeDbName(databaseName) &&
+    accepting.current;
 
   // 节流解析 markdown 为 content
   const { run: throttledParse, cancel: cancelParse } = useThrottleFn(
@@ -78,14 +85,14 @@ export const useWebClip = (options: UseWebClipOptions): UseWebClipReturn => {
   );
 
   const handleProgress = useMemoizedFn((data: WebClipProgressData) => {
-    if (data.projectItemId !== projectItemId || !accepting.current) return;
+    if (!accepts(data)) return;
 
     setMarkdown(data.markdown);
     throttledParse(data.markdown);
   });
 
   const handleComplete = useMemoizedFn((data: WebClipCompleteData) => {
-    if (data.projectItemId !== projectItemId || !accepting.current) return;
+    if (!accepts(data)) return;
     cancelParse();
 
     setIsClipping(false);
@@ -107,7 +114,7 @@ export const useWebClip = (options: UseWebClipOptions): UseWebClipReturn => {
   });
 
   const handleError = useMemoizedFn((data: WebClipErrorData) => {
-    if (data.projectItemId !== projectItemId || !accepting.current) return;
+    if (!accepts(data)) return;
     cancelParse();
 
     setIsClipping(false);
@@ -143,7 +150,15 @@ export const useWebClip = (options: UseWebClipOptions): UseWebClipReturn => {
       unregisterComplete();
       unregisterError();
     };
-  }, [projectItemId, handleProgress, handleComplete, handleError, throttledParse, cancelParse]);
+  }, [
+    projectItemId,
+    databaseName,
+    handleProgress,
+    handleComplete,
+    handleError,
+    throttledParse,
+    cancelParse,
+  ]);
 
   const startClip = useMemoizedFn(
     async (html: string, url: string, title: string, translateToChinese = false) => {
