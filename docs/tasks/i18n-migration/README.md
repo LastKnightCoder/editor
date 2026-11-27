@@ -424,6 +424,8 @@ WhiteboardEmbed八路径完成；原Skill/引用11基线加实际Skill Editor1/�
 
 SDK首版接线整合：T1十四主仓+starter六路径（含README）冻结，SDK39/desktop46与类型通过；Root在隔离worktree按原lock安装并禁用生命周期脚本，唯一缺失依赖经固定registry包补齐，lock字节不变，原renderer1例/type/Vite真实build与静态读取均通过。T2二十一源，SDK24/desktop9/mobile8共41例、三端类型与协议对照通过，不再扩测试；host/runtime按冻结own patch相对当前HEAD重建，website plugins仅own段落隔离提交。官方9仓纯UI改动仍是候选，正式依赖/版本门槛和未翻译提示后续处理，不推送或发包；T3/T4停止扩围。
 
+剩余零散迁移批（首版后扫尾）：`68e45dfda` 主进程通知载荷三语——新增 `src-electron/main/modules/notification-locale.ts` 语言缓存（读 userSettingModule 快照 + onSettingChanged 跟随），`src-electron/main/locales/notifications.*.json` 承载待办/番茄/伴读配对通知的固定文案，通知在创建时点取当前语言生成字符串快照、不因换语重发；`reminderBody` 显式接收 locale。`138068d64` 宿主零散界面——壳层启动态（连接数据库/失败/重试/仍要进入）并入 appMessages；侧栏条目菜单（打开/隐藏/撤销/管理功能）入词典；插件宿主五处（entity-ref-view、content-components-view、entity-panels、notebook-outputs、插件窗口标题栏 aria）新建 `app/plugins/locales/`；context 功能整域（badge/links/popover 六分区）新建 `features/context/locales/`，状态投影按稳定枚举；子Agent面板/详情（分组标题改稳定 id 渲染时投影、计数完整句模板）与 AI 图片面板（候选 label 改 kind+index 投影、模块级 label 改惰性 getter）各建域词典；数据库入口（DatabasesView CockpitCopy 按模块句回调、CreateDatabaseDialog 来源 hint 稳定 id 投影、DatabaseDetailView 面包屑兜底）与共享数据库插件（DataTableEditor/AttachmentPlugin FileUpload/RichTextPlugin 菜单与 toast 九条）各建域词典；手机插件宿主 entity-ref/content-components/权限提示入 `apps/mobile/src/app/plugins/locales/`，key 与桌面对齐。`4e86b8347` 公共包——ui 包 ConfigurationPanel（账号卡/存储位置/远端选项弹层）与 Notification/Drawer/SidebarToggleButton/Popover/FormRow/ImagePreview/ValueDisplay（色板名、评分默认 aria）等 aria/缺省文案入 `packages/ui/src/locales/`；shared 包 chat composer 子件（添加菜单键盘提示、上下文用量环明细）新建 `locales/chat-composer.*.json` + 继承可选运行时；860 行共享 ChatInputArea 生产消费者清零（仅测试引用）按退役规则删除组件，`@tau/shared` 仅保留类型导出，桌面测试去掉 shared 变体保留桌面路径覆盖。desktop 类型全绿、context 16 例 / 手机插件宿主 22 例通过，各域测试无需改断言（zh-CN 词典值与原文逐字一致）。
+
 ## 首版交付检查
 
 - 已提交：`35f29a6c3` 整合69路径编辑界面/读写提示；`8e5e24bc1` 整合41路径插件声明/模板完整接线，starter独立提交 `56623b84`。提交只包含本任务改动，无关工作区内容保留。
@@ -436,8 +438,10 @@ SDK首版接线整合：T1十四主仓+starter六路径（含README）冻结，S
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。
-- [x] 交付 P4A/P4B 联动：两端待办/日程、公共日期/提醒、纯日期显示与来源语义、共享分组弹层同批验证提交；原数据/协议/业务算法保持。
-- [ ] 首版收口（进行中）：整合已冻结完整批次、对齐桌面版本与兼容门槛、完成最终构建并准备渐进式发布说明；不再扩插件能力或普通文案测试。完整迁移目标保持，剩余文案/官方插件/Provider错误与显示名/AI显示投影及移动原生验收留后续清单。
+- [x] 交付 P4A/P4B 联动：两端待办/日程、公共日期/提醒、共享分组弹层同批验证提交；原数据/协议/业务算法保持。
+- [x] 剩余零散迁移批（P7C 宿主与公共包收尾）：主进程通知、壳层启动态/侧栏菜单、插件宿主两端、context 域、子Agent/AI图片面板、数据库入口与共享数据库插件、ui/shared/editor/blog 公共包、hooks 层自产反馈（提交 `68e45dfda`/`138068d64`/`4e86b8347`/`b80b27beb`/`f76be4341`）；`bb91ca27b` 补大纲/文档待办状态条/修订卡/思维导图/PlantUML/卡片详情/移动权限提示，并按「惰性 getter」先例放宽 `BlockRenderer.note` 为展示时求值，顺带迁移对话块预览框 chrome 全域；`42d4a7503` 数据库公共包全套视图接入三语（48 文件、378 base key，包内词典继承可选运行时；聚合/比较算子持久化枚举与视图/插件注册名不动、显示走词典投影，257 用例全绿、desktop/database 类型零错误、边界检查通过）。用户已明确豁免视觉验收，以工程完成度为准。三语 key 对账（含复数后缀归一）全部通过；`check:docs` 通过。
+- [ ] 首版收口（进行中）：整合已冻结完整批次、对齐桌面版本与兼容门槛、完成最终构建并准备渐进式发布说明；不再扩插件能力或普通文案测试。完整迁移目标保持，剩余官方插件/Provider错误与显示名/AI显示投影及移动原生验收留后续清单。
+- [ ] P7B 官方插件词典接入（依赖 SDK 发版，不随宿主收口）：官方插件依赖已发布的 npm SDK（如 `@xiongtao.xt/tau-plugins@0.62.0`），词典 API 未随旧版本发布，逐仓接入必须与 SDK 发版、插件版本门槛决策联动，保持「不推送或发包」边界。存量盘点（含 JSX 中文的生产文件数，含设置 schema 文案与页面 UI，博客模板三仓的中文属站点内容域不在其列）：expense 45、weight 44、questions 29、weread 23、podcast 21、image-gallery 14、typst 12、stickman 12、custom-block 9、tikz 7、fakelink 7、html 6、abc 5、bilibili 4、youtube 3；asr-seed/tts-seed/upload-*/publish-*/oss/s3/webdav/github/images-*/embedding-openai 等已带三语 locales 或无界面文案。接入时逐仓按 SDK `defineI18n` + manifest schema 的 DisplayText 改造，品牌名与协议值保留。
 
 ## 收尾与退出
 
