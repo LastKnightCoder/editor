@@ -309,15 +309,18 @@ function TimelineRow({
         onDragOver: (e: DragEvent) => {
           if (!isTodoDrag(e)) return;
           e.preventDefault();
+          e.stopPropagation();
           e.dataTransfer.dropEffect = "copy";
           setDropping(true);
         },
         onDragLeave: () => setDropping(false),
         onDrop: (e: DragEvent) => {
           setDropping(false);
+          if (!isTodoDrag(e)) return;
+          e.preventDefault();
+          e.stopPropagation();
           const todoId = readTodoDrag(e);
           if (todoId == null) return;
-          e.preventDefault();
           onDropTodo(todoId, item.start, item.end);
         },
       }

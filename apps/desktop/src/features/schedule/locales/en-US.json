@@ -102,6 +102,7 @@
   "todo.collapse": "Hide unscheduled tasks",
   "todo.dragHint": "Unscheduled tasks: drag a task into your schedule",
   "todo.unscheduled": "Unscheduled",
+  "todo.width": "Unscheduled tasks panel width",
   "day.collapse": "Hide day timeline",
   "day.expandHint": "Open day timeline (quick add and free time)",
   "summary.items": "Items: {{count}}",

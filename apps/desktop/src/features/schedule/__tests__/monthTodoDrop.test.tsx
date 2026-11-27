@@ -1,6 +1,8 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { createDragDropManager } from "dnd-core";
+import { HTML5Backend } from "react-dnd-html5-backend";
 import type { CalendarEvent } from "@/types";
 
 const mocks = vi.hoisted(() => ({ scheduleTodo: vi.fn(), events: [] as CalendarEvent[] }));
@@ -41,6 +43,7 @@ const day = (date: number) => new Date(2026, 9, date).getTime();
 let host: HTMLDivElement;
 let root: Root;
 let grid: HTMLElement;
+const backend = createDragDropManager(HTML5Backend, window).getBackend();
 const cells = () => [...host.querySelectorAll<HTMLElement>("[data-month-day]")];
 const cell = (date: number) => host.querySelector<HTMLElement>(`[data-month-day="${date}"]`)!;
 
@@ -88,6 +91,7 @@ beforeEach(() => {
   });
 });
 afterEach(() => {
+  backend.teardown();
   act(() => root.unmount());
   host.remove();
   vi.unstubAllGlobals();
@@ -123,7 +127,8 @@ function drag(
   return { event, dataTransfer };
 }
 
-it("空白格与日期文字接受待办，松手一次只建一条全天安排", () => {
+it("全局拖拽启用时空白格与日期文字仍接受待办，松手只建一条全天安排", () => {
+  backend.setup();
   const target = cell(day(12));
   const blank = target.querySelector<HTMLElement>(".flex-1")!;
   const { event, dataTransfer } = drag("dragover", blank, day(12));

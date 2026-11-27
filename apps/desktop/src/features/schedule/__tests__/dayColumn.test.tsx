@@ -1,6 +1,8 @@
 import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createDragDropManager } from "dnd-core";
+import { HTML5Backend } from "react-dnd-html5-backend";
 import type { Calendar, CalendarEvent } from "@/types";
 import type { CalendarRole } from "../eventTone";
 
@@ -54,6 +56,7 @@ function ev(start: number, end: number | null, calendarId = 1): CalendarEvent {
 
 let root: Root | undefined;
 let host: HTMLDivElement;
+const backend = createDragDropManager(HTML5Backend, window).getBackend();
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
@@ -66,6 +69,7 @@ beforeEach(() => {
   state.events = [ev(9 * 60, 10 * 60), ev(10 * 60 + 30, null, 9), ev(11 * 60, 12 * 60)];
 });
 afterEach(() => {
+  backend.teardown();
   if (root) act(() => root?.unmount());
   root = undefined;
   host?.remove();
@@ -155,6 +159,7 @@ describe("当日时间线补记", () => {
 });
 
 it("把待办拖到补记空隙上 = 安排进该空隙（最长 1 小时）", async () => {
+  backend.setup();
   await mount();
   const row = gapButton()!.closest("div.grid") as HTMLElement;
   const dataTransfer = {
@@ -169,7 +174,7 @@ it("把待办拖到补记空隙上 = 安排进该空隙（最长 1 小时）", a
     return e;
   };
   await act(async () => void fire("dragover"));
-  expect(row.className).toContain("bg-accent-soft");
+  expect(dataTransfer.dropEffect).toBe("copy");
   await act(async () => void fire("drop"));
   expect(scheduleTodo).toHaveBeenCalledWith({
     todoItemId: 5,

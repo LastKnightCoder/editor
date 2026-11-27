@@ -102,6 +102,7 @@
   "todo.collapse": "收起待安排",
   "todo.dragHint": "待安排：把待办拖进日程",
   "todo.unscheduled": "待安排",
+  "todo.width": "待安排侧栏宽度",
   "day.collapse": "收起当日时间线",
   "day.expandHint": "打开当日时间线（快速添加、空档安排）",
   "summary.items": "{{count}} 项",

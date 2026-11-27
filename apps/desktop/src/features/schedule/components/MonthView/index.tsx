@@ -251,6 +251,7 @@ const MonthView = () => {
           setDropDay(day);
           if (day === null) return;
           e.preventDefault();
+          e.stopPropagation();
           e.dataTransfer.dropEffect = "copy";
         }}
         onDragLeave={e => {
@@ -260,6 +261,7 @@ const MonthView = () => {
           setDropDay(null);
           if (!isTodoDrag(e)) return;
           e.preventDefault();
+          e.stopPropagation();
           const todoId = readTodoDrag(e);
           const day = dayAtDrop(e);
           if (todoId !== null && day !== null) void scheduleTodo(todoId, day, null);

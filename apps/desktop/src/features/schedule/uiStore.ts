@@ -4,6 +4,15 @@ import type { CalendarEvent, CalendarViewType } from "@/types";
 import useSettingStore from "@/stores/useSettingStore";
 import { usePeekStore } from "./peekStore";
 
+export const TODO_PANEL_DEFAULT_WIDTH = 248;
+export const TODO_PANEL_MIN_WIDTH = 220;
+export const TODO_PANEL_MAX_WIDTH = 480;
+
+const clampTodoPanelWidth = (width: number) =>
+  Number.isFinite(width)
+    ? Math.min(TODO_PANEL_MAX_WIDTH, Math.max(TODO_PANEL_MIN_WIDTH, Math.round(width)))
+    : TODO_PANEL_DEFAULT_WIDTH;
+
 interface SchedulePreferences {
   currentView: CalendarViewType;
   showSystemSection: boolean;
@@ -12,6 +21,7 @@ interface SchedulePreferences {
   showDayPanel: boolean;
   /** 「待安排」面板（纸内右侧常驻栏） */
   showTodoPanel: boolean;
+  todoPanelWidth: number;
 }
 
 const defaults: SchedulePreferences = {
@@ -21,6 +31,7 @@ const defaults: SchedulePreferences = {
   showArchivedSection: false,
   showDayPanel: false,
   showTodoPanel: false,
+  todoPanelWidth: TODO_PANEL_DEFAULT_WIDTH,
 };
 
 export function sanitizeSchedulePreferences(value: unknown): SchedulePreferences {
@@ -46,6 +57,10 @@ export function sanitizeSchedulePreferences(value: unknown): SchedulePreferences
       typeof source.showDayPanel === "boolean" ? source.showDayPanel : defaults.showDayPanel,
     showTodoPanel:
       typeof source.showTodoPanel === "boolean" ? source.showTodoPanel : defaults.showTodoPanel,
+    todoPanelWidth:
+      typeof source.todoPanelWidth === "number"
+        ? clampTodoPanelWidth(source.todoPanelWidth)
+        : defaults.todoPanelWidth,
   };
 }
 
@@ -65,6 +80,7 @@ interface ScheduleState extends SchedulePreferences {
   setShowArchivedSection(show: boolean): void;
   setShowDayPanel(show: boolean): void;
   setShowTodoPanel(show: boolean): void;
+  setTodoPanelWidth(width: number): void;
   toggleMergeMode(): void;
   toggleCalendarForMerge(id: number): void;
   resetSession(): void;
@@ -98,6 +114,7 @@ export const useScheduleStore = create<ScheduleState>()(
         setShowArchivedSection: showArchivedSection => set({ showArchivedSection }),
         setShowDayPanel: showDayPanel => set({ showDayPanel }),
         setShowTodoPanel: showTodoPanel => set({ showTodoPanel }),
+        setTodoPanelWidth: width => set({ todoPanelWidth: clampTodoPanelWidth(width) }),
         toggleMergeMode: () =>
           set(state => ({
             mergeModeEnabled: !state.mergeModeEnabled,

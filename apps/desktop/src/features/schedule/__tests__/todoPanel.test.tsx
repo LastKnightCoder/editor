@@ -2,6 +2,8 @@ import { desktopLocaleSource } from "@/app/i18n/runtime";
 import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { createDragDropManager } from "dnd-core";
+import { HTML5Backend } from "react-dnd-html5-backend";
 import type { CalendarEvent, TodoScheduleSummary } from "@/types";
 import type { TodoEntry, TodoSnapshot } from "@/features/todos/types";
 
@@ -48,8 +50,10 @@ const event = (startDate: number, startTime: number): CalendarEvent =>
 
 let root: Root;
 let host: HTMLDivElement;
+const backend = createDragDropManager(HTML5Backend, window).getBackend();
 
 beforeEach(() => {
+  backend.setup();
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(NOW);
   mocks.setCompleted.mockReset();
@@ -79,6 +83,7 @@ beforeEach(() => {
   root = createRoot(host);
 });
 afterEach(() => {
+  backend.teardown();
   act(() => root.unmount());
   host.remove();
   vi.useRealTimers();
@@ -102,14 +107,21 @@ it("只列未完成的顶层非周期待办，按项目分组，meta 写安排�
   expect(host.textContent).toContain("生活");
 });
 
-it("拖动写入待办 id；勾选完成", () => {
+it("全局拖拽启用时仍可拖出待办，勾选仍完成原任务", () => {
   act(() => root.render(<TodoPanel onClose={vi.fn()} />));
   const data = new Map<string, string>();
-  const dragStart = new Event("dragstart", { bubbles: true }) as DragEvent;
+  const dragStart = new Event("dragstart", { bubbles: true, cancelable: true }) as DragEvent;
   Object.defineProperty(dragStart, "dataTransfer", {
-    value: { setData: (k: string, v: string) => data.set(k, v), effectAllowed: "" },
+    value: {
+      get types() {
+        return [...data.keys()];
+      },
+      setData: (k: string, v: string) => data.set(k, v),
+      effectAllowed: "",
+    },
   });
   act(() => rows()[2].dispatchEvent(dragStart));
+  expect(dragStart.defaultPrevented).toBe(false);
   expect(data.get(TODO_DRAG_TYPE)).toBe("5");
 
   act(() => rows()[1].querySelector<HTMLElement>('[role="checkbox"]')!.click());

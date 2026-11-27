@@ -409,6 +409,7 @@ function WeekDayColumn({
       onDragOver={e => {
         if (!isTodoDrag(e)) return;
         e.preventDefault();
+        e.stopPropagation();
         e.dataTransfer.dropEffect = "copy";
         const at = dropMinute(e);
         if (at !== dropAt) setDropAt(at);
@@ -417,10 +418,12 @@ function WeekDayColumn({
         if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropAt(null);
       }}
       onDrop={e => {
+        if (!isTodoDrag(e)) return;
+        e.preventDefault();
+        e.stopPropagation();
         const todoId = readTodoDrag(e);
         setDropAt(null);
         if (todoId == null) return;
-        e.preventDefault();
         onDropTodo(todoId, dropMinute(e));
       }}
     >

@@ -9,7 +9,7 @@
  */
 
 import { scheduleText, useScheduleI18n } from "../i18n";
-import { useEffect } from "react";
+import { useEffect, type CSSProperties } from "react";
 import { Drawer, cn } from "@tau/ui";
 import { ErrorState } from "@/components/ErrorState";
 import { useOverlayDismiss, usePage, usePageParams } from "@/page/PageProvider";
@@ -26,8 +26,8 @@ import { flushEventDeletes } from "../pendingDeleteStore";
 import { usePeekStore } from "../peekStore";
 import { useAppContextProvider } from "@/hooks/useAppContextProvider";
 
-/** 待安排栏 248px + 抽屉原本的 12px 边距 */
-const DRAWER_BESIDE_PANEL = "right-[260px] max-w-[calc(100%-272px)]";
+const DRAWER_BESIDE_PANEL =
+  "right-[calc(var(--schedule-todo-panel-width)+12px)] max-w-[calc(100%-var(--schedule-todo-panel-width)-24px)]";
 
 export function ScheduleView() {
   useScheduleI18n();
@@ -35,6 +35,7 @@ export function ScheduleView() {
   const { error, retry } = useCalendarEvents();
   const showDayPanel = useScheduleStore(s => s.showDayPanel);
   const showTodoPanel = useScheduleStore(s => s.showTodoPanel);
+  const todoPanelWidth = useScheduleStore(s => s.todoPanelWidth);
   // 离开日程页时延迟删除立即落库
   useEffect(() => flushEventDeletes, []);
   // 日程详情抽屉与时间线同位：详情打开时暂代时间线，关掉回到时间线
@@ -77,7 +78,10 @@ export function ScheduleView() {
   return (
     <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pt-1 pb-4">
       {/* 一整张纸：页头 + chips 固定在纸顶，主视图占满；当日抽屉盖在纸内右侧、与纸同高 */}
-      <div className="bg-surface shadow-card rounded-tau-lg relative flex min-h-0 flex-1 overflow-hidden">
+      <div
+        style={{ "--schedule-todo-panel-width": `${todoPanelWidth}px` } as CSSProperties}
+        className="bg-surface shadow-card rounded-tau-lg relative flex min-h-0 flex-1 overflow-hidden"
+      >
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="flex flex-none flex-col px-8 pt-5">
             <CalendarHeader />

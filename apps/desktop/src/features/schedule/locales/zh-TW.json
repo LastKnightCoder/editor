@@ -152,6 +152,7 @@
   "todo.collapse": "收起待安排",
   "todo.dragHint": "待安排：把待辦拖進日程",
   "todo.unscheduled": "待安排",
+  "todo.width": "待安排側欄寬度",
   "validation.calendarName": "請輸入日曆名稱",
   "validation.endBeforeStart": "結束時間不能早於開始時間",
   "validation.groupName": "請輸入分組名稱",

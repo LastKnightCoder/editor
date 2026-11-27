@@ -9,7 +9,7 @@ import { useMemo, useState, type DragEvent } from "react";
 import { dateTimeWord, dayWord } from "@/utils/date-format";
 import { scheduleText, useScheduleI18n } from "../i18n";
 import { Search, X } from "lucide-react";
-import { IconButton, cn } from "@tau/ui";
+import { IconButton, ResizeHandle, cn } from "@tau/ui";
 import { FadeScroll } from "@tau/ui";
 import { useTodoMutations, useTodoSnapshot } from "@/features/todos/queries";
 import { TODO_DRAG_TYPE, liveEntries, openRoots, priorityOf, tagsOf } from "@/features/todos/model";
@@ -18,11 +18,19 @@ import type { TodoEntry } from "@/features/todos/types";
 import type { TodoScheduleSummary } from "@/types";
 import { formatTime } from "@/utils/calendar";
 import { useTodoSchedules } from "../queries";
+import {
+  TODO_PANEL_DEFAULT_WIDTH,
+  TODO_PANEL_MIN_WIDTH,
+  TODO_PANEL_MAX_WIDTH,
+  useScheduleStore,
+} from "../uiStore";
 
 export function TodoPanel({ onClose }: { onClose(): void }) {
   useScheduleI18n();
   const { snapshot } = useTodoSnapshot();
   const mutations = useTodoMutations();
+  const width = useScheduleStore(s => s.todoPanelWidth);
+  const setWidth = useScheduleStore(s => s.setTodoPanelWidth);
   const [query, setQuery] = useState("");
   const now = Date.now();
 
@@ -53,8 +61,19 @@ export function TodoPanel({ onClose }: { onClose(): void }) {
   return (
     <aside
       aria-label={scheduleText("todo.unscheduled")}
-      className="border-line-1 flex w-[248px] flex-none flex-col border-l"
+      style={{ width }}
+      className="border-line-1 relative flex flex-none flex-col border-l"
     >
+      <ResizeHandle
+        value={width}
+        min={TODO_PANEL_MIN_WIDTH}
+        max={TODO_PANEL_MAX_WIDTH}
+        defaultValue={TODO_PANEL_DEFAULT_WIDTH}
+        onChange={setWidth}
+        side="right"
+        label={scheduleText("todo.width")}
+        className="absolute top-4 bottom-4 -left-1 z-20 touch-none"
+      />
       <div className="flex items-center gap-1 pt-4 pr-2 pb-1 pl-4">
         <h3 className="text-tau-body flex-1 font-semibold">{scheduleText("todo.unscheduled")}</h3>
         <IconButton
@@ -130,6 +149,8 @@ function TodoRow({
       draggable
       title={scheduleText("todo.dragTitle")}
       onDragStart={(e: DragEvent) => {
+        // 原生待办拖拽不交给全局 react-dnd，否则起拖会被取消。
+        e.stopPropagation();
         e.dataTransfer.setData(TODO_DRAG_TYPE, String(entry.id));
         e.dataTransfer.effectAllowed = "copy";
         setDragging(true);
