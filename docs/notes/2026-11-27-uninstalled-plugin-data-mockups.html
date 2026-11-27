@@ -1,0 +1,1765 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>已卸载插件的数据 · 三方案交互设计稿</title>
+<style>
+  /* ===== @tau/themes · paper (light / dark) 权威 token ===== */
+  :root,
+  [data-theme="paper"][data-mode="light"] {
+    color-scheme: light;
+    --tau-bg-page: #f3eee2;
+    --tau-bg-surface: #fffdf9;
+    --tau-bg-surface-hover: #f6f3ef;
+    --tau-bg-sunken: #e7dbc8;
+    --tau-bg-track: #e0d6c3;
+    --tau-bg-hover: rgba(67, 57, 44, 0.05);
+    --tau-bg-press: rgba(67, 57, 44, 0.09);
+    --tau-bg-selected: rgba(217, 119, 87, 0.12);
+    --tau-ink-1: #43392c;
+    --tau-ink-2: #6a5c49;
+    --tau-ink-3: #a89a85;
+    --tau-ink-inverse: #fff8ef;
+    --tau-line-1: #e9e1d2;
+    --tau-line-2: rgba(233, 225, 210, 0.55);
+    --tau-accent: hsl(22 58% 42%);
+    --tau-accent-hover: hsl(22 58% 35%);
+    --tau-accent-soft: hsla(22, 58%, 42%, 0.12);
+    --tau-accent-text: #a05236;
+    --tau-focus-ring: 0 0 0 3px rgba(217, 119, 87, 0.28);
+    --tau-ok: #61795f;
+    --tau-ok-soft: #e5ede2;
+    --tau-warn: #a38c4d;
+    --tau-warn-soft: #f6efd6;
+    --tau-danger: #b0564d;
+    --tau-danger-soft: #f6e3e0;
+    --tau-info: #5c7d99;
+    --tau-info-soft: #e2ebf3;
+    --tau-tag-1: #61795f; --tau-tag-1-soft: #e5ede2;
+    --tau-tag-2: #5c7d99; --tau-tag-2-soft: #e2ebf3;
+    --tau-tag-3: #8a7aa6; --tau-tag-3-soft: #ebe6f3;
+    --tau-tag-4: #a38c4d; --tau-tag-4-soft: #f6efd6;
+    --tau-tag-5: #b06a5e; --tau-tag-5-soft: #f6e3e0;
+    --tau-overlay: rgba(67, 57, 44, 0.35);
+    --tau-shadow-card: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
+    --tau-shadow-lift: 0 1px 2px rgba(120, 100, 70, 0.06), 0 6px 16px -10px rgba(120, 100, 70, 0.22);
+    --tau-shadow-float: 0 16px 40px -12px rgba(120, 100, 70, 0.4);
+    --tau-glow-1: #f6d3b6;
+    --tau-glow-2: #f1d4ca;
+    --tau-glow-3: #f4e3ae;
+  }
+
+  [data-theme="paper"][data-mode="dark"] {
+    color-scheme: dark;
+    --tau-bg-page: #221d16;
+    --tau-bg-surface: #2e2820;
+    --tau-bg-surface-hover: #39332b;
+    --tau-bg-sunken: #100d08;
+    --tau-bg-track: #463d31;
+    --tau-bg-hover: rgba(236, 226, 208, 0.06);
+    --tau-bg-press: rgba(236, 226, 208, 0.11);
+    --tau-bg-selected: hsla(22, 62%, 65%, 0.2);
+    --tau-ink-1: #ece2d0;
+    --tau-ink-2: #a89a85;
+    --tau-ink-3: #857768;
+    --tau-ink-inverse: #241a10;
+    --tau-line-1: #3a3227;
+    --tau-line-2: rgba(58, 50, 39, 0.55);
+    --tau-accent: hsl(22 62% 65%);
+    --tau-accent-hover: hsl(22 62% 72%);
+    --tau-accent-soft: hsla(22, 62%, 65%, 0.16);
+    --tau-accent-text: hsl(22 66% 70%);
+    --tau-focus-ring: 0 0 0 3px hsla(22, 62%, 65%, 0.4);
+    --tau-ok: #8cab87;
+    --tau-ok-soft: #243023;
+    --tau-warn: #c4a458;
+    --tau-warn-soft: #302917;
+    --tau-danger: #d97e66;
+    --tau-danger-soft: #34201a;
+    --tau-info: #83aecf;
+    --tau-info-soft: #1e2a35;
+    --tau-tag-1: #8cab87; --tau-tag-1-soft: #243023;
+    --tau-tag-2: #83aecf; --tau-tag-2-soft: #1e2a35;
+    --tau-tag-3: #a596c8; --tau-tag-3-soft: #292335;
+    --tau-tag-4: #c4a458; --tau-tag-4-soft: #302917;
+    --tau-tag-5: #d0806a; --tau-tag-5-soft: #30211b;
+    --tau-overlay: rgba(10, 8, 5, 0.55);
+    --tau-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+    --tau-shadow-lift: 0 1px 2px rgba(0, 0, 0, 0.26), 0 6px 16px -10px rgba(0, 0, 0, 0.52);
+    --tau-shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+    --tau-glow-1: #492c18;
+    --tau-glow-2: #47221f;
+    --tau-glow-3: #3b3215;
+  }
+
+  :root {
+    --tau-radius-sm: 8px;
+    --tau-radius-md: 12px;
+    --tau-radius-lg: 16px;
+    --tau-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --tau-font: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif;
+    --tau-font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: var(--tau-font);
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--tau-ink-1);
+    background: var(--tau-bg-page);
+    -webkit-font-smoothing: antialiased;
+    display: flex;
+    flex-direction: column;
+  }
+
+  button, input { font-family: inherit; color: inherit; }
+  button:focus-visible, input:focus-visible { outline: none; box-shadow: var(--tau-focus-ring); }
+  .mono { font-family: var(--tau-font-mono); }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* ===== 极光背景（与 AuroraBackdrop 同构） ===== */
+  .aurora {
+    position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 0;
+  }
+  .aurora::before, .aurora::after {
+    content: ""; position: absolute; border-radius: 50%; filter: blur(110px); opacity: 0.42;
+  }
+  .aurora::before { width: 560px; height: 560px; background: var(--tau-glow-1); top: -220px; right: -100px; }
+  .aurora::after { width: 480px; height: 480px; background: var(--tau-glow-3); bottom: -200px; left: 80px; }
+
+  /* ===== 设计稿评审控制条（仅用于审稿切换方案与状态） ===== */
+  .review-bar {
+    position: relative; z-index: 60; flex: none;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 8px 16px;
+    background: var(--tau-bg-surface);
+    box-shadow: 0 1px 0 var(--tau-line-1);
+    font-size: 12px;
+  }
+  .review-title {
+    display: flex; align-items: center; gap: 7px; font-weight: 600; color: var(--tau-ink-1); margin-right: 4px;
+  }
+  .review-tag {
+    font-size: 11px; font-weight: 500; padding: 1px 7px; border-radius: 999px;
+    background: var(--tau-accent-soft); color: var(--tau-accent-text);
+  }
+  .seg {
+    display: inline-flex; padding: 2px; border-radius: 9px;
+    border: 1px solid var(--tau-line-1); background: var(--tau-bg-page); gap: 2px;
+  }
+  .seg button {
+    border: none; background: transparent; cursor: pointer;
+    height: 24px; padding: 0 10px; border-radius: 7px; font-size: 12px; color: var(--tau-ink-2);
+    transition: background 140ms var(--tau-ease-out), color 140ms var(--tau-ease-out);
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .seg button:hover { color: var(--tau-ink-1); }
+  .seg button[aria-pressed="true"] {
+    background: var(--tau-bg-surface); color: var(--tau-ink-1); font-weight: 600;
+    box-shadow: 0 1px 2px rgba(67, 57, 44, 0.08);
+  }
+  .seg .rec {
+    font-size: 10.5px; font-weight: 600; color: var(--tau-accent-text);
+  }
+  .review-spacer { flex: 1; }
+  .review-actions { display: flex; align-items: center; gap: 6px; }
+  .pill-btn {
+    height: 26px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--tau-line-1);
+    background: var(--tau-bg-surface); color: var(--tau-ink-2); font-size: 12px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 5px;
+    transition: background 140ms var(--tau-ease-out), border-color 140ms, color 140ms;
+  }
+  .pill-btn:hover { background: var(--tau-bg-surface-hover); color: var(--tau-ink-1); border-color: var(--tau-ink-3); }
+  .pill-btn.active { background: var(--tau-accent-soft); color: var(--tau-accent-text); border-color: transparent; font-weight: 500; }
+
+  /* ===== 桌面端真实壳层 ===== */
+  .shell {
+    position: relative; z-index: 1; flex: 1; min-height: 0;
+    display: grid; grid-template-columns: 204px minmax(0, 1fr);
+  }
+
+  /* 左侧栏（透明融于 bg-page） */
+  .sidebar {
+    display: flex; flex-direction: column; padding: 12px 10px 14px;
+    user-select: none; min-height: 0;
+  }
+  .traffic {
+    display: flex; align-items: center; gap: 8px; padding: 2px 8px 14px;
+  }
+  .traffic span {
+    width: 11px; height: 11px; border-radius: 50%; display: block;
+  }
+  .traffic .r { background: #ec6a5e; }
+  .traffic .y { background: #f4bf4f; }
+  .traffic .g { background: #61c554; }
+
+  .ws-pill {
+    margin: 0 4px 12px; padding: 6px 9px; border-radius: 9px;
+    display: flex; align-items: center; gap: 8px; color: var(--tau-ink-1); font-size: 12.5px; font-weight: 550;
+  }
+  .ws-dot {
+    width: 20px; height: 20px; border-radius: 6px; background: var(--tau-accent-soft); color: var(--tau-accent-text);
+    display: grid; place-items: center; font-size: 11px; font-weight: 600; flex: none;
+  }
+  .nav-group { margin-bottom: 10px; }
+  .nav-label {
+    font-size: 11px; color: var(--tau-ink-3); padding: 4px 10px; font-weight: 500;
+  }
+  .nav-item {
+    position: relative; height: 31px; padding: 0 10px; border-radius: 8px;
+    display: flex; align-items: center; gap: 9px; font-size: 13px; color: var(--tau-ink-2);
+    cursor: default;
+  }
+  .nav-item svg { width: 15px; height: 15px; opacity: 0.85; flex: none; }
+  .nav-item.active {
+    background: var(--tau-bg-selected); color: var(--tau-ink-1); font-weight: 550;
+  }
+  .nav-item.active::before {
+    content: ""; position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px;
+    border-radius: 0 3px 3px 0; background: var(--tau-accent);
+  }
+  .nav-item.active svg { color: var(--tau-accent-text); opacity: 1; }
+  .nav-spacer { flex: 1; }
+  .nav-badge {
+    margin-left: auto; font-size: 11px; padding: 0 6px; height: 17px; border-radius: 999px;
+    background: var(--tau-accent-soft); color: var(--tau-accent-text);
+    display: inline-flex; align-items: center; font-variant-numeric: tabular-nums;
+  }
+
+  /* 右侧主列 */
+  .main-col {
+    display: flex; flex-direction: column; min-width: 0; min-height: 0;
+  }
+  .titlebar {
+    height: 42px; flex: none; display: flex; align-items: center; gap: 8px;
+    padding: 0 20px 0 16px;
+  }
+  .nav-btns { display: flex; gap: 2px; }
+  .crumb {
+    display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--tau-ink-2); min-width: 0;
+  }
+  .crumb button {
+    border: none; background: transparent; cursor: pointer; padding: 2px 6px; border-radius: 6px;
+    color: var(--tau-ink-2); font-size: 12.5px;
+    transition: background 140ms var(--tau-ease-out), color 140ms;
+  }
+  .crumb button:hover { background: var(--tau-bg-hover); color: var(--tau-ink-1); }
+  .crumb .sep { color: var(--tau-ink-3); }
+  .crumb .cur { color: var(--tau-ink-1); font-weight: 500; }
+
+  /* 主纸面（与 PluginsView.tsx 1:1） */
+  .sheet-wrap {
+    flex: 1; min-height: 0; display: flex; flex-direction: column;
+    padding: 4px 16px 16px; max-width: 1720px; width: 100%; margin: 0 auto;
+  }
+  .sheet {
+    flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden;
+    background: var(--tau-bg-surface);
+    border-radius: var(--tau-radius-lg);
+    box-shadow: var(--tau-shadow-card);
+  }
+  .sheet-head {
+    flex: none; padding: 20px 32px 0; display: flex; flex-direction: column;
+  }
+  .head-row {
+    height: 40px; display: flex; align-items: center; gap: 12px;
+  }
+  .head-row h1 {
+    font-size: 20px; font-weight: 600; letter-spacing: -0.01em; flex: none;
+  }
+  .head-sub {
+    font-size: 12.5px; color: var(--tau-ink-2); flex: 1; min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* Tabs（与 @tau/ui Tabs.tsx 1:1） */
+  .tabs {
+    margin-top: 12px; display: flex; gap: 22px; padding: 0 4px;
+    box-shadow: inset 0 -1px 0 var(--tau-line-2);
+  }
+  .tab {
+    position: relative; border: none; background: transparent; cursor: pointer;
+    font-size: 13px; color: var(--tau-ink-2); padding: 8px 0 7px;
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: color 160ms var(--tau-ease-out);
+  }
+  .tab:hover { color: var(--tau-ink-1); }
+  .tab[aria-selected="true"] { color: var(--tau-ink-1); font-weight: 600; }
+  .tab::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
+    border-radius: 999px; background: var(--tau-accent); opacity: 0;
+    transition: opacity 160ms var(--tau-ease-out);
+  }
+  .tab[aria-selected="true"]::after { opacity: 1; }
+
+  .sheet-scroll {
+    flex: 1; min-height: 0; overflow-y: auto;
+    padding: 16px 26px 24px 32px;
+  }
+  .sheet-scroll::-webkit-scrollbar { width: 6px; }
+  .sheet-scroll::-webkit-scrollbar-thumb { background: transparent; border-radius: 999px; }
+  .sheet-scroll:hover::-webkit-scrollbar-thumb { background: var(--tau-line-1); }
+
+  /* ===== @tau/ui 基础件精确还原 ===== */
+  .btn {
+    height: 34px; padding: 0 16px; border-radius: 10px; border: none; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    font-size: 13px; font-weight: 550; white-space: nowrap; user-select: none;
+    transition: background 140ms var(--tau-ease-out), border-color 140ms, color 140ms, filter 140ms;
+  }
+  .btn.sm { height: 28px; padding: 0 12px; font-size: 12.5px; border-radius: 9px; }
+  .btn svg { width: 15px; height: 15px; flex: none; }
+  .btn:disabled { opacity: 0.45; pointer-events: none; }
+
+  .btn-primary {
+    background: var(--tau-accent); color: var(--tau-ink-inverse); font-weight: 600;
+  }
+  .btn-primary:hover { background: var(--tau-accent-hover); }
+
+  .btn-secondary {
+    background: var(--tau-bg-surface); color: var(--tau-ink-1);
+    border: 1px solid var(--tau-line-1);
+  }
+  .btn-secondary:hover { border-color: var(--tau-ink-3); }
+
+  .btn-soft {
+    background: var(--tau-accent-soft); color: var(--tau-accent-text);
+  }
+  .btn-soft:hover { filter: brightness(0.96); }
+
+  .btn-ghost {
+    background: transparent; color: var(--tau-ink-2);
+  }
+  .btn-ghost:hover { background: var(--tau-bg-hover); color: var(--tau-ink-1); }
+
+  .btn-danger {
+    background: var(--tau-danger); color: var(--tau-ink-inverse); font-weight: 600;
+  }
+  .btn-danger:hover { filter: brightness(1.06); }
+
+  .btn-danger-soft {
+    background: var(--tau-danger-soft); color: var(--tau-danger);
+  }
+  .btn-danger-soft:hover { filter: brightness(0.95); }
+
+  .icon-btn {
+    width: 28px; height: 28px; border-radius: 8px; border: none; background: transparent;
+    color: var(--tau-ink-2); cursor: pointer; display: grid; place-items: center; flex: none;
+    transition: background 140ms var(--tau-ease-out), color 140ms;
+  }
+  .icon-btn:hover { background: var(--tau-bg-hover); color: var(--tau-ink-1); }
+  .icon-btn:disabled { opacity: 0.35; pointer-events: none; }
+  .icon-btn svg { width: 15px; height: 15px; }
+
+  /* Search Input（surface 亮底 + line-1 描边） */
+  .search-box {
+    position: relative; width: 220px; flex: 0 1 220px;
+  }
+  .search-box svg.lead {
+    position: absolute; left: 9px; top: 50%; transform: translateY(-50%);
+    width: 14px; height: 14px; color: var(--tau-ink-3); pointer-events: none;
+  }
+  .search-box input {
+    width: 100%; height: 29px; padding: 0 26px 0 29px;
+    border-radius: 9px; border: 1px solid var(--tau-line-1);
+    background: var(--tau-bg-surface); font-size: 12.5px; color: var(--tau-ink-1);
+    transition: border-color 140ms var(--tau-ease-out), box-shadow 140ms;
+  }
+  .search-box input::placeholder { color: var(--tau-ink-3); }
+  .search-box input:focus { border-color: var(--tau-accent); box-shadow: var(--tau-focus-ring); outline: none; }
+  .search-clear {
+    position: absolute; right: 5px; top: 50%; transform: translateY(-50%);
+    width: 20px; height: 20px; border: none; background: transparent; border-radius: 6px;
+    color: var(--tau-ink-3); cursor: pointer; display: grid; place-items: center;
+  }
+  .search-clear:hover { background: var(--tau-bg-hover); color: var(--tau-ink-1); }
+
+  /* Switch（与 @tau/ui Switch.tsx sm 1:1） */
+  .switch {
+    position: relative; width: 30px; height: 17px; border-radius: 999px;
+    border: 1.5px solid transparent; background: var(--tau-bg-track); cursor: pointer; flex: none;
+    transition: background-color 160ms var(--tau-ease-out);
+  }
+  .switch[aria-checked="true"] { background: var(--tau-accent); }
+  .switch[aria-checked="true"]:hover { background: var(--tau-accent-hover); }
+  .switch .thumb {
+    position: absolute; top: 1.5px; left: 1.5px; width: 11px; height: 11px; border-radius: 50%;
+    background: var(--tau-bg-surface); border: 1px solid var(--tau-ink-3);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+    transition: left 160ms var(--tau-ease-out), border-color 160ms;
+  }
+  .switch[aria-checked="true"] .thumb { left: 14.5px; border-color: transparent; }
+
+  /* Chip */
+  .chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    height: 20px; padding: 0 8px; border-radius: 999px; font-size: 11.5px;
+    background: var(--tau-bg-hover); color: var(--tau-ink-2); white-space: nowrap;
+  }
+  .chip.accent { background: var(--tau-accent-soft); color: var(--tau-accent-text); }
+  .chip.ok { background: var(--tau-ok-soft); color: var(--tau-ok); }
+  .chip.warn { background: var(--tau-warn-soft); color: var(--tau-warn); }
+  .chip.surface {
+    background: var(--tau-bg-surface); border: 1px solid var(--tau-line-1); color: var(--tau-ink-2);
+  }
+  .chip svg { width: 11px; height: 11px; }
+
+  /* PluginIcon */
+  .picon {
+    width: 32px; height: 32px; border-radius: 9px; flex: none;
+    display: grid; place-items: center; font-size: 13.5px; font-weight: 600;
+  }
+  .picon.t1 { background: var(--tau-tag-1-soft); color: var(--tau-tag-1); }
+  .picon.t2 { background: var(--tau-tag-2-soft); color: var(--tau-tag-2); }
+  .picon.t3 { background: var(--tau-tag-3-soft); color: var(--tau-tag-3); }
+  .picon.t4 { background: var(--tau-tag-4-soft); color: var(--tau-tag-4); }
+  .picon.t5 { background: var(--tau-tag-5-soft); color: var(--tau-tag-5); }
+  .picon.neutral {
+    background: var(--tau-bg-hover); color: var(--tau-ink-2);
+  }
+  .picon.muted { opacity: 0.78; }
+
+  /* ===== Group 与列表行（与 PluginsView.tsx 1:1） ===== */
+  .group { margin-bottom: 22px; }
+  .group-head {
+    display: flex; align-items: baseline; gap: 8px; padding: 0 4px; margin-bottom: 8px;
+  }
+  .group-head h2 { font-size: 13.5px; font-weight: 600; color: var(--tau-ink-1); }
+  .group-head small { font-size: 12px; color: var(--tau-ink-3); font-weight: 400; }
+  .group-box {
+    border: 1px solid var(--tau-line-1);
+    border-radius: var(--tau-radius-lg);
+    padding: 4px;
+  }
+
+  .prow {
+    display: flex; align-items: center; gap: 14px; min-height: 60px;
+    padding: 10px 12px; border-radius: 10px;
+    transition: background 140ms var(--tau-ease-out);
+  }
+  .prow.clickable { cursor: pointer; }
+  .prow:hover { background: var(--tau-bg-hover); }
+  .prow.disabled .pname { opacity: 0.6; }
+  .prow-main { min-width: 0; flex: 1; }
+  .prow-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .pname { font-size: 13.5px; font-weight: 550; color: var(--tau-ink-1); }
+  .pver { font-size: 12px; color: var(--tau-ink-3); }
+  .psub { font-size: 12.5px; color: var(--tau-ink-2); margin-top: 1px; }
+  .prow-ops { display: flex; align-items: center; gap: 8px; flex: none; }
+
+  /* 数据构成事实行 */
+  .facts {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 5px 10px;
+    margin-top: 3px; font-size: 12.5px; color: var(--tau-ink-2);
+  }
+  .fact-item { display: inline-flex; align-items: center; gap: 4px; }
+  .fact-sep { color: var(--tau-ink-3); user-select: none; }
+  .fact-local {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 11.5px; padding: 0 7px; height: 19px; border-radius: 999px;
+    background: var(--tau-warn-soft); color: var(--tau-warn);
+  }
+  .fact-local svg { width: 11px; height: 11px; }
+
+  /* ===== 方案 A：页内折叠入口 + 同纸展开 ===== */
+  .retained-collapse {
+    border: 1px solid var(--tau-line-1);
+    border-radius: var(--tau-radius-lg);
+    overflow: hidden;
+    margin-bottom: 22px;
+    transition: border-color 160ms var(--tau-ease-out);
+  }
+  .retained-collapse.highlight {
+    border-color: var(--tau-accent);
+    box-shadow: var(--tau-focus-ring);
+  }
+  .retained-trigger {
+    width: 100%; border: none; background: transparent; cursor: pointer; text-align: left;
+    display: flex; align-items: center; gap: 12px; padding: 13px 16px;
+    transition: background 140ms var(--tau-ease-out);
+  }
+  .retained-trigger:hover { background: var(--tau-bg-hover); }
+  .retained-ico {
+    width: 32px; height: 32px; border-radius: 9px; flex: none;
+    background: var(--tau-bg-hover); color: var(--tau-ink-2);
+    display: grid; place-items: center;
+  }
+  .retained-ico svg { width: 16px; height: 16px; }
+  .retained-meta { min-width: 0; flex: 1; }
+  .retained-title-row { display: flex; align-items: center; gap: 8px; }
+  .retained-title { font-size: 13.5px; font-weight: 600; color: var(--tau-ink-1); }
+  .retained-lead {
+    font-size: 12.5px; color: var(--tau-ink-2); margin-top: 1px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .retained-right {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--tau-ink-2); flex: none;
+  }
+  .retained-right svg { width: 15px; height: 15px; transition: transform 180ms var(--tau-ease-out); }
+  .retained-collapse[data-open="true"] .retained-right svg.chev { transform: rotate(180deg); }
+
+  .retained-body {
+    padding: 0 6px 8px;
+  }
+  .retained-note {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 4px 12px 8px; font-size: 12.5px; color: var(--tau-ink-3);
+  }
+  .retained-empty-inline {
+    padding: 18px 16px 20px; text-align: center; font-size: 12.5px; color: var(--tau-ink-3);
+  }
+
+  /* ===== 方案 B & C 的轻量底部入口条（顺便看看风格） ===== */
+  .entry-bar {
+    width: 100%; border: 1px solid var(--tau-line-1); border-radius: var(--tau-radius-lg);
+    background: transparent; cursor: pointer; text-align: left;
+    display: flex; align-items: center; gap: 12px; padding: 13px 16px;
+    margin-bottom: 22px;
+    transition: background 140ms var(--tau-ease-out), border-color 140ms;
+  }
+  .entry-bar:hover { background: var(--tau-bg-hover); border-color: var(--tau-ink-3); }
+
+  /* 目录尾行（与 PluginsView.tsx 1:1） */
+  .dir-line {
+    display: flex; align-items: center; gap: 8px; padding: 0 4px; flex-wrap: wrap;
+    font-size: 12.5px; color: var(--tau-ink-2);
+  }
+  .dir-line svg { width: 15px; height: 15px; color: var(--tau-ink-3); flex: none; }
+  .dir-line .muted { color: var(--tau-ink-3); }
+
+  /* 发现页 & 更新页简略保真呈现 */
+  .catalog-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px;
+  }
+  .ccard {
+    border: 1px solid var(--tau-line-1); border-radius: var(--tau-radius-lg);
+    padding: 16px; min-height: 154px; display: flex; flex-direction: column; gap: 10px;
+    transition: box-shadow 180ms var(--tau-ease-out), border-color 180ms;
+  }
+  .ccard:hover { box-shadow: var(--tau-shadow-lift); border-color: transparent; }
+  .ccard-head { display: flex; align-items: center; gap: 10px; }
+  .ccard-desc { font-size: 12.5px; color: var(--tau-ink-2); line-height: 1.55; }
+  .ccard-foot { margin-top: auto; display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--tau-ink-3); }
+
+  /* ===== 方案 C：独立子页头部 ===== */
+  .subpage-head {
+    flex: none; padding: 20px 32px 14px;
+    display: flex; flex-direction: column; gap: 10px;
+    box-shadow: inset 0 -1px 0 var(--tau-line-2);
+  }
+  .subpage-top { display: flex; align-items: center; gap: 10px; }
+  .subpage-top h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+  .subpage-scope {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    font-size: 12.5px; color: var(--tau-ink-2);
+  }
+  .subpage-grid-row {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px;
+    padding: 14px 14px; border-radius: 11px;
+    transition: background 140ms var(--tau-ease-out);
+  }
+  .subpage-grid-row:hover { background: var(--tau-bg-hover); }
+  .subpage-left { display: flex; align-items: flex-start; gap: 14px; min-width: 0; }
+  .detail-pills {
+    display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px;
+  }
+  .dpill {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 12px; padding: 2px 9px; border-radius: 8px;
+    background: var(--tau-bg-hover); color: var(--tau-ink-2);
+  }
+  .dpill strong { color: var(--tau-ink-1); font-weight: 550; }
+  .dpill.local { background: var(--tau-warn-soft); color: var(--tau-warn); }
+  .dpill.local strong { color: var(--tau-warn); }
+
+  /* ===== 下拉菜单（Menu 1:1） ===== */
+  .menu-wrap { position: relative; }
+  .menu-pop {
+    position: absolute; right: 0; top: calc(100% + 6px); z-index: 120;
+    min-width: 214px; padding: 6px;
+    background: var(--tau-bg-surface); border: 1px solid var(--tau-line-1);
+    border-radius: var(--tau-radius-md); box-shadow: var(--tau-shadow-float);
+    animation: menuIn 130ms var(--tau-ease-out);
+  }
+  @keyframes menuIn { from { opacity: 0; transform: translateY(-4px); } }
+  .menu-item {
+    width: 100%; border: none; background: transparent; cursor: pointer; text-align: left;
+    height: 31px; padding: 0 10px; border-radius: 7px;
+    display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--tau-ink-1);
+    transition: background 120ms;
+  }
+  .menu-item svg { width: 14px; height: 14px; color: var(--tau-ink-2); flex: none; }
+  .menu-item:hover { background: var(--tau-bg-hover); }
+  .menu-item.danger { color: var(--tau-danger); }
+  .menu-item.danger svg { color: var(--tau-danger); }
+  .menu-item .mcount {
+    margin-left: auto; font-size: 11.5px; color: var(--tau-ink-3); font-variant-numeric: tabular-nums;
+  }
+  .menu-sep { height: 1px; background: var(--tau-line-2); margin: 5px 6px; }
+
+  /* ===== Dialog / ConfirmDialog（与 @tau/ui Dialog.tsx 1:1） ===== */
+  .modal-backdrop {
+    position: fixed; inset: 0; z-index: 340;
+    background: var(--tau-overlay); backdrop-filter: blur(4px);
+    display: grid; place-items: center; padding: 24px;
+    animation: fadeIn 140ms var(--tau-ease-out);
+  }
+  @keyframes fadeIn { from { opacity: 0; } }
+  .dialog {
+    width: 100%; max-width: 440px; max-height: 82vh;
+    background: var(--tau-bg-surface); border: 1px solid var(--tau-line-1);
+    border-radius: var(--tau-radius-lg); box-shadow: var(--tau-shadow-float);
+    display: flex; flex-direction: column; overflow: hidden;
+    animation: dialogIn 180ms var(--tau-ease-out);
+  }
+  .dialog.lg { max-width: 600px; }
+  @keyframes dialogIn { from { opacity: 0; transform: scale(0.97) translateY(6px); } }
+
+  .dialog-head {
+    padding: 18px 20px 10px; display: flex; align-items: flex-start; gap: 10px;
+  }
+  .dialog-head-text { min-width: 0; flex: 1; }
+  .dialog-title { font-size: 15px; font-weight: 600; color: var(--tau-ink-1); line-height: 1.4; }
+  .dialog-ctx {
+    margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px;
+  }
+  .dialog-body {
+    padding: 4px 20px 16px; overflow-y: auto; font-size: 13px; color: var(--tau-ink-2);
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .dialog-impact {
+    margin: 0 20px 14px; padding: 10px 12px; border-radius: 10px;
+    font-size: 12.5px; line-height: 1.55;
+    background: var(--tau-danger-soft); color: var(--tau-danger);
+    display: flex; gap: 8px; align-items: flex-start;
+  }
+  .dialog-impact svg { width: 15px; height: 15px; flex: none; margin-top: 2px; }
+  .dialog-foot {
+    padding: 0 20px 18px; display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+  }
+
+  /* 弹窗内数据明细清单 */
+  .breakdown-box {
+    border: 1px solid var(--tau-line-1); border-radius: 12px; padding: 10px 12px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .breakdown-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    font-size: 12.5px;
+  }
+  .breakdown-row .k { color: var(--tau-ink-2); display: flex; align-items: center; gap: 6px; }
+  .breakdown-row .v { color: var(--tau-ink-1); font-weight: 550; font-variant-numeric: tabular-nums; }
+
+  /* 卸载弹窗复选框 */
+  .check-row {
+    display: flex; align-items: flex-start; gap: 9px; cursor: pointer; color: var(--tau-ink-1);
+    font-size: 13px; line-height: 1.5; user-select: none;
+  }
+  .check-row input {
+    margin-top: 3px; width: 15px; height: 15px; accent-color: var(--tau-accent); flex: none; cursor: pointer;
+  }
+  .reassure-note {
+    font-size: 12.5px; color: var(--tau-ink-2); line-height: 1.55;
+    background: var(--tau-bg-hover); border-radius: 10px; padding: 10px 12px;
+  }
+  .reassure-note b { color: var(--tau-ink-1); font-weight: 550; }
+
+  /* 空态 */
+  .empty {
+    padding: 44px 20px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  }
+  .empty-ico {
+    width: 48px; height: 48px; border-radius: 14px; margin-bottom: 4px;
+    background: var(--tau-accent-soft); color: var(--tau-accent-text);
+    display: grid; place-items: center;
+  }
+  .empty-ico svg { width: 22px; height: 22px; }
+  .empty h3 { font-size: 14.5px; font-weight: 600; color: var(--tau-ink-1); }
+  .empty p { font-size: 12.5px; color: var(--tau-ink-2); max-width: 360px; }
+
+  /* Toast（轻量回执，不打断焦点） */
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 400;
+    background: var(--tau-ink-1); color: var(--tau-ink-inverse);
+    padding: 9px 15px; border-radius: 999px; font-size: 12.5px;
+    box-shadow: var(--tau-shadow-float);
+    display: flex; align-items: center; gap: 8px;
+    animation: toastIn 180ms var(--tau-ease-out);
+  }
+  @keyframes toastIn { from { opacity: 0; transform: translate(-50%, 8px); } }
+
+  /* 设计说明浮层 */
+  .spec-pop {
+    position: fixed; top: 50px; right: 16px; z-index: 200;
+    width: min(460px, calc(100vw - 32px)); max-height: calc(100vh - 70px); overflow-y: auto;
+    background: var(--tau-bg-surface); border: 1px solid var(--tau-line-1);
+    border-radius: var(--tau-radius-lg); box-shadow: var(--tau-shadow-float);
+    padding: 18px 20px; font-size: 12.5px; color: var(--tau-ink-2);
+  }
+  .spec-pop h3 { font-size: 14px; font-weight: 600; color: var(--tau-ink-1); margin-bottom: 8px; }
+  .spec-pop h4 { font-size: 12.5px; font-weight: 600; color: var(--tau-ink-1); margin: 12px 0 5px; }
+  .spec-pop ul { padding-left: 16px; display: flex; flex-direction: column; gap: 4px; }
+  .spec-pop code {
+    font-family: var(--tau-font-mono); font-size: 11.5px;
+    background: var(--tau-bg-hover); padding: 1px 5px; border-radius: 4px; color: var(--tau-ink-1);
+  }
+  .spec-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12px; }
+  .spec-table th, .spec-table td {
+    text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--tau-line-2); vertical-align: top;
+  }
+  .spec-table th { color: var(--tau-ink-3); font-weight: 500; }
+  .spec-table tr:last-child td { border-bottom: none; }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="aurora" aria-hidden="true"></div>
+
+<!-- 顶部审稿切换条 -->
+<header class="review-bar">
+  <div class="review-title">
+    <span>设计稿 · 已卸载插件的数据</span>
+    <span class="review-tag">可交互原型</span>
+  </div>
+  <div class="seg" role="group" aria-label="方案切换">
+    <button id="btn-var-a" aria-pressed="true" onclick="setVariant('a')">方案 A · 页内折叠区 <span class="rec">推荐</span></button>
+    <button id="btn-var-b" aria-pressed="false" onclick="setVariant('b')">方案 B · 清理弹窗</button>
+    <button id="btn-var-c" aria-pressed="false" onclick="setVariant('c')">方案 C · 独立子页</button>
+  </div>
+  <div class="review-spacer"></div>
+  <div class="review-actions">
+    <button class="pill-btn" onclick="openUninstallDemo()" title="体验卸载时保留数据后自动进入列表">演示卸载闭环</button>
+    <button class="pill-btn" id="btn-empty-toggle" onclick="toggleEmptyPreset()">预览空态</button>
+    <button class="pill-btn" onclick="resetDemo()">重置数据</button>
+    <button class="pill-btn" id="btn-mode" onclick="toggleMode()">深色模式</button>
+    <button class="pill-btn" id="btn-spec" onclick="toggleSpec()">设计说明与对比</button>
+  </div>
+</header>
+
+<!-- 桌面应用主壳层 -->
+<div class="shell">
+  <!-- 透明侧栏 -->
+  <aside class="sidebar">
+    <div class="traffic" aria-hidden="true"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+    <div class="ws-pill"><span class="ws-dot">主</span><span>主资料库</span></div>
+    <div class="nav-group">
+      <div class="nav-label">日常</div>
+      <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>今日</div>
+      <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>日程</div>
+      <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>待办</div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-label">知识库</div>
+      <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>卡片库</div>
+      <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>文章</div>
+      <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>项目</div>
+    </div>
+    <div class="nav-spacer"></div>
+    <div class="nav-item active" onclick="backToPlugins()" style="cursor:pointer">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/></svg>
+      <span>插件</span>
+      <span class="nav-badge">↑1</span>
+    </div>
+    <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>反馈</div>
+    <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>设置</div>
+  </aside>
+
+  <!-- 右列：标题栏 + 纸面 -->
+  <div class="main-col">
+    <div class="titlebar">
+      <div class="nav-btns">
+        <button class="icon-btn" id="btn-back" disabled onclick="backToPlugins()" aria-label="后退">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
+        <button class="icon-btn" disabled aria-label="前进">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="m9 18 6-6-6-6"/></svg>
+        </button>
+      </div>
+      <nav class="crumb" id="breadcrumb" aria-label="面包屑"></nav>
+    </div>
+
+    <div class="sheet-wrap">
+      <main class="sheet" id="sheet-root"></main>
+    </div>
+  </div>
+</div>
+
+<!-- 浮层与弹窗挂载点 -->
+<div id="modal-root"></div>
+<div id="toast-root"></div>
+
+<!-- 设计说明浮层 -->
+<aside id="spec-pop" class="spec-pop hidden" role="dialog" aria-label="设计说明与方案对比">
+  <h3>设计边界与三方案对比</h3>
+  <p>核心承诺：卸载插件默认保留数据，用户在插件管理页随时能看见并按插件清除，不必重装。</p>
+
+  <h4>真实数据事实（来自现有表结构，零假数据）</h4>
+  <ul>
+    <li>集合来源：当前资料库 <code>plugin_entities</code> / <code>plugin_records</code> / <code>plugin_kv</code> / <code>plugin_links</code> / <code>plugin_entity_kinds</code> / <code>plugin_ref_grants</code> / <code>plugin_create_receipts</code> / <code>plugin_operations</code>（<code>entity='plugin-entity'</code>）与本机 <code>plugin-secrets.sqlite</code> 的 <code>plugin_id</code> 并集，减去当前已安装、待生效与坏包插件。</li>
+    <li>名称降级：插件中心目录能查到的用目录名与彩色图标；离线或本地 ZIP 安装过查不到的诚实展示 <code>pluginId</code> 与中性图标，若有 <code>plugin_entity_kinds</code> 一并列出内容类型名。</li>
+    <li>清晰边界：清除范围限于<b>当前资料库 + 当前资料库的本机凭据</b>；资料库内删除随云同步，已写入笔记的正文不受影响。</li>
+    <li>卸载闭环：<code>UninstallDialog</code> 补一句「保留的数据可随时在『已卸载插件的数据』中查看和清除，不必重装」，点击本页顶栏「演示卸载闭环」即可完整体验。</li>
+  </ul>
+
+  <h4>三套方案取舍</h4>
+  <table class="spec-table">
+    <tr><th>方案</th><th>承载方式</th><th>优点</th><th>取舍</th></tr>
+    <tr>
+      <td><b>A（推荐）</b></td>
+      <td>「已安装」页底部折叠区 + <code>⋯</code> 菜单定位</td>
+      <td>零新路由、零双层弹窗、复用餐桌搜索、一整张纸、不占顶栏 Tab</td>
+      <td>无数据时默认隐藏，靠 <code>⋯</code> 菜单进入空态查看</td>
+    </tr>
+    <tr>
+      <td><b>B</b></td>
+      <td>底部入口条 + <code>⋯</code> 菜单 → 600px 弹窗（内嵌确认步）</td>
+      <td>任意 Tab 随点随清、不拉长「已安装」页、单弹窗内步进无嵌套遮罩</td>
+      <td>插件很多或明细很长时宽度不如整页舒展</td>
+    </tr>
+    <tr>
+      <td><b>C</b></td>
+      <td>底部入口条 + <code>⋯</code> 菜单 → 二级子页（Page 栈）</td>
+      <td>宽屏最舒展、原生面包屑后退、零双层弹窗、每项明细并排最清晰</td>
+      <td>需增一条路由；数据少时多一次页面跳转</td>
+    </tr>
+  </table>
+</aside>
+
+<script>
+const INITIAL_INSTALLED = [
+  {
+    id: "tau.weread",
+    name: "微信读书",
+    version: "1.4.2",
+    source: "center",
+    tone: "t2",
+    enabled: true,
+    state: "已启用",
+    sampleRetained: {
+      entities: 34,
+      entityKinds: ["划线摘录"],
+      records: 86,
+      kv: 5,
+      secrets: 1,
+      updatedAt: "今天",
+      inCatalog: true,
+    },
+  },
+  {
+    id: "tau.tikz",
+    name: "TikZ 绘图",
+    version: "0.9.0",
+    source: "center",
+    tone: "t3",
+    enabled: true,
+    state: "已启用",
+    sampleRetained: {
+      entities: 0,
+      entityKinds: [],
+      records: 0,
+      kv: 3,
+      secrets: 0,
+      updatedAt: "今天",
+      inCatalog: true,
+    },
+  },
+  {
+    id: "tau.publish-github",
+    name: "GitHub 博客发布",
+    version: "1.1.0",
+    source: "center",
+    tone: "t1",
+    enabled: true,
+    state: "已启用",
+    sampleRetained: {
+      entities: 0,
+      entityKinds: [],
+      records: 4,
+      kv: 2,
+      secrets: 1,
+      updatedAt: "今天",
+      inCatalog: true,
+    },
+  },
+  {
+    id: "local.flashcard-helper",
+    name: "闪卡间隔统计",
+    version: "0.3.1",
+    source: "zip",
+    tone: "t4",
+    enabled: false,
+    state: "已停用",
+    sampleRetained: {
+      entities: 0,
+      entityKinds: [],
+      records: 52,
+      kv: 4,
+      secrets: 0,
+      updatedAt: "今天",
+      inCatalog: false,
+    },
+  },
+];
+
+const INITIAL_RETAINED = [
+  {
+    id: "tau.podcast",
+    name: "播客",
+    tone: "t5",
+    inCatalog: true,
+    catalogVersion: "1.2.0",
+    entities: 18,
+    entityKinds: ["播客单集"],
+    records: 42,
+    kv: 6,
+    secrets: 1,
+    updatedAt: "2026-11-12",
+  },
+  {
+    id: "tau.questions",
+    name: "问题管理",
+    tone: "t1",
+    inCatalog: true,
+    catalogVersion: "1.0.4",
+    entities: 9,
+    entityKinds: ["问题"],
+    records: 63,
+    kv: 4,
+    secrets: 0,
+    updatedAt: "2026-10-29",
+  },
+  {
+    id: "local.reading-digest",
+    name: null, // 演示本地安装 / 目录查不到时的真实降级
+    tone: "neutral",
+    inCatalog: false,
+    entities: 5,
+    entityKinds: ["摘录卡片"],
+    records: 0,
+    kv: 12,
+    secrets: 0,
+    updatedAt: "2026-10-08",
+  },
+  {
+    id: "tau.publish-s3",
+    name: "S3 博客发布",
+    tone: "t2",
+    inCatalog: true,
+    catalogVersion: "1.0.2",
+    entities: 0,
+    entityKinds: [],
+    records: 0,
+    kv: 3,
+    secrets: 2,
+    updatedAt: "2026-09-19",
+  },
+];
+
+const CATALOG_SAMPLE = [
+  { id: "tau.weread", name: "微信读书", author: "tau", version: "1.4.2", tone: "t2", desc: "同步微信读书书架与划线笔记作为摘录来源，支持在卡片与项目中直接引用。", installed: true },
+  { id: "tau.podcast", name: "播客", author: "tau", version: "1.2.0", tone: "t5", desc: "基于资料生成双人对话播客单集，保存音频与逐字稿，随时回听。", installed: false },
+  { id: "tau.questions", name: "问题管理", author: "tau", version: "1.0.4", tone: "t1", desc: "围绕核心问题长期收集资料与阶段思考，支持从问题一键立项。", installed: false },
+  { id: "tau.tikz", name: "TikZ 绘图", author: "tau", version: "0.9.0", tone: "t3", desc: "在正文内编写与编译 TikZ 矢量图形，导出与博客发布自动携带缓存。", installed: true },
+];
+
+const state = {
+  variant: "a", // 'a' | 'b' | 'c'
+  tab: "installed", // 'discover' | 'installed' | 'updates'
+  subpage: false, // 方案 C 子页
+  query: "",
+  subQuery: "",
+  expandedA: false,
+  highlightA: false,
+  openMenu: null, // 'page' | pluginId | null
+  modal: null, // null | { kind: 'manage-b', confirmId?: string } | { kind: 'confirm-clear', id: string } | { kind: 'uninstall', id: string, purge: boolean }
+  clearing: false,
+  installed: structuredClone(INITIAL_INSTALLED),
+  retained: structuredClone(INITIAL_RETAINED),
+  emptyPreview: false,
+  mode: "light",
+  specOpen: false,
+  toastTimer: null,
+};
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
+}
+
+function displayName(item) {
+  return item.name || item.id;
+}
+
+function buildFactList(item) {
+  const parts = [];
+  if (item.entities > 0) {
+    const kindText = item.entityKinds?.length ? `（${item.entityKinds.join("、")}）` : "";
+    parts.push({ key: "entities", label: "内容", text: `${item.entities} 条内容${kindText}`, sync: true });
+  }
+  if (item.records > 0) {
+    parts.push({ key: "records", label: "记录", text: `${item.records} 条记录`, sync: true });
+  }
+  if (item.kv > 0) {
+    parts.push({ key: "kv", label: "设置", text: `${item.kv} 项设置`, sync: true });
+  }
+  if (item.secrets > 0) {
+    parts.push({ key: "secrets", label: "本机凭据", text: `${item.secrets} 项本机凭据`, sync: false });
+  }
+  if (!parts.length) {
+    parts.push({ key: "internal", label: "内部状态", text: "残留引用授权或状态", sync: true });
+  }
+  return parts;
+}
+
+function leadSummary(list) {
+  if (!list.length) return "当前资料库没有已卸载插件遗留的数据";
+  const names = list.slice(0, 3).map(displayName).join("、");
+  const suffix = list.length > 3 ? ` 等 ${list.length} 个插件` : `（${list.length} 个插件）`;
+  return `${names}${suffix}在当前资料库留有数据，重装可恢复，也可按插件清除`;
+}
+
+function showToast(msg) {
+  const root = document.getElementById("toast-root");
+  root.innerHTML = `<div class="toast" role="status"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg><span>${esc(msg)}</span></div>`;
+  clearTimeout(state.toastTimer);
+  state.toastTimer = setTimeout(() => { root.innerHTML = ""; }, 2800);
+}
+
+function setVariant(v) {
+  state.variant = v;
+  state.subpage = false;
+  state.modal = null;
+  state.openMenu = null;
+  state.highlightA = false;
+  if (v === "a") state.tab = "installed";
+  document.getElementById("btn-var-a").setAttribute("aria-pressed", String(v === "a"));
+  document.getElementById("btn-var-b").setAttribute("aria-pressed", String(v === "b"));
+  document.getElementById("btn-var-c").setAttribute("aria-pressed", String(v === "c"));
+  render();
+}
+
+function toggleEmptyPreset() {
+  state.emptyPreview = !state.emptyPreview;
+  if (state.emptyPreview) {
+    state.retained = [];
+  } else {
+    state.retained = structuredClone(INITIAL_RETAINED);
+  }
+  document.getElementById("btn-empty-toggle").classList.toggle("active", state.emptyPreview);
+  render();
+}
+
+function resetDemo() {
+  state.installed = structuredClone(INITIAL_INSTALLED);
+  state.retained = structuredClone(INITIAL_RETAINED);
+  state.emptyPreview = false;
+  state.query = "";
+  state.subQuery = "";
+  state.subpage = false;
+  state.modal = null;
+  state.openMenu = null;
+  state.expandedA = false;
+  document.getElementById("btn-empty-toggle").classList.remove("active");
+  render();
+  showToast("已重置演示数据");
+}
+
+function toggleMode() {
+  state.mode = state.mode === "light" ? "dark" : "light";
+  document.documentElement.setAttribute("data-mode", state.mode);
+  const btn = document.getElementById("btn-mode");
+  btn.textContent = state.mode === "dark" ? "浅色模式" : "深色模式";
+  btn.classList.toggle("active", state.mode === "dark");
+}
+
+function toggleSpec() {
+  state.specOpen = !state.specOpen;
+  document.getElementById("spec-pop").classList.toggle("hidden", !state.specOpen);
+  document.getElementById("btn-spec").classList.toggle("active", state.specOpen);
+}
+
+function backToPlugins() {
+  if (state.subpage) {
+    state.subpage = false;
+    state.subQuery = "";
+    render();
+  }
+}
+
+function openRetainedEntry() {
+  state.openMenu = null;
+  if (state.variant === "a") {
+    state.tab = "installed";
+    state.expandedA = true;
+    state.highlightA = true;
+    render();
+    requestAnimationFrame(() => {
+      document.getElementById("retained-section-a")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+    setTimeout(() => { state.highlightA = false; render(); }, 1300);
+  } else if (state.variant === "b") {
+    state.modal = { kind: "manage-b" };
+    render();
+  } else {
+    state.subpage = true;
+    render();
+  }
+}
+
+function openUninstallDemo() {
+  const target = state.installed[0];
+  if (!target) {
+    showToast("演示插件均已卸载，可点「重置数据」恢复");
+    return;
+  }
+  state.openMenu = null;
+  state.modal = { kind: "uninstall", id: target.id, purge: false };
+  render();
+}
+
+function openUninstall(id) {
+  state.openMenu = null;
+  state.modal = { kind: "uninstall", id, purge: false };
+  render();
+}
+
+function confirmUninstall() {
+  const modal = state.modal;
+  if (!modal || modal.kind !== "uninstall") return;
+  const idx = state.installed.findIndex(p => p.id === modal.id);
+  if (idx === -1) return;
+  const [plugin] = state.installed.splice(idx, 1);
+  if (!modal.purge && !state.retained.some(r => r.id === plugin.id)) {
+    const s = plugin.sampleRetained;
+    state.retained.unshift({
+      id: plugin.id,
+      name: s.inCatalog ? plugin.name : null,
+      tone: s.inCatalog ? plugin.tone : "neutral",
+      inCatalog: s.inCatalog,
+      catalogVersion: plugin.version,
+      entities: s.entities,
+      entityKinds: s.entityKinds,
+      records: s.records,
+      kv: s.kv,
+      secrets: s.secrets,
+      updatedAt: s.updatedAt,
+    });
+    state.emptyPreview = false;
+    document.getElementById("btn-empty-toggle").classList.remove("active");
+    if (state.variant === "a") state.expandedA = true;
+    showToast(`已卸载「${plugin.name}」，数据保留在「已卸载插件的数据」`);
+  } else {
+    showToast(`已卸载「${plugin.name}」并清除当前资料库数据`);
+  }
+  state.modal = null;
+  render();
+}
+
+function requestClear(id) {
+  if (state.variant === "b" && state.modal?.kind === "manage-b") {
+    state.modal = { kind: "manage-b", confirmId: id };
+    render();
+  } else {
+    state.modal = { kind: "confirm-clear", id };
+    render();
+  }
+}
+
+function executeClear(id) {
+  const item = state.retained.find(r => r.id === id);
+  if (!item || state.clearing) return;
+  state.clearing = true;
+  renderModal();
+  setTimeout(() => {
+    state.clearing = false;
+    state.retained = state.retained.filter(r => r.id !== id);
+    if (state.variant === "b" && state.modal?.kind === "manage-b") {
+      state.modal = { kind: "manage-b" };
+    } else {
+      state.modal = null;
+    }
+    render();
+    showToast(`已清除「${displayName(item)}」在当前资料库的数据`);
+  }, 420);
+}
+
+function togglePluginEnabled(id) {
+  const p = state.installed.find(item => item.id === id);
+  if (!p) return;
+  p.enabled = !p.enabled;
+  p.state = p.enabled ? "已启用" : "已停用";
+  render();
+}
+
+function renderIcon(item) {
+  if (!item.name) {
+    return `<span class="picon neutral" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/></svg></span>`;
+  }
+  return `<span class="picon ${item.tone} muted" aria-hidden="true">${esc(item.name.slice(0, 1))}</span>`;
+}
+
+function renderFactsInline(item) {
+  const facts = buildFactList(item);
+  return facts.map((f, i) => {
+    const sep = i > 0 ? `<span class="fact-sep">·</span>` : "";
+    if (!f.sync) {
+      return `${sep}<span class="fact-local" title="加密保存在本机，不同步到其他设备"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>${esc(f.text)}</span>`;
+    }
+    return `${sep}<span class="fact-item num">${esc(f.text)}</span>`;
+  }).join("");
+}
+
+function renderRetainedRowCompact(item) {
+  const title = displayName(item);
+  const isUnknown = !item.name;
+  return `
+    <div class="prow">
+      ${renderIcon(item)}
+      <div class="prow-main">
+        <div class="prow-top">
+          <span class="pname ${isUnknown ? "mono" : ""}" style="${isUnknown ? "font-size:13px" : ""}">${esc(title)}</span>
+          ${!isUnknown ? `<span class="pver mono">${esc(item.id)}</span>` : `<span class="chip">本地未收录</span>`}
+          <span class="pver num">最近更新 ${esc(item.updatedAt)}</span>
+        </div>
+        <div class="facts">${renderFactsInline(item)}</div>
+      </div>
+      <div class="prow-ops">
+        ${item.inCatalog ? `<button class="btn btn-ghost sm" onclick="showToast('将打开「${esc(title)}」插件详情页，可按需重装')">查看详情</button>` : ""}
+        <button class="btn btn-danger-soft sm" onclick="requestClear('${esc(item.id)}')">清除…</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderSubpageRow(item) {
+  const title = displayName(item);
+  const isUnknown = !item.name;
+  const facts = buildFactList(item);
+  return `
+    <div class="subpage-grid-row">
+      <div class="subpage-left">
+        ${renderIcon(item)}
+        <div class="prow-main">
+          <div class="prow-top">
+            <span class="pname ${isUnknown ? "mono" : ""}" style="${isUnknown ? "font-size:13px" : ""}">${esc(title)}</span>
+            ${!isUnknown ? `<span class="pver mono">${esc(item.id)}</span>` : `<span class="chip">本地未收录</span>`}
+            <span class="pver num">最近更新 ${esc(item.updatedAt)}</span>
+          </div>
+          <div class="detail-pills">
+            ${facts.map(f => `
+              <span class="dpill ${f.sync ? "" : "local"} num">
+                ${!f.sync ? `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>` : ""}
+                <strong>${esc(f.text)}</strong>
+                ${!f.sync ? `<span>仅本机</span>` : ""}
+              </span>
+            `).join("")}
+          </div>
+        </div>
+      </div>
+      <div class="prow-ops">
+        ${item.inCatalog ? `<button class="btn btn-ghost sm" onclick="showToast('将打开「${esc(title)}」插件详情页，可按需重装')">查看详情</button>` : ""}
+        <button class="btn btn-danger-soft sm" onclick="requestClear('${esc(item.id)}')">清除…</button>
+      </div>
+    </div>
+  `;
+}
+
+function matches(fields, q) {
+  const s = q.trim().toLowerCase();
+  return !s || fields.some(f => f && String(f).toLowerCase().includes(s));
+}
+
+function renderInstalledTab() {
+  const shownInstalled = state.installed.filter(p => matches([p.id, p.name], state.query));
+  const shownRetained = state.retained.filter(r => matches([r.id, r.name, ...(r.entityKinds || [])], state.query));
+  const autoOpenA = Boolean(state.query.trim()) && shownRetained.length > 0;
+  const openA = state.expandedA || autoOpenA;
+
+  let retainedHtml = "";
+  if (state.variant === "a") {
+    // 方案 A：页内折叠区；有数据或主动通过 ⋯ 展开时显示
+    if (state.retained.length > 0 || state.expandedA) {
+      retainedHtml = `
+        <section id="retained-section-a" class="retained-collapse ${state.highlightA ? "highlight" : ""}" data-open="${openA}">
+          <button type="button" class="retained-trigger" aria-expanded="${openA}" onclick="state.expandedA = !state.expandedA; render();">
+            <span class="retained-ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>
+            </span>
+            <span class="retained-meta">
+              <span class="retained-title-row">
+                <span class="retained-title">已卸载插件的数据</span>
+                ${state.retained.length ? `<span class="chip num">${state.retained.length}</span>` : ""}
+                <span class="chip surface">主资料库</span>
+              </span>
+              <span class="retained-lead">${esc(leadSummary(state.retained))}</span>
+            </span>
+            <span class="retained-right">
+              <span>${openA ? "收起" : "查看与清除"}</span>
+              <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="m6 9 6 6 6-6"/></svg>
+            </span>
+          </button>
+          ${openA ? `
+            <div class="retained-body">
+              ${shownRetained.length ? `
+                <div class="retained-note">
+                  <span>只列出当前资料库及本机凭据中的遗留数据；清除不影响已写入笔记的正文，资料库删除会同步到其他设备。</span>
+                </div>
+                ${shownRetained.map(renderRetainedRowCompact).join("")}
+              ` : `
+                <div class="retained-empty-inline">
+                  ${state.query.trim() ? "没有匹配的已卸载插件数据" : "当前资料库没有已卸载插件遗留的数据"}
+                </div>
+              `}
+            </div>
+          ` : ""}
+        </section>
+      `;
+    }
+  } else {
+    // 方案 B / C：轻量单行入口条（有数据时显式呈现在「已安装」下方；无数据时仍可从 ⋯ 进入）
+    if (state.retained.length > 0) {
+      retainedHtml = `
+        <button type="button" class="entry-bar" onclick="openRetainedEntry()">
+          <span class="retained-ico" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>
+          </span>
+          <span class="retained-meta">
+            <span class="retained-title-row">
+              <span class="retained-title">已卸载插件的数据</span>
+              <span class="chip num">${state.retained.length}</span>
+              <span class="chip surface">主资料库</span>
+            </span>
+            <span class="retained-lead">${esc(leadSummary(state.retained))}</span>
+          </span>
+          <span class="retained-right">
+            <span>${state.variant === "b" ? "管理" : "查看"}</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="m9 18 6-6-6-6"/></svg>
+          </span>
+        </button>
+      `;
+    }
+  }
+
+  return `
+    <section class="group">
+      <div class="group-head">
+        <h2>已安装</h2>
+        <small>启用状态在所有资料库保持一致</small>
+      </div>
+      <div class="group-box">
+        ${shownInstalled.length ? shownInstalled.map(p => `
+          <div class="prow clickable ${p.enabled ? "" : "disabled"}">
+            <span class="picon ${p.tone}" aria-hidden="true">${esc(p.name.slice(0, 1))}</span>
+            <div class="prow-main">
+              <div class="prow-top">
+                <span class="pname">${esc(p.name)}</span>
+                <span class="pver num">${esc(p.version)}</span>
+                <span class="chip">${p.source === "center" ? "插件中心" : "本地 ZIP"}</span>
+              </div>
+              <div class="psub">${esc(p.state)}</div>
+            </div>
+            <div class="prow-ops" onclick="event.stopPropagation()">
+              <button type="button" role="switch" aria-checked="${p.enabled}" aria-label="${p.enabled ? "停用" : "启用"} ${esc(p.name)}" class="switch" onclick="togglePluginEnabled('${esc(p.id)}')">
+                <span class="thumb"></span>
+              </button>
+              <div class="menu-wrap">
+                <button type="button" class="icon-btn" aria-label="${esc(p.name)} 的更多操作" onclick="toggleMenu('${esc(p.id)}')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+                </button>
+                ${state.openMenu === p.id ? `
+                  <div class="menu-pop" role="menu">
+                    <button class="menu-item" onclick="state.openMenu=null; render(); showToast('打开「${esc(p.name)}」详情')">查看详情</button>
+                    <div class="menu-sep"></div>
+                    <button class="menu-item danger" onclick="openUninstall('${esc(p.id)}')">卸载…</button>
+                  </div>
+                ` : ""}
+              </div>
+            </div>
+          </div>
+        `).join("") : `<p style="padding:16px 12px;font-size:12.5px;color:var(--tau-ink-2)">${state.query ? "没有匹配的插件" : "当前没有已安装的插件"}</p>`}
+      </div>
+    </section>
+
+    ${retainedHtml}
+
+    <p class="dir-line">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      <span>插件目录</span>
+      <span class="mono" style="font-size:12px">~/.editor/plugins</span>
+      <span class="muted">· 放入目录或从 ZIP 安装的插件默认停用，请手动启用</span>
+    </p>
+  `;
+}
+
+function renderDiscoverTab() {
+  const entries = CATALOG_SAMPLE.filter(c => matches([c.id, c.name, c.desc], state.query));
+  return `
+    <div class="catalog-grid">
+      ${entries.map(c => {
+        const isInstalled = state.installed.some(p => p.id === c.id);
+        const hasRetained = !isInstalled && state.retained.some(r => r.id === c.id);
+        return `
+          <article class="ccard">
+            <div class="ccard-head">
+              <span class="picon ${c.tone}" style="width:38px;height:38px;border-radius:11px;font-size:15px">${esc(c.name.slice(0, 1))}</span>
+              <div style="min-width:0;flex:1">
+                <div style="font-size:14px;font-weight:600">${esc(c.name)}</div>
+                <div style="font-size:12px;color:var(--tau-ink-3)">@${esc(c.author)}</div>
+              </div>
+              ${hasRetained ? `<span class="chip" title="当前资料库留有此插件数据，重装后自动恢复">有保留数据</span>` : ""}
+            </div>
+            <p class="ccard-desc">${esc(c.desc)}</p>
+            <div class="ccard-foot">
+              <span class="num">${esc(c.version)}</span>
+              <span style="margin-left:auto">
+                ${isInstalled
+                  ? `<span class="chip ok">已安装</span>`
+                  : `<button class="btn btn-secondary sm" onclick="showToast('模拟：安装「${esc(c.name)}」${hasRetained ? "（将恢复保留的数据）" : ""}')">安装</button>`
+                }
+              </span>
+            </div>
+          </article>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
+function renderUpdatesTab() {
+  return `
+    <section class="group">
+      <div class="group-head">
+        <h2>可更新</h2>
+        <small>下载后自动切换到新版，失败会保留旧版；编辑器和白板内容插件重启后生效</small>
+      </div>
+      <div class="group-box">
+        <div class="prow">
+          <span class="picon t2">微</span>
+          <div class="prow-main">
+            <span class="pname">微信读书</span>
+            <span class="pver num" style="margin-left:8px">1.4.2 → 1.5.0</span>
+          </div>
+          <button class="btn btn-soft sm" onclick="showToast('开始更新微信读书 1.5.0')">更新到 1.5.0</button>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function updateQuery(field, value) {
+  state[field] = value;
+  const active = document.activeElement;
+  const activeId = active && active.id ? active.id : null;
+  const start = active && typeof active.selectionStart === "number" ? active.selectionStart : null;
+  const end = active && typeof active.selectionEnd === "number" ? active.selectionEnd : null;
+  render();
+  if (activeId) {
+    const next = document.getElementById(activeId);
+    if (next) {
+      next.focus();
+      if (start !== null && end !== null && typeof next.setSelectionRange === "function") {
+        next.setSelectionRange(start, end);
+      }
+    }
+  }
+}
+
+function renderSubpageC() {
+  const list = state.retained.filter(r => matches([r.id, r.name, ...(r.entityKinds || [])], state.subQuery));
+  return `
+    <div class="subpage-head">
+      <div class="subpage-top">
+        <button class="icon-btn" onclick="backToPlugins()" aria-label="返回插件">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
+        <h1>已卸载插件的数据</h1>
+        <span class="chip surface">主资料库</span>
+        <div style="flex:1"></div>
+        <div class="search-box">
+          <svg class="lead" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input id="sub-search" type="text" placeholder="筛选插件名称或 ID" value="${esc(state.subQuery)}" oninput="updateQuery('subQuery', this.value)" />
+          ${state.subQuery ? `<button class="search-clear" onclick="updateQuery('subQuery', '')">×</button>` : ""}
+        </div>
+      </div>
+      <div class="subpage-scope">
+        <span>卸载时默认保留的数据列在这里，无需重新安装即可按插件清除。清除不会影响已写入笔记的正文；资料库内的删除会同步到其他设备，本机凭据仅从当前设备移除。</span>
+      </div>
+    </div>
+    <div class="sheet-scroll">
+      ${state.retained.length === 0 ? `
+        <div class="empty">
+          <span class="empty-ico">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>
+          </span>
+          <h3>当前资料库没有遗留的插件数据</h3>
+          <p>卸载插件时若选择保留数据，之后会在这里按插件显示，方便随时查看或清除。</p>
+        </div>
+      ` : list.length === 0 ? `
+        <div class="empty">
+          <h3>没有匹配的插件数据</h3>
+          <p>尝试换一个关键词或清空筛选条件。</p>
+        </div>
+      ` : `
+        <section class="group">
+          <div class="group-head">
+            <h2>留有数据的插件</h2>
+            <small class="num">共 ${list.length} 个插件 · 仅展示当前资料库与本机凭据</small>
+          </div>
+          <div class="group-box">
+            ${list.map(renderSubpageRow).join("")}
+          </div>
+        </section>
+      `}
+    </div>
+  `;
+}
+
+function toggleMenu(key) {
+  state.openMenu = state.openMenu === key ? null : key;
+  render();
+}
+
+function render() {
+  // 面包屑与后退按钮
+  const backBtn = document.getElementById("btn-back");
+  const crumb = document.getElementById("breadcrumb");
+  const inSub = state.variant === "c" && state.subpage;
+  backBtn.disabled = !inSub;
+  crumb.innerHTML = inSub
+    ? `<button onclick="backToPlugins()">插件</button><span class="sep">›</span><span class="cur">已卸载插件的数据</span>`
+    : `<span class="cur">插件</span>`;
+
+  const root = document.getElementById("sheet-root");
+  if (inSub) {
+    root.innerHTML = renderSubpageC();
+    renderModal();
+    return;
+  }
+
+  root.innerHTML = `
+    <div class="sheet-head">
+      <div class="head-row">
+        <h1>插件</h1>
+        <span class="head-sub">扩展页面、侧边栏、命令与摘录来源</span>
+        <div class="search-box">
+          <svg class="lead" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input id="main-search" type="text" placeholder="搜索插件" value="${esc(state.query)}" oninput="updateQuery('query', this.value)" />
+          ${state.query ? `<button class="search-clear" aria-label="清空" onclick="updateQuery('query', '')">×</button>` : ""}
+        </div>
+        <div class="menu-wrap">
+          <button type="button" class="icon-btn" aria-label="更多插件操作" onclick="toggleMenu('page')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+          </button>
+          ${state.openMenu === "page" ? `
+            <div class="menu-pop" role="menu">
+              <button class="menu-item" onclick="openRetainedEntry()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>
+                <span>已卸载插件的数据</span>
+                ${state.retained.length ? `<span class="mcount">${state.retained.length}</span>` : ""}
+              </button>
+              <div class="menu-sep"></div>
+              <button class="menu-item" onclick="state.openMenu=null; render(); showToast('打开插件目录 ~/.editor/plugins')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                <span>打开插件目录</span>
+              </button>
+              <button class="menu-item" onclick="state.openMenu=null; render(); showToast('已重新扫描本地插件')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+                <span>重新扫描</span>
+              </button>
+              <div class="menu-sep"></div>
+              <button class="menu-item" onclick="state.openMenu=null; render();">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                <span>开发插件文档</span>
+              </button>
+            </div>
+          ` : ""}
+        </div>
+      </div>
+
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" aria-selected="${state.tab === "discover"}" onclick="state.tab='discover'; state.openMenu=null; render();">发现</button>
+        <button class="tab num" role="tab" aria-selected="${state.tab === "installed"}" onclick="state.tab='installed'; state.openMenu=null; render();">已安装 ${state.installed.length}</button>
+        <button class="tab num" role="tab" aria-selected="${state.tab === "updates"}" onclick="state.tab='updates'; state.openMenu=null; render();">更新 1</button>
+      </div>
+    </div>
+
+    <div class="sheet-scroll">
+      ${state.tab === "installed" ? renderInstalledTab() : state.tab === "discover" ? renderDiscoverTab() : renderUpdatesTab()}
+    </div>
+  `;
+
+  renderModal();
+}
+
+function renderConfirmClearCard(item, backAction) {
+  const name = displayName(item);
+  const facts = buildFactList(item);
+  const hasWorkspaceData = facts.some(f => f.sync);
+  const hasSecrets = facts.some(f => !f.sync);
+  const impactText = hasWorkspaceData
+    ? "清除后无法恢复，资料库中的删除会同步到其他设备；已写入笔记的正文不受影响。"
+    : "清除后本机凭据无法恢复，仅影响当前设备；已写入笔记的正文不受影响。";
+
+  return `
+    <div class="dialog" role="alertdialog" aria-modal="true" onclick="event.stopPropagation()">
+      <div class="dialog-head">
+        ${backAction ? `
+          <button class="icon-btn" style="margin:-2px 0 0 -6px" onclick="${backAction}" aria-label="返回列表">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+        ` : ""}
+        <div class="dialog-head-text">
+          <div class="dialog-title">清除「${esc(name)}」的数据？</div>
+          <div class="dialog-ctx">
+            <span class="chip surface">主资料库</span>
+            <span class="chip surface mono">${esc(item.id)}</span>
+          </div>
+        </div>
+        ${!state.clearing ? `<button class="icon-btn" onclick="closeModal()" aria-label="关闭">×</button>` : ""}
+      </div>
+      <div class="dialog-body">
+        <p>将从当前资料库${hasSecrets ? "与本机安全存储" : ""}中永久清除以下项目：</p>
+        <div class="breakdown-box">
+          ${facts.map(f => `
+            <div class="breakdown-row">
+              <span class="k">${esc(f.label)}${!f.sync ? ` <span class="chip warn" style="height:17px;font-size:10.5px">仅本机</span>` : ""}</span>
+              <span class="v">${esc(f.text)}</span>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+      <div class="dialog-impact">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4M12 17h.01"/></svg>
+        <span>${impactText}</span>
+      </div>
+      <div class="dialog-foot">
+        <button class="btn btn-secondary" ${state.clearing ? "disabled" : ""} onclick="${backAction || "closeModal()"}" autofocus>取消</button>
+        <button class="btn btn-danger" ${state.clearing ? "disabled" : ""} onclick="executeClear('${esc(item.id)}')">${state.clearing ? "正在清除…" : "清除数据"}</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderModal() {
+  const root = document.getElementById("modal-root");
+  if (!state.modal) { root.innerHTML = ""; return; }
+
+  if (state.modal.kind === "confirm-clear") {
+    const item = state.retained.find(r => r.id === state.modal.id);
+    if (!item) { state.modal = null; root.innerHTML = ""; return; }
+    root.innerHTML = `<div class="modal-backdrop" onclick="if(!state.clearing) closeModal()">${renderConfirmClearCard(item, null)}</div>`;
+    return;
+  }
+
+  if (state.modal.kind === "manage-b") {
+    if (state.modal.confirmId) {
+      const item = state.retained.find(r => r.id === state.modal.confirmId);
+      if (item) {
+        root.innerHTML = `<div class="modal-backdrop" onclick="if(!state.clearing) closeModal()">${renderConfirmClearCard(item, "state.modal={kind:'manage-b'}; render();")}</div>`;
+        return;
+      }
+    }
+    root.innerHTML = `
+      <div class="modal-backdrop" onclick="closeModal()">
+        <div class="dialog lg" role="dialog" aria-modal="true" onclick="event.stopPropagation()">
+          <div class="dialog-head">
+            <div class="dialog-head-text">
+              <div class="dialog-title">已卸载插件的数据</div>
+              <div class="dialog-ctx">
+                <span class="chip surface">主资料库</span>
+                ${state.retained.length ? `<span class="chip num">${state.retained.length} 个插件</span>` : ""}
+              </div>
+            </div>
+            <button class="icon-btn" onclick="closeModal()" aria-label="关闭">×</button>
+          </div>
+          <div class="dialog-body" style="padding-top:2px">
+            <p style="font-size:12.5px;color:var(--tau-ink-2)">
+              卸载插件时默认保留的数据会汇总于此，不必重新安装即可按插件清除。清除不影响已写入笔记的正文；资料库内的删除会同步到其他设备。
+            </p>
+            ${state.retained.length === 0 ? `
+              <div class="empty" style="padding:32px 12px">
+                <span class="empty-ico">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>
+                </span>
+                <h3>当前资料库没有遗留的插件数据</h3>
+                <p>今后卸载插件时选择保留数据，可随时回到这里按插件查看和清除。</p>
+              </div>
+            ` : `
+              <div class="group-box">
+                ${state.retained.map(renderRetainedRowCompact).join("")}
+              </div>
+            `}
+          </div>
+          <div class="dialog-foot">
+            <button class="btn btn-secondary" onclick="closeModal()">关闭</button>
+          </div>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  if (state.modal.kind === "uninstall") {
+    const plugin = state.installed.find(p => p.id === state.modal.id);
+    if (!plugin) { state.modal = null; root.innerHTML = ""; return; }
+    root.innerHTML = `
+      <div class="modal-backdrop" onclick="closeModal()">
+        <div class="dialog" role="alertdialog" aria-modal="true" onclick="event.stopPropagation()">
+          <div class="dialog-head">
+            <div class="dialog-head-text">
+              <div class="dialog-title">卸载「${esc(plugin.name)}」？</div>
+              <div class="dialog-ctx"><span class="chip surface mono">${esc(plugin.id)}</span></div>
+            </div>
+            <button class="icon-btn" onclick="closeModal()" aria-label="关闭">×</button>
+          </div>
+          <div class="dialog-body">
+            <p>将停用插件并移除代码与旧版本备份，它贡献的入口随之消失。已写入笔记的内容不受影响。</p>
+            <label class="check-row">
+              <input type="checkbox" ${state.modal.purge ? "checked" : ""} onchange="state.modal.purge=this.checked; renderModal();" />
+              <span>同时删除当前资料库中的插件设置、记录、内容及本机凭据</span>
+            </label>
+            <div class="reassure-note">
+              ${state.modal.purge
+                ? `勾选后将立即删除当前资料库中该插件的全部数据，删除会同步到其他设备，且无法恢复。`
+                : `默认保留插件数据，重新安装后可继续使用；之后若不再需要，也可随时在插件页的<b>「已卸载插件的数据」</b>中按插件清除，不必重装。`
+              }
+            </div>
+          </div>
+          <div class="dialog-foot">
+            <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+            <button class="btn btn-danger" onclick="confirmUninstall()">卸载</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+}
+
+function closeModal() {
+  if (state.clearing) return;
+  state.modal = null;
+  render();
+}
+
+document.addEventListener("click", (e) => {
+  if (state.openMenu && !e.target.closest(".menu-wrap")) {
+    state.openMenu = null;
+    render();
+  }
+});
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    if (state.modal && !state.clearing) { closeModal(); return; }
+    if (state.openMenu) { state.openMenu = null; render(); return; }
+    if (state.specOpen) { toggleSpec(); return; }
+  }
+});
+
+render();
+</script>
+</body>
+</html>

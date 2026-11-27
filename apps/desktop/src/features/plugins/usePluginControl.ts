@@ -1,5 +1,6 @@
 import { usePluginI18n, type PluginMessageKey } from "./i18n";
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import type { DesktopPluginRuntime } from "@/app/plugins/runtime";
 import { cancelLocalPluginUpdate, restoreLocalPlugin } from "@/commands/plugin-local";
 import type { InstalledPlugin } from "./model";
@@ -7,6 +8,7 @@ import type { InstalledPlugin } from "./model";
 /** 单个插件的管理操作：按来源交给对应管理器，忙态与错误按插件就地展示。 */
 export function usePluginControl(runtime: DesktopPluginRuntime, plugin: InstalledPlugin) {
   const { t } = usePluginI18n();
+  const client = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<{ cause: unknown; key: PluginMessageKey } | null>(null);
   const id = plugin.info.id;
@@ -41,7 +43,10 @@ export function usePluginControl(runtime: DesktopPluginRuntime, plugin: Installe
     toggle: () =>
       run(() => (plugin.enabled ? manager.disable(id) : manager.enable(id)), "common.actionFailed"),
     uninstall: (purgeData: boolean) =>
-      run(async () => runtime.local?.uninstall(id, purgeData), "common.uninstallFailed"),
+      run(async () => {
+        await runtime.local?.uninstall(id, purgeData);
+        await client.invalidateQueries({ queryKey: ["plugins", "retained-data"] });
+      }, "common.uninstallFailed"),
     restorePrevious: () =>
       run(async () => {
         await restoreLocalPlugin(id);

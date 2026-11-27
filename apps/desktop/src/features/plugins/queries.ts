@@ -93,6 +93,43 @@ export function usePluginVersions(pluginId: string, enabled: boolean) {
   });
 }
 
+export const retainedPluginDataKey = (workspaceId: string | undefined) =>
+  ["plugins", "retained-data", workspaceId ?? ""] as const;
+
+/** 当前资料库及本机安全存储中留有数据的插件摘要；按工作区隔离缓存。 */
+export function useRetainedPluginData(runtime: DesktopPluginRuntime | null) {
+  const { t } = usePluginI18n();
+  const result = useQuery({
+    queryKey: retainedPluginDataKey(runtime?.workspaceId),
+    queryFn: () => (runtime ? runtime.listRetainedData() : Promise.resolve([])),
+    enabled: Boolean(runtime?.canManageRetainedData),
+    refetchOnWindowFocus: true,
+    retry: false,
+  });
+  return {
+    data: result.data ?? [],
+    loading: result.isPending && Boolean(runtime?.canManageRetainedData),
+    error:
+      result.error instanceof Error
+        ? result.error.message
+        : result.error
+          ? t("retained.loadFailed")
+          : "",
+    refresh: () => void result.refetch(),
+  };
+}
+
+export function usePurgeRetainedPluginData(runtime: DesktopPluginRuntime | null) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (pluginId: string) => {
+      if (!runtime) throw new Error("插件管理未就绪");
+      await runtime.purgeRetainedData(pluginId);
+    },
+    onSuccess: () => client.invalidateQueries({ queryKey: ["plugins", "retained-data"] }),
+  });
+}
+
 const INSTALL_RELEASE_KEY = ["plugins", "install-release"] as const;
 
 /**
@@ -108,7 +145,10 @@ export function useInstallRelease(runtime: DesktopPluginRuntime | null) {
       await runtime?.local?.refresh();
       return staged;
     },
-    onSettled: () => client.invalidateQueries({ queryKey: ["plugins", "catalog"] }),
+    onSettled: () => {
+      void client.invalidateQueries({ queryKey: ["plugins", "catalog"] });
+      void client.invalidateQueries({ queryKey: ["plugins", "retained-data"] });
+    },
   });
 }
 

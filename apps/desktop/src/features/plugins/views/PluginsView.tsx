@@ -7,12 +7,13 @@ import {
   usePluginI18n,
 } from "@/features/plugins/i18n";
 import { PLUGIN_DEVELOPER_DOCS_URL, PLUGIN_PORTAL_URL } from "@tau/plugins/center";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import {
   ArrowUpCircle,
   BookOpen,
   ChevronDown,
   CloudOff,
+  Database,
   Download,
   ExternalLink,
   FolderOpen,
@@ -40,13 +41,21 @@ import {
   matchesQuery,
   needsAttention,
   saveSkipInstallNotice,
+  uninstalledPluginData,
   useSkipInstallNotice,
   type InstalledPlugin,
 } from "../model";
-import { useInstallRelease, useInstallingReleases, usePluginCatalog } from "../queries";
+import {
+  useInstallRelease,
+  useInstallingReleases,
+  usePluginCatalog,
+  useRetainedPluginData,
+} from "../queries";
 import { usePluginControl } from "../usePluginControl";
 import { PluginIcon } from "../components/PluginIcon";
 import { CategoryTags } from "../components/CategoryTag";
+import { RetainedPluginDataSection } from "../components/RetainedPluginDataSection";
+import type { RetainedPluginData } from "@/types/plugin-retained-data";
 import {
   InstallButton,
   MoreButton,
@@ -78,7 +87,57 @@ export function PluginsView() {
   const [category, setCategory] = useState<PluginCategory | null>(null);
   const skipInstallNotice = useSkipInstallNotice();
   const catalog = usePluginCatalog("", tab === "discover" ? sort : "updated");
+  const retainedQuery = useRetainedPluginData(runtime);
   const installed = runtime ? installedPlugins(runtime) : [];
+  const retained = runtime ? uninstalledPluginData(runtime, retainedQuery.data) : [];
+  const [retainedOpen, setRetainedOpen] = useState(false);
+  const [retainedHighlighted, setRetainedHighlighted] = useState(false);
+  const retainedRef = useRef<HTMLElement | null>(null);
+  const highlightTimer = useRef<number | null>(null);
+  const pendingScrollRetained = useRef(false);
+  const workspaceKey = runtime?.workspaceId;
+  const previousWorkspace = useRef(workspaceKey);
+
+  useEffect(() => {
+    if (previousWorkspace.current !== workspaceKey) {
+      previousWorkspace.current = workspaceKey;
+      setRetainedOpen(false);
+      setRetainedHighlighted(false);
+    }
+  }, [workspaceKey]);
+
+  useEffect(() => {
+    if (tab !== "installed" || !pendingScrollRetained.current) return;
+    pendingScrollRetained.current = false;
+    const frame = window.requestAnimationFrame(() => {
+      retainedRef.current?.scrollIntoView?.({ behavior: "smooth", block: "nearest" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [tab, retainedOpen]);
+
+  useEffect(
+    () => () => {
+      if (highlightTimer.current !== null) window.clearTimeout(highlightTimer.current);
+    },
+    []
+  );
+
+  const openRetainedData = () => {
+    setRetainedOpen(true);
+    setRetainedHighlighted(true);
+    pendingScrollRetained.current = true;
+    if (highlightTimer.current !== null) window.clearTimeout(highlightTimer.current);
+    highlightTimer.current = window.setTimeout(() => setRetainedHighlighted(false), 1300);
+    if (tab !== "installed") {
+      navigator.push("plugins", { tab: "installed" });
+    } else {
+      window.requestAnimationFrame(() => {
+        pendingScrollRetained.current = false;
+        retainedRef.current?.scrollIntoView?.({ behavior: "smooth", block: "nearest" });
+      });
+    }
+  };
+
   const updates = (catalog.data?.items ?? []).flatMap(entry => {
     const plugin = installed.find(item => item.info.id === entry.pluginId);
     const state = installState(entry, plugin, plugin?.update);
@@ -135,6 +194,19 @@ export function PluginsView() {
               wrapperClassName="w-auto max-w-[240px] flex-[0_1_240px]"
             />
             <MoreButton label={t("center.more")}>
+              {runtime?.canManageRetainedData && (
+                <>
+                  <Menu.Item icon={<Database strokeWidth={1.75} />} onSelect={openRetainedData}>
+                    {t("retained.title")}
+                    {retained.length > 0 && (
+                      <span className="text-ink-3 ml-auto pl-4 tabular-nums">
+                        {retained.length}
+                      </span>
+                    )}
+                  </Menu.Item>
+                  <Menu.Separator />
+                </>
+              )}
               {runtime?.local && (
                 <>
                   {import.meta.env.DEV && (
@@ -237,7 +309,21 @@ export function PluginsView() {
               onClearCategory={() => setCategory(null)}
             />
           ) : tab === "installed" ? (
-            <Installed runtime={runtime} installed={installed} query={query} onOpen={openDetail} />
+            <Installed
+              runtime={runtime}
+              installed={installed}
+              retained={retained}
+              retainedLoading={retainedQuery.loading}
+              retainedError={retainedQuery.error}
+              onRetryRetained={retainedQuery.refresh}
+              retainedOpen={retainedOpen}
+              onRetainedOpenChange={setRetainedOpen}
+              retainedHighlighted={retainedHighlighted}
+              retainedRef={retainedRef}
+              catalog={catalog.data?.items ?? []}
+              query={query}
+              onOpen={openDetail}
+            />
           ) : (
             <Updates
               installed={installed}
@@ -471,11 +557,29 @@ function CardEnableSwitch({
 function Installed({
   runtime,
   installed,
+  retained,
+  retainedLoading,
+  retainedError,
+  onRetryRetained,
+  retainedOpen,
+  onRetainedOpenChange,
+  retainedHighlighted,
+  retainedRef,
+  catalog,
   query,
   onOpen,
 }: {
   runtime: DesktopPluginRuntime;
   installed: InstalledPlugin[];
+  retained: readonly RetainedPluginData[];
+  retainedLoading: boolean;
+  retainedError: string;
+  onRetryRetained: () => void;
+  retainedOpen: boolean;
+  onRetainedOpenChange: (open: boolean) => void;
+  retainedHighlighted: boolean;
+  retainedRef: RefObject<HTMLElement | null>;
+  catalog: readonly PluginCatalogEntry[];
   query: string;
   onOpen: (id: string) => void;
 }) {
@@ -515,6 +619,20 @@ function Installed({
           ))
         )}
       </Group>
+      <RetainedPluginDataSection
+        runtime={runtime}
+        items={retained}
+        catalog={catalog}
+        query={query}
+        loading={retainedLoading}
+        error={retainedError}
+        onRetry={onRetryRetained}
+        open={retainedOpen}
+        onOpenChange={onRetainedOpenChange}
+        highlighted={retainedHighlighted}
+        onOpenDetail={onOpen}
+        sectionRef={retainedRef}
+      />
       {runtime.local && (
         <p className="text-tau-meta text-ink-2 flex items-center gap-2 px-1">
           <FolderOpen className="text-ink-3 size-4" strokeWidth={1.75} />

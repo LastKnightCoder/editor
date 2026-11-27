@@ -1,4 +1,5 @@
 import { invoke } from "@/electron";
+import type { PluginWorkspaceDataSummary } from "@/types/plugin-retained-data";
 
 /** 插件私有存储命令；调用方经 bindDatabaseCommands 固定到插件宿主的数据库 */
 export const getPluginKv = (
@@ -22,3 +23,6 @@ export const deletePluginKv = (
 
 export const clearPluginKv = (databaseName: string, pluginId: string): Promise<number> =>
   invoke("plugin-kv:clear", { databaseName, pluginId });
+
+export const listPluginKvSummary = (databaseName: string): Promise<PluginWorkspaceDataSummary[]> =>
+  invoke("plugin-kv:summary", { databaseName });

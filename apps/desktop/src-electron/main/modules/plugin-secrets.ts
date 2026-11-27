@@ -66,5 +66,14 @@ export async function registerPluginSecrets() {
     checkSender(event);
     database().prepare("DELETE FROM secrets WHERE workspace=? AND plugin=?").run(workspace, plugin);
   });
+  ipcMain.handle("plugin-secrets:summary", (event, workspace: string) => {
+    checkSender(event);
+    const rows = database()
+      .prepare<[string], { plugin: string; count: number }>(
+        "SELECT plugin, COUNT(*) AS count FROM secrets WHERE workspace=? GROUP BY plugin"
+      )
+      .all(workspace);
+    return rows.map(row => ({ pluginId: row.plugin, count: row.count }));
+  });
   app.once("will-quit", () => store?.close());
 }

@@ -194,9 +194,9 @@ MCP 本机设置只接受带 `transport` 的当前服务器结构，不将旧 `b
 
 **类型外观**：类型名 + 图标存主库 `plugin_entity_kinds`（图标渲染成单个 SVG 文本，注销不删除，卸载时选择清理则一并删除）；显示一律经 `components/EntityKind` 的 `useEntityKindMeta`（`plugin-entities:owners` 同轮合并），列表用 `useEntityKindMetaResolver(refs)` 一次取齐，组件外用 `loadPluginEntityAppearances`；插件图标只作 CSS `mask-image` + currentColor。新增展示内容类型的地方必须经此解析，不得写死「插件内容」。
 
-**本机凭据**：`context.secrets` 复用插件激活作用域。主进程将 Electron safeStorage 加密的值存于 userData 下的独立 SQLite，按持久工作区 ID、插件 ID 与键取值。清除当前插件数据时同时删除本机凭据。
+- **本机凭据**：`context.secrets` 复用插件激活作用域。主进程将 Electron safeStorage 加密的值存于 userData 下的独立 SQLite，按持久工作区 ID、插件 ID 与键取值。清除当前插件数据时同时删除本机凭据；`plugin-secrets:summary` 只按工作区统计各插件凭据数量，不触发解密。
 
-**私有存储**：主库 `plugin_kv`（单值上限 1 MB）；启动不扫描或导入旧 localStorage 数据。卸载选择清理时删除当前资料库中该插件的私有数据。
+- **私有存储**：主库 `plugin_kv`（单值上限 1 MB）；启动不扫描或导入旧 localStorage 数据。卸载选择清理时删除当前资料库中该插件的私有数据；`plugin-kv:summary` 汇总 `plugin-kv:clear` 覆盖的全部主库表（实体与对应类型名、记录、私有存储及关联/授权/回执等内部状态），供插件管理页「已卸载插件的数据」筛选出未安装插件并按插件清除（复用同一清除链路，拒绝清理仍已安装的插件）。
 
 **业务事件**：BACKGROUND 模块 `domain-events` 在每个主库连接注册 `tau_domain_change` 与 TEMP 触发器（`rowTriggers` 规格表生成，覆盖 cards、articles（软删）、非引用型 project_item、white_boards、project、Notebook（资料增删计入）、材料三表、插件可见场景的 chat_session、plugin_entities（软删口径）、contents.content）。规格的 `changed` 列限定修改触发的列——查看状态类写入（打开时间、当前页、转换进度）不发事件；新增表须按对插件可见字段列出。按库合并 500ms（最长 2 秒）广播 `domain-events`；正文修改经 `locateAll` 计入所属实体 updated，日记正文在提交后另向全部窗口广播 `diary:changed`，不扩展插件公开事件；触发器在事务内将事实写入连接私有 TEMP 队列，回滚同步清理；队列在提交后短事务读取，正文归属也在提交后查询。事件不携带完整数据。渲染端 `app/plugins/events.ts` 按库过滤，`entity.*` 只交给 owner 插件，其余按类型与已获准权限串行投递。事件来源：同步写入经 `writeAsPlugin` 标记插件 ID，协作投影延迟落库按 `markContentOrigin` 登记 5 秒。 待办、持久日程及两类目录使用相同 `<对象>.created/updated/deleted`，ID 与 get 一致；动作由共享 data_change_log.action 捕获，后置补齐关联 updated/delete，历史行保持未知。data-change-events 表入口分页读取已提交日志，未知动作或保留断档发 workspace.reset；其他连接提交经水位轮询补获。每页有界让出执行，不退化为无 ID 通知。四域不提供精确 origin，保持 app。所有公开订阅只经过 context.events.on 的对象动作事件，资料库重置为例外。
 
@@ -209,7 +209,7 @@ MCP 本机设置只接受带 `transport` 的当前服务器结构，不将旧 `b
 - 兼容与升级：`readPluginPackage` 检查桌面清单的 minAppVersion 或统一目标清单的 targets.desktop 最低版本（0.58.0 起，固定目录扫描与安装共用）；plugin-local 初始化时恢复中断事务、应用暂存包再注册 IPC；安装/更新/恢复先暂存校验再同事务提交；提交后广播 `plugin-local:state-changed`，窗口重扫并串行切换实例。根目录 `~/.editor/plugins`，事务与备份在同级 plugin-updates；文件恢复不回退私有数据，激活失败尝试恢复旧内存快照。
 - 版本与文档：安装状态机与来源判定是 `features/plugins/model.ts` 纯函数；版本标签合并中心全部已发布版本（`plugin-local:versions` 翻页）与本机当前/待生效/备份。README/CHANGELOG 用 `PluginMarkdown`（只读 Editor，内容经 `toPluginDocument` 白名单过滤——原始 HTML 丢弃、图片音视频不加载、插件块按代码块、链接只留 http(s) 交系统浏览器）。Markdown 导入先按 `ignoreTypes` 递归过滤整棵语法树再转换（不为类型加特例）；资料转换用内置组合（`utils/markdown-composition.ts`），所有语言围栏统一展示源码，不调用插件导入函数、不维护节点黑名单。
 - 社区（C28）：详情 `community` 标签仅选中时读取（每页 20 条，写入后失效该插件查询）；IPC 归 plugin-local，复用安装级匿名凭证（渲染端只收 liked/canDelete 不收 token）；评论草稿在标签内存保存，失败重试不重复发表；网站与桌面身份独立，清数据后无法恢复旧身份管理权。
-- 固定目录发现：开发/正式构建均经 BACKGROUND 的 plugin-local 扫描 `PathUtil.getAppDir()/plugins` 直接子目录（目录名须等于 manifest.id，坏包单独显示不阻断好包）；插件页 ⋯ 菜单提供「从 ZIP 安装 / 打开插件目录 / 重新扫描」，无目录选择。`app/plugins/package-loader` 把静态元信息登记为延迟定义，启用才执行 CJS 入口；LocalPluginManager 复用此加载器与正式 PluginHost，本地插件偏好镜像为应用级键；启用意图由主进程写入（中心安装即启用，其余新包停用），重启/切库恢复；活动包变化先回收旧实例登记新定义再按原意图恢复；内容快照与 restart-required 身份不热替换。
+- 固定目录发现：开发/正式构建均经 BACKGROUND 的 plugin-local 扫描 `PathUtil.getAppDir()/plugins` 直接子目录（目录名须等于 manifest.id，坏包单独显示不阻断好包）；插件页 ⋯ 菜单提供「已卸载插件的数据 / 从 ZIP 安装（开发态）/ 打开插件目录 / 重新扫描」，无目录选择；「已卸载插件的数据」在「已安装」分组下方默认折叠为单行入口，展开后按插件列出当前资料库及本机凭据的留存概况并支持确认后逐个清除。`app/plugins/package-loader` 把静态元信息登记为延迟定义，启用才执行 CJS 入口；LocalPluginManager 复用此加载器与正式 PluginHost，本地插件偏好镜像为应用级键；启用意图由主进程写入（中心安装即启用，其余新包停用），重启/切库恢复；活动包变化先回收旧实例登记新定义再按原意图恢复；内容快照与 restart-required 身份不热替换。
 - **生命周期与异常**：激活等待最多 10 秒；停用立即取消 signal，未决激活最多再等 5 秒；deactivate 与逆序清理共用 5 秒预算，超时继续剩余清理；普通失败且清理成功可重试，激活超时或清理失败进 restart-required（管理页显示重启提示并禁用启用）。DesktopPluginProvider 在窗口内保存需重启的插件 ID，等旧宿主有界收尾后才建新宿主（注销/切库不能绕过，不落盘）；超时只能结束等待，不能抢占同步死循环。
 - **本机工作区身份**：`services/plugin-registry.ts` 在 userData 按本机规范化库名分配 UUID（串行暂存写再 rename，只存 name 与 id），plugin-local 与 plugin-backend 共用；这是本机槽位身份不是同步身份——同步替换/重建同名库沿用。PluginProvider 直接按稳定工作区身份初始化，私有存储连接当前库。
 

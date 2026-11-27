@@ -600,3 +600,91 @@ it("换语保留搜索与安装确认，安装目标和风险选择不变且只�
     await act(async () => desktopLocaleSource.setLocale(original));
   }
 });
+
+it("已卸载插件的数据入口只列未安装插件，确认后可按插件清除且拒绝清除已安装插件", async () => {
+  let retained = [
+    {
+      pluginId: ID,
+      entities: 2,
+      entityKinds: ["问题"],
+      records: 5,
+      kv: 3,
+      other: 0,
+      secrets: 1,
+      updatedAt: Date.UTC(2026, 10, 12),
+    },
+    {
+      pluginId: "local.unlisted",
+      entities: 0,
+      entityKinds: [],
+      records: 0,
+      kv: 2,
+      other: 0,
+      secrets: 0,
+      updatedAt: Date.UTC(2026, 10, 1),
+    },
+  ];
+  const purge = vi.fn(async (pluginId: string) => {
+    retained = retained.filter(item => item.pluginId !== pluginId);
+  });
+  scan = {
+    directory: "/test/plugins",
+    entries: [{ id: ID, directory: "/x", artifact: artifact(), source: center }],
+    updates: [],
+  };
+  await act(async () => {
+    root.unmount();
+    await runtime.dispose();
+  });
+  runtime = new DesktopPluginRuntime({
+    workspaceId: "ws-1",
+    workspaceName: "data.db",
+    storage: createBrowserStorage(localStorage),
+    plugins: [],
+    navigator: { push: (...args) => navigator?.push(...args) },
+    listRetainedData: async () => structuredClone(retained),
+    purgeStorage: purge,
+  });
+  runtime.attachLocal(localStorage);
+  await runtime.local?.refresh();
+  await expect(runtime.purgeRetainedData(ID)).rejects.toThrow("请先卸载插件");
+
+  root = createRoot(container);
+  client = new QueryClient();
+  await act(async () =>
+    root.render(
+      <StrictMode>
+        <QueryClientProvider client={client}>
+          <PageProvider initialKey="plugins">
+            <PluginRuntimeContext.Provider value={runtime}>
+              <Host />
+            </PluginRuntimeContext.Provider>
+          </PageProvider>
+        </QueryClientProvider>
+      </StrictMode>
+    )
+  );
+  await settle();
+
+  // 从发现页经 ⋯ 菜单直达「已卸载插件的数据」，自动切到「已安装」并展开
+  await click("更多插件操作");
+  const entry = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].find(item =>
+    item.textContent?.includes("已卸载插件的数据")
+  );
+  expect(entry).toBeDefined();
+  await act(async () => entry?.click());
+  await settle();
+
+  // 已安装的 test.center 被过滤掉，只展示未安装的 local.unlisted
+  const toggle = page().querySelector<HTMLButtonElement>('button[aria-expanded="true"]');
+  expect(toggle).not.toBeNull();
+  expect(page().textContent).toContain("local.unlisted");
+  expect(page().textContent).toContain("2 项设置");
+
+  await click("清除…");
+  expect(dialog().textContent).toContain("清除「local.unlisted」的数据？");
+  expect(dialog().textContent).toContain("data.db · local.unlisted");
+  await click("清除数据", dialog());
+  expect(purge).toHaveBeenCalledExactlyOnceWith("local.unlisted");
+  expect(page().textContent).toContain("当前资料库没有已卸载插件遗留的数据");
+});

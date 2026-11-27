@@ -17,9 +17,20 @@ import { createDesktopRecords } from "./records";
 import { createDesktopLinks } from "./links";
 import { createDesktopTransaction } from "./transaction";
 import { createDatabaseStorage } from "./kv-storage";
-import { desktopPluginSecrets, clearPluginSecrets } from "@/commands/plugin-secrets";
-import { clearPluginKv } from "@/commands/plugin-kv";
+import {
+  desktopPluginSecrets,
+  clearPluginSecrets,
+  listPluginSecretsSummary,
+} from "@/commands/plugin-secrets";
+import { clearPluginKv, listPluginKvSummary } from "@/commands/plugin-kv";
 import { grantPluginRefs } from "@/commands/plugin-data";
+import { bindDatabaseCommands } from "@/services/command-context";
+import { invalidatePluginEntityAppearance } from "@/services/plugin-entity-kinds";
+import type {
+  PluginSecretCount,
+  PluginWorkspaceDataSummary,
+  RetainedPluginData,
+} from "@/types/plugin-retained-data";
 import { DesktopPermissionBroker } from "./permissions";
 import { createDesktopFlashcards } from "./flashcards";
 import { desktopPluginServices } from "./services";
@@ -38,6 +49,41 @@ import { connectPluginWindowEnvironment } from "./windows";
 
 const restartRequired = new Set<string>();
 let pendingCleanup: Promise<void> = Promise.resolve();
+
+function mergeRetainedData(
+  workspace: readonly PluginWorkspaceDataSummary[],
+  secrets: readonly PluginSecretCount[]
+): RetainedPluginData[] {
+  const byPlugin = new Map<string, RetainedPluginData>();
+  for (const item of workspace) {
+    byPlugin.set(item.pluginId, { ...item, secrets: 0 });
+  }
+  for (const secret of secrets) {
+    if (!secret.pluginId || secret.count <= 0) continue;
+    const existing = byPlugin.get(secret.pluginId);
+    if (existing) {
+      existing.secrets += secret.count;
+    } else {
+      byPlugin.set(secret.pluginId, {
+        pluginId: secret.pluginId,
+        entities: 0,
+        entityKinds: [],
+        records: 0,
+        kv: 0,
+        other: 0,
+        updatedAt: null,
+        secrets: secret.count,
+      });
+    }
+  }
+  return [...byPlugin.values()].sort((a, b) => {
+    if (a.updatedAt !== null && b.updatedAt !== null && a.updatedAt !== b.updatedAt)
+      return b.updatedAt - a.updatedAt;
+    if (a.updatedAt !== null) return -1;
+    if (b.updatedAt !== null) return 1;
+    return a.pluginId.localeCompare(b.pluginId);
+  });
+}
 
 export function DesktopPluginProvider({ children }: { children: ReactNode }) {
   useEffect(connectSyncRenderer, []);
@@ -84,6 +130,7 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
           : undefined;
         current = new DesktopPluginRuntime({
           workspaceId: persistentWorkspaceId,
+          workspaceName: workspaceId,
           environmentSource: desktopPluginEnvironment,
           navigator,
           storage: isElectron
@@ -110,9 +157,25 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
                 grantRefs: async (pluginId, refs) => {
                   await grantPluginRefs(workspaceId, pluginId, refs);
                 },
+                listRetainedData: async () => {
+                  const bound = bindDatabaseCommands(
+                    { listPluginKvSummary },
+                    { databaseName: workspaceId }
+                  );
+                  const [workspaceData, secretCounts] = await Promise.all([
+                    bound.listPluginKvSummary(workspaceId),
+                    listPluginSecretsSummary(persistentWorkspaceId),
+                  ]);
+                  return mergeRetainedData(workspaceData, secretCounts);
+                },
                 purgeStorage: async (pluginId: string) => {
+                  const bound = bindDatabaseCommands(
+                    { clearPluginKv },
+                    { databaseName: workspaceId }
+                  );
                   await clearPluginSecrets(persistentWorkspaceId, pluginId);
-                  await clearPluginKv(workspaceId, pluginId);
+                  await bound.clearPluginKv(workspaceId, pluginId);
+                  invalidatePluginEntityAppearance();
                 },
               }
             : {}),

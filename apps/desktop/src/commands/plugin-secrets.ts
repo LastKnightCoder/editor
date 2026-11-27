@@ -1,6 +1,7 @@
 import type { PluginSecrets } from "@tau/plugins";
 import type { StorageScope } from "@tau/plugins/host";
 import { invoke } from "@/electron";
+import type { PluginSecretCount } from "@/types/plugin-retained-data";
 import { withModule } from "./module-init";
 
 export function desktopPluginSecrets({
@@ -22,3 +23,8 @@ export function desktopPluginSecrets({
 
 export const clearPluginSecrets = (workspaceId: string, pluginId: string) =>
   withModule("plugin-secrets", () => invoke<void>("plugin-secrets:clear", workspaceId, pluginId));
+
+export const listPluginSecretsSummary = (workspaceId: string) =>
+  withModule("plugin-secrets", () =>
+    invoke<PluginSecretCount[]>("plugin-secrets:summary", workspaceId)
+  );

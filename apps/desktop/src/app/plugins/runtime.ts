@@ -74,6 +74,7 @@ import {
 } from "@/commands/plugin-local";
 import type { DesktopPermissionBroker } from "./permissions";
 import type { DesktopDataAdapter } from "./data";
+import type { RetainedPluginData } from "@/types/plugin-retained-data";
 
 export const PLUGIN_PAGE_KEY = "plugin-page";
 export const PLUGIN_WORKBENCH_KEY = "plugin-workbench";
@@ -200,6 +201,8 @@ export class DesktopPluginRuntime {
   constructor(
     private readonly options: {
       workspaceId: string;
+      /** 当前资料库展示名称（如 data.db），缺省回退 workspaceId */
+      workspaceName?: string;
       environmentSource?: PluginEnvironmentSource;
       storage: StorageAdapter;
       secrets?: (scope: StorageScope) => PluginContext["secrets"];
@@ -225,6 +228,8 @@ export class DesktopPluginRuntime {
       transaction?: TransactionAdapter;
       /** 用户对某个对象运行插件动作时，把它登记为插件选择过的引用（同 pick） */
       grantRefs?: (pluginId: string, refs: PluginEntityRef[]) => Promise<void>;
+      /** 汇总当前资料库及本机凭据中留有数据的插件 */
+      listRetainedData?: () => Promise<RetainedPluginData[]>;
       /** 卸载并清除数据时删除插件在当前库的私有存储 */
       purgeStorage?: (pluginId: string) => Promise<void>;
       restartRequired?: Set<string>;
@@ -338,6 +343,36 @@ export class DesktopPluginRuntime {
   }
 
   getRevision = () => this.revision;
+  get workspaceId(): string {
+    return this.options.workspaceId;
+  }
+  get workspaceName(): string {
+    return this.options.workspaceName ?? this.options.workspaceId;
+  }
+  /** 当前宿主是否支持查看和清除已卸载插件的留存数据 */
+  get canManageRetainedData(): boolean {
+    return Boolean(this.options.listRetainedData && this.options.purgeStorage);
+  }
+  /** 读取当前资料库及本机安全存储中留有数据的插件摘要 */
+  listRetainedData(): Promise<RetainedPluginData[]> {
+    if (this.disposed || !this.options.listRetainedData) return Promise.resolve([]);
+    return this.options.listRetainedData();
+  }
+  /** 清除已卸载插件在当前资料库及本机安全存储中的留存数据；仍在安装列表中的插件拒绝清理 */
+  async purgeRetainedData(pluginId: string): Promise<void> {
+    if (this.disposed) throw new Error("插件运行时已关闭");
+    if (!this.options.purgeStorage) throw new Error("当前环境不支持清除插件数据");
+    if (this.hasInstalledPackage(pluginId)) throw new Error("请先卸载插件，再清除其数据");
+    await this.options.purgeStorage(pluginId);
+  }
+  private hasInstalledPackage(pluginId: string): boolean {
+    return (
+      this.host.listPlugins().some(plugin => plugin.id === pluginId) ||
+      Boolean(this.local?.owns(pluginId)) ||
+      Boolean(this.local?.issues.some(issue => issue.id === pluginId)) ||
+      Boolean(this.local?.updates.some(update => update.id === pluginId))
+    );
+  }
   /** 插件详情页的权限分区与授权弹窗共用 */
   get permissions(): DesktopPermissionBroker | undefined {
     return this.options.permissions;

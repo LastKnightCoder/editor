@@ -5,6 +5,7 @@ import { PLUGIN_CATEGORIES } from "@tau/plugins/package";
 import type { DesktopPluginRuntime } from "@/app/plugins/runtime";
 import type { LocalPluginUpdate } from "@/types/plugin-local";
 import type { PluginCatalogEntry, PluginVersionRecord } from "@/types/plugin-center";
+import type { RetainedPluginData } from "@/types/plugin-retained-data";
 
 /** 发现页分类菜单：只列有插件的分类，顺序同词表；客户端不认识的分类已在类型层被忽略。 */
 export function catalogCategories(entries: readonly PluginCatalogEntry[]) {
@@ -219,4 +220,21 @@ export function versionRows(
 export function matchesQuery(text: readonly (string | undefined)[], query: string) {
   const q = query.trim().toLowerCase();
   return !q || text.some(value => value?.toLowerCase().includes(q));
+}
+
+/** 从当前库留存数据中过滤掉仍在安装、暂存或有扫描问题的插件，只保留已卸载插件的数据 */
+export function uninstalledPluginData(
+  runtime: DesktopPluginRuntime,
+  summaries: readonly RetainedPluginData[]
+): RetainedPluginData[] {
+  const present = new Set<string>([
+    ...installedPlugins(runtime).map(item => item.info.id),
+    ...(runtime.local?.issues.map(item => item.id) ?? []),
+    ...(runtime.local?.updates.map(item => item.id) ?? []),
+  ]);
+  return summaries.filter(
+    item =>
+      !present.has(item.pluginId) &&
+      item.entities + item.records + item.kv + item.other + item.secrets > 0
+  );
 }
