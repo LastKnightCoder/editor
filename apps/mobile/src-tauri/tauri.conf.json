@@ -1,12 +1,12 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Tau",
-  "version": "0.5.2",
+  "version": "0.6.0",
   "identifier": "com.txiong.tau-mobile",
   "build": {
-    "beforeDevCommand": "pnpm dev",
+    "beforeDevCommand": "pnpm run prepare:tauri:cache && pnpm dev",
     "devUrl": "http://localhost:2420",
-    "beforeBuildCommand": "pnpm build",
+    "beforeBuildCommand": "pnpm run prepare:tauri:cache && pnpm build",
     "frontendDist": "../dist"
   },
   "app": {

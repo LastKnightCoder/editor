@@ -1,7 +1,7 @@
 {
   "name": "mobile",
   "private": true,
-  "version": "0.5.2",
+  "version": "0.6.0",
   "type": "module",
   "scripts": {
     "predev": "pnpm -w db:schema:prepare",
@@ -12,7 +12,7 @@
     "build": "tsc && vite build",
     "test": "vitest run --config vitest.config.ts",
     "validate:ai": "vitest run --config validation/ai/vitest.config.ts && node validation/ai/check-browser.mjs && node validation/ai/check-browser.mjs --vite",
-    "check:rust": "cargo fmt --check --manifest-path src-tauri/Cargo.toml && cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -A clippy::all -D warnings && cargo test --manifest-path src-tauri/Cargo.toml --lib",
+    "check:rust": "pnpm run prepare:tauri:cache && cargo fmt --check --manifest-path src-tauri/Cargo.toml && cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -A clippy::all -D warnings && cargo test --manifest-path src-tauri/Cargo.toml --lib",
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:android": "tauri android",
@@ -33,7 +33,8 @@
     "dev:android": "pnpm run sync:android:app-name && pnpm run prepare:android:signing && tauri android dev",
     "icon:regen": "pnpm run icon:prepare:android-fg && tauri icon src-tauri/icon-manifest.json && node ./scripts/collect-ios-icons.mjs",
     "ios:install": "node ./scripts/ios-release-install.mjs",
-    "apk": "bash ./scripts/android-release-install.sh"
+    "apk": "bash ./scripts/android-release-install.sh",
+    "prepare:tauri:cache": "node ./scripts/prepare-tauri-cache.mjs"
   },
   "dependencies": {
     "@babel/parser": "7.29.7",
