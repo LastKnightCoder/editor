@@ -2,7 +2,7 @@
  * 聊天引用的悬停预览卡：这一轮的提问 + 回答。摘录块的预览把摘录原文在回答里高亮出来。
  */
 
-import { memo, type ReactNode } from "react";
+import { memo, useState, type ReactNode } from "react";
 import {
   GitBranch,
   Link2,
@@ -10,6 +10,7 @@ import {
   Maximize2,
   MessageSquareQuote,
   PanelRightOpen,
+  Pencil,
   Unlink,
 } from "lucide-react";
 import { AnchoredPanel, Button, IconButton, PanelHasHeaderContext, Spinner, cn } from "@tau/ui";
@@ -20,6 +21,7 @@ import useTheme from "@/hooks/useTheme";
 import { formatAgo } from "@/utils/formatAgo";
 import { chatRefFailureText, useChatRefI18n } from "../i18n";
 import type { ChatRefTarget } from "../queries";
+import { RenameInput } from "./RenameInput";
 
 export interface ChatRefPreviewProps {
   title: string;
@@ -37,6 +39,12 @@ export interface ChatRefPreviewProps {
   onCopyLink: () => void;
   /** 仅可编辑时提供：失效引用就地移除 */
   onRemove?: () => void;
+  /** 用户起的显示名；有它时标题显示它，下面小字给出对话原名 */
+  label?: string;
+  /** 仅可编辑的行内引用提供：传空串表示恢复为跟随对话名 */
+  onRename?: (label: string) => void;
+  /** 改名期间通知外层：卡片别因鼠标移出收起 */
+  onEditingChange?: (editing: boolean) => void;
 }
 
 const Header = ({
@@ -47,14 +55,14 @@ const Header = ({
 }: {
   icon: typeof MessageSquareQuote;
   tone: string;
-  title: string;
+  title: ReactNode;
   meta: ReactNode;
 }) => (
   <div className="flex items-center gap-2.5 px-4 pt-3.5 pb-1">
     <span className={cn("rounded-tau-sm grid size-7 shrink-0 place-items-center", tone)}>
       <Icon className="size-[15px]" strokeWidth={1.75} />
     </span>
-    <div className="min-w-0">
+    <div className="min-w-0 flex-1">
       <div className="text-tau-title text-ink-1 truncate leading-tight font-semibold">{title}</div>
       <div className="text-tau-micro text-ink-3 mt-0.5 truncate">{meta}</div>
     </div>
@@ -65,12 +73,26 @@ export const ChatRefPreview = memo((props: ChatRefPreviewProps) => {
   const { t, locale } = useChatRefI18n();
   const { title, target, error, wholeSession, unshared, quote } = props;
   const { isDark } = useTheme();
-  const markdownComponents = useChatMarkdownComponents({ isDark, idPrefix: "chat-ref-block" });
+  const markdownComponents = useChatMarkdownComponents({
+    isDark,
+    idPrefix: "chat-ref-block",
+  });
   const name = target?.session.title || title || t("untitled");
+  const label = props.label?.trim() || "";
+  const [editing, setEditing] = useState(false);
+  const setEditingState = (next: boolean) => {
+    setEditing(next);
+    props.onEditingChange?.(next);
+  };
 
   if (unshared)
     return (
-      <Header icon={Lock} tone="bg-warn-soft text-warn" title={name} meta={t("preview.unshared")} />
+      <Header
+        icon={Lock}
+        tone="bg-warn-soft text-warn"
+        title={props.label?.trim() || name}
+        meta={t("preview.unshared")}
+      />
     );
 
   if (error)
@@ -112,21 +134,77 @@ export const ChatRefPreview = memo((props: ChatRefPreviewProps) => {
 
   const turn = target.turn;
   const meta = turn
-    ? t("turn.position", { turn: turn.turn, turns: turn.turns, time: formatAgo(turn.time, locale) })
+    ? t("turn.position", {
+        turn: turn.turn,
+        turns: turn.turns,
+        time: formatAgo(turn.time, locale),
+      })
     : t("session.turns", {
         count: target.session.messageCount,
         time: formatAgo(target.session.updateTime, locale),
       });
+
+  const rename = props.onRename;
+  const headerTitle =
+    editing && rename ? (
+      <RenameInput
+        initial={label || name}
+        ariaLabel={t("rename.label")}
+        className="text-tau-title -my-1 h-7 w-full font-semibold"
+        onCommit={value => {
+          setEditingState(false);
+          const next = value.trim();
+          rename(next === name ? "" : next);
+        }}
+        onCancel={() => setEditingState(false)}
+      />
+    ) : rename ? (
+      <button
+        type="button"
+        title={t("rename.action")}
+        className="group/title hover:bg-hover rounded-tau-sm -mx-1 flex max-w-full items-center gap-1.5 px-1 text-left"
+        onClick={() => setEditingState(true)}
+      >
+        <span className="truncate">{label || name}</span>
+        <Pencil
+          aria-hidden
+          className="text-ink-3 size-3 shrink-0 opacity-0 transition-opacity group-hover/title:opacity-100"
+          strokeWidth={1.75}
+        />
+      </button>
+    ) : (
+      label || name
+    );
+  const headerMeta =
+    label && !editing ? (
+      <>
+        {t("rename.original", { title: name })}
+        {rename && (
+          <button
+            type="button"
+            className="text-accent-text ml-1.5 hover:underline"
+            onClick={() => rename("")}
+          >
+            {t("rename.reset")}
+          </button>
+        )}
+        <span> · {meta}</span>
+      </>
+    ) : editing ? (
+      t("rename.hint")
+    ) : (
+      meta
+    );
 
   return (
     <PanelHasHeaderContext.Provider value>
       <Header
         icon={MessageSquareQuote}
         tone="bg-accent-soft text-accent-text"
-        title={name}
-        meta={meta}
+        title={headerTitle}
+        meta={headerMeta}
       />
-      {turn && (
+      {turn && !editing && (
         <AnchoredPanel.Body className="text-tau-body-lg text-ink-1 max-h-[260px] leading-relaxed [overflow-wrap:anywhere]">
           <MarkdownProvider isDark={isDark} isVisible>
             {turn.ask.trim() && (

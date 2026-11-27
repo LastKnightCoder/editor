@@ -43,6 +43,7 @@ export const markdownCustomDirectives: Record<
       sessionId: attributes.session || "",
       ...(attributes.entry ? { entryId: attributes.entry } : {}),
       title: attributes.title || "",
+      ...(attributes.label ? { label: attributes.label } : {}),
       ...(turn > 0 ? { turn } : {}),
       children: [{ type: "formatted", text: "" }],
     } as unknown as Descendant;

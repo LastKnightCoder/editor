@@ -30,5 +30,11 @@
   "quote.selection": "Quote selected text",
   "quote.insert": "Insert as excerpt block",
   "copy.fallback": "Reference link copied. You can paste it into a document.",
-  "paste.moved": "The insertion position has changed. Try again."
+  "paste.moved": "The insertion position has changed. Try again.",
+  "rename.action": "Rename",
+  "rename.label": "Reference name",
+  "rename.original": "Conversation: {title}",
+  "rename.reset": "Reset",
+  "rename.hint": "↵ Save · Esc Cancel · Clear to use the conversation title",
+  "rename.inlineHint": "↵ Rename"
 }

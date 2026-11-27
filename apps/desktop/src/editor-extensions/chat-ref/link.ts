@@ -30,8 +30,8 @@ export function parseChatRefUrl(
   }
 }
 
-export const chatRefLabel = (ref: Pick<ChatRefPayload, "title" | "turn">) =>
-  `${ref.title || "无标题对话"}${ref.turn ? ` · 第 ${ref.turn} 轮` : ""}`;
+export const chatRefLabel = (ref: Pick<ChatRefPayload, "title" | "turn"> & { label?: string }) =>
+  `${ref.label || ref.title || "无标题对话"}${ref.turn ? ` · 第 ${ref.turn} 轮` : ""}`;
 
 /** 复制引用链接：纯文本是链接（粘回正文即成引用），富文本是带标题的链接（贴到外部应用可读） */
 export async function copyChatRefLink(ref: ChatRefPayload): Promise<void> {

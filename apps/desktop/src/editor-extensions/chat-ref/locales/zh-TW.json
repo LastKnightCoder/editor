@@ -30,5 +30,11 @@
   "quote.selection": "摘錄選取的文字",
   "quote.insert": "插入為摘錄區塊",
   "copy.fallback": "已複製引用連結，可貼至內文",
-  "paste.moved": "貼上位置已變更，請重試"
+  "paste.moved": "貼上位置已變更，請重試",
+  "rename.action": "重新命名",
+  "rename.label": "引用名稱",
+  "rename.original": "對話：{title}",
+  "rename.reset": "恢復",
+  "rename.hint": "↵ 儲存 · Esc 取消 · 清空恢復為對話名",
+  "rename.inlineHint": "↵ 重新命名"
 }

@@ -96,6 +96,7 @@ const PAGES = [
   ["index.html", "设计稿"],
   ["insert.html", "插入引用"],
   ["read.html", "阅读与跳转"],
+  ["rename.html", "自定义名称"],
 ];
 export function mockBar(current, scenes, render) {
   const bar = document.createElement("div");

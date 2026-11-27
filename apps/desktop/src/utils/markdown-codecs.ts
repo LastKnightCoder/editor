@@ -37,7 +37,7 @@ const quoteAttr = (value: string) =>
   value.replace(/&/g, "&amp;").replace(/\\/g, "&#92;").replace(/"/g, "&quot;");
 const escapeBrackets = (value: string) => value.replace(/([\\[\]])/g, "\\$1");
 const chatRefLabel = (element: Record<string, unknown>) =>
-  `${String(element.title || "无标题对话")}${element.turn ? ` · 第 ${element.turn} 轮` : ""}`;
+  `${String(element.label || element.title || "无标题对话")}${element.turn ? ` · 第 ${element.turn} 轮` : ""}`;
 
 // 行内聊天引用：标签是出处文字，属性带定位；导入经 markdown-directives 的 chat-ref 还原
 const chatRefSerializer: Serializer = {
@@ -45,6 +45,7 @@ const chatRefSerializer: Serializer = {
     const attributes = [`session="${quoteAttr(String(element.sessionId ?? ""))}"`];
     if (element.entryId) attributes.push(`entry="${quoteAttr(String(element.entryId))}"`);
     if (element.title) attributes.push(`title="${quoteAttr(String(element.title))}"`);
+    if (element.label) attributes.push(`label="${quoteAttr(String(element.label))}"`);
     if (element.turn) attributes.push(`turn=${element.turn}`);
     return `:chat-ref[${escapeBrackets(chatRefLabel(element))}]{${attributes.join(" ")}}`;
   },

@@ -4,15 +4,18 @@ import { defineElement, defineExtension, type ElementRenderProps } from "@tau/ed
 /** 对话只在作者本机：行内引用显示为出处文字，摘录块显示原文与来源，都不可点 */
 interface ChatRefNode {
   title?: unknown;
+  label?: unknown;
   turn?: unknown;
   quoteText?: unknown;
   model?: unknown;
 }
 
+const nameOf = (node: ChatRefNode) =>
+  (typeof node.label === "string" && node.label) ||
+  (typeof node.title === "string" && node.title) ||
+  "AI 对话";
 const labelOf = (node: ChatRefNode) =>
-  `${typeof node.title === "string" && node.title ? node.title : "AI 对话"}${
-    typeof node.turn === "number" ? ` · 第 ${node.turn} 轮` : ""
-  }`;
+  `${nameOf(node)}${typeof node.turn === "number" ? ` · 第 ${node.turn} 轮` : ""}`;
 
 function ChatRef({ attributes, children, element }: ElementRenderProps) {
   return (

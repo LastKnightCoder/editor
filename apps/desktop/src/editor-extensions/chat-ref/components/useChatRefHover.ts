@@ -20,12 +20,15 @@ export function useChatRefHover(ref: {
   sessionId: string;
   entryId?: string;
   title: string;
+  label?: string;
   turn?: number;
 }) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const [open, setOpen] = useState(false);
   // 卡片内容只在打开期间挂载，收起动画结束后卸载
   const [mounted, setMounted] = useState(false);
+  // 卡片里正在改名：移出不收起
+  const [pinned, setPinned] = useState(false);
   const timerRef = useRef(0);
 
   const collaboration = useCollaboration();
@@ -36,11 +39,13 @@ export function useChatRefHover(ref: {
   const query = useChatRefTarget(ref.sessionId, ref.entryId, !unshared && mounted);
   const liveTitle = useChatTitle(unshared ? undefined : ref.sessionId);
   const title = unshared ? ref.title : liveTitle || query.data?.session.title || ref.title;
+  const label = ref.label?.trim() || "";
 
   useEffect(() => () => window.clearTimeout(timerRef.current), []);
 
   const schedule = (next: boolean, wait: number) => {
     window.clearTimeout(timerRef.current);
+    if (!next && pinned) return;
     timerRef.current = window.setTimeout(() => {
       setOpen(next);
       if (next) setMounted(true);
@@ -49,6 +54,7 @@ export function useChatRefHover(ref: {
   const cancel = () => window.clearTimeout(timerRef.current);
   const close = () => {
     cancel();
+    setPinned(false);
     setOpen(false);
   };
 
@@ -89,6 +95,8 @@ export function useChatRefHover(ref: {
 
   return {
     title,
+    label,
+    setPinned,
     unshared,
     missing,
     query,

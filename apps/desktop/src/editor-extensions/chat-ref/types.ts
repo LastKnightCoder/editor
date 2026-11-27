@@ -7,6 +7,8 @@ export interface ChatRefElement {
   /** 该轮用户消息的 pi entry id；缺省 = 整个对话 */
   entryId?: string;
   title: string;
+  /** 用户起的显示名；缺省时跟随对话标题 */
+  label?: string;
   turn?: number;
   children: FormattedText[];
 }
