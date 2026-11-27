@@ -9,10 +9,12 @@
     "./content-contracts": "./content-contracts.ts",
     "./content-contracts-node": "./content-contracts-node.ts",
     "./content-identities": "./content-identities.ts",
+    "./document-history-policy.json": "./document-history-policy.json",
     "./sync": "./sync.ts",
     "./sync-protocol": "./sync-protocol.ts",
     "./package.json": "./package.json",
     "./schema/*": "./schema/*",
+    "./src/history-archive/*.sql": "./src/history-archive/*.sql",
     "./src/*": "./src/*.ts",
     "./content-metrics": "./content-metrics.ts",
     "./data-versions": "./data-versions.ts"

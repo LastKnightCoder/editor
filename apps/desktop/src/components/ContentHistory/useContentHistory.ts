@@ -102,6 +102,7 @@ export function useContentHistory({
         kind,
         operationId: crypto.randomUUID(),
         sequence: detail.entry.sequence,
+        ...(detail.entry.versionKey && { versionKey: detail.entry.versionKey }),
       });
     },
     [apply, detail]

@@ -81,7 +81,7 @@ pub use pomodoro::*;
 pub use project::*;
 pub use reminders::*;
 pub use schema::ensure_database_file;
-pub(crate) use schema::install_download;
+pub(crate) use schema::{install_download, open_active_database};
 pub use sql_query::*;
 pub use todo::*;
 

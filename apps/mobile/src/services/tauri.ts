@@ -1094,8 +1094,11 @@ export function collabWriteCache(
       checkpoint?: string;
       kind?: "edit" | "undo" | "restore";
       target?: number;
+      targetVersion?: string;
+      targetOperationId?: string;
       /** 并入的最新记录操作 ID，配合合并后的完整增量 */
       mergeInto?: string;
+      strictGroup?: boolean;
       mergedState?: string;
     };
   },
@@ -1115,6 +1118,8 @@ export function collabLocalHistoryVersion(documentId: string, sequence: number) 
   return trackedInvoke<{
     entry: import("@tau/collaboration").DocumentHistoryEntry;
     updates: string[];
+    previousSequence: number | null;
+    versionKey: string;
     undone: boolean;
   }>("collab_local_history", { documentId, sequence });
 }

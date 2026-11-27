@@ -83,6 +83,7 @@ export function ContentHistorySheet({ api, onClose }: { api: HistoryApi; onClose
       operationId: crypto.randomUUID(),
       kind,
       sequence: detail.entry.sequence,
+      ...(detail.entry.versionKey && { versionKey: detail.entry.versionKey }),
       expectedRevision: kind === "restore" ? detail.headRevision : undefined,
     });
   };

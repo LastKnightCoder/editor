@@ -18,6 +18,19 @@ export function createLocalContentRuntime(
 
 let localRuntime: ContentSessionRuntime | undefined;
 
+export function withLocalHistoryStore(action: (store: CollaborationLocalStore) => void): void {
+  if (localRuntime) return action(localRuntime.store);
+  const store = new CollaborationLocalStore(
+    join(PathUtil.getAppDir(), "local-content"),
+    "content.db"
+  );
+  try {
+    action(store);
+  } finally {
+    store.db.close();
+  }
+}
+
 export function initLocalContent(): void {
   const appDirectory = PathUtil.getAppDir();
   const store = new CollaborationLocalStore(join(appDirectory, "local-content"), "content.db");
