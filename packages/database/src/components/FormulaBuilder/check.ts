@@ -13,6 +13,7 @@ import {
   type ValueType,
 } from "../../core/formula";
 import type { FormContext } from "./model";
+import type { DatabaseT } from "../../i18n";
 
 /** 构造器里的草稿：比表达式多一个「还没填」的空位 */
 export type Draft = Expr | { kind: "hole" };
@@ -38,16 +39,18 @@ export function formulaColumnsWith(
     : [...columns, candidate];
 }
 
-/** 保存前的完整检查：结构、类型、成环；footer 作用域顺带算出预览值 */
+/** 保存前的完整检查：结构、类型、成环；footer 作用域顺带算出预览值。自有文案经词典翻译，核心校验消息原样透传 */
 export function checkFormula(
   draft: Draft,
   scope: FormulaScope,
   columns: ColumnDef[],
   rows: RowData[],
   plugins: PluginManager,
-  selfColumnId?: string
+  selfColumnId?: string,
+  t?: DatabaseT
 ): FormulaCheck {
-  if (draft.kind === "hole") return { ok: false, message: "先选择要计算的内容" };
+  if (draft.kind === "hole")
+    return { ok: false, message: t ? t("formula.check.selectFirst") : "先选择要计算的内容" };
   const ctx = createFormulaContext(columns, plugins);
   if (scope === "footer") {
     // 公式只认内置算子，预览经内置登记表求值
@@ -70,7 +73,8 @@ export function checkFormula(
     const { cyclic } = orderFormulaColumns(
       formulaColumnsWith(columns, selfColumnId, draft, valid.value)
     );
-    if (cyclic.has(selfColumnId)) return { ok: false, message: "公式之间互相引用了" };
+    if (cyclic.has(selfColumnId))
+      return { ok: false, message: t ? t("formula.check.cyclic") : "公式之间互相引用了" };
   }
   return { ok: true, output: valid.value, footerText: "" };
 }

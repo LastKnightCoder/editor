@@ -5,6 +5,7 @@ import { RowData, ColumnDef, CellValue } from "../../types";
 import PluginManager from "../../PluginManager";
 import KanbanCard from "./KanbanCard";
 import AddCard from "./AddCard";
+import { useDatabaseI18n } from "../../i18n";
 
 interface KanbanColumnProps {
   groupValue: CellValue;
@@ -62,6 +63,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = memo(
   }) => {
     const ref = useRef<HTMLDivElement>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const { t } = useDatabaseI18n();
 
     const [{ isDragging }, drag] = useDrag({
       type: "kanban-column",
@@ -103,9 +105,9 @@ const KanbanColumn: React.FC<KanbanColumnProps> = memo(
 
     // 渲染列标题
     const renderHeader = () => {
-      // 对于"未分类"列，直接显示文字
+      // 对于"未分类"列，直接显示文字（分组值是数据，空桶标签经词典投影）
       if (groupValue === null || groupValue === undefined || groupValue === "") {
-        return <span className="text-ink-2">{groupLabel}</span>;
+        return <span className="text-ink-2">{t("kanban.uncategorized")}</span>;
       }
 
       // 对于有值的列，使用 SelectPlugin 的 Renderer

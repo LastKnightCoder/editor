@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@tau/db-schema": "workspace:*",
+    "@tau/i18n": "workspace:*",
     "@tau/shared": "workspace:*",
     "@tau/themes": "workspace:*",
     "@tau/ui": "workspace:*",

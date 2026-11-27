@@ -7,6 +7,7 @@ import { getViewOptions } from "./core/viewOptions";
 import { Button, Input, Radio, RadioGroup } from "@tau/ui";
 import { builtInViewRegistry } from "./views/builtInViewRegistry";
 import type { ViewRegistry } from "./views/ViewRegistry";
+import { useDatabaseI18n, viewTypeText } from "./i18n";
 
 interface ViewEditPanelProps {
   view: DatabaseView | null;
@@ -20,6 +21,7 @@ interface ViewEditPanelProps {
 
 const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
   ({ view, columns, pluginManager, viewRegistry = builtInViewRegistry, onConfirm, onClose }) => {
+    const { t } = useDatabaseI18n();
     const [name, setName] = useState("");
     const [viewType, setViewType] = useState<DatabaseViewType>("table");
     // 各视图类型的专属配置草稿互不干扰：切换类型再切回，未保存的编辑保留（同旧面板的分区状态）
@@ -91,11 +93,11 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
         <div className="min-h-0 space-y-4 overflow-y-auto pr-1">
           {/* Title */}
           <div className="flex flex-col gap-1.5">
-            <span className="text-tau-meta text-ink-2 font-medium">视图名称</span>
+            <span className="text-tau-meta text-ink-2 font-medium">{t("view.nameLabel")}</span>
             <Input
               value={name}
               onChange={e => setName(e.target.value)}
-              placeholder="请输入视图名称"
+              placeholder={t("view.namePlaceholder")}
               maxLength={50}
               data-autofocus
             />
@@ -103,13 +105,17 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
 
           {/* View Type */}
           <RadioGroup
-            label="视图类型"
+            label={t("view.typeLabel")}
             value={viewType}
             onValueChange={value => handleTypeChange(value as DatabaseViewType)}
             orientation="vertical"
           >
             {viewRegistry.list().map(definition => (
-              <Radio key={definition.type} value={definition.type} label={definition.name} />
+              <Radio
+                key={definition.type}
+                value={definition.type}
+                label={viewTypeText(t, definition.type, "name", definition.name)}
+              />
             ))}
           </RadioGroup>
 
@@ -130,10 +136,10 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
         {/* Footer */}
         <div className="flex shrink-0 gap-2">
           <Button variant="secondary" size="sm" block onClick={onClose}>
-            取消
+            {t("common.cancel")}
           </Button>
           <Button variant="primary" size="sm" block onClick={handleOk} disabled={!canSave}>
-            保存
+            {t("common.save")}
           </Button>
         </div>
       </div>

@@ -4,6 +4,7 @@ import { SELECT_COLORS } from "../../constants";
 import SelectList from "../../views/TableView/components/SelectList";
 import type { FieldConfigPanelProps, SelectOption } from "../../types";
 import { Input } from "@tau/ui";
+import { useDatabaseI18n } from "../../i18n";
 
 const labelClass = "text-tau-meta font-medium text-ink-2";
 
@@ -12,6 +13,7 @@ const OptionsConfigPanel: React.FC<FieldConfigPanelProps<{ options: SelectOption
   config,
   onChange,
 }) => {
+  const { t } = useDatabaseI18n();
   const [optionInput, setOptionInput] = useState("");
   const options = Array.isArray(config?.options) ? config.options : [];
 
@@ -38,7 +40,7 @@ const OptionsConfigPanel: React.FC<FieldConfigPanelProps<{ options: SelectOption
 
   return (
     <div className="flex flex-col gap-1.5">
-      <span className={labelClass}>选项</span>
+      <span className={labelClass}>{t("plugin.select.optionsLabel")}</span>
       <Input
         value={optionInput}
         onChange={e => {
@@ -51,7 +53,7 @@ const OptionsConfigPanel: React.FC<FieldConfigPanelProps<{ options: SelectOption
             setOptionInput("");
           }
         }}
-        placeholder="输入后按回车新增"
+        placeholder={t("plugin.select.optionPlaceholder")}
       />
       {options.length > 0 && (
         <div className="mt-1">

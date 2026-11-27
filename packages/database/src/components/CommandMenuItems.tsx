@@ -1,17 +1,21 @@
 import React from "react";
 import { Menu, toast } from "@tau/ui";
 import type { CommandContext, DatabaseCommandApi, DatabaseCommandDefinition } from "../commands";
+import { useDatabaseI18n, type DatabaseT } from "../i18n";
 
-const messageOf = (error: unknown, label: string) =>
-  `命令「${label}」执行失败：${error instanceof Error ? error.message : String(error)}`;
+const messageOf = (t: DatabaseT, error: unknown, label: string) =>
+  t("command.failed", {
+    label,
+    message: error instanceof Error ? error.message : String(error),
+  });
 
-function runCommand(definition: DatabaseCommandDefinition, ctx: CommandContext) {
+function runCommand(t: DatabaseT, definition: DatabaseCommandDefinition, ctx: CommandContext) {
   try {
     Promise.resolve(definition.run(ctx)).catch(error =>
-      toast.error(messageOf(error, definition.label))
+      toast.error(messageOf(t, error, definition.label))
     );
   } catch (error) {
-    toast.error(messageOf(error, definition.label));
+    toast.error(messageOf(t, error, definition.label));
   }
 }
 
@@ -21,18 +25,21 @@ const CommandMenuItems: React.FC<{
   api: DatabaseCommandApi;
   rowId?: string;
   columnId?: string;
-}> = ({ items, api, rowId, columnId }) => (
-  <>
-    {items.map(item => (
-      <Menu.Item
-        key={item.id}
-        danger={item.danger}
-        onSelect={() => runCommand(item, { api, rowId, columnId })}
-      >
-        {item.label}
-      </Menu.Item>
-    ))}
-  </>
-);
+}> = ({ items, api, rowId, columnId }) => {
+  const { t } = useDatabaseI18n();
+  return (
+    <>
+      {items.map(item => (
+        <Menu.Item
+          key={item.id}
+          danger={item.danger}
+          onSelect={() => runCommand(t, item, { api, rowId, columnId })}
+        >
+          {item.label}
+        </Menu.Item>
+      ))}
+    </>
+  );
+};
 
 export default CommandMenuItems;

@@ -12,6 +12,7 @@ import { Plus } from "lucide-react";
 import { Tooltip, ConfirmDialog } from "@tau/ui";
 import { builtInAggregateRegistry } from "../../core/formula";
 import type { DatabaseViewComponentProps } from "../types";
+import { useDatabaseI18n } from "../../i18n";
 
 type TableViewProps = DatabaseViewComponentProps;
 
@@ -36,6 +37,7 @@ const TableView: React.FC<TableViewProps> = memo(
     onRowDelete,
     config,
   }) => {
+    const { t } = useDatabaseI18n();
     const {
       selectedCell,
       editingCell,
@@ -176,11 +178,11 @@ const TableView: React.FC<TableViewProps> = memo(
     const sortCount = useDatabaseStore(state => state.viewConfig.sorts.length);
     // 排序/搜索/只读时投影禁用手动排序（canReorder），手柄需给出原因而非假装可拖
     const reorderDisabledReason = readonly
-      ? "只读模式下无法调整行顺序"
+      ? t("table.reorderDisabled.readonly")
       : searchActive
-        ? "搜索结果中无法手动调整行顺序"
+        ? t("table.reorderDisabled.search")
         : sortCount > 0
-          ? "已应用排序规则，无法手动调整行顺序"
+          ? t("table.reorderDisabled.sorted")
           : undefined;
 
     const flatItems = useMemo(() => {
@@ -274,7 +276,7 @@ const TableView: React.FC<TableViewProps> = memo(
           })}
           {allowAddColumn && (
             <div className="flex w-[40px] min-w-[40px] items-center justify-center">
-              <Tooltip content="新列">
+              <Tooltip content={t("table.newColumn")}>
                 <button
                   className="text-ink-3 hover:bg-hover hover:text-ink-1 grid h-6 w-6 cursor-pointer place-items-center rounded-full border-0"
                   onClick={handleAddColumn}
@@ -408,7 +410,7 @@ const TableView: React.FC<TableViewProps> = memo(
                 type="button"
               >
                 <Plus className="size-[14px]" strokeWidth={1.75} />
-                添加行
+                {t("table.addRow")}
               </button>
             </div>
           </div>
@@ -437,10 +439,10 @@ const TableView: React.FC<TableViewProps> = memo(
           onOpenChange={open => {
             if (!open) setConfirmDeleteRowId(null);
           }}
-          title="删除行"
-          impact="确定要删除该行吗？"
+          title={t("table.deleteRowTitle")}
+          impact={t("table.deleteRowImpact")}
           danger
-          confirmText="删除"
+          confirmText={t("common.delete")}
           onConfirm={() => {
             const rowId = confirmDeleteRowId;
             if (!rowId) return;

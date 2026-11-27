@@ -3,6 +3,7 @@ import { SELECT_COLORS } from "../../../constants";
 import { memo, useState } from "react";
 import { MoreHorizontal } from "lucide-react";
 import { ColorSwatch, Tag, Input, Menu } from "@tau/ui";
+import { useDatabaseI18n } from "../../../i18n";
 
 interface VerticalSelectListProps {
   options: SelectOption[];
@@ -15,6 +16,7 @@ interface VerticalSelectListProps {
 
 const VerticalSelectList = memo((props: VerticalSelectListProps) => {
   const { options, onSelect, onDelete, onEdit, onColorChange, className } = props;
+  const { t } = useDatabaseI18n();
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState<string>("");
@@ -80,7 +82,7 @@ const VerticalSelectList = memo((props: VerticalSelectListProps) => {
               trigger={
                 <button
                   type="button"
-                  title="选项操作"
+                  title={t("select.optionActions")}
                   className="text-ink-3 hover:bg-press hover:text-ink-1 grid size-[22px] shrink-0 place-items-center rounded-[7px] opacity-0 transition-opacity focus-visible:opacity-100 group-hover/vs:opacity-100"
                   onClick={e => e.stopPropagation()}
                 >
@@ -95,11 +97,11 @@ const VerticalSelectList = memo((props: VerticalSelectListProps) => {
                     setEditingValue(option.name);
                   }}
                 >
-                  编辑选项
+                  {t("select.editOption")}
                 </Menu.Item>
               )}
               {onColorChange && (
-                <Menu.Submenu label="修改颜色">
+                <Menu.Submenu label={t("select.changeColor")}>
                   <div className="p-2">
                     <ColorSwatch
                       value={option.color}
@@ -110,7 +112,7 @@ const VerticalSelectList = memo((props: VerticalSelectListProps) => {
               )}
               {onDelete && (
                 <Menu.Item danger onSelect={() => onDelete(option)}>
-                  删除
+                  {t("common.delete")}
                 </Menu.Item>
               )}
             </Menu>

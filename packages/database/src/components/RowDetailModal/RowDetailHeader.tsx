@@ -2,6 +2,7 @@ import { ChevronDown, ChevronRight, ChevronUp, Ellipsis, Table2, Trash2, X } fro
 import { IconButton, Menu, Tooltip } from "@tau/ui";
 import type { DatabaseViewType } from "../../types";
 import { useViewRegistry } from "../../views/ViewRegistryContext";
+import { useDatabaseI18n } from "../../i18n";
 
 interface RowDetailHeaderProps {
   viewName?: string;
@@ -32,6 +33,7 @@ const RowDetailHeader = ({
   onClose,
 }: RowDetailHeaderProps) => {
   const viewRegistry = useViewRegistry();
+  const { t } = useDatabaseI18n();
   const ViewIcon = (viewType && viewRegistry.get(viewType)?.icon) || Table2;
   return (
     <div className="flex h-[50px] shrink-0 items-center gap-0.5 pl-5 pr-3">
@@ -43,7 +45,9 @@ const RowDetailHeader = ({
             <ChevronRight className="size-3 shrink-0 opacity-70" strokeWidth={1.75} />
           </>
         )}
-        <span className="text-ink-2 max-w-[320px] truncate">{title || "未命名"}</span>
+        <span className="text-ink-2 max-w-[320px] truncate">
+          {title || t("common.unnamed")}
+        </span>
       </div>
       <span className="flex-1" />
       {index >= 0 && (
@@ -51,9 +55,9 @@ const RowDetailHeader = ({
           {index + 1} / {total}
         </span>
       )}
-      <Tooltip content="上一条（K）" disabled={!onPrev}>
+      <Tooltip content={t("row.prevHint")} disabled={!onPrev}>
         <IconButton
-          aria-label="上一条"
+          aria-label={t("row.prev")}
           disabled={!onPrev}
           onClick={onPrev}
           className={NAV_BUTTON_CLASS}
@@ -61,9 +65,9 @@ const RowDetailHeader = ({
           <ChevronUp className={NAV_ICON_CLASS} strokeWidth={1.75} />
         </IconButton>
       </Tooltip>
-      <Tooltip content="下一条（J）" disabled={!onNext}>
+      <Tooltip content={t("row.nextHint")} disabled={!onNext}>
         <IconButton
-          aria-label="下一条"
+          aria-label={t("row.next")}
           disabled={!onNext}
           onClick={onNext}
           className={NAV_BUTTON_CLASS}
@@ -76,7 +80,7 @@ const RowDetailHeader = ({
         <Menu
           align="end"
           trigger={
-            <IconButton aria-label="更多" className={NAV_BUTTON_CLASS}>
+            <IconButton aria-label={t("row.more")} className={NAV_BUTTON_CLASS}>
               <Ellipsis className={NAV_ICON_CLASS} strokeWidth={1.75} />
             </IconButton>
           }
@@ -86,11 +90,11 @@ const RowDetailHeader = ({
             icon={<Trash2 className="size-3.5" strokeWidth={1.75} />}
             onSelect={onDeleteRow}
           >
-            删除此行
+            {t("row.deleteThisRow")}
           </Menu.Item>
         </Menu>
       )}
-      <IconButton aria-label="关闭" onClick={onClose} className={NAV_BUTTON_CLASS}>
+      <IconButton aria-label={t("common.close")} onClick={onClose} className={NAV_BUTTON_CLASS}>
         <X className={NAV_ICON_CLASS} strokeWidth={1.75} />
       </IconButton>
     </div>

@@ -10,6 +10,7 @@ import { visibleCommands } from "../../../commands";
 import Cell from "./Cell";
 import PluginManager from "../../../PluginManager";
 import CommandMenuItems from "../../../components/CommandMenuItems";
+import { useDatabaseI18n } from "../../../i18n";
 
 const ROW_TYPE = "tableRow";
 
@@ -70,6 +71,7 @@ const Row: React.FC<RowProps> = memo(
   }) => {
     const ref = useRef<HTMLDivElement>(null);
     const handleRef = useRef<HTMLDivElement>(null);
+    const { t } = useDatabaseI18n();
 
     const [, drag, preview] = useDrag(
       () => ({
@@ -129,7 +131,7 @@ const Row: React.FC<RowProps> = memo(
       >
         <div
           ref={handleRef}
-          title={canDragRow ? "拖拽调整顺序" : reorderDisabledReason}
+          title={canDragRow ? t("table.dragToReorder") : reorderDisabledReason}
           className={classnames(
             "group/row border-line-2 relative box-border flex w-[50px] min-w-[50px] select-none flex-col items-center justify-center border-r",
             canDragRow ? "cursor-grab" : "cursor-default"
@@ -143,8 +145,8 @@ const Row: React.FC<RowProps> = memo(
                   type="button"
                   title={
                     canDragRow
-                      ? "拖拽调整顺序，点击打开行操作"
-                      : (reorderDisabledReason ?? "行操作")
+                      ? t("table.dragToReorderMenu")
+                      : (reorderDisabledReason ?? t("table.rowActions"))
                   }
                   className="text-ink-3 hover:text-ink-1 grid size-[18px] cursor-pointer place-items-center rounded-[5px] opacity-0 transition-opacity focus-visible:opacity-100 group-hover/row:opacity-100"
                 >
@@ -159,7 +161,7 @@ const Row: React.FC<RowProps> = memo(
                 </>
               )}
               <Menu.Item danger onSelect={() => deleteRow(row.id)}>
-                删除
+                {t("common.delete")}
               </Menu.Item>
             </Menu>
             <span>{rowIndex}</span>

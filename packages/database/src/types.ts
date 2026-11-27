@@ -1,4 +1,5 @@
 import type React from "react";
+import type { DatabaseT } from "./i18n";
 import type {
   ColumnDef as SharedColumnDef,
   CellValue as SharedCellValue,
@@ -204,6 +205,8 @@ export interface FieldConfigValidationContext {
   columns: ColumnDef[];
   rows: RowData[];
   pluginManager: PluginManager;
+  /** 包内词典翻译函数；内置面板用它本地化校验文案，缺省时返回中文兜底 */
+  t?: DatabaseT;
 }
 
 /** 列配置编辑面板组件：可带 dialogWidth 静态属性声明弹窗宽度 */

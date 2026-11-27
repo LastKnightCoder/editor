@@ -10,11 +10,13 @@ import { cn, ConfirmDialog } from "@tau/ui";
 import { v4 as uuidv4 } from "uuid";
 import { resolveKanbanCardDisplay, createCardFieldPredicate } from "./cardDisplayConfig";
 import type { DatabaseViewComponentProps } from "../types";
+import { useDatabaseI18n } from "../../i18n";
 
 type KanbanViewProps = DatabaseViewComponentProps;
 
 const KanbanView: React.FC<KanbanViewProps> = memo(
   ({ pluginManager, theme, readonly, onRowDetailOpen, onRowAdd, onRowDelete, config }) => {
+    const { t } = useDatabaseI18n();
     const [confirmDeleteRowId, setConfirmDeleteRowId] = useState<string | null>(null);
 
     const {
@@ -190,9 +192,11 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
       return (
         <div className="text-ink-2 flex h-full w-full items-center justify-center">
           <div className="text-center">
-            <div className="text-ink-1 text-tau-body-lg mb-2 font-medium">无法显示看板视图</div>
+            <div className="text-ink-1 text-tau-body-lg mb-2 font-medium">
+              {t("kanban.cannotShow")}
+            </div>
             <div className="text-tau-sm text-ink-3">
-              {!groupColumn ? "未配置分组列" : "分组列类型必须是单选类型"}
+              {!groupColumn ? t("kanban.noGroupColumn") : t("kanban.badGroupColumn")}
             </div>
           </div>
         </div>
@@ -280,10 +284,10 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
           onOpenChange={open => {
             if (!open) setConfirmDeleteRowId(null);
           }}
-          title="删除卡片"
-          impact="确定要删除该卡片吗？"
+          title={t("kanban.deleteCardTitle")}
+          impact={t("kanban.deleteCardImpact")}
           danger
-          confirmText="删除"
+          confirmText={t("common.delete")}
           onConfirm={() => {
             const rowId = confirmDeleteRowId;
             if (!rowId) return;

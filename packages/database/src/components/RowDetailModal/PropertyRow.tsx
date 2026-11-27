@@ -8,6 +8,7 @@ import type { CellValue, ColumnDef } from "../../types";
 import type PluginManager from "../../PluginManager";
 import useCellEditor from "../../hooks/useCellEditor";
 import { useValidation } from "../../hooks/useValidation";
+import { useDatabaseI18n } from "../../i18n";
 import { isEmptyCellValue } from "./utils";
 
 const COLUMN_ITEM_TYPE = "rowDetailModalColumn";
@@ -51,6 +52,7 @@ const PropertyRow = ({
 }: PropertyRowProps) => {
   const rowRef = useRef<HTMLDivElement>(null);
   const gripRef = useRef<HTMLSpanElement>(null);
+  const { t } = useDatabaseI18n();
   const plugin = pluginManager.getPlugin(column.type);
   const PluginEditor = plugin?.editable ? plugin.Editor : undefined;
   const Renderer = plugin?.Renderer;
@@ -114,7 +116,7 @@ const PropertyRow = ({
     }
     // 有 Editor 的字段空着时显示占位；星级、勾选等渲染器本身就是输入控件，照常渲染
     if (PluginEditor && isEmptyCellValue(value)) {
-      return <span className="text-ink-3 px-2">空</span>;
+      return <span className="text-ink-3 px-2">{t("row.emptyValue")}</span>;
     }
     if (Renderer) {
       return (
@@ -151,7 +153,7 @@ const PropertyRow = ({
         <span
           ref={gripRef}
           aria-hidden
-          title="拖动调整顺序"
+          title={t("row.dragReorder")}
           className="text-ink-3 absolute -left-5 top-[6px] grid h-[22px] w-[18px] cursor-grab place-items-center rounded-[5px] opacity-0 transition-opacity group-hover/prop:opacity-100"
         >
           <GripVertical className="size-3.5" strokeWidth={1.75} />
@@ -174,7 +176,7 @@ const PropertyRow = ({
             icon={<Pencil className="size-3.5" strokeWidth={1.75} />}
             onSelect={() => onEditColumn(column.id)}
           >
-            编辑属性
+            {t("row.editProperty")}
           </Menu.Item>
           {allowDelete && !column.isPrimary && (
             <>
@@ -184,7 +186,7 @@ const PropertyRow = ({
                 icon={<Trash2 className="size-3.5" strokeWidth={1.75} />}
                 onSelect={() => onDeleteColumn(column)}
               >
-                删除属性
+                {t("row.deleteProperty")}
               </Menu.Item>
             </>
           )}

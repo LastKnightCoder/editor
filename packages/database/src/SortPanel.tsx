@@ -7,6 +7,7 @@ import type { ValueType } from "./core/formula/types";
 import ColumnIcon from "./ColumnIcon";
 import PluginManager from "./PluginManager";
 import SimpleDropdown from "./SimpleDropdown";
+import { useDatabaseI18n } from "./i18n";
 
 interface SortPanelProps {
   columns: ColumnDef[];
@@ -17,14 +18,20 @@ interface SortPanelProps {
 }
 
 /** 方向的人话提示：按字段值类型 + 方向映射，消除「升序是哪边」的歧义；公式列按结果类型推导 */
-const directionHint = (valueType: ValueType | null, direction: SortRule["direction"]): string => {
-  if (valueType === "date") return direction === "asc" ? "旧→新" : "新→旧";
+const directionHint = (
+  t: ReturnType<typeof useDatabaseI18n>["t"],
+  valueType: ValueType | null,
+  direction: SortRule["direction"]
+): string => {
+  if (valueType === "date")
+    return direction === "asc" ? t("sort.dir.oldToNew") : t("sort.dir.newToOld");
   if (valueType === "number") return direction === "asc" ? "0→9" : "9→0";
   return direction === "asc" ? "A→Z" : "Z→A";
 };
 
 const SortPanel: React.FC<SortPanelProps> = memo(
   ({ columns, sorts, onChange, onClose, pluginManager }) => {
+    const { t } = useDatabaseI18n();
     const sortedSorts = useMemo(() => {
       return [...sorts].sort((a, b) => a.priority - b.priority);
     }, [sorts]);
@@ -155,9 +162,9 @@ const SortPanel: React.FC<SortPanelProps> = memo(
     return (
       <div className="text-ink-1 flex w-[300px] flex-col gap-2 p-2.5">
         <div className="flex items-baseline gap-2 px-1">
-          <span className="text-tau-meta text-ink-1 font-semibold">排序</span>
+          <span className="text-tau-meta text-ink-1 font-semibold">{t("sort.title")}</span>
           {localSorts.length > 0 && (
-            <span className="text-tau-micro text-ink-3">按顺序依次生效</span>
+            <span className="text-tau-micro text-ink-3">{t("sort.subtitle")}</span>
           )}
         </div>
         {localSorts.length ? (
@@ -182,7 +189,7 @@ const SortPanel: React.FC<SortPanelProps> = memo(
                 >
                   <span
                     className="bg-hover text-ink-2 grid size-4 shrink-0 place-items-center rounded-full text-[10px] font-bold tabular-nums"
-                    title={`第 ${index + 1} 优先级，拖动调整顺序`}
+                    title={t("sort.priorityTitle", { index: index + 1 })}
                   >
                     {index + 1}
                   </span>
@@ -199,10 +206,12 @@ const SortPanel: React.FC<SortPanelProps> = memo(
                       {column ? (
                         <>
                           <ColumnIcon type={column.type} pluginManager={pluginManager} />
-                          <span className="truncate">{column.title || "未命名字段"}</span>
+                          <span className="truncate">
+                            {column.title || t("sort.unnamedColumn")}
+                          </span>
                         </>
                       ) : (
-                        <span className="text-ink-3">选择字段</span>
+                        <span className="text-ink-3">{t("sort.selectField")}</span>
                       )}
                       <ChevronDown
                         className="text-ink-3 ml-auto size-3 shrink-0 opacity-60"
@@ -212,10 +221,13 @@ const SortPanel: React.FC<SortPanelProps> = memo(
                   </SimpleDropdown>
                   <button
                     type="button"
-                    aria-label="切换排序方向"
-                    title={`当前${
-                      sort.direction === "asc" ? "升序" : "降序"
-                    }，点击切换为${sort.direction === "asc" ? "降序" : "升序"}`}
+                    aria-label={t("sort.toggleDirection")}
+                    title={t("sort.directionTitle", {
+                      current:
+                        sort.direction === "asc" ? t("sort.directionAsc") : t("sort.directionDesc"),
+                      next:
+                        sort.direction === "asc" ? t("sort.directionDesc") : t("sort.directionAsc"),
+                    })}
                     onClick={() =>
                       handleSortChange(index, {
                         direction: sort.direction === "asc" ? "desc" : "asc",
@@ -242,12 +254,12 @@ const SortPanel: React.FC<SortPanelProps> = memo(
                   </button>
                   <span className="text-ink-3 w-[38px] shrink-0 text-right text-[10.5px] tabular-nums">
                     {column
-                      ? directionHint(pluginManager.getValueType(column) ?? null, sort.direction)
+                      ? directionHint(t, pluginManager.getValueType(column) ?? null, sort.direction)
                       : ""}
                   </span>
                   <button
                     type="button"
-                    aria-label="删除排序规则"
+                    aria-label={t("sort.removeRule")}
                     className="text-ink-3 hover:bg-danger-soft hover:text-danger ease-tau-out grid size-6 shrink-0 cursor-pointer place-items-center rounded-[7px] opacity-0 transition-opacity duration-[160ms] group-hover/srow:opacity-100"
                     onClick={() => handleRemove(index)}
                   >
@@ -260,8 +272,8 @@ const SortPanel: React.FC<SortPanelProps> = memo(
         ) : (
           <div className="flex flex-col px-0.5">
             <div className="flex flex-col items-center gap-1 py-4 text-center">
-              <p className="text-tau-body text-ink-2 font-medium">当前没有排序规则</p>
-              <p className="text-tau-meta text-ink-3">从常用项一键添加，或自选字段</p>
+              <p className="text-tau-body text-ink-2 font-medium">{t("sort.emptyTitle")}</p>
+              <p className="text-tau-meta text-ink-3">{t("sort.emptyHint")}</p>
             </div>
             {suggestColumns.length > 0 && (
               <div className="flex flex-col gap-0.5">
@@ -274,7 +286,9 @@ const SortPanel: React.FC<SortPanelProps> = memo(
                   >
                     <ColumnIcon type={column.type} pluginManager={pluginManager} />
                     <span className="text-tau-sm truncate">{column.title}</span>
-                    <span className="text-ink-3 ml-auto text-[10.5px]">新→旧</span>
+                    <span className="text-ink-3 ml-auto text-[10.5px]">
+                      {t("sort.dir.newToOld")}
+                    </span>
                     <Plus className="text-accent-text size-3 shrink-0" strokeWidth={2.2} />
                   </button>
                 ))}
@@ -290,7 +304,7 @@ const SortPanel: React.FC<SortPanelProps> = memo(
           disabled={!availableColumns.length}
         >
           <Plus className="size-3.5" strokeWidth={2.1} />
-          <span>{localSorts.length ? "添加排序字段" : "自选排序字段"}</span>
+          <span>{localSorts.length ? t("sort.addField") : t("sort.pickField")}</span>
         </button>
 
         <div className="border-line-2 mt-1 flex items-center gap-1.5 border-t px-1 pt-2.5">
@@ -300,15 +314,15 @@ const SortPanel: React.FC<SortPanelProps> = memo(
               className="text-tau-micro text-ink-3 hover:text-danger ease-tau-out cursor-pointer rounded-[6px] px-1.5 py-1 transition-colors duration-[160ms]"
               onClick={handleClearAll}
             >
-              清空
+              {t("common.clear")}
             </button>
           )}
           <span className="flex-1" />
           <Button variant="ghost" size="sm" onClick={onClose}>
-            取消
+            {t("common.cancel")}
           </Button>
           <Button variant="primary" size="sm" onClick={handleConfirm}>
-            确定
+            {t("common.confirm")}
           </Button>
         </div>
       </div>

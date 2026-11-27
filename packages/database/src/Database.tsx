@@ -32,6 +32,7 @@ import { DatabaseContext } from "./DatabaseContext";
 import { ViewRegistryContext } from "./views/ViewRegistryContext";
 import MissingView from "./components/MissingView";
 import ViewTabs from "./ViewTabs";
+import { useDatabaseI18n } from "./i18n";
 
 const emptyExtensions: readonly DatabaseExtension[] = [];
 
@@ -130,6 +131,7 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
     );
 
     const systemTheme = useThemeStore(state => state.mode);
+    const { t } = useDatabaseI18n();
     const subscriptionActive = useRef(false);
     const commitRowPatch = useMemoizedFn((rowId: string, patch: Partial<RowData>) => {
       const state = store.getState();
@@ -425,9 +427,9 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
                     onOpenChange={open => {
                       if (!open) setConfirmDeleteViewId(null);
                     }}
-                    title="确定删除此视图吗？"
+                    title={t("view.deleteTitle")}
                     danger
-                    confirmText="删除"
+                    confirmText={t("common.delete")}
                     onConfirm={() => handleConfirmDeleteView()}
                   />
                 </div>

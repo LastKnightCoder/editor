@@ -4,6 +4,7 @@ import { DatePicker, DateRangePicker } from "@tau/ui";
 
 import { CellValue, ColumnDef } from "../../../types";
 import { DatePluginConfig, DateValue } from "../index";
+import { useDatabaseI18n } from "../../../i18n";
 
 interface DateEditorProps {
   value: CellValue;
@@ -17,6 +18,7 @@ interface DateEditorProps {
 
 const DateEditor: React.FC<DateEditorProps> = memo(
   ({ value, column, onCellValueChange, onFinishEdit, autoOpen = false }) => {
+    const { t } = useDatabaseI18n();
     const config = column.config as DatePluginConfig | undefined;
     const dateValue = value as DateValue;
     const hasChangedRef = useRef(false);
@@ -84,7 +86,7 @@ const DateEditor: React.FC<DateEditorProps> = memo(
             precision={showTime ? "minute" : "day"}
             clearable
             size="sm"
-            placeholder="选择日期"
+            placeholder={t("plugin.date.selectDate")}
             className="w-full"
           />
         </div>
@@ -109,7 +111,7 @@ const DateEditor: React.FC<DateEditorProps> = memo(
           precision={showTime ? "minute" : "day"}
           clearable
           size="sm"
-          placeholder="日期范围"
+          placeholder={t("plugin.date.dateRange")}
           className="w-full"
         />
       </div>

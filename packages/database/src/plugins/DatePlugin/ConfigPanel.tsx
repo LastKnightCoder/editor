@@ -2,12 +2,13 @@ import React, { useEffect } from "react";
 import type { FieldConfigPanelProps } from "../../types";
 import type { DatePluginConfig } from "./index";
 import { Select, Checkbox } from "@tau/ui";
+import { useDatabaseI18n, type DatabaseT } from "../../i18n";
 
 const labelClass = "text-tau-meta font-medium text-ink-2";
 
-const dateFieldOptions = [
-  { label: "开始日期", value: "start" },
-  { label: "结束日期", value: "end" },
+const dateFieldOptions = (t: DatabaseT) => [
+  { label: t("plugin.date.field.start"), value: "start" },
+  { label: t("plugin.date.field.end"), value: "end" },
 ];
 
 /** 日期字段的配置面板：包含时间 / 结束日期与范围下的排序、分组依据 */
@@ -15,6 +16,7 @@ const DateConfigPanel: React.FC<FieldConfigPanelProps<DatePluginConfig>> = ({
   config,
   onChange,
 }) => {
+  const { t } = useDatabaseI18n();
   const showTime = config?.showTime ?? false;
   const isRange = config?.isRange ?? false;
   const sortField = config?.sortField ?? "start";
@@ -31,37 +33,37 @@ const DateConfigPanel: React.FC<FieldConfigPanelProps<DatePluginConfig>> = ({
       <Checkbox
         checked={showTime}
         onChange={() => onChange({ showTime: !showTime, isRange, sortField, groupField })}
-        label={<span className="text-tau-body text-ink-1">包含时间</span>}
+        label={<span className="text-tau-body text-ink-1">{t("plugin.date.includeTime")}</span>}
       />
 
       <Checkbox
         checked={isRange}
         onChange={() => onChange({ showTime, isRange: !isRange, sortField, groupField })}
-        label={<span className="text-tau-body text-ink-1">结束日期</span>}
+        label={<span className="text-tau-body text-ink-1">{t("plugin.date.endDate")}</span>}
       />
 
       {isRange && (
         <>
           <div className="flex flex-col gap-1.5">
-            <span className={labelClass}>排序依据</span>
+            <span className={labelClass}>{t("plugin.date.sortBy")}</span>
             <Select
               value={sortField}
               onValueChange={value =>
                 onChange({ showTime, isRange, sortField: value as "start" | "end", groupField })
               }
-              options={dateFieldOptions}
+              options={dateFieldOptions(t)}
               className="w-full"
             />
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <span className={labelClass}>分组依据</span>
+            <span className={labelClass}>{t("plugin.date.groupBy")}</span>
             <Select
               value={groupField}
               onValueChange={value =>
                 onChange({ showTime, isRange, sortField, groupField: value as "start" | "end" })
               }
-              options={dateFieldOptions}
+              options={dateFieldOptions(t)}
               className="w-full"
             />
           </div>

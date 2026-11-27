@@ -13,7 +13,6 @@ import { cn, Menu } from "@tau/ui";
 import type PluginManager from "../../PluginManager";
 import type { ColumnDef, RowData, SelectOption } from "../../types";
 import {
-  AGGREGATE_LABELS,
   aggregatesFor,
   createFormulaContext,
   formatScalar,
@@ -51,14 +50,15 @@ import { describeForm } from "./describe";
 import { generateFormula } from "./assist";
 import { useDatabaseSlots } from "../../DatabaseHostContext";
 import SelectList from "../../views/TableView/components/SelectList";
+import { useDatabaseI18n, type DatabaseMessageKey, type DatabaseT } from "../../i18n";
 
 type Path = (string | number)[];
 
-const OPS: [BinaryOp, string, string][] = [
-  ["+", "+", "加"],
-  ["-", "−", "减"],
-  ["*", "×", "乘"],
-  ["/", "÷", "除"],
+const OPS: [BinaryOp, string, "add" | "sub" | "mul" | "div"][] = [
+  ["+", "+", "add"],
+  ["-", "−", "sub"],
+  ["*", "×", "mul"],
+  ["/", "÷", "div"],
 ];
 const OP_SIGN = Object.fromEntries(OPS.map(([op, sign]) => [op, sign])) as Record<BinaryOp, string>;
 
@@ -110,6 +110,7 @@ const ColumnIcon: React.FC<{ column: ColumnDef }> = ({ column }) => {
 
 /** 「改成计算 / 条件」：到层数上限时变灰并提示拆列 */
 function nestItems(
+  t: DatabaseT,
   depth: number,
   slot: SlotKind,
   onPick: (to: "calc" | "if") => void,
@@ -120,14 +121,14 @@ function nestItems(
     return (
       <>
         <Menu.Separator />
-        <Menu.Item disabled>已经套了 {MAX_NEST} 层，更复杂的请拆成两列</Menu.Item>
+        <Menu.Item disabled>{t("formula.nestLimit", { count: MAX_NEST })}</Menu.Item>
       </>
     );
   return (
     <>
       <Menu.Separator />
-      <Menu.Item onSelect={() => onPick("calc")}>改成计算…</Menu.Item>
-      {allowIf && <Menu.Item onSelect={() => onPick("if")}>改成条件…</Menu.Item>}
+      <Menu.Item onSelect={() => onPick("calc")}>{t("formula.toCalc")}</Menu.Item>
+      {allowIf && <Menu.Item onSelect={() => onPick("if")}>{t("formula.toCondition")}</Menu.Item>}
     </>
   );
 }
@@ -137,10 +138,11 @@ const ColumnItems: React.FC<{
   current?: string;
   onPick: (id: string) => void;
 }> = ({ columns, current, onPick }) => {
+  const { t } = useDatabaseI18n();
   if (!columns.length) return null;
   return (
     <>
-      <Menu.Group>用这一列的值</Menu.Group>
+      <Menu.Group>{t("formula.useColumnValue")}</Menu.Group>
       {columns.map(column => (
         <Menu.Item
           key={column.id}
@@ -224,7 +226,9 @@ const ValueBox: React.FC<SlotProps> = memo(({ path, node, slot, depth, options }
   const { scope, columns, ctx, set } = useBuilder();
   const slotColumns = useSlotColumns(slot);
   const nest = useNest();
-  const titleOf = (id: string) => columns.find(column => column.id === id)?.title ?? "已删除的列";
+  const { t } = useDatabaseI18n();
+  const titleOf = (id: string) =>
+    columns.find(column => column.id === id)?.title ?? t("formula.deletedColumn");
 
   const pickColumn = (id: string) =>
     set(
@@ -244,7 +248,7 @@ const ValueBox: React.FC<SlotProps> = memo(({ path, node, slot, depth, options }
         current={node.kind === "column" ? node.columnId : undefined}
         onPick={pickColumn}
       />
-      {nestItems(depth, slot, to => nest(path, node, slot, to), scope === "row")}
+      {nestItems(t, depth, slot, to => nest(path, node, slot, to), scope === "row")}
       {extra}
     </Menu>
   );
@@ -256,7 +260,7 @@ const ValueBox: React.FC<SlotProps> = memo(({ path, node, slot, depth, options }
         fit
         trigger={
           <button type="button" className={cn(pickerClass, !picked && "text-ink-3 border-dashed")}>
-            {picked ?? "选择选项"}
+            {picked ?? t("formula.selectOption")}
             <Caret />
           </button>
         }
@@ -284,21 +288,23 @@ const ValueBox: React.FC<SlotProps> = memo(({ path, node, slot, depth, options }
           </button>,
           <>
             <Menu.Separator />
-            <Menu.Item onSelect={() => set(path, emptyValue("number"))}>改成填数字</Menu.Item>
+            <Menu.Item onSelect={() => set(path, emptyValue("number"))}>
+              {t("formula.toNumber")}
+            </Menu.Item>
           </>
         )}
         <Menu
           fit
           trigger={
             <button type="button" className={pickerClass}>
-              {node.agg ? AGGREGATE_LABELS[node.agg] : "汇总"}
+              {node.agg ? t(`formula.agg.${node.agg}` as const) : t("formula.aggPlaceholder")}
               <Caret />
             </button>
           }
         >
           {ops.map(op => (
             <Menu.Item key={op} onSelect={() => set(path, { ...node, agg: op })}>
-              {AGGREGATE_LABELS[op]}
+              {t(`formula.agg.${op}` as const)}
             </Menu.Item>
           ))}
         </Menu>
@@ -309,8 +315,8 @@ const ValueBox: React.FC<SlotProps> = memo(({ path, node, slot, depth, options }
   const dropdown = menu(
     <button
       type="button"
-      title="用某一列，或改成计算 / 条件"
-      aria-label="更多选择"
+      title={t("formula.valueHint")}
+      aria-label={t("formula.moreOptions")}
       className="text-ink-3 hover:text-ink-1 border-line-1 h-full shrink-0 border-l px-2 text-[11px]"
     >
       ▾
@@ -324,7 +330,7 @@ const ValueBox: React.FC<SlotProps> = memo(({ path, node, slot, depth, options }
           {titleOf(node.columnId)}
           <button
             type="button"
-            aria-label="改为直接输入"
+            aria-label={t("formula.directInput")}
             className="hover:bg-hover grid size-4 place-items-center rounded opacity-70 hover:opacity-100"
             onClick={() => set(path, emptyValue(slot))}
           >
@@ -342,8 +348,16 @@ const ValueBox: React.FC<SlotProps> = memo(({ path, node, slot, depth, options }
     <span className={cn(control, "focus-within:border-accent")}>
       <input
         type={kind}
-        aria-label={slot === "number" ? "数字" : slot === "date" ? "日期" : "文字"}
-        placeholder={slot === "number" ? "数字" : slot === "text" ? "文字" : undefined}
+        aria-label={t(
+          slot === "number" ? "formula.numberLabel" : slot === "date" ? "formula.dateLabel" : "formula.textLabel"
+        )}
+        placeholder={
+          slot === "number"
+            ? t("formula.numberLabel")
+            : slot === "text"
+              ? t("formula.textLabel")
+              : undefined
+        }
         value={value}
         onChange={e => set(path, { kind, value: e.target.value })}
         className={cn(
@@ -373,9 +387,10 @@ const NestBox: React.FC<{
   tail?: ReactNode;
   children: ReactNode;
 }> = ({ label, depth, block, onUnwrap, tail, children }) => {
+  const { t } = useDatabaseI18n();
   const unwrap = (
-    <button type="button" className={miniButton} title="不再嵌套，只保留第一项" onClick={onUnwrap}>
-      撤销
+    <button type="button" className={miniButton} title={t("formula.unwrap")} onClick={onUnwrap}>
+      {t("formula.undo")}
     </button>
   );
   return (
@@ -409,20 +424,23 @@ const OpMenu: React.FC<{
   trigger: React.ReactElement;
   current?: BinaryOp;
   onPick: (op: BinaryOp) => void;
-}> = ({ trigger, current, onPick }) => (
-  <Menu fit trigger={trigger}>
-    {OPS.map(([op, sign, name]) => (
-      <Menu.Item
-        key={op}
-        icon={<span className="w-3 text-center font-semibold">{sign}</span>}
-        className={op === current ? "text-accent-text" : undefined}
-        onSelect={() => onPick(op)}
-      >
-        {name}
-      </Menu.Item>
-    ))}
-  </Menu>
-);
+}> = ({ trigger, current, onPick }) => {
+  const { t } = useDatabaseI18n();
+  return (
+    <Menu fit trigger={trigger}>
+      {OPS.map(([op, sign, nameKey]) => (
+        <Menu.Item
+          key={op}
+          icon={<span className="w-3 text-center font-semibold">{sign}</span>}
+          className={op === current ? "text-accent-text" : undefined}
+          onSelect={() => onPick(op)}
+        >
+          {t(`formula.op.${nameKey}` as const)}
+        </Menu.Item>
+      ))}
+    </Menu>
+  );
+};
 
 /** 撤销嵌套：条件左侧只能是列，其他位置保留第一项 */
 function unwrapValue(path: Path, first: ValueNode): ValueNode {
@@ -436,6 +454,7 @@ const CalcForm: React.FC<{ path: Path; node: CalcNode; depth: number }> = ({
   depth,
 }) => {
   const { set, edit } = useBuilder();
+  const { t } = useDatabaseI18n();
   const addTerm = (op: BinaryOp) =>
     edit<CalcNode>(path, draft => void draft.terms.push({ op, value: emptyValue("number") }));
   const removeTerm = (index: number) =>
@@ -453,7 +472,7 @@ const CalcForm: React.FC<{ path: Path; node: CalcNode; depth: number }> = ({
           trigger={
             <button
               type="button"
-              aria-label="运算"
+              aria-label={t("formula.operation")}
               className={cn(pickerClass, "min-w-10 justify-center px-2 font-semibold")}
             >
               {OP_SIGN[term.op ?? "+"]}
@@ -471,7 +490,7 @@ const CalcForm: React.FC<{ path: Path; node: CalcNode; depth: number }> = ({
         <button
           type="button"
           className={removeButton}
-          aria-label="移除这一项"
+          aria-label={t("formula.removeTerm")}
           onClick={() => removeTerm(index)}
         >
           ×
@@ -488,7 +507,7 @@ const CalcForm: React.FC<{ path: Path; node: CalcNode; depth: number }> = ({
           onPick={addTerm}
           trigger={
             <button type="button" className={linkButton}>
-              ＋ 再加一项
+              {t("formula.addTerm")}
             </button>
           }
         />
@@ -496,14 +515,14 @@ const CalcForm: React.FC<{ path: Path; node: CalcNode; depth: number }> = ({
     );
   return (
     <NestBox
-      label="计算"
+      label={t("formula.calcLabel")}
       depth={depth}
       onUnwrap={() => set(path, unwrapValue(path, node.terms[0].value))}
       tail={
         <OpMenu
           onPick={addTerm}
           trigger={
-            <button type="button" className={miniButton} aria-label="再加一项">
+            <button type="button" className={miniButton} aria-label={t("formula.addTerm")}>
               ＋
             </button>
           }
@@ -525,6 +544,7 @@ const ConditionRow: React.FC<{
   onRemove?: () => void;
 }> = ({ path, cond, depth, lead, onRemove }) => {
   const { columns, usable, familyOf, edit } = useBuilder();
+  const { t } = useDatabaseI18n();
   const leftColumn =
     cond.left.kind === "column"
       ? columns.find(column => column.id === (cond.left as { columnId: string }).columnId)
@@ -559,7 +579,7 @@ const ConditionRow: React.FC<{
               type="button"
               className={cn(pickerClass, !leftColumn && "text-ink-3 border-dashed")}
             >
-              {leftColumn?.title ?? "选择列"}
+              {leftColumn?.title ?? t("formula.selectColumn")}
               <Caret />
             </button>
           }
@@ -570,6 +590,7 @@ const ConditionRow: React.FC<{
             onPick={id => setLeft({ kind: "column", columnId: id })}
           />
           {nestItems(
+            t,
             depth,
             "number",
             () =>
@@ -592,17 +613,19 @@ const ConditionRow: React.FC<{
         fit
         trigger={
           <button type="button" className={pickerClass}>
-            {compares.find(([key]) => key === cond.cmp)?.[1] ?? "选择"}
+            {compares.find(([key]) => key === cond.cmp)
+              ? t(`formula.compare.${family}.${cond.cmp}` as DatabaseMessageKey)
+              : t("formula.selectCompare")}
             <Caret />
           </button>
         }
       >
-        {compares.map(([key, label]) => (
+        {compares.map(([key]) => (
           <Menu.Item
             key={key}
             onSelect={() => edit<Condition>(path, draft => void (draft.cmp = key))}
           >
-            {label}
+            {t(`formula.compare.${family}.${key}` as DatabaseMessageKey)}
           </Menu.Item>
         ))}
       </Menu>
@@ -616,7 +639,12 @@ const ConditionRow: React.FC<{
         />
       )}
       {onRemove && (
-        <button type="button" className={removeButton} aria-label="移除条件" onClick={onRemove}>
+        <button
+          type="button"
+          className={removeButton}
+          aria-label={t("formula.removeCondition")}
+          onClick={onRemove}
+        >
           ×
         </button>
       )}
@@ -626,6 +654,7 @@ const ConditionRow: React.FC<{
 
 const IfForm: React.FC<{ path: Path; node: IfNode; depth: number }> = ({ path, node, depth }) => {
   const { usable, familyOf, set, edit } = useBuilder();
+  const { t } = useDatabaseI18n();
   const newCondition = (): Condition => {
     const first = usable.find(column => familyOf(column.id));
     const family = (first && familyOf(first.id)) || "text";
@@ -646,14 +675,14 @@ const IfForm: React.FC<{ path: Path; node: IfNode; depth: number }> = ({ path, n
             className="border-line-1 rounded-tau-md flex flex-col gap-2 border px-3 py-2.5"
           >
             <div className="text-ink-3 text-tau-sm flex items-center">
-              情况 {caseIndex + 1}
+              {t("formula.caseLabel", { index: caseIndex + 1 })}
               {node.cases.length > 1 && (
                 <button
                   type="button"
                   className={cn(miniButton, "ml-auto")}
                   onClick={() => edit<IfNode>(path, draft => void draft.cases.splice(caseIndex, 1))}
                 >
-                  删除这种情况
+                  {t("formula.deleteCase")}
                 </button>
               )}
             </div>
@@ -670,15 +699,15 @@ const IfForm: React.FC<{ path: Path; node: IfNode; depth: number }> = ({ path, n
                 }
                 lead={
                   condIndex === 0 ? (
-                    "如果"
+                    t("formula.ifLead")
                   ) : (
                     <button
                       type="button"
-                      title="点击切换「并且 / 或者」"
+                      title={t("formula.toggleJoin")}
                       className="bg-accent-soft text-accent-text rounded-tau-sm text-tau-sm h-6 px-2"
                       onClick={() => set([...casePath, "join"], item.join === "and" ? "or" : "and")}
                     >
-                      {item.join === "and" ? "并且" : "或者"}
+                      {item.join === "and" ? t("formula.and") : t("formula.or")}
                     </button>
                   )
                 }
@@ -689,10 +718,10 @@ const IfForm: React.FC<{ path: Path; node: IfNode; depth: number }> = ({ path, n
               className={cn(linkButton, "ml-[52px]")}
               onClick={() => edit<Case>(casePath, draft => void draft.conds.push(newCondition()))}
             >
-              ＋ 再加一个条件
+              {t("formula.addCondition")}
             </button>
             <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-ink-2 text-tau-body w-[58px] shrink-0">显示</span>
+              <span className="text-ink-2 text-tau-body w-[58px] shrink-0">{t("formula.show")}</span>
               <ValueSlot
                 path={[...casePath, "result"]}
                 node={item.result}
@@ -718,10 +747,10 @@ const IfForm: React.FC<{ path: Path; node: IfNode; depth: number }> = ({ path, n
           )
         }
       >
-        ＋ 再加一种情况
+        {t("formula.addCase")}
       </button>
       <div className="flex flex-wrap items-center gap-1.5 px-3">
-        <span className="text-ink-2 text-tau-body shrink-0">都不满足时显示</span>
+        <span className="text-ink-2 text-tau-body shrink-0">{t("formula.otherwise")}</span>
         <ValueSlot
           path={[...path, "otherwise"]}
           node={node.otherwise}
@@ -734,7 +763,12 @@ const IfForm: React.FC<{ path: Path; node: IfNode; depth: number }> = ({ path, n
 
   if (depth === 0) return body;
   return (
-    <NestBox label="条件" depth={depth} block onUnwrap={() => set(path, node.cases[0].result)}>
+    <NestBox
+      label={t("formula.conditionLabel")}
+      depth={depth}
+      block
+      onUnwrap={() => set(path, node.cases[0].result)}
+    >
       {body}
     </NestBox>
   );
@@ -742,6 +776,7 @@ const IfForm: React.FC<{ path: Path; node: IfNode; depth: number }> = ({ path, n
 
 const ConcatForm: React.FC<{ node: ConcatNode }> = ({ node }) => {
   const { edit } = useBuilder();
+  const { t } = useDatabaseI18n();
   return (
     <>
       <div className="flex flex-wrap items-center gap-1.5">
@@ -753,7 +788,7 @@ const ConcatForm: React.FC<{ node: ConcatNode }> = ({ node }) => {
               <button
                 type="button"
                 className={removeButton}
-                aria-label="移除这一段"
+                aria-label={t("formula.removePart")}
                 onClick={() => edit<ConcatNode>([], draft => void draft.parts.splice(index, 1))}
               >
                 ×
@@ -767,7 +802,7 @@ const ConcatForm: React.FC<{ node: ConcatNode }> = ({ node }) => {
         className={linkButton}
         onClick={() => edit<ConcatNode>([], draft => void draft.parts.push(emptyValue("text")))}
       >
-        ＋ 再加一段
+        {t("formula.addPart")}
       </button>
     </>
   );
@@ -776,27 +811,9 @@ const ConcatForm: React.FC<{ node: ConcatNode }> = ({ node }) => {
 /* ───────── 根 ───────── */
 
 const INTENTS = [
-  {
-    mode: "calc",
-    icon: "±",
-    title: "计算",
-    text: "几列或数字之间加减乘除",
-    example: "例：成本 × 数量",
-  },
-  {
-    mode: "if",
-    icon: "?",
-    title: "按条件显示",
-    text: "满足某个条件就显示某个值",
-    example: "例：成本大于 500 显示「高」",
-  },
-  {
-    mode: "concat",
-    icon: "“",
-    title: "拼接文字",
-    text: "把几列的内容连成一段文字",
-    example: "例：任务 · 状态",
-  },
+  { mode: "calc", icon: "±" },
+  { mode: "if", icon: "?" },
+  { mode: "concat", icon: "“" },
 ] as const;
 
 interface FormulaBuilderProps {
@@ -828,6 +845,7 @@ const FormulaBuilder: React.FC<FormulaBuilderProps> = ({
   resultLabel,
   error,
 }) => {
+  const { t } = useDatabaseI18n();
   const ctx = useMemo(() => createFormulaContext(columns, pluginManager), [columns, pluginManager]);
   const builder = useMemo<BuilderContextValue>(() => {
     const familyOf = (columnId: string): CompareFamily | undefined => {
@@ -861,8 +879,8 @@ const FormulaBuilder: React.FC<FormulaBuilderProps> = ({
   const complete = editable && !hasHole(draft);
   const check = useMemo(
     () =>
-      complete ? checkFormula(draft, scope, columns, rows, pluginManager, selfColumnId) : null,
-    [complete, draft, scope, columns, rows, pluginManager, selfColumnId]
+      complete ? checkFormula(draft, scope, columns, rows, pluginManager, selfColumnId, t) : null,
+    [complete, draft, scope, columns, rows, pluginManager, selfColumnId, t]
   );
   const message = error ?? (check && !check.ok ? check.message : null);
 
@@ -891,22 +909,28 @@ const FormulaBuilder: React.FC<FormulaBuilderProps> = ({
   if (!value)
     main = (
       <>
-        <b className="text-tau-body font-semibold">想算什么？</b>
+        <b className="text-tau-body font-semibold">{t("formula.whatToCalculate")}</b>
         <div className="grid grid-cols-3 gap-2.5">
           {INTENTS.map(intent => (
             <button
               key={intent.mode}
               type="button"
-              aria-label={intent.title}
+              aria-label={t(`formula.intent.${intent.mode}.title` as DatabaseMessageKey)}
               onClick={() => startWith(intent.mode)}
               className="border-line-1 hover:border-accent hover:bg-accent-soft rounded-tau-md flex flex-col items-start gap-1.5 border p-3.5 text-left transition-colors"
             >
               <span className="bg-hover text-accent-text rounded-tau-sm grid size-7 place-items-center font-bold">
                 {intent.icon}
               </span>
-              <b className="text-tau-body font-semibold">{intent.title}</b>
-              <span className="text-ink-2 text-tau-sm">{intent.text}</span>
-              <span className="text-ink-3 text-tau-sm">{intent.example}</span>
+              <b className="text-tau-body font-semibold">
+                {t(`formula.intent.${intent.mode}.title` as DatabaseMessageKey)}
+              </b>
+              <span className="text-ink-2 text-tau-sm">
+                {t(`formula.intent.${intent.mode}.text` as DatabaseMessageKey)}
+              </span>
+              <span className="text-ink-3 text-tau-sm">
+                {t(`formula.intent.${intent.mode}.example` as DatabaseMessageKey)}
+              </span>
             </button>
           ))}
         </div>
@@ -915,15 +939,13 @@ const FormulaBuilder: React.FC<FormulaBuilderProps> = ({
   else if (value.kind === "unsupported")
     main = (
       <div className="flex flex-col items-start gap-3">
-        <p className="text-ink-2 text-tau-body">
-          这个公式比构造器能表达的更复杂。可以保留原样，或者重新设置。
-        </p>
+        <p className="text-ink-2 text-tau-body">{t("formula.unsupported")}</p>
         <button
           type="button"
           className={linkButton}
           onClick={() => (scope === "footer" ? startWith("calc") : onChange(null))}
         >
-          重新设置
+          {t("formula.reset")}
         </button>
       </div>
     );
@@ -932,7 +954,13 @@ const FormulaBuilder: React.FC<FormulaBuilderProps> = ({
       <>
         <div className="flex items-center">
           <b className="text-tau-body font-semibold">
-            {value.kind === "calc" ? "计算" : value.kind === "if" ? "按条件显示" : "拼接文字"}
+            {t(
+              value.kind === "calc"
+                ? "formula.intent.calc.title"
+                : value.kind === "if"
+                  ? "formula.intent.if.title"
+                  : "formula.intent.concat.title"
+            )}
           </b>
           {scope === "row" && (
             <button
@@ -940,7 +968,7 @@ const FormulaBuilder: React.FC<FormulaBuilderProps> = ({
               className="text-ink-3 hover:text-ink-1 text-tau-sm ml-auto"
               onClick={() => onChange(null)}
             >
-              换一种
+              {t("formula.changeType")}
             </button>
           )}
         </div>
@@ -948,7 +976,7 @@ const FormulaBuilder: React.FC<FormulaBuilderProps> = ({
         {value.kind === "if" && <IfForm path={[]} node={value} depth={0} />}
         {value.kind === "concat" && <ConcatForm node={value} />}
         <p className="text-ink-2 text-tau-sm bg-surface-hover rounded-tau-sm px-3 py-2 leading-[1.8]">
-          {describeForm(value, scope, columns, builder.familyOf)}
+          {describeForm(t, value, scope, columns, builder.familyOf)}
         </p>
       </>
     );
@@ -981,7 +1009,7 @@ const FormulaBuilder: React.FC<FormulaBuilderProps> = ({
             pluginManager={pluginManager}
             selfColumnId={selfColumnId}
             resultLabel={resultLabel}
-            hint="填完后在这里看结果"
+            hint={t("formula.preview.hint")}
           />
         )}
       </div>
@@ -1001,6 +1029,7 @@ const AssistBar: React.FC<{
 }> = ({ scope, columns, rows, pluginManager, selfColumnId, usable, onGenerated }) => {
   const slots = useDatabaseSlots();
   const assist = slots.useFormulaAssist?.();
+  const { t } = useDatabaseI18n();
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1033,7 +1062,7 @@ const AssistBar: React.FC<{
       <div className="border-line-1 bg-surface focus-within:border-accent rounded-tau-md flex h-10 items-center gap-2 border pl-3 pr-1">
         <Sparkles className="text-ink-3 size-4 shrink-0" strokeWidth={1.75} />
         <input
-          aria-label="用一句话描述公式"
+          aria-label={t("formula.assist.label")}
           value={prompt}
           disabled={loading}
           onChange={e => setPrompt(e.target.value)}
@@ -1044,9 +1073,7 @@ const AssistBar: React.FC<{
             }
           }}
           placeholder={
-            scope === "row"
-              ? "用一句话描述，例如：成本乘数量超过 500 就显示「高」"
-              : "用一句话描述，例如：成本总和除以任务数"
+            scope === "row" ? t("formula.assist.rowPlaceholder") : t("formula.assist.footerPlaceholder")
           }
           className="text-ink-1 placeholder:text-ink-3 text-tau-body min-w-0 flex-1 bg-transparent outline-none"
         />
@@ -1056,7 +1083,7 @@ const AssistBar: React.FC<{
           onClick={() => void run()}
           className="bg-accent text-ink-inverse hover:bg-accent-hover rounded-tau-sm text-tau-sm h-8 shrink-0 px-3 transition-colors disabled:opacity-40"
         >
-          {loading ? "生成中…" : "生成"}
+          {loading ? t("formula.assist.generating") : t("formula.assist.generate")}
         </button>
       </div>
       {error && <p className="text-danger text-tau-sm">{error}</p>}
@@ -1089,6 +1116,7 @@ const Preview: React.FC<{
   resultLabel,
   hint,
 }) => {
+  const { t } = useDatabaseI18n();
   const previewId = selfColumnId ?? "__formula_preview__";
   const primary = columns.find(column => column.isPrimary);
   const table = useMemo(() => {
@@ -1132,20 +1160,22 @@ const Preview: React.FC<{
       <table className="text-tau-sm w-full border-collapse">
         <thead>
           <tr className="text-ink-3 border-line-1 border-b text-left">
-            <th className="py-1 pr-1 font-medium">{primary?.title ?? "行"}</th>
+            <th className="py-1 pr-1 font-medium">{primary?.title ?? t("formula.preview.rowLabel")}</th>
             {table.shown.map(ref => (
               <th key={ref.id} className="py-1 pr-1 text-right font-medium">
                 {ref.title}
               </th>
             ))}
-            <th className="py-1 text-right font-medium">{resultLabel || "结果"}</th>
+            <th className="py-1 text-right font-medium">
+              {resultLabel || t("formula.preview.result")}
+            </th>
           </tr>
         </thead>
         <tbody>
           {table.rows.map(row => (
             <tr key={row.id} className="border-line-1 border-b border-dashed last:border-b-0">
               <td className="text-ink-2 max-w-[240px] truncate py-1 pr-1">
-                {row.label || "未命名"}
+                {row.label || t("common.unnamed")}
               </td>
               {row.values.map((text, index) => (
                 <td key={index} className="text-ink-2 py-1 pr-1 text-right tabular-nums">
@@ -1177,7 +1207,9 @@ const Preview: React.FC<{
   return (
     <div className="border-line-1 bg-surface-hover flex min-w-0 flex-col gap-2 border-t px-4 py-3">
       <span className="text-ink-3 text-tau-tiny font-semibold tracking-[0.03em]">
-        {scope === "row" ? `预览 · 前 ${PREVIEW_ROWS} 行` : "预览 · 当前筛选的行"}
+        {scope === "row"
+          ? t("formula.preview.rows", { count: PREVIEW_ROWS })
+          : t("formula.preview.footer")}
       </span>
       {body}
     </div>

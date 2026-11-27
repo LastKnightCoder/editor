@@ -26,6 +26,7 @@ import ViewEditPanel from "./ViewEditPanel";
 import { DatabaseViewType } from "./types";
 import { builtInViewRegistry } from "./views/builtInViewRegistry";
 import type { ViewRegistry } from "./views/ViewRegistry";
+import { useDatabaseI18n } from "./i18n";
 
 interface DragItem {
   type: "view-tab";
@@ -99,6 +100,7 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
     const editRef = useRef<EditTextHandle | null>(null);
     const [showEditPopover, setShowEditPopover] = useState(false);
     const moreButtonRef = useRef<HTMLButtonElement>(null);
+    const { t } = useDatabaseI18n();
     const ViewIcon = viewRegistry.get(view.type)?.icon ?? Table2;
 
     useEffect(() => {
@@ -196,7 +198,7 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
             <button
               ref={moreButtonRef}
               type="button"
-              title="视图操作"
+              title={t("view.tabActions")}
               className={cn(
                 "text-ink-3 hover:bg-hover hover:text-ink-1 -mr-1 grid size-[22px] place-items-center rounded-[6px] opacity-0 transition-opacity",
                 "focus-visible:opacity-100 group-hover/tab:opacity-100 aria-expanded:opacity-100"
@@ -207,7 +209,7 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
             </button>
           }
         >
-          <Menu.Item onSelect={handleEditClick}>编辑</Menu.Item>
+          <Menu.Item onSelect={handleEditClick}>{t("common.edit")}</Menu.Item>
           {allowDelete && (
             <Menu.Item
               danger
@@ -215,7 +217,7 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
                 onDelete?.(view.id);
               }}
             >
-              删除
+              {t("common.delete")}
             </Menu.Item>
           )}
         </Menu>
@@ -299,6 +301,7 @@ const CollapsibleSearch = ({
 }) => {
   const [expanded, setExpanded] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { t } = useDatabaseI18n();
 
   // 关键词被外部清空（如切换视图）时收起；输入中清空（焦点仍在）保持展开
   useEffect(() => {
@@ -307,10 +310,10 @@ const CollapsibleSearch = ({
 
   if (!expanded) {
     return (
-      <Tooltip content="搜索本视图">
+      <Tooltip content={t("view.searchLabel")}>
         <button
           type="button"
-          aria-label="搜索本视图"
+          aria-label={t("view.searchLabel")}
           onClick={() => {
             setExpanded(true);
             requestAnimationFrame(() => inputRef.current?.focus());
@@ -329,7 +332,7 @@ const CollapsibleSearch = ({
       <input
         ref={inputRef}
         value={value}
-        placeholder="搜索本视图…"
+        placeholder={t("view.searchPlaceholder")}
         onChange={e => onChange(e.target.value)}
         onBlur={() => {
           if (value === "") setExpanded(false);
@@ -346,7 +349,7 @@ const CollapsibleSearch = ({
       {value !== "" && (
         <button
           type="button"
-          aria-label="清空搜索"
+          aria-label={t("view.searchClear")}
           onClick={() => {
             onChange("");
             inputRef.current?.focus();
@@ -374,6 +377,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
     bare = false,
     toolbar,
   }) => {
+    const { t } = useDatabaseI18n();
     const {
       activeViewId,
       views,
@@ -542,7 +546,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
               onUpdateView={handleUpdateView}
             />
           ))}
-          <Tooltip content="新视图">
+          <Tooltip content={t("view.newView")}>
             <button
               type="button"
               className="text-ink-3 hover:bg-hover hover:text-ink-1 ease-tau-out -ml-2 grid size-6 shrink-0 place-items-center rounded-[6px] transition-colors duration-[160ms]"
@@ -558,7 +562,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
           <ToolbarPill
             active={filterCount > 0}
             count={filterCount}
-            label="筛选"
+            label={t("view.filter")}
             icon={Filter}
             buttonRef={filterButtonRef}
             className="hidden @min-[720px]/db-toolbar:flex"
@@ -586,7 +590,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
           <ToolbarPill
             active={sortCount > 0}
             count={sortCount}
-            label="排序"
+            label={t("view.sort")}
             icon={ArrowDownUp}
             buttonRef={sortButtonRef}
             className="hidden @min-[720px]/db-toolbar:flex"
@@ -611,7 +615,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
           </Popover>
           <ToolbarPill
             active={viewConfig.groupBy !== null}
-            label="分组"
+            label={t("view.group")}
             icon={Layers}
             buttonRef={groupButtonRef}
             className="hidden @min-[720px]/db-toolbar:flex"
@@ -627,7 +631,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
               <button
                 ref={mergedButtonRef}
                 type="button"
-                aria-label="筛选、排序与分组"
+                aria-label={t("view.mergedLabelAria")}
                 className={cn(
                   "ease-tau-out flex h-7 shrink-0 items-center gap-1.5 rounded-[8px] px-2.5 whitespace-nowrap transition-[background-color,color] duration-[160ms] @min-[720px]/db-toolbar:hidden",
                   mergedCount > 0
@@ -636,7 +640,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
                 )}
               >
                 <SlidersHorizontal className="size-[13px]" strokeWidth={1.75} />
-                <span className="text-tau-meta">筛选排序</span>
+                <span className="text-tau-meta">{t("view.mergedLabel")}</span>
                 {mergedCount > 0 && (
                   <span className="text-[10.5px] font-bold tabular-nums">{mergedCount}</span>
                 )}
@@ -645,13 +649,13 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
           >
             {(
               [
-                ["筛选", Filter, filterCount, setShowFilter],
-                ["排序", ArrowDownUp, sortCount, setShowSorting],
-                ["分组", Layers, viewConfig.groupBy !== null ? 1 : 0, setShowGrouping],
+                ["filter", Filter, filterCount, setShowFilter],
+                ["sort", ArrowDownUp, sortCount, setShowSorting],
+                ["group", Layers, viewConfig.groupBy !== null ? 1 : 0, setShowGrouping],
               ] as const
-            ).map(([label, Icon, count, open]) => (
+            ).map(([id, Icon, count, open]) => (
               <Menu.Item
-                key={label}
+                key={id}
                 icon={<Icon />}
                 kbd={count ? String(count) : undefined}
                 // 等菜单关闭、焦点归还后再开面板，免得面板被同一次点击判定为外部点击而关掉
@@ -659,7 +663,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
                   requestAnimationFrame(() => openPanel(mergedButtonRef.current, open))
                 }
               >
-                {label}
+                {t(`view.${id}` as const)}
               </Menu.Item>
             ))}
           </Menu>

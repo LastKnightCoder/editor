@@ -5,6 +5,7 @@ import { ColumnDef, TableViewConfig, GroupGranularity } from "./types";
 import PluginManager from "./PluginManager";
 import ColumnIcon from "./ColumnIcon";
 import { useDatabaseStore } from "./hooks";
+import { useDatabaseI18n, type DatabaseT } from "./i18n";
 
 interface GroupPanelProps {
   columns: ColumnDef[];
@@ -14,10 +15,13 @@ interface GroupPanelProps {
   pluginManager: PluginManager;
 }
 
-const GRANULARITY_OPTIONS: Array<{ value: GroupGranularity; label: string }> = [
-  { value: "day", label: "按日" },
-  { value: "week", label: "按周" },
-  { value: "month", label: "按月" },
+const GRANULARITY_OPTIONS: Array<{
+  value: GroupGranularity;
+  label: (t: DatabaseT) => string;
+}> = [
+  { value: "day", label: t => t("group.granularity.day") },
+  { value: "week", label: t => t("group.granularity.week") },
+  { value: "month", label: t => t("group.granularity.month") },
 ];
 
 const GroupPanel: React.FC<GroupPanelProps> = ({
@@ -27,6 +31,7 @@ const GroupPanel: React.FC<GroupPanelProps> = ({
   onSubmit,
   pluginManager,
 }) => {
+  const { t } = useDatabaseI18n();
   const rows = useDatabaseStore(state => state.rows);
 
   const supportedColumns = useMemo(() => {
@@ -85,8 +90,8 @@ const GroupPanel: React.FC<GroupPanelProps> = ({
   return (
     <div className="text-ink-1 flex w-[264px] flex-col gap-1.5 p-2.5">
       <div className="flex items-baseline gap-2 px-1">
-        <span className="text-tau-meta text-ink-1 font-semibold">分组</span>
-        <span className="text-tau-micro text-ink-3">按字段值聚合行</span>
+        <span className="text-tau-meta text-ink-1 font-semibold">{t("group.title")}</span>
+        <span className="text-tau-micro text-ink-3">{t("group.subtitle")}</span>
       </div>
       <div className="flex flex-col gap-0.5">
         <button
@@ -99,7 +104,7 @@ const GroupPanel: React.FC<GroupPanelProps> = ({
           )}
           onClick={() => handleSelect("")}
         >
-          <span className="text-tau-sm flex-1 text-left">无</span>
+          <span className="text-tau-sm flex-1 text-left">{t("common.none")}</span>
           {selectedId === "" && <Check className="text-accent-text size-3.5" strokeWidth={2.4} />}
         </button>
         {supportedColumns.map(column => {
@@ -121,7 +126,7 @@ const GroupPanel: React.FC<GroupPanelProps> = ({
                 <span className="text-tau-sm flex-1 truncate text-left">{column.title}</span>
                 {count !== undefined && (
                   <span className="text-tau-micro text-ink-3 shrink-0 tabular-nums">
-                    {count} 组
+                    {t("group.groupCount", { count })}
                   </span>
                 )}
                 {active && (
@@ -142,7 +147,7 @@ const GroupPanel: React.FC<GroupPanelProps> = ({
                           : "text-ink-2 hover:text-ink-1"
                       )}
                     >
-                      {option.label}
+                      {option.label(t)}
                     </button>
                   ))}
                 </div>
@@ -151,14 +156,14 @@ const GroupPanel: React.FC<GroupPanelProps> = ({
           );
         })}
       </div>
-      <div className="text-tau-micro text-ink-3 px-2">选「无」取消分组；日期字段可选聚合粒度</div>
+      <div className="text-tau-micro text-ink-3 px-2">{t("group.hint")}</div>
       <div className="border-line-2 mt-1 flex items-center gap-1.5 border-t px-1 pt-2.5">
         <span className="flex-1" />
         <Button variant="ghost" size="sm" onClick={onClose}>
-          取消
+          {t("common.cancel")}
         </Button>
         <Button variant="primary" size="sm" onClick={handleConfirm}>
-          确定
+          {t("common.confirm")}
         </Button>
       </div>
     </div>

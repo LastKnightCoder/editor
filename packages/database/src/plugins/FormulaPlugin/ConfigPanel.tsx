@@ -9,6 +9,7 @@ import {
   hasHole,
   type FormulaForm,
 } from "../../components/FormulaBuilder/model";
+import { useDatabaseI18n } from "../../i18n";
 
 const labelClass = "text-tau-meta font-medium text-ink-2";
 
@@ -24,6 +25,7 @@ const FormulaConfigPanel: React.FC<FieldConfigPanelProps<FormulaColumnConfig>> =
   error,
   setError,
 }) => {
+  const { t } = useDatabaseI18n();
   const [formula, setFormula] = useState<FormulaForm>(() =>
     column && config?.expr
       ? exprToForm(config.expr, config.output, createFormContext(columns, pluginManager, "row"))
@@ -32,7 +34,7 @@ const FormulaConfigPanel: React.FC<FieldConfigPanelProps<FormulaColumnConfig>> =
 
   return (
     <div className="flex flex-col gap-1.5">
-      <span className={labelClass}>公式</span>
+      <span className={labelClass}>{t("plugin.formula.label")}</span>
       <FormulaBuilder
         scope="row"
         value={formula}
@@ -55,17 +57,35 @@ const FormulaConfigPanel: React.FC<FieldConfigPanelProps<FormulaColumnConfig>> =
   );
 };
 
-/** 保存前的完整校验（原 ColumnEditModal 的公式保存分支）：空位、结构、类型与成环 */
+/** 保存前的完整校验（原 ColumnEditModal 的公式保存分支）：空位、结构、类型与成环。ctx.t 存在时文案经词典 */
 export function validateFormulaConfig(
   config: FormulaColumnConfig | undefined,
   ctx: FieldConfigValidationContext
 ): { ok: true; config: FormulaColumnConfig } | { ok: false; message: string } {
-  if (!config?.expr) return { ok: false, message: "先选择要计算的内容" };
+  const t = ctx.t;
+  if (!config?.expr)
+    return { ok: false, message: t ? t("formula.check.selectFirst") : "先选择要计算的内容" };
   const expr = config.expr as Draft;
-  if (hasHole(expr)) return { ok: false, message: "还有没填完的地方" };
-  const check = checkFormula(expr, "row", ctx.columns, ctx.rows, ctx.pluginManager, ctx.column?.id);
+  if (hasHole(expr))
+    return { ok: false, message: t ? t("formula.check.incomplete") : "还有没填完的地方" };
+  const check = checkFormula(
+    expr,
+    "row",
+    ctx.columns,
+    ctx.rows,
+    ctx.pluginManager,
+    ctx.column?.id,
+    t
+  );
   if (!check.ok || expr.kind === "hole")
-    return { ok: false, message: check.ok ? "还有没填完的地方" : check.message };
+    return {
+      ok: false,
+      message: check.ok
+        ? t
+          ? t("formula.check.incomplete")
+          : "还有没填完的地方"
+        : check.message,
+    };
   return { ok: true, config: { expr, output: check.output } };
 }
 

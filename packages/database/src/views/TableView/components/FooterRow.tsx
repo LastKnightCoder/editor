@@ -12,6 +12,7 @@ import {
   type FormulaContext,
 } from "../../../core/formula";
 import type { DatabaseAggregateDefinition } from "../../../core/formula/aggregateRegistry";
+import { useDatabaseI18n } from "../../../i18n";
 import FormulaBuilder from "../../../components/FormulaBuilder";
 import { checkFormula, createFormContext } from "../../../components/FormulaBuilder/check";
 import {
@@ -70,6 +71,7 @@ const FooterFormulaDialog: React.FC<{
   onClose: () => void;
   onSave: (spec: FooterSpec) => void;
 }> = ({ open, column, spec, columns, rows, pluginManager, onClose, onSave }) => {
+  const { t } = useDatabaseI18n();
   // 没有组合公式时从本列的汇总开始，用户再往后加项；公式只认内置算子
   const initial = (): FormulaForm => {
     if (spec?.kind === "expr")
@@ -90,13 +92,13 @@ const FooterFormulaDialog: React.FC<{
         setForm(initial());
         setError(null);
       }}
-      title="表尾公式"
+      title={t("table.footer.title")}
       context={column.title}
       width={880}
       footer={
         <>
           <Button variant="secondary" size="sm" onClick={onClose}>
-            取消
+            {t("common.cancel")}
           </Button>
           <Button
             variant="primary"
@@ -105,7 +107,7 @@ const FooterFormulaDialog: React.FC<{
               if (form?.kind === "unsupported" && spec?.kind === "expr") return onClose();
               const expr = formToExpr(form, "footer");
               if (hasHole(expr) || expr.kind === "hole") {
-                setError("还有没填完的地方");
+                setError(t("formula.check.incomplete"));
                 return;
               }
               const check = checkFormula(expr, "footer", columns, rows, pluginManager);
@@ -116,7 +118,7 @@ const FooterFormulaDialog: React.FC<{
               onSave({ kind: "expr", expr });
             }}
           >
-            保存
+            {t("common.save")}
           </Button>
         </>
       }
@@ -163,6 +165,7 @@ const FooterCell: React.FC<{
     readonly,
     onChange,
   }) => {
+    const { t } = useDatabaseI18n();
     const [open, setOpen] = useState(false);
     const [formulaOpen, setFormulaOpen] = useState(false);
     const display = useMemo(
@@ -176,11 +179,13 @@ const FooterCell: React.FC<{
     );
     const builtin = available.filter(definition => isBuiltinOp(definition.op));
     const extension = available.filter(definition => !isBuiltinOp(definition.op));
-    // 未登记算子（扩展被移除）：无 label，格内显示为空
+    // 未登记算子（扩展被移除）：无 label，格内显示为空；内置算子经词典投影，扩展算子用注册 label
     const label = spec
       ? spec.kind === "expr"
-        ? "公式"
-        : (aggregateRegistry.get(spec.op)?.label ?? null)
+        ? t("table.footer.formula")
+        : isBuiltinOp(spec.op)
+          ? t(`formula.agg.${spec.op}` as const)
+          : (aggregateRegistry.get(spec.op)?.label ?? null)
       : null;
 
     const content = (
@@ -194,7 +199,7 @@ const FooterCell: React.FC<{
           </>
         ) : (
           <span className="text-ink-3 opacity-0 transition-opacity group-hover/footer:opacity-100">
-            汇总
+            {t("table.footer.aggregate")}
           </span>
         )}
       </span>
@@ -202,7 +207,9 @@ const FooterCell: React.FC<{
 
     const radio = (definition: DatabaseAggregateDefinition) => (
       <Menu.RadioItem key={definition.op} value={definition.op}>
-        {definition.label}
+        {isBuiltinOp(definition.op)
+          ? t(`formula.agg.${definition.op}` as const)
+          : definition.label}
       </Menu.RadioItem>
     );
 
@@ -239,7 +246,7 @@ const FooterCell: React.FC<{
                   onChange(column.id, value === "none" ? null : { kind: "aggregate", op: value });
                 }}
               >
-                <Menu.RadioItem value="none">无</Menu.RadioItem>
+                <Menu.RadioItem value="none">{t("common.none")}</Menu.RadioItem>
                 <Menu.Separator />
                 {builtin.filter(definition => !isCountKind(definition)).map(radio)}
                 {builtin.some(definition => !isCountKind(definition)) && <Menu.Separator />}
@@ -247,7 +254,7 @@ const FooterCell: React.FC<{
                 {extension.length > 0 && <Menu.Separator />}
                 {extension.map(radio)}
                 <Menu.Separator />
-                <Menu.RadioItem value={FORMULA_OPTION}>公式…</Menu.RadioItem>
+                <Menu.RadioItem value={FORMULA_OPTION}>{t("table.footer.formulaOption")}</Menu.RadioItem>
               </Menu.RadioGroup>
             </Menu>
             <FooterFormulaDialog

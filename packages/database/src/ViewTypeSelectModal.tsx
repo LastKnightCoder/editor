@@ -5,6 +5,7 @@ import { builtInViewRegistry } from "./views/builtInViewRegistry";
 import type { ViewRegistry } from "./views/ViewRegistry";
 import type { DatabaseViewDefinition } from "./views/types";
 import type PluginManager from "./PluginManager";
+import { useDatabaseI18n, viewTypeText } from "./i18n";
 
 interface ViewTypeSelectModalProps {
   open: boolean;
@@ -31,6 +32,7 @@ const requiredColumnCandidates = (
 
 const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
   ({ open, onCancel, onConfirm, columns, pluginManager, viewRegistry = builtInViewRegistry }) => {
+    const { t } = useDatabaseI18n();
     const [selectedType, setSelectedType] = useState<DatabaseViewType | null>(null);
     const [name, setName] = useState("");
     const [columnId, setColumnId] = useState<string | null>(null);
@@ -57,7 +59,8 @@ const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
       setSelectedType(type);
       // 如果用户没有手动修改过名称，则自动更新为新的视图类型名称
       if (!userModifiedName) {
-        setName(viewRegistry.get(type)?.name ?? "");
+        const definition = viewRegistry.get(type);
+        setName(definition ? viewTypeText(t, type, "name", definition.name) : "");
       }
     };
 
@@ -75,15 +78,15 @@ const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
         onOpenChange={next => {
           if (!next) onCancel();
         }}
-        title="添加新视图"
+        title={t("view.createTitle")}
         width={600}
         footer={
           <>
             <Button variant="secondary" size="sm" onClick={onCancel}>
-              取消
+              {t("common.cancel")}
             </Button>
             <Button variant="primary" size="sm" disabled={!canConfirm} onClick={handleOk}>
-              创建
+              {t("common.create")}
             </Button>
           </>
         }
@@ -97,7 +100,14 @@ const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
                 const disabled = definition.requiredColumn
                   ? requiredColumnCandidates(definition, columns, pluginManager)?.length === 0
                   : false;
-                const disabledReason = definition.requiredColumn?.unavailableReason;
+                const disabledReason = definition.requiredColumn
+                  ? viewTypeText(
+                      t,
+                      definition.type,
+                      "unavailable",
+                      definition.requiredColumn.unavailableReason
+                    )
+                  : undefined;
                 return (
                   <button
                     key={definition.type}
@@ -121,7 +131,7 @@ const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
                     <span
                       className={cn("text-tau-body font-medium", selected && "text-accent-text")}
                     >
-                      {definition.name}
+                      {viewTypeText(t, definition.type, "name", definition.name)}
                     </span>
                     {disabled && disabledReason && (
                       <span className="text-tau-micro text-ink-3">{disabledReason}</span>
@@ -133,14 +143,16 @@ const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
             {selectedType && (
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1.5">
-                  <span className="text-tau-meta text-ink-2 font-medium">视图名称</span>
+                  <span className="text-tau-meta text-ink-2 font-medium">
+                    {t("view.nameLabel")}
+                  </span>
                   <Input
                     value={name}
                     onChange={e => {
                       setName(e.target.value);
                       setUserModifiedName(true);
                     }}
-                    placeholder="请输入视图名称"
+                    placeholder={t("view.namePlaceholder")}
                     maxLength={50}
                   />
                 </div>
@@ -148,12 +160,22 @@ const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
                 {selectedDefinition?.requiredColumn && (
                   <div className="flex flex-col gap-1.5">
                     <span className="text-tau-meta text-ink-2 font-medium">
-                      {selectedDefinition.requiredColumn.columnLabel}
+                      {viewTypeText(
+                        t,
+                        selectedDefinition.type,
+                        "columnLabel",
+                        selectedDefinition.requiredColumn.columnLabel
+                      )}
                     </span>
                     <Select
                       value={columnId}
                       onValueChange={setColumnId}
-                      placeholder={selectedDefinition.requiredColumn.columnPlaceholder}
+                      placeholder={viewTypeText(
+                        t,
+                        selectedDefinition.type,
+                        "columnPlaceholder",
+                        selectedDefinition.requiredColumn.columnPlaceholder
+                      )}
                       options={(requiredColumns ?? []).map(col => ({
                         value: col.id,
                         label: col.title,

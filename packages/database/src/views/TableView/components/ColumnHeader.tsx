@@ -11,6 +11,7 @@ import PluginManager from "../../../PluginManager";
 import CommandMenuItems from "../../../components/CommandMenuItems";
 import classNames from "classnames";
 import ColumnIcon from "../../../ColumnIcon";
+import { useDatabaseI18n } from "../../../i18n";
 
 const COLUMN_HEADER = "columnHeader";
 
@@ -49,6 +50,7 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
   }) => {
     const ref = useRef<HTMLDivElement>(null);
     const [confirmDelete, setConfirmDelete] = useState(false);
+    const { t } = useDatabaseI18n();
 
     const handleResizeStart = useMemoizedFn((e: React.MouseEvent) => {
       if (readonly) return;
@@ -151,7 +153,7 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
               trigger={
                 <button
                   type="button"
-                  title="列操作"
+                  title={t("table.columnActions")}
                   className="text-ink-3 hover:bg-hover hover:text-ink-1 grid h-4 w-4 shrink-0 cursor-pointer place-items-center rounded-full"
                   onClick={e => e.stopPropagation()}
                 >
@@ -165,7 +167,7 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
                   onEdit?.(column.id);
                 }}
               >
-                编辑
+                {t("common.edit")}
               </Menu.Item>
               {columnCommands.length > 0 && commands && (
                 <>
@@ -186,7 +188,7 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
                     setConfirmDelete(true);
                   }}
                 >
-                  删除
+                  {t("common.delete")}
                 </Menu.Item>
               )}
             </Menu>
@@ -198,11 +200,11 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
           <ConfirmDialog
             open={confirmDelete}
             onOpenChange={setConfirmDelete}
-            title="确认删除"
+            title={t("table.columnDeleteTitle")}
             context={column.title}
-            impact="确定要删除这条列吗？将移除该列的所有数据"
+            impact={t("table.columnDeleteImpact")}
             danger
-            confirmText="确认"
+            confirmText={t("common.confirm")}
             onConfirm={() => onDelete?.(column.id)}
           />
         </div>

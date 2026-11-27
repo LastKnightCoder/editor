@@ -7,6 +7,7 @@ import { RowData } from "../../types";
 import CalendarEvent from "./CalendarEvent";
 import { useMemoizedFn } from "ahooks";
 import { DatePluginConfig } from "../../plugins/DatePlugin";
+import { useDatabaseI18n, type DatabaseMessageKey } from "../../i18n";
 
 interface CalendarRowEvent {
   id: string;
@@ -39,8 +40,6 @@ interface MonthGridProps {
   onEventDelete: (rowData: RowData) => void;
 }
 
-const weekDays = ["一", "二", "三", "四", "五", "六", "日"];
-
 const getDaysInMonth = (year: number, month: number): number => {
   return new Date(year, month, 0).getDate();
 };
@@ -68,6 +67,11 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
     onDateRangeSelect,
     onEventDelete,
   }) => {
+    const { t } = useDatabaseI18n();
+    // 表头周一至周日：词典给出短名，键用序号不随语言漂移
+    const weekDays = [1, 2, 3, 4, 5, 6, 7].map(index =>
+      t(`calendar.weekday.short.${index}` as DatabaseMessageKey)
+    );
     const containerRef = useRef<HTMLDivElement>(null);
     const [containerHeight, setContainerHeight] = useState(0);
     const [moreEventsDay, setMoreEventsDay] = useState<number | null>(null);
@@ -411,7 +415,7 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
         <div className="border-line-2 grid grid-cols-7 border-b">
           {weekDays.map((day, index) => (
             <div
-              key={day}
+              key={index}
               className={classnames(
                 "border-line-2 text-ink-2 text-tau-sm py-3 text-center font-medium",
                 {
@@ -525,7 +529,7 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
                         e.stopPropagation();
                       }}
                     >
-                      +{moreCount} 更多
+                      {t("calendar.more", { count: moreCount })}
                     </div>
                   )}
                 </div>
@@ -584,7 +588,11 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
               {/* 头部 */}
               <div className="border-line-2 flex shrink-0 items-center justify-between border-b px-6 py-4">
                 <h3 className="text-ink-1 text-tau-title-lg font-semibold">
-                  {year}年{month}月{moreEventsDay}日的事件
+                  {t("calendar.eventsTitle", {
+                    year,
+                    monthName: t(`calendar.monthName.${month}` as DatabaseMessageKey),
+                    day: moreEventsDay,
+                  })}
                 </h3>
                 <button
                   onClick={() => {
@@ -608,7 +616,7 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
                   // 根据配置决定显示时间还是"全天"
                   const showTime = dateConfig?.showTime || false;
 
-                  let timeLabel = "全天";
+                  let timeLabel = t("calendar.allDay");
                   let showTimeRange = false;
                   let timeRangeText = "";
 
@@ -616,7 +624,7 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
                     // 如果支持显示时间
                     if (isMultiDay) {
                       // 跨天事件显示"全天"
-                      timeLabel = "全天";
+                      timeLabel = t("calendar.allDay");
                     } else {
                       // 同一天的事件，检查是否有时间部分
                       const hasTime =
@@ -632,7 +640,7 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
                         timeRangeText = `${startDate.format("HH:mm")} - ${endDate.format("HH:mm")}`;
                       } else {
                         // 没有时间部分（00:00:00），显示"全天"
-                        timeLabel = "全天";
+                        timeLabel = t("calendar.allDay");
                       }
                     }
                   }
@@ -654,17 +662,17 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
                             {moreEventsDay}
                           </div>
                           <div className="text-tau-sm text-ink-2 mt-1">
-                            {
-                              ["周日", "周一", "周二", "周三", "周四", "周五", "周六"][
-                                dayjs()
-                                  .year(year)
-                                  .month(month - 1)
-                                  .date(moreEventsDay)
-                                  .day()
-                              ]
-                            }
+                            {t(
+                              `calendar.weekday.full.${dayjs()
+                                .year(year)
+                                .month(month - 1)
+                                .date(moreEventsDay)
+                                .day()}` as DatabaseMessageKey
+                            )}
                           </div>
-                          <div className="text-tau-sm text-ink-2 mt-1">{month}月</div>
+                          <div className="text-tau-sm text-ink-2 mt-1">
+                            {t(`calendar.monthName.${month}` as DatabaseMessageKey, { month })}
+                          </div>
                         </div>
                       )}
                       {index > 0 && <div className="w-16 shrink-0"></div>}
@@ -707,7 +715,21 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
                               className="text-ink-1 text-tau-body mb-1 font-medium"
                               style={{ color: event.color }}
                             >
-                              {startDate.format("M月D日")} - {endDate.format("M月D日")}
+                              {t("calendar.monthDay", {
+                                monthName: t(
+                                  `calendar.monthName.${startDate.month() + 1}` as DatabaseMessageKey,
+                                  { month: startDate.month() + 1 }
+                                ),
+                                day: startDate.date(),
+                              })}{" "}
+                              -{" "}
+                              {t("calendar.monthDay", {
+                                monthName: t(
+                                  `calendar.monthName.${endDate.month() + 1}` as DatabaseMessageKey,
+                                  { month: endDate.month() + 1 }
+                                ),
+                                day: endDate.date(),
+                              })}
                             </div>
                           )}
 
@@ -738,7 +760,7 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
               onClick={handleDeleteEvent}
               className="text-danger hover:bg-hover text-tau-sm w-full px-4 py-2 text-left"
             >
-              删除事件
+              {t("calendar.deleteEventAction")}
             </button>
           </div>
         )}

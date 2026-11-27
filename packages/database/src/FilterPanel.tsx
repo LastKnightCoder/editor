@@ -15,6 +15,7 @@ import PluginManager from "./PluginManager";
 import SimpleDropdown from "./SimpleDropdown";
 import ColumnIcon from "./ColumnIcon";
 import { countFilterConditions } from "./core/filterTree";
+import { useDatabaseI18n } from "./i18n";
 import { Button, cn } from "@tau/ui";
 
 interface FilterPanelProps {
@@ -26,15 +27,7 @@ interface FilterPanelProps {
   theme: "light" | "dark";
 }
 
-const LOGIC_SEGMENT_LABEL: Record<FilterLogicOperator, string> = {
-  and: "满足全部条件",
-  or: "满足任一条件",
-};
-
-const NESTED_LOGIC_LABEL: Record<FilterLogicOperator, string> = {
-  and: "其中，全部满足",
-  or: "其中，任一满足",
-};
+const LOGIC_KEYS: FilterLogicOperator[] = ["and", "or"];
 
 const cloneFilterGroup = (group: FilterGroup | null): FilterGroup | null => {
   return group ? JSON.parse(JSON.stringify(group)) : null;
@@ -49,6 +42,7 @@ const createEmptyGroup = (): FilterGroup => ({
 
 const FilterPanel: React.FC<FilterPanelProps> = memo(
   ({ columns, filters, pluginManager, onChange, onClose, theme }) => {
+    const { t } = useDatabaseI18n();
     const filterableColumns = useMemo(() => {
       return columns.filter(column => pluginManager.getFilterDefinitions(column).length);
     }, [columns, pluginManager]);
@@ -197,13 +191,13 @@ const FilterPanel: React.FC<FilterPanelProps> = memo(
             type="button"
             className="text-tau-meta text-ink-2 hover:text-ink-1 ease-tau-out cursor-pointer rounded-[6px] px-1.5 py-0.5 transition-colors duration-[160ms]"
             onClick={() => handleGroupLogicChange(group.id, group.logic === "and" ? "or" : "and")}
-            title="点击切换组合逻辑"
+            title={t("filter.toggleLogic")}
           >
-            {NESTED_LOGIC_LABEL[group.logic]}
+            {t(group.logic === "and" ? "filter.nestedAll" : "filter.nestedAny")}
           </button>
           <button
             type="button"
-            aria-label="删除条件组"
+            aria-label={t("filter.removeGroup")}
             className="text-ink-3 hover:bg-danger-soft hover:text-danger ease-tau-out ml-auto cursor-pointer rounded-[6px] p-1 opacity-0 transition-opacity duration-[160ms] group-hover/nested:opacity-100"
             onClick={() => handleRemoveNode(parentId, group.id)}
           >
@@ -220,7 +214,7 @@ const FilterPanel: React.FC<FilterPanelProps> = memo(
           disabled={!filterableColumns.length}
         >
           <Plus className="size-3.5" strokeWidth={2.1} />
-          <span>添加条件</span>
+          <span>{t("filter.addCondition")}</span>
         </button>
       </div>
     );
@@ -254,7 +248,7 @@ const FilterPanel: React.FC<FilterPanelProps> = memo(
               {column ? (
                 <ColumnIcon type={column.type} pluginManager={pluginManager} />
               ) : (
-                <span className="text-ink-3">选择字段</span>
+                <span className="text-ink-3">{t("filter.selectField")}</span>
               )}
               {column && <span className="truncate">{column.title}</span>}
               <ChevronDown
@@ -271,7 +265,8 @@ const FilterPanel: React.FC<FilterPanelProps> = memo(
             onSelect={value => handleOperatorChange(condition.id, value)}
           >
             <div className="text-ink-2 hover:bg-surface-hover text-tau-sm flex h-7 cursor-pointer items-center gap-1 whitespace-nowrap rounded-[7px] px-2 transition-colors">
-              {definitions.find(d => d.operator === condition.operator)?.label ?? "操作"}
+              {definitions.find(d => d.operator === condition.operator)?.label ??
+                t("filter.operatorPlaceholder")}
               <ChevronDown className="text-ink-3 size-3 shrink-0 opacity-60" strokeWidth={2.25} />
             </div>
           </SimpleDropdown>
@@ -289,7 +284,7 @@ const FilterPanel: React.FC<FilterPanelProps> = memo(
           )}
           <button
             type="button"
-            aria-label="删除条件"
+            aria-label={t("filter.removeCondition")}
             className="text-ink-3 hover:bg-danger-soft hover:text-danger ease-tau-out ml-auto grid size-6 shrink-0 cursor-pointer place-items-center rounded-[7px] opacity-0 transition-opacity duration-[160ms] group-hover/cond:opacity-100"
             onClick={() => handleRemoveNode(group.id, condition.id)}
           >
@@ -303,19 +298,21 @@ const FilterPanel: React.FC<FilterPanelProps> = memo(
       <div className="text-ink-1 max-h-[520px] w-[384px] overflow-y-auto p-2.5">
         <div className="flex flex-col gap-2">
           <div className="flex items-baseline gap-2 px-1">
-            <span className="text-tau-meta text-ink-1 font-semibold">筛选</span>
+            <span className="text-tau-meta text-ink-1 font-semibold">{t("filter.title")}</span>
             {conditionCount > 0 && (
-              <span className="text-tau-micro text-ink-3">{conditionCount} 个条件</span>
+              <span className="text-tau-micro text-ink-3">
+                {t("filter.conditionCount", { count: conditionCount })}
+              </span>
             )}
           </div>
           {filterableColumns.length === 0 ? (
             <div className="text-tau-body text-ink-3 px-3 py-8 text-center">
-              当前没有支持筛选的字段
+              {t("filter.noFilterableFields")}
             </div>
           ) : (
             <>
               <div className="bg-hover rounded-tau-sm flex p-0.5">
-                {(Object.keys(LOGIC_SEGMENT_LABEL) as FilterLogicOperator[]).map(logic => (
+                {LOGIC_KEYS.map(logic => (
                   <button
                     key={logic}
                     type="button"
@@ -327,7 +324,7 @@ const FilterPanel: React.FC<FilterPanelProps> = memo(
                         : "text-ink-2 hover:text-ink-1"
                     )}
                   >
-                    {LOGIC_SEGMENT_LABEL[logic]}
+                    {t(logic === "and" ? "filter.matchAll" : "filter.matchAny")}
                   </button>
                 ))}
               </div>
@@ -337,8 +334,8 @@ const FilterPanel: React.FC<FilterPanelProps> = memo(
                 </div>
               ) : (
                 <div className="flex flex-col items-center gap-1 py-5 text-center">
-                  <p className="text-tau-body text-ink-2 font-medium">从添加条件开始</p>
-                  <p className="text-tau-meta text-ink-3">按条件组合缩小本视图的范围</p>
+                  <p className="text-tau-body text-ink-2 font-medium">{t("filter.emptyTitle")}</p>
+                  <p className="text-tau-meta text-ink-3">{t("filter.emptyHint")}</p>
                 </div>
               )}
               <div className="flex gap-1 px-1">
@@ -349,7 +346,7 @@ const FilterPanel: React.FC<FilterPanelProps> = memo(
                   disabled={!filterableColumns.length}
                 >
                   <Plus className="size-3.5" strokeWidth={2.1} />
-                  <span>添加条件</span>
+                  <span>{t("filter.addCondition")}</span>
                 </button>
                 <button
                   type="button"
@@ -357,7 +354,7 @@ const FilterPanel: React.FC<FilterPanelProps> = memo(
                   onClick={() => handleAddGroup(localFilters.id)}
                 >
                   <Plus className="size-3.5" strokeWidth={2.1} />
-                  <span>添加条件组</span>
+                  <span>{t("filter.addGroup")}</span>
                 </button>
               </div>
             </>
@@ -369,15 +366,15 @@ const FilterPanel: React.FC<FilterPanelProps> = memo(
                 className="text-tau-micro text-ink-3 hover:text-danger ease-tau-out cursor-pointer rounded-[6px] px-1.5 py-1 transition-colors duration-[160ms]"
                 onClick={handleClearAll}
               >
-                清空
+                {t("common.clear")}
               </button>
             )}
             <span className="flex-1" />
             <Button variant="ghost" size="sm" onClick={onClose}>
-              取消
+              {t("common.cancel")}
             </Button>
             <Button variant="primary" size="sm" onClick={handleConfirm}>
-              确定
+              {t("common.confirm")}
             </Button>
           </div>
         </div>
@@ -444,6 +441,7 @@ interface FilterValueEditorProps {
 
 const FilterValueEditor: React.FC<FilterValueEditorProps> = memo(
   ({ column, value, onChange, pluginManager, theme }) => {
+    const { t } = useDatabaseI18n();
     const plugin = pluginManager.getPlugin(column.type);
 
     const handleChange = (nextValue: CellValue) => {
@@ -480,7 +478,7 @@ const FilterValueEditor: React.FC<FilterValueEditorProps> = memo(
       );
     }
 
-    return <div className="text-tau-body text-ink-3">该字段暂无编辑器</div>;
+    return <div className="text-tau-body text-ink-3">{t("filter.noEditor")}</div>;
   }
 );
 

@@ -22,6 +22,7 @@ import ColumnEditModal from "../../views/TableView/components/ColumnEditModal";
 import { useDatabaseStore } from "../../hooks";
 import PropertyRow from "./PropertyRow";
 import { getRowDeriver } from "../../core/formula";
+import { useDatabaseI18n } from "../../i18n";
 import RowCover from "./RowCover";
 import { DatabaseWriteContext } from "../../DatabaseWriteContext";
 import RowDetailHeader from "./RowDetailHeader";
@@ -65,6 +66,7 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
     readonly = false,
     allowDeleteColumn = true,
   }) => {
+    const { t } = useDatabaseI18n();
     const [currentId, setCurrentId] = useState(rowId);
     const store = useDatabaseStore();
     const commitRowPatch = useContext(DatabaseWriteContext);
@@ -204,7 +206,7 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
       <Dialog
         open
         onOpenChange={open => !open && void handleClose()}
-        title={title || "行详情"}
+        title={title || t("row.detailTitle")}
         width={1120}
         height={880}
         onKeyDown={handleKeyDown}
@@ -247,7 +249,7 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
                     key={row.id}
                     rowId={row.id}
                     value={title}
-                    placeholder={`输入${primaryColumn.title}`}
+                    placeholder={t("row.titlePlaceholder", { column: primaryColumn.title })}
                     readonly={readonly || Boolean(primaryColumn.readonly)}
                     onCommit={(targetRowId, value) =>
                       commitCell(targetRowId, primaryColumn.id, value)
@@ -311,7 +313,7 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
                   {!readonly && onAddColumn && (
                     <button type="button" onClick={onAddColumn} className={GHOST_BUTTON_CLASS}>
                       <Plus className="size-3.5" strokeWidth={1.75} />
-                      添加属性
+                      {t("row.addProperty")}
                     </button>
                   )}
                   {hiddenCount > 0 && (
@@ -325,7 +327,9 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
                       ) : (
                         <ChevronDown className="size-3.5" strokeWidth={1.75} />
                       )}
-                      {showEmpty ? "收起空属性" : `还有 ${hiddenCount} 个空属性`}
+                      {showEmpty
+                        ? t("row.hideEmptyProperties")
+                        : t("row.emptyProperties", { count: hiddenCount })}
                     </button>
                   )}
                 </div>
@@ -357,11 +361,11 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
           onOpenChange={open => {
             if (!open) setConfirmDeleteColumn(null);
           }}
-          title="确认删除属性"
+          title={t("row.deletePropertyTitle")}
           context={confirmDeleteColumn?.title}
-          impact="删除属性将移除该列的所有数据"
+          impact={t("row.deletePropertyImpact")}
           danger
-          confirmText="删除"
+          confirmText={t("common.delete")}
           onConfirm={() => {
             const column = confirmDeleteColumn;
             if (column) deleteColumn(column.id);

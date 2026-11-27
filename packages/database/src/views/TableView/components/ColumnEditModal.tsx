@@ -3,6 +3,7 @@ import { ColumnDef } from "../../../types";
 import PluginManager from "../../../PluginManager";
 import { Button, Dialog, DialogBody, Input, Select } from "@tau/ui";
 import { useDatabaseStore } from "../../../hooks";
+import { useDatabaseI18n, pluginDisplayName } from "../../../i18n";
 
 interface ColumnEditModalProps {
   open: boolean;
@@ -22,6 +23,7 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
   onSave,
   pluginManager,
 }) => {
+  const { t } = useDatabaseI18n();
   const [title, setTitle] = useState("列名");
   const [type, setType] = useState("text");
   const [width, setWidth] = useState(200);
@@ -35,7 +37,7 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
 
   const plugins = pluginManager.getAllPlugins();
   const pluginOptions = plugins.map(plugin => ({
-    label: plugin.name,
+    label: pluginDisplayName(t, plugin.type, plugin.name),
     value: plugin.type,
   }));
 
@@ -68,7 +70,7 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
 
   const handleOk = () => {
     if (!title.trim()) {
-      setTitleError("请输入列标题");
+      setTitleError(t("table.columnModal.titleRequired"));
       return;
     }
 
@@ -77,7 +79,13 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
 
     let config = draftConfig;
     if (plugin?.validateConfig) {
-      const result = plugin.validateConfig(draftConfig, { column, columns, rows, pluginManager });
+      const result = plugin.validateConfig(draftConfig, {
+        column,
+        columns,
+        rows,
+        pluginManager,
+        t,
+      });
       if (!result.ok) {
         setConfigError(result.message);
         return;
@@ -101,15 +109,15 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
       onOpenChange={next => {
         if (!next) onCancel();
       }}
-      title={column ? "编辑列" : "新建列"}
+      title={column ? t("table.columnModal.editTitle") : t("table.columnModal.createTitle")}
       width={ConfigPanel?.dialogWidth ?? 400}
       footer={
         <>
           <Button variant="secondary" size="sm" onClick={onCancel}>
-            取消
+            {t("common.cancel")}
           </Button>
           <Button variant="primary" size="sm" onClick={handleOk}>
-            保存
+            {t("common.save")}
           </Button>
         </>
       }
@@ -118,14 +126,14 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
         <div className="flex flex-col gap-4">
           {/* 列标题 */}
           <div className="flex flex-col gap-1.5">
-            <span className={labelClass}>列标题</span>
+            <span className={labelClass}>{t("table.columnModal.titleLabel")}</span>
             <Input
               value={title}
               onChange={e => {
                 setTitle(e.target.value);
                 if (e.target.value.trim()) setTitleError("");
               }}
-              placeholder="请输入列标题"
+              placeholder={t("table.columnModal.titlePlaceholder")}
               aria-invalid={titleError ? true : undefined}
             />
             {titleError && <p className="text-danger text-tau-sm">{titleError}</p>}
@@ -133,7 +141,7 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
 
           {/* 列类型 */}
           <div className="flex flex-col gap-1.5">
-            <span className={labelClass}>列类型</span>
+            <span className={labelClass}>{t("table.columnModal.typeLabel")}</span>
             <Select
               value={type}
               onValueChange={handleTypeChange}
@@ -144,7 +152,7 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
 
           {/* 列宽度 */}
           <div className="flex flex-col gap-1.5">
-            <span className={labelClass}>列宽度</span>
+            <span className={labelClass}>{t("table.columnModal.widthLabel")}</span>
             <input
               type="number"
               min={50}

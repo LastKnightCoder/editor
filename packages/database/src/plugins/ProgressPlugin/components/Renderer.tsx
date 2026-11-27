@@ -2,6 +2,7 @@ import React, { memo } from "react";
 import { ProgressBar } from "@tau/ui";
 import { ColumnDef } from "../../../types";
 import { ProgressValue } from "../types";
+import { useDatabaseI18n } from "../../../i18n";
 
 interface ProgressRendererProps {
   value: ProgressValue;
@@ -12,6 +13,7 @@ interface ProgressRendererProps {
 }
 
 const ProgressRenderer: React.FC<ProgressRendererProps> = memo(({ value }) => {
+  const { t } = useDatabaseI18n();
   const progressValue =
     value && typeof value === "object" && "current" in value && "target" in value
       ? (value as ProgressValue)
@@ -19,7 +21,7 @@ const ProgressRenderer: React.FC<ProgressRendererProps> = memo(({ value }) => {
 
   return (
     <div className="flex h-full w-full items-center gap-2 px-2 py-1">
-      <ProgressBar value={progressValue.current} max={progressValue.target} label="进度" />
+      <ProgressBar value={progressValue.current} max={progressValue.target} label={t("plugin.progress.label")} />
 
       <div className="font-tau-mono text-ink-2 text-tau-sm tabular-nums">
         {progressValue.current}/{progressValue.target}

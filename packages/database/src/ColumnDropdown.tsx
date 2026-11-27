@@ -1,6 +1,7 @@
 import { FC, useMemo } from "react";
 import type { ColumnDef } from "./types";
 import { Select } from "@tau/ui";
+import { useDatabaseI18n } from "./i18n";
 
 interface ColumnDropdownProps {
   columns: ColumnDef[];
@@ -17,16 +18,17 @@ const ColumnDropdown: FC<ColumnDropdownProps> = ({
   selectedId,
   onSelect,
   disabled = false,
-  placeholder = "选择列",
+  placeholder,
   allowClear = false,
   label,
 }) => {
+  const { t } = useDatabaseI18n();
   const options = useMemo(
     () => [
-      ...(allowClear ? [{ value: "", label: "无" }] : []),
+      ...(allowClear ? [{ value: "", label: t("common.none") }] : []),
       ...columns.map(col => ({ value: col.id, label: col.title })),
     ],
-    [columns, allowClear]
+    [columns, allowClear, t]
   );
 
   return (
@@ -36,9 +38,9 @@ const ColumnDropdown: FC<ColumnDropdownProps> = ({
         value={selectedId ?? null}
         onValueChange={onSelect}
         options={options}
-        placeholder={placeholder}
+        placeholder={placeholder ?? t("columnPicker.placeholder")}
         disabled={disabled}
-        emptyText="暂无可选列"
+        emptyText={t("columnPicker.empty")}
         className="w-full"
       />
     </div>

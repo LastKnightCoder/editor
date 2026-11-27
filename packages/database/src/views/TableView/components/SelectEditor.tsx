@@ -7,6 +7,7 @@ import { produce } from "immer";
 import { CellValue, ColumnDef, SelectOption } from "../../../types";
 import { SELECT_COLORS } from "../../../constants";
 import { Popover } from "@tau/ui";
+import { useDatabaseI18n } from "../../../i18n";
 import SelectList from "./SelectList";
 import VerticalSelectList from "./VerticalSelectList";
 
@@ -31,6 +32,7 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
   autoOpen = false,
   multiple,
 }) => {
+  const { t } = useDatabaseI18n();
   const [isOpen, setIsOpen] = useState(autoOpen);
   const [searchTerm, setSearchTerm] = useState("");
   const [options, setOptions] = useState<SelectOption[]>([]);
@@ -275,10 +277,10 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={selectedOptions.length > 0 ? "" : "选择或输入..."}
+            placeholder={selectedOptions.length > 0 ? "" : t("select.placeholder")}
             autoFocus
           />
-          <div className="text-tau-sm text-ink-3 mt-2 mb-1 px-3">选择或创建一个选项</div>
+          <div className="text-tau-sm text-ink-3 mt-2 mb-1 px-3">{t("select.createHint")}</div>
           <VerticalSelectList
             options={filteredOptions}
             onSelect={handleSelect}
@@ -299,7 +301,7 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
             >
               <div className="hover:bg-hover text-ink-2 rounded-tau-sm text-tau-sm m-1 flex cursor-pointer items-center gap-1 px-2 py-1">
                 <Plus className="size-3.5" strokeWidth={1.75} />
-                <div>创建</div>
+                <div>{t("select.create")}</div>
                 <SelectList
                   options={[
                     {

@@ -12,6 +12,7 @@ import RowDetailModal from "../../components/RowDetailModal";
 import ColumnEditModal from "../TableView/components/ColumnEditModal";
 import { Button, ConfirmDialog, cn } from "@tau/ui";
 import type { DatabaseViewComponentProps } from "../types";
+import { useDatabaseI18n, type DatabaseMessageKey } from "../../i18n";
 
 type CalendarViewProps = DatabaseViewComponentProps;
 
@@ -26,6 +27,7 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
     config,
     bare = false,
   }) => {
+    const { t } = useDatabaseI18n();
     const [confirmDeleteRowId, setConfirmDeleteRowId] = useState<string | null>(null);
 
     const { columns, viewConfig, addRow, addColumn, editColumn, columnWidths, deleteRow } =
@@ -80,7 +82,9 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
             return null;
           }
 
-          const title = primaryColumn ? String(row[primaryColumn.id] || "未命名") : "未命名";
+          const title = primaryColumn
+            ? String(row[primaryColumn.id] || t("common.unnamed"))
+            : t("common.unnamed");
 
           // 如果日期列配置为不包含结束日期，则使用 startDate 作为 endDate
           const endDate = isRange ? dateValue.end : dateValue.start;
@@ -95,7 +99,7 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
           };
         })
         .filter((event): event is NonNullable<typeof event> => event !== null);
-    }, [dateColumn, groupedRows, primaryColumn]);
+    }, [dateColumn, groupedRows, primaryColumn, t]);
 
     const currentYear = dayjs(currentDate).year();
     const currentMonth = dayjs(currentDate).month() + 1;
@@ -198,10 +202,10 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
       return (
         <div className="flex h-full items-center justify-center">
           <div className="text-center">
-            <p className="text-ink-2 mb-4">日历视图需要至少一个日期类型的列</p>
+            <p className="text-ink-2 mb-4">{t("calendar.needDateColumn")}</p>
             {!readonly && (
               <Button variant="primary" size="sm" onClick={handleAddColumn}>
-                添加日期列
+                {t("calendar.addDateColumn")}
               </Button>
             )}
           </div>
@@ -242,11 +246,14 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
               <ChevronRight className="h-4 w-4" strokeWidth={1.75} />
             </button>
             <Button variant="secondary" size="sm" onClick={handleToday} className="ml-1">
-              今天
+              {t("calendar.today")}
             </Button>
           </div>
           <h2 className="text-ink-1 text-tau-title-lg font-semibold">
-            {currentYear}年{currentMonth}月
+            {t("calendar.title", {
+              year: currentYear,
+              monthName: t(`calendar.monthName.${currentMonth}` as DatabaseMessageKey),
+            })}
           </h2>
           <div className="w-32" /> {/* 占位，保持标题居中 */}
         </div>
@@ -305,9 +312,9 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
           onOpenChange={open => {
             if (!open) setConfirmDeleteRowId(null);
           }}
-          title="确定删除此事件吗？"
+          title={t("calendar.deleteEventTitle")}
           danger
-          confirmText="删除"
+          confirmText={t("common.delete")}
           onConfirm={() => {
             const rowId = confirmDeleteRowId;
             if (!rowId) return;

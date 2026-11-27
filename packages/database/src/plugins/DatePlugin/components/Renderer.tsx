@@ -9,6 +9,7 @@ import {
 } from "../utils/dateUtils";
 import { useMinuteClock } from "../hooks/useMinuteClock";
 import { DatePluginConfig, DateValue } from "../index";
+import { useDatabaseI18n } from "../../../i18n";
 
 interface DateRendererProps {
   value: CellValue;
@@ -59,8 +60,9 @@ const RANGE_TRACK_CLASS: Record<RangeDateDisplay["status"], string> = {
 
 /** 范围轨道：已过去部分填充，填充右缘即「今天」 */
 const RangeDate: React.FC<{ display: RangeDateDisplay }> = ({ display }) => {
+  const { t } = useDatabaseI18n();
   const { status } = display;
-  const end = display.end ?? (status === "open" ? "至今" : null);
+  const end = display.end ?? (status === "open" ? t("date.toNow") : null);
   return (
     <div className="flex min-w-0 items-center gap-1.5">
       <div
@@ -122,7 +124,8 @@ const DateView: React.FC<{ value: DateValue; config: DatePluginConfig | undefine
   config,
 }) => {
   const now = useMinuteClock();
-  const display = describeDate(value, config ?? {}, now);
+  const { t } = useDatabaseI18n();
+  const display = describeDate(value, config ?? {}, now, t);
   if (!display) return <div className={CELL_CLASS} />;
   return (
     <div className={CELL_CLASS} title={display.title}>

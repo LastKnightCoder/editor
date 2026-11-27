@@ -11,6 +11,7 @@ import ColumnEditModal from "../TableView/components/ColumnEditModal";
 import { ConfirmDialog } from "@tau/ui";
 import { v4 as uuidv4 } from "uuid";
 import type { DatabaseViewComponentProps } from "../types";
+import { useDatabaseI18n } from "../../i18n";
 const emptyOnCellChange = () => {
   // no-op
 };
@@ -19,6 +20,7 @@ type GalleryViewProps = DatabaseViewComponentProps;
 
 const GalleryView: React.FC<GalleryViewProps> = memo(
   ({ pluginManager, theme, readonly, onRowDetailOpen, onRowAdd, onRowDelete, config }) => {
+    const { t } = useDatabaseI18n();
     const [confirmDeleteRowId, setConfirmDeleteRowId] = useState<string | null>(null);
 
     const { columns, viewConfig, addRow, addColumn, editColumn, columnWidths, deleteRow } =
@@ -333,10 +335,10 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
           onOpenChange={open => {
             if (!open) setConfirmDeleteRowId(null);
           }}
-          title="删除行"
-          impact="确定要删除该行吗？"
+          title={t("table.deleteRowTitle")}
+          impact={t("table.deleteRowImpact")}
           danger
-          confirmText="删除"
+          confirmText={t("common.delete")}
           onConfirm={() => {
             const rowId = confirmDeleteRowId;
             if (!rowId) return;

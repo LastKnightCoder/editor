@@ -3,6 +3,7 @@ import { CellPlugin, CellValue, ColumnDef } from "../../types";
 import { Checkbox } from "@tau/ui";
 import { SquareCheck } from "lucide-react";
 import { checkboxFieldModel } from "./model";
+import { useDatabaseI18n } from "../../i18n";
 
 const Renderer: React.FC<{
   value: CellValue;
@@ -11,6 +12,8 @@ const Renderer: React.FC<{
   readonly: boolean;
   onCellValueChange: (newValue: CellValue) => void;
 }> = ({ value, readonly, onCellValueChange }) => {
+  const { t } = useDatabaseI18n();
+  const checkLabel = t("plugin.checkbox.check");
   const checked = Boolean(value);
 
   const handleToggle = () => {
@@ -38,7 +41,7 @@ const Renderer: React.FC<{
       <Checkbox
         checked={checked}
         disabled={readonly}
-        aria-label="勾选该记录"
+        aria-label={checkLabel}
         onClick={event => event.stopPropagation()}
         onChange={event => onCellValueChange(event.target.checked)}
       />

@@ -2,6 +2,7 @@ import React, { memo, useRef, useEffect, useState } from "react";
 import { useMemoizedFn, useUnmount } from "ahooks";
 import { ColumnDef } from "../../../types";
 import { ProgressValue } from "../types";
+import { useDatabaseI18n } from "../../../i18n";
 
 interface ProgressEditorProps {
   value: ProgressValue;
@@ -18,6 +19,7 @@ const inputClass =
 
 const ProgressEditor: React.FC<ProgressEditorProps> = memo(
   ({ value, onCellValueChange, onFinishEdit, readonly }) => {
+    const { t } = useDatabaseI18n();
     const progressValue =
       value && typeof value === "object" && "current" in value && "target" in value
         ? (value as ProgressValue)
@@ -148,7 +150,7 @@ const ProgressEditor: React.FC<ProgressEditorProps> = memo(
           onChange={handleCurrentChange}
           onBlur={updateValue}
           onFocus={() => setFocusedInput("current")}
-          placeholder="当前"
+          placeholder={t("plugin.progress.current")}
           className={`${inputClass} ${focusedInput === "current" ? "ring-accent/40 ring-2" : ""}`}
         />
 
@@ -160,7 +162,7 @@ const ProgressEditor: React.FC<ProgressEditorProps> = memo(
           onChange={handleTargetChange}
           onBlur={updateValue}
           onFocus={() => setFocusedInput("target")}
-          placeholder="目标"
+          placeholder={t("plugin.progress.target")}
           className={`${inputClass} ${focusedInput === "target" ? "ring-accent/40 ring-2" : ""}`}
         />
 

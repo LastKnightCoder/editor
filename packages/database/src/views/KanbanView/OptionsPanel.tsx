@@ -9,10 +9,12 @@ import {
   getTemplateDefaultCardDisplay,
   resolveKanbanCardDisplay,
 } from "./cardDisplayConfig";
+import { useDatabaseI18n } from "../../i18n";
 
 /** 看板视图的专属配置区块（受控，viewOptions.kanban）：分组列、卡片模板、完成列与可见字段 */
 const KanbanOptionsPanel: React.FC<ViewOptionsPanelProps<KanbanViewConfig>> = memo(
   ({ options, onChange, columns, pluginManager, setCanSave }) => {
+    const { t } = useDatabaseI18n();
     const isBooleanColumn = useMemoizedFn((column: ColumnDef) =>
       pluginManager.hasCapability(column.type, "boolean")
     );
@@ -154,26 +156,30 @@ const KanbanOptionsPanel: React.FC<ViewOptionsPanelProps<KanbanViewConfig>> = me
     return (
       <>
         <RadioGroup
-          label="卡片模板"
+          label={t("kanban.templateLabel")}
           value={kanbanDisplay.template}
           onValueChange={value => handleTemplateChange(value as KanbanCardTemplate)}
           orientation="vertical"
         >
-          <Radio value="compact" label="简洁（仅标题）" />
-          <Radio value="task" label="任务（标题 + 完成 + 2属性）" />
-          <Radio value="detail" label="详情（标题 + 完成 + 4属性）" />
+          <Radio value="compact" label={t("kanban.template.compact")} />
+          <Radio value="task" label={t("kanban.template.task")} />
+          <Radio value="detail" label={t("kanban.template.detail")} />
         </RadioGroup>
 
         <ColumnDropdown
           columns={selectColumns}
           selectedId={groupColumnId}
           onSelect={handleGroupColumnChange}
-          placeholder={selectColumns.length === 0 ? "无单选列" : "选择用于看板分组的单选列"}
+          placeholder={
+            selectColumns.length === 0
+              ? t("kanban.groupColumnEmpty")
+              : t("kanban.groupColumnPlaceholder")
+          }
           disabled={selectColumns.length === 0}
-          label="分组列"
+          label={t("kanban.groupColumnLabel")}
         />
         {selectColumns.length === 0 && (
-          <div className="text-tau-sm text-ink-3">请先添加一个单选类型的列</div>
+          <div className="text-tau-sm text-ink-3">{t("kanban.groupColumnHint")}</div>
         )}
 
         <ColumnDropdown
@@ -181,26 +187,28 @@ const KanbanOptionsPanel: React.FC<ViewOptionsPanelProps<KanbanViewConfig>> = me
           selectedId={kanbanDisplay.doneColumnId ?? ""}
           onSelect={handleDoneColumnChange}
           placeholder={
-            checkboxColumns.length === 0 ? "无复选框列" : "自动选择第一个复选框列（可手动指定）"
+            checkboxColumns.length === 0
+              ? t("kanban.doneColumnEmpty")
+              : t("kanban.doneColumnPlaceholder")
           }
           disabled={checkboxColumns.length === 0}
           allowClear
-          label="完成状态列"
+          label={t("kanban.doneColumnLabel")}
         />
         {checkboxColumns.length === 0 && (
-          <div className="text-tau-sm text-ink-3">当前没有复选框列，卡片将不显示完成状态</div>
+          <div className="text-tau-sm text-ink-3">{t("kanban.doneColumnHint")}</div>
         )}
 
         <div className="flex flex-col gap-1.5">
-          <span className="text-tau-meta text-ink-2 font-medium">卡片属性字段</span>
+          <span className="text-tau-meta text-ink-2 font-medium">{t("kanban.fieldsLabel")}</span>
           {kanbanDisplay.template === "compact" ? (
             <div className="bg-page text-tau-sm text-ink-3 rounded-tau-md px-3 py-2">
-              简洁模板不展示属性字段
+              {t("kanban.fieldsCompactHint")}
             </div>
           ) : (
             <div className="bg-page rounded-tau-md max-h-44 overflow-y-auto p-1.5">
               {kanbanDisplay.candidateFields.length === 0 ? (
-                <div className="text-tau-sm text-ink-3 px-2 py-1">暂无可显示字段</div>
+                <div className="text-tau-sm text-ink-3 px-2 py-1">{t("kanban.fieldsEmpty")}</div>
               ) : (
                 kanbanDisplay.candidateFields.map(field => {
                   const checked = kanbanDisplay.visibleFieldIds.includes(field.id);
@@ -223,7 +231,7 @@ const KanbanOptionsPanel: React.FC<ViewOptionsPanelProps<KanbanViewConfig>> = me
         </div>
 
         <label className="bg-page rounded-tau-md flex cursor-pointer items-center justify-between px-3 py-2">
-          <span className="text-tau-sm text-ink-1">显示字段标签</span>
+          <span className="text-tau-sm text-ink-1">{t("kanban.showFieldLabels")}</span>
           <Checkbox
             checked={kanbanDisplay.showFieldLabels}
             onChange={(event: React.ChangeEvent<HTMLInputElement>) =>

@@ -1,7 +1,7 @@
 import type { DateValue } from "../index";
+import { databaseFallbackT, type DatabaseMessageKey, type DatabaseT } from "../../../i18n";
 
 const DAY_MS = 86_400_000;
-const WEEKDAYS = "日一二三四五六";
 
 export interface DateDisplayOptions {
   showTime?: boolean;
@@ -61,62 +61,72 @@ const formatTime = (ts: number) => {
   return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 };
 
-const formatMonthDay = (ts: number, withYear: boolean) => {
+const formatMonthDay = (t: DatabaseT, ts: number, withYear: boolean) => {
   const date = new Date(ts);
-  return `${withYear ? `${date.getFullYear()}年` : ""}${date.getMonth() + 1}月${date.getDate()}日`;
+  const values = { month: date.getMonth() + 1, day: date.getDate(), year: date.getFullYear() };
+  return withYear ? t("date.yearMonthDay", values) : t("date.monthDay", values);
 };
 
-const formatFull = (ts: number, showTime: boolean) =>
-  `${formatMonthDay(ts, true)} 周${WEEKDAYS[new Date(ts).getDay()]}${showTime ? ` ${formatTime(ts)}` : ""}`;
+const weekdayKeyOf = (ts: number) =>
+  `date.weekday.${new Date(ts).getDay()}` as DatabaseMessageKey;
+
+const formatFull = (t: DatabaseT, ts: number, showTime: boolean) =>
+  `${formatMonthDay(t, ts, true)} ${t(weekdayKeyOf(ts))}${showTime ? ` ${formatTime(ts)}` : ""}`;
 
 /** 天数口语化：两周内按天，两个月内按周，一年内按月，其余按年 */
-const formatSpan = (days: number) => {
-  if (days < 14) return `${days} 天`;
-  if (days < 60) return `${Math.round(days / 7)} 周`;
-  if (days < 365) return `${Math.round(days / 30)} 个月`;
-  return `${Math.round(days / 365)} 年`;
+const formatSpan = (t: DatabaseT, days: number) => {
+  if (days < 14) return t("date.span.day", { count: days });
+  if (days < 60) return t("date.span.week", { count: Math.round(days / 7) });
+  if (days < 365) return t("date.span.month", { count: Math.round(days / 30) });
+  return t("date.span.year", { count: Math.round(days / 365) });
 };
 
-const formatDuration = (ms: number) => {
+const formatDuration = (t: DatabaseT, ms: number) => {
   const minutes = Math.round(ms / 60_000);
-  if (minutes < 60) return `${minutes} 分钟`;
+  if (minutes < 60) return t("date.duration.minute", { count: minutes });
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;
-  if (hours < 24) return rest ? `${hours} 小时 ${rest} 分` : `${hours} 小时`;
-  return `${Math.round(hours / 24)} 天`;
+  if (hours < 24)
+    return rest
+      ? t("date.duration.hourMinute", { hours, minutes: rest })
+      : t("date.duration.hour", { count: hours });
+  return t("date.span.day", { count: Math.round(hours / 24) });
 };
 
 /** 单日主文案：±1 天用相对词，本年省略年份 */
-const formatDayWord = (ts: number, now: number) => {
+const formatDayWord = (t: DatabaseT, ts: number, now: number) => {
   const diff = dayDiff(ts, now);
-  if (diff === 0) return "今天";
-  if (diff === 1) return "明天";
-  if (diff === -1) return "昨天";
-  return formatMonthDay(ts, yearOf(ts) !== yearOf(now));
+  if (diff === 0) return t("date.today");
+  if (diff === 1) return t("date.tomorrow");
+  if (diff === -1) return t("date.yesterday");
+  return formatMonthDay(t, ts, yearOf(ts) !== yearOf(now));
 };
 
-const formatRelative = (ts: number, now: number) => {
+const formatRelative = (t: DatabaseT, ts: number, now: number) => {
   const diff = dayDiff(ts, now);
-  if (diff === 0) return "今天";
-  if (diff === 1) return "明天";
-  if (diff === -1) return "昨天";
-  return diff > 0 ? `${formatSpan(diff)}后` : `${formatSpan(-diff)}前`;
+  if (diff === 0) return t("date.today");
+  if (diff === 1) return t("date.tomorrow");
+  if (diff === -1) return t("date.yesterday");
+  return diff > 0
+    ? t("date.inSpan", { span: formatSpan(t, diff) })
+    : t("date.agoSpan", { span: formatSpan(t, -diff) });
 };
 
-const describeSingle = (ts: number, showTime: boolean, now: number): SingleDateDisplay => {
+const describeSingle = (t: DatabaseT, ts: number, showTime: boolean, now: number): SingleDateDisplay => {
   const diff = dayDiff(ts, now);
   const isPast = diff < 0 || (showTime && diff === 0 && ts < now);
   return {
     kind: "single",
-    label: formatDayWord(ts, now),
+    label: formatDayWord(t, ts, now),
     time: showTime ? formatTime(ts) : null,
-    hint: Math.abs(diff) <= 1 ? null : formatRelative(ts, now),
+    hint: Math.abs(diff) <= 1 ? null : formatRelative(t, ts, now),
     tone: isPast ? "past" : diff === 0 ? "today" : "future",
-    title: formatFull(ts, showTime),
+    title: formatFull(t, ts, showTime),
   };
 };
 
 const describeRange = (
+  t: DatabaseT,
   start: number,
   end: number,
   showTime: boolean,
@@ -127,15 +137,15 @@ const describeRange = (
   const sameMonth = !crossYear && new Date(start).getMonth() === new Date(end).getMonth();
 
   // 跨年才写两次年份，同月（不含时间）省略结束月份
-  let startLabel = formatDayWord(start, now);
+  let startLabel = formatDayWord(t, start, now);
   let endLabel: string | null = null;
   if (!sameDay) {
-    startLabel = formatMonthDay(start, crossYear || yearOf(start) !== yearOf(now));
+    startLabel = formatMonthDay(t, start, crossYear || yearOf(start) !== yearOf(now));
     endLabel = crossYear
-      ? formatMonthDay(end, true)
+      ? formatMonthDay(t, end, true)
       : sameMonth && !showTime
-        ? `${new Date(end).getDate()}日`
-        : formatMonthDay(end, false);
+        ? t("date.dayOnly", { day: new Date(end).getDate() })
+        : formatMonthDay(t, end, false);
   }
 
   // 不含时间时按自然日计算，结束日当天整天算在范围内
@@ -150,21 +160,23 @@ const describeRange = (
     progress = 0;
     hint =
       showTime && dayDiff(start, now) === 0
-        ? `${formatDuration(rangeStart - now)}后开始`
-        : `${formatRelative(start, now)}开始`;
+        ? t("date.startsIn", { span: formatDuration(t, rangeStart - now) })
+        : t("date.startsOn", { span: formatRelative(t, start, now) });
   } else if (now >= rangeEnd) {
     status = "done";
     progress = 1;
-    hint = showTime ? formatDuration(end - start) : `${dayDiff(end, start) + 1} 天`;
+    hint = showTime
+      ? formatDuration(t, end - start)
+      : t("date.span.day", { count: dayDiff(end, start) + 1 });
   } else {
     status = "live";
     progress = (now - rangeStart) / (rangeEnd - rangeStart);
     const daysLeft = dayDiff(end, now);
     hint = showTime
-      ? `剩 ${formatDuration(end - now)}`
+      ? t("date.left", { span: formatDuration(t, end - now) })
       : daysLeft === 0
-        ? "今天结束"
-        : `剩 ${formatSpan(daysLeft)}`;
+        ? t("date.endsToday")
+        : t("date.left", { span: formatSpan(t, daysLeft) });
   }
 
   return {
@@ -176,20 +188,28 @@ const describeRange = (
     status,
     progress,
     hint,
-    title: `${formatFull(start, showTime)} → ${formatFull(end, showTime)}`,
+    title: `${formatFull(t, start, showTime)} → ${formatFull(t, end, showTime)}`,
   };
 };
 
-const describeOpenRange = (start: number, showTime: boolean, now: number): RangeDateDisplay => ({
+const describeOpenRange = (
+  t: DatabaseT,
+  start: number,
+  showTime: boolean,
+  now: number
+): RangeDateDisplay => ({
   kind: "range",
-  start: formatMonthDay(start, yearOf(start) !== yearOf(now)),
+  start: formatMonthDay(t, start, yearOf(start) !== yearOf(now)),
   end: null,
   startTime: showTime ? formatTime(start) : null,
   endTime: null,
   status: "open",
   progress: 1,
-  hint: now < start ? `${formatRelative(start, now)}开始` : `已 ${formatSpan(dayDiff(now, start))}`,
-  title: `${formatFull(start, showTime)} 起`,
+  hint:
+    now < start
+      ? t("date.startsOn", { span: formatRelative(t, start, now) })
+      : t("date.since", { span: formatSpan(t, dayDiff(now, start)) }),
+  title: t("date.sinceTitle", { full: formatFull(t, start, showTime) }),
 });
 
 export const isEmptyDateValue = (value: DateValue | null | undefined) =>
@@ -198,26 +218,28 @@ export const isEmptyDateValue = (value: DateValue | null | undefined) =>
 /**
  * 把日期值转换为单元格展示模型（文案 + 相对「现在」的状态），空值返回 null。
  * 非范围列只看 start；范围列的同日（不含时间）或首尾相同按单日期展示。
+ * 文案经词典翻译；未传 t 时用包内中文兜底（独立渲染 / 旧测试口径）。
  */
 export const describeDate = (
   value: DateValue | null | undefined,
   { showTime = false, isRange = false }: DateDisplayOptions,
-  now: number
+  now: number,
+  t: DatabaseT = databaseFallbackT
 ): DateDisplay | null => {
   if (!value || isEmptyDateValue(value)) return null;
   const { start, end } = value;
 
   if (!isRange) {
-    return start === null ? null : describeSingle(start, showTime, now);
+    return start === null ? null : describeSingle(t, start, showTime, now);
   }
   if (start === null) {
-    return end === null ? null : describeSingle(end, showTime, now);
+    return end === null ? null : describeSingle(t, end, showTime, now);
   }
-  if (end === null) return describeOpenRange(start, showTime, now);
+  if (end === null) return describeOpenRange(t, start, showTime, now);
   if (start === end || (!showTime && dayDiff(start, end) === 0)) {
-    return describeSingle(start, showTime, now);
+    return describeSingle(t, start, showTime, now);
   }
   return start < end
-    ? describeRange(start, end, showTime, now)
-    : describeRange(end, start, showTime, now);
+    ? describeRange(t, start, end, showTime, now)
+    : describeRange(t, end, start, showTime, now);
 };

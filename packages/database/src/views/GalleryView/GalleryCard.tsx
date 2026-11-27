@@ -2,6 +2,7 @@ import React, { memo } from "react";
 import { Trash2 } from "lucide-react";
 import type { RowData, ColumnDef } from "../../types";
 import { BrowserImage, useDatabaseSlots } from "../../DatabaseHostContext";
+import { useDatabaseI18n } from "../../i18n";
 
 interface GalleryCardProps {
   row: RowData;
@@ -17,6 +18,7 @@ interface GalleryCardProps {
 const GalleryCard: React.FC<GalleryCardProps> = memo(
   ({ row, columns, coverType, coverImageColumnId, onClick, onDelete, readonly }) => {
     const { GalleryCover, Image = BrowserImage, coverGradient } = useDatabaseSlots();
+    const { t } = useDatabaseI18n();
     const primaryColumn = columns.find(col => col.isPrimary);
     const primaryValue = primaryColumn ? (row[primaryColumn.id] as string) : "";
 
@@ -33,7 +35,7 @@ const GalleryCard: React.FC<GalleryCardProps> = memo(
         {!readonly && onDelete && (
           <button
             type="button"
-            title="删除卡片"
+            title={t("kanban.deleteCardTitle")}
             className="bg-surface/85 text-ink-2 ease-tau-out hover:text-danger absolute top-2 right-2 z-10 grid size-[26px] cursor-pointer place-items-center rounded-full opacity-0 shadow-sm backdrop-blur-sm transition-[opacity,color] duration-[160ms] group-hover:opacity-100"
             onClick={e => {
               e.stopPropagation();
@@ -54,7 +56,7 @@ const GalleryCard: React.FC<GalleryCardProps> = memo(
           ) : image?.url ? (
             <Image
               src={image.url}
-              alt={primaryValue || "封面"}
+              alt={primaryValue || t("gallery.coverAlt")}
               className="h-full w-full object-cover"
             />
           ) : (
@@ -66,7 +68,7 @@ const GalleryCard: React.FC<GalleryCardProps> = memo(
         </div>
         <div className="border-line-2 bg-surface flex h-[60px] items-center border-t px-4 py-3">
           <span className="text-ink-1 text-tau-body-lg w-full overflow-hidden font-medium text-ellipsis whitespace-nowrap">
-            {primaryValue || "未命名"}
+            {primaryValue || t("common.unnamed")}
           </span>
         </div>
       </div>
