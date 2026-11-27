@@ -1,0 +1,6 @@
+{
+  "configuration.invalid": "查询块配置无效，请检查参数和展示配置。",
+  "loading": "正在加载查询…",
+  "insert.title": "查询数据库",
+  "insert.description": "从卡片、待办、日记等实时汇总成表"
+}

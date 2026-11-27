@@ -1,0 +1,6 @@
+{
+  "configuration.invalid": "Invalid query block configuration. Check the parameters and presentation settings.",
+  "loading": "Loading query…",
+  "insert.title": "Query database",
+  "insert.description": "Build live tables from cards, tasks, journal entries, and more"
+}

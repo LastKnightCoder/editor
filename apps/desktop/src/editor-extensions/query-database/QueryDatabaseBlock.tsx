@@ -7,6 +7,8 @@ import type { QueryDatabaseElement } from "./types";
 import type { QueryPresentation } from "@/features/shared/query-database/presentation";
 import type { QueryDefinition } from "@tau/shared/query-database";
 
+import { useQueryDatabaseBlockI18n } from "./i18n";
+
 const Panel = lazy(() =>
   import("@/features/shared/query-database/QueryDatabasePanel").then(module => ({
     default: module.QueryDatabasePanel,
@@ -31,7 +33,7 @@ export default function QueryDatabaseBlock({
     return (
       <div {...attributes}>
         <div contentEditable={false} role="alert" className="text-danger text-tau-sm my-3">
-          查询块配置无效，请检查参数和展示配置。
+          <QueryBlockNotice kind="configuration.invalid" />
         </div>
         {children}
       </div>
@@ -45,7 +47,13 @@ export default function QueryDatabaseBlock({
             {binding.error}
           </div>
         )}
-        <Suspense fallback={<div className="text-ink-3 text-tau-meta h-8">正在加载查询…</div>}>
+        <Suspense
+          fallback={
+            <div className="text-ink-3 text-tau-meta h-8">
+              <QueryBlockNotice kind="loading" />
+            </div>
+          }
+        >
           <Panel
             variant="block"
             initialSourceOpen={!element.code.trim()}
@@ -91,4 +99,9 @@ export default function QueryDatabaseBlock({
       {!readOnly && <AddParagraph element={element} />}
     </div>
   );
+}
+
+function QueryBlockNotice({ kind }: { kind: "configuration.invalid" | "loading" }) {
+  const { t } = useQueryDatabaseBlockI18n();
+  return t(kind);
 }

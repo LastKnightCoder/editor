@@ -4,6 +4,8 @@ import { queryDatabaseElementDefinition } from "../element-definitions";
 import type { QueryDatabaseElement } from "./types";
 import QueryDatabaseBlock from "./QueryDatabaseBlock";
 
+import { queryDatabaseBlockTranslator } from "./i18n";
+
 const queryDatabaseExtension = defineExtension({
   id: "host.query-database",
   elements: [
@@ -16,9 +18,14 @@ const queryDatabaseExtension = defineExtension({
   ],
   blockPanel: [
     {
+      id: "host.query-database.insert",
       icon: Code,
-      title: "查询数据库",
-      description: "从卡片、待办、日记等实时汇总成表",
+      get title() {
+        return queryDatabaseBlockTranslator.t("insert.title");
+      },
+      get description() {
+        return queryDatabaseBlockTranslator.t("insert.description");
+      },
       keywords: ["query", "dataview", "查询", "数据库"],
       onClick: editor =>
         setOrInsertNode(editor, {

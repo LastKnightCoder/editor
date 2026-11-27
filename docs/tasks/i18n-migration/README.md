@@ -414,6 +414,8 @@ Blank七路径完成；既有真实Editor配置增强契约与DocTasks/element�
 
 ProjectList九路径完成；navigation/markdown原3例基线至最终通过，现有导航例改vi.waitFor替代真实sleep并保全部原断言，新增跨语真实QueryClient卡片/结果身份与不重查契约；5key三语、范围检查与desktop type0。
 
+QueryBlock六路径完成；既有navigation/markdown三例基线/最终通过，4key三语/参数、范围lint/diff与desktop type0。生产AST除原检索别名无固定中文UI，未修改markdown与真实DSL数据。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

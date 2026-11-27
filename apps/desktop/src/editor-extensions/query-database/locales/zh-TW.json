@@ -1,0 +1,6 @@
+{
+  "configuration.invalid": "查詢區塊設定無效，請檢查參數及呈現設定。",
+  "loading": "正在載入查詢…",
+  "insert.title": "查詢資料庫",
+  "insert.description": "將卡片、待辦、日記等即時彙整成表格"
+}
