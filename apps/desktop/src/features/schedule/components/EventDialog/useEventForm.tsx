@@ -25,6 +25,7 @@ import {
   Sun,
 } from "lucide-react";
 import { Button, DatePicker, Input, Select, Switch, cn, toast, type SelectOption } from "@tau/ui";
+import { promptAppUpgradeFromError } from "@/app/upgradePromptStore";
 import { PROJECT_COLORS, type ProjectColorName } from "@/constants/project-colors";
 import type { CalendarEvent, CreateCalendarEvent, UpdateCalendarEvent } from "@/types";
 import { richTextPlainText } from "@tau/shared/rich-text-text";
@@ -252,6 +253,32 @@ export function useEventForm(
       onDone();
     } catch (error) {
       console.error("Failed to save event:", error);
+      const revertTime =
+        editingEvent && editingEvent.id !== 0
+          ? () => {
+              setStartDate(dayjs(editingEvent.startDate).format("YYYY-MM-DD"));
+              setEndDate(
+                editingEvent.endDate ? dayjs(editingEvent.endDate).format("YYYY-MM-DD") : ""
+              );
+              setAllDay(editingEvent.allDay);
+              setStartTime(
+                editingEvent.startTime !== null ? toHHmm(editingEvent.startTime) : "09:00"
+              );
+              setEndTime(editingEvent.endTime !== null ? toHHmm(editingEvent.endTime) : "10:00");
+              toast.info(scheduleText("feedback.timeReverted"));
+            }
+          : undefined;
+      if (
+        promptAppUpgradeFromError(error, {
+          reason: "calendar-timezone-write",
+          context: title.trim() || editingEvent?.title,
+          secondaryAction: revertTime
+            ? { label: scheduleText("action.revertTime"), onClick: revertTime }
+            : undefined,
+        })
+      ) {
+        return;
+      }
       toast.error(scheduleText("feedback.saveFailed"));
     } finally {
       setSaving(false);

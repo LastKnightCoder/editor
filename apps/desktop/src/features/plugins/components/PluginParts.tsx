@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Button, Checkbox, ConfirmDialog, IconButton, Menu, cn } from "@tau/ui";
 import { useDesktopPlugins } from "@/app/plugins/context";
+import { promptAppUpgrade } from "@/app/upgradePromptStore";
 import { relaunchForPlugins } from "@/commands/plugin-local";
 import type { PluginBackendManifest } from "@tau/plugins/package";
 import {
@@ -94,10 +95,25 @@ export function InstallButton({
     return <span className={cn(CHIP, "bg-hover text-ink-2")}>{t("install.local")}</span>;
   if (state.kind === "incompatible")
     return (
-      <span className={cn(CHIP, "bg-hover text-ink-2")} title={t("install.upgradeApp")}>
+      <button
+        type="button"
+        className={cn(
+          CHIP,
+          "bg-hover text-ink-2 hover:bg-accent-soft hover:text-accent-text cursor-pointer transition-colors"
+        )}
+        title={t("install.upgradeApp")}
+        onClick={event => {
+          event.stopPropagation();
+          promptAppUpgrade({
+            reason: "plugin-min-version",
+            context: name,
+            minAppVersion: state.minAppVersion,
+          });
+        }}
+      >
         <Lock className="size-3" strokeWidth={1.75} />
         {t("version.requiresApp", { version: state.minAppVersion })}
-      </span>
+      </button>
     );
   const update = state.kind === "update";
   const start = () => install.mutate(state.releaseId);

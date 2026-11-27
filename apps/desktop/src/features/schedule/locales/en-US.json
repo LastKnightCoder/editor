@@ -173,5 +173,7 @@
   "todo.completeNamed": "Complete “{{title}}”",
   "todo.scheduled": "Scheduled · {{date}} {{time}}",
   "todo.lastScheduled": "Last scheduled · {{date}}",
-  "todo.due": "Due · {{date}}"
+  "todo.due": "Due · {{date}}",
+  "action.revertTime": "Revert time",
+  "feedback.timeReverted": "Time restored. You can still save title or note changes."
 }

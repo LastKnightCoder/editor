@@ -124,5 +124,7 @@
   "color.light-orange": "淺橙色",
   "color.charcoal": "炭灰色",
   "color.gray": "灰色",
-  "color.gray-brown": "灰褐色"
+  "color.gray-brown": "灰褐色",
+  "action.revertTime": "還原時間",
+  "feedback.timeReverted": "已還原為原時間，你可以繼續儲存標題或備註"
 }

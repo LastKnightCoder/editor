@@ -11,6 +11,7 @@ import {
 import dayjs from "dayjs";
 import { cn, toast } from "@tau/ui";
 import { FadeScroll } from "@tau/ui";
+import { promptAppUpgradeFromError } from "@/app/upgradePromptStore";
 import { useScheduleStore } from "../../uiStore";
 import {
   useCalendarCatalog,
@@ -163,7 +164,17 @@ const WeekView = () => {
         endDate: event.endDate == null ? null : startDate,
         startTime: next.start,
         endTime: next.end,
-      }).catch(() => toast.error(scheduleText("feedback.adjustFailed")));
+      }).catch(error => {
+        if (
+          promptAppUpgradeFromError(error, {
+            reason: "calendar-timezone-drag",
+            context: event.title,
+          })
+        ) {
+          return;
+        }
+        toast.error(scheduleText("feedback.adjustFailed"));
+      });
     },
   });
   const columns = useMemo(

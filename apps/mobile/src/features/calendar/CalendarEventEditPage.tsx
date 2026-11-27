@@ -23,6 +23,8 @@ import { useMobileEntityHostRevision } from "../../services/pluginEntities";
 import { PageHeader, PageHeaderButton } from "../../components/PageHeader";
 import { MobileConfirmDialog } from "../../components/MobileConfirmDialog";
 import { DateTimePickerSheet } from "../../components/DateTimePickerSheet";
+import { toast } from "../../components/toast";
+import { promptAppUpgradeFromError } from "../../app/upgradePromptStore";
 import { useBackHandler } from "../../router";
 import { useThemeStore } from "@tau/themes/react";
 import { useEdgeFade } from "../../hooks/useScrollState";
@@ -83,7 +85,7 @@ export function CalendarEventEditPage({
   const toolbarController = useMobileEditorToolbarController({ editorRef });
   const originalTimes = useRef<Pick<
     EventDraft,
-    "startDate" | "startTime" | "endDate" | "endTime"
+    "allDay" | "startDate" | "startTime" | "endDate" | "endTime"
   > | null>(null);
   const draftZone = useRef(Intl.DateTimeFormat().resolvedOptions().timeZone);
   const initialDetail = useRef<string>(JSON.stringify(createEmptyEditorContent()));
@@ -255,6 +257,32 @@ export function CalendarEventEditPage({
       invalidateCalendarQueries();
       onSaved();
     } catch (error) {
+      const savedTimes = originalTimes.current;
+      const revertTime =
+        isEdit && savedTimes
+          ? () => {
+              setDraft(previous => ({
+                ...previous,
+                allDay: savedTimes.allDay,
+                startDate: dayStart(savedTimes.startDate),
+                endDate: savedTimes.endDate !== null ? dayStart(savedTimes.endDate) : null,
+                startTime: savedTimes.startTime,
+                endTime: savedTimes.endTime,
+              }));
+              toast({ type: "info", text: translate("feedback.timeReverted") });
+            }
+          : undefined;
+      if (
+        promptAppUpgradeFromError(error, {
+          reason: "calendar-timezone-write",
+          context: draft.title.trim() || undefined,
+          secondaryAction: revertTime
+            ? { label: translate("action.revertTime"), onClick: revertTime }
+            : undefined,
+        })
+      ) {
+        return;
+      }
       const message = typeof error === "string" ? error : "";
       onError(
         error,

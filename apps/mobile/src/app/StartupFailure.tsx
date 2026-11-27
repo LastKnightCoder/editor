@@ -1,6 +1,8 @@
 import { useShellI18n } from "./shell.i18n";
 import { Button } from "@tau/ui";
+import { parseUpgradeRequiredError } from "@tau/shared/upgrade-prompt";
 import { mapErrorToMessage } from "../services/errors";
+import { MobileStartupUpgradeCard } from "../features/upgradePrompt/UpgradePromptSheet";
 
 export function StartupLoadingText() {
   const { t } = useShellI18n();
@@ -17,6 +19,20 @@ export function StartupCodeFailure({
   onRetry(): void;
 }) {
   const { t } = useShellI18n();
+  const upgradeMatch = parseUpgradeRequiredError(detail) ?? parseUpgradeRequiredError(code);
+  if (upgradeMatch) {
+    return (
+      <MobileStartupUpgradeCard
+        request={{
+          reason: upgradeMatch.reason,
+          minAppVersion: upgradeMatch.minAppVersion,
+          rawError: upgradeMatch.rawMessage,
+          critical: true,
+        }}
+        onRetry={onRetry}
+      />
+    );
+  }
   return (
     <StartupFailure
       message={mapErrorToMessage(code, t("startup.failed"))}

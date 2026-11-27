@@ -1,6 +1,7 @@
 {
   "ui.readonly": "只读",
   "ui.readonlyHint": "此白板由更新版本的应用保存，更新应用后即可编辑",
+  "ui.readonlyUpgrade": "立即升级",
   "ui.media.invalid": "请输入有效的媒体地址",
   "ui.media.failed": "插入媒体失败",
   "ui.media.title": "插入媒体",

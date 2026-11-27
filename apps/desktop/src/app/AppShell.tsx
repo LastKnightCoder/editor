@@ -54,6 +54,8 @@ import "../pages";
 import { useFeatureEnabled, useWorkspacePreferences } from "./featureQueries";
 import { FeatureOnboarding } from "./FeatureOnboarding";
 import { useAppI18n } from "./i18n/react";
+import { parseUpgradeRequiredError } from "@tau/shared/upgrade-prompt";
+import { UpgradePromptCard } from "@/features/upgrade-prompt/UpgradePromptContent";
 
 /** 启动态叶子：只订阅语言刷新启动文案，不连带壳层主树重渲染。 */
 function BootState({
@@ -70,11 +72,24 @@ function BootState({
   enterAnywayDisabled: boolean;
 }) {
   const { t } = useAppI18n();
+  const upgradeMatch = boot === "failed" ? parseUpgradeRequiredError(bootError) : null;
   return (
     <div className={shellRootClass}>
       {boot === "connecting" ? (
         <div className="col-span-full flex min-w-0 flex-col items-center justify-center p-6">
           <Loading label={t("shell.dbConnecting")} minHeight={0} className="h-auto" />
+        </div>
+      ) : upgradeMatch ? (
+        <div className="col-span-full flex min-w-0 flex-col items-center justify-center p-6">
+          <UpgradePromptCard
+            request={{
+              reason: upgradeMatch.reason,
+              minAppVersion: upgradeMatch.minAppVersion,
+              rawError: upgradeMatch.rawMessage,
+              critical: true,
+            }}
+            onRetry={onRetry}
+          />
         </div>
       ) : (
         <div className="text-ink-1 p-6">

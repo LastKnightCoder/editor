@@ -173,5 +173,7 @@
   "todo.completeNamed": "完成「{{title}}」",
   "todo.scheduled": "已安排 · {{date}} {{time}}",
   "todo.lastScheduled": "上次安排 · {{date}}",
-  "todo.due": "截止 · {{date}}"
+  "todo.due": "截止 · {{date}}",
+  "action.revertTime": "還原時間",
+  "feedback.timeReverted": "已還原為原時間，你可以繼續儲存標題或備註"
 }

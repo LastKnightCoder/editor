@@ -1,0 +1,1918 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>通用升级提示能力 · 三方案交互设计稿</title>
+<style>
+  /* ===== @tau/themes · paper (light / dark) 权威 token ===== */
+  :root,
+  [data-theme="paper"][data-mode="light"] {
+    color-scheme: light;
+    --tau-bg-page: #f3eee2;
+    --tau-bg-surface: #fffdf9;
+    --tau-bg-surface-hover: #f6f3ef;
+    --tau-bg-sunken: #e7dbc8;
+    --tau-bg-track: #e0d6c3;
+    --tau-bg-hover: rgba(67, 57, 44, 0.05);
+    --tau-bg-press: rgba(67, 57, 44, 0.09);
+    --tau-bg-selected: rgba(217, 119, 87, 0.12);
+    --tau-ink-1: #43392c;
+    --tau-ink-2: #6a5c49;
+    --tau-ink-3: #a89a85;
+    --tau-ink-inverse: #fff8ef;
+    --tau-line-1: #e9e1d2;
+    --tau-line-2: rgba(233, 225, 210, 0.55);
+    --tau-accent: hsl(22 58% 42%);
+    --tau-accent-hover: hsl(22 58% 35%);
+    --tau-accent-soft: hsla(22, 58%, 42%, 0.12);
+    --tau-accent-text: #a05236;
+    --tau-focus-ring: 0 0 0 3px rgba(217, 119, 87, 0.28);
+    --tau-ok: #61795f;
+    --tau-ok-soft: #e5ede2;
+    --tau-warn: #a38c4d;
+    --tau-warn-soft: #f6efd6;
+    --tau-danger: #b0564d;
+    --tau-danger-soft: #f6e3e0;
+    --tau-info: #5c7d99;
+    --tau-info-soft: #e2ebf3;
+    --tau-tag-1: #61795f; --tau-tag-1-soft: #e5ede2;
+    --tau-tag-2: #5c7d99; --tau-tag-2-soft: #e2ebf3;
+    --tau-tag-3: #8a7aa6; --tau-tag-3-soft: #ebe6f3;
+    --tau-tag-4: #a38c4d; --tau-tag-4-soft: #f6efd6;
+    --tau-tag-5: #b06a5e; --tau-tag-5-soft: #f6e3e0;
+    --tau-overlay: rgba(67, 57, 44, 0.35);
+    --tau-shadow-card: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
+    --tau-shadow-lift: 0 1px 2px rgba(120, 100, 70, 0.06), 0 6px 16px -10px rgba(120, 100, 70, 0.22);
+    --tau-shadow-float: 0 16px 40px -12px rgba(120, 100, 70, 0.4);
+    --tau-glow-1: #f6d3b6;
+    --tau-glow-2: #f1d4ca;
+    --tau-glow-3: #f4e3ae;
+  }
+
+  [data-theme="paper"][data-mode="dark"] {
+    color-scheme: dark;
+    --tau-bg-page: #221d16;
+    --tau-bg-surface: #2e2820;
+    --tau-bg-surface-hover: #39332b;
+    --tau-bg-sunken: #100d08;
+    --tau-bg-track: #463d31;
+    --tau-bg-hover: rgba(236, 226, 208, 0.06);
+    --tau-bg-press: rgba(236, 226, 208, 0.11);
+    --tau-bg-selected: hsla(22, 62%, 65%, 0.2);
+    --tau-ink-1: #ece2d0;
+    --tau-ink-2: #a89a85;
+    --tau-ink-3: #857768;
+    --tau-ink-inverse: #241a10;
+    --tau-line-1: #3a3227;
+    --tau-line-2: rgba(58, 50, 39, 0.55);
+    --tau-accent: hsl(22 62% 65%);
+    --tau-accent-hover: hsl(22 62% 72%);
+    --tau-accent-soft: hsla(22, 62%, 65%, 0.16);
+    --tau-accent-text: hsl(22 66% 70%);
+    --tau-focus-ring: 0 0 0 3px hsla(22, 62%, 65%, 0.4);
+    --tau-ok: #8cab87;
+    --tau-ok-soft: #243023;
+    --tau-warn: #c4a458;
+    --tau-warn-soft: #302917;
+    --tau-danger: #d97e66;
+    --tau-danger-soft: #34201a;
+    --tau-info: #83aecf;
+    --tau-info-soft: #1e2a35;
+    --tau-tag-1: #8cab87; --tau-tag-1-soft: #243023;
+    --tau-tag-2: #83aecf; --tau-tag-2-soft: #1e2a35;
+    --tau-tag-3: #a596c8; --tau-tag-3-soft: #292335;
+    --tau-tag-4: #c4a458; --tau-tag-4-soft: #302917;
+    --tau-tag-5: #d0806a; --tau-tag-5-soft: #30211b;
+    --tau-overlay: rgba(10, 8, 5, 0.55);
+    --tau-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+    --tau-shadow-lift: 0 1px 2px rgba(0, 0, 0, 0.26), 0 6px 16px -10px rgba(0, 0, 0, 0.52);
+    --tau-shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+    --tau-glow-1: #492c18;
+    --tau-glow-2: #47221f;
+    --tau-glow-3: #3b3215;
+  }
+
+  :root {
+    --tau-radius-sm: 8px;
+    --tau-radius-md: 12px;
+    --tau-radius-lg: 16px;
+    --tau-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --tau-font: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif;
+    --tau-font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: var(--tau-font);
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--tau-ink-1);
+    background: var(--tau-bg-page);
+    -webkit-font-smoothing: antialiased;
+    display: flex;
+    flex-direction: column;
+  }
+
+  button, input, select { font-family: inherit; color: inherit; }
+  button:focus-visible, input:focus-visible, select:focus-visible {
+    outline: none;
+    box-shadow: var(--tau-focus-ring);
+  }
+  .mono { font-family: var(--tau-font-mono); }
+  .num { font-variant-numeric: tabular-nums; }
+  .hidden { display: none !important; }
+
+  /* ===== 极光背景（与 AuroraBackdrop 同构） ===== */
+  .aurora {
+    position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 0;
+  }
+  .aurora::before, .aurora::after {
+    content: ""; position: absolute; border-radius: 50%; filter: blur(110px); opacity: 0.42;
+  }
+  .aurora::before { width: 560px; height: 560px; background: var(--tau-glow-1); top: -220px; right: -100px; }
+  .aurora::after { width: 480px; height: 480px; background: var(--tau-glow-3); bottom: -200px; left: 80px; }
+
+  /* ===== 顶部评审控制条 ===== */
+  .review-bar {
+    position: relative; z-index: 90; flex: none;
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: 8px 14px;
+    background: var(--tau-bg-surface);
+    box-shadow: 0 1px 0 var(--tau-line-1);
+    font-size: 12px;
+  }
+  .review-title {
+    display: flex; align-items: center; gap: 7px; font-weight: 600; color: var(--tau-ink-1); margin-right: 4px;
+  }
+  .review-tag {
+    font-size: 11px; font-weight: 500; padding: 1px 7px; border-radius: 999px;
+    background: var(--tau-accent-soft); color: var(--tau-accent-text);
+  }
+  .review-label {
+    font-size: 11px; color: var(--tau-ink-3); margin-left: 4px;
+  }
+  .seg {
+    display: inline-flex; padding: 2px; border-radius: 9px;
+    border: 1px solid var(--tau-line-1); background: var(--tau-bg-page); gap: 2px;
+  }
+  .seg button {
+    border: none; background: transparent; cursor: pointer;
+    height: 24px; padding: 0 9px; border-radius: 7px; font-size: 12px; color: var(--tau-ink-2);
+    transition: background 140ms var(--tau-ease-out), color 140ms var(--tau-ease-out);
+    display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;
+  }
+  .seg button:hover { color: var(--tau-ink-1); }
+  .seg button[aria-pressed="true"] {
+    background: var(--tau-bg-surface); color: var(--tau-ink-1); font-weight: 600;
+    box-shadow: 0 1px 2px rgba(67, 57, 44, 0.08);
+  }
+  .seg .rec { font-size: 10.5px; font-weight: 600; color: var(--tau-accent-text); }
+
+  .review-select {
+    height: 28px; padding: 0 26px 0 9px; border-radius: 8px;
+    border: 1px solid var(--tau-line-1); background: var(--tau-bg-surface);
+    font-size: 12px; color: var(--tau-ink-1); cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23857768' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 8px center;
+  }
+  .review-spacer { flex: 1; }
+  .review-actions { display: flex; align-items: center; gap: 6px; }
+  .pill-btn {
+    height: 26px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--tau-line-1);
+    background: var(--tau-bg-surface); color: var(--tau-ink-2); font-size: 12px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
+    transition: background 140ms var(--tau-ease-out), border-color 140ms, color 140ms;
+  }
+  .pill-btn:hover { background: var(--tau-bg-surface-hover); color: var(--tau-ink-1); border-color: var(--tau-ink-3); }
+  .pill-btn.active { background: var(--tau-accent-soft); color: var(--tau-accent-text); border-color: transparent; font-weight: 550; }
+
+  /* ===== @tau/ui 基础件精确还原 ===== */
+  .btn {
+    height: 34px; padding: 0 15px; border-radius: 10px; border: none; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    font-size: 13px; font-weight: 550; white-space: nowrap; user-select: none;
+    transition: background 140ms var(--tau-ease-out), border-color 140ms, color 140ms, filter 140ms;
+  }
+  .btn.sm { height: 28px; padding: 0 11px; font-size: 12.5px; border-radius: 9px; }
+  .btn.xs { height: 24px; padding: 0 9px; font-size: 11.5px; border-radius: 7px; }
+  .btn.block { width: 100%; height: 40px; border-radius: 12px; font-size: 14px; }
+  .btn svg { width: 15px; height: 15px; flex: none; }
+  .btn.sm svg { width: 14px; height: 14px; }
+  .btn:disabled { opacity: 0.45; pointer-events: none; }
+
+  .btn-primary { background: var(--tau-accent); color: var(--tau-ink-inverse); font-weight: 600; }
+  .btn-primary:hover { background: var(--tau-accent-hover); }
+  .btn-secondary { background: var(--tau-bg-surface); color: var(--tau-ink-1); border: 1px solid var(--tau-line-1); }
+  .btn-secondary:hover { border-color: var(--tau-ink-3); }
+  .btn-soft { background: var(--tau-accent-soft); color: var(--tau-accent-text); }
+  .btn-soft:hover { filter: brightness(0.96); }
+  .btn-ghost { background: transparent; color: var(--tau-ink-2); }
+  .btn-ghost:hover { background: var(--tau-bg-hover); color: var(--tau-ink-1); }
+  .btn-danger-soft { background: var(--tau-danger-soft); color: var(--tau-danger); }
+
+  .icon-btn {
+    width: 28px; height: 28px; border-radius: 8px; border: none; background: transparent;
+    color: var(--tau-ink-2); cursor: pointer; display: grid; place-items: center; flex: none;
+    transition: background 140ms var(--tau-ease-out), color 140ms;
+  }
+  .icon-btn:hover { background: var(--tau-bg-hover); color: var(--tau-ink-1); }
+  .icon-btn svg { width: 15px; height: 15px; }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    height: 22px; padding: 0 9px; border-radius: 999px; font-size: 11.5px;
+    background: var(--tau-bg-hover); color: var(--tau-ink-2); white-space: nowrap;
+  }
+  .chip.surface { background: var(--tau-bg-surface); border: 1px solid var(--tau-line-1); color: var(--tau-ink-2); }
+  .chip.accent { background: var(--tau-accent-soft); color: var(--tau-accent-text); }
+  .chip.ok { background: var(--tau-ok-soft); color: var(--tau-ok); }
+  .chip.warn { background: var(--tau-warn-soft); color: var(--tau-warn); }
+  .chip.danger { background: var(--tau-danger-soft); color: var(--tau-danger); }
+  .chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--tau-accent); flex: none; }
+
+  .spin { animation: spin 0.9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ===== 主舞台容器 ===== */
+  .stage-host {
+    position: relative; z-index: 1; flex: 1; min-height: 0;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+
+  /* ===== 桌面端真实壳层 ===== */
+  .shell {
+    position: relative; flex: 1; min-height: 0;
+    display: grid; grid-template-columns: 196px minmax(0, 1fr);
+  }
+  .sidebar {
+    display: flex; flex-direction: column; padding: 12px 10px 14px;
+    user-select: none; min-height: 0;
+  }
+  .traffic { display: flex; align-items: center; gap: 8px; padding: 2px 8px 14px; }
+  .traffic span { width: 11px; height: 11px; border-radius: 50%; display: block; }
+  .traffic .r { background: #ec6a5e; }
+  .traffic .y { background: #f4bf4f; }
+  .traffic .g { background: #61c554; }
+
+  .ws-pill {
+    margin: 0 4px 12px; padding: 6px 9px; border-radius: 9px;
+    display: flex; align-items: center; gap: 8px; color: var(--tau-ink-1); font-size: 12.5px; font-weight: 550;
+  }
+  .ws-dot {
+    width: 20px; height: 20px; border-radius: 6px; background: var(--tau-accent-soft); color: var(--tau-accent-text);
+    display: grid; place-items: center; font-size: 11px; font-weight: 700; flex: none;
+  }
+  .nav-group { margin-bottom: 10px; }
+  .nav-label { font-size: 11px; color: var(--tau-ink-3); padding: 4px 10px; font-weight: 500; }
+  .nav-item {
+    position: relative; height: 30px; padding: 0 10px; border-radius: 8px;
+    display: flex; align-items: center; gap: 9px; font-size: 13px; color: var(--tau-ink-2);
+    cursor: pointer; border: none; background: transparent; width: 100%; text-align: left;
+  }
+  .nav-item:hover { background: var(--tau-bg-hover); color: var(--tau-ink-1); }
+  .nav-item svg { width: 15px; height: 15px; opacity: 0.85; flex: none; }
+  .nav-item.active { background: var(--tau-bg-selected); color: var(--tau-ink-1); font-weight: 550; }
+  .nav-item.active::before {
+    content: ""; position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px;
+    border-radius: 0 3px 3px 0; background: var(--tau-accent);
+  }
+  .nav-item.active svg { color: var(--tau-accent-text); opacity: 1; }
+  .nav-spacer { flex: 1; }
+  .nav-ver {
+    margin: 6px 10px 0; font-size: 11px; color: var(--tau-ink-3);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .main-col { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  .titlebar {
+    height: 42px; flex: none; display: flex; align-items: center; gap: 8px;
+    padding: 0 20px 0 14px;
+  }
+  .crumb { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--tau-ink-2); }
+  .crumb .cur { color: var(--tau-ink-1); font-weight: 550; }
+
+  .sheet-wrap {
+    flex: 1; min-height: 0; display: flex; flex-direction: column;
+    padding: 2px 16px 16px; max-width: 1720px; width: 100%; margin: 0 auto;
+  }
+  .sheet {
+    position: relative; flex: 1; min-height: 0; display: flex; overflow: hidden;
+    background: var(--tau-bg-surface);
+    border-radius: var(--tau-radius-lg);
+    box-shadow: var(--tau-shadow-card);
+  }
+
+  /* ===== 场景 1 & 2：日程周视图 + 右侧 EventDrawer ===== */
+  .cal-main { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .cal-head {
+    flex: none; padding: 18px 24px 12px; display: flex; align-items: center; gap: 12px;
+  }
+  .cal-head h1 { font-size: 19px; font-weight: 600; letter-spacing: -0.01em; }
+  .cal-chips {
+    display: flex; align-items: center; gap: 6px; padding: 0 24px 10px;
+  }
+  .cal-pill {
+    display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 9px;
+    border-radius: 999px; font-size: 12px; color: var(--tau-ink-2);
+    background: var(--tau-bg-page);
+  }
+  .cal-pill i { width: 7px; height: 7px; border-radius: 2px; display: block; }
+
+  .week-grid {
+    flex: 1; min-height: 0; display: grid; grid-template-columns: 52px repeat(5, minmax(0, 1fr));
+    padding: 0 18px 16px 16px; overflow: hidden;
+  }
+  .week-col-head {
+    padding: 4px 8px 8px; font-size: 11.5px; color: var(--tau-ink-3);
+    display: flex; align-items: baseline; gap: 5px;
+  }
+  .week-col-head strong { font-size: 14px; font-weight: 600; color: var(--tau-ink-1); }
+  .week-col-head.today strong {
+    background: var(--tau-accent); color: var(--tau-ink-inverse);
+    padding: 0 6px; border-radius: 6px; font-size: 13px;
+  }
+  .week-time-col {
+    display: flex; flex-direction: column; padding-top: 26px;
+  }
+  .week-hour {
+    height: 62px; font-size: 11px; color: var(--tau-ink-3); text-align: right; padding-right: 10px;
+    transform: translateY(-7px);
+  }
+  .week-day-col {
+    position: relative; border-left: 1px solid var(--tau-line-2);
+    display: flex; flex-direction: column;
+  }
+  .week-slot { height: 62px; border-top: 1px solid var(--tau-line-2); }
+  .event-block {
+    position: absolute; left: 5px; right: 5px; border-radius: 9px; padding: 6px 8px;
+    font-size: 12px; cursor: pointer; user-select: none;
+    transition: box-shadow 140ms var(--tau-ease-out), background 140ms;
+  }
+  .event-block.work {
+    background: var(--tau-tag-2-soft); color: var(--tau-tag-2);
+    border-left: 3px solid var(--tau-tag-2);
+  }
+  .event-block.personal {
+    background: var(--tau-tag-1-soft); color: var(--tau-tag-1);
+    border-left: 3px solid var(--tau-tag-1);
+  }
+  .event-block.selected {
+    box-shadow: 0 0 0 2px var(--tau-accent);
+  }
+  .event-block .ev-title { font-weight: 600; color: var(--tau-ink-1); line-height: 1.3; display: flex; align-items: center; gap: 4px; }
+  .event-block .ev-meta { font-size: 11px; color: var(--tau-ink-2); margin-top: 2px; display: flex; align-items: center; gap: 5px; }
+  .tz-badge {
+    font-size: 10px; padding: 0 5px; border-radius: 4px;
+    background: rgba(92, 125, 153, 0.14); color: var(--tau-tag-2); font-weight: 550;
+  }
+  .event-block.ghost-drag {
+    background: transparent;
+    border: 1.5px dashed var(--tau-accent);
+    color: var(--tau-accent-text);
+    opacity: 0.9;
+  }
+
+  /* 右侧非模态 EventDrawer */
+  .event-drawer {
+    width: 410px; flex: none; display: flex; flex-direction: column;
+    background: var(--tau-bg-surface);
+    border-left: 1px solid var(--tau-line-1);
+    box-shadow: -12px 0 32px -18px rgba(67, 57, 44, 0.14);
+    z-index: 4;
+  }
+  .drawer-head {
+    padding: 16px 18px 12px; display: flex; align-items: flex-start; gap: 10px;
+  }
+  .drawer-head .cal-sq { width: 10px; height: 10px; border-radius: 3px; background: var(--tau-tag-2); margin-top: 6px; flex: none; }
+  .drawer-head .titles { flex: 1; min-width: 0; }
+  .drawer-head h2 { font-size: 15px; font-weight: 600; color: var(--tau-ink-1); line-height: 1.4; }
+  .drawer-head .sub { font-size: 11.5px; color: var(--tau-ink-3); margin-top: 2px; }
+  .drawer-body {
+    flex: 1; min-height: 0; overflow-y: auto; padding: 4px 18px 16px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .field-input {
+    width: 100%; height: 34px; padding: 0 11px; border-radius: 9px;
+    border: 1px solid var(--tau-line-1); background: var(--tau-bg-surface);
+    font-size: 13.5px; font-weight: 550; color: var(--tau-ink-1);
+  }
+  .field-row {
+    display: grid; grid-template-columns: 64px 1fr; gap: 8px; align-items: center;
+    padding: 3px 0;
+  }
+  .field-row.top { align-items: start; }
+  .field-label {
+    font-size: 12px; color: var(--tau-ink-2); display: flex; align-items: center; gap: 5px;
+  }
+  .field-label svg { width: 14px; height: 14px; color: var(--tau-ink-3); }
+  .time-pick-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .fake-picker {
+    height: 29px; padding: 0 9px; border-radius: 8px;
+    border: 1px solid var(--tau-line-1); background: var(--tau-bg-surface);
+    font-size: 12px; color: var(--tau-ink-1); display: inline-flex; align-items: center; gap: 5px;
+  }
+  .fake-picker.edited {
+    border-color: var(--tau-accent); background: var(--tau-accent-soft); color: var(--tau-accent-text); font-weight: 550;
+  }
+  .fake-picker.warned {
+    border-color: var(--tau-warn); background: var(--tau-warn-soft); color: var(--tau-ink-1);
+  }
+  .notes-box {
+    min-height: 82px; padding: 8px 11px; border-radius: 10px;
+    border: 1px solid var(--tau-line-1); background: var(--tau-bg-surface);
+    font-size: 12.5px; color: var(--tau-ink-2); line-height: 1.6;
+  }
+  .drawer-footer {
+    padding: 12px 18px; border-top: 1px solid var(--tau-line-2);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .unsaved-tag { font-size: 11.5px; color: var(--tau-warn); margin-right: auto; }
+
+  /* ===== 场景 3：白板只读画布 ===== */
+  .wb-canvas {
+    position: relative; flex: 1; display: flex; align-items: center; justify-content: center;
+    background-image: radial-gradient(var(--tau-line-1) 1px, transparent 1px);
+    background-size: 20px 20px;
+    overflow: hidden;
+  }
+  .wb-node {
+    position: absolute; background: var(--tau-bg-surface); border: 1px solid var(--tau-line-1);
+    border-radius: 12px; padding: 14px 16px; box-shadow: var(--tau-shadow-card);
+  }
+  .wb-chrome-bar {
+    position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    height: 40px; padding: 0 8px 0 13px; border-radius: 12px;
+    background: var(--tau-bg-surface); border: 1px solid var(--tau-line-1);
+    box-shadow: var(--tau-shadow-lift);
+    display: flex; align-items: center; gap: 9px; white-space: nowrap; z-index: 5;
+  }
+  .wb-chrome-bar .dot-sep { width: 3px; height: 3px; border-radius: 50%; background: var(--tau-ink-3); }
+
+  /* ===== 场景 4：协作文档页 ===== */
+  .doc-page {
+    flex: 1; display: flex; flex-direction: column; padding: 20px 36px; overflow: hidden;
+  }
+  .doc-topbar {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px;
+  }
+  .doc-paper {
+    max-width: 680px; width: 100%; margin: 12px auto 0;
+  }
+  .doc-paper h1 { font-size: 24px; font-weight: 650; margin-bottom: 12px; }
+  .doc-paper p { color: var(--tau-ink-2); margin-bottom: 12px; font-size: 14px; line-height: 1.8; }
+
+  /* ===== 场景 5：插件中心不兼容行 ===== */
+  .plugins-page { flex: 1; padding: 22px 32px; overflow-y: auto; }
+  .plugin-row {
+    display: flex; align-items: center; gap: 14px; padding: 14px 16px;
+    border-radius: 14px; background: var(--tau-bg-page); margin-bottom: 10px;
+  }
+  .plugin-row.highlight {
+    background: var(--tau-bg-surface);
+    border: 1px solid var(--tau-line-1);
+    box-shadow: var(--tau-shadow-card);
+  }
+  .picon {
+    width: 36px; height: 36px; border-radius: 10px; flex: none;
+    display: grid; place-items: center; font-weight: 650; font-size: 14px;
+  }
+
+  /* ===== 场景 6：启动阶段数据库不兼容（BootState 重设计） ===== */
+  .boot-stage {
+    flex: 1; display: grid; place-items: center; padding: 32px;
+    background: var(--tau-bg-page);
+  }
+
+  /* ===== 方案 A & B：@tau/ui Dialog 精确还原 ===== */
+  .dialog-overlay {
+    position: absolute; inset: 0; z-index: 40;
+    background: var(--tau-overlay);
+    backdrop-filter: blur(4px);
+    display: grid; place-items: center; padding: 28px;
+    animation: fadeIn 180ms var(--tau-ease-out);
+  }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .dialog-card {
+    position: relative; width: 468px; max-width: calc(100% - 24px);
+    background: var(--tau-bg-surface);
+    border: 1px solid var(--tau-line-1);
+    border-radius: var(--tau-radius-lg);
+    box-shadow: var(--tau-shadow-float);
+    display: flex; flex-direction: column;
+    animation: popIn 200ms var(--tau-ease-out);
+  }
+  .dialog-card.wide { width: 492px; }
+  .dialog-card.boot-embedded {
+    box-shadow: var(--tau-shadow-card);
+    animation: none;
+  }
+  @keyframes popIn {
+    from { opacity: 0; transform: translateY(8px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .dialog-close {
+    position: absolute; top: 12px; right: 12px;
+  }
+  .dialog-header {
+    padding: 22px 48px 0 24px;
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  }
+  .dialog-header h2 {
+    font-size: 16px; font-weight: 650; line-height: 1.45; letter-spacing: -0.01em;
+    color: var(--tau-ink-1);
+  }
+  .dialog-subtitle {
+    padding: 3px 48px 0 24px; font-size: 12px; color: var(--tau-ink-3);
+  }
+  .dialog-body {
+    padding: 12px 24px 18px;
+    display: flex; flex-direction: column; gap: 12px;
+    color: var(--tau-ink-2); font-size: 13px; line-height: 1.65;
+  }
+  .dialog-footer {
+    border-top: 1px solid var(--tau-line-2);
+    padding: 13px 24px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .dialog-impact {
+    flex: 1; min-width: 0; font-size: 12px; color: var(--tau-ink-3); line-height: 1.45;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .dialog-impact svg { width: 13px; height: 13px; flex: none; }
+
+  /* 安心保护行：轻量无重底，避免弹窗内叠多层色块 */
+  .safety-strip {
+    display: flex; align-items: flex-start; gap: 7px;
+    padding: 0;
+    color: var(--tau-ok);
+    font-size: 12.5px; line-height: 1.55;
+  }
+  .safety-strip svg { width: 15px; height: 15px; flex: none; margin-top: 2px; }
+  .safety-strip strong { font-weight: 600; }
+
+  /* 轻折叠「为什么会这样？」 */
+  .why-toggle {
+    align-self: flex-start;
+    border: none; background: transparent; cursor: pointer;
+    padding: 2px 4px; margin: -4px 0 -4px -4px; border-radius: 6px;
+    font-size: 12px; color: var(--tau-ink-3);
+    display: inline-flex; align-items: center; gap: 4px;
+    transition: color 140ms;
+  }
+  .why-toggle:hover { color: var(--tau-ink-1); }
+  .why-toggle svg { width: 13px; height: 13px; flex: none; transition: transform 160ms var(--tau-ease-out); }
+  .why-toggle[aria-expanded="true"] svg { transform: rotate(90deg); }
+
+  /* 迷你情景对照块：清透亮底 + 细描边，不用深米黄死档底 */
+  .diff-card {
+    background: var(--tau-bg-surface);
+    border: 1px solid var(--tau-line-1);
+    border-radius: 11px;
+    padding: 11px 13px;
+    display: flex; flex-direction: column; gap: 8px;
+    font-size: 12px;
+  }
+  .diff-row {
+    display: grid; grid-template-columns: 70px 1fr; gap: 10px; align-items: baseline;
+  }
+  .diff-tag {
+    font-size: 11.5px; color: var(--tau-ink-3); font-weight: 550;
+  }
+  .diff-val { color: var(--tau-ink-1); line-height: 1.5; }
+  .diff-val .strike { text-decoration: line-through; color: var(--tau-ink-3); margin-right: 4px; }
+  .diff-val .bad { color: var(--tau-danger); font-weight: 550; }
+  .diff-val .good { color: var(--tau-ok); font-weight: 550; }
+  .diff-pill {
+    display: inline-flex; align-items: center; padding: 0 6px; height: 19px;
+    border-radius: 5px; background: var(--tau-bg-hover);
+    font-family: var(--tau-font-mono); font-size: 11px; color: var(--tau-ink-1);
+  }
+
+  /* 方案 A 核心：内嵌更新状态卡 —— 纸白亮底 + line-1 细描边，层次清爽不发灰 */
+  .update-box {
+    background: color-mix(in srgb, var(--tau-bg-page) 22%, var(--tau-bg-surface));
+    border: 1px solid var(--tau-line-1);
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex; flex-direction: column; gap: 9px;
+  }
+  .update-top {
+    display: flex; align-items: center; gap: 11px;
+  }
+  .tau-mark {
+    width: 34px; height: 34px; border-radius: 10px; flex: none;
+    background: var(--tau-accent-soft);
+    display: grid; place-items: center;
+    font-weight: 700; font-size: 16px; color: var(--tau-accent-text);
+  }
+  .update-meta { flex: 1; min-width: 0; }
+  .update-ver {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    font-size: 12.5px; font-weight: 600; color: var(--tau-ink-1);
+  }
+  .update-ver .arrow { color: var(--tau-ink-3); font-weight: 400; }
+  .update-sub {
+    font-size: 11.5px; color: var(--tau-ink-2); margin-top: 2px;
+  }
+  .progress-track {
+    height: 5px; border-radius: 999px; background: var(--tau-bg-hover); overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; border-radius: 999px; background: var(--tau-accent);
+    transition: width 220ms var(--tau-ease-out);
+  }
+  .update-links {
+    display: flex; align-items: center; gap: 12px; font-size: 11.5px;
+    padding-top: 2px;
+  }
+  .text-link {
+    border: none; background: transparent; cursor: pointer; padding: 2px 0;
+    color: var(--tau-accent-text); font-size: 12px; font-weight: 500;
+    display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; flex: none;
+    transition: color 140ms;
+  }
+  .text-link svg { width: 13px; height: 13px; flex: none; }
+  .text-link:hover { text-decoration: underline; }
+  .text-link.muted { color: var(--tau-ink-2); font-weight: 450; }
+  .text-link.muted:hover { color: var(--tau-ink-1); text-decoration: none; }
+
+  /* 方案 C：表单内联横幅 + 右上角通知卡 */
+  .inline-upgrade-banner {
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--tau-warn-soft) 55%, var(--tau-bg-surface));
+    border: 1px solid color-mix(in srgb, var(--tau-warn) 24%, var(--tau-line-1));
+    padding: 11px 13px;
+    display: flex; flex-direction: column; gap: 8px;
+    margin-bottom: 4px;
+  }
+  .inline-upgrade-banner .b-head {
+    display: flex; align-items: flex-start; gap: 8px;
+  }
+  .inline-upgrade-banner .b-title {
+    font-size: 12.5px; font-weight: 600; color: var(--tau-ink-1); line-height: 1.45;
+  }
+  .inline-upgrade-banner .b-desc {
+    font-size: 12px; color: var(--tau-ink-2); line-height: 1.55; margin-top: 2px;
+  }
+  .inline-upgrade-banner .b-actions {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  }
+
+  /* 右上角 Notification 卡（精确还原 Notification.tsx） */
+  .notif-stack {
+    position: absolute; top: 14px; right: 16px; z-index: 35; width: 348px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .notif-card {
+    background: var(--tau-bg-surface);
+    border-radius: 14px;
+    box-shadow: 0 0 0 1px var(--tau-line-1), var(--tau-shadow-float);
+    padding: 13px 14px 12px;
+    display: flex; flex-direction: column; gap: 10px;
+    animation: popIn 200ms var(--tau-ease-out);
+  }
+  .notif-top { display: flex; gap: 10px; align-items: flex-start; }
+  .notif-icon {
+    width: 34px; height: 34px; border-radius: 10px; flex: none;
+    background: var(--tau-accent-soft); color: var(--tau-accent-text);
+    display: grid; place-items: center;
+  }
+  .notif-icon svg { width: 17px; height: 17px; flex: none; }
+  .wb-chrome-bar svg { width: 15px; height: 15px; flex: none; }
+  .notif-head {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+  }
+  .notif-title { font-size: 13px; font-weight: 600; color: var(--tau-ink-1); }
+  .notif-source { font-size: 11px; color: var(--tau-ink-3); white-space: nowrap; }
+  .notif-body { font-size: 12px; color: var(--tau-ink-2); line-height: 1.5; margin-top: 2px; }
+  .notif-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+
+  /* ===== 移动端框架（390px 手机容器） ===== */
+  .mobile-stage {
+    flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center;
+    padding: 18px; gap: 28px; overflow: auto;
+  }
+  .phone-frame {
+    position: relative; width: 390px; height: min(760px, calc(100vh - 96px));
+    border-radius: 38px;
+    background: var(--tau-bg-page);
+    border: 8px solid #2b241c;
+    box-shadow: var(--tau-shadow-float);
+    overflow: hidden;
+    display: flex; flex-direction: column;
+    flex: none;
+  }
+  [data-mode="dark"] .phone-frame { border-color: #120f0b; }
+  .phone-status {
+    height: 36px; padding: 10px 22px 0; display: flex; align-items: center; justify-content: space-between;
+    font-size: 12px; font-weight: 600; color: var(--tau-ink-1); flex: none;
+  }
+  .phone-header {
+    height: 44px; padding: 0 14px; display: flex; align-items: center; justify-content: space-between;
+    flex: none;
+  }
+  .phone-header h2 { font-size: 16px; font-weight: 700; color: var(--tau-ink-1); }
+  .phone-body {
+    flex: 1; min-height: 0; overflow-y: auto; padding: 8px 16px 24px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .m-card {
+    background: var(--tau-bg-surface); border-radius: 16px; padding: 14px 15px;
+    box-shadow: var(--tau-shadow-card);
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .m-row {
+    display: flex; align-items: center; justify-content: space-between; font-size: 13.5px;
+  }
+  .m-row .k { color: var(--tau-ink-2); }
+  .m-row .v { color: var(--tau-ink-1); font-weight: 550; }
+  .m-row .v.accent { color: var(--tau-accent-text); }
+
+  /* Mobile BottomSheet */
+  .sheet-mask {
+    position: absolute; inset: 0; z-index: 30;
+    background: var(--tau-overlay);
+    backdrop-filter: blur(2px);
+    display: flex; align-items: flex-end;
+    animation: fadeIn 180ms var(--tau-ease-out);
+  }
+  .bottom-sheet {
+    width: 100%; background: var(--tau-bg-surface);
+    border-radius: 24px 24px 0 0;
+    padding: 10px 20px 24px;
+    box-shadow: 0 -10px 32px rgba(0, 0, 0, 0.16);
+    display: flex; flex-direction: column; gap: 13px;
+    animation: slideUp 220ms var(--tau-ease-out);
+  }
+  @keyframes slideUp {
+    from { transform: translateY(28px); opacity: 0.6; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  .sheet-grab {
+    width: 36px; height: 4px; border-radius: 999px; background: var(--tau-line-1);
+    margin: 0 auto 2px;
+  }
+  .mobile-note {
+    max-width: 320px; display: flex; flex-direction: column; gap: 10px;
+  }
+  .mobile-note h3 { font-size: 15px; font-weight: 650; color: var(--tau-ink-1); }
+  .mobile-note p { font-size: 12.5px; color: var(--tau-ink-2); line-height: 1.65; }
+  .mobile-note ul { padding-left: 16px; font-size: 12.5px; color: var(--tau-ink-2); line-height: 1.75; }
+
+  /* ===== 更新内容次级弹窗 ===== */
+  .notes-pop {
+    position: fixed; inset: 0; z-index: 120;
+    background: var(--tau-overlay); backdrop-filter: blur(4px);
+    display: grid; place-items: center; padding: 24px;
+  }
+  .notes-list { padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--tau-ink-2); }
+  .notes-list strong { color: var(--tau-ink-1); }
+
+  /* ===== 架构与设计说明抽屉 ===== */
+  .spec-pop {
+    position: fixed; top: 52px; right: 16px; bottom: 16px; width: 470px; max-width: calc(100vw - 32px);
+    z-index: 110; background: var(--tau-bg-surface);
+    border: 1px solid var(--tau-line-1); border-radius: var(--tau-radius-lg);
+    box-shadow: var(--tau-shadow-float);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .spec-head {
+    padding: 15px 18px; border-bottom: 1px solid var(--tau-line-2);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .spec-head h3 { font-size: 14.5px; font-weight: 650; }
+  .spec-body {
+    flex: 1; overflow-y: auto; padding: 16px 18px 22px;
+    display: flex; flex-direction: column; gap: 14px; font-size: 12.5px; color: var(--tau-ink-2); line-height: 1.65;
+  }
+  .spec-sec h4 { font-size: 13px; font-weight: 650; color: var(--tau-ink-1); margin-bottom: 6px; }
+  .spec-code {
+    background: var(--tau-bg-page); border-radius: 10px; padding: 10px 12px;
+    font-family: var(--tau-font-mono); font-size: 11.5px; line-height: 1.6;
+    color: var(--tau-ink-1); overflow-x: auto; white-space: pre;
+  }
+  .spec-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .spec-table th, .spec-table td {
+    text-align: left; padding: 7px 8px; vertical-align: top;
+    border-bottom: 1px solid var(--tau-line-2);
+  }
+  .spec-table th { color: var(--tau-ink-1); font-weight: 600; white-space: nowrap; }
+
+  /* ===== Toast ===== */
+  #toast-root {
+    position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); z-index: 150;
+    pointer-events: none;
+  }
+  .toast {
+    background: var(--tau-ink-1); color: var(--tau-ink-inverse);
+    padding: 8px 14px; border-radius: 999px; font-size: 12.5px;
+    box-shadow: var(--tau-shadow-float);
+    display: inline-flex; align-items: center; gap: 7px;
+  }
+</style>
+</head>
+<body>
+  <div class="aurora" aria-hidden="true"></div>
+
+  <!-- ===== 顶部评审控制条 ===== -->
+  <header class="review-bar">
+    <div class="review-title">
+      <span>通用升级提示能力</span>
+      <span class="review-tag">三方案设计稿</span>
+    </div>
+
+    <div class="seg" role="group" aria-label="设计方案">
+      <button id="btn-var-a" aria-pressed="true" onclick="setVariant('a')">
+        方案 A · 原地闭环卡 <span class="rec">推荐</span>
+      </button>
+      <button id="btn-var-b" aria-pressed="false" onclick="setVariant('b')">
+        方案 B · 情景对照卡
+      </button>
+      <button id="btn-var-c" aria-pressed="false" onclick="setVariant('c')">
+        方案 C · 内联横幅 + 分流
+      </button>
+    </div>
+
+    <span class="review-label">场景</span>
+    <select id="sel-scenario" class="review-select" onchange="setScenario(this.value)">
+      <option value="schedule-edit">日程 · 修改带时区日程时间（主场景）</option>
+      <option value="schedule-drag">日程 · 周视图拖拽调整时间</option>
+      <option value="whiteboard-readonly">白板 · 新版文档只读条</option>
+      <option value="collab-incompatible">协作 · 协议需要新版</option>
+      <option value="plugin-min-version">插件 · 要求 Tau v0.63+</option>
+      <option value="boot-db-incompatible">启动 · 数据库模型不兼容（阻断）</option>
+    </select>
+
+    <span class="review-label">更新状态</span>
+    <select id="sel-updater" class="review-select" onchange="setUpdaterStatus(this.value)">
+      <option value="ready">已下载就绪 (ready)</option>
+      <option value="available">发现新版待下载 (available)</option>
+      <option value="downloading">后台下载中 68% (downloading)</option>
+      <option value="checking">正在检查更新 (checking)</option>
+      <option value="upToDate">未检测到更高版本 (upToDate)</option>
+      <option value="error">检查/下载失败 (error)</option>
+    </select>
+
+    <div class="seg" role="group" aria-label="平台形态">
+      <button id="btn-plat-desktop" aria-pressed="true" onclick="setPlatform('desktop')">桌面</button>
+      <button id="btn-plat-android" aria-pressed="false" onclick="setPlatform('android')">Android</button>
+      <button id="btn-plat-ios" aria-pressed="false" onclick="setPlatform('ios')">iOS</button>
+    </div>
+
+    <div class="review-spacer"></div>
+    <div class="review-actions">
+      <button id="btn-retrigger" class="pill-btn" onclick="reopenPrompt()">重新触发提示</button>
+      <button id="btn-mode" class="pill-btn" onclick="toggleMode()">深色模式</button>
+      <button id="btn-spec" class="pill-btn" onclick="toggleSpec()">通用能力与方案说明</button>
+    </div>
+  </header>
+
+  <!-- ===== 交互舞台 ===== -->
+  <main id="stage" class="stage-host"></main>
+
+  <!-- ===== 更新公告预览弹层 ===== -->
+  <div id="notes-modal" class="notes-pop hidden" onclick="if(event.target===this) closeReleaseNotes()">
+    <div class="dialog-card wide" role="dialog" aria-modal="true" aria-label="v0.63.0 更新内容">
+      <button class="icon-btn dialog-close" onclick="closeReleaseNotes()" aria-label="关闭">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+      <div class="dialog-header">
+        <h2>v0.63.0 更新内容</h2>
+        <span class="chip accent">新版特性</span>
+      </div>
+      <div class="dialog-body">
+        <ul class="notes-list">
+          <li><strong>日程支持时区记录</strong>：定时日程自动保存设备时区，跨时区出行或夏令时切换时显示当地时间，提醒仍在同一时刻触发。</li>
+          <li><strong>统一升级提示闭环</strong>：遇到新版数据或插件版本要求时，可直接原地下载并重启更新，无需跳转设置。</li>
+          <li><strong>协作与白板格式同步升级</strong>：兼容最新文档协议并保留本机内容完整性。</li>
+        </ul>
+      </div>
+      <div class="dialog-footer">
+        <div class="dialog-impact">升级过程自动保留所有资料库、日程与本机设置</div>
+        <button class="btn sm btn-secondary" onclick="closeReleaseNotes()">返回</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 架构与设计说明抽屉 ===== -->
+  <aside id="spec-pop" class="spec-pop hidden" aria-label="通用能力与方案说明">
+    <div class="spec-head">
+      <h3>通用升级提示能力 · 设计与抽象说明</h3>
+      <button class="icon-btn" onclick="toggleSpec()" aria-label="关闭">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="spec-body">
+      <div class="spec-sec">
+        <h4>1. 为什么要提取成「通用升级提示能力」？</h4>
+        <p>目前仓库中已有 5 类「旧版遇到新版数据或能力，需要升级 Tau」的真实场景，却各自散落成不同形态（有的只弹一句「保存失败」红条、有的是死锁标签无入口、开库失败则是裸文本按钮）。提取为统一能力后，任何业务域只需声明「为什么需要升级 + 数据是否安全」，升级检查、进度、重启安装、官网兜底、移动端 Android/iOS 分流全部由宿主闭环承接。</p>
+      </div>
+
+      <div class="spec-sec">
+        <h4>2. 三方案核心差异</h4>
+        <table class="spec-table">
+          <thead>
+            <tr><th>方案</th><th>呈现形式</th><th>最适合</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>方案 A（推荐）</strong></td>
+              <td>标准 <code>Dialog</code> + 安心保护条 + 内嵌 <code>useUpdateStore</code> 状态卡（+ 可折叠原因对照）</td>
+              <td>全场景通吃、零跳转一步完成更新；非阻断入口配轻量 <code>UpgradeInlineNotice</code> 点击唤起同弹窗</td>
+            </tr>
+            <tr>
+              <td><strong>方案 B</strong></td>
+              <td><code>Dialog</code> 内默认展开「旧版 vs 保护」情景对照块，更新态收进 footer 状态微行</td>
+              <td>偏重向用户解释技术差异，但在下载进度/报错/非字段类场景略局促</td>
+            </tr>
+            <tr>
+              <td><strong>方案 C</strong></td>
+              <td>表单内非模态暖底横幅（带「还原时间」继续存标题），拖拽/后台走右上角通知卡</td>
+              <td>轻打断，但多载体心智分散、无表单容器时需二次跳转</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="spec-sec">
+        <h4>3. 跨端共享契约（@tau/shared/upgrade-prompt）</h4>
+        <div class="spec-code">export type UpgradePromptReason =
+  | "calendar-timezone-write"
+  | "whiteboard-readonly"
+  | "collaboration-incompatible"
+  | "plugin-min-version"
+  | "db-model-incompatible"
+  | "content-source-unsupported";
+
+export interface UpgradePromptRequest {
+  reason: UpgradePromptReason;
+  title?: string;            // 缺省按 reason 取 i18n 预设
+  description?: string;
+  context?: string;          // 对象徽标，如「产品评审」「v0.63.0+」
+  dataSafety?: string;       // 数据保护承诺，消除焦虑
+  minAppVersion?: string;    // 最低所需版本
+  explanation?: {            // 可选「了解原因」对照
+    triggerLabel: string;
+    rows: { label: string; text: string; tone?: "warn" | "ok" }[];
+  };
+  secondaryAction?: {        // 可选业务脱困动作（如还原时间）
+    label: string;
+    onClick: () => void;
+  };
+  critical?: boolean;        // 启动门禁不可关闭
+}</div>
+      </div>
+
+      <div class="spec-sec">
+        <h4>4. 两端宿主与错误识别分层</h4>
+        <p>• <strong>错误分类器</strong>：<code>parseUpgradeRequiredError(err)</code> 集中识别 <code>CALENDAR_TIMEZONE_UPGRADE_REQUIRED</code>（兼容现有 trigger 文案）、<code>DB_MODEL_INCOMPATIBLE</code>、<code>WHITEBOARD_DOC_VERSION_TOO_NEW</code>、<code>UNSUPPORTED_CONTENT_SOURCE</code> 及统一前缀 <code>UPGRADE_REQUIRED:&lt;reason&gt;</code>。</p>
+        <p>• <strong>桌面宿主</strong>：<code>app/upgradePromptStore.ts</code>（遵循 features 域禁止互引 store）+ <code>UpgradePromptHost</code>（与 <code>ReleaseNotesDialog</code> 同挂 <code>AppShell</code>，直连 <code>useUpdateStore</code>）；开库 <code>BootState</code> 复用同一内容体 <code>embedded</code> 渲染。</p>
+        <p>• <strong>移动宿主</strong>：复用同一 <code>UpgradePromptRequest</code> 契约，以 <code>BottomSheet</code> 承载；Android 直连 <code>useAppUpdate</code> 展示下载进度与系统安装器，iOS 隐藏应用内下载改为「前往 App Store 更新」。</p>
+      </div>
+    </div>
+  </aside>
+
+  <div id="toast-root"></div>
+
+<script>
+const SCENARIOS = {
+  "schedule-edit": {
+    nav: "schedule",
+    crumb: "日程",
+    kind: "modal",
+    title: "升级 Tau 后再修改此日程的时间",
+    context: "产品评审",
+    description: "这条日程带有时区记录，当前版本（v0.62.0）只支持钟面时间，直接保存会让跨时区后的实际时刻发生错位。",
+    safety: "已拦截本次保存，原日程时间（09:00–10:00）完好保留。若只需修改标题或备注，仍可直接保存。",
+    minVersion: "0.63.0",
+    explainTrigger: "为什么直接保存会错位？",
+    explainRows: [
+      { label: "旧版写入", html: '只把钟面改成 <span class="diff-pill">10:00</span>，但库里的时区时刻仍是 <span class="bad">09:00</span>' },
+      { label: "本次保护", html: '拦住这次时间写入，<span class="good">原数据保持一致</span>，升级新版后再调整' },
+    ],
+    secondaryAction: { label: "还原时间", toast: "已将时间还原为 09:00–10:00，你可以继续修改标题或备注并保存" },
+    bannerTitle: "此日程包含时区，当前版本暂不支持修改时间",
+    bannerDesc: "原日程（09:00–10:00）已完好保留。你可以先还原时间只保存标题/备注，或直接升级 Tau。",
+    notifTitle: "已拦截带时区日程的时间修改",
+    notifBody: "「产品评审」包含时区记录，原数据已保留，升级 Tau 后即可修改时间。",
+    critical: false,
+  },
+  "schedule-drag": {
+    nav: "schedule",
+    crumb: "日程",
+    kind: "modal",
+    title: "升级 Tau 后再拖动此日程的时间",
+    context: "产品评审",
+    description: "你刚才拖动的日程带有时区信息。当前版本（v0.62.0）若直接改写钟面时间，会与新版记录的实际时刻产生矛盾。",
+    safety: "日程已自动弹回原时段（09:00–10:00），原数据完好未动。",
+    minVersion: "0.63.0",
+    explainTrigger: "为什么直接保存会错位？",
+    explainRows: [
+      { label: "拖动目标", html: '尝试移至 <span class="diff-pill">10:00–11:00</span>，但旧版不会同步更新时区时刻' },
+      { label: "本次保护", html: '已自动取消本次拖动，<span class="good">原日程完好保留</span>' },
+    ],
+    secondaryAction: null,
+    bannerTitle: "拖动已取消：此日程包含时区",
+    bannerDesc: "当前版本无法调整带时区日程的时间，原日程已回退至 09:00–10:00。",
+    notifTitle: "已取消拖动：需升级 Tau",
+    notifBody: "「产品评审」包含时区记录，已回退原时段保住数据，升级后即可调整。",
+    critical: false,
+  },
+  "whiteboard-readonly": {
+    nav: "whiteboard",
+    crumb: "白板 › 架构草图",
+    kind: "inline-trigger",
+    title: "升级 Tau 后即可编辑此白板",
+    context: "架构草图",
+    description: "这份白板由更新版本的 Tau 保存（文档格式 v4）。为避免旧版覆盖丢失新版画布元素，当前以只读模式打开。",
+    safety: "白板完整内容已安全保留，你可以继续浏览、缩放与复制内容。",
+    minVersion: "0.63.0",
+    explainTrigger: "只读保护说明",
+    explainRows: [
+      { label: "文档格式", html: '画布含新版结构（<span class="diff-pill">format v4</span>），当前客户端支持至 v3' },
+      { label: "本次保护", html: '以只读方式展示，<span class="good">不会覆盖或丢失新版元素</span>' },
+    ],
+    secondaryAction: null,
+    inlineText: "此白板由更新版本的 Tau 保存，升级后即可编辑",
+    critical: false,
+  },
+  "collab-incompatible": {
+    nav: "collab",
+    crumb: "协作 › 季度产品规划",
+    kind: "inline-trigger",
+    title: "升级 Tau 以恢复协作同步",
+    context: "季度产品规划",
+    description: "协作房间已启用新版同步协议，当前版本（v0.62.0）暂时无法继续向远端提交或拉取协作者的新改动。",
+    safety: "你在本机的最新编辑已完好保存，升级后会自动续传同步，不会丢失。",
+    minVersion: "0.63.0",
+    explainTrigger: "同步暂停期间数据安全吗？",
+    explainRows: [
+      { label: "本机编辑", html: '<span class="good">已写入本机持久化日志</span>，可随时查看' },
+      { label: "远端同步", html: '暂停收发，待客户端升级至 <span class="diff-pill">v0.63.0+</span> 后自动恢复' },
+    ],
+    secondaryAction: null,
+    inlineText: "已保存在本机，未同步：协作端需要更新版本的 Tau",
+    critical: false,
+  },
+  "plugin-min-version": {
+    nav: "plugins",
+    crumb: "插件",
+    kind: "inline-trigger",
+    title: "安装此插件需要更新版 Tau",
+    context: "播客 · v1.3.0",
+    description: "「播客 v1.3.0」使用了新版宿主能力，需要 Tau v0.63.0 或更高版本（当前为 v0.62.0）。",
+    safety: "已安装的旧版插件与资料库数据不受影响，升级 Tau 后即可一键更新插件。",
+    minVersion: "0.63.0",
+    explainTrigger: "版本兼容要求",
+    explainRows: [
+      { label: "当前版本", html: '<span class="diff-pill">Tau v0.62.0</span>' },
+      { label: "插件要求", html: '<span class="diff-pill">Tau >= v0.63.0</span>（支持新版音频与目录接口）' },
+    ],
+    secondaryAction: null,
+    critical: false,
+  },
+  "boot-db-incompatible": {
+    nav: "boot",
+    crumb: "启动检查",
+    kind: "critical-boot",
+    title: "需要升级 Tau 才能打开当前资料库",
+    context: "主资料库 · default.db",
+    description: "这份资料库已在另一台设备上由更新版本的 Tau 升级过（数据模型 v2）。为防止旧版本错误读写导致数据损坏，已暂停进入主界面。",
+    safety: "资料库文件完好无损。直接在此升级 Tau 后重启，即可原样打开全部内容。",
+    minVersion: "0.63.0",
+    explainTrigger: "技术详情（供排障）",
+    explainRows: [
+      { label: "错误标识", html: '<span class="diff-pill">DB_MODEL_INCOMPATIBLE</span>' },
+      { label: "兼容范围", html: '当前客户端支持模型 v1，资料库已升级至模型 v2' },
+    ],
+    secondaryAction: null,
+    critical: true,
+  },
+};
+
+const state = {
+  variant: "a",            // 'a' | 'b' | 'c'
+  scenario: "schedule-edit",
+  updater: "ready",        // 'ready' | 'available' | 'downloading' | 'checking' | 'upToDate' | 'error'
+  progress: 68,
+  platform: "desktop",     // 'desktop' | 'android' | 'ios'
+  mode: "light",
+  promptOpen: true,
+  whyExpanded: false,
+  timeReverted: false,
+  specOpen: false,
+  downloadTimer: null,
+  toastTimer: null,
+};
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
+}
+
+function showToast(msg) {
+  const root = document.getElementById("toast-root");
+  root.innerHTML = `<div class="toast" role="status"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg><span>${esc(msg)}</span></div>`;
+  clearTimeout(state.toastTimer);
+  state.toastTimer = setTimeout(() => { root.innerHTML = ""; }, 2800);
+}
+
+function clearDownloadSim() {
+  if (state.downloadTimer) {
+    clearInterval(state.downloadTimer);
+    state.downloadTimer = null;
+  }
+}
+
+function setVariant(v) {
+  state.variant = v;
+  state.promptOpen = true;
+  state.timeReverted = false;
+  document.getElementById("btn-var-a").setAttribute("aria-pressed", String(v === "a"));
+  document.getElementById("btn-var-b").setAttribute("aria-pressed", String(v === "b"));
+  document.getElementById("btn-var-c").setAttribute("aria-pressed", String(v === "c"));
+  render();
+}
+
+function setScenario(s) {
+  state.scenario = s;
+  state.whyExpanded = false;
+  state.timeReverted = false;
+  // 非阻断内联触发场景（白板/协作/插件）默认先看页面内联态 + 允许点一下弹出；主日程与启动场景默认直接弹出
+  state.promptOpen = (s === "schedule-edit" || s === "schedule-drag" || s === "boot-db-incompatible");
+  render();
+}
+
+function setUpdaterStatus(st) {
+  clearDownloadSim();
+  state.updater = st;
+  if (st === "downloading") state.progress = 68;
+  render();
+}
+
+function setPlatform(p) {
+  state.platform = p;
+  document.getElementById("btn-plat-desktop").setAttribute("aria-pressed", String(p === "desktop"));
+  document.getElementById("btn-plat-android").setAttribute("aria-pressed", String(p === "android"));
+  document.getElementById("btn-plat-ios").setAttribute("aria-pressed", String(p === "ios"));
+  if (p !== "desktop") state.promptOpen = true;
+  render();
+}
+
+function toggleMode() {
+  state.mode = state.mode === "light" ? "dark" : "light";
+  document.documentElement.setAttribute("data-mode", state.mode);
+  const btn = document.getElementById("btn-mode");
+  btn.textContent = state.mode === "dark" ? "浅色模式" : "深色模式";
+  btn.classList.toggle("active", state.mode === "dark");
+}
+
+function toggleSpec() {
+  state.specOpen = !state.specOpen;
+  document.getElementById("spec-pop").classList.toggle("hidden", !state.specOpen);
+  document.getElementById("btn-spec").classList.toggle("active", state.specOpen);
+}
+
+function reopenPrompt() {
+  state.promptOpen = true;
+  state.timeReverted = false;
+  render();
+}
+
+function closePrompt() {
+  const sc = SCENARIOS[state.scenario];
+  if (sc.critical) {
+    showToast("当前资料库版本高于客户端，需升级后再打开");
+    return;
+  }
+  state.promptOpen = false;
+  render();
+}
+
+function toggleWhy() {
+  state.whyExpanded = !state.whyExpanded;
+  render();
+}
+
+function openReleaseNotes() {
+  document.getElementById("notes-modal").classList.remove("hidden");
+}
+function closeReleaseNotes() {
+  document.getElementById("notes-modal").classList.add("hidden");
+}
+
+function triggerPrimaryAction() {
+  if (state.platform === "ios") {
+    showToast("正在跳转 App Store 中的 Tau 更新页…");
+    return;
+  }
+  if (state.updater === "ready") {
+    showToast(state.platform === "android"
+      ? "正在调起 Android 系统安装器安装 v0.63.0…"
+      : "正在保存状态并重启安装 Tau v0.63.0…");
+    return;
+  }
+  if (state.updater === "available") {
+    clearDownloadSim();
+    state.updater = "downloading";
+    state.progress = 8;
+    document.getElementById("sel-updater").value = "downloading";
+    render();
+    state.downloadTimer = setInterval(() => {
+      state.progress = Math.min(100, state.progress + 18);
+      if (state.progress >= 100) {
+        clearDownloadSim();
+        state.updater = "ready";
+        document.getElementById("sel-updater").value = "ready";
+        showToast("v0.63.0 下载完成，随时可以安装");
+      }
+      render();
+    }, 320);
+    return;
+  }
+  if (state.updater === "error") {
+    state.updater = "checking";
+    document.getElementById("sel-updater").value = "checking";
+    render();
+    setTimeout(() => {
+      state.updater = "available";
+      document.getElementById("sel-updater").value = "available";
+      render();
+      showToast("已检测到新版本 v0.63.0");
+    }, 850);
+    return;
+  }
+  if (state.updater === "upToDate") {
+    showToast("正在浏览器中打开官网下载页 taunote.app …");
+    return;
+  }
+  if (state.updater === "downloading") {
+    state.promptOpen = false;
+    render();
+    showToast("已在后台继续下载，完成后右上角通知你");
+  }
+}
+
+function triggerRevertTime() {
+  state.timeReverted = true;
+  state.promptOpen = false;
+  render();
+  showToast("已还原为原时间 09:00–10:00，标题与备注的改动仍保留");
+}
+
+/* ===== 更新状态解析（与 useUpdateStore / appUpdate 同构） ===== */
+function getUpdaterView() {
+  const isAndroid = state.platform === "android";
+  const isIOS = state.platform === "ios";
+  if (isIOS) {
+    return {
+      chipTone: "accent",
+      chipText: "App Store 可更新",
+      verRight: "v0.63.0",
+      sub: "前往 App Store 更新至最新版本，笔记与日程都会保留",
+      primaryLabel: "前往 App Store 更新",
+      primaryIcon: "external",
+      primaryDisabled: false,
+      showProgress: false,
+      showFallback: true,
+      fallbackLabel: "去官网查看",
+      footerMeta: "当前 v0.62.0 · iOS 经 App Store 更新",
+    };
+  }
+  switch (state.updater) {
+    case "ready":
+      return {
+        chipTone: "ok",
+        chipText: isAndroid ? "安装包已就绪" : "已下载就绪",
+        verRight: "v0.63.0",
+        sub: isAndroid
+          ? "安装包已校验完成（42.6 MB），覆盖安装保留所有数据"
+          : "已在后台下载完成，重启后即可生效",
+        primaryLabel: isAndroid ? "立即安装" : "重启并安装",
+        primaryIcon: "rotate",
+        primaryDisabled: false,
+        showProgress: false,
+        showFallback: false,
+        footerMeta: "v0.63.0 已在后台下载就绪",
+      };
+    case "available":
+      return {
+        chipTone: "accent",
+        chipText: "发现新版本",
+        verRight: "v0.63.0",
+        sub: isAndroid ? "42.6 MB · 点击后下载并交给系统安装" : "更新后自动保留所有资料库与本机设置",
+        primaryLabel: isAndroid ? "下载并安装" : "下载并更新",
+        primaryIcon: "download",
+        primaryDisabled: false,
+        showProgress: false,
+        showFallback: true,
+        fallbackLabel: "手动下载",
+        footerMeta: "发现新版 v0.63.0（可就地下载）",
+      };
+    case "downloading":
+      return {
+        chipTone: "accent",
+        chipText: `下载中 ${state.progress}%`,
+        verRight: "v0.63.0",
+        sub: isAndroid
+          ? `正在下载 ${(42.6 * state.progress / 100).toFixed(1)} MB / 42.6 MB`
+          : "下载完成后可一键重启安装，关闭窗口不会中断下载",
+        primaryLabel: `正在下载 ${state.progress}%…`,
+        primaryIcon: "spin",
+        primaryDisabled: true,
+        showProgress: true,
+        showFallback: false,
+        footerMeta: `正在后台下载 v0.63.0（${state.progress}%）`,
+      };
+    case "checking":
+      return {
+        chipTone: "accent",
+        chipText: "检查中",
+        verRight: "检查新版本…",
+        sub: "正在连接更新服务确认最新版本号…",
+        primaryLabel: "正在检查更新…",
+        primaryIcon: "spin",
+        primaryDisabled: true,
+        showProgress: false,
+        showFallback: false,
+        footerMeta: "正在检查可用版本…",
+      };
+    case "upToDate":
+      return {
+        chipTone: "warn",
+        chipText: "通道暂无新版",
+        verRight: "当前 v0.62.0",
+        sub: "当前更新通道暂未检测到更高版本，可前往官网获取最新安装包",
+        primaryLabel: "前往官网下载",
+        primaryIcon: "external",
+        primaryDisabled: false,
+        showProgress: false,
+        showFallback: false,
+        footerMeta: "当前通道未检出更高版本",
+      };
+    case "error":
+      return {
+        chipTone: "danger",
+        chipText: "检查失败",
+        verRight: "当前 v0.62.0",
+        sub: "无法连接更新服务（网络超时），你可以重试或手动下载安装包",
+        primaryLabel: "重试检查",
+        primaryIcon: "refresh",
+        primaryDisabled: false,
+        showProgress: false,
+        showFallback: true,
+        fallbackLabel: "手动下载",
+        footerMeta: "检查更新失败 · 可重试或手动下载",
+      };
+  }
+}
+
+function svgIcon(name) {
+  const icons = {
+    close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+    shield: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>',
+    chevRight: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>',
+    rotate: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>',
+    download: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>',
+    external: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>',
+    refresh: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>',
+    spin: '<svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>',
+    lock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+    clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+    globe: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>',
+    cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>',
+    note: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>',
+    arrowUp: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m16 12-4-4-4 4"/><path d="M12 16V8"/></svg>',
+    undo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>',
+  };
+  return icons[name] || "";
+}
+
+/* ===== 渲染：桌面端通用升级模态框（方案 A & B & 启动内嵌） ===== */
+function renderUpgradeDialog({ embedded = false } = {}) {
+  const sc = SCENARIOS[state.scenario];
+  const uv = getUpdaterView();
+  const isB = state.variant === "b" && !embedded;
+
+  const explainBlock = sc.explainRows ? `
+    <div class="diff-card">
+      ${sc.explainRows.map(r => `
+        <div class="diff-row">
+          <span class="diff-tag">${esc(r.label)}</span>
+          <div class="diff-val">${r.html}</div>
+        </div>
+      `).join("")}
+    </div>
+  ` : "";
+
+  const updateBox = `
+    <div class="update-box">
+      <div class="update-top">
+        <div class="tau-mark">τ</div>
+        <div class="update-meta">
+          <div class="update-ver">
+            <span class="mono">v0.62.0</span>
+            ${state.updater !== "upToDate" && state.updater !== "error" ? `<span class="arrow">→</span><span class="mono">${esc(uv.verRight)}</span>` : ""}
+            <span class="chip ${uv.chipTone}" style="height:19px;font-size:11px;padding:0 7px">${esc(uv.chipText)}</span>
+          </div>
+          <div class="update-sub">${esc(uv.sub)}</div>
+        </div>
+      </div>
+      ${uv.showProgress ? `
+        <div class="progress-track"><div class="progress-fill" style="width:${state.progress}%"></div></div>
+      ` : ""}
+      <div class="update-links">
+        <button class="text-link" onclick="openReleaseNotes()">查看 v0.63.0 更新内容</button>
+        ${uv.showFallback ? `<button class="text-link muted" onclick="showToast('正在打开官网安装包直链…')">${esc(uv.fallbackLabel)} ↗</button>` : ""}
+        ${!embedded ? `<button class="text-link muted" style="margin-left:auto" onclick="showToast('已打开 设置 › 关于与更新')">关于与更新</button>` : ""}
+      </div>
+    </div>
+  `;
+
+  const secondaryCloseLabel = sc.critical
+    ? "退出应用"
+    : state.updater === "downloading"
+      ? "后台继续下载"
+      : "稍后再说";
+
+  const cardHtml = `
+    <div class="dialog-card ${isB ? "wide" : ""} ${embedded ? "boot-embedded" : ""}" role="dialog" aria-modal="${!embedded}" aria-label="${esc(sc.title)}">
+      ${!sc.critical && !embedded ? `
+        <button class="icon-btn dialog-close" onclick="closePrompt()" aria-label="关闭">${svgIcon("close")}</button>
+      ` : ""}
+      <div class="dialog-header">
+        <h2>${esc(sc.title)}</h2>
+        ${sc.context ? `<span class="chip surface"><span class="dot"></span>${esc(sc.context)}</span>` : ""}
+      </div>
+      <div class="dialog-body">
+        <p>${esc(sc.description)}</p>
+        <div class="safety-strip">
+          ${svgIcon("shield")}
+          <div>${esc(sc.safety)}</div>
+        </div>
+        ${isB ? explainBlock : (sc.explainRows ? `
+          <button class="why-toggle" aria-expanded="${state.whyExpanded}" onclick="toggleWhy()">
+            ${svgIcon("chevRight")}
+            <span>${esc(sc.explainTrigger)}</span>
+          </button>
+          ${state.whyExpanded ? explainBlock : ""}
+        ` : "")}
+        ${!isB ? updateBox : ""}
+      </div>
+      <div class="dialog-footer">
+        ${isB ? `
+          <div class="dialog-impact">
+            <div>${esc(uv.footerMeta)}</div>
+            ${uv.showProgress ? `<div class="progress-track" style="margin-top:5px;width:160px"><div class="progress-fill" style="width:${state.progress}%"></div></div>` : ""}
+          </div>
+        ` : `
+          <div class="dialog-impact">
+            ${sc.secondaryAction ? `<button class="text-link muted" onclick="triggerRevertTime()">${svgIcon("undo")} <span>${esc(sc.secondaryAction.label)}</span></button>` : (sc.minVersion ? `要求 Tau v${sc.minVersion} 或更高` : "")}
+          </div>
+        `}
+        ${!sc.critical ? `
+          <button class="btn sm btn-secondary" onclick="closePrompt()">${esc(secondaryCloseLabel)}</button>
+        ` : `
+          <button class="btn sm btn-secondary" onclick="showToast('点击重试连接数据库…')">重新检查</button>
+        `}
+        ${state.updater === "downloading" ? `
+          <button class="btn sm btn-primary" disabled>${svgIcon("spin")} ${esc(uv.primaryLabel)}</button>
+        ` : `
+          <button class="btn sm btn-primary" ${uv.primaryDisabled ? "disabled" : ""} onclick="triggerPrimaryAction()">
+            ${svgIcon(uv.primaryIcon)} ${esc(uv.primaryLabel)}
+          </button>
+        `}
+      </div>
+    </div>
+  `;
+
+  if (embedded) return cardHtml;
+  return `<div class="dialog-overlay" onclick="if(event.target===this) closePrompt()">${cardHtml}</div>`;
+}
+
+/* ===== 渲染：桌面端方案 C（内联横幅 / 右上角通知） ===== */
+function renderInlineBannerC() {
+  const sc = SCENARIOS[state.scenario];
+  const uv = getUpdaterView();
+  if (!state.promptOpen || state.variant !== "c" || state.scenario !== "schedule-edit") return "";
+  return `
+    <div class="inline-upgrade-banner" role="alert">
+      <div class="b-head">
+        <div style="flex:1;min-width:0">
+          <div class="b-title">${esc(sc.bannerTitle)}</div>
+          <div class="b-desc">${esc(sc.bannerDesc)}</div>
+        </div>
+        <button class="icon-btn" style="width:22px;height:22px" onclick="closePrompt()" aria-label="关闭">${svgIcon("close")}</button>
+      </div>
+      ${uv.showProgress ? `<div class="progress-track"><div class="progress-fill" style="width:${state.progress}%"></div></div>` : ""}
+      <div class="b-actions">
+        <button class="btn xs btn-primary" ${uv.primaryDisabled ? "disabled" : ""} onclick="triggerPrimaryAction()">
+          ${svgIcon(uv.primaryIcon)} ${esc(uv.primaryLabel)}
+        </button>
+        <button class="btn xs btn-secondary" onclick="triggerRevertTime()">
+          ${svgIcon("undo")} 还原时间
+        </button>
+        <button class="text-link muted" style="margin-left:auto" onclick="openReleaseNotes()">了解新版</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderNotifC() {
+  const sc = SCENARIOS[state.scenario];
+  const uv = getUpdaterView();
+  if (!state.promptOpen || state.variant !== "c" || state.scenario !== "schedule-drag") return "";
+  return `
+    <div class="notif-stack">
+      <div class="notif-card" role="status">
+        <div class="notif-top">
+          <div class="notif-icon">${svgIcon("arrowUp")}</div>
+          <div style="flex:1;min-width:0">
+            <div class="notif-head">
+              <div class="notif-title">${esc(sc.notifTitle)}</div>
+              <div class="notif-source">应用更新 · 刚刚</div>
+            </div>
+            <div class="notif-body">${esc(sc.notifBody)}</div>
+          </div>
+        </div>
+        ${uv.showProgress ? `<div class="progress-track"><div class="progress-fill" style="width:${state.progress}%"></div></div>` : ""}
+        <div class="notif-btns">
+          <button class="btn sm btn-secondary" onclick="closePrompt()">稍后</button>
+          <button class="btn sm btn-primary" ${uv.primaryDisabled ? "disabled" : ""} onclick="triggerPrimaryAction()">
+            ${esc(state.updater === "ready" ? "重启并安装" : uv.primaryLabel)}
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* ===== 渲染：桌面端真实业务页面背景 ===== */
+function renderDesktopPage() {
+  const sc = SCENARIOS[state.scenario];
+  if (state.scenario === "schedule-edit" || state.scenario === "schedule-drag") {
+    const isDrag = state.scenario === "schedule-drag";
+    const startVal = state.timeReverted ? "2026-11-27 09:00" : "2026-11-27 10:00";
+    const endVal = state.timeReverted ? "2026-11-27 10:00" : "2026-11-27 11:00";
+    const timePickerClass = state.timeReverted ? "fake-picker" : (state.variant === "c" && state.promptOpen ? "fake-picker warned" : "fake-picker edited");
+    return `
+      <div class="cal-main">
+        <div class="cal-head">
+          <h1>2026 年 11 月</h1>
+          <span class="chip surface">第 48 周</span>
+          <div style="margin-left:auto;display:flex;gap:6px">
+            <button class="btn sm btn-secondary" onclick="reopenPrompt()">
+              ${isDrag ? "模拟拖动日程块" : "重新触发保存拦截"}
+            </button>
+          </div>
+        </div>
+        <div class="cal-chips">
+          <span class="cal-pill"><i style="background:var(--tau-tag-2)"></i>工作</span>
+          <span class="cal-pill"><i style="background:var(--tau-tag-1)"></i>个人</span>
+          <span class="cal-pill"><i style="background:var(--tau-tag-4)"></i>待办安排</span>
+        </div>
+        <div class="week-grid">
+          <div class="week-time-col">
+            <div class="week-hour num">08:00</div>
+            <div class="week-hour num">09:00</div>
+            <div class="week-hour num">10:00</div>
+            <div class="week-hour num">11:00</div>
+            <div class="week-hour num">12:00</div>
+            <div class="week-hour num">13:00</div>
+            <div class="week-hour num">14:00</div>
+          </div>
+          ${[
+            { day: "周一", d: "23" },
+            { day: "周二", d: "24" },
+            { day: "周三", d: "25" },
+            { day: "周四", d: "26" },
+            { day: "周五", d: "27", today: true },
+          ].map((col, idx) => `
+            <div class="week-day-col">
+              <div class="week-col-head ${col.today ? "today" : ""}">
+                <span>${col.day}</span><strong class="num">${col.d}</strong>
+              </div>
+              <div class="week-slot"></div><div class="week-slot"></div><div class="week-slot"></div>
+              <div class="week-slot"></div><div class="week-slot"></div><div class="week-slot"></div>
+              <div class="week-slot"></div>
+              ${idx === 1 ? `
+                <div class="event-block personal" style="top:154px;height:56px">
+                  <div class="ev-title">读书笔记整理</div>
+                  <div class="ev-meta num">10:00–11:00</div>
+                </div>
+              ` : ""}
+              ${idx === 3 ? `
+                <div class="event-block work" style="top:216px;height:86px">
+                  <div class="ev-title">设计评审</div>
+                  <div class="ev-meta num">11:00–12:30</div>
+                </div>
+              ` : ""}
+              ${idx === 4 ? `
+                <div class="event-block work selected" style="top:92px;height:58px" onclick="reopenPrompt()">
+                  <div class="ev-title">产品评审 <span class="tz-badge">时区</span></div>
+                  <div class="ev-meta num">09:00–10:00 · Asia/Shanghai</div>
+                </div>
+                ${isDrag ? `
+                  <div class="event-block ghost-drag" style="top:154px;height:58px" onclick="reopenPrompt()">
+                    <div class="ev-title" style="color:var(--tau-accent-text)">松手拟移至 10:00–11:00</div>
+                    <div class="ev-meta" style="color:var(--tau-accent-text)">触发写入保护 → 自动回退</div>
+                  </div>
+                ` : ""}
+              ` : ""}
+            </div>
+          `).join("")}
+        </div>
+      </div>
+      ${!isDrag ? `
+        <aside class="event-drawer">
+          <div class="drawer-head">
+            <span class="cal-sq"></span>
+            <div class="titles">
+              <h2>产品评审</h2>
+              <div class="sub num">11 月 27 日 · 09:00–10:00 · 工作</div>
+            </div>
+            <button class="icon-btn" aria-label="关闭抽屉">${svgIcon("close")}</button>
+          </div>
+          <div class="drawer-body">
+            ${renderInlineBannerC()}
+            <input class="field-input" value="产品评审（含跨区参会人）" readonly />
+            <div class="field-row">
+              <span class="field-label">${svgIcon("clock")} 时间</span>
+              <div class="time-pick-row">
+                <span class="${timePickerClass} num">${startVal}</span>
+                <span style="color:var(--tau-ink-3)">→</span>
+                <span class="${timePickerClass} num">${endVal}</span>
+              </div>
+            </div>
+            <div class="field-row">
+              <span class="field-label">${svgIcon("globe")} 时区</span>
+              <div style="font-size:12px;color:var(--tau-ink-2);display:flex;align-items:center;gap:6px">
+                <span class="chip surface" style="height:21px">含时区记录（新版写入）</span>
+              </div>
+            </div>
+            <div class="field-row">
+              <span class="field-label">${svgIcon("cal")} 日历</span>
+              <span class="fake-picker">工作</span>
+            </div>
+            <div class="field-row top">
+              <span class="field-label" style="padding-top:6px">${svgIcon("note")} 备注</span>
+              <div class="notes-box">同步 Q4 桌面与移动端日程时区方案，确认跨设备同步边界与旧版写保护文案。</div>
+            </div>
+          </div>
+          <div class="drawer-footer">
+            <span class="unsaved-tag">${state.timeReverted ? "标题已改 · 可正常保存" : "有未保存的修改"}</span>
+            <button class="btn sm btn-secondary" onclick="showToast('关闭抽屉')">关闭</button>
+            <button class="btn sm btn-primary" onclick="${state.timeReverted ? "showToast('标题与备注已保存（原时间未改动）')" : "reopenPrompt()"}">保存</button>
+          </div>
+        </aside>
+      ` : ""}
+    `;
+  }
+
+  if (state.scenario === "whiteboard-readonly") {
+    return `
+      <div class="wb-canvas">
+        <div class="wb-chrome-bar" role="status">
+          <span style="color:var(--tau-ink-2);display:flex">${svgIcon("lock")}</span>
+          <span style="font-size:12.5px;font-weight:600;color:var(--tau-ink-1)">只读</span>
+          <span class="dot-sep"></span>
+          <span style="font-size:12px;color:var(--tau-ink-2)">${esc(sc.inlineText)}</span>
+          <button class="btn xs btn-soft" onclick="reopenPrompt()">立即升级</button>
+        </div>
+        <div class="wb-node" style="left:14%;top:28%;width:220px">
+          <div style="font-weight:600;margin-bottom:4px">跨设备同步模型</div>
+          <div style="font-size:12px;color:var(--tau-ink-2)">主库 SQLite + 增量日志检查点</div>
+        </div>
+        <div class="wb-node" style="left:45%;top:42%;width:250px">
+          <div style="font-weight:600;margin-bottom:4px">通用升级提示（UpgradePrompt）</div>
+          <div style="font-size:12px;color:var(--tau-ink-2)">只读条是轻量入口，点击即唤起统一升级闭环弹窗</div>
+        </div>
+        <div class="wb-node" style="left:22%;top:62%;width:200px">
+          <div style="font-weight:600;margin-bottom:4px">旧端保护原则</div>
+          <div style="font-size:12px;color:var(--tau-ink-2)">不覆盖新版结构，保住原数据</div>
+        </div>
+      </div>
+    `;
+  }
+
+  if (state.scenario === "collab-incompatible") {
+    return `
+      <div class="doc-page">
+        <div class="doc-topbar">
+          <div class="chip warn" style="height:28px;padding:0 10px;gap:7px">
+            <span>${esc(sc.inlineText)}</span>
+            <button class="btn xs btn-primary" onclick="reopenPrompt()" style="height:21px">升级 Tau</button>
+          </div>
+          <span class="chip ok">本机已保存</span>
+        </div>
+        <div class="doc-paper">
+          <h1>季度产品规划</h1>
+          <p>当协作服务端升级到新版协议后，旧客户端不再直接报错冻结整个文档，而是保留本机阅读与持久记录，并在顶部给出清晰的「升级 Tau」入口。</p>
+          <p>点击上方按钮，即可唤起同一套通用升级提示弹窗完成原地更新。</p>
+        </div>
+      </div>
+    `;
+  }
+
+  if (state.scenario === "plugin-min-version") {
+    return `
+      <div class="plugins-page">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div>
+            <h1 style="font-size:19px;font-weight:600">插件中心</h1>
+            <div style="font-size:12.5px;color:var(--tau-ink-2)">点击不兼容标签即可唤起通用升级提示，不再让用户自己去设置里找更新</div>
+          </div>
+        </div>
+        <div class="plugin-row highlight">
+          <div class="picon" style="background:var(--tau-tag-5-soft);color:var(--tau-tag-5)">播</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;font-size:13.5px">播客 <span class="mono" style="font-size:11.5px;color:var(--tau-ink-3);font-weight:400">v1.3.0</span></div>
+            <div style="font-size:12px;color:var(--tau-ink-2)">基于资料生成双人对话播客单集，保存音频与逐字稿。</div>
+          </div>
+          <button class="btn sm btn-soft" onclick="reopenPrompt()">
+            ${svgIcon("lock")} 需要 Tau v0.63.0 · 升级
+          </button>
+        </div>
+        <div class="plugin-row">
+          <div class="picon" style="background:var(--tau-tag-2-soft);color:var(--tau-tag-2)">微</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;font-size:13.5px">微信读书 <span class="mono" style="font-size:11.5px;color:var(--tau-ink-3);font-weight:400">v1.4.2</span></div>
+            <div style="font-size:12px;color:var(--tau-ink-2)">同步书架与划线笔记作为摘录来源。</div>
+          </div>
+          <span class="chip ok">已安装</span>
+        </div>
+      </div>
+    `;
+  }
+
+  return "";
+}
+
+/* ===== 渲染：桌面端整壳 ===== */
+function renderDesktop() {
+  const sc = SCENARIOS[state.scenario];
+
+  // 启动阶段数据库不兼容：无侧栏，整窗居中嵌入同一通用升级卡
+  if (state.scenario === "boot-db-incompatible") {
+    return `
+      <div class="boot-stage">
+        ${renderUpgradeDialog({ embedded: true })}
+      </div>
+    `;
+  }
+
+  const showModalOverlay = state.promptOpen && (state.variant !== "c" || (state.scenario !== "schedule-edit" && state.scenario !== "schedule-drag"));
+
+  return `
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="traffic"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+        <div class="ws-pill"><span class="ws-dot">T</span><span>我的资料库</span></div>
+        <div class="nav-group">
+          <div class="nav-label">日常</div>
+          <button class="nav-item" onclick="setScenario('schedule-edit');document.getElementById('sel-scenario').value='schedule-edit'">今日</button>
+          <button class="nav-item ${sc.nav === "schedule" ? "active" : ""}" onclick="setScenario('schedule-edit');document.getElementById('sel-scenario').value='schedule-edit'">日程</button>
+          <button class="nav-item">待办</button>
+          <button class="nav-item">日记</button>
+        </div>
+        <div class="nav-group">
+          <div class="nav-label">知识</div>
+          <button class="nav-item">卡片库</button>
+          <button class="nav-item ${sc.nav === "whiteboard" ? "active" : ""}" onclick="setScenario('whiteboard-readonly');document.getElementById('sel-scenario').value='whiteboard-readonly'">白板</button>
+          <button class="nav-item ${sc.nav === "collab" ? "active" : ""}" onclick="setScenario('collab-incompatible');document.getElementById('sel-scenario').value='collab-incompatible'">协作</button>
+        </div>
+        <div class="nav-spacer"></div>
+        <button class="nav-item ${sc.nav === "plugins" ? "active" : ""}" onclick="setScenario('plugin-min-version');document.getElementById('sel-scenario').value='plugin-min-version'">插件</button>
+        <button class="nav-item" onclick="showToast('打开设置 › 关于与更新')">设置</button>
+        <div class="nav-ver mono"><span>Tau v0.62.0</span><span>旧版模拟</span></div>
+      </aside>
+
+      <div class="main-col">
+        <div class="titlebar">
+          <div class="crumb"><span class="cur">${esc(sc.crumb)}</span></div>
+        </div>
+        <div class="sheet-wrap">
+          <div class="sheet">
+            ${renderDesktopPage()}
+            ${renderNotifC()}
+          </div>
+        </div>
+      </div>
+
+      ${showModalOverlay ? renderUpgradeDialog() : ""}
+    </div>
+  `;
+}
+
+/* ===== 渲染：移动端（Android / iOS） ===== */
+function renderMobile() {
+  const sc = SCENARIOS[state.scenario];
+  const uv = getUpdaterView();
+  const isIOS = state.platform === "ios";
+  const isB = state.variant === "b";
+
+  const explainBlock = sc.explainRows ? `
+    <div class="diff-card">
+      ${sc.explainRows.map(r => `
+        <div class="diff-row" style="grid-template-columns:64px 1fr">
+          <span class="diff-tag">${esc(r.label)}</span>
+          <div class="diff-val">${r.html}</div>
+        </div>
+      `).join("")}
+    </div>
+  ` : "";
+
+  return `
+    <div class="mobile-stage">
+      <div class="phone-frame">
+        <div class="phone-status num">
+          <span>09:41</span>
+          <span>${isIOS ? "iOS" : "Android"} · v0.62.0</span>
+        </div>
+        <div class="phone-header">
+          <button class="btn xs btn-ghost">取消</button>
+          <h2>编辑日程</h2>
+          <button class="btn xs btn-primary" onclick="reopenPrompt()">保存</button>
+        </div>
+        <div class="phone-body">
+          <div class="m-card">
+            <div style="font-size:16px;font-weight:700;color:var(--tau-ink-1)">产品评审（含跨区参会人）</div>
+            <div style="font-size:12px;color:var(--tau-ink-3)">日历 · 工作</div>
+          </div>
+          <div class="m-card">
+            <div class="m-row"><span class="k">开始时间</span><span class="v accent num">11 月 27 日 10:00</span></div>
+            <div class="m-row"><span class="k">结束时间</span><span class="v accent num">11 月 27 日 11:00</span></div>
+            <div class="m-row"><span class="k">时区标记</span><span class="chip surface" style="height:20px">含时区记录</span></div>
+          </div>
+          <div class="m-card">
+            <div style="font-size:12px;color:var(--tau-ink-3)">备注</div>
+            <div style="font-size:13px;color:var(--tau-ink-2);line-height:1.6">同步 Q4 桌面与移动端日程时区方案，确认跨设备同步边界。</div>
+          </div>
+        </div>
+
+        ${state.promptOpen ? `
+          <div class="sheet-mask" onclick="if(event.target===this) closePrompt()">
+            <div class="bottom-sheet" role="dialog" aria-modal="true">
+              <div class="sheet-grab"></div>
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <h3 style="font-size:16px;font-weight:700;color:var(--tau-ink-1);line-height:1.4">${esc(sc.title)}</h3>
+              </div>
+              <p style="font-size:13px;color:var(--tau-ink-2);line-height:1.6">${esc(sc.description)}</p>
+              <div class="safety-strip">
+                ${svgIcon("shield")}
+                <div>${esc(sc.safety)}</div>
+              </div>
+              ${isB ? explainBlock : ""}
+              <div class="update-box">
+                <div class="update-top">
+                  <div class="tau-mark">τ</div>
+                  <div class="update-meta">
+                    <div class="update-ver">
+                      <span class="mono">v0.62.0</span>
+                      <span class="arrow">→</span>
+                      <span class="mono">${esc(uv.verRight)}</span>
+                      <span class="chip ${uv.chipTone}" style="height:18px;font-size:10.5px;padding:0 6px">${esc(uv.chipText)}</span>
+                    </div>
+                    <div class="update-sub">${esc(uv.sub)}</div>
+                  </div>
+                </div>
+                ${uv.showProgress ? `<div class="progress-track"><div class="progress-fill" style="width:${state.progress}%"></div></div>` : ""}
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px;margin-top:2px">
+                <button class="btn block btn-primary" ${uv.primaryDisabled ? "disabled" : ""} onclick="triggerPrimaryAction()">
+                  ${svgIcon(uv.primaryIcon)} ${esc(uv.primaryLabel)}
+                </button>
+                <div style="display:flex;gap:8px">
+                  ${sc.secondaryAction ? `<button class="btn sm btn-secondary" style="flex:1;height:36px" onclick="triggerRevertTime()">${esc(sc.secondaryAction.label)}</button>` : ""}
+                  ${!sc.critical ? `<button class="btn sm btn-ghost" style="flex:1;height:36px" onclick="closePrompt()">稍后再说</button>` : ""}
+                </div>
+              </div>
+            </div>
+          </div>
+        ` : ""}
+      </div>
+
+      <div class="mobile-note">
+        <h3>移动端复用同一套通用契约</h3>
+        <p>桌面端与移动端共用 <code>@tau/shared/upgrade-prompt</code> 的请求契约与错误分类器，只按平台切换承载方式（遵循 <code>preferences.md</code> 平台分层原则）：</p>
+        <ul>
+          <li><strong>承载形态</strong>：手机端使用 <code>BottomSheet</code> + 单手可达全宽主按钮，返回手势按 <code>useSheetBackDismiss</code> 统一仲裁。</li>
+          <li><strong>Android</strong>：直连现有 <code>useAppUpdate()</code>，原地展示包体大小、下载进度并唤起系统安装器。</li>
+          <li><strong>iOS</strong>：不渲染无意义的应用内下载，主按钮直接切换为「前往 App Store 更新」。</li>
+        </ul>
+      </div>
+    </div>
+  `;
+}
+
+function render() {
+  const stage = document.getElementById("stage");
+  stage.innerHTML = state.platform === "desktop" ? renderDesktop() : renderMobile();
+}
+
+render();
+</script>
+</body>
+</html>

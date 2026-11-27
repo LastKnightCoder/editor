@@ -1,6 +1,7 @@
 {
   "ui.readonly": "Read-only",
   "ui.readonlyHint": "This whiteboard was saved by a newer app. Update the app to edit it.",
+  "ui.readonlyUpgrade": "Update",
   "ui.media.invalid": "Enter a valid media URL",
   "ui.media.failed": "Could not insert media",
   "ui.media.title": "Insert media",

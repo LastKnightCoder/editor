@@ -1,0 +1,71 @@
+{
+  "reason.calendar-timezone-write.title": "Update Tau to edit this event's time",
+  "reason.calendar-timezone-write.description": "This event includes timezone information. Your current version only writes clock time, which would desync the actual instant across timezones.",
+  "reason.calendar-timezone-write.safety": "Save was blocked and the original time is preserved. You can still edit and save the title or notes.",
+  "reason.calendar-timezone-write.explainTrigger": "Why would saving cause a mismatch?",
+  "reason.calendar-timezone-write.explainRow1Label": "Older write",
+  "reason.calendar-timezone-write.explainRow1Text": "Updates only clock time while leaving the stored UTC instant unchanged.",
+  "reason.calendar-timezone-write.explainRow2Label": "Protection",
+  "reason.calendar-timezone-write.explainRow2Text": "Blocking this write preserves your original schedule until you update Tau.",
+
+  "reason.calendar-timezone-drag.title": "Update Tau to reschedule this event",
+  "reason.calendar-timezone-drag.description": "This event includes timezone information and cannot be rescheduled in this version.",
+  "reason.calendar-timezone-drag.safety": "Your original schedule time is intact.",
+
+  "reason.whiteboard-readonly.title": "Update Tau to edit this whiteboard",
+  "reason.whiteboard-readonly.description": "This whiteboard was saved by a newer version of Tau and is open read-only.",
+  "reason.whiteboard-readonly.safety": "All whiteboard content is preserved.",
+
+  "reason.collaboration-incompatible.title": "Update Tau to resume collaboration sync",
+  "reason.collaboration-incompatible.description": "The collaboration server requires a newer version of Tau.",
+  "reason.collaboration-incompatible.safety": "Your local edits are safely saved and will sync after updating.",
+
+  "reason.plugin-min-version.title": "A newer Tau version is required",
+  "reason.plugin-min-version.description": "This plugin relies on newer host capabilities. Update Tau first.",
+  "reason.plugin-min-version.descriptionWithVersion": "This plugin requires Tau v{{version}} or later.",
+  "reason.plugin-min-version.safety": "Your existing plugins and library data remain unaffected.",
+
+  "reason.db-model-incompatible.title": "Update Tau to open this library",
+  "reason.db-model-incompatible.description": "This library was upgraded by a newer version of Tau on another device.",
+  "reason.db-model-incompatible.safety": "Your library file is intact. Update Tau to open everything as-is.",
+
+  "reason.content-source-unsupported.title": "Update Tau to open this content",
+  "reason.content-source-unsupported.description": "This item uses a content source introduced in a newer version of Tau.",
+  "reason.content-source-unsupported.safety": "Your original content remains safely stored.",
+
+  "reason.generic.title": "Update Tau to continue",
+  "reason.generic.description": "This action requires a newer version of Tau.",
+  "reason.generic.safety": "This action was paused and your existing data is preserved.",
+
+  "status.checking": "Checking",
+  "status.available": "Update available",
+  "status.downloading": "Downloading",
+  "status.ready": "Ready to install",
+  "status.latest": "No update in channel",
+  "status.error": "Check failed",
+  "status.idle": "Not checked",
+  "status.external": "Update needed",
+
+  "sub.checking": "Checking for the latest release…",
+  "sub.available": "{{size}} · Keeps all notes and events on install",
+  "sub.availableNoSize": "Keeps all notes and events automatically",
+  "sub.downloading": "Downloading {{received}} / {{total}}",
+  "sub.downloadingUnknown": "Downloading update package…",
+  "sub.ready": "Package verified. Tap below to install.",
+  "sub.latest": "No newer release detected in this channel yet. Download the latest version from the website.",
+  "sub.error": "Could not check for updates. Retry or download from the website.",
+  "sub.idle": "Tap below to check for the latest release.",
+  "sub.external": "Update from the App Store or website. Your notes and events are preserved.",
+
+  "action.later": "Not now",
+  "action.retryConnect": "Retry",
+  "action.install": "Install now",
+  "action.download": "Download & install",
+  "action.downloading": "Downloading…",
+  "action.checking": "Checking…",
+  "action.openWebsite": "Get latest update",
+  "action.retryCheck": "Retry check",
+  "action.checkUpdate": "Check for updates",
+
+  "meta.unknownVersion": "Current version"
+}

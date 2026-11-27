@@ -7,6 +7,7 @@ import type { ResourceService } from "@tau/shared/host-services";
 import { useBoard } from "@tau/whiteboard";
 import { getWhiteboardDocument } from "@tau/whiteboard/collaboration";
 import { toLocalMediaPreviewUrl } from "@/utils/localMediaPath";
+import { promptAppUpgrade } from "@/app/upgradePromptStore";
 import { desktopContentMetrics } from "../../../../shared/content-metrics";
 import {
   createArrowExtension,
@@ -330,6 +331,9 @@ export const DesktopWhiteboard = forwardRef<WhiteboardRef, DesktopWhiteboardProp
     <Whiteboard
       {...props}
       readonly={props.readonly || replaced}
+      onUpgradeApp={
+        props.onUpgradeApp ?? (() => promptAppUpgrade({ reason: "whiteboard-readonly" }))
+      }
       onChange={value => {
         if (isCurrent()) props.onChange?.(value);
       }}

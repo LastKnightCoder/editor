@@ -28,6 +28,7 @@ import { publishWhiteboardClient } from "@/services/whiteboard-documents/share";
 import { remoteFailureText } from "@/features/collaboration/remoteErrors.i18n";
 import type { WhiteboardRemoteState } from "@/services/whiteboard-documents/remote";
 import { RecoverableBoundary } from "@/components/ErrorState";
+import { UpgradeInlineAction } from "@/features/upgrade-prompt/UpgradeInlineNotice";
 import { openPage } from "@/services/page-navigation";
 import useCollaborationStore from "@/stores/useCollaborationStore";
 import { useWhiteboardShareStatus } from "../queries";
@@ -114,6 +115,9 @@ export function WhiteboardCollaborationBar({
     >
       <StatusDot tone={status.tone} />
       <span className="min-w-0 truncate">{whiteboardStatusText(status, t)}</span>
+      {status.kind === "incompatible" && (
+        <UpgradeInlineAction request={{ reason: "collaboration-incompatible" }} />
+      )}
       {actions.includes("retry-save") && (
         <Button
           size="sm"

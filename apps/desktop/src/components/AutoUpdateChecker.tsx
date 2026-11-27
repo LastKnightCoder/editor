@@ -1,10 +1,16 @@
 import useAutoUpdateCheck from "@/hooks/useAutoUpdateCheck";
 import { ReleaseNotesDialog } from "@/features/release-notes/ReleaseNotesDialog";
+import { UpgradePromptHost } from "@/features/upgrade-prompt/UpgradePromptHost";
 
-/** 全局挂载一次：负责更新事件监听、启动自动检查与升级公告；发现新版本或刚升级时经 notify 弹通知 */
+/** 全局挂载一次：负责更新事件监听、启动自动检查、升级公告与通用升级提示弹窗 */
 const AutoUpdateChecker = () => {
   useAutoUpdateCheck();
-  return <ReleaseNotesDialog />;
+  return (
+    <>
+      <ReleaseNotesDialog />
+      <UpgradePromptHost />
+    </>
+  );
 };
 
 export default AutoUpdateChecker;

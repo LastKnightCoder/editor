@@ -117,6 +117,8 @@ export interface WhiteboardProps {
   /** 加载的文档版本（getDocumentVersion(data)），缺省视为 1；高于支持范围时强制只读且不写回 */
   version?: number;
   readonly?: boolean;
+  /** 文档版本过高进入只读时，点击顶部提示条的升级回调 */
+  onUpgradeApp?: () => void;
   onChange?: (data: WhiteboardSnapshot) => void;
   showSidebar?: boolean;
   showToolbar?: boolean;
@@ -886,7 +888,7 @@ const WhiteboardCanvas = forwardRef<WhiteboardRef, WhiteboardProps & { board: Bo
                           {toolbarVisible ? (
                             <Toolbar />
                           ) : documentTooNew ? (
-                            <ReadonlyNotice />
+                            <ReadonlyNotice onUpgradeApp={props.onUpgradeApp} />
                           ) : null}
                           {toolbarVisible && <CreateToolHint visible={toolbarVisible} />}
                           {toolbarVisible && <HandwriteToolBar />}

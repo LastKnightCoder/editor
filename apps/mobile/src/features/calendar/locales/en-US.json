@@ -134,5 +134,7 @@
   "duration.hours_one": "{{amount}} hour",
   "duration.hours_other": "{{amount}} hours",
   "duration.minutes_one": "{{amount}} minute",
-  "duration.minutes_other": "{{amount}} minutes"
+  "duration.minutes_other": "{{amount}} minutes",
+  "action.revertTime": "Revert time",
+  "feedback.timeReverted": "Time restored. You can still save title or note changes."
 }

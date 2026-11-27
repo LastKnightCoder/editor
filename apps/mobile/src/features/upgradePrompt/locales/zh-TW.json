@@ -1,0 +1,71 @@
+{
+  "reason.calendar-timezone-write.title": "升級 Tau 後再修改此行程的時間",
+  "reason.calendar-timezone-write.description": "這筆行程帶有時區記錄，目前版本僅支援鐘面時間，直接儲存會讓跨時區後的實際時刻發生錯位。",
+  "reason.calendar-timezone-write.safety": "已攔截本次儲存，原行程時間完好保留。若只需修改標題或備註，仍可直接儲存。",
+  "reason.calendar-timezone-write.explainTrigger": "為什麼直接儲存會錯位？",
+  "reason.calendar-timezone-write.explainRow1Label": "舊版寫入",
+  "reason.calendar-timezone-write.explainRow1Text": "只更新鐘面時間，但新版記錄的實際 UTC 時刻仍是舊值，跨時區後會顯示錯位。",
+  "reason.calendar-timezone-write.explainRow2Label": "本次保護",
+  "reason.calendar-timezone-write.explainRow2Text": "攔截這次時間寫入以保住原資料，升級到支援時區的版本後再修改即可。",
+
+  "reason.calendar-timezone-drag.title": "升級 Tau 後再調整此行程的時間",
+  "reason.calendar-timezone-drag.description": "這筆行程帶有時區資訊，目前版本無法同步更新實際時刻。",
+  "reason.calendar-timezone-drag.safety": "原行程時間完好未動。",
+
+  "reason.whiteboard-readonly.title": "升級 Tau 後即可編輯此白板",
+  "reason.whiteboard-readonly.description": "這份白板由較新版本的 Tau 儲存，目前以唯讀模式開啟以保住新版元素。",
+  "reason.whiteboard-readonly.safety": "白板內容已完整保留，可繼續檢視。",
+
+  "reason.collaboration-incompatible.title": "升級 Tau 以恢復協作同步",
+  "reason.collaboration-incompatible.description": "協作端需要較新版本的應用程式，目前暫停同步遠端變動。",
+  "reason.collaboration-incompatible.safety": "你在本機的編輯已完好儲存，升級後會自動續傳同步。",
+
+  "reason.plugin-min-version.title": "安裝此外掛需要較新版 Tau",
+  "reason.plugin-min-version.description": "此外掛依賴新版宿主能力，需要升級 Tau 後再安裝。",
+  "reason.plugin-min-version.descriptionWithVersion": "此外掛依賴新版宿主能力，需要 Tau v{{version}} 或更高版本。",
+  "reason.plugin-min-version.safety": "已安裝的其他外掛與資料庫資料不受影響。",
+
+  "reason.db-model-incompatible.title": "需要升級 Tau 才能開啟目前資料庫",
+  "reason.db-model-incompatible.description": "這份資料庫已在其他裝置上由較新版本的 Tau 升級過。為防止舊版讀寫造成異常，已暫停開啟。",
+  "reason.db-model-incompatible.safety": "資料庫檔案完好無損。更新 Tau 後即可原樣開啟全部內容。",
+
+  "reason.content-source-unsupported.title": "升級 Tau 後再開啟此內容",
+  "reason.content-source-unsupported.description": "這項內容來自較新版本引入的內容來源，目前版本暫不支援直接編輯。",
+  "reason.content-source-unsupported.safety": "原始內容已完好保留在資料庫中。",
+
+  "reason.generic.title": "需要升級 Tau 後再繼續",
+  "reason.generic.description": "目前操作涉及較新版本的資料或能力，請先升級至最新版 Tau。",
+  "reason.generic.safety": "已暫停本次操作，原有資料完好保留。",
+
+  "status.checking": "檢查中",
+  "status.available": "發現新版本",
+  "status.downloading": "正在下載",
+  "status.ready": "安裝檔已就緒",
+  "status.latest": "通道暫無新版",
+  "status.error": "檢查失敗",
+  "status.idle": "等待檢查",
+  "status.external": "需要更新",
+
+  "sub.checking": "正在連線更新服務確認最新版本號…",
+  "sub.available": "{{size}} · 覆蓋安裝保留所有筆記與行程",
+  "sub.availableNoSize": "覆蓋安裝自動保留所有筆記與行程",
+  "sub.downloading": "正在下載 {{received}} / {{total}}",
+  "sub.downloadingUnknown": "正在下載更新檔…",
+  "sub.ready": "安裝檔已驗證完成，點擊下方按鈕立即安裝",
+  "sub.latest": "目前更新通道暫未偵測到更高版本，可前往官網取得最新版本",
+  "sub.error": "檢查更新失敗，你可以點按重試或前往官網下載",
+  "sub.idle": "點按下方按鈕檢查並下載最新版本",
+  "sub.external": "前往應用程式商店或官網更新至最新版本，筆記與行程都會保留",
+
+  "action.later": "稍後再說",
+  "action.retryConnect": "重新檢查",
+  "action.install": "立即安裝",
+  "action.download": "下載並安裝",
+  "action.downloading": "正在下載…",
+  "action.checking": "檢查更新中…",
+  "action.openWebsite": "前往下載更新",
+  "action.retryCheck": "重試檢查",
+  "action.checkUpdate": "檢查更新",
+
+  "meta.unknownVersion": "目前版本"
+}

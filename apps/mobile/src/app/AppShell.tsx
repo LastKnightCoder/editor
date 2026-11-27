@@ -57,6 +57,7 @@ import { writeLastSyncTime } from "../features/settings/sync/syncState";
 import { IncomingFileHost } from "../features/markdownImport/IncomingFileHost";
 import { replaceLocalLibrary, setActiveDatabase } from "../services/database-runtime";
 import { ReminderHost } from "../features/reminders/ReminderHost";
+import { UpgradePromptSheet } from "../features/upgradePrompt/UpgradePromptSheet";
 import { CollaborationBackground } from "../features/collaboration/CollaborationBackground";
 import "../pages";
 
@@ -507,6 +508,7 @@ function AppShellInner() {
                       <EditorConfirmHost />
                       <EditorPromptHost />
                       <ToastViewport />
+                      <UpgradePromptSheet />
                       <IncomingFileHost />
                       <ReminderHost />
                       {import.meta.env.DEV && <RouterDevTools />}
