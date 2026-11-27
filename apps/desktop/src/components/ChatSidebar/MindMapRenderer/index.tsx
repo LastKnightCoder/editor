@@ -3,6 +3,7 @@ import { useDebounce, useLocalStorageState } from "ahooks";
 import { cn as classNames } from "@tau/ui";
 import { parseMindMapList } from "./parseMindMapList";
 import { MindMapRef } from "@/components/MindMap";
+import { useMindMapI18n } from "../sidebar.i18n";
 const styles = {
   mindMapContainer: "relative my-2 w-full overflow-x-auto",
   fillContainer: "my-0 flex h-full flex-col",
@@ -39,6 +40,7 @@ interface MindMapRendererProps {
 
 const MindMapRenderer = forwardRef<MindMapRef, MindMapRendererProps>(
   ({ code, fillContainer = false }, ref) => {
+    const { t } = useMindMapI18n();
     // 500ms 节流，防止流式输出时频繁渲染
     const debouncedCode = useDebounce(code, { wait: 500 });
 
@@ -99,11 +101,11 @@ const MindMapRenderer = forwardRef<MindMapRef, MindMapRendererProps>(
         {/* 渲染思维导图或错误信息 */}
         {error ? (
           <div className={styles.mindMapError}>
-            <p>思维导图渲染错误：</p>
+            <p>{t("errorTitle")}</p>
             <pre>{error}</pre>
           </div>
         ) : data ? (
-          <Suspense fallback={<div className={styles.mindMapLoading}>加载思维导图组件...</div>}>
+          <Suspense fallback={<div className={styles.mindMapLoading}>{t("loading")}</div>}>
             <div
               className={classNames(styles.mindMapWrapper, {
                 [styles.fillWrapper]: fillContainer,
@@ -118,7 +120,7 @@ const MindMapRenderer = forwardRef<MindMapRef, MindMapRendererProps>(
             )}
           </Suspense>
         ) : (
-          <div className={styles.mindMapLoading}>等待数据解析...</div>
+          <div className={styles.mindMapLoading}>{t("waiting")}</div>
         )}
       </div>
     );

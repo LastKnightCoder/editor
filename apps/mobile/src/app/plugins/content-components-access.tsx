@@ -4,6 +4,7 @@ import type { PluginPermission } from "@tau/plugins";
 import type { MobileContentSnapshot } from "./data";
 import { subscribeContentUpdate } from "../../features/cards/contentSyncBus";
 import { usePluginComponentState } from "./component-scope";
+import { usePluginHostI18n } from "./i18n";
 
 type Resolution =
   | { status: "missing" | "denied" }
@@ -108,21 +109,22 @@ export function ContentAccessNotice({
   state: ReturnType<typeof usePluginContentAccess>;
   resolution?: Resolution;
 }) {
+  const { t } = usePluginHostI18n();
   const access = resolution ?? state.access?.result;
   if (!resolution && state.snapshot) return null;
   const message = !state.scope
-    ? "正文组件只能在插件页面中使用"
+    ? t("components.pluginPageOnly")
     : !state.active
-      ? "插件页面已失效或暂不可用"
+      ? t("components.pageUnavailable")
       : state.error
-        ? `正文加载失败：${String(state.error)}`
+        ? t("components.readFailed", { message: String(state.error) })
         : !access
-          ? "正在检查访问权限…"
+          ? t("components.checking")
           : access.status === "missing"
-            ? "内容不存在或已删除"
+            ? t("components.missing")
             : access.status === "prompt"
-              ? "允许插件访问这段内容后即可继续"
-              : "插件未获准访问这段内容，可在插件详情中修改权限";
+              ? t("components.prompt")
+              : t("components.denied");
   return (
     <div
       role={state.error ? "alert" : "status"}
@@ -136,7 +138,7 @@ export function ContentAccessNotice({
           className="text-accent-text py-1 disabled:opacity-50"
           onClick={() => void state.request(access.permission)}
         >
-          允许访问
+          {t("ref.allowAccess")}
         </button>
       ) : null}
       {state.requestError ? <span role="alert">{state.requestError}</span> : null}

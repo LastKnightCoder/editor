@@ -15,5 +15,12 @@
   "ref.notAllowed": "未獲准查看",
   "ref.invalidated": "{{name}}（引用已失效）",
   "ref.untitled": "無標題{{name}}",
-  "components.unsupportedKit": "不支援的編輯器套件"
+  "components.unsupportedKit": "不支援的編輯器套件",
+  "components.pluginPageOnly": "正文元件只能在外掛頁面中使用",
+  "components.pageUnavailable": "外掛頁面已失效或暫不可用",
+  "components.readFailed": "正文載入失敗：{{message}}",
+  "components.checking": "正在檢查存取權限…",
+  "components.missing": "內容不存在或已刪除",
+  "components.prompt": "允許外掛存取這段內容後即可繼續",
+  "components.denied": "外掛未獲准存取這段內容，可在外掛詳細資料中修改權限"
 }

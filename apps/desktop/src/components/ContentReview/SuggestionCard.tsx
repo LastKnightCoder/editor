@@ -20,6 +20,7 @@ import { agentColorStyle } from "@/services/agent-identity";
 import type { ContentSuggestion } from "@/types/content-suggestion";
 import { agentNameOf, clipHead, clipTail, clipText, splitTextChange } from "./model";
 import { focusSuggestionInDocument, useSuggestionFocus, type SuggestionActions } from "./actions";
+import { useSuggestionI18n, type SuggestionMessageKey } from "./i18n";
 
 const CONTEXT_CHARS = 24;
 
@@ -67,6 +68,7 @@ function ReplyBox({
   onSubmit(text: string): void;
   onCancel(): void;
 }) {
+  const { t } = useSuggestionI18n();
   const [text, setText] = useState("");
   const submit = () => {
     if (!busy && text.trim()) onSubmit(text.trim());
@@ -95,10 +97,10 @@ function ReplyBox({
         }}
       />
       <div className="mt-1.5 flex items-center gap-1.5">
-        <span className="text-tau-micro text-ink-3">⌘↵ 发送</span>
+        <span className="text-tau-micro text-ink-3">{t("reply.shortcut")}</span>
         <span className="flex-1" />
         <Button variant="ghost" size="sm" disabled={busy} onClick={onCancel}>
-          取消
+          {t("reply.cancel")}
         </Button>
         <Button variant="soft" size="sm" disabled={!text.trim()} loading={busy} onClick={submit}>
           {submitLabel}
@@ -164,19 +166,16 @@ const PILL = {
   pending: { tone: "text-accent-text", icon: null },
 } satisfies Record<ContentSuggestion["status"], { tone: string; icon: LucideIcon | null }>;
 
-const pillLabel = (item: ContentSuggestion) =>
-  ({
-    pending: "待处理",
-    applying: "提交中",
-    accepted: item.mode === "direct" ? "已落地" : "已接受",
-    undone: "已撤销",
-    rejected: item.kind === "question" ? "已跳过" : "已退回",
-    expired: "已过期",
-    superseded: "已替换",
-    answered: "已回答",
-  })[item.status];
+/** 状态胶囊的稳定 key：pending 等枚举不翻译，渲染时经词典投影为显示文案 */
+const pillKey = (item: ContentSuggestion): SuggestionMessageKey =>
+  item.status === "accepted" && item.mode === "direct"
+    ? "status.acceptedDirect"
+    : item.status === "rejected" && item.kind === "question"
+      ? "status.rejectedQuestion"
+      : `status.${item.status}`;
 
 function StatusPill({ item }: { item: ContentSuggestion }) {
+  const { t } = useSuggestionI18n();
   const { tone, icon: Icon } = PILL[item.status];
   return (
     <span
@@ -192,7 +191,7 @@ function StatusPill({ item }: { item: ContentSuggestion }) {
           className={item.status === "applying" ? "animate-spin" : undefined}
         />
       ) : null}
-      {pillLabel(item)}
+      {t(pillKey(item))}
     </span>
   );
 }
@@ -233,6 +232,7 @@ function InlineLink({
 }
 
 function QuestionBody({ item, actions }: { item: ContentSuggestion; actions: SuggestionActions }) {
+  const { t } = useSuggestionI18n();
   const [writing, setWriting] = useState(false);
   const busy = actions.busyOn(item) === "answer";
   return (
@@ -244,12 +244,15 @@ function QuestionBody({ item, actions }: { item: ContentSuggestion; actions: Sug
       ) : null}
       <div className="text-ink-1 leading-[1.75] break-words">{item.reason}</div>
       {item.status === "answered" ? (
-        <div className="text-tau-meta text-ink-3 mt-1 break-words">回答：{item.feedback}</div>
+        <div className="text-tau-meta text-ink-3 mt-1 break-words">
+          {t("question.answerPrefix")}
+          {item.feedback}
+        </div>
       ) : item.status === "pending" ? (
         writing ? (
           <ReplyBox
-            placeholder="写下你的回答…"
-            submitLabel="回答"
+            placeholder={t("question.placeholder")}
+            submitLabel={t("question.submit")}
             busy={busy}
             onSubmit={text => void actions.answer(item, text)}
             onCancel={() => setWriting(false)}
@@ -273,7 +276,7 @@ function QuestionBody({ item, actions }: { item: ContentSuggestion; actions: Sug
               disabled={actions.busy}
               onClick={() => setWriting(true)}
             >
-              我自己写
+              {t("question.writeOwn")}
             </Button>
             <Button
               variant="ghost"
@@ -281,7 +284,7 @@ function QuestionBody({ item, actions }: { item: ContentSuggestion; actions: Sug
               disabled={actions.busy}
               onClick={() => void actions.reject([item])}
             >
-              跳过
+              {t("question.skip")}
             </Button>
           </div>
         )
@@ -305,6 +308,7 @@ function EditBody({
   setComposer(next: Composer): void;
   onLocate?: () => void;
 }) {
+  const { t } = useSuggestionI18n();
   const busyOn = actions.busyOn(item);
   const muted = item.status !== "pending" && item.status !== "applying";
   const canLocate =
@@ -313,19 +317,19 @@ function EditBody({
       : item.status === "accepted" && Boolean(item.applied?.expected.length);
   const statusNote =
     item.status === "expired"
-      ? (item.error ?? "原文在别处被改过")
+      ? (item.error ?? t("edit.expiredFallback"))
       : item.status === "applying"
-        ? (item.error ?? "提交中…")
+        ? (item.error ?? t("edit.applyingFallback"))
         : undefined;
   const showLocate = Boolean(onLocate && canLocate);
   return (
     <>
       <SuggestionDiff item={item} muted={muted} />
       {item.reason && item.status !== "expired" ? (
-        <NoteLine label="改动说明">{item.reason}</NoteLine>
+        <NoteLine label={t("edit.noteReason")}>{item.reason}</NoteLine>
       ) : null}
       {item.status === "rejected" && item.feedback ? (
-        <NoteLine label="你的意见">{item.feedback}</NoteLine>
+        <NoteLine label={t("edit.noteFeedback")}>{item.feedback}</NoteLine>
       ) : null}
       {item.status !== "pending" || showLocate ? (
         <div className="text-tau-meta text-ink-3 mt-1.5 flex items-center gap-2.5">
@@ -338,16 +342,16 @@ function EditBody({
           {item.status === "expired" ? (
             <>
               <InlineLink disabled={actions.busy} onClick={() => void actions.rewrite(item)}>
-                让它按新原文重写
+                {t("edit.rewrite")}
               </InlineLink>
               <InlineLink disabled={actions.busy} onClick={() => void actions.reject([item])}>
-                忽略
+                {t("edit.ignore")}
               </InlineLink>
             </>
           ) : null}
           {item.status === "applying" ? (
             <InlineLink disabled={actions.busy} onClick={() => void actions.accept([item])}>
-              确认或恢复提交
+              {t("edit.resume")}
             </InlineLink>
           ) : null}
           {showLocate ? (
@@ -360,23 +364,23 @@ function EditBody({
               className="hover:text-ink-1 ml-auto inline-flex shrink-0 cursor-pointer items-center gap-1"
             >
               <Crosshair size={11} strokeWidth={1.75} />
-              在正文定位
+              {t("edit.locate")}
             </button>
           ) : null}
         </div>
       ) : null}
       {composer === "reply" ? (
         <ReplyBox
-          placeholder="说说想怎么改，它只重做这一条…"
-          submitLabel="退回并说明"
+          placeholder={t("edit.replyPlaceholder")}
+          submitLabel={t("edit.replySubmit")}
           busy={busyOn === "reject"}
           onSubmit={text => void actions.reject([item], text)}
           onCancel={() => setComposer(null)}
         />
       ) : composer === "continue" ? (
         <ReplyBox
-          placeholder="告诉它接下来怎么改…"
-          submitLabel="发送"
+          placeholder={t("edit.continuePlaceholder")}
+          submitLabel={t("edit.continueSubmit")}
           busy={busyOn === "continue"}
           onSubmit={text => {
             void actions.continueEdit(item, text).then(sent => {
@@ -399,6 +403,7 @@ function EditActions({
   actions: SuggestionActions;
   setComposer(next: Composer): void;
 }) {
+  const { t } = useSuggestionI18n();
   const busyOn = actions.busyOn(item);
   const direct = item.mode === "direct";
   if (item.status === "pending")
@@ -406,13 +411,13 @@ function EditActions({
       <>
         <RowAction
           icon={MessageCircle}
-          label="回复"
+          label={t("action.reply")}
           disabled={actions.busy}
           onClick={() => setComposer("reply")}
         />
         <RowAction
           icon={X}
-          label={direct ? "这段不用它了" : "退回"}
+          label={direct ? t("action.rejectDirect") : t("action.reject")}
           tone="danger"
           busy={busyOn === "reject"}
           disabled={actions.busy}
@@ -420,7 +425,7 @@ function EditActions({
         />
         <RowAction
           icon={Check}
-          label={direct ? "让它接着改" : "接受"}
+          label={direct ? t("action.acceptDirect") : t("action.accept")}
           tone="ok"
           busy={busyOn === "accept"}
           disabled={actions.busy}
@@ -433,14 +438,14 @@ function EditActions({
     <>
       <RowAction
         icon={Pencil}
-        label="继续修改"
+        label={t("action.continue")}
         disabled={actions.busy}
         onClick={() => setComposer("continue")}
       />
       {item.status === "accepted" && item.applied ? (
         <RowAction
           icon={Undo2}
-          label="撤销"
+          label={t("action.undo")}
           busy={busyOn === "undo"}
           disabled={actions.busy}
           onClick={() => void actions.undo([item])}

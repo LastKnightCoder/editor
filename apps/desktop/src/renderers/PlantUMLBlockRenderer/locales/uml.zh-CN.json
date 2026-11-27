@@ -1,0 +1,5 @@
+{
+  "connectFailed": "无法连接 PlantUML 渲染服务",
+  "connectFailedHint": "图由 plantuml.com 在线渲染，请检查网络后重试，或先查看源码。",
+  "serviceNote": "由 plantuml.com 渲染"
+}

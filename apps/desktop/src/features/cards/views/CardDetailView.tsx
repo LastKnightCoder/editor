@@ -94,7 +94,7 @@ function cloneRange(selection: Range | null): Range | null {
 }
 
 export function CardDetailView() {
-  const { locale } = useCardsI18n();
+  const { t, locale } = useCardsI18n();
   const { navigator } = usePage();
   // 本实例 params（PageHost 按栈条目注入；勿读全局栈顶——多实例保活时会串台）
   const { id, at } = usePageParams<{ id: number; at?: string }>();
@@ -141,8 +141,8 @@ export function CardDetailView() {
   }, [editorRemountKey, immersive]);
 
   const cardTitle = useMemo(
-    () => (card ? titleOfCard(card, 20) || `卡片 #${card.id}` : ""),
-    [card]
+    () => (card ? titleOfCard(card, 20) || t("card.fallback", { id: card.id }) : ""),
+    [card, t]
   );
 
   /* AI 洞见：元信息行入口 + 正文上方报告 + 就地标记（KL-058） */
@@ -163,7 +163,7 @@ export function CardDetailView() {
     getReference: () => ({
       refType: "content",
       contentId: card?.contentId ?? 0,
-      title: cardTitle || "卡片参考",
+      title: cardTitle || t("detail.reference"),
     }),
   });
 
@@ -175,10 +175,10 @@ export function CardDetailView() {
         <button
           type="button"
           onClick={() => navigator.push("cards")}
-          title="返回卡片库"
+          title={t("detail.back")}
           className="ease-tau-out hover:text-accent-text rounded-tau-sm hover:bg-hover px-1.5 py-0.5 transition-colors"
         >
-          卡片库
+          {t("title")}
         </button>
         <span className="text-ink-3">/</span>
         <span className="text-ink-1 flex min-w-0 items-center gap-1.5 font-medium">
@@ -186,26 +186,30 @@ export function CardDetailView() {
         </span>
       </span>
     );
-  }, [card, cardTitle, navigator]);
+  }, [card, cardTitle, navigator, t]);
   usePageBreadcrumb("card-detail", breadcrumbNode);
 
   if (Number.isFinite(id) && detailQuery.isPending) return <Loading />;
   if (detailQuery.error)
     return (
       <div role="alert" className="flex flex-col items-center gap-3 py-20">
-        <p className="text-danger">读取卡片失败：{detailQuery.error.message}</p>
-        <Button onClick={() => void detailQuery.refetch()}>重试</Button>
+        <p className="text-danger">{t("detail.loadError", { error: detailQuery.error.message })}</p>
+        <Button onClick={() => void detailQuery.refetch()}>{t("retry")}</Button>
       </div>
     );
   if (!card)
     return (
       <div className="flex flex-col items-center gap-3 py-20 text-center">
-        <p className="text-ink-2 text-[15px] font-medium">卡片不存在或已删除</p>
-        <Button onClick={() => navigator.push("cards")}>返回卡片库</Button>
+        <p className="text-ink-2 text-[15px] font-medium">{t("detail.missing")}</p>
+        <Button onClick={() => navigator.push("cards")}>{t("detail.back")}</Button>
       </div>
     );
 
-  const cardMetaText = `创建于 ${formatDate(card.create_time, true, locale)} · 最后修改 ${formatDate(card.update_time, true, locale)} · ${card.count.toLocaleString("zh-CN")} 字`;
+  const cardMetaText = [
+    t("meta.created", { date: formatDate(card.create_time, true, locale) }),
+    t("meta.updated", { date: formatDate(card.update_time, true, locale) }),
+    t("meta.words", { count: card.count, amount: card.count.toLocaleString(locale) }),
+  ].join(" · ");
 
   return (
     <div
@@ -248,8 +252,8 @@ export function CardDetailView() {
                       source={{ sourceType: "card", sourceId: card.id, sourceTitle: cardTitle }}
                     />
                     <IconButton
-                      title="编辑历史"
-                      aria-label="编辑历史"
+                      title={t("detail.history")}
+                      aria-label={t("detail.history")}
                       aria-pressed={history.isOpen}
                       className={cn(
                         "size-[30px]",
@@ -265,7 +269,7 @@ export function CardDetailView() {
                       trigger={
                         <button
                           type="button"
-                          title="更多操作"
+                          title={t("action.more")}
                           className="text-ink-3 hover:bg-hover hover:text-ink-1 rounded-tau-sm grid size-[26px] place-items-center transition-colors"
                         >
                           <MoreHorizontal className="size-4" strokeWidth={1.75} />
@@ -273,14 +277,14 @@ export function CardDetailView() {
                       }
                     >
                       <Menu.Submenu
-                        label="场景"
+                        label={t("detail.scene")}
                         icon={<Presentation className="size-[15px] shrink-0" strokeWidth={1.75} />}
                       >
                         <Menu.Item
                           onSelect={() => setPresenting(card.content)}
                           icon={<Play className="size-[15px] shrink-0" strokeWidth={1.75} />}
                         >
-                          演示模式
+                          {t("action.present")}
                         </Menu.Item>
                         <Menu.Item
                           onSelect={() => {
@@ -291,7 +295,7 @@ export function CardDetailView() {
                           }}
                           icon={<Maximize2 className="size-[15px] shrink-0" strokeWidth={1.75} />}
                         >
-                          沉浸模式
+                          {t("detail.immersive")}
                         </Menu.Item>
                         {isElectron && databaseName && (
                           <Menu.Item
@@ -300,7 +304,7 @@ export function CardDetailView() {
                               <ExternalLink className="size-[15px] shrink-0" strokeWidth={1.75} />
                             }
                           >
-                            在新窗口打开
+                            {t("detail.newWindow")}
                           </Menu.Item>
                         )}
                       </Menu.Submenu>
@@ -308,7 +312,7 @@ export function CardDetailView() {
                         icon={<Link2 className="size-[15px] shrink-0" strokeWidth={1.75} />}
                         onSelect={() => setAddLinkOpen(true)}
                       >
-                        添加连接
+                        {t("links.add")}
                       </Menu.Item>
                       <Menu.Item
                         icon={
@@ -320,18 +324,18 @@ export function CardDetailView() {
                         }
                         onSelect={() => collaborationRef.current?.open()}
                       >
-                        {shared ? "协作成员" : "发起协作"}
+                        {shared ? t("detail.members") : t("detail.startCollab")}
                       </Menu.Item>
                       {window.electron && (
                         <Menu.Item
                           icon={<HistoryIcon className="size-[15px]" />}
                           onSelect={() => history.open()}
                         >
-                          编辑历史
+                          {t("detail.history")}
                         </Menu.Item>
                       )}
                       <Menu.Submenu
-                        label="复制"
+                        label={t("detail.copy")}
                         icon={<Copy className="size-[15px] shrink-0" strokeWidth={1.75} />}
                       >
                         <Menu.Item
@@ -342,7 +346,7 @@ export function CardDetailView() {
                             <ClipboardCopy className="size-[15px] shrink-0" strokeWidth={1.75} />
                           }
                         >
-                          复制 Markdown
+                          {t("detail.copyMarkdown")}
                         </Menu.Item>
                         <Menu.Item
                           onSelect={() =>
@@ -356,11 +360,11 @@ export function CardDetailView() {
                             <MessageSquare className="size-[15px] shrink-0" strokeWidth={1.75} />
                           }
                         >
-                          复制公众号格式
+                          {t("detail.copyWechat")}
                         </Menu.Item>
                       </Menu.Submenu>
                       <Menu.Submenu
-                        label="导出"
+                        label={t("action.export")}
                         icon={<Download className="size-[15px] shrink-0" strokeWidth={1.75} />}
                       >
                         <Menu.Item
@@ -373,7 +377,7 @@ export function CardDetailView() {
                           }}
                           icon={<FileText className="size-[15px] shrink-0" strokeWidth={1.75} />}
                         >
-                          Markdown 文件
+                          {t("export.markdown")}
                         </Menu.Item>
                         <Menu.Item
                           onSelect={() => {
@@ -385,13 +389,13 @@ export function CardDetailView() {
                           }}
                           icon={<FileText className="size-[15px] shrink-0" strokeWidth={1.75} />}
                         >
-                          Word 文档（.docx）
+                          {t("export.word")}
                         </Menu.Item>
                         <Menu.Item
                           onSelect={() => setExportKind("image")}
                           icon={<ImageIcon className="size-[15px] shrink-0" strokeWidth={1.75} />}
                         >
-                          图片
+                          {t("export.image")}
                         </Menu.Item>
                         <Menu.Item
                           onSelect={() => setExportKind("epub")}
@@ -407,7 +411,7 @@ export function CardDetailView() {
                         </Menu.Item>
                       </Menu.Submenu>
                       <Menu.Submenu
-                        label="生成"
+                        label={t("detail.generate")}
                         icon={<Wand2 className="size-[15px] shrink-0" strokeWidth={1.75} />}
                       >
                         {flashcardsEnabled && (
@@ -418,7 +422,7 @@ export function CardDetailView() {
                                 <Sparkles className="size-[15px] shrink-0" strokeWidth={1.75} />
                               }
                             >
-                              AI 制卡（闪卡）
+                              {t("detail.aiFlashcard")}
                             </Menu.Item>
                             <Menu.Item
                               onSelect={() => flashcard.openManualFlashcard()}
@@ -426,7 +430,7 @@ export function CardDetailView() {
                                 <CreditCard className="size-[15px] shrink-0" strokeWidth={1.75} />
                               }
                             >
-                              手动制卡（闪卡）
+                              {t("detail.manualFlashcard")}
                             </Menu.Item>
                           </>
                         )}
@@ -438,7 +442,7 @@ export function CardDetailView() {
                         onSelect={() => setPendingDelete(true)}
                         icon={<Trash2 className="size-[15px] shrink-0" strokeWidth={1.75} />}
                       >
-                        删除卡片
+                        {t("action.delete")}
                       </Menu.Item>
                     </Menu>
                   </span>
@@ -515,19 +519,19 @@ export function CardDetailView() {
       <ConfirmDialog
         open={pendingDelete}
         onOpenChange={setPendingDelete}
-        title="删除卡片"
-        description={`确定删除「${cardTitle}」吗？`}
-        impact="卡片的正文与双向链接将不再可访问"
+        title={t("action.delete")}
+        description={t("detail.deleteConfirm", { title: cardTitle })}
+        impact={t("delete.impact")}
         danger
-        confirmText="删除"
+        confirmText={t("delete.confirm")}
         loading={mutations.remove.isPending}
         onConfirm={async () => {
           try {
             await mutations.remove.mutateAsync(card.id);
-            toast.success("已删除");
+            toast.success(t("delete.success"));
             navigator.back();
           } catch {
-            toast.error("删除失败");
+            toast.error(t("delete.failed"));
           } finally {
             setPendingDelete(false);
           }

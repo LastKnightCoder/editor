@@ -1,0 +1,5 @@
+{
+  "connectFailed": "Can't connect to the PlantUML rendering service",
+  "connectFailedHint": "Diagrams are rendered online by plantuml.com. Check your network and try again, or view the source for now.",
+  "serviceNote": "Rendered by plantuml.com"
+}

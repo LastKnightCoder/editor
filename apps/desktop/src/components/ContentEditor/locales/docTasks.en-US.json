@@ -1,0 +1,8 @@
+{
+  "excluded": "This document is excluded; its checkboxes won't appear in Tasks",
+  "resume": "Resume collecting",
+  "collected_one": "{{count}} unfinished item in this document is collected in Tasks",
+  "collected_other": "{{count}} unfinished items in this document are collected in Tasks",
+  "view": "View in Tasks",
+  "optOut": "Don't collect this document"
+}

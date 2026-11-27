@@ -9,9 +9,12 @@ import { buildPlantumlSvgUrl, applyDarkTheme } from "@tau/editor/extensions/diag
 import useTheme from "@/hooks/useTheme";
 import { defineBlockRenderer, type BlockPreviewProps } from "@/types/block-preview";
 import { ZoomSurface } from "@/features/previews/components/ZoomSurface";
+import { useUmlI18n, umlMessages } from "./i18n";
+import { desktopI18n } from "@/app/i18n/runtime";
 
 function PlantUMLPreview({ block }: BlockPreviewProps) {
   const { isDark } = useTheme();
+  const { t } = useUmlI18n();
   const url = buildPlantumlSvgUrl(
     isDark ? applyDarkTheme(block.content, "cyborg-outline") : block.content
   );
@@ -21,10 +24,8 @@ function PlantUMLPreview({ block }: BlockPreviewProps) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-1.5 p-6 text-center">
         <WifiOff size={26} strokeWidth={1.5} className="text-ink-3 mb-2" />
-        <p className="text-ink-1 text-[15px] font-semibold">无法连接 PlantUML 渲染服务</p>
-        <p className="text-tau-sm text-ink-2">
-          图由 plantuml.com 在线渲染，请检查网络后重试，或先查看源码。
-        </p>
+        <p className="text-ink-1 text-[15px] font-semibold">{t("connectFailed")}</p>
+        <p className="text-tau-sm text-ink-2">{t("connectFailedHint")}</p>
       </div>
     );
 
@@ -48,7 +49,7 @@ export default defineBlockRenderer({
   label: "PlantUML",
   icon: GitFork,
   surface: "canvas",
-  note: "由 plantuml.com 渲染",
+  note: () => desktopI18n.get(umlMessages).t("serviceNote"),
   title: content => /^\s*title\s+(.+)$/im.exec(content)?.[1]?.trim(),
   Preview: PlantUMLPreview,
 });

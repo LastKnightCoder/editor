@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import type { SyntaxHighlighterProps } from "react-syntax-highlighter";
 import { measurePerformance } from "../../utils/performance";
 import { BiCopy } from "react-icons/bi";
+import { useSyntaxHighlighterI18n } from "./i18n";
 import "../animations.css";
 
 const styles = {
@@ -59,6 +60,7 @@ const LazySyntaxHighlighter: React.FC<LazySyntaxHighlighterProps> = ({
   isDark = false,
   ...rest
 }) => {
+  const { t } = useSyntaxHighlighterI18n();
   const [SyntaxHighlighter, setSyntaxHighlighter] =
     useState<React.ComponentType<SyntaxHighlighterProps> | null>(null);
   const [theme, setTheme] = useState<{ [key: string]: React.CSSProperties } | null>(null);
@@ -139,7 +141,7 @@ const LazySyntaxHighlighter: React.FC<LazySyntaxHighlighterProps> = ({
     <div className={styles.syntaxContainer}>
       <button className={styles.copyButton} onClick={handleCopyCode} title="Copy code">
         <BiCopy />
-        {isCopied && <span className={styles.copyTooltip}>已复制!</span>}
+        {isCopied && <span className={styles.copyTooltip}>{t("copied")}</span>}
       </button>
       <SyntaxHighlighter
         language={normalizedLanguage}

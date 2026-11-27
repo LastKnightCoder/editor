@@ -15,5 +15,12 @@
   "ref.notAllowed": "未获准查看",
   "ref.invalidated": "{{name}}（引用已失效）",
   "ref.untitled": "无标题{{name}}",
-  "components.unsupportedKit": "不支持的编辑器套件"
+  "components.unsupportedKit": "不支持的编辑器套件",
+  "components.pluginPageOnly": "正文组件只能在插件页面中使用",
+  "components.pageUnavailable": "插件页面已失效或暂不可用",
+  "components.readFailed": "正文加载失败：{{message}}",
+  "components.checking": "正在检查访问权限…",
+  "components.missing": "内容不存在或已删除",
+  "components.prompt": "允许插件访问这段内容后即可继续",
+  "components.denied": "插件未获准访问这段内容，可在插件详情中修改权限"
 }

@@ -33,6 +33,7 @@ import {
   type PublishPreviewActions,
 } from "./previewActions";
 import { SourceView } from "./SourceView";
+import { useBlockPreviewI18n } from "../i18n";
 
 export interface BlockVersionNav {
   version: number;
@@ -97,6 +98,7 @@ export function BlockPreviewFrame({
   className?: string;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const { t } = useBlockPreviewI18n();
   const sourceFirst = renderer.streaming === "source-first";
   const [manualView, setManualView] = useState<View | null>(null);
   const view: View = manualView ?? (generating && sourceFirst ? "source" : "preview");
@@ -125,13 +127,13 @@ export function BlockPreviewFrame({
 
   const toggleFullscreen = () => {
     if (document.fullscreenElement) void document.exitFullscreen();
-    else void rootRef.current?.requestFullscreen().catch(() => toast.error("无法进入全屏"));
+    else void rootRef.current?.requestFullscreen().catch(() => toast.error(t("fullscreenFailed")));
   };
 
   const copySource = () =>
     void navigator.clipboard.writeText(block.content).then(
-      () => toast.success("源码已复制"),
-      () => toast.error("复制失败")
+      () => toast.success(t("copySuccess")),
+      () => toast.error(t("copyFailed"))
     );
 
   // 渲染时按当前登记合并；点击时再合并一次，拿到各来源 ref 里的最新回调
@@ -141,13 +143,14 @@ export function BlockPreviewFrame({
     const action = latestSpec()[kind]?.find(a => a.key === key);
     void Promise.resolve(action?.onSelect()).catch(error => {
       console.error(error);
-      toast.error(`${action?.label ?? "操作"}失败`);
+      toast.error(t("actionFailed", { name: action?.label ?? t("actionFallback") }));
     });
   };
 
   const Icon = renderer.icon;
   const title = block.metadata.title || renderer.label;
   const lines = block.content.split("\n").length;
+  const note = typeof renderer.note === "function" ? renderer.note() : renderer.note;
   const Preview = renderer.Preview;
   const zoom = view === "preview" ? spec?.zoom : undefined;
 
@@ -163,12 +166,12 @@ export function BlockPreviewFrame({
             {generating ? (
               <>
                 <Spinner className="size-3 border-[1.5px]" />
-                生成中 · 已写入 {lines} 行
+                {t("generating", { lines })}
               </>
             ) : (
               <>
                 {renderer.label} · {formatBlockSize(block.content)}
-                {renderer.note && <> · {renderer.note}</>}
+                {note && <> · {note}</>}
               </>
             )}
           </span>
@@ -177,12 +180,12 @@ export function BlockPreviewFrame({
         <div className="flex flex-none items-center gap-0.5">
           {versions && versions.count > 1 && (
             <span className="text-tau-sm text-ink-2 mr-1 flex items-center tabular-nums">
-              <Tool label="上一版" onClick={versions.onPrev} disabled={versions.version <= 1}>
+              <Tool label={t("prevVersion")} onClick={versions.onPrev} disabled={versions.version <= 1}>
                 <ChevronLeft />
               </Tool>
               v{versions.version} / {versions.count}
               <Tool
-                label="下一版"
+                label={t("nextVersion")}
                 onClick={versions.onNext}
                 disabled={versions.version >= versions.count}
               >
@@ -191,14 +194,14 @@ export function BlockPreviewFrame({
             </span>
           )}
           <Segmented
-            label="预览或源码"
+            label={t("previewOrSource")}
             size="sm"
             value={view}
             onValueChange={v => setManualView(v as View)}
             className="mr-1"
           >
-            <Segmented.Item value="preview" label="预览" />
-            <Segmented.Item value="source" label="源码" />
+            <Segmented.Item value="preview" label={t("preview")} />
+            <Segmented.Item value="source" label={t("source")} />
           </Segmented>
           {view === "preview" &&
             spec?.tools?.map(a => (
@@ -212,17 +215,17 @@ export function BlockPreviewFrame({
                 <a.icon />
               </Tool>
             ))}
-          <Tool label="复制源码" onClick={copySource}>
+          <Tool label={t("copySource")} onClick={copySource}>
             <Copy />
           </Tool>
-          <Tool label={fullscreen ? "退出全屏" : "全屏"} onClick={toggleFullscreen}>
+          <Tool label={fullscreen ? t("exitFullscreen") : t("fullscreen")} onClick={toggleFullscreen}>
             {fullscreen ? <Minimize2 /> : <Maximize2 />}
           </Tool>
           {!!spec?.more?.length && (
             <Menu
               align="end"
               trigger={
-                <IconButton aria-label="更多" title="更多" className="size-7 [&_svg]:size-[15px]">
+                <IconButton aria-label={t("more")} title={t("more")} className="size-7 [&_svg]:size-[15px]">
                   <MoreHorizontal />
                 </IconButton>
               }
@@ -242,7 +245,7 @@ export function BlockPreviewFrame({
           {onClose && (
             <>
               <span className="w-1.5" />
-              <Tool label="关闭" onClick={onClose}>
+              <Tool label={t("close")} onClick={onClose}>
                 <X />
               </Tool>
             </>
@@ -265,11 +268,11 @@ export function BlockPreviewFrame({
               fallback={({ error, reset }) => (
                 <ErrorState
                   error={error}
-                  title="预览失败"
-                  description="这段内容暂时无法渲染，可能是生成的内容不完整或格式有误。"
+                  title={t("previewFailed")}
+                  description={t("previewFailedHint")}
                   actions={[
-                    { label: "查看源码", onClick: () => setManualView("source") },
-                    { label: "重试", onClick: reset },
+                    { label: t("viewSource"), onClick: () => setManualView("source") },
+                    { label: t("retry"), onClick: reset },
                   ]}
                 />
               )}
@@ -281,16 +284,16 @@ export function BlockPreviewFrame({
 
         {zoom && (
           <div className="bg-surface border-line-1 shadow-lift text-tau-tiny text-ink-2 absolute right-2.5 bottom-2.5 flex items-center gap-0.5 rounded-[10px] border p-[3px]">
-            <Tool label="缩小" onClick={() => latestSpec().zoom?.zoomOut()}>
+            <Tool label={t("zoomOut")} onClick={() => latestSpec().zoom?.zoomOut()}>
               <Minus />
             </Tool>
             {zoom.percent !== undefined && (
               <span className="min-w-[40px] text-center tabular-nums">{zoom.percent}%</span>
             )}
-            <Tool label="放大" onClick={() => latestSpec().zoom?.zoomIn()}>
+            <Tool label={t("zoomIn")} onClick={() => latestSpec().zoom?.zoomIn()}>
               <Plus />
             </Tool>
-            <Tool label="适应窗口" onClick={() => latestSpec().zoom?.fit()}>
+            <Tool label={t("fitWindow")} onClick={() => latestSpec().zoom?.fit()}>
               <Scan />
             </Tool>
           </div>

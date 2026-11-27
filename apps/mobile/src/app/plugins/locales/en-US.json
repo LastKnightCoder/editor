@@ -15,5 +15,12 @@
   "ref.notAllowed": "Not allowed",
   "ref.invalidated": "{{name}} (reference no longer available)",
   "ref.untitled": "Untitled {{name}}",
-  "components.unsupportedKit": "Unsupported editor kit"
+  "components.unsupportedKit": "Unsupported editor kit",
+  "components.pluginPageOnly": "Content components only work on plugin pages",
+  "components.pageUnavailable": "The plugin page is no longer available",
+  "components.readFailed": "Failed to load content: {{message}}",
+  "components.checking": "Checking access…",
+  "components.missing": "The content doesn't exist or has been deleted",
+  "components.prompt": "Allow the plugin to access this content to continue",
+  "components.denied": "The plugin isn't allowed to access this content. Change it in the plugin's details"
 }

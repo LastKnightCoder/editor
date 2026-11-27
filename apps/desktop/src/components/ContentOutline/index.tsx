@@ -12,6 +12,7 @@ export { resolveHeaderAnchor as resolveEditorHeaderAnchor } from "@tau/editor/ex
 import { getInlineElementText } from "@/utils";
 import { Tooltip, cn } from "@tau/ui";
 import { locateOutlineHeader } from "./position";
+import { useContentOutlineI18n } from "./i18n";
 
 export interface OutlineHeader {
   /** 标题锚点的 DOM id（默认解析方案用；编辑器方案仅作 React key） */
@@ -56,6 +57,7 @@ export function ContentOutline({
   showTitle = true,
   className,
 }: ContentOutlineProps) {
+  const { t } = useContentOutlineI18n();
   const [activeId, setActiveId] = useState<string | null>(null);
   const previousHeaders = useRef<OutlineHeader[]>([]);
   const nextHeaders = incomingHeaders.map((header, index) => {
@@ -150,10 +152,10 @@ export function ContentOutline({
   );
 
   return (
-    <nav aria-label="大纲" className={cn("w-[208px]", className)}>
+    <nav aria-label={t("title")} className={cn("w-[208px]", className)}>
       {showTitle && (
         <div className="px-0.5 pb-2">
-          <b className="text-tau-sm font-semibold">大纲</b>
+          <b className="text-tau-sm font-semibold">{t("title")}</b>
         </div>
       )}
       {headers.map((header, index) => (

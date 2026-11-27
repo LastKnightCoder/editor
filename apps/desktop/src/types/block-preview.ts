@@ -67,8 +67,8 @@ export interface BlockRenderer {
   streaming?: "source-first" | "keep-last" | "live";
   /** 预览底：white = 白纸（网页）；canvas = 点阵画布；默认 plain（纸色） */
   surface?: "white" | "canvas" | "plain";
-  /** 头部类型行的补充说明（如「由 plantuml.com 渲染」） */
-  note?: string;
+  /** 头部类型行的补充说明（如「由 plantuml.com 渲染」）；getter 在展示时求值，随界面语言读取 */
+  note?: string | (() => string);
   /** 内容是否构成该类型的块（如 HTML 须是完整文档）；默认都算 */
   accept?: (content: string) => boolean;
   /** 从内容取标题（版本分组也用它）；取不到返回 undefined */

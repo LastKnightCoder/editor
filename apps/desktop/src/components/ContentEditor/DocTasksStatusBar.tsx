@@ -6,8 +6,10 @@
 import { ListChecks } from "lucide-react";
 import { openPage } from "@/services/page-navigation";
 import { useDocTaskContentStatus, useSetDocTasksExcluded } from "@/hooks/useDocTasks";
+import { useDocTasksI18n } from "./docTasks.i18n";
 
 export function DocTasksStatusBar({ contentId }: { contentId: number | undefined }) {
+  const { t } = useDocTasksI18n();
   const { data: status } = useDocTaskContentStatus(contentId);
   const setExcluded = useSetDocTasksExcluded();
   if (!contentId || !status?.collectable || (!status.excluded && status.openCount === 0))
@@ -19,19 +21,18 @@ export function DocTasksStatusBar({ contentId }: { contentId: number | undefined
       <ListChecks className="text-ink-3 size-[14px] shrink-0" strokeWidth={1.75} />
       {status.excluded ? (
         <>
-          <span className="min-w-0 flex-1 truncate">本文已排除，勾选项不出现在待办中</span>
+          <span className="min-w-0 flex-1 truncate">{t("excluded")}</span>
           <button type="button" className={link} onClick={() => void setExcluded(contentId, false)}>
-            恢复收集
+            {t("resume")}
           </button>
         </>
       ) : (
         <>
           <span className="min-w-0 flex-1 truncate">
-            本文 <b className="text-ink-1 font-semibold tabular-nums">{status.openCount}</b>{" "}
-            项未完成，已收集到待办
+            {t("collected", { count: status.openCount })}
           </span>
           <button type="button" className={link} onClick={() => openPage("todos", { id: "docs" })}>
-            在待办中查看
+            {t("view")}
           </button>
           <span className="text-ink-3">·</span>
           <button
@@ -39,7 +40,7 @@ export function DocTasksStatusBar({ contentId }: { contentId: number | undefined
             className="text-ink-3 hover:text-ink-1"
             onClick={() => void setExcluded(contentId, true)}
           >
-            本文不收集
+            {t("optOut")}
           </button>
         </>
       )}
