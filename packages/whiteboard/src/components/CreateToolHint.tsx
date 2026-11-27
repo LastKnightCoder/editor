@@ -1,6 +1,6 @@
 import { useWhiteboardI18n } from "../i18n";
 import { createHint, toolLabel } from "../tool-i18n";
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { cn } from "@tau/ui";
 import { useBoard, usePresentationState, useReadonly } from "../hooks";
 import { SELECT_TOOL_ID } from "../constants/tools";
@@ -8,6 +8,8 @@ import { detectHotkeyPlatform, formatHotkey } from "../utils/hotkeyFormat";
 
 /** 提示胶囊延迟显示的时长：激活工具后 / Esc 取消后 */
 const HINT_DELAY_MS = 250;
+/** 与状态栏之间保留的间距 */
+const AVOID_GAP_PX = 8;
 
 const Dot = () => <span aria-hidden className="bg-ink-3/70 size-[3px] rounded-full" />;
 
@@ -15,7 +17,14 @@ const Dot = () => <span aria-hidden className="bg-ink-3/70 size-[3px] rounded-fu
  * 创建模式提示胶囊（画布底部居中）：主提示加粗，后缀各段以分隔点相连，末尾提示 Esc 退出。
  * 组件常驻不卸载，隐藏只把 opacity 置 0；显示/隐藏均有 250ms 延时与位移过渡。
  */
-const CreateToolHint = memo(function CreateToolHint({ visible }: { visible: boolean }) {
+const CreateToolHint = memo(function CreateToolHint({
+  visible,
+  avoidRef,
+}: {
+  visible: boolean;
+  /** 需要避让的底部浮层（状态栏） */
+  avoidRef?: RefObject<HTMLElement | null>;
+}) {
   const { t } = useWhiteboardI18n();
   const board = useBoard();
   const readonly = useReadonly();
@@ -71,7 +80,34 @@ const CreateToolHint = memo(function CreateToolHint({ visible }: { visible: bool
     };
   }, [board]);
 
-  if (!visible || readonly || isPresentationMode || !createTool) return null;
+  const hidden = !visible || readonly || isPresentationMode || !createTool;
+
+  // 与右下状态栏横向重叠时（画布较窄）抬到状态栏上方，避免被遮挡
+  const hintRef = useRef<HTMLDivElement>(null);
+  const [liftBottom, setLiftBottom] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const hintEl = hintRef.current;
+    const host = hintEl?.parentElement;
+    if (hidden || !hintEl || !host) return;
+    const measure = () => {
+      const bar = avoidRef?.current;
+      if (!bar) return setLiftBottom(null);
+      const hintRect = hintEl.getBoundingClientRect();
+      const barRect = bar.getBoundingClientRect();
+      const hostRect = host.getBoundingClientRect();
+      const overlaps =
+        hintRect.right + AVOID_GAP_PX > barRect.left && hintRect.left < barRect.right;
+      setLiftBottom(overlaps ? hostRect.bottom - barRect.top + AVOID_GAP_PX : null);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(host);
+    observer.observe(hintEl);
+    if (avoidRef?.current) observer.observe(avoidRef.current);
+    return () => observer.disconnect();
+  }, [hidden, avoidRef, tool]);
+
+  if (hidden) return null;
 
   const label = toolLabel(
     tool.id,
@@ -85,7 +121,9 @@ const CreateToolHint = memo(function CreateToolHint({ visible }: { visible: bool
 
   return (
     <div
+      ref={hintRef}
       role="status"
+      style={liftBottom === null ? undefined : { bottom: liftBottom }}
       className={cn(
         "bg-surface text-tau-sm text-ink-3 shadow-lift ring-line-2 ease-tau-out pointer-events-none absolute bottom-4 left-1/2 z-[6] flex h-8 -translate-x-1/2 select-none items-center gap-2 whitespace-nowrap rounded-[10px] px-3 ring-1 transition-[opacity,translate] motion-reduce:translate-y-0",
         shown

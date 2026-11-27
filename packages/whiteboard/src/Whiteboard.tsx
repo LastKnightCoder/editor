@@ -890,7 +890,9 @@ const WhiteboardCanvas = forwardRef<WhiteboardRef, WhiteboardProps & { board: Bo
                           ) : documentTooNew ? (
                             <ReadonlyNotice onUpgradeApp={props.onUpgradeApp} />
                           ) : null}
-                          {toolbarVisible && <CreateToolHint visible={toolbarVisible} />}
+                          {toolbarVisible && (
+                            <CreateToolHint visible={toolbarVisible} avoidRef={statusBarRef} />
+                          )}
                           {toolbarVisible && <HandwriteToolBar />}
 
                           <div data-whiteboard-stage className="absolute inset-0 overflow-hidden">
