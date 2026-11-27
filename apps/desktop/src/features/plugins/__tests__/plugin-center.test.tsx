@@ -688,3 +688,163 @@ it("已卸载插件的数据入口只列未安装插件，确认后可按插件�
   expect(purge).toHaveBeenCalledExactlyOnceWith("local.unlisted");
   expect(page().textContent).toContain("当前资料库没有已卸载插件遗留的数据");
 });
+
+it("配置了多语言资料与 README 的插件随界面语言即时切换，不重发请求；老插件保持默认回退", async () => {
+  const original = desktopLocaleSource.getSnapshot();
+  const localizedId = "test.localized";
+  const legacyId = "test.legacy";
+  const baseVersion = {
+    releaseId: "r-loc",
+    version: "1.0.0",
+    minAppVersion: "0.0.0",
+    publishedAt: "2026-01-01T00:00:00.000Z",
+    size: 1024,
+    sha256: "b".repeat(64),
+    downloadUrl: "https://example.invalid/loc.zip",
+  };
+  mock.catalog.mockResolvedValue({
+    items: [
+      {
+        pluginId: localizedId,
+        name: "计数插件",
+        description: "中文默认简介",
+        publisher: { login: "dev", avatarUrl: "" },
+        repository: "https://github.com/tau/loc",
+        categories: ["page"],
+        keywords: ["计数"],
+        i18n: {
+          "en-US": {
+            name: "Counter Plugin",
+            description: "English description",
+            keywords: ["tally"],
+          },
+          "zh-TW": {
+            name: "計數外掛",
+            description: "繁體簡介",
+          },
+        },
+        locales: ["zh-CN", "zh-TW", "en-US"],
+        downloadsTotal: 10,
+        downloads7d: 2,
+        latest: baseVersion,
+        compatible: baseVersion,
+      },
+      {
+        pluginId: legacyId,
+        name: "老插件",
+        description: "仅中文简介",
+        publisher: { login: "dev", avatarUrl: "" },
+        repository: "https://github.com/tau/legacy",
+        categories: ["page"],
+        keywords: [],
+        downloadsTotal: 5,
+        downloads7d: 1,
+        latest: { ...baseVersion, releaseId: "r-old" },
+        compatible: { ...baseVersion, releaseId: "r-old" },
+      },
+    ],
+  });
+  mock.release.mockImplementation(async (releaseId: string) =>
+    releaseId === "r-loc"
+      ? {
+          id: "r-loc",
+          pluginId: localizedId,
+          version: "1.0.0",
+          state: "published",
+          sha256: "b".repeat(64),
+          size: 1024,
+          publishedAt: "2026-01-01T00:00:00.000Z",
+          repository: "https://github.com/tau/loc",
+          commit: "abc",
+          publisher: { login: "dev", avatarUrl: "" },
+          content: {
+            manifest: {
+              name: "计数插件",
+              description: "中文默认简介",
+              locales: ["zh-CN", "zh-TW", "en-US"],
+              i18n: {
+                "en-US": { name: "Counter Plugin", description: "English description" },
+                "zh-TW": { name: "計數外掛", description: "繁體簡介" },
+              },
+            },
+            readme: "中文默认说明",
+            readmes: {
+              "en-US": "English README body",
+              "zh-TW": "繁體說明內容",
+            },
+            changelog: null,
+          },
+        }
+      : {
+          id: "r-old",
+          pluginId: legacyId,
+          version: "1.0.0",
+          state: "published",
+          sha256: "c".repeat(64),
+          size: 1024,
+          publishedAt: "2026-01-01T00:00:00.000Z",
+          repository: "https://github.com/tau/legacy",
+          commit: "def",
+          publisher: { login: "dev", avatarUrl: "" },
+          content: {
+            manifest: { name: "老插件", description: "仅中文简介" },
+            readme: "老插件说明",
+            changelog: null,
+          },
+        }
+  );
+
+  try {
+    await client.invalidateQueries();
+    await act(async () => navigator?.push("plugins", { tab: "discover" }));
+    await settle();
+
+    // 默认中文下能按英文关键词跨语言搜索到插件
+    const search = page().querySelector<HTMLInputElement>(
+      `input[placeholder="${pluginTranslator.t("center.search")}"]`
+    );
+    if (!search) throw new Error("Plugin search did not mount");
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(
+        search,
+        "tally"
+      );
+      search.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await settle();
+    expect(page().textContent).toContain("计数插件");
+    expect(page().textContent).toContain("中文默认简介");
+    expect(page().textContent).not.toContain("老插件");
+
+    // 切到英文后卡片名称与简介即时切换，不重新拉取目录
+    const catalogCalls = mock.catalog.mock.calls.length;
+    await act(async () => desktopLocaleSource.setLocale("en-US"));
+    expect(page().textContent).toContain("Counter Plugin");
+    expect(page().textContent).toContain("English description");
+    expect(mock.catalog).toHaveBeenCalledTimes(catalogCalls);
+
+    // 打开详情页验证英文 README、支持语言栏，切换繁体不重发 release 请求
+    await act(async () => navigator?.push(PLUGIN_DETAIL_KEY, { pluginId: localizedId }));
+    await settle();
+    const releaseCalls = mock.release.mock.calls.length;
+    expect(page().textContent).toContain("English README body");
+    expect(page().textContent).toContain("Simplified Chinese, Traditional Chinese, English");
+
+    await act(async () => desktopLocaleSource.setLocale("zh-TW"));
+    expect(page().textContent).toContain("計數外掛");
+    expect(page().textContent).toContain("繁體簡介");
+    expect(page().textContent).toContain("繁體說明內容");
+    expect(mock.release).toHaveBeenCalledTimes(releaseCalls);
+
+    // 老插件在英文界面下仍回退默认简介与 README，且不显示支持语言行
+    await act(async () => desktopLocaleSource.setLocale("en-US"));
+    await act(async () => navigator?.push(PLUGIN_DETAIL_KEY, { pluginId: legacyId }));
+    await settle();
+    expect(page().textContent).toContain("老插件");
+    expect(page().textContent).toContain("仅中文简介");
+    expect(page().textContent).toContain("老插件说明");
+    expect(page().textContent).not.toContain("Languages");
+  } finally {
+    await act(async () => desktopLocaleSource.setLocale(original));
+  }
+});

@@ -80,6 +80,7 @@
   "detail.versionsHint": "切换版本只替换插件代码，不回退已保存的数据。",
   "detail.restoreVersion": "恢复此版本",
   "detail.pluginId": "插件 ID",
+  "detail.languages": "支持语言",
   "detail.currentVersion": "当前版本",
   "detail.requireApp": "需要客户端",
   "detail.size": "大小",

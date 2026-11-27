@@ -15,6 +15,7 @@
   "detail.noReadme": "此外掛未提供說明。",
   "detail.info": "資訊",
   "detail.pluginId": "外掛 ID",
+  "detail.languages": "支援語言",
   "category.label": "分類",
   "detail.source": "原始碼",
   "detail.noSettings": "此外掛沒有自訂設定。",

@@ -80,6 +80,7 @@
   "detail.versionsHint": "Switching versions replaces plugin code and preserves saved data.",
   "detail.restoreVersion": "Restore this version",
   "detail.pluginId": "Plugin ID",
+  "detail.languages": "Languages",
   "detail.currentVersion": "Current version",
   "detail.requireApp": "Required app version",
   "detail.size": "Size",

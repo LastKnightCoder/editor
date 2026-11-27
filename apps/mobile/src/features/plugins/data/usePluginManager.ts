@@ -14,6 +14,7 @@ import {
   type MobilePluginPackage,
 } from "../../../services/plugins";
 import type { MobilePluginRuntime } from "../../../app/plugins/runtime";
+import type { PluginManifestI18n } from "@tau/plugins/center";
 import { isSkillPackageManifest } from "@tau/plugins/template";
 import { readDevelopmentPluginSource } from "../../../services/plugins";
 import { getMobileCenterInstallStore } from "../../../app/plugins/center-install";
@@ -35,6 +36,8 @@ export interface ManagedPluginItem {
   blocked?: boolean;
   id: string;
   name: string;
+  i18n?: PluginManifestI18n;
+  locales?: readonly string[];
   version: string | null;
   enabled: boolean;
   active: boolean;
@@ -77,6 +80,8 @@ export function projectManagedPlugin(
     blocked: !!item.blocked,
     id: item.id,
     name: item.name ?? item.artifact?.manifest.name ?? item.id,
+    ...(item.artifact?.manifest.i18n ? { i18n: item.artifact.manifest.i18n } : {}),
+    ...(item.artifact?.manifest.locales ? { locales: item.artifact.manifest.locales } : {}),
     version:
       item.currentVersion === undefined
         ? (item.artifact?.manifest.version ?? null)

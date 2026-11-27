@@ -80,6 +80,7 @@
   "detail.versionsHint": "切換版本僅替換外掛程式碼，不會還原已儲存的資料。",
   "detail.restoreVersion": "復原此版本",
   "detail.pluginId": "外掛 ID",
+  "detail.languages": "支援語言",
   "detail.currentVersion": "目前版本",
   "detail.requireApp": "需要應用程式版本",
   "detail.size": "大小",

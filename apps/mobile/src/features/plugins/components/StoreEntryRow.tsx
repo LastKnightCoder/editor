@@ -1,5 +1,5 @@
 import { usePluginI18n } from "../i18n";
-import type { CenterCatalogEntry } from "@tau/plugins/center";
+import { resolvePluginMetadata, type CenterCatalogEntry } from "@tau/plugins/center";
 import { categoryLabel } from "./centerDisplay";
 import { PluginIcon } from "./PluginIcon";
 import { reasonLabel } from "./pluginStatus";
@@ -27,7 +27,8 @@ export function StoreEntryRow({
   onCancel: () => void;
   onRetry: () => void;
 }) {
-  usePluginI18n();
+  const { locale } = usePluginI18n();
+  const display = resolvePluginMetadata(entry, locale);
   const blocker = primary.kind === "unavailable" ? entry.compatibility.reasons[0] : undefined;
   const category = entry.categories[0];
   return (
@@ -43,10 +44,10 @@ export function StoreEntryRow({
         onClick={onOpen}
         className="flex min-w-0 flex-1 items-center gap-3 text-left active:opacity-70"
       >
-        <PluginIcon id={entry.pluginId} name={entry.name} />
+        <PluginIcon id={entry.pluginId} name={display.name} />
         <span className="flex min-w-0 flex-1 flex-col">
-          <span className="text-ink-1 truncate text-[15px] font-semibold">{entry.name}</span>
-          <span className="text-ink-2 truncate text-[12.5px]">{entry.description}</span>
+          <span className="text-ink-1 truncate text-[15px] font-semibold">{display.name}</span>
+          <span className="text-ink-2 truncate text-[12.5px]">{display.description}</span>
           <span className="text-ink-3 mt-0.5 truncate text-[11px]">
             {blocker ? (
               <span className="text-warn">{reasonLabel(blocker)}</span>

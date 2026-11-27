@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { ShieldCheck } from "lucide-react";
+import { formatPluginLocales } from "@tau/plugins/center";
 import type { PackageManifest, Upload } from "../../../../contracts";
 import { PLATFORM_LABELS, declaredPlatforms } from "../catalog/platforms";
 import { formatBytes } from "./validation";
@@ -73,6 +74,9 @@ export function PackageFacts({
           · format {manifest.formatVersion} / api {manifest.apiVersion}
           {"profile" in manifest && ` · ${manifest.profile}`}
         </Fact>
+        {manifest.locales?.length ? (
+          <Fact label="支持语言">{formatPluginLocales(manifest.locales, "zh-CN").join("、")}</Fact>
+        ) : null}
         {skills.length > 0 && (
           <Fact label="Skill" mono>
             {skills.map(id => `skills/${id}/`).join("、")}

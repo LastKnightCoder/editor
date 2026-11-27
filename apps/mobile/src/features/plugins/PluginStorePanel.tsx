@@ -2,6 +2,7 @@ import { pluginTranslator, usePluginI18n } from "./i18n";
 import { useRef, useState } from "react";
 import { FilterPill } from "@tau/ui";
 import type { PluginCategory } from "@tau/plugins/package";
+import { resolvePluginMetadata } from "@tau/plugins/center";
 import { useNavigator } from "../../router";
 import { CenterInstallSheet } from "./CenterInstallSheet";
 import { PLUGIN_CATEGORIES, categoryLabel } from "./components/centerDisplay";
@@ -14,7 +15,7 @@ const t = pluginTranslator.t;
 
 /** 商店：按本机平台与真实宿主浏览，关键词来自顶栏搜索，安装只经中心 releaseId。 */
 export function PluginStorePanel({ q }: { q: string }) {
-  usePluginI18n();
+  const { locale } = usePluginI18n();
   const install = useMobileCenterInstall();
   const navigator = useNavigator();
   const [category, setCategory] = useState<PluginCategory | null>(null);
@@ -94,7 +95,12 @@ export function PluginStorePanel({ q }: { q: string }) {
             })}
             phase={storeTaskPhase(install.task(entry.pluginId))}
             onOpen={() => navigator.push("pluginDetail", { pluginId: entry.pluginId })}
-            onPrimary={() => setTarget({ pluginId: entry.pluginId, name: entry.name })}
+            onPrimary={() =>
+              setTarget({
+                pluginId: entry.pluginId,
+                name: resolvePluginMetadata(entry, locale).name,
+              })
+            }
             onCancel={() => swallow(install.cancel(entry.pluginId))}
             onRetry={() => swallow(install.retry(entry.pluginId))}
           />

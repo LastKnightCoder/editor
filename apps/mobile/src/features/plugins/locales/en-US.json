@@ -15,6 +15,7 @@
   "detail.noReadme": "This plugin has no documentation.",
   "detail.info": "Information",
   "detail.pluginId": "Plugin ID",
+  "detail.languages": "Languages",
   "category.label": "Categories",
   "detail.source": "Source code",
   "detail.noSettings": "This plugin has no custom settings.",

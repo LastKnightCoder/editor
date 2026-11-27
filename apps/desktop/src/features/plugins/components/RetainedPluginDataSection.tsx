@@ -1,6 +1,7 @@
 import { useState, type RefObject } from "react";
 import { ChevronDown, Database, Lock, Package } from "lucide-react";
 import { Button, ConfirmDialog, cn, toast } from "@tau/ui";
+import { resolvePluginMetadata } from "@tau/plugins/center";
 import type { DesktopPluginRuntime } from "@/app/plugins/runtime";
 import type { PluginCatalogEntry } from "@/types/plugin-center";
 import type { RetainedPluginData } from "@/types/plugin-retained-data";
@@ -213,15 +214,16 @@ export function RetainedPluginDataSection({
                 <p className="text-tau-meta text-ink-3 px-3 pt-1 pb-2">{t("retained.note")}</p>
                 {filtered.map(item => {
                   const entry = catalogById.get(item.pluginId);
+                  const displayName = entry ? resolvePluginMetadata(entry, locale).name : null;
                   const facts = buildDataFacts(item, locale);
                   return (
                     <div
                       key={item.pluginId}
                       className="hover:bg-hover flex min-h-[60px] items-center gap-3.5 rounded-[10px] px-3 py-2.5"
                     >
-                      {entry ? (
+                      {displayName ? (
                         <span className="opacity-80">
-                          <PluginIcon id={item.pluginId} name={entry.name} size="sm" />
+                          <PluginIcon id={item.pluginId} name={displayName} size="sm" />
                         </span>
                       ) : (
                         <span
@@ -236,10 +238,10 @@ export function RetainedPluginDataSection({
                           <span
                             className={cn(
                               "font-medium",
-                              entry ? "text-[13.5px]" : "font-tau-mono text-[13px]"
+                              displayName ? "text-[13.5px]" : "font-tau-mono text-[13px]"
                             )}
                           >
-                            {entry ? entry.name : item.pluginId}
+                            {displayName ?? item.pluginId}
                           </span>
                           {entry ? (
                             <span className="font-tau-mono text-tau-sm text-ink-3">

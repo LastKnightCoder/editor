@@ -3,6 +3,7 @@ import { Eye } from "lucide-react";
 import { Tabs } from "@tau/ui";
 import type { PackageContent, Upload } from "../../../../contracts";
 import { Markdown } from "../../components/markdown/Markdown";
+import { ReadmeViewer } from "../../components/ReadmeViewer";
 import { hasSkillScripts } from "@tau/plugins/template";
 import { TargetMatrix } from "../catalog/TargetMatrix";
 import { PackageFacts } from "./PackageFacts";
@@ -30,7 +31,11 @@ export function PackagePreview({
   const backend = "backend" in content.manifest ? content.manifest.backend : undefined;
   const scripts = skillScripts(content.manifest);
   const items = [
-    { key: "readme" as const, label: "介绍", children: <Markdown source={content.readme} /> },
+    {
+      key: "readme" as const,
+      label: "介绍",
+      children: <ReadmeViewer readme={content.readme} readmes={content.readmes} />,
+    },
     ...(content.changelog
       ? [
           {

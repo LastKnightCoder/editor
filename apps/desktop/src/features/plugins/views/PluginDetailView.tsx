@@ -15,7 +15,13 @@ import {
 import { openExternal } from "@/commands/extra";
 import { useSettingsStore } from "@/app/settingsStore";
 import type { PluginCatalogEntry, PluginRelease } from "@/types/plugin-center";
-import { formatSize, pluginPortalUrl } from "@tau/plugins/center";
+import {
+  formatPluginLocales,
+  formatSize,
+  pluginPortalUrl,
+  resolvePluginMetadata,
+  resolvePluginReadme,
+} from "@tau/plugins/center";
 import {
   createSettingsDraftController,
   SettingsDraftProvider,
@@ -72,7 +78,7 @@ export type PluginDetailParams = {
 };
 
 export function PluginDetailView() {
-  usePluginI18n();
+  const { locale } = usePluginI18n();
   const runtime = useDesktopPlugins();
   const startupError = useDesktopPluginError();
   const { navigator } = usePage();
@@ -125,7 +131,7 @@ export function PluginDetailView() {
       key: "readme",
       label: t("detail.intro"),
       children: release.data ? (
-        <PluginMarkdown source={release.data.content.readme} />
+        <PluginMarkdown source={resolvePluginReadme(release.data.content, locale)} />
       ) : (
         <p className="text-tau-body text-ink-2">
           {release.isPending && (installed?.releaseId || entry)
@@ -259,8 +265,15 @@ function Header({
   plugin?: InstalledPlugin;
   entry?: PluginCatalogEntry;
 }) {
-  usePluginI18n();
-  const name = plugin?.info.name ?? entry?.name ?? id;
+  const { locale } = usePluginI18n();
+  const name = resolvePluginMetadata(
+    {
+      name: plugin?.info.name ?? entry?.name ?? id,
+      i18n: plugin?.info.i18n ?? entry?.i18n,
+    },
+    locale
+  ).name;
+  const description = entry ? resolvePluginMetadata(entry, locale).description : "";
   return (
     <>
       <div className="flex items-center gap-[18px]">
@@ -281,11 +294,11 @@ function Header({
           </div>
         </div>
         {plugin ? (
-          <InstalledActions runtime={runtime} plugin={plugin} entry={entry} />
+          <InstalledActions runtime={runtime} plugin={plugin} entry={entry} displayName={name} />
         ) : (
           entry && (
             <InstallButton
-              name={entry.name}
+              name={name}
               state={installState(
                 entry,
                 undefined,
@@ -295,7 +308,7 @@ function Header({
           )
         )}
       </div>
-      {entry && <p className="text-tau-body text-ink-2 mt-3 max-w-[70ch]">{entry.description}</p>}
+      {description && <p className="text-tau-body text-ink-2 mt-3 max-w-[70ch]">{description}</p>}
     </>
   );
 }
@@ -304,10 +317,12 @@ function InstalledActions({
   runtime,
   plugin,
   entry,
+  displayName,
 }: {
   runtime: DesktopPluginRuntime;
   plugin: InstalledPlugin;
   entry?: PluginCatalogEntry;
+  displayName: string;
 }) {
   usePluginI18n();
   const control = usePluginControl(runtime, plugin);
@@ -324,7 +339,7 @@ function InstalledActions({
         {plugin.update?.pendingVersion ? (
           <StagedChip version={plugin.update.pendingVersion} />
         ) : (
-          state?.kind === "update" && <InstallButton name={plugin.info.name} state={state} />
+          state?.kind === "update" && <InstallButton name={displayName} state={state} />
         )}
         {plugin.packageKind ? (
           <span className="text-tau-meta text-ink-2">
@@ -333,7 +348,7 @@ function InstalledActions({
         ) : (
           <Switch
             aria-label={t(plugin.enabled ? "center.disablePlugin" : "center.enablePlugin", {
-              name: plugin.info.name,
+              name: displayName,
             })}
             checked={plugin.enabled}
             disabled={!control.canToggle}
@@ -353,7 +368,7 @@ function InstalledActions({
         </p>
       )}
       <UninstallDialog
-        name={plugin.info.name}
+        name={displayName}
         open={uninstalling}
         onOpenChange={setUninstalling}
         onConfirm={async purge => {
@@ -563,6 +578,17 @@ function Aside({
         ))}
       </span>,
     ]);
+  const declaredLocales =
+    release?.content.manifest.locales ?? entry?.locales ?? plugin?.info.locales;
+  if (declaredLocales?.length) {
+    const labels = formatPluginLocales(declaredLocales, locale);
+    info.push([
+      t("detail.languages"),
+      <span className="whitespace-normal">
+        {labels.join(locale.startsWith("zh") ? "、" : ", ")}
+      </span>,
+    ]);
+  }
   if (entry) {
     info.push([t("detail.requireApp"), `≥ ${(entry.compatible ?? entry.latest).minAppVersion}`]);
     info.push([t("detail.size"), formatSize((entry.compatible ?? entry.latest).size)]);

@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { evaluateCenterCompatibility } from "@tau/plugins/center";
+import { evaluateCenterCompatibility, formatPluginLocales } from "@tau/plugins/center";
 import { comparePluginVersions } from "@tau/plugins/package";
 import { ArrowLeft, ArrowUpRight, CloudOff, Copy, Download, Github, SearchX } from "lucide-react";
 import { Button, IconButton, Loading, Tabs, Tooltip, toast } from "@tau/ui";
@@ -10,6 +10,7 @@ import { hasCode } from "../api/errors";
 import { PluginMark } from "../components/PluginMark";
 import { formatCount, formatRelative, formatTime } from "../components/format";
 import { Markdown } from "../components/markdown/Markdown";
+import { ReadmeViewer } from "../components/ReadmeViewer";
 import { ErrorState } from "../components/states";
 import { StatsHint } from "../features/catalog/StatsHint";
 import { useCenterRelease, useCenterVersions } from "../features/catalog/center-queries";
@@ -156,7 +157,11 @@ export function PluginDetailPage() {
       .then(() => toast.success("已复制 SHA-256"));
 
   const items = [
-    { key: "readme" as const, label: "介绍", children: <Markdown source={content.readme} /> },
+    {
+      key: "readme" as const,
+      label: "介绍",
+      children: <ReadmeViewer readme={content.readme} readmes={content.readmes} />,
+    },
     ...(content.changelog
       ? [
           {
@@ -261,6 +266,11 @@ export function PluginDetailPage() {
             </Fact>
             <Fact label="大小">{formatBytes(release.data.size)}</Fact>
             <Fact label="发布于">{formatTime(release.data.publishedAt)}</Fact>
+            {manifest.locales?.length ? (
+              <Fact label="支持语言">
+                {formatPluginLocales(manifest.locales, "zh-CN").join("、")}
+              </Fact>
+            ) : null}
             <div className="border-line-1 border-t" />
             <Fact
               label={

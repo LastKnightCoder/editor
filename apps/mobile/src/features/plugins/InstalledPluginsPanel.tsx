@@ -7,7 +7,11 @@ import {
 } from "./i18n";
 import { useState } from "react";
 import { Button, Textarea } from "@tau/ui";
-import { describeCenterPermissions } from "@tau/plugins/center";
+import {
+  describeCenterPermissions,
+  pluginSearchTerms,
+  resolvePluginMetadata,
+} from "@tau/plugins/center";
 import { useNavigator } from "../../router";
 import { usePluginManager, type ManagedPluginItem } from "./data/usePluginManager";
 import { InstalledPluginRow } from "./components/InstalledPluginRow";
@@ -26,8 +30,13 @@ import {
 const t = pluginTranslator.t;
 
 const matches = (item: ManagedPluginItem, q: string) => {
-  const query = q.toLowerCase();
-  return !query || item.name.toLowerCase().includes(query) || item.id.toLowerCase().includes(query);
+  const query = q.trim().toLowerCase();
+  return (
+    !query ||
+    pluginSearchTerms({ id: item.id, name: item.name, i18n: item.i18n }).some(term =>
+      term.toLowerCase().includes(query)
+    )
+  );
 };
 
 function Row({
@@ -39,7 +48,8 @@ function Row({
   manager: ReturnType<typeof usePluginManager>;
   divider: boolean;
 }) {
-  usePluginI18n();
+  const { locale } = usePluginI18n();
+  const displayName = resolvePluginMetadata(item, locale).name;
   const navigator = useNavigator();
   const task = useMobileCenterInstall().task(item.id);
   const { update } = useMobileCenterUpdate(item.id, item.version, checksUpdate(item));
@@ -47,7 +57,7 @@ function Row({
   return (
     <InstalledPluginRow
       id={item.id}
-      name={item.name}
+      name={displayName}
       version={item.version}
       status={lifecycleOf(item, storeTaskPhase(task), task?.error)}
       update={update?.version ?? null}
@@ -63,7 +73,7 @@ function Row({
 
 /** 有可用更新时提供一键更新：确认后全部进入应用级安装队列，各行就地显示进度。 */
 function UpdateAllBar({ items }: { items: readonly ManagedPluginItem[] }) {
-  usePluginI18n();
+  const { locale } = usePluginI18n();
   const install = useMobileCenterInstall();
   // 打开时冻结清单：确认后各项进入安装队列会从可更新列表消失，面板仍需完整播完退场
   const [batch, setBatch] = useState<{ open: boolean; entries: UpdateAllEntry[] }>({
@@ -76,7 +86,7 @@ function UpdateAllBar({ items }: { items: readonly ManagedPluginItem[] }) {
       return {
         id: pluginId,
         releaseId: release.releaseId,
-        name: item?.name ?? pluginId,
+        name: item ? resolvePluginMetadata(item, locale).name : pluginId,
         from: item?.version ?? null,
         to: release.version,
         newPermissions: describeCenterPermissions(releasePermissions(release), item?.permissions)
@@ -128,7 +138,7 @@ function UpdateAllBar({ items }: { items: readonly ManagedPluginItem[] }) {
 
 /** 已安装：开关 + 状态；中心更新下载完自动重建插件会话，启停经横幅「立即生效」，管理动作在详情页；开发构建保留受控开发安装。 */
 export function InstalledPluginsPanel({ q = "" }: { q?: string }) {
-  usePluginI18n();
+  const { locale } = usePluginI18n();
   const manager = usePluginManager();
   const [source, setSource] = useState("");
   const act = (action: Promise<unknown>) => {
@@ -139,7 +149,9 @@ export function InstalledPluginsPanel({ q = "" }: { q?: string }) {
   return (
     <div className="flex flex-col gap-3">
       <PluginChangesBanner
-        changes={manager.items.filter(hasPendingChange).map(item => item.name)}
+        changes={manager.items
+          .filter(hasPendingChange)
+          .map(item => resolvePluginMetadata(item, locale).name)}
       />
       <UpdateAllBar items={manager.items} />
       {manager.actionError && (

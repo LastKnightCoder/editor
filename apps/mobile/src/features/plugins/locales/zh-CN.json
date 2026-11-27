@@ -15,6 +15,7 @@
   "detail.noReadme": "此插件没有提供说明。",
   "detail.info": "信息",
   "detail.pluginId": "插件 ID",
+  "detail.languages": "支持语言",
   "category.label": "分类",
   "detail.source": "源码",
   "detail.noSettings": "此插件没有自定义设置。",

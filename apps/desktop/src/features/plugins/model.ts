@@ -83,6 +83,8 @@ export function installedPlugins(runtime: DesktopPluginRuntime): InstalledPlugin
       name: template.name,
       version: template.version,
       state: "active" as const,
+      ...(template.i18n ? { i18n: template.i18n } : {}),
+      ...(template.locales ? { locales: template.locales } : {}),
     })),
   ];
   return infos.map(info => {

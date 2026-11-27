@@ -6,7 +6,12 @@ import {
   pluginCount,
   usePluginI18n,
 } from "@/features/plugins/i18n";
-import { PLUGIN_DEVELOPER_DOCS_URL, PLUGIN_PORTAL_URL } from "@tau/plugins/center";
+import {
+  PLUGIN_DEVELOPER_DOCS_URL,
+  PLUGIN_PORTAL_URL,
+  pluginSearchTerms,
+  resolvePluginMetadata,
+} from "@tau/plugins/center";
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import {
   ArrowUpCircle,
@@ -327,7 +332,7 @@ export function PluginsView() {
           ) : (
             <Updates
               installed={installed}
-              entries={updates.filter(entry => matchesQuery([entry.name], query))}
+              entries={updates.filter(entry => matchesQuery(pluginSearchTerms(entry), query))}
               catalogError={catalog.error}
               onOpen={openDetail}
             />
@@ -417,10 +422,7 @@ function Discover({
   const entries = catalog.data.items.filter(
     entry =>
       (!category || entry.categories?.includes(category)) &&
-      matchesQuery(
-        [entry.pluginId, entry.name, entry.description, ...(entry.keywords ?? [])],
-        query
-      )
+      matchesQuery(pluginSearchTerms(entry), query)
   );
   if (!entries.length && category)
     return (
@@ -479,7 +481,8 @@ function CatalogCard({
   installed?: InstalledPlugin;
   onOpen: () => void;
 }) {
-  usePluginI18n();
+  const { locale } = usePluginI18n();
+  const display = resolvePluginMetadata(entry, locale);
   const pending = runtime.local?.updates.find(item => item.id === entry.pluginId);
   return (
     <article
@@ -491,9 +494,9 @@ function CatalogCard({
       className="border-line-1 ease-tau-out hover:shadow-lift flex min-h-[168px] cursor-pointer flex-col gap-2.5 rounded-[var(--tau-radius-lg)] border p-4 transition-[box-shadow,border-color] duration-200 hover:border-transparent focus-visible:shadow-[var(--tau-focus-ring)] focus-visible:outline-none"
     >
       <div className="flex min-w-0 items-center gap-3">
-        <PluginIcon id={entry.pluginId} name={entry.name} />
+        <PluginIcon id={entry.pluginId} name={display.name} />
         <div className="min-w-0">
-          <div className="truncate text-[14px] font-semibold">{entry.name}</div>
+          <div className="truncate text-[14px] font-semibold">{display.name}</div>
           <div className="text-tau-sm text-ink-3 truncate">@{entry.publisher.login}</div>
         </div>
         {installed && !installed.packageKind && (
@@ -502,7 +505,7 @@ function CatalogCard({
           </span>
         )}
       </div>
-      <p className="text-tau-meta text-ink-2 line-clamp-2">{entry.description}</p>
+      <p className="text-tau-meta text-ink-2 line-clamp-2">{display.description}</p>
       <CategoryTags categories={entry.categories} />
       <div className="text-tau-sm text-ink-3 mt-auto flex items-center gap-2">
         <span className="tabular-nums">{entry.latest.version}</span>
@@ -521,7 +524,7 @@ function CatalogCard({
         )}
         <span className="ml-auto" onClick={event => event.stopPropagation()}>
           <InstallButton
-            name={entry.name}
+            name={display.name}
             state={installState(entry, installed, pending)}
             onCancel={undefined}
           />
@@ -538,13 +541,14 @@ function CardEnableSwitch({
   runtime: DesktopPluginRuntime;
   plugin: InstalledPlugin;
 }) {
-  usePluginI18n();
+  const { locale } = usePluginI18n();
+  const displayName = resolvePluginMetadata(plugin.info, locale).name;
   const control = usePluginControl(runtime, plugin);
   return (
     <Switch
       size="sm"
       aria-label={t(plugin.enabled ? "center.disablePlugin" : "center.enablePlugin", {
-        name: plugin.info.name,
+        name: displayName,
       })}
       title={control.error || undefined}
       checked={plugin.enabled}
@@ -584,7 +588,12 @@ function Installed({
   onOpen: (id: string) => void;
 }) {
   usePluginI18n();
-  const shown = installed.filter(item => matchesQuery([item.info.id, item.info.name], query));
+  const shown = installed.filter(item =>
+    matchesQuery(
+      pluginSearchTerms({ id: item.info.id, name: item.info.name, i18n: item.info.i18n }),
+      query
+    )
+  );
   const attention = shown.filter(needsAttention);
   const normal = shown.filter(item => !needsAttention(item));
   const issues = runtime.local?.issues ?? [];
@@ -654,10 +663,11 @@ export function InstalledRow({
   plugin: InstalledPlugin;
   onOpen: (id: string) => void;
 }) {
-  usePluginI18n();
+  const { locale } = usePluginI18n();
   const control = usePluginControl(runtime, plugin);
   const [uninstalling, setUninstalling] = useState(false);
   const { info } = plugin;
+  const displayName = resolvePluginMetadata(info, locale).name;
   const error =
     plugin.info.state === "restart-required"
       ? installedPluginError(plugin)
@@ -671,11 +681,11 @@ export function InstalledRow({
           !plugin.enabled && "[&_.plugin-name]:opacity-60"
         )}
       >
-        <PluginIcon id={info.id} name={info.name} size="sm" />
+        <PluginIcon id={info.id} name={displayName} size="sm" />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <button type="button" className="plugin-name text-[13.5px] font-medium">
-              {info.name}
+              {displayName}
             </button>
             <span className="text-tau-sm text-ink-3 tabular-nums">{info.version}</span>
             <SourceChip source={plugin.source} />
@@ -705,7 +715,7 @@ export function InstalledRow({
             <Switch
               size="sm"
               aria-label={t(plugin.enabled ? "center.disablePlugin" : "center.enablePlugin", {
-                name: info.name,
+                name: displayName,
               })}
               checked={plugin.enabled}
               disabled={!control.canToggle}
@@ -722,7 +732,7 @@ export function InstalledRow({
         </div>
       </div>
       <UninstallDialog
-        name={info.name}
+        name={displayName}
         open={uninstalling}
         onOpenChange={setUninstalling}
         onConfirm={control.uninstall}
@@ -788,7 +798,7 @@ function Updates({
   catalogError: string;
   onOpen: (id: string) => void;
 }) {
-  usePluginI18n();
+  const { locale } = usePluginI18n();
   const install = useInstallRelease(useDesktopPlugins());
   const installing = useInstallingReleases();
   // 已下载待重启的条目与正在下载的版本不再重复发起
@@ -822,21 +832,25 @@ function Updates({
       {entries.map(entry => {
         const plugin = installed.find(item => item.info.id === entry.pluginId);
         if (!plugin) return null;
+        const displayName = resolvePluginMetadata(entry, locale).name;
         return (
           <div
             key={entry.pluginId}
             onClick={() => onOpen(entry.pluginId)}
             className="hover:bg-hover flex min-h-[60px] cursor-pointer items-center gap-3.5 rounded-[10px] px-3 py-2.5"
           >
-            <PluginIcon id={entry.pluginId} name={entry.name} size="sm" />
+            <PluginIcon id={entry.pluginId} name={displayName} size="sm" />
             <div className="min-w-0 flex-1">
-              <b className="text-[13.5px] font-medium">{entry.name}</b>
+              <b className="text-[13.5px] font-medium">{displayName}</b>
               <span className="text-tau-sm text-ink-3 ml-2 tabular-nums">
                 {plugin.info.version} → {entry.compatible?.version}
               </span>
             </div>
             <span onClick={event => event.stopPropagation()}>
-              <InstallButton name={entry.name} state={installState(entry, plugin, plugin.update)} />
+              <InstallButton
+                name={displayName}
+                state={installState(entry, plugin, plugin.update)}
+              />
             </span>
           </div>
         );

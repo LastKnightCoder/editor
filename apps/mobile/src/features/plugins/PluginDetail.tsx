@@ -21,8 +21,11 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { comparePluginVersions } from "@tau/plugins/package";
 import {
   describeCenterPermissions,
+  formatPluginLocales,
   formatSize,
   pluginPortalUrl,
+  resolvePluginMetadata,
+  resolvePluginReadme,
   type CenterRelease,
 } from "@tau/plugins/center";
 import { Button, ErrorBoundary, Loading, Switch, cn } from "@tau/ui";
@@ -72,7 +75,7 @@ const open = (url: string) => swallow(openUrl(url));
  * 未连上插件中心时（开发安装、离线）只展示本机已安装信息。
  */
 export function PluginDetail() {
-  usePluginI18n();
+  const { locale } = usePluginI18n();
   const { params } = usePage<{ pluginId: string }>();
   const pluginId = params.pluginId;
   const config = useMobileCenterConfig();
@@ -137,7 +140,13 @@ export function PluginDetail() {
     );
 
   const manifest = center?.content.manifest;
-  const name = manifest?.name ?? installed?.name ?? pluginId;
+  const name = resolvePluginMetadata(
+    {
+      name: manifest?.name ?? installed?.name ?? pluginId,
+      i18n: manifest?.i18n ?? installed?.i18n,
+    },
+    locale
+  ).name;
   const primary = storePrimaryAction({
     compatibleVersion: compatible?.version ?? null,
     installed,
@@ -238,6 +247,7 @@ export function PluginDetail() {
             <IntroTab
               pluginId={pluginId}
               release={center}
+              installedLocales={installed?.locales}
               loading={!!latest && release.isPending}
               editor={!!installed?.editor}
             />
@@ -413,7 +423,7 @@ function EnableSwitch({
   item: ManagedPluginItem;
   manager: ReturnType<typeof usePluginManager>;
 }) {
-  usePluginI18n();
+  const { locale } = usePluginI18n();
   const kind = item.enabled ? "disable" : "enable";
   return (
     <label className="bg-surface flex h-11 min-w-0 flex-1 items-center gap-3 rounded-[14px] px-3.5">
@@ -422,7 +432,7 @@ function EnableSwitch({
       </span>
       <Switch
         aria-label={t(item.enabled ? "manage.disableName" : "manage.enableName", {
-          name: item.name,
+          name: resolvePluginMetadata(item, locale).name,
         })}
         checked={item.enabled}
         disabled={!item.actions[kind].allowed}
@@ -503,23 +513,28 @@ function InfoRow({ label, children }: { label: string; children: ReactNode }) {
 function IntroTab({
   pluginId,
   release,
+  installedLocales,
   loading,
   editor,
 }: {
   pluginId: string;
   release: CenterRelease | null;
+  installedLocales?: readonly string[];
   loading: boolean;
   editor: boolean;
 }) {
-  usePluginI18n();
+  const { locale } = usePluginI18n();
   const manifest = release?.content.manifest;
+  const description = manifest ? resolvePluginMetadata(manifest, locale).description : "";
+  const readme = release ? resolvePluginReadme(release.content, locale) : "";
+  const declaredLocales = manifest?.locales ?? installedLocales;
   return (
     <>
-      {release ? (
-        <p className="text-ink-2 px-1 text-[13.5px] leading-relaxed">{manifest?.description}</p>
+      {release && description ? (
+        <p className="text-ink-2 px-1 text-[13.5px] leading-relaxed">{description}</p>
       ) : null}
-      {release?.content.readme ? (
-        <PluginMarkdown source={release.content.readme} />
+      {readme ? (
+        <PluginMarkdown source={readme} />
       ) : (
         <p className="text-ink-3 px-1 text-[13px]">
           {loading
@@ -538,6 +553,13 @@ function IntroTab({
           {manifest?.categories?.length ? (
             <InfoRow label={t("category.label")}>
               {manifest.categories.map(categoryLabel).join("、")}
+            </InfoRow>
+          ) : null}
+          {declaredLocales?.length ? (
+            <InfoRow label={t("detail.languages")}>
+              {formatPluginLocales(declaredLocales, locale).join(
+                locale.startsWith("zh") ? "、" : ", "
+              )}
             </InfoRow>
           ) : null}
           {release?.repository && (

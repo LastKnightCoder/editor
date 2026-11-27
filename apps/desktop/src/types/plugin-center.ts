@@ -28,6 +28,10 @@ export interface PluginCatalogEntry {
   categories?: PluginCategory[];
   /** 仅参与搜索。 */
   keywords?: string[];
+  /** 可选多语言展示资料（名称、简介、关键词）。 */
+  i18n?: import("@tau/plugins/center").PluginManifestI18n;
+  /** 作者可选声明的插件支持语言。 */
+  locales?: readonly string[];
   latest: PluginCatalogVersion;
   /** 当前客户端可安装的最高版本，没有时为 null。 */
   compatible: PluginCatalogVersion | null;
@@ -86,8 +90,11 @@ export interface PluginRelease {
       backend?: import("@tau/plugins/package").PluginBackendManifest;
       skills?: readonly string[];
       integrity?: Record<string, string>;
+      i18n?: import("@tau/plugins/center").PluginManifestI18n;
+      locales?: readonly string[];
     };
     readme: string;
+    readmes?: Readonly<Record<string, string>>;
     changelog: string | null;
   };
 }
