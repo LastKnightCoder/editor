@@ -20,6 +20,5 @@ export function markdownChromeFeedback(
   values?: TranslationValues
 ) {
   const parameters = values && Object.freeze({ ...values });
-  const getMessage = () => markdownChromeTranslator.t(key, parameters);
-  return [getMessage(), { getMessage }] as const;
+  return () => markdownChromeTranslator.t(key, parameters);
 }

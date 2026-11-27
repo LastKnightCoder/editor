@@ -369,24 +369,24 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
         }
       );
       if (submitResult === "missing") {
-        toast.error(...reviewFeedback("review.sessionExpired"));
+        toast.error(reviewFeedback("review.sessionExpired"));
         return;
       }
       if (action === "feedback") {
         setFeedbackOpen(false);
         setFeedbackText("");
-        toast.success(...reviewFeedback("review.feedbackSubmitted"));
+        toast.success(reviewFeedback("review.feedbackSubmitted"));
         return;
       }
       toast.success(
-        ...reviewFeedback(action === "apply" ? "review.appliedFeedback" : "review.rejectedFeedback")
+        reviewFeedback(action === "apply" ? "review.appliedFeedback" : "review.rejectedFeedback")
       );
     });
 
   const handleUndo = () =>
     withBusy("undo", async () => {
       if (!liveProposal?.checkpointId) {
-        toast.error(...reviewFeedback("review.noRestore"));
+        toast.error(reviewFeedback("review.noRestore"));
         return;
       }
       const result = await restoreContentCheckpoint({
@@ -397,10 +397,10 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
           setRestoreConflict({ checkpointId: liveProposal.checkpointId, message: result.message });
           return;
         }
-        toast.error(...reviewFailure("review.restoreFailed", result.message || undefined));
+        toast.error(reviewFailure("review.restoreFailed", result.message || undefined));
         return;
       }
-      toast.success(...reviewFeedback("review.restored"));
+      toast.success(reviewFeedback("review.restored"));
     });
 
   const handleForceRestore = async () => {

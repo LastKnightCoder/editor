@@ -102,12 +102,6 @@ import { exportContentAsWord, exportContentAsMarkdown } from "@/services/content
 import { PluginActionMenuItems } from "@/app/plugins/action-menu";
 import { PluginEntityPanels } from "@/app/plugins/entity-panels";
 
-/** copy utils 的 MessageApi 是结构类型，toast 同形适配（不引 antd message） */
-const toastAdapter = {
-  success: (msg: string) => toast.success(msg),
-  error: (msg: string) => toast.error(msg),
-};
-
 /** 沉浸模式进/出传递 selection 须深拷贝（Slate 选区对象会被编辑器原地修改） */
 function cloneRange(selection: Range | null): Range | null {
   if (!selection) return null;
@@ -380,11 +374,7 @@ export function ArticleDetailView() {
           <Menu.Item
             icon={<ClipboardCopy className="size-[15px] shrink-0" strokeWidth={1.75} />}
             onSelect={() =>
-              void copyMarkdownToClipboard(
-                editingArticle.content,
-                toastAdapter,
-                editingArticle.contentId
-              )
+              void copyMarkdownToClipboard(editingArticle.content, toast, editingArticle.contentId)
             }
           >
             {t("copy.markdown")}
@@ -394,7 +384,7 @@ export function ArticleDetailView() {
             onSelect={() =>
               void copyWechatHtmlToClipboard(
                 editingArticle.content,
-                toastAdapter,
+                toast,
                 editingArticle.contentId
               )
             }

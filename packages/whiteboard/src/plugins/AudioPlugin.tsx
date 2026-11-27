@@ -123,10 +123,10 @@ export class AudioPlugin extends CommonPlugin implements IBoardPlugin {
         onSelect: async () => {
           try {
             await navigator.clipboard.writeText(audioElement.src);
-            toast.success(...whiteboardFeedback(context.board, "menus.media.linkCopied"));
+            toast.success(whiteboardFeedback(context.board, "menus.media.linkCopied"));
           } catch (error) {
             console.error("复制链接失败:", error);
-            toast.error(...whiteboardFeedback(context.board, "menus.media.copyLinkFailed"));
+            toast.error(whiteboardFeedback(context.board, "menus.media.copyLinkFailed"));
           }
         },
       });
@@ -139,12 +139,12 @@ export class AudioPlugin extends CommonPlugin implements IBoardPlugin {
         onSelect: async () => {
           try {
             await this.media.download?.(audioElement.src);
-            toast.success(...whiteboardFeedback(context.board, "menus.media.audioDownloaded"));
+            toast.success(whiteboardFeedback(context.board, "menus.media.audioDownloaded"));
           } catch (error) {
             // 用户取消下载不显示错误
             if ((error as { message?: string })?.message !== "用户取消了下载") {
               console.error("下载音频失败:", error);
-              toast.error(...whiteboardFeedback(context.board, "menus.media.downloadAudioFailed"));
+              toast.error(whiteboardFeedback(context.board, "menus.media.downloadAudioFailed"));
             }
           }
         },
@@ -176,7 +176,7 @@ export class AudioPlugin extends CommonPlugin implements IBoardPlugin {
     Promise.all(audioFiles.map(file => Promise.resolve(file)))
       .then(async files => {
         const uploadingToast = toast.loading(
-          ...whiteboardFeedback(board, "menus.media.processingAudio")
+          whiteboardFeedback(board, "menus.media.processingAudio")
         );
 
         try {
@@ -217,7 +217,7 @@ export class AudioPlugin extends CommonPlugin implements IBoardPlugin {
               if (op.type === "insert_node") op.path = [board.children.length];
             });
             board.apply(ops);
-            toast.success(...whiteboardFeedback(board, "menus.media.audioPasted"));
+            toast.success(whiteboardFeedback(board, "menus.media.audioPasted"));
           }
         } finally {
           toast.dismiss(uploadingToast);
@@ -225,7 +225,7 @@ export class AudioPlugin extends CommonPlugin implements IBoardPlugin {
       })
       .catch(error => {
         console.error("白板媒体粘贴失败", error);
-        toast.error(...whiteboardFeedback(board, "menus.media.pasteFailed"));
+        toast.error(whiteboardFeedback(board, "menus.media.pasteFailed"));
       });
   }
 

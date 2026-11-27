@@ -269,7 +269,7 @@ const Richtext = (props: RichTextProps) => {
     void ensureContentId().catch(error => {
       console.error("Failed to ensure content id for rich text:", error);
       const { t } = whiteboardRuntime(board).get(nodeMessages);
-      toast.error(t("nodes.richtextFailed"), { getMessage: () => t("nodes.richtextFailed") });
+      toast.error(() => t("nodes.richtextFailed"));
     });
     board.isEditingElements = [
       ...board.isEditingElements.filter(eid => eid !== elementId),

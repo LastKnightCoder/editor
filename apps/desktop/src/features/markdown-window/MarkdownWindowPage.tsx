@@ -1,5 +1,4 @@
 import { usePlatformLabels } from "@/platform/i18n";
-import type { CopyFeedbackOptions } from "@/utils/copy-service";
 import {
   contentTransferTranslator,
   useContentTransferI18n,
@@ -77,10 +76,6 @@ const rootClass =
   "app flex h-screen flex-col overflow-hidden bg-page font-tau text-tau-body text-ink-1 antialiased";
 const MENU_ICON = "size-[15px] shrink-0";
 const MARKDOWN_FILTERS = [{ name: "Markdown", extensions: ["md", "markdown"] }];
-const toastAdapter = {
-  success: (msg: string, options?: CopyFeedbackOptions) => toast.success(msg, options),
-  error: (msg: string, options?: CopyFeedbackOptions) => toast.error(msg, options),
-};
 
 type ExportState = { kind: "epub" | "pdf"; content: Descendant[]; title: string } | null;
 
@@ -351,7 +346,7 @@ export default function MarkdownWindowPage() {
                   .writeText(viewRef.current?.getMarkdown?.() ?? "")
                   .then(() => {
                     const getMessage = () => contentTransferTranslator.t("copyMarkdown.done");
-                    toast.success(getMessage(), { getMessage });
+                    toast.success(getMessage);
                   })
               }
             >
@@ -360,7 +355,7 @@ export default function MarkdownWindowPage() {
             <Menu.Item
               icon={<MessageSquare className={MENU_ICON} strokeWidth={1.75} />}
               onSelect={() =>
-                void copyWechatHtmlToClipboard(viewRef.current?.getContent?.() ?? [], toastAdapter)
+                void copyWechatHtmlToClipboard(viewRef.current?.getContent?.() ?? [], toast)
               }
             >
               {transferT("menu.copyWechat")}

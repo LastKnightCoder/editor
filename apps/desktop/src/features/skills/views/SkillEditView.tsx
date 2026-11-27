@@ -409,9 +409,7 @@ export function SkillEditView() {
       setDraft(content);
       setEditorVersion(v => v + 1);
     } catch (error) {
-      toast.error(
-        ...workbenchFeedback("workbench.openFailed", { reason: (error as Error).message })
-      );
+      toast.error(workbenchFeedback("workbench.openFailed", { reason: (error as Error).message }));
     }
   }, []);
 
@@ -434,9 +432,7 @@ export function SkillEditView() {
       setSaved(draft);
       if (isReadme) void useSkillStore.getState().loadSkills();
     } catch (error) {
-      toast.error(
-        ...workbenchFeedback("workbench.saveFailed", { reason: (error as Error).message })
-      );
+      toast.error(workbenchFeedback("workbench.saveFailed", { reason: (error as Error).message }));
     } finally {
       setSaving(false);
     }

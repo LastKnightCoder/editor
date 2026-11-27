@@ -32,6 +32,5 @@ export function markdownTreeFeedback(
   values?: TranslationValues
 ) {
   const parameters = values && Object.freeze({ ...values });
-  const getMessage = () => markdownTreeTranslator.t(key, parameters);
-  return [getMessage(), { getMessage }] as const;
+  return () => markdownTreeTranslator.t(key, parameters);
 }

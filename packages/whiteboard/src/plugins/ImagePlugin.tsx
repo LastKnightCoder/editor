@@ -147,10 +147,10 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
                 [blob.type]: blob,
               }),
             ]);
-            toast.success(...whiteboardFeedback(context.board, "menus.media.imageCopied"));
+            toast.success(whiteboardFeedback(context.board, "menus.media.imageCopied"));
           } catch (error) {
             console.error("复制图片失败:", error);
-            toast.error(...whiteboardFeedback(context.board, "menus.media.copyImageFailed"));
+            toast.error(whiteboardFeedback(context.board, "menus.media.copyImageFailed"));
           }
         },
       });
@@ -163,10 +163,10 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
         onSelect: async () => {
           try {
             await navigator.clipboard.writeText(imageElement.src);
-            toast.success(...whiteboardFeedback(context.board, "menus.media.linkCopied"));
+            toast.success(whiteboardFeedback(context.board, "menus.media.linkCopied"));
           } catch (error) {
             console.error("复制链接失败:", error);
-            toast.error(...whiteboardFeedback(context.board, "menus.media.copyLinkFailed"));
+            toast.error(whiteboardFeedback(context.board, "menus.media.copyLinkFailed"));
           }
         },
       });
@@ -179,12 +179,12 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
         onSelect: async () => {
           try {
             await this.media.download?.(imageElement.src);
-            toast.success(...whiteboardFeedback(context.board, "menus.media.imageDownloaded"));
+            toast.success(whiteboardFeedback(context.board, "menus.media.imageDownloaded"));
           } catch (error) {
             // 用户取消下载不显示错误
             if ((error as { message?: string })?.message !== "用户取消了下载") {
               console.error("下载图片失败:", error);
-              toast.error(...whiteboardFeedback(context.board, "menus.media.downloadImageFailed"));
+              toast.error(whiteboardFeedback(context.board, "menus.media.downloadImageFailed"));
             }
           }
         },
@@ -291,7 +291,7 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
     )
       .then(async images => {
         const uploadingToast = toast.loading(
-          ...whiteboardFeedback(board, "menus.media.processingImage")
+          whiteboardFeedback(board, "menus.media.processingImage")
         );
         try {
           let insertPath = board.children.length;
@@ -351,7 +351,7 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
               if (op.type === "insert_node") op.path = [board.children.length];
             });
             board.apply(ops);
-            toast.success(...whiteboardFeedback(board, "menus.media.imagePasted"));
+            toast.success(whiteboardFeedback(board, "menus.media.imagePasted"));
           }
         } finally {
           toast.dismiss(uploadingToast);
@@ -359,7 +359,7 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
       })
       .catch(error => {
         console.error("白板媒体粘贴失败", error);
-        toast.error(...whiteboardFeedback(board, "menus.media.pasteFailed"));
+        toast.error(whiteboardFeedback(board, "menus.media.pasteFailed"));
       });
   }
 

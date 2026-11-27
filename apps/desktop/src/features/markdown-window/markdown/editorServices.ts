@@ -117,7 +117,7 @@ export function useMarkdownEditorServices(
     try {
       const target = await resolveLocalTarget(url, filePath);
       if (!(await pathExists(target))) {
-        toast.error(...markdownFileFeedback("file.linkMissing"));
+        toast.error(markdownFileFeedback("file.linkMissing"));
         return;
       }
       if (!(await isDirectory(target)) && /\.(md|markdown)$/i.test(target)) {
@@ -132,7 +132,7 @@ export function useMarkdownEditorServices(
           : error instanceof Error
             ? error.message
             : markdownFileTranslator.t("file.linkFailed");
-      toast.error(getMessage(), { getMessage });
+      toast.error(getMessage);
     }
   });
 

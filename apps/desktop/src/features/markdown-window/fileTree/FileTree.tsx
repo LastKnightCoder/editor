@@ -164,9 +164,9 @@ export function FileTree({
       const name = baseName(path);
       const getMessage = () =>
         markdownTreeTranslator.t("tree.trashed", { name, trash: getPlatformLabels().trashName });
-      toast.success(getMessage(), { getMessage });
+      toast.success(getMessage);
     } catch (error) {
-      toast.error(...markdownTreeFeedback("tree.deleteFailed", { reason: treeErrorText(error) }));
+      toast.error(markdownTreeFeedback("tree.deleteFailed", { reason: treeErrorText(error) }));
     }
   };
 
@@ -174,7 +174,7 @@ export function FileTree({
     const to = joinPath(targetDir, baseName(from));
     try {
       if (await pathExists(to)) {
-        toast.error(...markdownTreeFeedback("tree.moveExists", { name: baseName(targetDir) }));
+        toast.error(markdownTreeFeedback("tree.moveExists", { name: baseName(targetDir) }));
         return;
       }
       await handlers.beforeMutate(from);
@@ -183,7 +183,7 @@ export function FileTree({
       await Promise.all([refreshDir(dirName(from)), refreshDir(targetDir)]);
       if (targetDir !== rootPath) toggle(targetDir, true);
     } catch (error) {
-      toast.error(...markdownTreeFeedback("tree.moveFailed", { reason: treeErrorText(error) }));
+      toast.error(markdownTreeFeedback("tree.moveFailed", { reason: treeErrorText(error) }));
     }
   };
 
@@ -221,7 +221,7 @@ export function FileTree({
       .writeText(text)
       .then(() =>
         toast.success(
-          ...markdownTreeFeedback(kind === "path" ? "tree.copiedPath" : "tree.copiedRelative")
+          markdownTreeFeedback(kind === "path" ? "tree.copiedPath" : "tree.copiedRelative")
         )
       );
 

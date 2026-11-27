@@ -56,9 +56,7 @@ const VideoSelectorModal = ({ open, onClose, board, action }: VideoSelectorModal
   const handleAddVideo = useMemoizedFn(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      const toastId = toast.loading(whiteboardAvT("processing.video"), {
-        getMessage: () => whiteboardAvT("processing.video"),
-      });
+      const toastId = toast.loading(() => whiteboardAvT("processing.video"));
       try {
         await VideoUtil.insertVideo(file, board, whiteboardMedia(board));
       } finally {

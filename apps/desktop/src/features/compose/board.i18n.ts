@@ -18,11 +18,9 @@ export function composeBoardFeedback(
   values?: TranslationValues
 ) {
   const params = values && Object.freeze({ ...values });
-  const getMessage = () => composeBoardTranslator.t(key, params);
-  return [getMessage(), { getMessage }] as const;
+  return () => composeBoardTranslator.t(key, params);
 }
 export function composeGatherFailure(error: unknown) {
   const raw = error instanceof Error ? error.message : undefined;
-  const getMessage = () => raw ?? composeBoardTranslator.t("board.gatherFailed");
-  return [getMessage(), { getMessage }] as const;
+  return () => raw ?? composeBoardTranslator.t("board.gatherFailed");
 }

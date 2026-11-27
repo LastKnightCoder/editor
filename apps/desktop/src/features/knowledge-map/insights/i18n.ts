@@ -31,12 +31,10 @@ export function insightsFeedback(
   values?: TranslationValues
 ) {
   const parameters = values && Object.freeze({ ...values });
-  const getMessage = () => mapInsightsTranslator.t(key, parameters);
-  return [getMessage(), { getMessage }] as const;
+  return () => mapInsightsTranslator.t(key, parameters);
 }
 export function insightsFailure(key: Parameters<InsightsTranslate>[0], error: unknown) {
-  const getMessage = () => (error instanceof Error ? error.message : mapInsightsTranslator.t(key));
-  return [getMessage(), { getMessage }] as const;
+  return () => (error instanceof Error ? error.message : mapInsightsTranslator.t(key));
 }
 export function insightSummary(mark: KnowledgeMark, t: InsightsTranslate): string {
   const [a, b] = mark.ends;

@@ -7,6 +7,5 @@ export function publishFeedback(
   values?: TranslationValues
 ) {
   const params = values && Object.freeze({ ...values });
-  const getMessage = () => publishTranslator.t(key, params);
-  return [getMessage(), { getMessage }] as const;
+  return () => publishTranslator.t(key, params);
 }

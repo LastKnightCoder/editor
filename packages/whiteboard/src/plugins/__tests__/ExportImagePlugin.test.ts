@@ -121,7 +121,9 @@ it("导入失败换语只更新已有反馈，保留抛错时预算并透传未�
     });
     input.dispatchEvent(new Event("change"));
     await vi.waitFor(() => expect(errors).toHaveBeenCalledTimes(1));
-    const readFeedback = errors.mock.calls[0][1]?.getMessage;
+    const readFeedback = toast
+      .items()
+      .find(item => item.id === errors.mock.results[0].value)?.getMessage;
     if (!readFeedback) throw new Error("自产错误没有稳定翻译反馈");
     const original = readFeedback(),
       capturedReads = sizeReads;

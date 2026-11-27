@@ -89,7 +89,7 @@ export function KnowledgeMapView() {
       error => {
         const getMessage = () =>
           error instanceof Error ? error.message : knowledgeMapTranslator.t("map.openFailed");
-        toast.error(getMessage(), { getMessage });
+        toast.error(getMessage);
       }
     );
   };
@@ -103,7 +103,7 @@ export function KnowledgeMapView() {
     openEntity(end.ref, { at: { block: end.block } }).catch(error => {
       const getMessage = () =>
         error instanceof Error ? error.message : knowledgeMapTranslator.t("map.openFailed");
-      toast.error(getMessage(), { getMessage });
+      toast.error(getMessage);
     });
   };
 

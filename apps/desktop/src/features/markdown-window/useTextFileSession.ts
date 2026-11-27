@@ -137,7 +137,7 @@ export function useTextFileSession({
       }
       applyExternalText(text);
       savedText.current = text;
-      toast.info(...markdownChromeFeedback("chrome.externalSynced"));
+      toast.info(markdownChromeFeedback("chrome.externalSynced"));
     };
     onTextFileChanged(onChanged);
     return () => {

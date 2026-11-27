@@ -64,7 +64,9 @@ it.each(["audio", "video"] as const)(
     expect(operation.mock.calls[0][0]).toBe(file);
     expect(operation.mock.calls[0][1]).toBe(session.api);
     expect(loading).toHaveBeenCalledTimes(1);
-    const reader = loading.mock.calls[0][1]?.getMessage;
+    const reader = toast
+      .items()
+      .find(item => item.id === loading.mock.results[0].value)?.getMessage;
     if (!reader) throw new Error("missing loading presentation reader");
     const original = reader();
     for (const locale of ["en-US", "zh-TW"] as const) {

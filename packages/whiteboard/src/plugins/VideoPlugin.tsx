@@ -134,10 +134,10 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
         onSelect: async () => {
           try {
             await navigator.clipboard.writeText(videoElement.src);
-            toast.success(...whiteboardFeedback(context.board, "menus.media.linkCopied"));
+            toast.success(whiteboardFeedback(context.board, "menus.media.linkCopied"));
           } catch (error) {
             console.error("复制链接失败:", error);
-            toast.error(...whiteboardFeedback(context.board, "menus.media.copyLinkFailed"));
+            toast.error(whiteboardFeedback(context.board, "menus.media.copyLinkFailed"));
           }
         },
       });
@@ -150,12 +150,12 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
         onSelect: async () => {
           try {
             await this.media.download?.(videoElement.src);
-            toast.success(...whiteboardFeedback(context.board, "menus.media.videoDownloaded"));
+            toast.success(whiteboardFeedback(context.board, "menus.media.videoDownloaded"));
           } catch (error) {
             // 用户取消下载不显示错误
             if ((error as { message?: string })?.message !== "用户取消了下载") {
               console.error("下载视频失败:", error);
-              toast.error(...whiteboardFeedback(context.board, "menus.media.downloadVideoFailed"));
+              toast.error(whiteboardFeedback(context.board, "menus.media.downloadVideoFailed"));
             }
           }
         },
@@ -190,7 +190,7 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
     )
       .then(async videos => {
         const uploadingToast = toast.loading(
-          ...whiteboardFeedback(board, "menus.media.processingVideo")
+          whiteboardFeedback(board, "menus.media.processingVideo")
         );
         try {
           let insertPath = board.children.length;
@@ -244,7 +244,7 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
               if (op.type === "insert_node") op.path = [board.children.length];
             });
             board.apply(ops);
-            toast.success(...whiteboardFeedback(board, "menus.media.videoPasted"));
+            toast.success(whiteboardFeedback(board, "menus.media.videoPasted"));
           }
         } finally {
           toast.dismiss(uploadingToast);
@@ -252,7 +252,7 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
       })
       .catch(error => {
         console.error("白板媒体粘贴失败", error);
-        toast.error(...whiteboardFeedback(board, "menus.media.pasteFailed"));
+        toast.error(whiteboardFeedback(board, "menus.media.pasteFailed"));
       });
   }
 

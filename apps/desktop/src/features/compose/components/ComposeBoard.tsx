@@ -234,7 +234,7 @@ export function ComposeBoard({
         onSuccess: (result: GatherResult) => place({ groups: result.groups, gathered: true }),
         onError: error => {
           setStatus({ state: "idle" });
-          toast.error(...composeGatherFailure(error));
+          toast.error(composeGatherFailure(error));
         },
       }
     );

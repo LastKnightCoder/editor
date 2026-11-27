@@ -355,7 +355,7 @@ export function SkillsView() {
             if (openKey === deleting.key) setOpenKey(null);
             const getMessage = () =>
               skillsTranslator.t("skills.moved", { trash: getPlatformLabels().trashName });
-            toast.success(getMessage(), { getMessage });
+            toast.success(getMessage);
           } catch (error) {
             toast.error((error as Error).message);
           }

@@ -69,11 +69,6 @@ import { SYMMETRIC_PAGE_GRID_STYLE } from "@/utils/pageMargin";
 
 /** 建议右栏 300px：窗口不够宽时不占列，建议仍可在正文痕迹与主窗口对话里处理 */
 
-const toastAdapter = {
-  success: (msg: string) => toast.success(msg),
-  error: (msg: string) => toast.error(msg),
-};
-
 const iconClass = "size-[15px] shrink-0";
 
 export function EditorWindow({
@@ -293,13 +288,13 @@ export function EditorWindow({
       >
         <Menu.Item
           icon={<ClipboardCopy className={iconClass} strokeWidth={1.75} />}
-          onSelect={() => void copyMarkdownToClipboard(doc.content, toastAdapter, doc.contentId)}
+          onSelect={() => void copyMarkdownToClipboard(doc.content, toast, doc.contentId)}
         >
           {transferT("menu.copyMarkdown")}
         </Menu.Item>
         <Menu.Item
           icon={<MessageSquare className={iconClass} strokeWidth={1.75} />}
-          onSelect={() => void copyWechatHtmlToClipboard(doc.content, toastAdapter, doc.contentId)}
+          onSelect={() => void copyWechatHtmlToClipboard(doc.content, toast, doc.contentId)}
         >
           {transferT("menu.copyWechat")}
         </Menu.Item>

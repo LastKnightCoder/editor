@@ -2,7 +2,7 @@ import { menuText } from "../menu-i18n";
 import { whiteboardFeedback } from "../feedback-i18n";
 import type { TranslationValues } from "@tau/i18n";
 import type { WhiteboardMessageKey } from "../messages";
-import { toast, type ToastOptions } from "@tau/ui";
+import { toast, type ToastMessage } from "@tau/ui";
 import { downloadBlobAsFile } from "../utils/ExportImageUtil";
 import { Download } from "lucide-react";
 import { IBoardPlugin, ContextMenuContext, PluginContextMenuItem } from "../types";
@@ -22,16 +22,14 @@ function failureFeedback(
   board: ContextMenuContext["board"],
   error: unknown,
   fallback: WhiteboardMessageKey
-): readonly [string, ToastOptions] {
+): ToastMessage {
   if (error instanceof ImportUiError)
     return whiteboardFeedback(
       board,
       error.kind === "budget" ? "menus.media.importBudget" : "menus.media.importTarget",
       error.parameters
     );
-  return error instanceof Error
-    ? ([error.message, {}] as const)
-    : whiteboardFeedback(board, fallback);
+  return error instanceof Error ? error.message : whiteboardFeedback(board, fallback);
 }
 
 export class ExportImagePlugin implements IBoardPlugin {
@@ -83,7 +81,7 @@ export class ExportImagePlugin implements IBoardPlugin {
             ?.exportFile?.()
             .then(blob => downloadBlobAsFile(blob, "whiteboard.tau-board.json"))
             .catch(error =>
-              toast.error(...failureFeedback(ctx.board, error, "menus.media.exportFailed"))
+              toast.error(failureFeedback(ctx.board, error, "menus.media.exportFailed"))
             );
         },
       });
@@ -114,7 +112,7 @@ export class ExportImagePlugin implements IBoardPlugin {
               });
               await ctx.board.document?.importTransfer?.(bundle, true);
             })().catch(error =>
-              toast.error(...failureFeedback(ctx.board, error, "menus.media.importFailed"))
+              toast.error(failureFeedback(ctx.board, error, "menus.media.importFailed"))
             );
           };
           input.click();

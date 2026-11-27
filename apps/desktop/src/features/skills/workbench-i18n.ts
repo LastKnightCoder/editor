@@ -18,8 +18,7 @@ export function workbenchFeedback(
   values?: TranslationValues
 ) {
   const parameters = values && Object.freeze({ ...values });
-  const getMessage = () => skillWorkbenchTranslator.t(key, parameters);
-  return [getMessage(), { getMessage }] as const;
+  return () => skillWorkbenchTranslator.t(key, parameters);
 }
 export type SkillTemplateKey = "blank" | "workflow" | "reference" | "format";
 export function skillTemplateLabel(key: SkillTemplateKey, t: WorkbenchTranslate) {
