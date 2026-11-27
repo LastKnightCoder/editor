@@ -132,6 +132,8 @@ SORT 总字数 DESC
 
 `tags` 是标签文字数组。`source` 是可打开的来源引用，部分记录可能没有可打开的来源。`contentRef` 是读取正文需要的句柄，包含 `contentId` 和 `createdAt`。
 
+查询结果第一列作为每行的标题，也可以放「来源」、日期或数字。「来源」放在第一列时，表格和行详情仍可点击打开原内容；画廊和日历会用来源标题显示记录。
+
 项目的 `documentCount` 统计根目录条目数。项目文档的 `projectIds` 是项目编号数组；`parent` 是上级标题，指定项目范围时按该目录位置取值。需要只查看文档时，可以加 `WHERE kind = "document"`。
 
 待办的 `recurrence` 是重复规则，`dueAt` 是截止时间；日程的 `kind` 区分事件 `event`、待办安排 `todo-schedule` 和虚拟日程 `virtual`。对话信息包含标题和数量等信息，不包含聊天消息正文。

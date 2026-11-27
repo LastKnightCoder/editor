@@ -42,6 +42,7 @@ React 19（peerDependency，宿主提供）+ TypeScript + Zustand（状态与快
 - 能力查询：视图与面板只经 `hasCapability(type, capability)` 判定（日历日期列、看板分组列、封面图片列），不按列类型名特判；搜索未实现时回落字符串包含。
 - 内置列类型：text / number / date（单/区间，兼容旧数据）/ select（看板依赖其 getGroupKey）/ multi-select / checkbox / link / star / progress / formula（表达式存 config，值只在投影派生 `{value, error?}`，可筛选/排序/搜索/分组）。
 - 图片、附件与富文本字段不在包内：由桌面扩展 tau.desktop 经 fieldTypes/fieldOverrides 贡献，缺失插件的字段不可编辑并保留原值。
+- 主列保留字段类型与原始值，表格沿用字段 Renderer 并附加详情入口。画廊、日历和详情标题经 `PluginManager.getCellText` 读取字段 model 的 `toText`，未提供 model 时转为字符串；展示不改写行值或视图配置。
 
 ## 视图系统
 
@@ -61,6 +62,7 @@ React 19（peerDependency，宿主提供）+ TypeScript + Zustand（状态与快
 - `RowDetailModal` 包内骨架（左正文右属性栏，<960 容器查询退化单栏，同一棵树重排）。打开来源：行点击或宿主 onRowDetailOpen 接管。
 - 正文由宿主插槽 RowDetailBody 提供（桌面为 ContentEditor 会话）；关闭/切换行前等待插槽 flush()；卸载后补丁经 onDetachedRowPatch 提交（带原行预期值，迟到结果不重建已删除行）。
 - 属性与标题实时写回 store；详情侧可增删列（受 readonly/allowDeleteColumn 限制）；属性栏上移/下移排序（非拖拽）；上一条/下一条按当前视图投影后的行序。
+- 文本主列使用标题输入框；其他类型的主列使用 PropertyRow，沿用字段的 Renderer、Editor 和保存转换，禁止将对象、日期或布尔值通过标题输入框保存为字符串。
 
 ## 扩展指南
 

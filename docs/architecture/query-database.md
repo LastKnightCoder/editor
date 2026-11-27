@@ -42,6 +42,8 @@ DSL 的 today/now 和 JavaScript 的 ctx.today/ctx.now 会登记时间依赖，�
 
 结果包含 `columns: [{ key, title, type, options? }]` 与 `rows: [{ id, values }]`。列类型为 text、number、boolean、date、select、multiSelect、entity、json。行 ID 和列 key 必须唯一；拒绝非有限数值、错误字段值与不可序列化对象。日期使用时间戳或 ISO 日期，实体引用使用 `{ kind, id, title? }`。视图适配为列 key 加 `q:` 前缀，避免字段名 id 覆盖行身份。
 
+查询结果首列作为主列，但不限制为文本。entity 列的来源对象始终保留，主列单元格与详情使用 queryEntity 渲染器打开来源；画廊和日历标题经字段 model 取标题或编号。已保存的查询定义与展示配置按原协议读取，无需迁移或重写源内容。
+
 `@tau/database` 的 `dataset.receive` 原子替换列与行并保留有效选择、视图及列宽；刷新不重挂组件。数据只读与展示配置分开：查询实例禁止数据增删改，允许列宽、列序、隐藏列、筛选、排序、分组、汇总与视图配置。hiddenColumnIds 属于视图配置；服务端 normalizeConfig 同样保留它。
 
 ## 两个宿主

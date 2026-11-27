@@ -265,6 +265,7 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
                         key={row.id}
                         row={row}
                         columns={columns}
+                        pluginManager={pluginManager}
                         coverType={gallery.coverType}
                         coverImageColumnId={gallery.coverImageColumnId}
                         onClick={() => openRowDetail(row)}

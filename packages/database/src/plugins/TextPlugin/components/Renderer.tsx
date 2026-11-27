@@ -2,14 +2,16 @@ import React, { memo, useRef, useState } from "react";
 import { EditText } from "@tau/ui";
 import { useMemoizedFn } from "ahooks";
 import { Tooltip } from "@tau/ui";
-import { ColumnDef } from "../../../types";
+import { CellValue, ColumnDef } from "../../../types";
+import { textFieldModel } from "../model";
 interface TextRendererProps {
-  value: string;
+  value: CellValue;
   column: ColumnDef;
 }
 
 const HOVER_DELAY = 1000;
-const TextRenderer: React.FC<TextRendererProps> = memo(({ value }) => {
+const TextRenderer: React.FC<TextRendererProps> = memo(({ value, column }) => {
+  const text = textFieldModel.toText(value, column);
   const [isHovering, setIsHovering] = useState(false);
   const cellRef = useRef<HTMLDivElement>(null);
   const timer = useRef<number | null>(null);
@@ -35,8 +37,8 @@ const TextRenderer: React.FC<TextRendererProps> = memo(({ value }) => {
         onOpenChange={setIsHovering}
         content={
           <EditText
-            key={value}
-            defaultValue={value}
+            key={text}
+            defaultValue={text}
             contentEditable={false}
             className="max-w-[200px] px-2 py-2"
           />
@@ -49,10 +51,10 @@ const TextRenderer: React.FC<TextRendererProps> = memo(({ value }) => {
           onMouseLeave={onMouseLeave}
         >
           <EditText
-            key={value}
-            defaultValue={value}
+            key={text}
+            defaultValue={text}
             contentEditable={false}
-            className="text-ink-1 text-tau-body box-border flex h-full w-full items-center overflow-hidden text-ellipsis whitespace-nowrap px-2 py-2"
+            className="text-ink-1 text-tau-body box-border flex h-full w-full items-center overflow-hidden px-2 py-2 text-ellipsis whitespace-nowrap"
           />
         </div>
       </Tooltip>

@@ -152,7 +152,7 @@ AI 的「内容连接工具」由 `mcp/providers/content-link-tools.ts` 默认�
 
 **公式列**：`deriveFormulaRows` 在投影开头派生，四种视图与筛选/排序都消费派生行；store 行与保存回调不含公式值，行详情单独派生。表尾汇总消费筛选后 `projection.rows`，配置在 `viewConfig.footer`（宿主 normalizeConfig 白名单已登记）；字段经 `CellPlugin.valueType/toScalar/formatScalar` 参与运算，引擎不认识具体插件；桌面扩展经 hook 插槽 `useFormulaAssist` 提供对话模型（未配置则构造器无 AI 输入框）。
 
-**行详情**：`RowDetailModal` 是 Dialog 双栏（左标题+正文，右属性栏：封面 = 第一个有图列，加载中/失败露出渐变底），容器 <960 退化为单栏（同一棵树经容器查询与 display:contents 重排，编辑器不重挂、草稿不丢）。入参只有 `rowId`，行数据从 store 实时读；四个视图经 `hooks/useRowDetail` 管开合（宿主可传 `onRowDetailOpen` 接管）；上一条/下一条（J/K 让行编辑与输入法）按 `projection.rowIds`，当前行被筛出不显示位置。属性实时保存（与表格单元格同草稿+校验+transformBeforeSave 协议）；标题失焦提交；关闭/切换时组件卸载补存并写回所属行（rowId 组件自持）；无 `detailContentId` 的行正文在离开时才 `createPendingContent`。空属性折叠只折叠带 Editor 的字段，折叠集合进入行时定格。
+**行详情**：`RowDetailModal` 是 Dialog 双栏（左标题+正文，右属性栏：封面 = 第一个有图列，加载中/失败露出渐变底），容器 <960 退化为单栏（同一棵树经容器查询与 display:contents 重排，编辑器不重挂、草稿不丢）。入参只有 `rowId`，行数据从 store 实时读；四个视图经 `hooks/useRowDetail` 管开合（宿主可传 `onRowDetailOpen` 接管）；上一条/下一条（J/K 让行编辑与输入法）按 `projection.rowIds`，当前行被筛出不显示位置。属性实时保存（与表格单元格同草稿+校验+transformBeforeSave 协议）；文本主列标题失焦提交，其他主列沿用字段编辑协议；关闭/切换时组件卸载补存并写回所属行（rowId 组件自持）；无 `detailContentId` 的行正文在离开时才 `createPendingContent`。空属性折叠只折叠带 Editor 的字段，折叠集合进入行时定格。
 
 **列表统计失效**：数据库列表行数与学习项目资料数由列表查询聚合——`commands/data-table.ts` 在携带 rows 的更新成功后失效 `["databases","list"]`；`commands/vibe-learning.ts` 在资料创建、笔记转资料实际新增、资料删除成功后失效 `["vibe-learning","list"]`（覆盖详情、内嵌表格与生成产物入口），笔记转资料落库即通知不等索引入队，失败不通知。
 

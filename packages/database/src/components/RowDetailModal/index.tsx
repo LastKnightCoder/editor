@@ -192,7 +192,9 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
 
     if (!row) return null;
 
-    const title = primaryColumn ? String(row[primaryColumn.id] ?? "") : "";
+    const title = primaryColumn
+      ? pluginManager.getCellText(displayRow?.[primaryColumn.id], primaryColumn)
+      : "";
     const foldedIds = fold?.ids ?? new Set<string>();
     const isHidden = (column: ColumnDef) =>
       foldedIds.has(column.id) && isEmptyCellValue(row[column.id]);
@@ -244,21 +246,40 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
               )}
             >
               {primaryColumn && (
-                <div className="@min-[960px]/row-detail:order-none order-1 mb-5 mt-2">
-                  <TitleField
-                    key={row.id}
-                    rowId={row.id}
-                    value={title}
-                    placeholder={t("row.titlePlaceholder", { column: primaryColumn.title })}
-                    readonly={readonly || Boolean(primaryColumn.readonly)}
-                    onCommit={(targetRowId, value) =>
-                      commitCell(targetRowId, primaryColumn.id, value)
-                    }
-                  />
+                <div className="order-1 mt-2 mb-5 @min-[960px]/row-detail:order-none">
+                  {primaryColumn.type === "text" ? (
+                    <TitleField
+                      key={row.id}
+                      rowId={row.id}
+                      value={title}
+                      placeholder={t("row.titlePlaceholder", { column: primaryColumn.title })}
+                      readonly={readonly || Boolean(primaryColumn.readonly)}
+                      onCommit={(targetRowId, value) =>
+                        commitCell(targetRowId, primaryColumn.id, value)
+                      }
+                    />
+                  ) : (
+                    <PropertyRow
+                      key={`${row.id}:${primaryColumn.id}`}
+                      rowId={row.id}
+                      column={primaryColumn}
+                      value={displayRow?.[primaryColumn.id]}
+                      pluginManager={pluginManager}
+                      theme={theme}
+                      readonly={readonly}
+                      columnOrder={columnOrder}
+                      moveColumn={moveColumn}
+                      allowDelete={false}
+                      onCommit={commitCell}
+                      onEditColumn={setEditingColumnId}
+                      onDeleteColumn={handleDeleteColumn}
+                      onColumnChange={handleColumnConfigChange}
+                    />
+                  )}
                 </div>
               )}
               {RowDetailBody && (
-                <div className="@min-[960px]/row-detail:order-none @min-[960px]/row-detail:mt-0 order-3 mt-7 max-w-[700px]">
+                <div className="order-3 mt-7 max-w-[700px] @min-[960px]/row-detail:order-none @min-[960px]/row-detail:mt-0">
                   <RowDetailBody
                     key={row.id}
                     ref={bodyRef}

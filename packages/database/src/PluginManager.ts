@@ -50,6 +50,11 @@ export class PluginManager {
     return this.plugins.get(type)?.model;
   }
 
+  getCellText(value: CellValue, column: ColumnDef): string {
+    const model = this.getModel(column.type);
+    return model ? model.toText(value, column) : String(value ?? "");
+  }
+
   /** 某列参与运算的值类型：插件可按列声明（如公式列取结果类型）；未注册或未声明返回 undefined */
   getValueType(column: ColumnDef): ValueType | undefined {
     const plugin = this.plugins.get(column.type);

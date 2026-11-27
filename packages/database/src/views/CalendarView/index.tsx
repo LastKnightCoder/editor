@@ -83,7 +83,7 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
           }
 
           const title = primaryColumn
-            ? String(row[primaryColumn.id] || t("common.unnamed"))
+            ? pluginManager.getCellText(row[primaryColumn.id], primaryColumn) || t("common.unnamed")
             : t("common.unnamed");
 
           // 如果日期列配置为不包含结束日期，则使用 startDate 作为 endDate
@@ -99,7 +99,7 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
           };
         })
         .filter((event): event is NonNullable<typeof event> => event !== null);
-    }, [dateColumn, groupedRows, primaryColumn, t]);
+    }, [dateColumn, groupedRows, primaryColumn, pluginManager, t]);
 
     const currentYear = dayjs(currentDate).year();
     const currentMonth = dayjs(currentDate).month() + 1;

@@ -1,12 +1,12 @@
 import React from "react";
 import { PanelRight } from "lucide-react";
-import { CellValue, ColumnDef, RowData } from "../../types";
+import { CellPlugin, CellValue, ColumnDef, RowData } from "../../types";
 import { useMemoizedFn } from "ahooks";
 import { Tooltip } from "@tau/ui";
-import { EditText } from "@tau/ui";
 
 const PrimaryColumnRenderer: React.FC<{
   value: CellValue;
+  plugin: CellPlugin<unknown>;
   column: ColumnDef;
   theme: "light" | "dark";
   readonly: boolean;
@@ -14,7 +14,8 @@ const PrimaryColumnRenderer: React.FC<{
   className?: string;
   row?: RowData;
   onOpenDetail?: (row: RowData) => void;
-}> = ({ value, row, onOpenDetail }) => {
+}> = ({ value, plugin, column, theme, readonly, onCellValueChange, row, onOpenDetail }) => {
+  const Renderer = plugin.Renderer;
   const handleOpenDetail = useMemoizedFn((e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
@@ -25,14 +26,17 @@ const PrimaryColumnRenderer: React.FC<{
 
   return (
     <div className="relative flex h-full w-full items-center">
-      <EditText
-        key={value}
-        defaultValue={value}
-        contentEditable={false}
-        className="text-ink-1 text-tau-body box-border flex h-full w-full items-center overflow-hidden text-ellipsis whitespace-nowrap px-2 py-2"
-      />
+      <div className="h-full min-w-0 flex-1">
+        <Renderer
+          value={value}
+          column={column}
+          theme={theme}
+          readonly={readonly}
+          onCellValueChange={onCellValueChange}
+        />
+      </div>
       <div
-        className="bg-surface-hover text-ink-2 rounded-tau-sm absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-1 px-1.5 py-1"
+        className="bg-surface-hover text-ink-2 rounded-tau-sm absolute top-1/2 right-1 flex -translate-y-1/2 items-center gap-1 px-1.5 py-1"
         onDoubleClick={e => {
           e.stopPropagation();
           e.preventDefault();

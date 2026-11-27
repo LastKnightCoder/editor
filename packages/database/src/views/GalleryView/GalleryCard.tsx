@@ -3,10 +3,12 @@ import { Trash2 } from "lucide-react";
 import type { RowData, ColumnDef } from "../../types";
 import { BrowserImage, useDatabaseSlots } from "../../DatabaseHostContext";
 import { useDatabaseI18n } from "../../i18n";
+import type PluginManager from "../../PluginManager";
 
 interface GalleryCardProps {
   row: RowData;
   columns: ColumnDef[];
+  pluginManager: PluginManager;
   coverType: "detail" | "image";
   coverImageColumnId?: string;
   onClick: () => void;
@@ -16,11 +18,13 @@ interface GalleryCardProps {
 }
 
 const GalleryCard: React.FC<GalleryCardProps> = memo(
-  ({ row, columns, coverType, coverImageColumnId, onClick, onDelete, readonly }) => {
+  ({ row, columns, pluginManager, coverType, coverImageColumnId, onClick, onDelete, readonly }) => {
     const { GalleryCover, Image = BrowserImage, coverGradient } = useDatabaseSlots();
     const { t } = useDatabaseI18n();
     const primaryColumn = columns.find(col => col.isPrimary);
-    const primaryValue = primaryColumn ? (row[primaryColumn.id] as string) : "";
+    const primaryValue = primaryColumn
+      ? pluginManager.getCellText(row[primaryColumn.id], primaryColumn)
+      : "";
 
     const images = coverImageColumnId ? row[coverImageColumnId] : null;
     const image = coverType === "image" && Array.isArray(images) ? images[0] : null;

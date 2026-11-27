@@ -217,9 +217,10 @@ const Cell: React.FC<CellProps> = memo(
         ) : (
           <div className="border-line-2 absolute top-0 right-0 h-full border-r" />
         )}
-        {column.isPrimary && row && plugin?.type !== "unsupported" ? (
+        {column.isPrimary && row && plugin && plugin.type !== "unsupported" ? (
           <PrimaryColumnRenderer
             value={value}
+            plugin={plugin}
             column={column}
             theme={theme}
             readonly={isColumnReadonly}
