@@ -69,6 +69,7 @@ for (const channel of [
   ipcMain.handle(channel, () => []);
 for (const channel of [
   "plugin-window:publishTheme",
+  "plugin-window:publishLocale",
   "plugin-local:upload-connect",
   "plugin-local:tts-connect",
   "plugin-local:images-connect",

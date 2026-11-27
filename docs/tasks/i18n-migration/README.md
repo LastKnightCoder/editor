@@ -424,6 +424,15 @@ WhiteboardEmbed八路径完成；原Skill/引用11基线加实际Skill Editor1/�
 
 SDK首版接线整合：T1十四主仓+starter六路径（含README）冻结，SDK39/desktop46与类型通过；Root在隔离worktree按原lock安装并禁用生命周期脚本，唯一缺失依赖经固定registry包补齐，lock字节不变，原renderer1例/type/Vite真实build与静态读取均通过。T2二十一源，SDK24/desktop9/mobile8共41例、三端类型与协议对照通过，不再扩测试；host/runtime按冻结own patch相对当前HEAD重建，website plugins仅own段落隔离提交。官方9仓纯UI改动仍是候选，正式依赖/版本门槛和未翻译提示后续处理，不推送或发包；T3/T4停止扩围。
 
+## 首版交付检查
+
+- 已提交：`35f29a6c3` 整合69路径编辑界面/读写提示；`8e5e24bc1` 整合41路径插件声明/模板完整接线，starter独立提交 `56623b84`。提交只包含本任务改动，无关工作区内容保留。
+- 隔离源码：基于 `8e5e24bc1`，workspace依赖指向该隔离目录，外部依赖沿现有锁定安装；desktop类型与启动边界检查通过。
+- 生产产物：使用桌面本地Vite 8.3.5构建通过，五个HTML入口齐全；生产检查的主窗口、正文转换、插件窗口三个入口通过。最初误用根目录Vite 7导致只生成index，该次结果已作废，未作为产品缺陷改代码；现有启动fixture仅补一个生产已存在的publishLocale确认通道，不新增测试。
+- 版本：根与desktop当前仍为0.67.0，尚未决定或修改正式版本；新模板声明最低0.68.0是桌面客户端约束，与UI库版本无关。
+- 分发：目前仅生产JS资产，未构建原生安装包、签名公证或上传更新渠道。新版官方插件仍是候选，不并入宿主首发；旧插件继续兼容，部分中文/原文可作为渐进式首版保留。
+- 后续完整目标：剩余零散UI、官方插件全适配、Provider错误ref与display/default数据分离、AI显示投影和移动端/iOS完整验收。首版可发布性不等于全域目标完成；不以扫字数量计算百分比。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。
