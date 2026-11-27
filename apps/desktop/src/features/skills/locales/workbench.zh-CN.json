@@ -110,6 +110,5 @@
   "workbench.deleteDescription": "会移到{{trash}}，可以从那里恢复。",
   "workbench.discardTitle": "放弃未保存的修改？",
   "workbench.discardDescription": "当前文件有未保存的修改，离开后会丢失。",
-  "workbench.discard": "放弃修改",
-  "workbench.editPage": "编辑 Skill"
+  "workbench.discard": "放弃修改"
 }

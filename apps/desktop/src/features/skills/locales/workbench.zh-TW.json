@@ -110,6 +110,5 @@
   "workbench.deleteDescription": "將移至{{trash}}，可從那裡還原。",
   "workbench.discardTitle": "捨棄未儲存的修改？",
   "workbench.discardDescription": "目前檔案有未儲存的修改，離開後將遺失。",
-  "workbench.discard": "捨棄修改",
-  "workbench.editPage": "編輯 Skill"
+  "workbench.discard": "捨棄修改"
 }

@@ -287,7 +287,6 @@
   "output.noRecords": "還沒有測驗記錄",
   "product.saved": "已儲存至產物清單",
   "product.process": "檢視過程",
-  "nav.detail": "Notebook 詳細資料",
   "list.count": "{{amount}} 個 Notebook",
   "list.resources": "{{amount}} 份資料",
   "stage.pages": "已完成 {{done}} / {{total}} 頁",

@@ -9,7 +9,7 @@ import { createPageSchema, paramOptional, paramString } from "@/page/core/params
 import { definePage } from "@/page/definePage";
 import { KnowledgeMapView } from "../views/KnowledgeMapView";
 
-import { knowledgeMapMessages } from "../i18n";
+import { appMessages } from "@/app/i18n/messages";
 
 const schema = createPageSchema({
   focus: paramOptional(paramString()),
@@ -19,7 +19,7 @@ const schema = createPageSchema({
 export default definePage({
   key: "knowledge-map",
   match: "single", // 全局一份，从不同内容进入时原位更新 focus
-  label: knowledgeMapMessages.ref("map.title"),
+  label: appMessages.ref("page.knowledgeMap"),
   params: schema.schema,
   component: KnowledgeMapView,
 });

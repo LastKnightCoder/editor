@@ -236,7 +236,6 @@
   "detail.returnSettings": "返回{{section}}设置",
   "backend.diagnostics": "启动耗时 {{startup}} ms · 本次应用会话失败 {{failures}} 次 · 调用超时 {{timeouts}} 次",
   "backend.resources": "CPU {{cpu}}% · 内存 {{memory}} MiB",
-  "page.detail": "插件详情",
   "center.updateAllCount": "全部更新 {{amount}}",
   "action.failed": "插件操作失败",
   "nav.openFailed": "无法打开插件页面",

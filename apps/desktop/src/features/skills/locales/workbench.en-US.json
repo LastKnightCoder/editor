@@ -114,6 +114,5 @@
   "workbench.deleteDescription": "It will move to {{trash}}, where you can restore it.",
   "workbench.discardTitle": "Discard unsaved changes?",
   "workbench.discardDescription": "This file has unsaved changes that will be lost if you leave.",
-  "workbench.discard": "Discard changes",
-  "workbench.editPage": "Edit Skill"
+  "workbench.discard": "Discard changes"
 }

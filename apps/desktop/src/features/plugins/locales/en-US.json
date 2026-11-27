@@ -232,7 +232,6 @@
   "detail.returnSettings": "Back to {{section}} settings",
   "backend.diagnostics": "Startup {{startup}} ms · {{failures}} failures this app session · {{timeouts}} call timeouts",
   "backend.resources": "CPU {{cpu}}% · Memory {{memory}} MiB",
-  "page.detail": "Plugin details",
   "center.updateAllCount": "Update all {{amount}}",
   "center.downloadCount_one": "{{amount}} download",
   "center.downloadCount_other": "{{amount}} downloads",

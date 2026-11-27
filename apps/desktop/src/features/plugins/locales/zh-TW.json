@@ -236,7 +236,6 @@
   "detail.returnSettings": "返回{{section}}設定",
   "backend.diagnostics": "啟動耗時 {{startup}} ms · 此次應用程式工作階段失敗 {{failures}} 次 · 呼叫逾時 {{timeouts}} 次",
   "backend.resources": "CPU {{cpu}}% · 記憶體 {{memory}} MiB",
-  "page.detail": "外掛詳細資料",
   "center.updateAllCount": "全部更新 {{amount}}",
   "action.failed": "外掛操作失敗",
   "nav.openFailed": "無法開啟外掛頁面",

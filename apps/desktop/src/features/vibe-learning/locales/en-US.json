@@ -287,7 +287,6 @@
   "output.noRecords": "No quiz history yet",
   "product.saved": "Saved to outputs",
   "product.process": "View progress",
-  "nav.detail": "Notebook details",
   "stage.pages": "Slides written: {{done}} / {{total}}",
   "stage.meta": "{{kind}} · Generation progress",
   "stage.viewQuiz": "View quiz",

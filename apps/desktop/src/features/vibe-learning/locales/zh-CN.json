@@ -287,7 +287,6 @@
   "output.noRecords": "还没有测验记录",
   "product.saved": "已保存到产物列表",
   "product.process": "查看过程",
-  "nav.detail": "Notebook 详情",
   "list.count": "{{amount}} 个 Notebook",
   "list.resources": "{{amount}} 份资料",
   "stage.pages": "已写 {{done}} / {{total}} 页",

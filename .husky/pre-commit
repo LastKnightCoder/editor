@@ -1,4 +1,5 @@
 node node_modules/lint-staged/bin/lint-staged.js
+node node_modules/vitest/vitest.mjs run --root apps/desktop src/app/__tests__/page-labels.parity.test.ts --maxWorkers 1 --no-file-parallelism
 node scripts/check-database-boundaries.mjs
 node scripts/check-whiteboard-boundaries.mjs
 node scripts/check-docs.mjs

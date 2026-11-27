@@ -6,7 +6,7 @@ import { createPageSchema, paramString } from "@/page/core/paramsSchema";
 import { definePage } from "@/page/definePage";
 import { SkillEditView } from "../views/SkillEditView";
 
-import { skillWorkbenchMessages } from "../workbench-i18n";
+import { appMessages } from "@/app/i18n/messages";
 
 const schema = createPageSchema({ path: paramString() });
 
@@ -14,7 +14,7 @@ export default definePage({
   key: "skill-edit",
   match: "params",
   getId: params => `skill-${params.path}`,
-  label: skillWorkbenchMessages.ref("workbench.editPage"),
+  label: appMessages.ref("page.skillEdit"),
   params: schema.schema,
   component: SkillEditView,
 });

@@ -1,4 +1,4 @@
-import { pluginMessages } from "../i18n";
+import { appMessages } from "@/app/i18n/messages";
 /**
  * 插件详情页：按插件 ID 去重，介绍 / 设置 / 权限 / 更新日志 / 版本 / 社区由参数切换。
  */
@@ -19,7 +19,7 @@ export default definePage({
   key: PLUGIN_DETAIL_KEY,
   match: "params",
   getId: params => `plugin-${params.pluginId}`,
-  label: pluginMessages.ref("page.detail"),
+  label: appMessages.ref("page.pluginDetail"),
   params: schema.schema,
   component: PluginDetailView,
 });
