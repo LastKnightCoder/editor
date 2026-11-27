@@ -40,7 +40,7 @@ export function createAuthorBridge(binding: CanvasBinding): WhiteboardAuthorBrid
     getTextBinding: (owner, id, field) => {
       const entry = authorEntry(binding, owner, id, true);
       if (!entry.contract.textFields.includes(field)) throw new Error("文本字段未声明");
-      return binding.textField(id, field, true);
+      return binding.textField(id, field);
     },
   };
 }

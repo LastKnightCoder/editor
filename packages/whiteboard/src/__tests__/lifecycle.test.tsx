@@ -9,6 +9,12 @@ import type Board from "../Board";
 import { CANVAS_OVERLAY_ATTR, ownsBoardEvent, ownsBoardPointerEvent } from "../utils/events";
 import { BOARD_TO_CONTAINER } from "../constants/map";
 import { createSuspendOnce } from "./suspendOnce.fixture";
+import * as Y from "yjs";
+import { WhiteboardModel } from "@tau/collaboration";
+import { createWhiteboardBinding } from "../collaboration/binding";
+import { prepareBuiltinWhiteboardTypes } from "../collaboration/builtins";
+import { FrameUtil } from "../utils/FrameUtil";
+import { ColumnUtil } from "../utils/ColumnUtil";
 
 // GSAP 模块自带全局 RAF ticker；本组只验证画布持有的交互计时器。
 vi.mock("gsap", () => ({ default: { to: vi.fn() } }));
@@ -365,6 +371,96 @@ describe("白板挂载与事件归属", () => {
     await act(async () => root.unmount());
     expect(original.isDestroyed).toBe(true);
   });
+
+  it.each([false, true])(
+    "文档白板停驻后恢复画框与分栏标题，解锁后仍能编辑（只读：%s）",
+    async readonly => {
+      vi.stubGlobal("ResizeObserver", observer);
+      const doc = new Y.Doc({ gc: false });
+      const model = new WhiteboardModel(doc);
+      model.submit([{ type: "create_page", title: "读书计划" }], null);
+      const builtins = await prepareBuiltinWhiteboardTypes();
+      const binding = createWhiteboardBinding(model, {
+        pageId: model.read().pages[0].id,
+        types: builtins.types,
+        preparedContracts: builtins.prepared,
+      });
+      let board: Board | undefined;
+      function Capture() {
+        board = useBoard();
+        return null;
+      }
+      const extensions = extensionsWithLayer(Capture);
+      const container = document.createElement("div");
+      document.body.append(container);
+      const root = createRoot(container);
+      const render = (mode: "visible" | "hidden", locked = readonly) => (
+        <Activity mode={mode}>
+          <Whiteboard
+            document={binding}
+            initData={[]}
+            initViewPort={{ minX: 0, minY: 0, width: 1200, height: 800, zoom: 1 }}
+            readonly={locked}
+            showToolbar={false}
+            showAttributeSetter={false}
+            showStatusBar={false}
+            extensions={extensions}
+          />
+        </Activity>
+      );
+      const titleInput = (kind: string, id: string) => {
+        const input = container.querySelector<HTMLInputElement>(`#${kind}-title-${id}`);
+        if (!input) throw new Error("返回白板后标题输入框未恢复");
+        return input;
+      };
+      try {
+        await act(async () => root.render(render("visible", false)));
+        if (!board) throw new Error("白板未挂载");
+        const original = board;
+        const frame = FrameUtil.createFrame(30, 30, 300, 160, "本周");
+        const column = ColumnUtil.createColumn(420, 30, 280, "参考资料");
+        await act(async () => {
+          original.apply({ type: "insert_node", path: [0], node: frame });
+          original.apply({ type: "insert_node", path: [1], node: column });
+          root.render(render("visible"));
+        });
+        expect(titleInput("frame", frame.id).value).toBe("本周");
+        expect(titleInput("column", column.id).value).toBe("参考资料");
+        const before = model.read();
+        const history = [...binding.history.undoStack];
+        // 事故：Activity 恢复的标题布局 effect 先于画布重新激活，读取被误当成写入而触发元素错误边界。
+        await act(async () => root.render(render("hidden")));
+        await act(async () => root.render(render("visible")));
+        expect(board).toBe(original);
+        expect(titleInput("frame", frame.id).value).toBe("本周");
+        expect(titleInput("column", column.id).value).toBe("参考资料");
+        expect(model.read()).toEqual(before);
+        expect(binding.history.undoStack).toEqual(history);
+        await act(async () => root.render(render("visible", false)));
+        const field = binding.textField(frame.id, "title");
+        try {
+          await act(async () =>
+            field.edit({
+              offset: 0,
+              remove: 2,
+              text: "下周",
+              revision: field.getSnapshot().revision,
+            })
+          );
+          expect(titleInput("frame", frame.id).value).toBe("下周");
+          expect(model.text(frame.id, "title").toString()).toBe("下周");
+          expect(titleInput("column", column.id).value).toBe("参考资料");
+        } finally {
+          field.dispose();
+        }
+      } finally {
+        await act(async () => root.unmount());
+        model.dispose();
+        doc.destroy();
+        container.remove();
+      }
+    }
+  );
 
   it("首次渲染被挂起丢弃时不残留扩展实例，重试后只有提交的 Board 持有扩展", async () => {
     vi.stubGlobal("ResizeObserver", observer);

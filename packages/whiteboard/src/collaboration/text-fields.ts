@@ -51,8 +51,7 @@ export function pageTitle(binding: CanvasBinding, id: string): EditorTextField {
 export function textField(
   binding: CanvasBinding,
   id: string,
-  field: string | null = null,
-  read = false
+  field: string | null = null
 ): EditorTextField {
   const preview = binding.board?.creationPreviewSession;
   const draft = preview?.getElement(id);
@@ -74,10 +73,8 @@ export function textField(
       return typeof value === "string" ? value : "";
     });
   }
-  if (read) {
-    if (binding.closed || !binding.board || !authorElement(binding, id))
-      throw new Error("文本目标已失效");
-  } else assertWritable(binding);
+  if (binding.closed || !binding.board || !authorElement(binding, id))
+    throw new Error("文本目标已失效");
   const handle = createSharedTextField(
     binding.model.text(id, field),
     binding.history,

@@ -43,6 +43,7 @@ export interface WhiteboardDocumentBinding {
   measureElement?(elementId: string, size: { width: number; height: number }): void;
   refreshLayout?(): void;
   supportsElement?(elementId: string): boolean;
+  /** 读取与订阅不要求可写；实际编辑仍校验当前权限。 */
   textField?(
     elementId: string,
     field: string

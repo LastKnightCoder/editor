@@ -403,6 +403,56 @@ describe("W3 画布与编辑器统一写入", () => {
     expect(() => field.replace("异步覆盖", field.getSnapshot().revision)).toThrow("条件提交");
     field.dispose();
   });
+  it.each(["inactive", "readonly", "frozen"] as const)(
+    "%s 时允许读取和订阅文本字段，恢复前拒绝写入",
+    async state => {
+      const f = await fixture();
+      let writable = state !== "frozen";
+      const binding = createWhiteboardBinding(f.model, {
+        pageId: f.page,
+        types: f.types,
+        canWrite: () => writable,
+      });
+      const board = new Board([], viewport, { selectedElements: [], selectArea: null });
+      boards.push(board);
+      board.attachDocument(binding);
+      board.setActive(state !== "inactive");
+      board.readonly = state === "readonly";
+      const before = Y.encodeStateAsUpdate(f.model.doc);
+      const field = binding.textField(f.shapeId, "source");
+      expect(Y.encodeStateAsUpdate(f.model.doc)).toEqual(before);
+      expect(() =>
+        field.edit({ offset: 0, remove: 0, text: "禁止", revision: field.getSnapshot().revision })
+      ).toThrow();
+      expect(Y.encodeStateAsUpdate(f.model.doc)).toEqual(before);
+      const updates: string[] = [];
+      const unsubscribe = field.subscribe(() => updates.push(field.getSnapshot().value));
+      f.model.submit(
+        [
+          {
+            type: "edit_text",
+            id: f.shapeId,
+            field: "source",
+            edit: { offset: 0, remove: 0, text: "远端" },
+          },
+        ],
+        "remote"
+      );
+      expect(updates).toEqual(["远端"]);
+      writable = true;
+      board.setActive(true);
+      board.readonly = false;
+      field.edit({ offset: 2, remove: 0, text: "本地", revision: field.getSnapshot().revision });
+      expect(f.model.text(f.shapeId, "source").toString()).toBe("远端本地");
+      unsubscribe();
+      board.destroy();
+      expect(() => binding.textField(f.shapeId, "source")).toThrow("文本目标已失效");
+      expect(() =>
+        field.edit({ offset: 0, remove: 0, text: "关闭", revision: field.getSnapshot().revision })
+      ).toThrow();
+    }
+  );
+
   it("只读、已关闭和跨页后的旧编辑器不允许继续写入", async () => {
     const f = await fixture(),
       { board, binding } = view(f.model, f.page, f.types),

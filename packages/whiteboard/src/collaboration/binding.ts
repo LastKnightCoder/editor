@@ -596,8 +596,8 @@ export class CanvasBinding implements WhiteboardDocumentBinding {
   pageTitle(id: string): EditorTextField {
     return pageTitle(this, id);
   }
-  textField(id: string, field: string | null = null, read = false): EditorTextField {
-    return textField(this, id, field, read);
+  textField(id: string, field: string | null = null): EditorTextField {
+    return textField(this, id, field);
   }
 
   textDocument(id: string): EditorDocument | undefined {

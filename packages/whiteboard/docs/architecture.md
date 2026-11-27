@@ -120,6 +120,8 @@ Board（数据内核：Operation / undo / 事件总线；阶段 A 未改动，�
 
 投影经 publishDocument 更新选择与渲染引用，并在选区引用变化时发布 selection:change，通知期间不接收重入的内容写入，不触发资源增减事件、旧整页保存或加载迁移。取消、只读、切页与远端变更清除未提交预览。创建预览尚未进入文档，当前预览对象不查询文档节点是否受支持，仍按已安装扩展定义检查版本；正式元素继续校验文档契约。绑定销毁不销毁宿主共享模型；主进程持有、保存和网络由宿主实现；内置类型字段由 prepareBuiltinWhiteboardTypes 明确映射。具体接入与类型映射见[包说明](/packages/whiteboard/README.md)。
 
+元素文本句柄的创建只校验绑定与目标有效，读取和订阅不依赖画布激活或写权限；每次实际编辑、撤销和重做仍检查当前画布、文档冻结状态和元素契约。Activity 恢复时标题先恢复订阅，不向文档写入。
+
 ### 作者契约与作用域
 
 作者入口使用 dataVersion/previousVersions，与编辑器共用 `@tau/db-schema/data-versions`；文本接口的唯一类型位于 editor/text-field-contract。纯数据宿主从 `@tau/whiteboard/contracts` 准备目录，不加载绑定或执行工厂；UI 绑定从 `./collaboration` 获取。目录不修改文档，首次创建用公共规范化器准备的不可变契约在同一事务中登记并创建节点，创建撤销只隐藏创建登记。
