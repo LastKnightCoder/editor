@@ -11,6 +11,8 @@ export type {
   CenterResolution,
   CenterStatusItem,
   PluginCenterClient,
+  PluginLocalizedMetadata,
+  PluginManifestI18n,
 } from "@tau/plugins/center";
 import type { PluginCategory } from "@tau/plugins/package";
 import { DISTRIBUTION_LIMITS } from "@tau/plugins/template";
@@ -63,6 +65,7 @@ export type PackageManifest = import("@tau/plugins/center").CenterManifest;
 export interface PackageContent {
   manifest: PackageManifest;
   readme: string;
+  readmes?: Readonly<Record<string, string>>;
   changelog: string | null;
 }
 export type UploadStatus = "awaiting_upload" | "checking" | "ready" | "invalid";
@@ -87,7 +90,11 @@ export interface UploadTicket {
   headers: { "Content-Type": "application/octet-stream" };
 }
 export type SubmissionStatus =
-  "draft" | "pending_review" | "changes_requested" | "rejected" | "approved";
+  | "draft"
+  | "pending_review"
+  | "changes_requested"
+  | "rejected"
+  | "approved";
 export type ReviewDecision = "approve" | "request_changes" | "reject";
 export interface ReviewRequest {
   systemReviewConfirmed?: boolean;
@@ -162,6 +169,10 @@ export interface CatalogEntry {
   categories: PluginCategory[];
   /** 取自 latest，供客户端本地搜索；界面不作为标签展示。 */
   keywords: string[];
+  /** 可选多语言展示资料（名称、简介、关键词），未提供时省略。 */
+  i18n?: import("@tau/plugins/center").PluginManifestI18n;
+  /** 作者可选声明的插件支持语言，未提供时省略。 */
+  locales?: readonly string[];
   latest: CatalogVersion;
   /** 当前客户端可安装的最高版本；没有兼容版本时为 null，不回退到 latest。 */
   compatible: CatalogVersion | null;

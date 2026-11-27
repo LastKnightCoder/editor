@@ -1,5 +1,6 @@
 import { assertPortablePublication } from "./portable-review";
 import { comparePluginVersions, isPluginCategory } from "@tau/plugins/package";
+import { pluginSearchTerms, type PluginManifestI18n } from "@tau/plugins/center";
 import type {
   Catalog,
   CatalogEntry,
@@ -139,6 +140,8 @@ interface CatalogRow {
   description: string;
   categories: string;
   keywords: string;
+  i18n_json?: string | null;
+  locales_json?: string | null;
   min_app_version: string;
   repository: string;
   size: number;
@@ -158,13 +161,32 @@ function parseList(text: string): string[] {
     return [];
   }
 }
+function parseI18n(text: string | null | undefined): PluginManifestI18n | undefined {
+  if (!text) return undefined;
+  try {
+    const value: unknown = JSON.parse(text);
+    if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+    return Object.keys(value).length ? (value as PluginManifestI18n) : undefined;
+  } catch {
+    return undefined;
+  }
+}
 const searchText = (row: {
   plugin_id: string;
   name: string;
   description: string;
   keywords: string;
+  i18n_json?: string | null;
 }) =>
-  [row.plugin_id, row.name, row.description, ...parseList(row.keywords)].join("\n").toLowerCase();
+  pluginSearchTerms({
+    pluginId: row.plugin_id,
+    name: row.name,
+    description: row.description,
+    keywords: parseList(row.keywords),
+    i18n: parseI18n(row.i18n_json),
+  })
+    .join("\n")
+    .toLowerCase();
 const releaseCategories = (row: { categories: string }) =>
   parseList(row.categories).filter(isPluginCategory);
 
@@ -250,13 +272,7 @@ async function catalog(env: Env, params: URLSearchParams): Promise<Catalog> {
   const ranked = [];
   for (const [id, group] of versions) {
     // 保留 v1 的任一历史版本候选筛选与最高版本最终匹配语义。
-    if (
-      query &&
-      !group.some(row =>
-        [id, row.name, row.description, row.keywords].join("\n").toLowerCase().includes(query)
-      )
-    )
-      continue;
+    if (query && !group.some(row => searchText(row).includes(query))) continue;
     if (category && !group.some(row => releaseCategories(row).includes(category as PluginCategory)))
       continue;
     const total = data.totals.get(id) ?? 0,
@@ -316,6 +332,8 @@ async function catalog(env: Env, params: URLSearchParams): Promise<Catalog> {
     const compatible = list.find(
       row => comparePluginVersions(appVersion, row.min_app_version) >= 0
     );
+    const i18n = parseI18n(latest.i18n_json);
+    const locales = latest.locales_json ? parseList(latest.locales_json) : [];
     items.push({
       pluginId: latest.plugin_id,
       downloadsTotal: candidate.total,
@@ -327,6 +345,8 @@ async function catalog(env: Env, params: URLSearchParams): Promise<Catalog> {
       repository: latest.repository,
       categories,
       keywords: parseList(latest.keywords),
+      ...(i18n ? { i18n } : {}),
+      ...(locales.length ? { locales } : {}),
       latest: catalogVersion(latest, env),
       compatible: compatible ? catalogVersion(compatible, env) : null,
     });

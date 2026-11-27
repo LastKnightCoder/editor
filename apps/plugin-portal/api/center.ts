@@ -4,6 +4,7 @@ import {
   normalizeCenterHost,
   normalizeCenterQuery,
   evaluateCenterCompatibility,
+  pluginSearchTerms,
   type CenterVersion,
   type CenterRelease,
   type CenterCatalogEntry,
@@ -12,6 +13,7 @@ import {
   type CenterCompatibility,
   type CenterPlatform,
   type CenterStatusItem,
+  type PluginManifestI18n,
 } from "@tau/plugins/center";
 import {
   body,
@@ -41,6 +43,41 @@ interface Position {
   id: string;
 }
 const strings = (value: string): string[] => JSON.parse(value);
+function parseI18n(value: string | null | undefined): PluginManifestI18n | undefined {
+  if (!value) return undefined;
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return undefined;
+    return Object.keys(parsed).length ? (parsed as PluginManifestI18n) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+function parseLocales(value: string | null | undefined): readonly string[] | undefined {
+  if (!value) return undefined;
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!Array.isArray(parsed)) return undefined;
+    const list = parsed.filter(
+      (item): item is string => typeof item === "string" && item.length > 0
+    );
+    return list.length ? list : undefined;
+  } catch {
+    return undefined;
+  }
+}
+const matchesCatalogQuery = (row: Metadata, q: string) =>
+  !q ||
+  pluginSearchTerms({
+    pluginId: row.plugin_id,
+    name: row.name,
+    description: row.description,
+    keywords: strings(row.keywords),
+    i18n: parseI18n(row.i18n_json),
+  })
+    .join("\n")
+    .toLowerCase()
+    .includes(q);
 const version = (row: Metadata, env: Env): CenterVersion => ({
   releaseId: row.id,
   version: row.version,
@@ -181,22 +218,20 @@ function* entries(
   for (const candidate of candidates) {
     const { versions, id } = candidate;
     const latest = versions[0];
-    if (
-      ![id, latest.name, latest.description, ...strings(latest.keywords)]
-        .join("\n")
-        .toLowerCase()
-        .includes(query.q)
-    )
-      continue;
+    if (!matchesCatalogQuery(latest, query.q)) continue;
     const compatible = query.host
       ? versions.find(row => compatibility(row, env, query.host).status === "compatible")
       : undefined;
+    const i18n = parseI18n(latest.i18n_json);
+    const locales = parseLocales(latest.locales_json);
     const item: CenterCatalogEntry = {
       pluginId: id,
       name: latest.name,
       description: latest.description,
       categories: strings(latest.categories).filter(isPluginCategory),
       keywords: strings(latest.keywords),
+      ...(i18n ? { i18n } : {}),
+      ...(locales ? { locales } : {}),
       publisher: { login: latest.login, avatarUrl: latest.avatar_url },
       repository: latest.repository,
       downloadsTotal: candidate.total,
@@ -212,20 +247,13 @@ function* entries(
 function facets(data: CatalogData, query: ReturnType<typeof normalizeCenterQuery>) {
   const platformCounts: Record<CenterPlatform, number> = { all: 0, desktop: 0, android: 0, ios: 0 };
   const categoryCounts: Partial<Record<import("@tau/plugins/package").PluginCategory, number>> = {};
-  for (const [id, group] of data.versions) {
+  for (const group of data.versions.values()) {
     const versions = group.filter(row => row.current_package);
     for (const platform of ["all", "desktop", "android", "ios"] as const) {
       const latest = versions.find(
         row => platform === "all" || Object.hasOwn(JSON.parse(row.targets_json), platform)
       );
-      if (
-        !latest ||
-        ![id, latest.name, latest.description, ...strings(latest.keywords)]
-          .join("\n")
-          .toLowerCase()
-          .includes(query.q)
-      )
-        continue;
+      if (!latest || !matchesCatalogQuery(latest, query.q)) continue;
       const categories = strings(latest.categories).filter(isPluginCategory);
       if (!query.category || categories.includes(query.category)) platformCounts[platform]++;
       if (platform === query.platform)

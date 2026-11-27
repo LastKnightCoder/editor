@@ -1,4 +1,5 @@
 import AdmZip from "adm-zip";
+import { parseLocalizedReadmeFilename } from "@tau/plugins/package";
 import { assertMobilePermissions } from "@tau/plugins/portable";
 import { isWebPluginManifest } from "@tau/plugins/unified";
 import { inflateRawSync } from "node:zlib";
@@ -69,9 +70,17 @@ export async function inspectPackage(bytes: Uint8Array): Promise<PackageContent>
       "LICENSE",
       ...Object.keys(manifest.integrity),
     ]);
-    for (const entry of entries)
-      if (!entry.isDirectory && !allowed.has(entry.entryName.slice(manifest.id.length + 1)))
-        throw new Error("插件包含未声明文件");
+    const localizedReadmeFiles = new Map<string, string>();
+    for (const entry of entries) {
+      if (entry.isDirectory) continue;
+      const relative = entry.entryName.slice(manifest.id.length + 1);
+      if (allowed.has(relative)) continue;
+      const locale = parseLocalizedReadmeFilename(relative);
+      if (!locale) throw new Error("插件包含未声明文件");
+      if (localizedReadmeFiles.has(locale)) throw new Error(`多语言说明存在重复语言：${locale}`);
+      if (localizedReadmeFiles.size >= 32) throw new Error("多语言说明文件数量超出上限");
+      localizedReadmeFiles.set(locale, relative);
+    }
     for (const name of Object.keys(manifest.integrity)) {
       const entry = zip.getEntry(`${manifest.id}/${name}`);
       if (!entry || entry.isDirectory) throw new Error("缺少入口或样式文件");
@@ -120,6 +129,13 @@ export async function inspectPackage(bytes: Uint8Array): Promise<PackageContent>
       if (!text.trim()) throw new Error(`${name}不能为空`);
       return text;
     };
+    const readmes: Record<string, string> = {};
+    for (const [locale, fileName] of [...localizedReadmeFiles.entries()].sort(([a], [b]) =>
+      a.localeCompare(b)
+    )) {
+      const text = readDocument(fileName, true);
+      if (text) readmes[locale] = text;
+    }
     return {
       manifest:
         manifest.platform === "portable"
@@ -130,6 +146,7 @@ export async function inspectPackage(bytes: Uint8Array): Promise<PackageContent>
               description: raw.description.trim(),
             },
       readme: readDocument("README.md", true)!,
+      ...(Object.keys(readmes).length ? { readmes } : {}),
       changelog: readDocument("CHANGELOG.md", false),
     };
   } catch (error) {
