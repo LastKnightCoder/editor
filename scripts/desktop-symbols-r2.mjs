@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, readFile, rename, rm, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createR2Client, R2_BUCKET, requiredEnv } from "./r2-client.mjs";
+import { createR2Client, R2_BUCKET } from "./r2-client.mjs";
 import {
   assertBuildId,
   collectSymbols,
@@ -16,12 +16,6 @@ const defaultSymbols = fileURLToPath(
   new URL("../apps/desktop/output/diagnostics-symbols/", import.meta.url)
 );
 const prefix = buildId => `desktop-symbols/${assertBuildId(buildId)}`;
-
-export function symbolsBucket(value) {
-  if (!value || value === R2_BUCKET || !/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(value))
-    throw new Error(`请配置独立私有桶 R2_SYMBOLS_BUCKET，不能使用公开下载桶 ${R2_BUCKET}`);
-  return value;
-}
 
 function checkRemote(value, buildId) {
   if (
@@ -63,13 +57,13 @@ export async function uploadSymbols({ symbolsRoot, buildId, dryRun = false, clie
       return value;
     };
     if (remote) return existing(remote);
-    await client.putFile(descriptor.archive.key, archive, "private, no-store");
+    await client.putFile(descriptor.archive.key, archive, "no-store");
     // 描述文件最后提交；中断上传不会被下载端误认为完整归档。
     try {
       await client.putText(
         `${prefix(buildId)}/manifest.json`,
         JSON.stringify(descriptor),
-        "private, no-store",
+        "no-store",
         { ifNoneMatch: "*" }
       );
     } catch (error) {
@@ -152,8 +146,8 @@ async function main() {
 上传默认读取本机 latest.json；按 buildId 上传 ZIP 与最后提交的描述文件。
 下载验证归档与每份 map 的 SHA-256 后恢复到本地 buildId 目录，不覆盖不同内容。
 --dry-run 只执行本地校验与打包，不需要 R2 凭据。
-环境变量：R2_ACCOUNT_ID、R2_ACCESS_KEY_ID、R2_SECRET_ACCESS_KEY、R2_SYMBOLS_BUCKET。
-R2_SYMBOLS_BUCKET 必须是独立私有桶；脚本不创建桶、不启用公开访问。`);
+环境变量：R2_ACCOUNT_ID、R2_ACCESS_KEY_ID、R2_SECRET_ACCESS_KEY。
+与安装包共用 ${R2_BUCKET} 桶，源码映射存放在 desktop-symbols/<buildId>/。`);
     return;
   }
   const options = parseArgs(args);
@@ -161,15 +155,13 @@ R2_SYMBOLS_BUCKET 必须是独立私有桶；脚本不创建桶、不启用公�
     options.buildId = JSON.parse(
       await readFile(path.join(options.symbolsRoot, "latest.json"), "utf8")
     ).buildId;
-  const client = options.dryRun
-    ? undefined
-    : createR2Client({ bucket: symbolsBucket(requiredEnv("R2_SYMBOLS_BUCKET")) });
+  const client = options.dryRun ? undefined : createR2Client();
   if (options.action === "upload") {
     const result = await uploadSymbols({ ...options, client });
     console.log(
       `${options.dryRun ? "本地校验打包通过" : "R2 上传完成"}：${result.buildId}，${result.fileCount} 个文件，ZIP ${(result.archive.bytes / 1024 / 1024).toFixed(1)} MiB`
     );
-    console.log(`对象：${result.archive.key}`);
+    console.log(`对象：${R2_BUCKET}/${result.archive.key}`);
   } else {
     const result = await downloadSymbols({ ...options, client });
     console.log(`${result.reused ? "已存在相同构建" : "R2 下载校验完成"}：${result.directory}`);

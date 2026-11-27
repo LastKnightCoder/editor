@@ -75,11 +75,11 @@ buildId 由 `crypto.randomUUID()` 在每次 Vite 构建创建，独立 Mac/Windo
 
 客户端目录中不保留 map，electron-builder 另行排除 map；归档不在公开发布收集目录。`verify-perf-symbols.mjs` 在打包前核对三个目标的产物、映射哈希和 map 隔离。`latest.json` 仅指向当前本机构建，诊断必须按日志携带的 buildId 查找归档，不按版本号猜测。每份已分发安装包的对应归档需要由构建方保留。
 
-`scripts/desktop-symbols-r2.mjs` 将三个目标的清单与引用 map 作为 ZIP 上传到独立私有桶 `R2_SYMBOLS_BUCKET` 的 `desktop-symbols/<buildId>/`。上传使用内容哈希命名 ZIP，归档描述最后通过 `If-None-Match: *` 提交；同一 buildId 的不同内容不能替换已有描述。`scripts/r2-client.mjs` 复用已有 R2 凭据，发布脚本默认桶保持不变，诊断脚本拒绝公开下载桶。取回时核对 ZIP 哈希和清单指纹，在临时目录完成路径/逐文件校验后原子恢复本地归档；压缩和解压内容各不超过 512 MiB。命令及桶权限配置见 [桌面性能排查](/docs/guides/ops-desktop-performance.md#r2-归档上传与取回)。
+`scripts/desktop-symbols-r2.mjs` 将三个目标的清单与引用 map 作为 ZIP 上传到发布共用的 `tau-release` 桶：安装包与更新清单放在 `desktop/`，源码映射放在 `desktop-symbols/<buildId>/`。上传使用内容哈希命名 ZIP，归档描述最后通过 `If-None-Match: *` 提交；同一 buildId 的不同内容不能替换已有描述。发布和诊断脚本复用 `scripts/r2-client.mjs` 的默认桶与现有 R2 凭据。取回时核对 ZIP 哈希和清单指纹，在临时目录完成路径/逐文件校验后原子恢复本地归档；压缩和解压内容各不超过 512 MiB。命令及桶权限配置见 [桌面性能排查](/docs/guides/ops-desktop-performance.md#r2-归档上传与取回)。
 
 `run-electron-builder.mjs` 先核对三个 JS 目标的哈希、映射与客户端 buildId，再将该 ID 和版本固定给打包子进程。`artifactBuildCompleted` 钩子为生成的安装包及 blockmap 在产物目录的 `.build-receipts/<文件名>.json` 保存版本、buildId、平台/架构、字节数与 SHA-512；写入采用临时文件和原子替换，记录不进入公开发布文件集合。
 
-`publish:desktop` 自动完成构建与私有映射上传。发布从每份实际安装产物的绑定记录获取 buildId，核对实际文件哈希并按 ID 去重；随后先完成全部私有 map 归档，再上传公开安装包，最后更新 latest 清单。任何绑定或映射失败均中断后续公开上传。`--skip-build` 不生成新 ID，也不按本机 `latest.json` 猜测旧安装包；旧产物缺少绑定时要求重新构建。其他机器的安装产物需要同时保留绑定记录，缺失本地 map 可从同一私有 R2 桶自动取回。dry-run 只验证本地绑定、map 并打包，不读取或写入 R2。
+`publish:desktop` 自动完成构建与源码映射上传。发布从每份实际安装产物的绑定记录获取 buildId，核对实际文件哈希并按 ID 去重；随后先完成全部 map 归档，再上传安装包，最后更新 latest 清单。任何绑定或映射失败均中断后续上传。`--skip-build` 不生成新 ID，也不按本机 `latest.json` 猜测旧安装包；旧产物缺少绑定时要求重新构建。其他机器的安装产物需要同时保留绑定记录，缺失本地 map 可从同一 R2 桶的 symbol 前缀自动取回。dry-run 只验证本地绑定、map 并打包，不读取或写入 R2。
 
 `scripts/perf-symbolicate.mjs` 离线读取性能快照或异常 gzip、可选普通日志以及对应归档，映射 CPU 热点、完整调用图及 JS/React 栈位置。CPU 行列按零基，普通日志行列按一基转换；完整 profile 导出仍保持节点/样本图结构。映射缺失、构建不同、哈希不符或位置不可得均报告 unmapped 原因，不降级使用邻近版本。工具不执行日志内容、不根据日志 URL 下载 map；一次最多缓存 4 份解码映射。
 

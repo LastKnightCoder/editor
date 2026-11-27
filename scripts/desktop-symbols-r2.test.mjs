@@ -5,8 +5,7 @@ import { cp, mkdtemp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/pr
 import path from "node:path";
 import os from "node:os";
 import AdmZip from "adm-zip";
-import { downloadSymbols, symbolsBucket, uploadSymbols } from "./desktop-symbols-r2.mjs";
-import { R2_BUCKET } from "./r2-client.mjs";
+import { downloadSymbols, uploadSymbols } from "./desktop-symbols-r2.mjs";
 import { PerfSymbolicator } from "../apps/desktop/scripts/perf-symbolicate.mjs";
 import { writeSymbolsFixture, memoryR2 } from "./desktop-symbols-test-support.mjs";
 
@@ -28,7 +27,12 @@ afterEach(async () => {
 const upload = () => uploadSymbols({ symbolsRoot: source, buildId, client });
 const download = () => downloadSymbols({ symbolsRoot: output, buildId, client });
 
-test("上传取回保持映射内容与 buildId，现有离线工具可直接读取且重复下载不覆盖", async () => {
+test("共用桶的映射上传取回保留安装包与更新清单，离线工具可直接读取且重复下载不覆盖", async () => {
+  const releases = new Map([
+    ["desktop/latest.yml", Buffer.from("version: 1.0.0\n")],
+    ["desktop/Tau-v1.0.0-win32.exe", Buffer.from("installer")],
+  ]);
+  for (const [key, bytes] of releases) objects.set(key, bytes);
   await upload();
   await download();
   const key = "renderer/probe.js.map";
@@ -46,6 +50,11 @@ test("上传取回保持映射内容与 buildId，现有离线工具可直接读
   assert.equal(position.original.file, "src/probe.ts");
   assert.equal(position.original.line, 1);
   assert.equal((await download()).reused, true);
+  await upload();
+  for (const [key, bytes] of releases) assert.deepEqual(objects.get(key), bytes);
+  const symbols = [...objects.keys()].filter(key => !releases.has(key));
+  assert(symbols.length > 0);
+  assert(symbols.every(key => key.startsWith(`desktop-symbols/${buildId}/`)));
 });
 
 test("上传中断不发布完成标记，之后重试能恢复同一构建", async () => {
@@ -139,12 +148,10 @@ test("ZIP 中清单之外的文件不会被安装到本地映射目录", async (
   assert.deepEqual(await readdir(output), []);
 });
 
-test("只校验模式不依赖远端，缺失目标或公开下载桶均不能上传源码", async () => {
+test("只校验模式不依赖远端，拒绝越过归档目录的 buildId", async () => {
   const result = await uploadSymbols({ symbolsRoot: source, buildId, dryRun: true });
   assert.equal(result.buildId, buildId);
   assert(result.archive.bytes > 0);
-  assert.throws(() => symbolsBucket(undefined), /私有桶/);
-  assert.throws(() => symbolsBucket(R2_BUCKET), /公开下载桶/);
   await assert.rejects(
     uploadSymbols({ symbolsRoot: source, buildId: "../other", dryRun: true }),
     /无效的 buildId/
