@@ -1,0 +1,20 @@
+{
+  "docTasks.readonlyHint": "這篇是共享內容，請在原文裡勾選",
+  "docTasks.missingRefreshed": "原文中已沒有這一項，已重新整理",
+  "docTasks.busyRetry": "原文正在切換，請稍後再試",
+  "docTasks.checkedIn": "已在《{{title}}》勾選",
+  "docTasks.undo": "復原",
+  "docTasks.undoBusy": "原文暫時無法復原，請稍後再試",
+  "docTasks.undoFailed": "復原失敗",
+  "docTasks.writeFailed": "寫回原文失敗",
+  "sync.saveFailed": "設定儲存失敗，請檢查磁碟後再試",
+  "sync.startFailed": "資源同步失敗",
+  "sync.stopFailed": "停止同步失敗",
+  "collab.draftNotSaved": "輸入副本尚未儲存",
+  "collab.localSaveFailed": "本機儲存失敗",
+  "collab.articleLoadFailed": "協作文章載入失敗",
+  "content.loadFailed": "內容載入失敗",
+  "db.initializing": "正在初始化資料庫…",
+  "chatQueue.file": "[檔案：{{name}}]",
+  "chatQueue.image": "[圖片]"
+}

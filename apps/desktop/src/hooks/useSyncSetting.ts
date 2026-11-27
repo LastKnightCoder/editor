@@ -4,11 +4,13 @@ import useSettingStore from "@/stores/useSettingStore";
 import { useEffect, useRef } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { isMainWindow } from "@/utils/window-role";
+import { useHooksFeedbackI18n } from "@/hooks/i18n";
 import { connectSettingReplica } from "@/services/setting-replica";
 import type { ISetting } from "@/stores/useSettingStore";
 import { toast } from "@tau/ui";
 
 const useSyncSetting = () => {
+  const { t } = useHooksFeedbackI18n();
   const clientIdRef = useRef<string>(uuidv4());
   const initSetting = useSettingStore(state => state.initSetting);
   const inited = useSettingStore(state => state.inited);
@@ -59,7 +61,7 @@ const useSyncSetting = () => {
         })
         .catch(error => {
           console.error("设置保存失败", error);
-          toast.error("设置保存失败，请检查磁盘后重试");
+          toast.error(t("sync.saveFailed"));
         });
     });
 

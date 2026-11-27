@@ -5,6 +5,7 @@ import type { ChatMessage } from "@/types";
 import { piChatRuntime } from "@/services/piChatRuntime";
 import type { MessageContentItem } from "@tau/shared";
 import type { EditingDraftState, HiddenPromptContextState } from "../chatContainerUtils";
+import { useHooksFeedbackI18n } from "@/hooks/i18n";
 
 interface ChatQueueOptions {
   sessionKey: string;
@@ -37,6 +38,7 @@ export function useChatQueue({
   hiddenPromptContext,
   editTextRef,
 }: ChatQueueOptions) {
+  const { t } = useHooksFeedbackI18n();
   const queueDrainInProgressRef = useRef(false);
 
   // 待发送队列与已提交插话都归模块级 runtime（切页/卸载不丢）；
@@ -53,8 +55,8 @@ export function useChatQueue({
         item.type === "text"
           ? item.text
           : item.type === "file"
-            ? `[文件：${item.fileName ?? item.file}]`
-            : "[图片]"
+            ? t("chatQueue.file", { name: item.fileName ?? item.file })
+            : t("chatQueue.image")
       )
       .join("\n")
   );

@@ -5,8 +5,10 @@ import { useMemoizedFn } from "ahooks";
 import { connectDatabaseByName } from "@/commands";
 import useSettingStore from "@/stores/useSettingStore";
 import useGlobalStateStore, { DatabaseConnectionStatus } from "@/stores/useGlobalStateStore";
+import { useHooksFeedbackI18n } from "@/hooks/i18n";
 
 const useInitDatabase = () => {
+  const { t } = useHooksFeedbackI18n();
   const databaseStatus = useGlobalStateStore(state => state.databaseStatus);
 
   const inited = useSettingStore(state => state.inited);
@@ -27,7 +29,7 @@ const useInitDatabase = () => {
 
   useEffect(() => {
     if (!inited || !active) return;
-    const toastId = toast.loading("正在初始化数据库...");
+    const toastId = toast.loading(t("db.initializing"));
     handleDatabaseStatus(active, "connecting");
     connectDatabaseByName(active)
       .then(async () => {

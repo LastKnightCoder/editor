@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ContentSessionTarget } from "@tau/collaboration";
 import useSettingStore from "@/stores/useSettingStore";
+import { useHooksFeedbackI18n } from "@/hooks/i18n";
 import useContentSessionStore, {
   contentSessionKey,
   openContentSession,
@@ -15,6 +16,7 @@ export default function useContentSession(
   const entry = useContentSessionStore(state => state.entries[key]);
   const revision = useContentSessionStore(state => state.revision);
   const [error, setError] = useState<string>();
+  const { t } = useHooksFeedbackI18n();
   const sourceRef = useRef(source);
   sourceRef.current = source;
   useEffect(() => {
@@ -25,7 +27,7 @@ export default function useContentSession(
         if (active) setError(undefined);
       })
       .catch(failure => {
-        if (active) setError(failure instanceof Error ? failure.message : "内容加载失败");
+        if (active) setError(failure instanceof Error ? failure.message : t("content.loadFailed"));
       });
     return () => {
       active = false;

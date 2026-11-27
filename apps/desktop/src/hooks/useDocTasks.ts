@@ -19,6 +19,7 @@ import { emitTodoMutation, TODO_MUTATION_ACTIONS } from "@/mcp/todo/mutation";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import { queryClient } from "@/queryClient";
 import useSettingStore from "@/stores/useSettingStore";
+import { useHooksFeedbackI18n } from "@/hooks/i18n";
 import type { DocTaskItem, DocTaskSnapshot } from "@/types/doc-tasks";
 
 const databaseId = (database: string) => database.replace(/\.db$/, "");
@@ -66,6 +67,7 @@ export function useDocTasksOf(contentId: number | null) {
 export function useToggleDocTask() {
   const client = useQueryClient();
   const database = useActiveDatabase();
+  const { t } = useHooksFeedbackI18n();
   return async (task: DocTaskItem, checked: boolean, sourceTitle: string) => {
     const key = docTaskKeys.snapshot(database);
     const previous = client.getQueryData<DocTaskSnapshot>(key);
@@ -91,35 +93,35 @@ export function useToggleDocTask() {
       const result = await toggleDocTask(task.contentId, task.taskId, checked, database);
       if (result === "readonly") {
         rollback();
-        toast.info("这篇是共享内容，请在原文里勾选");
+        toast.info(t("docTasks.readonlyHint"));
         return;
       }
       if (result === "not-found") {
         rollback();
-        toast.info("原文中已没有这一项，已刷新");
+        toast.info(t("docTasks.missingRefreshed"));
         return;
       }
       if (result === "busy") {
         rollback();
-        toast.info("原文正在切换，请稍后重试");
+        toast.info(t("docTasks.busyRetry"));
         return;
       }
       if (checked)
         if (useSettingStore.getState().setting.database.active === database)
-          toast.success(`已在《${sourceTitle}》中勾选`, {
+          toast.success(t("docTasks.checkedIn", { title: sourceTitle }), {
             action: {
-              label: "撤销",
+              label: t("docTasks.undo"),
               onClick: () =>
                 void toggleDocTask(task.contentId, task.taskId, false, database)
                   .then(result => {
-                    if (result !== "ok") toast.info("原文暂时无法撤销，请稍后重试");
+                    if (result !== "ok") toast.info(t("docTasks.undoBusy"));
                   })
-                  .catch(error => toast.error(error instanceof Error ? error.message : "撤销失败")),
+                  .catch(error => toast.error(error instanceof Error ? error.message : t("docTasks.undoFailed"))),
             },
           });
     } catch {
       rollback();
-      toast.error("写回原文失败");
+      toast.error(t("docTasks.writeFailed"));
     } finally {
       void client.invalidateQueries({ queryKey: docTaskKeys.root(database) });
     }

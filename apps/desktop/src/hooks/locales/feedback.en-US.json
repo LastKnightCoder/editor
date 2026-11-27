@@ -1,0 +1,20 @@
+{
+  "docTasks.readonlyHint": "This is shared content — check it off in the original document",
+  "docTasks.missingRefreshed": "That item no longer exists in the original; the list was refreshed",
+  "docTasks.busyRetry": "The original is switching — try again shortly",
+  "docTasks.checkedIn": "Checked off in \"{{title}}\"",
+  "docTasks.undo": "Undo",
+  "docTasks.undoBusy": "The original can't be undone right now — try again shortly",
+  "docTasks.undoFailed": "Undo failed",
+  "docTasks.writeFailed": "Failed to write back to the original document",
+  "sync.saveFailed": "Failed to save settings — check your disk and try again",
+  "sync.startFailed": "Resource sync failed",
+  "sync.stopFailed": "Failed to stop syncing",
+  "collab.draftNotSaved": "Input copy not saved",
+  "collab.localSaveFailed": "Local save failed",
+  "collab.articleLoadFailed": "Failed to load the shared article",
+  "content.loadFailed": "Failed to load content",
+  "db.initializing": "Initializing database…",
+  "chatQueue.file": "[File: {{name}}]",
+  "chatQueue.image": "[Image]"
+}

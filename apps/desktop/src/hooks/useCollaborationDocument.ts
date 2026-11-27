@@ -12,6 +12,7 @@ import {
   type ContentInputDraft,
 } from "@tau/collaboration";
 import type { ContentCollaborationBinding } from "@tau/editor-collab";
+import { useHooksFeedbackI18n } from "@/hooks/i18n";
 import { on, off } from "@/electron";
 import { collaborationCommands, localContentCommands } from "@/commands/contracts/collaboration";
 import { uploadResource } from "@/hooks/useUploadResource";
@@ -19,6 +20,7 @@ import { uploadResource } from "@/hooks/useUploadResource";
 const IPC_ORIGIN = Symbol("main-process");
 
 export default function useCollaborationDocument(documentId?: string, mode?: "local" | "shared") {
+  const { t } = useHooksFeedbackI18n();
   const [binding, setBinding] = useState<ContentCollaborationBinding>();
   const [article, setArticle] = useState<SharedContent>();
   const [error, setError] = useState<string>();
@@ -65,7 +67,7 @@ export default function useCollaborationDocument(documentId?: string, mode?: "lo
         }
       })()
         .catch(failure => {
-          if (!disposed) setError(failure instanceof Error ? failure.message : "输入副本尚未保存");
+          if (!disposed) setError(failure instanceof Error ? failure.message : t("collab.draftNotSaved"));
           throw failure;
         })
         .finally(() => {
@@ -91,7 +93,7 @@ export default function useCollaborationDocument(documentId?: string, mode?: "lo
           } catch (failure) {
             pending.unshift(...batch);
             await preserveDocument();
-            if (!disposed) setError(failure instanceof Error ? failure.message : "本地保存失败");
+            if (!disposed) setError(failure instanceof Error ? failure.message : t("collab.localSaveFailed"));
             throw failure;
           }
         }
@@ -109,7 +111,7 @@ export default function useCollaborationDocument(documentId?: string, mode?: "lo
         try {
           activeBinding?.flushLocal?.();
         } catch (failure) {
-          if (!disposed) setError(failure instanceof Error ? failure.message : "本地保存失败");
+          if (!disposed) setError(failure instanceof Error ? failure.message : t("collab.localSaveFailed"));
           return;
         }
         if (!disposed) flushSync(() => setFrozen(true));
@@ -248,7 +250,7 @@ export default function useCollaborationDocument(documentId?: string, mode?: "lo
         publish();
       })
       .catch(failure => {
-        if (!disposed) setError(failure instanceof Error ? failure.message : "协作文章加载失败");
+        if (!disposed) setError(failure instanceof Error ? failure.message : t("collab.articleLoadFailed"));
       });
     const retry = setInterval(() => {
       if (pending.length) void sendUpdates().catch(() => {});
