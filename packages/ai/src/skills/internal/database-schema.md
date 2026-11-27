@@ -99,6 +99,21 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `part`        | `INTEGER NOT NULL` |
 | `state`       | `BLOB NOT NULL`    |
 
+### `content_history_versions`
+
+随资料库同步的正文历史。版本身份稳定，回放和撤销按同一篇正文内的身份引用定位。
+
+| 字段           | SQLite 定义                                                                 |
+| -------------- | --------------------------------------------------------------------------- |
+| `document_id`  | `TEXT NOT NULL REFERENCES content_documents(document_id) ON DELETE CASCADE` |
+| `sequence`     | `INTEGER NOT NULL`                                                          |
+| `version_key`  | `TEXT NOT NULL`                                                             |
+| `previous_key` | `TEXT`                                                                      |
+| `target_key`   | `TEXT`                                                                      |
+| `checkpoint`   | `INTEGER NOT NULL`                                                          |
+| `metadata`     | `TEXT NOT NULL`                                                             |
+| `state`        | `BLOB NOT NULL`                                                             |
+
 ### `content_documents`
 
 正文的稳定身份、存储格式与不可变契约目录，与 `contents` 同归属；存储格式 2 为整篇快照、3 为分块，正文协作协议仍为 2。不要整列返回 `contracts`。

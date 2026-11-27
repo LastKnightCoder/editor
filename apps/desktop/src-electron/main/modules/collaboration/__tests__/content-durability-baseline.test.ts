@@ -1,5 +1,8 @@
 // @vitest-environment node
 import Database from "better-sqlite3";
+import type { IpcMainInvokeEvent, ipcMain } from "electron";
+import { registerContentIpc } from "../../content-runtime/ipc";
+import { localContentCommands } from "@/commands/contracts/collaboration";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -27,7 +30,11 @@ const host = vi.hoisted(() => ({
   directory: "",
   databases: new Map<string, Database.Database>(),
 }));
-vi.mock("electron");
+vi.mock("electron", () => ({
+  BrowserWindow: { getAllWindows: () => [], fromWebContents: () => ({ id: 1 }) },
+  ipcMain: { handle: vi.fn() },
+  app: { getPath: () => host.directory },
+}));
 vi.mock("../../database", () => ({
   default: { ...host, getDatabase: (name: string) => host.databases.get(name) },
 }));
@@ -178,6 +185,7 @@ async function fixture(
     if (!session) throw new Error("正文打开后未登记会话");
     return {
       runtime: runtime as unknown as ProjectingRuntime,
+      nodeUpdates: runtime.storage.nodeUpdates,
       session,
       store,
       state,
@@ -191,6 +199,48 @@ async function fixture(
 }
 
 describe("正文耐久与投影的独立基准", () => {
+  it("右侧历史的两个并发撤销只生效一次，重送成功回执保持正文", async () => {
+    const f = await fixture();
+    const registered = vi.fn<typeof ipcMain.handle>();
+    registerContentIpc(
+      {
+        nodeUpdates: f.nodeUpdates,
+        store: f.store,
+        assets: f.assets,
+        contentState: f.state,
+        views: new Map(),
+        requireSession: () => f.session,
+        findSession: () => f.session,
+        databaseForEvent: () => ({ db: f.db, name: "library" }),
+        changed: vi.fn(),
+        removeView: vi.fn(),
+        acknowledgeFreeze: vi.fn(),
+        presenceSnapshot: vi.fn(),
+        user: () => ({ id: "local", nickname: "本机" }),
+      },
+      localContentCommands,
+      registered
+    );
+    const handlers = new Map(registered.mock.calls);
+    const event = { sender: {} } as IpcMainInvokeEvent;
+    const request = (name: string, ...args: unknown[]) =>
+      must(handlers.get("local-content:history-" + name), name)(event, f.session.info.id, ...args);
+    await f.runtime.acceptUpdates(f.session, candidateUpdate(f.session, "第一笔"), () => undefined);
+    const [entry] = await request("list");
+    const preview = await request("preview", entry.sequence);
+    expect(paragraphText(preview.value.content)).toBe("第一笔甲乙");
+    const action = { kind: "undo", versionKey: entry.versionKey, sequence: entry.sequence };
+    const operations = ["window-a", "window-b"].map(operationId => ({ ...action, operationId }));
+    const results = await Promise.allSettled(
+      operations.map(operation => request("apply", operation))
+    );
+    expect(results.map(r => r.status).sort()).toEqual(["fulfilled", "rejected"]);
+    await request("apply", operations[results.findIndex(r => r.status === "fulfilled")]);
+    expect(paragraphText(readNodeDocument(f.session.doc).content)).toBe("甲乙");
+    expect(
+      (await request("list")).filter((row: { kind: string }) => row.kind === "undo")
+    ).toHaveLength(1);
+  });
   it("关着文档的连续写入在重开后落入同一条可回放的编辑历史", async () => {
     const f = await fixture();
     const id = must(localContentHistoryId(f.session.info.source), "正文历史身份");

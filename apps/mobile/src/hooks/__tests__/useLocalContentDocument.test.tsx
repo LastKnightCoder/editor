@@ -224,3 +224,77 @@ it.each([
     container.remove();
   }
 });
+
+it("等候存储要求补写快照时，固定版本不包含下一笔输入", async () => {
+  const { contract, content } = await paragraph("甲");
+  const metadata = {
+    contentId: 7,
+    createTime: 1,
+    content,
+    count: 1,
+    librarySourceId: "library",
+    documentId: "body",
+    revision: "v",
+    contracts: { [contract.id]: contract.contract },
+  } as ContentDetailResponse;
+  const root = createRoot(window.document.createElement("div"));
+  let model: LocalContentDocument | undefined;
+  function Harness() {
+    model = useLocalContentDocument({
+      contentId: 7,
+      content,
+      metadata,
+      version: 1,
+      onChange: vi.fn(),
+    });
+    return null;
+  }
+  io.read.mockResolvedValue(null);
+  io.write.mockResolvedValue("saved");
+  const persisted: string[] = [];
+  let fixed: string | undefined;
+  let rejectWrite: ((reason: Error) => void) | undefined;
+  try {
+    await act(async () => {
+      root.render(<Harness />);
+    });
+    await vi.waitFor(() => expect(io.tree).not.toBeNull());
+    const tree = io.tree;
+    if (!tree || !model) throw new Error("正文尚未打开");
+    io.write
+      .mockImplementationOnce(
+        () =>
+          new Promise((_resolve, reject) => {
+            rejectWrite = reject;
+          })
+      )
+      .mockImplementation(async payload => {
+        if (payload.history?.checkpoint) fixed = payload.history.checkpoint;
+        if (payload.state) persisted.push(payload.state);
+        return "saved";
+      });
+    await act(async () => {
+      tree.insertText("p", 1, "乙", null);
+    });
+    await vi.waitFor(() => expect(typeof rejectWrite).toBe("function"));
+    await act(async () => {
+      tree.insertText("p", 2, "丙", null);
+      rejectWrite?.(new Error("HISTORY_CHECKPOINT_REQUIRED"));
+      await model?.flush();
+    });
+    if (!fixed) throw new Error("未收到固定检查点");
+    const snapshot = new Y.Doc({ gc: false });
+    const view = new NodeTree(snapshot);
+    try {
+      Y.applyUpdate(snapshot, base64ToBytes(fixed));
+      expect(view.read()[0].children?.[0].text).toBe("甲乙");
+      for (const update of persisted) Y.applyUpdate(snapshot, base64ToBytes(update));
+      expect(view.read()[0].children?.[0].text).toBe("甲乙丙");
+    } finally {
+      view.dispose();
+      snapshot.destroy();
+    }
+  } finally {
+    await act(async () => root.unmount());
+  }
+});

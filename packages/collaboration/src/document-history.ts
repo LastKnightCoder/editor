@@ -1,4 +1,5 @@
 import * as Y from "yjs";
+import historyPolicy from "@tau/db-schema/document-history-policy.json";
 import { NODE_DOCUMENT_MAX_BYTES, readNodeDocument } from "./node-document";
 import { CollaborationError, type ContentNode, type SharedContent } from "./protocol";
 import { sharedValueEquals } from "./shared-values";
@@ -8,6 +9,8 @@ import { base64ToBytes, bytesToBase64 } from "./encoding";
 export interface DocumentHistoryEntry {
   sequence: number;
   operationId: string;
+  versionKey?: string;
+  groupOperationId?: string;
   actorId: string;
   actorName: string;
   /** 合并记录中最后一次编辑的时间 */
@@ -20,6 +23,7 @@ export interface DocumentHistoryEntry {
   target?: number;
   source?: string;
   sourceRevision?: string;
+  targetVersion?: string;
 }
 
 export type DocumentHistoryActor = Pick<DocumentHistoryEntry, "actorId" | "actorName" | "source">;
@@ -38,6 +42,7 @@ export interface DocumentHistoryPreview {
   changes: DocumentHistoryChange[];
   previousTitle?: string;
   headRevision: string;
+  matchesCurrent?: boolean;
   canRestore: boolean;
   canUndo: boolean;
 }
@@ -45,6 +50,7 @@ export interface DocumentHistoryPreview {
 export interface DocumentHistoryReader {
   entry(id: string, sequence: number): DocumentHistoryEntry;
   replay(id: string, sequence: number): Y.Doc;
+  previousSequence?(id: string, sequence: number): number;
   undone(id: string, sequence: number): boolean;
 }
 
@@ -75,8 +81,8 @@ export interface TransferredDocumentHistoryVersion {
 }
 
 const PART_BYTES = 512 * 1024;
-const CHECKPOINT_INTERVAL = 128;
-const CHECKPOINT_REPLAY_BYTES = 1024 * 1024;
+const CHECKPOINT_INTERVAL = historyPolicy.checkpointVersions;
+const CHECKPOINT_REPLAY_BYTES = historyPolicy.checkpointReplayBytes;
 /** 同一来源连续编辑合并为一条：停顿超过此值另开记录 */
 export const HISTORY_MERGE_IDLE_MS = 5 * 60_000;
 /** 一条合并记录从首次编辑起最长覆盖的时间 */
@@ -110,6 +116,7 @@ export interface DocumentHistoryWrite {
   target?: number;
   time?: number;
   sourceRevision?: string;
+  targetVersion?: string;
   previousRevision: string;
   revision: string;
   update: Uint8Array;
@@ -364,6 +371,7 @@ export class DocumentHistoryStore {
         time: now,
         kind: write.kind ?? "edit",
         target: write.target,
+        ...(write.targetVersion && { targetVersion: write.targetVersion }),
         sourceRevision: write.sourceRevision,
         ...(write.mergeable === false && { sealed: true }),
       },
@@ -406,6 +414,7 @@ export class DocumentHistoryStore {
       replayBytes,
       JSON.stringify({
         ...entry,
+        groupOperationId: entry.groupOperationId ?? entry.operationId,
         operationId: write.operationId,
         time: now,
         startTime: entry.startTime ?? entry.time,
@@ -538,14 +547,16 @@ export function readDocumentHistoryPreview(
   headRevision: string,
   actorId: string,
   owner: boolean,
-  comparison?: Y.Doc
+  comparison?: Y.Doc,
+  current?: Y.Doc
 ): DocumentHistoryPreview {
   const entry = history.entry(id, sequence);
   const after = history.replay(id, sequence);
   let before: Y.Doc | undefined;
   try {
     const value = readNodeDocument(after);
-    if (!comparison && entry.kind !== "baseline") before = history.replay(id, sequence - 1);
+    if (!comparison && entry.kind !== "baseline")
+      before = history.replay(id, history.previousSequence?.(id, sequence) ?? sequence - 1);
     const previousDoc = comparison ?? before;
     const previous = previousDoc && readNodeDocument(previousDoc);
     return {
@@ -555,6 +566,7 @@ export function readDocumentHistoryPreview(
       changes: previous ? documentHistoryChanges(previous.content, value.content) : [],
       contracts: after.getMap("node-tree:contracts").toJSON() as ContentContractDictionary,
       headRevision,
+      ...(current && { matchesCurrent: sharedValueEquals(value, readNodeDocument(current)) }),
       canRestore: owner,
       canUndo:
         entry.kind !== "baseline" &&

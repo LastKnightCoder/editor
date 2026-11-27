@@ -6,13 +6,34 @@ use tauri::AppHandle;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
+struct HistoryPolicy {
+    checkpoint_versions: i64,
+    checkpoint_replay_bytes: i64,
+}
+
+fn history_policy() -> &'static HistoryPolicy {
+    static POLICY: std::sync::OnceLock<HistoryPolicy> = std::sync::OnceLock::new();
+    POLICY.get_or_init(|| {
+        serde_json::from_str(include_str!(
+            "../../../../packages/db-schema/document-history-policy.json"
+        ))
+        .expect("正文历史快照策略配置无效")
+    })
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ContentHistoryWrite {
     operation_id: String,
     checkpoint: Option<String>,
     kind: Option<String>,
     target: Option<i64>,
+    target_version: Option<String>,
+    target_operation_id: Option<String>,
     /// 并入的最新记录操作 ID；`merged_state` 为该记录合并后的完整增量
     merge_into: Option<String>,
+    #[serde(default)]
+    strict_group: bool,
     merged_state: Option<String>,
 }
 
@@ -78,9 +99,14 @@ pub fn record(
     } else if prior.is_none() {
         return Err("本机历史缺少当前正文基线，请重新打开正文".into());
     }
+    let mut replay_bytes = 0i64;
     if let (Some(head), Some(input)) = (prior, write) {
-        if merge(connection, &id, head.0, head.2, input)? {
+        replay_bytes=connection.query_row("SELECT coalesce(sum(length(state)),0) FROM local_content_history WHERE document_id=?1 AND sequence>?2",params![id,head.2],|row|row.get(0)).map_err(|e|e.to_string())?;
+        if merge(connection, &id, head.0, head.2, replay_bytes, input)? {
             return Ok(());
+        }
+        if input.strict_group && input.merge_into.is_some() {
+            return Err("HISTORY_GROUP_CHANGED".into());
         }
     }
     let operation_id = if snapshot {
@@ -104,6 +130,15 @@ pub fn record(
         }
     };
     let encoded = write.and_then(|input| input.checkpoint.as_deref());
+    if !snapshot
+        && encoded.is_none()
+        && prior.is_some_and(|row| {
+            sequence - row.2 >= history_policy().checkpoint_versions
+                || replay_bytes + bytes.len() as i64 >= history_policy().checkpoint_replay_bytes
+        })
+    {
+        return Err("HISTORY_CHECKPOINT_REQUIRED".into());
+    }
     let checkpoint = prior
         .filter(|_| encoded.is_none())
         .map(|row| row.2)
@@ -118,6 +153,12 @@ pub fn record(
     } else {
         bytes.to_vec()
     };
+    let native_target=match write.and_then(|w| w.target_version.as_deref().zip(w.target_operation_id.as_deref())) {
+        Some((key,op))=>connection.query_row(
+          "SELECT sequence FROM local_content_history WHERE document_id=?1 AND operation_id=?2 AND (json_extract(metadata,'$.kind')!='baseline' OR 'mobile-base:'||baseline_id=?3)",
+          params![id,op,key],|r|r.get::<_,i64>(0)).optional().map_err(|e|e.to_string())?,
+        None=>write.and_then(|w|w.target)
+    };
     let millis = now_millis()?;
     let value = json!({
         "sequence": sequence,
@@ -126,7 +167,8 @@ pub fn record(
         "actorName": if snapshot { "" } else { "本机" },
         "kind": kind,
         "time": millis,
-        "target": write.and_then(|input| input.target),
+        "target": native_target,
+        "targetVersion": write.and_then(|input| input.target_version.as_ref()),
     });
     connection
         .execute(
@@ -151,6 +193,7 @@ fn merge(
     id: &str,
     sequence: i64,
     checkpoint: i64,
+    replay_bytes: i64,
     input: &ContentHistoryWrite,
 ) -> Result<bool, String> {
     let (Some(target), Some(encoded)) = (&input.merge_into, &input.merged_state) else {
@@ -165,11 +208,11 @@ fn merge(
     {
         return Err("本机历史合并参数无效".into());
     }
-    let (operation_id, raw): (String, String) = connection
+    let (operation_id, raw, old_bytes): (String, String,i64) = connection
         .query_row(
-            "SELECT operation_id,metadata FROM local_content_history WHERE document_id=?1 AND sequence=?2",
+            "SELECT operation_id,metadata,length(state) FROM local_content_history WHERE document_id=?1 AND sequence=?2",
             params![id, sequence],
-            |row| Ok((row.get(0)?, row.get(1)?)),
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
         )
         .map_err(|error| error.to_string())?;
     let mut entry: Value = serde_json::from_str(&raw).map_err(|error| error.to_string())?;
@@ -182,18 +225,43 @@ fn merge(
     if state.is_empty() {
         return Err("本机历史合并内容为空".into());
     }
+    let (state, checkpoint) = if replay_bytes - old_bytes + state.len() as i64
+        >= history_policy().checkpoint_replay_bytes
+    {
+        let encoded = input
+            .checkpoint
+            .as_ref()
+            .ok_or("HISTORY_CHECKPOINT_REQUIRED")?;
+        let full = STANDARD.decode(encoded).map_err(|e| e.to_string())?;
+        if full.is_empty() || full.len() > 8 * 1024 * 1024 {
+            return Err("正文历史快照大小无效".into());
+        }
+        (full, sequence)
+    } else {
+        (state, checkpoint)
+    };
     let start = entry
         .get("startTime")
         .cloned()
         .unwrap_or_else(|| entry["time"].clone());
     entry["startTime"] = start;
     entry["time"] = json!(now_millis()?);
+    if entry.get("groupOperationId").is_none() {
+        entry["groupOperationId"] = json!(operation_id);
+    }
     entry["operationId"] = json!(input.operation_id);
     connection
         .execute(
-            "UPDATE local_content_history SET operation_id=?1,metadata=?2,state=?3
+            "UPDATE local_content_history SET operation_id=?1,metadata=?2,state=?3,checkpoint=?6
              WHERE document_id=?4 AND sequence=?5",
-            params![input.operation_id, entry.to_string(), state, id, sequence],
+            params![
+                input.operation_id,
+                entry.to_string(),
+                state,
+                id,
+                sequence,
+                checkpoint
+            ],
         )
         .map_err(|error| error.to_string())?;
     Ok(true)
@@ -206,6 +274,7 @@ fn now_millis() -> Result<u128, String> {
         .as_millis())
 }
 
+#[cfg(test)]
 pub(crate) fn seal(connection: &Connection, id: &str, sequence: i64) -> Result<(), String> {
     connection
         .execute(
@@ -233,53 +302,5 @@ pub fn collab_local_history(
         )
         .map_err(|error| error.to_string())?;
     let value = serde_json::from_str(&metadata).map_err(|error| error.to_string())?;
-    let id = archive_id(&value).ok_or("正文历史来源失效")?;
-    let Some(sequence) = sequence else {
-        let rows = connection
-            .prepare(
-                "SELECT metadata FROM local_content_history WHERE document_id=?1 AND sequence<?2
-                 ORDER BY sequence DESC LIMIT 50",
-            )
-            .and_then(|mut query| {
-                query
-                    .query_map(params![id, before.unwrap_or(i64::MAX)], |row| {
-                        row.get::<_, String>(0)
-                    })?
-                    .collect::<rusqlite::Result<Vec<_>>>()
-            })
-            .map_err(|error| error.to_string())?;
-        let rows: Vec<Value> = rows
-            .iter()
-            .map(|raw| serde_json::from_str(raw))
-            .collect::<serde_json::Result<_>>()
-            .map_err(|error| error.to_string())?;
-        return Ok(json!(rows));
-    };
-    seal(&connection, &id, sequence)?;
-    let (raw, checkpoint): (String, i64) = connection.query_row(
-        "SELECT metadata,checkpoint FROM local_content_history WHERE document_id=?1 AND sequence=?2",
-        params![id, sequence],
-        |row| Ok((row.get(0)?, row.get(1)?)),
-    ).map_err(|error| error.to_string())?;
-    let entry: Value = serde_json::from_str(&raw).map_err(|error| error.to_string())?;
-    let undone: bool = connection
-        .query_row(
-            "SELECT EXISTS(SELECT 1 FROM local_content_history
-         WHERE document_id=?1 AND sequence>?2 AND json_extract(metadata,'$.kind')='undo'
-         AND json_extract(metadata,'$.target')=?2)",
-            params![id, sequence],
-            |row| row.get(0),
-        )
-        .map_err(|error| error.to_string())?;
-    let updates = connection.prepare(
-        "SELECT state FROM local_content_history WHERE document_id=?1 AND sequence BETWEEN ?2 AND ?3 ORDER BY sequence",
-    ).and_then(|mut query| {
-        query.query_map(params![id, checkpoint, sequence], |row| {
-            Ok(STANDARD.encode(row.get::<_, Vec<u8>>(0)?))
-        })?.collect::<rusqlite::Result<Vec<_>>>()
-    }).map_err(|error| error.to_string())?;
-    if updates.len() as i64 != sequence - checkpoint + 1 {
-        return Err("本机历史版本缺少先行增量".into());
-    }
-    Ok(json!({ "entry": entry, "updates": updates, "undone": undone }))
+    crate::history_archive::read(&app, &connection, &value, before, sequence)
 }

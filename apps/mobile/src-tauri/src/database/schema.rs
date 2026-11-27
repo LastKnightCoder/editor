@@ -148,6 +148,19 @@ fn install_download_locked(
         .lock()
         .map_err(|_| "数据库连接锁不可用")?;
     let _install_guard = crate::ai::install::lock()?;
+    let existing_path = resolve_database_path(app, name)?;
+    if existing_path.exists() {
+        let cache = crate::collaboration::session_store(app)?;
+        let mut existing = Connection::open(&existing_path).map_err(|e| e.to_string())?;
+        migrator::ensure_main_schema(&existing)?;
+        crate::history_archive::capture(
+            &mut existing,
+            std::path::Path::new(cache.path().ok_or("本机历史路径缺失")?),
+            None,
+            true,
+            None,
+        )?;
+    }
     *connections = None;
     let destination = resolve_database_path(app, name)?;
     let candidate = Connection::open(download).map_err(|e| e.to_string())?;

@@ -274,7 +274,7 @@ function EntryDetail({
   const confirming = history.confirming;
   if (!detail || !entry) return <p className="text-tau-sm text-ink-3 px-2 py-2">{t("loading")}</p>;
 
-  const isHead = entry.sequence === history.headSequence;
+  const isHead = entry.sequence === history.headSequence && detail.matchesCurrent !== false;
   const canUndo = detail.canUndo;
   const canRestore = detail.canRestore;
 

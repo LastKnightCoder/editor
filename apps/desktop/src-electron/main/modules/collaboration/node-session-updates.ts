@@ -40,7 +40,10 @@ interface NodeSessionDrafts {
   ): void;
 }
 
-type HistoryMetadata = Pick<DocumentHistoryWrite, "operationId" | "actor" | "kind" | "target">;
+type HistoryMetadata = Pick<
+  DocumentHistoryWrite,
+  "operationId" | "actor" | "kind" | "target" | "targetVersion"
+>;
 const revisionOf = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 
 const equal = (left: Uint8Array, right: Uint8Array) =>

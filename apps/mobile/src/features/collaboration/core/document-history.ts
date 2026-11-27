@@ -40,13 +40,18 @@ const revision = async (state: Uint8Array) =>
     .map(byte => byte.toString(16).padStart(2, "0"))
     .join("");
 
-async function readLocalHistory(id: string, sequence: number): Promise<DocumentHistoryReader> {
+async function readLocalHistory(
+  id: string,
+  sequence: number
+): Promise<DocumentHistoryReader & { versionKey: string }> {
   const version = await tauri.collabLocalHistoryVersion(id, sequence);
   const previous =
     version.entry.kind === "baseline"
       ? undefined
-      : await tauri.collabLocalHistoryVersion(id, sequence - 1);
+      : await tauri.collabLocalHistoryVersion(id, version.previousSequence ?? sequence - 1);
   return {
+    versionKey: version.versionKey,
+    previousSequence: () => version.previousSequence ?? sequence - 1,
     entry: () => version.entry,
     undone: () => version.undone,
     replay: (_id, requested) => {
@@ -73,7 +78,10 @@ export function localHistoryApi(
   doc: Y.Doc,
   requireWrite: () => void,
   flush: () => Promise<void>,
-  commit: (update: Uint8Array, action: DocumentHistoryAction) => Promise<void>,
+  commit: (
+    update: Uint8Array,
+    action: DocumentHistoryAction & { targetVersion: string; targetOperationId: string }
+  ) => Promise<void>,
   onPreview: (entry: DocumentHistoryEntry) => void
 ): HistoryApi {
   let writing = false;
@@ -93,7 +101,8 @@ export function localHistoryApi(
         await revision(Y.encodeStateAsUpdate(doc)),
         "local",
         true,
-        compare ? doc : undefined
+        compare ? doc : undefined,
+        doc
       );
     },
     apply: async action => {
@@ -119,7 +128,11 @@ export function localHistoryApi(
         const latest = Y.encodeStateAsUpdate(doc);
         if (latest.length !== state.length || !latest.every((byte, index) => byte === state[index]))
           throw new Error("正文已变化，请重新查看历史版本");
-        await commit(update, action);
+        await commit(update, {
+          ...action,
+          targetVersion: entries.versionKey,
+          targetOperationId: entries.entry(id, action.sequence).operationId,
+        });
       } finally {
         writing = false;
       }

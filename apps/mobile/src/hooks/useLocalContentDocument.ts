@@ -48,9 +48,6 @@ export type LocalContentDocument = EditorDocument & {
   editHistory?: HistoryApi;
 };
 
-/** 合并记录的增量超过此值就另开一条，避免每次输入重传过大的载荷 */
-const HISTORY_MERGE_BYTES = 256 * 1024;
-
 export const contentLineage = (contentId?: number) => `content:${contentId ?? 0}`;
 
 export default function useLocalContentDocument(options: {
@@ -278,8 +275,10 @@ export default function useLocalContentDocument(options: {
       }
       let tail = Promise.resolve();
       const pendingUpdates: Uint8Array[] = [];
-      let historyAction: DocumentHistoryAction | undefined;
-      let historyWrites = 0;
+      let historyAction:
+        | (DocumentHistoryAction & { targetVersion: string; targetOperationId: string })
+        | undefined;
+
       // 本次打开内最新一条编辑记录；重新打开正文时清空，即自动封口
       let historyHead:
         | {
@@ -322,21 +321,16 @@ export default function useLocalContentDocument(options: {
               assertStorageActive();
               const updates = pendingUpdates.slice();
               const action = historyAction;
-              const checkpoint =
-                updates.length > 0 && (historyWrites + 1) % 128 === 0
-                  ? bytesToBase64(Y.encodeStateAsUpdate(doc))
-                  : undefined;
+              const observed = updates.length ? Y.snapshot(doc) : undefined;
               const drafts = [...inputDrafts.values()];
               const confirmedDrafts = matchingInputDrafts(doc, drafts);
               const merged = updates.length ? Y.mergeUpdates(updates) : new Uint8Array();
               const state = bytesToBase64(merged);
               const now = Date.now();
-              const mergeHead =
+              let mergeHead =
                 updates.length &&
-                !checkpoint &&
                 !action &&
                 historyHead &&
-                historyHead.state.byteLength + merged.byteLength < HISTORY_MERGE_BYTES &&
                 canMergeHistoryEntry(
                   {
                     kind: "edit",
@@ -348,7 +342,7 @@ export default function useLocalContentDocument(options: {
                 )
                   ? historyHead
                   : undefined;
-              const mergedState = mergeHead && Y.mergeUpdates([mergeHead.state, merged]);
+              let mergedState = mergeHead && Y.mergeUpdates([mergeHead.state, merged]);
               const operationId = action?.operationId ?? crypto.randomUUID();
               await validateNodeDocument(
                 doc,
@@ -371,28 +365,53 @@ export default function useLocalContentDocument(options: {
               }
               assertStorageActive();
               metadata.resourcePaths = Object.fromEntries(paths);
-              await tauri.collabWriteCache({
-                documentId: cacheId,
-                ...nodeRetentions(doc),
-                metadata,
-                state,
-                confirmedDrafts,
-                history: updates.length
-                  ? {
-                      operationId,
-                      checkpoint,
-                      kind: action?.kind,
-                      target: action?.sequence,
-                      mergeInto: mergeHead?.operationId,
-                      mergedState: mergedState && bytesToBase64(mergedState),
+              const write = (checkpoint?: string) =>
+                tauri.collabWriteCache({
+                  documentId: cacheId,
+                  ...nodeRetentions(doc),
+                  metadata,
+                  state,
+                  confirmedDrafts,
+                  history: updates.length
+                    ? {
+                        operationId,
+                        checkpoint,
+                        kind: action?.kind,
+                        targetVersion: action?.targetVersion,
+                        targetOperationId: action?.targetOperationId,
+                        mergeInto: mergeHead?.operationId,
+                        strictGroup: true,
+                        mergedState: mergedState && bytesToBase64(mergedState),
+                      }
+                    : undefined,
+                });
+              let checkpoint: string | undefined;
+              for (;;) {
+                try {
+                  await write(checkpoint);
+                  break;
+                } catch (error) {
+                  if (mergeHead && String(error).includes("HISTORY_GROUP_CHANGED")) {
+                    mergeHead = undefined;
+                    mergedState = undefined;
+                    checkpoint = undefined;
+                  } else if (
+                    observed &&
+                    !checkpoint &&
+                    String(error).includes("HISTORY_CHECKPOINT_REQUIRED")
+                  ) {
+                    const frozen = Y.createDocFromSnapshot(doc, observed);
+                    try {
+                      checkpoint = bytesToBase64(Y.encodeStateAsUpdate(frozen));
+                    } finally {
+                      frozen.destroy();
                     }
-                  : undefined,
-              });
+                  } else throw error;
+                }
+              }
               assertStorageActive();
               pendingUpdates.splice(0, updates.length);
               if (updates.length) {
-                // 检查点间隔按记录条数计，合并进已有记录不计数
-                if (!mergeHead) historyWrites++;
                 historyHead =
                   checkpoint || action
                     ? undefined

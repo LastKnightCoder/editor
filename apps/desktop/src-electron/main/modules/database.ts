@@ -2,6 +2,7 @@ import { getPluginRegistry } from "../services/plugin-workspaces";
 import { prepareDurableDocuments, withDurableDocuments } from "./durable-document-lifecycle";
 import { BrowserWindow, ipcMain, type IpcMainInvokeEvent } from "electron";
 import PathUtil from "../utils/PathUtil";
+import { existsSync } from "node:fs";
 import Database from "better-sqlite3";
 import { randomUUID } from "node:crypto";
 import type { DatabaseConnection } from "@/types/database-connection";
@@ -642,10 +643,25 @@ class DatabaseModule implements Module {
     try {
       if (replace) await getPluginRegistry().invalidateChanges(name);
       const db = this.databases.get(name);
+      const { captureLibraryHistory } = await import("./content-runtime/library-history");
+      const { withLocalHistoryStore } = await import("./content-runtime/composition");
       if (!db) {
+        const path = join(PathUtil.getAppDir(), `${this.formatDatabaseName(name)}.db`);
+        if (existsSync(path)) {
+          const library = new Database(path, { fileMustExist: true });
+          try {
+            ensureMainSchema(library);
+            withLocalHistoryStore(store =>
+              captureLibraryHistory(library, store, undefined, replace)
+            );
+          } finally {
+            library.close();
+          }
+        }
         drain.commit();
         return;
       }
+      withLocalHistoryStore(store => captureLibraryHistory(db, store, undefined, replace));
       if (!this.forceCheckpoint(name)) throw new Error("数据库仍在使用，不能安全关闭和同步");
       db.close();
       this.databases.delete(name);

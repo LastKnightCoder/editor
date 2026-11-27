@@ -9,6 +9,7 @@ mod collaboration_assets;
 mod content_history;
 mod data_change_scope;
 mod database;
+mod history_archive;
 mod image_settings;
 mod incoming_file;
 #[cfg(target_os = "ios")]

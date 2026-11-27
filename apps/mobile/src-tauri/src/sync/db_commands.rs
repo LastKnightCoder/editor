@@ -175,9 +175,24 @@ async fn sync_upload_database_impl(
     let snapshot_started = Instant::now();
     report(3.0, DatabaseSyncStatus::CreateSnapshot);
     crate::logger::info(format!("[sync] snapshot-start db={}", ctx.database_name));
-    let snapshot = match TemporaryFile::new(&app)
-        .and_then(|snapshot| create_database_snapshot(&ctx.database_path, snapshot))
-    {
+    let snapshot = match (|| -> Result<TemporaryFile, String> {
+        let _cache = crate::collaboration::CACHE_WRITE_LOCK
+            .lock()
+            .map_err(|_| "缓存保存锁不可用")?;
+        let cache = crate::collaboration::session_store(&app)?;
+        let mut db = crate::database::open_active_database(&app)?;
+        if db.database_name() != ctx.database_name {
+            return Err("资料库已切换".into());
+        }
+        crate::history_archive::capture(
+            &mut db,
+            std::path::Path::new(cache.path().ok_or("本机历史路径缺失")?),
+            None,
+            false,
+            None,
+        )?;
+        create_database_snapshot(&ctx.database_path, TemporaryFile::new(&app)?)
+    })() {
         Ok(file) => file,
         Err(err) => {
             return fail(

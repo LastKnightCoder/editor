@@ -1,4 +1,6 @@
-import { readDocumentIdentity } from "@tau/collaboration";
+import databaseModule from "../database";
+import { captureLibraryHistory, LibraryHistory } from "./library-history";
+import { readDocumentHistoryPreview, readDocumentIdentity } from "@tau/collaboration";
 import { BrowserWindow, ipcMain, type IpcMainInvokeEvent } from "electron";
 import { localContentCommands } from "@/commands/contracts/collaboration";
 import * as Y from "yjs";
@@ -88,10 +90,29 @@ export function registerContentIpc(
     if (!id) throw new Error("正文历史来源失效");
     return id;
   };
+  const libraryHistory = (session: RuntimeSession, preview?: number) => {
+    const source = session.info.source;
+    const db = source && databaseModule.getDatabase(source.databaseName);
+    const id = source?.contentDocumentId;
+    if (
+      !db ||
+      !id ||
+      !db
+        .prepare(
+          "SELECT 1 FROM library_identity l JOIN content_documents d ON d.document_id=? WHERE l.id=1 AND l.source_id=? AND d.content_id=?"
+        )
+        .get(id, source.librarySourceId, source.contentId)
+    )
+      throw new Error("正文历史来源已变化");
+    captureLibraryHistory(db, context.store, id, false, preview);
+    return { archive: new LibraryHistory(db), id };
+  };
   handle("historyList", (event, id, before) => {
     const session = historySession(event, id);
-    if (session.info.mode === "local")
-      return context.store.history.list(localHistoryId(session), before);
+    if (session.info.mode === "local") {
+      const { archive, id: documentId } = libraryHistory(session);
+      return archive.list(documentId, before);
+    }
     const { client, url, path } = sharedHistory(session);
     return client.request<DocumentHistoryEntry[]>(
       url,
@@ -115,13 +136,16 @@ export function registerContentIpc(
       if (historySession(event, id) !== session) throw new Error("正文会话已变化");
       return preview;
     }
-    const preview = context.store.history.preview(
-      localHistoryId(session),
+    const { archive, id: documentId } = libraryHistory(session, sequence);
+    const preview = readDocumentHistoryPreview(
+      archive,
+      documentId,
       sequence,
       contentRevision(session),
       "local",
       true,
-      compare ? session.doc : undefined
+      compare ? session.doc : undefined,
+      session.doc
     );
     preview.value = await context.assets.localizeDocument(
       session.info.serverUrl,
@@ -143,8 +167,17 @@ export function registerContentIpc(
       await client.request(url, `${path}/apply`, "POST", action);
       return;
     }
-    const archive = context.store.history;
-    const historyId = localHistoryId(session);
+    const { archive, id: historyId } = libraryHistory(session);
+    const targetVersion = archive.versionKey(historyId, action.sequence);
+    const localId = localHistoryId(session);
+    const nativeTarget = context.store.db
+      .prepare(`SELECT sequence FROM document_history_entries
+      WHERE document_id=? AND operation_id=? AND (
+        json_extract(metadata,'$.kind')!='baseline' OR 'base:'||revision=?
+      )`)
+      .get(localId, archive.entry(historyId, action.sequence).operationId, targetVersion) as
+      | { sequence: number }
+      | undefined;
     await nodeUpdates.apply(
       session,
       {
@@ -153,20 +186,23 @@ export function registerContentIpc(
           operationId: action.operationId,
           actor: { actorId: "local", actorName: "本机" },
           kind: action.kind,
-          target: action.sequence,
+          target: nativeTarget?.sequence,
+          targetVersion,
         },
         build: async () => {
-          const saved = archive.operation(historyId, action.operationId);
+          const saved = context.store.history.operation(localId, action.operationId);
           if (saved) {
-            if (saved.kind !== action.kind || saved.target !== action.sequence)
+            if (saved.kind !== action.kind || saved.targetVersion !== targetVersion)
               throw new Error("同一历史操作不能更改");
             return null;
           }
+          // 在取得写队列后读取已提交的撤销目标；另一窗口可能刚刚撤销了同一版本。
+          const latest = libraryHistory(session, action.sequence);
           return buildDocumentHistoryUpdate(
-            archive,
+            latest.archive,
             historyId,
             session.doc,
-            action,
+            { ...action, versionKey: action.versionKey ?? targetVersion },
             contentRevision(session),
             "local",
             true,

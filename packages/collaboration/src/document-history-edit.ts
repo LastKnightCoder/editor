@@ -24,6 +24,7 @@ export interface DocumentHistoryAction {
   kind: "restore" | "undo";
   sequence: number;
   expectedRevision?: string;
+  versionKey?: string;
 }
 
 export function validateDocumentHistoryAction(action: DocumentHistoryAction): void {
@@ -383,6 +384,8 @@ export async function buildDocumentHistoryUpdate(
 ): Promise<Uint8Array> {
   validateDocumentHistoryAction(action);
   const entry = history.entry(id, action.sequence);
+  if (action.versionKey !== undefined && action.versionKey !== entry.versionKey)
+    throw revisionConflict();
   const undo = action.kind === "undo";
   if (!owner && (!undo || entry.actorId !== actorId))
     throw new CollaborationError("FORBIDDEN", "没有执行该历史操作的权限", 403);
@@ -398,7 +401,10 @@ export async function buildDocumentHistoryUpdate(
     Y.applyUpdate(candidate, Y.encodeStateAsUpdate(current));
     if (undo) {
       const historical = readDocumentIdentity(target);
-      before = history.replay(id, entry.sequence - 1);
+      before = history.replay(
+        id,
+        history.previousSequence?.(id, entry.sequence) ?? entry.sequence - 1
+      );
       changeMetadata(candidate, before, target);
       await undoBlocks(
         candidate,
