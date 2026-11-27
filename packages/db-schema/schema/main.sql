@@ -1642,7 +1642,7 @@ CREATE TABLE IF NOT EXISTS plugin_operations (
 CREATE INDEX IF NOT EXISTS idx_plugin_operations_plugin ON plugin_operations(plugin_id, create_time);
 
 -- 插件自建的业务对象：持有一份正文引用，作为搜索、@ 与反链的实体单位；
--- 插件目录不在时记 orphaned_time，超过宽限期才删除，期间重新安装即恢复
+-- 卸载默认保留；orphaned_time 仅用于识别旧版本留下的标记
 CREATE TABLE IF NOT EXISTS plugin_entities (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   plugin_id TEXT NOT NULL,
@@ -1659,7 +1659,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_plugin_entities_key ON plugin_entities(plu
 CREATE INDEX IF NOT EXISTS idx_plugin_entities_content ON plugin_entities(content_id);
 CREATE INDEX IF NOT EXISTS idx_plugin_entities_created ON plugin_entities(plugin_id, kind, create_time, id);
 
--- 插件声明的内容类型外观（类型名与图标 SVG）：随库保存，插件停用、卸载宽限期内与其他设备上照样显示
+-- 插件声明的内容类型外观（类型名与图标 SVG）：随库保存，插件停用或卸载时保留数据，仍可显示
 CREATE TABLE IF NOT EXISTS plugin_entity_kinds (
   plugin_id TEXT NOT NULL,
   kind TEXT NOT NULL,
@@ -1688,7 +1688,7 @@ CREATE TABLE IF NOT EXISTS plugin_kv (
 );
 
 -- 插件记录（context.records）：插件内部的结构化数据，按插件与集合保存 JSON，随主库云同步；
--- orphaned_time 非空表示插件已不在本机，与插件实体一同在宽限期后删除
+-- 卸载默认保留，用户选择清理时与该插件的实体一并删除
 CREATE TABLE IF NOT EXISTS plugin_records (
   id TEXT PRIMARY KEY,
   plugin_id TEXT NOT NULL,

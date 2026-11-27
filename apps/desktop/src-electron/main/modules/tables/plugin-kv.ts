@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import { basename } from "node:path";
+import { releaseContentDeferred } from "./content-release";
 
 interface Scope {
   databaseName: string;
@@ -63,7 +64,22 @@ export default class PluginKvTable {
   /** 卸载插件并选择清除数据时，删除它在当前库的全部私有存储 */
   static clear(db: Database.Database, request: Scope): number {
     this.assertScope(db, request);
-    db.prepare("DELETE FROM plugin_create_receipts WHERE plugin_id=?").run(request.pluginId);
-    return db.prepare("DELETE FROM plugin_kv WHERE plugin_id = ?").run(request.pluginId).changes;
+    const { pluginId } = request;
+    return db.transaction(() => {
+      const contents = db
+        .prepare("SELECT content_id FROM plugin_entities WHERE plugin_id = ?")
+        .all(pluginId) as Array<{ content_id: number }>;
+      db.prepare("DELETE FROM plugin_links WHERE plugin_id = ?").run(pluginId);
+      db.prepare("DELETE FROM plugin_entities WHERE plugin_id = ?").run(pluginId);
+      for (const row of contents) releaseContentDeferred(db, row.content_id);
+      db.prepare("DELETE FROM plugin_entity_kinds WHERE plugin_id = ?").run(pluginId);
+      db.prepare("DELETE FROM plugin_records WHERE plugin_id = ?").run(pluginId);
+      db.prepare(
+        "DELETE FROM plugin_operations WHERE plugin_id = ? AND entity = 'plugin-entity'"
+      ).run(pluginId);
+      db.prepare("DELETE FROM plugin_create_receipts WHERE plugin_id = ?").run(pluginId);
+      db.prepare("DELETE FROM plugin_ref_grants WHERE plugin_id = ?").run(pluginId);
+      return db.prepare("DELETE FROM plugin_kv WHERE plugin_id = ?").run(pluginId).changes;
+    })();
   }
 }

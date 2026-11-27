@@ -195,7 +195,11 @@ export function mobilePluginStorage(database: string): StorageAdapter {
 
 export const MOBILE_PLUGIN_QUERY = ["mobile-plugins"] as const;
 
-export async function clearMobilePluginData(database: string, pluginId: string) {
+export async function clearMobilePluginData(
+  database: string,
+  pluginId: string,
+  includeContent = false
+) {
   await clearMobilePluginSecrets(database, pluginId);
-  await invoke<void>("plugin_kv_clear", { database, pluginId });
+  await invoke<void>("plugin_kv_clear", { database, pluginId, includeContent });
 }

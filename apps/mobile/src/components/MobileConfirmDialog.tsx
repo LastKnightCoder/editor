@@ -7,7 +7,7 @@ import { createPortal } from "react-dom";
 type MobileConfirmDialogProps = {
   open: boolean;
   title: string;
-  description?: string;
+  description?: React.ReactNode;
   cancelText?: string;
   confirmText?: string;
   danger?: boolean;
@@ -74,9 +74,9 @@ export function MobileConfirmDialog({
           {title}
         </div>
         {description ? (
-          <p className="text-ink-2 px-6 pt-2 pb-5 text-center text-[13px] leading-relaxed">
+          <div className="text-ink-2 px-6 pt-2 pb-5 text-center text-[13px] leading-relaxed">
             {description}
-          </p>
+          </div>
         ) : null}
         <div className="border-line-1 grid grid-cols-2 border-t border-dashed">
           <button

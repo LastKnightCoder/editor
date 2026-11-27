@@ -105,7 +105,7 @@ export function projectManagedPlugin(
 }
 
 type ManagerCommand =
-  { kind: PluginManagerAction; id: string } | { kind: "installDevelopment"; source: string };
+  { kind: PluginManagerAction; id: string; purgeData?: boolean } | { kind: "installDevelopment"; source: string };
 
 export function usePluginManager() {
   const runtime = useMobilePlugins();
@@ -209,6 +209,10 @@ export function usePluginManager() {
           runtime?.revokeSkillPackage(item.id);
           return;
         case "uninstall":
+          if (command.purgeData) {
+            if (!runtime) throw new PluginUiError("manage.sessionUnready", "插件会话未就绪");
+            await clearMobilePluginData(runtime.workspaceId, item.id, true);
+          }
           return removeMobilePlugin(item.id);
         case "restore":
           return restoreMobilePlugin(item.id);
@@ -276,7 +280,7 @@ export function usePluginManager() {
       !cancellation.isPending,
     actions: {
       retryCenter: (pluginId: string) => centerInstall.retry(pluginId),
-      run: (kind: PluginManagerAction, id: string) => execute({ kind, id }),
+      run: (kind: PluginManagerAction, id: string, purgeData = false) => execute({ kind, id, purgeData }),
       installDevelopment: (source: string) => execute({ kind: "installDevelopment", source }),
       cancelInstall: async () => {
         const installation = activeInstall.current;

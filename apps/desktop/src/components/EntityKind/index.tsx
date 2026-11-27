@@ -1,6 +1,6 @@
 /**
  * 内容类型的展示（类型名 + 图标）。内置类型由各处的元数据表给出；插件内容（plugin-entity）
- * 按插件声明的外观显示，插件停用、卸载宽限期内也一样，只有从未声明过才回落调用方给的通用外观。
+ * 按插件声明的外观显示，插件停用、卸载时保留数据也一样，只有从未声明过才回落调用方给的通用外观。
  */
 import { useCallback, type CSSProperties, type ReactNode } from "react";
 import {

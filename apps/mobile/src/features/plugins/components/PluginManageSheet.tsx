@@ -58,10 +58,11 @@ export function PluginManageSheet({
   open: boolean;
   item: ManagedPluginItem;
   onClose: () => void;
-  onAction: (kind: PluginManagerAction) => void;
+  onAction: (kind: PluginManagerAction, purgeData?: boolean) => void;
 }) {
   usePluginI18n();
   const [confirming, setConfirming] = useState<ConfirmKind | null>(null);
+  const [purgeData, setPurgeData] = useState(false);
   const entry = (
     kind: PluginManagerAction,
     label: string,
@@ -86,6 +87,7 @@ export function PluginManageSheet({
           });
           return;
         }
+        if (kind === "uninstall") setPurgeData(false);
         if (kind in CONFIRMS) setConfirming(kind as ConfirmKind);
         else onAction(kind);
       },
@@ -112,12 +114,29 @@ export function PluginManageSheet({
       <MobileConfirmDialog
         open={confirm !== null}
         title={confirm?.title(item.name) ?? ""}
-        description={confirm?.description}
+        description={
+          confirming === "uninstall" ? (
+            <>
+              <p>{confirm?.description}</p>
+              <label className="mt-3 flex items-start gap-2 text-left">
+                <input
+                  type="checkbox"
+                  checked={purgeData}
+                  onChange={event => setPurgeData(event.target.checked)}
+                />
+                {t("manage.purgeData")}
+              </label>
+            </>
+          ) : (
+            confirm?.description
+          )
+        }
         confirmText={confirm?.confirmText}
-        danger={confirm?.danger}
+        danger={confirm?.danger || (confirming === "uninstall" && purgeData)}
         onCancel={() => setConfirming(null)}
         onConfirm={() => {
-          if (confirming) onAction(confirming);
+          if (confirming === "uninstall") onAction(confirming, purgeData);
+          else if (confirming) onAction(confirming);
           setConfirming(null);
         }}
       />

@@ -19,7 +19,7 @@ import { createDesktopTransaction } from "./transaction";
 import { createDatabaseStorage } from "./kv-storage";
 import { desktopPluginSecrets, clearPluginSecrets } from "@/commands/plugin-secrets";
 import { clearPluginKv } from "@/commands/plugin-kv";
-import { clearPluginRefGrants, grantPluginRefs } from "@/commands/plugin-data";
+import { grantPluginRefs } from "@/commands/plugin-data";
 import { DesktopPermissionBroker } from "./permissions";
 import { createDesktopFlashcards } from "./flashcards";
 import { desktopPluginServices } from "./services";
@@ -107,14 +107,12 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
           transaction: createDesktopTransaction(workspaceId),
           ...(isElectron
             ? {
-                // 私有存储与用户为它选择过的引用一并清除；插件内容、记录与关联按卸载宽限另行回收
                 grantRefs: async (pluginId, refs) => {
                   await grantPluginRefs(workspaceId, pluginId, refs);
                 },
                 purgeStorage: async (pluginId: string) => {
                   await clearPluginSecrets(persistentWorkspaceId, pluginId);
                   await clearPluginKv(workspaceId, pluginId);
-                  await clearPluginRefGrants(workspaceId, pluginId);
                 },
               }
             : {}),

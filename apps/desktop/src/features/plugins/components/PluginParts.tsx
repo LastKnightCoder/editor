@@ -238,7 +238,7 @@ export function UninstallDialog({
             onChange={event => setPurge(event.target.checked)}
             label={t("install.purge")}
           />
-          {!purge && <p className="text-ink-3">{t("install.keepData")}</p>}
+          <p className="text-ink-3">{t("install.keepData")}</p>
         </div>
       }
       confirmText={t("common.uninstall")}

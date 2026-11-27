@@ -17,6 +17,7 @@ vi.mock("../../services/content-execution", () => ({
 vi.mock("electron");
 vi.mock("../video-note-index-queue");
 
+import PluginKvTable from "../tables/plugin-kv";
 import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sql?raw";
 import PluginEntityTable from "../tables/plugin-entity";
 import PluginDataTable from "../tables/plugin-data";
@@ -27,7 +28,6 @@ import { listContentIndexCandidates } from "../index-candidates";
 import { must } from "../../test-support";
 
 const scope = { databaseName: ":memory:", pluginId: "tau.weekly-review" };
-const DAY = 24 * 60 * 60 * 1000;
 const NEWEST = [{ builtin: "createdAt", direction: "desc" as const }];
 
 describe("PluginEntityTable", () => {
@@ -338,29 +338,9 @@ describe("PluginEntityTable", () => {
     ).toThrow("string");
   });
 
-  it("插件目录不在时记孤儿，宽限期内重新出现即撤销，超期删除并延迟释放正文", async () => {
+  it("清除插件数据时删除实体并延迟释放正文", async () => {
     const created = await note("2026-W43");
-    const now = Date.now();
-    const collect = (installed: Set<string> | null, at: number) =>
-      PluginEntityTable.collectOrphans(db, { installed, now: at, graceMs: 7 * DAY });
-    const orphaned = () =>
-      (db.prepare("SELECT orphaned_time FROM plugin_entities").get() as { orphaned_time: number })
-        .orphaned_time;
-
-    expect(collect(null, now)).toBe(0);
-    expect(orphaned()).toBeNull();
-    expect(collect(new Set(), now)).toBe(0);
-    expect(orphaned()).toBe(now);
-    expect(collect(new Set(["tau.weekly-review"]), now + DAY)).toBe(0);
-    expect(orphaned()).toBeNull();
-
-    collect(new Set(), now);
-    // 插件再次读写自己的内容同样撤销孤儿标记
-    PluginEntityTable.get(db, { ...scope, id: created.id });
-    expect(orphaned()).toBeNull();
-
-    collect(new Set(), now);
-    expect(collect(new Set(), now + 8 * DAY)).toBe(1);
+    PluginKvTable.clear(db, scope);
     expect(db.prepare("SELECT COUNT(*) AS n FROM plugin_entities").get()).toEqual({ n: 0 });
     expect(refCount(created.contentId)).toBe(0);
     expect(db.prepare("SELECT content_id FROM content_pending_releases").all()).toEqual([
@@ -421,7 +401,7 @@ describe("PluginEntityTable", () => {
     ).toThrow("重新创建");
   });
 
-  it("类型外观随库保存，未变化不写入；插件卸载且内容清空后删除", async () => {
+  it("类型外观随库保存，未变化不写入；清除插件数据时删除", async () => {
     const declare = (label: string, icon = "") =>
       PluginEntityTable.declareKind(db, { ...scope, kind: "note", label, icon });
     const icon = '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0h24"/></svg>';
@@ -439,15 +419,7 @@ describe("PluginEntityTable", () => {
       PluginEntityTable.owners(db, { databaseName: ":memory:", ids: [created.id, 999] })
     ).toEqual([{ id: created.id, pluginId: "tau.weekly-review", kind: "note" }]);
 
-    const now = Date.now();
-    PluginEntityTable.collectOrphans(db, { installed: new Set(), now, graceMs: 7 * DAY });
-    // 宽限期内内容还在，外观保留
-    expect(PluginEntityTable.kinds(db, { databaseName: ":memory:" })).toHaveLength(1);
-    PluginEntityTable.collectOrphans(db, {
-      installed: new Set(),
-      now: now + 8 * DAY,
-      graceMs: 7 * DAY,
-    });
+    PluginKvTable.clear(db, scope);
     expect(PluginEntityTable.kinds(db, { databaseName: ":memory:" })).toEqual([]);
   });
 

@@ -6,7 +6,6 @@ import Database from "better-sqlite3";
 import { randomUUID } from "node:crypto";
 import type { DatabaseConnection } from "@/types/database-connection";
 import { join } from "node:path";
-import { readdirSync } from "node:fs";
 import log from "electron-log";
 import { recordIpcCall, recordSqlCall } from "./perf-monitor";
 import { executeDatabaseCommand } from "./database-command";
@@ -117,21 +116,6 @@ function createWindowCommandContext(win: BrowserWindow | null): CommandContext {
       }
     },
   };
-}
-
-/** 本机已安装的插件：插件目录的直接子目录名即插件 ID。读取失败返回 null，本次不据此标记孤儿 */
-function installedPluginIds(): Set<string> | null {
-  try {
-    return new Set(
-      readdirSync(join(PathUtil.getAppDir(), "plugins"), { withFileTypes: true })
-        .filter(entry => entry.isDirectory())
-        .map(entry => entry.name)
-    );
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return new Set();
-    log.warn("[database] 读取插件目录失败，跳过插件内容的孤儿标记:", error);
-    return null;
-  }
 }
 
 class DatabaseModule implements Module {
@@ -453,25 +437,17 @@ class DatabaseModule implements Module {
         } catch (error) {
           log.error("[database] 回收待释放数据表失败:", error);
         }
-        try {
-          // 实体删除后延迟释放正文，排在正文回收之前
-          const collectedEntities = PluginEntityTable.collectOrphans(database, {
-            installed: installedPluginIds(),
-            now: Date.now(),
-            graceMs: CONTENT_RELEASE_GRACE_MS,
-          });
-          if (collectedEntities > 0)
-            log.info(`[database] 回收已卸载插件的内容: db=${name}, count=${collectedEntities}`);
-          const collectedRecords = PluginRecordTable.collectOrphans(database, {
-            installed: installedPluginIds(),
-            now: Date.now(),
-            graceMs: CONTENT_RELEASE_GRACE_MS,
-          });
-          if (collectedRecords > 0)
-            log.info(`[database] 回收已卸载插件的记录: db=${name}, count=${collectedRecords}`);
-        } catch (error) {
-          log.error("[database] 回收已卸载插件的内容失败:", error);
-        }
+        // 旧版本曾按本机安装清单标记数据；资料库可能仍在其他设备使用。
+        database.transaction(() => {
+          database
+            .prepare(
+              "UPDATE plugin_entities SET orphaned_time=NULL WHERE orphaned_time IS NOT NULL"
+            )
+            .run();
+          database
+            .prepare("UPDATE plugin_records SET orphaned_time=NULL WHERE orphaned_time IS NOT NULL")
+            .run();
+        })();
         try {
           // 白板页回收会释放页内嵌入的正文，排在正文回收之前
           const purgedPages = WhiteboardContentTable.collectPendingReleases(database, {

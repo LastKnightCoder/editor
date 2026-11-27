@@ -265,10 +265,12 @@ it("管理菜单：卸载与清除数据分别确认，不允许的动作说明�
     )
   );
   await click(buttons().find(item => item.textContent?.startsWith("卸载")));
-  expect(document.body.textContent).toContain("正文里的插件内容和插件数据都会保留");
+  const checkbox = document.body.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
+  expect(checkbox.checked).toBe(false);
+  await click(checkbox);
   expect(onAction).not.toHaveBeenCalled();
   await click(button("卸载"));
-  expect(onAction).toHaveBeenCalledWith("uninstall");
+  expect(onAction).toHaveBeenCalledWith("uninstall", true);
 });
 
 it("状态投影：安装任务优先，撤回优先于失败，启用意图与运行状态不一致算待生效变更", () => {

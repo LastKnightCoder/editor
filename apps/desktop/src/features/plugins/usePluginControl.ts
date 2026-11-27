@@ -16,8 +16,10 @@ export function usePluginControl(runtime: DesktopPluginRuntime, plugin: Installe
     setFailure(null);
     try {
       await action();
+      return true;
     } catch (cause) {
       setFailure({ cause, key: fallback });
+      return false;
     } finally {
       setBusy(false);
     }

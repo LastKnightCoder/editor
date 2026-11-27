@@ -357,8 +357,7 @@ function InstalledActions({
         open={uninstalling}
         onOpenChange={setUninstalling}
         onConfirm={async purge => {
-          await control.uninstall(purge);
-          navigator.push("plugins", { tab: "installed" });
+          if (await control.uninstall(purge)) navigator.push("plugins", { tab: "installed" });
         }}
       />
     </div>

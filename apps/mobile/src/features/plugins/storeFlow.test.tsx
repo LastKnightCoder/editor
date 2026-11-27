@@ -446,7 +446,7 @@ it("详情：插件中心没有记录时仍展示本机已安装插件，并可�
     [...document.body.querySelectorAll("button")].find(item => item.textContent?.startsWith("卸载"))
   );
   await click(button("卸载"));
-  expect(state.run).toHaveBeenCalledWith("uninstall", "dev.local");
+  expect(state.run).toHaveBeenCalledWith("uninstall", "dev.local", false);
 });
 
 it.each([

@@ -95,6 +95,17 @@ it.each(["uninstall", "restore", "clearData"] as PluginManagerAction[])(
     expect(services.clearMobilePluginData).not.toHaveBeenCalled();
   }
 );
+it("卸载选择清理时先清当前资料库，失败后可重试", async () => {
+  vi.mocked(services.clearMobilePluginData).mockRejectedValueOnce(new Error("清理失败"));
+  await act(async () => {
+    await expect(controller.actions.run("uninstall", "test.plugin", true)).rejects.toThrow("清理失败");
+  });
+  expect(services.removeMobilePlugin).not.toHaveBeenCalled();
+  await act(async () => { await controller.actions.run("uninstall", "test.plugin", true); });
+  expect(services.clearMobilePluginData).toHaveBeenCalledWith("A.db", "test.plugin", true);
+  expect(services.removeMobilePlugin).toHaveBeenCalledWith("test.plugin");
+});
+
 it("未启用包可管理，清数据固定当前工作区，不删除正文或其他库", async () => {
   await act(async () => {
     await controller.actions.run("enable", "test.plugin");

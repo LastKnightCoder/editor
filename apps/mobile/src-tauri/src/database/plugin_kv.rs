@@ -74,14 +74,48 @@ pub fn plugin_kv_write(
 }
 
 #[tauri::command]
-pub fn plugin_kv_clear(app: AppHandle, database: String, plugin_id: String) -> Result<(), String> {
+pub fn plugin_kv_clear(
+    app: AppHandle,
+    database: String,
+    plugin_id: String,
+    include_content: Option<bool>,
+) -> Result<(), String> {
     validate(&[&plugin_id])?;
     let mut conn = connection(&app, &database)?;
-    clear_plugin_storage(&mut conn, &plugin_id)
+    clear_plugin_storage(&mut conn, &plugin_id, include_content.unwrap_or(false))
 }
 
-fn clear_plugin_storage(conn: &mut rusqlite::Connection, plugin_id: &str) -> Result<(), String> {
+fn clear_plugin_storage(
+    conn: &mut rusqlite::Connection,
+    plugin_id: &str,
+    include_content: bool,
+) -> Result<(), String> {
     let tx = conn.transaction().map_err(|error| error.to_string())?;
+    if include_content {
+        let content_ids = {
+            let mut statement = tx
+                .prepare("SELECT content_id FROM plugin_entities WHERE plugin_id=?1")
+                .map_err(|error| error.to_string())?;
+            let rows = statement
+                .query_map([plugin_id], |row| row.get::<_, i64>(0))
+                .map_err(|error| error.to_string())?;
+            rows.collect::<Result<Vec<_>, _>>()
+                .map_err(|error| error.to_string())?
+        };
+        for sql in [
+            "DELETE FROM plugin_links WHERE plugin_id=?1",
+            "DELETE FROM plugin_entities WHERE plugin_id=?1",
+            "DELETE FROM plugin_entity_kinds WHERE plugin_id=?1",
+            "DELETE FROM plugin_records WHERE plugin_id=?1",
+            "DELETE FROM plugin_operations WHERE plugin_id=?1 AND entity='plugin-entity'",
+        ] {
+            tx.execute(sql, [plugin_id])
+                .map_err(|error| error.to_string())?;
+        }
+        for id in content_ids {
+            super::common::release_content_reference(&tx, id)?;
+        }
+    }
     tx.execute(
         "DELETE FROM plugin_create_receipts WHERE plugin_id=?1",
         [plugin_id],
@@ -125,19 +159,39 @@ mod tests {
     fn clearing_storage_revokes_only_current_plugin_and_database_grants() {
         let mut conn = database();
         let other = database();
-        clear_plugin_storage(&mut conn, "alpha").unwrap();
+        clear_plugin_storage(&mut conn, "alpha", false).unwrap();
         assert_eq!(counts(&conn, "alpha"), (0, 0));
         assert_eq!(counts(&conn, "beta"), (1, 1));
         assert_eq!(counts(&other, "alpha"), (1, 1));
-        clear_plugin_storage(&mut conn, "alpha").unwrap();
+        clear_plugin_storage(&mut conn, "alpha", false).unwrap();
         assert_eq!(counts(&conn, "alpha"), (0, 0));
+    }
+
+    #[test]
+    fn records_survive_a_settings_reset_and_are_purged_only_for_the_selected_plugin() {
+        let mut conn = database();
+        for plugin in ["alpha", "beta"] {
+            conn.execute("INSERT INTO plugin_records(id,plugin_id,collection,create_time,update_time) VALUES(?1,?1,'mapping',1,1)", [plugin]).unwrap();
+        }
+        let records = |db: &rusqlite::Connection| -> Vec<String> {
+            db.prepare("SELECT id FROM plugin_records ORDER BY id")
+                .unwrap()
+                .query_map([], |row| row.get(0))
+                .unwrap()
+                .collect::<Result<_, _>>()
+                .unwrap()
+        };
+        clear_plugin_storage(&mut conn, "alpha", false).unwrap();
+        assert_eq!(records(&conn), ["alpha", "beta"]);
+        clear_plugin_storage(&mut conn, "alpha", true).unwrap();
+        assert_eq!(records(&conn), ["beta"]);
     }
 
     #[test]
     fn grant_cleanup_failure_rolls_back_storage_deletion() {
         let mut conn = database();
         conn.execute_batch("CREATE TRIGGER refuse_grant_cleanup BEFORE DELETE ON plugin_ref_grants BEGIN SELECT RAISE(ABORT,'模拟授权清理失败'); END;").unwrap();
-        assert!(clear_plugin_storage(&mut conn, "alpha").is_err());
+        assert!(clear_plugin_storage(&mut conn, "alpha", false).is_err());
         assert_eq!(counts(&conn, "alpha"), (1, 1));
         assert_eq!(counts(&conn, "beta"), (1, 1));
     }

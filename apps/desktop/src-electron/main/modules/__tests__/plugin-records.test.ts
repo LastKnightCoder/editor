@@ -1,28 +1,12 @@
 import Database from "better-sqlite3";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-vi.mock("../../services/content-execution", () => ({
-  contentExecutor: {
-    execute: async (
-      request: import("../../../../shared/content-execution").ContentExecutionRequest
-    ) => {
-      await import("@/app/plugins/content-runtime");
-      return (
-        globalThis as unknown as { tauContentExecute(input: unknown): Promise<unknown> }
-      ).tauContentExecute({ hash: "unit-fixtures", artifacts: [], request });
-    },
-  },
-}));
-
-vi.mock("electron");
-
+import PluginKvTable from "../tables/plugin-kv";
 import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sql?raw";
 import PluginRecordTable from "../tables/plugin-records";
-import PluginEntityTable from "../tables/plugin-entity";
 
 const scope = { databaseName: ":memory:", pluginId: "tau.questions", collection: "groups" };
 const indexes = { sortIndex: "number", isDefault: "boolean" } as const;
-const DAY = 24 * 60 * 60 * 1000;
 const OLDEST = [{ builtin: "createdAt", direction: "asc" as const }];
 
 describe("PluginRecordTable", () => {
@@ -89,37 +73,11 @@ describe("PluginRecordTable", () => {
     ).toHaveLength(3);
   });
 
-  it("插件目录不在时记录与实体一起记孤儿，插件再读写即撤销，超期删除", async () => {
-    const record = insert({});
-    await PluginEntityTable.create(db, {
-      databaseName: ":memory:",
-      pluginId: scope.pluginId,
-      input: { kind: "question", key: "q", title: "", meta: {} },
-    });
-    const now = Date.now();
-    const orphaned = () =>
-      (
-        db.prepare("SELECT orphaned_time FROM plugin_records WHERE id = ?").get(record.id) as {
-          orphaned_time: number | null;
-        }
-      ).orphaned_time;
-    PluginRecordTable.collectOrphans(db, { installed: new Set(), now, graceMs: 7 * DAY });
-    expect(orphaned()).toBe(now);
-    // 读写插件实体同样说明插件已重新安装
-    PluginEntityTable.query(db, {
-      databaseName: ":memory:",
-      pluginId: scope.pluginId,
-      query: { orderBy: OLDEST, limit: 1 },
-    });
-    expect(orphaned()).toBeNull();
-    PluginRecordTable.collectOrphans(db, { installed: new Set(), now, graceMs: 7 * DAY });
-    expect(
-      PluginRecordTable.collectOrphans(db, {
-        installed: new Set(),
-        now: now + 8 * DAY,
-        graceMs: 7 * DAY,
-      })
-    ).toBe(1);
-    expect(db.prepare("SELECT COUNT(*) AS n FROM plugin_records").get()).toEqual({ n: 0 });
+  it("清除数据时只移除选中插件的记录", () => {
+    const own = insert({});
+    const other = insert({}, { pluginId: "other" });
+    PluginKvTable.clear(db, scope);
+    expect(PluginRecordTable.get(db, { ...scope, id: own.id })).toBeNull();
+    expect(PluginRecordTable.get(db, { ...scope, pluginId: "other", id: other.id })).toEqual(other);
   });
 });

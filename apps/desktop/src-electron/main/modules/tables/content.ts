@@ -3,6 +3,7 @@ import { hasDurableEntityHold } from "../durable-entity-holds";
 import { fallbackCommandContext, type CommandContext } from "@tau/rpc";
 import Database from "better-sqlite3";
 import { randomUUID } from "node:crypto";
+import { releaseContentDeferred } from "./content-release";
 import { ContentIdentityTable } from "./content-identity";
 import { dfs, getContentLength } from "@/utils/helper.ts";
 import { whiteboardEmbedPageId } from "@/entity/whiteboard-refs";
@@ -482,18 +483,7 @@ export default class ContentTable {
   }
 
   /** 延迟释放：引用减 1（不低于 0），归零只登记待回收不删正文；已登记则保留更早的 released_at */
-  static releaseDeferred(db: Database.Database, contentId: number): void {
-    db.prepare("UPDATE contents SET ref_count = ref_count - 1 WHERE id = ? AND ref_count > 0").run(
-      contentId
-    );
-    const row = db
-      .prepare("SELECT ref_count FROM content_snapshots WHERE id = ?")
-      .get(contentId) as { ref_count: number } | undefined;
-    if (!row || row.ref_count > 0) return;
-    db.prepare(
-      "INSERT OR IGNORE INTO content_pending_releases (content_id, released_at) VALUES (?, ?)"
-    ).run(contentId, Date.now());
-  }
+  static releaseDeferred = releaseContentDeferred;
 
   /** 回收超过宽限期且引用仍为 0 的待回收正文，返回实际删除的正文数；单条失败只记日志不阻断 */
   static collectPendingReleases(

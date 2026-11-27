@@ -7,6 +7,7 @@ vi.mock("../video-note-index-queue");
 
 import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sql?raw";
 import EntitySearchTable from "../tables/entity-search";
+import PluginKvTable from "../tables/plugin-kv";
 import PluginRefsTable from "../tables/plugin-refs";
 import EntityLineageTable from "../tables/entity-lineage";
 import { notebookSourceOf } from "../entity-context/context-lineage";
@@ -255,7 +256,7 @@ describe("插件关联：待办与日程候选、引用存在性", () => {
       { status: "ok", title: "新课题" },
     ]);
 
-    expect(PluginRefsTable.clear(db, { ...scope, pluginId })).toBe(2);
+    PluginKvTable.clear(db, { ...scope, pluginId });
     expect(describe([{ kind: "chat-session", id: "s1" }])).toEqual([{ status: "denied" }]);
     expect(() => describe(Array.from({ length: 201 }, () => ({ kind: "card", id: "1" })))).toThrow(
       "引用列表无效"

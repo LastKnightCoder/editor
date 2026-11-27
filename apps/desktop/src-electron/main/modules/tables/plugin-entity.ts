@@ -18,7 +18,7 @@ import ContentTable from "./content";
 import { getNextTaskEntityId } from "./module-entity-id";
 import { resolvePluginContent } from "./plugin-content-input";
 import { insertPluginOperation } from "./plugin-operations";
-import { adoptPluginData, markOrphans } from "./plugin-records";
+import { adoptPluginData } from "./plugin-records";
 import { PluginLinkRows } from "./plugin-link-rows";
 import { emitContentWritten } from "../content-events";
 import { writeAsPlugin } from "../domain-event-origin";
@@ -143,7 +143,6 @@ export default class PluginEntityTable {
   private static assertScope(db: Database.Database, scope: PluginEntityScope) {
     this.assertDatabase(db, scope.databaseName);
     if (typeof scope.pluginId !== "string" || !scope.pluginId) throw new Error("插件 ID 无效");
-    // 插件正在运行说明已重新安装：撤销孤儿标记，宽限期内的内容与记录原样找回
     adoptPluginData(db, scope.pluginId);
   }
 
@@ -515,7 +514,7 @@ export default class PluginEntityTable {
   }
 
   /**
-   * 全文 / 向量索引的文档：所有插件（含已停用、宽限期内已卸载）的实体，标题与解析后的正文。
+   * 全文 / 向量索引的文档：所有插件（含已停用、已卸载）的实体，标题与解析后的正文。
    * 传 id 时只取一项，供正文写入后的增量索引。
    */
   static indexDocs(db: Database.Database, id?: number): PluginEntityIndexDoc[] {
@@ -548,44 +547,5 @@ export default class PluginEntityTable {
         .prepare("SELECT plugin_id, id, title FROM plugin_entities WHERE content_id = ?")
         .all(contentId) as Array<{ plugin_id: string; id: number; title: string }>
     ).map(row => ({ pluginId: row.plugin_id, id: row.id, title: row.title }));
-  }
-
-  /**
-   * 开库维护：插件目录已不在的实体记孤儿时间，目录重新出现或插件再次读写实体即撤销；
-   * 孤儿超过宽限期的实体删除并延迟释放正文。installed 为 null（读不到插件目录）时不标记。
-   */
-  static collectOrphans(
-    db: Database.Database,
-    options: { installed: ReadonlySet<string> | null; now: number; graceMs: number }
-  ): number {
-    return db.transaction(() => {
-      markOrphans(db, "plugin_entities", options.installed, options.now);
-      const due = db
-        .prepare(
-          "SELECT id, content_id FROM plugin_entities WHERE orphaned_time IS NOT NULL AND orphaned_time <= ?"
-        )
-        .all(options.now - options.graceMs) as Array<{ id: number; content_id: number }>;
-      const remove = db.prepare("DELETE FROM plugin_entities WHERE id = ?");
-      for (const row of due) {
-        PluginLinkRows.removeFrom(db, row.id);
-        remove.run(row.id);
-        ContentTable.releaseDeferred(db, row.content_id);
-      }
-      // 已卸载且内容已清空的插件不再需要类型外观
-      if (options.installed) {
-        const installed = options.installed;
-        const stale = (
-          db
-            .prepare(
-              `SELECT DISTINCT plugin_id FROM plugin_entity_kinds
-               WHERE plugin_id NOT IN (SELECT plugin_id FROM plugin_entities)`
-            )
-            .all() as Array<{ plugin_id: string }>
-        ).filter(row => !installed.has(row.plugin_id));
-        const forget = db.prepare("DELETE FROM plugin_entity_kinds WHERE plugin_id = ?");
-        for (const row of stale) forget.run(row.plugin_id);
-      }
-      return due.length;
-    })();
   }
 }

@@ -169,7 +169,6 @@ export default class PluginRefsTable {
       "plugin-refs:exists": this.exists.bind(this),
       "plugin-refs:grant": this.grant.bind(this),
       "plugin-refs:describe": this.describe.bind(this),
-      "plugin-refs:clear": this.clear.bind(this),
       "plugin-refs:notebook-plan": this.notebookPlan.bind(this),
     };
   }
@@ -276,12 +275,5 @@ export default class PluginRefsTable {
       plan.skipped += 1;
     }
     return plan;
-  }
-
-  /** 卸载插件并选择清除数据时，删除它在当前库登记的选择 */
-  static clear(db: Database.Database, request: PluginDataScope & { pluginId: string }): number {
-    this.assertDatabase(db, request);
-    return db.prepare("DELETE FROM plugin_ref_grants WHERE plugin_id = ?").run(request.pluginId)
-      .changes;
   }
 }

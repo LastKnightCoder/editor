@@ -348,7 +348,7 @@ export function PluginDetail() {
           open={managing}
           item={installed}
           onClose={() => setManaging(false)}
-          onAction={kind => swallow(manager.actions.run(kind, pluginId))}
+          onAction={(kind, purgeData) => swallow(manager.actions.run(kind, pluginId, purgeData))}
         />
       )}
     </PluginPageShell>

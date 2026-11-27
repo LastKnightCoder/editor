@@ -179,7 +179,7 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 
 ### `plugin_entities`
 
-插件自建的内容（如周记），每项持有一份 `contents` 正文。`(plugin_id, kind, key)` 唯一，`kind` 与 `key` 由插件定义；`meta` 为插件附带的 JSON；`orphaned_time` 非空表示插件已不在本机，超过 7 天后删除。
+插件自建的内容（如周记），每项持有一份 `contents` 正文。`(plugin_id, kind, key)` 唯一，`kind` 与 `key` 由插件定义；`meta` 为插件附带的 JSON；`orphaned_time` 是旧版本留下的标记。卸载默认保留数据，用户可在卸载时选择清除。
 
 | 字段            | SQLite 定义                  |
 | --------------- | ---------------------------- |
@@ -247,7 +247,7 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 
 ### `plugin_records`
 
-插件内部的结构化数据（插件里的 `context.records`，如分组、操作轨迹），用户在界面上看不到。`collection` 为插件定义的集合名，`data` 为 JSON 文本；`orphaned_time` 非空表示插件已不在本机，超过 7 天后删除。
+插件内部的结构化数据（插件里的 `context.records`，如分组、操作轨迹），用户在界面上看不到。`collection` 为插件定义的集合名，`data` 为 JSON 文本；`orphaned_time` 是旧版本留下的标记。卸载默认保留数据，用户可在卸载时选择清除。
 
 | 字段            | SQLite 定义                  |
 | --------------- | ---------------------------- |

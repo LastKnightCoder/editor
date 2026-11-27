@@ -17,6 +17,7 @@ vi.mock("../../services/content-execution", () => ({
 vi.mock("electron");
 vi.mock("../video-note-index-queue");
 
+import PluginKvTable from "../tables/plugin-kv";
 import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sql?raw";
 import PluginEntityTable from "../tables/plugin-entity";
 import PluginLinkTable from "../tables/plugin-links";
@@ -24,7 +25,6 @@ import PluginRefsTable from "../tables/plugin-refs";
 import PluginDataTable from "../tables/plugin-data";
 
 const scope = { databaseName: ":memory:", pluginId: "tau.questions" };
-const DAY = 24 * 60 * 60 * 1000;
 
 describe("PluginLinkTable", () => {
   let db: Database.Database;
@@ -123,7 +123,7 @@ describe("PluginLinkTable", () => {
     expect(PluginLinkTable.list(db, { ...scope, from: id, role: "material" })).toHaveLength(2);
   });
 
-  it("来源删除时关联随快照进「最近删除」，恢复后插回；孤儿超期时一并删除", async () => {
+  it("来源删除时关联随快照进「最近删除」，恢复后插回；清除插件数据时一并删除", async () => {
     const entity = await question();
     add(entity.id, { kind: "card", id: String(card()) }, { readable: true });
     PluginEntityTable.remove(db, { ...scope, id: entity.id, expectedRevision: entity.revision });
@@ -132,13 +132,7 @@ describe("PluginLinkTable", () => {
     PluginDataTable.restore(db, { databaseName: ":memory:", id: operation.id });
     expect(PluginLinkTable.list(db, { ...scope, from: entity.id })).toHaveLength(1);
 
-    const now = Date.now();
-    PluginEntityTable.collectOrphans(db, { installed: new Set(), now, graceMs: 7 * DAY });
-    PluginEntityTable.collectOrphans(db, {
-      installed: new Set(),
-      now: now + 8 * DAY,
-      graceMs: 7 * DAY,
-    });
+    PluginKvTable.clear(db, scope);
     expect(db.prepare("SELECT COUNT(*) AS n FROM plugin_links").get()).toEqual({ n: 0 });
   });
 });

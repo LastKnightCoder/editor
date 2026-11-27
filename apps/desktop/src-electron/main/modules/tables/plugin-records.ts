@@ -18,8 +18,8 @@ const MAX_DATA = 64 * 1024;
 const RECORD_ID = /^[A-Za-z0-9-]{1,64}$/;
 const CONFLICT_PREFIX = "PLUGIN_CONFLICT:";
 
-/** 有孤儿标记的插件数据表：插件目录不在时记 orphaned_time，宽限期后删除 */
-export const ORPHAN_TABLES = ["plugin_entities", "plugin_records"] as const;
+/** 旧版本可能留下孤儿标记的插件表 */
+const ORPHAN_TABLES = ["plugin_entities", "plugin_records"] as const;
 
 const COLUMNS = "r.id, r.collection, r.data, r.create_time, r.update_time";
 const FROM = "plugin_records r";
@@ -55,34 +55,12 @@ function toRecord(row: Row): PluginRecordRow {
   };
 }
 
-/** 插件再次读写自己的数据即说明已重新安装：撤销实体与记录的孤儿标记 */
+/** 读取从旧版资料库同步过来的数据时撤销旧标记 */
 export function adoptPluginData(db: Database.Database, pluginId: string) {
   for (const table of ORPHAN_TABLES)
     db.prepare(
       `UPDATE ${table} SET orphaned_time = NULL WHERE plugin_id = ? AND orphaned_time IS NOT NULL`
     ).run(pluginId);
-}
-
-/** 按已安装的插件标记或撤销孤儿；installed 为 null（读不到插件目录）时不动 */
-export function markOrphans(
-  db: Database.Database,
-  table: (typeof ORPHAN_TABLES)[number],
-  installed: ReadonlySet<string> | null,
-  now: number
-) {
-  if (!installed) return;
-  const pluginIds = (
-    db.prepare(`SELECT DISTINCT plugin_id FROM ${table}`).all() as Array<{ plugin_id: string }>
-  ).map(row => row.plugin_id);
-  const mark = db.prepare(
-    `UPDATE ${table} SET orphaned_time = ? WHERE plugin_id = ? AND orphaned_time IS NULL`
-  );
-  const adopt = db.prepare(
-    `UPDATE ${table} SET orphaned_time = NULL WHERE plugin_id = ? AND orphaned_time IS NOT NULL`
-  );
-  for (const pluginId of pluginIds)
-    if (installed.has(pluginId)) adopt.run(pluginId);
-    else mark.run(now, pluginId);
 }
 
 /**
@@ -233,20 +211,5 @@ export default class PluginRecordTable {
         db.prepare("DELETE FROM plugin_records WHERE id = ?").run(request.id);
       })()
     );
-  }
-
-  /** 开库维护：标记或撤销孤儿，删除孤儿超过宽限期的记录 */
-  static collectOrphans(
-    db: Database.Database,
-    options: { installed: ReadonlySet<string> | null; now: number; graceMs: number }
-  ): number {
-    return db.transaction(() => {
-      markOrphans(db, "plugin_records", options.installed, options.now);
-      return db
-        .prepare(
-          "DELETE FROM plugin_records WHERE orphaned_time IS NOT NULL AND orphaned_time <= ?"
-        )
-        .run(options.now - options.graceMs).changes;
-    })();
   }
 }

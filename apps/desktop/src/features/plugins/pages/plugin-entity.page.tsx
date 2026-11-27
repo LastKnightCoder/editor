@@ -1,6 +1,6 @@
 import { pluginControlsMessages } from "../controls.i18n";
 /**
- * 插件内容的通用只读页：插件停用或已卸载（宽限期内）时，从检索结果、@ 引用打开它的正文。
+ * 插件内容的通用只读页：插件停用或已卸载且保留数据时，从检索结果、@ 引用打开它的正文。
  */
 import { definePage } from "@/page/definePage";
 import {

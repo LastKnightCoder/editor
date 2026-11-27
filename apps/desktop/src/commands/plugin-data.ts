@@ -171,9 +171,6 @@ export const describePluginRefs = (
 ): Promise<PluginRefDescription[]> =>
   invoke("plugin-refs:describe", { databaseName, pluginId, refs, readable });
 
-export const clearPluginRefGrants = (databaseName: string, pluginId: string): Promise<number> =>
-  invoke("plugin-refs:clear", { databaseName, pluginId });
-
 export const getPluginProjectTree = (
   databaseName: string,
   projectId: number
