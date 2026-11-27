@@ -1,3 +1,4 @@
+import { documentReaderTranslator, useDocumentReaderI18n } from "../../reader.i18n";
 /**
  * 摘录卡面：左侧高亮色条、原文快照、笔记，底部来源条（来源标题 · 第 n 页）。
  * 点来源条回到原文：来源卡在板上时展开它并定位到这条标注（原高亮闪两下），不在板上时打开 PDF 阅读页；
@@ -79,7 +80,7 @@ export async function openExcerptSource(board: Board, excerpt: ExcerptElement) {
   const commands = bindDatabaseCommands({ getPdfAnnotations }, { databaseName: database });
   const pdfId = await resolveSourcePdf(board, source, database);
   if (board.isDestroyed || database !== useSettingStore.getState().setting.database.active) return;
-  if (pdfId === null) return toast.info("原文不可用");
+  if (pdfId === null) return toast.info(documentReaderTranslator.t("excerpt.unavailable"));
   const annotationId =
     "entity" in source
       ? (await commands.getPdfAnnotations(pdfId)).find(
@@ -123,12 +124,15 @@ function useSourceAlive(board: Board, excerpt: ExcerptElement) {
 }
 
 export const ExcerptCard = memo(({ element }: { element: ExcerptElement; sketch: boolean }) => {
+  const { t } = useDocumentReaderI18n();
   const board = useBoard();
   const alive = useSourceAlive(board, element);
   const source = element.source;
   const open = useMemoizedFn(() => {
-    if (alive === false) return toast.info("原文不可用");
-    void openExcerptSource(board, element).catch(() => toast.error("打开原文失败"));
+    if (alive === false) return toast.info(documentReaderTranslator.t("excerpt.unavailable"));
+    void openExcerptSource(board, element).catch(() =>
+      toast.error(documentReaderTranslator.t("excerpt.openFailed"))
+    );
   });
 
   return (
@@ -139,7 +143,7 @@ export const ExcerptCard = memo(({ element }: { element: ExcerptElement; sketch:
       <span aria-hidden className={cn("w-1 shrink-0", swatchOf(element.color))} />
       <div className="flex min-w-0 flex-1 flex-col px-3.5 pt-3 pb-2">
         <p className="text-ink-1 line-clamp-5 min-h-0 flex-1 text-[14px] leading-relaxed">
-          {element.quote || "（空摘录）"}
+          {element.quote || t("excerpt.empty")}
         </p>
         {element.note && (
           <p className="text-ink-2 border-line-1 mt-1.5 line-clamp-2 border-l-2 pl-2 text-[12.5px]">
@@ -157,8 +161,11 @@ export const ExcerptCard = memo(({ element }: { element: ExcerptElement; sketch:
             <CornerDownRight className="size-3 shrink-0" strokeWidth={1.75} />
             <span className="truncate">
               {alive === false
-                ? "原文不可用"
-                : [element.sourceTitle, source.kind === "pdf" ? `第 ${source.page} 页` : ""]
+                ? t("excerpt.unavailable")
+                : [
+                    element.sourceTitle,
+                    source.kind === "pdf" ? t("pdf.page", { count: source.page }) : "",
+                  ]
                     .filter(Boolean)
                     .join(" · ")}
             </span>
@@ -178,7 +185,7 @@ export function ExcerptSourceLayer() {
       const element = board.getElement(id);
       if (element?.type === "excerpt")
         void openExcerptSource(board, element as ExcerptElement).catch(() =>
-          toast.error("打开原文失败")
+          toast.error(documentReaderTranslator.t("excerpt.openFailed"))
         );
     };
     board.on(EXCERPT_OPEN_SOURCE_EVENT, onOpen);

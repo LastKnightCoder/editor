@@ -1,3 +1,4 @@
+import { documentReaderTranslator } from "../../reader.i18n";
 /**
  * 摘录：把阅读纸里的一条 PDF 标注摘到白板上。
  * - 原文、笔记、颜色、来源标题存快照：来源删除后照样显示；摘录不进库、不建索引；
@@ -140,7 +141,7 @@ export const excerptIngest = {
       const database = useSettingStore.getState().setting.database.active;
       const local = payload.localSource;
       if (!local || local.database !== database) {
-        toast.info("请在原资料库里放入摘录");
+        toast.info(documentReaderTranslator.t("excerpt.database"));
         return;
       }
       if (getWhiteboardDocument(api)) {
@@ -151,7 +152,7 @@ export const excerptIngest = {
         );
         if (!canSubmit() || database !== useSettingStore.getState().setting.database.active) return;
         if (entity?.kind !== "pdf") {
-          toast.error("无法建立 PDF 来源引用");
+          toast.error(documentReaderTranslator.t("excerpt.referenceFailed"));
           return;
         }
         excerpt = {

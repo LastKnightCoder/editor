@@ -45,14 +45,6 @@ export interface DocumentSource {
   updateTime: number;
 }
 
-export const DOCUMENT_KIND_LABEL: Record<DocumentKind, string> = {
-  card: "卡片",
-  article: "文章",
-  "project-item": "项目文档",
-  "diary-moment": "日记",
-  pdf: "PDF",
-};
-
 type DocumentTarget = Pick<DocumentElement, "entityRef" | "entity">;
 
 async function loadDocument(

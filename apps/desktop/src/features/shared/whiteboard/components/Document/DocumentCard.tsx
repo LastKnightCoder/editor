@@ -4,6 +4,7 @@
  * 低缩放只画标题与骨架线；停靠展开时标「编辑中」并实时跟随正文。
  */
 
+import { useDocumentReaderI18n } from "../../reader.i18n";
 import { memo } from "react";
 import { FileX2 } from "lucide-react";
 import { cn, ErrorBoundary } from "@tau/ui";
@@ -39,6 +40,22 @@ function Skeleton({ title }: { title?: string }) {
   );
 }
 
+function DeletedDocument({ title }: { title?: string }) {
+  const { t } = useDocumentReaderI18n();
+  return <>{title ? t("deleted.named", { title }) : t("deleted")}</>;
+}
+function EditingBadge() {
+  const { t } = useDocumentReaderI18n();
+  return (
+    <span
+      data-document-badge
+      className="bg-accent text-surface absolute top-2 right-2 rounded-[6px] px-1.5 text-[11px] leading-5"
+    >
+      {t("editing")}
+    </span>
+  );
+}
+
 export const DocumentCard = memo(({ element }: { element: DocumentElement; sketch: boolean }) => {
   const board = useBoard();
   const { source, missing } = useDocumentSource(element);
@@ -69,7 +86,7 @@ export const DocumentCard = memo(({ element }: { element: DocumentElement; sketc
       {missing ? (
         <div className="text-ink-3 flex size-full flex-col items-center justify-center gap-2 text-[13px]">
           <FileX2 className="size-5" strokeWidth={1.5} />
-          {element.title ? `「${element.title}」已删除` : "文档已删除"}
+          <DeletedDocument title={element.title} />
         </div>
       ) : source?.pdf ? (
         <PdfFace element={element} pdf={source.pdf} zoom={zoom} lowZoom={lowZoom} />
@@ -94,14 +111,7 @@ export const DocumentCard = memo(({ element }: { element: DocumentElement; sketc
       {!pdf && (
         <div className="to-surface pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-b from-transparent" />
       )}
-      {open && mode === "dock" && !closing && (
-        <span
-          data-document-badge
-          className="bg-accent text-surface absolute top-2 right-2 rounded-[6px] px-1.5 text-[11px] leading-5"
-        >
-          编辑中
-        </span>
-      )}
+      {open && mode === "dock" && !closing && <EditingBadge />}
       {/* 宿主叠加物不进展开替身（DocumentReader 克隆卡面时按此标记剔除） */}
       {host.cardAccessory && (
         <div data-document-accessory className="contents">

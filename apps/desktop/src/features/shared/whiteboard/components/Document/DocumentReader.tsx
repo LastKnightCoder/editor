@@ -6,6 +6,11 @@
  * 正文经 ContentEditor 实时保存；浮层根节点带 CANVAS_OVERLAY_ATTR，其中的按键、剪贴板、滚轮不归画布。
  */
 
+import {
+  documentReaderTranslator,
+  documentKindLabel,
+  useDocumentReaderI18n,
+} from "../../reader.i18n";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useMemoizedFn, useThrottleFn, useUnmount } from "ahooks";
 import { useQueryClient } from "@tanstack/react-query";
@@ -48,7 +53,7 @@ import { openPage } from "@/services/page-navigation";
 import { DesktopEditorOverlayDismiss } from "@/services/editorOverlayDismiss";
 import { DocumentPaper } from "./DocumentPaper";
 import { DOCUMENT_PAPER_WIDTH } from "./layout";
-import { DOCUMENT_KIND_LABEL, useDocumentSource, type DocumentSource } from "./source";
+import { useDocumentSource, type DocumentSource } from "./source";
 import {
   getDocumentReaderStore,
   useDocumentReaderPreference,
@@ -147,7 +152,7 @@ function DocumentEditor({ source, readonly }: { source: DocumentSource; readonly
         void client.invalidateQueries({ queryKey: ["diary"] });
         void client.invalidateQueries({ queryKey: ["home"] });
       })
-      .catch(() => toast.error("碎碎念同步失败"));
+      .catch(() => toast.error(documentReaderTranslator.t("sync.failed")));
   });
   // ahooks 的节流在卸载时会取消尾调用，最后一段改动由 useUnmount 补存
   const { run: throttledSync } = useThrottleFn(syncNow, { wait: MOMENT_SYNC_WAIT });
@@ -194,6 +199,62 @@ interface ReaderProps {
   /** 宿主不允许停靠时不传，纸面上不出现切换按钮 */
   onModeChange?(mode: DocumentReaderMode): void;
   onClosed(): void;
+}
+
+function ReaderChrome({
+  source,
+  mode,
+  onModeChange,
+  close,
+  openInPage,
+}: Pick<ReaderProps, "source" | "mode" | "onModeChange"> & { close(): void; openInPage(): void }) {
+  const context = useDocumentReaderI18n();
+  const { t } = context;
+  const Icon = KIND_ICON[source.kind];
+  const crumb =
+    source.kind === "project-item" ? source.projectName : documentKindLabel(source.kind, context);
+  const closeButton =
+    mode === "center" ? (
+      <HeaderButton label={t("collapse")} onClick={close}>
+        <Minimize2 className="size-4" strokeWidth={1.75} />
+      </HeaderButton>
+    ) : (
+      <HeaderButton label={t("close")} onClick={close}>
+        <X className="size-4" strokeWidth={1.75} />
+      </HeaderButton>
+    );
+
+  return (
+    <div className="flex shrink-0 items-center gap-1 pr-2 pl-2.5" style={{ height: HEADER_HEIGHT }}>
+      {mode === "center" && closeButton}
+      <div className="text-ink-3 ml-1 flex min-w-0 items-center gap-1.5 text-[12.5px]">
+        <Icon className="size-3.5 shrink-0" strokeWidth={1.75} />
+        <span className="shrink-0">{crumb}</span>
+        <span className="shrink-0">/</span>
+        <b className="text-ink-2 truncate font-medium">{source.title || t("untitled")}</b>
+      </div>
+      <div className="flex-1" />
+      {onModeChange &&
+        (mode === "center" ? (
+          <HeaderButton label={t("dock")} onClick={() => onModeChange("dock")}>
+            <PanelRight className="size-4" strokeWidth={1.75} />
+          </HeaderButton>
+        ) : (
+          <HeaderButton label={t("center")} onClick={() => onModeChange("center")}>
+            <AppWindow className="size-4" strokeWidth={1.75} />
+          </HeaderButton>
+        ))}
+      <HeaderButton
+        label={t("openPage", {
+          kind: documentKindLabel(source.moment ? "diary-moment" : source.kind, context),
+        })}
+        onClick={openInPage}
+      >
+        <ExternalLink className="size-4" strokeWidth={1.75} />
+      </HeaderButton>
+      {mode === "dock" && closeButton}
+    </div>
+  );
 }
 
 function Reader({ board, element, source, mode, onSwitch, onModeChange, onClosed }: ReaderProps) {
@@ -427,7 +488,9 @@ function Reader({ board, element, source, mode, onSwitch, onModeChange, onClosed
     const ref = textEntityRef(source);
     if (!ref) return;
     openEntity(ref).catch(error =>
-      toast.error(error instanceof Error ? error.message : "打开失败")
+      toast.error(
+        error instanceof Error ? error.message : documentReaderTranslator.t("open.failed")
+      )
     );
   });
 
@@ -486,20 +549,6 @@ function Reader({ board, element, source, mode, onSwitch, onModeChange, onClosed
     startDragOut();
   });
 
-  const Icon = KIND_ICON[source.kind];
-  const crumb =
-    source.kind === "project-item" ? source.projectName : DOCUMENT_KIND_LABEL[source.kind];
-  const closeButton =
-    mode === "center" ? (
-      <HeaderButton label="收起  Esc" onClick={close}>
-        <Minimize2 className="size-4" strokeWidth={1.75} />
-      </HeaderButton>
-    ) : (
-      <HeaderButton label="关闭  Esc" onClick={close}>
-        <X className="size-4" strokeWidth={1.75} />
-      </HeaderButton>
-    );
-
   return (
     <div
       ref={layerRef}
@@ -540,36 +589,13 @@ function Reader({ board, element, source, mode, onSwitch, onModeChange, onClosed
               className="bg-surface pointer-events-auto absolute flex flex-col overflow-hidden outline-none"
               style={boxStyle(box)}
             >
-              <div
-                className="flex shrink-0 items-center gap-1 pr-2 pl-2.5"
-                style={{ height: HEADER_HEIGHT }}
-              >
-                {mode === "center" && closeButton}
-                <div className="text-ink-3 ml-1 flex min-w-0 items-center gap-1.5 text-[12.5px]">
-                  <Icon className="size-3.5 shrink-0" strokeWidth={1.75} />
-                  <span className="shrink-0">{crumb}</span>
-                  <span className="shrink-0">/</span>
-                  <b className="text-ink-2 truncate font-medium">{source.title || "无标题"}</b>
-                </div>
-                <div className="flex-1" />
-                {onModeChange &&
-                  (mode === "center" ? (
-                    <HeaderButton label="停靠到右侧" onClick={() => onModeChange("dock")}>
-                      <PanelRight className="size-4" strokeWidth={1.75} />
-                    </HeaderButton>
-                  ) : (
-                    <HeaderButton label="居中展开" onClick={() => onModeChange("center")}>
-                      <AppWindow className="size-4" strokeWidth={1.75} />
-                    </HeaderButton>
-                  ))}
-                <HeaderButton
-                  label={`在${source.moment ? "日记" : DOCUMENT_KIND_LABEL[source.kind]}页打开`}
-                  onClick={openInPage}
-                >
-                  <ExternalLink className="size-4" strokeWidth={1.75} />
-                </HeaderButton>
-                {mode === "dock" && closeButton}
-              </div>
+              <ReaderChrome
+                source={source}
+                mode={mode}
+                onModeChange={onModeChange}
+                close={close}
+                openInPage={openInPage}
+              />
               {source.pdf ? (
                 <div className="flex min-h-0 flex-1">
                   {opened ? (

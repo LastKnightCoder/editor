@@ -4,6 +4,7 @@
  * - 正文里的内联引用可以拖出纸面，落成文档卡并连回这张卡（拖放走 materialDrag）；拖回纸面里不算。
  */
 
+import { useDocumentReaderI18n } from "../../reader.i18n";
 import { useEffect, useMemo, type RefObject } from "react";
 import { useMemoizedFn } from "ahooks";
 import { Link2 } from "lucide-react";
@@ -25,9 +26,9 @@ interface Neighbor {
 }
 
 const nameOf = (element: BoardElement) => {
-  if (isDocumentElement(element)) return (element as DocumentElement).title || "无标题文档";
+  if (isDocumentElement(element)) return (element as DocumentElement).title || "";
   const text = typeof element.text === "string" ? element.text : "";
-  return text.trim() || "画布元素";
+  return text.trim();
 };
 
 /** 箭头两端都绑定、一端是这张卡的另一端元素；去重，按出现顺序 */
@@ -56,6 +57,20 @@ export function neighborsOf(children: readonly BoardElement[], id: string): Neig
   return result;
 }
 
+function LinkLabel({ neighbor }: { neighbor: Neighbor }) {
+  const { t } = useDocumentReaderI18n();
+  return (
+    <>
+      {neighbor.label ||
+        t(isDocumentElement(neighbor.element) ? "links.document" : "links.element")}
+    </>
+  );
+}
+function LinkHeading() {
+  const { t } = useDocumentReaderI18n();
+  return <>{t("links.title")}</>;
+}
+
 export function ReaderLinkBar({
   element,
   onSwitch,
@@ -76,16 +91,18 @@ export function ReaderLinkBar({
     <div className="border-line-1 flex min-h-[46px] shrink-0 items-center gap-1.5 overflow-x-auto border-t px-3 py-[7px]">
       <span className="text-ink-3 mr-0.5 flex shrink-0 items-center gap-1 text-[12px]">
         <Link2 className="size-3.5" strokeWidth={1.75} />
-        相连
+        <LinkHeading />
       </span>
-      {neighbors.map(({ element: other, label }) => (
+      {neighbors.map(neighbor => (
         <button
-          key={other.id}
+          key={neighbor.element.id}
           type="button"
-          onClick={() => onSwitch(other)}
+          onClick={() => onSwitch(neighbor.element)}
           className="text-ink-2 hover:bg-hover hover:text-ink-1 inline-flex h-7 max-w-[220px] shrink-0 items-center rounded-[8px] px-2.5 text-[12.5px]"
         >
-          <span className="truncate">{label}</span>
+          <span className="truncate">
+            <LinkLabel neighbor={neighbor} />
+          </span>
         </button>
       ))}
     </div>

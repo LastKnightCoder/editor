@@ -1,3 +1,4 @@
+import { documentReaderTranslator, useDocumentReaderI18n } from "../../reader.i18n";
 /**
  * PDF 文档卡的卡面：上次读到的那一页（真实页面位图），背后两层纸叠，右下角页码；
  * 有笔记的标注在页边留一枚小标记，颜色取高亮色。
@@ -78,6 +79,15 @@ function MarginPins({ pdf, page, width }: { pdf: Pdf; page: number; width: numbe
   );
 }
 
+function PdfReadFailure() {
+  const { t } = useDocumentReaderI18n();
+  return <>{t("pdf.readFailed")}</>;
+}
+function PageText({ page, pageCount }: { page: number; pageCount: number | null | undefined }) {
+  const { t } = useDocumentReaderI18n();
+  return <>{pageCount ? `${page} / ${pageCount}` : t("pdf.page", { count: page })}</>;
+}
+
 export function PdfFace({
   element,
   pdf,
@@ -123,7 +133,7 @@ export function PdfFace({
         ) : image?.error ? (
           <div className="text-ink-3 flex size-full flex-col items-center justify-center gap-2 text-[13px]">
             <FileWarning className="size-5" strokeWidth={1.5} />
-            文件读取失败
+            <PdfReadFailure />
           </div>
         ) : (
           <div className="flex size-full flex-col gap-3 p-4">
@@ -145,7 +155,7 @@ export function PdfFace({
         data-document-badge
         className="bg-surface/90 border-line-1 text-ink-2 absolute right-2 bottom-2 rounded-full border px-2 text-[11px] leading-5 tabular-nums"
       >
-        {pageCount ? `${page} / ${pageCount}` : `第 ${page} 页`}
+        <PageText page={page} pageCount={pageCount} />
       </span>
     </div>
   );
@@ -170,13 +180,15 @@ export function PdfPageTurnLayer() {
       if (!pdf || !active) return;
       const pageCount = pdf.pageCount || (await getPdfPageCount(database, pdf).catch(() => null));
       if (!active) return;
-      if (!pageCount) return toast.error("无法读取 PDF 页数");
+      if (!pageCount) return toast.error(documentReaderTranslator.t("pdf.pageCountFailed"));
       const current =
         client.getQueryData<number>(lastPageKey(database, pdf.id)) ?? pdf.lastPage ?? 1;
       const next = Math.max(1, Math.min(pageCount, Math.min(current, pageCount) + delta));
       if (next === current) return;
       syncLastPage(client, database, pdf.id, next);
-      await commands.recordPdfPage(pdf.id, next).catch(() => toast.error("页码保存失败"));
+      await commands
+        .recordPdfPage(pdf.id, next)
+        .catch(() => toast.error(documentReaderTranslator.t("pdf.pageSaveFailed")));
     };
     board.on(DOCUMENT_TURN_PAGE_EVENT, onTurn);
     return () => {

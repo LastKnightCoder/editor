@@ -1,3 +1,4 @@
+import { desktopLocaleSource } from "@/app/i18n/runtime";
 import {
   createStandardWhiteboardExtensions,
   createDocumentExtension,
@@ -139,6 +140,7 @@ const button = (label: string) =>
   host.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)!;
 
 beforeEach(async () => {
+  desktopLocaleSource.setLocale("zh-CN");
   vi.stubGlobal(
     "ResizeObserver",
     class {
@@ -206,6 +208,8 @@ beforeEach(async () => {
 afterEach(async () => {
   await act(async () => root.unmount());
   host.remove();
+  desktopLocaleSource.setLocale("zh-CN");
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.clearAllMocks();
 });
@@ -306,6 +310,41 @@ describe("文档阅读纸", () => {
     expect(reader()?.textContent).toContain("2026年10月8日");
     expect(reader()?.textContent).toContain("☀️");
     expect(reader()?.textContent).toContain("#散步");
+  });
+
+  it("切换语言保留同阅读纸、编辑器承载与未刷出的日记尾调用，不提前保存", async () => {
+    vi.useFakeTimers();
+    await act(async () => {
+      useDocumentReaderPreference.setState({ mode: "dock" });
+      board.emit(DOCUMENT_OPEN_EVENT, "c");
+    });
+    await act(async () => vi.advanceTimersByTimeAsync(1));
+    const overlay = reader();
+    const editor = host.querySelector('[data-testid="editor"]');
+    if (!overlay || !editor || !mocks.editorChange) throw new Error("reader editor missing");
+    const change = mocks.editorChange;
+    const first = [{ type: "paragraph", children: [{ text: "先输入的内容" }] }];
+    const latest = [{ type: "paragraph", children: [{ text: "尚未刷出的最新内容" }] }];
+    await act(async () => change(first));
+    await act(async () => change(latest));
+    expect(mocks.updateDiarySegment).toHaveBeenCalledOnce();
+    const source = board.children;
+    const store = getDocumentReaderStore(board).getState();
+    for (const locale of ["zh-TW", "en-US"] as const) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect(reader()).toBe(overlay);
+      expect(host.querySelector('[data-testid="editor"]')).toBe(editor);
+      expect(mocks.editorChange).toBe(change);
+      expect(board.children).toBe(source);
+      expect(getDocumentReaderStore(board).getState()).toBe(store);
+      expect(useDocumentReaderPreference.getState().mode).toBe("dock");
+      expect(mocks.updateDiarySegment).toHaveBeenCalledOnce();
+      expect(mocks.openPage).not.toHaveBeenCalled();
+      expect(mocks.openEntity).not.toHaveBeenCalled();
+    }
+    await act(async () => vi.advanceTimersByTimeAsync(801));
+    expect(mocks.updateDiarySegment).toHaveBeenCalledTimes(2);
+    expect(mocks.updateDiarySegment).toHaveBeenLastCalledWith({ segmentId: 32, content: latest });
   });
 
   it("碎碎念：编辑后同步该片段并失效同窗口的日记缓存；在日记页打开定位到那一条", async () => {

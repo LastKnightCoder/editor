@@ -3,13 +3,19 @@
  * 正文由调用方传入（画布：只读首屏；阅读纸：ContentEditor）。
  */
 
+import {
+  documentKindLabel,
+  readerMomentDay,
+  readerMomentTime,
+  useDocumentReaderI18n,
+} from "../../reader.i18n";
+import { monthDay } from "@/utils/date-format";
 import { useState, type ReactNode } from "react";
-import dayjs from "dayjs";
 import type { DocumentKind } from "@tau/whiteboard";
 import { cn } from "@tau/ui";
 import LocalImage from "@/components/LocalImage";
 import { coverGradientOf } from "@/utils/cover";
-import { DOCUMENT_KIND_LABEL, type DiaryMoment, type DocumentSource } from "./source";
+import { type DiaryMoment, type DocumentSource } from "./source";
 import { DOCUMENT_PAPER_WIDTH, READER_PAPER_MAX_WIDTH, isCompactDocument } from "./layout";
 
 const PAPER_CLASS: Record<DocumentKind, string> = {
@@ -55,10 +61,11 @@ function Tags({ tags }: { tags: string[] }) {
 
 /** 碎碎念的头：哪一天、几点，当天的天气心情 */
 function MomentKicker({ moment }: { moment: DiaryMoment }) {
+  const { locale } = useDocumentReaderI18n();
   return (
     <div className="text-ink-3 mb-3 flex items-center gap-2 text-[13px] tabular-nums">
-      <span>{dayjs(moment.day).format("YYYY年M月D日 dddd")}</span>
-      <span>{dayjs(moment.time).format("HH:mm")}</span>
+      <span>{readerMomentDay(moment.day, locale)}</span>
+      <span>{readerMomentTime(moment.time, locale)}</span>
       {moment.moods.length > 0 && (
         <span className="text-[15px] leading-none">{moment.moods.join(" ")}</span>
       )}
@@ -68,6 +75,7 @@ function MomentKicker({ moment }: { moment: DiaryMoment }) {
 
 /** 封面 / 项目名 / 标签 + 标题；卡片与碎碎念没有标题，只有标签（碎碎念另有日期时间） */
 function DocumentHead({ source }: { source: DocumentSource }) {
+  const { t } = useDocumentReaderI18n();
   if (source.moment)
     return (
       <>
@@ -83,22 +91,27 @@ function DocumentHead({ source }: { source: DocumentSource }) {
       ) : (
         <div className="text-ink-3 mb-2 flex items-center gap-2 text-[13px]">
           <span className="bg-accent-soft text-accent rounded-[6px] px-2 text-[12px] leading-5">
-            项目
+            {t("project")}
           </span>
           {source.projectName}
         </div>
       )}
       <h1 className="text-ink-1 text-[30px] leading-[1.32] font-semibold tracking-[-0.01em]">
-        {source.title || "无标题"}
+        {source.title || t("untitled")}
       </h1>
     </header>
   );
 }
 
 function DocumentMeta({ source, short }: { source: DocumentSource; short: boolean }) {
+  const context = useDocumentReaderI18n();
+  const { t, locale } = context;
   return (
     <div className={cn("text-ink-3 text-[13px]", short ? "mt-4" : "-mt-3 mb-6")}>
-      {DOCUMENT_KIND_LABEL[source.kind]} · 更新于 {dayjs(source.updateTime).format("M月D日")}
+      {t("updated", {
+        kind: documentKindLabel(source.kind, context),
+        date: monthDay(source.updateTime, locale),
+      })}
     </div>
   );
 }

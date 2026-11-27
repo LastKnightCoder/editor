@@ -398,6 +398,8 @@ Document A十五路径完成；既有相关16例与新4真实契约共20通过�
 
 Compose C2八路径完成；全域4文件10例、desktop type与32key三语/协议静态对照通过。真实public Whiteboard/ComposeCanvasLayer/QueryClient与查询保同Board/订阅/任务，不重搜或摆放且原deadline不重置；实际Slate引用/取消/历史、ToastHost action跨语保同回调与数据，显式undo仍按原frame ID/article42恢复。全15生产/20 AST项仅合法持久默认值与诊断。
 
+Document B十四路径完成；原Reader9+materials12共21基线至增强22例通过，desktop type、31key三语与范围检查通过。实际Reader/store/prefs/board保同阅读纸与编辑器承载/回调、dock和800ms日记尾调用，切语不提前flush且仅保存原latest内容；ContentEditor沿旧连接器stub，不宣称内核验证。10生产源剩3中文均原invariant/持久quote/PDF默认名，原act/PDFjs/queryFn及lint warnings保留。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

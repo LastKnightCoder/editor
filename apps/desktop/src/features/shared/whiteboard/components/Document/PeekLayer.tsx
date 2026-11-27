@@ -5,6 +5,7 @@
  * 根节点带 CANVAS_OVERLAY_ATTR，且不接收指针：速览期间画布照常收到松手。
  */
 
+import { useDocumentReaderI18n } from "../../reader.i18n";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import { ErrorBoundary } from "@tau/ui";
@@ -23,6 +24,11 @@ import { useDocumentSource } from "./source";
 import { prefersReducedMotion, relativeBox, type Box } from "./morph";
 import { getDocumentReaderStore, useDocumentReaderPreference } from "./readerStore";
 import { useDocumentHost } from "./DocumentHostContext";
+
+function PeekHint() {
+  const { t } = useDocumentReaderI18n();
+  return <>{t("peek.hint")}</>;
+}
 
 const MARGIN = 24;
 const EASE_OUT = "cubic-bezier(0.22, 1, 0.36, 1)";
@@ -171,7 +177,7 @@ function Peek({
             <div className="to-surface absolute inset-x-0 bottom-0 h-16 bg-gradient-to-b from-transparent" />
           )}
           <span className="bg-surface border-line-1 text-ink-3 absolute bottom-2.5 left-1/2 -translate-x-1/2 rounded-full border px-2.5 text-[11px] leading-5">
-            松开收回 · 双击展开
+            <PeekHint />
           </span>
         </div>
       )}
