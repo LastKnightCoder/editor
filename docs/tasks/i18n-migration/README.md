@@ -396,6 +396,8 @@ TTS工作台十一源完成；原2例加真实全流程契约先基线3至迁后
 
 Document A十五路径完成；既有相关16例与新4真实契约共20通过（旧16首跑在普通源修改后，不称改前基线），desktop type/lint与40key三语通过。真实白板session/QueryClient保搜索caret/选中行、不重查/释放/放入；Suggestion逐字段保旧reason/summary/key/kind/title/ref且无新flag。旧entityTime零消费者删除，9输入×沪/纽约含DST对照数值与相对时间事实一致；11生产源无固定中文JSX，余4为原持久原因数据，原pickSide FastRefresh warning保留。
 
+Compose C2八路径完成；全域4文件10例、desktop type与32key三语/协议静态对照通过。真实public Whiteboard/ComposeCanvasLayer/QueryClient与查询保同Board/订阅/任务，不重搜或摆放且原deadline不重置；实际Slate引用/取消/历史、ToastHost action跨语保同回调与数据，显式undo仍按原frame ID/article42恢复。全15生产/20 AST项仅合法持久默认值与诊断。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

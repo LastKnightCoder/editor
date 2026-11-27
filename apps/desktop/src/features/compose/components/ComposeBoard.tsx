@@ -44,6 +44,12 @@ import { useComposeSession, useComposeSessionApi } from "../session";
 import { ComposeCardAccessory } from "./ComposeCardAccessory";
 import { IntentButton, IntentCard } from "./IntentCard";
 
+import {
+  useComposeBoardI18n,
+  composeGatherFailure,
+  type ComposeBoardTranslate,
+} from "../board.i18n";
+
 interface BoardActions {
   onRemoved(keys: string[]): void;
 }
@@ -86,6 +92,7 @@ function ComposeCanvasLayer() {
 
 /** 亮起的那张不在视野里时，画布顶部指路 */
 function GlowPointer() {
+  const { t } = useComposeBoardI18n();
   const board = useBoard();
   const viewPort = useViewPort();
   const glow = useComposeSession(state => state.glow);
@@ -98,16 +105,17 @@ function GlowPointer() {
     element.y + element.height > viewPort.minY &&
     element.y < viewPort.minY + viewPort.height;
   if (visible) return null;
-  const title = documents.find(doc => doc.elementId === glow.elementId)?.title || "相关资料";
+  const title =
+    documents.find(doc => doc.elementId === glow.elementId)?.title || t("board.relatedFallback");
   return (
     <button
       type="button"
       data-whiteboard-overlay=""
       onClick={() => ViewPortTransforms.centerElementsIfNotInViewPort(board, [element])}
-      className="bg-surface shadow-float text-tau-meta text-ink-2 hover:text-ink-1 absolute left-1/2 top-3 z-[7] flex max-w-[70%] -translate-x-1/2 items-center gap-1.5 rounded-full py-1.5 pl-3 pr-2.5"
+      className="bg-surface shadow-float text-tau-meta text-ink-2 hover:text-ink-1 absolute top-3 left-1/2 z-[7] flex max-w-[70%] -translate-x-1/2 items-center gap-1.5 rounded-full py-1.5 pr-2.5 pl-3"
     >
       <span className="bg-accent size-1.5 shrink-0 rounded-full" />
-      <span className="min-w-0 truncate">与这段相关：{title}</span>
+      <span className="min-w-0 truncate">{t("board.related", { title })}</span>
       <ArrowUpRight className="size-3.5 shrink-0" strokeWidth={1.75} />
     </button>
   );
@@ -128,12 +136,15 @@ type GatherStatus =
   | { state: "done"; count: number; frameIds: string[] }
   | { state: "empty" };
 
-function phaseText(phase: GatherPhase | null) {
-  if (!phase) return "读你的写作意图…";
+function phaseText(phase: GatherPhase | null, locale: string, t: ComposeBoardTranslate) {
+  if (!phase) return t("board.phase.intent");
   if (phase.phase === "candidates") {
-    return `在 ${phase.notes.toLocaleString()} 份内容里粗筛出 ${phase.candidates} 份`;
+    return t("board.phase.candidates", {
+      notes: phase.notes.toLocaleString(locale),
+      candidates: phase.candidates,
+    });
   }
-  return "挑出值得放上来的，分好组…";
+  return t("board.phase.thinking");
 }
 
 /** 文章已关联的资料（显式连接在前、正文里的引用在后），作为白板上的第一组 */
@@ -223,7 +234,7 @@ export function ComposeBoard({
         onSuccess: (result: GatherResult) => place({ groups: result.groups, gathered: true }),
         onError: error => {
           setStatus({ state: "idle" });
-          toast.error(error instanceof Error ? error.message : "找资料失败");
+          toast.error(...composeGatherFailure(error));
         },
       }
     );
@@ -288,66 +299,94 @@ export function ComposeBoard({
             />
           )}
           {board && canGather && (
-            <div className="absolute right-3 top-3 z-[6] flex items-center gap-1.5">
+            <div className="absolute top-3 right-3 z-[6] flex items-center gap-1.5">
               <IntentButton intent={board.intent} onChange={intent => setIntent.mutate(intent)} />
               {status.state === "idle" && (
-                <button
-                  type="button"
-                  onClick={() => run(board.intent, [], true)}
-                  title="按写作意图和已经写的内容再找一轮"
-                  className="bg-surface shadow-card text-tau-meta text-accent-text hover:bg-surface-hover inline-flex h-[30px] items-center gap-1.5 rounded-full px-3"
-                >
-                  <Sparkles className="size-3.5" strokeWidth={1.75} />
-                  再找一些
-                </button>
+                <GatherMoreButton run={() => run(board.intent, [], true)} />
               )}
             </div>
           )}
           {status.state !== "idle" && (
-            <div
-              role="status"
-              className={cn(
-                "bg-surface shadow-float text-tau-meta text-ink-2 absolute left-1/2 top-3 z-[6] flex -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-full py-1.5 pl-3 pr-2"
-              )}
-            >
-              {status.state === "running" ? (
-                <>
-                  <Loader2 className="text-accent size-3.5 animate-spin" strokeWidth={1.75} />
-                  {phaseText(phase)}
-                  <button
-                    type="button"
-                    title="取消"
-                    onClick={() => {
-                      void cancelGather(contentId);
-                      setStatus({ state: "idle" });
-                    }}
-                    className="text-ink-3 hover:text-ink-1 ml-1"
-                  >
-                    <X className="size-3.5" strokeWidth={1.75} />
-                  </button>
-                </>
-              ) : status.state === "done" ? (
-                <>
-                  <span className="bg-ok size-2 rounded-full" />
-                  {status.count} 份资料已摆上白板 · 不要的直接移走
-                  <button
-                    type="button"
-                    onClick={() => undoAll(status.frameIds)}
-                    className="text-accent-text hover:underline"
-                  >
-                    撤销全部
-                  </button>
-                </>
-              ) : (
-                <>
-                  <span className="bg-ink-3 size-2 rounded-full" />
-                  没有找到更多相关的资料
-                </>
-              )}
-            </div>
+            <GatherStatusPill
+              status={status}
+              phase={phase}
+              cancel={() => {
+                void cancelGather(contentId);
+                setStatus({ state: "idle" });
+              }}
+              undoAll={undoAll}
+            />
           )}
         </div>
       </BoardActionsContext.Provider>
     </DocumentHostContext.Provider>
+  );
+}
+
+function GatherMoreButton({ run }: { run(): void }) {
+  const { t } = useComposeBoardI18n();
+  return (
+    <button
+      type="button"
+      onClick={run}
+      title={t("board.moreHint")}
+      className="bg-surface shadow-card text-tau-meta text-accent-text hover:bg-surface-hover inline-flex h-[30px] items-center gap-1.5 rounded-full px-3"
+    >
+      <Sparkles className="size-3.5" strokeWidth={1.75} />
+      {t("board.more")}
+    </button>
+  );
+}
+function GatherStatusPill({
+  status,
+  phase,
+  cancel,
+  undoAll,
+}: {
+  status: GatherStatus;
+  phase: GatherPhase | null;
+  cancel(): void;
+  undoAll(frameIds: string[]): void;
+}) {
+  const { t, locale } = useComposeBoardI18n();
+  return (
+    <div
+      role="status"
+      className={cn(
+        "bg-surface shadow-float text-tau-meta text-ink-2 absolute left-1/2 top-3 z-[6] flex -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-full py-1.5 pl-3 pr-2"
+      )}
+    >
+      {status.state === "running" ? (
+        <>
+          <Loader2 className="text-accent size-3.5 animate-spin" strokeWidth={1.75} />
+          {phaseText(phase, locale, t)}
+          <button
+            type="button"
+            title={t("board.cancel")}
+            onClick={cancel}
+            className="text-ink-3 hover:text-ink-1 ml-1"
+          >
+            <X className="size-3.5" strokeWidth={1.75} />
+          </button>
+        </>
+      ) : status.state === "done" ? (
+        <>
+          <span className="bg-ok size-2 rounded-full" />
+          {t("board.placed", { count: status.state === "done" ? status.count : 0 })}
+          <button
+            type="button"
+            onClick={() => undoAll(status.frameIds)}
+            className="text-accent-text hover:underline"
+          >
+            {t("board.undoAll")}
+          </button>
+        </>
+      ) : (
+        <>
+          <span className="bg-ink-3 size-2 rounded-full" />
+          {t("board.empty")}
+        </>
+      )}
+    </div>
   );
 }

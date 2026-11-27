@@ -15,12 +15,15 @@ import { insertEntityLink, removeEntityLinks, type LinkTarget } from "../insert"
 import type { ComposeDocumentElement } from "../model";
 import { useComposeSession, useComposeSessionApi } from "../session";
 
+import { useComposeBoardI18n, composeBoardTranslator, composeBoardFeedback } from "../board.i18n";
+
 const overlay = { [CANVAS_OVERLAY_ATTR]: "" };
 const FLASH_MS = 1200;
 const CHIP =
   "absolute right-2 top-2 inline-flex h-5 items-center gap-0.5 rounded-full px-1.5 text-[11px] leading-5 transition-colors";
 
 export function ComposeCardAccessory({ element }: { element: DocumentElement }) {
+  const { t } = useComposeBoardI18n();
   const board = useBoard();
   const session = useComposeSessionApi();
   const ref = textEntityRef(element.entityRef);
@@ -58,7 +61,7 @@ export function ComposeCardAccessory({ element }: { element: DocumentElement }) 
     if (insertEntityLink(editor, target, { block })) {
       session.setState({ glow: null });
     } else {
-      toast.warning("这里不能插入链接，先在正文里放好光标");
+      toast.warning(...composeBoardFeedback("board.cannotInsert"));
     }
   };
 
@@ -67,9 +70,19 @@ export function ComposeCardAccessory({ element }: { element: DocumentElement }) 
     if (!editor || !ref) return;
     const count = removeEntityLinks(editor, ref);
     if (!count) return;
-    toast.success(count > 1 ? `已取消正文里的 ${count} 处引用` : "已取消引用", {
+    const [message, feedback] = composeBoardFeedback(
+      count > 1 ? "board.uncitedMany" : "board.uncited",
+      { count }
+    );
+    toast.success(message, {
+      ...feedback,
       action: HistoryEditor.isHistoryEditor(editor)
-        ? { label: "撤销", onClick: () => editor.undo() }
+        ? {
+            get label() {
+              return composeBoardTranslator.t("board.undo");
+            },
+            onClick: () => editor.undo(),
+          }
         : undefined,
     });
   };
@@ -103,19 +116,19 @@ export function ComposeCardAccessory({ element }: { element: DocumentElement }) 
           className="bg-surface border-line-2 absolute inset-x-0 bottom-0 flex items-center gap-2 border-t px-3 py-1.5"
         >
           <span className="text-ink-2 min-w-0 flex-1 truncate text-[11.5px]">
-            与正在写的这段相关
+            {t("board.relatedCurrent")}
           </span>
           <button
             type="button"
             onClick={() => insert(session.getState().glow?.block)}
             className="bg-accent text-surface shrink-0 rounded-[6px] px-2 text-[11.5px] leading-[22px]"
           >
-            连到此段
+            {t("board.linkParagraph")}
           </button>
         </div>
       )}
       {cited ? (
-        <Tooltip content="撤掉正文里指向它的链接">
+        <Tooltip content={t("board.unciteHint")}>
           <button
             type="button"
             {...overlay}
@@ -127,13 +140,13 @@ export function ComposeCardAccessory({ element }: { element: DocumentElement }) 
           >
             <Check className="size-3 group-hover/cite:hidden" strokeWidth={2} />
             <X className="hidden size-3 group-hover/cite:block" strokeWidth={2} />
-            <span className="group-hover/cite:hidden">已引用</span>
-            <span className="hidden group-hover/cite:inline">取消引用</span>
+            <span className="group-hover/cite:hidden">{t("board.cited")}</span>
+            <span className="hidden group-hover/cite:inline">{t("board.uncite")}</span>
           </button>
         </Tooltip>
       ) : (
         target && (
-          <Tooltip content="在正文光标处插入指向它的链接">
+          <Tooltip content={t("board.citeHint")}>
             <button
               type="button"
               {...overlay}
@@ -144,7 +157,7 @@ export function ComposeCardAccessory({ element }: { element: DocumentElement }) 
               )}
             >
               <Quote className="size-3" strokeWidth={1.75} />
-              引用
+              {t("board.cite")}
             </button>
           </Tooltip>
         )

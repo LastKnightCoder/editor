@@ -14,6 +14,8 @@ import type { InsightMark } from "@/types/content-insights";
 import type { ComposeSession } from "./session";
 import { isBoardDocumentRef } from "./model";
 
+import { useComposeBoardI18n, composeBoardTranslator } from "./board.i18n";
+
 /** 洞见视图的输出里创作模式要用的部分 */
 interface InsightsState {
   openMarks: InsightMark[];
@@ -21,11 +23,16 @@ interface InsightsState {
 }
 
 export const COMPOSE_INSIGHTS_COPY = {
-  label: "标出可引用处",
-  title: "AI 通读正文，标出哪些话可以引用白板上的资料，并列出还没用到的资料",
+  get label() {
+    return composeBoardTranslator.t("board.insights.label");
+  },
+  get title() {
+    return composeBoardTranslator.t("board.insights.title");
+  },
 };
 
 function Headline({ session }: { session: ComposeSession }) {
+  const { t } = useComposeBoardI18n();
   const documents = useStore(session, state => state.documents);
   const cited = useStore(session, state => state.cited);
   const numbers = useStore(session, state => state.numbers);
@@ -37,29 +44,28 @@ function Headline({ session }: { session: ComposeSession }) {
   };
   return (
     <p className="text-tau-body-lg text-ink-1 mb-1.5 leading-[1.8] font-medium">
-      {citable
-        ? `正文里有 ${citable} 处可以引用白板上的资料`
-        : "正文里暂时没有找到可以引用白板资料的地方"}
+      {citable ? t("board.insights.citable", { count: citable }) : t("board.insights.none")}
       {unused.length > 0 && (
         <>
-          ，还有{" "}
+          {t("board.insights.and")}
           <button
             type="button"
             onClick={flash}
-            title="在白板上闪一下这几份"
+            title={t("board.insights.unusedHint")}
             className="text-accent-text inline-flex items-center gap-1 hover:underline"
           >
             <LayoutDashboard className="size-3.5" strokeWidth={1.75} />
-            {unused.length} 份没用到
+            {t("board.insights.unused", { count: unused.length })}
           </button>
         </>
       )}
-      。
+      {t("board.insights.end")}
     </p>
   );
 }
 
 function PlaceOnBoard({ session, mark }: { session: ComposeSession; mark: InsightMark }) {
+  const { t } = useComposeBoardI18n();
   const target = mark.target;
   const onBoard = useStore(session, state =>
     target ? state.documents.some(doc => doc.key === entityRefKey(target.ref)) : true
@@ -70,7 +76,7 @@ function PlaceOnBoard({ session, mark }: { session: ComposeSession; mark: Insigh
     <span
       role="button"
       tabIndex={0}
-      title="放到白板"
+      title={t("board.placeOnBoard")}
       onClick={event => {
         event.stopPropagation();
         const board = session.getState().board;
