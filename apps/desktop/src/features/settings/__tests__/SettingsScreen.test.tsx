@@ -38,7 +38,6 @@ afterEach(() => {
 it("按新信息架构渲染全部分区，页头取分区 label + description", () => {
   render();
   expect(navLabels()).toEqual([
-    "界面语言",
     "外观",
     "功能",
     "同步",
@@ -53,7 +52,7 @@ it("按新信息架构渲染全部分区，页头取分区 label + description",
     "关于与更新",
   ]);
   expect(header()).toContain("外观");
-  expect(header()).toContain("主题、字体与内容图片的默认呈现");
+  expect(header()).toContain("语言、主题、字体与内容图片的默认呈现");
   expect(container.textContent).toContain("外观子页");
 });
 

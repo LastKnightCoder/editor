@@ -1,7 +1,12 @@
 {
   "language": "Interface language",
   "system": "Follow system",
-  "description": "Traditional Chinese and English are being added gradually; some content is still shown in Simplified Chinese.",
+  "language.subtitle": "App interface only — notes stay unchanged",
+  "language.systemValue": "Follow system · {{language}}",
+  "language.systemDesc": "Matches system language (currently {{language}})",
+  "language.name.zh-CN": "Simplified Chinese",
+  "language.name.zh-TW": "Traditional Chinese",
+  "language.name.en-US": "English",
   "nav.home": "Today",
   "nav.cards": "Cards",
   "nav.diary": "Journal",

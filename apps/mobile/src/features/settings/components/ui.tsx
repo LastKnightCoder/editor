@@ -9,6 +9,7 @@ import {
   Folder,
   Highlighter,
   Image as ImageIcon,
+  Languages,
   MessageSquare,
   Plug,
   Puzzle,
@@ -127,6 +128,14 @@ export function IconType() {
   return (
     <IconTile className="bg-tag-2-soft text-tag-2">
       <Type size={17} strokeWidth={1.9} aria-hidden="true" />
+    </IconTile>
+  );
+}
+
+export function IconLanguages() {
+  return (
+    <IconTile className="bg-tag-3-soft text-tag-3">
+      <Languages size={17} strokeWidth={1.9} aria-hidden="true" />
     </IconTile>
   );
 }

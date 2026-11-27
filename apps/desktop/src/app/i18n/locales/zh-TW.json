@@ -1,8 +1,4 @@
 {
-  "language.title": "介面語言",
-  "language.label": "語言",
-  "language.system": "跟隨系統",
-  "language.description": "切換後立即生效。繁體中文與英文介面正在逐步完善，部分內容仍顯示簡體中文。",
   "settings.title": "設定",
   "settings.sections": "設定分類",
   "settings.back": "返回應用程式",
@@ -39,7 +35,7 @@
   "settings.group.ai": "AI 服務",
   "settings.group.system": "系統",
   "settings.appearance.label": "外觀",
-  "settings.appearance.description": "主題、字型與內容圖片的預設呈現，變更立即生效",
+  "settings.appearance.description": "語言、主題、字型與內容圖片的預設呈現，變更立即生效",
   "settings.features.label": "功能",
   "settings.features.description": "只保留用得上的功能，讓側欄更清爽。關閉功能不會刪除內容，重新開啟即可使用",
   "settings.sync.label": "同步",

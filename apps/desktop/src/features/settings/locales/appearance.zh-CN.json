@@ -1,4 +1,9 @@
 {
+  "language.title": "界面语言",
+  "language.display": "显示语言",
+  "language.system": "跟随系统",
+  "language.following": "当前跟随系统：{{language}}",
+  "language.description": "仅调整应用界面与系统提示，不影响笔记正文与导出内容",
   "radius.none": "无圆角",
   "radius.sm": "小圆角",
   "radius.md": "中圆角",

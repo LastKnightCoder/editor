@@ -1,4 +1,9 @@
 {
+  "language.title": "Interface language",
+  "language.display": "Display language",
+  "language.system": "Follow system",
+  "language.following": "Following system: {{language}}",
+  "language.description": "Applies to app menus and controls only. Notes and exports stay unchanged.",
   "radius.none": "None",
   "radius.sm": "Small",
   "radius.md": "Medium",

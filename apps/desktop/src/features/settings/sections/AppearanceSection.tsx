@@ -33,6 +33,7 @@ import {
   type SemanticTokens,
   type ThemeDefinition,
 } from "@tau/themes";
+import { APP_LANGUAGES, normalizeLanguagePreference } from "@tau/shared/language";
 import { SettingRow, Select, Switch } from "@tau/ui";
 import useSettingStore, { type ISetting } from "@/stores/useSettingStore";
 import { getAllFonts } from "@/commands";
@@ -64,10 +65,12 @@ const APPEARANCE_OPTIONS: Array<{ value: Appearance; caption: AppearanceKey }> =
 ];
 
 export function AppearanceSection() {
-  const { t } = useAppearanceI18n();
+  const { t, locale } = useAppearanceI18n();
   const setting = useSettingStore(s => s.setting);
   const onFontSettingChange = useSettingStore(s => s.onFontSettingChange);
   const { fontSetting, appearance } = setting;
+  const language = normalizeLanguagePreference(setting.language);
+  const activeLanguageLabel = APP_LANGUAGES.find(item => item.locale === locale)?.label ?? locale;
 
   const themeKey = useThemeStore(s => s.theme);
   const appearancePref = useThemeStore(s => s.appearance);
@@ -131,6 +134,32 @@ export function AppearanceSection() {
 
   return (
     <>
+      <SettingsGroup title={t("language.title")}>
+        <SettingRow
+          title={t("language.display")}
+          description={
+            language === "system"
+              ? t("language.following", { language: activeLanguageLabel })
+              : t("language.description")
+          }
+        >
+          <Select
+            aria-label={t("language.display")}
+            className="w-[180px]"
+            value={language}
+            options={[
+              { value: "system", label: t("language.system") },
+              ...APP_LANGUAGES.map(item => ({ value: item.locale, label: item.label })),
+            ]}
+            onValueChange={value =>
+              useSettingStore.setState(state => ({
+                setting: { ...state.setting, language: normalizeLanguagePreference(value) },
+              }))
+            }
+          />
+        </SettingRow>
+      </SettingsGroup>
+
       <SettingsGroup title={t("mode.title")} description={t("mode.description")}>
         <div className="grid grid-cols-3 gap-3 px-1.5 pt-2.5 pb-1">
           {APPEARANCE_OPTIONS.map(option => (

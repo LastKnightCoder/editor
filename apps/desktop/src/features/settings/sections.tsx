@@ -1,5 +1,4 @@
 import { appTranslator } from "@/app/i18n/messages";
-import { LanguageSection } from "./sections/LanguageSection";
 /**
  * 设置分区清单 —— 单一信息架构（数据驱动，SettingsScreen 只负责渲染）。
  *
@@ -40,7 +39,6 @@ import { AboutSection } from "./sections/AboutSection";
 import { BrowserExtensionSection } from "./sections/BrowserExtensionSection";
 
 export type SettingsSectionKey =
-  | "language"
   | "appearance"
   | "features"
   | "sync"
@@ -75,17 +73,6 @@ export const SETTINGS_GROUPS: SettingsSectionGroup[] = [
       return appTranslator.t("settings.group.general");
     },
     sections: [
-      {
-        key: "language",
-        get label() {
-          return appTranslator.t("language.title");
-        },
-        get description() {
-          return appTranslator.t("language.description");
-        },
-        icon: Globe,
-        component: LanguageSection,
-      },
       {
         key: "appearance",
         get label() {

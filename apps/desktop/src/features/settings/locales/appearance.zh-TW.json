@@ -1,4 +1,9 @@
 {
+  "language.title": "介面語言",
+  "language.display": "顯示語言",
+  "language.system": "跟隨系統",
+  "language.following": "目前跟隨系統：{{language}}",
+  "language.description": "僅調整應用程式介面與系統提示，不影響筆記正文與匯出內容",
   "radius.none": "無圓角",
   "radius.sm": "小圓角",
   "radius.md": "中圓角",

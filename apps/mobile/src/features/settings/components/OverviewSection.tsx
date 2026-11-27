@@ -27,6 +27,7 @@ import {
   IconFolder,
   IconHighlighter,
   IconImage,
+  IconLanguages,
   IconMessageSquare,
   IconMic,
   IconMoon,
@@ -449,27 +450,42 @@ function ListItem({
 
 function LanguageItem() {
   const { syncSettings } = useAppContext();
-  const { t } = useMobileI18n();
+  const { t, locale } = useMobileI18n();
   const [open, setOpen] = useState(false);
   const value = normalizeLanguagePreference(syncSettings.safeSetting?.language);
+  const resolvedLabel = APP_LANGUAGES.find(item => item.locale === locale)?.label ?? locale;
+  const displayValue =
+    value === "system"
+      ? t("language.systemValue", { language: resolvedLabel })
+      : (APP_LANGUAGES.find(item => item.locale === value)?.label ?? resolvedLabel);
   const options = [
-    { value: "system", label: t("system") },
-    ...APP_LANGUAGES.map(item => ({ value: item.locale, label: item.label })),
+    {
+      value: "system",
+      label: t("system"),
+      desc: t("language.systemDesc", { language: resolvedLabel }),
+    },
+    ...APP_LANGUAGES.map(item => ({
+      value: item.locale,
+      label: item.label,
+      desc: item.locale === locale ? undefined : t(`language.name.${item.locale}`),
+    })),
   ];
   return (
     <>
       <ListItem
-        icon={<IconType />}
+        icon={<IconLanguages />}
         label={t("language")}
-        value={options.find(item => item.value === value)?.label}
+        value={displayValue}
         onClick={() => setOpen(true)}
       />
       <ActionSheet
         open={open}
         title={t("language")}
+        subtitle={t("language.subtitle")}
         items={options.map(option => ({
           key: option.value,
           label: option.label,
+          desc: option.desc,
           selected: option.value === value,
           onClick: () =>
             syncSettings.updateSetting(
@@ -479,7 +495,6 @@ function LanguageItem() {
         }))}
         onClose={() => setOpen(false)}
       />
-      <p className="text-ink-3 px-4 text-xs">{t("description")}</p>
     </>
   );
 }

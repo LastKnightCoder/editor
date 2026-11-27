@@ -1,8 +1,4 @@
 {
-  "language.title": "Interface language",
-  "language.label": "Language",
-  "language.system": "Follow system",
-  "language.description": "Changes apply immediately. Traditional Chinese and English are being added gradually; some content is still shown in Simplified Chinese.",
   "settings.title": "Settings",
   "settings.sections": "Settings sections",
   "settings.back": "Back to app",
@@ -39,7 +35,7 @@
   "settings.group.ai": "AI services",
   "settings.group.system": "System",
   "settings.appearance.label": "Appearance",
-  "settings.appearance.description": "Themes, fonts, and default image appearance. Changes apply immediately.",
+  "settings.appearance.description": "Language, themes, fonts, and default image appearance. Changes apply immediately.",
   "settings.features.label": "Features",
   "settings.features.description": "Choose the features you use. Hidden content remains available when you turn them back on.",
   "settings.sync.label": "Sync",

@@ -1,7 +1,12 @@
 {
   "language": "介面語言",
   "system": "跟隨系統",
-  "description": "繁體中文與英文介面正在逐步完善，部分內容仍顯示簡體中文。",
+  "language.subtitle": "僅影響應用程式介面，不改變筆記正文",
+  "language.systemValue": "跟隨系統 · {{language}}",
+  "language.systemDesc": "自動配合系統語言（目前：{{language}}）",
+  "language.name.zh-CN": "簡體中文",
+  "language.name.zh-TW": "繁體中文",
+  "language.name.en-US": "英文",
   "nav.home": "今天",
   "nav.cards": "卡片",
   "nav.diary": "日記",
