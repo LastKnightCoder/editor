@@ -436,7 +436,7 @@ const Column = memo(
           />
         )}
 
-        {/* 子元素：每个子元素下垫一张 surface 槽位（发丝线框），子元素自身背景画在其上。
+        {/* 子元素：外观由子元素自己负责，列只管位置。
             外层 g 把存储坐标平移到视觉位置，内层 g 承载 FLIP 动画；被拖拽的子元素最后渲染以浮在最上 */}
         <g>
           {React.Children.toArray(children)
@@ -467,20 +467,6 @@ const Column = memo(
                         : undefined
                     }
                   >
-                    <rect
-                      className="pointer-events-none"
-                      x={childElement.x}
-                      y={childElement.y}
-                      width={childElement.width || width - padding * 2}
-                      height={childElement.height || 50}
-                      rx={slotRadius}
-                      ry={slotRadius}
-                      style={{
-                        fill: COLUMN_COLORS.tray,
-                        stroke: COLUMN_COLORS.line,
-                        strokeWidth: 1,
-                      }}
-                    />
                     {child}
                   </g>
                 </g>

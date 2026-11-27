@@ -59,7 +59,7 @@ export const COLUMN_COLOR_OPTIONS: Array<{ value: ColumnColor; label: string; to
 ];
 
 /**
- * Column 配色：托盘与子元素槽位都是 surface 实底，靠发丝线分层，不用阴影。
+ * Column 配色：托盘是 surface 实底，靠发丝线分层，不用阴影。
  * 全部取自主题 token，随主题族与明暗切换。
  */
 export const COLUMN_COLORS = {
