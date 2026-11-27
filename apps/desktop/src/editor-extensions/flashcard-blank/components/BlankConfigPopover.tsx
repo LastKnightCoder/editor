@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Transforms } from "slate";
 import { ReactEditor, useSlateStatic } from "slate-react";
+import { useFlashcardBlankI18n } from "../i18n";
 import type { FlashcardBlankElement } from "../types";
 
 interface BlankConfigPopoverProps {
@@ -9,6 +10,7 @@ interface BlankConfigPopoverProps {
 }
 
 const BlankConfigPopover = ({ element, onClose }: BlankConfigPopoverProps) => {
+  const { t } = useFlashcardBlankI18n();
   const editor = useSlateStatic();
   const [placeholder, setPlaceholder] = useState(element.placeholder || "");
   const [answer, setAnswer] = useState(element.answer || "");
@@ -71,13 +73,13 @@ const BlankConfigPopover = ({ element, onClose }: BlankConfigPopoverProps) => {
             color: "var(--ed-text)",
           }}
         >
-          提示文本（可选）
+          {t("hint.label")}
         </label>
         <input
           type="text"
           value={placeholder}
           onChange={e => setPlaceholder(e.target.value)}
-          placeholder="如：国家名、人物、年份等"
+          placeholder={t("hint.example")}
           className="form-input"
           style={{
             width: "100%",
@@ -98,7 +100,7 @@ const BlankConfigPopover = ({ element, onClose }: BlankConfigPopoverProps) => {
             marginTop: "4px",
           }}
         >
-          显示为：___（{placeholder || "提示"}）
+          {t("hint.preview", { hint: placeholder || t("hint.fallback") })}
         </p>
       </div>
 
@@ -113,13 +115,13 @@ const BlankConfigPopover = ({ element, onClose }: BlankConfigPopoverProps) => {
             color: "var(--ed-text)",
           }}
         >
-          正确答案 *
+          {t("answer.label")}
         </label>
         <input
           type="text"
           value={answer}
           onChange={e => setAnswer(e.target.value)}
-          placeholder="输入正确答案"
+          placeholder={t("answer.placeholder")}
           className="form-input"
           required
           style={{
@@ -146,7 +148,7 @@ const BlankConfigPopover = ({ element, onClose }: BlankConfigPopoverProps) => {
             color: "var(--ed-text)",
           }}
         >
-          备选答案（可选）
+          {t("alternatives.label")}
         </label>
         {alternatives.map((alt, index) => (
           <div
@@ -163,7 +165,7 @@ const BlankConfigPopover = ({ element, onClose }: BlankConfigPopoverProps) => {
               type="text"
               value={alt}
               onChange={e => handleAlternativeChange(index, e.target.value)}
-              placeholder={`备选答案 ${index + 1}`}
+              placeholder={t("alternative.placeholder", { index: index + 1 })}
               className="form-input"
               style={{
                 flex: 1,
@@ -178,6 +180,7 @@ const BlankConfigPopover = ({ element, onClose }: BlankConfigPopoverProps) => {
             />
             <button
               onClick={() => handleRemoveAlternative(index)}
+              aria-label={t("alternative.remove", { index: index + 1 })}
               className="remove-button"
               style={{
                 width: "28px",
@@ -212,7 +215,7 @@ const BlankConfigPopover = ({ element, onClose }: BlankConfigPopoverProps) => {
             cursor: "pointer",
           }}
         >
-          + 添加备选答案
+          {t("alternative.add")}
         </button>
       </div>
 
@@ -233,7 +236,7 @@ const BlankConfigPopover = ({ element, onClose }: BlankConfigPopoverProps) => {
             cursor: "pointer",
           }}
         >
-          取消
+          {t("cancel")}
         </button>
         <button
           onClick={handleSave}
@@ -249,7 +252,7 @@ const BlankConfigPopover = ({ element, onClose }: BlankConfigPopoverProps) => {
             cursor: answer.trim() ? "pointer" : "not-allowed",
           }}
         >
-          保存
+          {t("save")}
         </button>
       </div>
     </div>

@@ -1,0 +1,15 @@
+{
+  "configure": "Configure blank",
+  "hint.label": "Hint (optional)",
+  "hint.example": "For example: country, person, or year",
+  "hint.preview": "Preview: ___ ({hint})",
+  "hint.fallback": "hint",
+  "answer.label": "Correct answer *",
+  "answer.placeholder": "Enter the correct answer",
+  "alternatives.label": "Alternative answers (optional)",
+  "alternative.placeholder": "Alternative answer {index}",
+  "alternative.remove": "Remove alternative answer {index}",
+  "alternative.add": "+ Add alternative answer",
+  "cancel": "Cancel",
+  "save": "Save"
+}

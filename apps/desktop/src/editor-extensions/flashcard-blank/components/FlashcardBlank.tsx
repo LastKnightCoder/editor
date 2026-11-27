@@ -2,6 +2,7 @@ import { useState } from "react";
 import { RenderElementProps } from "slate-react";
 import { InlineChromiumBugfix } from "@tau/editor";
 import type { FlashcardBlankElement } from "../types";
+import { useFlashcardBlankI18n } from "../i18n";
 import BlankConfigPopover from "./BlankConfigPopover";
 
 interface FlashcardBlankProps {
@@ -36,24 +37,7 @@ const FlashcardBlank = ({ attributes, children, element }: FlashcardBlankProps) 
       <InlineChromiumBugfix />
 
       {/* 配置按钮 - 始终显示 */}
-      <span
-        contentEditable={false}
-        onClick={() => setShowConfig(!showConfig)}
-        className="blank-config-icon"
-        style={{
-          marginLeft: "6px",
-          cursor: "pointer",
-          fontSize: "12px",
-          userSelect: "none",
-          opacity: 0.7,
-          transition: "opacity 0.2s",
-        }}
-        onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
-        onMouseLeave={e => (e.currentTarget.style.opacity = "0.7")}
-        title="配置空格"
-      >
-        ⚙️
-      </span>
+      <ConfigureIcon onToggle={() => setShowConfig(!showConfig)} />
 
       {/* 提示文本显示 - 更简洁 */}
       {element.placeholder && (
@@ -77,5 +61,29 @@ const FlashcardBlank = ({ attributes, children, element }: FlashcardBlankProps) 
     </span>
   );
 };
+
+function ConfigureIcon({ onToggle }: { onToggle: () => void }) {
+  const { t } = useFlashcardBlankI18n();
+  return (
+    <span
+      contentEditable={false}
+      onClick={onToggle}
+      className="blank-config-icon"
+      style={{
+        marginLeft: "6px",
+        cursor: "pointer",
+        fontSize: "12px",
+        userSelect: "none",
+        opacity: 0.7,
+        transition: "opacity 0.2s",
+      }}
+      onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
+      onMouseLeave={e => (e.currentTarget.style.opacity = "0.7")}
+      title={t("configure")}
+    >
+      ⚙️
+    </span>
+  );
+}
 
 export default FlashcardBlank;

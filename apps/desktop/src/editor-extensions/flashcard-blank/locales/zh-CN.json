@@ -1,0 +1,15 @@
+{
+  "configure": "配置空格",
+  "hint.label": "提示文本（可选）",
+  "hint.example": "如：国家名、人物、年份等",
+  "hint.preview": "显示为：___（{hint}）",
+  "hint.fallback": "提示",
+  "answer.label": "正确答案 *",
+  "answer.placeholder": "输入正确答案",
+  "alternatives.label": "备选答案（可选）",
+  "alternative.placeholder": "备选答案 {index}",
+  "alternative.remove": "移除备选答案 {index}",
+  "alternative.add": "+ 添加备选答案",
+  "cancel": "取消",
+  "save": "保存"
+}

@@ -1,0 +1,15 @@
+{
+  "configure": "設定填空",
+  "hint.label": "提示文字（選填）",
+  "hint.example": "例如：國家名稱、人物、年份等",
+  "hint.preview": "顯示為：___（{hint}）",
+  "hint.fallback": "提示",
+  "answer.label": "正確答案 *",
+  "answer.placeholder": "輸入正確答案",
+  "alternatives.label": "其他答案（選填）",
+  "alternative.placeholder": "其他答案 {index}",
+  "alternative.remove": "移除其他答案 {index}",
+  "alternative.add": "+ 新增其他答案",
+  "cancel": "取消",
+  "save": "儲存"
+}
