@@ -100,5 +100,9 @@
   "detail.generate": "產生",
   "detail.aiFlashcard": "AI 製卡（閃卡）",
   "detail.manualFlashcard": "手動製卡（閃卡）",
-  "detail.deleteConfirm": "確定刪除「{{title}}」嗎？"
+  "detail.deleteConfirm": "確定刪除「{{title}}」嗎？",
+  "pattern.placeholder.chain": "寫下「{{text}}」，補上這一環",
+  "pattern.placeholder.asked": "用自己的話回答「{{text}}」",
+  "pattern.placeholder.gap": "寫下「{{text}}」",
+  "pattern.placeholder.pattern": "用自己的話寫下「{{text}}」這個思路"
 }

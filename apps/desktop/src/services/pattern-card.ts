@@ -5,9 +5,11 @@
  */
 
 import { toast } from "@tau/ui";
+import type { TranslationValues } from "@tau/i18n";
 import { discardPatternCard, writePatternCard } from "@/commands/knowledge-insights";
 import useSettingStore from "@/stores/useSettingStore";
 import type { KnowledgeMark } from "@/types/knowledge-insights";
+import { cardsTranslator, type CardsMessageKey } from "@/features/cards/i18n";
 import { defaultCardEventBus } from "@/utils/event-bus/card-event-bus";
 import { openEntity } from "./open-content";
 
@@ -26,17 +28,18 @@ const activeDatabase = () => useSettingStore.getState().setting.database.active;
 
 /** 空卡片的占位提示：按标记类型说清要写什么，后接 AI 的理由 */
 export function patternCardPlaceholder(
-  mark: Pick<KnowledgeMark, "kind" | "text" | "why" | "missing">
+  mark: Pick<KnowledgeMark, "kind" | "text" | "why" | "missing">,
+  t: (key: CardsMessageKey, values?: TranslationValues) => string = cardsTranslator.t
 ): string {
   const text = (mark.text ?? "").replace(/^还缺[:：]\s*/, "");
   const head =
     mark.kind === "chain"
-      ? `写下「${mark.missing?.text ?? ""}」，补上这一环`
+      ? t("pattern.placeholder.chain", { text: mark.missing?.text ?? "" })
       : mark.kind === "asked"
-        ? `用自己的话回答「${text}」`
+        ? t("pattern.placeholder.asked", { text })
         : mark.kind === "gap"
-          ? `写下「${text}」`
-          : `用自己的话写下「${text}」这个思路`;
+          ? t("pattern.placeholder.gap", { text })
+          : t("pattern.placeholder.pattern", { text });
   return [head, mark.why].filter(Boolean).join("。");
 }
 

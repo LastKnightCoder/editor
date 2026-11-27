@@ -103,5 +103,9 @@
   "detail.generate": "Generate",
   "detail.aiFlashcard": "AI flashcards",
   "detail.manualFlashcard": "Manual flashcards",
-  "detail.deleteConfirm": "Delete \"{{title}}\"?"
+  "detail.deleteConfirm": "Delete \"{{title}}\"?",
+  "pattern.placeholder.chain": "Write \"{{text}}\" to close this link",
+  "pattern.placeholder.asked": "Answer \"{{text}}\" in your own words",
+  "pattern.placeholder.gap": "Write \"{{text}}\"",
+  "pattern.placeholder.pattern": "Write down the idea of \"{{text}}\" in your own words"
 }
