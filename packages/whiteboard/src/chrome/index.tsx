@@ -13,6 +13,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ComponentProps,
   type CSSProperties,
@@ -183,6 +184,10 @@ export interface AttrPopoverProps {
   children?: ReactNode;
   /** 弹层宽度，默认 280 */
   width?: number;
+  /** 覆盖属性条给的避让矩形（视口坐标），如导图样式要避开整棵树而非选中节点 */
+  avoid?: () => { left: number; top: number; right: number; bottom: number } | null;
+  /** 开合回调；panel 为弹层内容节点（量尺寸用），关闭时为 null */
+  onOpenChange?: (open: boolean, panel: HTMLElement | null) => void;
 }
 
 export function AttrPopover({
@@ -192,13 +197,18 @@ export function AttrPopover({
   toggle,
   children,
   width = 280,
+  avoid,
+  onOpenChange,
 }: AttrPopoverProps) {
   const { side, getAvoid } = useContext(AttrBarContext);
   const [peek, setPeek] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
   return (
     <Popover
       placement={side}
-      avoid={getAvoid}
+      avoid={avoid ?? getAvoid}
+      followAnchor={!!onOpenChange}
+      onOpenChange={open => onOpenChange?.(open, open ? panelRef.current : null)}
       arrow={false}
       className={cn("p-0", peek && "opacity-25")}
       trigger={
@@ -208,7 +218,7 @@ export function AttrPopover({
       }
     >
       <AttrPeekContext.Provider value={setPeek}>
-        <div {...stopCanvasEvents} className="px-3.5 pt-3 pb-3.5" style={{ width }}>
+        <div {...stopCanvasEvents} ref={panelRef} className="px-3.5 pt-3 pb-3.5" style={{ width }}>
           <SectionHead label={label} toggle={toggle} />
           {children}
         </div>

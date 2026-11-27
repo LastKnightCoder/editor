@@ -74,6 +74,8 @@ export interface PopoverProps {
   placement?: AnchoredPlacement;
   /** 浮层需避开的矩形（视口坐标，每次定位时调用），如工具条服务的选中对象 */
   avoid?: () => AnchoredRect | null;
+  /** 逐帧跟随锚点移动（锚点随画布平移等非滚动场景移动时开） */
+  followAnchor?: boolean;
   /** 浮层受控（§5.3 契约；样板间常显标本用它） */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -90,6 +92,7 @@ export function Popover({
   children,
   placement = "top",
   avoid,
+  followAnchor,
   open: openProp,
   onOpenChange,
   arrow = true,
@@ -225,6 +228,7 @@ export function Popover({
         open={open}
         placement={placement}
         avoid={avoid}
+        followAnchor={followAnchor}
         arrow={arrow}
         ref={cardRef}
         role="dialog"

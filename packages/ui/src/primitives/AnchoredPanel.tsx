@@ -43,6 +43,8 @@ export interface AnchoredPanelProps extends Omit<
   placement?: AnchoredPlacement;
   /** 浮层需避开的矩形（视口坐标，每次定位时调用）：常规位压住它时改贴它的四周 */
   avoid?: () => AnchoredRect | null;
+  /** 逐帧跟随锚点与 avoid 的位置变化（锚点随画布平移等非滚动场景移动时开） */
+  followAnchor?: boolean;
   /** 让可滚动预览适应锚点一侧的可用高度。 */
   fitVerticalSpace?: boolean;
   /** 显隐由宿主驱动；缺省锚点存在即显示（宿主托管用法） */
@@ -60,6 +62,7 @@ export function AnchoredPanel({
   anchor,
   placement = "bottom-start",
   avoid,
+  followAnchor = false,
   fitVerticalSpace = false,
   open,
   arrow = false,
@@ -79,6 +82,7 @@ export function AnchoredPanel({
     popRef,
     placement,
     getAvoid: avoid,
+    pollAnchor: followAnchor,
     fitVerticalSpace,
     onPlace: (pos, pop) => {
       pop.dataset.side = pos.side;

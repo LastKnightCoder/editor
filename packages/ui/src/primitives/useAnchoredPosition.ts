@@ -107,7 +107,9 @@ export function useAnchoredPosition({
     const poll = () => {
       const anchor = getAnchorRef.current();
       if (anchor) {
-        const key = `${anchor.left},${anchor.top},${anchor.width},${anchor.height}`;
+        // 避让矩形随锚点一起变（如画布平移），一并比对
+        const avoid = getAvoidRef.current?.();
+        const key = `${anchor.left},${anchor.top},${anchor.width},${anchor.height}${avoid ? `|${avoid.left},${avoid.top},${avoid.right},${avoid.bottom}` : ""}`;
         if (key !== lastRect) {
           lastRect = key;
           place();
