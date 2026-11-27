@@ -1,5 +1,5 @@
 import type Board from "./Board";
-import { menuText } from "./menu-i18n";
+import { menuText, type MenuText } from "./menu-i18n";
 import type { Translator } from "@tau/i18n";
 import type { WhiteboardMessageKey } from "./messages";
 import type { ElementCreateSpec } from "./extensions/api";
@@ -51,7 +51,7 @@ export function toolLabel(id: string, original: string, t: Translate): string {
 export function geometryLabel(type: string, original: string, t: Translate): string {
   return shapeLabels[type] ? t(shapeLabels[type]) : original;
 }
-export function geometryMenuText(board: Board, type: string, original: string) {
+export function geometryMenuText(board: Board, type: string, original: string): MenuText | { label: string } {
   const key = shapeLabels[type];
   return key ? menuText(board, key) : { label: original };
 }

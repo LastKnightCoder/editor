@@ -17,6 +17,8 @@ export function menuText(board: Board, key: WhiteboardMessageKey, values?: Trans
   const message = { key, values: values && Object.freeze({ ...values }) };
   return { label: whiteboardT(board, key, message.values), [MENU_MESSAGE]: message };
 }
+/** 命名返回类型：声明生成需要可命名的类型（TS4058）。 */
+export type MenuText = ReturnType<typeof menuText>;
 export function menuLabelReader(board: Board, item: PluginContextMenuItem): () => string {
   const message = (item as MessageItem)[MENU_MESSAGE];
   if (message) return () => whiteboardT(board, message.key, message.values);
