@@ -9,6 +9,7 @@ import ReferenceLines from "../ReferenceLines";
 import { ArrowMarkerSvg } from "../ArrowMarkers";
 import ArrowCustomConnectOverlay from "../ArrowCustomConnectOverlay";
 import MindDragOverlay from "../MindDragOverlay";
+import MindRelationOverlay from "../MindRelationOverlay";
 import { CreationPreview } from "../CreationPreview";
 import Board from "../../Board";
 import { SelectionScope } from "../SelectionScope";
@@ -210,6 +211,7 @@ const BoardContent = memo(
         {/* 3. 中心连接且被选中的箭头（最顶层） */}
         <g data-layer="selected-interaction-elements">{visibleCenterConnectAndSelectedArrows}</g>
         <MindDragOverlay board={board} />
+        <MindRelationOverlay board={board} />
         {/* 创建手势预览：所有元素之上、选择/辅助层之下，不参与命中 */}
         <CreationPreview board={board} zoom={zoom} />
         {showAssistLayers && (
