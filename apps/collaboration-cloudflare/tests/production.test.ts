@@ -226,7 +226,7 @@ describe("正式 Cloudflare 协作能力", () => {
     },
     60000
   );
-  it("编辑历史经实际 HTTP 权限、条件恢复、单次撤销和 R2 备份恢复贯通", async () => {
+  it("连续编辑合并后可整组撤销，保留预览后的输入，并能从 R2 恢复历史", async () => {
     await initialize();
     const owner = await register("记录者");
     const outsider = await register("未加入");
@@ -277,15 +277,33 @@ describe("正式 Cloudflare 协作能力", () => {
         403
       );
       const edit = (await request(`${route}/history/1`, "GET", undefined, owner)).value;
-      expect(edit.entry).toMatchObject({ operationId: "prepend", actorName: "记录者" });
-      expect(edit.value.content[0].children[0].text).toBe("前甲乙");
-      const operation = { operationId: "undo-prepend", kind: "undo", sequence: 1 };
+      expect(edit.entry).toMatchObject({ operationId: "append", actorName: "记录者" });
+      expect(edit.value.content[0].children[0].text).toBe("前甲乙后");
+      await change("middle", 2, "中");
+      const operation = { operationId: "undo-outer", kind: "undo", sequence: 1 };
       for (let attempt = 0; attempt < 2; attempt++)
         expect(
           (await request(`${route}/history/apply`, "POST", operation, owner)).response.status
         ).toBe(200);
       const undone = (await request(`${route}/history/3`, "GET", undefined, owner)).value;
-      expect(undone.value.content[0].children[0].text).toBe("甲乙后");
+      expect(undone.entry).toMatchObject({ operationId: "undo-outer", kind: "undo", target: 1 });
+      expect(undone.value.content[0].children[0].text).toBe("甲中乙");
+      expect(
+        (
+          await request(
+            `${route}/history/apply`,
+            "POST",
+            {
+              kind: "undo",
+              operationId: "redo-outer",
+              sequence: undone.entry.sequence,
+            },
+            owner
+          )
+        ).response.status
+      ).toBe(200);
+      const redone = (await request(`${route}/history/4`, "GET", undefined, owner)).value;
+      expect(redone.value.content[0].children[0].text).toBe("前甲中乙后");
       const restore = {
         operationId: "restore-base",
         kind: "restore",
@@ -300,7 +318,7 @@ describe("正式 Cloudflare 协作能力", () => {
           await request(
             `${route}/history/apply`,
             "POST",
-            { ...restore, expectedRevision: undone.headRevision },
+            { ...restore, expectedRevision: redone.headRevision },
             owner
           )
         ).response.status
@@ -324,7 +342,10 @@ describe("正式 Cloudflare 协作能力", () => {
       for (const line of archive.trim().split("\n"))
         expect((await admin("history/" + id, JSON.parse(line))).response.status).toBe(200);
       expect((await admin("finish-import")).response.status).toBe(200);
-      const restored = (await request(`${route}/history/4`, "GET", undefined, owner)).value;
+      const grouped = (await request(`${route}/history/1`, "GET", undefined, owner)).value;
+      expect(grouped.entry).toEqual(edit.entry);
+      expect(grouped.value).toEqual(edit.value);
+      const restored = (await request(`${route}/history/5`, "GET", undefined, owner)).value;
       expect(restored.entry).toMatchObject({ kind: "restore", target: 0 });
       expect(restored.value.content[0].children[0].text).toBe("甲乙");
     } finally {
