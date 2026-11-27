@@ -236,8 +236,20 @@ describe("白板模型预算与写入边界", () => {
     const before = Y.encodeStateVector(doc);
     expect(board.tryLocalStructure(commands, {})).toBeUndefined();
     expect(Y.encodeStateVector(doc)).toEqual(before);
-    board.submit(commands, {});
+    const handoff = board.capturePreparedUpdate(commands),
+      candidate = board.forkPreparedBaseline();
+    documents.push(candidate.doc);
+    if (!handoff) throw new Error("没有生成交接票据");
+    const vector = Y.encodeStateVector(candidate.doc);
+    candidate.submit(commands, {});
+    const delta = Y.encodeStateAsUpdate(candidate.doc, vector);
+    expect(handoff(() => Y.applyUpdate(doc, delta), {})).toEqual({
+      isolated: true,
+      snapshot: true,
+      capacity: false,
+    });
     expect(board.read().pages[1].children.map(node => node.id)).toContain(target);
+    expect(Y.encodeStateAsUpdate(doc).length).toBeLessThanOrEqual(limit);
     const remaining = limit - Y.encodeStateAsUpdate(doc).length;
     board.title.insert(0, "z".repeat(remaining - 64));
     board.prepareLocalTranslations();

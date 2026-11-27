@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest";
 import * as Y from "yjs";
 import { prepareWhiteboardContract } from "@tau/db-schema/content-contracts";
+import { WhiteboardModel } from "./whiteboard-model";
+import type { WhiteboardModelCommand } from "./whiteboard-types";
+import { nodeInitializationRanges, preserveNodeInitialization } from "./node-tree-history";
 import {
   fixture,
   model,
@@ -14,7 +17,172 @@ import {
 
 afterEach(() => documents.splice(0).forEach(doc => doc.destroy()));
 
+async function preparedWrite(
+  board: WhiteboardModel,
+  commands: readonly WhiteboardModelCommand[],
+  origin: object
+) {
+  board.prepareLocalTranslations();
+  const handoff = board.capturePreparedUpdate(commands);
+  const trial = new WhiteboardModel(new Y.Doc({ gc: false }));
+  documents.push(trial.doc);
+  Y.applyUpdate(trial.doc, Y.encodeStateAsUpdate(board.doc));
+  const vector = Y.encodeStateVector(trial.doc),
+    ranges: { client: number; clock: number; len: number }[] = [];
+  trial.doc.on("afterTransaction", transaction =>
+    ranges.push(...nodeInitializationRanges(transaction))
+  );
+  trial.prepareLocalTranslations();
+  trial.tryLocalStructure(commands, origin) ?? trial.submitChunks(commands, origin);
+  await trial.validate(board);
+  const update = Y.encodeStateAsUpdate(trial.doc, vector);
+  const write = () =>
+    board.doc.transact(transaction => {
+      ranges.forEach(range => preserveNodeInitialization(transaction, range));
+      Y.applyUpdate(board.doc, update, origin);
+      transaction.local = true;
+    }, origin);
+  return { handoff, write };
+}
+
 describe("白板结构增量与完整模型对账", () => {
+  it("准备分叉共享不可变正文但不共享结构索引，源文档变化后不复活旧证明", async () => {
+    const { board, page, secondPage, container, rich } = await fixture();
+    board.doc.gc = false;
+    const leaf = create(board, rich, pageParent(page), "seed", [
+      { type: "paragraph", children: [{ text: "分叉正文" }] },
+    ]);
+    board.prepareLocalTranslations();
+    expect(
+      board.tryLocalGeometries([{ id: leaf, geometry: { ...shapeGeometry, x: 45 } }], {})
+    ).toMatchObject({ isolated: true });
+    const before = board.read(),
+      fork = board.forkPreparedBaseline();
+    documents.push(fork.doc);
+    expect(fork.read()).toBe(before);
+    const commands: WhiteboardModelCommand[] = [
+      {
+        type: "create",
+        id: "fork-only",
+        contractId: container,
+        parent: pageParent(page),
+        geometry: shapeGeometry,
+        data: {},
+      },
+      { type: "move_node", id: leaf, parent: elementParent("fork-only") },
+    ];
+    expect(fork.tryLocalStructure(commands, {})).toMatchObject({ isolated: true });
+    expect(board.read()).toBe(before);
+    expect(
+      board.tryLocalStructure([{ type: "move_node", id: leaf, parent: pageParent(secondPage) }], {})
+    ).toMatchObject({ isolated: true });
+    expect(board.read()).toEqual(model(Y.encodeStateAsUpdate(board.doc)).read());
+    expect(fork.read()).toEqual(model(Y.encodeStateAsUpdate(fork.doc)).read());
+    board.title.insert(0, "外部修改");
+    const fresh = board.forkPreparedBaseline();
+    documents.push(fresh.doc);
+    expect(fresh.read().title).toBe("外部修改");
+    expect(fresh.read()).toEqual(board.read());
+    expect(fork.read().title).toBe(before.title);
+  });
+
+  it("候选交接只重建受影响的父节点，保留正文引用且与完整接纳及撤销重做一致", async () => {
+    const { board, page, container, rich } = await fixture();
+    board.doc.gc = false;
+    const leaf = create(board, rich, pageParent(page), "seed", [
+      { type: "paragraph", children: [{ text: "不可丢失的正文" }] },
+    ]);
+    const before = board.read(),
+      origin = {},
+      history = board.createUndoManager({ trackedOrigins: new Set([origin]) });
+    const commands: WhiteboardModelCommand[] = [
+      {
+        type: "create",
+        id: "prepared-frame",
+        contractId: container,
+        parent: pageParent(page),
+        geometry: shapeGeometry,
+        data: {},
+      },
+      { type: "move_node", id: leaf, parent: elementParent("prepared-frame") },
+    ];
+    const { handoff, write } = await preparedWrite(board, commands, origin);
+    if (!handoff) throw new Error("没有生成交接票据");
+    const originalLeaf = board.read().pages[0].children[0];
+    expect(handoff(write, origin)).toEqual({ isolated: true, snapshot: true, capacity: true });
+    expect(board.read().pages[0].children[0].children[0]).toBe(originalLeaf);
+    expect(board.read()).toEqual(model(Y.encodeStateAsUpdate(board.doc)).read());
+    const committed = board.read();
+    history.undo();
+    expect(board.read()).toEqual(before);
+    history.redo();
+    expect(board.read()).toEqual(committed);
+    expect(() => handoff(write, origin)).toThrow();
+    history.destroy();
+  });
+
+  it("候选等待期间内容或空根变化时拒绝交接，不能产生候选写入", async () => {
+    const { board, page, secondPage, container } = await fixture();
+    board.doc.gc = false;
+    const target = create(board, container, pageParent(page)),
+      origin = {};
+    for (const change of [
+      () => board.title.insert(0, "远端"),
+      () => board.doc.getMap("node-tree:roots:empty-reserved:nodes"),
+    ]) {
+      const { handoff, write } = await preparedWrite(
+        board,
+        [{ type: "move_node", id: target, parent: pageParent(secondPage) }],
+        origin
+      );
+      if (!handoff) throw new Error("没有生成交接票据");
+      change();
+      const before = Y.encodeStateAsUpdate(board.doc);
+      expect(() => handoff(write, origin)).toThrow();
+      expect(Y.encodeStateAsUpdate(board.doc)).toEqual(before);
+    }
+  });
+
+  it("观察者在候选事务内或增量通知时附加修改，放弃证明并读取真实内容", async () => {
+    const { board, page, secondPage, container } = await fixture();
+    board.doc.gc = false;
+    const target = create(board, container, pageParent(page)),
+      origin = {};
+    for (const event of ["beforeObserverCalls", "update", "inline"] as const) {
+      const node = flat(board.read()).find(node => node.id === target);
+      if (!node) throw new Error("目标不存在");
+      const { handoff, write } = await preparedWrite(
+        board,
+        [
+          {
+            type: "set_node",
+            id: target,
+            patch: { geometry: { ...node.geometry, x: node.geometry.x + 1 } },
+          },
+        ],
+        origin
+      );
+      if (!handoff) throw new Error("没有生成交接票据");
+      if (event !== "inline") board.doc.once(event, () => board.title.insert(0, event));
+      const apply =
+        event === "inline"
+          ? () => {
+              write();
+              board.title.insert(0, event);
+            }
+          : write;
+      expect(handoff(apply, origin)).toMatchObject({ isolated: false });
+      expect(board.read()).toEqual(model(Y.encodeStateAsUpdate(board.doc)).read());
+    }
+    const { handoff, write } = await preparedWrite(
+      board,
+      [{ type: "move_node", id: target, parent: pageParent(secondPage) }],
+      origin
+    );
+    if (!handoff) throw new Error("没有生成交接票据");
+    expect(handoff(write, origin)).toMatchObject({ snapshot: true, capacity: true });
+  });
+
   it("连续收纳移动遇到重复目标、历史锚点和父级切换时，与逐条提交顺序及撤销一致", async () => {
     const { board, page, secondPage, container, shape } = await fixture();
     board.doc.gc = false;

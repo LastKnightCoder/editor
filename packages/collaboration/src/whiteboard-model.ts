@@ -1,5 +1,6 @@
 import { canUpgradeColumnContract } from "./column-contract-upgrade";
 import { WhiteboardStructure, WhiteboardStructureDraft } from "./whiteboard-structure";
+import { capturePreparedUpdate } from "./whiteboard-prepared-update";
 import { WhiteboardPresentations } from "./whiteboard-presentation";
 import { isContentEntityReference } from "@tau/db-schema/content-identities";
 import * as Y from "yjs";
@@ -333,6 +334,39 @@ export class WhiteboardModel {
     if (useLocalClient) doc.clientID = this.doc.clientID;
     return new WhiteboardModel(doc);
   }
+  /** 独立候选复用同一已验证状态，索引集合独立，正文快照保持不可变。 */
+  forkPreparedBaseline(): WhiteboardModel {
+    this.active();
+    if (
+      this.doc._transaction ||
+      this.doc._transactionCleanups.length ||
+      this.doc.store.pendingStructs ||
+      this.doc.store.pendingDs
+    )
+      throw new Error("白板尚不能分叉准备候选");
+    const fork = this.clone(false),
+      proof = this.translationBudget,
+      base = this.structure;
+    if (
+      proof &&
+      proof.revision === this.revision &&
+      proof.rootCount === this.doc.share.size &&
+      !this.doc.gc
+    ) {
+      fork.translationBudget = {
+        ...proof,
+        revision: fork.revision,
+        rootCount: fork.doc.share.size,
+      };
+      if (base?.revision === this.revision) {
+        const structure = new WhiteboardStructure(base.snapshot, fork.revision);
+        base.roots.forEach(root => structure.roots.add(root));
+        base.references.forEach(reference => structure.references.add(reference));
+        fork.structure = structure;
+      }
+    }
+    return fork;
+  }
   /** 可信绑定在隔离候选执行写操作；不能把闭包交给插件或在其中产生外部副作用。 */
   preflight(write: (candidate: WhiteboardModel) => void): void {
     this.active();
@@ -641,6 +675,48 @@ export class WhiteboardModel {
       this.structure?.revision === this.revision
       ? this.structure.snapshot
       : undefined;
+  }
+
+  /** 仅可信准备器交接已验证的结构候选；生产写入入口不自动使用此能力。 */
+  capturePreparedUpdate(commands: readonly WhiteboardModelCommand[]) {
+    this.active();
+    const proof = this.translationBudget,
+      base = this.structure;
+    if (
+      !proof ||
+      !base ||
+      proof.revision !== this.revision ||
+      base.revision !== this.revision ||
+      proof.rootCount !== this.doc.share.size ||
+      this.doc.gc ||
+      this.doc._transaction ||
+      this.doc._transactionCleanups.length ||
+      this.doc.store.pendingStructs ||
+      this.doc.store.pendingDs
+    )
+      return;
+    return capturePreparedUpdate(
+      {
+        model: this,
+        proof,
+        base,
+        revision: () => this.revision,
+        active: () => this.active(),
+        element: id => frozen(this.snapshotElement(id, [])),
+        accept: upperBytes => {
+          this.structure = base;
+          this.translationBudget =
+            upperBytes === undefined
+              ? undefined
+              : { revision: this.revision, rootCount: this.doc.share.size, upperBytes };
+        },
+        invalidate: () => {
+          this.structure = undefined;
+          this.translationBudget = undefined;
+        },
+      },
+      commands
+    );
   }
 
   private publishGeometryStructure(

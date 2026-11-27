@@ -344,6 +344,16 @@ async function mount() {
         },
         frameCommand,
         ready: false,
+        async startPrototype(startWorker = true, handoff = false, incremental = false) {
+          const contracts = schema.prepared.filter(row =>
+            [schema.types.frame.contractId, schema.types.column.contractId].includes(row.id)
+          );
+          await model.installContracts(
+            Object.fromEntries(contracts.map(row => [row.id, row.contract]))
+          );
+          const { createPrototypeScenario } = await import("./prototype/scenario");
+          return createPrototypeScenario(fixture, startWorker, handoff, incremental);
+        },
       };
       Object.assign(window, { frameBench: fixture });
       setTimeout(() => {

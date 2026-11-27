@@ -3,6 +3,7 @@ import {
   stressFrameStructure,
   stressFrameRetained,
 } from "./whiteboard-frame-stress.mjs";
+import { sampleFrameWorker } from "./whiteboard-frame-worker.mjs";
 import { build, preview } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import tailwind from "@tailwindcss/vite";
@@ -1361,7 +1362,58 @@ try {
     throw new Error("基线源码未进入基准构建");
   server = await preview({ ...config, preview: { host: "127.0.0.1", port: 0 } });
   await run(["open", "about:blank"]);
-  if (
+  if (process.argv.includes("--worker-prototype")) {
+    const target = process.argv.find(arg => arg.startsWith("--output="))?.slice(9);
+    const options = {
+      stress: process.argv.includes("--worker-prototype-stress"),
+      quietHost,
+      renderers: rendererCompare ? ["individual", "flat"] : [flatRenderer ? "flat" : "individual"],
+      profile: process.argv.includes("--profile"),
+      trace: process.argv.includes("--trace"),
+      chain: process.argv.includes("--proof-chain"),
+      handoff:
+        process.argv.includes("--proof-handoff") || process.argv.includes("--incremental-worker"),
+      incremental: process.argv.includes("--incremental-worker"),
+      modes: (
+        process.argv.find(arg => arg.startsWith("--modes="))?.slice(8) ?? "sync,worker"
+      ).split(","),
+      cycles: Number(process.argv.find(arg => arg.startsWith("--cycles="))?.slice(9) ?? 5),
+      rounds: Number(process.argv.find(arg => arg.startsWith("--rounds="))?.slice(9) ?? 3),
+      warmup: Number(process.argv.find(arg => arg.startsWith("--warmup="))?.slice(9) ?? 1),
+      rates: (process.argv.find(arg => arg.startsWith("--rates="))?.slice(8) ?? "1,2,4")
+        .split(",")
+        .map(Number),
+      actions: (
+        process.argv.find(arg => arg.startsWith("--actions="))?.slice(10) ??
+        "create,dissolve,geometry"
+      ).split(","),
+      dense: process.argv.includes("--dense"),
+    };
+    const hostLoadBefore = loadavg();
+    if (target) await writeFile(target, JSON.stringify({ status: "running", options }) + "\n");
+    let output;
+    try {
+      output = await run([
+        "run-code",
+        `async page => {
+      try { return await (${sampleFrameWorker.toString()})(page, ${JSON.stringify(server.resolvedUrls.local[0])}, ${JSON.stringify(options)}); }
+      catch (error) { return [...(page.frameWorkerResults ?? []), { failure: error.message }]; }
+    }`,
+      ]);
+    } catch (error) {
+      if (target)
+        await writeFile(target, JSON.stringify({ failure: error.message, options }) + "\n");
+      throw error;
+    }
+    const match = output.match(/### Result\n([^\n]+)/);
+    if (!match) throw new Error("后台原型未返回结果");
+    const result = JSON.parse(match[1]).map(row => ({
+      ...row,
+      host: { cpuCount: cpus().length, loadBefore: hostLoadBefore, loadAfter: loadavg() },
+    }));
+    if (target) await writeFile(target, JSON.stringify(result, null, 2) + "\n");
+    if (result.some(row => row.failure)) throw new Error("后台原型验证失败，详见结果");
+  } else if (
     process.argv.includes("--stress") ||
     process.argv.includes("--stress-structure") ||
     process.argv.includes("--stress-fragmented") ||

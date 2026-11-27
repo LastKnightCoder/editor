@@ -39,6 +39,10 @@ import {
 import { whiteboardAgentTools } from "../agent-tools";
 import { ToolRegistry } from "@/tools/toolRegistry";
 import { WhiteboardRealtime } from "../../../../src-electron/main/modules/whiteboard-documents/realtime";
+import {
+  prepareCandidate,
+  applyCandidate,
+} from "../../../../e2e/whiteboard-frame/prototype/transaction";
 
 const cleanups: (() => unknown)[] = [];
 afterEach(async () => {
@@ -622,6 +626,101 @@ it.runIf(process.env.TAU_FRAME_QUOTA_STRESS === "1")(
     expect(errors).toEqual([]);
   },
   180000
+);
+
+it.each(["raw", "handoff", "incremental"])(
+  "后台候选经真实保存与推送后，单步撤销重做保留远端内容和新文字初始化（%s）",
+  async variant => {
+    const handoffEnabled = variant !== "raw",
+      incremental = variant === "incremental";
+    const {
+      sides: [left, right],
+      errors,
+      elementId,
+    } = await setup();
+    const model = left.client.model,
+      original = model.read(),
+      page = original.pages[0],
+      frame = page.children[0],
+      origin = {};
+    // 候选合入须标为本地事务并转交初始化范围，否则保存漏写或重做丢失标题。
+    const commands: import("@tau/collaboration").WhiteboardModelCommand[] = [
+      {
+        type: "create",
+        id: "worker-created",
+        contractId: frame.contractId,
+        parent: { kind: "page", id: page.id },
+        geometry: { ...frame.geometry, x: 600 },
+        data: { ...frame.data, title: incremental ? "后台标题保留" : "后台标题" },
+      },
+      { type: "set_node", id: elementId, patch: { geometry: { ...frame.geometry, x: 175 } } },
+      {
+        type: "edit_text",
+        id: "worker-created",
+        field: "title",
+        edit: { offset: 4, remove: 0, text: "保留" },
+      },
+    ];
+    if (incremental) commands.pop();
+    model.prepareLocalTranslations();
+    const handoff = handoffEnabled ? model.capturePreparedUpdate(commands) : undefined;
+    if (handoffEnabled && !handoff) throw new Error("没有生成交接票据");
+    const candidate = await prepareCandidate(model, commands, incremental);
+    if (incremental) expect(candidate.proofReused).toBe(true);
+    const release = left.binding.history.retainOrigin(origin);
+    left.binding.history.stopCapturing();
+    await act(async () => {
+      left.binding.writing = true;
+      try {
+        if (handoff)
+          expect(handoff(() => applyCandidate(model, candidate, origin), origin)).toEqual({
+            isolated: true,
+            snapshot: true,
+            capacity: true,
+          });
+        else applyCandidate(model, candidate, origin);
+      } finally {
+        left.binding.writing = false;
+      }
+      left.binding.refreshLayout();
+    });
+    left.binding.history.stopCapturing();
+    release();
+    await waitFor(() => {
+      expect(right.x()).toBe(175);
+      expect(right.client.model.text("worker-created", "title").toString()).toBe("后台标题保留");
+    });
+    expect(left.binding.history.undoStack).toHaveLength(1);
+    await act(async () =>
+      right.binding.submit([
+        { type: "edit_title", edit: { offset: 0, remove: 0, text: "远端内容" } },
+      ])
+    );
+    await waitFor(() => expect(model.read().title).toBe("远端内容"));
+    await act(async () => left.binding.undo());
+    await waitFor(() => {
+      expect(right.x()).toBe(100);
+      expect(right.client.model.read().pages[0].children.map(node => node.id)).toEqual([elementId]);
+    });
+    expect(model.read()).toEqual({ ...original, title: "远端内容" });
+    await act(async () => left.binding.redo());
+    await waitFor(() => {
+      expect(right.x()).toBe(175);
+      expect(right.client.model.text("worker-created", "title").toString()).toBe("后台标题保留");
+    });
+    for (const side of [left, right]) {
+      await side.client.flush();
+      const reopened = new WhiteboardModel(new Y.Doc({ gc: false }));
+      try {
+        await reopened.receive(side.durable());
+        expect(reopened.read()).toEqual(side.client.model.read());
+      } finally {
+        reopened.doc.destroy();
+      }
+    }
+    expect(errors).toEqual([]);
+  },
+  20000
 );
 
 it.each(["pointercancel", "hidden"])(

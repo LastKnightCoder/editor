@@ -99,6 +99,40 @@ pnpm --filter @tau/whiteboard bench:mind
 
 与构建、类型检查及其他压力任务串行执行。门控套件覆盖四种布局的 100–2000 普通节点、概要与带标题外框，以及最多 64 个节点逐层嵌套的几何查询，并校验大图中的概要正文不重叠；计时只用于比较，不作为默认单测门槛。联系线批量查询覆盖 100–2000 普通节点及一半数量的连线，plain 组记录普通对象耗时，tracked 组只用于身份访问次数，首轮包含建索引、后两轮复用同一快照。协作长会话逐操作验证撤销重做、远端增量同步与二进制重开；三端外框压力反复并发新增、改标题、删除与修改，验证独立操作保留和局部撤销。真实箭头组件压力另覆盖 100–1000 节点下的单节点编辑和整批端点移动；计时包含实际 `Board.apply` 与 React 提交，组件挂载和断言在窗口外，不以直接调用几何工具函数代替。三端联系线压力反复组合建线、两端删节点、逆序同步、逐端撤销、导出和二进制重开，验证失效线不可见及恢复后的身份。默认回归另外约束身份、区间引用、联系线清理、元素事件一致性和几何访问次数，不能用模型、jsdom 或纯布局读数替代真实客户端帧率或视觉验收。
 
+### 画框事务准备
+
+在仓库根目录运行生产夹具。计时与构建、类型检查及其他压力任务串行执行，正式样本显式排除预热，保留全部失败。
+
+```sh
+node apps/desktop/scripts/bench-whiteboard-frame.mjs --worker-prototype --worker-prototype-stress --cycles=5 --output=/tmp/frame-worker-stress.json
+node apps/desktop/scripts/bench-whiteboard-frame.mjs --worker-prototype --proof-handoff --worker-prototype-stress --cycles=5 --output=/tmp/frame-handoff-stress.json
+node apps/desktop/scripts/bench-whiteboard-frame.mjs --worker-prototype --incremental-worker --worker-prototype-stress --cycles=5 --output=/tmp/frame-incremental-stress.json
+node apps/desktop/scripts/bench-whiteboard-frame.mjs --worker-prototype --incremental-worker --proof-chain --cycles=8 --output=/tmp/frame-proof-chain.json
+node apps/desktop/scripts/bench-whiteboard-frame.mjs --worker-prototype --quiet-host --modes=sync,worker,handoff,incremental --dense --rounds=3 --warmup=1 --rates=1,2,4 --output=/tmp/frame-worker-performance.json
+pnpm --filter desktop exec vitest run src/services/whiteboard-documents/__tests__/drag-realtime.test.tsx
+```
+
+原型仅由夹具入口加载。对比同步与 Worker 相同的千元素命令，分别查看后台准备、主线程合入与历史、快照读取、投影、空闲预算准备及最长 rAF 间隔。计时覆盖首个结果显示和其后的准备工作；压力验证检查取消、权限失效、远端竞争、空文字根、保存重开、逐步撤销重做及独立副本。真实 SQLite 与 WebSocket 由定向回归另行检查。模型夹具不能代替真实输入延迟和完整交互验收；后台计算变快不足以判定可以接入生产。
+
+四个模式依次为同步、原始二进制 Worker、仅主线程证明交接、双端基线复用。交接模式除功能与屏幕坐标对账外，还必须满足 `proofResult.snapshot/capacity` 均为真，采样窗口的 `fullReads/fullValidations` 均为零；不以扩大预算、删掉失配读取或移出采样窗口换取通过。连续压力还检查未变化正文引用、镜像基线复用及整条撤销重做链。
+
+`--quiet-host` 在用例前等待主机 CPU 连续两秒低于 40%；用例期间按秒记录，任一采样达到 65% 则保留该尝试并重试，同一用例四次受影响后停止验收。资格由资源占用决定，不能根据用例耗时或帧率挑样本；所有功能错误仍须处理，帧预算不放宽。环境长期满载时先保存中间结果，取得空闲窗口后补齐，不能把不合格环境的计时当收益。
+
+CPU 档位由页面的 `Emulation.setCPUThrottlingRate` 设置，不能视为整机所有线程一起降速。Worker 的耗时须单独核对；全线程的 2×、4× 放行需要额外校准，不能沿用主线程数据直接宣称达标。Chromium 的[页面设置入口](https://chromium.googlesource.com/chromium/src/+/main/third_party/blink/renderer/core/inspector/inspector_emulation_agent.cc)调用[主线程降速器](https://chromium.googlesource.com/chromium/src/+/99baeeafe29b54168bc18411791025d4a9419eea/third_party/blink/renderer/platform/scheduler/public/thread_cpu_throttler.h)。
+
+### 画框绘制平面
+
+```sh
+node apps/desktop/scripts/bench-whiteboard-frame.mjs --worker-prototype --renderer-compare --modes=sync --actions=create,dissolve --dense --quiet-host --rounds=3 --warmup=1 --rates=1,2,4 --output=/tmp/frame-renderers.json
+node apps/desktop/scripts/bench-whiteboard-frame.mjs --renderer-compare --only=create:create:1000,dissolve:frame:1000 --dense --labels --verify --quiet-host --rounds=3 --warmup=1 --rates=1,2,4 --settle-ms=500 --output=/tmp/frame-renderers-native.json
+node apps/desktop/scripts/bench-whiteboard-frame.mjs --flat-renderer --stress-fragmented --stress-rate=4 --output=/tmp/frame-fragmented.json
+node apps/desktop/scripts/bench-whiteboard-frame.mjs --flat-renderer --stress --stress-rate=4 --output=/tmp/frame-mixed.json
+```
+
+默认入口使用逐元素稳定容器，连续绘制平面仅保存在隔离夹具。`--renderer-compare` 在同一构建中交替测生产方案与原型；`--flat-renderer` 单独启用原型，供压力验证及剖析使用。同步模型/投影用例不启动 Worker，统计首次结果可见时间、最长帧、实际宿主移动次数及编辑器实例保留；原生用例另含预览、菜单与真实指针输入。两种口径不能混写。原生用例的 `--quiet-host` 逐样本记录资格但不自动重试，未合格计时保留并另行补测；功能失败与帧预算失败均不因负载而忽略。
+
+拆分压力覆盖整批收纳/解散、跨两个画框和根层的交错移动、再次完整收纳与解散，每步及撤销重做后检查独立模型、真实绘制顺序、未提交输入、焦点及 iframe 文档身份；同时运行混合场景与真实保存/协作回归。性能计时与这些压力和构建串行执行。剖析用例可追加 `--profile --trace --readable-profile`，轨迹只汇总操作开始与结束之间的主线程工作。
+
 ### 画框长拖动
 
 ```sh

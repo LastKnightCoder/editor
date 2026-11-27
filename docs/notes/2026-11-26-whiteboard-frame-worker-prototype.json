@@ -1,0 +1,4910 @@
+{
+  "date": "2026-11-26",
+  "head": "7aa3113ee4669453ed89bbea9c85d0b3a115df75",
+  "sourceSha256": "e8cd70bb86164910a6446221cebc562df72e3c40716cbde7b7feee70343feee0",
+  "sourceFiles": [
+    "apps/desktop/e2e/whiteboard-frame/prototype/client.ts",
+    "apps/desktop/e2e/whiteboard-frame/prototype/prepare.worker.ts",
+    "apps/desktop/e2e/whiteboard-frame/prototype/scenario.ts",
+    "apps/desktop/e2e/whiteboard-frame/prototype/stress.ts",
+    "apps/desktop/e2e/whiteboard-frame/prototype/transaction.ts",
+    "apps/desktop/e2e/whiteboard-frame/scene.tsx",
+    "apps/desktop/scripts/bench-whiteboard-frame.mjs",
+    "apps/desktop/scripts/whiteboard-frame-worker.mjs",
+    "packages/collaboration/src/node-tree-history.ts",
+    "packages/collaboration/src/whiteboard-model.ts",
+    "packages/whiteboard/src/collaboration/binding.ts",
+    "packages/whiteboard/src/components/BoardContent/ElementLayer.tsx"
+  ],
+  "scope": "隔离 Worker 候选与受基线约束的原子合入；未接入生产交互、即时视图或编辑队列",
+  "protocol": "1000 个带文字同屏元素；页面主线程 CDP 1/2/4 倍降速；每组 1 次预热、2 次正式；首屏后 500ms，含空闲准备；每轮新页面、新初始化 Worker 后测首个候选；同步复测不创建 Worker",
+  "throttlingLimit": "页面 CDP 降速未使 Worker 同比例减速，不能用于全线程 4 倍验收",
+  "checks": {
+    "workerStress": [
+      {
+        "scene": "dense",
+        "rate": 4,
+        "cycles": 5,
+        "edits": 25,
+        "moves": 9010,
+        "rejected": 8,
+        "elements": 1000,
+        "independentReplica": true,
+        "binaryReopen": true,
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [5.17919921875, 4.96630859375, 4.1337890625],
+          "loadAfter": [2.23681640625, 3.50927734375, 3.84326171875]
+        }
+      },
+      {
+        "scene": "mixed",
+        "rate": 4,
+        "cycles": 5,
+        "edits": 27,
+        "moves": 8138,
+        "rejected": 8,
+        "elements": 909,
+        "independentReplica": true,
+        "binaryReopen": true,
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [5.17919921875, 4.96630859375, 4.1337890625],
+          "loadAfter": [2.23681640625, 3.50927734375, 3.84326171875]
+        }
+      }
+    ],
+    "desktopSavingAndRealtimePassed": 8,
+    "scopedTypes": "passed",
+    "frameBudgetPassed": 0,
+    "frameBudgetFormalSamples": 36,
+    "lint": "passed with warnings; no errors",
+    "whiteboardBoundaries": "passed",
+    "docs": "passed; 0 warnings",
+    "latestSavingRegression": "1 passed; 7 filtered by test name"
+  },
+  "runs": {
+    "smoke": [
+      {
+        "action": "create",
+        "mode": "sync",
+        "elements": 1001,
+        "mainCommitMs": 75.59999999962747,
+        "refreshMs": 30.300000000745058,
+        "readMs": 0,
+        "reads": 1,
+        "roundTripMs": 0,
+        "completeMs": 321.5,
+        "maxFrameMs": 300,
+        "longFrames": [
+          {
+            "delta": 300,
+            "at": 307.4999999992551,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 0,
+        "warmup": false,
+        "errors": []
+      },
+      {
+        "action": "create",
+        "mode": "worker",
+        "elements": 1001,
+        "mainCommitMs": 31.700000001117587,
+        "refreshMs": 89.59999999962747,
+        "readMs": 117.29999999888241,
+        "reads": 2,
+        "roundTripMs": 250.19999999925494,
+        "workerPrepareMs": 242.7000000011176,
+        "workerExecuteMs": 15.700000001117587,
+        "workerValidateMs": 69,
+        "updateBytes": 180263,
+        "completeMs": 579.2999999988824,
+        "maxFrameMs": 316.60000000000036,
+        "longFrames": [
+          {
+            "delta": 300,
+            "at": 559.3000000000002,
+            "phase": "paint"
+          },
+          {
+            "delta": 316.60000000000036,
+            "at": 909.3000000000002,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 0,
+        "warmup": false,
+        "errors": []
+      },
+      {
+        "action": "dissolve",
+        "mode": "sync",
+        "elements": 1001,
+        "mainCommitMs": 53.80000000074506,
+        "refreshMs": 3.299999998882413,
+        "readMs": 0,
+        "reads": 1,
+        "roundTripMs": 0,
+        "completeMs": 270.40000000037253,
+        "maxFrameMs": 250,
+        "longFrames": [
+          {
+            "delta": 250,
+            "at": 258.30000000074506,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 0,
+        "warmup": false,
+        "errors": []
+      },
+      {
+        "action": "dissolve",
+        "mode": "worker",
+        "elements": 1001,
+        "mainCommitMs": 32.70000000111759,
+        "refreshMs": 98.89999999850988,
+        "readMs": 127.79999999888241,
+        "reads": 2,
+        "roundTripMs": 284.09999999962747,
+        "workerPrepareMs": 277.7999999988824,
+        "workerExecuteMs": 15.800000000745058,
+        "workerValidateMs": 74.69999999925494,
+        "updateBytes": 162227,
+        "completeMs": 633.3000000007451,
+        "maxFrameMs": 350,
+        "longFrames": [
+          {
+            "delta": 333.3000000000002,
+            "at": 624.1000000007452,
+            "phase": "paint"
+          },
+          {
+            "delta": 350,
+            "at": 990.8000000007451,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 0,
+        "warmup": false,
+        "errors": []
+      },
+      {
+        "action": "geometry",
+        "mode": "sync",
+        "elements": 1001,
+        "mainCommitMs": 56.09999999962747,
+        "refreshMs": 11.099999999627471,
+        "readMs": 0,
+        "reads": 1,
+        "roundTripMs": 0,
+        "completeMs": 318.40000000037253,
+        "maxFrameMs": 299.9000000000001,
+        "longFrames": [
+          {
+            "delta": 299.9000000000001,
+            "at": 309.09999999925503,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 0,
+        "warmup": false,
+        "errors": []
+      },
+      {
+        "action": "geometry",
+        "mode": "worker",
+        "elements": 1001,
+        "mainCommitMs": 22.799999998882413,
+        "refreshMs": 69.20000000111759,
+        "readMs": 109.09999999962747,
+        "reads": 2,
+        "roundTripMs": 251,
+        "workerPrepareMs": 245,
+        "workerExecuteMs": 15.300000000745058,
+        "workerValidateMs": 69.09999999962747,
+        "updateBytes": 53333,
+        "completeMs": 581.7999999988824,
+        "maxFrameMs": 316.7999999999997,
+        "longFrames": [
+          {
+            "delta": 316.7999999999997,
+            "at": 576.1999999996274,
+            "phase": "paint"
+          },
+          {
+            "delta": 316.7000000000003,
+            "at": 909.4999999996276,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 0,
+        "warmup": false,
+        "errors": []
+      }
+    ],
+    "interrupted_stress": {
+      "status": "interrupted",
+      "reason": "1000 个带文字元素同屏的 5 轮压力持续超过 10 分钟未完成；关闭专用浏览器以增加分阶段记录，不能算通过",
+      "log": "frame-worker-stress.log",
+      "processSample": "frame-worker-stress-process-sample.txt",
+      "logText": "npm warn Unknown project config \"electron_mirror\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown project config \"electron_builder_binaries_mirror\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\n### Browser `frame-bench-60479` opened with pid 60896.\n### Ran Playwright code\n```js\nawait page.goto('about:blank');\n```\n### Page\n- Page URL: about:blank\n### Snapshot\n- [Snapshot](.playwright-cli/page-2026-11-26T06-06-51-372Z.yml)\nnpm warn Unknown project config \"electron_mirror\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown project config \"electron_builder_binaries_mirror\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nSession closed\nnpm warn Unknown project config \"electron_mirror\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nnpm warn Unknown project config \"electron_builder_binaries_mirror\". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.\nBrowser 'frame-bench-60479' is not open.\nfile:///Users/t.xiong/Desktop/projects/editor/apps/desktop/scripts/bench-whiteboard-frame.mjs:725\n      code ? reject(new Error(`Playwright CLI: ${code}`)) : resolve(output)\n                    ^\n\nError: Playwright CLI: 1\n    at ChildProcess.<anonymous> (file:///Users/t.xiong/Desktop/projects/editor/apps/desktop/scripts/bench-whiteboard-frame.mjs:725:21)\n    at ChildProcess.emit (node:events:514:28)\n    at ChildProcess._handle.onexit (node:internal/child_process:295:12)\n\nNode.js v24.21.0\n"
+    },
+    "stress": [
+      {
+        "scene": "dense",
+        "rate": 4,
+        "cycles": 5,
+        "edits": 25,
+        "moves": 9010,
+        "rejected": 8,
+        "elements": 1000,
+        "independentReplica": true,
+        "binaryReopen": true,
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [5.17919921875, 4.96630859375, 4.1337890625],
+          "loadAfter": [2.23681640625, 3.50927734375, 3.84326171875]
+        }
+      },
+      {
+        "scene": "mixed",
+        "rate": 4,
+        "cycles": 5,
+        "edits": 27,
+        "moves": 8138,
+        "rejected": 8,
+        "elements": 909,
+        "independentReplica": true,
+        "binaryReopen": true,
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [5.17919921875, 4.96630859375, 4.1337890625],
+          "loadAfter": [2.23681640625, 3.50927734375, 3.84326171875]
+        }
+      }
+    ],
+    "shared_worker_setup_comparison": [
+      {
+        "action": "create",
+        "mode": "sync",
+        "initMs": 228.10000000149012,
+        "elements": 1001,
+        "mainCommitMs": 14.5,
+        "refreshMs": 6.900000000372529,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 69.80000000074506,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 50.09999999999991,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 50.09999999999991,
+            "at": 63.300000001117496,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 1,
+        "round": 0,
+        "warmup": true,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "create",
+        "mode": "sync",
+        "initMs": 228.2000000011176,
+        "elements": 1001,
+        "mainCommitMs": 11.800000000745058,
+        "refreshMs": 6.799999998882413,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0.09999999962747097,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 63.80000000074506,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 33.40000000000009,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 33.29999999999973,
+            "at": 47.59999999999991,
+            "phase": "paint"
+          },
+          {
+            "delta": 33.40000000000009,
+            "at": 81,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 1,
+        "round": 1,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "create",
+        "mode": "sync",
+        "initMs": 181.19999999925494,
+        "elements": 1001,
+        "mainCommitMs": 12.400000000372529,
+        "refreshMs": 6.900000000372529,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 68,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 50.09999999999991,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 50.09999999999991,
+            "at": 64.30000000074506,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 1,
+        "round": 2,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "create",
+        "mode": "worker",
+        "initMs": 225.2999999988824,
+        "elements": 1001,
+        "mainCommitMs": 7.5,
+        "refreshMs": 21.700000001117587,
+        "readMs": 25.90000000037253,
+        "reads": 2,
+        "idlePrepareMs": 75.19999999925494,
+        "idlePrepares": 1,
+        "roundTripMs": 236.69999999925494,
+        "workerPrepareMs": 229.80000000074506,
+        "workerExecuteMs": 14.800000000745058,
+        "workerValidateMs": 65.39999999850988,
+        "updateBytes": 180263,
+        "completeMs": 310.3999999985099,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 66.69999999999982,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 50,
+            "at": 297.3000000000002,
+            "phase": "paint"
+          },
+          {
+            "delta": 66.69999999999982,
+            "at": 380.6999999999998,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 1,
+        "round": 0,
+        "warmup": true,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "create",
+        "mode": "worker",
+        "initMs": 218,
+        "elements": 1001,
+        "mainCommitMs": 8.200000001117587,
+        "refreshMs": 22,
+        "readMs": 26.599999997764826,
+        "reads": 2,
+        "idlePrepareMs": 73.10000000149012,
+        "idlePrepares": 1,
+        "roundTripMs": 251,
+        "workerPrepareMs": 245,
+        "workerExecuteMs": 19.699999999254942,
+        "workerValidateMs": 74,
+        "updateBytes": 180263,
+        "completeMs": 325,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 66.59999999999991,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 50.09999999999991,
+            "at": 313.99999999962756,
+            "phase": "paint"
+          },
+          {
+            "delta": 66.59999999999991,
+            "at": 480.59999999962747,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 1,
+        "round": 1,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "create",
+        "mode": "worker",
+        "initMs": 173.39999999850988,
+        "elements": 1001,
+        "mainCommitMs": 8.5,
+        "refreshMs": 21.300000000745058,
+        "readMs": 27.5,
+        "reads": 2,
+        "idlePrepareMs": 81.20000000111759,
+        "idlePrepares": 1,
+        "roundTripMs": 241.30000000074506,
+        "workerPrepareMs": 234.5,
+        "workerExecuteMs": 16.300000000745058,
+        "workerValidateMs": 67.5,
+        "updateBytes": 180240,
+        "completeMs": 316.59999999962747,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 66.70000000000027,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 66.59999999999991,
+            "at": 314.5,
+            "phase": "paint"
+          },
+          {
+            "delta": 66.70000000000027,
+            "at": 397.9000000000001,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 1,
+        "round": 2,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "create",
+        "mode": "sync",
+        "initMs": 237.40000000037253,
+        "elements": 1001,
+        "mainCommitMs": 24.59999999962747,
+        "refreshMs": 14.800000000745058,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 143.59999999962747,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 116.69999999999982,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 116.69999999999982,
+            "at": 129.5,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 2,
+        "round": 0,
+        "warmup": true,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "create",
+        "mode": "sync",
+        "initMs": 218.90000000037253,
+        "elements": 1001,
+        "mainCommitMs": 25.09999999962747,
+        "refreshMs": 15.900000000372529,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 132.2000000011176,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 100,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 100,
+            "at": 113.20000000037271,
+            "phase": "paint"
+          },
+          {
+            "delta": 33.399999999999636,
+            "at": 146.60000000037235,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 2,
+        "round": 1,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "create",
+        "mode": "sync",
+        "initMs": 190.7999999988824,
+        "elements": 1001,
+        "mainCommitMs": 24.100000001490116,
+        "refreshMs": 12.899999998509884,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 135.2000000011176,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 116.60000000000036,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 116.60000000000036,
+            "at": 129.4000000014903,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 2,
+        "round": 2,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "create",
+        "mode": "worker",
+        "initMs": 246.09999999962747,
+        "elements": 1001,
+        "mainCommitMs": 17.40000000037253,
+        "refreshMs": 48.5,
+        "readMs": 62.90000000037253,
+        "reads": 2,
+        "idlePrepareMs": 166.39999999850988,
+        "idlePrepares": 1,
+        "roundTripMs": 277.7999999988824,
+        "workerPrepareMs": 270.7000000011176,
+        "workerExecuteMs": 19.399999998509884,
+        "workerValidateMs": 81.30000000074506,
+        "updateBytes": 180263,
+        "completeMs": 440.40000000037253,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 150.0999999999999,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 150,
+            "at": 429.90000000037253,
+            "phase": "paint"
+          },
+          {
+            "delta": 150.0999999999999,
+            "at": 596.6000000003723,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 2,
+        "round": 0,
+        "warmup": true,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "create",
+        "mode": "worker",
+        "initMs": 232.69999999925494,
+        "elements": 1001,
+        "mainCommitMs": 15.099999999627471,
+        "refreshMs": 44.30000000074506,
+        "readMs": 57.09999999962747,
+        "reads": 2,
+        "idlePrepareMs": 165.7999999988824,
+        "idlePrepares": 1,
+        "roundTripMs": 246.5,
+        "workerPrepareMs": 238.90000000037253,
+        "workerExecuteMs": 15.900000000372529,
+        "workerValidateMs": 67.90000000037253,
+        "updateBytes": 180263,
+        "completeMs": 397.40000000037253,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 150,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 133.30000000000018,
+            "at": 379.70000000074515,
+            "phase": "paint"
+          },
+          {
+            "delta": 33.29999999999973,
+            "at": 413.0000000007449,
+            "phase": "paint"
+          },
+          {
+            "delta": 150,
+            "at": 579.7000000007451,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 2,
+        "round": 1,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "create",
+        "mode": "worker",
+        "initMs": 229.7999999988824,
+        "elements": 1001,
+        "mainCommitMs": 15.300000000745058,
+        "refreshMs": 43.59999999962747,
+        "readMs": 56.80000000074506,
+        "reads": 2,
+        "idlePrepareMs": 163.90000000037253,
+        "idlePrepares": 1,
+        "roundTripMs": 247.59999999962747,
+        "workerPrepareMs": 240.90000000037253,
+        "workerExecuteMs": 19.100000001490116,
+        "workerValidateMs": 72.19999999925494,
+        "updateBytes": 180263,
+        "completeMs": 399.30000000074506,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 150,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 133.4000000000001,
+            "at": 396.09999999962747,
+            "phase": "paint"
+          },
+          {
+            "delta": 150,
+            "at": 562.7999999996273,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 2,
+        "round": 2,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "create",
+        "mode": "sync",
+        "initMs": 226,
+        "elements": 1001,
+        "mainCommitMs": 49.30000000074506,
+        "refreshMs": 32.5,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 274.69999999925494,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 250,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 250,
+            "at": 258.6999999996274,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 0,
+        "warmup": true,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "create",
+        "mode": "sync",
+        "initMs": 225.90000000037253,
+        "elements": 1001,
+        "mainCommitMs": 54.5,
+        "refreshMs": 29.200000001117587,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 285,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 266.6999999999998,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 266.6999999999998,
+            "at": 276.1000000014901,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 1,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "create",
+        "mode": "sync",
+        "initMs": 232.30000000074506,
+        "elements": 1001,
+        "mainCommitMs": 53.09999999962747,
+        "refreshMs": 28.700000001117587,
+        "readMs": 0.09999999962747097,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 288.09999999962747,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 266.60000000000036,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 266.60000000000036,
+            "at": 275.60000000074524,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 2,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "create",
+        "mode": "worker",
+        "initMs": 177.09999999962747,
+        "elements": 1001,
+        "mainCommitMs": 38.70000000111759,
+        "refreshMs": 102,
+        "readMs": 127.10000000149012,
+        "reads": 2,
+        "idlePrepareMs": 361.2999999988824,
+        "idlePrepares": 1,
+        "roundTripMs": 268.40000000037253,
+        "workerPrepareMs": 259.80000000074506,
+        "workerExecuteMs": 22.200000001117587,
+        "workerValidateMs": 83.09999999962747,
+        "updateBytes": 180263,
+        "completeMs": 607.6000000014901,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 350,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 316.6999999999998,
+            "at": 593.1999999999998,
+            "phase": "paint"
+          },
+          {
+            "delta": 350,
+            "at": 976.5,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 0,
+        "warmup": true,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "create",
+        "mode": "worker",
+        "initMs": 236.60000000149012,
+        "elements": 1001,
+        "mainCommitMs": 32.29999999888241,
+        "refreshMs": 95.40000000037253,
+        "readMs": 116.00000000186265,
+        "reads": 2,
+        "idlePrepareMs": 328.40000000037253,
+        "idlePrepares": 1,
+        "roundTripMs": 252.09999999962747,
+        "workerPrepareMs": 243,
+        "workerExecuteMs": 16.90000000037253,
+        "workerValidateMs": 68.90000000037253,
+        "updateBytes": 180263,
+        "completeMs": 578,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 316.5,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 300,
+            "at": 557.7999999996273,
+            "phase": "paint"
+          },
+          {
+            "delta": 33.30000000000018,
+            "at": 591.0999999996275,
+            "phase": "paint"
+          },
+          {
+            "delta": 316.5,
+            "at": 924.3999999996277,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 1,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "create",
+        "mode": "worker",
+        "initMs": 255.7000000011176,
+        "elements": 1001,
+        "mainCommitMs": 34.30000000074506,
+        "refreshMs": 99.09999999962747,
+        "readMs": 126.5,
+        "reads": 2,
+        "idlePrepareMs": 344.69999999925494,
+        "idlePrepares": 1,
+        "roundTripMs": 256.19999999925494,
+        "workerPrepareMs": 248,
+        "workerExecuteMs": 19.90000000037253,
+        "workerValidateMs": 73.69999999925494,
+        "updateBytes": 180263,
+        "completeMs": 583.4000000003725,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 333.3000000000002,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 316.60000000000036,
+            "at": 575.9999999992551,
+            "phase": "paint"
+          },
+          {
+            "delta": 333.3000000000002,
+            "at": 942.599999999255,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 2,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "dissolve",
+        "mode": "sync",
+        "initMs": 231.90000000037253,
+        "elements": 1001,
+        "mainCommitMs": 10.599999999627471,
+        "refreshMs": 8.300000000745058,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 63.59999999962747,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 33.30000000000018,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 33.30000000000018,
+            "at": 46.999999999255124,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 1,
+        "round": 0,
+        "warmup": true,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "dissolve",
+        "mode": "sync",
+        "initMs": 235.90000000037253,
+        "elements": 1001,
+        "mainCommitMs": 12.800000000745058,
+        "refreshMs": 8.099999999627471,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 76.5,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 50.09999999999991,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 50.09999999999991,
+            "at": 64.09999999925503,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 1,
+        "round": 1,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "dissolve",
+        "mode": "sync",
+        "initMs": 233.2000000011176,
+        "elements": 1001,
+        "mainCommitMs": 11.5,
+        "refreshMs": 8.599999999627471,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 60.90000000037253,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 33.40000000000009,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 33.40000000000009,
+            "at": 47.29999999925485,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 1,
+        "round": 2,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "dissolve",
+        "mode": "worker",
+        "initMs": 201.59999999962747,
+        "elements": 1001,
+        "mainCommitMs": 8.200000001117587,
+        "refreshMs": 21.59999999962747,
+        "readMs": 26.599999997764826,
+        "reads": 2,
+        "idlePrepareMs": 85.19999999925494,
+        "idlePrepares": 1,
+        "roundTripMs": 257.5,
+        "workerPrepareMs": 251,
+        "workerExecuteMs": 15.699999999254942,
+        "workerValidateMs": 71.5,
+        "updateBytes": 162227,
+        "completeMs": 332.6000000014901,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 66.60000000000036,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 66.60000000000036,
+            "at": 331.3000000000002,
+            "phase": "paint"
+          },
+          {
+            "delta": 66.59999999999991,
+            "at": 414.5999999999999,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 1,
+        "round": 0,
+        "warmup": true,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "dissolve",
+        "mode": "worker",
+        "initMs": 278.69999999925494,
+        "elements": 1001,
+        "mainCommitMs": 8.100000001490116,
+        "refreshMs": 23,
+        "readMs": 26.699999999254942,
+        "reads": 2,
+        "idlePrepareMs": 81.90000000037253,
+        "idlePrepares": 1,
+        "roundTripMs": 246.89999999850988,
+        "workerPrepareMs": 239.80000000074506,
+        "workerExecuteMs": 14.300000000745058,
+        "workerValidateMs": 68,
+        "updateBytes": 162227,
+        "completeMs": 322.80000000074506,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 66.70000000000027,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 66.70000000000027,
+            "at": 314.5000000014902,
+            "phase": "paint"
+          },
+          {
+            "delta": 66.59999999999991,
+            "at": 397.80000000148993,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 1,
+        "round": 1,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "dissolve",
+        "mode": "worker",
+        "initMs": 224.80000000074506,
+        "elements": 1001,
+        "mainCommitMs": 7,
+        "refreshMs": 21.699999999254942,
+        "readMs": 24.700000001117587,
+        "reads": 2,
+        "idlePrepareMs": 73.70000000111759,
+        "idlePrepares": 1,
+        "roundTripMs": 230.60000000149012,
+        "workerPrepareMs": 225.09999999962747,
+        "workerExecuteMs": 12.900000000372529,
+        "workerValidateMs": 64.69999999925494,
+        "updateBytes": 162227,
+        "completeMs": 298.90000000037253,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 66.60000000000036,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 66.60000000000036,
+            "at": 298.2000000003727,
+            "phase": "paint"
+          },
+          {
+            "delta": 50.09999999999991,
+            "at": 364.90000000037253,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 1,
+        "round": 2,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "dissolve",
+        "mode": "sync",
+        "initMs": 225,
+        "elements": 1001,
+        "mainCommitMs": 21.699999999254942,
+        "refreshMs": 17.200000001117587,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 124.69999999925494,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 100,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 100,
+            "at": 112.90000000000009,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 2,
+        "round": 0,
+        "warmup": true,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "dissolve",
+        "mode": "sync",
+        "initMs": 223.5,
+        "elements": 1001,
+        "mainCommitMs": 21.299999998882413,
+        "refreshMs": 16.90000000037253,
+        "readMs": 0.10000000149011612,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 127.09999999962747,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 100,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 100,
+            "at": 113.00000000037244,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 2,
+        "round": 1,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "dissolve",
+        "mode": "sync",
+        "initMs": 226.19999999925494,
+        "elements": 1001,
+        "mainCommitMs": 21.699999999254942,
+        "refreshMs": 13.5,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 124.80000000074506,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 99.90000000000009,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 99.90000000000009,
+            "at": 112.59999999962747,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 2,
+        "round": 2,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "dissolve",
+        "mode": "worker",
+        "initMs": 232,
+        "elements": 1001,
+        "mainCommitMs": 14.400000000372529,
+        "refreshMs": 47.09999999962747,
+        "readMs": 57.70000000111759,
+        "reads": 2,
+        "idlePrepareMs": 163.40000000037253,
+        "idlePrepares": 1,
+        "roundTripMs": 242.69999999925494,
+        "workerPrepareMs": 236.30000000074506,
+        "workerExecuteMs": 13.399999998509884,
+        "workerValidateMs": 66.80000000074506,
+        "updateBytes": 162227,
+        "completeMs": 399.09999999962747,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 150,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 149.9000000000001,
+            "at": 395.8999999988823,
+            "phase": "paint"
+          },
+          {
+            "delta": 150,
+            "at": 562.5999999988826,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 2,
+        "round": 0,
+        "warmup": true,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "dissolve",
+        "mode": "worker",
+        "initMs": 172.39999999850988,
+        "elements": 1001,
+        "mainCommitMs": 13.800000000745058,
+        "refreshMs": 42.69999999925494,
+        "readMs": 51.5,
+        "reads": 2,
+        "idlePrepareMs": 155.7000000011176,
+        "idlePrepares": 1,
+        "roundTripMs": 238.7999999988824,
+        "workerPrepareMs": 232.5,
+        "workerExecuteMs": 13.599999999627471,
+        "workerValidateMs": 67.5,
+        "updateBytes": 162227,
+        "completeMs": 378.5,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 150.0999999999999,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 116.60000000000036,
+            "at": 363.10000000074524,
+            "phase": "paint"
+          },
+          {
+            "delta": 150.0999999999999,
+            "at": 529.900000000745,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 2,
+        "round": 1,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "dissolve",
+        "mode": "worker",
+        "initMs": 228.90000000037253,
+        "elements": 1001,
+        "mainCommitMs": 14.5,
+        "refreshMs": 41.70000000111759,
+        "readMs": 51.900000002235174,
+        "reads": 2,
+        "idlePrepareMs": 159.90000000037253,
+        "idlePrepares": 1,
+        "roundTripMs": 236.59999999962747,
+        "workerPrepareMs": 229.59999999962747,
+        "workerExecuteMs": 13,
+        "workerValidateMs": 65.80000000074506,
+        "updateBytes": 162227,
+        "completeMs": 376.30000000074506,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 150.10000000000036,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 116.69999999999982,
+            "at": 363.29999999925485,
+            "phase": "paint"
+          },
+          {
+            "delta": 150.10000000000036,
+            "at": 529.9999999992551,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 2,
+        "round": 2,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "dissolve",
+        "mode": "sync",
+        "initMs": 226.90000000037253,
+        "elements": 1001,
+        "mainCommitMs": 44,
+        "refreshMs": 29.5,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 253.40000000037253,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 233.30000000000018,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 233.30000000000018,
+            "at": 242.90000000037253,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 0,
+        "warmup": true,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "dissolve",
+        "mode": "sync",
+        "initMs": 233.69999999925494,
+        "elements": 1001,
+        "mainCommitMs": 43.59999999962747,
+        "refreshMs": 28.59999999962747,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 272,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 250.0999999999999,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 250.0999999999999,
+            "at": 259.1000000014901,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 1,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "dissolve",
+        "mode": "sync",
+        "initMs": 226.30000000074506,
+        "elements": 1001,
+        "mainCommitMs": 43.5,
+        "refreshMs": 30.40000000037253,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 279.2999999988824,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 250,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 250,
+            "at": 260.09999999962747,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 2,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "dissolve",
+        "mode": "worker",
+        "initMs": 231.19999999925494,
+        "elements": 1001,
+        "mainCommitMs": 28.799999998882413,
+        "refreshMs": 91.59999999962747,
+        "readMs": 107.80000000074506,
+        "reads": 2,
+        "idlePrepareMs": 326.30000000074506,
+        "idlePrepares": 1,
+        "roundTripMs": 249.40000000037253,
+        "workerPrepareMs": 242.09999999962747,
+        "workerExecuteMs": 15.400000000372529,
+        "workerValidateMs": 73,
+        "updateBytes": 162227,
+        "completeMs": 557.5999999996275,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 316.6999999999998,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 283.4000000000001,
+            "at": 542.9999999992551,
+            "phase": "paint"
+          },
+          {
+            "delta": 316.6999999999998,
+            "at": 876.2999999992549,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 0,
+        "warmup": true,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "dissolve",
+        "mode": "worker",
+        "initMs": 231.40000000037253,
+        "elements": 1001,
+        "mainCommitMs": 31,
+        "refreshMs": 88.80000000074506,
+        "readMs": 109.29999999888241,
+        "reads": 2,
+        "idlePrepareMs": 322.7000000011176,
+        "idlePrepares": 1,
+        "roundTripMs": 245,
+        "workerPrepareMs": 237.39999999850988,
+        "workerExecuteMs": 14.600000001490116,
+        "workerValidateMs": 68.69999999925494,
+        "updateBytes": 162227,
+        "completeMs": 543.9000000003725,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 300,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 266.60000000000036,
+            "at": 526.5000000011178,
+            "phase": "paint"
+          },
+          {
+            "delta": 300,
+            "at": 859.8000000011175,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 1,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "dissolve",
+        "mode": "worker",
+        "initMs": 181.5,
+        "elements": 1001,
+        "mainCommitMs": 26.700000001117587,
+        "refreshMs": 88.39999999850988,
+        "readMs": 107.89999999850988,
+        "reads": 2,
+        "idlePrepareMs": 319.19999999925494,
+        "idlePrepares": 1,
+        "roundTripMs": 246.69999999925494,
+        "workerPrepareMs": 238.10000000149012,
+        "workerExecuteMs": 16.199999999254942,
+        "workerValidateMs": 72.40000000037253,
+        "updateBytes": 162227,
+        "completeMs": 542.7999999988824,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 299.9000000000001,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 266.5999999999999,
+            "at": 526.8999999988823,
+            "phase": "paint"
+          },
+          {
+            "delta": 299.9000000000001,
+            "at": 860.1999999988825,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 2,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "geometry",
+        "mode": "sync",
+        "initMs": 228,
+        "elements": 1001,
+        "mainCommitMs": 6.300000000745058,
+        "refreshMs": 2.699999999254942,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 56.90000000037253,
+        "childScreenDelta": {
+          "x": 220,
+          "y": 40
+        },
+        "maxFrameMs": 33.29999999999973,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 33.29999999999973,
+            "at": 47.40000000074497,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 1,
+        "round": 0,
+        "warmup": true,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "geometry",
+        "mode": "sync",
+        "initMs": 245.69999999925494,
+        "elements": 1001,
+        "mainCommitMs": 6,
+        "refreshMs": 2.600000001490116,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 63.5,
+        "childScreenDelta": {
+          "x": 220,
+          "y": 40
+        },
+        "maxFrameMs": 33.30000000000018,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 33.30000000000018,
+            "at": 47.00000000111777,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 1,
+        "round": 1,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "geometry",
+        "mode": "sync",
+        "initMs": 185.59999999962747,
+        "elements": 1001,
+        "mainCommitMs": 5.300000000745058,
+        "refreshMs": 2.599999999627471,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 57.80000000074506,
+        "childScreenDelta": {
+          "x": 220,
+          "y": 40
+        },
+        "maxFrameMs": 33.40000000000009,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 33.40000000000009,
+            "at": 45.800000001117496,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 1,
+        "round": 2,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "geometry",
+        "mode": "worker",
+        "initMs": 243.39999999850988,
+        "elements": 1001,
+        "mainCommitMs": 5.599999999627471,
+        "refreshMs": 16.699999999254942,
+        "readMs": 28.299999998882413,
+        "reads": 2,
+        "idlePrepareMs": 83.69999999925494,
+        "idlePrepares": 1,
+        "roundTripMs": 249,
+        "workerPrepareMs": 242.69999999925494,
+        "workerExecuteMs": 17.09999999962747,
+        "workerValidateMs": 72.30000000074506,
+        "updateBytes": 53333,
+        "completeMs": 327.09999999962747,
+        "childScreenDelta": {
+          "x": 220,
+          "y": 40
+        },
+        "maxFrameMs": 66.59999999999991,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 50.09999999999991,
+            "at": 313.8999999988823,
+            "phase": "paint"
+          },
+          {
+            "delta": 66.59999999999991,
+            "at": 397.1999999988825,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 1,
+        "round": 0,
+        "warmup": true,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "geometry",
+        "mode": "worker",
+        "initMs": 235.2000000011176,
+        "elements": 1001,
+        "mainCommitMs": 5.400000000372529,
+        "refreshMs": 17.5,
+        "readMs": 25.5,
+        "reads": 2,
+        "idlePrepareMs": 80.20000000111759,
+        "idlePrepares": 1,
+        "roundTripMs": 232,
+        "workerPrepareMs": 226.09999999962747,
+        "workerExecuteMs": 13.900000000372529,
+        "workerValidateMs": 64.80000000074506,
+        "updateBytes": 53333,
+        "completeMs": 302.5,
+        "childScreenDelta": {
+          "x": 220,
+          "y": 40
+        },
+        "maxFrameMs": 66.69999999999982,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 50,
+            "at": 297.20000000074515,
+            "phase": "paint"
+          },
+          {
+            "delta": 66.69999999999982,
+            "at": 380.5000000007449,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 1,
+        "round": 1,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "geometry",
+        "mode": "worker",
+        "initMs": 239.5,
+        "elements": 1001,
+        "mainCommitMs": 5.599999999627471,
+        "refreshMs": 18,
+        "readMs": 26.40000000037253,
+        "reads": 2,
+        "idlePrepareMs": 80.80000000074506,
+        "idlePrepares": 1,
+        "roundTripMs": 231.7000000011176,
+        "workerPrepareMs": 225.7000000011176,
+        "workerExecuteMs": 14.099999999627471,
+        "workerValidateMs": 65.5,
+        "updateBytes": 53333,
+        "completeMs": 305.1000000014901,
+        "childScreenDelta": {
+          "x": 220,
+          "y": 40
+        },
+        "maxFrameMs": 66.70000000000027,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 50,
+            "at": 297.20000000149,
+            "phase": "paint"
+          },
+          {
+            "delta": 66.70000000000027,
+            "at": 380.5000000014902,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 1,
+        "round": 2,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "geometry",
+        "mode": "sync",
+        "initMs": 250.09999999962747,
+        "elements": 1001,
+        "mainCommitMs": 11.400000000372529,
+        "refreshMs": 5.400000000372529,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 135.40000000037253,
+        "childScreenDelta": {
+          "x": 220,
+          "y": 40
+        },
+        "maxFrameMs": 116.70000000000027,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 116.70000000000027,
+            "at": 128.80000000037262,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 2,
+        "round": 0,
+        "warmup": true,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "geometry",
+        "mode": "sync",
+        "initMs": 235.59999999962747,
+        "elements": 1001,
+        "mainCommitMs": 10.800000000745058,
+        "refreshMs": 6,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 123.59999999962747,
+        "childScreenDelta": {
+          "x": 220,
+          "y": 40
+        },
+        "maxFrameMs": 100,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 100,
+            "at": 112.79999999962729,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 2,
+        "round": 1,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "geometry",
+        "mode": "sync",
+        "initMs": 239.30000000074506,
+        "elements": 1001,
+        "mainCommitMs": 12.699999999254942,
+        "refreshMs": 5.699999999254942,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 127.09999999962747,
+        "childScreenDelta": {
+          "x": 220,
+          "y": 40
+        },
+        "maxFrameMs": 100,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 100,
+            "at": 112.99999999925512,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 2,
+        "round": 2,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "geometry",
+        "mode": "worker",
+        "initMs": 255.40000000037253,
+        "elements": 1001,
+        "mainCommitMs": 10.900000000372529,
+        "refreshMs": 32.19999999925494,
+        "readMs": 54.80000000074506,
+        "reads": 2,
+        "idlePrepareMs": 159.59999999962747,
+        "idlePrepares": 1,
+        "roundTripMs": 237.90000000037253,
+        "workerPrepareMs": 230.90000000037253,
+        "workerExecuteMs": 14.400000000372529,
+        "workerValidateMs": 66,
+        "updateBytes": 53333,
+        "completeMs": 387.40000000037253,
+        "childScreenDelta": {
+          "x": 220,
+          "y": 40
+        },
+        "maxFrameMs": 149.89999999999964,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 133.29999999999973,
+            "at": 380.0999999999999,
+            "phase": "paint"
+          },
+          {
+            "delta": 149.89999999999964,
+            "at": 546.6999999999998,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 2,
+        "round": 0,
+        "warmup": true,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "geometry",
+        "mode": "worker",
+        "initMs": 175,
+        "elements": 1001,
+        "mainCommitMs": 11.200000001117587,
+        "refreshMs": 31.899999998509884,
+        "readMs": 51.399999998509884,
+        "reads": 2,
+        "idlePrepareMs": 154.2000000011176,
+        "idlePrepares": 1,
+        "roundTripMs": 242.40000000037253,
+        "workerPrepareMs": 235.59999999962747,
+        "workerExecuteMs": 14.299999998882413,
+        "workerValidateMs": 66.80000000074506,
+        "updateBytes": 53333,
+        "completeMs": 391.5,
+        "childScreenDelta": {
+          "x": 220,
+          "y": 40
+        },
+        "maxFrameMs": 150,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 133.20000000000027,
+            "at": 378.9000000000001,
+            "phase": "paint"
+          },
+          {
+            "delta": 150,
+            "at": 545.6999999999998,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 2,
+        "round": 1,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "geometry",
+        "mode": "worker",
+        "initMs": 231.5,
+        "elements": 1001,
+        "mainCommitMs": 11.900000000372529,
+        "refreshMs": 34.30000000074506,
+        "readMs": 54.40000000037253,
+        "reads": 2,
+        "idlePrepareMs": 158.59999999962747,
+        "idlePrepares": 1,
+        "roundTripMs": 291.40000000037253,
+        "workerPrepareMs": 284.30000000074506,
+        "workerExecuteMs": 15,
+        "workerValidateMs": 69.29999999888241,
+        "updateBytes": 53333,
+        "completeMs": 448.80000000074506,
+        "childScreenDelta": {
+          "x": 220,
+          "y": 40
+        },
+        "maxFrameMs": 150,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 150,
+            "at": 445.99999999962756,
+            "phase": "paint"
+          },
+          {
+            "delta": 150,
+            "at": 612.6999999996274,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 2,
+        "round": 2,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "geometry",
+        "mode": "sync",
+        "initMs": 233,
+        "elements": 1001,
+        "mainCommitMs": 26.299999998882413,
+        "refreshMs": 12,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 255.7999999988824,
+        "childScreenDelta": {
+          "x": 220,
+          "y": 40
+        },
+        "maxFrameMs": 233.29999999999973,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 233.29999999999973,
+            "at": 242.50000000037244,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 0,
+        "warmup": true,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "geometry",
+        "mode": "sync",
+        "initMs": 240.39999999850988,
+        "elements": 1001,
+        "mainCommitMs": 26.40000000037253,
+        "refreshMs": 10.700000001117587,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 259.5,
+        "childScreenDelta": {
+          "x": 220,
+          "y": 40
+        },
+        "maxFrameMs": 233.4000000000001,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 233.4000000000001,
+            "at": 243.00000000037244,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 1,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "geometry",
+        "mode": "sync",
+        "initMs": 232.2000000011176,
+        "elements": 1001,
+        "mainCommitMs": 24.800000000745058,
+        "refreshMs": 11.799999998882413,
+        "readMs": 0.09999999962747097,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 267.5,
+        "childScreenDelta": {
+          "x": 220,
+          "y": 40
+        },
+        "maxFrameMs": 250,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 250,
+            "at": 257.89999999962765,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 2,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "geometry",
+        "mode": "worker",
+        "initMs": 172.69999999925494,
+        "elements": 1001,
+        "mainCommitMs": 20.40000000037253,
+        "refreshMs": 67.30000000074506,
+        "readMs": 108.59999999962747,
+        "reads": 2,
+        "idlePrepareMs": 344.3999999985099,
+        "idlePrepares": 1,
+        "roundTripMs": 244.5,
+        "workerPrepareMs": 236.10000000149012,
+        "workerExecuteMs": 15.700000001117587,
+        "workerValidateMs": 68.19999999925494,
+        "updateBytes": 53333,
+        "completeMs": 557.7000000011176,
+        "childScreenDelta": {
+          "x": 220,
+          "y": 40
+        },
+        "maxFrameMs": 333.3000000000002,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 300,
+            "at": 543.2000000007451,
+            "phase": "paint"
+          },
+          {
+            "delta": 333.3000000000002,
+            "at": 909.8000000007451,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 0,
+        "warmup": true,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "geometry",
+        "mode": "worker",
+        "initMs": 187.69999999925494,
+        "elements": 1001,
+        "mainCommitMs": 21.09999999962747,
+        "refreshMs": 66.90000000037253,
+        "readMs": 105.70000000111759,
+        "reads": 2,
+        "idlePrepareMs": 316.5,
+        "idlePrepares": 1,
+        "roundTripMs": 239.40000000037253,
+        "workerPrepareMs": 231.30000000074506,
+        "workerExecuteMs": 14.699999999254942,
+        "workerValidateMs": 66,
+        "updateBytes": 53333,
+        "completeMs": 545.4000000003725,
+        "childScreenDelta": {
+          "x": 220,
+          "y": 40
+        },
+        "maxFrameMs": 316.5999999999999,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 300,
+            "at": 541.4999999996276,
+            "phase": "paint"
+          },
+          {
+            "delta": 316.5999999999999,
+            "at": 874.7999999996273,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 1,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      },
+      {
+        "action": "geometry",
+        "mode": "worker",
+        "initMs": 227.40000000037253,
+        "elements": 1001,
+        "mainCommitMs": 20,
+        "refreshMs": 65.69999999925494,
+        "readMs": 106.79999999888241,
+        "reads": 2,
+        "idlePrepareMs": 315.09999999962747,
+        "idlePrepares": 1,
+        "roundTripMs": 237.7000000011176,
+        "workerPrepareMs": 229.7999999988824,
+        "workerExecuteMs": 14.300000000745058,
+        "workerValidateMs": 65.69999999925494,
+        "updateBytes": 53333,
+        "completeMs": 528.4000000003725,
+        "childScreenDelta": {
+          "x": 220,
+          "y": 40
+        },
+        "maxFrameMs": 316.5999999999999,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 283.4000000000001,
+            "at": 525.4000000000001,
+            "phase": "paint"
+          },
+          {
+            "delta": 316.5999999999999,
+            "at": 858.5999999999999,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 2,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.04052734375, 3.35546875, 3.77734375],
+          "loadAfter": [3.37548828125, 3.59375, 3.75439453125]
+        }
+      }
+    ],
+    "clean_sync_comparison": [
+      {
+        "action": "create",
+        "mode": "sync",
+        "initMs": 0,
+        "elements": 1001,
+        "mainCommitMs": 14.599999999627471,
+        "refreshMs": 8,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 71.09999999962747,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 50.09999999999991,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 50.09999999999991,
+            "at": 57.79999999888241,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 1,
+        "round": 0,
+        "warmup": true,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "create",
+        "mode": "sync",
+        "initMs": 0,
+        "elements": 1001,
+        "mainCommitMs": 11.300000000745058,
+        "refreshMs": 6.699999999254942,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 61.09999999962747,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 33.40000000000009,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 33.40000000000009,
+            "at": 45.60000000074524,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 1,
+        "round": 1,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "create",
+        "mode": "sync",
+        "initMs": 0,
+        "elements": 1001,
+        "mainCommitMs": 11.600000001490116,
+        "refreshMs": 8.099999999627471,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 63,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 50.100000000000364,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 50.100000000000364,
+            "at": 55.9000000014903,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 1,
+        "round": 2,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "create",
+        "mode": "worker",
+        "initMs": 229.7999999988824,
+        "elements": 1001,
+        "mainCommitMs": 7.599999999627471,
+        "refreshMs": 23,
+        "readMs": 26.600000001490116,
+        "reads": 2,
+        "idlePrepareMs": 78.09999999962747,
+        "idlePrepares": 1,
+        "roundTripMs": 241.5,
+        "workerPrepareMs": 235.69999999925494,
+        "workerExecuteMs": 18.40000000037253,
+        "workerValidateMs": 70.89999999850988,
+        "updateBytes": 180263,
+        "completeMs": 316.7000000011176,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 66.69999999999982,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 66.69999999999982,
+            "at": 314.7000000011176,
+            "phase": "paint"
+          },
+          {
+            "delta": 49.90000000000009,
+            "at": 381.3000000011175,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 1,
+        "round": 0,
+        "warmup": true,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "create",
+        "mode": "worker",
+        "initMs": 298.90000000037253,
+        "elements": 1001,
+        "mainCommitMs": 8.099999999627471,
+        "refreshMs": 23.300000000745058,
+        "readMs": 27.59999999962747,
+        "reads": 2,
+        "idlePrepareMs": 78.09999999962747,
+        "idlePrepares": 1,
+        "roundTripMs": 248.19999999925494,
+        "workerPrepareMs": 241.40000000037253,
+        "workerExecuteMs": 17.90000000037253,
+        "workerValidateMs": 69.69999999925494,
+        "updateBytes": 180263,
+        "completeMs": 325.5,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 66.69999999999982,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 66.59999999999991,
+            "at": 314.1999999999998,
+            "phase": "paint"
+          },
+          {
+            "delta": 66.69999999999982,
+            "at": 397.5999999999999,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 1,
+        "round": 1,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "create",
+        "mode": "worker",
+        "initMs": 233.09999999962747,
+        "elements": 1001,
+        "mainCommitMs": 7.900000000372529,
+        "refreshMs": 21.700000001117587,
+        "readMs": 27,
+        "reads": 2,
+        "idlePrepareMs": 76,
+        "idlePrepares": 1,
+        "roundTripMs": 237.59999999962747,
+        "workerPrepareMs": 230.80000000074506,
+        "workerExecuteMs": 14.900000000372529,
+        "workerValidateMs": 66.69999999925494,
+        "updateBytes": 180263,
+        "completeMs": 310.69999999925494,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 66.70000000000027,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 50.09999999999991,
+            "at": 297.50000000037244,
+            "phase": "paint"
+          },
+          {
+            "delta": 66.70000000000027,
+            "at": 380.8000000003726,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 1,
+        "round": 2,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "create",
+        "mode": "sync",
+        "initMs": 0,
+        "elements": 1001,
+        "mainCommitMs": 26.300000000745058,
+        "refreshMs": 14.5,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 132.5,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 116.70000000000027,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 116.70000000000027,
+            "at": 118.60000000074524,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 2,
+        "round": 0,
+        "warmup": true,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "create",
+        "mode": "sync",
+        "initMs": 0,
+        "elements": 1001,
+        "mainCommitMs": 25.699999999254942,
+        "refreshMs": 13.700000001117587,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0.19999999925494194,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 140.59999999962747,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 133.29999999999973,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 133.29999999999973,
+            "at": 134.7999999996273,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 2,
+        "round": 1,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "create",
+        "mode": "sync",
+        "initMs": 0,
+        "elements": 1001,
+        "mainCommitMs": 23.09999999962747,
+        "refreshMs": 13.600000001490116,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 129.19999999925494,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 300.0999999999999,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 300.0999999999999,
+            "at": 122.10000000037235,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 2,
+        "round": 2,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "create",
+        "mode": "worker",
+        "initMs": 228.7000000011176,
+        "elements": 1001,
+        "mainCommitMs": 14.399999998509884,
+        "refreshMs": 45.80000000074506,
+        "readMs": 55.900000002235174,
+        "reads": 2,
+        "idlePrepareMs": 167.59999999962747,
+        "idlePrepares": 1,
+        "roundTripMs": 244.2999999988824,
+        "workerPrepareMs": 236.59999999962747,
+        "workerExecuteMs": 15.400000000372529,
+        "workerValidateMs": 68,
+        "updateBytes": 180263,
+        "completeMs": 401.09999999962747,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 150,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 150,
+            "at": 396.60000000037235,
+            "phase": "paint"
+          },
+          {
+            "delta": 150,
+            "at": 563.3000000003726,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 2,
+        "round": 0,
+        "warmup": true,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "create",
+        "mode": "worker",
+        "initMs": 199,
+        "elements": 1001,
+        "mainCommitMs": 14.599999999627471,
+        "refreshMs": 45.90000000037253,
+        "readMs": 54.5,
+        "reads": 2,
+        "idlePrepareMs": 157.69999999925494,
+        "idlePrepares": 1,
+        "roundTripMs": 244.19999999925494,
+        "workerPrepareMs": 236.80000000074506,
+        "workerExecuteMs": 15.300000000745058,
+        "workerValidateMs": 68.59999999962747,
+        "updateBytes": 180263,
+        "completeMs": 397,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 133.29999999999973,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 133.19999999999982,
+            "at": 379.49999999888223,
+            "phase": "paint"
+          },
+          {
+            "delta": 33.40000000000009,
+            "at": 412.8999999988823,
+            "phase": "paint"
+          },
+          {
+            "delta": 133.29999999999973,
+            "at": 562.8999999988823,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 2,
+        "round": 1,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "create",
+        "mode": "worker",
+        "initMs": 236.09999999962747,
+        "elements": 1001,
+        "mainCommitMs": 14.400000000372529,
+        "refreshMs": 46.70000000111759,
+        "readMs": 56.69999999925494,
+        "reads": 2,
+        "idlePrepareMs": 165.30000000074506,
+        "idlePrepares": 1,
+        "roundTripMs": 240.39999999850988,
+        "workerPrepareMs": 232.69999999925494,
+        "workerExecuteMs": 15.700000001117587,
+        "workerValidateMs": 67.79999999888241,
+        "updateBytes": 180240,
+        "completeMs": 391,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 150,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 133.29999999999973,
+            "at": 379.29999999925485,
+            "phase": "paint"
+          },
+          {
+            "delta": 150,
+            "at": 545.8999999992548,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 2,
+        "round": 2,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "create",
+        "mode": "sync",
+        "initMs": 0,
+        "elements": 1001,
+        "mainCommitMs": 45.80000000074506,
+        "refreshMs": 27.59999999962747,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 256.3999999985099,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 599.9000000000001,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 599.9000000000001,
+            "at": 239.59999999925503,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 0,
+        "warmup": true,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "create",
+        "mode": "sync",
+        "initMs": 0,
+        "elements": 1001,
+        "mainCommitMs": 51.20000000111759,
+        "refreshMs": 27.699999999254942,
+        "readMs": 0.09999999962747097,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 260.5,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 233.30000000000018,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 233.30000000000018,
+            "at": 243.50000000111777,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 1,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "create",
+        "mode": "sync",
+        "initMs": 0,
+        "elements": 1001,
+        "mainCommitMs": 48.899999998509884,
+        "refreshMs": 27.200000001117587,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 263.3999999985099,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 250,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 250,
+            "at": 257.89999999925476,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 2,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "create",
+        "mode": "worker",
+        "initMs": 223.90000000037253,
+        "elements": 1001,
+        "mainCommitMs": 27.40000000037253,
+        "refreshMs": 86.79999999888241,
+        "readMs": 110.69999999925494,
+        "reads": 2,
+        "idlePrepareMs": 314,
+        "idlePrepares": 1,
+        "roundTripMs": 243.09999999962747,
+        "workerPrepareMs": 233.69999999925494,
+        "workerExecuteMs": 15.400000000372529,
+        "workerValidateMs": 66.90000000037253,
+        "updateBytes": 180263,
+        "completeMs": 546,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 283.2999999999997,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 283.2999999999997,
+            "at": 526.2999999992549,
+            "phase": "paint"
+          },
+          {
+            "delta": 33.30000000000018,
+            "at": 559.599999999255,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 0,
+        "warmup": true,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "create",
+        "mode": "worker",
+        "initMs": 174.19999999925494,
+        "elements": 1001,
+        "mainCommitMs": 30.5,
+        "refreshMs": 92.40000000037253,
+        "readMs": 118,
+        "reads": 2,
+        "idlePrepareMs": 327.09999999962747,
+        "idlePrepares": 1,
+        "roundTripMs": 251.09999999962747,
+        "workerPrepareMs": 241.7000000011176,
+        "workerExecuteMs": 16.300000000745058,
+        "workerValidateMs": 69.19999999925494,
+        "updateBytes": 180263,
+        "completeMs": 582.0999999996275,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 316.7000000000003,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 316.6999999999998,
+            "at": 576.0999999999999,
+            "phase": "paint"
+          },
+          {
+            "delta": 316.7000000000003,
+            "at": 909.4000000000001,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 1,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "create",
+        "mode": "worker",
+        "initMs": 224.90000000037253,
+        "elements": 1001,
+        "mainCommitMs": 28.799999998882413,
+        "refreshMs": 90.40000000037253,
+        "readMs": 117.50000000186265,
+        "reads": 2,
+        "idlePrepareMs": 336.7000000011176,
+        "idlePrepares": 1,
+        "roundTripMs": 247.09999999962747,
+        "workerPrepareMs": 238.09999999962747,
+        "workerExecuteMs": 16.59999999962747,
+        "workerValidateMs": 67.90000000037253,
+        "updateBytes": 180263,
+        "completeMs": 557.5,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 316.8000000000002,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 283.4000000000001,
+            "at": 543,
+            "phase": "paint"
+          },
+          {
+            "delta": 316.8000000000002,
+            "at": 893,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 2,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "dissolve",
+        "mode": "sync",
+        "initMs": 0,
+        "elements": 1001,
+        "mainCommitMs": 12.199999999254942,
+        "refreshMs": 9.099999999627471,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 63,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 49.899999999999636,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 49.899999999999636,
+            "at": 60.19999999999982,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 1,
+        "round": 0,
+        "warmup": true,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "dissolve",
+        "mode": "sync",
+        "initMs": 0,
+        "elements": 1001,
+        "mainCommitMs": 10.800000000745058,
+        "refreshMs": 9.299999998882413,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 65.09999999962747,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 49.90000000000009,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 49.90000000000009,
+            "at": 52.99999999962756,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 1,
+        "round": 1,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "dissolve",
+        "mode": "sync",
+        "initMs": 0,
+        "elements": 1001,
+        "mainCommitMs": 12,
+        "refreshMs": 7.400000000372529,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 63.29999999888241,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 150,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 150,
+            "at": 61.49999999888223,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 1,
+        "round": 2,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "dissolve",
+        "mode": "worker",
+        "initMs": 236.2000000011176,
+        "elements": 1001,
+        "mainCommitMs": 6.900000000372529,
+        "refreshMs": 20.59999999962747,
+        "readMs": 25.59999999962747,
+        "reads": 2,
+        "idlePrepareMs": 78.89999999850988,
+        "idlePrepares": 1,
+        "roundTripMs": 236.5,
+        "workerPrepareMs": 231.2000000011176,
+        "workerExecuteMs": 15.400000000372529,
+        "workerValidateMs": 69.59999999962747,
+        "updateBytes": 161223,
+        "completeMs": 303.7000000011176,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 66.69999999999982,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 50,
+            "at": 297.10000000074524,
+            "phase": "paint"
+          },
+          {
+            "delta": 66.69999999999982,
+            "at": 380.5000000007449,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 1,
+        "round": 0,
+        "warmup": true,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "dissolve",
+        "mode": "worker",
+        "initMs": 231.7000000011176,
+        "elements": 1001,
+        "mainCommitMs": 8.400000000372529,
+        "refreshMs": 25.09999999962747,
+        "readMs": 30.5,
+        "reads": 2,
+        "idlePrepareMs": 84.09999999962747,
+        "idlePrepares": 1,
+        "roundTripMs": 259.7000000011176,
+        "workerPrepareMs": 253.40000000037253,
+        "workerExecuteMs": 15.199999999254942,
+        "workerValidateMs": 74,
+        "updateBytes": 162227,
+        "completeMs": 340.80000000074506,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 66.70000000000027,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 66.70000000000027,
+            "at": 331.2000000003727,
+            "phase": "paint"
+          },
+          {
+            "delta": 66.59999999999991,
+            "at": 414.50000000037244,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 1,
+        "round": 1,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "dissolve",
+        "mode": "worker",
+        "initMs": 225.90000000037253,
+        "elements": 1001,
+        "mainCommitMs": 7.299999998882413,
+        "refreshMs": 21.5,
+        "readMs": 25,
+        "reads": 2,
+        "idlePrepareMs": 74.19999999925494,
+        "idlePrepares": 1,
+        "roundTripMs": 228.7000000011176,
+        "workerPrepareMs": 222.90000000037253,
+        "workerExecuteMs": 12.599999999627471,
+        "workerValidateMs": 64.29999999888241,
+        "updateBytes": 162227,
+        "completeMs": 300.90000000037253,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 66.60000000000036,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 66.60000000000036,
+            "at": 297.10000000074524,
+            "phase": "paint"
+          },
+          {
+            "delta": 50,
+            "at": 363.80000000074506,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 1,
+        "round": 2,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "dissolve",
+        "mode": "sync",
+        "initMs": 0,
+        "elements": 1001,
+        "mainCommitMs": 22.300000000745058,
+        "refreshMs": 14.400000000372529,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 135.2000000011176,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 133.29999999999973,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 133.29999999999973,
+            "at": 128.2999999996273,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 2,
+        "round": 0,
+        "warmup": true,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "dissolve",
+        "mode": "sync",
+        "initMs": 0,
+        "elements": 1001,
+        "mainCommitMs": 20.899999998509884,
+        "refreshMs": 13.800000000745058,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 120.79999999888241,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 133.30000000000018,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 133.30000000000018,
+            "at": 118.49999999962756,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 2,
+        "round": 1,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "dissolve",
+        "mode": "sync",
+        "initMs": 0,
+        "elements": 1001,
+        "mainCommitMs": 24,
+        "refreshMs": 14.5,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 127.90000000037253,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 100,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 100,
+            "at": 113.69999999925494,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 2,
+        "round": 2,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "dissolve",
+        "mode": "worker",
+        "initMs": 268.7000000011176,
+        "elements": 1001,
+        "mainCommitMs": 18.199999999254942,
+        "refreshMs": 51.40000000037253,
+        "readMs": 64.09999999776483,
+        "reads": 2,
+        "idlePrepareMs": 177.59999999962747,
+        "idlePrepares": 1,
+        "roundTripMs": 271.2000000011176,
+        "workerPrepareMs": 263.59999999962747,
+        "workerExecuteMs": 14.400000000372529,
+        "workerValidateMs": 74.59999999962747,
+        "updateBytes": 162227,
+        "completeMs": 440.80000000074506,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 166.5999999999999,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 150.0999999999999,
+            "at": 430.09999999962747,
+            "phase": "paint"
+          },
+          {
+            "delta": 166.5999999999999,
+            "at": 613.2999999996273,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 2,
+        "round": 0,
+        "warmup": true,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "dissolve",
+        "mode": "worker",
+        "initMs": 174.5,
+        "elements": 1001,
+        "mainCommitMs": 14.699999999254942,
+        "refreshMs": 44.20000000111759,
+        "readMs": 54.40000000037253,
+        "reads": 2,
+        "idlePrepareMs": 162.2000000011176,
+        "idlePrepares": 1,
+        "roundTripMs": 238.59999999962747,
+        "workerPrepareMs": 232.09999999962747,
+        "workerExecuteMs": 13.099999999627471,
+        "workerValidateMs": 66.69999999925494,
+        "updateBytes": 162227,
+        "completeMs": 386.2999999988824,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 150,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 133.20000000000027,
+            "at": 380.4999999992551,
+            "phase": "paint"
+          },
+          {
+            "delta": 150,
+            "at": 547.1999999992549,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 2,
+        "round": 1,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "dissolve",
+        "mode": "worker",
+        "initMs": 231,
+        "elements": 1001,
+        "mainCommitMs": 15.699999999254942,
+        "refreshMs": 49.5,
+        "readMs": 60.69999999925494,
+        "reads": 2,
+        "idlePrepareMs": 174.2999999988824,
+        "idlePrepares": 1,
+        "roundTripMs": 247.7000000011176,
+        "workerPrepareMs": 240.80000000074506,
+        "workerExecuteMs": 13.699999999254942,
+        "workerValidateMs": 68.80000000074506,
+        "updateBytes": 162227,
+        "completeMs": 410.1000000014901,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 166.70000000000027,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 133.30000000000018,
+            "at": 396.5000000014902,
+            "phase": "paint"
+          },
+          {
+            "delta": 166.70000000000027,
+            "at": 579.9000000014903,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 2,
+        "round": 2,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "dissolve",
+        "mode": "sync",
+        "initMs": 0,
+        "elements": 1001,
+        "mainCommitMs": 58.09999999962747,
+        "refreshMs": 32.59999999962747,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 308.69999999925494,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 300,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 300,
+            "at": 296.6999999988825,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 0,
+        "warmup": true,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "dissolve",
+        "mode": "sync",
+        "initMs": 0,
+        "elements": 1001,
+        "mainCommitMs": 49.80000000074506,
+        "refreshMs": 31,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 273.30000000074506,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 266.5999999999999,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 266.5999999999999,
+            "at": 261.70000000074515,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 1,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "dissolve",
+        "mode": "sync",
+        "initMs": 0,
+        "elements": 1001,
+        "mainCommitMs": 43.09999999962747,
+        "refreshMs": 36.5,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 267.80000000074506,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 250.0999999999999,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 250.0999999999999,
+            "at": 250.30000000074506,
+            "phase": "paint"
+          },
+          {
+            "delta": 33.19999999999982,
+            "at": 283.5000000007449,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 2,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "dissolve",
+        "mode": "worker",
+        "initMs": 236.60000000149012,
+        "elements": 1001,
+        "mainCommitMs": 32.20000000111759,
+        "refreshMs": 92.5,
+        "readMs": 115.5,
+        "reads": 2,
+        "idlePrepareMs": 320.7000000011176,
+        "idlePrepares": 1,
+        "roundTripMs": 244.69999999925494,
+        "workerPrepareMs": 237.30000000074506,
+        "workerExecuteMs": 13,
+        "workerValidateMs": 67.5,
+        "updateBytes": 162227,
+        "completeMs": 562.1999999992549,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 300,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 300,
+            "at": 558.7999999988824,
+            "phase": "paint"
+          },
+          {
+            "delta": 33.40000000000009,
+            "at": 642.0999999988826,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 0,
+        "warmup": true,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "dissolve",
+        "mode": "worker",
+        "initMs": 180.5,
+        "elements": 1001,
+        "mainCommitMs": 31.399999998509884,
+        "refreshMs": 91,
+        "readMs": 110.30000000074506,
+        "reads": 2,
+        "idlePrepareMs": 333.90000000037253,
+        "idlePrepares": 1,
+        "roundTripMs": 252.80000000074506,
+        "workerPrepareMs": 244.40000000037253,
+        "workerExecuteMs": 14.099999999627471,
+        "workerValidateMs": 70.40000000037253,
+        "updateBytes": 162227,
+        "completeMs": 579.5,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 316.7000000000003,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 316.7000000000003,
+            "at": 574.9999999992551,
+            "phase": "paint"
+          },
+          {
+            "delta": 316.5,
+            "at": 908.1999999992549,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 1,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "dissolve",
+        "mode": "worker",
+        "initMs": 175.59999999962747,
+        "elements": 1001,
+        "mainCommitMs": 26.90000000037253,
+        "refreshMs": 88.19999999925494,
+        "readMs": 105.69999999925494,
+        "reads": 2,
+        "idlePrepareMs": 331.09999999962747,
+        "idlePrepares": 1,
+        "roundTripMs": 242.7999999988824,
+        "workerPrepareMs": 235.59999999962747,
+        "workerExecuteMs": 13.599999999627471,
+        "workerValidateMs": 66.70000000111759,
+        "updateBytes": 162227,
+        "completeMs": 537.0999999996275,
+        "childScreenDelta": {
+          "x": 0,
+          "y": 0
+        },
+        "maxFrameMs": 333.2999999999997,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 283.2999999999997,
+            "at": 526.1999999999998,
+            "phase": "paint"
+          },
+          {
+            "delta": 333.2999999999997,
+            "at": 876.1999999999998,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 2,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "geometry",
+        "mode": "sync",
+        "initMs": 0,
+        "elements": 1001,
+        "mainCommitMs": 5.799999998882413,
+        "refreshMs": 2.800000000745058,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 58.5,
+        "childScreenDelta": {
+          "x": 220,
+          "y": 40
+        },
+        "maxFrameMs": 49.90000000000009,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 49.90000000000009,
+            "at": 55.79999999888241,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 1,
+        "round": 0,
+        "warmup": true,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "geometry",
+        "mode": "sync",
+        "initMs": 0,
+        "elements": 1001,
+        "mainCommitMs": 5.899999998509884,
+        "refreshMs": 2.900000000372529,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 62.20000000111759,
+        "childScreenDelta": {
+          "x": 220,
+          "y": 40
+        },
+        "maxFrameMs": 33.40000000000009,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 33.40000000000009,
+            "at": 46.00000000149021,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 1,
+        "round": 1,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "geometry",
+        "mode": "sync",
+        "initMs": 0,
+        "elements": 1001,
+        "mainCommitMs": 6.5,
+        "refreshMs": 3.099999999627471,
+        "readMs": 0.09999999962747097,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 68.09999999962747,
+        "childScreenDelta": {
+          "x": 220,
+          "y": 40
+        },
+        "maxFrameMs": 50,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 50,
+            "at": 52.000000000744876,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 1,
+        "round": 2,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "geometry",
+        "mode": "worker",
+        "initMs": 260.5,
+        "elements": 1001,
+        "mainCommitMs": 6,
+        "refreshMs": 17.5,
+        "readMs": 29.800000000745058,
+        "reads": 2,
+        "idlePrepareMs": 86.90000000037253,
+        "idlePrepares": 1,
+        "roundTripMs": 253.90000000037253,
+        "workerPrepareMs": 247.7000000011176,
+        "workerExecuteMs": 18.40000000037253,
+        "workerValidateMs": 70.89999999850988,
+        "updateBytes": 53333,
+        "completeMs": 330.59999999962747,
+        "childScreenDelta": {
+          "x": 220,
+          "y": 40
+        },
+        "maxFrameMs": 66.59999999999991,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 50,
+            "at": 314.10000000074524,
+            "phase": "paint"
+          },
+          {
+            "delta": 66.59999999999991,
+            "at": 414.0000000007449,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 1,
+        "round": 0,
+        "warmup": true,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "geometry",
+        "mode": "worker",
+        "initMs": 269.1000000014901,
+        "elements": 1001,
+        "mainCommitMs": 6,
+        "refreshMs": 18.5,
+        "readMs": 28.09999999962747,
+        "reads": 2,
+        "idlePrepareMs": 86.30000000074506,
+        "idlePrepares": 1,
+        "roundTripMs": 249.59999999962747,
+        "workerPrepareMs": 243.5,
+        "workerExecuteMs": 15.699999999254942,
+        "workerValidateMs": 68.90000000037253,
+        "updateBytes": 53333,
+        "completeMs": 327.19999999925494,
+        "childScreenDelta": {
+          "x": 220,
+          "y": 40
+        },
+        "maxFrameMs": 83.30000000000018,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 50,
+            "at": 314.4000000000001,
+            "phase": "paint"
+          },
+          {
+            "delta": 83.30000000000018,
+            "at": 414.4000000000001,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 1,
+        "round": 1,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "geometry",
+        "mode": "worker",
+        "initMs": 187.7999999988824,
+        "elements": 1001,
+        "mainCommitMs": 6.300000000745058,
+        "refreshMs": 17.799999998882413,
+        "readMs": 26.100000001490116,
+        "reads": 2,
+        "idlePrepareMs": 85.89999999850988,
+        "idlePrepares": 1,
+        "roundTripMs": 259.30000000074506,
+        "workerPrepareMs": 253.2000000011176,
+        "workerExecuteMs": 18.300000000745058,
+        "workerValidateMs": 74.69999999925494,
+        "updateBytes": 53333,
+        "completeMs": 338.5,
+        "childScreenDelta": {
+          "x": 220,
+          "y": 40
+        },
+        "maxFrameMs": 66.70000000000027,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 66.69999999999982,
+            "at": 331,
+            "phase": "paint"
+          },
+          {
+            "delta": 66.70000000000027,
+            "at": 414.4000000000001,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 1,
+        "round": 2,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "geometry",
+        "mode": "sync",
+        "initMs": 0,
+        "elements": 1001,
+        "mainCommitMs": 10.600000001490116,
+        "refreshMs": 5.799999998882413,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 120.40000000037253,
+        "childScreenDelta": {
+          "x": 220,
+          "y": 40
+        },
+        "maxFrameMs": 100.09999999999991,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 100.09999999999991,
+            "at": 107.20000000149003,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 2,
+        "round": 0,
+        "warmup": true,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "geometry",
+        "mode": "sync",
+        "initMs": 0,
+        "elements": 1001,
+        "mainCommitMs": 10.900000000372529,
+        "refreshMs": 5.5,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 122,
+        "childScreenDelta": {
+          "x": 220,
+          "y": 40
+        },
+        "maxFrameMs": 100,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 100,
+            "at": 108.4000000011174,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 2,
+        "round": 1,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "geometry",
+        "mode": "sync",
+        "initMs": 0,
+        "elements": 1001,
+        "mainCommitMs": 11,
+        "refreshMs": 5.199999999254942,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 118.80000000074506,
+        "childScreenDelta": {
+          "x": 220,
+          "y": 40
+        },
+        "maxFrameMs": 99.90000000000009,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 99.90000000000009,
+            "at": 110.09999999925503,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 2,
+        "round": 2,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "geometry",
+        "mode": "worker",
+        "initMs": 237.90000000037253,
+        "elements": 1001,
+        "mainCommitMs": 11.900000000372529,
+        "refreshMs": 34.29999999888241,
+        "readMs": 58.999999998137355,
+        "reads": 2,
+        "idlePrepareMs": 167.89999999850988,
+        "idlePrepares": 1,
+        "roundTripMs": 247.30000000074506,
+        "workerPrepareMs": 240.19999999925494,
+        "workerExecuteMs": 16.5,
+        "workerValidateMs": 72.30000000074506,
+        "updateBytes": 53333,
+        "completeMs": 407.59999999962747,
+        "childScreenDelta": {
+          "x": 220,
+          "y": 40
+        },
+        "maxFrameMs": 149.9000000000001,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 133.4000000000001,
+            "at": 395.40000000074497,
+            "phase": "paint"
+          },
+          {
+            "delta": 149.9000000000001,
+            "at": 561.900000000745,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 2,
+        "round": 0,
+        "warmup": true,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "geometry",
+        "mode": "worker",
+        "initMs": 234.90000000037253,
+        "elements": 1001,
+        "mainCommitMs": 11.700000001117587,
+        "refreshMs": 35.09999999962747,
+        "readMs": 58.59999999962747,
+        "reads": 2,
+        "idlePrepareMs": 167.7999999988824,
+        "idlePrepares": 1,
+        "roundTripMs": 239.89999999850988,
+        "workerPrepareMs": 233,
+        "workerExecuteMs": 14.100000001490116,
+        "workerValidateMs": 65.59999999962747,
+        "updateBytes": 53333,
+        "completeMs": 397.2000000011176,
+        "childScreenDelta": {
+          "x": 220,
+          "y": 40
+        },
+        "maxFrameMs": 150,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 150,
+            "at": 395.6999999999998,
+            "phase": "paint"
+          },
+          {
+            "delta": 149.9000000000001,
+            "at": 562.3000000000002,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 2,
+        "round": 1,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "geometry",
+        "mode": "worker",
+        "initMs": 225.5,
+        "elements": 1001,
+        "mainCommitMs": 10.400000000372529,
+        "refreshMs": 31.300000000745058,
+        "readMs": 50.59999999962747,
+        "reads": 2,
+        "idlePrepareMs": 150.2999999988824,
+        "idlePrepares": 1,
+        "roundTripMs": 237.09999999962747,
+        "workerPrepareMs": 230.69999999925494,
+        "workerExecuteMs": 14.5,
+        "workerValidateMs": 65.59999999962747,
+        "updateBytes": 53333,
+        "completeMs": 381.30000000074506,
+        "childScreenDelta": {
+          "x": 220,
+          "y": 40
+        },
+        "maxFrameMs": 133.4000000000001,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 133.4000000000001,
+            "at": 379.4999999992551,
+            "phase": "paint"
+          },
+          {
+            "delta": 133.29999999999973,
+            "at": 529.3999999992548,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 2,
+        "round": 2,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "geometry",
+        "mode": "sync",
+        "initMs": 0,
+        "elements": 1001,
+        "mainCommitMs": 22.09999999962747,
+        "refreshMs": 11.800000000745058,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 249.19999999925494,
+        "childScreenDelta": {
+          "x": 220,
+          "y": 40
+        },
+        "maxFrameMs": 233.30000000000018,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 233.30000000000018,
+            "at": 236.69999999925494,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 0,
+        "warmup": true,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "geometry",
+        "mode": "sync",
+        "initMs": 0,
+        "elements": 1001,
+        "mainCommitMs": 24.700000001117587,
+        "refreshMs": 11.799999998882413,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 271.5,
+        "childScreenDelta": {
+          "x": 220,
+          "y": 40
+        },
+        "maxFrameMs": 250.0999999999999,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 250.0999999999999,
+            "at": 256,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 1,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "geometry",
+        "mode": "sync",
+        "initMs": 0,
+        "elements": 1001,
+        "mainCommitMs": 23.90000000037253,
+        "refreshMs": 12,
+        "readMs": 0,
+        "reads": 1,
+        "idlePrepareMs": 0,
+        "idlePrepares": 1,
+        "roundTripMs": 0,
+        "completeMs": 264.30000000074506,
+        "childScreenDelta": {
+          "x": 220,
+          "y": 40
+        },
+        "maxFrameMs": 266.6999999999998,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 266.6999999999998,
+            "at": 260.0000000007449,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 2,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "geometry",
+        "mode": "worker",
+        "initMs": 233.69999999925494,
+        "elements": 1001,
+        "mainCommitMs": 20.600000001490116,
+        "refreshMs": 67.39999999850988,
+        "readMs": 106,
+        "reads": 2,
+        "idlePrepareMs": 313.2000000011176,
+        "idlePrepares": 1,
+        "roundTripMs": 244.5,
+        "workerPrepareMs": 236.59999999962747,
+        "workerExecuteMs": 14.300000000745058,
+        "workerValidateMs": 66.5,
+        "updateBytes": 53332,
+        "completeMs": 561.7000000011176,
+        "childScreenDelta": {
+          "x": 220,
+          "y": 40
+        },
+        "maxFrameMs": 300.0999999999999,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 300.0999999999999,
+            "at": 558.7000000011176,
+            "phase": "paint"
+          },
+          {
+            "delta": 300,
+            "at": 875.3000000011175,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 0,
+        "warmup": true,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "geometry",
+        "mode": "worker",
+        "initMs": 230,
+        "elements": 1001,
+        "mainCommitMs": 19.59999999962747,
+        "refreshMs": 68.29999999888241,
+        "readMs": 111.90000000037253,
+        "reads": 2,
+        "idlePrepareMs": 321.09999999962747,
+        "idlePrepares": 1,
+        "roundTripMs": 244.2000000011176,
+        "workerPrepareMs": 235.40000000037253,
+        "workerExecuteMs": 14.899999998509884,
+        "workerValidateMs": 66.80000000074506,
+        "updateBytes": 53333,
+        "completeMs": 562.5,
+        "childScreenDelta": {
+          "x": 220,
+          "y": 40
+        },
+        "maxFrameMs": 300,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 300,
+            "at": 559.3000000011175,
+            "phase": "paint"
+          },
+          {
+            "delta": 300,
+            "at": 875.9000000011174,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 1,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      },
+      {
+        "action": "geometry",
+        "mode": "worker",
+        "initMs": 232.39999999850988,
+        "elements": 1001,
+        "mainCommitMs": 19.90000000037253,
+        "refreshMs": 65.30000000074506,
+        "readMs": 106.09999999962747,
+        "reads": 2,
+        "idlePrepareMs": 312.30000000074506,
+        "idlePrepares": 1,
+        "roundTripMs": 239.39999999850988,
+        "workerPrepareMs": 230.80000000074506,
+        "workerExecuteMs": 14.400000000372529,
+        "workerValidateMs": 66.09999999962747,
+        "updateBytes": 53333,
+        "completeMs": 540.5999999996275,
+        "childScreenDelta": {
+          "x": 220,
+          "y": 40
+        },
+        "maxFrameMs": 299.9000000000001,
+        "withinFrameBudget": false,
+        "longFrames": [
+          {
+            "delta": 283.3000000000002,
+            "at": 525.1999999985101,
+            "phase": "paint"
+          },
+          {
+            "delta": 299.9000000000001,
+            "at": 858.4999999985098,
+            "phase": "paint"
+          }
+        ],
+        "retainedSVG": 1000,
+        "rate": 4,
+        "round": 2,
+        "warmup": false,
+        "browser": "Chrome/158.0.8127.37",
+        "errors": [],
+        "host": {
+          "cpuCount": 12,
+          "loadBefore": [2.60595703125, 3.31591796875, 3.62548828125],
+          "loadAfter": [3.0107421875, 3.4619140625, 3.6259765625]
+        }
+      }
+    ]
+  }
+}
