@@ -80,7 +80,15 @@ it("目录统计有界缓存，过期或跨 UTC 日重新取数", async () => {
   expect((await load()).recent.get("test.plugin")).toBe(3);
   f.sqlite.exec("UPDATE plugin_download_totals SET downloads=7");
   expect((await load()).totals.get("test.plugin")).toBe(3);
-  vi.advanceTimersByTime(60_000);
+  vi.advanceTimersByTime(299_999);
+  expect((await load()).totals.get("test.plugin")).toBe(3);
+  // 统计到期、跨日都应能在版本资料暂不可读时完成刷新。
+  const prepare = f.env.DB.prepare.bind(f.env.DB);
+  vi.spyOn(f.env.DB, "prepare").mockImplementation(sql => {
+    if (sql.includes("AS current_package")) throw new Error("重复读取版本资料");
+    return prepare(sql);
+  });
+  vi.advanceTimersByTime(1);
   expect((await load()).totals.get("test.plugin")).toBe(7);
   expect(
     (await catalogData(f.env, "2026-11-25", "2026-11-19")).recent.get("test.plugin")

@@ -72,13 +72,42 @@ export async function handle(
       error instanceof HttpError
         ? error
         : new HttpError(500, "INTERNAL_ERROR", "服务处理失败，请重试");
+    const requestId = crypto.randomUUID();
+    if (issue.status >= 500 && new URL(request.url).pathname === "/v2/catalog/query") {
+      const detail = error instanceof Error ? error.message : "";
+      const kind =
+        error instanceof HttpError
+          ? error.code
+          : /D1_ERROR|D1_EXEC_ERROR/i.test(detail)
+            ? "database"
+            : /abort|disconnect|cancel/i.test(detail)
+              ? "cancelled"
+              : error instanceof SyntaxError
+                ? "parse"
+                : error instanceof TypeError
+                  ? "type"
+                  : "unknown";
+      const stage =
+        error instanceof Error
+          ? error.stack?.match(
+              /\bat (?:async )?(loadVersions|loadStatistics|revision|readLimited|entries|facets|compatibility|catalogData|catalog)\b/
+            )?.[1]
+          : undefined;
+      console.error({
+        event: "plugin_catalog_error",
+        requestId,
+        status: issue.status,
+        kind,
+        stage: stage ?? "unknown",
+      });
+    }
     response = Response.json(
       {
         error: {
           code: issue.code,
           message: issue.message,
           ...(issue.fields ? { fields: issue.fields } : {}),
-          requestId: crypto.randomUUID(),
+          requestId,
         },
       } satisfies ApiError,
       { status: issue.status }

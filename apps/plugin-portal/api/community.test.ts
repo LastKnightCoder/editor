@@ -166,8 +166,8 @@ it("目录喜欢数按插件批量统计，口径与社区接口一致，无人�
     expect((await likesOf())[id]).toBe(community.likes);
   }
   await send("PUT", "like", b, { liked: false });
-  // 目录统计最多缓存一分钟，身份相关的社区接口仍立即更新。
+  // 目录统计最多缓存五分钟，身份相关的社区接口仍立即更新。
   expect((await (await request("/v1/plugins/test.plugin/community")).json()).data.likes).toBe(1);
-  vi.advanceTimersByTime(60_000);
+  vi.advanceTimersByTime(300_000);
   expect((await likesOf())["test.plugin"]).toBe(1);
 });

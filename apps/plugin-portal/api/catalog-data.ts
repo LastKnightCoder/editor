@@ -44,24 +44,13 @@ export interface CatalogData {
   recent: Map<string, number>;
   likes: Map<string, number>;
 }
-interface CachedCatalog {
-  revision: number;
-  day: string;
-  expiresAt: number;
-  data: CatalogData;
-}
-interface LoadingCatalog {
-  revision: number;
-  day: string;
-  promise: Promise<CatalogData>;
-}
+type CatalogStatistics = Omit<CatalogData, "versions">;
 interface CatalogCache {
-  generation?: object;
-  value?: CachedCatalog;
-  loading?: LoadingCatalog;
+  releases?: { revision: number; versions: CatalogData["versions"] };
+  statistics?: { day: string; loadedAt: number; data: CatalogStatistics };
 }
 const caches = new WeakMap<Env["DB"], CatalogCache>();
-const MAX_AGE_MS = 60_000;
+const STATISTICS_MAX_AGE_MS = 5 * 60_000;
 
 async function revision(env: Env) {
   const row = await env.DB.prepare("SELECT revision FROM catalog_revision WHERE id=1").first<{
@@ -71,7 +60,7 @@ async function revision(env: Env) {
   return row.revision;
 }
 
-async function load(env: Env, day: string, windowStart: string): Promise<CatalogData> {
+async function loadVersions(env: Env): Promise<CatalogData["versions"]> {
   const versions = new Map<string, CatalogMetadata[]>();
   let after = "";
   for (;;) {
@@ -92,6 +81,14 @@ async function load(env: Env, day: string, windowStart: string): Promise<Catalog
     after = page.results[page.results.length - 1].id;
   }
   for (const group of versions.values()) group.sort(compare);
+  return versions;
+}
+
+async function loadStatistics(
+  env: Env,
+  day: string,
+  windowStart: string
+): Promise<CatalogStatistics> {
   const [totals, recent, likes] = await Promise.all([
     env.DB.prepare("SELECT plugin_id,downloads AS n FROM plugin_download_totals").all<{
       plugin_id: string;
@@ -110,7 +107,6 @@ async function load(env: Env, day: string, windowStart: string): Promise<Catalog
   const counts = (rows: { plugin_id: string; n: number }[]) =>
     new Map(rows.map(row => [row.plugin_id, row.n]));
   return {
-    versions,
     totals: counts(totals.results),
     recent: counts(recent.results),
     likes: counts(likes.results),
@@ -129,31 +125,21 @@ export async function catalogData(
     cache = {};
     caches.set(env.DB, cache);
   }
-  const now = Date.now();
-  if (cache.value?.revision === current && cache.value.day === day && now < cache.value.expiresAt)
-    return cache.value.data;
-  if (cache.loading?.revision === current && cache.loading.day === day)
-    return cache.loading.promise;
-  const state = cache;
-  const generation = {};
-  const loading: LoadingCatalog = {
-    revision: current,
-    day,
-    promise: (async () => {
-      const data = await load(env, day, windowStart);
-      // 多条读取期间发生发布或下架时拒绝混合数据，下次请求可安全重试。
-      if ((await revision(env)) !== current)
-        fail(503, "INTERNAL_ERROR", "插件目录正在更新，请重试");
-      if (state.generation === generation)
-        state.value = { revision: current, day, expiresAt: now + MAX_AGE_MS, data };
-      return data;
-    })(),
-  };
-  state.generation = generation;
-  state.loading = loading;
-  try {
-    return await loading.promise;
-  } finally {
-    if (state.loading === loading) state.loading = undefined;
+  // Worker 请求可以独立取消，请求间复用的缓存只保存已完成的普通数据。
+  let releases = cache.releases;
+  if (releases?.revision !== current) {
+    const versions = await loadVersions(env);
+    if ((await revision(env)) !== current) fail(503, "INTERNAL_ERROR", "插件目录正在更新，请重试");
+    releases = { revision: current, versions };
+    if (!cache.releases || cache.releases.revision <= current) cache.releases = releases;
   }
+
+  const now = Date.now();
+  let statistics = cache.statistics;
+  if (!statistics || statistics.day !== day || now - statistics.loadedAt >= STATISTICS_MAX_AGE_MS) {
+    const data = await loadStatistics(env, day, windowStart);
+    statistics = { day, loadedAt: now, data };
+    if (!cache.statistics || cache.statistics.loadedAt <= now) cache.statistics = statistics;
+  }
+  return { versions: releases.versions, ...statistics.data };
 }
