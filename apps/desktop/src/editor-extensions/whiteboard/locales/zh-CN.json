@@ -1,0 +1,10 @@
+{
+  "missing": "白板不存在或者被删除",
+  "select.title": "选择要引用的白板",
+  "insert.title": "白板",
+  "insert.description": "插入一个新的白板",
+  "reference.title": "引用白板",
+  "reference.description": "引用一个已有的白板",
+  "fullscreen.enter": "全屏",
+  "fullscreen.exit": "退出全屏"
+}

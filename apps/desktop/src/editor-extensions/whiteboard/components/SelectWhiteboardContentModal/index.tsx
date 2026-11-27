@@ -3,6 +3,8 @@ import { Whiteboard, WhiteboardContent } from "@/types";
 import SelectWhiteboardModal from "@/components/SelectWhiteboardModal";
 import { getAllWhiteboards } from "@/commands/white-board";
 
+import { useWhiteboardEmbedI18n } from "../../i18n";
+
 interface ISelectWhiteboardContentModalProps {
   open: boolean;
   onCancel: () => void;
@@ -10,6 +12,7 @@ interface ISelectWhiteboardContentModalProps {
 }
 
 const SelectWhiteboardContentModal = (props: ISelectWhiteboardContentModalProps) => {
+  const { t } = useWhiteboardEmbedI18n();
   const { open, onCancel, onOk } = props;
   const [loading, setLoading] = useState(false);
   const [allWhiteboards, setAllWhiteboards] = useState<Whiteboard[]>([]);
@@ -58,7 +61,7 @@ const SelectWhiteboardContentModal = (props: ISelectWhiteboardContentModalProps)
   return (
     <SelectWhiteboardModal
       open={open}
-      title="选择要引用的白板"
+      title={t("select.title")}
       multiple={false}
       loading={loading}
       onCancel={handleCancel}

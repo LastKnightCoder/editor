@@ -418,6 +418,8 @@ QueryBlock六路径完成；既有navigation/markdown三例基线/最终通过�
 
 SkillPicker六路径完成；skillItems5+whiteboardRefs6原11基线至实际Skill Editor/白板host契约合计14通过，7key三语/参数、范围检查及最新desktop type0。实际候选仍原对象/选区，显式插入按原身份，非UI命令不绑runtime。
 
+WhiteboardEmbed八路径完成；原Skill/引用11基线加实际Skill Editor1/宿主白板选择2共14例通过，8key三语/参数、范围检查与latest desktop type0。canvas沿原connector stub，真实host Editor/载体/selector与原onOk/不读写已验，不夸称Board内核；旧两warning保留。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

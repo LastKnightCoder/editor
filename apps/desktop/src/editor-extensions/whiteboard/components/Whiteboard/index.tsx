@@ -17,6 +17,8 @@ import { Loader2 } from "lucide-react";
 import { useIsLastElement } from "@tau/editor/api";
 import { whiteboardEmbedPageId } from "@/entity/whiteboard-refs";
 import type { WhiteboardElement } from "../../types";
+import { useWhiteboardEmbedI18n } from "../../i18n";
+
 type IWhiteboardProps = ElementRenderProps<WhiteboardElement>;
 
 /** 右上角全屏 / 退出全屏按钮 */
@@ -209,7 +211,9 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
         style={{ height }}
         contentEditable={false}
       >
-        <p className="text-ink-3 text-sm">白板不存在或者被删除</p>
+        <p className="text-ink-3 text-sm">
+          <MissingWhiteboard />
+        </p>
       </div>
     );
   }
@@ -246,9 +250,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
             </div>
 
             {/* 压在画布上的固定深色按钮，不随主题 */}
-            <div className={FLOATING_BUTTON_CLASS} onClick={toggleFullscreen}>
-              <MdFullscreen size={20} />
-            </div>
+            <FullscreenControl fullscreen={false} onToggle={toggleFullscreen} />
           </If>
         </div>
         {children}
@@ -274,9 +276,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
                   readonly={readOnly}
                   onChange={handleWhiteboardChange}
                 />
-                <div className={FLOATING_BUTTON_CLASS} onClick={toggleFullscreen}>
-                  <MdFullscreenExit size={20} />
-                </div>
+                <FullscreenControl fullscreen onToggle={toggleFullscreen} />
               </div>
             </div>,
             document.body
@@ -286,5 +286,29 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
     </div>
   );
 });
+
+function MissingWhiteboard() {
+  const { t } = useWhiteboardEmbedI18n();
+  return t("missing");
+}
+
+function FullscreenControl({
+  fullscreen,
+  onToggle,
+}: {
+  fullscreen: boolean;
+  onToggle: () => void;
+}) {
+  const { t } = useWhiteboardEmbedI18n();
+  return (
+    <div
+      className={FLOATING_BUTTON_CLASS}
+      onClick={onToggle}
+      title={t(fullscreen ? "fullscreen.exit" : "fullscreen.enter")}
+    >
+      {fullscreen ? <MdFullscreenExit size={20} /> : <MdFullscreen size={20} />}
+    </div>
+  );
+}
 
 export default Whiteboard;

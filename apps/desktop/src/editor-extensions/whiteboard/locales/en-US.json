@@ -1,0 +1,10 @@
+{
+  "missing": "Whiteboard not found or deleted",
+  "select.title": "Select a whiteboard to reference",
+  "insert.title": "Whiteboard",
+  "insert.description": "Insert a new whiteboard",
+  "reference.title": "Reference whiteboard",
+  "reference.description": "Reference an existing whiteboard",
+  "fullscreen.enter": "Full screen",
+  "fullscreen.exit": "Exit full screen"
+}
