@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@tau/editor": "workspace:*",
+    "@tau/i18n": "workspace:*",
     "@tau/plugins": "workspace:*",
     "@tau/ui": "workspace:*"
   },

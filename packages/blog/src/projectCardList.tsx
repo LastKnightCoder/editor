@@ -3,9 +3,11 @@ import { defineElement, defineExtension, type ElementRenderProps } from "@tau/ed
 import { DocumentCard, DocumentCardGrid } from "@tau/ui";
 import type { PublishedProjectCardListNode } from "@tau/plugins/publish-data";
 import { LinkContext } from "./contentLink";
+import { useBlogI18n } from "./i18n";
 
 function ProjectCardList({ attributes, children, element }: ElementRenderProps) {
   const { hrefFor } = useContext(LinkContext);
+  const { t } = useBlogI18n();
   const { items = [] } = element as unknown as PublishedProjectCardListNode;
   return (
     <div {...attributes}>
@@ -22,7 +24,7 @@ function ProjectCardList({ attributes, children, element }: ElementRenderProps) 
         </DocumentCardGrid>
       ) : (
         <div contentEditable={false} style={{ userSelect: "none" }}>
-          <p className="text-ink-3 py-6 text-center text-xs">暂无子文档</p>
+          <p className="text-ink-3 py-6 text-center text-xs">{t("projectCard.empty")}</p>
         </div>
       )}
       {children}

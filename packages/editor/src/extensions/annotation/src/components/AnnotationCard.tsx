@@ -4,6 +4,7 @@ import { Popover, cn } from "@tau/ui";
 import { OverlayBackDismiss } from "@tau/editor/api";
 import { AnnotationNumber, CopyButton } from "./parts.tsx";
 import { dangerButtonClass, iconButtonClass } from "./classes.ts";
+import { useEditorI18n } from "../../../../i18n";
 
 interface AnnotationCardProps {
   anchor: HTMLElement;
@@ -29,6 +30,7 @@ export default function AnnotationCard({
   const keyboardCloseRef = useRef(false);
   const caretPlacedRef = useRef(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { t } = useEditorI18n();
 
   // 从斜杠菜单插入时菜单会把焦点还给正文，推迟一轮再抢回来
   useEffect(() => {
@@ -63,13 +65,13 @@ export default function AnnotationCard({
         <div className="flex h-9 items-center gap-1 pt-1 pr-2 pl-3.5">
           <span className="flex flex-1 items-center gap-1.5 text-[12px] text-[var(--ed-text-tertiary)]">
             <AnnotationNumber value={number} />
-            注解
+            {t("editorCommon.annotation")}
           </span>
           <CopyButton text={content} className="size-[26px]" />
           {!readOnly && (
             <button
               type="button"
-              aria-label="删除注解"
+              aria-label={t("editorCommon.deleteAnnotation")}
               className={cn(iconButtonClass, dangerButtonClass, "size-[26px]")}
               onClick={onDelete}
             >
@@ -79,16 +81,16 @@ export default function AnnotationCard({
         </div>
         {readOnly ? (
           <div className="max-h-60 overflow-y-auto px-3.5 pt-1 pb-3 text-[14px] leading-[1.65] break-words whitespace-pre-wrap">
-            {content || <span className="text-[var(--ed-text-tertiary)]">空注解</span>}
+            {content || <span className="text-[var(--ed-text-tertiary)]">{t("editorCommon.emptyAnnotation")}</span>}
           </div>
         ) : (
           <>
             <textarea
               ref={textareaRef}
               data-autofocus
-              aria-label={`注解 ${number}`}
+              aria-label={t("editorCommon.annotationAria", { number })}
               value={content}
-              placeholder="写下注解…"
+              placeholder={t("editorCommon.annotationPlaceholder")}
               rows={3}
               className="block [field-sizing:content] max-h-60 min-h-[66px] w-full resize-none border-none bg-transparent px-3.5 pt-1 pb-2 text-[14px] leading-[1.65] text-[var(--ed-text)] outline-none placeholder:text-[var(--ed-text-tertiary)]"
               onChange={event => onChange(event.target.value)}
@@ -112,9 +114,9 @@ export default function AnnotationCard({
                 <kbd className="font-tau-mono rounded-[4px] border border-solid border-[var(--ed-border)] px-1 text-[11px]">
                   Esc
                 </kbd>{" "}
-                关闭
+                {t("editorCommon.close")}
               </span>
-              <span>自动保存</span>
+              <span>{t("editorCommon.autosave")}</span>
             </div>
           </>
         )}

@@ -16,6 +16,7 @@ import { AudioPlayer, VideoPlayer } from "@tau/editor/extensions/media/players";
 import { contentLinkExtension } from "./contentLink";
 import { chatRefExtension } from "./chatRef";
 import { projectCardListExtension } from "./projectCardList";
+import { useBlogI18n } from "./i18n";
 
 const notice: CSSProperties = {
   border: "1px dashed var(--tau-line-1)",
@@ -28,7 +29,10 @@ const videoProviders: VideoContentProvider[] = [
   {
     id: "online",
     match: element => typeof element.metaInfo?.type === "string",
-    Content: () => <div style={notice}>该视频请在桌面端播放</div>,
+    Content: () => {
+      const { t } = useBlogI18n();
+      return <div style={notice}>{t("video.desktopOnly")}</div>;
+    },
   },
 ];
 

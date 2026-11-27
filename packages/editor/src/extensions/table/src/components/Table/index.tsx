@@ -44,6 +44,7 @@ import {
 import { buildCoverMap, originsIn, regionAt, sameRect } from "../../span";
 import { TableAlignContext, TableCoverContext, type TableCoverInfo } from "../context";
 import { boundaryAt, measureTable, spanIndexAt, type TableGeometry } from "./geometry";
+import { useEditorI18n } from "../../../../../i18n";
 import HandleMenuItems, { type HandleKind } from "./HandleMenuItems";
 
 interface ITableProps {
@@ -93,6 +94,7 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = props => {
   const readOnly = useReadOnly();
   const isLast = useIsLastElement(element);
   const notifier = useNotifier();
+  const { t } = useEditorI18n();
   const cover = useMemo<TableCoverInfo>(() => {
     const map = buildCoverMap(element);
     return {
@@ -303,7 +305,11 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = props => {
       setTimeout(() => (suppressClickRef.current = false));
       if (target === null || target === from || target === from + 1) return;
       if (blocked) {
-        notifier.warning(`不能拆开合并单元格移动${kind === "row" ? "行" : "列"}，请先拆分`);
+        notifier.warning(
+          t("editorCommon.mergedCellsMoveBlocked", {
+            kind: kind === "row" ? t("editorCommon.kindRow") : t("editorCommon.kindCol"),
+          })
+        );
         return;
       }
       const to = target > from ? target - 1 : target;
@@ -376,8 +382,8 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = props => {
           <button
             type="button"
             contentEditable={false}
-            aria-label={kind === "col" ? "列操作" : "行操作"}
-            title="点击打开菜单 · 拖动排序"
+            aria-label={kind === "col" ? t("editorCommon.colActions") : t("editorCommon.rowActions")}
+            title={t("editorCommon.columnMenuHint")}
             data-on={on}
             className={cn(GRIP_CLASS, kind === "col" ? "h-[14px] w-[26px]" : "h-[26px] w-[14px]")}
             style={style}
@@ -474,7 +480,9 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = props => {
         onClick={runMergeAction}
       >
         {isMerge ? <TableCellsMerge size={14} /> : <TableCellsSplit size={14} />}
-        {isMerge ? `合并 ${mergeAction.count} 格` : "拆分单元格"}
+        {isMerge
+          ? t("editorCommon.mergeCells", { count: mergeAction.count })
+          : t("editorCommon.splitCell")}
       </button>
     );
   })();

@@ -7,8 +7,10 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNod
 import type { ContentRef, DataResult } from "@tau/plugins/publish-data";
 import type { Descendant } from "slate";
 import { Editor } from "@tau/editor";
+import { I18nRuntimeProvider } from "@tau/i18n/react";
 import { prepareContent } from "./load";
 import { publishedKit } from "./kit";
+import { createBlogLocaleRuntime } from "./i18n";
 import { LinkContext, type LinkRenderProps } from "./contentLink";
 import { outlineOf, type OutlineHeading } from "./outline";
 
@@ -60,6 +62,8 @@ export function ContentRenderer({
     [locale]
   );
   useEffect(() => environment.connect(), [environment]);
+  const blogI18n = useMemo(() => createBlogLocaleRuntime(locale), []);
+  useEffect(() => blogI18n.setLocale(locale), [blogI18n, locale]);
   const [state, setState] = useState<
     | { content: DataResult; prepared: Awaited<ReturnType<typeof prepareContent>> }
     | { content: DataResult; error: unknown }
@@ -87,25 +91,27 @@ export function ContentRenderer({
   const body = nodes ?? ("content" in content.data.content ? content.data.content.content : []);
   return (
     <PluginEnvironmentProvider source={environment}>
-      <div data-tau-content={content.data.key}>
-        {state.prepared.styles.map((css, index) => (
-          <style key={index} data-tau-content-style>
-            {css}
-          </style>
-        ))}
-        <LinkContext.Provider value={links}>
-          <Editor
-            key={content.dataUrl}
-            kit={kit}
-            initValue={body as unknown as Descendant[]}
-            readonly
-            extensions={state.prepared.extensions}
-            className={className}
-            style={style}
-            onInit={(editor, value) => outline.current?.(outlineOf(editor, value))}
-          />
-        </LinkContext.Provider>
-      </div>
+      <I18nRuntimeProvider runtime={blogI18n.runtime}>
+        <div data-tau-content={content.data.key}>
+          {state.prepared.styles.map((css, index) => (
+            <style key={index} data-tau-content-style>
+              {css}
+            </style>
+          ))}
+          <LinkContext.Provider value={links}>
+            <Editor
+              key={content.dataUrl}
+              kit={kit}
+              initValue={body as unknown as Descendant[]}
+              readonly
+              extensions={state.prepared.extensions}
+              className={className}
+              style={style}
+              onInit={(editor, value) => outline.current?.(outlineOf(editor, value))}
+            />
+          </LinkContext.Provider>
+        </div>
+      </I18nRuntimeProvider>
     </PluginEnvironmentProvider>
   );
 }

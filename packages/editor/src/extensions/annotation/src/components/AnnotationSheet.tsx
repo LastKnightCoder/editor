@@ -6,6 +6,7 @@ import { cn, lockBodyScroll, usePortalContainer } from "@tau/ui";
 import { OverlayBackDismiss } from "@tau/editor/api";
 import { AnnotationNumber, CopyButton } from "./parts.tsx";
 import { dangerButtonClass, iconButtonClass } from "./classes.ts";
+import { useEditorI18n } from "../../../../i18n";
 
 interface AnnotationSheetProps {
   mode: "view" | "edit";
@@ -44,6 +45,7 @@ export default function AnnotationSheet({
   const portalContainer = usePortalContainer();
   const reduceMotion = useReducedMotion();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { t } = useEditorI18n();
   const [visible, setVisible] = useState(true);
   const editing = mode === "edit" && !readOnly;
 
@@ -69,7 +71,7 @@ export default function AnnotationSheet({
       className="fixed inset-0 z-[1000] text-[var(--ed-text)]"
       role="dialog"
       aria-modal="true"
-      aria-label={`注解 ${number}`}
+      aria-label={t("editorCommon.annotationAria", { number })}
     >
       <OverlayBackDismiss open={visible} onDismiss={requestClose} />
       <motion.div
@@ -94,7 +96,9 @@ export default function AnnotationSheet({
       >
         <div className="flex items-center gap-2">
           <AnnotationNumber value={number} className="px-[7px] text-[12px] leading-5" />
-          <b className="flex-1 text-[15px]">{editing ? "编辑注解" : "注解"}</b>
+          <b className="flex-1 text-[15px]">
+            {editing ? t("editorCommon.editAnnotation") : t("editorCommon.annotation")}
+          </b>
           {!editing && <CopyButton text={content} className="size-[34px] rounded-[10px]" />}
         </div>
 
@@ -102,21 +106,21 @@ export default function AnnotationSheet({
           <>
             <textarea
               ref={textareaRef}
-              aria-label={`注解 ${number}`}
+              aria-label={t("editorCommon.annotationAria", { number })}
               value={content}
-              placeholder="写下注解…"
+              placeholder={t("editorCommon.annotationPlaceholder")}
               rows={3}
               className="mt-3 block [field-sizing:content] max-h-[40dvh] min-h-[84px] w-full resize-none rounded-[12px] border border-solid border-[var(--ed-accent)] bg-[var(--ed-bg-surface)] px-3 py-2.5 text-[16px] leading-[1.7] text-[var(--ed-text)] shadow-[var(--ed-focus-ring)] outline-none placeholder:text-[var(--ed-text-tertiary)]"
               onChange={event => onChange(event.target.value)}
             />
             <div className="mt-2.5 flex items-center text-[12.5px] text-[var(--ed-text-tertiary)]">
-              <span className="flex-1">自动保存</span>
+              <span className="flex-1">{t("editorCommon.autosave")}</span>
               <button
                 type="button"
                 className="h-8 cursor-pointer rounded-[10px] border-none bg-[var(--ed-accent)] px-4 text-[14px] font-medium text-[var(--ed-text-inverse)]"
                 onClick={requestClose}
               >
-                完成
+                {t("editorCommon.done")}
               </button>
             </div>
           </>
@@ -132,7 +136,9 @@ export default function AnnotationSheet({
               </div>
             )}
             <div className="mt-3 max-h-[45dvh] overflow-y-auto text-[15.5px] leading-[1.75] break-words whitespace-pre-wrap">
-              {content || <span className="text-[var(--ed-text-tertiary)]">空注解</span>}
+              {content || (
+                <span className="text-[var(--ed-text-tertiary)]">{t("editorCommon.emptyAnnotation")}</span>
+              )}
             </div>
             {!readOnly && (
               <div className="mt-3.5 flex gap-2.5">

@@ -5,6 +5,7 @@ import Picker from "@emoji-mart/react";
 import data from "@emoji-mart/data";
 import { useEditorTheme as useTheme } from "@tau/editor/api";
 import { useNotifier } from "@tau/editor/api";
+import { useEditorI18n } from "../../../../../../../i18n";
 
 export interface IconPickerProps {
   onEmojiSelect: (emoji: string) => void;
@@ -23,6 +24,7 @@ const IconPicker: React.FC<IconPickerProps> = ({
 }) => {
   const { isDark } = useTheme();
   const message = useNotifier();
+  const { t } = useEditorI18n();
   const [uploading, setUploading] = useState(false);
   const [activeTab, setActiveTab] = useState<"emoji" | "upload">("emoji");
 
@@ -123,9 +125,9 @@ const IconPicker: React.FC<IconPickerProps> = ({
           >
             <Inbox size={40} strokeWidth={1.5} className="text-ink-3" />
             <p className="text-tau-body text-ink-1 m-0">
-              {uploading ? "上传中..." : "点击或拖拽图片到此处"}
+              {uploading ? t("editorCommon.uploading") : t("editorCommon.dropImageHere")}
             </p>
-            <p className="text-tau-sm text-ink-3 m-0">支持 JPG、PNG、GIF 等格式，也可直接粘贴</p>
+            <p className="text-tau-sm text-ink-3 m-0">{t("editorCommon.iconPickerHint")}</p>
           </FileDropZone>
         </div>
       ),

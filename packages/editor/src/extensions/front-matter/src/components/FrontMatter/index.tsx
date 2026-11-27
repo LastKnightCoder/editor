@@ -1,4 +1,3 @@
-import { useEditorI18n } from "../../../../../i18n";
 import {
   useTextFieldBinding,
   canEditElement,
@@ -16,6 +15,7 @@ import { cn } from "@tau/ui";
 import YAML from "yaml";
 import { type FrontMatterElement } from "../../types.ts";
 import { FiTag, FiAlignLeft, FiClock, FiList } from "react-icons/fi";
+import { useEditorI18n } from "../../../../../i18n";
 
 interface FrontMatterProps {
   element: FrontMatterElement;
@@ -34,6 +34,7 @@ const FIELD_CLASS =
 const FrontMatter = (props: FrontMatterProps) => {
   const { attributes, children, element } = props;
   const editor = useSlateStatic();
+  const { t } = useEditorI18n();
   const bound = Boolean(editor.tryGetService(IEditorTextFields));
   const source = useTextFieldBinding(bound ? element : undefined, "value");
   const readOnly = useReadOnly() || !canEditElement(editor, element) || (bound && source.readOnly);
@@ -174,7 +175,7 @@ const FrontMatter = (props: FrontMatterProps) => {
             handleLocalChange(key, e.currentTarget.value);
           }}
           onBlur={() => handleBlur(key)}
-          placeholder="请输入描述（简短描述 Skill 的用途）"
+          placeholder={t("editorCommon.frontmatterDescriptionPlaceholder")}
           rows={2}
         />
       );
@@ -195,7 +196,7 @@ const FrontMatter = (props: FrontMatterProps) => {
           handleLocalChange(key, e.currentTarget.value);
         }}
         onBlur={() => handleBlur(key)}
-        placeholder={`请输入 ${key}`}
+        placeholder={t("editorCommon.frontmatterFieldPlaceholder", { key })}
       />
     );
   };
@@ -277,7 +278,7 @@ function BoundDescription({
           FIELD_CLASS,
           "max-h-[4lh] min-h-[1lh] resize-none overflow-y-auto leading-[1.5] [field-sizing:content]"
         )}
-        placeholder="请输入描述（简短描述 Skill 的用途）"
+        placeholder={t("editorCommon.frontmatterDescriptionPlaceholder")}
         rows={2}
         onKeyDown={event => {
           if (

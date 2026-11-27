@@ -1654,6 +1654,9 @@ importers:
       '@tau/editor':
         specifier: workspace:*
         version: link:../editor
+      '@tau/i18n':
+        specifier: workspace:*
+        version: link:../i18n
       '@tau/plugins':
         specifier: workspace:*
         version: link:../plugins
@@ -6894,6 +6897,7 @@ packages:
   '@tinyhttp/content-disposition@2.2.4':
     resolution: {integrity: sha512-5Kc5CM2Ysn3vTTArBs2vESUt0AQiWZA86yc1TI3B+lxXmtEq133C1nxXNOgnzhrivdPZIh3zLj5gDnZjoLL5GA==}
     engines: {node: '>=12.17.0'}
+    deprecated: No longer maintained. Use content-disposition@3 instead.
 
   '@topcli/prompts@4.0.0':
     resolution: {integrity: sha512-kkKYPb4k/6kRdnESt77B5vJrrYnYHIYczwv0P1c+tfN/IWEx3KZeKEHoUq7sImIyBEXWdA2uakIroD9pmRJziQ==}
