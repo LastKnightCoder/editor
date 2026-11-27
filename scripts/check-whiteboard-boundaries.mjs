@@ -151,7 +151,7 @@ for (const directory of ["apps", "packages", "examples"]) {
 // 按转译后的运行时模块图检查，类型引用不视作加载领域实现。
 const visited = new Set();
 const inspectCore = (file, trail = []) => {
-  if (visited.has(file)) return;
+  if (!/\.[cm]?[jt]sx?$/.test(file) || visited.has(file)) return;
   visited.add(file);
   const source = ts.transpileModule(readFileSync(file, "utf8"), {
     compilerOptions: {
@@ -177,7 +177,10 @@ const inspectCore = (file, trail = []) => {
       resolve(candidate, "index.tsx"),
     ].find(path => existsSync(path) && statSync(path).isFile());
     if (!target || !inside(target, packageRoot)) return;
-    assert(!target.endsWith("extensions/builtins.tsx"), "核心不得反向加载扩展装配：" + chain);
+    assert(
+      !target.endsWith(`${sep}extensions${sep}builtins.tsx`),
+      "核心不得反向加载扩展装配：" + chain
+    );
     inspectCore(target, [...trail, relative(packageRoot, file)]);
   };
   const visit = node => {
@@ -202,6 +205,7 @@ inspectCore(resolve(packageRoot, "src/WhiteBoard.tsx"));
 inspectCore(resolve(packageRoot, "src/Board.tsx"));
 inspectCore(resolve(packageRoot, "src/index.ts"));
 inspectCore(resolve(packageRoot, "contracts.ts"));
+assert(visited.size > 0, "画布核心模块扫描不得为空");
 
 // 作者契约连同 type-only 依赖一起检查，不能通过声明文件重新暴露内核。
 const authorGraph = ts.createProgram([resolve(packageRoot, "src/author.ts")], {
@@ -255,20 +259,24 @@ const authorFiles = new Set([
   "types/sketch.ts",
   "types/schematic.ts",
 ]);
+let authorFileCount = 0;
 for (const source of authorGraph.getSourceFiles()) {
-  const file = source.fileName;
-  if (file.includes("/node_modules/")) continue;
-  if (inside(file, packageRoot))
+  const file = resolve(source.fileName);
+  if (file.includes(`${sep}node_modules${sep}`)) continue;
+  if (inside(file, packageRoot)) {
+    authorFileCount += 1;
     assert(
-      authorFiles.has(relative(resolve(packageRoot, "src"), file)),
+      authorFiles.has(relative(resolve(packageRoot, "src"), file).split(sep).join("/")),
       "白板作者声明依赖内部实现：" + file
     );
+  }
   assert(
     !inside(file, resolve(root, "packages/editor")) ||
       file === resolve(root, "packages/editor/text-field-contract.ts"),
     "白板作者契约不得引入编辑器实现：" + file
   );
 }
+assert(authorFileCount > 0, "白板作者入口依赖扫描不得为空");
 console.log(
   "Whiteboard 边界通过：旧宿主协议清零、核心不加载文本与导出实现、无宿主依赖或私有深引、直接依赖已声明"
 );

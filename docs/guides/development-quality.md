@@ -21,6 +21,7 @@ pnpm lint:all
 pnpm test:quality
 pnpm check:database-boundaries
 pnpm check:whiteboard-boundaries
+node --test scripts/__tests__/whiteboard-boundaries.guard.test.mjs
 pnpm --filter desktop exec vitest run src/app/__tests__/page-labels.parity.test.ts --maxWorkers 1 --no-file-parallelism
 pnpm check:desktop-startup
 pnpm check:plugin-process-boundaries
