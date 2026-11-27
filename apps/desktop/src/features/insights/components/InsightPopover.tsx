@@ -19,6 +19,8 @@ import {
 import { AnchoredPanel, Button, IconButton } from "@tau/ui";
 import type { InsightMark } from "@/types/content-insights";
 
+import { useInsightsI18n } from "../i18n";
+
 const TARGET_ICON = {
   card: Layers,
   article: FileText,
@@ -46,10 +48,10 @@ export type InsightPrimaryAction = "connect" | "write" | "discuss";
 export const primaryActionOf = (mark: InsightMark): InsightPrimaryAction =>
   mark.kind === "gap" ? "write" : mark.kind === "conflict" ? "discuss" : "connect";
 
-const PRIMARY: Record<InsightPrimaryAction, { label: string; icon: LucideIcon }> = {
-  connect: { label: "连接", icon: Link2 },
-  write: { label: "去补写", icon: PenLine },
-  discuss: { label: "聊一聊", icon: MessageCircle },
+const PRIMARY: Record<InsightPrimaryAction, LucideIcon> = {
+  connect: Link2,
+  write: PenLine,
+  discuss: MessageCircle,
 };
 
 export function InsightPopover({
@@ -62,21 +64,30 @@ export function InsightPopover({
   targetAction,
   onClose,
 }: InsightPopoverProps) {
+  const { t } = useInsightsI18n();
   const target = mark.target;
   const Icon = target ? TARGET_ICON[target.ref.kind] : Layers;
   const targetName = target ? `${target.title}${target.heading ? ` › ${target.heading}` : ""}` : "";
-  const primary = PRIMARY[primaryActionOf(mark)];
+  const action = primaryActionOf(mark);
+  const label = t(
+    action === "connect"
+      ? "insights.connect"
+      : action === "write"
+        ? "insights.write"
+        : "insights.discuss"
+  );
+  const IconPrimary = PRIMARY[action];
   return (
     <AnchoredPanel anchor={anchor} placement="bottom-start" className="w-[360px] max-w-[360px]">
       <div
         data-insight-popover
-        className="text-tau-body text-ink-1 relative px-3.5 pb-2.5 pt-3 leading-[1.7]"
+        className="text-tau-body text-ink-1 relative px-3.5 pt-3 pb-2.5 leading-[1.7]"
         onMouseDown={event => event.stopPropagation()}
       >
         <IconButton
-          className="absolute right-1.5 top-1.5 size-6"
-          title="关闭 (Esc)"
-          aria-label="关闭"
+          className="absolute top-1.5 right-1.5 size-6"
+          title={t("insights.closeShortcut")}
+          aria-label={t("insights.close")}
           onClick={onClose}
         >
           <X className="size-3.5" strokeWidth={1.75} />
@@ -88,7 +99,7 @@ export function InsightPopover({
         {target && (mark.mine || mark.theirs) ? (
           <div className="mt-2 grid grid-cols-2 gap-2">
             <div className="bg-surface-hover rounded-tau-sm text-ink-2 text-tau-meta px-2.5 py-2 leading-[1.65]">
-              <span className="text-ink-3 block text-[11.5px]">这里</span>
+              <span className="text-ink-3 block text-[11.5px]">{t("insights.here")}</span>
               {mark.mine || mark.anchor}
             </div>
             <button
@@ -121,14 +132,16 @@ export function InsightPopover({
           )
         )}
         <div className="mt-2.5 flex items-center gap-1.5">
-          <Button size="sm" variant="primary" icon={primary.icon} onClick={() => onPrimary(mark)}>
-            {primary.label}
+          <Button size="sm" variant="primary" icon={IconPrimary} onClick={() => onPrimary(mark)}>
+            {label}
           </Button>
           <Button size="sm" variant="ghost" onClick={() => onDismiss(mark)}>
-            不相关
+            {t("insights.dismiss")}
           </Button>
           {walking && (
-            <span className="text-ink-3 ml-auto text-[11px]">回车{primary.label} · ⌫ 不相关</span>
+            <span className="text-ink-3 ml-auto text-[11px]">
+              {t("insights.walkPrimary", { action: label })}
+            </span>
           )}
         </div>
       </div>

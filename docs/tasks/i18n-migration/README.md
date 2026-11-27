@@ -400,6 +400,8 @@ Compose C2八路径完成；全域4文件10例、desktop type与32key三语/协�
 
 Document B十四路径完成；原Reader9+materials12共21基线至增强22例通过，desktop type、31key三语与范围检查通过。实际Reader/store/prefs/board保同阅读纸与编辑器承载/回调、dock和800ms日记尾调用，切语不提前flush且仅保存原latest内容；ContentEditor沿旧连接器stub，不宣称内核验证。10生产源剩3中文均原invariant/持久quote/PDF默认名，原act/PDFjs/queryFn及lint warnings保留。
 
+共用insights九路径完成；原10例至两文件13例通过，36key三语与原controller/effect/memo/AI/装饰/selection/connect/focus及mini-graph/queries/leaf静态对照通过。真实pending任务只一次、同mark/popover/decorator，实际compose copy消费和未同步反向native Range保持，讨论仍原中文prompt与targets。本域类型无错；当时整端日志仅外域DocTasks Translator调用WIP，后续联动类型统一收口，不误记当次全端绿。全9生产/17 AST审计无自产UI漏项。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

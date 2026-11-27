@@ -13,11 +13,13 @@ import type {
   InsightKind,
 } from "@/types/content-insights";
 
-export const KIND_META: Record<InsightKind, { label: string; dot: string }> = {
-  link: { label: "可连接", dot: "bg-info" },
-  dup: { label: "重复", dot: "bg-ink-3" },
-  conflict: { label: "矛盾", dot: "bg-danger" },
-  gap: { label: "可以展开", dot: "bg-ink-3" },
+import { useInsightsI18n, insightKindLabel, insightPhaseText, insightTime } from "../i18n";
+
+export const KIND_META: Record<InsightKind, { dot: string }> = {
+  link: { dot: "bg-info" },
+  dup: { dot: "bg-ink-3" },
+  conflict: { dot: "bg-danger" },
+  gap: { dot: "bg-ink-3" },
 };
 const KIND_ORDER: InsightKind[] = ["link", "dup", "conflict", "gap"];
 
@@ -37,20 +39,6 @@ export interface InsightsReportProps {
   extra?: ReactNode;
 }
 
-const formatTime = (ts: number) => {
-  const d = new Date(ts);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getMonth() + 1} 月 ${d.getDate()} 日 ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-};
-
-function phaseText(phase: ContentInsightsPhase | null) {
-  if (phase?.phase === "candidates") {
-    return `对照你的 ${phase.notes.toLocaleString("zh-CN")} 份笔记，找到 ${phase.candidates} 处可能相关…`;
-  }
-  if (phase?.phase === "thinking") return "AI 正在判断哪些值得告诉你…";
-  return "正在读…";
-}
-
 /** 中间是这篇；实线 = 已连着的，虚线空心 = 还可以连的；最多各画 8 个点 */
 export function MiniGraph({
   known,
@@ -61,6 +49,7 @@ export function MiniGraph({
   pending: number;
   fresh: boolean;
 }) {
+  const { t } = useInsightsI18n();
   const solid = Math.min(known, 8);
   const dashed = Math.min(pending, 8);
   const total = Math.max(solid + dashed, 1);
@@ -122,7 +111,8 @@ export function MiniGraph({
         <circle cx={84} cy={70} r={8} fill="var(--tau-accent)" />
       </svg>
       <p className="text-ink-3 mt-0.5 text-center text-[11.5px]">
-        已连 {known} 处{pending ? ` · 还可以连 ${pending} 处` : ""}
+        {t("insights.known", { count: known })}
+        {pending ? t("insights.pendingLinks", { count: pending }) : ""}
       </p>
     </div>
   );
@@ -137,9 +127,10 @@ const SKELETON_LINE =
  * 只拿得到阶段事件，所以底部一行写当前阶段，不在正文上表示读到哪里。
  */
 function ReportSkeleton({ phase }: { phase: ContentInsightsPhase | null }) {
+  const { t, locale } = useInsightsI18n();
   return (
     <section
-      aria-label="AI 洞见"
+      aria-label={t("insights.title")}
       aria-busy
       className="bg-surface-hover rounded-tau-lg mt-4 grid grid-cols-[1fr_168px] gap-5 px-[18px] pt-4 pb-3.5"
       onMouseDown={event => event.stopPropagation()}
@@ -159,7 +150,7 @@ function ReportSkeleton({ phase }: { phase: ContentInsightsPhase | null }) {
           role="status"
         >
           <Loader2 className="size-3 animate-spin" strokeWidth={1.75} />
-          {phaseText(phase)}
+          {insightPhaseText(phase, locale, t)}
         </p>
       </div>
       <div className="self-center" aria-hidden>
@@ -184,6 +175,7 @@ export function InsightsReport({
   onWalk,
   extra,
 }: InsightsReportProps) {
+  const { t, locale } = useInsightsI18n();
   if (reading) return <ReportSkeleton phase={phase} />;
   if (!insights) return null;
   const { result } = insights;
@@ -196,7 +188,7 @@ export function InsightsReport({
   const asks = result.asks.filter(ask => ask.status === "open");
   return (
     <section
-      aria-label="AI 洞见"
+      aria-label={t("insights.title")}
       className="bg-surface-hover rounded-tau-lg mt-4 grid grid-cols-[1fr_168px] gap-5 px-[18px] pt-4 pb-3.5"
       onMouseDown={event => event.stopPropagation()}
     >
@@ -215,18 +207,18 @@ export function InsightsReport({
                 className="bg-surface text-ink-2 hover:text-ink-1 inline-flex h-6 items-center gap-1.5 rounded-full px-2.5 text-[12px] transition-shadow hover:shadow-[0_0_0_1px_var(--tau-line-1)]"
               >
                 <i className={cn("size-[7px] rounded-full", KIND_META[kind].dot)} />
-                {KIND_META[kind].label} {n}
+                {insightKindLabel(kind, t)} {n}
               </button>
             ))
           ) : (
             <span className="bg-surface text-ink-3 inline-flex h-6 items-center rounded-full px-2.5 text-[12px]">
-              都处理完了
+              {t("insights.processed")}
             </span>
           )}
         </div>
         {asks.length > 0 && (
           <div className="border-line-2 mt-3 border-t pt-2.5">
-            <p className="text-ink-3 mb-1 text-[12px]">可以继续想</p>
+            <p className="text-ink-3 mb-1 text-[12px]">{t("insights.askMore")}</p>
             {asks.map(ask => (
               <div
                 key={ask.id}
@@ -242,7 +234,7 @@ export function InsightsReport({
                   onClick={() => onAsk(ask)}
                   className="text-ink-3 hover:text-accent-text shrink-0 text-[12px] opacity-0 transition-opacity group-hover/ask:opacity-100 focus-visible:opacity-100"
                 >
-                  聊一聊
+                  {t("insights.discuss")}
                 </button>
               </div>
             ))}
@@ -250,11 +242,14 @@ export function InsightsReport({
         )}
         <div className="text-ink-3 mt-2.5 flex items-center gap-3 text-[12px] whitespace-nowrap">
           {insights.stale ? (
-            <span className="text-warn min-w-0 truncate">正文在分析后改动较大</span>
+            <span className="text-warn min-w-0 truncate">{t("insights.stale")}</span>
           ) : (
             <span className="min-w-0 truncate">
-              {formatTime(insights.analyzedAt)} · 读了 {result.candidates} 份候选，留下{" "}
-              {result.marks.length} 处
+              {t("insights.analyzed", {
+                time: insightTime(insights.analyzedAt, locale),
+                candidates: result.candidates,
+                count: result.marks.length,
+              })}
             </span>
           )}
           <button
@@ -263,7 +258,7 @@ export function InsightsReport({
             className="hover:text-ink-1 inline-flex shrink-0 items-center gap-1"
           >
             <RefreshCw className="size-3" strokeWidth={1.75} />
-            重新分析
+            {t("insights.reanalyze")}
           </button>
           {open.length > 0 && (
             <button
@@ -272,7 +267,7 @@ export function InsightsReport({
               className="text-accent-text ml-auto inline-flex shrink-0 items-center gap-1"
             >
               <ListChecks className="size-3" strokeWidth={1.75} />
-              逐条看
+              {t("insights.walk")}
             </button>
           )}
         </div>

@@ -15,8 +15,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { createPortal } from "react-dom";
 import { Editor as SlateEditor, Transforms, type Editor } from "slate";
 import { ReactEditor } from "slate-react";
-import { Loader2, Plus, Sparkles } from "lucide-react";
-import { Button, cn, toast } from "@tau/ui";
+import { Plus } from "lucide-react";
+import { cn, toast } from "@tau/ui";
 import { contextCount } from "@/features/context/model";
 import { useEntityContext } from "@/features/context/queries";
 import type { EntityRef } from "@/entity/ref";
@@ -35,6 +35,10 @@ import { InsightCurrentContext, InsightLeaf } from "./components/InsightLeaf";
 import { InsightPopover, primaryActionOf } from "./components/InsightPopover";
 import { InsightsReport } from "./components/InsightsReport";
 import { useContentInsights, useInsightsPhase } from "./queries";
+
+import { insightsFeedback, insightsFailure } from "./i18n";
+
+import { InsightsModeButton, InsightsWalkBar } from "./components/InsightsChrome";
 
 type ViewState = "off" | "reading" | "on";
 
@@ -133,7 +137,7 @@ export function useInsightsView({
       onSuccess: () => setView("on"),
       onError: error => {
         setView("off");
-        toast.error(error instanceof Error ? error.message : "分析失败");
+        toast.error(...insightsFailure("insights.analyzeFailed", error));
       },
     });
   }, [analyze, getEditor, insights]);
@@ -146,7 +150,7 @@ export function useInsightsView({
       onSuccess: () => setView("on"),
       onError: error => {
         setView("on");
-        toast.error(error instanceof Error ? error.message : "分析失败");
+        toast.error(...insightsFailure("insights.analyzeFailed", error));
       },
     });
   }, [analyze]);
@@ -179,11 +183,11 @@ export function useInsightsView({
   const connect = (mark: InsightMark) => {
     const editor = getEditor();
     if (!editor || !connectInsightMark(editor, mark)) {
-      toast.warning("原文已经改动，找不到这几个字，可以重新分析");
+      toast.warning(...insightsFeedback("insights.anchorMissing"));
       return;
     }
     setFreshLink(mark.id);
-    toast.success(`已连接 · 这篇现在连着 ${contextCount(context) + 1} 处`);
+    toast.success(...insightsFeedback("insights.connected", { count: contextCount(context) + 1 }));
     resolveTo(mark, "linked");
   };
 
@@ -191,7 +195,7 @@ export function useInsightsView({
   const write = (mark: InsightMark) => {
     const editor = getEditor();
     if (!editor || !editor.children[mark.block]) {
-      toast.warning("原文已经改动，找不到这一处，可以重新分析");
+      toast.warning(...insightsFeedback("insights.blockMissing"));
       return;
     }
     resolveTo(mark, "linked");
@@ -239,7 +243,7 @@ export function useInsightsView({
   const openTarget = (mark: InsightMark) => {
     if (!mark.target) return;
     openEntity(mark.target.ref, { at: { block: mark.target.block } }).catch(error =>
-      toast.error(error instanceof Error ? error.message : "无法打开内容")
+      toast.error(...insightsFailure("insights.openFailed", error))
     );
   };
 
@@ -354,7 +358,7 @@ export function useInsightsView({
         setAnchorEl(el);
         if (el && focus) el.scrollIntoView({ block: "center" });
         if (!el) {
-          toast.warning("原文已经改动，找不到这一处，可以重新分析");
+          toast.warning(...insightsFeedback("insights.blockMissing"));
           if (!walking) setCurrent(null);
         }
         return;
@@ -368,31 +372,12 @@ export function useInsightsView({
   /* ── 渲染件 ── */
   const hasOpen = Boolean(insights && openMarks.length);
   const button = enabled ? (
-    <button
-      type="button"
-      onClick={() => (view === "off" ? enter() : exit())}
-      disabled={view === "reading"}
-      title={view === "off" ? (copy?.title ?? "让 AI 对照你的其他笔记读这一篇") : "退出洞见视图"}
-      className={cn(
-        "text-tau-meta text-ink-2 hover:bg-hover hover:text-ink-1 inline-flex h-[22px] shrink-0 items-center gap-[5px] rounded-full px-2 transition-colors",
-        view !== "off" &&
-          "bg-accent-soft text-accent-text hover:bg-accent-soft hover:text-accent-text"
-      )}
-    >
-      {view === "reading" ? (
-        <Loader2 className="size-[13px] animate-spin" strokeWidth={1.75} />
-      ) : (
-        <Sparkles className="size-[13px]" strokeWidth={1.75} />
-      )}
-      {view === "reading"
-        ? "正在读"
-        : view === "on"
-          ? copy
-            ? "收起标注"
-            : "退出洞见"
-          : (copy?.label ?? "AI 洞见")}
-      {view === "off" && hasOpen && <i className="bg-accent size-[5px] rounded-full opacity-70" />}
-    </button>
+    <InsightsModeButton
+      view={view}
+      copy={copy}
+      hasOpen={hasOpen}
+      toggle={() => (view === "off" ? enter() : exit())}
+    />
   ) : null;
 
   const report =
@@ -484,25 +469,14 @@ export function useInsightsView({
       {on &&
         walking &&
         createPortal(
-          <div className="bg-surface shadow-float text-tau-meta text-ink-2 fixed bottom-6 left-1/2 z-[240] flex -translate-x-1/2 items-center gap-2.5 rounded-full py-1.5 pr-2 pl-4">
-            <span className="text-ink-1 tabular-nums">
-              {Math.max(1, walkOrder.findIndex(item => item.id === current) + 1)} /{" "}
-              {walkOrder.length}
-            </span>
-            <span className="text-ink-3 text-[11px]">
-              ↑↓ 切换 · 回车 处理 · ⌫ 不相关 · Esc 结束
-            </span>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => {
-                setWalking(false);
-                setCurrent(null);
-              }}
-            >
-              结束
-            </Button>
-          </div>,
+          <InsightsWalkBar
+            index={Math.max(1, walkOrder.findIndex(item => item.id === current) + 1)}
+            total={walkOrder.length}
+            end={() => {
+              setWalking(false);
+              setCurrent(null);
+            }}
+          />,
           document.body
         )}
     </div>
