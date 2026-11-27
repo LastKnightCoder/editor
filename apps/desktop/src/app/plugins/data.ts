@@ -233,6 +233,8 @@ function toEvent(event: AssistantCalendarEvent): PluginCalendarEvent {
     start: event.start,
     end: event.end,
     allDay: event.allDay,
+    ...(event.startTimeZone && { startTimeZone: event.startTimeZone }),
+    ...(event.endTimeZone && { endTimeZone: event.endTimeZone }),
     calendarId: String(event.calendarId),
     ...(event.taskRef ? { todoId: taskKey(event.taskRef) } : {}),
   };
@@ -403,6 +405,7 @@ export function createDesktopData(databaseName: string): DesktopDataAdapter {
         context.signal
       ),
     schedule: {
+      supportsTimeZones: true,
       async get(context, entity, id) {
         const event = entity === "event" ? parseEventId(id) : null;
         const target =

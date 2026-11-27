@@ -44,7 +44,7 @@ import {
 } from "./pi-session-store";
 import { readConversationTurn } from "./pi-conversation-turn-client";
 import mainContentIndexDBManager from "./main-content-index-db";
-import { installDatabaseDownload } from "./database-download";
+import { installDatabaseDownload, prepareDatabaseDownload } from "./database-download";
 import {
   assertSafeSessionId,
   browserSessionDirOf,
@@ -314,6 +314,7 @@ class PiSessionHostModule {
           const downloadedSessions = hasSessions ? `${databasePath}.sessions.download` : undefined;
           if (downloadedSessions && !existsSync(downloadedSessions))
             throw new Error("待安装的对话目录不存在");
+          prepareDatabaseDownload(downloadPath);
           mainContentIndexDBManager.prepareDownload(
             databaseName,
             databasePath,

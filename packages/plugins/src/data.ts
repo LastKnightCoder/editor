@@ -416,6 +416,8 @@ export interface PluginCalendarEvent {
   title: string;
   start: string;
   end: string;
+  startTimeZone?: string;
+  endTimeZone?: string;
   allDay: boolean;
   calendarId: string;
   /** 由待办安排出的日程 */
@@ -450,6 +452,8 @@ export interface PluginCalendarInput {
   /** 全天日程用 YYYY-MM-DD，结束日期不含当天（当天全天的 end 为次日）；定时日程用带时区的 ISO 时间 */
   start: string;
   end: string;
+  startTimeZone?: string;
+  endTimeZone?: string;
   allDay: boolean;
   /** 缺省为默认日历 */
   calendarId?: string;
@@ -554,6 +558,8 @@ export interface PluginData {
     delete(id: string, options: PluginWriteOptions): Promise<void>;
   };
   readonly calendar: {
+    /** 独立定时日程可往返保存起止 IANA 时区；旧宿主没有此标志。 */
+    readonly supportsTimeZones?: boolean;
     /** 为尚无备注的日程建立空正文；已有备注保持原样。 */
     ensureNotes(id: string, options: PluginWriteOptions): Promise<PluginCalendarEvent>;
     get(id: string): Promise<PluginCalendarEvent | null>;

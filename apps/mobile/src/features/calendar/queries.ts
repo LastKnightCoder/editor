@@ -1,3 +1,4 @@
+import { useSystemTimeZone } from "@tau/shared/src/hooks/useSystemTimeZone";
 // 日历域查询 hooks：组件订阅 query 缓存，写操作后 invalidateCalendarQueries 驱动刷新
 // （对齐 flashcard/queries.ts 范式）；范围查询以 [start, end] 参数化为 key。
 
@@ -23,7 +24,7 @@ export function useCalendarEventsByRange(params: {
   enabled?: boolean;
 }) {
   const { startDate, endDate, calendarIds, enabled = true } = params;
-  const timeZone = tauri.localTimeZone();
+  const timeZone = useSystemTimeZone();
   return useQuery({
     queryKey: ["calendar", "events", startDate, endDate, calendarIds, timeZone],
     queryFn: () =>
@@ -39,8 +40,9 @@ export function useCalendarEventsByRange(params: {
 }
 
 export function useCalendarEventById(eventId: number) {
+  const timeZone = useSystemTimeZone();
   return useQuery({
-    queryKey: ["calendar", "event", eventId],
+    queryKey: ["calendar", "event", eventId, timeZone],
     queryFn: () => tauri.calendarEventGetById(eventId),
     staleTime: CALENDAR_STALE_MS,
   });

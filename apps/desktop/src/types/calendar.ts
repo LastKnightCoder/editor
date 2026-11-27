@@ -48,6 +48,8 @@ export interface CalendarEvent {
   calendarId: number;
   title: string;
   detailContentId: number;
+  startInstant?: number;
+  endInstant?: number;
   startDate: number; // 时间戳（日期部分）
   endDate: number | null; // 时间戳（日期部分）
   startTime: number | null; // 分钟数 0-1439

@@ -321,6 +321,7 @@ export function createMobileTasks(
         context
       ),
     schedule: {
+      supportsTimeZones: true,
       get: (
         context: PluginContext,
         entity: "todo" | "event" | "todo-list" | "calendar",

@@ -164,6 +164,16 @@ fn install_download_locked(
     *connections = None;
     let destination = resolve_database_path(app, name)?;
     let candidate = Connection::open(download).map_err(|e| e.to_string())?;
+    if !candidate
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='cards')",
+            [],
+            |row| row.get::<_, bool>(0),
+        )
+        .map_err(|e| e.to_string())?
+    {
+        return Err("下载文件不是 Tau 资料库".into());
+    }
     migrator::ensure_main_schema(&candidate)?;
     let integrity: String = candidate
         .pragma_query_value(None, "quick_check", |row| row.get(0))

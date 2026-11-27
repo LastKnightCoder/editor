@@ -394,10 +394,10 @@ export function queryEvents(
   const ids = query.calendarIds;
   const statement = db.prepare(
     `SELECT e.id FROM calendar_event e WHERE
-    e.start_date<? AND COALESCE(e.end_date,e.start_date)>=?
+    COALESCE(e.start_utc_ms,e.start_date)<? AND COALESCE(e.end_utc_ms,e.start_utc_ms,e.end_date,e.start_date)>=?
     AND NOT EXISTS(SELECT 1 FROM todo_calendar_mapping m WHERE m.calendar_event_id=e.id AND m.sync_type='recurring')
     ${ids?.length ? `AND e.calendar_id IN (${ids.map(() => "?").join(",")})` : ""}
-    ORDER BY e.start_date,e.start_time,e.id LIMIT ? OFFSET ?`
+    ORDER BY COALESCE(e.start_utc_ms,e.start_date+COALESCE(e.start_time,0)*60000),e.id LIMIT ? OFFSET ?`
   );
   const physical: Array<{ item: AssistantCalendarEvent; source: "todo"; offset: number }> = [];
   const windowEnd = windowStop.length === 10 ? afterDate(windowStop) : end;

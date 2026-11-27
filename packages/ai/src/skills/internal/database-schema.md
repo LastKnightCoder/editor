@@ -1174,6 +1174,12 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `color`             | `TEXT`                |
 | `all_day`           | `INTEGER DEFAULT 0`   |
 | `todo_item_id`      | `INTEGER`             |
+| `start_utc_ms`      | `INTEGER`             |
+| `end_utc_ms`        | `INTEGER`             |
+| `start_time_zone`   | `TEXT`                |
+| `end_time_zone`     | `TEXT`                |
+
+独立定时日程的 UTC 毫秒与原始 IANA 时区按起止分别保存。历史行为空，按原日期和分钟读取；全天日程按日期读取。
 
 ### `weread_notebook`
 

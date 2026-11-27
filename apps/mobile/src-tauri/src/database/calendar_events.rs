@@ -8,6 +8,7 @@ use super::calendar_types::{
     CalendarByIdPayload, CalendarEventDateRangePayload, CalendarEventDto,
     CreateCalendarEventPayload, UpdateCalendarEventPayload,
 };
+use crate::database::calendar_time::CalendarTimeZone;
 use crate::database::common::{
     db_err, insert_content_record, now_millis, release_content_reference, trigger_reconcile,
     write_operation,
@@ -20,7 +21,7 @@ use crate::database::todo_calendar_sync::{
 const EVENT_JOIN_COLUMNS: &str =
     "e.id, e.calendar_id, e.title, e.detail_content_id, e.start_date, \
      e.end_date, e.start_time, e.end_time, e.color, e.all_day, \
-     c.title AS calendar_title, c.color AS calendar_color, c.group_id AS calendar_group_id";
+     c.title AS calendar_title, c.color AS calendar_color, c.group_id AS calendar_group_id,e.start_utc_ms,e.end_utc_ms";
 
 type EventRow = (
     i64,
@@ -41,6 +42,7 @@ type EventRow = (
 fn parse_event_row(
     row: &rusqlite::Row,
     groups: &std::collections::HashMap<i64, (bool, Option<i64>)>,
+    zone: CalendarTimeZone,
 ) -> Result<CalendarEventDto, rusqlite::Error> {
     let (
         id,
@@ -71,6 +73,32 @@ fn parse_event_row(
         row.get(11)?,
         row.get(12)?,
     );
+    let (start_date, end_date, start_time, end_time) = match (
+        row.get::<_, Option<i64>>(13)?,
+        row.get::<_, Option<i64>>(14)?,
+    ) {
+        (Some(start), Some(end)) => {
+            let day = zone.start_of_day(start);
+            let last = zone.start_of_day(end);
+            (
+                day,
+                if end_date.is_none() && day == last {
+                    None
+                } else {
+                    Some(last)
+                },
+                Some(zone.minute(start)),
+                Some(zone.minute(end)),
+            )
+        }
+        (Some(start), None) => (
+            zone.start_of_day(start),
+            end_date,
+            Some(zone.minute(start)),
+            None,
+        ),
+        _ => (start_date, end_date, start_time, end_time),
+    };
     Ok(CalendarEventDto {
         id,
         calendar_id,
@@ -121,14 +149,19 @@ const PLAIN_EVENT_COLUMNS: &str =
 pub fn calendar_event_get_by_id(
     app: AppHandle,
     payload: CalendarByIdPayload,
+    time_zone: CalendarTimeZone,
 ) -> Result<CalendarEventDto, String> {
     let conn = schema::open_active_database(&app)?;
-    get_event_by_id_with_conn(&conn, payload.id)
+    get_event_by_id_with_conn(&conn, payload.id, time_zone)
 }
 
 // 供 create/update 在同一连接（同一连接锁临界区）内回读：command 直呼 command 会
 // 同线程重入 open_active_database 的 Mutex 导致死锁，必须复用连接
-fn get_event_by_id_with_conn(conn: &Connection, id: i64) -> Result<CalendarEventDto, String> {
+fn get_event_by_id_with_conn(
+    conn: &Connection,
+    id: i64,
+    zone: CalendarTimeZone,
+) -> Result<CalendarEventDto, String> {
     let groups = load_group_map(conn)?;
     let mut event = conn
         .query_row(
@@ -137,7 +170,7 @@ fn get_event_by_id_with_conn(conn: &Connection, id: i64) -> Result<CalendarEvent
                  JOIN calendar c ON c.id = e.calendar_id WHERE e.id = ?1"
             ),
             params![id],
-            |row| parse_event_row(row, &groups),
+            |row| parse_event_row(row, &groups, zone),
         )
         .optional()
         .map_err(|e| db_err("CALENDAR_EVENT_QUERY_FAILED", "get event by id", e))?
@@ -211,12 +244,10 @@ pub async fn calendar_event_get_by_date_range(
         let sql = format!(
             "SELECT {EVENT_JOIN_COLUMNS} FROM calendar_event e \
              JOIN calendar c ON c.id = e.calendar_id \
-             WHERE ((e.start_date >= ? AND e.start_date <= ?) \
-                OR (e.end_date IS NOT NULL AND e.end_date >= ? AND e.end_date <= ?) \
-                OR (e.end_date IS NOT NULL AND e.start_date <= ? AND e.end_date >= ?)) \
+             WHERE (COALESCE(e.start_utc_ms,e.start_date) < ? AND COALESCE(e.end_utc_ms,e.start_utc_ms,e.end_date,e.start_date) >= ?) \
                AND c.archived = 0 \
                AND {id_filter} \
-             ORDER BY e.start_date ASC, e.start_time ASC"
+             ORDER BY COALESCE(e.start_utc_ms,e.start_date+COALESCE(e.start_time,0)*60000),e.id"
         );
         let mut bound = params_from_range(&payload);
         if let Some(ids) = &static_ids {
@@ -229,7 +260,7 @@ pub async fn calendar_event_get_by_date_range(
             .map_err(|e| db_err("CALENDAR_EVENT_QUERY_FAILED", "prepare range query", e))?;
         let rows = stmt
             .query_map(rusqlite::params_from_iter(bound.iter()), |row| {
-                parse_event_row(row, &groups)
+                parse_event_row(row, &groups, payload.time_zone)
             })
             .map_err(|e| db_err("CALENDAR_EVENT_QUERY_FAILED", "query range events", e))?;
         for row in rows {
@@ -307,11 +338,11 @@ fn append_materialized_events(
 fn params_from_range(payload: &CalendarEventDateRangePayload) -> Vec<rusqlite::types::Value> {
     use rusqlite::types::Value;
     vec![
-        Value::Integer(payload.start_date),
-        Value::Integer(payload.end_date),
-        Value::Integer(payload.start_date),
-        Value::Integer(payload.end_date),
-        Value::Integer(payload.start_date),
+        Value::Integer(
+            payload
+                .time_zone
+                .day_start(payload.time_zone.day(payload.end_date) + 1),
+        ),
         Value::Integer(payload.start_date),
     ]
 }
@@ -384,7 +415,7 @@ pub(crate) fn list_event_ids(
         .map(serde_json::to_string)
         .transpose()
         .map_err(|e| db_err("CALENDAR_EVENT_QUERY_FAILED", "encode calendar ids", e))?;
-    let mut stmt=conn.prepare("SELECT id FROM calendar_event WHERE id>?1 AND (?2 IS NULL OR (start_date<?3 AND COALESCE(end_date,start_date)>=?2)) AND (?4 IS NULL OR calendar_id IN (SELECT CAST(value AS INTEGER) FROM json_each(?4))) ORDER BY id LIMIT ?5").map_err(|e|db_err("CALENDAR_EVENT_QUERY_FAILED","prepare id page",e))?;
+    let mut stmt=conn.prepare("SELECT id FROM calendar_event WHERE id>?1 AND (?2 IS NULL OR (COALESCE(start_utc_ms,start_date)<?3 AND COALESCE(end_utc_ms,start_utc_ms,end_date,start_date)>=?2)) AND (?4 IS NULL OR calendar_id IN (SELECT CAST(value AS INTEGER) FROM json_each(?4))) ORDER BY id LIMIT ?5").map_err(|e|db_err("CALENDAR_EVENT_QUERY_FAILED","prepare id page",e))?;
     let ids = stmt
         .query_map(
             params![
@@ -415,24 +446,26 @@ pub(crate) fn assert_user_calendar(conn: &Connection, calendar_id: i64) -> Resul
 pub fn calendar_event_create(
     app: AppHandle,
     payload: CreateCalendarEventPayload,
+    time_zone: CalendarTimeZone,
 ) -> Result<CalendarEventDto, String> {
     let mut conn = schema::open_active_database(&app)?;
     let tx = conn
         .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
         .map_err(|e| db_err("CALENDAR_EVENT_CREATE_FAILED", "begin transaction", e))?;
     assert_user_calendar(&tx, payload.calendar_id)?;
-    insert_event_in_tx(&tx, &payload)?;
+    insert_event_in_tx(&tx, &payload, time_zone)?;
     let id = tx.last_insert_rowid();
     write_operation(&tx, "calendar_event", "insert", id, now_millis())?;
     tx.commit()
         .map_err(|e| db_err("CALENDAR_EVENT_CREATE_FAILED", "commit event", e))?;
     trigger_reconcile(&app);
-    get_event_by_id_with_conn(&conn, id)
+    get_event_by_id_with_conn(&conn, id, time_zone)
 }
 
 pub(crate) fn insert_event_in_tx(
     tx: &Transaction<'_>,
     payload: &CreateCalendarEventPayload,
+    zone: CalendarTimeZone,
 ) -> Result<(), String> {
     let now = now_millis();
     let content_id = match &payload.detail_content {
@@ -445,11 +478,26 @@ pub(crate) fn insert_event_in_tx(
         )?,
         None => payload.detail_content_id.unwrap_or(0),
     };
+    let start = payload
+        .start_time
+        .filter(|_| !payload.all_day)
+        .map(|minute| zone.event_instant(payload.start_date, minute, None))
+        .transpose()?;
+    let end = payload
+        .end_time
+        .filter(|_| start.is_some())
+        .map(|minute| {
+            zone.event_instant(payload.end_date.unwrap_or(payload.start_date), minute, None)
+        })
+        .transpose()?;
+    if end.zip(start).is_some_and(|(last, first)| last < first) {
+        return Err("结束时间不能早于开始时间".into());
+    }
     tx.execute(
         "
         INSERT INTO calendar_event
-        (id, create_time, update_time, calendar_id, title, detail_content_id, start_date, end_date, start_time, end_time, color, all_day)
-        VALUES (?11, ?1, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+        (id, create_time, update_time, calendar_id, title, detail_content_id, start_date, end_date, start_time, end_time, color, all_day,start_utc_ms,end_utc_ms,start_time_zone,end_time_zone)
+        VALUES (?11, ?1, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10,?12,?13,?14,?15)
         ",
         params![
             now,
@@ -462,47 +510,51 @@ pub(crate) fn insert_event_in_tx(
             payload.end_time,
             payload.color,
             if payload.all_day { 1 } else { 0 },
-            super::super::assistant_tasks::next_id(tx,"calendar_event")?,
+            super::super::assistant_tasks::next_id(tx,"calendar_event")?,start,end,start.map(|_|zone.0.name()),end.map(|_|zone.0.name()),
         ],
     )
     .map_err(|e| db_err("CALENDAR_EVENT_CREATE_FAILED", "insert event", e))?;
     Ok(())
 }
 
+struct StoredTimes {
+    start_date: i64,
+    end_date: Option<i64>,
+    start_minute: Option<i64>,
+    end_minute: Option<i64>,
+    all_day: bool,
+    start: Option<i64>,
+    end: Option<i64>,
+    start_zone: Option<String>,
+    end_zone: Option<String>,
+}
+
 #[tauri::command]
 pub fn calendar_event_update(
     app: AppHandle,
     payload: UpdateCalendarEventPayload,
+    time_zone: CalendarTimeZone,
 ) -> Result<CalendarEventDto, String> {
     let mut conn = schema::open_active_database(&app)?;
     let tx = conn
         .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
         .map_err(|e| db_err("CALENDAR_EVENT_UPDATE_FAILED", "begin transaction", e))?;
-    let current_calendar_id: Option<i64> = tx
-        .query_row(
-            "SELECT calendar_id FROM calendar_event WHERE id = ?1",
-            params![payload.id],
-            |row| row.get(0),
-        )
-        .optional()
-        .map_err(|e| db_err("CALENDAR_EVENT_QUERY_FAILED", "get event for update", e))?;
-    if current_calendar_id.is_none() {
-        return Err("CALENDAR_EVENT_NOT_FOUND: 日程不存在".to_string());
-    }
-    // 系统日历写保护：事件当前归属与目标日历都必须是用户日历，
-    // 否则等于把系统事件「转移」出系统日历
-    assert_user_calendar(&tx, current_calendar_id.unwrap_or(0))?;
+    let (calendar_id,old_content_id,independent,existing) = tx.query_row(
+        "SELECT calendar_id,COALESCE(detail_content_id,0),todo_item_id IS NULL
+         AND NOT EXISTS(SELECT 1 FROM doc_task_calendar_link WHERE calendar_event_id=?1)
+         AND NOT EXISTS(SELECT 1 FROM todo_calendar_mapping WHERE calendar_event_id=?1),
+         start_date,end_date,start_time,end_time,all_day,start_utc_ms,end_utc_ms,start_time_zone,end_time_zone
+         FROM calendar_event WHERE id=?1",
+        [payload.id],|r| Ok((r.get::<_,i64>(0)?,r.get::<_,i64>(1)?,r.get::<_,bool>(2)?,StoredTimes{
+          start_date:r.get(3)?,end_date:r.get(4)?,start_minute:r.get(5)?,end_minute:r.get(6)?,all_day:r.get(7)?,
+          start:r.get(8)?,end:r.get(9)?,start_zone:r.get(10)?,end_zone:r.get(11)?,
+        }))
+    ).optional().map_err(|e|db_err("CALENDAR_EVENT_UPDATE_FAILED","read event",e))?.ok_or("CALENDAR_EVENT_NOT_FOUND: 日程不存在")?;
+    assert_user_calendar(&tx, calendar_id)?;
     assert_user_calendar(&tx, payload.calendar_id)?;
     let now = now_millis();
     // 详情内容替换：未传（None）保留旧内容；新内容 id 与旧值不同且旧值 > 0 时
     // 按引用计数回收（对齐桌面 deleteContent）
-    let old_content_id: i64 = tx
-        .query_row(
-            "SELECT detail_content_id FROM calendar_event WHERE id = ?1",
-            params![payload.id],
-            |row| row.get(0),
-        )
-        .map_err(|e| db_err("CALENDAR_EVENT_UPDATE_FAILED", "get old content id", e))?;
     let new_content_id = match &payload.detail_content {
         Some(content) => insert_content_record(
             &tx,
@@ -513,25 +565,58 @@ pub fn calendar_event_update(
         )?,
         None => payload.detail_content_id.unwrap_or(old_content_id),
     };
+    let changed = existing.start_date != payload.start_date
+        || existing.end_date.unwrap_or(existing.start_date)
+            != payload.end_date.unwrap_or(payload.start_date)
+        || existing.start_minute != payload.start_time
+        || existing.end_minute != payload.end_time
+        || existing.all_day != payload.all_day;
+    let (start, end, start_zone, end_zone) = match (payload.start_time, payload.end_time) {
+        (Some(start), end)
+            if independent && !payload.all_day && (changed || existing.start.is_some()) =>
+        {
+            let first = time_zone.event_instant(payload.start_date, start, existing.start)?;
+            let last = end
+                .map(|minute| {
+                    time_zone.event_instant(
+                        payload.end_date.unwrap_or(payload.start_date),
+                        minute,
+                        existing.end,
+                    )
+                })
+                .transpose()?;
+            if last.is_some_and(|end| end < first) {
+                return Err("结束时间不能早于开始时间".into());
+            }
+            (
+                Some(first),
+                last,
+                Some(existing.start_zone.as_deref().unwrap_or(time_zone.0.name())),
+                last.map(|_| existing.end_zone.as_deref().unwrap_or(time_zone.0.name())),
+            )
+        }
+        _ => (None, None, None, None),
+    };
+    let keep_wall = !changed || (start.is_some() && existing.start == start && existing.end == end);
     tx.execute(
         "
         UPDATE calendar_event
         SET calendar_id = ?1, title = ?2, detail_content_id = ?3, start_date = ?4, end_date = ?5,
-            start_time = ?6, end_time = ?7, color = ?8, all_day = ?9, update_time = ?10
+            start_time = ?6, end_time = ?7, color = ?8, all_day = ?9, update_time = ?10,start_utc_ms=?12,end_utc_ms=?13,start_time_zone=?14,end_time_zone=?15
         WHERE id = ?11
         ",
         params![
             payload.calendar_id,
             payload.title,
             new_content_id,
-            payload.start_date,
-            payload.end_date,
-            payload.start_time,
-            payload.end_time,
+            if keep_wall {Some(existing.start_date)} else {Some(payload.start_date)},
+            if keep_wall {existing.end_date} else {payload.end_date},
+            if keep_wall {existing.start_minute} else {payload.start_time},
+            if keep_wall {existing.end_minute} else {payload.end_time},
             payload.color,
             if payload.all_day { 1 } else { 0 },
             now,
-            payload.id,
+            payload.id,start,end,start_zone,end_zone,
         ],
     )
     .map_err(|e| db_err("CALENDAR_EVENT_UPDATE_FAILED", "update event", e))?;
@@ -542,7 +627,7 @@ pub fn calendar_event_update(
     tx.commit()
         .map_err(|e| db_err("CALENDAR_EVENT_UPDATE_FAILED", "commit event", e))?;
     trigger_reconcile(&app);
-    get_event_by_id_with_conn(&conn, payload.id)
+    get_event_by_id_with_conn(&conn, payload.id, time_zone)
 }
 
 #[tauri::command]
@@ -589,4 +674,60 @@ pub(crate) fn delete_event_in_tx(tx: &Transaction<'_>, event_id: i64) -> Result<
     )
     .map_err(|e| db_err("CALENDAR_EVENT_DELETE_FAILED", "delete event", e))?;
     Ok(())
+}
+
+#[cfg(test)]
+mod time_zone_tests {
+    use super::*;
+    use chrono_tz::{America::New_York, Asia::Tokyo};
+
+    #[test]
+    fn native_calendar_creation_is_visible_on_the_next_day_in_tokyo() {
+        let mut db = Connection::open_in_memory().unwrap();
+        crate::database::migrator::ensure_main_schema(&db).unwrap();
+        db.execute(
+            "INSERT INTO calendar(title,color,create_time,update_time) VALUES('个人','blue',1,1)",
+            [],
+        )
+        .unwrap();
+        let ny = CalendarTimeZone(New_York);
+        let tokyo = CalendarTimeZone(Tokyo);
+        let timestamp = |value: &str| {
+            chrono::DateTime::parse_from_rfc3339(value)
+                .unwrap()
+                .timestamp_millis()
+        };
+        let day = timestamp("2026-03-08T00:00:00-05:00");
+        let input:CreateCalendarEventPayload=serde_json::from_value(serde_json::json!({"calendarId":1,"title":"跨日会议","startDate":day,"startTime":1380,"endTime":1410,"allDay":false})).unwrap();
+        let tx = db.transaction().unwrap();
+        insert_event_in_tx(&tx, &input, ny).unwrap();
+        let id = tx.last_insert_rowid();
+        tx.commit().unwrap();
+        let tokyo_day = timestamp("2026-03-09T00:00:00+09:00");
+        let event = get_event_by_id_with_conn(&db, id, tokyo).unwrap();
+        assert_eq!(
+            (event.start_date, event.start_time, event.end_time),
+            (tokyo_day, Some(720), Some(750))
+        );
+        assert_eq!(
+            list_event_ids(&db, 0, Some((tokyo_day, tokyo_day + 86400000)), None, 10).unwrap(),
+            [id]
+        );
+        assert!(
+            list_event_ids(&db, 0, Some((tokyo_day - 86400000, tokyo_day)), None, 10)
+                .unwrap()
+                .is_empty()
+        );
+        let raw: (i64, String) = db
+            .query_row(
+                "SELECT start_utc_ms,start_time_zone FROM calendar_event WHERE id=?1",
+                [id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(
+            raw,
+            (timestamp("2026-03-09T03:00:00Z"), "America/New_York".into())
+        );
+    }
 }

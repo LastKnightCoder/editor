@@ -84,6 +84,8 @@ export interface AssistantCalendarEvent {
   notes?: { contentId: number; createdAt: number };
   start: string;
   end: string;
+  startTimeZone?: string;
+  endTimeZone?: string;
   allDay: boolean;
   taskRef?: TaskRef;
   occurrence?: TaskOccurrenceRef;

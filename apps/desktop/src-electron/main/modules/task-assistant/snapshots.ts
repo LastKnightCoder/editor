@@ -233,6 +233,12 @@ export function restoreSnapshot(
           `SELECT * FROM ${table} WHERE ${KEYS[table].map(field => `${field}=?`).join(" AND ")}`
         )
         .get(...KEYS[table].map(field => identity[field])) as Row | undefined;
+      if (current && expected && table === "calendar_event") {
+        // v17 撤销快照没有时区列；仅忽略升级时新增且仍为空的字段。
+        for (const field of ["start_utc_ms", "end_utc_ms", "start_time_zone", "end_time_zone"]) {
+          if (!(field in expected) && current[field] === null) delete current[field];
+        }
+      }
       if (canonical(current) !== canonical(expected))
         fail("UNDO_CONFLICT", "操作对象已有后续修改，不能自动撤销");
       changes.push({ table, before: previous, after: expected });

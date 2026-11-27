@@ -67,7 +67,17 @@ pub(super) fn window(
         _ => Err("查询时间窗口须同时提供 start/end".into()),
     }
 }
-pub(super) fn schedule(input: &Value, zone: CalendarTimeZone) -> Result<Value, String> {
+pub(super) fn event_zone(name: &str) -> Result<&str, String> {
+    name.parse::<chrono_tz::Tz>()
+        .map_err(|_| "日程需要有效的 IANA 时区")?;
+    Ok(name)
+}
+
+pub(super) fn schedule(
+    input: &Value,
+    zone: CalendarTimeZone,
+    independent: bool,
+) -> Result<Value, String> {
     let start = input["start"].as_str().ok_or("缺少开始时间")?;
     let end = input["end"].as_str().ok_or("缺少结束时间")?;
     let all = input["allDay"].as_bool().ok_or("全天状态无效")?;
@@ -79,6 +89,11 @@ pub(super) fn schedule(input: &Value, zone: CalendarTimeZone) -> Result<Value, S
     if to <= from {
         return Err("结束时间必须晚于开始时间，全天结束日期不含当天".into());
     }
+    if (all || !independent)
+        && (input["startTimeZone"].is_string() || input["endTimeZone"].is_string())
+    {
+        return Err("只有独立定时日程可以指定时区".into());
+    }
     if !all {
         for instant in [from, to] {
             let local = zone
@@ -89,22 +104,34 @@ pub(super) fn schedule(input: &Value, zone: CalendarTimeZone) -> Result<Value, S
             if local.second() != 0 || local.nanosecond() != 0 {
                 return Err("日程精确到分钟".into());
             }
-            if zone
-                .0
-                .from_local_datetime(&local.naive_local())
-                .earliest()
-                .map(|date| date.timestamp_millis())
-                != Some(instant)
+            if !independent
+                && zone
+                    .0
+                    .from_local_datetime(&local.naive_local())
+                    .earliest()
+                    .map(|date| date.timestamp_millis())
+                    != Some(instant)
             {
                 return Err("夏令时重复时刻不能无歧义保存".into());
             }
         }
     }
-    Ok(
-        json!({"start_date":zone.start_of_day(from),"end_date":zone.start_of_day(if all{to-1}else{to}),"start_time":if all{None}else{Some(zone.minute(from))},"end_time":if all{None}else{Some(zone.minute(to))},"all_day":if all{1}else{0}}),
-    )
+    let mut fields = json!({"start_date":zone.start_of_day(from),"end_date":zone.start_of_day(if all{to-1}else{to}),"start_time":if all{None}else{Some(zone.minute(from))},"end_time":if all{None}else{Some(zone.minute(to))},"all_day":if all{1}else{0}});
+    if independent && !all {
+        let default_zone = zone.0.name();
+        let start_zone = input["startTimeZone"].as_str().unwrap_or(default_zone);
+        let end_zone = input["endTimeZone"].as_str().unwrap_or(start_zone);
+        fields["start_utc_ms"] = json!(from);
+        fields["end_utc_ms"] = json!(to);
+        fields["start_time_zone"] = json!(event_zone(start_zone)?);
+        fields["end_time_zone"] = json!(event_zone(end_zone)?);
+    }
+    Ok(fields)
 }
 pub(super) fn event_times(row: &Value, zone: CalendarTimeZone) -> Result<(String, String), String> {
+    if let Some(from) = row["start_utc_ms"].as_i64() {
+        return Ok((iso(from)?, iso(row["end_utc_ms"].as_i64().unwrap_or(from))?));
+    }
     let from = row["start_date"].as_i64().ok_or("日程开始日期无效")?;
     let to = row["end_date"].as_i64().unwrap_or(from);
     if row["all_day"] == 1 {

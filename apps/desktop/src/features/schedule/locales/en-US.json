@@ -1,4 +1,5 @@
 {
+  "validation.zoneChanged": "The device time zone changed. Reopen the event before saving.",
   "feedback.deleteFailed": "Could not delete event",
   "feedback.deleted": "Deleted “{{title}}”",
   "fallback.event": "Event",

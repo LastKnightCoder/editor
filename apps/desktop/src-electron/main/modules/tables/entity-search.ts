@@ -421,7 +421,7 @@ export default class EntitySearchTable {
       }
       case "calendar-event": {
         const event = get(
-          `SELECT e.title, e.create_time, e.start_date, e.all_day, c.title AS calendar_title
+          `SELECT e.title, e.create_time, COALESCE(e.start_utc_ms,e.start_date) AS start_date, e.all_day, c.title AS calendar_title
            FROM calendar_event e LEFT JOIN calendar c ON c.id = e.calendar_id WHERE e.id = ?`
         );
         if (!event) return null;

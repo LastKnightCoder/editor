@@ -47,7 +47,10 @@ export function readCalendarEvent(db: Database.Database, id: number): AssistantC
       : undefined;
   const start = new Date(Number(row.start_date));
   const end = new Date(Number(row.end_date ?? row.start_date));
-  if (row.all_day) end.setDate(end.getDate() + 1);
+  if (row.start_utc_ms != null) {
+    start.setTime(Number(row.start_utc_ms));
+    end.setTime(Number(row.end_utc_ms ?? row.start_utc_ms));
+  } else if (row.all_day) end.setDate(end.getDate() + 1);
   else {
     start.setMinutes(Number(row.start_time ?? 0));
     end.setMinutes(Number(row.end_time ?? 0));
@@ -57,7 +60,14 @@ export function readCalendarEvent(db: Database.Database, id: number): AssistantC
   const notes = Number(row.detail_content_id)
     ? ContentTable.getContentById(db, Number(row.detail_content_id))
     : null;
+  const zones = row.start_time_zone
+    ? {
+        startTimeZone: String(row.start_time_zone),
+        ...(row.end_time_zone ? { endTimeZone: String(row.end_time_zone) } : {}),
+      }
+    : {};
   return {
+    ...zones,
     reminderOffsets: reminders,
     ...(notes ? { notes: { contentId: notes.id, createdAt: notes.createTime } } : {}),
     eventId: id,
@@ -65,6 +75,7 @@ export function readCalendarEvent(db: Database.Database, id: number): AssistantC
     revision: revision({
       title: row.title,
       calendarId: row.calendar_id,
+      ...zones,
       start: start.toISOString(),
       end: end.toISOString(),
       allDay: !!row.all_day,
@@ -100,6 +111,8 @@ export function createEvent(
   input: {
     title?: string;
     calendarId?: number;
+    startTimeZone?: string;
+    endTimeZone?: string;
     start: string;
     end: string;
     allDay: boolean;
@@ -113,14 +126,22 @@ export function createEvent(
   const calendarId = requireCalendar(db, input.calendarId);
   const title = taskTitle ?? input.title;
   if (!title) return fail("INVALID_ARGUMENT", "独立日程必须有标题");
-  const event = CalendarEventTable.createEvent(db, {
-    calendarId,
-    title,
-    ...parseSchedule(input),
-    detailContentId: notes ? ContentTable.createContent(db, notes) : 0,
-    color: null,
-    todoItemId: input.taskRef?.kind === "todo" ? input.taskRef.todoId : null,
-  });
+  if ((input.taskRef || input.allDay) && (input.startTimeZone || input.endTimeZone))
+    fail("INVALID_ARGUMENT", "只有独立定时日程可以指定时区");
+  const event = CalendarEventTable.createEvent(
+    db,
+    {
+      calendarId,
+      title,
+      ...parseSchedule(input, !input.taskRef),
+      detailContentId: notes ? ContentTable.createContent(db, notes) : 0,
+      color: null,
+      todoItemId: input.taskRef?.kind === "todo" ? input.taskRef.todoId : null,
+    },
+    input.taskRef
+      ? false
+      : { ...input, startInstant: Date.parse(input.start), endInstant: Date.parse(input.end) }
+  );
   if (input.reminderOffsets !== undefined)
     ItemReminderTable.replace(db, "event", event.id, input.reminderOffsets);
   if (input.taskRef?.kind === "document") {
@@ -164,6 +185,8 @@ export function mutateEvent(
   if (patch.title !== undefined && previous.taskRef)
     fail("INVALID_ARGUMENT", "关联安排的标题跟随待办，请修改待办标题");
   const next = { ...previous, ...patch } as AssistantCalendarEvent;
+  if ((previous.taskRef || next.allDay) && (patch.startTimeZone || patch.endTimeZone))
+    fail("INVALID_ARGUMENT", "只有独立定时日程可以指定时区");
   requireCalendar(db, next.calendarId);
   const stored = CalendarEventTable.getEventById(db, input.eventId);
   if (!stored) fail("NOT_FOUND", "日程已删除");
@@ -173,12 +196,32 @@ export function mutateEvent(
       preparedNotes ?? fail("INVALID_ARGUMENT", "备注正文尚未准备")
     );
   }
-  CalendarEventTable.updateEvent(db, {
-    ...stored,
-    title: next.title,
-    calendarId: next.calendarId,
-    ...parseSchedule(next),
-  });
+  CalendarEventTable.updateEvent(
+    db,
+    {
+      ...stored,
+      title: next.title,
+      calendarId: next.calendarId,
+      ...(["start", "end", "allDay"].some(key => patch[key] !== undefined)
+        ? parseSchedule(next, !previous.taskRef)
+        : {}),
+    },
+    previous.taskRef
+      ? false
+      : !next.allDay &&
+          (previous.startTimeZone ||
+            patch.start ||
+            patch.end ||
+            patch.startTimeZone ||
+            patch.endTimeZone)
+        ? {
+            startInstant: Date.parse(next.start),
+            endInstant: Date.parse(next.end),
+            startTimeZone: next.startTimeZone,
+            endTimeZone: next.endTimeZone,
+          }
+        : undefined
+  );
   if (patch.reminderOffsets !== undefined)
     ItemReminderTable.replace(db, "event", input.eventId, patch.reminderOffsets as number[]);
   return readCalendarEvent(db, input.eventId);

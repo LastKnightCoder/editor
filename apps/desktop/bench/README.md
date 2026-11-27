@@ -15,3 +15,5 @@ node scripts/plugins/stress-task-data.mjs
 压力用例通过专用配置运行，不进入默认单测，不替代实际服务插件的网络或设备验收。正文会话耐久接纳与主库投影的回归使用现有 content-durability-baseline 和 task-assistant/content-session 用例。
 
 目录压力用例 `plugin-directory.stress.ts` 通过同一专用配置运行：真实目录领域入口创建千个目录、万级待办/日程及万条正文待办，验证全量期间改名、四连接竞争、创建重试、无操作/颜色日志、故障回滚、裁剪重置与重开续读。保留临时资料库并打印位置，逐项核对正文、任务/事件原始行、回执及完整性；不设置耗时门槛。
+
+日程时区压测使用版本 17 的真实建库 SQL，在临时库中核对升级失败回滚、旧连接写入、重开、跨区读写和完整性。可用 `TZ=America/New_York pnpm --filter desktop exec vitest run --config vitest.plugin-task-stress.config.ts bench/calendar-timezone.stress.ts` 单独运行。浅克隆可通过 `TAU_CALENDAR_V17_SQL` 指定旧版建库 SQL。

@@ -352,6 +352,7 @@ export type ContentAccessOwner = ContentOwnerEntity | "calendar-event" | "todo";
 
 /** 宿主负责工作区绑定；参数已校验并复制，返回值由 PluginHost 再复制后交给插件。 */
 export interface ScheduleDataAdapter {
+  readonly supportsTimeZones?: boolean;
   get(
     context: PluginContext,
     entity: "todo" | "event" | "todo-list" | "calendar",
@@ -3442,6 +3443,8 @@ export class PluginHost {
         start: 64,
         end: 64,
         allDay: "boolean",
+        startTimeZone: 128,
+        endTimeZone: 128,
         calendarId: 200,
         reminders: "reminders",
         notes: "content",
@@ -3452,6 +3455,8 @@ export class PluginHost {
         start: 64,
         end: 64,
         allDay: "boolean",
+        startTimeZone: 128,
+        endTimeZone: 128,
         calendarId: 200,
         reminders: "reminders",
       },
@@ -3461,6 +3466,11 @@ export class PluginHost {
         const fields =
           write.action === "create" ? write.input : write.action === "update" ? write.patch : {};
         const adapter = dataAdapter();
+        if (
+          ("startTimeZone" in fields || "endTimeZone" in fields) &&
+          !adapter.schedule?.supportsTimeZones
+        )
+          throw new Error("请升级 Tau 后再写入带时区的日程");
         if (
           ("reminders" in fields ||
             "notes" in fields ||
@@ -3472,6 +3482,7 @@ export class PluginHost {
       },
     });
     return Object.freeze({
+      supportsTimeZones: this.options.data?.schedule?.supportsTimeZones === true,
       ensureNotes: async (id: string, options: PluginWriteOptions) => {
         const expectedRevision = readRevision(options);
         await guard("calendar:write");

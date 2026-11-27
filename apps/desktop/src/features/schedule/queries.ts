@@ -1,3 +1,4 @@
+import { useSystemTimeZone } from "@tau/shared/src/hooks/useSystemTimeZone";
 import { ScheduleError } from "./errors";
 import { useCallback, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
@@ -144,6 +145,7 @@ function scheduleRange(view: CalendarViewType, date: number) {
 }
 
 export function useCalendarEvents() {
+  const timeZone = useSystemTimeZone();
   const { database, commands, connectionId } = useScheduleCommands();
   const connected = useDatabaseConnected();
   const catalog = useCalendarCatalog();
@@ -155,7 +157,7 @@ export function useCalendarEvents() {
     .sort((a, b) => a - b);
   const { start, end } = scheduleRange(currentView, currentDate);
   const query = useQuery({
-    queryKey: scheduleKeys.events(database, start, end, ids, connectionId),
+    queryKey: [...scheduleKeys.events(database, start, end, ids, connectionId), timeZone],
     queryFn: () => commands.getEventsByDateRange(start, end, ids),
     enabled: connected && !catalog.loading && ids.length > 0,
     staleTime: 30_000,
@@ -177,10 +179,11 @@ export function useCalendarEvents() {
 }
 
 export function useCalendarEventDetail(id: number | undefined) {
+  const timeZone = useSystemTimeZone();
   const { database, commands, connectionId } = useScheduleCommands();
   const connected = useDatabaseConnected();
   return useQuery({
-    queryKey: scheduleKeys.detail(database, id, connectionId),
+    queryKey: [...scheduleKeys.detail(database, id, connectionId), timeZone],
     queryFn: () => {
       if (id == null) throw new ScheduleError("EVENT_ID_MISSING", "缺少日程 ID");
       return commands.getCalendarEventById(id);
@@ -405,10 +408,11 @@ export function useToggleTodoEvent() {
 
 /** 某一天的日程（不依赖日程页视图状态，供番茄「专注于…」等域外入口用）；随 schedule:changed 失效 */
 export function useEventsOfDay(day: number, enabled = true): CalendarEvent[] {
+  const timeZone = useSystemTimeZone();
   const { database, commands, connectionId } = useScheduleCommands();
   const connected = useDatabaseConnected();
   const query = useQuery({
-    queryKey: scheduleKeys.day(database, day, connectionId),
+    queryKey: [...scheduleKeys.day(database, day, connectionId), timeZone],
     queryFn: () => commands.getEventsForDay(day),
     enabled: enabled && connected,
     staleTime: 30_000,

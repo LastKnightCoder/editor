@@ -90,6 +90,8 @@ export interface TaskInput {
   createdAt?: number;
   start?: string;
   end?: string;
+  startTimeZone?: string;
+  endTimeZone?: string;
   allDay?: boolean;
   schedule?: { calendarId?: number; start: string; end: string; allDay: boolean };
   operationId?: string;

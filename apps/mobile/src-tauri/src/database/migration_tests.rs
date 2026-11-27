@@ -374,3 +374,50 @@ fn existing_capture_triggers_upgrade_to_exact_object_actions() {
         "created"
     );
 }
+
+#[test]
+fn calendar_time_upgrade_keeps_legacy_reads_and_guards_time_edits() {
+    let conn = Connection::open_in_memory().unwrap();
+    // 同一用例可在完整 v17 快照结构上压测；默认只构造此次迁移依赖的旧表。
+    let fixture = std::env::var("TAU_CALENDAR_V17_SQL").ok();
+    let schema=fixture.as_ref().map(|f|std::fs::read_to_string(f).unwrap()).unwrap_or_else(||"CREATE TABLE calendar_event(id INTEGER PRIMARY KEY AUTOINCREMENT,create_time INTEGER NOT NULL,update_time INTEGER NOT NULL,calendar_id INTEGER NOT NULL,title TEXT NOT NULL,detail_content_id INTEGER DEFAULT 0,start_date INTEGER NOT NULL,end_date INTEGER,start_time INTEGER,end_time INTEGER,color TEXT,all_day INTEGER DEFAULT 0,todo_item_id INTEGER)".into());
+    conn.execute_batch(&schema).unwrap();
+    let count = if fixture.is_some() { 20000 } else { 2 };
+    conn.execute("WITH RECURSIVE series(i) AS (VALUES(1) UNION ALL SELECT i+1 FROM series WHERE i<?1) INSERT INTO calendar_event(id,create_time,update_time,calendar_id,title,start_date,start_time,end_time,all_day) SELECT i,1,1,1,'历史',i*86400000,540,600,0 FROM series",[count]).unwrap();
+    conn.execute_batch("CREATE TEMP TABLE old_rows AS SELECT * FROM calendar_event")
+        .unwrap();
+    ensure_main_schema(&conn).unwrap();
+    set_meta(&conn, "main_schema_version", "17").unwrap();
+    ensure_main_schema(&conn).unwrap();
+    let count_after:i64=conn.query_row("SELECT count(*) FROM calendar_event WHERE start_utc_ms IS NULL AND start_time_zone IS NULL",[],|r|r.get(0)).unwrap();
+    assert_eq!(count, count_after);
+    let changed:bool=conn.query_row("SELECT EXISTS(SELECT * FROM old_rows EXCEPT SELECT id,create_time,update_time,calendar_id,title,detail_content_id,start_date,end_date,start_time,end_time,color,all_day,todo_item_id FROM calendar_event)",[],|r|r.get(0)).unwrap();
+    assert!(!changed);
+    conn.execute("UPDATE calendar_event SET start_utc_ms=90000000,end_utc_ms=93600000,start_time_zone='UTC',end_time_zone='UTC' WHERE id=1",[]).unwrap();
+    set_meta(&conn, "main_schema_version", "17").unwrap();
+    conn.execute("UPDATE calendar_event SET title='旧端改名' WHERE id=1", [])
+        .unwrap();
+    assert!(conn
+        .execute("UPDATE calendar_event SET start_time=20 WHERE id=1", [])
+        .unwrap_err()
+        .to_string()
+        .contains("请升级 Tau"));
+    ensure_main_schema(&conn).unwrap();
+    let item: (String, i64, String) = conn
+        .query_row(
+            "SELECT title,start_utc_ms,start_time_zone FROM calendar_event WHERE id=1",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .unwrap();
+    assert_eq!(item, ("旧端改名".into(), 90000000, "UTC".into()));
+    assert_eq!(
+        get_meta(&conn, "main_schema_version").unwrap().unwrap(),
+        main_schema_version().to_string()
+    );
+    assert_eq!(
+        conn.pragma_query_value(None, "integrity_check", |r| r.get::<_, String>(0))
+            .unwrap(),
+        "ok"
+    );
+}

@@ -1,4 +1,5 @@
 {
+  "error.zoneChanged": "设备时区已变化，请重新打开日程再保存。",
   "calendar": "日历",
   "system": "系统",
   "common.loading": "加载中…",

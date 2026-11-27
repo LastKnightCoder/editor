@@ -110,6 +110,14 @@ export function useEventForm(
   const dirty = baseline !== null && snapshot !== baseline;
   const editorRef = useRef<EditorRef>(null);
   const descriptionEdited = useRef(false);
+  const draftZone = useRef(Intl.DateTimeFormat().resolvedOptions().timeZone);
+
+  const loadedForm = useRef<{ id: number; reload: number } | null>(null);
+  const keepDraft =
+    dirty &&
+    loadedForm.current?.id === editingEvent?.id &&
+    loadedForm.current?.reload === reloadToken &&
+    draftZone.current !== Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   const isNew = !editingEvent || editingEvent.id === 0;
   const eventCalendar = editingEvent
@@ -125,7 +133,9 @@ export function useEventForm(
   const remindersQuery = useEventReminders(editingEvent?.id ?? 0, remindable);
 
   useEffect(() => {
-    if (!editingEvent) return;
+    if (!editingEvent || keepDraft) return;
+    loadedForm.current = { id: editingEvent.id, reload: reloadToken };
+    draftZone.current = Intl.DateTimeFormat().resolvedOptions().timeZone;
     descriptionEdited.current = false;
     setBaseline(null);
     setTitle(editingEvent.title);
@@ -139,7 +149,7 @@ export function useEventForm(
   }, [editingEvent, reloadToken]);
 
   useEffect(() => {
-    if (!editingEvent) return;
+    if (!editingEvent || keepDraft) return;
     const apply = (content: Descendant[]) => {
       if (descriptionEdited.current) return;
       setDescription(content);
@@ -157,7 +167,7 @@ export function useEventForm(
 
   // 提醒随日程载入；已有日程等查询完成再定基线，避免载入中被当成修改
   useEffect(() => {
-    if (!editingEvent) return;
+    if (!editingEvent || keepDraft) return;
     if (!remindable || editingEvent.id === 0) setReminders([]);
     else if (remindersQuery.data) setReminders(remindersQuery.data);
   }, [editingEvent, reloadToken, remindable, remindersQuery.data]);
@@ -192,7 +202,17 @@ export function useEventForm(
 
     const endKey = (endDateTs ?? startDateTs) * 1 + (endTimeMinutes ?? 0) * 60000;
     const startKey = startDateTs + (startTimeMinutes ?? 0) * 60000;
-    if (endKey < startKey) {
+    if (!allDay && draftZone.current !== Intl.DateTimeFormat().resolvedOptions().timeZone) {
+      toast.warning(scheduleText("validation.zoneChanged"));
+      return;
+    }
+    const originalTimes =
+      editingEvent &&
+      editingEvent.startDate === startDateTs &&
+      editingEvent.startTime === startTimeMinutes &&
+      editingEvent.endDate === endDateTs &&
+      editingEvent.endTime === endTimeMinutes;
+    if (endKey < startKey && !originalTimes) {
       toast.warning(scheduleText("validation.endBeforeStart"));
       return;
     }

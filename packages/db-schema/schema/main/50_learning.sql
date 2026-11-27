@@ -150,7 +150,11 @@ CREATE TABLE IF NOT EXISTS calendar_event (
         end_time INTEGER,
         color TEXT,
         all_day INTEGER DEFAULT 0,
-        todo_item_id INTEGER
+        todo_item_id INTEGER,
+        start_utc_ms INTEGER,
+        end_utc_ms INTEGER,
+        start_time_zone TEXT,
+        end_time_zone TEXT
       );
 CREATE TABLE IF NOT EXISTS weread_notebook (
         book_id TEXT PRIMARY KEY,

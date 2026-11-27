@@ -53,3 +53,11 @@ BEGIN
   UPDATE entity_identities SET retired_at = CAST(strftime('%s','now') AS INTEGER) * 1000
   WHERE entity_kind = 'video-note' AND local_id = OLD.id AND retired_at IS NULL;
 END;
+
+-- 旧端可读旧日期与分钟；只改墙钟字段而留下旧 UTC 时刻会产生矛盾。
+CREATE TRIGGER IF NOT EXISTS calendar_time_legacy_edit BEFORE UPDATE ON calendar_event
+WHEN OLD.start_utc_ms IS NOT NULL AND NEW.start_utc_ms IS OLD.start_utc_ms AND NEW.end_utc_ms IS OLD.end_utc_ms
+ AND (NEW.start_date IS NOT OLD.start_date OR COALESCE(NEW.end_date,NEW.start_date) IS NOT COALESCE(OLD.end_date,OLD.start_date) OR NEW.start_time IS NOT OLD.start_time OR NEW.end_time IS NOT OLD.end_time OR NEW.all_day IS NOT OLD.all_day)
+BEGIN
+  SELECT RAISE(ABORT,'该日程包含时区，请升级 Tau 后再修改时间。');
+END;

@@ -37,7 +37,7 @@ const MINUTE = 60 * 1000;
 function eventReminders(db: Database.Database, from: number, to: number) {
   const rows = db
     .prepare(
-      `SELECT e.id, e.title, e.start_date, e.start_time, e.end_date, e.end_time, e.all_day, r.offset_ms
+      `SELECT e.id, e.title, e.start_date, e.start_time, e.end_date, e.end_time, e.all_day, r.offset_ms,e.start_utc_ms,e.end_utc_ms
        FROM item_reminder r JOIN calendar_event e ON r.owner_type = 'event' AND r.owner_id = e.id
        WHERE e.todo_item_id IS NULL`
     )
@@ -50,11 +50,14 @@ function eventReminders(db: Database.Database, from: number, to: number) {
     end_time: number | null;
     all_day: number;
     offset_ms: number;
+    start_utc_ms: number | null;
+    end_utc_ms: number | null;
   }>;
   const result: Array<Omit<InternalReminder, "type">> = [];
   for (const row of rows) {
     const allDay = !!row.all_day || row.start_time == null;
-    const dueAt = row.start_date + (allDay ? 0 : (row.start_time ?? 0) * MINUTE);
+    const dueAt =
+      row.start_utc_ms ?? row.start_date + (allDay ? 0 : (row.start_time ?? 0) * MINUTE);
     const remindAt = dueAt - row.offset_ms;
     if (remindAt <= from || remindAt > to) continue;
     result.push({
@@ -66,7 +69,7 @@ function eventReminders(db: Database.Database, from: number, to: number) {
       endAt:
         allDay || row.end_time == null
           ? null
-          : (row.end_date ?? row.start_date) + row.end_time * MINUTE,
+          : (row.end_utc_ms ?? (row.end_date ?? row.start_date) + row.end_time * MINUTE),
     });
   }
   return result;

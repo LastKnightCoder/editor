@@ -1,4 +1,5 @@
 {
+  "validation.zoneChanged": "设备时区已变化，请重新打开日程再保存。",
   "feedback.deleteFailed": "删除日程失败",
   "feedback.deleted": "已删除「{{title}}」",
   "fallback.event": "日程",

@@ -589,6 +589,12 @@ pub(super) fn event_dto(
         .as_ref()
         .map(|notes| json!(format!("{}:{}", notes.content_id, notes.create_time)))
         .unwrap_or(Value::Null);
+    if row["start_time_zone"].is_string() {
+        result["startTimeZone"] = row["start_time_zone"].clone();
+        if row["end_time_zone"].is_string() {
+            result["endTimeZone"] = row["end_time_zone"].clone();
+        }
+    }
     let mut version = result.clone();
     version
         .as_object_mut()
@@ -621,7 +627,7 @@ pub(super) fn query_calendar(
     let (fingerprint, offset, virtual_offset) = cursor(query, zone, "calendar")?;
     let tx = conn.transaction().map_err(sql_error)?;
     let calendars = todo_calendar_sync::ensure_todo_calendars(&tx)?;
-    let mut stmt=tx.prepare("SELECT id FROM calendar_event WHERE start_date<?2 AND COALESCE(end_date,start_date)>=?1 AND NOT EXISTS(SELECT 1 FROM todo_calendar_mapping m WHERE m.calendar_event_id=calendar_event.id AND m.sync_type='recurring') ORDER BY start_date,COALESCE(start_time,0),id LIMIT 2001 OFFSET ?3").map_err(sql_error)?;
+    let mut stmt=tx.prepare("SELECT id FROM calendar_event WHERE COALESCE(start_utc_ms,start_date)<?2 AND COALESCE(end_utc_ms,start_utc_ms,end_date,start_date)>=?1 AND NOT EXISTS(SELECT 1 FROM todo_calendar_mapping m WHERE m.calendar_event_id=calendar_event.id AND m.sync_type='recurring') ORDER BY COALESCE(start_utc_ms,start_date+COALESCE(start_time,0)*60000),id LIMIT 2001 OFFSET ?3").map_err(sql_error)?;
     let ids = stmt
         .query_map(
             params![
@@ -1278,9 +1284,9 @@ pub(super) fn write_calendar(
                 .transpose()
                 .map_err(|_| "日历身份无效")?,
         )?;
-        let fields = dates::schedule(input, zone)?;
+        let fields = dates::schedule(input, zone, true)?;
         let id = assistant_tasks::next_id(&tx, "calendar_event")?;
-        tx.execute("INSERT INTO calendar_event(id,create_time,update_time,calendar_id,title,detail_content_id,start_date,end_date,start_time,end_time,all_day) VALUES(?1,?2,?2,?3,?4,0,?5,?6,?7,?8,?9)",params![id,now,calendar,input["title"].as_str().ok_or("缺少日程标题")?,fields["start_date"].as_i64(),fields["end_date"].as_i64(),fields["start_time"].as_i64(),fields["end_time"].as_i64(),fields["all_day"].as_i64()]).map_err(sql_error)?;
+        tx.execute("INSERT INTO calendar_event(id,create_time,update_time,calendar_id,title,detail_content_id,start_date,end_date,start_time,end_time,all_day,start_utc_ms,end_utc_ms,start_time_zone,end_time_zone) VALUES(?1,?2,?2,?3,?4,0,?5,?6,?7,?8,?9,?10,?11,?12,?13)",params![id,now,calendar,input["title"].as_str().ok_or("缺少日程标题")?,fields["start_date"].as_i64(),fields["end_date"].as_i64(),fields["start_time"].as_i64(),fields["end_time"].as_i64(),fields["all_day"].as_i64(),fields["start_utc_ms"].as_i64(),fields["end_utc_ms"].as_i64(),fields["start_time_zone"].as_str(),fields["end_time_zone"].as_str()]).map_err(sql_error)?;
         if let Some(notes) = input.get("notes") {
             let content = super::plugin_data::create_content_input(&tx, plugin, notes)?;
             tx.execute(
@@ -1343,6 +1349,10 @@ pub(super) fn write_calendar(
             if patch.get("title").is_some() && current.get("todoId").is_some() {
                 return Err("关联安排的标题跟随待办，请修改待办标题".into());
             }
+            let independent = current["kind"] == "event";
+            let temporal_patch = ["start", "end", "allDay", "startTimeZone", "endTimeZone"]
+                .iter()
+                .any(|key| patch.get(key).is_some());
             let mut merged = current;
             for (key, value) in patch.as_object().ok_or("日程修改字段无效")? {
                 merged[key] = value.clone();
@@ -1355,8 +1365,46 @@ pub(super) fn write_calendar(
                     .transpose()
                     .map_err(|_| "日历身份无效")?,
             )?;
-            let fields = dates::schedule(&merged, zone)?;
-            tx.execute("UPDATE calendar_event SET title=?1,calendar_id=?2,start_date=?3,end_date=?4,start_time=?5,end_time=?6,all_day=?7,update_time=MAX(update_time+1,?8) WHERE id=?9",params![merged["title"].as_str(),calendar,fields["start_date"].as_i64(),fields["end_date"].as_i64(),fields["start_time"].as_i64(),fields["end_time"].as_i64(),fields["all_day"].as_i64(),now,id]).map_err(sql_error)?;
+            if merged["allDay"] == true
+                && patch.get("startTimeZone").is_none()
+                && patch.get("endTimeZone").is_none()
+            {
+                merged.as_object_mut().unwrap().remove("startTimeZone");
+                merged.as_object_mut().unwrap().remove("endTimeZone");
+            }
+            let only_zones = row["start_utc_ms"].is_number()
+                && ["start", "end", "allDay"]
+                    .iter()
+                    .all(|key| patch.get(key).is_none());
+            let mut fields = if only_zones {
+                let mut fields = row.clone();
+                for (key, column) in [
+                    ("startTimeZone", "start_time_zone"),
+                    ("endTimeZone", "end_time_zone"),
+                ] {
+                    if let Some(zone) = patch.get(key) {
+                        if column == "end_time_zone" && !row["end_utc_ms"].is_number() {
+                            return Err("无结束时间的日程不能指定结束时区".into());
+                        }
+                        fields[column] =
+                            json!(dates::event_zone(zone.as_str().ok_or("时区无效")?)?);
+                    }
+                }
+                fields
+            } else if temporal_patch {
+                dates::schedule(&merged, zone, independent)?
+            } else {
+                row.clone()
+            };
+            if fields["start_utc_ms"].is_number()
+                && fields["start_utc_ms"] == row["start_utc_ms"]
+                && fields["end_utc_ms"] == row["end_utc_ms"]
+            {
+                for name in ["start_date", "end_date", "start_time", "end_time"] {
+                    fields[name] = row[name].clone();
+                }
+            }
+            tx.execute("UPDATE calendar_event SET title=?1,calendar_id=?2,start_date=?3,end_date=?4,start_time=?5,end_time=?6,all_day=?7,update_time=MAX(update_time+1,?8), start_utc_ms=?10,end_utc_ms=?11,start_time_zone=?12,end_time_zone=?13 WHERE id=?9",params![merged["title"].as_str(),calendar,fields["start_date"].as_i64(),fields["end_date"].as_i64(),fields["start_time"].as_i64(),fields["end_time"].as_i64(),fields["all_day"].as_i64(),now,id,fields["start_utc_ms"].as_i64(),fields["end_utc_ms"].as_i64(),fields["start_time_zone"].as_str(),fields["end_time_zone"].as_str()]).map_err(sql_error)?;
             if let Some(reminders) = patch.get("reminders") {
                 super::plugin_schedule_data::set_reminders(&tx, "event", id, reminders, true)?;
             }
@@ -2097,6 +2145,7 @@ mod tests {
         let schedule = dates::schedule(
             &json!({"start":"2026-03-08","end":"2026-03-09","allDay":true}),
             zone,
+            false,
         )
         .unwrap();
         assert_eq!(schedule["start_date"], schedule["end_date"]);
@@ -2105,8 +2154,8 @@ mod tests {
                 - schedule["start_date"].as_i64().unwrap(),
             23 * 3600_000
         );
-        assert!(dates::schedule(&json!({"start":"2026-11-01T01:30:00-05:00","end":"2026-11-01T02:30:00-05:00","allDay":false}),zone).is_err());
-        assert!(dates::schedule(&json!({"start":"2026-10-28T10:00:01+08:00","end":"2026-10-28T11:00:00+08:00","allDay":false}),ZONE).is_err());
+        assert!(dates::schedule(&json!({"start":"2026-11-01T01:30:00-05:00","end":"2026-11-01T02:30:00-05:00","allDay":false}),zone,false).is_err());
+        assert!(dates::schedule(&json!({"start":"2026-10-28T10:00:01+08:00","end":"2026-10-28T11:00:00+08:00","allDay":false}),ZONE,false).is_err());
     }
 }
 
@@ -2119,6 +2168,92 @@ mod relation_tests {
         super::super::migrator::ensure_main_schema(&db).unwrap();
         db.execute("INSERT INTO calendar(id,title,color,create_time,update_time) VALUES(100,'个人','#000',1,1)",[]).unwrap();
         db
+    }
+    #[test]
+    fn zoned_event_round_trips_across_devices_and_rejects_a_stale_revision() {
+        let mut db = database();
+        let ny = CalendarTimeZone(chrono_tz::America::New_York);
+        let created = write_calendar(
+            &mut db,
+            "fixture",
+            &json!({"action":"create","input":{
+                "title":"回拨时段","calendarId":"100","allDay":false,
+                "start":"2026-11-01T01:45:00-04:00","end":"2026-11-01T01:15:00-05:00",
+                "startTimeZone":"America/New_York","endTimeZone":"America/Toronto",
+                "reminders":[{"offsetMs":300000}]
+            }}),
+            ny,
+        )
+        .unwrap();
+        assert_eq!(created["start"], "2026-11-01T05:45:00.000Z");
+        assert_eq!(created["end"], "2026-11-01T06:15:00.000Z");
+        let (id, _) = parse_event(created["id"].as_str().unwrap()).unwrap();
+        let row = snapshots::row(&db, "calendar_event", id).unwrap().unwrap();
+        assert_eq!(event_dto(&db, &row, ZONE).unwrap(), created);
+        {
+            let tx = db.transaction().unwrap();
+            let expected = dates::timestamp("2026-11-01T05:40:00Z", ny).unwrap();
+            let reminders = crate::database::reminders::upcoming(
+                &tx,
+                expected - 1,
+                expected,
+                10,
+                ZONE,
+                &HolidayDays::new(),
+            )
+            .unwrap();
+            assert_eq!(reminders.items[0].remind_at, expected);
+            assert_eq!(
+                reminders.items[0].end_at,
+                Some(dates::timestamp("2026-11-01T06:15:00Z", ny).unwrap())
+            );
+        }
+        let update = |revision: &Value, patch: Value| json!({"action":"update","id":created["id"],"expectedRevision":revision,"patch":patch});
+        let renamed = write_calendar(
+            &mut db,
+            "fixture",
+            &update(&created["revision"], json!({"title":"新标题"})),
+            ZONE,
+        )
+        .unwrap();
+        for key in ["start", "end", "startTimeZone", "endTimeZone", "reminders"] {
+            assert_eq!(renamed[key], created[key]);
+        }
+        let changed = write_calendar(
+            &mut db,
+            "fixture",
+            &update(&renamed["revision"], json!({"endTimeZone":"Europe/London"})),
+            ZONE,
+        )
+        .unwrap();
+        assert_ne!(changed["revision"], renamed["revision"]);
+        assert_eq!(changed["end"], created["end"]);
+        assert!(write_calendar(
+            &mut db,
+            "fixture",
+            &update(&renamed["revision"], json!({"title":"过期"})),
+            ZONE
+        )
+        .is_err());
+        assert!(write_calendar(
+            &mut db,
+            "fixture",
+            &update(
+                &changed["revision"],
+                json!({"endTimeZone":"Invalid/Nowhere"})
+            ),
+            ZONE
+        )
+        .is_err());
+        assert_eq!(
+            event_dto(
+                &db,
+                &snapshots::row(&db, "calendar_event", id).unwrap().unwrap(),
+                ZONE
+            )
+            .unwrap(),
+            changed
+        );
     }
     #[test]
     fn deleting_todo_detaches_past_and_preserves_all_restore_material() {

@@ -242,6 +242,28 @@ pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
         let foreign_keys = row_ids::foreign_key_errors(&tx)?;
         row_ids::migrate(&tx, &tables)?;
         upgrade_create_receipts(&tx)?;
+        let columns: Vec<String> = tx
+            .prepare("PRAGMA table_info(calendar_event)")
+            .map_err(|e| e.to_string())?
+            .query_map([], |r| r.get(1))
+            .map_err(|e| e.to_string())?
+            .collect::<Result<_, _>>()
+            .map_err(|e| e.to_string())?;
+        if !columns.is_empty() {
+            for (name, kind) in [
+                ("start_utc_ms", "INTEGER"),
+                ("end_utc_ms", "INTEGER"),
+                ("start_time_zone", "TEXT"),
+                ("end_time_zone", "TEXT"),
+            ] {
+                if !columns.iter().any(|col| col == name) {
+                    tx.execute_batch(&format!(
+                        "ALTER TABLE calendar_event ADD COLUMN {name} {kind}"
+                    ))
+                    .map_err(|e| e.to_string())?;
+                }
+            }
+        }
         let log_exists:bool=tx.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='data_change_log')",[],|r|r.get(0)).map_err(|e|e.to_string())?;
         if log_exists {
             let names = tx
@@ -256,6 +278,10 @@ pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
             }
         }
         for trigger in [
+            "calendar_time_legacy_edit",
+            "calendar_time_reader_version",
+            "calendar_time_first_insert",
+            "calendar_time_first_update",
             "dc_todo_item_insert",
             "dc_todo_item_update",
             "dc_calendar_event_insert",

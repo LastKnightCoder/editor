@@ -744,7 +744,11 @@ CREATE TABLE IF NOT EXISTS calendar_event (
         end_time INTEGER,
         color TEXT,
         all_day INTEGER DEFAULT 0,
-        todo_item_id INTEGER
+        todo_item_id INTEGER,
+        start_utc_ms INTEGER,
+        end_utc_ms INTEGER,
+        start_time_zone TEXT,
+        end_time_zone TEXT
       );
 CREATE TABLE IF NOT EXISTS weread_notebook (
         book_id TEXT PRIMARY KEY,
@@ -1116,6 +1120,17 @@ BEGIN
   INSERT INTO data_change_log(domain,entity_id,operation,action) SELECT 'event',NEW.id||':'||NEW.create_time,'upsert',CASE WHEN OLD.id IS NOT NEW.id OR OLD.create_time IS NOT NEW.create_time THEN 'created' ELSE 'updated' END;
   INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT OLD.todo_item_id WHERE OLD.todo_item_id IS NOT NULL UNION SELECT todo_item_id FROM todo_calendar_mapping WHERE calendar_event_id=OLD.id UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
   INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT NEW.todo_item_id WHERE NEW.todo_item_id IS NOT NULL UNION SELECT todo_item_id FROM todo_calendar_mapping WHERE calendar_event_id=NEW.id UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+END;
+
+-- 旧端开库会重建普通更新触发器；独立捕获仅新版字段发生变化的更新。
+CREATE TRIGGER IF NOT EXISTS dc_calendar_event_zone_update
+AFTER UPDATE OF start_utc_ms,end_utc_ms,start_time_zone,end_time_zone ON calendar_event
+WHEN (OLD.start_utc_ms,OLD.end_utc_ms,OLD.start_time_zone,OLD.end_time_zone)
+  IS NOT (NEW.start_utc_ms,NEW.end_utc_ms,NEW.start_time_zone,NEW.end_time_zone)
+ AND (OLD.id,OLD.create_time,OLD.calendar_id,OLD.title,OLD.detail_content_id,OLD.start_date,OLD.end_date,OLD.start_time,OLD.end_time,OLD.color,OLD.all_day,OLD.todo_item_id)
+  IS (NEW.id,NEW.create_time,NEW.calendar_id,NEW.title,NEW.detail_content_id,NEW.start_date,NEW.end_date,NEW.start_time,NEW.end_time,NEW.color,NEW.all_day,NEW.todo_item_id)
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation,action) VALUES('event',NEW.id||':'||NEW.create_time,'upsert','updated');
 END;
 
 CREATE TRIGGER IF NOT EXISTS dc_calendar_event_delete AFTER DELETE ON calendar_event
@@ -1856,6 +1871,8 @@ CREATE INDEX IF NOT EXISTS idx_calendar_event_calendar_id ON calendar_event(cale
 CREATE INDEX IF NOT EXISTS idx_calendar_event_start_date ON calendar_event(start_date);
 CREATE INDEX IF NOT EXISTS idx_calendar_event_end_date ON calendar_event(end_date);
 CREATE INDEX IF NOT EXISTS idx_calendar_event_date_range ON calendar_event(start_date, end_date);
+CREATE INDEX IF NOT EXISTS idx_calendar_event_range_start ON calendar_event(COALESCE(start_utc_ms,start_date));
+CREATE INDEX IF NOT EXISTS idx_calendar_event_range_end ON calendar_event(COALESCE(end_utc_ms,start_utc_ms,end_date,start_date));
 CREATE INDEX IF NOT EXISTS idx_calendar_event_todo_item ON calendar_event(todo_item_id);
 CREATE INDEX IF NOT EXISTS idx_calendar_event_detail_content ON calendar_event(detail_content_id);
 CREATE INDEX IF NOT EXISTS idx_weread_notebook_title ON weread_notebook(title);
@@ -1948,4 +1965,12 @@ AFTER DELETE ON video_notes
 BEGIN
   UPDATE entity_identities SET retired_at = CAST(strftime('%s','now') AS INTEGER) * 1000
   WHERE entity_kind = 'video-note' AND local_id = OLD.id AND retired_at IS NULL;
+END;
+
+-- 旧端可读旧日期与分钟；只改墙钟字段而留下旧 UTC 时刻会产生矛盾。
+CREATE TRIGGER IF NOT EXISTS calendar_time_legacy_edit BEFORE UPDATE ON calendar_event
+WHEN OLD.start_utc_ms IS NOT NULL AND NEW.start_utc_ms IS OLD.start_utc_ms AND NEW.end_utc_ms IS OLD.end_utc_ms
+ AND (NEW.start_date IS NOT OLD.start_date OR COALESCE(NEW.end_date,NEW.start_date) IS NOT COALESCE(OLD.end_date,OLD.start_date) OR NEW.start_time IS NOT OLD.start_time OR NEW.end_time IS NOT OLD.end_time OR NEW.all_day IS NOT OLD.all_day)
+BEGIN
+  SELECT RAISE(ABORT,'该日程包含时区，请升级 Tau 后再修改时间。');
 END;

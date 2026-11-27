@@ -62,6 +62,17 @@ BEGIN
   INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT NEW.todo_item_id WHERE NEW.todo_item_id IS NOT NULL UNION SELECT todo_item_id FROM todo_calendar_mapping WHERE calendar_event_id=NEW.id UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
 END;
 
+-- 旧端开库会重建普通更新触发器；独立捕获仅新版字段发生变化的更新。
+CREATE TRIGGER IF NOT EXISTS dc_calendar_event_zone_update
+AFTER UPDATE OF start_utc_ms,end_utc_ms,start_time_zone,end_time_zone ON calendar_event
+WHEN (OLD.start_utc_ms,OLD.end_utc_ms,OLD.start_time_zone,OLD.end_time_zone)
+  IS NOT (NEW.start_utc_ms,NEW.end_utc_ms,NEW.start_time_zone,NEW.end_time_zone)
+ AND (OLD.id,OLD.create_time,OLD.calendar_id,OLD.title,OLD.detail_content_id,OLD.start_date,OLD.end_date,OLD.start_time,OLD.end_time,OLD.color,OLD.all_day,OLD.todo_item_id)
+  IS (NEW.id,NEW.create_time,NEW.calendar_id,NEW.title,NEW.detail_content_id,NEW.start_date,NEW.end_date,NEW.start_time,NEW.end_time,NEW.color,NEW.all_day,NEW.todo_item_id)
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation,action) VALUES('event',NEW.id||':'||NEW.create_time,'upsert','updated');
+END;
+
 CREATE TRIGGER IF NOT EXISTS dc_calendar_event_delete AFTER DELETE ON calendar_event
 BEGIN
   INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',OLD.id||':'||OLD.create_time,'delete';

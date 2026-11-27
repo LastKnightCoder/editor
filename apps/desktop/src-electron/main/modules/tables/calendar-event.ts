@@ -13,6 +13,8 @@ import { getMarkdownText, mapContentSnapshots } from "../../services/content-con
 import { getNextTaskEntityId } from "./module-entity-id";
 import type { SqliteRow } from "../../types/table";
 
+import { localEventPoint, eventTimeStorage, type EventZoneInput } from "./calendar-event-time";
+
 export default class CalendarEventTable {
   static listEventIds(
     db: Database.Database,
@@ -25,7 +27,7 @@ export default class CalendarEventTable {
   ): number[] {
     const rows = db
       .prepare(
-        `SELECT id FROM calendar_event WHERE id>? ${query.range ? "AND start_date<? AND COALESCE(end_date,start_date)>=?" : ""} ${query.calendarIds?.length ? `AND calendar_id IN (${query.calendarIds.map(() => "?").join(",")})` : ""} ORDER BY id LIMIT ?`
+        `SELECT id FROM calendar_event WHERE id>? ${query.range ? "AND COALESCE(start_utc_ms,start_date)<? AND COALESCE(end_utc_ms,start_utc_ms,end_date,start_date)>=?" : ""} ${query.calendarIds?.length ? `AND calendar_id IN (${query.calendarIds.map(() => "?").join(",")})` : ""} ORDER BY id LIMIT ?`
       )
       .all(
         query.afterId,
@@ -38,10 +40,12 @@ export default class CalendarEventTable {
 
   static getListenEvents() {
     return {
-      "calendar-event:create": this.createEvent.bind(this),
+      "calendar-event:create": (db: Database.Database, input: CreateCalendarEvent) =>
+        this.createEvent(db, input),
       "calendar-event:create-for-todo": this.createEventForTodo.bind(this),
       "calendar-event:get-todo-schedules": this.getTodoSchedules.bind(this),
-      "calendar-event:update": this.updateEvent.bind(this),
+      "calendar-event:update": (db: Database.Database, input: UpdateCalendarEvent) =>
+        this.updateEvent(db, input),
       "calendar-event:delete": this.deleteEvent.bind(this),
       "calendar-event:get-by-id": this.getEventById.bind(this),
       "calendar-event:get-by-calendar-id": this.getEventsByCalendarId.bind(this),
@@ -77,6 +81,19 @@ export default class CalendarEventTable {
       todoItemId: (row.todo_item_id as number | null) ?? null,
     };
 
+    if (typeof row.start_utc_ms === "number") {
+      event.startInstant = row.start_utc_ms;
+      if (typeof row.end_utc_ms === "number") event.endInstant = row.end_utc_ms;
+      const start = localEventPoint(row.start_utc_ms);
+      const end = typeof row.end_utc_ms === "number" ? localEventPoint(row.end_utc_ms) : null;
+      event.startDate = start.day;
+      event.startTime = start.minute;
+      if (end) {
+        event.endDate = row.end_date == null && start.day === end.day ? null : end.day;
+        event.endTime = end.minute;
+      }
+    }
+
     // 解析预加载的描述内容
     if (row.detail_content) {
       try {
@@ -89,12 +106,24 @@ export default class CalendarEventTable {
     return event;
   }
 
-  static createEvent(db: Database.Database, data: CreateCalendarEvent): CalendarEvent {
+  static createEvent(
+    db: Database.Database,
+    data: CreateCalendarEvent,
+    source?: EventZoneInput | false
+  ): CalendarEvent {
     const now = Date.now();
+    const independent =
+      source !== false &&
+      !data.todoItemId &&
+      !data.allDay &&
+      CalendarTable.getDirectoryItem(db, data.calendarId)?.editable;
+    const zoned = independent
+      ? eventTimeStorage(data, source || undefined)
+      : [null, null, null, null];
     const stmt = db.prepare(`
       INSERT INTO calendar_event
-      (id, create_time, update_time, calendar_id, title, detail_content_id, start_date, end_date, start_time, end_time, color, all_day, todo_item_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (id, create_time, update_time, calendar_id, title, detail_content_id, start_date, end_date, start_time, end_time, color, all_day, todo_item_id, start_utc_ms, end_utc_ms, start_time_zone, end_time_zone)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const res = stmt.run(
@@ -110,7 +139,8 @@ export default class CalendarEventTable {
       data.endTime !== null ? data.endTime : null,
       data.color || null,
       Number(data.allDay || false),
-      data.todoItemId ?? null
+      data.todoItemId ?? null,
+      ...zoned
     );
 
     Operation.insertOperation(db, "calendar_event", "insert", res.lastInsertRowid, now);
@@ -185,8 +215,40 @@ export default class CalendarEventTable {
     return result;
   }
 
-  static updateEvent(db: Database.Database, data: UpdateCalendarEvent): CalendarEvent {
+  static updateEvent(
+    db: Database.Database,
+    data: UpdateCalendarEvent,
+    source?: EventZoneInput | false
+  ): CalendarEvent {
     const now = Date.now();
+    const previous = db.prepare("SELECT * FROM calendar_event WHERE id=?").get(data.id) as
+      | SqliteRow
+      | undefined;
+    if (!previous) throw new Error("日程已删除");
+    const changedTime =
+      previous.start_date !== data.startDate ||
+      (previous.end_date ?? previous.start_date) !== (data.endDate ?? data.startDate) ||
+      previous.start_time !== data.startTime ||
+      previous.end_time !== data.endTime ||
+      Boolean(previous.all_day) !== data.allDay;
+    const needsZone = previous.start_utc_ms != null || changedTime || source;
+    const independent =
+      needsZone &&
+      source !== false &&
+      !data.allDay &&
+      previous.todo_item_id == null &&
+      CalendarTable.getDirectoryItem(db, data.calendarId)?.editable &&
+      !db
+        .prepare(
+          "SELECT 1 FROM doc_task_calendar_link WHERE calendar_event_id=? UNION ALL SELECT 1 FROM todo_calendar_mapping WHERE calendar_event_id=? LIMIT 1"
+        )
+        .get(data.id, data.id);
+    const zoned = independent
+      ? eventTimeStorage(data, source || undefined, previous)
+      : [null, null, null, null];
+    const keepWall =
+      !changedTime ||
+      (zoned[0] != null && previous.start_utc_ms === zoned[0] && previous.end_utc_ms === zoned[1]);
     const stmt = db.prepare(`
       UPDATE calendar_event SET
         update_time = ?,
@@ -198,7 +260,7 @@ export default class CalendarEventTable {
         start_time = ?,
         end_time = ?,
         color = ?,
-        all_day = ?
+        all_day = ?, start_utc_ms=?, end_utc_ms=?, start_time_zone=?, end_time_zone=?
       WHERE id = ?
     `);
 
@@ -207,12 +269,13 @@ export default class CalendarEventTable {
       data.calendarId,
       data.title,
       data.detailContentId || 0,
-      data.startDate,
-      data.endDate || null,
-      data.startTime !== null ? data.startTime : null,
-      data.endTime !== null ? data.endTime : null,
+      keepWall ? previous.start_date : data.startDate,
+      keepWall ? previous.end_date : (data.endDate ?? null),
+      keepWall ? previous.start_time : (data.startTime ?? null),
+      keepWall ? previous.end_time : (data.endTime ?? null),
       data.color || null,
       Number(data.allDay || false),
+      ...zoned,
       data.id
     );
 
@@ -246,7 +309,7 @@ export default class CalendarEventTable {
 
   static getEventsByCalendarId(db: Database.Database, calendarId: number): CalendarEvent[] {
     const stmt = db.prepare(
-      "SELECT * FROM calendar_event WHERE calendar_id = ? ORDER BY start_date ASC, start_time ASC"
+      "SELECT * FROM calendar_event WHERE calendar_id = ? ORDER BY COALESCE(start_utc_ms,start_date+COALESCE(start_time,0)*60000), id"
     );
     const rows = stmt.all(calendarId) as SqliteRow[];
     return rows.map(row => this.parseCalendarEvent(row));
@@ -285,12 +348,10 @@ export default class CalendarEventTable {
       FROM calendar_event e
       LEFT JOIN content_snapshots c ON e.detail_content_id = c.id
       WHERE (
-        (e.start_date >= ? AND e.start_date <= ?) OR
-        (e.end_date IS NOT NULL AND e.end_date >= ? AND e.end_date <= ?) OR
-        (e.end_date IS NOT NULL AND e.start_date <= ? AND e.end_date >= ?)
+        COALESCE(e.start_utc_ms,e.start_date) < ? AND COALESCE(e.end_utc_ms,e.start_utc_ms,e.end_date,e.start_date) >= ?
       )
     `;
-    const params: number[] = [startDate, endDate, startDate, endDate, startDate, startDate];
+    const params: number[] = [new Date(endDate).setHours(24, 0, 0, 0), startDate];
 
     // 如果指定了日历过滤
     if (calendarIds && calendarIds.length > 0) {
@@ -310,7 +371,7 @@ export default class CalendarEventTable {
       params.push(recurringCalendarId);
     }
 
-    query += " ORDER BY e.start_date ASC, e.start_time ASC";
+    query += " ORDER BY COALESCE(e.start_utc_ms,e.start_date+COALESCE(e.start_time,0)*60000), e.id";
 
     const stmt = db.prepare(query);
     const rows = stmt.all(...params) as SqliteRow[];
@@ -366,7 +427,8 @@ export default class CalendarEventTable {
     date: number,
     calendarIds?: number[]
   ): Promise<CalendarEvent[]> {
-    return this.getEventsByDateRange(db, date, date, calendarIds);
+    const midnight = new Date(date).setHours(0, 0, 0, 0);
+    return this.getEventsByDateRange(db, midnight, midnight, calendarIds);
   }
 
   static async getEventsForWeek(
@@ -375,7 +437,8 @@ export default class CalendarEventTable {
     calendarIds?: number[]
   ): Promise<CalendarEvent[]> {
     // 假设一周是 7 天
-    const endDate = startDate + 6 * 24 * 60 * 60 * 1000;
+    const last = new Date(startDate);
+    const endDate = last.setDate(last.getDate() + 6);
     return this.getEventsByDateRange(db, startDate, endDate, calendarIds);
   }
 
@@ -425,13 +488,13 @@ export default class CalendarEventTable {
 
     // 将日期字符串转换为时间戳范围
     const dateRanges = dates.map(dateStr => ({
-      start: new Date(dateStr).setHours(0, 0, 0, 0),
-      end: new Date(dateStr).setHours(23, 59, 59, 999),
+      start: new Date(`${dateStr}T00:00:00`).setHours(0, 0, 0, 0),
+      end: new Date(`${dateStr}T00:00:00`).setHours(23, 59, 59, 999),
     }));
 
     // 构建 OR 条件
     const dateConditions = dateRanges
-      .map(() => "(e.start_date >= ? AND e.start_date <= ?)")
+      .map(() => "(COALESCE(e.start_utc_ms,e.start_date) BETWEEN ? AND ?)")
       .join(" OR ");
 
     let query = `
@@ -455,7 +518,7 @@ export default class CalendarEventTable {
       queryParams.push(...calendarIds);
     }
 
-    query += " ORDER BY e.start_date ASC, e.start_time ASC";
+    query += " ORDER BY COALESCE(e.start_utc_ms,e.start_date+COALESCE(e.start_time,0)*60000), e.id";
 
     const stmt = db.prepare(query);
     const rows = stmt.all(...queryParams) as SqliteRow[];
@@ -493,8 +556,8 @@ export default class CalendarEventTable {
       events = this.getEventsByExactDates(db, params.dates, params.calendarIds);
     } else if (params.startDate && params.endDate) {
       // 范围查询
-      const startTimestamp = new Date(params.startDate).setHours(0, 0, 0, 0);
-      const endTimestamp = new Date(params.endDate).setHours(23, 59, 59, 999);
+      const startTimestamp = new Date(`${params.startDate}T00:00:00`).setHours(0, 0, 0, 0);
+      const endTimestamp = new Date(`${params.endDate}T00:00:00`).setHours(23, 59, 59, 999);
       events = await this.getEventsByDateRange(
         db,
         startTimestamp,
@@ -539,7 +602,12 @@ export default class CalendarEventTable {
       }
 
       const formatDate = (timestamp: number) => {
-        return new Date(timestamp).toISOString().split("T")[0];
+        const date = new Date(timestamp);
+        return [
+          date.getFullYear(),
+          String(date.getMonth() + 1).padStart(2, "0"),
+          String(date.getDate()).padStart(2, "0"),
+        ].join("-");
       };
 
       return {

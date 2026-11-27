@@ -29,8 +29,8 @@ export const eventEndMinutes = (event: CalendarEvent) =>
   event.endTime ?? (event.startTime ?? 0) + 60;
 
 export function eventPhase(event: CalendarEvent, nowMs: number): LedgerPhase {
-  const startMs = event.startDate + (event.startTime ?? 0) * MINUTE;
-  const endMs = (event.endDate ?? event.startDate) + eventEndMinutes(event) * MINUTE;
+  const startMs = absStart(event);
+  const endMs = absEnd(event);
   if (endMs <= nowMs) return { kind: "record" };
   if (startMs >= nowMs || endMs <= startMs) return { kind: "plan" };
   return { kind: "live", split: (nowMs - startMs) / (endMs - startMs) };
@@ -125,8 +125,12 @@ export interface FocusSpan {
   end: number;
 }
 
-const absStart = (e: CalendarEvent) => e.startDate + (e.startTime ?? 0) * MINUTE;
-const absEnd = (e: CalendarEvent) => (e.endDate ?? e.startDate) + eventEndMinutes(e) * MINUTE;
+const absStart = (e: CalendarEvent) => e.startInstant ?? e.startDate + (e.startTime ?? 0) * MINUTE;
+const absEnd = (e: CalendarEvent) =>
+  e.endInstant ??
+  (e.startInstant != null && e.endTime == null
+    ? e.startInstant + 60 * MINUTE
+    : (e.endDate ?? e.startDate) + eventEndMinutes(e) * MINUTE);
 
 /**
  * 把绑定了某事件、且专注时段完整落在该事件时间内的番茄块收进事件（画成专注条），不设容差：

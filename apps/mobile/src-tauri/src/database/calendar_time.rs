@@ -37,6 +37,36 @@ impl CalendarTimeZone {
         self.day_start(self.day(timestamp))
     }
 
+    pub fn event_instant(
+        self,
+        day: i64,
+        minute: i64,
+        previous: Option<i64>,
+    ) -> Result<i64, String> {
+        if !(0..1440).contains(&minute) {
+            return Err("日程分钟数无效".into());
+        }
+        if let Some(time) =
+            previous.filter(|time| self.start_of_day(*time) == day && self.minute(*time) == minute)
+        {
+            return Ok(time);
+        }
+        let date = self
+            .0
+            .timestamp_millis_opt(day)
+            .single()
+            .ok_or("日程日期无效")?
+            .date_naive();
+        let local = date
+            .and_hms_opt((minute / 60) as u32, (minute % 60) as u32, 0)
+            .ok_or("日程时间无效")?;
+        self.0
+            .from_local_datetime(&local)
+            .earliest()
+            .map(|value| value.timestamp_millis())
+            .ok_or_else(|| "该时刻在设备时区不存在，请重新选择时间".into())
+    }
+
     pub fn minute(self, timestamp: i64) -> i64 {
         let local = self
             .0

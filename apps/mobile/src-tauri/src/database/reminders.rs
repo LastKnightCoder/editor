@@ -360,7 +360,7 @@ fn events(
 ) -> Result<(), String> {
     let mut stmt = conn
         .prepare(
-            "SELECT e.id, e.title, e.start_date, e.start_time, e.end_date, e.end_time, e.all_day, r.offset_ms
+            "SELECT e.id, e.title, e.start_date, e.start_time, e.end_date, e.end_time, e.all_day, r.offset_ms,e.start_utc_ms,e.end_utc_ms
              FROM item_reminder r JOIN calendar_event e ON r.owner_type = 'event' AND r.owner_id = e.id
              WHERE e.todo_item_id IS NULL",
         )
@@ -376,22 +376,38 @@ fn events(
                 row.get::<_, Option<i64>>(5)?,
                 row.get::<_, Option<i64>>(6)?.unwrap_or(0) != 0,
                 row.get::<_, i64>(7)?,
+                row.get::<_, Option<i64>>(8)?,
+                row.get::<_, Option<i64>>(9)?,
             ))
         })
         .map_err(|e| db_err("REMINDER_QUERY_FAILED", "query events", e))?;
     for row in rows {
-        let (id, title, start_date, start_time, end_date, end_time, all_day, offset) =
-            row.map_err(|e| db_err("REMINDER_QUERY_FAILED", "read events", e))?;
+        let (
+            id,
+            title,
+            start_date,
+            start_time,
+            end_date,
+            end_time,
+            all_day,
+            offset,
+            start_ms,
+            end_ms,
+        ) = row.map_err(|e| db_err("REMINDER_QUERY_FAILED", "read events", e))?;
         owners.insert(format!("event:{id}"));
         let all_day = all_day || start_time.is_none();
-        let anchor = start_date
-            + if all_day {
-                0
-            } else {
-                start_time.unwrap_or(0) * MINUTE
-            };
+        let anchor = start_ms.unwrap_or(
+            start_date
+                + if all_day {
+                    0
+                } else {
+                    start_time.unwrap_or(0) * MINUTE
+                },
+        );
         let end_at = match (all_day, end_time) {
-            (false, Some(end)) => Some(end_date.unwrap_or(start_date) + end * MINUTE),
+            (false, Some(end)) => {
+                Some(end_ms.unwrap_or(end_date.unwrap_or(start_date) + end * MINUTE))
+            }
             _ => None,
         };
         window.push(

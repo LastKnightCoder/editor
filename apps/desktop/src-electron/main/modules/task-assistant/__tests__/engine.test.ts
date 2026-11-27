@@ -47,6 +47,58 @@ describe("助理任务业务命令", () => {
     expect(result.status).toBe("succeeded");
     return { result, task: result.result as AssistantTask };
   };
+  it("夏令时回拨的两次一点钟保留实际先后，改时区可发现冲突且可撤销", () => {
+    const created = engine.execute(
+      "create_calendar_event",
+      {
+        requestId: "fold",
+        title: "会议",
+        calendarId,
+        allDay: false,
+        start: "2026-11-01T01:45:00-04:00",
+        end: "2026-11-01T01:15:00-05:00",
+        startTimeZone: "America/New_York",
+        endTimeZone: "America/Toronto",
+        reminderOffsets: [300000],
+      },
+      "batch"
+    );
+    expect(created.status).toBe("succeeded");
+    const event = readCalendarEvent(db, (created.result as { eventId: number }).eventId);
+    expect(event).toMatchObject({
+      start: "2026-11-01T05:45:00.000Z",
+      end: "2026-11-01T06:15:00.000Z",
+      startTimeZone: "America/New_York",
+      endTimeZone: "America/Toronto",
+    });
+    const target = { eventId: event.eventId, createdAt: event.createdAt, revision: event.revision };
+    const changed = engine.execute(
+      "update_calendar_event",
+      { ...target, requestId: "zone", patch: { endTimeZone: "Europe/London" } },
+      "batch"
+    );
+    expect(changed.status).toBe("succeeded");
+    expect(readCalendarEvent(db, event.eventId)).toMatchObject({
+      end: event.end,
+      endTimeZone: "Europe/London",
+      reminderOffsets: [300000],
+    });
+    expect(
+      engine.execute(
+        "update_calendar_event",
+        { ...target, requestId: "stale-zone", patch: { title: "过期" } },
+        "batch"
+      )
+    ).toMatchObject({ status: "failed", error: { code: "VERSION_CONFLICT" } });
+    expect(
+      engine.execute(
+        "undo_task_operation",
+        { requestId: "undo-zone", operationId: changed.operationId },
+        "batch"
+      ).status
+    ).toBe("succeeded");
+    expect(readCalendarEvent(db, event.eventId)).toEqual(event);
+  });
   it("创建幂等，重启执行器后同一请求仍只有一条待办", () => {
     const first = create();
     engine = new TaskAssistantEngine(db);

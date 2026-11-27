@@ -1327,7 +1327,10 @@ export function calendarDelete(id: number) {
 }
 
 export function calendarEventGetById(id: number) {
-  return trackedInvoke<CalendarEvent>("calendar_event_get_by_id", { payload: { id } });
+  return trackedInvoke<CalendarEvent>("calendar_event_get_by_id", {
+    payload: { id },
+    timeZone: localTimeZone(),
+  });
 }
 
 export function calendarEventGetByDateRange(payload: {
@@ -1340,10 +1343,12 @@ export function calendarEventGetByDateRange(payload: {
 }
 
 export async function calendarEventCreate(payload: CreateCalendarEventInput) {
+  const timeZone = localTimeZone();
   const document = payload.detailContent
     ? await prepareCreatedContent(payload.detailContent, payload.contracts)
     : undefined;
   return trackedInvoke<CalendarEvent>("calendar_event_create", {
+    timeZone,
     payload: {
       ...payload,
       ...(document
@@ -1358,10 +1363,12 @@ export async function calendarEventCreate(payload: CreateCalendarEventInput) {
 }
 
 export async function calendarEventUpdate(payload: UpdateCalendarEventInput) {
+  const timeZone = localTimeZone();
   const document = payload.detailContent
     ? await prepareCreatedContent(payload.detailContent, payload.contracts)
     : undefined;
   return trackedInvoke<CalendarEvent>("calendar_event_update", {
+    timeZone,
     payload: {
       ...payload,
       ...(document

@@ -81,6 +81,11 @@ export function CalendarEventEditPage({
   const editorRef = useRef<EditorRef | null>(null);
   const [pageContainer, setPageContainer] = useState<HTMLDivElement | null>(null);
   const toolbarController = useMobileEditorToolbarController({ editorRef });
+  const originalTimes = useRef<Pick<
+    EventDraft,
+    "startDate" | "startTime" | "endDate" | "endTime"
+  > | null>(null);
+  const draftZone = useRef(Intl.DateTimeFormat().resolvedOptions().timeZone);
   const initialDetail = useRef<string>(JSON.stringify(createEmptyEditorContent()));
   const { data: calendars = [] } = useCalendars();
   const isEdit = eventId > 0;
@@ -135,6 +140,8 @@ export function CalendarEventEditPage({
         }
         const detailContent = structuredClone(normalizeEditorContent(event.detailContent));
         initialDetail.current = JSON.stringify(detailContent);
+        originalTimes.current = event;
+        draftZone.current = Intl.DateTimeFormat().resolvedOptions().timeZone;
         setDraft({
           title: event.title,
           calendarId: event.calendarId,
@@ -215,6 +222,10 @@ export function CalendarEventEditPage({
     if (!draft.title.trim() || draft.calendarId === null || saving) {
       return;
     }
+    if (!draft.allDay && draftZone.current !== Intl.DateTimeFormat().resolvedOptions().timeZone) {
+      onError(null, translate("error.zoneChanged"));
+      return;
+    }
     setSaving(true);
     try {
       // 同日 endDate 规范化为 null（桌面数据形态：仅跨天事件有 endDate）
@@ -273,7 +284,14 @@ export function CalendarEventEditPage({
     sameDay &&
     draft.startTime !== null &&
     draft.endTime !== null &&
-    draft.endTime < draft.startTime;
+    draft.endTime < draft.startTime &&
+    !(
+      originalTimes.current &&
+      originalTimes.current.startDate === draft.startDate &&
+      originalTimes.current.startTime === draft.startTime &&
+      originalTimes.current.endDate === draft.endDate &&
+      originalTimes.current.endTime === draft.endTime
+    );
   const rangeInvalid = draft.endDate !== null && draft.endDate < draft.startDate;
   const error = timeInvalid || rangeInvalid;
 

@@ -77,6 +77,8 @@ CREATE INDEX IF NOT EXISTS idx_calendar_event_calendar_id ON calendar_event(cale
 CREATE INDEX IF NOT EXISTS idx_calendar_event_start_date ON calendar_event(start_date);
 CREATE INDEX IF NOT EXISTS idx_calendar_event_end_date ON calendar_event(end_date);
 CREATE INDEX IF NOT EXISTS idx_calendar_event_date_range ON calendar_event(start_date, end_date);
+CREATE INDEX IF NOT EXISTS idx_calendar_event_range_start ON calendar_event(COALESCE(start_utc_ms,start_date));
+CREATE INDEX IF NOT EXISTS idx_calendar_event_range_end ON calendar_event(COALESCE(end_utc_ms,start_utc_ms,end_date,start_date));
 CREATE INDEX IF NOT EXISTS idx_calendar_event_todo_item ON calendar_event(todo_item_id);
 CREATE INDEX IF NOT EXISTS idx_calendar_event_detail_content ON calendar_event(detail_content_id);
 CREATE INDEX IF NOT EXISTS idx_weread_notebook_title ON weread_notebook(title);

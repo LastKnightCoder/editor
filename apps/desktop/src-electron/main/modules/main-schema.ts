@@ -50,6 +50,18 @@ export function ensureMainSchema(db: Database.Database): void {
       const foreignKeys = new Set(foreignKeyErrors().map(row => JSON.stringify(row)));
       migrateRowIds(db, independentRowIdTables);
       upgradeCreateReceipts(db, MAIN_SCHEMA_SQL);
+      if (tables.some(table => table.name === "calendar_event")) {
+        const columns = db.pragma("table_info(calendar_event)") as { name: string }[];
+        for (const [name, type] of [
+          ["start_utc_ms", "INTEGER"],
+          ["end_utc_ms", "INTEGER"],
+          ["start_time_zone", "TEXT"],
+          ["end_time_zone", "TEXT"],
+        ]) {
+          if (!columns.some(column => column.name === name))
+            db.exec(`ALTER TABLE calendar_event ADD COLUMN ${name} ${type}`);
+        }
+      }
       const logExists = db
         .prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='data_change_log'")
         .get();
@@ -63,6 +75,10 @@ export function ensureMainSchema(db: Database.Database): void {
           "ALTER TABLE data_change_log ADD COLUMN action TEXT CHECK(action IN ('created','updated','deleted'))"
         );
       for (const trigger of [
+        "calendar_time_legacy_edit",
+        "calendar_time_reader_version",
+        "calendar_time_first_insert",
+        "calendar_time_first_update",
         "dc_todo_item_insert",
         "dc_todo_item_update",
         "dc_calendar_event_insert",

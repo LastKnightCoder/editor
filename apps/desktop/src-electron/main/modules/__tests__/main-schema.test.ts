@@ -23,6 +23,27 @@ afterEach(() => {
 const schema = () => db.prepare("SELECT type, name, sql FROM sqlite_master ORDER BY name").all();
 
 describe("主库当前基线", () => {
+  it("带时区的日程允许旧端打开和改名，拒绝只改旧时间字段", () => {
+    ensureMainSchema(db);
+    db.exec(`
+      INSERT INTO calendar_event(id,calendar_id,title,create_time,update_time,start_date,start_time,all_day,start_utc_ms,start_time_zone)
+        VALUES(1,1,'定时事项',1,1,0,30,0,1800000,'UTC');
+      INSERT INTO schema_meta(key,value,updated_at) VALUES('main_schema_version','17',1)
+        ON CONFLICT(key) DO UPDATE SET value=excluded.value;
+      UPDATE calendar_event SET title='新标题',start_date=0,end_date=0,start_time=30,all_day=0 WHERE id=1;
+    `);
+    expect(() => db.exec("UPDATE calendar_event SET start_time=50 WHERE id=1")).toThrow(
+      "请升级 Tau"
+    );
+    ensureMainSchema(db);
+    expect(
+      db
+        .prepare(
+          "SELECT title,start_time,start_utc_ms,start_time_zone FROM calendar_event WHERE id=1"
+        )
+        .get()
+    ).toEqual({ title: "新标题", start_time: 30, start_utc_ms: 1800000, start_time_zone: "UTC" });
+  });
   it("正文任务可靠身份目录丢失后重新准备并切换代次，正文和原始身份保留", () => {
     ensureMainSchema(db);
     const content = JSON.stringify([

@@ -636,7 +636,23 @@ fn normalize(value: &Value) -> Result<Value, String> {
     for (table, list) in value.as_object().ok_or("快照无效")? {
         let mut rows = std::collections::BTreeMap::new();
         for row in list.as_array().ok_or("快照行无效")? {
-            rows.insert(identity(table, row)?, row.clone());
+            let mut normalized = row.clone();
+            if table == "calendar_event" {
+                for key in [
+                    "start_utc_ms",
+                    "end_utc_ms",
+                    "start_time_zone",
+                    "end_time_zone",
+                ] {
+                    if normalized[key].is_null() {
+                        normalized
+                            .as_object_mut()
+                            .ok_or("日程快照无效")?
+                            .remove(key);
+                    }
+                }
+            }
+            rows.insert(identity(table, row)?, normalized);
         }
         result[table] = json!(rows.into_values().collect::<Vec<_>>());
     }

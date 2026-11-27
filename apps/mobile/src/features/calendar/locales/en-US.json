@@ -1,4 +1,5 @@
 {
+  "error.zoneChanged": "The device time zone changed. Reopen the event before saving.",
   "calendar": "Calendar",
   "system": "System",
   "common.loading": "Loading…",

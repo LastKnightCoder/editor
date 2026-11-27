@@ -59,7 +59,10 @@ export const refOfTodo = (row: Row): TaskRef => ({
 export function checkRevision(expected: unknown, actual: string): void {
   if (expected !== actual) fail("VERSION_CONFLICT", "对象已变化，请重新查询后重试");
 }
-export function parseSchedule(input: { start: string; end: string; allDay: boolean }) {
+export function parseSchedule(
+  input: { start: string; end: string; allDay: boolean },
+  exact = false
+) {
   const start = dateTime(input.start),
     end = dateTime(input.end);
   if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start)
@@ -70,15 +73,14 @@ export function parseSchedule(input: { start: string; end: string; allDay: boole
     fail("INVALID_ARGUMENT", "定时安排须提供带时区的起止时间");
   const first = new Date(start),
     last = new Date(input.allDay ? end - 1 : end);
-  const midnight = (date: Date) =>
-    new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  const midnight = (date: Date) => new Date(date.getTime()).setHours(0, 0, 0, 0);
   if (!input.allDay)
     for (const date of [first, last]) {
       if (date.getSeconds() || date.getMilliseconds())
         fail("INVALID_ARGUMENT", "日程精确到分钟，请使用整分钟起止时间");
       const restored = new Date(midnight(date));
       restored.setMinutes(date.getHours() * 60 + date.getMinutes());
-      if (restored.getTime() !== date.getTime())
+      if (!exact && restored.getTime() !== date.getTime())
         fail("AMBIGUOUS_TIME", "该时刻处于夏令时重复区间，当前日程格式无法无歧义保存");
     }
   return {
