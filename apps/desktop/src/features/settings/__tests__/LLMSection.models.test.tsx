@@ -78,18 +78,28 @@ afterEach(() => {
   useSettingStore.setState({ setting: structuredClone(originalSetting) });
 });
 
-it("手动添加只填写模型 ID，仍能保存、切换功能分配并再次编辑", async () => {
+const setFieldValue = async (input: HTMLInputElement, value: string) => {
+  const setInputValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+  if (!setInputValue) throw new Error("输入框不支持设置值");
+  await act(async () => {
+    setInputValue.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+};
+
+const getInputByLabel = (label: string) => {
+  const input = document.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`);
+  if (!input) throw new Error(`找不到输入框：${label}`);
+  return input;
+};
+
+it("目录外模型手动添加必须填写容量，填写后可保存、切换功能分配并再次编辑", async () => {
   loadModels([]);
   await render();
   await clickButton("手动添加");
   const input = document.querySelector<HTMLInputElement>('input[placeholder^="如 deepseek-chat"]');
   if (!input) throw new Error("找不到模型 ID 输入框");
-  const setInputValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
-  if (!setInputValue) throw new Error("输入框不支持设置值");
-  await act(async () => {
-    setInputValue.call(input, "custom-model");
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-  });
+  await setFieldValue(input, "custom-model");
   const before = useSettingStore.getState().setting.llmProviders;
   input.focus();
   input.setSelectionRange(1, 3);
@@ -107,30 +117,47 @@ it("手动添加只填写模型 ID，仍能保存、切换功能分配并再次�
     expect(remote.discover).not.toHaveBeenCalled();
   }
   await act(async () => desktopLocaleSource.setLocale(originalLocale));
+  // 未填容量时禁止保存，容量输入框直接在主表单可见
+  await clickButton("保存");
+  expect(useSettingStore.getState().setting.llmProviders[0].models).toEqual([]);
+  await setFieldValue(getInputByLabel(llmText("ui.contextWindowTokens")), "128000");
+  await setFieldValue(getInputByLabel(llmText("ui.maximumOutputTokens")), "8192");
   await clickButton("保存");
   expect(useSettingStore.getState().setting.llmProviders[0].models[0]).toEqual({
     id: "custom-model",
     reasoning: false,
     input: ["text"],
+    contextWindow: 128000,
+    maxTokens: 8192,
   });
   await clickButton("assignment");
   await clickButton("providers");
   await clickButton("编辑模型");
   await clickButton("保存");
   expect(useSettingStore.getState().setting.llmProviders[0].models).toEqual([
-    { id: "custom-model", reasoning: false, input: ["text"] },
+    {
+      id: "custom-model",
+      reasoning: false,
+      input: ["text"],
+      contextWindow: 128000,
+      maxTokens: 8192,
+    },
   ]);
 });
 
-it("加载缺少能力字段的模型后仍能进入设置、编辑并保存", async () => {
+it("加载缺少能力与容量的存量模型后标出需补充容量，点进去补齐后可保存", async () => {
   loadModels([{ id: "incomplete-model" }]);
   await render();
-  await clickButton("编辑模型");
+  await clickButton(llmText("ui.capacityRequired"));
+  await setFieldValue(getInputByLabel(llmText("ui.contextWindowTokens")), "65536");
+  await setFieldValue(getInputByLabel(llmText("ui.maximumOutputTokens")), "4096");
   await clickButton("保存");
   expect(useSettingStore.getState().setting.llmProviders[0].models[0]).toEqual({
     id: "incomplete-model",
     reasoning: false,
     input: ["text"],
+    contextWindow: 65536,
+    maxTokens: 4096,
   });
 });
 

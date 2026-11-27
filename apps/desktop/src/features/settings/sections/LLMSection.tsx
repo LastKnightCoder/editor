@@ -58,7 +58,7 @@ import {
 import { SettingsTabs } from "../components/SettingsTabs";
 import { ProviderCreateDialog, type NewProviderDraft } from "../components/ProviderCreateDialog";
 import { ModelPickerDialog } from "../components/ModelPickerDialog";
-import { useCatalogModels, useThinkingLevels } from "@/services/llmCatalog";
+import { useCatalogModels, useCatalogProviders, useThinkingLevels } from "@/services/llmCatalog";
 import { ToolPermissionGroup } from "./ToolPermissionGroup";
 import { AgentShellGroup } from "./AgentShellGroup";
 import { AgentWorkspaceGroup } from "./AgentWorkspaceGroup";
@@ -358,6 +358,16 @@ function parseCostForm(form: ModelFormState): LLMModelSetting["cost"] {
   };
 }
 
+const isPositiveInt = (value: number | undefined): value is number =>
+  typeof value === "number" && Number.isSafeInteger(value) && value > 0;
+
+function parsePositiveInt(text: string): number | undefined {
+  const trimmed = text.trim();
+  if (!trimmed) return undefined;
+  const value = Number(trimmed);
+  return Number.isSafeInteger(value) && value > 0 ? value : undefined;
+}
+
 /** 单价展示：$输入/$输出 每百万 tokens */
 const formatCost = (cost: NonNullable<LLMModelSetting["cost"]>) => `$${cost.input}/$${cost.output}`;
 
@@ -413,17 +423,20 @@ function modelToForm(
 function ModelRow({
   model,
   usage,
+  missingCapacity,
   onEdit,
   onDelete,
 }: {
   model: LLMModelSetting;
   usage: number;
+  missingCapacity: boolean;
   onEdit: () => void;
   onDelete: () => void;
 }) {
   useLlmSettingsI18n();
 
-  const description = model.name && model.name !== model.id ? model.name.trim() : undefined;
+  const label = model.name || model.id;
+  const description = model.name && model.name !== model.id ? model.id : undefined;
   return (
     <div
       className={clsx(
@@ -433,11 +446,18 @@ function ModelRow({
     >
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="font-tau-mono text-ink-1 mr-0.5 text-[12.5px] font-medium">
-            {model.name}
-          </span>
-          {capabilityLabels(model).map(label => (
-            <CapChip key={label} label={label} />
+          <span className="font-tau-mono text-ink-1 mr-0.5 text-[12.5px] font-medium">{label}</span>
+          {missingCapacity && (
+            <button
+              type="button"
+              onClick={onEdit}
+              className="bg-warn-soft text-warn text-tau-tiny rounded-full px-2 leading-[17px] font-medium transition-opacity hover:opacity-80"
+            >
+              {llmText("ui.capacityRequired")}
+            </button>
+          )}
+          {capabilityLabels(model).map(capLabel => (
+            <CapChip key={capLabel} label={capLabel} />
           ))}
           {model.contextWindow != null && (
             <MetaChip>
@@ -456,7 +476,7 @@ function ModelRow({
           )}
           {model.stripThinkTags && <MetaChip>{llmText("ui.clearReasoningContent")}</MetaChip>}
         </div>
-        {description && description !== model.name && (
+        {description && (
           <div className="text-tau-meta text-ink-2 mt-0.5 truncate">{description}</div>
         )}
       </div>
@@ -473,13 +493,13 @@ function ModelRow({
       </span>
       <div className="flex flex-none gap-0.5">
         <IconButton
-          aria-label={llmText("message.editModel", { name: llmValue(model.name) })}
+          aria-label={llmText("message.editModel", { name: llmValue(label) })}
           onClick={onEdit}
         >
           <Pencil size={14} strokeWidth={1.75} />
         </IconButton>
         <IconButton
-          aria-label={llmText("message.deleteModel", { name: llmValue(model.name) })}
+          aria-label={llmText("message.deleteModel", { name: llmValue(label) })}
           onClick={onDelete}
         >
           <Trash2 size={14} strokeWidth={1.75} />
@@ -697,6 +717,25 @@ export function LLMSection() {
   /* ── 勾选模型（内置服务商带预设目录；所有服务商都可向服务商实时获取，手填表单兜底） ── */
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
 
+  // 内置目录元数据（显式 builtin 优先，否则按官方 baseUrl 匹配，与主进程 resolveBuiltinId 一致）
+  const { providers: catalogProviders } = useCatalogProviders();
+  const effectiveBuiltin = useMemo(() => {
+    if (!editing) return undefined;
+    if (editing.builtin) return editing.builtin;
+    const normalized = editing.baseUrl.trim().replace(/\/+$/, "").toLowerCase();
+    if (!normalized) return undefined;
+    return catalogProviders.find(
+      provider =>
+        provider.baseUrl && provider.baseUrl.replace(/\/+$/, "").toLowerCase() === normalized
+    )?.id;
+  }, [editing, catalogProviders]);
+  const { models: catalogModels, loading: catalogLoading } = useCatalogModels(effectiveBuiltin);
+  const catalogModelOf = (modelId: string) => catalogModels.find(model => model.id === modelId);
+  const catalogCostOf = (modelId: string) => catalogModelOf(modelId)?.cost;
+  const isModelMissingCapacity = (model: LLMModelSetting) =>
+    !catalogModelOf(model.id) &&
+    (!isPositiveInt(model.contextWindow) || !isPositiveInt(model.maxTokens));
+
   const applyModelPick = (change: { add: LLMModelSetting[]; remove: string[] }) => {
     if (!editing) return;
     const providerId = editing.id;
@@ -712,6 +751,9 @@ export function LLMSection() {
         }
       }
     });
+    const missingCapacityCount = catalogLoading
+      ? 0
+      : change.add.filter(model => isModelMissingCapacity(model)).length;
     const summary = [
       change.add.length > 0
         ? llmText("message.addedModels", { count: llmValue(change.add.length) })
@@ -719,10 +761,16 @@ export function LLMSection() {
       change.remove.length > 0
         ? llmText("message.removed", { count: llmValue(change.remove.length) })
         : "",
+      missingCapacityCount > 0
+        ? llmText("message.addedModelsNeedCapacity", { count: llmValue(missingCapacityCount) })
+        : "",
     ]
       .filter(Boolean)
       .join(llmText("format.summarySeparator"));
-    if (summary) toast.success(summary);
+    if (summary) {
+      if (missingCapacityCount > 0) toast.warning(summary);
+      else toast.success(summary);
+    }
   };
 
   /* ── 删除服务商（确认弹层，引用槽位一并清空） ── */
@@ -782,11 +830,8 @@ export function LLMSection() {
         ? ""
         : llmText("ui.unrecognizedModelReasoningLevelsMayNotTake");
 
-  // 目录价格：编辑时作单价默认值与占位提示（目录外服务商为空）
-  const { models: catalogModels } = useCatalogModels(editing?.builtin);
-  const catalogCostOf = (modelId: string) =>
-    catalogModels.find(model => model.id === modelId)?.cost;
-  const formCatalogCost = catalogCostOf(modelForm.initialId || modelForm.id.trim());
+  const formCatalogModel = catalogModelOf(modelForm.id.trim());
+  const formCatalogCost = formCatalogModel?.cost;
 
   const openModelCreate = () => {
     setModelForm(blankModelForm());
@@ -822,8 +867,27 @@ export function LLMSection() {
       toast.warning(llmText("ui.thisProviderAlreadyHasAModelWith"));
       return;
     }
-    const parsedMaxTokens = Number.parseInt(modelForm.maxTokens, 10);
-    const parsedContext = Number.parseInt(modelForm.contextWindow, 10);
+    const rawContext = modelForm.contextWindow.trim();
+    const rawMaxTokens = modelForm.maxTokens.trim();
+    const parsedContext = parsePositiveInt(rawContext);
+    const parsedMaxTokens = parsePositiveInt(rawMaxTokens);
+    if (rawContext !== "" && parsedContext === undefined) {
+      toast.warning(llmText("ui.contextWindowMustBePositiveInteger"));
+      return;
+    }
+    if (rawMaxTokens !== "" && parsedMaxTokens === undefined) {
+      toast.warning(llmText("ui.maxTokensMustBePositiveInteger"));
+      return;
+    }
+    const catalogMatch = catalogModelOf(id);
+    if (
+      !catalogLoading &&
+      !catalogMatch &&
+      (parsedContext === undefined || parsedMaxTokens === undefined)
+    ) {
+      toast.warning(llmText("ui.enterContextWindowAndMaxTokens"));
+      return;
+    }
     const parsedTemperature = Number.parseFloat(modelForm.temperature);
     const displayName = modelForm.displayName.trim();
     const hasCostInput = modelForm.costInput.trim() !== "" || modelForm.costOutput.trim() !== "";
@@ -833,18 +897,14 @@ export function LLMSection() {
       return;
     }
     // 单价留空时用目录价填入（手填的目录模型也一样），之后可改
-    const catalogCost = !hasCostInput && !cost ? catalogCostOf(id) : undefined;
+    const catalogCost = !hasCostInput && !cost ? catalogMatch?.cost : undefined;
     const next: LLMModelSetting = {
       id,
       ...(displayName && displayName !== id ? { name: displayName } : {}),
       reasoning: modelForm.reasoning,
       input: modelForm.image ? ["text", "image"] : ["text"],
-      ...(Number.isFinite(parsedContext) && parsedContext > 0
-        ? { contextWindow: parsedContext }
-        : {}),
-      ...(Number.isFinite(parsedMaxTokens) && parsedMaxTokens > 0
-        ? { maxTokens: parsedMaxTokens }
-        : {}),
+      ...(parsedContext !== undefined ? { contextWindow: parsedContext } : {}),
+      ...(parsedMaxTokens !== undefined ? { maxTokens: parsedMaxTokens } : {}),
       ...(modelForm.thinkingLevel
         ? { thinkingLevel: modelForm.thinkingLevel as LLMModelSetting["thinkingLevel"] }
         : {}),
@@ -1087,6 +1147,7 @@ export function LLMSection() {
                       key={model.id}
                       model={model}
                       usage={usageCount(editing.id, model.id)}
+                      missingCapacity={!catalogLoading && isModelMissingCapacity(model)}
                       onEdit={() => openModelEdit(model)}
                       onDelete={() => setModelDelete(model)}
                     />
@@ -1233,6 +1294,57 @@ export function LLMSection() {
           </div>
           <div className="pt-3">
             <div className="text-tau-meta text-ink-2 pb-1.5 font-medium">
+              {llmText("ui.capacity")}
+              <span className="text-ink-3 ml-1 font-normal">
+                {formCatalogModel
+                  ? llmText("message.catalogCapacityAppliedLeaveBlankToUse", {
+                      contextWindow: llmValue(formCatalogModel.contextWindow),
+                      maxTokens: llmValue(formCatalogModel.maxTokens),
+                    })
+                  : llmText("ui.requiredEnterValuesFromYourProvider")}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-x-3">
+              <label className="flex min-w-0 flex-col gap-1">
+                <span className="text-tau-tiny text-ink-3">
+                  {llmText("ui.contextWindowTokens")}
+                </span>
+                <Input
+                  className="font-tau-mono"
+                  inputMode="numeric"
+                  aria-label={llmText("ui.contextWindowTokens")}
+                  value={modelForm.contextWindow}
+                  placeholder={
+                    formCatalogModel
+                      ? String(formCatalogModel.contextWindow)
+                      : llmText("ui.forExample128000")
+                  }
+                  spellCheck={false}
+                  onChange={e => setModelForm(f => ({ ...f, contextWindow: e.target.value }))}
+                />
+              </label>
+              <label className="flex min-w-0 flex-col gap-1">
+                <span className="text-tau-tiny text-ink-3">
+                  {llmText("ui.maximumOutputTokens")}
+                </span>
+                <Input
+                  className="font-tau-mono"
+                  inputMode="numeric"
+                  aria-label={llmText("ui.maximumOutputTokens")}
+                  value={modelForm.maxTokens}
+                  placeholder={
+                    formCatalogModel
+                      ? String(formCatalogModel.maxTokens)
+                      : llmText("ui.forExample8192")
+                  }
+                  spellCheck={false}
+                  onChange={e => setModelForm(f => ({ ...f, maxTokens: e.target.value }))}
+                />
+              </label>
+            </div>
+          </div>
+          <div className="pt-3">
+            <div className="text-tau-meta text-ink-2 pb-1.5 font-medium">
               {llmText("ui.capabilities")}
             </div>
             <div className="flex flex-wrap gap-1.5">
@@ -1339,30 +1451,6 @@ export function LLMSection() {
                 </label>
                 <label className="flex min-w-0 flex-col gap-1.5">
                   <span className="text-tau-meta text-ink-2 font-medium">
-                    {llmText("ui.contextWindowTokens")}
-                  </span>
-                  <Input
-                    className="font-tau-mono"
-                    value={modelForm.contextWindow}
-                    placeholder={llmText("ui.forExample65536")}
-                    spellCheck={false}
-                    onChange={e => setModelForm(f => ({ ...f, contextWindow: e.target.value }))}
-                  />
-                </label>
-                <label className="flex min-w-0 flex-col gap-1.5">
-                  <span className="text-tau-meta text-ink-2 font-medium">
-                    {llmText("ui.maximumOutputTokens")}
-                  </span>
-                  <Input
-                    className="font-tau-mono"
-                    value={modelForm.maxTokens}
-                    placeholder={llmText("ui.forExample8192")}
-                    spellCheck={false}
-                    onChange={e => setModelForm(f => ({ ...f, maxTokens: e.target.value }))}
-                  />
-                </label>
-                <label className="flex min-w-0 flex-col gap-1.5">
-                  <span className="text-tau-meta text-ink-2 font-medium">
                     {llmText("ui.temperature")}
                   </span>
                   <Input
@@ -1446,7 +1534,7 @@ export function LLMSection() {
           if (!open) setModelDelete(null);
         }}
         title={llmText("ui.deleteModel")}
-        context={modelDelete?.name}
+        context={modelDelete ? modelDelete.name || modelDelete.id : undefined}
         danger
         description={
           modelDelete

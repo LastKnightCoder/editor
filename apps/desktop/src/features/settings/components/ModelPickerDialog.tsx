@@ -331,11 +331,13 @@ export function ModelPickerDialog({
                             </span>
                           )}
                           {item.fromServiceOnly &&
-                            (item.reasoning === undefined ||
-                              item.input === undefined ||
-                              item.contextWindow === undefined) && (
+                            (item.contextWindow === undefined || item.maxTokens === undefined ? (
+                              <span className="text-warn">
+                                {llmText("ui.capacityMissingAddWhenEditing")}
+                              </span>
+                            ) : item.reasoning === undefined || item.input === undefined ? (
                               <span>{llmText("ui.someCapabilitiesAreUnknownAddThemLater")}</span>
-                            )}
+                            ) : null)}
                         </span>
                       </label>
                     </div>

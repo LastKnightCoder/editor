@@ -22,7 +22,7 @@ export async function executeSingleShot(
     return {
       ok: false,
       message: null,
-      error: `模型未注册：${request.providerId}/${request.modelId}`,
+      error: registry.describeUnregisteredModel(request.providerId, request.modelId),
     };
   const source = request.source;
   const task = request.task

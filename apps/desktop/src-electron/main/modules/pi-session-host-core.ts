@@ -25,7 +25,7 @@ import type {
   InlineExtension,
   ResourceLoader,
 } from "@earendil-works/pi-coding-agent";
-import { buildPiProvider } from "./pi-ai-runtime-core";
+import { buildPiProvider, formatUnregisteredModelError } from "./pi-ai-runtime-core";
 import { documentEntriesFromSdk, getSessionTranscript } from "@tau/ai/session";
 import type { PiTranscriptEntry } from "./pi-session-transcript";
 import {
@@ -385,6 +385,8 @@ export interface AssembleHostSessionOptions {
   agentDir: string;
   modelRuntime: ModelRuntime;
   modelRef: { providerId: string; modelId: string };
+  /** 仅用于未注册/缺容量报错时展示可读服务商名，避免向用户暴露内部 UUID */
+  providerName?: string;
   /** 持久会话目录（~/.editor/sessions/<库名>/）；省略 = inMemory（测试/单轮场景） */
   sessionDir?: string;
   /**
@@ -417,9 +419,8 @@ export async function assembleHostSession(
     options.modelRef.modelId
   );
   if (!model) {
-    throw new Error(
-      `模型未注册或容量未配置：${options.modelRef.providerId}/${options.modelRef.modelId}，请检查模型的上下文窗口与最大输出 token 数`
-    );
+    const providerLabel = options.providerName?.trim() || options.modelRef.providerId;
+    throw new Error(formatUnregisteredModelError(providerLabel, options.modelRef.modelId));
   }
   const resourceLoader =
     options.resourceLoader ??

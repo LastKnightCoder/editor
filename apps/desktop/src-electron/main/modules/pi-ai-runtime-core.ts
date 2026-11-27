@@ -228,11 +228,22 @@ export async function buildPiProvider(setting: LLMProviderSetting): Promise<Prov
   });
 }
 
+export function formatUnregisteredModelError(
+  providerLabel: string,
+  modelId: string,
+  reason: "missing-capacity" | "unknown" = "unknown"
+): string {
+  const prefix = reason === "missing-capacity" ? "模型容量未配置" : "模型未注册或容量未配置";
+  return `${prefix}：${providerLabel}/${modelId}，请在「设置 › AI 服务 › 大语言模型」中编辑该模型，填写上下文窗口与最大输出 token 数`;
+}
+
 export interface ProviderRegistry {
   readonly models: MutableModels;
   /** 全量同步设置里的 provider 列表：新增/变更 upsert，移除 delete（目录兜底为异步） */
   syncProviders(settings: LLMProviderSetting[]): Promise<void>;
   resolveModel(providerId: string, modelId: string): Model<Api> | undefined;
+  /** 模型未注册时生成面向用户的诊断文案（优先展示服务商名，并区分缺容量与未配置） */
+  describeUnregisteredModel(providerId: string, modelId: string): string;
   /** 该模型是否按用户改过的单价计费（与目录价相同的自动填充不算） */
   hasCustomCost(providerId: string, modelId: string): boolean;
   /** 该模型是否启用 <think> 标签兜底剥离（见 think-stream-rewriter） */
@@ -278,6 +289,16 @@ export function createProviderRegistry(): ProviderRegistry {
     },
     resolveModel(providerId, modelId) {
       return models.getModel(providerId, modelId);
+    },
+    describeUnregisteredModel(providerId, modelId) {
+      const provider = settingsById.get(providerId);
+      const label = provider?.name?.trim() || providerId;
+      const configured = provider?.models.some(model => model.id === modelId) ?? false;
+      return formatUnregisteredModelError(
+        label,
+        modelId,
+        configured ? "missing-capacity" : "unknown"
+      );
     },
     hasCustomCost(providerId, modelId) {
       return customPriced.has(costKey(providerId, modelId));

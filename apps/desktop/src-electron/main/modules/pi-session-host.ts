@@ -943,11 +943,15 @@ class PiSessionHostModule {
       if (workspace.missing) {
         console.warn(`[PiSessionHost] 对话工作目录不存在，改用应用数据目录：${request.cwd}`);
       }
+      const providerName = resolveV2Providers(setting).find(
+        provider => provider.id === request.modelRef.providerId
+      )?.name;
       const session = await assembleHostSession({
         cwd: workspace.cwd,
         agentDir: join(PathUtil.getAppDir(), "pi"),
         modelRuntime,
         modelRef: request.modelRef,
+        ...(providerName ? { providerName } : {}),
         sessionDir,
         ...(sessionFile ? { sessionFile } : {}),
         ...(request.piSessionId ? { sessionId: request.piSessionId } : {}),
