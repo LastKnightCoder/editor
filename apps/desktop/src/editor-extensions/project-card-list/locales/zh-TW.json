@@ -1,0 +1,7 @@
+{
+  "title": "專案列表",
+  "source.unavailable": "專案來源無法使用，請開啟原資料庫。",
+  "empty": "尚無子文件",
+  "open.failed": "開啟專案文件失敗",
+  "insert.noProject": "無法取得目前專案 ID"
+}

@@ -7,6 +7,9 @@ import { definePage } from "@/page/definePage";
 import { createPageSchema, paramNumber, paramOptional } from "@/page/core/paramsSchema";
 import ProjectListSlate from "..";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { desktopLocaleSource } from "@/app/i18n/runtime";
+
+const queries = vi.hoisted(() => ({ parent: vi.fn(), children: vi.fn() }));
 
 vi.mock("@/commands/project", () => ({
   getProjectItemById: async (id: number) => ({ id, projects: [7] }),
@@ -31,11 +34,11 @@ vi.mock("@/services/editorKit", () => ({
 }));
 vi.mock("@tau/editor", () => ({ AddParagraph: () => null }));
 vi.mock("@/commands", () => ({
-  getProjectItemById: async () => ({ children: [11, 12] }),
-  getProjectItemsByIds: async () => [
+  getProjectItemById: queries.parent.mockImplementation(async () => ({ children: [11, 12] })),
+  getProjectItemsByIds: queries.children.mockImplementation(async () => [
     { id: 11, title: "子文档一", content: [{ type: "paragraph", children: [{ text: "摘要一" }] }] },
     { id: 12, title: "子文档二", content: [{ type: "paragraph", children: [{ text: "摘要二" }] }] },
-  ],
+  ]),
 }));
 vi.mock("@/utils", () => ({
   getEditorText: (content: { children: { text: string }[] }[]) => content[0].children[0].text,
@@ -62,22 +65,24 @@ function NavigationProbe() {
 
 let root: Root | undefined;
 let container: HTMLDivElement;
+let originalLocale: string;
 afterEach(() => {
   act(() => root?.unmount());
   root = undefined;
   container?.remove();
+  desktopLocaleSource.setLocale(originalLocale);
 });
 
 describe("项目文档列表卡片导航", () => {
   it("点击标题、摘要及卡片空白处均更新当前项目文档，重复点击不增加页面", async () => {
+    originalLocale = desktopLocaleSource.getSnapshot();
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
     await act(async () => {
       root!.render(
-        <QueryClientProvider
-          client={new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })}
-        >
+        <QueryClientProvider client={client}>
           <PageProvider initialKey="project-detail" initialParams={{ id: 7, itemId: 10 }}>
             <PageNavigationBridge />
             <ProjectListSlate
@@ -97,11 +102,22 @@ describe("项目文档列表卡片导航", () => {
     });
 
     await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 20));
+      await vi.waitFor(() => expect(container.textContent).toContain("子文档一摘要一"));
     });
     const cards = container.querySelectorAll('[contenteditable="false"]');
     expect(cards.length).toBe(2);
     expect([...cards].map(card => card.textContent)).toEqual(["子文档一摘要一", "子文档二摘要二"]);
+    const result = client.getQueryData(["project-card-list", "test", 10]);
+    for (const locale of ["zh-TW", "en-US"]) {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+      expect([...container.querySelectorAll('[contenteditable="false"]')]).toEqual([...cards]);
+      expect(client.getQueryData(["project-card-list", "test", 10])).toBe(result);
+      expect(queries.parent).toHaveBeenCalledTimes(1);
+      expect(queries.children).toHaveBeenCalledTimes(1);
+      expect(JSON.parse(container.querySelector("output")!.textContent!)).toEqual([
+        { id: 7, itemId: 10 },
+      ]);
+    }
     for (const [target, itemId] of [
       [cards[0].firstElementChild!, 11],
       [cards[1].lastElementChild!, 12],

@@ -412,6 +412,8 @@ Blank七路径完成；既有真实Editor配置增强契约与DocTasks/element�
 
 附件九路径完成；editorVoid原26基线至联动27例通过，真实Dialog/同File/上传开关/inflight跨语保原onOk参数；15key三语、scope lint/diff与desktop type0。渲染数据根无新locale订阅，原上传与插入守卫保持。
 
+ProjectList九路径完成；navigation/markdown原3例基线至最终通过，现有导航例改vi.waitFor替代真实sleep并保全部原断言，新增跨语真实QueryClient卡片/结果身份与不重查契约；5key三语、范围检查与desktop type0。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

@@ -8,6 +8,8 @@ import { getProjectItemChildren } from "@/commands/project";
 import type { ContentEntityReference } from "@tau/db-schema/content-identities";
 import useSettingStore from "@/stores/useSettingStore";
 
+import { useProjectCardListI18n } from "../../i18n";
+
 interface IProps {
   projectItemId?: number;
   reference?: ContentEntityReference;
@@ -37,14 +39,16 @@ const ProjectList = (props: IProps) => {
   if (query.error)
     return (
       <p contentEditable={false} role="status" className="text-ink-3 text-tau-sm py-6 text-center">
-        项目来源不可用，请打开原资料库。
+        <ProjectListStatus kind="source.unavailable" />
       </p>
     );
 
   if (items.length === 0) {
     return (
       <div contentEditable={false} style={{ userSelect: "none" }}>
-        <p className="text-ink-3 py-6 text-center text-xs">暂无子文档</p>
+        <p className="text-ink-3 py-6 text-center text-xs">
+          <ProjectListStatus kind="empty" />
+        </p>
       </div>
     );
   }
@@ -57,5 +61,10 @@ const ProjectList = (props: IProps) => {
     </DocumentCardGrid>
   );
 };
+
+function ProjectListStatus({ kind }: { kind: "source.unavailable" | "empty" }) {
+  const { t } = useProjectCardListI18n();
+  return t(kind);
+}
 
 export default ProjectList;

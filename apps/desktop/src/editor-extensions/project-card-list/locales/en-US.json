@@ -1,0 +1,7 @@
+{
+  "title": "Project list",
+  "source.unavailable": "Project source unavailable. Open the original library.",
+  "empty": "No child documents",
+  "open.failed": "Could not open project document",
+  "insert.noProject": "Could not determine the current project ID"
+}

@@ -4,9 +4,11 @@ import { toast } from "@tau/ui";
 import type { ProjectCardListElement } from "./types";
 import { getProjectItemReference } from "@/commands/project";
 
+import { projectCardListTranslator } from "./i18n";
+
 export const insertProjectCardList = async (editor: Editor, projectId?: number) => {
   if (!projectId) {
-    toast.warning("无法获取到当前项目 ID");
+    toast.warning(projectCardListTranslator.t("insert.noProject"));
     return;
   }
 
