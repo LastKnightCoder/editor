@@ -38,7 +38,7 @@ export function DocumentCard({
       role={!href && onClick ? "button" : undefined}
       tabIndex={!href && onClick ? 0 : undefined}
       aria-label={t("documentCard.open", { title })}
-      className="rounded-tau-md border-line-1 bg-surface text-ink-1 ease-tau-out hover:border-accent hover:bg-hover hover:shadow-card active:bg-press focus-visible:border-accent group flex min-w-0 cursor-pointer flex-col gap-[0.625em] border px-[1.125em] py-[1em] no-underline transition-[border-color,background-color,box-shadow] duration-[160ms] outline-none select-none focus-visible:shadow-[var(--tau-focus-ring)]"
+      className="rounded-tau-md border-line-1 bg-surface text-ink-1 ease-tau-out hover:border-accent hover:bg-hover hover:shadow-card active:bg-press focus-visible:border-accent group flex min-w-0 cursor-pointer select-none flex-col gap-[0.625em] border px-[1.125em] py-[1em] no-underline outline-none transition-[border-color,background-color,box-shadow] duration-[160ms] focus-visible:shadow-[var(--tau-focus-ring)]"
       onClick={onClick}
       onKeyDown={onKeyDown}
     >
@@ -49,7 +49,7 @@ export function DocumentCard({
         >
           <FileText className="size-[1.125em]" />
         </span>
-        <div className="group-hover:text-accent-text ease-tau-out min-w-0 flex-1 truncate text-[1.0625em] leading-[1.4] font-semibold transition-colors duration-[160ms]">
+        <div className="group-hover:text-accent-text ease-tau-out min-w-0 flex-1 truncate text-[1.0625em] font-semibold leading-[1.4] transition-colors duration-[160ms]">
           {title}
         </div>
         <ArrowUpRight

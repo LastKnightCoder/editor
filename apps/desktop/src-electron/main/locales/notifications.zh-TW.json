@@ -1,0 +1,10 @@
+{
+  "action.view": "查看",
+  "source.todo": "待辦",
+  "source.schedule": "日程",
+  "pomodoro.completed": "番茄完成",
+  "pomodoro.ended": "專注結束",
+  "pomodoro.focusMinutes": "專注 {{minutes}} 分鐘",
+  "companion.pairTitle": "{{browser}} 想連線到 Tau",
+  "companion.pairBody": "驗證碼 {{code}}，請在 Tau 中確認"
+}

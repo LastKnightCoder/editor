@@ -51,6 +51,7 @@ import {
 import { browserSessionDirOf } from "../pi-session-paths";
 import { getMainWindows, isMainWindow, showOrCreateMainWindow } from "../../windows/main-window";
 import { dismissNotification, routeNotification } from "../../windows/notification-router";
+import { notificationT } from "../notification-locale";
 import type { BrowserCompanionSnapshot, PairPrompt } from "@/types/browser-companion";
 import { BrowserClientStore } from "../../services/browser-clients";
 import { CompanionPeer, MAX_FRAME_BYTES } from "./peer";
@@ -319,12 +320,12 @@ class BrowserCompanionModule {
     routeNotification(
       {
         id: `browser-companion:${pair.requestId}`,
-        title: `${pair.info.browser} 想连接到 Tau`,
-        body: `校验码 ${pair.code}，请在 Tau 中确认`,
+        title: notificationT("companion.pairTitle", { browser: pair.info.browser }),
+        body: notificationT("companion.pairBody", { code: pair.code }),
         icon: "globe",
         tone: "neutral",
         sticky: true,
-        actions: [{ label: "查看", primary: true, reveal: true }],
+        actions: [{ label: notificationT("action.view"), primary: true, reveal: true }],
       },
       { kind: "main", handlers: [() => showOrCreateMainWindow()] }
     );

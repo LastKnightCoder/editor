@@ -1,0 +1,10 @@
+{
+  "action.view": "View",
+  "source.todo": "Todo",
+  "source.schedule": "Schedule",
+  "pomodoro.completed": "Pomodoro completed",
+  "pomodoro.ended": "Focus session ended",
+  "pomodoro.focusMinutes": "Focused for {{minutes}} min",
+  "companion.pairTitle": "{{browser}} wants to connect to Tau",
+  "companion.pairBody": "Verification code {{code}} — confirm it in Tau"
+}

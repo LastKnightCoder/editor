@@ -9,6 +9,7 @@ import {
 import BackendWebSocketServer from "../utils/BackendWebSocketServer";
 import { setPomodoroAudioState } from "../windows/pomodoro-audio";
 import { routeNotification } from "../windows";
+import { notificationT } from "./notification-locale";
 import PomodoroSessionTable from "./tables/pomodoro-session";
 import PomodoroPresetTable from "./tables/pomodoro-preset";
 import databaseModule from "./database";
@@ -510,8 +511,13 @@ class PomodoroModule {
       routeNotification(
         {
           id: "pomodoro-session-end",
-          title: status === "completed" ? "番茄完成" : "专注结束",
-          body: `专注 ${Math.round(focusMs / 60000)} 分钟`,
+          title:
+            status === "completed"
+              ? notificationT("pomodoro.completed")
+              : notificationT("pomodoro.ended"),
+          body: notificationT("pomodoro.focusMinutes", {
+            minutes: Math.round(focusMs / 60000),
+          }),
           icon: "timer",
           sticky: true,
         },

@@ -2,6 +2,7 @@ import { ipcMain } from "electron";
 import type Database from "better-sqlite3";
 import { joinTodoReminders, reminderBody, type ReminderOpenTarget } from "@tau/shared/reminders";
 import { getMainWindows, routeNotification, showOrCreateMainWindow } from "../windows";
+import { notificationLocale, notificationT } from "./notification-locale";
 import { Module } from "../types/module";
 import databaseModule from "./database";
 import ItemReminderTable from "./tables/item-reminder";
@@ -239,18 +240,21 @@ class TodoReminderModule implements Module {
       {
         id: `todo-reminder:${this.reminderKey(reminder)}`,
         title: reminder.title,
-        body: reminderBody({
-          kind: isEvent ? "event" : "todo",
-          anchor: reminder.dueAt,
-          remindAt: Date.now(),
-          allDay: reminder.allDay,
-          end: reminder.endAt,
-        }),
-        source: isEvent ? "日程" : "待办",
+        body: reminderBody(
+          {
+            kind: isEvent ? "event" : "todo",
+            anchor: reminder.dueAt,
+            remindAt: Date.now(),
+            allDay: reminder.allDay,
+            end: reminder.endAt,
+          },
+          { locale: notificationLocale() }
+        ),
+        source: isEvent ? notificationT("source.schedule") : notificationT("source.todo"),
         icon: "calendarClock",
         tone: "neutral",
         sticky: true,
-        actions: [{ label: "查看", primary: true, reveal: true }],
+        actions: [{ label: notificationT("action.view"), primary: true, reveal: true }],
       },
       { kind: "main", handlers: [() => this.openInMainWindow(reminder, databaseName)] }
     );

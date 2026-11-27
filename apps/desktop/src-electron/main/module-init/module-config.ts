@@ -31,6 +31,7 @@ import remoteVideoCacheModule from "../modules/remote-video-cache";
 import remoteAudioCacheModule from "../modules/remote-audio-cache";
 import remoteImageCacheModule from "../modules/remote-image-cache";
 import publishModule from "../modules/publish";
+import { initNotificationLocale } from "../modules/notification-locale";
 import todoReminderModule from "../modules/todo-reminder";
 import holidayServiceModule from "../modules/holiday-service";
 import transcriptionModule from "../modules/transcription";
@@ -80,6 +81,12 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     layer: InitLayer.IMMEDIATE,
     dependencies: ["logger"],
     init: () => settingModule.init(),
+  },
+  {
+    name: "notification-locale",
+    layer: InitLayer.IMMEDIATE,
+    dependencies: ["setting"],
+    init: async () => initNotificationLocale(),
   },
   {
     name: "file",
