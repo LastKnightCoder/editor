@@ -72,7 +72,7 @@
   "chat.groupLabel": "AI chats",
   "chat.renameFailed": "Failed to update title",
   "empty.title": "What would you like to discuss?",
-  "empty.send": "⌘/Ctrl + Enter to send",
+  "empty.send": "Enter to send · Shift+Enter for a new line",
   "empty.reference": "Reference cards, articles, and project documents",
   "empty.drop": "Drag in content for context",
   "group.required": "Enter a group name",

@@ -178,7 +178,7 @@ const extractSkillRefsFromEditorContent = (content: Descendant[]): string[] => {
 /** 工具行右侧 chip（模型 / 思考强度）：无底，hover 淡墨；Menu 触发器（透传 props / ref） */
 /**
  * 对话输入区：附件预览 → 编辑器
- * （⌘/Ctrl+Enter 发送、@ 引用内容）→ 工具行：左 ＋（图片 / 文件 / 引用 / 新对话 / MCP 收进
+ * （Enter 发送、Shift+Enter 换段、@ 引用内容）→ 工具行：左 ＋（图片 / 文件 / 引用 / 新对话 / MCP 收进
  * 一个向上展开的面板）｜ 右 上下文用量环 · 模型 · 思考强度 · 停止 / 发送，任何宽度都只占一行。
  * 外框（surface + line-1，聚焦 accent 线 + 焦点环）由容器负责，本组件只排内容。
  */
@@ -312,10 +312,17 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           },
         },
         {
-          hotKey: "mod+enter",
+          hotKey: ["enter", "mod+enter"],
           action: (_editor, event) => {
             event.preventDefault();
             if (!pendingBatches) onPressEnter?.();
+          },
+        },
+        {
+          hotKey: "shift+enter",
+          action: (editor, event) => {
+            event.preventDefault();
+            editor.insertBreak();
           },
         },
       ],

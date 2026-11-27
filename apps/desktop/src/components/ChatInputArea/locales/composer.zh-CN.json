@@ -1,5 +1,5 @@
 {
-  "input.placeholder": "输入消息，Ctrl/Command + Enter 进行发送",
+  "input.placeholder": "输入消息，Enter 发送，Shift+Enter 换行",
   "attachment.failed": "添加附件失败",
   "attachment.audioVideo": "暂不支持音视频文件",
   "attachment.imageFormat": "请选择支持的图片格式",
@@ -30,9 +30,9 @@
   "action.steer": "插话",
   "action.steerHint": "插话：当前步骤结束后交给模型（⌘/Ctrl + Shift + Enter）",
   "action.queue": "加入发送队列",
-  "action.queueHint": "加入发送队列（⌘/Ctrl + Enter）",
+  "action.queueHint": "加入发送队列（Enter）",
   "action.send": "发送",
-  "action.sendHint": "发送（⌘/Ctrl + Enter）",
+  "action.sendHint": "发送（Enter）",
   "thinking.off.label": "立答如流",
   "thinking.off.short": "立答",
   "thinking.off.description": "关闭思考以提升响应速度",

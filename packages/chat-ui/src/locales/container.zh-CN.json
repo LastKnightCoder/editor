@@ -1,5 +1,5 @@
 {
-  "input.placeholder": "输入消息，Ctrl/Command + Enter 进行发送",
+  "input.placeholder": "输入消息，Enter 发送，Shift+Enter 换行",
   "model.unselected": "未选择模型",
   "connecting.title": "正在连接 AI 服务...",
   "connecting.hint": "请确保桌面端已启动",

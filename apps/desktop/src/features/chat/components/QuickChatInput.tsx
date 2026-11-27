@@ -4,7 +4,6 @@ import { ArrowUp, X } from "lucide-react";
 import { IconButton, Spinner, toast, usePortalContainer } from "@tau/ui";
 import type { QuickChatTarget } from "@/app/assistOwner";
 import { useOverlayDismiss } from "@/page/PageProvider";
-import { isMac } from "@/platform";
 import { Role } from "@/constants";
 import { getChatDatabase } from "@/services/chatDatabase";
 import { createChatMessageClientId } from "@/services/chatMessageSchema";
@@ -175,8 +174,8 @@ export default function QuickChatInput({
         onKeyDown={event => {
           if (
             event.nativeEvent.isComposing ||
+            event.keyCode === 229 ||
             event.key !== "Enter" ||
-            !(event.metaKey || event.ctrlKey) ||
             event.altKey ||
             event.shiftKey
           )
@@ -196,7 +195,7 @@ export default function QuickChatInput({
           <span>{t("quick.sending")}</span>
         ) : (
           <span className="flex items-center gap-2.5">
-            <Hint keys={isMac ? "⌘↵" : "Ctrl Enter"} label={t("quick.send")} />
+            <Hint keys="Enter" label={t("quick.send")} />
             <Hint keys="Esc" label={t("quick.close")} />
           </span>
         )}

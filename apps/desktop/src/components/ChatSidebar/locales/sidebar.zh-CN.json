@@ -75,7 +75,7 @@
   "chat.groupLabel": "AI 会话",
   "chat.renameFailed": "标题更新失败",
   "empty.title": "想聊点什么？",
-  "empty.send": "⌘/Ctrl + Enter 发送",
+  "empty.send": "Enter 发送 · Shift+Enter 换行",
   "empty.reference": "引用卡片、文章、项目文档",
   "empty.drop": "拖入内容作为上下文",
   "group.required": "请输入分组名称",

@@ -2,7 +2,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
-import type { Descendant } from "slate";
+import { createEditor, Node, Transforms, type Descendant, type Editor as SlateEditor } from "slate";
 
 import { desktopLocaleSource } from "@/app/i18n/runtime";
 import ChatInputArea, { type ChatInputAreaHandle } from "../ChatInputArea";
@@ -100,7 +100,7 @@ vi.mock("@/editor-extensions/content-link/components/utils", () => ({
 
 let capturedHotkeyConfigs: Array<{
   hotKey: string | string[];
-  action: (editor: unknown, event: React.KeyboardEvent<HTMLDivElement>) => void;
+  action: (editor: SlateEditor, event: React.KeyboardEvent<HTMLDivElement>) => void;
 }> = [];
 
 // 宿主组件只验证自身逻辑，不渲染真实编辑器，kit 也不必真实构造
@@ -127,7 +127,7 @@ vi.mock("@tau/editor", () => {
       className?: string;
       hotkeyConfigs?: Array<{
         hotKey: string | string[];
-        action: (editor: unknown, event: React.KeyboardEvent<HTMLDivElement>) => void;
+        action: (editor: SlateEditor, event: React.KeyboardEvent<HTMLDivElement>) => void;
       }>;
     }
   >(({ initValue = [], className, hotkeyConfigs = [] }, ref) => {
@@ -336,9 +336,11 @@ describe("桌面端 ChatInputArea Editor 输入", () => {
     await act(async () => desktopLocaleSource.setLocale("zh-CN"));
     expect(ref.current?.getValue()).toEqual(expected);
     expect(copyFileToLocalMock).toHaveBeenCalledTimes(1);
-    const submit = capturedHotkeyConfigs.find(config => config.hotKey === "mod+enter");
+    const submit = capturedHotkeyConfigs.find(config => [config.hotKey].flat().includes("enter"));
     if (!submit) throw new Error("missing submit hotkey");
-    submit.action({}, { preventDefault: () => undefined } as React.KeyboardEvent<HTMLDivElement>);
+    submit.action(createEditor(), {
+      preventDefault: () => undefined,
+    } as React.KeyboardEvent<HTMLDivElement>);
     expect(send).toHaveBeenCalledTimes(1);
   });
 
@@ -386,7 +388,7 @@ describe("桌面端 ChatInputArea Editor 输入", () => {
     expect(container?.querySelector('[aria-label^="代理："]')).toBeNull();
   });
 
-  it("应使用 mod+enter 发送，并保留 Enter 用于编辑器换行", async () => {
+  it("Enter 发送消息，Shift+Enter 将光标处拆成两个段落且不发送", async () => {
     const onPressEnter = vi.fn();
     const ref = {
       current: null,
@@ -399,18 +401,32 @@ describe("桌面端 ChatInputArea Editor 输入", () => {
       root?.render(<ChatInputArea ref={ref} onPressEnter={onPressEnter} />);
     });
 
-    const plainEnterHotkey = capturedHotkeyConfigs.find(config => config.hotKey === "enter");
-    const modEnterHotkey = capturedHotkeyConfigs.find(config => config.hotKey === "mod+enter");
+    const submit = capturedHotkeyConfigs.find(config => [config.hotKey].flat().includes("enter"));
+    const newline = capturedHotkeyConfigs.find(config => config.hotKey === "shift+enter");
+    if (!submit || !newline) throw new Error("missing composer hotkeys");
 
-    expect(plainEnterHotkey).toBeUndefined();
-    expect(modEnterHotkey).toBeTruthy();
+    const editor = createEditor();
+    editor.children = [{ type: "paragraph", children: [{ type: "formatted", text: "前后" }] }];
+    Transforms.select(editor, { path: [0, 0], offset: 1 });
+    const enter = new KeyboardEvent("keydown", { key: "Enter", cancelable: true });
+    submit.action(editor, {
+      preventDefault: () => enter.preventDefault(),
+    } as React.KeyboardEvent<HTMLDivElement>);
+    expect(enter.defaultPrevented).toBe(true);
+    expect(onPressEnter).toHaveBeenCalledTimes(1);
+    expect(editor.children.map(node => Node.string(node))).toEqual(["前后"]);
 
-    const preventDefault = vi.fn();
-    modEnterHotkey?.action({}, {
-      preventDefault,
-    } as unknown as React.KeyboardEvent<HTMLDivElement>);
-
-    expect(preventDefault).toHaveBeenCalledTimes(1);
+    const shiftEnter = new KeyboardEvent("keydown", {
+      key: "Enter",
+      shiftKey: true,
+      cancelable: true,
+    });
+    newline.action(editor, {
+      preventDefault: () => shiftEnter.preventDefault(),
+    } as React.KeyboardEvent<HTMLDivElement>);
+    expect(shiftEnter.defaultPrevented).toBe(true);
+    expect(editor.children.map(node => Node.string(node))).toEqual(["前", "后"]);
+    expect(editor.selection?.anchor).toEqual({ path: [1, 0], offset: 0 });
     expect(onPressEnter).toHaveBeenCalledTimes(1);
   });
 

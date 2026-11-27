@@ -1,5 +1,5 @@
 {
-  "input.placeholder": "Type a message, Ctrl/Command + Enter to send",
+  "input.placeholder": "Type a message, Enter to send, Shift+Enter for a new line",
   "attachment.failed": "Failed to add attachment",
   "attachment.audioVideo": "Audio and video files are not supported yet",
   "attachment.imageFormat": "Choose a supported image format",
@@ -30,9 +30,9 @@
   "action.steer": "Interject",
   "action.steerHint": "Interject after the current step (⌘/Ctrl + Shift + Enter)",
   "action.queue": "Add to send queue",
-  "action.queueHint": "Add to send queue (⌘/Ctrl + Enter)",
+  "action.queueHint": "Add to send queue (Enter)",
   "action.send": "Send",
-  "action.sendHint": "Send (⌘/Ctrl + Enter)",
+  "action.sendHint": "Send (Enter)",
   "thinking.off.label": "Instant response",
   "thinking.off.short": "Instant",
   "thinking.off.description": "Turn thinking off for faster responses",

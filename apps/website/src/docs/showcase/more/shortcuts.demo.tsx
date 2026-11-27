@@ -57,7 +57,8 @@ const GROUPS: { name: string; items: Shortcut[] }[] = [
   {
     name: "AI",
     items: [
-      { keys: "Mod+Enter", action: "发送消息" },
+      { keys: "Enter", action: "发送消息" },
+      { keys: "Shift+Enter", action: "输入框换段" },
       { keys: "Mod+Shift+Enter", action: "AI 回答时插话" },
       { keys: "@", action: "引用卡片、文章或项目文档" },
       { keys: "$", action: "点名一个 Skill" },

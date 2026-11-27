@@ -382,7 +382,7 @@ export default function ChatDemo() {
         </div>
         <div className="mx-auto w-full max-w-[600px] shrink-0 px-5 pb-4">
           <div className="border-line-1 rounded-[16px] border px-3.5 pt-3 pr-2.5 pb-2.5">
-            <p className="text-ink-3 text-[14px]">输入消息，Ctrl/Command + Enter 进行发送</p>
+            <p className="text-ink-3 text-[14px]">输入消息，Enter 发送，Shift+Enter 换行</p>
             <div className="mt-2 flex items-center gap-2">
               <span className="text-ink-2 text-tau-tiny flex items-center gap-1">
                 <ShieldCheck className="size-3.5" strokeWidth={1.75} />

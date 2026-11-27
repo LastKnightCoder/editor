@@ -1,8 +1,7 @@
 const DEFAULT_PLATFORM_MODIFIER = "Ctrl";
 const MAC_PLATFORM_MODIFIER = "Command";
 
-export const DEFAULT_CHAT_INPUT_PLACEHOLDER =
-  "输入消息，Ctrl/Command + Enter 进行发送";
+export const DEFAULT_CHAT_INPUT_PLACEHOLDER = "输入消息，Enter 发送，Shift+Enter 换行";
 
 const resolvePlatform = (platform?: string) => {
   if (typeof platform === "string") {
@@ -18,14 +17,12 @@ const resolvePlatform = (platform?: string) => {
 
 export const resolveChatInputModifierLabel = (platform?: string) => {
   const currentPlatform = resolvePlatform(platform);
-  return /mac/i.test(currentPlatform)
-    ? MAC_PLATFORM_MODIFIER
-    : DEFAULT_PLATFORM_MODIFIER;
+  return /mac/i.test(currentPlatform) ? MAC_PLATFORM_MODIFIER : DEFAULT_PLATFORM_MODIFIER;
 };
 
 export const resolveChatInputPlaceholder = (
   placeholder: string = DEFAULT_CHAT_INPUT_PLACEHOLDER,
-  platform?: string,
+  platform?: string
 ) => {
   const modifierLabel = resolveChatInputModifierLabel(platform);
 

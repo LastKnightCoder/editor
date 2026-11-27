@@ -953,7 +953,6 @@ it("快捷输入提交失败可保留原文重试，首条消息被接收时切�
     field.dispatchEvent(
       new KeyboardEvent("keydown", {
         key: "Enter",
-        metaKey: true,
         isComposing,
         bubbles: true,
         cancelable: true,

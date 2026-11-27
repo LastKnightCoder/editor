@@ -1,5 +1,5 @@
 {
-  "input.placeholder": "輸入訊息，Ctrl/Command + Enter 進行傳送",
+  "input.placeholder": "輸入訊息，Enter 傳送，Shift+Enter 換行",
   "attachment.failed": "新增附件失敗",
   "attachment.audioVideo": "暫不支援音訊及影片檔案",
   "attachment.imageFormat": "請選擇支援的圖片格式",
@@ -30,9 +30,9 @@
   "action.steer": "插話",
   "action.steerHint": "插話：目前步驟結束後交給模型（⌘/Ctrl + Shift + Enter）",
   "action.queue": "加入傳送佇列",
-  "action.queueHint": "加入傳送佇列（⌘/Ctrl + Enter）",
+  "action.queueHint": "加入傳送佇列（Enter）",
   "action.send": "傳送",
-  "action.sendHint": "傳送（⌘/Ctrl + Enter）",
+  "action.sendHint": "傳送（Enter）",
   "thinking.off.label": "立答如流",
   "thinking.off.short": "立答",
   "thinking.off.description": "關閉思考以提升回應速度",

@@ -1,5 +1,5 @@
 {
-  "input.placeholder": "Type a message, Ctrl/Command + Enter to send",
+  "input.placeholder": "Type a message, Enter to send, Shift+Enter for a new line",
   "model.unselected": "No model selected",
   "connecting.title": "Connecting to AI services...",
   "connecting.hint": "Make sure the desktop app is running",

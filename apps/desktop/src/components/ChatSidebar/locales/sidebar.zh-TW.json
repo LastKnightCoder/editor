@@ -75,7 +75,7 @@
   "chat.groupLabel": "AI 對話",
   "chat.renameFailed": "標題更新失敗",
   "empty.title": "想聊點什麼？",
-  "empty.send": "⌘/Ctrl + Enter 傳送",
+  "empty.send": "Enter 傳送 · Shift+Enter 換行",
   "empty.reference": "引用卡片、文章、專案文件",
   "empty.drop": "拖入內容作為上下文",
   "group.required": "請輸入分組名稱",
