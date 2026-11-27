@@ -127,13 +127,16 @@ describe("正文写入点白名单", () => {
   });
 
   it("正文投影提交并确认修订后，只在正文实际变化时发出一次事件", () => {
-    const source = readFileSync(join(ROOT, "main/modules/content-runtime/index.ts"), "utf8");
-    const start = source.indexOf("protected async projectSession(");
-    const end = source.indexOf("async removeSession(", start);
-    expect(start).toBeGreaterThanOrEqual(0);
-    expect(end).toBeGreaterThan(start);
-    const projection = source.slice(start, end);
-    const submitted = projection.indexOf("const result = projection.commit(");
+    // 投影逻辑已从 index.ts 的会话方法拆到 content-projection.ts；方法再搬家时下面两条断言会先报出来
+    const source = readFileSync(
+      join(ROOT, "main/modules/content-runtime/content-projection.ts"),
+      "utf8"
+    );
+    const start = source.indexOf("export async function projectSession(");
+    expect(start, "projectSession 不在 content-projection.ts 里了").toBeGreaterThanOrEqual(0);
+    const next = source.indexOf("\nexport ", start + 1);
+    const projection = source.slice(start, next < 0 ? source.length : next);
+    const submitted = projection.indexOf("projection.commit(");
     const committed = projection.indexOf("committed = true;");
     const acknowledged = projection.indexOf("source.projectionRevision = saved.revision;");
     const notified = projection.indexOf('emitContentWritten(database, source.contentId, "update")');
@@ -143,7 +146,7 @@ describe("正文写入点白名单", () => {
     expect(notified).toBeGreaterThan(acknowledged);
     expect(projection).toContain("changed = result.changed;");
     expect(projection).toMatch(
-      /if \(changed\) \{\s*this\.broadcast\("content:updated", \{[^}]*\}\);\s*emitContentWritten\(database, source\.contentId, "update"\);\s*\}/
+      /if \(changed\) \{\s*runtime\.broadcast\("content:updated", \{[^}]*\}\);\s*emitContentWritten\(database, source\.contentId, "update"\);\s*\}/
     );
     expect(projection.match(/emitContentWritten\(/g)).toHaveLength(1);
   });

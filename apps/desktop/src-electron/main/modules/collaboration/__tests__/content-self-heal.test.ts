@@ -3,7 +3,7 @@ import Database from "better-sqlite3";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { prepareContentContract } from "@tau/db-schema/content-contracts";
 import schema from "@tau/db-schema/schema/main.sql?raw";
 import agentSchema from "@tau/db-schema/schema/content-agent.sql?raw";
@@ -38,21 +38,37 @@ vi.mock("../../database", () => ({
   default: { ...host, getDatabase: (name: string) => host.databases.get(name) },
 }));
 vi.mock("../../../utils/PathUtil", () => ({ default: { getAppDir: () => host.dir } }));
+// 扩展装配与内容运行时在整份文件里只装载一次，与生产一致（启动时装配一次，之后每次执行直接复用）。
+// 冷启动装载要 4–8 秒，由 beforeAll 先付这笔时间并单独给超时；
+// 原先每次执行都重新装配，第一条用例替大家等装载，会撞上 5 秒的用例超时
+const contentRuntime = vi.hoisted(() => {
+  let warmed: Promise<void> | undefined;
+  return {
+    warm: () =>
+      (warmed ??= (async () => {
+        const { default: extensions } = await import("@/stores/useDynamicExtensionsStore");
+        await extensions.getState().initExtensions();
+        await import("@/app/plugins/content-runtime");
+      })()),
+  };
+});
 vi.mock("../../../services/content-execution", () => ({
   contentExecutor: {
     // 修复在真实内容转换运行时里执行（与生产同一份 content-runtime）
     execute: async (
       request: import("../../../../../shared/content-execution").ContentExecutionRequest
-    ) => {
-      const { default: extensions } = await import("@/stores/useDynamicExtensionsStore");
-      await extensions.getState().initExtensions();
-      await import("@/app/plugins/content-runtime");
-      return (
-        globalThis as unknown as { tauContentExecute(input: unknown): Promise<unknown> }
-      ).tauContentExecute({ hash: "unit-fixtures", artifacts: [], request });
-    },
+    ) =>
+      contentRuntime
+        .warm()
+        .then(() =>
+          (
+            globalThis as unknown as { tauContentExecute(input: unknown): Promise<unknown> }
+          ).tauContentExecute({ hash: "unit-fixtures", artifacts: [], request })
+        ),
   },
 }));
+
+beforeAll(() => contentRuntime.warm(), 60_000);
 
 const cleanup: (() => Promise<void> | void)[] = [];
 afterEach(async () => {
