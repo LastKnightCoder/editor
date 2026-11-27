@@ -37,6 +37,15 @@ interface WsServer extends WebSocketServer {
 // convertFileSrc 产出的资产 URL 会持久化进用户文档），不可动态分配
 export const RPC_SERVER_PORT = 24678;
 
+// upgrade 请求的查询串里可能带连接 token，日志只留路径
+const urlPathOf = (url: string | undefined) => {
+  try {
+    return url ? new URL(url, "http://127.0.0.1").pathname : "(empty)";
+  } catch {
+    return "(invalid)";
+  }
+};
+
 /** 独立处理握手的 WS 路径（自带来源与身份校验，不进通用转发） */
 export type UpgradeRoute = (
   request: http.IncomingMessage,
@@ -140,7 +149,7 @@ class ServerModule implements Module {
       });
 
       this.server.on("upgrade", (request, socket, head) => {
-        console.log("upgrade", request.url);
+        console.log("upgrade", urlPathOf(request.url));
         if (!request.url) {
           console.error("[ws upgrade] url is not exist");
           socket.destroy();
@@ -153,7 +162,9 @@ class ServerModule implements Module {
         }
         // 浏览器里的任意网页都能连 ws://localhost，靠浏览器不可伪造的 Origin 拒绝
         if (!isAllowedWsOrigin(request.headers.origin, devServerOrigin)) {
-          console.warn(`[ws upgrade] 拒绝来源 ${request.headers.origin} 的连接: ${request.url}`);
+          console.warn(
+            `[ws upgrade] 拒绝来源 ${request.headers.origin} 的连接: ${urlPathOf(request.url)}`
+          );
           socket.end("HTTP/1.1 403 Forbidden\r\nConnection: close\r\nContent-Length: 0\r\n\r\n");
           return;
         }
