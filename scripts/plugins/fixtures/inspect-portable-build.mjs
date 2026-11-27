@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
-import { readFile, realpath } from "node:fs/promises";
+import { readdir, readFile, realpath } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import AdmZip from "adm-zip";
-import { validatePluginManifest } from "@tau/plugins/package";
+import { parseLocalizedReadmeFilename, validatePluginManifest } from "@tau/plugins/package";
 import {
   validatePortablePluginManifest,
   validatePortableDistributionManifest,
@@ -24,6 +24,15 @@ const allowed = new Set([
   "LICENSE",
   ...Object.keys(parsed.integrity),
 ]);
+for (const name of await readdir(".")) {
+  const locale = parseLocalizedReadmeFilename(name);
+  if (!locale) continue;
+  const file = `README.${locale}.md`;
+  allowed.add(file);
+  assert.deepEqual(zip.readFile(`${parsed.id}/${file}`), await readFile(name));
+}
+if (manifest.i18n) assert.deepEqual(packaged.i18n, manifest.i18n);
+if (manifest.locales) assert.deepEqual(parsed.locales, manifest.locales);
 for (const entry of zip.getEntries()) {
   if (entry.isDirectory) continue;
   assert(entry.entryName.startsWith(`${parsed.id}/`));
