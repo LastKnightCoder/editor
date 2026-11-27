@@ -11,6 +11,7 @@ import type { MemoryStore } from "./store";
 import { isPersonalEpisode, isRhythmModel } from "./reflection";
 import { searchTerms } from "./extraction";
 import { currentPortrait, PORTRAIT_META, readPortrait } from "./portrait";
+import { warnThrottled } from "../../utils/throttled-log";
 
 export function resolveMemory(sources: MemorySourcesPort, item: AssistantMemory): AssistantMemory {
   const evidence = item.evidence.flatMap(ref => {
@@ -18,7 +19,13 @@ export function resolveMemory(sources: MemorySourcesPort, item: AssistantMemory)
       const head = sources.head(ref);
       const resolved = head && sources.read(head).validate(ref);
       return resolved ? [resolved] : [];
-    } catch {
+    } catch (error) {
+      // 依据解析失败会被整条丢弃，记忆在界面上就少了出处
+      warnThrottled(
+        `memory-evidence:${ref.kind}:${String(ref.id)}`,
+        "[assistant-memory] 记忆依据解析失败，该依据丢弃",
+        error
+      );
       return [];
     }
   });

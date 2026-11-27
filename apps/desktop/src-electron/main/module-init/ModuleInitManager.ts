@@ -144,6 +144,7 @@ class ModuleInitManager {
   async initModule(moduleName: string): Promise<{ success: boolean; error?: string }> {
     const config = this.moduleConfigs.get(moduleName);
     if (!config) {
+      log.warn(`[ModuleInitManager] 请求初始化的模块不存在: ${moduleName}`);
       return { success: false, error: `模块 ${moduleName} 不存在` };
     }
 
@@ -193,13 +194,14 @@ class ModuleInitManager {
       }
 
       // 初始化模块
+      const startedAt = Date.now();
       log.info(`[ModuleInitManager] 初始化模块: ${name}`);
       await config.init();
 
       // 更新状态
       this.readyModules.add(name);
 
-      log.info(`[ModuleInitManager] 模块 ${name} 初始化完成`);
+      log.info(`[ModuleInitManager] 模块 ${name} 初始化完成，耗时: ${Date.now() - startedAt}ms`);
 
       // 触发回调
       this.notifyCallbacks(name, true);

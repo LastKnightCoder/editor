@@ -147,7 +147,12 @@ export function usePdfPage(pdf: Pdf, page: number, width: number, enabled: boole
         url = URL.createObjectURL(result.blob);
         setImage({ key, url, error: false, page: result.page, pageCount: result.pageCount });
       },
-      () => alive && setImage({ key, url: null, error: true })
+      error => {
+        if (!alive) return;
+        // 打开、渲染或编码失败时卡面只变成错误占位，界面上没有原因
+        console.error("[pdf] 页面渲染失败", { database, pdfId: pdf.id, page }, error);
+        setImage({ key, url: null, error: true });
+      }
     );
     return () => {
       alive = false;

@@ -10,6 +10,7 @@ import {
 import { stat } from "node:fs/promises";
 import DataChangesTable from "../tables/data-changes";
 import { getPluginRegistry } from "../../services/plugin-workspaces";
+import { warnThrottled } from "../../utils/throttled-log";
 import { getPluginPermissionStore } from "../plugin-permissions";
 import type { DataChangesReadRequest } from "@tau/plugins/host";
 import { DEFAULT_CARD_CONTENT } from "@/constants/card";
@@ -357,8 +358,14 @@ class TaskAssistantModule {
           if (indexDb && contentId) {
             try {
               reindexDocTasks(db, indexDb, [contentId]);
-            } catch {
-              /* 正文写入总线会重试可重建的索引。 */
+            } catch (error) {
+              // 正文写入总线会重试可重建的索引；重试也失败时只有这里知道
+              warnThrottled(
+                `reindex:${databaseName}:${contentId}`,
+                "[doc-tasks] 正文待办重建索引失败",
+                error,
+                { databaseName, contentId }
+              );
             }
           }
           notify(databaseName);

@@ -18,7 +18,10 @@ export function useCollaborationResource(url: string | undefined) {
         .then(value => {
           if (active) setResolved(value);
         })
-        .catch(() => {});
+        .catch(error => {
+          // 解析失败时图片等资源保持未解析，界面上只看得到空白
+          console.warn("协作资源解析失败", { url }, error);
+        });
     }
     return () => {
       active = false;

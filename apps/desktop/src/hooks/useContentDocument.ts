@@ -150,8 +150,11 @@ export function useBoundContentDocument(
         setPrepared({ binding, kit, revision: pluginRevision, document });
       })
       .catch(failure => {
-        if (!cancelled)
+        if (!cancelled) {
+          // 界面上只有一句错误文案；编辑器打不开时需要知道是哪篇、因为什么
+          console.error("[content] 文档契约准备失败", { lineage }, failure);
           setPreparationError(failure instanceof Error ? failure.message : "文档契约准备失败");
+        }
       });
     return () => {
       cancelled = true;
@@ -265,8 +268,11 @@ export function useTransientContentDocument(
         });
       })
       .catch(failure => {
-        if (!cancelled)
+        if (!cancelled) {
+          // 临时文档没有可标识的 ID，只留失败原因
+          console.error("[content] 草稿契约读取失败", failure);
           setError(failure instanceof Error ? failure.message : "草稿契约无法读取，原内容已保留");
+        }
       });
     return () => {
       cancelled = true;

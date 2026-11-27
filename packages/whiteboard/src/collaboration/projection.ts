@@ -270,7 +270,10 @@ export function refresh(binding: CanvasBinding): void {
         binding.localEntities.set(node.id, { key, id });
         refresh(binding);
       })
-      .catch(() => undefined);
+      .catch(error => {
+        // 解析失败时节点停在未解析形态，界面上只看得到空白或占位
+        console.warn("白板实体投影解析失败", { kind: node.entity?.kind }, error);
+      });
   }
   children = resolveArrowBindings(binding, children, snapshot);
   const retained = new Set(flatten(children).map(node => node.id));

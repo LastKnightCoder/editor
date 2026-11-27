@@ -1158,6 +1158,9 @@ class PiSessionHostModule {
         return { ok: true };
       } catch (error) {
         if (displayData) hosted.displayWriter.discard(displayData);
+        // 用户停止属预期路径
+        if (!signal.aborted)
+          console.error(`[PiSessionHost] 提交对话失败: sessionId=${sessionId}`, error);
         return {
           ok: false,
           error: error instanceof Error ? error.message : String(error),
@@ -1220,6 +1223,9 @@ class PiSessionHostModule {
     try {
       return await task;
     } catch (error) {
+      // 用户停止属预期路径
+      if (!controller.signal.aborted)
+        console.error(`[PiSessionHost] 会话操作失败: sessionId=${sessionId}`, error);
       return {
         ok: false,
         error: error instanceof Error ? error.message : String(error),
@@ -1367,6 +1373,8 @@ class PiSessionHostModule {
     try {
       return { ok: true, ...(await run()) };
     } catch (error) {
+      // 错误只以 ok:false 返回给界面，不留痕时日志里看不到失败原因
+      console.warn("[PiSessionHost] 会话操作返回失败:", error);
       return {
         ok: false,
         error: error instanceof Error ? error.message : String(error),

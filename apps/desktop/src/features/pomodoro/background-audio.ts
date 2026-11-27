@@ -30,6 +30,8 @@ export function createPomodoroAudioPlayer() {
         if (audio === current && sound === source && next.positionMs >= 250 && current.duration > 0)
           current.currentTime = (next.positionMs / 1000) % current.duration;
       };
+      current.onerror = () =>
+        console.warn("番茄背景音加载失败", { sound: source, code: current.error?.code });
       current.src = BACKGROUND_SOUND_FILES[source];
     }
     if (audio.paused)

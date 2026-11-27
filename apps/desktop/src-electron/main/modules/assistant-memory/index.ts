@@ -37,6 +37,7 @@ import { MemoryRetrieval } from "./retrieval";
 import { MemoryVectorIndex } from "./vectors";
 import { MemoryDebugPublisher, type MemoryDebugStamp } from "./debug";
 import { isPersonalEpisode, isRhythmModel } from "./reflection";
+import { warnThrottled } from "../../utils/throttled-log";
 
 const SLOT = "assistantMemory";
 const DEBUG_CHANNEL = "assistant-memory:debug-update";
@@ -434,7 +435,9 @@ class AssistantMemoryModule {
                 .pluck()
                 .get(sinceMs) as number | null) ?? 0;
             return { peakHours, weekdayRatio, activeDays } satisfies ActivityRhythm;
-          } catch {
+          } catch (error) {
+            // 节律算不出时按没有节律处理，个人记忆里就缺这部分
+            warnThrottled("memory-rhythm", "[assistant-memory] 活动节律计算失败", error);
             return null;
           }
         },

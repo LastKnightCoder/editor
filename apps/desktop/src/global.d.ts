@@ -13,6 +13,8 @@ interface ElectronAPI {
 interface Window {
   tauPomodoroAudio: {
     listen(update: (state: import("./types/pomodoro").PomodoroAudioPlayback) => void): void;
+    /** 仅番茄钟背景音的隐藏窗口提供：把日志写入 session 文件 */
+    sendLog(level: string, message: string): void;
   };
   cheerpjInit: boolean;
   checkUpdate: () => Promise<void>;

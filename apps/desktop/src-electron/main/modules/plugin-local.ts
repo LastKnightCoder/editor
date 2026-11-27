@@ -200,6 +200,8 @@ export default {
                 results[id] = result;
                 if (result.editor || result.whiteboard) accepted.push(artifact);
               } catch (error) {
+                // 失败只回传给渲染端存进界面状态，不留痕时插件「消失」查不到原因
+                log.error(`[plugin-local] 内容插件检查失败: plugin=${id}`, error);
                 errors[id] = error instanceof Error ? error.message : String(error);
               }
             }
@@ -232,7 +234,12 @@ export default {
           app.isPackaged
         );
         return true;
-      } catch {
+      } catch (error) {
+        // 校验不过的插件被剔除出启动快照，用户只看到插件不见了
+        log.warn(
+          `[plugin-local] 内容插件未通过来源校验，已剔除出启动快照: plugin=${entry.id}`,
+          error
+        );
         return false;
       }
     });

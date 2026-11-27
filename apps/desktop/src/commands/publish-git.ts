@@ -1,4 +1,5 @@
 import type { GitSnapshotRequest, GitCacheDirectory } from "@tau/plugins";
+import { invoke } from "@/electron";
 import { ensureModule } from "./module-init";
 
 export async function publishGitSnapshot(
@@ -14,7 +15,7 @@ export async function publishGitSnapshot(
   };
   signal?.addEventListener("abort", cancel, { once: true });
   try {
-    await window.electron.invoke("publish-git:snapshot", input);
+    await invoke("publish-git:snapshot", input);
     signal?.throwIfAborted();
   } finally {
     signal?.removeEventListener("abort", cancel);

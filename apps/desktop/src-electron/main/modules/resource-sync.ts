@@ -491,8 +491,10 @@ class ResourceSyncModule {
           lastSyncTime: parsed.lastSyncTime || null,
           files: parsed.files || {},
         };
-      } catch {
-        // 状态文件损坏时按空状态处理
+      } catch (error) {
+        // 首次运行没有状态文件属预期；文件损坏时增量状态作废，可能触发全量重传
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT")
+          log.warn(`[resource-sync] 同步状态文件读取失败，按空状态处理: ${statusPath}`, error);
       }
     }
 

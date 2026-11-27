@@ -1,5 +1,6 @@
 import { on, off, isElectron } from "@/electron";
 import type { SyncRendererMessage, SyncRendererReply } from "../../../shared/sync-renderer";
+import { deliverPluginReply } from "./bridge-reply";
 import { rendererSyncRegistry } from "./sync-registry";
 
 export function connectSyncRenderer() {
@@ -19,7 +20,7 @@ export function connectSyncRenderer() {
       };
     }
     // 回复不属于业务命令作用域，任务取消后仍须释放等待方。
-    await window.electron.invoke("plugin-local:sync-reply", reply).catch(() => undefined);
+    await deliverPluginReply("sync", message.requestId, reply);
   };
   on("plugin-sync:request", receive);
   return () => {

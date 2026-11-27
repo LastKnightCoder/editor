@@ -269,7 +269,7 @@ export function registerPluginWindowIpc() {
   handle("ready", (event, { revision }) =>
     manager.ready(frameIdentity(event).webContentsId, revision)
   );
-  handle("failed", event => manager.fail(frameIdentity(event).webContentsId));
+  handle("failed", (event, { detail }) => manager.fail(frameIdentity(event).webContentsId, detail));
   handle("closeSelf", event => manager.closeSelf(frameIdentity(event).webContentsId));
   handle("getState", (event, { endpoint, key }) =>
     communication.read(pluginAddress(ownedEndpoint(event, endpoint), key))

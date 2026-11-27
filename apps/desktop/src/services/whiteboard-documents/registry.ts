@@ -45,6 +45,10 @@ export class WhiteboardDocumentEntry {
   private client?: WhiteboardDocumentClient;
   private opening?: Promise<WhiteboardDocumentClient>;
   private closing?: Promise<void>;
+  // 释放失败时租约可能滞留在主进程，下次打开表现为文档「被占用」
+  private reportReleaseFailure = (error: unknown) => {
+    console.warn("[whiteboard-sync] 文档释放失败", { documentId: this.documentId }, error);
+  };
   constructor(
     readonly target: WhiteboardDocumentTarget,
     readonly documentId: string
@@ -57,7 +61,7 @@ export class WhiteboardDocumentEntry {
       released = true;
       this.holders--;
       queueMicrotask(() => {
-        void this.releaseIdle().catch(() => undefined);
+        void this.releaseIdle().catch(this.reportReleaseFailure);
       });
     };
   }
@@ -68,7 +72,7 @@ export class WhiteboardDocumentEntry {
       .then(() => this.openOnce())
       .finally(() => {
         if (this.opening === task) this.opening = undefined;
-        if (!this.holders) void this.releaseIdle().catch(() => undefined);
+        if (!this.holders) void this.releaseIdle().catch(this.reportReleaseFailure);
       });
     this.opening = task;
     return task;
@@ -100,7 +104,14 @@ export class WhiteboardDocumentEntry {
         void queryClient.invalidateQueries({
           queryKey: whiteboardShareStatusKey(this.target.databaseName, this.documentId),
         });
-        if (this.holders) void this.open().catch(() => undefined);
+        if (this.holders)
+          void this.open().catch(error => {
+            console.error(
+              "[whiteboard-sync] 文档重新打开失败",
+              { documentId: this.documentId },
+              error
+            );
+          });
       });
       this.attachRemote(client);
       this.set({ phase: "ready", client });
@@ -109,8 +120,18 @@ export class WhiteboardDocumentEntry {
     } catch (error) {
       if (client) {
         disposeClient(client);
-        if (client.leaseId)
-          void whiteboardDocumentBackend.release(client.leaseId).catch(() => undefined);
+        const leaseId = client.leaseId;
+        if (leaseId)
+          void whiteboardDocumentBackend.release(leaseId).catch(error => {
+            console.warn(
+              "[whiteboard-sync] 打开失败后释放租约失败",
+              {
+                documentId: this.documentId,
+                leaseId,
+              },
+              error
+            );
+          });
       }
       this.set({ phase: "error", client: previous, error });
       throw error;

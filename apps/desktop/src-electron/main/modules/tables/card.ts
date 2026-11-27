@@ -2,6 +2,7 @@ import { fallbackCommandContext, type CommandContext } from "@tau/rpc";
 import Database from "better-sqlite3";
 import { asynchronousDatabaseCommand } from "../database-command";
 import { getMarkdownText, mapContentSnapshots } from "../../services/content-conversion";
+import { reportStoredJsonFailure } from "../../utils/stored-json";
 import { ICreateCard, IUpdateCard, ICard } from "@/types";
 import type { Descendant } from "slate";
 import Operation from "./operation";
@@ -174,7 +175,7 @@ export default class CardTable {
       const now = Date.now();
       const ids: number[] = [];
       for (const row of rows) {
-        const tags = parseTagList(row.tags);
+        const tags = parseTagList(row.tags, row.id);
         const next = rewrite(tags);
         if (sameTags(tags, next)) continue;
         update.run(now, JSON.stringify(next), row.id);
@@ -600,13 +601,14 @@ export default class CardTable {
   }
 }
 
-function parseTagList(raw: string): string[] {
+function parseTagList(raw: string, id?: number): string[] {
   try {
     const parsed = JSON.parse(raw ?? "[]");
     return Array.isArray(parsed)
       ? parsed.filter((tag): tag is string => typeof tag === "string")
       : [];
-  } catch {
+  } catch (error) {
+    reportStoredJsonFailure("cards.tags", error, id);
     return [];
   }
 }

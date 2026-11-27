@@ -1,3 +1,4 @@
+import { invoke } from "@/electron";
 import { withModule } from "./module-init";
 import type { JsonValue } from "@tau/plugins";
 export const savePluginTTSConfig = (
@@ -7,7 +8,7 @@ export const savePluginTTSConfig = (
   models: readonly { id: string; label?: string }[]
 ): Promise<void> =>
   withModule("plugin-local", () =>
-    window.electron.invoke("plugin-local:tts-config", instanceId, pluginId, config, models)
+    invoke("plugin-local:tts-config", instanceId, pluginId, config, models)
   );
 import type { TTSRendererRequest, TTSRendererReply } from "../../shared/tts-renderer";
 

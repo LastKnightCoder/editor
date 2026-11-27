@@ -10,6 +10,7 @@ import { replaceColdContent } from "./content-replacement";
 import { contentSession } from "../collaboration/content-sessions";
 import { getContentLength } from "@/utils/helper.ts";
 import { getMarkdownText, mapContentSnapshots } from "../../services/content-conversion";
+import { reportStoredJsonFailure } from "../../utils/stored-json";
 import log from "electron-log";
 
 // weather/mood 反序列化后的结构（与前端 WeatherMood 对齐）
@@ -985,7 +986,9 @@ export default class DiaryTable {
         let tags: string[];
         try {
           tags = JSON.parse(row.tags ?? "[]");
-        } catch {
+        } catch (error) {
+          // 这一片会带着已删除的标签留在库里
+          reportStoredJsonFailure("diary_segments.tags", error, row.id);
           continue;
         }
         if (!tags.includes(name)) continue;

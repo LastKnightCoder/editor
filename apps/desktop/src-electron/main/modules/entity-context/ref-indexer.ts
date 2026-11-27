@@ -12,6 +12,7 @@
 import type Database from "better-sqlite3";
 import { extractInlineRefs } from "@/entity/inline-refs";
 import { extractWhiteboardEmbeds } from "@/entity/whiteboard-refs";
+import { reportStoredJsonFailure } from "../../utils/stored-json";
 
 /** 对账时每批处理的正文数，批间让出事件循环 */
 export const RECONCILE_BATCH = 50;
@@ -49,7 +50,9 @@ const parseContent = (raw: string | null): unknown => {
   if (!raw) return [];
   try {
     return JSON.parse(raw);
-  } catch {
+  } catch (error) {
+    // 这篇正文的内联引用与嵌入不会被建进索引
+    reportStoredJsonFailure("contents.content", error);
     return [];
   }
 };

@@ -122,15 +122,16 @@ class MainContentIndexDBManager {
     const startedAt = Date.now();
     try {
       const settingPath = join(PathUtil.getAppDir(), "setting.json");
+      // 每次打开索引库都会读一次设置，这些都是预期路径，不进 session 日志
       if (!existsSync(settingPath)) {
-        log.info(
+        log.debug(
           `[MainContentIndexDB] resolveVecDimensions unavailable: reason=setting_missing, elapsedMs=${Date.now() - startedAt}`
         );
         return null;
       }
       const raw = readFileSync(settingPath, "utf8");
       if (!raw.trim()) {
-        log.info(
+        log.debug(
           `[MainContentIndexDB] resolveVecDimensions unavailable: reason=setting_empty, elapsedMs=${Date.now() - startedAt}`
         );
         return null;
@@ -138,12 +139,12 @@ class MainContentIndexDBManager {
       const setting = JSON.parse(raw) as Record<string, unknown>;
       const dimensions = resolveEmbeddingConfig(setting)?.dimensions;
       if (!dimensions || dimensions <= 0) {
-        log.info(
+        log.debug(
           `[MainContentIndexDB] resolveVecDimensions unavailable: reason=config_missing, elapsedMs=${Date.now() - startedAt}`
         );
         return null;
       }
-      log.info(
+      log.debug(
         `[MainContentIndexDB] resolveVecDimensions success: dimensions=${dimensions}, elapsedMs=${Date.now() - startedAt}`
       );
       return dimensions;
@@ -346,7 +347,9 @@ class MainContentIndexDBManager {
       this.writeRebuildState(indexDb, "pending", "vec");
     }
     const nextRebuildState = this.getRebuildState(mainDbName);
-    log.info(
+    // 索引库就绪是每次查询前的常规步骤；只有没就绪或表被重建时才值得进 session 日志
+    const level = vecRecreated || nextRebuildState !== "ready" ? "info" : "debug";
+    log[level](
       `[MainContentIndexDB] ensureReady done: mainDb=${mainDbName}, rebuildState=${nextRebuildState}, vecDimensions=${vecDimensions}, vecRecreated=${vecRecreated}, elapsedMs=${Date.now() - startAt}`
     );
     return {

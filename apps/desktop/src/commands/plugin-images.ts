@@ -1,3 +1,4 @@
+import { invoke } from "@/electron";
 import { withModule } from "./module-init";
 import type { JsonValue } from "@tau/plugins";
 export const savePluginImagesConfig = (
@@ -7,7 +8,7 @@ export const savePluginImagesConfig = (
   modelId: string
 ): Promise<void> =>
   withModule("plugin-local", () =>
-    window.electron.invoke("plugin-local:images-config", instanceId, pluginId, config, modelId)
+    invoke("plugin-local:images-config", instanceId, pluginId, config, modelId)
   );
 import type { ImagesRendererRequest, ImagesRendererReply } from "../../shared/images-renderer";
 

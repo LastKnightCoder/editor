@@ -29,6 +29,17 @@ export function connectCollaborationImageStorage() {
         reference: await uploadResource(file, controller.signal),
       };
     } catch (error) {
+      // 失败原因只回传给来访窗口，实际执行上传的作者窗口不留痕就无从排查；
+      // 消息来自其他窗口，字段可能不完整
+      console.warn(
+        "[collab-image] 作者图片存储失败",
+        {
+          requestId: message.requestId,
+          mime: message.file?.mime,
+          bytes: message.file?.bytes?.byteLength,
+        },
+        error
+      );
       reply = {
         requestId: message.requestId,
         hostSession,

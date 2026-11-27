@@ -113,7 +113,9 @@ export async function notePendingAssets(manager: CollaborationManager, session: 
   session.resourcesDirty = true;
   await manager.persist(session);
   manager.changed();
-  void manager.processResources(session).catch(() => {});
+  void manager
+    .processResources(session)
+    .catch(error => console.warn("[collab] 协作资源处理失败", { session: session.info.id }, error));
 }
 
 export function processResources(

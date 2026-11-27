@@ -56,6 +56,7 @@ class PiAiRuntimeModule {
       try {
         return { ok: true, providers: await listCatalogProviders() };
       } catch (error) {
+        console.error("[PiAiRuntime] catalog-providers error:", error);
         return { ok: false, error: errorMessage(error), providers: [] };
       }
     });
@@ -63,6 +64,7 @@ class PiAiRuntimeModule {
       try {
         return { ok: true, models: await listCatalogModels(builtin) };
       } catch (error) {
+        console.error("[PiAiRuntime] catalog-models error:", error);
         return { ok: false, error: errorMessage(error), models: [] };
       }
     });
@@ -86,6 +88,7 @@ class PiAiRuntimeModule {
         try {
           return { ok: true, ...(await resolveThinkingLevels(provider, modelId)) };
         } catch (error) {
+          console.error("[PiAiRuntime] thinking-levels error:", error);
           return { ok: false, error: errorMessage(error), levels: [], fromCatalog: false };
         }
       }

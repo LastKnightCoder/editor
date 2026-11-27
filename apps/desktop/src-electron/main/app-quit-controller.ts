@@ -9,6 +9,7 @@ import { pluginBackends, setPluginBackendsPaused } from "./modules/plugin-backen
 import { isContentRuntimeWindow } from "./windows/create-window";
 import { disposePluginWindows } from "./windows/plugin-window-ipc";
 import { contentExecutor } from "./services/content-execution";
+import { markSessionEnded } from "./modules/logger";
 
 // 主进程广播该事件后，渲染进程完成收尾（自动同步等）并通过 app:quitting-ready 回执
 const QUITTING_CHANNEL = "app:quitting";
@@ -75,6 +76,7 @@ async function runControlledQuit(
     if (finished) return;
     finished = true;
     clearTimeout(forceExitTimer);
+    markSessionEnded();
     pluginBackends.forceDispose();
     contentExecutor.dispose();
     // destroy 绕过隐藏窗口和 beforeunload 的关闭拦截。

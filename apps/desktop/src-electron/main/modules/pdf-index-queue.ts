@@ -3,6 +3,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import log from "electron-log";
+import { warnThrottled } from "../utils/throttled-log";
 import type { Module } from "../types/module";
 import type {
   PdfDocumentMap,
@@ -443,7 +444,9 @@ class PdfIndexQueue implements Module {
       }
       const pageIndex = await document.getPageIndex(resolvedDest[0]);
       return Number.isFinite(pageIndex) ? pageIndex + 1 : null;
-    } catch {
+    } catch (error) {
+      // 这条大纲项会没有页码，点击后跳不过去；损坏的 PDF 每个大纲项都会走到这里，按来源限频
+      warnThrottled("pdf-outline-dest", "[pdf] 大纲目标解析失败，该大纲项没有页码", error);
       return null;
     }
   }

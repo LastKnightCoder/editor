@@ -65,6 +65,10 @@ export class CollaborationLocalStore {
     const discarded = join(this.directory, "discarded");
     mkdirSync(discarded, { recursive: true, mode: 0o700 });
     const stamp = `${Date.now()}-version-${version}`;
+    // 重建后共享正文需要重新同步，用户会以为内容变旧或丢失
+    console.warn(
+      `[collab-cache] 缓存格式与当前版本不符，原文件移入 discarded 后重建: version=${version}, settings=${settings.length}, resources=${resources.length}, file=${stamp}-${this.filename}`
+    );
     for (const suffix of ["", "-wal", "-shm"])
       if (existsSync(path + suffix))
         renameSync(path + suffix, join(discarded, `${stamp}-${this.filename}${suffix}`));
@@ -235,8 +239,13 @@ export class CollaborationLocalStore {
     const resources = this.db.prepare("SELECT * FROM resources WHERE document_id=?").all(id);
     const directory = join(this.directory, "discarded");
     mkdirSync(directory, { recursive: true, mode: 0o700 });
+    // 备份文件名为 <时间戳>-<document>.json，按 document 摘要即可找到
+    const document = digest(Buffer.from(id)).slice(0, 16);
+    console.warn(
+      `[collab-cache] 无法恢复的缓存已备份并丢弃: document=${document}, reason=${reason}, updates=${updates.length}, resources=${resources.length}`
+    );
     writeFileSync(
-      join(directory, `${Date.now()}-${digest(Buffer.from(id)).slice(0, 16)}.json`),
+      join(directory, `${Date.now()}-${document}.json`),
       JSON.stringify({
         id,
         reason,

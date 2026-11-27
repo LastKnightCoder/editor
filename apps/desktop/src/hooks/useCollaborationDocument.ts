@@ -67,7 +67,8 @@ export default function useCollaborationDocument(documentId?: string, mode?: "lo
         }
       })()
         .catch(failure => {
-          if (!disposed) setError(failure instanceof Error ? failure.message : t("collab.draftNotSaved"));
+          if (!disposed)
+            setError(failure instanceof Error ? failure.message : t("collab.draftNotSaved"));
           throw failure;
         })
         .finally(() => {
@@ -93,7 +94,8 @@ export default function useCollaborationDocument(documentId?: string, mode?: "lo
           } catch (failure) {
             pending.unshift(...batch);
             await preserveDocument();
-            if (!disposed) setError(failure instanceof Error ? failure.message : t("collab.localSaveFailed"));
+            if (!disposed)
+              setError(failure instanceof Error ? failure.message : t("collab.localSaveFailed"));
             throw failure;
           }
         }
@@ -111,14 +113,22 @@ export default function useCollaborationDocument(documentId?: string, mode?: "lo
         try {
           activeBinding?.flushLocal?.();
         } catch (failure) {
-          if (!disposed) setError(failure instanceof Error ? failure.message : t("collab.localSaveFailed"));
+          if (!disposed)
+            setError(failure instanceof Error ? failure.message : t("collab.localSaveFailed"));
           return;
         }
         if (!disposed) flushSync(() => setFrozen(true));
         // 只有编辑确认进入主进程会话才回执；失败时副本已另存，不回执让冻结方超时并恢复编辑。
         void Promise.all([sendUpdates(), sendDrafts()])
           .then(() => commands.freezeAck.call(viewId, payload.requestId))
-          .catch(() => {});
+          .catch(error => {
+            // 冻结方只会看到超时，这里留下是哪篇正文、哪次请求没有确认
+            console.warn(
+              "[collab-doc] 冻结确认失败，冻结方将超时并恢复编辑",
+              { documentId: id, requestId: payload.requestId },
+              error
+            );
+          });
       } else if (!disposed) flushSync(() => setFrozen(false));
     };
     const onFlush = (event: unknown, payload: { documentId: string }) =>
@@ -250,7 +260,8 @@ export default function useCollaborationDocument(documentId?: string, mode?: "lo
         publish();
       })
       .catch(failure => {
-        if (!disposed) setError(failure instanceof Error ? failure.message : t("collab.articleLoadFailed"));
+        if (!disposed)
+          setError(failure instanceof Error ? failure.message : t("collab.articleLoadFailed"));
       });
     const retry = setInterval(() => {
       if (pending.length) void sendUpdates().catch(() => {});

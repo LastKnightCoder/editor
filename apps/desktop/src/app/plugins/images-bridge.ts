@@ -1,6 +1,7 @@
 import { isElectron, on, off } from "@/electron";
 import { withModule } from "@/commands/module-init";
 import type { ImagesRendererMessage, ImagesRendererReply } from "../../../shared/images-renderer";
+import { deliverPluginReply } from "./bridge-reply";
 import { rendererImagesRegistry } from "./images-registry";
 
 export function connectImagesRenderer() {
@@ -48,8 +49,7 @@ export function connectImagesRenderer() {
     } finally {
       tasks.delete(message.requestId);
     }
-    if (!disposed)
-      await window.electron.invoke("plugin-local:images-reply", reply).catch(() => undefined);
+    if (!disposed) await deliverPluginReply("images", message.requestId, reply);
   };
   on("plugin-images:request", receive);
   on("plugin-images:cancel", cancel);

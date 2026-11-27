@@ -371,8 +371,9 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
     if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
     persistTimerRef.current = setTimeout(() => {
       persistTimerRef.current = null;
-      void backendRef.current.write(encodeScene(scene, persistKey)).catch(() => {
-        // 写不进去只是下次重开要重算布局，不该打断使用
+      void backendRef.current.write(encodeScene(scene, persistKey)).catch(error => {
+        // 写不进去只是下次重开要重算布局，不该打断使用；但用户排好的布局会丢
+        console.warn("[knowledge-map] 布局坐标保存失败，重开后将重新计算", { persistKey }, error);
       });
     }, PERSIST_DEBOUNCE);
   });
@@ -531,7 +532,10 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
           }
           begin(coverage);
         })
-        .catch(() => begin(0));
+        .catch(error => {
+          console.warn("[knowledge-map] 已保存的布局读取失败，使用初始布局", { persistKey }, error);
+          begin(0);
+        });
     } else {
       begin(0);
     }

@@ -14,10 +14,18 @@ const LOG_MAX_SIZE = 10 * 1024 * 1024;
 const RENDERER_LOG_CHANNEL = "logger:renderer-log";
 const RENDERER_LOG_LEVELS = ["debug", "info", "warn", "error"] as const;
 type RendererLogLevel = (typeof RENDERER_LOG_LEVELS)[number];
+interface RendererLogPayload {
+  level?: unknown;
+  message?: unknown;
+  role?: unknown;
+}
 
 function isRendererLogLevel(value: unknown): value is RendererLogLevel {
   return typeof value === "string" && (RENDERER_LOG_LEVELS as readonly string[]).includes(value);
 }
+
+// 上次会话的启动标记：受控退出时删除；下次启动时仍在，说明上次是崩溃、被强制退出或断电
+const EXIT_MARKER = path.join(PathUtil.getAppDir(), "session.incomplete");
 
 // session 文件名：启动时间 + 随机后缀，避免秒级内连续重启撞名
 function createSessionLogPath(): string {
@@ -53,30 +61,18 @@ function installConsoleProxy() {
   }
 }
 
-// 接收渲染进程劫持 console 后上报的日志，标注来源窗口后落盘
+// 接收渲染进程劫持 console 后上报的日志，标注来源窗口后落盘。
+// 来源只用窗口角色与编号：窗口标题就是笔记标题，不能进日志
 function installRendererLogHandler() {
   const rendererLog = log.scope("renderer");
-  ipcMain.on(
-    RENDERER_LOG_CHANNEL,
-    (event, payload: { level?: unknown; message?: unknown } | undefined) => {
-      if (!payload || typeof payload.message !== "string") {
-        return;
-      }
-      const level = isRendererLogLevel(payload.level) ? payload.level : "info";
-      let source = "";
-      try {
-        if (!event.sender.isDestroyed()) {
-          const title = event.sender.getTitle();
-          if (title) {
-            source = `[${title}] `;
-          }
-        }
-      } catch {
-        // 窗口销毁竞态下取标题失败时缺省来源标记
-      }
-      rendererLog[level](`${source}${payload.message}`);
+  ipcMain.on(RENDERER_LOG_CHANNEL, (event, payload: RendererLogPayload | undefined) => {
+    if (!payload || typeof payload.message !== "string") {
+      return;
     }
-  );
+    const level = isRendererLogLevel(payload.level) ? payload.level : "info";
+    const role = typeof payload.role === "string" && payload.role ? payload.role : "window";
+    rendererLog[level](`[${role}#${event.sender.id}] ${payload.message}`);
+  });
 }
 
 // 清理过期日志：logs 目录下的 session 文件（含轮转产物）
@@ -129,6 +125,29 @@ export function setupLogger() {
 }
 
 setupLogger();
+
+/** 取得单例锁后调用：标记仍在说明上次没有走到受控退出 */
+export function markSessionStarted() {
+  try {
+    if (fs.existsSync(EXIT_MARKER)) {
+      log.warn("上次会话未正常结束（崩溃、被强制退出或断电）", {
+        lastStart: fs.readFileSync(EXIT_MARKER, "utf-8").trim(),
+      });
+    }
+    fs.writeFileSync(EXIT_MARKER, new Date().toISOString());
+  } catch {
+    // 标记读写失败只影响这条提示，不影响启动
+  }
+}
+
+/** 受控退出的最终动作前调用，之后的启动不再提示异常退出 */
+export function markSessionEnded() {
+  try {
+    fs.rmSync(EXIT_MARKER, { force: true });
+  } catch {
+    // 删不掉时下次启动会多一条提示
+  }
+}
 
 export default {
   init: async () => {

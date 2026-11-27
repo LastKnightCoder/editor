@@ -1,4 +1,5 @@
 import log from "electron-log";
+import { reportStoredJsonFailure } from "../utils/stored-json";
 import type Database from "better-sqlite3";
 import { Module } from "../types/module";
 import databaseModule from "./database";
@@ -165,7 +166,9 @@ class MainContentVecIndexQueue implements Module {
     }
     try {
       return JSON.parse(row.value) as MainContentVecIndexProgress;
-    } catch {
+    } catch (error) {
+      // 记录损坏时设置页的索引状态会显示成从未运行过
+      reportStoredJsonFailure("vec_index_meta.last_run", error);
       return null;
     }
   }

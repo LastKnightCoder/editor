@@ -1,6 +1,7 @@
 import { on, off, isElectron } from "@/electron";
 import { withModule } from "@/commands/module-init";
 import type { UploadRendererMessage, UploadRendererReply } from "../../../shared/upload-renderer";
+import { deliverPluginReply } from "./bridge-reply";
 import { rendererUploadRegistry } from "./upload-registry";
 
 export function connectUploadRenderer() {
@@ -36,8 +37,7 @@ export function connectUploadRenderer() {
     } finally {
       tasks.delete(message.requestId);
     }
-    if (!disposed)
-      await window.electron.invoke("plugin-local:upload-reply", reply).catch(() => undefined);
+    if (!disposed) await deliverPluginReply("upload", message.requestId, reply);
   };
   on("plugin-upload:request", receive);
   on("plugin-upload:cancel", cancel);

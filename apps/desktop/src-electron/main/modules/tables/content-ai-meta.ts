@@ -6,6 +6,7 @@
  */
 
 import type Database from "better-sqlite3";
+import { reportStoredJsonFailure } from "../../utils/stored-json";
 import { contentBlockLines } from "@/entity/text-digest";
 
 /** 元信息写入后的写事件（经 notifyExternalWrite 补发，进脉络写事件白名单），也是渲染端的广播频道 */
@@ -60,7 +61,8 @@ export function parseContentAiMeta(raw: string | null | undefined): ContentAiMet
       concepts: strings(value.concepts),
       claims: strings(value.claims),
     };
-  } catch {
+  } catch (error) {
+    reportStoredJsonFailure("content_ai_meta.meta", error);
     return null;
   }
 }
@@ -152,7 +154,8 @@ const parseJsonOrNull = (raw: string | null): unknown => {
   if (!raw) return null;
   try {
     return JSON.parse(raw);
-  } catch {
+  } catch (error) {
+    reportStoredJsonFailure("contents.content", error);
     return null;
   }
 };

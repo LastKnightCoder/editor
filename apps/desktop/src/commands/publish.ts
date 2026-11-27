@@ -96,5 +96,5 @@ export async function savePublishPluginConfig(
   value: import("@tau/plugins").JsonValue
 ): Promise<void> {
   await ensureModule("plugin-local");
-  return window.electron.invoke("plugin-local:publish-config", id, value);
+  return invoke("plugin-local:publish-config", id, value);
 }

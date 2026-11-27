@@ -4,6 +4,7 @@ import { isElectron, on, off } from "@/electron";
 import { withModule } from "@/commands/module-init";
 import useSettingStore from "@/stores/useSettingStore";
 import type { VideoRendererMessage, VideoRendererReply } from "../../../shared/video-renderer";
+import { deliverPluginReply } from "./bridge-reply";
 import { RendererVideoRegistry } from "./video-registry";
 
 export const rendererVideoRegistry = new RendererVideoRegistry(
@@ -43,8 +44,7 @@ export function connectVideoRenderer() {
     } finally {
       tasks.delete(message.requestId);
     }
-    if (!disposed)
-      await window.electron.invoke("plugin-local:video-reply", reply).catch(() => undefined);
+    if (!disposed) await deliverPluginReply("video", message.requestId, reply);
   };
   const ready = withModule("plugin-local", async () => {
     if (disposed) return;

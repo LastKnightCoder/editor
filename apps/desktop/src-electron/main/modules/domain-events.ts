@@ -225,6 +225,52 @@ function merge(previous: Action | undefined, next: Action): Action | null {
   return next === "deleted" ? "deleted" : "updated";
 }
 
+// 排障留痕：数据被谁增删。修改只在插件写入或批量（达到 BULK_UPDATE_MIN）时才记，
+// 用户正常编辑产生的单条 updated 不留痕，否则每次保存都会有一行
+const BULK_UPDATE_MIN = 5;
+const TRACE_ID_LIMIT = 20;
+
+function traceChanges(dbName: string, events: DomainEventRecord[]) {
+  const groups = new Map<
+    string,
+    {
+      type: string;
+      pluginId?: string;
+      kind?: string;
+      collection?: string;
+      count: number;
+      ids: string[];
+    }
+  >();
+  for (const event of events) {
+    const key = JSON.stringify([event.type, event.pluginId, event.kind, event.collection]);
+    const group = groups.get(key) ?? {
+      type: event.type,
+      pluginId: event.pluginId,
+      kind: event.kind,
+      collection: event.collection,
+      count: 0,
+      ids: [],
+    };
+    group.count++;
+    if (event.id !== undefined && group.ids.length < TRACE_ID_LIMIT)
+      group.ids.push(typeof event.id === "number" ? String(event.id) : event.id);
+    groups.set(key, group);
+  }
+  for (const { type, pluginId, kind, collection, count, ids } of groups.values()) {
+    const updated = type.endsWith(".updated");
+    if (updated && !pluginId && count < BULK_UPDATE_MIN) continue;
+    console.info(`[data-change] ${type}`, {
+      db: dbName,
+      count,
+      ids: ids.join(","),
+      ...(pluginId ? { plugin: pluginId } : {}),
+      ...(kind ? { kind } : {}),
+      ...(collection ? { collection } : {}),
+    });
+  }
+}
+
 class DomainEventsModule implements Module {
   name = "domain-events";
   private readonly pending = new Map<string, Pending>();
@@ -446,6 +492,7 @@ class DomainEventsModule implements Module {
         next.timer = setTimeout(() => this.flush(dbName, next), 0);
       }
       if (!events.length) return;
+      traceChanges(dbName, events);
       const message: DomainEventMessage = { databaseName: dbName, events };
       for (const window of BrowserWindow.getAllWindows()) {
         try {

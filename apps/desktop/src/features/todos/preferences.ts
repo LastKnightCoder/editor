@@ -4,6 +4,7 @@
  */
 
 import type { AgendaMode } from "./components/AgendaPanel";
+import { logThrottled } from "@/utils/throttled-log";
 
 const KEY = "tau-todos-preferences";
 
@@ -14,7 +15,15 @@ function readAll(): TodosPreferences {
     const raw = window.localStorage.getItem(KEY);
     const value: unknown = raw ? JSON.parse(raw) : null;
     return value && typeof value === "object" ? (value as TodosPreferences) : {};
-  } catch {
+  } catch (error) {
+    // 每次渲染都会读，损坏的值会反复走到这里：按来源节流
+    logThrottled(
+      "todos-preferences-read",
+      "warn",
+      "[todos] 待办偏好读取失败，按默认处理",
+      undefined,
+      error
+    );
     return {};
   }
 }
@@ -22,8 +31,9 @@ function readAll(): TodosPreferences {
 function patch(next: TodosPreferences): void {
   try {
     window.localStorage.setItem(KEY, JSON.stringify({ ...readAll(), ...next }));
-  } catch {
-    // 存储不可用时静默跳过，偏好丢失不影响功能
+  } catch (error) {
+    // 偏好丢失不影响功能，但筛选与分段方式会在重启后回到默认
+    logThrottled("todos-preferences-write", "warn", "[todos] 待办偏好保存失败", undefined, error);
   }
 }
 

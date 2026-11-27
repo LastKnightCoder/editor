@@ -1,15 +1,16 @@
 import { isRpcNotificationMessage, isRpcResponseMessage } from "./rpc";
 import { v4 as uuidv4 } from "uuid";
 import { RpcMessageType } from "@/types";
+import { logThrottled } from "@/utils/throttled-log";
 
 type NotificationHandler = (data: unknown) => void;
-export type WebSocketConnectionState =
-  | "connecting"
-  | "open"
-  | "reconnecting"
-  | "closed";
+export type WebSocketConnectionState = "connecting" | "open" | "reconnecting" | "closed";
 
 type ConnectionStateHandler = (state: WebSocketConnectionState) => void;
+
+// 启动期渲染端常先于后端服务就绪，头几次重连是正常竞态；持续失败才值得告警
+const RECONNECT_WARN_AFTER = 10;
+const RECONNECT_LOG_INTERVAL_MS = 30_000;
 
 interface Request {
   resolve: (value: unknown | PromiseLike<unknown>) => void;
@@ -27,6 +28,8 @@ class WebSocketClient {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private manualClose = false;
   private reconnectDelayMs = 1000;
+  private reconnectAttempts = 0;
+  private reconnectLoggedAt = 0;
 
   constructor(url: string) {
     this.url = url;
@@ -44,7 +47,7 @@ class WebSocketClient {
   unregisterNotificationHandler(method: string, handler: NotificationHandler) {
     const handlers = this.notificationHandler[method];
     if (Array.isArray(handlers)) {
-      const newHandlers = handlers.filter((h) => h !== handler);
+      const newHandlers = handlers.filter(h => h !== handler);
       this.notificationHandler[method] = newHandlers;
     }
   }
@@ -71,12 +74,11 @@ class WebSocketClient {
   private connect() {
     this.ws = new WebSocket(this.url);
     this.setConnectionState(
-      this.connectionState === "reconnecting" ? "reconnecting" : "connecting",
+      this.connectionState === "reconnecting" ? "reconnecting" : "connecting"
     );
     this.ws.addEventListener("message", this.onMessage.bind(this));
     this.ws.addEventListener("open", this.onOpen.bind(this));
     this.ws.addEventListener("close", this.onClose.bind(this));
-    this.ws.addEventListener("error", this.onError.bind(this));
   }
 
   private onMessage(event: MessageEvent) {
@@ -123,7 +125,7 @@ class WebSocketClient {
 
     return new Promise<void>((resolve, reject) => {
       let timer: ReturnType<typeof setTimeout> | undefined;
-      const unsubscribe = this.onConnectionStateChange((state) => {
+      const unsubscribe = this.onConnectionStateChange(state => {
         if (state === "open") {
           if (timer) {
             clearTimeout(timer);
@@ -142,13 +144,28 @@ class WebSocketClient {
     });
   }
 
-  async sendRequest(method: string, params: unknown, timeout = 60000) {
+  /**
+   * 传输层失败（未连接、等待超时、连接断开）只到这里才知道，调用方多半只弹提示，
+   * 因此在这里统一留痕；服务端返回的业务错误是普通对象，由服务端落日志。
+   */
+  sendRequest(method: string, params: unknown, timeout = 60000): Promise<unknown> {
+    return this.request(method, params, timeout).catch((error: unknown) => {
+      if (error instanceof Error)
+        logThrottled(`backend-ws:${method}`, "warn", "[backend-ws] 请求失败", {
+          method,
+          state: this.connectionState,
+          error: error.message,
+        });
+      throw error;
+    });
+  }
+
+  private async request(method: string, params: unknown, timeout = 60000) {
     const startedAt = Date.now();
     await this.waitForOpen(timeout);
 
     const elapsedMs = Date.now() - startedAt;
-    const remainingTimeout =
-      timeout > 0 ? Math.max(0, timeout - elapsedMs) : timeout;
+    const remainingTimeout = timeout > 0 ? Math.max(0, timeout - elapsedMs) : timeout;
 
     return new Promise<unknown>((resolve, reject) => {
       if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
@@ -198,17 +215,29 @@ class WebSocketClient {
       this.reconnectTimer = null;
     }
     this.setConnectionState("open");
-    console.log("WebSocketClient onOpen");
+    console.info("[backend-ws] 已连接", { attempts: this.reconnectAttempts });
+    this.reconnectAttempts = 0;
   }
 
-  onClose() {
+  onClose(event: CloseEvent) {
     this.rejectPendingRequests(new Error("WebSocket connection closed"));
-    console.log("WebSocketClient onClose");
     if (this.manualClose) {
       this.setConnectionState("closed");
       return;
     }
 
+    this.reconnectAttempts += 1;
+    const now = Date.now();
+    const early = this.reconnectAttempts < RECONNECT_WARN_AFTER;
+    if (early || now - this.reconnectLoggedAt >= RECONNECT_LOG_INTERVAL_MS) {
+      this.reconnectLoggedAt = now;
+      console[early ? "info" : "warn"]("[backend-ws] 连接断开，准备重连", {
+        code: event.code,
+        reason: event.reason,
+        wasClean: event.wasClean,
+        attempts: this.reconnectAttempts,
+      });
+    }
     this.setConnectionState("reconnecting");
     if (!this.reconnectTimer) {
       this.reconnectTimer = setTimeout(() => {
@@ -216,10 +245,6 @@ class WebSocketClient {
         this.connect();
       }, this.reconnectDelayMs);
     }
-  }
-
-  onError(event: Event) {
-    console.error("WebSocketClient onError", event);
   }
 
   close() {

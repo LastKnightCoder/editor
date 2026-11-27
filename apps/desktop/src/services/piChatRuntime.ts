@@ -110,6 +110,18 @@ interface ConversationEntry {
 /** 空闲条目最多保留几条：超出按最近使用淘汰；在跑、等待交互、有队列/插话、挂着的不计入也不淘汰 */
 const MAX_IDLE_CONVERSATIONS = 20;
 
+/** 一轮对话运行（一条用户消息到沉淀）的排障计数：起跑时登记，settled 时写成一行摘要后移除 */
+interface RunStats {
+  startedAt: number;
+  /** 每个 assistant 消息的工具调用数：事件是全量快照，同一轮只保留最大值 */
+  toolCallsByTurn: Map<string, number>;
+  finishedTurns: number;
+  inputTokens: number;
+  outputTokens: number;
+  finishReason: string | null;
+}
+const runStats = new WeakMap<ConversationEntry, RunStats>();
+
 /**
  * 投影回写容器：投影是事实源，但按位置沿用原 clientId（列表按 clientId 做 key，
  * 换成 `pi:<entryId>` 会让每条消息重挂载、滚动位置跳动）。只在角色对得上、且是**同一条**消息时
@@ -545,6 +557,12 @@ class PiChatRuntime {
           );
         },
         applyToolCalls: (turnId, executions, toolCalls) => {
+          const stats = runStats.get(entry);
+          if (stats && toolCalls?.length)
+            stats.toolCallsByTurn.set(
+              turnId,
+              Math.max(stats.toolCallsByTurn.get(turnId) ?? 0, toolCalls.length)
+            );
           this.mutateLastAssistant(key, message =>
             applyAssistantToolCallsSnapshot(message, turnId, executions, toolCalls)
           );
@@ -559,6 +577,11 @@ class PiChatRuntime {
               ...entry.chat.current,
               compaction: { ...compaction, isCurrent: false },
             };
+          const stats = runStats.get(entry);
+          if (stats) {
+            stats.inputTokens += usage.inputTokens;
+            stats.outputTokens += usage.outputTokens;
+          }
           const model = entry.deps.usageModel;
           this.mutateLastAssistant(key, message => {
             message.usage = {
@@ -567,10 +590,24 @@ class PiChatRuntime {
             };
           });
         },
-        onAssistantTurnEnd: () => {},
+        onAssistantTurnEnd: ({ finishReason }) => {
+          const stats = runStats.get(entry);
+          if (stats) {
+            stats.finishedTurns++;
+            stats.finishReason = finishReason;
+          }
+        },
         onAgentStart: () => {
           entry.stopRequested = false;
           if (!entry.streaming) {
+            runStats.set(entry, {
+              startedAt: performance.now(),
+              toolCallsByTurn: new Map(),
+              finishedTurns: 0,
+              inputTokens: 0,
+              outputTokens: 0,
+              finishReason: null,
+            });
             const last = entry.chat.current.messages.at(-1);
             if (
               last?.role === Role.Assistant &&
@@ -632,6 +669,24 @@ class PiChatRuntime {
           if (entry.streaming) {
             entry.streaming = false;
             this.notify(key);
+          }
+          const stats = runStats.get(entry);
+          if (stats) {
+            // 一轮运行只留这一行：答到一半停了、答非所问时先看结束原因与工具调用数
+            runStats.delete(entry);
+            const model = entry.deps.usageModel;
+            console.info("[ai-run] 对话运行结束", {
+              sessionId: entry.sessionId,
+              providerId: model?.providerId,
+              modelId: model?.modelId,
+              finishReason: stats.finishReason,
+              turns: stats.finishedTurns,
+              toolCalls: [...stats.toolCallsByTurn.values()].reduce((sum, count) => sum + count, 0),
+              inputTokens: stats.inputTokens,
+              outputTokens: stats.outputTokens,
+              elapsedMs: Math.round(performance.now() - stats.startedAt),
+              stopped: entry.stopRequested,
+            });
           }
           // 本轮结束还挂着的插话就是没送达的（中止、或提交时这轮刚好已收尾）：
           // 退回待发送队首，由排空按普通消息发出（用户按过停止时队列是暂停的，等他处置）

@@ -4,7 +4,8 @@ import { queryClient } from "@/queryClient";
 /**
  * 渲染端性能采集：事件循环延迟 / 长任务 / 掉帧片段 / JS 堆内存 / react-query 刷新频率。
  * 全部为被动低频采样，事件经独立 IPC 通道（不走 logger 的 sendLog，避免限流与日志污染）
- * 汇聚到主进程 perf-monitor 的 ring buffer，由「导出性能快照」落盘。
+ * 汇聚到主进程 perf-monitor 的 ring buffer，由「导出性能快照」落盘；启动阶段每次仅数条，
+ * 额外镜像到 session 日志（`[startup]`），排查启动慢或卡住时不必导出快照。
  * 在 init.ts 最早安装；非 Electron 环境（测试 / 浏览器预览）不启动。
  */
 
@@ -45,6 +46,9 @@ export function recordPerfStage(label: string, startedAt: number, count?: number
   if (!window.electron) return;
   const ms = performance.now() - startedAt;
   if (ms >= thresholdMs) report({ kind: "stage", label, ms, count });
+  // 启动阶段同时进 session 日志：用户反馈启动慢或卡住时不必另导性能快照
+  if (label.startsWith("startup:"))
+    console.info("[startup] 阶段完成", { label, ms: Math.round(ms), count });
 }
 
 // --- 事件循环延迟（心跳法） ---

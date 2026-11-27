@@ -7,6 +7,7 @@
  */
 
 import type Database from "better-sqlite3";
+import { reportStoredJsonFailure } from "../../utils/stored-json";
 import type { ComposeBoard, ComposeBoardSummary } from "@/types/compose";
 import WhiteboardContentTable from "./white-board-content";
 
@@ -33,11 +34,12 @@ const EMPTY_PAGE = {
   presentationSequences: [],
 };
 
-function parseDismissed(raw: string): string[] {
+function parseDismissed(raw: string, contentId?: number): string[] {
   try {
     const value = JSON.parse(raw);
     return Array.isArray(value) ? value.filter(item => typeof item === "string") : [];
-  } catch {
+  } catch (error) {
+    reportStoredJsonFailure("compose_boards.dismissed", error, contentId);
     return [];
   }
 }
@@ -46,7 +48,7 @@ const toBoard = (row: RawRow): ComposeBoard => ({
   contentId: row.content_id,
   pageId: row.page_id,
   intent: row.intent,
-  dismissed: parseDismissed(row.dismissed),
+  dismissed: parseDismissed(row.dismissed, row.content_id),
   createTime: row.create_time,
   updateTime: row.update_time,
 });

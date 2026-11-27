@@ -220,7 +220,9 @@ class File implements Module {
           sender.send("directory-changed", { directoryPath });
         }
       });
-    } catch {
+    } catch (error) {
+      // 监听起不来时目录视图不再自动刷新，界面上不会报错
+      console.warn(`[file] 目录监听启动失败: ${directoryPath}`, error);
       return;
     }
 
@@ -229,7 +231,8 @@ class File implements Module {
       senderId: sender.id,
       watcher,
     });
-    watcher.once("error", () => {
+    watcher.once("error", error => {
+      console.warn(`[file] 目录监听中断，已停止: ${directoryPath}`, error);
       this.disposeDirectoryWatcher(watchKey);
     });
   }

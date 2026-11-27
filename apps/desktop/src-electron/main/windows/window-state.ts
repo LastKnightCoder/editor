@@ -20,7 +20,10 @@ function readStore(): BoundsStore {
   if (cache) return cache;
   try {
     cache = JSON.parse(fs.readFileSync(storeFile(), "utf-8")) as BoundsStore;
-  } catch {
+  } catch (error) {
+    // 首次运行没有文件属预期；文件读不出时所有窗口的位置记忆作废，才需要留痕
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT")
+      log.warn("窗口位置记忆读取失败，窗口将按默认位置打开:", error);
     cache = {};
   }
   return cache;

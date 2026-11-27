@@ -68,6 +68,7 @@ function ensureWindow(): BrowserWindow {
     win = null;
     rendererReady = false;
     // 窗口崩溃重建后旧卡片已不可恢复，未冲 flush 的排队通知一并放弃
+    if (pending.length) log.warn(`通知窗口已关闭，放弃 ${pending.length} 条排队通知`);
     pending = [];
   });
   return win;

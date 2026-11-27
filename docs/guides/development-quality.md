@@ -162,6 +162,45 @@ TAU_FRAME_DRAG_STRESS=1 pnpm --filter desktop exec vitest run src/services/white
 
 投影性能对照、真实 IPC、跨端往返、容量及硬杀验证的命令和通过条件见 [正文回归与容量验证](/docs/guides/dev-content-verification.md)。
 
+### 通用排查入口
+
+在本次 `session-*.log` 按标签检索，先看错误行之前的最后一条阶段或状态日志。
+
+- 版本：看日志开头的「应用版本」行；「上次会话未正常结束」表示上一次是崩溃、被强制退出或断电。
+- 来源：渲染进程的行以 `[窗口角色#编号]` 开头（如 `[main#1]`、`[editor#3]`），同一编号是同一窗口。
+- 节流：带 `suppressed` 的行是汇总，表示此前省略了那么多条同一来源的重复日志。
+
+| 标签                                                      | 回答的问题                                                                                           | 关键字段                                                       |
+| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `[ipc]`                                                   | 界面点了没反应：哪个调用失败、是否等过未注册的通道                                                   | `channel`、`elapsedMs`、`attempts`、`waitedMs`、`error`        |
+| `[window]`、`[process]`                                   | 窗口白屏、卡死、花屏：渲染进程是否退出、窗口是否无响应、子进程是否异常退出                           | `window`、`reason`、`exitCode`                                 |
+| `[startup]`                                               | 启动慢或卡在启动界面：渲染入口停在哪一阶段                                                           | `label`、`ms`                                                  |
+| `[backend-ws]`                                            | 番茄钟、发布等后端功能不工作：连接是否断开、重连了几次、哪个请求没等到结果                           | `code`、`reason`、`attempts`、`method`                         |
+| `[route]`                                                 | 整窗崩溃页：出错时的路由                                                                             | `path`                                                         |
+| `[llm]`                                                   | AI 功能失败：哪家服务商、哪个模型、什么错误                                                          | `providerId`、`modelId`、`error`                               |
+| `[ai-run]`                                                | AI 一轮对话怎么结束的：模型、结束原因、调了几次工具、耗时                                            | `finishReason`、`turns`、`toolCalls`、`elapsedMs`、`stopped`   |
+| `[tool-call]`                                             | AI 每次调用了哪个工具、返回多大、用了多久                                                            | `tool`、`source`、`elapsedMs`、`bytes`                         |
+| `[data-change]`                                           | 数据怎么变的：卡片、文章、项目文档、白板、待办、日程、插件数据的新增与删除                           | `type`、`ids`、`count`、`plugin`                               |
+| `[transfer]`                                              | 导入导出的结果：计划数、成功、失败、跳过                                                             | `planned`、`docs`、`imported`、`failed`、`warnings`、`stopped` |
+| `[stored-json]`                                           | 没报错但字段是空的：存库的 JSON 解析失败后被当成空值                                                 | `field`、`id`                                                  |
+| `[content-plugin]`、`[plugin-local]`                      | 插件不见了：装配、检查或来源校验失败                                                                 | `pluginId`                                                     |
+| `[plugin-backend]`                                        | 插件后台没起来：启动失败、异常退出、调用超时                                                         | `plugin`、`state`、`failures`                                  |
+| `[plugin-window]`、`[plugin-bridge]`                      | 插件窗口异常关闭、插件请求的回执没送到                                                               | `pluginId`、`windowId`、`kind`、`requestId`                    |
+| `[content-runtime]`                                       | 内容转换失败或超时                                                                                   | `operation`                                                    |
+| `[whiteboard-sync]`                                       | 白板没保存、文档被占用：待发队列写入、打开、释放                                                     | `documentId`、`batchId`、`leaseId`                             |
+| `[collab-cache]`                                          | 共享正文重新同步：协作缓存被重建或丢弃                                                               | `version`、`reason`、`document`                                |
+| `[collab-doc]`、`[collab-image]`                          | 共享正文冻结超时、作者侧图片存储失败                                                                 | `documentId`、`requestId`                                      |
+| `[database]`                                              | 资料库打不开、升级后异常：开库失败在哪一步、结构升级的原因；界面卡死或很慢：卡在哪个调用上、耗时多久 | `db`、`step`、`fromVersion`、`reasons`、`event`、`elapsedMs`   |
+| `[doc-tasks]`、`[task-assistant]`、`[pomodoro]`           | 待办项目为空、提醒没发、番茄钟开始或结束失败                                                         | `database`、`taskRef`、`method`                                |
+| `[assistant-memory]`                                      | 个人记忆的摘要、召回、依据失败                                                                       | `kind`、`id`                                                   |
+| `[pdf]`、`[knowledge-map]`、`[content]`、`[tool]`         | PDF 页渲染失败、地图布局丢失、编辑器打不开、工具按空结果作答                                         | `pdfId`、`page`、`persistKey`、`lineage`、`tableId`            |
+| `[sync-diagnostic]`、`[database-sync]`、`[sync-transfer]` | 同步配置与传输失败                                                                                   | 见[存储同步](/docs/architecture/storage-sync.md)               |
+| `[content-save]`                                          | 正文保存失败                                                                                         | 见下节                                                         |
+
+移动端沿用同一套标签，写在带 `[ui]` 的行里：`[collab]`（协作启动、持久化、资源处理）、`[plugins]`（批量更新入队）、`[ai-chat]`（内容对话查找）。
+
+判据：`attempts`、`failures` 持续增长说明在重试；`suppressed` 很大说明短时间内重复触发。`[data-change]` 只记新增、删除、插件写入和批量修改，正常编辑正文不会出现，看不到它不代表保存出了问题。
+
 ### 正文保存故障排查
 
 1. 在本次 `session-*.log` 搜索 `[content-save]`，日志目录以应用启动日志为准。

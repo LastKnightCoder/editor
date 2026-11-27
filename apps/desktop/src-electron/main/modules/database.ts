@@ -119,6 +119,40 @@ function createWindowCommandContext(win: BrowserWindow | null): CommandContext {
   };
 }
 
+// 数据库调用是主要的 IPC 流量（一次启动上万次），逐条记开始与完成会占满 session 日志：
+// 只在耗时超过 SLOW_CALL_MS、超过 HANG_CALL_MS 仍未完成、或失败时留痕，快的交给性能快照
+const SLOW_CALL_MS = 1000;
+const HANG_CALL_MS = 5000;
+
+function trackDatabaseCall(kind: "调用" | "索引调用", db: string, event: string) {
+  const startedAt = Date.now();
+  // 界面卡在某个调用上时不必等它结束就能看到卡在哪；
+  // 同步阻塞期间定时器走不动，那种情况由完成行补上耗时
+  const hang = setTimeout(
+    () =>
+      log.warn(
+        `[database] ${kind}仍在执行: db=${db}, event=${event}, elapsedMs=${Date.now() - startedAt}`
+      ),
+    HANG_CALL_MS
+  );
+  hang.unref?.();
+  return {
+    /** 成功结束：返回耗时，慢调用补一条完成行 */
+    done: () => {
+      clearTimeout(hang);
+      const elapsedMs = Date.now() - startedAt;
+      if (elapsedMs >= SLOW_CALL_MS)
+        log.info(`[database] 慢${kind}完成: db=${db}, event=${event}, elapsedMs=${elapsedMs}`);
+      return elapsedMs;
+    },
+    /** 失败结束：失败行自带耗时，这里只清理计时 */
+    failed: () => {
+      clearTimeout(hang);
+      return Date.now() - startedAt;
+    },
+  };
+}
+
 class DatabaseModule implements Module {
   name: string;
 
@@ -390,6 +424,8 @@ class DatabaseModule implements Module {
 
     const openStartAt = Date.now();
     const database = new Database(dbPath);
+    // 失败时配合最后一条 done 日志定位卡在哪一步
+    let step = "sqlite-open";
     try {
       if (!database) throw new Error("No database found");
       log.info(
@@ -397,6 +433,7 @@ class DatabaseModule implements Module {
       );
 
       const extensionStartAt = Date.now();
+      step = "load-sqlite-vec";
       loadSqliteVecExtension(database);
       log.info(
         `[database] openDatabase load sqlite-vec done: db=${name}, elapsedMs=${Date.now() - extensionStartAt}`
@@ -412,6 +449,7 @@ class DatabaseModule implements Module {
       );
 
       const schemaStartAt = Date.now();
+      step = "main-schema";
       ensureMainSchema(database);
       log.info(
         `[database] openDatabase main schema done: db=${name}, elapsedMs=${Date.now() - schemaStartAt}`
@@ -419,6 +457,7 @@ class DatabaseModule implements Module {
 
       if (mode === "maintenance") {
         const maintenanceStartAt = Date.now();
+        step = "maintenance";
         TodoGroupTable.ensureSystemGroups(database);
         DiaryTable.ensureDefaultTagSettings(database);
         TodoCalendarSyncTable.ensureTodoCalendars(database);
@@ -486,8 +525,8 @@ class DatabaseModule implements Module {
             log.info(
               `[database] openDatabase vacuum done: db=${name}, reclaimedPages=${freelistCount}, elapsedMs=${Date.now() - vacuumStartAt}`
             );
-          } catch (e) {
-            console.error(e);
+          } catch (error) {
+            console.error(`[database] openDatabase vacuum 失败: db=${name}`, error);
           }
         }
       }
@@ -498,6 +537,10 @@ class DatabaseModule implements Module {
 
       return database;
     } catch (error) {
+      log.error(
+        `[database] openDatabase 失败: db=${name}, mode=${mode}, step=${step}, elapsedMs=${Date.now() - startedAt}`,
+        error
+      );
       database.close();
       throw error;
     }
@@ -845,6 +888,7 @@ class DatabaseModule implements Module {
         try {
           return { result: executeReadOnlySql(readOnlyDb, input) };
         } catch (error) {
+          console.warn(`[database] 只读 SQL 查询执行失败: db=${dbName}`, error);
           return {
             error: {
               code: (error as { code?: string }).code ?? "SQL_EXECUTION_ERROR",
@@ -882,9 +926,7 @@ class DatabaseModule implements Module {
         const db = this.getDatabase(dbName);
         if (!db) throw new Error("No database found");
 
-        log.info(`database ${dbName} event ${eventName}`);
-        // 完成日志与开始日志成对出现：排查 IPC 挂起时，缺 done 的最后一条 event 即卡住点
-        const startedAt = Date.now();
+        const call = trackDatabaseCall("调用", dbName, eventName);
         try {
           const res = await executeDatabaseCommand(
             db,
@@ -893,19 +935,18 @@ class DatabaseModule implements Module {
             ...args,
             createWindowCommandContext(win)
           );
-          const elapsedMs = Date.now() - startedAt;
+          const elapsedMs = call.done();
           recordSqlCall(dbName, eventName, elapsedMs, true);
           // database 事件是主要 IPC 流量，计入速率统计供洪水检测（聚焦刷新风暴等）
           recordIpcCall(eventName, elapsedMs, true);
           this.notifyDatabaseWrite(dbName, eventName);
-          log.info(`database ${dbName} event ${eventName} done elapsedMs=${elapsedMs}`);
           return res;
         } catch (e) {
-          const elapsedMs = Date.now() - startedAt;
+          const elapsedMs = call.failed();
           recordSqlCall(dbName, eventName, elapsedMs, false);
           recordIpcCall(eventName, elapsedMs, false);
           log.error(
-            `[database] event failed: db=${dbName}, event=${eventName}, elapsedMs=${Date.now() - startedAt}`,
+            `[database] event failed: db=${dbName}, event=${eventName}, elapsedMs=${elapsedMs}`,
             e
           );
           throw e;
@@ -953,26 +994,29 @@ class DatabaseModule implements Module {
         const indexDb = this.getIndexDatabase(dbName);
         if (!indexDb) throw new Error("No index database found");
 
-        log.info(`database ${dbName} index event ${eventName}`);
-        const indexStartedAt = Date.now();
-        const logIndexDone = () =>
-          log.info(
-            `database ${dbName} index event ${eventName} done elapsedMs=${Date.now() - indexStartedAt}`
-          );
-
-        const startedAt = Date.now();
+        const call = trackDatabaseCall("索引调用", dbName, eventName);
         if (readOnlyIndexEvents.has(eventName)) {
-          const res = await this.indexEventAndHandlers[eventName](
-            mainDb,
-            indexDb,
-            ...args,
-            createWindowCommandContext(win)
-          );
-          const elapsedMs = Date.now() - startedAt;
-          recordSqlCall(dbName, eventName, elapsedMs, true);
-          recordIpcCall(eventName, elapsedMs, true);
-          logIndexDone();
-          return res;
+          try {
+            const res = await this.indexEventAndHandlers[eventName](
+              mainDb,
+              indexDb,
+              ...args,
+              createWindowCommandContext(win)
+            );
+            const elapsedMs = call.done();
+            recordSqlCall(dbName, eventName, elapsedMs, true);
+            recordIpcCall(eventName, elapsedMs, true);
+            return res;
+          } catch (e) {
+            const elapsedMs = call.failed();
+            recordSqlCall(dbName, eventName, elapsedMs, false);
+            recordIpcCall(eventName, elapsedMs, false);
+            log.error(
+              `[database] index event failed: db=${dbName}, event=${eventName}, elapsedMs=${elapsedMs}`,
+              e
+            );
+            throw e;
+          }
         }
 
         try {
@@ -984,17 +1028,16 @@ class DatabaseModule implements Module {
             ...args,
             createWindowCommandContext(win)
           );
-          const elapsedMs = Date.now() - startedAt;
+          const elapsedMs = call.done();
           recordSqlCall(dbName, eventName, elapsedMs, true);
           recordIpcCall(eventName, elapsedMs, true);
-          logIndexDone();
           return res;
         } catch (e) {
-          const elapsedMs = Date.now() - startedAt;
+          const elapsedMs = call.failed();
           recordSqlCall(dbName, eventName, elapsedMs, false);
           recordIpcCall(eventName, elapsedMs, false);
           log.error(
-            `[database] index event failed: db=${dbName}, event=${eventName}, elapsedMs=${Date.now() - indexStartedAt}`,
+            `[database] index event failed: db=${dbName}, event=${eventName}, elapsedMs=${elapsedMs}`,
             e
           );
           throw e;

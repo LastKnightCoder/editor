@@ -42,7 +42,7 @@ class PdfIndexOrchestrator implements Module {
   private enqueueReconcile(event: ReconcileEvent) {
     this.reconcileChain = this.reconcileChain
       .then(() => this.handleEvent(event))
-      .catch((error) => {
+      .catch(error => {
         log.error("[PdfIndexOrchestrator] reconcile event failed:", error);
       });
   }
@@ -51,9 +51,7 @@ class PdfIndexOrchestrator implements Module {
     if (event.type === "startup") {
       const dbName = databaseModule.getCurrentDatabaseName();
       if (dbName === this.lastReconciledDbName) {
-        log.info(
-          `[PdfIndexOrchestrator] Skip startup, already reconciled: ${dbName}`,
-        );
+        log.info(`[PdfIndexOrchestrator] Skip startup, already reconciled: ${dbName}`);
         return;
       }
       await this.reconcileForCurrentDb(dbName, "startup_reconcile");
@@ -77,9 +75,9 @@ class PdfIndexOrchestrator implements Module {
 
   private async waitForStartupDelay(trigger: string) {
     log.info(
-      `[PdfIndexOrchestrator] Delay reconcile: trigger=${trigger}, delayMs=${STARTUP_RECONCILE_DELAY_MS}`,
+      `[PdfIndexOrchestrator] Delay reconcile: trigger=${trigger}, delayMs=${STARTUP_RECONCILE_DELAY_MS}`
     );
-    await new Promise<void>((resolve) => {
+    await new Promise<void>(resolve => {
       setTimeout(resolve, STARTUP_RECONCILE_DELAY_MS);
     });
   }
@@ -87,9 +85,7 @@ class PdfIndexOrchestrator implements Module {
   private async reconcileForCurrentDb(mainDbName: string, reason: string) {
     const db = databaseModule.getDatabase(mainDbName);
     if (!db) {
-      log.info(
-        `[PdfIndexOrchestrator] Skip reconcile, database not connected: ${mainDbName}`,
-      );
+      log.info(`[PdfIndexOrchestrator] Skip reconcile, database not connected: ${mainDbName}`);
       return;
     }
 
@@ -120,14 +116,14 @@ class PdfIndexOrchestrator implements Module {
       } catch (error) {
         failed += 1;
         log.warn(
-          `[PdfIndexOrchestrator] ensure index failed: db=${mainDbName}, pdfId=${pdf.id}, fileName=${pdf.fileName}, error=${error}`,
+          `[PdfIndexOrchestrator] ensure index failed: db=${mainDbName}, pdfId=${pdf.id}, fileName=${pdf.fileName}, error=${error}`
         );
       }
     }
 
     this.lastReconciledDbName = mainDbName;
     log.info(
-      `[PdfIndexOrchestrator] Reconcile finished: db=${mainDbName}, reason=${reason}, total=${pdfs.length}, ready=${ready}, skipped=${skipped}, failed=${failed}`,
+      `[PdfIndexOrchestrator] Reconcile finished: db=${mainDbName}, reason=${reason}, total=${pdfs.length}, ready=${ready}, skipped=${skipped}, failed=${failed}`
     );
   }
 
@@ -135,8 +131,9 @@ class PdfIndexOrchestrator implements Module {
     const candidatePath = String(pdf.filePath || "").trim();
     if (!candidatePath) {
       if (!pdf.isLocal && pdf.remoteUrl) {
-        log.info(
-          `[PdfIndexOrchestrator] Skip remote PDF without local cache path: pdfId=${pdf.id}, fileName=${pdf.fileName}`,
+        // 每轮对账都会逐个命中，汇总见 Reconcile finished 的 skipped；文件名不进 session 日志
+        log.debug(
+          `[PdfIndexOrchestrator] Skip remote PDF without local cache path: pdfId=${pdf.id}, fileName=${pdf.fileName}`
         );
       }
       return null;
@@ -148,12 +145,12 @@ class PdfIndexOrchestrator implements Module {
     } catch {
       if (!pdf.isLocal && pdf.remoteUrl) {
         log.info(
-          `[PdfIndexOrchestrator] Skip remote PDF because cache path is missing: pdfId=${pdf.id}, fileName=${pdf.fileName}, path=${candidatePath}`,
+          `[PdfIndexOrchestrator] Skip remote PDF because cache path is missing: pdfId=${pdf.id}, fileName=${pdf.fileName}, path=${candidatePath}`
         );
         return null;
       }
       log.warn(
-        `[PdfIndexOrchestrator] Skip PDF because local file is missing: pdfId=${pdf.id}, fileName=${pdf.fileName}, path=${candidatePath}`,
+        `[PdfIndexOrchestrator] Skip PDF because local file is missing: pdfId=${pdf.id}, fileName=${pdf.fileName}, path=${candidatePath}`
       );
       return null;
     }

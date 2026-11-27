@@ -42,6 +42,7 @@ vi.mock("electron", () => ({
   globalShortcut: { unregisterAll: vi.fn() },
 }));
 vi.mock("electron-log", () => ({ default: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
+vi.mock("../modules/logger", () => ({ markSessionEnded: vi.fn() }));
 vi.mock("../modules/plugin-backend", () => ({
   get pluginBackends() {
     return must(state.host, "state.host");

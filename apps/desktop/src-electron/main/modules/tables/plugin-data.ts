@@ -4,6 +4,7 @@ import { basename } from "node:path";
 import { fallbackCommandContext, type CommandContext } from "@tau/rpc";
 import type { Descendant } from "slate";
 import { getMarkdownText } from "../../services/content-conversion";
+import { reportStoredJsonFailure } from "../../utils/stored-json";
 import { resolvePluginContent, sharedContentId } from "./plugin-content-input";
 import { readPageQuery, toPage } from "./plugin-data-page";
 import { DEFAULT_CARD_CONTENT } from "@/constants/card";
@@ -136,12 +137,13 @@ interface DocumentPlacement {
   index: number;
 }
 
-function parseList(value: string | null): unknown[] {
+function parseList(value: string | null, field: string): unknown[] {
   if (!value) return [];
   try {
     const parsed = JSON.parse(value);
     return Array.isArray(parsed) ? parsed : [];
-  } catch {
+  } catch (error) {
+    reportStoredJsonFailure(field, error);
     return [];
   }
 }
@@ -506,7 +508,7 @@ export default class PluginDataTable {
         .all(...batch) as ItemRow[];
       for (const row of found) {
         rows.set(row.id, row);
-        for (const child of parseList(row.children))
+        for (const child of parseList(row.children, "plugin_data.children"))
           if (Number.isSafeInteger(child) && !rows.has(child as number))
             pending.push(child as number);
       }
@@ -520,8 +522,8 @@ export default class PluginDataTable {
         const refKind = row.ref_type === "card" || row.ref_type === "article" ? row.ref_type : null;
         const ref: PluginProjectNodeRecord["ref"] =
           refKind && row.ref_id ? { kind: refKind, id: row.ref_id } : undefined;
-        const children = parseList(row.children).filter((child): child is number =>
-          Number.isSafeInteger(child)
+        const children = parseList(row.children, "plugin_data.children").filter(
+          (child): child is number => Number.isSafeInteger(child)
         );
         return [
           {
@@ -772,7 +774,10 @@ export default class PluginDataTable {
       string,
       unknown
     >;
-    if (request.entity === "project" && parseList(row.children as string).length)
+    if (
+      request.entity === "project" &&
+      parseList(row.children as string, "plugin_data.children").length
+    )
       throw new Error("项目里还有文档，不能删除");
     writeAsPlugin(request.pluginId, () => {
       if (request.entity === "whiteboard") WhiteboardsTable.deleteWhiteboard(db, request.id);
@@ -1035,9 +1040,10 @@ export default class PluginDataTable {
 
   /** 画板页须仍在宽限期内；恢复后重新持有每一页 */
   private static restoreWhiteboard(db: Database.Database, row: Record<string, unknown>) {
-    let pages = parseList(row.white_board_content_ids as string).filter((id): id is number =>
-      Number.isSafeInteger(id)
-    );
+    let pages = parseList(
+      row.white_board_content_ids as string,
+      "plugin_data.white_board_content_ids"
+    ).filter((id): id is number => Number.isSafeInteger(id));
     const exists = db.prepare("SELECT 1 FROM white_board_contents WHERE id = ?");
     if (pages.some(page => !exists.get(page))) throw new Error("画板页已被清理，无法恢复");
     const id = this.reinsertRow(db, "white_boards", row);
@@ -1145,7 +1151,9 @@ export default class PluginDataTable {
       id: row.id,
       revision: String(row.revision),
       title: titles ? (row.content_id ? (titles.get(row.content_id) ?? "") : "") : row.title,
-      tags: parseList(row.tags).filter((tag): tag is string => typeof tag === "string"),
+      tags: parseList(row.tags, "plugin_data.tags").filter(
+        (tag): tag is string => typeof tag === "string"
+      ),
       pinned: Boolean(row.pinned),
       contentId: row.content_created === null ? null : row.content_id,
       contentCreatedAt: row.content_created,
@@ -1155,7 +1163,7 @@ export default class PluginDataTable {
       ...(entity === "document"
         ? {
             kind: row.kind || "document",
-            projectIds: parseList(row.projects).filter((id): id is number =>
+            projectIds: parseList(row.projects, "plugin_data.projects").filter((id): id is number =>
               Number.isSafeInteger(id)
             ),
           }

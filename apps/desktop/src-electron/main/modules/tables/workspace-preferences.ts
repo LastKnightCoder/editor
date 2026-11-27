@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import type { WorkspacePreferences } from "@/types/workspace-preferences";
+import { reportStoredJsonFailure } from "../../utils/stored-json";
 
 export const FEATURE_ONBOARDING_KEY = "features.onboarding";
 const FEATURES_DISABLED_KEY = "features.disabled";
@@ -58,7 +59,8 @@ function parseDisabled(raw: string | undefined): string[] {
   try {
     const parsed: unknown = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === "string") : [];
-  } catch {
+  } catch (error) {
+    reportStoredJsonFailure("workspace_preferences.disabledFeatures", error);
     return [];
   }
 }

@@ -35,7 +35,17 @@ function AiContentChatScreen() {
     queryKey: ["ai-content-chat-session", databaseName, params.contentId],
     queryFn: async () => {
       const { findContentChat } = await import("../../../services/aiChat/chatController");
-      const found = await findContentChat(databaseName, params.contentId).catch(() => null);
+      const found = await findContentChat(databaseName, params.contentId).catch(
+        (error: unknown) => {
+          // 读取失败会被当成「没有历史对话」而新建，原有对话看起来像丢了
+          console.warn(
+            "[ai-chat] 查找内容对话失败，按新对话处理",
+            { contentId: params.contentId },
+            error
+          );
+          return null;
+        }
+      );
       return found ? { id: found.id, isNew: false } : { id: crypto.randomUUID(), isNew: true };
     },
     enabled: !!databaseName,

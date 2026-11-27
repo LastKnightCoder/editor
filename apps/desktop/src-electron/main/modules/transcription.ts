@@ -65,6 +65,9 @@ class TranscriptionModule implements Module {
           );
           return { success: true, data };
         } catch (error) {
+          // 用户取消属预期路径
+          if (!(error instanceof ASRError && error.code === "cancelled"))
+            console.error("[Transcription] Transcribe failed:", error);
           return {
             success: false,
             error: error instanceof Error ? error.message : String(error),
@@ -190,6 +193,9 @@ class TranscriptionModule implements Module {
           });
           return { success: true, data };
         } catch (error) {
+          // 用户取消属预期路径
+          if (!(error instanceof ASRError && error.code === "cancelled"))
+            console.error("[Transcription] Transcribe failed:", error);
           return {
             success: false,
             error: error instanceof Error ? error.message : String(error),

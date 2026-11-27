@@ -13,16 +13,18 @@ import { contentTitles } from "./content-ai-meta";
 import ContentTable from "./content";
 import MaterialTable from "./material";
 import type { SqliteRow } from "../../types/table";
+import { reportStoredJsonFailure } from "../../utils/stored-json";
 
 /** Slate 文档按块取纯文本：第一块即卡片的开头 */
 export const blockLines = contentBlockLines;
 
-const parseJsonArray = (raw: unknown): unknown[] => {
+const parseJsonArray = (raw: unknown, field: string): unknown[] => {
   if (typeof raw !== "string") return Array.isArray(raw) ? raw : [];
   try {
     const value = JSON.parse(raw);
     return Array.isArray(value) ? value : [];
-  } catch {
+  } catch (error) {
+    reportStoredJsonFailure(field, error);
     return [];
   }
 };
@@ -224,7 +226,7 @@ export default class EntitySearchTable {
             return {
               kind,
               id: row.id as number,
-              projectId: Number(parseJsonArray(row.projects)[0]) || null,
+              projectId: Number(parseJsonArray(row.projects, "project_item.projects")[0]) || null,
               title: (row.title as string | null) || undefined,
             };
           break;
@@ -330,7 +332,7 @@ export default class EntitySearchTable {
       case "project_item": {
         const item = get(`SELECT title, content_id, projects FROM project_item WHERE id = ?`);
         if (!item) return null;
-        const projectId = Number(parseJsonArray(item.projects)[0]) || null;
+        const projectId = Number(parseJsonArray(item.projects, "project_item.projects")[0]) || null;
         const project =
           projectId != null
             ? (db.prepare(`SELECT title FROM project WHERE id = ?`).get(projectId) as
@@ -354,8 +356,10 @@ export default class EntitySearchTable {
           ...base,
           contentId: null,
           title: (project.title as string | null) || "无标题项目",
-          excerpt: blockLines(parseJsonArray(project.d)).join(" ").slice(0, EXCERPT),
-          meta: `${parseJsonArray(project.children).length} 篇文档`,
+          excerpt: blockLines(parseJsonArray(project.d, "project_item.d"))
+            .join(" ")
+            .slice(0, EXCERPT),
+          meta: `${parseJsonArray(project.children, "project.children").length} 篇文档`,
         };
       }
       case "notebook": {
@@ -390,7 +394,10 @@ export default class EntitySearchTable {
           `SELECT title, description, white_board_content_ids FROM white_boards WHERE id = ?`
         );
         if (!board) return null;
-        const pages = parseJsonArray(board.white_board_content_ids).length;
+        const pages = parseJsonArray(
+          board.white_board_content_ids,
+          "white_boards.white_board_content_ids"
+        ).length;
         return {
           ...base,
           contentId: null,

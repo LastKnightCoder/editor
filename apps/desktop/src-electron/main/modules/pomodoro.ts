@@ -194,6 +194,8 @@ class PomodoroModule {
             error: null,
           };
         } catch (error) {
+          // 走 WebSocket 的请求不经过 IPC 入口，失败只回给界面
+          console.error(`[pomodoro] ${method} 处理失败`, error);
           return {
             type: RpcMessageType.Response,
             id,
@@ -251,6 +253,8 @@ class PomodoroModule {
             error: null,
           };
         } catch (error) {
+          // 走 WebSocket 的请求不经过 IPC 入口，失败只回给界面
+          console.error(`[pomodoro] ${method} 处理失败`, error);
           return {
             type: RpcMessageType.Response,
             id,
@@ -294,6 +298,8 @@ class PomodoroModule {
             error: null,
           };
         } catch (error) {
+          // 走 WebSocket 的请求不经过 IPC 入口，失败只回给界面
+          console.error(`[pomodoro] ${method} 处理失败`, error);
           return {
             type: RpcMessageType.Response,
             id,
@@ -329,6 +335,8 @@ class PomodoroModule {
             error: null,
           };
         } catch (error) {
+          // 走 WebSocket 的请求不经过 IPC 入口，失败只回给界面
+          console.error(`[pomodoro] ${method} 处理失败`, error);
           return {
             type: RpcMessageType.Response,
             id,
@@ -523,8 +531,9 @@ class PomodoroModule {
         },
         { kind: "main" }
       );
-    } catch (_e) {
-      // 通知失败不影响会话落库
+    } catch (error) {
+      // 通知失败不影响会话落库，但用户就收不到完成提示
+      console.error("[pomodoro] 会话结束通知发送失败", error);
     }
 
     this.activeSession = null;

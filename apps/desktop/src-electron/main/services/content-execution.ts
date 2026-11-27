@@ -6,7 +6,7 @@ import type {
   ContentExecutionEnvelope,
   ContentExecutionRequest,
 } from "../../../shared/content-execution";
-import { createWindow } from "../windows/create-window";
+import { createWindow, expectRendererExit } from "../windows/create-window";
 import { getContentPluginArtifacts } from "./plugin-content-artifacts";
 
 /** 内容代码只在无 Node、无业务 preload 的浏览器进程中求值。 */
@@ -84,6 +84,7 @@ export class ContentExecutor {
     });
     this.ready = new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
+        console.error("[content-runtime] 内容执行进程启动超时", { timeoutMs: 15_000 });
         reject(new Error("内容执行进程启动超时"));
         this.reset();
       }, 15_000);
@@ -141,13 +142,21 @@ export class ContentExecutor {
     if (Buffer.byteLength(serialized) > 64 * 1024 * 1024) throw new Error("内容转换输入过大");
     let timer: ReturnType<typeof setTimeout> | undefined;
     let cancel: () => void = () => undefined;
+    // 取消属预期、超时在定时器处留痕，两者都不再按执行失败记录
+    let cancelledOrTimedOut = false;
     const interrupted = new Promise<never>((_resolve, reject) => {
       cancel = () => {
+        cancelledOrTimedOut = true;
         reject(new Error("内容转换已取消"));
         this.reset();
       };
       signal?.addEventListener("abort", cancel, { once: true });
       timer = setTimeout(() => {
+        cancelledOrTimedOut = true;
+        console.warn("[content-runtime] 内容执行超时", {
+          operation: request.operation,
+          bytes: Buffer.byteLength(serialized),
+        });
         reject(new Error("内容转换超时"));
         this.reset();
       }, 30_000);
@@ -164,6 +173,8 @@ export class ContentExecutor {
       this.snapshot = hash;
       return result as T;
     } catch (error) {
+      if (!cancelledOrTimedOut && !signal?.aborted)
+        console.error("[content-runtime] 内容执行失败", { operation: request.operation }, error);
       this.reset();
       throw error;
     } finally {
@@ -178,6 +189,7 @@ export class ContentExecutor {
     this.ready = undefined;
     this.snapshot = "";
     if (window && !window.isDestroyed()) {
+      expectRendererExit(window.webContents);
       window.webContents.forcefullyCrashRenderer();
       window.destroy();
     }

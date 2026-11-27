@@ -8,14 +8,8 @@ const TODO_MUTATION_BROADCAST_REQUEST = "todo:broadcast-mutation";
 const todoMutationEventTarget = new EventTarget();
 const LOCAL_TODO_CLIENT_ID = `todo-client-${Math.random().toString(36).slice(2, 10)}`;
 let boundWebsocketClient: {
-  registerNotificationHandler: (
-    method: string,
-    handler: (data: unknown) => void,
-  ) => void;
-  unregisterNotificationHandler: (
-    method: string,
-    handler: (data: unknown) => void,
-  ) => void;
+  registerNotificationHandler: (method: string, handler: (data: unknown) => void) => void;
+  unregisterNotificationHandler: (method: string, handler: (data: unknown) => void) => void;
 } | null = null;
 
 const handleTodoMutationNotification = (payload: unknown) => {
@@ -35,7 +29,7 @@ const dispatchTodoMutationEvent = (event: TodoMutationEvent) => {
   todoMutationEventTarget.dispatchEvent(
     new CustomEvent<TodoMutationEvent>(TODO_MUTATION_EVENT, {
       detail: event,
-    }),
+    })
   );
 };
 
@@ -52,7 +46,7 @@ const ensureTodoMutationWebSocketBridge = () => {
   if (boundWebsocketClient) {
     boundWebsocketClient.unregisterNotificationHandler(
       TODO_MUTATION_NOTIFICATION,
-      handleTodoMutationNotification,
+      handleTodoMutationNotification
     );
     boundWebsocketClient = null;
   }
@@ -61,10 +55,7 @@ const ensureTodoMutationWebSocketBridge = () => {
     return;
   }
 
-  client.registerNotificationHandler(
-    TODO_MUTATION_NOTIFICATION,
-    handleTodoMutationNotification,
-  );
+  client.registerNotificationHandler(TODO_MUTATION_NOTIFICATION, handleTodoMutationNotification);
 
   boundWebsocketClient = client;
 };
@@ -79,7 +70,7 @@ export const emitTodoMutationEvent = (
   payload: Omit<TodoMutationEvent, "timestamp"> & {
     timestamp?: number;
     broadcast?: boolean;
-  },
+  }
 ) => {
   ensureTodoMutationWebSocketBridge();
 
@@ -94,18 +85,15 @@ export const emitTodoMutationEvent = (
   if (payload.broadcast !== false) {
     const store = useBackendWebsocketStore.getState();
     if (store.client) {
-      void store
-        .sendMessage(TODO_MUTATION_BROADCAST_REQUEST, event)
-        .catch(() => undefined);
+      // 传输失败由 WebSocketClient 统一留痕，服务端处理失败由服务端落日志
+      void store.sendMessage(TODO_MUTATION_BROADCAST_REQUEST, event).catch(() => undefined);
     }
   }
 
   return event;
 };
 
-export const subscribeTodoMutationEvent = (
-  listener: (event: TodoMutationEvent) => void,
-) => {
+export const subscribeTodoMutationEvent = (listener: (event: TodoMutationEvent) => void) => {
   ensureTodoMutationWebSocketBridge();
 
   const handler = (event: Event) => {

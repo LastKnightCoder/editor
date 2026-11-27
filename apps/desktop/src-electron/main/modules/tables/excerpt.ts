@@ -8,6 +8,7 @@ import {
   type ExcerptSyncResult,
 } from "@/entity/excerpt/types";
 import { parseWebPagePayload } from "@/entity/excerpt/web";
+import { reportStoredJsonFailure } from "../../utils/stored-json";
 import {
   assertProviderSourceType,
   canonicalAnchor,
@@ -35,14 +36,15 @@ interface ExcerptRow {
   url: string | null;
 }
 
-const parseAnchor = (raw: string | null): ExcerptAnchor | null => {
+const parseAnchor = (raw: string | null, id?: number): ExcerptAnchor | null => {
   if (!raw) return null;
   try {
     const value = JSON.parse(raw) as unknown;
     return value && typeof value === "object" && !Array.isArray(value)
       ? (value as ExcerptAnchor)
       : null;
-  } catch {
+  } catch (error) {
+    reportStoredJsonFailure("excerpt.anchor", error, id);
     return null;
   }
 };
@@ -57,7 +59,7 @@ const toExcerpt = (row: ExcerptRow): Excerpt => ({
   note: row.note,
   location: row.location,
   url: row.url,
-  anchor: parseAnchor(row.anchor),
+  anchor: parseAnchor(row.anchor, row.id),
   color: row.color,
   sourceTime: row.source_time,
   createTime: row.create_time,

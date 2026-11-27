@@ -229,8 +229,8 @@ export class PluginBackendManager {
         if (instance.status.state === "draining") this.finishStop(instance);
         else this.fail(instance, new Error(`后台进程已退出（${code}）`));
       });
-      child.on("error", () => {
-        if (this.current(instance)) this.fail(instance, new Error("后台进程异常"));
+      child.on("error", error => {
+        if (this.current(instance)) this.fail(instance, new Error("后台进程异常"), error);
       });
       const startup = setTimeout(
         () => this.fail(instance, new Error("后台启动超时")),
@@ -482,10 +482,15 @@ export class PluginBackendManager {
     for (const timer of instance.timers) clearTimeout(timer);
     instance.timers.clear();
   }
-  private fail(instance: Instance, error: Error) {
+  private fail(instance: Instance, error: Error, cause?: unknown) {
     if (!this.current(instance) || ["stopped", "failed"].includes(instance.status.state)) return;
     const diagnostics = this.diagnostics.get(instance.descriptor.key);
     if (diagnostics) diagnostics.failures++;
+    // 5 分钟内第 3 次失败后不再自动拉起，连续出现说明插件后台起不来
+    console.warn(
+      `[plugin-backend] 后台进程失败: plugin=${instance.descriptor.manifest.id}, state=${instance.status.state}, pendingCalls=${instance.calls.size}, failures=${(this.failures.get(instance.descriptor.key) ?? []).length + 1}`,
+      cause ?? error
+    );
     this.rejectCalls(instance, error);
     const child = instance.child;
     instance.child = undefined;

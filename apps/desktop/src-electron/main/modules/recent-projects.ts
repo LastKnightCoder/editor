@@ -90,7 +90,10 @@ class RecentProjectsModule {
     return this.getRecentProjects().flatMap(project => {
       try {
         return [{ ...project, isDirectory: fs.statSync(project.path).isDirectory() }];
-      } catch {
+      } catch (error) {
+        // 路径已不存在属预期；无权限等读取失败时项目会从最近列表里消失
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT")
+          log.warn(`最近项目路径无法读取，已从列表剔除: ${project.path}`, error);
         return [];
       }
     });

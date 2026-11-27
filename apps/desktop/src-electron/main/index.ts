@@ -2,7 +2,7 @@
 import "./rpc/command-bridge-install";
 import "./startup-cpu-profile";
 // 紧随其后安装日志（session 文件 + console 代理），保证后续模块的所有输出都能落盘
-import "./modules/logger";
+import { markSessionStarted } from "./modules/logger";
 import { app, BrowserWindow, protocol, globalShortcut } from "electron";
 import path, { extname, isAbsolute } from "node:path";
 import os from "node:os";
@@ -98,9 +98,20 @@ let windowTypeToOpen: string | null = null;
 let mainWindowRequested = false;
 
 function handleDeepLink(url: string) {
-  if (!isBrowserCompanionDeepLink(url)) return;
-  if (windowsReady) showOrCreateMainWindow();
-  else mainWindowRequested = true;
+  if (isBrowserCompanionDeepLink(url)) {
+    log.info(`收到浏览器伴侣深链: ${url}`);
+    if (windowsReady) showOrCreateMainWindow();
+    else mainWindowRequested = true;
+    return;
+  }
+  // 路径与查询串可能带凭据，只记来源
+  let origin = url.slice(0, 30);
+  try {
+    origin = new URL(url).host;
+  } catch {
+    // 非法链接按截断的原文记录
+  }
+  log.info(`忽略不支持的深链: ${origin}`);
 }
 
 // 捕获命令行参数中的文件路径
@@ -110,6 +121,9 @@ if (!gotTheLock) {
   // 如果获取不到单例锁，说明已经有一个实例正在运行，直接退出
   app.quit();
 } else {
+  // 只有真正运行的实例才登记本次会话；第二实例直接退出，不碰上次的标记
+  markSessionStarted();
+
   // macOS 冷启动的协议事件早于 ready，先记下主窗口意图。
   app.on("open-url", (event, url) => {
     event.preventDefault();
@@ -178,6 +192,7 @@ if (!gotTheLock) {
       log.info(`IMMEDIATE 层初始化完成，耗时: ${Date.now() - totalStartTime}ms`);
 
       log.info("应用启动");
+      log.info(`应用版本: ${app.getVersion()}（${app.isPackaged ? "打包版" : "开发版"}）`);
       log.info(`操作系统: ${os.platform()} ${os.release()}`);
       log.info(`Node.js 版本: ${process.version}`);
       log.info(`Electron 版本: ${process.versions.electron}`);
@@ -264,13 +279,17 @@ if (!gotTheLock) {
         }
       });
 
-      // 注册全局快捷键
-      globalShortcut.register("CommandOrControl+Shift+N", () => {
+      // 注册全局快捷键；返回 false 表示被其他应用占用，界面上无感知
+      const registerShortcut = (accelerator: string, action: () => void) => {
+        if (!globalShortcut.register(accelerator, action))
+          log.warn(`全局快捷键注册失败（可能已被其他应用占用）: ${accelerator}`);
+      };
+      registerShortcut("CommandOrControl+Shift+N", () => {
         createQuickCardWindow();
       });
 
       // 注册DPR调整快捷键
-      globalShortcut.register("Ctrl+=", () => {
+      registerShortcut("Ctrl+=", () => {
         const focusedWindow = BrowserWindow.getFocusedWindow();
         if (focusedWindow) {
           const currentFactor = focusedWindow.webContents.getZoomFactor();
@@ -279,7 +298,7 @@ if (!gotTheLock) {
         }
       });
 
-      globalShortcut.register("Ctrl+-", () => {
+      registerShortcut("Ctrl+-", () => {
         const focusedWindow = BrowserWindow.getFocusedWindow();
         if (focusedWindow) {
           const currentFactor = focusedWindow.webContents.getZoomFactor();
@@ -378,6 +397,11 @@ if (!gotTheLock) {
       log.info("退出应用");
       app.quit();
     }
+  });
+
+  // GPU 等子进程异常退出会表现为花屏、黑屏或硬件加速失效，正常退出不记
+  app.on("child-process-gone", (_event, details) => {
+    if (details.reason !== "clean-exit") log.warn("[process] 子进程异常退出", details);
   });
 
   // 处理文件打开事件

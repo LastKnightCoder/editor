@@ -123,8 +123,11 @@ const fileNameOf = (path: string) => path.split("/").pop() || path;
 const joinRelative = (dir: string[], target: string) =>
   normalizeRelativePath([...dir, target].join("/"));
 
-/** frontmatter 的 tags（数组或逗号 / 空白分隔的字符串）与 title */
-export const readFrontmatter = (markdown: string): { tags: string[]; title?: string } => {
+/** frontmatter 的 tags（数组或逗号 / 空白分隔的字符串）与 title；source 为来源文件路径，仅用于日志 */
+export const readFrontmatter = (
+  markdown: string,
+  source?: string
+): { tags: string[]; title?: string } => {
   const match = markdown.match(FRONT_MATTER_RE);
   if (!match) return { tags: [] };
   try {
@@ -136,7 +139,13 @@ export const readFrontmatter = (markdown: string): { tags: string[]; title?: str
     const title =
       typeof meta.title === "string" && meta.title.trim() ? meta.title.trim() : undefined;
     return { tags: [...new Set(tags)], title };
-  } catch {
+  } catch (error) {
+    // 这篇的标签与标题不会随导入带进来；YAML 报错会附一行原文，只留第一行
+    console.warn(
+      "[transfer] frontmatter 解析失败，按无标签导入",
+      { source },
+      error instanceof Error ? error.message.split("\n")[0] : String(error)
+    );
     return { tags: [] };
   }
 };
@@ -265,7 +274,7 @@ export const scanImportSource = async (
       resolveNote: name => resolvers.resolveNote(name, path),
       resolveFile: name => resolvers.resolveFile(name, path),
     });
-    const frontmatter = readFrontmatter(transformed.markdown);
+    const frontmatter = readFrontmatter(transformed.markdown, path);
     const parsed = await deps.parseMarkdown?.(transformed.markdown);
     const content = parsed?.content ?? importFromMarkdown(transformed.markdown, ["yaml"]);
     const contracts = parsed?.contracts;
@@ -679,6 +688,18 @@ export const runImport = async (
     result.stopped = canceled ? "canceled" : "failed";
     if (!canceled) result.error = errorMessage(error);
   }
+  // 「导入后少了几篇」先看这一行：计划数、实际写入数与停止原因
+  console.info("[transfer] 批量导入结束", {
+    target: options.target,
+    planned: docs.length,
+    docs: result.docCount,
+    assets: result.assetCount,
+    links: result.linkCount,
+    databases: result.databaseIds.length,
+    warnings: result.warnings.length,
+    stopped: result.stopped,
+    ...(result.error ? { error: result.error.slice(0, 300) } : {}),
+  });
   return result;
 };
 

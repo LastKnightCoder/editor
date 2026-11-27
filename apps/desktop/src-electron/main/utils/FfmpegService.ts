@@ -126,6 +126,11 @@ export default class FfmpegService {
       latestJson = await this.fetchLatestJson(latestJsonUrl, proxy);
     } catch (error) {
       if (installedMeta && installedBinaryExists) {
+        // 回退后功能照常，版本停在旧处的原因只在这里留痕
+        log.warn(
+          `[Ffmpeg] 获取 latest.json 失败，沿用已安装版本 ${installedMeta.installedVersion ?? "unknown"}:`,
+          toError(error).message
+        );
         this.binaryPath = installedMeta.binaryPath;
         await this.markExecutable(installedMeta.binaryPath);
         return installedMeta.binaryPath;
@@ -181,6 +186,10 @@ export default class FfmpegService {
       await fs.rm(tempPath, { force: true }).catch(() => {});
 
       if (installedMeta && installedBinaryExists) {
+        log.warn(
+          `[Ffmpeg] 下载 ${latestJson.version} 失败，沿用已安装版本 ${installedMeta.installedVersion ?? "unknown"}:`,
+          toError(error).message
+        );
         this.binaryPath = installedMeta.binaryPath;
         await this.markExecutable(installedMeta.binaryPath);
         return installedMeta.binaryPath;

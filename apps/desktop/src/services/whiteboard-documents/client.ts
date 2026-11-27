@@ -1,5 +1,6 @@
 import * as Y from "yjs";
 import { WhiteboardModel } from "@tau/collaboration";
+import { logThrottled } from "@/utils/throttled-log";
 import type {
   WhiteboardDocumentOpen,
   WhiteboardDocumentReceipt,
@@ -278,7 +279,21 @@ export class WhiteboardDocumentClient {
       update: new Uint8Array(update),
     };
     this.pending.push(record);
-    void this.persist(record).catch(error => this.fail(error));
+    void this.persist(record).catch(error => {
+      // 队列持续写不进（如存储配额已满）时拖拽会连发失败：按文档节流，省略的条数随汇总写出
+      logThrottled(
+        `whiteboard-outbox:${record.documentId}`,
+        "error",
+        "[whiteboard-sync] 本机待发队列写入失败，这笔编辑只留在内存",
+        {
+          documentId: record.documentId,
+          batchId: record.batchId,
+          bytes: record.update.byteLength,
+        },
+        error
+      );
+      this.fail(error);
+    });
     this.set({ phase: "saving", error: undefined });
     return record;
   }

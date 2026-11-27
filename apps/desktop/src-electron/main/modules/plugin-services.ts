@@ -49,6 +49,9 @@ export default {
           controller.signal.throwIfAborted();
           return { ok: true, value };
         } catch (error) {
+          // 取消属预期路径
+          if (!controller.signal.aborted)
+            console.warn(`[plugin-services] 编译服务失败: kind=${request.kind}`, error);
           return {
             ok: false,
             name: error instanceof Error ? error.name : "Error",

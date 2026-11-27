@@ -5,6 +5,7 @@
 import type { AssistantMessage, AssistantMessageEvent } from "@earendil-works/pi-ai";
 import type { ModelUsageStatus } from "@/types/model-usage";
 import type { UsageRecordInput } from "./recorder";
+import { warnThrottled } from "../../utils/throttled-log";
 
 export type RecordUsage = (input: UsageRecordInput) => void;
 
@@ -194,8 +195,9 @@ export function createSessionUsageTracker(
           break;
         }
       }
-    } catch {
-      // 用量归约出错不影响会话事件分发
+    } catch (error) {
+      // 用量归约出错不影响会话事件分发；不留痕时用量统计缺数查不到原因
+      warnThrottled("usage-record", "[model-usage] 用量记录失败", error);
     }
   };
 }

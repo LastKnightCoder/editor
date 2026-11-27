@@ -72,8 +72,10 @@ function syncPlayer() {
     backgroundReady = true;
     sendPlayback(contents);
   });
-  contents.once("render-process-gone", () => {
-    if (background === view) releaseBackground();
+  contents.once("render-process-gone", (_event, details) => {
+    if (background !== view) return;
+    log.warn("背景音播放进程已退出", details);
+    releaseBackground();
   });
   const load = devServerUrl
     ? contents.loadURL(new URL("pomodoro-audio.html", devServerUrl).href)

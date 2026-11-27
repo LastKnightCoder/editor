@@ -66,6 +66,8 @@ async function prepareContentPlugins() {
         }
         addContentPlugin(artifact, definition);
       } catch (error) {
+        // 错误只存进界面状态，不留痕时用户只看到插件「消失」
+        console.error("[content-plugin] 内容插件装配失败", { pluginId: id }, error);
         setContentPluginError(id, error);
       }
     }

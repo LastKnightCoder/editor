@@ -5,6 +5,7 @@ import {
 import { INLINE_SUGGESTION_SLOT, type InlineSuggestionRequest } from "@/types/inline-suggestions";
 import type { PiSingleShotRequest } from "@/types/pi-llm";
 import type { LlmRef } from "./llm-usage-slot";
+import { warnThrottled } from "../utils/throttled-log";
 
 const MAX_IN_FLIGHT = 4;
 const TIMEOUT_MS = 8000;
@@ -56,7 +57,11 @@ function candidate(text: string): string | null {
       !/[\p{Cc}\p{Zl}\p{Zp}]/u.test(value)
       ? value
       : null;
-  } catch {
+  } catch (error) {
+    // 模型输出不是合法 JSON 时建议直接不出现；只留长度，输出内容不进日志
+    warnThrottled("inline-suggestion", "[inline-suggestion] 建议输出解析失败，本次不显示", error, {
+      outputLength: text.length,
+    });
     return null;
   }
 }

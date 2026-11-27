@@ -178,9 +178,15 @@ export const dataTableToolsProvider: MCPProviderDefinition = {
         }
 
         const table = detail.table;
+        // 回退成空数组后模型会按「没有数据」作答，读取失败的原因只能在这里留下
+        const orEmpty = <T>(source: string, read: Promise<T[]>) =>
+          read.catch((error: unknown): T[] => {
+            console.warn("[tool] 数据表关联项读取失败，按空结果返回", { tableId, source }, error);
+            return [];
+          });
         const [databaseItems, projectItems] = await Promise.all([
-          scoped.listDatabaseItems().catch(() => []),
-          scoped.getAllProjectItems().catch(() => [] as ProjectItem[]),
+          orEmpty("databaseItems", scoped.listDatabaseItems()),
+          orEmpty("projectItems", scoped.getAllProjectItems()),
         ]);
 
         const maxRows = clampMaxRows(args.maxRows);

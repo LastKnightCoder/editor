@@ -53,10 +53,11 @@ export const saveMarkdownOutput = async (input: {
 };
 
 const reportExportResult = async (
-  result: Pick<MarkdownOutputResult, "canceled" | "filePath">,
+  result: Pick<MarkdownOutputResult, "canceled" | "filePath" | "format">,
   warnings: string[]
 ) => {
   if (result.canceled || !result.filePath) return;
+  console.info("[transfer] 导出完成", { format: result.format, warnings: warnings.length });
   if (warnings.length > 0) {
     console.warn("导出警告:", warnings);
     toast.warning(
@@ -116,6 +117,8 @@ export const exportContentAsMarkdown = async (input: {
     const result = await saveMarkdownOutput({ baseName, markdown, assetFiles: assets.files });
     await reportExportResult(result, assets.warnings);
   } catch (error) {
+    // 序列化、资源收集、压缩都可能失败，界面上只有一条提示
+    console.error("[transfer] 导出失败", { format: "markdown", contentId: input.contentId }, error);
     toast.error(t("export.failed", { reason: contentTransferErrorText(error) }));
   }
 };
@@ -140,6 +143,7 @@ export const importMarkdownFiles = async (
   let imported = 0;
   let failed = 0;
   const warnings: string[] = [];
+  const startedAt = performance.now();
   for (const path of paths) {
     try {
       const doc = await readMarkdownForImport(path);
@@ -175,6 +179,14 @@ export const importMarkdownFiles = async (
       toast.warning(summary);
     } else toast.success(summary);
   }
+  console.info("[transfer] Markdown 文件导入结束", {
+    target: options.target,
+    selected: paths.length,
+    imported,
+    failed,
+    warnings: warnings.length,
+    elapsedMs: Math.round(performance.now() - startedAt),
+  });
   return imported;
 };
 
@@ -210,6 +222,7 @@ export async function exportContentAsWord(input: WordExportInput) {
   try {
     const { canceled, filePath, warnings } = await saveContentAsWord(input);
     if (canceled || !filePath) return;
+    console.info("[transfer] 导出完成", { format: "word", warnings: warnings.length });
     if (warnings.length)
       toast.warning(
         t("word.assets", {
@@ -220,6 +233,8 @@ export async function exportContentAsWord(input: WordExportInput) {
     else toast.success(t("word.done"));
     await showInFolder(filePath).catch(error => console.warn("打开导出目录失败:", error));
   } catch (error) {
+    // 文档构建与图片编码在渲染进程里失败时，界面上只有一条提示
+    console.error("[transfer] 导出失败", { format: "word", contentId: input.contentId }, error);
     toast.error(t("word.failed", { reason: contentTransferErrorText(error) }));
   }
 }

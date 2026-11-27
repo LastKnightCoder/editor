@@ -17,6 +17,7 @@ import type {
 } from "@/types/entity-context";
 import EntitySearchTable from "../tables/entity-search";
 import ContentLinkTable from "../tables/content-link";
+import { reportStoredJsonFailure } from "../../utils/stored-json";
 import {
   derivedOf,
   notebookProjectionsOf,
@@ -192,7 +193,9 @@ function linksOf(db: Database.Database, contentIds: number[], exclude: Set<strin
       let content: unknown;
       try {
         content = JSON.parse(row.content);
-      } catch {
+      } catch (error) {
+        // 正文读不出时这篇的内联引用不会被查出
+        reportStoredJsonFailure("contents.content", error);
         continue;
       }
       for (const { dst, dstContentId } of extractInlineRefs(content)) {

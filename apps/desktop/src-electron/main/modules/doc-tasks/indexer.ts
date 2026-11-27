@@ -21,6 +21,7 @@ import {
 } from "@/entity/doc-tasks";
 import { minimalTextEdit } from "@/entity/text-edits";
 import ContentTable from "../tables/content";
+import { reportStoredJsonFailure } from "../../utils/stored-json";
 import type { TaskContentNode } from "../content-task-patches";
 import { documentTaskIsChecked } from "@tau/shared/task-assistant";
 import { listTaskGroups, rememberGroupNames, rewriteGroupAliases } from "./group-names";
@@ -69,11 +70,13 @@ function readContents(mainDb: Database.Database, ids: number[]): Map<number, Con
   return new Map(rows.map(row => [row.id, row]));
 }
 
-const parseContent = (raw: string | null): unknown => {
+const parseContent = (raw: string | null, contentId?: number): unknown => {
   if (!raw) return [];
   try {
     return JSON.parse(raw);
-  } catch {
+  } catch (error) {
+    // 正文读不出时这篇的勾选项会按「没有」处理，任务助手里就看不到它们
+    reportStoredJsonFailure("contents.content", error, contentId);
     return [];
   }
 };
@@ -110,7 +113,7 @@ export function reindexDocTasks(
   const backfilled = ids.filter(id => {
     const row = rows.get(id);
     if (!row?.content) return false;
-    return extractDocTasks(parseContent(row.content), groups).missingIds > 0
+    return extractDocTasks(parseContent(row.content, id), groups).missingIds > 0
       ? backfillTaskIds(mainDb, id) > 0
       : false;
   });
@@ -260,7 +263,7 @@ export function reindexDocTasks(
         if (before.size) changed++;
         continue;
       }
-      const parsed = parseContent(row.content);
+      const parsed = parseContent(row.content, id);
       const tree = (Array.isArray(parsed) ? parsed : []) as TaskContentNode[];
       const nodes = new Map<string, TaskContentNode>();
       const collect = (node: TaskContentNode) => {
@@ -330,7 +333,7 @@ export function reindexDocTasks(
       }
       if (
         pendingRenames.has(id) ||
-        extractDocTasks(parseContent(row.content), groups).missingIds > 0 ||
+        extractDocTasks(parseContent(row.content, id), groups).missingIds > 0 ||
         tasks.some(task => task.dateHint && !isAbsoluteDateHint(task.dateHint))
       ) {
         pending.push(id);

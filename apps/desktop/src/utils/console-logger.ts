@@ -34,8 +34,9 @@ function formatValue(value: unknown): string {
 }
 
 export function setupConsoleLogger(): void {
-  const bridge = window.electron;
-  if (!bridge?.sendLog) {
+  // 番茄钟背景音的隐藏窗口只有 tauPomodoroAudio 这一个最小桥，没有 window.electron
+  const sendLog = window.electron?.sendLog ?? window.tauPomodoroAudio?.sendLog;
+  if (!sendLog) {
     return;
   }
 
@@ -47,7 +48,7 @@ export function setupConsoleLogger(): void {
     const now = Date.now();
     if (now - windowStart >= RATE_WINDOW_MS) {
       if (droppedCount > 0) {
-        bridge.sendLog("warn", `[console-logger] 触发限流，上一秒丢弃了 ${droppedCount} 条日志`);
+        sendLog("warn", `[console-logger] 触发限流，上一秒丢弃了 ${droppedCount} 条日志`);
         droppedCount = 0;
       }
       windowStart = now;
@@ -58,7 +59,7 @@ export function setupConsoleLogger(): void {
       droppedCount += 1;
       return;
     }
-    bridge.sendLog(
+    sendLog(
       level,
       message.length > MAX_MESSAGE_LENGTH ? `${message.slice(0, MAX_MESSAGE_LENGTH)}…` : message
     );

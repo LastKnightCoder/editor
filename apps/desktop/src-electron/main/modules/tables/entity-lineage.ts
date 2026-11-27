@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import { reportStoredJsonFailure } from "../../utils/stored-json";
 import {
   fromStoredLineageNode,
   isLineageRelation,
@@ -25,12 +26,13 @@ interface LineageRow {
   create_time: number;
 }
 
-const parseAnchor = (raw: string | null): LineageAnchor | null => {
+const parseAnchor = (raw: string | null, id?: number | string): LineageAnchor | null => {
   if (!raw) return null;
   try {
     const value = JSON.parse(raw) as LineageAnchor;
     return value && typeof value === "object" ? value : null;
-  } catch {
+  } catch (error) {
+    reportStoredJsonFailure("entity_lineage.src_anchor", error, id);
     return null;
   }
 };
@@ -43,7 +45,7 @@ const toEdges = (rows: LineageRow[]): LineageEdge[] =>
       {
         node,
         relation: row.relation,
-        anchor: parseAnchor(row.src_anchor),
+        anchor: parseAnchor(row.src_anchor, row.id),
         createTime: row.create_time,
       },
     ];

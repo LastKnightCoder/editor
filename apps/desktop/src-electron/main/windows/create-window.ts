@@ -1,4 +1,9 @@
-import { app, BrowserWindow, type BrowserWindowConstructorOptions } from "electron";
+import {
+  app,
+  BrowserWindow,
+  type BrowserWindowConstructorOptions,
+  type WebContents,
+} from "electron";
 import log from "electron-log";
 import { isDev, loadRoute, loadContentRuntime, windowContext } from "./context";
 import { registerPomodoroAudioHost } from "./pomodoro-audio";
@@ -14,6 +19,11 @@ import { shouldKeepBackgroundAlive } from "../services/background-preferences";
 export type WindowChrome = "custom" | "native" | "none";
 const contentRuntimeWindows = new Set<BrowserWindow>();
 export const isContentRuntimeWindow = (window: BrowserWindow) => contentRuntimeWindows.has(window);
+// 主进程主动结束的渲染进程（如内容执行超时后回收）不按崩溃记录
+const expectedRendererExit = new WeakSet<WebContents>();
+export const expectRendererExit = (contents: WebContents) => {
+  expectedRendererExit.add(contents);
+};
 
 export interface CreateWindowOptions extends BrowserWindowConstructorOptions {
   document?: "content-runtime" | "plugin-window" | "auxiliary";
@@ -82,6 +92,19 @@ export function createWindow({
       ...webPreferences,
     },
   });
+
+  // 日志里的窗口身份：隐藏与辅助窗口没有可辨识的标题
+  const logSource = `${document ?? role ?? "window"}:${route || "/"}`;
+  const contents = win.webContents;
+  contents.on("render-process-gone", (_event, details) => {
+    if (!expectedRendererExit.has(contents))
+      log.error("[window] 渲染进程已退出", { window: logSource, ...details });
+  });
+  contents.on("preload-error", (_event, preloadPath, error) => {
+    log.error("[window] preload 加载失败", { window: logSource, preloadPath }, error);
+  });
+  win.on("unresponsive", () => log.warn("[window] 窗口无响应", { window: logSource }));
+  win.on("responsive", () => log.info("[window] 窗口恢复响应", { window: logSource }));
 
   forwardWindowEvents(win);
   if (role === "main" || document === "auxiliary") registerPomodoroAudioHost(win.webContents);

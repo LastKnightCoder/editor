@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import { reportStoredJsonFailure } from "../../utils/stored-json";
 import { basename } from "node:path";
 import type {
   PluginChatSession,
@@ -173,7 +174,8 @@ function parseMeta<T>(raw: string | null): Partial<T> {
   try {
     const value = JSON.parse(raw);
     return value && typeof value === "object" ? (value as Partial<T>) : {};
-  } catch {
+  } catch (error) {
+    reportStoredJsonFailure("plugin_data.meta", error);
     return {};
   }
 }

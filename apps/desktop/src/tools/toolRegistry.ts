@@ -28,6 +28,9 @@ const safeStringify = (payload: unknown) => {
   }
 };
 
+const resultSizeOf = (result: string | ToolExecutionResult | null | undefined) =>
+  typeof result === "string" ? result.length : (result?.content?.length ?? 0);
+
 export class ToolRegistry {
   private tools = new Map<string, RegisteredTool>();
   /** 逐工具停用（按来源分组），与来源级开关叠加生效；独立于注册，重新注册后仍保留 */
@@ -210,9 +213,10 @@ export class ToolRegistry {
       } catch (error) {
         // 参数解析失败：返回参数错误结果，不抛异常
         // 这样上层可以将错误信息正常反馈给模型，避免非法 JSON 回传导致 API 拒绝
+        // 只记长度：参数里可能是要写入的正文
         console.warn("[MCP] tool arguments parse failed", {
           tool: tool.name,
-          arguments: call.function.arguments,
+          argumentsLength: call.function.arguments.length,
           error,
         });
         return {
@@ -228,6 +232,7 @@ export class ToolRegistry {
       args: parsedArgs,
     });
 
+    const startedAt = performance.now();
     try {
       const result = await tool.executor(parsedArgs, {
         toolCallId: call.id,
@@ -239,6 +244,14 @@ export class ToolRegistry {
         toolContext: options?.toolContext,
       });
       options?.signal?.throwIfAborted();
+      // 每次工具调用留一行：AI 答非所问时先看调了哪个工具、返回了多大、用了多久
+      console.info("[tool-call] 执行完成", {
+        tool: tool.name,
+        source: tool.source,
+        elapsedMs: Math.round(performance.now() - startedAt),
+        // 只记字节数，工具返回的可能是正文
+        bytes: resultSizeOf(result),
+      });
       console.debug("[MCP] tool execution result", {
         tool: tool.name,
         source: tool.source,

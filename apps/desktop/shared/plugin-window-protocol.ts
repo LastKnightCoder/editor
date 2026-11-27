@@ -62,7 +62,8 @@ export interface CommunicationCalls {
 export interface PluginWindowCalls extends CommunicationCalls {
   bootstrap: [undefined, BootstrapSnapshot];
   ready: [{ revision: number }, ReadyResult];
-  failed: [{ phase: "evaluate" | "mount" }, void];
+  /** `detail` 为界面侧的异常摘要，由主进程写入 session 日志。 */
+  failed: [{ phase: "evaluate" | "mount"; detail?: string }, void];
   closeSelf: [undefined, void];
 }
 

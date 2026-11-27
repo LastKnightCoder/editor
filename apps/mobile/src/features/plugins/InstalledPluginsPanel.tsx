@@ -112,7 +112,14 @@ function UpdateAllBar({ items }: { items: readonly ManagedPluginItem[] }) {
         onConfirm={() => {
           close();
           for (const entry of batch.entries)
-            void install.install(entry.id, entry.releaseId).catch(() => undefined);
+            void install.install(entry.id, entry.releaseId).catch(error => {
+              // 行内不展示入队错误，某个插件没进更新队列的原因只在这里
+              console.error(
+                "[plugins] 全部更新入队失败",
+                { pluginId: entry.id, releaseId: entry.releaseId },
+                error
+              );
+            });
         }}
       />
     </>

@@ -7,6 +7,7 @@
  */
 
 import Database from "better-sqlite3";
+import { reportStoredJsonFailure } from "../../utils/stored-json";
 import dayjs from "dayjs";
 import type {
   RandomWalkDailyAdvanceParams,
@@ -62,7 +63,8 @@ const parseTags = (raw: unknown): string[] => {
   if (typeof raw === "string") {
     try {
       value = JSON.parse(raw);
-    } catch {
+    } catch (error) {
+      reportStoredJsonFailure("walk.tags", error);
       return [];
     }
   }
@@ -75,7 +77,8 @@ const parseFirstId = (raw: unknown): number | null => {
   if (typeof raw === "string") {
     try {
       value = JSON.parse(raw);
-    } catch {
+    } catch (error) {
+      reportStoredJsonFailure("project_item.projects", error);
       return null;
     }
   }
@@ -389,7 +392,9 @@ export default class RandomWalkTable {
     let raw: unknown;
     try {
       raw = JSON.parse(itemsJson);
-    } catch {
+    } catch (error) {
+      // 牌堆存档读不出时整副牌会被当成空的，下次抽取重新起牌
+      reportStoredJsonFailure("walk_daily_decks.items", error);
       return [];
     }
     if (!Array.isArray(raw)) return [];

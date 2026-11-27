@@ -22,6 +22,7 @@ import { adoptPluginData } from "./plugin-records";
 import { PluginLinkRows } from "./plugin-link-rows";
 import { emitContentWritten } from "../content-events";
 import { writeAsPlugin } from "../domain-event-origin";
+import { reportStoredJsonFailure } from "../../utils/stored-json";
 import { assertIndexedValues, type PluginIndexes } from "@tau/plugins/query";
 import {
   containsClause,
@@ -74,7 +75,8 @@ function parseMeta(value: string): Record<string, unknown> {
   try {
     const parsed = JSON.parse(value);
     return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
-  } catch {
+  } catch (error) {
+    reportStoredJsonFailure("plugin_entities.meta", error);
     return {};
   }
 }
@@ -87,11 +89,12 @@ export interface PluginEntityIndexDoc {
   content: Descendant[];
 }
 
-function parseContent(value: string): Descendant[] {
+function parseContent(value: string, id?: number): Descendant[] {
   try {
     const parsed = JSON.parse(value);
     return Array.isArray(parsed) ? parsed : [];
-  } catch {
+  } catch (error) {
+    reportStoredJsonFailure("plugin_entities.content", error, id);
     return [];
   }
 }
@@ -536,7 +539,7 @@ export default class PluginEntityTable {
       contentId: row.content_id,
       title: row.title,
       updateTime: row.update_time,
-      content: parseContent(row.content),
+      content: parseContent(row.content, row.id),
     }));
   }
 

@@ -174,6 +174,12 @@ class EmbeddingModelManagerService {
         },
       });
     } catch (error) {
+      // 取消属预期路径
+      if (!controller.signal.aborted)
+        log.error("[EmbeddingModelManager] Download failed", {
+          modelName,
+          error: error instanceof Error ? error.message : String(error),
+        });
       return {
         success: false,
         error: error instanceof Error ? error.message : String(error),
@@ -274,6 +280,10 @@ class EmbeddingModelManagerModule implements Module {
             event.sender.send("embedding-model-download-progress", progress);
           });
         } catch (error) {
+          log.error("[EmbeddingModelManager] Download command failed", {
+            modelName,
+            error: error instanceof Error ? error.message : String(error),
+          });
           return {
             success: false,
             error: error instanceof Error ? error.message : String(error),
@@ -292,6 +302,10 @@ class EmbeddingModelManagerModule implements Module {
         const success = await this.service.deleteModel(modelName);
         return { success };
       } catch (error) {
+        log.error("[EmbeddingModelManager] Delete failed", {
+          modelName,
+          error: error instanceof Error ? error.message : String(error),
+        });
         return {
           success: false,
           error: error instanceof Error ? error.message : String(error),
@@ -309,6 +323,11 @@ class EmbeddingModelManagerModule implements Module {
         try {
           return await this.service.health(modelName, devicePolicy);
         } catch (error) {
+          log.error("[EmbeddingModelManager] Health check failed", {
+            modelName,
+            devicePolicy,
+            error: error instanceof Error ? error.message : String(error),
+          });
           return {
             success: false,
             error: error instanceof Error ? error.message : String(error),

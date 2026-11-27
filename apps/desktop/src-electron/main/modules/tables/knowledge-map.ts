@@ -9,6 +9,7 @@
  */
 
 import type Database from "better-sqlite3";
+import { reportStoredJsonFailure } from "../../utils/stored-json";
 import type {
   KnowledgeMap,
   KnowledgeMapItem,
@@ -51,17 +52,20 @@ export interface MapEntity {
   projectId: number | null;
 }
 
-const parseJson = <T>(raw: unknown, fallback: T): T => {
+const parseJson = <T>(raw: unknown, fallback: T, field: string): T => {
   if (typeof raw !== "string" || !raw) return fallback;
   try {
     return JSON.parse(raw) as T;
-  } catch {
+  } catch (error) {
+    reportStoredJsonFailure(field, error);
     return fallback;
   }
 };
 
 const stringTags = (raw: unknown) =>
-  parseJson<unknown[]>(raw, []).filter((tag): tag is string => typeof tag === "string");
+  parseJson<unknown[]>(raw, [], "knowledge-map.tags").filter(
+    (tag): tag is string => typeof tag === "string"
+  );
 
 function hasTable(db: Database.Database, name: string) {
   return !!db.prepare("SELECT 1 FROM sqlite_master WHERE name = ?").get(name);
@@ -86,8 +90,8 @@ function projectPaths(mainDb: Database.Database): Map<number, string> {
       row.id,
       {
         title: row.title,
-        parent: Number(parseJson<unknown[]>(row.parents, [])[0]) || 0,
-        project: Number(parseJson<unknown[]>(row.projects, [])[0]) || 0,
+        parent: Number(parseJson<unknown[]>(row.parents, [], "knowledge-map.parents")[0]) || 0,
+        project: Number(parseJson<unknown[]>(row.projects, [], "knowledge-map.projects")[0]) || 0,
       },
     ])
   );
@@ -189,7 +193,8 @@ export default class KnowledgeMapTable {
         updateTime: row.updateTime,
         createdAt: row.createdAt,
         title: row.title ?? "",
-        projectId: Number(parseJson<unknown[]>(row.projects, [])[0]) || null,
+        projectId:
+          Number(parseJson<unknown[]>(row.projects, [], "knowledge-map.projects")[0]) || null,
       });
     }
     return entities.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
@@ -220,7 +225,10 @@ export default class KnowledgeMapTable {
           id: number;
           parents: string | null;
         }>
-      ).map(row => [row.id, Number(parseJson<unknown[]>(row.parents, [])[0]) || 0])
+      ).map(row => [
+        row.id,
+        Number(parseJson<unknown[]>(row.parents, [], "knowledge-map.parents")[0]) || 0,
+      ])
     );
     for (const [from, entity] of entities.entries()) {
       if (entity.kind !== "project-item") continue;

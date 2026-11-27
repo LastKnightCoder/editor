@@ -12,6 +12,7 @@ import useSettingStore from "@/stores/useSettingStore";
 import type { TodoGroup } from "@/types";
 import { getDocTaskGroups } from "@/commands/doc-tasks";
 import type { DocTaskGroup } from "@/entity/doc-tasks";
+import { logThrottled } from "@/utils/throttled-log";
 import { bindDatabaseCommands } from "./command-context";
 import useGlobalStateStore from "@/stores/useGlobalStateStore";
 
@@ -51,7 +52,17 @@ function refresh() {
       cache.loaded = true;
       notify();
     })
-    .catch(() => {})
+    .catch(error => {
+      // 失败时缓存不会标记 loaded，list() 每次渲染都会重试；不留痕时只看到项目列表是空的。
+      // 按库节流，省略的条数随汇总写出
+      logThrottled(
+        `doc-tasks:${database}`,
+        "warn",
+        "[doc-tasks] 待办项目加载失败",
+        { database },
+        error
+      );
+    })
     .finally(() => {
       if (cache.revision === revision) cache.loading = null;
     });

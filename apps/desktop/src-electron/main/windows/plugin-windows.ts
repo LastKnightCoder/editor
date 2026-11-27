@@ -261,8 +261,8 @@ export class PluginWindows {
     setImmediate(() => this.finishClose(instance));
   }
 
-  fail(senderId: number) {
-    this.destroy(this.instance(senderId), new Error("插件窗口组件加载失败"));
+  fail(senderId: number, detail?: string) {
+    this.destroy(this.instance(senderId), new Error(failureDetail("插件窗口组件加载失败", detail)));
   }
 
   detachEndpoint(endpoint: string) {
@@ -308,7 +308,19 @@ export class PluginWindows {
   }
 
   private destroy(instance: Instance, error?: unknown) {
+    // 带 error 的关闭均为异常（加载超时、文档变化、渲染进程退出、组件加载失败），用户主动关闭不记
+    if (error)
+      console.warn("[plugin-window] 插件窗口异常关闭", {
+        pluginId: instance.owner.pluginId,
+        windowId: instance.request.windowId,
+        error: error instanceof Error ? error.message : String(error),
+      });
     this.beginClose(instance, error);
     this.finishClose(instance);
   }
+}
+
+// 界面上报的异常摘要只取消息并截断，堆栈与组件树留在窗口的 DevTools
+function failureDetail(prefix: string, detail?: string) {
+  return detail ? `${prefix}：${detail.slice(0, 300)}` : prefix;
 }

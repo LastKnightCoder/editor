@@ -102,6 +102,8 @@ export async function runStartLoop(manager: CollaborationManager): Promise<void>
         } catch (failure) {
           manager.error = describeError(failure, "协作服务初始化失败");
           manager.stopped = true;
+          // whenReady 等调用方会吞掉这个拒绝，启动失败只在这里留痕
+          console.error("[collab] 协作服务启动失败", failure);
           manager.changed();
           throw failure;
         }

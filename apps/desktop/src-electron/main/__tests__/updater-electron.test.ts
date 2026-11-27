@@ -34,6 +34,8 @@ it.skipIf(process.platform !== "darwin")(
         "export function shutdownLocalContent(){}",
       [join(main, "windows/plugin-window-ipc")]: "export function disposePluginWindows(){}",
       [join(main, "services/content-execution")]: "export const contentExecutor = { dispose(){} };",
+      [join(main, "modules/logger")]:
+        "export function markSessionEnded(){ globalThis.order.push('session-ended'); }",
       [join(main, "windows/window-state")]:
         "export const initialBounds = (_key, size) => size; export const hasRememberedBounds = () => false; export function rememberBounds(){}",
       [join(main, "windows/create-window")]: `import { BrowserWindow } from 'electron';
@@ -162,6 +164,8 @@ it.skipIf(process.platform !== "darwin")(
         "save",
         "saved",
         "drain",
+        // 受控退出先清掉「会话未结束」标记再销毁窗口：标记留到下次启动会被当成异常退出
+        "session-ended",
         "closed",
         "closed",
         "install",

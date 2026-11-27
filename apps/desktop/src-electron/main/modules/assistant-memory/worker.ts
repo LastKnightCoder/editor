@@ -575,8 +575,10 @@ export class MemoryWorker {
         kind: job.kind,
         id: job.id,
       });
-    } catch {
-      // 摘要生成失败不影响主流程
+    } catch (error) {
+      // 摘要生成失败不影响主流程；不留痕时个人记忆缺一版摘要无从发现
+      this.report("对话摘要生成失败", false, "error", { kind: job.kind, id: job.id });
+      console.error("[assistant-memory] 对话摘要生成失败", { kind: job.kind, id: job.id }, error);
     }
   }
 
@@ -632,8 +634,13 @@ export class MemoryWorker {
     let semantic: AssistantMemory[][] = [];
     try {
       semantic = (await this.options.related?.(queries)) ?? [];
-    } catch {
-      // 语义召回不可用时仍按关键词对账。
+    } catch (error) {
+      // 语义召回不可用时仍按关键词对账；只留长度，查询词来自对话内容
+      console.warn(
+        "[assistant-memory] 语义召回失败，降级为关键词对账",
+        { queries: queries.length },
+        error
+      );
     }
     if (signal.aborted) return { memories: [], models: [] };
     // 本人自述可能关闭任意类别的目标，额外召回相关的未完成意图供 fulfill 判定。

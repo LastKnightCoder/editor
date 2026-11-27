@@ -258,8 +258,9 @@ async function activateAutomaticPass() {
         )
       )
         await pluginBackends.start(descriptor);
-    } catch {
-      /* 独立失败状态由管理器保留，不阻断其余后台启动。 */
+    } catch (error) {
+      // 失败状态由管理器保留，不阻断其余后台启动；留痕说明该插件的后台为何没起来
+      console.warn(`[plugin-backend] 自动启动失败: plugin=${entry.id}`, error);
     }
   }
 }

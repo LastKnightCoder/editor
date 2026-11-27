@@ -142,6 +142,15 @@ export function piStreamChat(
     let lastSnapshot: AssistantMessage | null = null;
     let streamError: string | null = null;
     let streamAborted = false;
+    // 各业务单发共用此入口，失败原因（服务商、网络、鉴权）只能在这里统一留痕
+    const reportFailure = (error: string) =>
+      console.warn("[llm] 模型请求失败", {
+        providerId: request.providerId,
+        modelId: request.modelId,
+        routingId: request.task?.routingId,
+        requestId,
+        error: error.slice(0, 300),
+      });
     try {
       const outcome = await piAiSingleShot(
         request,
@@ -161,9 +170,11 @@ export function piStreamChat(
       const aborted = cancelled || streamAborted || outcome.aborted === true;
       const message = finalMessage ?? lastSnapshot;
       if (streamError && !aborted) {
+        reportFailure(streamError);
         return { ok: false, error: streamError, aborted, text: "", reasoning: "", message: null };
       }
       if (!outcome.ok) {
+        if (!aborted) reportFailure(outcome.error ?? "模型请求失败");
         return {
           ok: false,
           error: outcome.error ?? "模型请求失败",
@@ -183,6 +194,7 @@ export function piStreamChat(
     } catch (error) {
       settled = true;
       const message = lastSnapshot;
+      if (!cancelled) reportFailure(error instanceof Error ? error.message : String(error));
       return {
         ok: false,
         error: error instanceof Error ? error.message : String(error),

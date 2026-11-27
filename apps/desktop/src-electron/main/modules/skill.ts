@@ -185,7 +185,10 @@ class SkillModule implements Module {
             platform: "desktop",
             appVersion: client.version,
           });
-      } catch {
+      } catch (error) {
+        // 没有 manifest.json 的目录不是技能包，属预期；有文件却读不出才是技能「消失」的原因
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT")
+          log.warn(`[skill] 技能包清单不可用，已跳过: plugin=${folder.name}`, error);
         continue;
       }
       if (manifest.id !== folder.name || !("skills" in manifest) || !manifest.skills) continue;

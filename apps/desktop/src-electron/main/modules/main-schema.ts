@@ -31,18 +31,31 @@ export function ensureMainSchema(db: Database.Database): void {
   ].some(name => !tables.some(table => table.name === name));
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
+  const receiptUpgrade = needsReceiptUpgrade(db);
+  const queryDatabaseUpgrade = needsQueryDatabaseUpgrade(db);
+  const hashChanged = meta.main_schema_hash !== schemaHash;
+  const versionChanged = meta.main_schema_version !== String(MAIN_SCHEMA_VERSION);
   if (
     !projectionMissing &&
-    !needsReceiptUpgrade(db) &&
-    !needsQueryDatabaseUpgrade(db) &&
-    meta.main_schema_hash === schemaHash &&
-    meta.main_schema_version === String(MAIN_SCHEMA_VERSION)
+    !receiptUpgrade &&
+    !queryDatabaseUpgrade &&
+    !hashChanged &&
+    !versionChanged
   ) {
     while (!DocumentTaskIdentitiesTable.prepare(db)) {
       /* 每批独立提交，允许中断后续建。 */
     }
     return;
   }
+  // 升级期间资料库不可用；每次启动都触发升级说明标记没有落住，靠 reasons 定位
+  const upgradeStartAt = Date.now();
+  const reasons = [
+    projectionMissing && "projection",
+    receiptUpgrade && "receipts",
+    queryDatabaseUpgrade && "query-databases",
+    hashChanged && "schema-hash",
+    versionChanged && "version",
+  ].filter(Boolean);
   const foreignKeyErrors = () => db.pragma("foreign_key_check") as Record<string, unknown>[];
   db.pragma("foreign_keys = OFF");
   try {
@@ -135,6 +148,9 @@ export function ensureMainSchema(db: Database.Database): void {
   } finally {
     db.pragma("foreign_keys = ON");
   }
+  console.info(
+    `[database] 主库结构升级完成: fromVersion=${meta.main_schema_version ?? "none"}, fromHash=${String(meta.main_schema_hash ?? "none").slice(0, 8)}, toVersion=${MAIN_SCHEMA_VERSION}, reasons=${reasons.join(",")}, elapsedMs=${Date.now() - upgradeStartAt}`
+  );
   while (!DocumentTaskIdentitiesTable.prepare(db)) {
     /* 每批独立提交，允许中断后续建。 */
   }

@@ -14,6 +14,7 @@ import { createScopedModelTaskIdentity } from "@tau/ai/model-request";
 import type Database from "better-sqlite3";
 import { BrowserWindow, ipcMain } from "electron";
 import log from "electron-log";
+import { reportStoredJsonFailure } from "../utils/stored-json";
 import type { Descendant } from "slate";
 import { entityRefKey, normalizeEntityRefKind, type EntityRef } from "@/entity/ref";
 import { extractInlineRefs } from "@/entity/inline-refs";
@@ -308,7 +309,9 @@ function conceptMatches(
     let concepts: unknown;
     try {
       concepts = (JSON.parse(row.meta) as { concepts?: unknown }).concepts;
-    } catch {
+    } catch (error) {
+      // 这篇不会进入灵感候选
+      reportStoredJsonFailure("content_ai_meta.meta", error, row.content_id);
       continue;
     }
     if (!Array.isArray(concepts)) continue;

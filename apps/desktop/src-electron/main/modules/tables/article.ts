@@ -1,6 +1,7 @@
 import { fallbackCommandContext, type CommandContext } from "@tau/rpc";
 import Database from "better-sqlite3";
 import { asynchronousDatabaseCommand } from "../database-command";
+import { reportStoredJsonFailure } from "../../utils/stored-json";
 import { assertContentIsLocal, findCollaborationBinding } from "../collaboration-guard";
 import { canonicalContentTitle } from "../collaboration/content-sessions";
 import {
@@ -491,7 +492,7 @@ export default class ArticleTable {
       author: (row.author as string) || "",
       createTime: row.create_time as number,
       updateTime: row.update_time as number,
-      tags: ArticleTable.parseTags(row.tags),
+      tags: ArticleTable.parseTags(row.tags, row.id as number),
       bannerBg: (row.banner_bg as string) || "",
       bannerPosition: (row.banner_position as string) || "center",
       isTop: Boolean(row.is_top),
@@ -563,7 +564,7 @@ export default class ArticleTable {
       const now = Date.now();
       const ids: number[] = [];
       for (const row of rows) {
-        const tags = ArticleTable.parseTags(row.tags);
+        const tags = ArticleTable.parseTags(row.tags, row.id);
         const next = rewrite(tags);
         if (sameTags(tags, next)) continue;
         update.run(now, JSON.stringify(next), row.id);
@@ -579,11 +580,12 @@ export default class ArticleTable {
     return changedIds.map(id => ArticleTable.getArticleById(db, id));
   }
 
-  private static parseTags(raw: unknown): string[] {
+  private static parseTags(raw: unknown, id?: number): string[] {
     try {
       const parsed = JSON.parse(String(raw ?? "[]"));
       return Array.isArray(parsed) ? parsed.filter((t): t is string => typeof t === "string") : [];
-    } catch {
+    } catch (error) {
+      reportStoredJsonFailure("articles.tags", error, id);
       return [];
     }
   }

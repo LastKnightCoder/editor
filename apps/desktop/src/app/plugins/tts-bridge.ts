@@ -1,6 +1,7 @@
 import { isElectron, on, off } from "@/electron";
 import { withModule } from "@/commands/module-init";
 import type { TTSRendererMessage, TTSRendererReply } from "../../../shared/tts-renderer";
+import { deliverPluginReply } from "./bridge-reply";
 import { rendererTTSRegistry } from "./tts-registry";
 
 export function connectTTSRenderer() {
@@ -45,8 +46,7 @@ export function connectTTSRenderer() {
     } finally {
       tasks.delete(message.requestId);
     }
-    if (!disposed)
-      await window.electron.invoke("plugin-local:tts-reply", reply).catch(() => undefined);
+    if (!disposed) await deliverPluginReply("tts", message.requestId, reply);
   };
   on("plugin-tts:request", receive);
   on("plugin-tts:cancel", cancel);

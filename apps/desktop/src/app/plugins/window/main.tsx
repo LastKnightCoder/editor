@@ -43,6 +43,10 @@ function close() {
   return bridge.invoke("closeSelf", undefined);
 }
 
+// 本窗口的 console 不接入 session 日志，异常摘要经 failed 回报由主进程落盘
+const failureDetail = (error: unknown) =>
+  (error instanceof Error ? error.message : String(error)).slice(0, 300);
+
 function registerDismiss(dismiss: () => void) {
   dismissers.push(dismiss);
   return () => {
@@ -58,7 +62,9 @@ class WindowBoundary extends Component<{ children: ReactNode }, { failed: boolea
   }
   componentDidCatch(error: unknown) {
     console.error("插件窗口渲染失败", error);
-    void bridge.invoke("failed", { phase: "mount" }).catch(() => undefined);
+    void bridge
+      .invoke("failed", { phase: "mount", detail: failureDetail(error) })
+      .catch(() => undefined);
   }
   render() {
     return this.state.failed ? null : this.props.children;
@@ -150,7 +156,9 @@ async function start() {
       })
       .catch(error => {
         console.error("插件窗口就绪失败", error);
-        void bridge.invoke("failed", { phase: "mount" }).catch(() => undefined);
+        void bridge
+          .invoke("failed", { phase: "mount", detail: failureDetail(error) })
+          .catch(() => undefined);
       });
   }
 
@@ -222,5 +230,7 @@ async function start() {
 
 void start().catch(error => {
   console.error("插件窗口启动失败", error);
-  void bridge.invoke("failed", { phase: "evaluate" }).catch(() => undefined);
+  void bridge
+    .invoke("failed", { phase: "evaluate", detail: failureDetail(error) })
+    .catch(() => undefined);
 });

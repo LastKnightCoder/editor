@@ -2,6 +2,7 @@ import type Database from "better-sqlite3";
 import {
   taskKey,
   occurrenceKey,
+  TaskAssistantError,
   type TaskRef,
   type TaskOccurrenceRef,
   type DocumentTaskAttributes,
@@ -11,6 +12,7 @@ import { independentStates, occurrences } from "./recurrence";
 import { readTaskContent, taskNode } from "../content-task-patches";
 import { dateTime, localDate, refOfTodo, type Row } from "./common";
 import holidayService from "../holiday-service";
+import { warnThrottled } from "../../utils/throttled-log";
 
 export interface AssistantReminder {
   taskRef: TaskRef;
@@ -69,7 +71,15 @@ export function assistantReminders(
     let task: ReturnType<typeof readTask>;
     try {
       task = readTask(db, ref);
-    } catch {
+    } catch (error) {
+      // 任务已删除属预期；其他读库错误会让这条提醒静默漏发
+      if (!(error instanceof TaskAssistantError && error.code === "NOT_FOUND"))
+        warnThrottled(
+          `reminder-read:${taskKey(ref)}`,
+          "[task-assistant] 读取提醒对应的任务失败，该提醒跳过",
+          error,
+          { taskRef: taskKey(ref) }
+        );
       continue;
     }
     if (!task.reminderAt || task.archived) continue;
@@ -100,7 +110,16 @@ export function assistantReminders(
     if (task.recurrence.some(segment => segment.rule?.excludeHolidays)) {
       try {
         holidays = holidayService.cachedHolidayWindow(now - 367 * 86_400_000, now + 86_400_000);
-      } catch {
+      } catch (error) {
+        // 排除节假日的重复任务拿不到节假日数据时整条跳过，用户就收不到这次提醒
+        warnThrottled(
+          "reminder-holidays",
+          "[task-assistant] 节假日数据读取失败，该提醒跳过",
+          error,
+          {
+            taskRef: taskKey(ref),
+          }
+        );
         continue;
       }
     }

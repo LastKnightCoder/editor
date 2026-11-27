@@ -82,16 +82,14 @@ describe("logger 模块", () => {
 
   it("渲染端日志按级别落盘并标注来源窗口，非法 payload 被忽略", () => {
     const handler = ipcMainOn.mock.calls[0][1] as (event: unknown, payload: unknown) => void;
-    const sender = {
-      isDestroyed: () => false,
-      getTitle: () => "主窗口",
-    };
+    const sender = { id: 7 };
 
-    handler({ sender }, { level: "error", message: "渲染出错" });
-    expect(rendererLogMock.error).toHaveBeenCalledWith("[主窗口] 渲染出错");
+    handler({ sender }, { level: "error", message: "渲染出错", role: "main" });
+    expect(rendererLogMock.error).toHaveBeenCalledWith("[main#7] 渲染出错");
 
+    // 没有角色的窗口按 window 标注；来源不取窗口标题，标题是笔记标题
     handler({ sender }, { level: "log", message: "归并为 info" });
-    expect(rendererLogMock.info).toHaveBeenCalledWith("[主窗口] 归并为 info");
+    expect(rendererLogMock.info).toHaveBeenCalledWith("[window#7] 归并为 info");
 
     handler({ sender }, "不是对象");
     handler({ sender }, { level: "info" });

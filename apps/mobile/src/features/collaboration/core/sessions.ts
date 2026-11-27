@@ -17,6 +17,8 @@ import type { CollaborationManager } from "./manager";
 import { canRetryRead, describeError } from "./utils";
 
 const DOCUMENT_STATE_MAX_ATTEMPTS = 3;
+// 持久化在每次输入后触发，持续失败时每个会话只留首条
+const persistFailureLogged = new WeakSet<RuntimeSession>();
 
 export async function reconnect(manager: CollaborationManager, documentId: string) {
   const session = manager.sessions.get(documentId);
@@ -241,7 +243,11 @@ export async function createSession(
     }
     const onDocUpdate = (update: Uint8Array) => {
       session.resourcesDirty = true;
-      void manager.persist(session, update).catch(() => {});
+      void manager.persist(session, update).catch(error => {
+        if (persistFailureLogged.has(session)) return;
+        persistFailureLogged.add(session);
+        console.error("[collab] 协作会话持久化失败", { session: info.id }, error);
+      });
       session.info.title = doc.getText("title").toString();
       manager.changed();
     };

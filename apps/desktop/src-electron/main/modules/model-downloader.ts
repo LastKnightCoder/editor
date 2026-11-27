@@ -886,6 +886,7 @@ class ModelDownloaderModule implements Module {
         const models = await this.service.getModels();
         return { success: true, data: models };
       } catch (error) {
+        console.error("[ModelDownloader] Get models error:", error);
         return {
           success: false,
           error: error instanceof Error ? error.message : String(error),
@@ -899,11 +900,7 @@ class ModelDownloaderModule implements Module {
         try {
           console.log(`[ModelDownloader] Starting download: ${modelName} from ${source}`);
           const result = await this.service.downloadModel(modelName, source, progress => {
-            // 发送进度到渲染进程
-            console.log(`[ModelDownloader] Sending progress:`, {
-              modelName,
-              ...progress,
-            });
+            // 进度只推给渲染进程：逐次写日志会在一次下载里刷出几百行
             event.sender.send("model-download-progress", {
               modelName,
               ...progress,
@@ -939,6 +936,7 @@ class ModelDownloaderModule implements Module {
         const deleted = await this.service.deleteModel(modelName);
         return { success: deleted };
       } catch (error) {
+        console.error(`[ModelDownloader] Delete model error: ${modelName}`, error);
         return {
           success: false,
           error: error instanceof Error ? error.message : String(error),
@@ -967,6 +965,7 @@ class ModelDownloaderModule implements Module {
         const programs = await this.service.getPrograms();
         return { success: true, data: programs };
       } catch (error) {
+        console.error("[ModelDownloader] Get programs error:", error);
         return {
           success: false,
           error: error instanceof Error ? error.message : String(error),
@@ -1012,6 +1011,7 @@ class ModelDownloaderModule implements Module {
         const deleted = await this.service.deleteProgram(programName);
         return { success: deleted };
       } catch (error) {
+        console.error(`[ModelDownloader] Delete program error: ${programName}`, error);
         return {
           success: false,
           error: error instanceof Error ? error.message : String(error),

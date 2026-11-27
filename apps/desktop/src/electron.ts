@@ -1,4 +1,5 @@
 import { invokingCommandScope, type CommandScope } from "@/services/command-context";
+import { logThrottled } from "@/utils/throttled-log";
 
 const bridge = window.electron;
 
@@ -37,6 +38,22 @@ function unwrapRemoteError(error: unknown): unknown {
   return unwrapped;
 }
 
+// 调用方可能自行吞掉错误，入口处不留痕时日志里就是一片空白。
+// 作用域 signal 已中止即用户取消，属预期路径不记；按通道节流，重复失败的条数随汇总写出
+function reportInvokeFailure(
+  channel: string,
+  failure: unknown,
+  elapsedMs: number,
+  scope?: CommandScope
+) {
+  if (scope?.signal?.aborted) return;
+  logThrottled(`failed:${channel}`, "warn", "[ipc] 调用失败", {
+    channel,
+    elapsedMs,
+    error: failure instanceof Error ? failure.message : String(failure),
+  });
+}
+
 async function invokeWithRetry<T>(
   channel: string,
   args: unknown[],
@@ -44,18 +61,28 @@ async function invokeWithRetry<T>(
 ): Promise<T> {
   const startedAt = Date.now();
   let lastError: unknown;
+  let attempts = 0;
   while (Date.now() - startedAt <= RETRY_TIMEOUT_MS) {
     scope?.signal?.throwIfAborted();
     try {
       const result = await ensureBridge().invoke<T>(channel, ...args);
       scope?.signal?.throwIfAborted();
+      if (attempts > 0)
+        logThrottled(`late:${channel}`, "info", "[ipc] 通道注册晚于调用，重试后成功", {
+          channel,
+          attempts,
+          waitedMs: Date.now() - startedAt,
+        });
       ipcReady = true;
       return result;
     } catch (error) {
       if (!isNoHandlerError(error) || ipcReady) {
-        throw unwrapRemoteError(error);
+        const failure = unwrapRemoteError(error);
+        reportInvokeFailure(channel, failure, Date.now() - startedAt, scope);
+        throw failure;
       }
       lastError = error;
+      attempts += 1;
     }
     // 重试等待不越过窗口边界，保证整体重试时长不超过 RETRY_TIMEOUT_MS
     const remaining = RETRY_TIMEOUT_MS - (Date.now() - startedAt);
@@ -64,6 +91,11 @@ async function invokeWithRetry<T>(
     }
     await new Promise(resolve => setTimeout(resolve, Math.min(RETRY_INTERVAL_MS, remaining)));
   }
+  logThrottled(`missing:${channel}`, "error", "[ipc] 通道未注册，重试后放弃", {
+    channel,
+    attempts,
+    waitedMs: Date.now() - startedAt,
+  });
   throw lastError;
 }
 

@@ -4,6 +4,7 @@ import type {
   EmbeddingsRendererMessage,
   EmbeddingsRendererReply,
 } from "../../../shared/embeddings-renderer";
+import { deliverPluginReply } from "./bridge-reply";
 import { rendererEmbeddingsRegistry } from "./embeddings-registry";
 
 /** 渲染端嵌入宿主：响应主进程的一次性嵌入请求，并上报可用 provider 集合。 */
@@ -47,8 +48,7 @@ export function connectEmbeddingsRenderer() {
     } finally {
       tasks.delete(message.requestId);
     }
-    if (!disposed)
-      await window.electron.invoke("plugin-local:embeddings-reply", reply).catch(() => undefined);
+    if (!disposed) await deliverPluginReply("embeddings", message.requestId, reply);
   };
   on("plugin-embeddings:request", receive);
   on("plugin-embeddings:cancel", cancel);

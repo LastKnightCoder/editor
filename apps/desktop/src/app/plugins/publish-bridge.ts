@@ -3,6 +3,7 @@ import type {
   PublishRendererMessage,
   PublishRendererReply,
 } from "../../../shared/publish-renderer";
+import { deliverPluginReply } from "./bridge-reply";
 import { rendererPublishRegistry } from "./publish-registry";
 
 export function connectPublishRenderer() {
@@ -20,7 +21,7 @@ export function connectPublishRenderer() {
         error: error instanceof Error ? error.message : String(error),
       };
     }
-    await window.electron.invoke("plugin-local:publish-reply", reply).catch(() => undefined);
+    await deliverPluginReply("publish", message.requestId, reply);
   };
   on("plugin-publish:request", receive);
   return () => {

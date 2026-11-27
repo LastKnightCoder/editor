@@ -100,7 +100,10 @@ export const contextToolsProvider: MCPProviderDefinition = {
         additionalProperties: false,
       },
       executor: async () => {
-        const versions = await getVersions().catch(() => null);
+        const versions = await getVersions().catch((error: unknown) => {
+          console.warn("[tool] 读取应用版本信息失败，按未知返回", error);
+          return null;
+        });
         const info = {
           appVersion: versions?.app ?? null,
           runtime: versions

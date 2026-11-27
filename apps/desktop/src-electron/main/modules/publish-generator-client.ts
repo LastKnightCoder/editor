@@ -6,6 +6,7 @@
 import { MessageChannel, Worker } from "node:worker_threads";
 import { join } from "node:path";
 import log from "electron-log";
+import { warnThrottled } from "../utils/throttled-log";
 import type { IPublishFile, PublishImageWarning } from "@/types/publish";
 import type { PublishDataSource } from "./publish-site-generator";
 import TailwindRuntimeModule from "./tailwind-runtime";
@@ -64,6 +65,10 @@ function runWorker(
         const fn = data[method] as (...params: unknown[]) => unknown;
         reply = { ok: true, value: fn.apply(data, args) };
       } catch (error) {
+        // 失败只回给生成 worker；站点生成出错时主进程日志里需要看得到是哪一步读数据失败
+        warnThrottled(`publish-data:${method}`, "[publish] 站点生成读取数据失败", error, {
+          method,
+        });
         reply = { ok: false, message: error instanceof Error ? error.message : String(error) };
       }
       port1.postMessage(reply);

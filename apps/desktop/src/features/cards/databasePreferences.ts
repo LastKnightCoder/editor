@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import type { DataTableView } from "@/types";
+import { logThrottled } from "@/utils/throttled-log";
 
 export const CARD_DATABASE_PREFERENCES_KEY = "tau-card-database-views";
 const databaseId = (database: string) => database.replace(/\.db$/, "");
@@ -41,7 +42,15 @@ export function createCardDatabasePreferencesStore(storage: Storage) {
                   byDatabase: state.byDatabase as PreferencesState["byDatabase"],
                 }
               : fallback;
-          } catch {
+          } catch (error) {
+            // 列宽与视图配置损坏时回到默认，用户排好的列会丢
+            logThrottled(
+              "cards-preferences-read",
+              "warn",
+              "[cards] 卡片库视图偏好读取失败，使用默认值",
+              undefined,
+              error
+            );
             return fallback;
           }
         };
