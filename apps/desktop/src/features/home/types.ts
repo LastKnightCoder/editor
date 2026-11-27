@@ -8,6 +8,8 @@
  * 日程走 calendar 命令与 schedule page。
  */
 
+import type { TodoPriority } from "@/types";
+
 /* ---------- 今天 / 继续（HomeSnapshot） ---------- */
 
 export interface TodayEvent {
@@ -23,6 +25,7 @@ export interface TodoTodayItem {
   title: string;
   dueAt?: number;
   overdue: boolean;
+  priority?: TodoPriority;
 }
 
 export type RecentEdit =

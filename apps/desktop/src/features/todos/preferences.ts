@@ -37,7 +37,8 @@ export function saveGroupFilter(id: string): void {
 }
 
 export function readSavedMode(): AgendaMode {
-  return readAll().mode === "group" ? "group" : "date";
+  const mode = readAll().mode;
+  return mode === "group" || mode === "priority" ? mode : "date";
 }
 
 export function saveMode(mode: AgendaMode): void {

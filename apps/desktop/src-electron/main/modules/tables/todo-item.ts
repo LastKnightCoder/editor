@@ -1,12 +1,14 @@
 import Database from "better-sqlite3";
 import {
   TodoItem,
+  TodoPriority,
   CreateTodoItem,
   UpdateTodoItem,
   MoveAndReorderPayload,
   TodoItemType,
   CalendarEvent,
 } from "@/types";
+import { removeTagFromList, renameTagInList, sameTags } from "@/utils/tags";
 import ContentTable from "./content";
 import TodoCalendarSyncTable from "./todo-calendar-sync";
 import CalendarEventTable from "./calendar-event";
@@ -34,6 +36,8 @@ export default class TodoItemTable {
       "todo:archive-item": this.archiveItem.bind(this),
       "todo:delete-item": this.deleteItem.bind(this),
       "todo:delete-item-cascade": this.deleteItemCascade.bind(this),
+      "todo:rename-tag": this.renameTag.bind(this),
+      "todo:remove-tag": this.removeTag.bind(this),
     } as const;
   }
 
@@ -41,6 +45,39 @@ export default class TodoItemTable {
   static assertType(type: string | undefined) {
     if (type !== undefined && !["normal", "deadline", "recurring"].includes(type)) {
       throw new Error(`Unsupported todo type: ${type}`);
+    }
+  }
+
+  static assertPriority(priority: string | undefined): TodoPriority {
+    if (priority === undefined) return "none";
+    if (!["none", "low", "medium", "high"].includes(priority)) {
+      throw new Error(`Unsupported todo priority: ${priority}`);
+    }
+    return priority as TodoPriority;
+  }
+
+  static normalizeTags(tags: string[] | undefined): string[] {
+    if (!tags?.length) return [];
+    const out: string[] = [];
+    const seen = new Set<string>();
+    for (const raw of tags) {
+      const clean = raw.trim();
+      if (!clean || seen.has(clean)) continue;
+      seen.add(clean);
+      out.push(clean);
+    }
+    return out;
+  }
+
+  static parseTags(raw: unknown): string[] {
+    if (typeof raw !== "string" || !raw) return [];
+    try {
+      const parsed: unknown = JSON.parse(raw);
+      return Array.isArray(parsed)
+        ? this.normalizeTags(parsed.filter((v): v is string => typeof v === "string"))
+        : [];
+    } catch {
+      return [];
     }
   }
 
@@ -110,6 +147,11 @@ export default class TodoItemTable {
       startAt: (row.start_at as number | null) ?? null,
       dueAt: (row.due_at as number | null) ?? null,
       remindBefore: (row.remind_before as number | null) ?? null,
+      priority:
+        row.priority === "low" || row.priority === "medium" || row.priority === "high"
+          ? row.priority
+          : "none",
+      tags: TodoItemTable.parseTags(row.tags),
       completedAt: (row.completed_at as number | null) ?? null,
       sortIndex: row.sort_index as number,
       isArchived: Boolean(row.is_archived),
@@ -212,13 +254,15 @@ export default class TodoItemTable {
       });
     }
 
-    // 确定任务类型
+    // 确定任务类型、优先级与标签
     this.assertType(payload.type);
     const type = payload.type || "normal";
+    const priority = this.assertPriority(payload.priority);
+    const tags = JSON.stringify(this.normalizeTags(payload.tags));
 
     const insert = db.prepare(
-      `INSERT INTO todo_item (id, group_id, parent_id, title, type, description_content_id, is_completed, start_at, due_at, remind_before, completed_at, sort_index, is_archived, create_time, update_time)
-       VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, NULL, ?, 0, ?, ?)`
+      `INSERT INTO todo_item (id, group_id, parent_id, title, type, description_content_id, is_completed, start_at, due_at, remind_before, priority, tags, completed_at, sort_index, is_archived, create_time, update_time)
+       VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, NULL, ?, 0, ?, ?)`
     );
     const res = insert.run(
       getNextTaskEntityId(db, "todo_item"),
@@ -230,6 +274,8 @@ export default class TodoItemTable {
       payload.startAt ?? null,
       payload.dueAt ?? null,
       payload.remindBefore ?? null,
+      priority,
+      tags,
       sortIndex,
       now,
       now
@@ -283,6 +329,8 @@ export default class TodoItemTable {
           start_at: number | null;
           due_at: number | null;
           remind_before: number | null;
+          priority: string | null;
+          tags: string | null;
         }
       | undefined;
     if (!cur) throw new Error("todo_item not found");
@@ -298,10 +346,29 @@ export default class TodoItemTable {
     const dueAt = (payload.dueAt === undefined ? cur.due_at : payload.dueAt) ?? null;
     const remindBefore =
       (payload.remindBefore === undefined ? cur.remind_before : payload.remindBefore) ?? null;
+    const priority =
+      payload.priority === undefined
+        ? this.assertPriority(cur.priority ?? undefined)
+        : this.assertPriority(payload.priority);
+    const tags =
+      payload.tags === undefined
+        ? (cur.tags ?? "[]")
+        : JSON.stringify(this.normalizeTags(payload.tags));
 
     db.prepare(
-      `UPDATE todo_item SET title = ?, type = ?, description_content_id = ?, start_at = ?, due_at = ?, remind_before = ?, update_time = ? WHERE id = ?`
-    ).run(title, type, descriptionContentId, startAt, dueAt, remindBefore, now, payload.id);
+      `UPDATE todo_item SET title = ?, type = ?, description_content_id = ?, start_at = ?, due_at = ?, remind_before = ?, priority = ?, tags = ?, update_time = ? WHERE id = ?`
+    ).run(
+      title,
+      type,
+      descriptionContentId,
+      startAt,
+      dueAt,
+      remindBefore,
+      priority,
+      tags,
+      now,
+      payload.id
+    );
     // 安排的标题跟随待办
     if (title !== cur.title) {
       db.prepare(`UPDATE calendar_event SET title = ?, update_time = ? WHERE todo_item_id = ?`).run(
@@ -458,6 +525,8 @@ export default class TodoItemTable {
       startAt?: number | null;
       dueAt?: number | null;
       remindBefore?: number | null;
+      priority?: TodoPriority;
+      tags?: string[];
     }
   ): TodoItem {
     const ref = db.prepare(`SELECT * FROM todo_item WHERE id = ?`).get(payload.refId) as
@@ -477,6 +546,8 @@ export default class TodoItemTable {
       startAt: payload.startAt ?? null,
       dueAt: payload.dueAt ?? null,
       remindBefore: payload.remindBefore ?? null,
+      priority: payload.priority,
+      tags: payload.tags,
     });
 
     if (payload.position === "child") {
@@ -569,5 +640,41 @@ export default class TodoItemTable {
       }
     }
     return changes;
+  }
+
+  /** 批量重命名待办标签（目标名已存在即合并去重），返回受影响的条数 */
+  static renameTag(db: Database.Database, params: { from: string; to: string }): number {
+    const to = params.to.trim();
+    if (!to) throw new Error("标签名不能为空");
+    return this.rewriteTags(db, tags =>
+      renameTagInList(tags, params.from, to, { hierarchical: false })
+    );
+  }
+
+  /** 从所有未归档待办中移除指定标签，待办本身不受影响 */
+  static removeTag(db: Database.Database, params: { tag: string }): number {
+    return this.rewriteTags(db, tags =>
+      removeTagFromList(tags, params.tag, { hierarchical: false })
+    );
+  }
+
+  private static rewriteTags(db: Database.Database, rewrite: (tags: string[]) => string[]): number {
+    const rows = db.prepare("SELECT id, tags FROM todo_item WHERE is_archived = 0").all() as {
+      id: number;
+      tags: string | null;
+    }[];
+    const update = db.prepare("UPDATE todo_item SET tags = ?, update_time = ? WHERE id = ?");
+    return db.transaction(() => {
+      const now = Date.now();
+      let changed = 0;
+      for (const row of rows) {
+        const current = this.parseTags(row.tags);
+        const next = this.normalizeTags(rewrite(current));
+        if (sameTags(current, next)) continue;
+        update.run(JSON.stringify(next), now, row.id);
+        changed += 1;
+      }
+      return changed;
+    })();
   }
 }

@@ -264,6 +264,29 @@ pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
                 }
             }
         }
+        let todo_columns: Vec<String> = tx
+            .prepare("PRAGMA table_info(todo_item)")
+            .map_err(|e| e.to_string())?
+            .query_map([], |r| r.get(1))
+            .map_err(|e| e.to_string())?
+            .collect::<Result<_, _>>()
+            .map_err(|e| e.to_string())?;
+        if !todo_columns.is_empty() {
+            for (name, definition) in [
+                (
+                    "priority",
+                    "TEXT NOT NULL DEFAULT 'none' CHECK(priority IN ('none','low','medium','high'))",
+                ),
+                ("tags", "TEXT NOT NULL DEFAULT '[]'"),
+            ] {
+                if !todo_columns.iter().any(|col| col == name) {
+                    tx.execute_batch(&format!(
+                        "ALTER TABLE todo_item ADD COLUMN {name} {definition}"
+                    ))
+                    .map_err(|e| e.to_string())?;
+                }
+            }
+        }
         let log_exists:bool=tx.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='data_change_log')",[],|r|r.get(0)).map_err(|e|e.to_string())?;
         if log_exists {
             let names = tx
@@ -284,6 +307,7 @@ pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
             "calendar_time_first_update",
             "dc_todo_item_insert",
             "dc_todo_item_update",
+            "dc_todo_item_meta_update",
             "dc_calendar_event_insert",
             "dc_calendar_event_update",
             "dc_todo_group_insert",

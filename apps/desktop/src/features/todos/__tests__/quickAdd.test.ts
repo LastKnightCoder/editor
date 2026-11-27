@@ -20,6 +20,32 @@ describe("parseQuickAdd", () => {
       recurrence: null,
       groupId: 1,
       schedule: null,
+      priority: "none",
+      tags: [],
+    });
+  });
+
+  it("识别优先级与 @标签，保留邮箱与普通词中的符号", () => {
+    expect(parse("明天 15:00 评审设计稿 !高 @评审 @设计 @评审 #编辑器")).toEqual({
+      title: "评审设计稿",
+      type: "deadline",
+      dueAt: at(9, 25, 15),
+      startAt: null,
+      recurrence: null,
+      groupId: 1,
+      schedule: null,
+      priority: "high",
+      tags: ["评审", "设计"],
+    });
+    expect(parse("整理文档 p2 @规范")).toMatchObject({
+      title: "整理文档",
+      priority: "medium",
+      tags: ["规范"],
+    });
+    expect(parse("给 dev@example.com 发 step2 说明")).toMatchObject({
+      title: "给 dev@example.com 发 step2 说明",
+      priority: "none",
+      tags: [],
     });
   });
 

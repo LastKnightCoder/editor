@@ -5,12 +5,13 @@ import { dayWord, monthDay } from "@/utils/date-format";
  * 内容：标题（即改即存）→ 项目 / 父任务路径 → 属性 → 打卡 → 子任务 → 关联材料 → 描述 → 时间脚注。
  */
 
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { ChevronRight, CornerUpLeft, Trash2 } from "lucide-react";
 import { Drawer, IconButton, useRetainedValue } from "@tau/ui";
 import { useOverlayDismiss } from "@/page/PageProvider";
 import type { TodoGroup } from "@/types";
-import { doneToday, hm, isOverdue } from "../model";
+import { countTags } from "@/utils/tags";
+import { doneToday, hm, isOverdue, tagsOf } from "../model";
 import type { TodoMutations } from "../queries";
 import type { TodoEntry, TodoSnapshot } from "../types";
 import { DetailFields } from "./DetailFields";
@@ -55,6 +56,16 @@ export function TodoDrawer({
   const parent = current?.parentId != null ? snapshot.byId.get(current.parentId) : undefined;
   const recurring = current?.type === "recurring";
   const checked = current ? (recurring ? doneToday(current, now) : current.isCompleted) : false;
+  const tagSuggestions = useMemo(
+    () =>
+      countTags(
+        snapshot.entries.map(item => ({
+          tags: tagsOf(item),
+          usedAt: item.updateTime,
+        }))
+      ),
+    [snapshot.entries]
+  );
 
   return (
     <Drawer
@@ -126,7 +137,12 @@ export function TodoDrawer({
       {current && (
         // 按任务 id 重挂：描述编辑器等非受控区块切换任务时必须重置
         <Fragment key={current.id}>
-          <DetailFields entry={current} groups={groups} mutations={mutations} />
+          <DetailFields
+            entry={current}
+            groups={groups}
+            mutations={mutations}
+            tagSuggestions={tagSuggestions}
+          />
           <HabitSection entry={current} now={now} mutations={mutations} />
           <SubtaskSection
             entry={current}

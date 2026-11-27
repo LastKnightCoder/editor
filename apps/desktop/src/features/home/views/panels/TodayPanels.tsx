@@ -8,6 +8,7 @@ import clsx from "clsx";
 import { ChevronRight } from "lucide-react";
 import { usePage } from "@/page/PageProvider";
 import { EmptyNote, Panel, PanelAction, PanelNote, PanelTitle } from "@tau/ui";
+import { PriorityBadge } from "@/features/todos/components/TodoBits";
 import { useHomeSnapshot } from "../../queries";
 import type { ReviewDeckLite } from "../../types";
 
@@ -88,6 +89,7 @@ export function TodosPanel() {
                 todo.overdue && "border-danger"
               )}
             />
+            <PriorityBadge priority={todo.priority} compact />
             <span className="text-tau-meta min-w-0 flex-1 truncate font-medium">
               {todo.title || t("panels.todos")}
             </span>

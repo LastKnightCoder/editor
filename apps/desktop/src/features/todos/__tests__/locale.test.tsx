@@ -126,6 +126,8 @@ const mutations: TodoMutations = {
   attachDescription: mocks.attachDescription,
   moveToGroup: vi.fn(),
   remove: vi.fn(),
+  renameTag: vi.fn(),
+  removeTag: vi.fn(),
   createGroup: vi.fn(),
   updateGroup: vi.fn(),
   setGroupArchived: vi.fn(),

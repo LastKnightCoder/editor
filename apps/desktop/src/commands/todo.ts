@@ -227,3 +227,13 @@ export const updateNoteTitleSnapshot = async (linkId: number, title: string): Pr
 export const updateTodoReminders = async (todoId: number, offsets: number[]): Promise<number[]> => {
   return invoke("todo:update-reminders", { todoId, offsets });
 };
+
+// ==================== Tags ====================
+
+export const renameTodoTag = async (from: string, to: string): Promise<number> => {
+  return invoke("todo:rename-tag", { from, to });
+};
+
+export const removeTodoTag = async (tag: string): Promise<number> => {
+  return invoke("todo:remove-tag", { tag });
+};

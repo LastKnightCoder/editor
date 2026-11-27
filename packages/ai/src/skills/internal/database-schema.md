@@ -992,23 +992,25 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 
 ### `todo_item`
 
-| 字段                     | SQLite 定义                                           |
-| ------------------------ | ----------------------------------------------------- |
-| `id`                     | `INTEGER PRIMARY KEY`                                 |
-| `group_id`               | `INTEGER NOT NULL`                                    |
-| `parent_id`              | `INTEGER`                                             |
-| `title`                  | `TEXT NOT NULL`                                       |
-| `description_content_id` | `INTEGER`                                             |
-| `is_completed`           | `INTEGER NOT NULL DEFAULT 0 CHECK(is_completed IN (0` |
-| `due_at`                 | `INTEGER`                                             |
-| `completed_at`           | `INTEGER`                                             |
-| `sort_index`             | `INTEGER NOT NULL DEFAULT 0`                          |
-| `is_archived`            | `INTEGER NOT NULL DEFAULT 0 CHECK(is_archived IN (0`  |
-| `create_time`            | `INTEGER NOT NULL`                                    |
-| `update_time`            | `INTEGER NOT NULL`                                    |
-| `type`                   | `TEXT NOT NULL DEFAULT 'normal'`                      |
-| `start_at`               | `INTEGER`                                             |
-| `remind_before`          | `INTEGER`                                             |
+| 字段                     | SQLite 定义                                                                      |
+| ------------------------ | -------------------------------------------------------------------------------- |
+| `id`                     | `INTEGER PRIMARY KEY`                                                            |
+| `group_id`               | `INTEGER NOT NULL`                                                               |
+| `parent_id`              | `INTEGER`                                                                        |
+| `title`                  | `TEXT NOT NULL`                                                                  |
+| `description_content_id` | `INTEGER`                                                                        |
+| `is_completed`           | `INTEGER NOT NULL DEFAULT 0 CHECK(is_completed IN (0`                            |
+| `due_at`                 | `INTEGER`                                                                        |
+| `completed_at`           | `INTEGER`                                                                        |
+| `sort_index`             | `INTEGER NOT NULL DEFAULT 0`                                                     |
+| `is_archived`            | `INTEGER NOT NULL DEFAULT 0 CHECK(is_archived IN (0`                             |
+| `create_time`            | `INTEGER NOT NULL`                                                               |
+| `update_time`            | `INTEGER NOT NULL`                                                               |
+| `type`                   | `TEXT NOT NULL DEFAULT 'normal'`                                                 |
+| `start_at`               | `INTEGER`                                                                        |
+| `remind_before`          | `INTEGER`                                                                        |
+| `priority`               | `TEXT NOT NULL DEFAULT 'none' CHECK(priority IN ('none','low','medium','high'))` |
+| `tags`                   | `TEXT NOT NULL DEFAULT '[]'`                                                     |
 
 ### `todo_note_link`
 

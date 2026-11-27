@@ -18,7 +18,7 @@
   "event.failed": "添加失败",
   "event.placeholder": "快速添加：明天 3 点 评审 #工作",
   "todo.noGroup": "先新建一个项目，再添加任务",
-  "todo.placeholder": "添加任务：试试「明天 17:00 交周报 #项目」或「每周一、四 周会」",
+  "todo.placeholder": "添加任务：试试「明天 17:00 交周报 !高 @评审 #项目」或「每周一、四 周会」",
   "todo.enter": "回车添加",
   "todo.parsed": "识别为",
   "todo.title": "标题：{{title}}",

@@ -13,7 +13,7 @@ export interface TagManageTarget {
 }
 
 interface CommonProps {
-  entity: "card" | "article";
+  entity: "card" | "article" | "todo";
   hierarchical: boolean;
 }
 

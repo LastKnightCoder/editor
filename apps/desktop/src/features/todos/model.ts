@@ -10,7 +10,7 @@
  */
 
 import dayjs from "dayjs";
-import type { TodoItem, TodoRecurrence } from "@/types";
+import type { TodoItem, TodoPriority, TodoRecurrence } from "@/types";
 import { joinTodoReminders } from "@tau/shared/reminders";
 import { isDateScheduledForRecurrence } from "@/utils/recurrence";
 import {
@@ -134,6 +134,30 @@ const BUCKET_RANK: Record<BucketKey, number> = {
   none: 5,
 };
 
+export const TODO_PRIORITIES: readonly TodoPriority[] = ["high", "medium", "low", "none"];
+
+export const PRIORITY_RANK: Record<TodoPriority, number> = {
+  high: 3,
+  medium: 2,
+  low: 1,
+  none: 0,
+};
+
+export function priorityOf(entry: Pick<TodoItem, "priority">): TodoPriority {
+  return entry.priority ?? "none";
+}
+
+export function tagsOf(entry: Pick<TodoItem, "tags">): string[] {
+  return entry.tags ?? [];
+}
+
+export function comparePriorityDesc(
+  a: Pick<TodoItem, "priority">,
+  b: Pick<TodoItem, "priority">
+): number {
+  return PRIORITY_RANK[priorityOf(b)] - PRIORITY_RANK[priorityOf(a)];
+}
+
 /* ---------- 可见范围 ---------- */
 
 /** 进行中项目下的条目：快照含已归档项目的任务，视图一律经此过滤；hidden 为额外隐藏的 id */
@@ -154,7 +178,7 @@ export function groupDeletionIds(snapshot: TodoSnapshot, groupId: number): Set<n
   return ids;
 }
 
-/** 未完成的顶层任务（= 待办页「全部」计数口径），按议程段 + 段内时间排序 */
+/** 未完成的顶层任务（= 待办页「全部」计数口径），按议程段 + 段内时间 + 优先级排序 */
 export function openRoots(entries: TodoEntry[], now: number): TodoEntry[] {
   return entries
     .filter(e => e.parentId == null && isOpen(e, now))
@@ -162,6 +186,7 @@ export function openRoots(entries: TodoEntry[], now: number): TodoEntry[] {
       (a, b) =>
         BUCKET_RANK[bucketOf(a, now)] - BUCKET_RANK[bucketOf(b, now)] ||
         sortKey(a, now) - sortKey(b, now) ||
+        comparePriorityDesc(a, b) ||
         a.sortIndex - b.sortIndex
     );
 }

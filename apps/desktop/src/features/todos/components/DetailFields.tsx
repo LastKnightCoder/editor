@@ -19,8 +19,10 @@ import {
   ChevronDown,
   Flag,
   Folder,
+  Hash,
   List,
   Repeat,
+  SignalHigh,
   Timer,
   CalendarClock,
 } from "lucide-react";
@@ -28,6 +30,8 @@ import { useTodoFocusSummary } from "@/features/pomodoro/queries";
 import { useTodoSchedules } from "@/features/schedule/queries";
 import { usePage } from "@/page/PageProvider";
 import { formatTime } from "@/utils/calendar";
+import type { TagCount } from "@/utils/tags";
+import AddTag from "@/components/AddTag";
 import {
   DatePicker,
   Menu,
@@ -44,15 +48,16 @@ import type {
   RecurrenceType,
   TodoGroup,
   TodoItemType,
+  TodoPriority,
   TodoRecurrence,
 } from "@/types";
 import type { ComponentProps, ReactNode } from "react";
 import { summarizeReminders } from "@tau/shared/reminders";
 import { ReminderMenu } from "@/components/ReminderMenu";
-import { todoReminders } from "../model";
+import { priorityOf, tagsOf, todoReminders } from "../model";
 import type { TodoMutations } from "../queries";
 import type { TodoEntry } from "../types";
-import { GroupDot } from "./TodoBits";
+import { GroupDot, PRIORITY_TONE, PriorityIcon } from "./TodoBits";
 const t = todosTranslator.t;
 
 const toPicker = (ts: number | null | undefined) =>
@@ -86,18 +91,23 @@ const PRESETS: DatePickerPreset[] = [
   },
 ];
 
+const DRAWER_PRIORITIES: readonly TodoPriority[] = ["none", "low", "medium", "high"];
+
 export function DetailFields({
   entry,
   groups,
   mutations,
+  tagSuggestions = [],
 }: {
   entry: TodoEntry;
   groups: TodoGroup[];
   mutations: TodoMutations;
+  tagSuggestions?: TagCount[];
 }) {
   const { locale } = useTodosI18n();
   const group = groups.find(g => g.id === entry.groupId);
   const isChild = entry.parentId != null;
+  const currentTags = tagsOf(entry);
 
   return (
     <div className="flex flex-col gap-0.5">
@@ -135,6 +145,53 @@ export function DetailFields({
             </Menu.RadioGroup>
           </Menu>
         )}
+      </Field>
+
+      <Field icon={SignalHigh} label={t("priority.label")}>
+        <Segmented
+          label={t("priority.label")}
+          size="sm"
+          value={priorityOf(entry)}
+          onValueChange={(priority: TodoPriority) => {
+            void mutations.updateItem(entry, { priority });
+          }}
+        >
+          {DRAWER_PRIORITIES.map(level => (
+            <Segmented.Item
+              key={level}
+              value={level}
+              className="px-2.5"
+              label={
+                <span className="inline-flex items-center gap-1">
+                  {level !== "none" && (
+                    <PriorityIcon priority={level} className={PRIORITY_TONE[level].text} />
+                  )}
+                  {t(`priority.${level}`)}
+                </span>
+              }
+            />
+          ))}
+        </Segmented>
+      </Field>
+
+      <Field icon={Hash} label={t("tags.label")} align="start">
+        <AddTag
+          tags={currentTags}
+          addTag={tag => {
+            if (!currentTags.includes(tag)) {
+              void mutations.updateItem(entry, { tags: [...currentTags, tag] });
+            }
+          }}
+          removeTag={tag => {
+            void mutations.updateItem(entry, { tags: currentTags.filter(item => item !== tag) });
+          }}
+          editTag={(oldTag, newTag) => {
+            const next = [...new Set(currentTags.map(item => (item === oldTag ? newTag : item)))];
+            void mutations.updateItem(entry, { tags: next });
+          }}
+          loadSuggestions={async () => tagSuggestions}
+          className="gap-1.5"
+        />
       </Field>
 
       <Field icon={List} label={t("field.type")}>
@@ -417,15 +474,27 @@ function RecurrenceEditor({
 function Field({
   icon: Icon,
   label,
+  align = "center",
   children,
 }: {
   icon: typeof Folder;
   label: string;
+  align?: "center" | "start";
   children: ReactNode;
 }) {
   return (
-    <div className="grid min-h-8 grid-cols-[72px_minmax(0,1fr)] items-center gap-2.5">
-      <span className="text-ink-3 flex items-center gap-1.5 text-[12px]">
+    <div
+      className={cn(
+        "grid min-h-8 grid-cols-[72px_minmax(0,1fr)] gap-2.5",
+        align === "start" ? "items-start py-1" : "items-center"
+      )}
+    >
+      <span
+        className={cn(
+          "text-ink-3 flex items-center gap-1.5 text-[12px]",
+          align === "start" && "leading-[26px]"
+        )}
+      >
         <Icon className="size-[13px]" strokeWidth={1.75} />
         {label}
       </span>

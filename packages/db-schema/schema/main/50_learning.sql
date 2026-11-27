@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS todo_item (
           is_archived INTEGER NOT NULL DEFAULT 0 CHECK(is_archived IN (0,1)),
           create_time INTEGER NOT NULL,
           update_time INTEGER NOT NULL
-        , type TEXT NOT NULL DEFAULT 'normal', start_at INTEGER, remind_before INTEGER);
+        , type TEXT NOT NULL DEFAULT 'normal', start_at INTEGER, remind_before INTEGER, priority TEXT NOT NULL DEFAULT 'none' CHECK(priority IN ('none','low','medium','high')), tags TEXT NOT NULL DEFAULT '[]');
 CREATE TABLE IF NOT EXISTS todo_note_link (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         todo_id INTEGER NOT NULL,

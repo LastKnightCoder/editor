@@ -28,9 +28,11 @@ describe("待办分段方式偏好", () => {
     saveGroupFilter("3");
     saveMode("group");
     expect(readSavedMode()).toBe("group");
+    saveMode("priority");
+    expect(readSavedMode()).toBe("priority");
     expect(readSavedGroupFilter()).toBe("3");
     saveGroupFilter("5");
-    expect(readSavedMode()).toBe("group");
+    expect(readSavedMode()).toBe("priority");
   });
 
   it("坏值回退按日期", () => {

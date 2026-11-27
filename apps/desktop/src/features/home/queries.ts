@@ -27,7 +27,13 @@ import type { DiaryEntry } from "@/types/diary";
 import type { StatisticData } from "@/types/statistic";
 import type { CalendarEvent } from "@/types/calendar";
 import { ensureTodoSnapshot } from "@/features/todos/queries";
-import { isOverdue, liveEntries, nextOccurrence, openRoots } from "@/features/todos/model";
+import {
+  isOverdue,
+  liveEntries,
+  nextOccurrence,
+  openRoots,
+  priorityOf,
+} from "@/features/todos/model";
 import type { HeatmapStats, HomeSnapshot, RecentEdit, TodoTodayItem, TodayEvent } from "./types";
 
 const DAY_MS = 86_400_000;
@@ -93,6 +99,7 @@ async function fetchTodos(): Promise<{ todos: TodoTodayItem[]; remaining: number
         title: shortTitle(t.title || "", 32),
         overdue: isOverdue(t, now),
         dueAt: at ?? undefined,
+        priority: priorityOf(t),
       };
     }),
     remaining: open.length,

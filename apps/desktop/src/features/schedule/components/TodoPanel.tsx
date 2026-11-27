@@ -12,8 +12,8 @@ import { Search, X } from "lucide-react";
 import { IconButton, cn } from "@tau/ui";
 import { FadeScroll } from "@tau/ui";
 import { useTodoMutations, useTodoSnapshot } from "@/features/todos/queries";
-import { TODO_DRAG_TYPE, liveEntries, openRoots } from "@/features/todos/model";
-import { GroupDot, TodoCheck } from "@/features/todos/components/TodoBits";
+import { TODO_DRAG_TYPE, liveEntries, openRoots, priorityOf, tagsOf } from "@/features/todos/model";
+import { GroupDot, PriorityBadge, TodoCheck } from "@/features/todos/components/TodoBits";
 import type { TodoEntry } from "@/features/todos/types";
 import type { TodoScheduleSummary } from "@/types";
 import { formatTime } from "@/utils/calendar";
@@ -37,7 +37,14 @@ export function TodoPanel({ onClose }: { onClose(): void }) {
 
   const groups = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const matched = q ? roots.filter(e => e.title.toLowerCase().includes(q)) : roots;
+    const tagNeedle = q.startsWith("#") ? q.slice(1) : q;
+    const matched = q
+      ? roots.filter(
+          e =>
+            e.title.toLowerCase().includes(q) ||
+            (tagNeedle.length > 0 && tagsOf(e).some(tag => tag.toLowerCase().includes(tagNeedle)))
+        )
+      : roots;
     return (snapshot?.groups ?? [])
       .map(group => ({ group, entries: matched.filter(e => e.groupId === group.id) }))
       .filter(section => section.entries.length > 0);
@@ -141,7 +148,10 @@ function TodoRow({
         onToggle={onComplete}
       />
       <div className="min-w-0 flex-1">
-        <div className="text-tau-sm truncate">{entry.title}</div>
+        <div className="flex min-w-0 items-center gap-1.5">
+          <PriorityBadge priority={priorityOf(entry)} compact />
+          <span className="text-tau-sm min-w-0 truncate">{entry.title}</span>
+        </div>
         {meta && <div className="text-ink-3 text-tau-micro truncate tabular-nums">{meta}</div>}
       </div>
     </div>
@@ -155,17 +165,29 @@ function todoMeta(
   now: number,
   locale: string
 ) {
+  const tags = tagsOf(entry);
+  const tagSuffix =
+    tags.length > 0
+      ? tags
+          .slice(0, 2)
+          .map(tag => `#${tag}`)
+          .join(" ")
+      : "";
+  const join = (head: string | null) =>
+    head && tagSuffix ? `${head} · ${tagSuffix}` : (head ?? (tagSuffix || null));
   if (schedule?.next) {
     const e = schedule.next;
     const time =
       e.allDay || e.startTime == null ? scheduleText("time.allDay") : formatTime(e.startTime);
-    return scheduleText("todo.scheduled", { date: dayWord(e.startDate, now, locale), time });
+    return join(scheduleText("todo.scheduled", { date: dayWord(e.startDate, now, locale), time }));
   }
   if (schedule?.last)
-    return scheduleText("todo.lastScheduled", {
-      date: dayWord(schedule.last.startDate, now, locale),
-    });
+    return join(
+      scheduleText("todo.lastScheduled", {
+        date: dayWord(schedule.last.startDate, now, locale),
+      })
+    );
   if (entry.type === "deadline" && entry.dueAt != null)
-    return scheduleText("todo.due", { date: dateTimeWord(entry.dueAt, now, locale) });
-  return null;
+    return join(scheduleText("todo.due", { date: dateTimeWord(entry.dueAt, now, locale) }));
+  return join(null);
 }

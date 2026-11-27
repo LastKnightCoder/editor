@@ -18,7 +18,7 @@
   "event.failed": "Could not add event",
   "event.placeholder": "Quick add: 15:00 Review #work",
   "todo.noGroup": "Create a task project before adding tasks",
-  "todo.placeholder": "Add a task: try “17:00 Submit report #project”",
+  "todo.placeholder": "Add a task: try “17:00 Submit report p1 @review #project”",
   "todo.enter": "Press Enter to add",
   "todo.parsed": "Recognized as",
   "todo.title": "Title: {{title}}",

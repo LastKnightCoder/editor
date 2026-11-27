@@ -13,7 +13,7 @@ export function useTagManage({
   onRemoved,
 }: {
   existing: TagManageTarget[];
-  entity: "card" | "article";
+  entity: "card" | "article" | "todo";
   hierarchical: boolean;
   rename: (from: string, to: string) => Promise<void>;
   remove: (tag: string) => Promise<void>;

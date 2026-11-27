@@ -32,6 +32,8 @@ import {
   listTodoItemsByType,
   listTodoNotesByTodoIds,
   moveAndReorderTodoItem,
+  removeTodoTag,
+  renameTodoTag,
   skipRecurrence,
   toggleCompleteCascade,
   uncompleteRecurrence,
@@ -228,7 +230,14 @@ const DEFAULT_RECURRENCE = (startDate: number) => ({
  * 写了时段的同时安排进日历（主进程同一事务）。
  */
 export async function createTodoFromQuickAdd(parsed: QuickAddResult, groupId: number) {
-  const base = { groupId, title: parsed.title, type: parsed.type, dueAt: parsed.dueAt };
+  const base = {
+    groupId,
+    title: parsed.title,
+    type: parsed.type,
+    dueAt: parsed.dueAt,
+    priority: parsed.priority,
+    tags: parsed.tags,
+  };
   const item = parsed.schedule
     ? (await createTodoWithSchedule({ ...base, schedule: parsed.schedule })).item
     : await createTodoItem({ ...base, startAt: parsed.startAt });
@@ -366,6 +375,16 @@ export function useTodoMutations() {
     async remove(id: number) {
       await deleteTodoItemCascade(id);
       emit("item", TODO_MUTATION_ACTIONS.DELETE_ITEM_CASCADE, { entityId: id });
+    },
+
+    async renameTag(from: string, to: string) {
+      await renameTodoTag(from, to);
+      emit("item", TODO_MUTATION_ACTIONS.UPDATE_ITEM);
+    },
+
+    async removeTag(tag: string) {
+      await removeTodoTag(tag);
+      emit("item", TODO_MUTATION_ACTIONS.UPDATE_ITEM);
     },
 
     /* ----- 项目 ----- */

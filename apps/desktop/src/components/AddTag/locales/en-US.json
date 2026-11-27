@@ -20,6 +20,8 @@
   "delete.cardTree": "This tag and its child tags will be removed from all cards. The cards will remain.",
   "delete.article": "This tag will be removed from all articles. The articles will remain.",
   "delete.articleTree": "This tag and its child tags will be removed from all articles. The articles will remain.",
+  "delete.todo": "This tag will be removed from all tasks. The tasks will remain.",
+  "delete.todoTree": "This tag and its child tags will be removed from all tasks. The tasks will remain.",
   "picker.create": "Create “{{tag}}”",
   "picker.search": "Search or create a tag",
   "picker.tags": "Tags",
@@ -33,5 +35,7 @@
   "amount.card_one": "{{amount}} card",
   "amount.card_other": "{{amount}} cards",
   "amount.article_one": "{{amount}} article",
-  "amount.article_other": "{{amount}} articles"
+  "amount.article_other": "{{amount}} articles",
+  "amount.todo_one": "{{amount}} task",
+  "amount.todo_other": "{{amount}} tasks"
 }

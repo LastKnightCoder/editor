@@ -21,9 +21,11 @@ import {
   CalendarDays,
   Check,
   Folder,
+  Hash,
   ListChecks,
   PanelRightOpen,
   Plus,
+  SignalHigh,
   Sunrise,
   Sun,
   Trash2,
@@ -31,16 +33,20 @@ import {
 import { MotionConfig } from "motion/react";
 import { Button, Loading, Menu, Segmented, toast } from "@tau/ui";
 import { usePage, usePageParams } from "@/page/PageProvider";
-import type { TodoGroup } from "@/types";
+import type { TodoGroup, TodoPriority } from "@/types";
+import { countTags } from "@/utils/tags";
 import {
   DAY_MS,
+  TODO_PRIORITIES,
   bucketOf,
   doneToday,
   isOpen,
   isOverdue,
   liveEntries,
+  priorityOf,
   scheduledToday,
   startOfDay,
+  tagsOf,
 } from "../model";
 import { useNow, useTodoMutations, useTodoSnapshot } from "../queries";
 import type { QuickAddResult } from "../quickAdd";
@@ -50,7 +56,8 @@ import { GroupDialog } from "@/components/GroupDialog";
 import { QuickAddBar } from "../components/QuickAddBar";
 import { TodayDrawer } from "../components/TodayDrawer";
 import { TodoDrawer } from "../components/TodoDrawer";
-import { GroupDot } from "../components/TodoBits";
+import { GroupDot, PRIORITY_TONE, PriorityIcon } from "../components/TodoBits";
+import { ActiveFilterStrip, TodoFilterPopover } from "../components/TodoFilterPopover";
 import { useAppContextProvider } from "@/hooks/useAppContextProvider";
 import { readSavedGroupFilter, readSavedMode, saveGroupFilter, saveMode } from "../preferences";
 import type { DocTaskItem, DocTaskSource } from "@/types/doc-tasks";
@@ -109,9 +116,30 @@ export function TodosView() {
     navigator.push("todos", { id: groupId ? String(groupId) : "" });
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [todayOpen, setTodayOpen] = useState(false);
+  const [priorityFilters, setPriorityFilters] = useState<Set<TodoPriority>>(() => new Set());
+  const [tagFilters, setTagFilters] = useState<Set<string>>(() => new Set());
   const [groupDialog, setGroupDialog] = useState<{ group: TodoGroup | null } | null>(null);
   const quickAddRef = useRef<HTMLInputElement>(null);
   const agendaAnchor = useRef<HTMLDivElement>(null);
+
+  const togglePriorityFilter = (priority: TodoPriority) =>
+    setPriorityFilters(prev => {
+      const next = new Set(prev);
+      if (next.has(priority)) next.delete(priority);
+      else next.add(priority);
+      return next;
+    });
+  const toggleTagFilter = (tag: string) =>
+    setTagFilters(prev => {
+      const next = new Set(prev);
+      if (next.has(tag)) next.delete(tag);
+      else next.add(tag);
+      return next;
+    });
+  const clearFilters = () => {
+    setPriorityFilters(new Set());
+    setTagFilters(new Set());
+  };
 
   /* 删除暂存：立即从视图消失，撤销 toast 关闭时真正落库；撤销即取消；离开页面时立刻落库。
      落库挂在 toast 的 onClose 上：悬停冻结自动关闭会连带延长撤销窗口，不会有死按钮。
@@ -226,11 +254,27 @@ export function TodosView() {
         (!groupFilter || e.groupId === groupFilter)
     );
     const timed = [...roots, ...datedChildren];
+    const matchesFilters = (entry: TodoEntry) => {
+      if (priorityFilters.size > 0 && !priorityFilters.has(priorityOf(entry))) return false;
+      if (tagFilters.size > 0) {
+        const entryTags = tagsOf(entry);
+        for (const tag of tagFilters) {
+          if (!entryTags.includes(tag)) return false;
+        }
+      }
+      return true;
+    };
+    const tagCounts = countTags(
+      live.map(entry => ({ tags: tagsOf(entry), usedAt: entry.updateTime }))
+    );
     return {
       live,
       allRoots,
       roots,
       timed,
+      filteredRoots: roots.filter(matchesFilters),
+      filteredTimed: timed.filter(matchesFilters),
+      tagCounts,
       completed: live.filter(
         e => e.type !== "recurring" && e.isCompleted && (!groupFilter || e.groupId === groupFilter)
       ),
@@ -238,7 +282,7 @@ export function TodosView() {
       overdueCount: timed.filter(e => isOverdue(e, now)).length,
       habitsToday: roots.filter(e => scheduledToday(e, now)),
     };
-  }, [snapshot, pendingDelete, groupFilter, now]);
+  }, [snapshot, pendingDelete, groupFilter, now, priorityFilters, tagFilters]);
 
   // AI 上下文：当前打开的待办详情（selectedId 经 ref 保鲜，详情抽屉关闭时返回 null）
   useAppContextProvider("todo-detail", t("context.details"), () => {
@@ -249,6 +293,8 @@ export function TodosView() {
       id: entry.id,
       title: entry.title,
       type: entry.type,
+      priority: priorityOf(entry),
+      tags: tagsOf(entry),
       isCompleted: entry.isCompleted,
       groupId: entry.groupId,
       parentId: entry.parentId,
@@ -285,8 +331,12 @@ export function TodosView() {
       !task.checked,
       docSources.get(task.contentId)?.title ?? t("common.source")
     );
-  // 议程只并入当前项目筛选内的文档条目
+  // 议程只并入当前项目筛选内的文档条目；存在标签或非「无」优先级筛选时排除无属性的文档条目
+  const hasFilters = priorityFilters.size > 0 || tagFilters.size > 0;
+  const docsMatchFilter =
+    tagFilters.size === 0 && (priorityFilters.size === 0 || priorityFilters.has("none"));
   const agendaDocs = groupFilter ? docOpen.filter(t => t.groupId === groupFilter) : docOpen;
+  const filteredAgendaDocs = docsMatchFilter ? agendaDocs : [];
   const docToday = agendaDocs.filter(t => docTaskBucket(t, now) === "today").length;
   const docOverdue = agendaDocs.filter(t => docTaskBucket(t, now) === "overdue").length;
 
@@ -348,6 +398,9 @@ export function TodosView() {
   const renderMenu = (entry: TodoEntry) => {
     const today = startOfDay(now);
     const nextMonday = today + ((8 - new Date(now).getDay()) % 7 || 7) * DAY_MS;
+    const currentPriority = priorityOf(entry);
+    const entryTags = tagsOf(entry);
+    const allTagNames = [...new Set([...derived.tagCounts.map(item => item.tag), ...entryTags])];
     return (
       <>
         <Menu.Item
@@ -370,6 +423,51 @@ export function TodosView() {
         >
           {t("common.details")}
         </Menu.Item>
+        <Menu.Submenu
+          label={t("action.priority")}
+          icon={<SignalHigh className="size-[15px]" strokeWidth={1.75} />}
+        >
+          <Menu.RadioGroup
+            value={currentPriority}
+            onValueChange={value =>
+              void mutations.updateItem(entry, { priority: value as TodoPriority })
+            }
+          >
+            {TODO_PRIORITIES.map(priority => (
+              <Menu.RadioItem
+                key={priority}
+                value={priority}
+                icon={<PriorityIcon priority={priority} className={PRIORITY_TONE[priority].text} />}
+              >
+                {t(`priority.full.${priority}`)}
+              </Menu.RadioItem>
+            ))}
+          </Menu.RadioGroup>
+        </Menu.Submenu>
+        {allTagNames.length > 0 && (
+          <Menu.Submenu
+            label={t("action.tags")}
+            icon={<Hash className="size-[15px]" strokeWidth={1.75} />}
+          >
+            {allTagNames.map(tag => {
+              const has = entryTags.includes(tag);
+              return (
+                <Menu.CheckboxItem
+                  key={tag}
+                  checked={has}
+                  onCheckedChange={checked => {
+                    const next = checked
+                      ? [...entryTags, tag]
+                      : entryTags.filter(item => item !== tag);
+                    void mutations.updateItem(entry, { tags: next });
+                  }}
+                >
+                  #{tag}
+                </Menu.CheckboxItem>
+              );
+            })}
+          </Menu.Submenu>
+        )}
         {entry.type !== "recurring" && (
           <Menu.Submenu
             label={t("action.reschedule")}
@@ -516,6 +614,35 @@ export function TodosView() {
                 )}
               </span>
               {!docView && (
+                <TodoFilterPopover
+                  priorityFilters={priorityFilters}
+                  tagFilters={tagFilters}
+                  tagCounts={derived.tagCounts}
+                  onTogglePriority={togglePriorityFilter}
+                  onToggleTag={toggleTagFilter}
+                  onClearAll={clearFilters}
+                  onRenameTag={mutations.renameTag}
+                  onRemoveTag={mutations.removeTag}
+                  onTagRenamed={(from, to) =>
+                    setTagFilters(prev => {
+                      if (!prev.has(from)) return prev;
+                      const next = new Set(prev);
+                      next.delete(from);
+                      next.add(to);
+                      return next;
+                    })
+                  }
+                  onTagRemoved={tag =>
+                    setTagFilters(prev => {
+                      if (!prev.has(tag)) return prev;
+                      const next = new Set(prev);
+                      next.delete(tag);
+                      return next;
+                    })
+                  }
+                />
+              )}
+              {!docView && (
                 <Button
                   variant={todayOpen ? "soft" : "ghost"}
                   size="sm"
@@ -543,6 +670,7 @@ export function TodosView() {
                 >
                   <Segmented.Item value="date" icon={CalendarDays} label={t("view.byDate")} />
                   <Segmented.Item value="group" icon={Folder} label={t("view.byGroup")} />
+                  <Segmented.Item value="priority" icon={SignalHigh} label={t("view.byPriority")} />
                 </Segmented>
               )}
             </div>
@@ -551,8 +679,18 @@ export function TodosView() {
                 groups={groups}
                 fallbackGroupId={groupFilter || groups[0].id}
                 now={now}
+                tagSuggestions={derived.tagCounts}
                 onSubmit={createFromQuickAdd}
                 inputRef={quickAddRef}
+              />
+            )}
+            {!docView && (
+              <ActiveFilterStrip
+                priorityFilters={priorityFilters}
+                tagFilters={tagFilters}
+                onTogglePriority={togglePriorityFilter}
+                onToggleTag={toggleTagFilter}
+                onClearAll={clearFilters}
               />
             )}
           </div>
@@ -585,12 +723,12 @@ export function TodosView() {
             <div className="relative grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)]">
               <div ref={agendaAnchor} className="flex min-h-0 flex-col pl-2.5">
                 <AgendaPanel
-                  entries={mode === "date" ? derived.timed : derived.roots}
+                  entries={mode === "group" ? derived.filteredRoots : derived.filteredTimed}
                   snapshot={snapshot}
                   groups={groupFilter ? groups.filter(g => g.id === groupFilter) : groups}
                   mode={mode}
                   now={now}
-                  showGroup={mode === "date" && groupFilter === 0}
+                  showGroup={mode !== "group" && groupFilter === 0}
                   selectedId={selectedId}
                   onOpen={entry => {
                     setSelectedDocKey(null);
@@ -598,8 +736,11 @@ export function TodosView() {
                   }}
                   onToggle={toggle}
                   renderMenu={renderMenu}
+                  activeTagFilters={tagFilters}
+                  onToggleTagFilter={toggleTagFilter}
+                  filtered={hasFilters}
                   docTasks={{
-                    items: agendaDocs,
+                    items: filteredAgendaDocs,
                     sources: docSources,
                     selected: selectedDoc,
                     onToggle: toggleDoc,

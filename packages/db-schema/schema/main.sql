@@ -615,7 +615,7 @@ CREATE TABLE IF NOT EXISTS todo_item (
           is_archived INTEGER NOT NULL DEFAULT 0 CHECK(is_archived IN (0,1)),
           create_time INTEGER NOT NULL,
           update_time INTEGER NOT NULL
-        , type TEXT NOT NULL DEFAULT 'normal', start_at INTEGER, remind_before INTEGER);
+        , type TEXT NOT NULL DEFAULT 'normal', start_at INTEGER, remind_before INTEGER, priority TEXT NOT NULL DEFAULT 'none' CHECK(priority IN ('none','low','medium','high')), tags TEXT NOT NULL DEFAULT '[]');
 CREATE TABLE IF NOT EXISTS todo_note_link (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         todo_id INTEGER NOT NULL,
@@ -1100,6 +1100,16 @@ BEGIN
   INSERT INTO data_change_log(domain,entity_id,operation,action) SELECT 'todo','todo:'||NEW.id||':'||NEW.create_time,'upsert',CASE WHEN OLD.id IS NOT NEW.id OR OLD.create_time IS NOT NEW.create_time THEN 'created' ELSE 'updated' END;
   INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT OLD.parent_id WHERE OLD.parent_id IS NOT NULL UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
   INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert' FROM todo_item t WHERE t.id IN (WITH RECURSIVE affected(id) AS (SELECT NEW.parent_id WHERE NEW.parent_id IS NOT NULL UNION SELECT p.parent_id FROM todo_item p JOIN affected a ON p.id=a.id WHERE p.parent_id IS NOT NULL) SELECT id FROM affected);
+END;
+
+-- 独立捕获仅优先级或标签发生变化的更新。
+CREATE TRIGGER IF NOT EXISTS dc_todo_item_meta_update
+AFTER UPDATE OF priority,tags ON todo_item
+WHEN (OLD.priority,OLD.tags) IS NOT (NEW.priority,NEW.tags)
+ AND (OLD.id,OLD.group_id,OLD.parent_id,OLD.title,OLD.description_content_id,OLD.is_completed,OLD.due_at,OLD.completed_at,OLD.is_archived,OLD.create_time,OLD.type,OLD.start_at,OLD.remind_before)
+  IS (NEW.id,NEW.group_id,NEW.parent_id,NEW.title,NEW.description_content_id,NEW.is_completed,NEW.due_at,NEW.completed_at,NEW.is_archived,NEW.create_time,NEW.type,NEW.start_at,NEW.remind_before)
+BEGIN
+  INSERT INTO data_change_log(domain,entity_id,operation,action) VALUES('todo','todo:'||NEW.id||':'||NEW.create_time,'upsert','updated');
 END;
 
 CREATE TRIGGER IF NOT EXISTS dc_todo_item_delete AFTER DELETE ON todo_item

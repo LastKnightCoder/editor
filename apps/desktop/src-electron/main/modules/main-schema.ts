@@ -62,6 +62,19 @@ export function ensureMainSchema(db: Database.Database): void {
             db.exec(`ALTER TABLE calendar_event ADD COLUMN ${name} ${type}`);
         }
       }
+      if (tables.some(table => table.name === "todo_item")) {
+        const columns = db.pragma("table_info(todo_item)") as { name: string }[];
+        for (const [name, definition] of [
+          [
+            "priority",
+            "TEXT NOT NULL DEFAULT 'none' CHECK(priority IN ('none','low','medium','high'))",
+          ],
+          ["tags", "TEXT NOT NULL DEFAULT '[]'"],
+        ]) {
+          if (!columns.some(column => column.name === name))
+            db.exec(`ALTER TABLE todo_item ADD COLUMN ${name} ${definition}`);
+        }
+      }
       const logExists = db
         .prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='data_change_log'")
         .get();
@@ -81,6 +94,7 @@ export function ensureMainSchema(db: Database.Database): void {
         "calendar_time_first_update",
         "dc_todo_item_insert",
         "dc_todo_item_update",
+        "dc_todo_item_meta_update",
         "dc_calendar_event_insert",
         "dc_calendar_event_update",
         "dc_todo_group_insert",

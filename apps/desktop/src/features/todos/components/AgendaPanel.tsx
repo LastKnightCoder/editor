@@ -26,6 +26,7 @@ import type { TodoGroup } from "@/types";
 import type { DocTaskItem, DocTaskSource } from "@/types/doc-tasks";
 import {
   bucketOf,
+  comparePriorityDesc,
   dayDiff,
   doneToday,
   hm,
@@ -33,19 +34,30 @@ import {
   isOpen,
   isOverdue,
   nextOccurrence,
+  priorityOf,
   scheduledToday,
   sortKey,
+  tagsOf,
+  TODO_PRIORITIES,
   todoReminders,
   streakOf,
   DAY_MS,
 } from "../model";
 import { summarizeReminders } from "@tau/shared/reminders";
 import type { BucketKey, TodoEntry, TodoSnapshot } from "../types";
-import { GroupDot, TodoCheck, TypeIcon } from "./TodoBits";
+import {
+  GroupDot,
+  PRIORITY_TONE,
+  PriorityBadge,
+  PriorityIcon,
+  TodoCheck,
+  TodoTagChip,
+  TypeIcon,
+} from "./TodoBits";
 import { DocTaskRow, docTaskBucket } from "./DocTaskBits";
 const t = todosTranslator.t;
 
-export type AgendaMode = "date" | "group";
+export type AgendaMode = "date" | "group" | "priority";
 
 /** 按项目分段的已完成列表每次展开的条数（折叠时行也挂载，不一次渲染全量） */
 const DONE_PAGE = 20;
@@ -127,8 +139,11 @@ export function AgendaPanel({
   onToggle,
   renderMenu,
   docTasks,
+  activeTagFilters,
+  onToggleTagFilter,
+  filtered = false,
 }: {
-  /** 议程条目：按日期 = 顶层任务 + 带日期的子任务；按项目 = 顶层任务 */
+  /** 议程条目：按日期/按优先级 = 顶层任务 + 带日期的子任务；按项目 = 顶层任务 */
   entries: TodoEntry[];
   snapshot: TodoSnapshot;
   groups: TodoGroup[];
@@ -141,6 +156,9 @@ export function AgendaPanel({
   onToggle(entry: TodoEntry): void;
   renderMenu(entry: TodoEntry): ReactNode;
   docTasks?: AgendaDocTasks;
+  activeTagFilters?: ReadonlySet<string>;
+  onToggleTagFilter?(tag: string): void;
+  filtered?: boolean;
 }) {
   const { locale } = useTodosI18n();
   const [foldOpen, setFoldOpen] = useState<Set<string>>(() => new Set());
@@ -149,7 +167,7 @@ export function AgendaPanel({
 
   const sections = useMemo<Section[]>(() => {
     const byTime = (a: TodoEntry, b: TodoEntry) =>
-      sortKey(a, now) - sortKey(b, now) || a.sortIndex - b.sortIndex;
+      sortKey(a, now) - sortKey(b, now) || comparePriorityDesc(a, b) || a.sortIndex - b.sortIndex;
     const completedToday = (e: TodoEntry) =>
       e.type === "recurring"
         ? scheduledToday(e, now) && doneToday(e, now)
@@ -171,7 +189,34 @@ export function AgendaPanel({
           done: inBucket.filter(completedToday),
           docs: docs.filter(t => docTaskBucket(t, now) === key).sort(byDue),
         };
-      }).filter(s => s.key === "today" || s.open.length || s.done.length || s.docs.length);
+      }).filter(
+        s => (s.key === "today" && !filtered) || s.open.length || s.done.length || s.docs.length
+      );
+    }
+
+    if (mode === "priority") {
+      return TODO_PRIORITIES.map((priority): Section => {
+        const own = entries.filter(e => priorityOf(e) === priority);
+        return {
+          key: `p-${priority}`,
+          label: (
+            <span
+              className={cn(
+                "flex items-center gap-2",
+                priority === "none" ? "text-ink-2" : PRIORITY_TONE[priority].text
+              )}
+            >
+              {priority !== "none" && <PriorityIcon priority={priority} className="size-3.5" />}
+              {t(`priority.full.${priority}`)}
+            </span>
+          ),
+          open: own.filter(e => isOpen(e, now)).sort(byTime),
+          done: own
+            .filter(e => e.type !== "recurring" && e.isCompleted)
+            .sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0)),
+          docs: priority === "none" ? [...docs].sort(byDue) : [],
+        };
+      }).filter(s => s.open.length || s.done.length || s.docs.length);
     }
 
     return groups
@@ -194,8 +239,10 @@ export function AgendaPanel({
           docs: docs.filter(t => t.groupId === group.id),
         };
       })
-      .filter(s => s.open.length || s.done.length || s.docs.length || groups.length <= 1);
-  }, [entries, groups, mode, now, docItems, locale]);
+      .filter(
+        s => s.open.length || s.done.length || s.docs.length || (groups.length <= 1 && !filtered)
+      );
+  }, [entries, groups, mode, now, docItems, locale, filtered]);
 
   const toggleFold = (key: string) =>
     setFoldOpen(prev => {
@@ -225,6 +272,8 @@ export function AgendaPanel({
         onOpen={onOpen}
         onToggle={onToggle}
         menu={renderMenu(entry)}
+        activeTagFilters={activeTagFilters}
+        onToggleTagFilter={onToggleTagFilter}
       />
     </motion.div>
   );
@@ -234,8 +283,10 @@ export function AgendaPanel({
     <FadeScroll layoutScroll className="relative mb-4 min-h-0 min-w-0 flex-1 pr-2 pb-6 pl-[22px]">
       {sections.length === 0 && (
         <div className="text-ink-3 flex flex-col items-center gap-1.5 py-20 text-center text-[12.5px]">
-          <p className="text-ink-2 text-[15px] font-medium">{t("agenda.clear")}</p>
-          <p>{t("agenda.clearHint")}</p>
+          <p className="text-ink-2 text-[15px] font-medium">
+            {filtered ? t("filter.empty") : t("agenda.clear")}
+          </p>
+          <p>{filtered ? t("filter.emptyHint") : t("agenda.clearHint")}</p>
         </div>
       )}
       {sections.map(section => {
@@ -245,8 +296,8 @@ export function AgendaPanel({
         const shownDone = section.done.slice(0, doneShown[section.key] ?? DONE_PAGE);
         const hiddenDone = section.done.length - shownDone.length;
         // 时间槽列只在按日期的带日期段出现（列宽按模式固定，不随数据跳动）；
-        // 按项目时时间进元信息行，无日期段本就无时间可显示
-        const noSlot = mode === "group" || section.bucket === "none";
+        // 按项目/按优先级时时间进元信息行，无日期段本就无时间可显示
+        const noSlot = mode !== "date" || section.bucket === "none";
         return (
           // 布局动画落在整段（非 sticky 的父级）：段头随段平移、不单独测量——吸顶段头若自带
           // layout，滚动后其「吸住的位置」会被当成位移补偿，出现段头错位
@@ -402,6 +453,8 @@ function AgendaRow({
   onOpen,
   onToggle,
   menu,
+  activeTagFilters,
+  onToggleTagFilter,
 }: {
   entry: TodoEntry;
   bucket?: BucketKey;
@@ -415,6 +468,8 @@ function AgendaRow({
   onOpen(entry: TodoEntry): void;
   onToggle(entry: TodoEntry): void;
   menu: ReactNode;
+  activeTagFilters?: ReadonlySet<string>;
+  onToggleTagFilter?(tag: string): void;
 }) {
   const { locale } = useTodosI18n();
   const recurring = entry.type === "recurring";
@@ -426,6 +481,10 @@ function AgendaRow({
   const parent = entry.parentId != null ? snapshot.byId.get(entry.parentId) : undefined;
   const streak = recurring ? streakOf(entry, now) : 0;
   const slot = slotOf(entry, bucket, mode, now, locale);
+  const priority = priorityOf(entry);
+  const tags = tagsOf(entry);
+  const shownTags = tags.slice(0, 3);
+  const hiddenTags = tags.length - shownTags.length;
 
   return (
     <ContextMenu content={menu}>
@@ -463,14 +522,19 @@ function AgendaRow({
           }
           onToggle={() => onToggle(entry)}
         />
-        <span className="flex min-w-0 flex-col">
-          <span
-            className={cn(
-              "text-tau-body truncate",
-              !recurring && checked && "text-ink-3 line-through"
+        <span className="flex min-w-0 flex-col gap-0.5">
+          <span className="flex min-w-0 items-center gap-1.5">
+            {mode !== "priority" && (
+              <PriorityBadge priority={priority} dimmed={!recurring && checked} />
             )}
-          >
-            {entry.title || t("common.untitled")}
+            <span
+              className={cn(
+                "text-tau-body min-w-0 truncate",
+                !recurring && checked && "text-ink-3 line-through"
+              )}
+            >
+              {entry.title || t("common.untitled")}
+            </span>
           </span>
           <Meta
             items={[
@@ -514,6 +578,29 @@ function AgendaRow({
                   <Flame strokeWidth={1.75} />
                   {todosCount("count.streak", streak)}
                 </>
+              ),
+              shownTags.length > 0 && (
+                <span className="inline-flex flex-wrap items-center gap-1">
+                  {shownTags.map(tag => (
+                    <TodoTagChip
+                      key={tag}
+                      tag={tag}
+                      active={activeTagFilters?.has(tag)}
+                      onClick={onToggleTagFilter ? () => onToggleTagFilter(tag) : undefined}
+                    />
+                  ))}
+                  {hiddenTags > 0 && (
+                    <span
+                      title={tags
+                        .slice(3)
+                        .map(tag => `#${tag}`)
+                        .join(" ")}
+                      className="text-ink-3 text-[11px]"
+                    >
+                      +{todosNumber(hiddenTags)}
+                    </span>
+                  )}
+                </span>
               ),
             ]}
           />
@@ -560,14 +647,14 @@ function slotOf(
   now: number,
   locale: string
 ): SlotInfo | null {
-  const far = mode === "group" || bucket === "week" || bucket === "later";
+  const far = mode !== "date" || bucket === "week" || bucket === "later";
   let main: string;
   let sub: string;
   let tone: SlotInfo["tone"] = null;
 
   if (entry.type === "deadline" && entry.dueAt != null) {
     const dateOnly = isDateOnly(entry.dueAt);
-    if (bucket === "overdue" || (mode === "group" && isOverdue(entry, now))) {
+    if (bucket === "overdue" || (mode !== "date" && isOverdue(entry, now))) {
       main = monthDay(entry.dueAt, locale);
       sub = todosCount("count.overdueDays", -dayDiff(entry.dueAt, now));
       tone = "overdue";
@@ -580,7 +667,7 @@ function slotOf(
       if (bucket === "today") tone = "now";
     }
   } else if (entry.type === "recurring" && entry.recurrence) {
-    if (mode === "group") {
+    if (mode !== "date") {
       main = t("kind.recurring");
       sub = recurrenceText(entry.recurrence, locale);
     } else {

@@ -5,6 +5,8 @@ import type { TaskRecurrenceSegment, TaskOccurrenceState } from "@tau/shared/tas
 // 任务类型（「计划任务」已退役：计划时段改由关联待办的日历事件表达）
 export type TodoItemType = "normal" | "deadline" | "recurring";
 
+export type TodoPriority = "none" | "low" | "medium" | "high";
+
 // 系统组类型
 export type TodoSystemGroupType =
   | "all" // 全部任务
@@ -56,6 +58,8 @@ export interface TodoItem {
   remindBefore?: number | null; // 首个提醒（截止前多少毫秒）
   /** 首个之外的追加提醒（同为截止前毫秒数）；只在列表快照里带出 */
   extraReminders?: number[];
+  priority?: TodoPriority;
+  tags?: string[];
   completedAt?: number | null;
   sortIndex: number;
   isArchived: boolean;
@@ -155,6 +159,8 @@ export interface CreateTodoItem {
   startAt?: number | null;
   dueAt?: number | null;
   remindBefore?: number | null;
+  priority?: TodoPriority;
+  tags?: string[];
 }
 
 export interface UpdateTodoItem {
@@ -165,6 +171,8 @@ export interface UpdateTodoItem {
   startAt?: number | null;
   dueAt?: number | null;
   remindBefore?: number | null;
+  priority?: TodoPriority;
+  tags?: string[];
 }
 
 export interface CreateTodoRecurrence {
@@ -214,6 +222,8 @@ export interface CreateTodoItemRelative {
   startAt?: number | null;
   dueAt?: number | null;
   remindBefore?: number | null;
+  priority?: TodoPriority;
+  tags?: string[];
 }
 
 export interface AttachExistingNotePayload {

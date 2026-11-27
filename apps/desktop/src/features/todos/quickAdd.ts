@@ -9,7 +9,7 @@
  *（落库时同时建关联日历事件，见 createTodoFromQuickAdd）；有日期或时刻 → 截止任务（只写日期 = 全天）；否则普通任务。
  */
 
-import type { RecurrenceType, TodoGroup } from "@/types";
+import type { RecurrenceType, TodoGroup, TodoPriority } from "@/types";
 import { extractDateTime } from "@/utils/quickDateTime";
 import { DAY_MS, startOfDay } from "@/utils/dayWords";
 
@@ -34,6 +34,8 @@ export interface QuickAddResult {
   recurrence: QuickAddRecurrence | null;
   groupId: number | null;
   schedule: QuickAddSchedule | null;
+  priority: TodoPriority;
+  tags: string[];
 }
 
 /** 回显用的种类：写了时段的是「安排」 */
@@ -41,6 +43,12 @@ export const quickAddKind = (parsed: QuickAddResult) =>
   parsed.schedule ? ("scheduled" as const) : parsed.type;
 
 const WEEKDAY: Record<string, number> = { 日: 0, 天: 0, 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6 };
+
+const PRIORITY_PATTERNS: Array<{ re: RegExp; value: TodoPriority }> = [
+  { re: /(?:^|\s)(?:[!！]高|p1|P1|!!!)(?=\s|$)/, value: "high" },
+  { re: /(?:^|\s)(?:[!！]中|p2|P2|!!)(?=\s|$)/, value: "medium" },
+  { re: /(?:^|\s)(?:[!！]低|p3|P3)(?=\s|$)/, value: "low" },
+];
 
 export function parseQuickAdd(
   text: string,
@@ -53,6 +61,25 @@ export function parseQuickAdd(
     if (m) rest = rest.replace(m[0], " ");
     return m;
   };
+
+  let priority: TodoPriority = "none";
+  for (const { re, value } of PRIORITY_PATTERNS) {
+    if (take(re)) {
+      priority = value;
+      break;
+    }
+  }
+
+  const tags: string[] = [];
+  const tagSet = new Set<string>();
+  rest = rest.replace(/(?:^|\s)[@＠]([^\s@＠]+)/g, (_, name: string) => {
+    const clean = name.trim();
+    if (clean && !tagSet.has(clean)) {
+      tagSet.add(clean);
+      tags.push(clean);
+    }
+    return " ";
+  });
 
   let groupId: number | null = null;
   const tag = rest.match(/[#＃](\S+)/);
@@ -82,7 +109,15 @@ export function parseQuickAdd(
   const today = startOfDay(now);
   const at = (base: number, minutes: number) => base + minutes * 60_000;
 
-  const plain = { dueAt: null, startAt: null, recurrence: null, groupId, schedule: null };
+  const plain = {
+    dueAt: null,
+    startAt: null,
+    recurrence: null,
+    groupId,
+    schedule: null,
+    priority,
+    tags,
+  };
   if (recurrence) {
     return { ...plain, title, type: "recurring", recurrence };
   }
