@@ -19,7 +19,6 @@ use super::plugin_document_tasks::{meta, visible};
 use super::schema;
 use super::todo_calendar_sync::{occurrences_for_metadata, recurring_occurrences};
 
-const MAX_REMINDERS: usize = 3;
 const MINUTE: i64 = 60_000;
 
 fn db_err(code: &str, context: &str, error: impl std::fmt::Display) -> String {
@@ -30,7 +29,6 @@ fn normalize(offsets: &[i64]) -> Vec<i64> {
     let mut list = offsets.to_vec();
     list.sort_unstable();
     list.dedup();
-    list.truncate(MAX_REMINDERS);
     list
 }
 
@@ -90,10 +88,6 @@ pub(super) fn stored_todo_reminders(conn: &Connection, todo_id: i64) -> Result<V
     Ok(all)
 }
 
-fn todo_reminders(conn: &Connection, todo_id: i64) -> Result<Vec<i64>, String> {
-    Ok(normalize(&stored_todo_reminders(conn, todo_id)?))
-}
-
 /// 先写 remind_before（触发器随之清空追加提醒），再写追加提醒
 pub(super) fn set_todo_reminders(
     conn: &Connection,
@@ -141,7 +135,7 @@ fn owner_type(kind: &str) -> Result<&'static str, String> {
 pub fn reminder_list(app: AppHandle, payload: ReminderOwnerPayload) -> Result<Vec<i64>, String> {
     let conn = schema::open_active_database(&app)?;
     match owner_type(&payload.kind)? {
-        "todo" => todo_reminders(&conn, payload.id),
+        "todo" => stored_todo_reminders(&conn, payload.id),
         owner => list_owner(&conn, owner, payload.id),
     }
 }
@@ -668,14 +662,17 @@ mod tests {
             })
             .unwrap();
         assert_eq!(first, 900_000);
-        assert_eq!(todo_reminders(&conn, 1).unwrap(), vec![900_000, 86_400_000]);
+        assert_eq!(
+            stored_todo_reminders(&conn, 1).unwrap(),
+            vec![900_000, 86_400_000]
+        );
         // 只认 remind_before 的老写入方改首个提醒：追加提醒随之失效
         conn.execute(
             "UPDATE todo_item SET remind_before = 300000 WHERE id = 1",
             [],
         )
         .unwrap();
-        assert_eq!(todo_reminders(&conn, 1).unwrap(), vec![300_000]);
+        assert_eq!(stored_todo_reminders(&conn, 1).unwrap(), vec![300_000]);
         conn.execute("DELETE FROM todo_item WHERE id = 1", [])
             .unwrap();
         assert!(list_owner(&conn, "todo", 1).unwrap().is_empty());
@@ -692,21 +689,45 @@ mod tests {
     #[test]
     fn upcoming_lists_todo_and_event_reminders_in_window() {
         let mut conn = db();
-        set_todo_reminders(&conn, 1, &[0, 900_000]).unwrap();
-        replace_owner(&conn, "event", 1, &[15 * MINUTE]).unwrap();
+        let offsets = serde_json::json!([
+            {"offsetMs": 900_000}, {"offsetMs": 0}, {"offsetMs": 300_000},
+            {"offsetMs": 3_600_000}, {"offsetMs": 900_000}
+        ]);
+        let tx = conn.transaction().unwrap();
+        for owner in ["todo", "event"] {
+            super::super::plugin_schedule_data::set_reminders(&tx, owner, 1, &offsets, true)
+                .unwrap();
+        }
+        tx.commit().unwrap();
+        let expected = [0, 300_000, 900_000, 3_600_000];
+        assert_eq!(stored_todo_reminders(&conn, 1).unwrap(), expected);
+        assert_eq!(list_owner(&conn, "event", 1).unwrap(), expected);
+
         let start = DAY + 840 * MINUTE;
         let result = run(&mut conn, 0, 10 * DAY, 10);
         assert_eq!(result.owners, vec!["event:1", "todo:1"]);
         let keys: Vec<_> = result.items.iter().map(|item| item.key.as_str()).collect();
-        assert_eq!(keys, vec!["todo:1:900000", "todo:1:0", "event:1:900000"]);
+        assert_eq!(
+            keys,
+            vec![
+                "todo:1:3600000",
+                "todo:1:900000",
+                "todo:1:300000",
+                "todo:1:0",
+                "event:1:3600000",
+                "event:1:900000",
+                "event:1:300000",
+                "event:1:0"
+            ]
+        );
         let event = result.items.last().unwrap();
-        assert_eq!(event.remind_at, start - 15 * MINUTE);
+        assert_eq!(event.remind_at, start);
         assert_eq!(event.end_at, Some(DAY + 930 * MINUTE));
         assert_eq!(run(&mut conn, 0, 10 * DAY, 1).items.len(), 1);
         conn.execute("UPDATE todo_item SET is_completed = 1 WHERE id = 1", [])
             .unwrap();
         let after = run(&mut conn, 0, 10 * DAY, 10);
-        assert_eq!(after.items.len(), 1);
+        assert_eq!(after.items.len(), expected.len());
         assert_eq!(after.owners, vec!["event:1"]);
     }
 

@@ -2,6 +2,7 @@ import {
   TASK_WRITE_SCHEMAS,
   validateTaskValue,
   normalizeTaskRecurrenceRule,
+  parseTaskKey,
   type TaskRecurrenceRule,
 } from "@tau/shared/task-assistant";
 import type {
@@ -9,6 +10,22 @@ import type {
   PluginTodoRecurrenceChange,
   PluginTodoReminder,
 } from "./data";
+
+export function readTodoParentId(value: unknown): string {
+  const target = typeof value === "string" ? parseTaskKey(value) : null;
+  if (typeof value !== "string" || target?.taskRef.kind !== "todo" || target.occurrenceDate)
+    throw new Error("父项必须是独立待办");
+  return value;
+}
+
+export function readTodoCompletionTime(id: string, completed: boolean, value?: number) {
+  if (value === undefined) return;
+  const target = parseTaskKey(id);
+  if (!completed || target?.taskRef.kind !== "todo" || target.occurrenceDate)
+    throw new Error("仅完成普通独立待办时可指定完成时间");
+  validateTaskValue(TASK_WRITE_SCHEMAS.set_todo_completed.properties!.completedAt!, value);
+  return value;
+}
 
 export function readTodoRule(value: unknown): TaskRecurrenceRule {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("重复规则无效");
@@ -36,7 +53,7 @@ export function readOccurrencePatch(value: PluginTodoOccurrencePatch): PluginTod
   return JSON.parse(JSON.stringify(value));
 }
 export function readTodoReminders(value: unknown): PluginTodoReminder[] {
-  if (!Array.isArray(value) || value.length > 3) throw new Error("提醒最多三条");
+  if (!Array.isArray(value)) throw new Error("提醒列表无效");
   return value.map(item => {
     if (!item || typeof item !== "object") throw new Error("提醒无效");
     if ("at" in item) {

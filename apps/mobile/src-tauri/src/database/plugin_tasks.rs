@@ -102,6 +102,26 @@ pub(super) fn parse_task(value: &str) -> Result<TaskId, String> {
         _ => Err("待办身份无效".into()),
     }
 }
+fn parent_todo(conn: &Connection, value: &Value) -> Result<Option<(i64, i64)>, String> {
+    if value.is_null() {
+        return Ok(None);
+    }
+    let TaskId::Todo(id, created, None) = parse_task(value.as_str().ok_or("父待办身份无效")?)?
+    else {
+        return Err("父项必须是独立待办".into());
+    };
+    let row = todo_row(conn, id, created)?;
+    Ok(Some((id, row["group_id"].as_i64().ok_or("父项缺少清单")?)))
+}
+
+fn start_time(value: &Value, zone: CalendarTimeZone) -> Result<Option<i64>, String> {
+    if value.is_null() {
+        Ok(None)
+    } else {
+        dates::timestamp(value.as_str().ok_or("开始时刻无效")?, zone).map(Some)
+    }
+}
+
 fn todo_row(conn: &Connection, id: i64, created: i64) -> Result<Value, String> {
     let row = snapshots::row(conn, "todo_item", id)?.ok_or("待办已删除")?;
     if row["create_time"] != created {
@@ -230,6 +250,7 @@ pub(super) fn task_dto(
     let created = row["create_time"].as_i64().ok_or("待办身份无效")?;
     let meta = metadata(conn, row, zone)?;
     let mut title = json!({"id":format!("todo:{id}:{created}"),"title":row["title"],"completed":row["is_completed"]==1,"archived":row["is_archived"]==1,"dueAt":row["due_at"].as_i64().map(dates::iso).transpose()?});
+    let mut snapshot = snapshots::capture_todo(conn, id)?;
     if let Some(date) = date {
         let (series, state) = occurrence(&meta, date, zone, holidays)?;
         title["id"] = json!(format!("todo:{id}:{created}@{date}"));
@@ -239,17 +260,15 @@ pub(super) fn task_dto(
             .filter(|value| !value.is_null())
             .cloned()
             .unwrap_or(json!(date));
-        title["revision"] = json!(snapshots::digest(
-            &json!({"row":row,"segments":meta["segments"],"series":series,"date":date,"state":state})
-        ));
+        title["occurrence"] = json!({"taskId":format!("todo:{id}:{created}"),"seriesId":series,"originalDate":date,"state":state});
     } else {
-        let mut captured = snapshots::capture_todo(conn, id)?;
         let children=snapshots::rows(conn,"todo_item","id IN (WITH RECURSIVE nested(id) AS (SELECT id FROM todo_item WHERE parent_id=?1 UNION SELECT t.id FROM todo_item t JOIN nested n ON t.parent_id=n.id) SELECT id FROM nested LIMIT 1001)",vec![id.into()])?;
         if children.len() > 1000 {
             return Err("待办子项超过操作预算".into());
         }
-        captured["descendants"] = json!(children);
-        title["revision"] = json!(snapshots::digest(&captured));
+        if !children.is_empty() {
+            snapshot["descendants"] = json!(children);
+        }
     }
     title["listId"] = json!(row["group_id"].as_i64().ok_or("清单身份无效")?.to_string());
     if date.is_none() && row["type"] == "recurring" {
@@ -268,17 +287,34 @@ pub(super) fn task_dto(
         conn,
         row["group_id"].as_i64().ok_or("清单身份无效")?
     )?);
-    if let Some(date) = date {
-        let (series, state) = occurrence(&meta, date, zone, holidays)?;
-        title["occurrence"] = json!({"taskId":format!("todo:{id}:{created}"),"seriesId":series,"originalDate":date,"state":state});
-    }
+    let description = row["description_content_id"]
+        .as_i64()
+        .filter(|id| *id > 0)
+        .map(|id| super::query::query_content_detail(conn, id))
+        .transpose()?;
     let mut version = title.clone();
-    version
-        .as_object_mut()
-        .map(|fields| fields.remove("revision"));
-    version["descendants"] =
-        super::plugin_schedule_data::semantic(&snapshots::capture_todo(conn, id)?);
+    if let Some(body) = &description {
+        version["descriptionRevision"] = json!([body.revision, body.content]);
+    }
+    title["descriptionRef"] =
+        json!(description.map(|body| format!("{}:{}", body.content_id, body.create_time)));
+    title["startAt"] = json!(row["start_at"].as_i64().map(dates::iso).transpose()?);
+    let parent = row["parent_id"]
+        .as_i64()
+        .map(|id| snapshots::row(conn, "todo_item", id))
+        .transpose()?
+        .flatten();
+    title["parentId"] =
+        json!(parent.map(|row| format!("todo:{}:{}", row["id"], row["create_time"])));
+
+    version["descendants"] = super::plugin_schedule_data::semantic(&snapshot);
     title["revision"] = json!(snapshots::digest(&version));
+    title["completedAt"] =
+        if date.is_none() && row["type"] != "recurring" && row["is_completed"] == 1 {
+            row["completed_at"].clone()
+        } else {
+            Value::Null
+        };
     Ok(title)
 }
 fn window_meta(
@@ -380,7 +416,24 @@ pub(super) fn query_tasks(
     let range = dates::window(query, zone, expanded)?;
     let size = limit(query)?;
     let (fingerprint, mut position, mut inner) = cursor(query, zone, "todos")?;
-    let source = query["source"].as_str().unwrap_or("all");
+    let requested_source = query["source"].as_str().unwrap_or("all");
+    let parent = query
+        .get("parentId")
+        .map(
+            |value| match parse_task(value.as_str().ok_or("父项身份无效")?)? {
+                TaskId::Todo(id, created, None) => Ok((id, created)),
+                _ => Err(String::from("父项必须是独立待办")),
+            },
+        )
+        .transpose()?;
+    if parent.is_some() && requested_source == "document" {
+        return Ok(json!({"items":[]}));
+    }
+    let source = if parent.is_some() {
+        "todo"
+    } else {
+        requested_source
+    };
     let mut items = vec![];
     let mut examined = 0;
     loop {
@@ -390,6 +443,7 @@ pub(super) fn query_tasks(
             position,
             100,
             query["archived"].as_bool().unwrap_or(false),
+            parent,
         )?;
         if candidates.is_empty() {
             return Ok(json!({"items":items}));
@@ -805,17 +859,35 @@ pub(super) fn write_todo(
     }
     let result = if action == "create" {
         super::todo::ensure_system_groups(&tx)?;
-        let group: i64 = if let Some(id) = write["input"]["listId"].as_str() {
+        let input = &write["input"];
+        let parent = parent_todo(&tx, &input["parentId"])?;
+        let group: i64 = if let Some(id) = input["listId"].as_str() {
             id.parse().map_err(|_| "清单身份无效")?
+        } else if let Some((_, group)) = parent {
+            group
         } else {
             tx.query_row("SELECT id FROM todo_group WHERE is_system=1 AND system_type='normal' AND is_archived=0 ORDER BY id LIMIT 1",[],|row|row.get(0)).map_err(sql_error)?
         };
         if !super::todo::is_writable_group(&tx, group)? {
             return Err("清单不存在或已归档".into());
         }
-        let due = dates::deadline(&write["input"]["dueAt"], zone)?;
+        if parent.is_some_and(|(_, parent_group)| parent_group != group) {
+            return Err("父待办必须属于目标清单".into());
+        }
+        let parent_id = parent.map(|(id, _)| id);
+        let start = start_time(&input["startAt"], zone)?;
+        let description = write
+            .get("preparedDescription")
+            .map(|body| super::plugin_data::create_content_input(&tx, plugin, body))
+            .transpose()?;
+        if input.get("description").is_some() && description.is_none() {
+            return Err("待办描述尚未准备".into());
+        }
+        let due = dates::deadline(&input["dueAt"], zone)?;
         let id = assistant_tasks::next_id(&tx, "todo_item")?;
-        tx.execute("INSERT INTO todo_item(id,group_id,title,type,due_at,create_time,update_time,sort_index) VALUES(?1,?2,?3,?4,?5,?6,?6,COALESCE((SELECT MAX(sort_index)+1024 FROM todo_item WHERE group_id=?2),1024))",params![id,group,write["input"]["title"].as_str().ok_or("缺少标题")?,if due.is_some(){"deadline"}else{"normal"},due,now]).map_err(sql_error)?;
+        tx.execute("INSERT INTO todo_item(id,group_id,title,type,due_at,create_time,update_time,parent_id,start_at,description_content_id,sort_index)
+            VALUES(?1,?2,?3,?4,?5,?6,?6,?7,?8,?9,COALESCE((SELECT MAX(sort_index)+1024 FROM todo_item WHERE group_id=?2 AND parent_id IS ?7),1024))",
+            params![id,group,input["title"].as_str().ok_or("缺少标题")?,if due.is_some(){"deadline"}else{"normal"},due,now,parent_id,start,description]).map_err(sql_error)?;
         let recurring = write["input"].get("recurrence").is_some();
         if let Some(rule) = write["input"].get("recurrence") {
             let segments = super::plugin_task_recurrence::amend(
@@ -869,6 +941,29 @@ pub(super) fn write_todo(
         if current["writable"] != true {
             return Err("待办所属清单不可写".into());
         }
+        if action == "update"
+            && current["descriptionRef"].is_string()
+            && write["patch"] == json!({"ensureDescription":true})
+            && date.is_none()
+        {
+            return Ok(current);
+        }
+        let completed_at = write
+            .get("completedAt")
+            .map(|value| {
+                if action != "complete"
+                    || write["completed"] != true
+                    || date.is_some()
+                    || row["type"] == "recurring"
+                {
+                    return Err("仅完成普通独立待办时可指定完成时间".to_string());
+                }
+                value
+                    .as_i64()
+                    .filter(|v| (-8_640_000_000_000_000..=8_640_000_000_000_000).contains(v))
+                    .ok_or_else(|| "完成时间必须是有效的 Unix 毫秒整数".to_string())
+            })
+            .transpose()?;
         let before = if matches!(action, "delete" | "state" | "recurrence") {
             Some(snapshots::capture_todo(&tx, id)?)
         } else {
@@ -922,16 +1017,64 @@ pub(super) fn write_todo(
                     {
                         return Err("周期待办只支持一条提醒".into());
                     }
-                    if let Some(list) = patch["listId"].as_str() {
-                        let group = list.parse::<i64>().map_err(|_| "清单身份无效")?;
+                    if patch.get("parentId").is_some() || patch.get("listId").is_some() {
+                        let parent = parent_todo(&tx, &patch["parentId"])?;
+                        let old_group = row["group_id"].as_i64().ok_or("缺少清单")?;
+                        let group = patch["listId"]
+                            .as_str()
+                            .map(str::parse::<i64>)
+                            .transpose()
+                            .map_err(|_| "清单身份无效")?
+                            .or(parent.map(|(_, group)| group))
+                            .unwrap_or(old_group);
                         if !super::todo::is_writable_group(&tx, group)? {
                             return Err("清单不存在或已归档".into());
                         }
-                        tx.execute("WITH RECURSIVE nested(id) AS (SELECT ?1 UNION SELECT t.id FROM todo_item t JOIN nested n ON t.parent_id=n.id) UPDATE todo_item SET group_id=?2 WHERE id IN (SELECT id FROM nested)",params![id,group]).map_err(sql_error)?;
-                        if row["group_id"] != group {
-                            tx.execute("UPDATE todo_item SET parent_id=NULL WHERE id=?1", [id])
-                                .map_err(sql_error)?;
+                        if parent.is_some_and(|(_, g)| g != group) {
+                            return Err("父待办必须属于目标清单".into());
                         }
+                        let parent_id = if patch.get("parentId").is_none() && group == old_group {
+                            row["parent_id"].as_i64()
+                        } else {
+                            parent.map(|(id, _)| id)
+                        };
+                        if parent_id.is_some() && tx.query_row("WITH RECURSIVE nested(id) AS (SELECT ?1 UNION SELECT t.id FROM todo_item t JOIN nested n ON t.parent_id=n.id) SELECT EXISTS(SELECT 1 FROM nested WHERE id=?2)",params![id,parent_id],|r| r.get::<_,bool>(0)).map_err(sql_error)? {
+                            return Err("不能将待办移动到自身或子项之下".into());
+                        }
+                        super::todo::move_and_reorder_in_tx(
+                            &tx,
+                            &super::todo::MoveAndReorderPayload {
+                                id,
+                                to_group_id: group,
+                                to_parent_id: parent_id,
+                                before_id: None,
+                                after_id: None,
+                            },
+                        )?;
+                        if group != old_group {
+                            tx.execute("WITH RECURSIVE nested(id) AS (SELECT id FROM todo_item WHERE parent_id=?1 UNION SELECT t.id FROM todo_item t JOIN nested n ON t.parent_id=n.id) UPDATE todo_item SET group_id=?2,update_time=?3 WHERE id IN (SELECT id FROM nested)",params![id,group,now]).map_err(sql_error)?;
+                        }
+                    }
+                    if let Some(start) = patch.get("startAt") {
+                        tx.execute(
+                            "UPDATE todo_item SET start_at=?1 WHERE id=?2",
+                            params![start_time(start, zone)?, id],
+                        )
+                        .map_err(sql_error)?;
+                    }
+                    if patch["ensureDescription"] == true
+                        && row["description_content_id"].as_i64().unwrap_or(0) == 0
+                    {
+                        let content = super::plugin_data::create_content_input(
+                            &tx,
+                            plugin,
+                            write.get("preparedDescription").ok_or("待办描述尚未准备")?,
+                        )?;
+                        tx.execute(
+                            "UPDATE todo_item SET description_content_id=?1 WHERE id=?2",
+                            params![content, id],
+                        )
+                        .map_err(sql_error)?;
                     }
                     let due = if patch.get("dueAt").is_some() {
                         dates::deadline(&patch["dueAt"], zone)?
@@ -964,19 +1107,47 @@ pub(super) fn write_todo(
                     todo_calendar_sync::sync_single_item(&tx, id, zone)?;
                 }
                 "complete" => {
-                    let affected=snapshots::rows(&tx,"todo_item","id IN (WITH RECURSIVE descendants(id) AS (SELECT ?1 UNION SELECT t.id FROM todo_item t JOIN descendants d ON t.parent_id=d.id) SELECT id FROM descendants LIMIT 1001)",vec![id.into()])?;
+                    let completed = write["completed"].as_bool().ok_or("完成状态无效")?;
+                    let correcting = completed && row["is_completed"] == 1;
+                    let affected = if correcting {
+                        vec![row.clone()]
+                    } else {
+                        snapshots::rows(
+                            &tx,
+                            "todo_item",
+                            "id IN (WITH RECURSIVE descendants(id) AS (
+                                SELECT ?1 UNION SELECT t.id FROM todo_item t
+                                JOIN descendants d ON t.parent_id=d.id
+                            ) SELECT id FROM descendants LIMIT 1001)",
+                            vec![id.into()],
+                        )?
+                    };
                     if affected.len() > 1000 {
                         return Err("子待办超过单次操作预算".into());
                     }
-                    for task in &affected {
+                    for task in affected {
                         if task["type"] == "recurring"
-                            || active_recurrence(&metadata(&tx, task, zone)?, zone)
+                            || active_recurrence(&metadata(&tx, &task, zone)?, zone)
                         {
                             return Err("周期待办须指定实例，不能整系列或连同子项完成".into());
                         }
-                    }
-                    for task in affected {
-                        tx.execute("UPDATE todo_item SET is_completed=?1,completed_at=?2,update_time=MAX(update_time+1,?3) WHERE id=?4",params![write["completed"]==true,if write["completed"]==true{Some(now)}else{None},now,task["id"].as_i64()]).map_err(sql_error)?;
+                        let previous = task["completed_at"].as_i64();
+                        let was_completed = task["is_completed"] == 1;
+                        let mut time = if completed { Some(now) } else { None };
+                        if completed && was_completed {
+                            time = previous;
+                        }
+                        if task["id"] == id && completed_at.is_some() {
+                            time = completed_at;
+                        }
+                        if was_completed != completed || previous != time {
+                            tx.execute(
+                                "UPDATE todo_item SET is_completed=?1, completed_at=?2,
+                                 update_time=MAX(update_time+1,?3) WHERE id=?4",
+                                params![completed, time, now, task["id"].as_i64()],
+                            )
+                            .map_err(sql_error)?;
+                        }
                     }
                 }
                 "delete" => {
@@ -1633,6 +1804,109 @@ mod tests {
             "修改"
         );
     }
+    #[test]
+    fn independent_details_round_trip_and_reject_parent_cycles() {
+        let mut db = database();
+        let parent = create(&mut db, "parent", Value::Null);
+        let write = |db: &mut Connection, input: Value| {
+            write_todo(db, "fixture", &input, ZONE, &HolidayDays::new())
+        };
+        let contract = json!({"format":2,"domain":"editor-node","owner":"example.note","type":"example.note","dataVersion":1,"kind":"block","isVoid":true,"textFields":["source"],"structuredFields":[],"resources":[]});
+        let hash = snapshots::digest(&contract);
+        let prepared = json!({"nodes":[{"type":"example.note","tauContract":hash,"source":"hello","children":[{"type":"formatted","text":""}]}],"contracts":{hash:contract},"count":5});
+        let child = write(&mut db,json!({"action":"create","input":{"title":"child","parentId":parent["id"],"startAt":"2026-11-27T09:30:00+08:00",
+          "description":{"markdown":"hello"}},"preparedDescription":prepared})).unwrap();
+        assert_eq!(child["startAt"], "2026-11-27T01:30:00.000Z");
+        assert_eq!(child["parentId"], parent["id"]);
+        assert_eq!(child["listId"], parent["listId"]);
+        let children = query_tasks(
+            &db,
+            &json!({"parentId":parent["id"]}),
+            ZONE,
+            &HolidayDays::new(),
+        )
+        .unwrap();
+        assert_eq!(children["items"].as_array().unwrap(), &[child.clone()]);
+        let reference = child["descriptionRef"].as_str().unwrap();
+        let mut ids = reference.split(':');
+        let content = ids.next().unwrap().parse::<i64>().unwrap();
+        assert_eq!(
+            super::super::query::query_content_detail(&db, content)
+                .unwrap()
+                .content[0]["source"],
+            "hello"
+        );
+        let root = query_tasks(&db, &json!({"source":"todo"}), ZONE, &HolidayDays::new()).unwrap()
+            ["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|row| row["id"] == parent["id"])
+            .unwrap()
+            .clone();
+        assert!(write(&mut db,json!({"action":"update","id":root["id"],"expectedRevision":root["revision"],"patch":{"parentId":child["id"]}})).is_err());
+        let detached=write(&mut db,json!({"action":"update","id":child["id"],"expectedRevision":child["revision"],"patch":{"parentId":null,"startAt":null}})).unwrap();
+        assert!(detached["parentId"].is_null() && detached["startAt"].is_null());
+        assert_eq!(detached["descriptionRef"], reference);
+    }
+
+    #[test]
+    fn parent_completion_time_round_trips_without_rewriting_children() {
+        let mut db = database();
+        let parent = create(&mut db, "parent", Value::Null);
+        let child = create(&mut db, "child", Value::Null);
+        let parent_id = parse_task(parent["id"].as_str().unwrap()).unwrap();
+        let TaskId::Todo(id, _, _) = parent_id else {
+            panic!("fixture")
+        };
+        db.execute(
+            "UPDATE todo_item SET parent_id=?1 WHERE title='child'",
+            [id],
+        )
+        .unwrap();
+        let read = |db: &Connection, title: &str| {
+            query_tasks(db, &json!({"source":"todo"}), ZONE, &HolidayDays::new()).unwrap()["items"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|item| item["title"] == title)
+                .unwrap()
+                .clone()
+        };
+        let complete = |db: &mut Connection, task: &Value, done: bool, time: Option<i64>| {
+            let mut request = json!({"action":"complete","id":task["id"],"expectedRevision":task["revision"],"completed":done});
+            if let Some(time) = time {
+                request["completedAt"] = json!(time);
+            }
+            write_todo(db, "fixture", &request, ZONE, &HolidayDays::new())
+        };
+        assert_eq!(child.get("completedAt"), Some(&Value::Null));
+        let stale_parent = read(&db, "parent");
+        let child = read(&db, "child");
+        complete(&mut db, &child, true, Some(0)).unwrap();
+        assert!(complete(&mut db, &stale_parent, true, Some(1000))
+            .unwrap_err()
+            .starts_with("PLUGIN_CONFLICT:"));
+        let parent = read(&db, "parent");
+        let parent = complete(&mut db, &parent, true, Some(1000)).unwrap();
+        assert_eq!(
+            complete(&mut db, &parent, true, None).unwrap()["revision"],
+            parent["revision"]
+        );
+        let child = read(&db, "child");
+        assert_eq!(child["completedAt"], 0);
+        let reopened = complete(&mut db, &child, false, None).unwrap();
+        let parent = read(&db, "parent");
+        let corrected = complete(&mut db, &parent, true, Some(2000)).unwrap();
+        assert_eq!(read(&db, "parent")["completedAt"], 2000);
+        assert_ne!(corrected["revision"], parent["revision"]);
+        assert_eq!(read(&db, "child"), reopened);
+        assert_eq!(
+            complete(&mut db, &corrected, false, None).unwrap()["completedAt"],
+            Value::Null
+        );
+    }
+
     #[test]
     fn occurrence_pages_keep_original_dates_and_select_historical_segment() {
         let mut conn = database();

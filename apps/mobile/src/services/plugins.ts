@@ -1,6 +1,7 @@
 import type { PluginEnvironmentInput } from "@tau/plugins/environment-host";
 import { comparePluginVersions } from "@tau/plugins/package";
 import { invoke } from "@tauri-apps/api/core";
+import { clearMobilePluginSecrets } from "./pluginSecrets";
 import type { StorageAdapter } from "@tau/plugins/host";
 import { copyJson } from "@tau/plugins/host";
 import type { PortablePluginManifest } from "@tau/plugins/portable";
@@ -194,5 +195,7 @@ export function mobilePluginStorage(database: string): StorageAdapter {
 
 export const MOBILE_PLUGIN_QUERY = ["mobile-plugins"] as const;
 
-export const clearMobilePluginData = (database: string, pluginId: string) =>
-  invoke<void>("plugin_kv_clear", { database, pluginId });
+export async function clearMobilePluginData(database: string, pluginId: string) {
+  await clearMobilePluginSecrets(database, pluginId);
+  await invoke<void>("plugin_kv_clear", { database, pluginId });
+}

@@ -1,3 +1,4 @@
+import { mobilePluginSecrets } from "../../services/pluginSecrets";
 import { ASRProviderRegistry } from "@tau/plugins/asr-host";
 import { toast } from "@tau/ui";
 import { RendererTTSRegistry } from "@tau/plugins/tts-host";
@@ -123,6 +124,7 @@ export class MobilePluginRuntime {
       restartRequired,
       environmentSource: environment,
       storage,
+      secrets: mobilePluginSecrets,
       ai: {
         bind: (...args) => this.aiAdapter().adapter.bind(...args),
         bindCapability: (...args) => this.aiAdapter().adapter.bindCapability(...args),

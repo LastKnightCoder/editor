@@ -508,7 +508,7 @@ fn query_refs(
     let keyword = keyword.to_lowercase();
     loop {
         let refs = if kind == "todo" {
-            plugin_document_tasks::candidates(conn, "all", position, SCAN_BATCH, false)?
+            plugin_document_tasks::candidates(conn, "all", position, SCAN_BATCH, false, None)?
                 .into_iter()
                 .map(|candidate| {
                     if candidate["source"] == "todo" {

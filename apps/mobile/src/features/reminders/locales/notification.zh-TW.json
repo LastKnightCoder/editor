@@ -21,7 +21,7 @@
   "foreground": "App 在前景時顯示橫幅",
   "snooze.title": "稍後提醒間隔",
   "minutes": "{{count}} 分鐘",
-  "foregroundHint": "關閉橫幅後，App 在前景時也會顯示系統通知。提醒可在待辦詳情或行程編輯中設定，最多 3 個；桌面端也會提醒。",
+  "foregroundHint": "關閉橫幅後，App 在前景時也會顯示系統通知。提醒可在待辦詳情或行程編輯中設定；桌面端也會提醒。",
   "kind.todo": "待辦",
   "kind.event": "行程",
   "kind.doc": "文件待辦",

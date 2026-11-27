@@ -10,6 +10,8 @@
 
 公共 API 与作者约定以 [SDK 跨端契约](/plugins/tau-plugin-template/docs/portability.md) 为准；本页描述客户端装配。仓库版本以 [插件 SDK](/packages/plugins/package.json) 和 [UI 包](/packages/ui/package.json) 为准，作者模板依赖以[模板清单](/plugins/tau-plugin-template/package.json)为准；发行状态与仓库实现分别核验。最低宿主版本由声明的 targets 与所用 API 共同约束。中心通过人工上架审核与 /v2 分发，具审核权限的作者本人经绑定仓库 CI 发布可自动批准；作者负责平台适配和测试。平台开关独立于客户端安装能力，线上配置以[门户运维手册](/apps/plugin-portal/infra/运维手册.md)为准。包资料由 manifest 提供名称、版本与简介，README 提供介绍，可选 CHANGELOG 提供版本记录。
 
+`context.secrets` 绑定与私有存储相同的插件和工作区作用域。凭据由宿主在本机保存，系统错误向插件返回；停用后的异步读取不会再交付。移动端使用 iOS 本设备 Keychain 或 Android Keystore 密钥加密的应用私有文件；清除插件数据时清除对应作用域。
+
 可信插件与宿主共享 JavaScript、React 和 DOM；摘要、模块白名单、API 能力与数据授权不构成恶意代码沙箱。同线程同步死循环只能在后续启动恢复，不能承诺抢占或后台常驻。
 
 ## 中心数据边界
@@ -209,6 +211,10 @@ Skills 来源包括已激活的 portable 应用插件和已安装启用的独立
 ### 移动待办与日程
 
 `plugin_tasks_read/write` 复用工作区 token 和固定连接，调用前后受插件生命期限制。普通待办使用 `todo:<id>:<createTime>`，普通正文身份使用 `document:<contentId>:<createTime>:<taskId>`；含保留字符的正文身份由共享 taskKey/parseTaskKey 与 Rust 对应实现使用独立版本标记编码，避免旧字面身份及授权被解释为另一项任务。周期实例再带原始日期；公开 ID 仍是不透明字符串。`todos.query` 默认 tasks，occurrences 必须给日期窗口，游标固定查询、时区和宿主代次，并记录候选内实例位置。正文待办逐页从主库节点读取，按真实来源、排除与提升设置过滤，不依赖移动端未维护的索引镜像，不全量传输笔记库。
+
+独立待办的 `startAt`、`parentId`、`descriptionRef` 映射原有开始时刻、带创建身份的父任务和描述正文。按 parentId 查询直接子项；跨清单移动保留子树归属。描述使用待办权限，保存时复核清单可写性；正文版本参与任务 revision，正文变化写入 todo 域增量日志。
+
+普通独立待办的 `completedAt` 来自 `todo_item.completed_at`（Unix 毫秒）。完成写入沿用 expectedRevision；首次完成时外部时刻只作用于目标，级联新完成的子项取宿主当前时刻。已完成目标可单独校时，重复完成保留原时刻。未记录时间、非普通独立待办在 SDK 顶层返回 null，重复实例的完成时刻仍由实例状态提供。
 
 实例完成/改期/跳过按原始日期选择历史规则段；改期不改变实例身份，dueAt=null 取消改期，删除实例仅跳过，系列删除才移除系列。SDK 通过 todoRecurrence 适配器提供周期规则创建和按日期分段修改接口。停止周期并转为普通待办后，可完成当前普通待办，历史实例状态保持独立。普通父待办完成沿用子树语义，但含周期子项时拒绝整组完成；含子项的待办不能删除。内部 DataAdapter 的实例写入单独接线，公共宿主不把带日期的 ID 交给未接线的旧适配器，防止忽略实例日期后修改整系列。
 

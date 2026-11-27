@@ -47,13 +47,10 @@ it("切换语言保留挂起的提醒草稿与权限说明，不请求授权或�
     await act(async () => {
       await vi.waitFor(() => expect(notifyPermissionState).toHaveBeenCalled());
     });
-    const offsets = [300000, 900000, 1800000];
+    const offsets = [300000, 900000, 1800000, 3600000];
     const first = choice(offsets[0]);
     if (!first) throw new Error("提醒选项未挂载");
     for (const offset of offsets) await act(async () => choice(offset)?.click());
-    const extra = choice(3600000);
-    if (!extra) throw new Error("提醒上限选项未挂载");
-    expect(extra.disabled).toBe(true);
     const permissionReads = vi.mocked(notifyPermissionState).mock.calls.length;
     for (const locale of ["zh-TW", "en-US"]) {
       await act(async () => mobileLocaleSource.setLocale(locale));
@@ -64,7 +61,6 @@ it("切换语言保留挂起的提醒草稿与权限说明，不请求授权或�
       expect(document.body.textContent).toContain(
         mobileI18n.get(reminderSheetMessages).t("permission.explanation")
       );
-      expect(extra.disabled).toBe(true);
       expect(vi.mocked(notifyPermissionState).mock.calls.length).toBe(permissionReads);
       expect(notifyRequestPermission).not.toHaveBeenCalled();
       expect(notifySchedule).not.toHaveBeenCalled();

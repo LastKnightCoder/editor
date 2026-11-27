@@ -8,6 +8,7 @@ import fileModule from "../modules/file";
 import extraModule from "../modules/extra";
 import fetchModule from "../modules/fetch";
 import pluginLocalModule from "../modules/plugin-local";
+import { registerPluginSecrets } from "../modules/plugin-secrets";
 import pluginPermissionsModule from "../modules/plugin-permissions";
 import pluginServicesModule from "../modules/plugin-services";
 import pluginBackendModule from "../modules/plugin-backend";
@@ -159,6 +160,12 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     layer: InitLayer.BACKGROUND,
     dependencies: [],
     init: () => pluginLocalModule.init(),
+  },
+  {
+    name: "plugin-secrets",
+    layer: InitLayer.BACKGROUND,
+    dependencies: [],
+    init: registerPluginSecrets,
   },
   {
     name: "plugin-permissions",

@@ -164,6 +164,10 @@ MCP 本机设置只接受带 `transport` 的当前服务器结构，不将旧 `b
 
 **目录写入**：`DataAdapter.directoryWrites` 承载 todo-list/calendar 的创建与局部修改，经 `data-directory:write` 复用当前资料库绑定；目录领域协调器只组合 TodoGroupTable/CalendarTable、目录投影和通用回执表，不另写目录 SQL。可编辑资格 editable 与内容 writable 分开，归档用户目录仍可改名，系统目录及系统日历分组后代拒绝。名称、色板、空 patch 与未知字段由共享契约校验。短 IMMEDIATE 事务中核对创建身份、摘要 revision 和资格；无操作不写库，修改保留描述、分组、排序与其他未指定字段。清单改名同事务保存曾用名，正文显式绑定和旧名称解析保持归属；正文重写沿既有条件提交与恢复。通用创建回执支持四域，旧约束表在开库事务内保数据升级，删除永久退役；共享日志与业务提交，色彩和无操作不触发全库正文扇出。
 
+**待办描述与子项**：独立待办通过 `descriptionRef` 读写已有正文，`ensureDescription` 在任务事务内补建。父项查询与移动核验父待办的创建身份，开始时间复用 `todo_item.start_at`。
+
+**完成时间**：普通独立待办在 get、query 和完成操作结果中公开 `completedAt`。插件通过 `setCompleted` 的选项指定 Unix 毫秒；桌面任务引擎在目标版本检查与写入的同一事务内处理首次完成、单项校时和取消完成。
+
 **重复与正文任务**：`DataAdapter.todoRecurrence` 承载重复创建/修改与实例状态写入、持久状态分页。规则和状态仍经 task-assistant engine，复用快照、条件检查与正文耐久提交；原子补丁由共享 patchOccurrenceState 定义，不在适配层连调多个动作。`occurrences.ts` 按原始日期直接读取实例，跳过/改期不借展示查询定位，规则失效返回不存在。分页只枚举已存状态，绑定原库、插件、授权及根 revision，页间变化报冲突；独立任务根 revision 沿用完整语义快照，正文分页沿用正文读取边界。正文任务版本包含解析后的标题、清单与日期，提交事务内再次核对版本和目标清单；目录资格改变不能沿用旧版本覆盖。状态页按有限原始日期准备节假日资料，准备期间数据改变时报冲突，资料缺失不猜测 active。正文来源可见性由 document-access 与既有来源/设置入口处理，插件写入不能修改已排除或提升的任务，内部撤销/恢复仍保留底层读取。
 
 正文可靠身份由主库 document_task_identities 保存，不复制业务正文。共享 53_document_task_changes SQL 从整篇/变动块提取身份，与主库投影、日志原子提交；存储切换、源持有、排除/提升及可写性相关变更都能捕获。初始化按批保存进度，主库结构丢失后重建前切换目录代次；解析失败保留旧身份并拒绝正文检查点。页面 doc_tasks 索引可以独立删除重建，不影响变化流。todoSource 缺省 todo，可选 document/all；混合快照只各取有界数字键页合并，排序不使用公开字符串别名。含正文游标额外绑定目录代次，旧宿主未回传所支持来源时 SDK 拒绝成功结果。
@@ -189,6 +193,8 @@ MCP 本机设置只接受带 `transport` 的当前服务器结构，不将旧 `b
 **搜索 / @ / 反链**：索引类型 `plugin-entity` 走与卡片相同的全文/向量/详情链路（含已停用与宽限期内容）；新增索引类型须同时改 `IndexType`、共享 `entity-ref`、`MAIN_CONTENT_INDEX_TYPES`、`index-candidates`、全文队列分组、`fts.ts`、`search-details.ts`、`EntitySearchTable` 与 `openEntity`。检索结果标签与打开只读 `services/plugin-entity-kinds.ts` 运行时登记表：已登记按声明推导 push 插件页面（`at` 并入页面参数不参与实例身份），未登记开只读页；搜索面板对 plugin-entity 不设范围 chip。MentionPanel 经 `isMentionableResult` 过滤（插件运行中且声明 mentionable）；`context.entities.backlinks` 先核对归属再取被引用，PluginHost 按已获准权限过滤不弹窗。
 
 **类型外观**：类型名 + 图标存主库 `plugin_entity_kinds`（图标渲染成单个 SVG 文本，注销不删除，开库维护清理已卸载且无内容的）；显示一律经 `components/EntityKind` 的 `useEntityKindMeta`（`plugin-entities:owners` 同轮合并），列表用 `useEntityKindMetaResolver(refs)` 一次取齐，组件外用 `loadPluginEntityAppearances`；插件图标只作 CSS `mask-image` + currentColor。新增展示内容类型的地方必须经此解析，不得写死「插件内容」。
+
+**本机凭据**：`context.secrets` 复用插件激活作用域。主进程将 Electron safeStorage 加密的值存于 userData 下的独立 SQLite，按持久工作区 ID、插件 ID 与键取值。清除当前插件数据时同时删除本机凭据。
 
 **私有存储**：主库 `plugin_kv`（单值上限 1 MB）；启动不扫描或导入旧 localStorage 数据。卸载清除数据时删本库 `plugin_kv`，插件内容仍走 7 天宽限。
 

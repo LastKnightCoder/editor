@@ -24,9 +24,10 @@ import { publishContentUpdate } from "../../features/cards/contentSyncBus";
 import { prepareContentWrite } from "../../services/contentWriteCoordinator";
 
 export interface MobileContentSnapshot {
-  owners: ("card" | "article" | "document" | "calendar-event")[];
+  owners: ("card" | "article" | "document" | "calendar-event" | "todo")[];
   own: boolean;
   addressable?: boolean;
+  readonlyTodo?: boolean;
   document: ContentDetailResponse;
   binding: string | null;
 }
@@ -78,6 +79,7 @@ const unavailable = async (): Promise<never> => {
 };
 const permissionDomains = {
   "calendar-event": "calendar",
+  todo: "todos",
   card: "cards",
   article: "articles",
   project: "projects",
@@ -202,6 +204,7 @@ export function createMobileData(
   ): Promise<MobileComponentAccess> => {
     check(context);
     if (!value) return { status: "missing" };
+    if (mode === "write" && value.readonlyTodo) return { status: "denied" };
     if (value.own) return { status: "granted", snapshot: value };
     const permissions = value.owners.map(
       owner => `${permissionDomains[owner]}:${mode}` as PluginPermission
@@ -379,12 +382,14 @@ export function createMobileData(
       let current = await snapshot(context, ref);
       if (!current) throw new Error("正文不存在");
       const authorize = async (value: MobileContentSnapshot) => {
+        if (value.readonlyTodo) throw new Error("待办所属清单不可写");
         if (!checkPermission || value.own) return;
         const candidates = value.owners.filter(
           owner =>
             owner === "card" ||
             owner === "article" ||
             owner === "document" ||
+            owner === "todo" ||
             owner === "calendar-event"
         );
         for (const owner of candidates) {

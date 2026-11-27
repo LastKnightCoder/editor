@@ -1325,41 +1325,49 @@ END;
 CREATE TRIGGER IF NOT EXISTS dc_content_documents_insert AFTER INSERT ON content_documents
 BEGIN
   INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',e.id||':'||e.create_time,'upsert' FROM calendar_event e WHERE e.id IN (SELECT id FROM calendar_event WHERE detail_content_id=NEW.content_id);
+  INSERT INTO data_change_log(domain,entity_id,operation,action) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert','updated' FROM todo_item t WHERE t.description_content_id=NEW.content_id;
 END;
 
 CREATE TRIGGER IF NOT EXISTS dc_content_documents_update AFTER UPDATE ON content_documents WHEN OLD.revision IS NOT NEW.revision OR OLD.contracts IS NOT NEW.contracts OR OLD.format_version IS NOT NEW.format_version
 BEGIN
   INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',e.id||':'||e.create_time,'upsert' FROM calendar_event e WHERE e.id IN (SELECT id FROM calendar_event WHERE detail_content_id=NEW.content_id);
+  INSERT INTO data_change_log(domain,entity_id,operation,action) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert','updated' FROM todo_item t WHERE t.description_content_id=NEW.content_id;
 END;
 
 CREATE TRIGGER IF NOT EXISTS dc_content_documents_delete AFTER DELETE ON content_documents
 BEGIN
   INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',e.id||':'||e.create_time,'upsert' FROM calendar_event e WHERE e.id IN (SELECT id FROM calendar_event WHERE detail_content_id=OLD.content_id);
+  INSERT INTO data_change_log(domain,entity_id,operation,action) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert','updated' FROM todo_item t WHERE t.description_content_id=OLD.content_id;
 END;
 
 CREATE TRIGGER IF NOT EXISTS dc_contents_update AFTER UPDATE ON contents WHEN OLD.content IS NOT NEW.content
 BEGIN
   INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',e.id||':'||e.create_time,'upsert' FROM calendar_event e WHERE e.id IN (SELECT id FROM calendar_event WHERE detail_content_id=NEW.id);
+  INSERT INTO data_change_log(domain,entity_id,operation,action) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert','updated' FROM todo_item t WHERE t.description_content_id=NEW.id;
 END;
 
 CREATE TRIGGER IF NOT EXISTS dc_contents_delete AFTER DELETE ON contents
 BEGIN
   INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',e.id||':'||e.create_time,'upsert' FROM calendar_event e WHERE e.id IN (SELECT id FROM calendar_event WHERE detail_content_id=OLD.id);
+  INSERT INTO data_change_log(domain,entity_id,operation,action) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert','updated' FROM todo_item t WHERE t.description_content_id=OLD.id;
 END;
 
 CREATE TRIGGER IF NOT EXISTS dc_content_document_blocks_insert AFTER INSERT ON content_document_blocks
 BEGIN
   INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',e.id||':'||e.create_time,'upsert' FROM calendar_event e WHERE e.id IN (SELECT id FROM calendar_event WHERE detail_content_id=NEW.content_id);
+  INSERT INTO data_change_log(domain,entity_id,operation,action) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert','updated' FROM todo_item t WHERE t.description_content_id=NEW.content_id;
 END;
 
 CREATE TRIGGER IF NOT EXISTS dc_content_document_blocks_update AFTER UPDATE ON content_document_blocks WHEN OLD.content IS NOT NEW.content
 BEGIN
   INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',e.id||':'||e.create_time,'upsert' FROM calendar_event e WHERE e.id IN (SELECT id FROM calendar_event WHERE detail_content_id=NEW.content_id);
+  INSERT INTO data_change_log(domain,entity_id,operation,action) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert','updated' FROM todo_item t WHERE t.description_content_id=NEW.content_id;
 END;
 
 CREATE TRIGGER IF NOT EXISTS dc_content_document_blocks_delete AFTER DELETE ON content_document_blocks
 BEGIN
   INSERT INTO data_change_log(domain,entity_id,operation) SELECT 'event',e.id||':'||e.create_time,'upsert' FROM calendar_event e WHERE e.id IN (SELECT id FROM calendar_event WHERE detail_content_id=OLD.content_id);
+  INSERT INTO data_change_log(domain,entity_id,operation,action) SELECT 'todo','todo:'||t.id||':'||t.create_time,'upsert','updated' FROM todo_item t WHERE t.description_content_id=OLD.content_id;
 END;
 
 -- 正文任务身份与正文主库投影同事务更新；查询索引不是可靠变化来源。

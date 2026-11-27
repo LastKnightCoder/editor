@@ -70,11 +70,14 @@ export interface TaskInput {
   dueAt?: string | null;
   reminderAt?: string | null;
   reminderOffsets?: number[];
+  startAt?: string | null;
+  description?: import("@/types/plugin-data").PluginContentSource;
   notes?: import("@/types/plugin-data").PluginContentSource;
   recurrence?: TaskRecurrenceRule;
   document?: { contentId: number; createdAt: number; revision: string; afterTaskId?: string };
   patch?: Record<string, unknown>;
   completed?: boolean;
+  completedAt?: number;
   children?: string;
   occurrence?: TaskOccurrenceRef;
   action?: string;
@@ -247,7 +250,7 @@ export class TaskAssistantEngine {
     input: TaskInput,
     batchId: string,
     conversationKey?: string,
-    preparedNotes?: Parameters<typeof createEvent>[3]
+    preparedContent?: Parameters<typeof createEvent>[3]
   ): TaskOperationResult {
     let operationId: string | undefined;
     let validated = false;
@@ -340,7 +343,11 @@ export class TaskAssistantEngine {
           let eventId = input.eventId;
           let ref = input.taskRef;
           if (name === "create_todo") {
-            ref = createIndependent(this.db, input as Parameters<typeof createIndependent>[1]);
+            ref = createIndependent(
+              this.db,
+              input as Parameters<typeof createIndependent>[1],
+              preparedContent
+            );
             todoIds.push(ref.todoId);
             if (input.schedule)
               eventId = createEvent(
@@ -354,7 +361,7 @@ export class TaskAssistantEngine {
               this.db,
               input as Parameters<typeof createEvent>[1],
               ref ? readTask(this.db, ref).title : undefined,
-              preparedNotes
+              preparedContent
             );
             eventId = (result as { eventId: number }).eventId;
           } else if (name === "update_calendar_event" || name === "delete_calendar_event") {
@@ -362,11 +369,17 @@ export class TaskAssistantEngine {
               this.db,
               input as Parameters<typeof mutateEvent>[1],
               name === "delete_calendar_event",
-              preparedNotes
+              preparedContent
             );
           } else {
             if (ref?.kind !== "todo") return fail("INVALID_ARGUMENT", "缺少待办身份");
-            mutateIndependent(this.db, ref as Extract<TaskRef, { kind: "todo" }>, name, input);
+            mutateIndependent(
+              this.db,
+              ref as Extract<TaskRef, { kind: "todo" }>,
+              name,
+              input,
+              preparedContent
+            );
             result = name === "delete_todo" ? { deleted: ref } : readTask(this.db, ref);
           }
           const after: SavedState = {

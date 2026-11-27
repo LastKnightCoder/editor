@@ -22,6 +22,7 @@ export type {
   JsonValue,
   Disposable,
   PluginStorage,
+  PluginSecrets,
   PluginCommand,
   PluginContext,
   PluginInstance,

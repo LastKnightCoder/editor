@@ -29,7 +29,7 @@ describe("提醒的格式与存储边界", () => {
       Number.POSITIVE_INFINITY,
     ];
     const normalized = normalizeReminders(input);
-    expect(normalized).toEqual([-9 * hour, 0, 5 * minute]);
+    expect(normalized).toEqual([-9 * hour, 0, 5 * minute, 15 * minute]);
     const split = splitTodoReminders(input);
     expect(joinTodoReminders(split.first, split.extras)).toEqual(normalized);
     expect(joinTodoReminders(null, [5 * minute])).toEqual([]);

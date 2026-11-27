@@ -660,7 +660,7 @@ plugins 页使用 single 身份与 tab 参数（商店 / 已安装文字标签�
 
 待办、日程、正文待办的提醒与倒计时番茄结束都用本地系统通知，不经推送服务器；提醒数据与桌面共用 `item_reminder` 口径（见[桌面提醒](/docs/architecture/desktop/home-features.md#提醒)），Rust 命令在 `src-tauri/src/database/reminders.rs`（`reminder_list / reminder_set / reminder_upcoming`）。
 
-- **范围**：截止任务（最多 3 个提醒）、周期待办（`remind_before` 为当天时刻，逐个未打卡实例提醒，实例与日历物化同源 `recurring_occurrences`）、独立日程（待办安排出的日程跟随待办）、正文待办（`taskReminder.at`；排除文档、已提升为独立待办、已勾选或已完成的实例不提醒）。有「排除节假日」规则时才取节假日，取不到按无节假日排期。
+- **范围**：截止任务（按所有已选偏移量排期）、周期待办（`remind_before` 为当天时刻，逐个未打卡实例提醒，实例与日历物化同源 `recurring_occurrences`）、独立日程（待办安排出的日程跟随待办）、正文待办（`taskReminder.at`；排除文档、已提升为独立待办、已勾选或已完成的实例不提醒）。有「排除节假日」规则时才取节假日，取不到按无节假日排期。
 - **原生插件**：`plugins/local-notify`（Rust 只注册，命令直通原生）+ `native-notify/`。Android 用 AlarmManager（有「闹钟和提醒」授权时准点，否则可延后）与三个通知渠道「待办提醒 / 日程提醒 / 番茄专注」，排期存 SharedPreferences，开机、应用更新、准点授权变化后重排；状态栏小图标 `ic_stat_tau` 是应用图标的单色剪影（按系统要求只取 alpha）。iOS 用 UNUserNotificationCenter，通知图标即应用图标。
 - **排期**：`features/reminders/scheduler` 取 14 天内的提醒，加上进行中的倒计时番茄（按剩余时长算到点时刻），整体替换系统排期（iOS 系统上限 64 条，只排最近 50 条；Android 200 条）。启动、回到前台、影响提醒的写命令（含番茄开始 / 暂停 / 继续 / 结束与正文保存）之后合并重排（`changes.ts` 按命令名识别）。别的设备新建的提醒要同步下载后才会排进系统。
 - **按钮**：每条通知带 `actions`——`complete`（单次截止任务：「完成」会拉起应用后勾选）、`ack`（日程、周期实例、正文待办：「知道了」只关通知）、`none`（番茄）；前两种另有「N 分钟后」，原生直接重排，键为 `<owner>:snooze`，事项完成或删除后的下一次重排撤销。点通知本体打开对应待办 / 日程 / 正文（定位到该待办）/ 番茄页。点击与「完成」先入原生队列，`ReminderHost` 收到信号或回到前台时 `take_actions` 取走处理，冷启动不丢。

@@ -33,6 +33,7 @@ export interface TaskQuery {
   pageSize?: number;
   cursor?: string;
   taskRefs?: TaskRef[];
+  parentRef?: TaskRef;
   source?: "all" | "todo" | "document";
   keyword?: string;
   completed?: boolean;
@@ -173,6 +174,10 @@ export function queryTasks(
   const positions = { todo: cursor.todo, document: cursor.document };
   const candidates: Candidate[] = [];
   for (const kind of ["todo", "document"] as const) {
+    if (query.parentRef && kind === "document") {
+      exhausted.document = true;
+      continue;
+    }
     if (query.contentId && kind === "todo") {
       exhausted.todo = true;
       continue;
@@ -200,6 +205,11 @@ export function queryTasks(
     if (query.completed !== undefined && query.view !== "occurrences") {
       where.push(`${doc ? "t.checked" : "t.is_completed"}=?`);
       params.push(query.completed ? 1 : 0);
+    }
+    if (query.parentRef) {
+      if (query.parentRef.kind !== "todo") return fail("INVALID_ARGUMENT", "父项必须是独立待办");
+      where.push("t.parent_id=(SELECT id FROM todo_item WHERE id=? AND create_time=?)");
+      params.push(query.parentRef.todoId, query.parentRef.createdAt);
     }
     if (query.groupId !== undefined) {
       where.push("t.group_id=?");

@@ -7,6 +7,6 @@
   "permission.explanation": "Allow notifications to get reminders before tasks are due or events begin, even when the app is closed.",
   "permission.allow": "Allow notifications",
   "permission.later": "Not now",
-  "selection.count": "Selected: {{amount}} · Up to {{limit}}",
+  "selection.count": "Selected: {{amount}}",
   "sheet.done": "Done"
 }

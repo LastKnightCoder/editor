@@ -72,6 +72,14 @@ export function ensureMainSchema(db: Database.Database): void {
         "dc_calendar_insert",
         "dc_calendar_update",
         "dc_document_task_identity_insert",
+        "dc_content_documents_insert",
+        "dc_content_documents_update",
+        "dc_content_documents_delete",
+        "dc_contents_update",
+        "dc_contents_delete",
+        "dc_content_document_blocks_insert",
+        "dc_content_document_blocks_update",
+        "dc_content_document_blocks_delete",
       ])
         db.exec(`DROP TRIGGER IF EXISTS ${trigger}`);
       db.exec(MAIN_SCHEMA_SQL);

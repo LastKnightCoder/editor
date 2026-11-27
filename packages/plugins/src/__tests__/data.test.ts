@@ -486,16 +486,35 @@ describe("插件业务数据与权限", () => {
     });
     await context().data.cards.update("3", { pinned: true }, { expectedRevision: "10" });
     await context().data.cards.delete("3", { expectedRevision: "10" });
-    await context().data.todos.setCompleted("todo:1:1", true, { expectedRevision: "t1" });
+    await context().data.todos.setCompleted("todo:1:1", true, {
+      completedAt: 0,
+      expectedRevision: "t1",
+    });
     expect(calls.filter(call => call[0] !== "ensure")).toEqual([
       ["create", "card", { content: { markdown: "# 新卡" }, tags: ["读书"] }],
       ["update", "card", "3", { pinned: true }, "10"],
       ["remove", "card", "3", "10"],
       [
         "writeTodo",
-        { action: "complete", id: "todo:1:1", completed: true, expectedRevision: "t1" },
+        {
+          action: "complete",
+          id: "todo:1:1",
+          completed: true,
+          completedAt: 0,
+          expectedRevision: "t1",
+        },
       ],
     ]);
+    for (const [id, completed, completedAt] of [
+      ["todo:1:1", false, 0],
+      ["todo:1:1", true, 1.5],
+      ["todo:1:1@2026-01-01", true, 0],
+      ["document:1:1:task", true, 0],
+    ] as const) {
+      await expect(
+        context().data.todos.setCompleted(id, completed, { expectedRevision: "t1", completedAt })
+      ).rejects.toThrow();
+    }
     await expect(
       context().data.cards.update("3", { pinned: true }, {} as { expectedRevision: string })
     ).rejects.toThrow("expectedRevision");
@@ -1351,11 +1370,14 @@ describe("插件业务数据与权限", () => {
     );
     await expect(ctx.data.calendar.query({ view: "stored" })).rejects.toThrow("当前宿主");
   });
-  it("日程备注使用日历权限，卡片权限不能替代", async () => {
+  it.each([
+    ["calendar-event", "calendar:read", "calendar:write"],
+    ["todo", "todos:read", "todos:write"],
+  ] as const)("%s 正文使用所属业务的权限，卡片权限不能替代", async (owner, read, write) => {
     const allowed = setup({
-      owners: ["calendar-event"],
-      declared: ["calendar:read", "calendar:write"],
-      granted: new Set(["calendar:read", "calendar:write"]),
+      owners: [owner],
+      declared: [read, write],
+      granted: new Set([read, write]),
     });
     await allowed.host.enable("weekly");
     expect(await allowed.context().content.read("7:100")).toMatchObject({
@@ -1372,7 +1394,7 @@ describe("插件业务数据与权限", () => {
         )
     ).resolves.toEqual({ revision: "r2" });
     const denied = setup({
-      owners: ["calendar-event"],
+      owners: [owner],
       declared: ["cards:read", "cards:write"],
       granted: new Set(["cards:read", "cards:write"]),
     });

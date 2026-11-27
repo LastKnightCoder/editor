@@ -7,6 +7,6 @@
   "permission.explanation": "需要通知權限，才能在截止前、行程開始前提醒你。關閉 App 也會準時響。",
   "permission.allow": "開啟通知",
   "permission.later": "以後再說",
-  "selection.count": "已選 {{amount}} 個，最多 {{limit}} 個",
+  "selection.count": "已選 {{amount}} 個",
   "sheet.done": "完成"
 }

@@ -54,6 +54,12 @@ export interface PluginStorage {
   delete(key: string): Promise<void>;
 }
 
+export interface PluginSecrets {
+  get(key: string): Promise<string | undefined>;
+  set(key: string, value: string): Promise<void>;
+  delete(key: string): Promise<void>;
+}
+
 export interface PluginCommand {
   /** 插件内的局部 ID，宿主会添加插件命名空间。 */
   id: string;
@@ -74,6 +80,7 @@ export interface PluginContext {
   readonly signal: AbortSignal;
   readonly commands: { register(command: Localized<PluginCommand>): Disposable };
   readonly storage: PluginStorage;
+  readonly secrets: PluginSecrets;
   readonly pages: PluginPages;
   readonly windows?: PluginWindows;
   readonly settings: PluginSettings;

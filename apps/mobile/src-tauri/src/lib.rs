@@ -81,6 +81,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_native_speech::init())
         .plugin(tauri_plugin_native_record::init())
+        .plugin(tauri_plugin_plugin_secrets::init())
         .plugin(tauri_plugin_local_notify::init())
         .invoke_handler(tauri::generate_handler![
             ai::ai_library_acquire,

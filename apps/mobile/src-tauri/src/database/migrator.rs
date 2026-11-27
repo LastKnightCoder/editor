@@ -265,6 +265,14 @@ pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
             "dc_calendar_insert",
             "dc_calendar_update",
             "dc_document_task_identity_insert",
+            "dc_content_documents_insert",
+            "dc_content_documents_update",
+            "dc_content_documents_delete",
+            "dc_contents_update",
+            "dc_contents_delete",
+            "dc_content_document_blocks_insert",
+            "dc_content_document_blocks_update",
+            "dc_content_document_blocks_delete",
         ] {
             tx.execute_batch(&format!("DROP TRIGGER IF EXISTS {trigger}"))
                 .map_err(|e| e.to_string())?;

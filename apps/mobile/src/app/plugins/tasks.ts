@@ -63,7 +63,7 @@ export function createMobileTasks(
   token: string,
   changed: () => void,
   checkPermission?: (context: PluginContext, permission: PluginPermission) => Promise<void>,
-  prepareNotes?: (
+  prepareContent?: (
     context: PluginContext,
     input: PluginContentInput
   ) => Promise<{ nodes: Descendant[]; contracts: ContentContractDictionary; count: number }>
@@ -364,10 +364,33 @@ export function createMobileTasks(
           ? { ...write, requestId: await createRequestId(context.pluginId, write.requestId) }
           : write;
       await authorize(context, write.action === "delete" ? "todos:delete" : "todos:write");
+      const description =
+        write.action === "create"
+          ? write.input.description
+          : write.action === "update" && write.patch.ensureDescription
+            ? { nodes: [] }
+            : undefined;
+      let preparedDescription;
+      if (description !== undefined) {
+        if (!prepareContent) throw new Error("宿主未提供待办描述正文准备");
+        if (normalized.action === "create" && normalized.requestId !== undefined) {
+          const replay = await call<PluginTodo | null>(
+            "plugin_tasks_read",
+            context.pluginId,
+            { method: "replay-create", write: normalized },
+            context
+          );
+          if (replay) return replay;
+        }
+        preparedDescription = await prepareContent(context, description);
+      }
       const value = await call<PluginTodo | null>(
         "plugin_tasks_write",
         context.pluginId,
-        { method: "todos", write: normalized },
+        {
+          method: "todos",
+          write: preparedDescription ? { ...normalized, preparedDescription } : normalized,
+        },
         context
       );
       changed();
@@ -403,15 +426,15 @@ export function createMobileTasks(
             ...write.input,
             ...(write.input.notes === undefined
               ? {}
-              : { notes: await prepareNotes?.(context, write.input.notes) }),
+              : { notes: await prepareContent?.(context, write.input.notes) }),
           },
         };
-        if (write.input.notes !== undefined && !prepareNotes)
+        if (write.input.notes !== undefined && !prepareContent)
           throw new Error("宿主未提供备注正文准备");
       }
       if (write.action === "notes") {
-        if (!prepareNotes) throw new Error("宿主未提供备注正文准备");
-        const notesWrite = { ...write, notes: await prepareNotes(context, { nodes: [] }) };
+        if (!prepareContent) throw new Error("宿主未提供备注正文准备");
+        const notesWrite = { ...write, notes: await prepareContent(context, { nodes: [] }) };
         normalized = notesWrite;
       }
       const value = await call(

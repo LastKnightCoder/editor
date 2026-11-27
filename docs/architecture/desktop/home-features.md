@@ -50,7 +50,7 @@
 
 ### 提醒
 
-- 截止任务与独立日程各最多 3 个提醒，预设、文案与拆合口径在 `@tau/shared/reminders`（移动端共用）。存储：待办首个提醒仍在 `todo_item.remind_before`（AI 工具、插件等只认单值的写入方照旧读写），其余在 `item_reminder`；日程全部在 `item_reminder`，全天日程以当天零点为基准（「当天 9:00」是负 offset）。改首个提醒的单值写入会经触发器清掉追加提醒，删待办 / 日程同样清理。
+- 截止任务与独立日程按去重后的偏移量列表保存提醒，预设、文案与拆合口径在 `@tau/shared/reminders`（移动端共用）。存储：待办首个提醒仍在 `todo_item.remind_before`（AI 工具、插件等只认单值的写入方照旧读写），其余在 `item_reminder`；日程全部在 `item_reminder`，全天日程以当天零点为基准（「当天 9:00」是负 offset）。改首个提醒的单值写入会经触发器清掉追加提醒，删待办 / 日程同样清理。
 - 写提醒只走 `todo:update-reminders` / `calendar-event:update-reminders`（`tables/item-reminder.ts`），先写 `remind_before` 再写追加提醒；界面统一用 `components/ReminderMenu`（勾选不关菜单）。待办列表快照经 `extraReminders` 带出追加提醒，展示用 `todoReminders(entry)` 合并。
 - 主进程 `todo-reminder` 每分钟扫描截止任务（含追加提醒）、周期与文档待办、独立日程（`todo_item_id` 为空，待办安排出的日程跟随待办）；通知正文由 `reminderBody` 生成，周期实例与只写了日期的文档待办按全天（「今天到期」），没有截止时间的写「待办提醒」。通知「查看」带 `reveal`，并向主窗口发 `reminder:open`，由壳层 `useReminderOpen` 打开待办页（`selectedId`）或日程页（`eventId`）。
 

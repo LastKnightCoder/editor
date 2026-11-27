@@ -12,6 +12,7 @@ import {
 } from "@tau/i18n";
 import {
   readDirectoryFields,
+  parseTaskKey,
   type DirectoryEntity,
   type TodoListInput,
   type TodoListPatch,
@@ -19,12 +20,15 @@ import {
   type CalendarDirectoryPatch,
 } from "@tau/shared/task-assistant";
 import {
+  readTodoParentId,
+  readTodoCompletionTime,
   readTodoRule,
   readTodoReminders,
   readRecurrenceChange,
   readOccurrencePatch,
 } from "./todo-contract";
 import type {
+  PluginTodoCompletionOptions,
   PluginTodoRecurrenceChange,
   PluginTodoOccurrencePatch,
   PluginTodoOccurrenceQuery,
@@ -333,7 +337,7 @@ export type DataEntity = "card" | "article" | "document" | "whiteboard" | "proje
 export type ReadableEntity = DataEntity | "notebook" | "material" | "chat-session";
 /** 持有正文的实体：正文的访问按它们的权限放行 */
 export type ContentOwnerEntity = "card" | "article" | "document";
-export type ContentAccessOwner = ContentOwnerEntity | "calendar-event";
+export type ContentAccessOwner = ContentOwnerEntity | "calendar-event" | "todo";
 
 /** 宿主负责工作区绑定；参数已校验并复制，返回值由 PluginHost 再复制后交给插件。 */
 export interface ScheduleDataAdapter {
@@ -471,8 +475,19 @@ export type CreatableEntity = "card" | "article" | "whiteboard" | "project";
 
 export type TodoWrite =
   | { action: "create"; input: PluginTodoInput; requestId?: string; requestHash?: string }
-  | { action: "update"; id: string; patch: PluginTodoPatch; expectedRevision: string }
-  | { action: "complete"; id: string; completed: boolean; expectedRevision: string }
+  | {
+      action: "update";
+      id: string;
+      patch: PluginTodoPatch & { ensureDescription?: boolean };
+      expectedRevision: string;
+    }
+  | {
+      action: "complete";
+      id: string;
+      completed: boolean;
+      completedAt?: number;
+      expectedRevision: string;
+    }
   | { action: "delete"; id: string; expectedRevision: string };
 
 export type TodoRecurrenceWrite =
@@ -966,7 +981,11 @@ export function contentPermissions(
           ? mode === "read"
             ? ("calendar:read" as const)
             : ("calendar:write" as const)
-          : table[owner]
+          : owner === "todo"
+            ? mode === "read"
+              ? "todos:read"
+              : "todos:write"
+            : table[owner]
       )
     ),
   ];
@@ -1005,6 +1024,7 @@ function readId(id: unknown): string {
 
 /** 字段规则：数字为非空字符串的最大长度，对象形式可允许空串；meta 为插件自有内容的 meta */
 type FieldRule =
+  | "parent-id"
   | "todo-rule"
   | "todo-reminders"
   | number
@@ -1033,10 +1053,11 @@ function readFields<T>(
     if (rule === "boolean") {
       if (typeof item !== "boolean") throw new Error(`${key} 无效`);
       result[key] = item;
-    } else if (rule === "todo-rule") result[key] = readTodoRule(item);
+    } else if (rule === "parent-id") result[key] = item === null ? null : readTodoParentId(item);
+    else if (rule === "todo-rule") result[key] = readTodoRule(item);
     else if (rule === "todo-reminders") result[key] = readTodoReminders(item);
     else if (rule === "reminders") {
-      if (!Array.isArray(item) || item.length > 3) throw new Error("提醒最多三条");
+      if (!Array.isArray(item)) throw new Error("提醒列表无效");
       result[key] = item.map(value => {
         if (!value || typeof value !== "object" || !Number.isSafeInteger(value.offsetMs))
           throw new Error("提醒偏移须为安全整数毫秒");
@@ -1365,6 +1386,7 @@ export class PluginHost {
       };
       backend?: (context: PluginContext) => import("./backend").PluginBackendClient;
       storage: StorageAdapter;
+      secrets?: (scope: StorageScope) => PluginContext["secrets"];
       pages?: PagesAdapter;
       ai?: {
         bind(
@@ -1933,6 +1955,7 @@ export class PluginHost {
     context.settings = this.buildSettingsContext(deps);
     context.commands = this.buildCommandsContext(deps);
     context.storage = this.buildStorageContext(deps);
+    context.secrets = this.buildSecretsContext(deps);
     context.excerpts = this.buildExcerptsContext(deps);
     context.flashcards = this.buildFlashcardsContext(deps);
     context.materials = this.buildMaterialsContext(deps);
@@ -2730,6 +2753,30 @@ export class PluginHost {
     });
   }
 
+  private buildSecretsContext({ entry, activation, scope }: ContextDeps): PluginContext["secrets"] {
+    const secrets = this.options.secrets?.(scope);
+    const access = (key: string) => {
+      this.assertActive(entry, activation);
+      assertLocalId(key);
+      if (!secrets) throw new Error("当前宿主未提供系统安全存储");
+      return secrets;
+    };
+    return Object.freeze({
+      get: async (key: string) => {
+        const value = await access(key).get(key);
+        this.assertActive(entry, activation);
+        return value;
+      },
+      set: async (key: string, value: string) => {
+        if (typeof value !== "string") throw new Error("凭据必须是字符串");
+        await access(key).set(key, value);
+      },
+      delete: async (key: string) => {
+        await access(key).delete(key);
+      },
+    });
+  }
+
   private buildStorageContext(deps: ContextDeps): PluginContext["storage"] {
     const { entry, activation, scope } = deps;
     const prepareStorage = (key: string) => {
@@ -3179,6 +3226,14 @@ export class PluginHost {
       const fields =
         write.action === "create" ? write.input : write.action === "update" ? write.patch : {};
       if (
+        write.action === "update" &&
+        ("parentId" in fields || "startAt" in fields || "ensureDescription" in fields)
+      ) {
+        const target = parseTaskKey(write.id);
+        if (target?.taskRef.kind !== "todo" || target.occurrenceDate)
+          throw new Error("此字段仅支持独立待办本身");
+      }
+      if (
         "recurrence" in fields ||
         ("reminders" in fields &&
           ((write.action !== "create" && write.id.startsWith("document:")) ||
@@ -3191,6 +3246,10 @@ export class PluginHost {
       }
       if (
         ("listId" in fields ||
+          "parentId" in fields ||
+          "startAt" in fields ||
+          "description" in fields ||
+          "ensureDescription" in fields ||
           "reminders" in fields ||
           (write.action === "create" && write.requestId !== undefined)) &&
         !adapter.schedule
@@ -3205,6 +3264,9 @@ export class PluginHost {
     };
     const crud = this.makeResourceCrud<TodoWrite, PluginTodo>(deps, {
       createFields: {
+        startAt: "nullable-time",
+        parentId: "parent-id",
+        description: "content",
         recurrence: "todo-rule",
         title: MAX_TITLE,
         dueAt: "nullable-time",
@@ -3213,6 +3275,8 @@ export class PluginHost {
       },
       createRequired: ["title"],
       updateFields: {
+        startAt: "nullable-time",
+        parentId: "parent-id",
         title: MAX_TITLE,
         dueAt: "nullable-time",
         listId: 200,
@@ -3228,6 +3292,18 @@ export class PluginHost {
       return adapter;
     };
     return Object.freeze({
+      ensureDescription: async (id: string, options: PluginWriteOptions) => {
+        const expectedRevision = readRevision(options);
+        await guard("todos:write");
+        return deliver<PluginTodo>(
+          await writeTodo({
+            action: "update",
+            id: readId(id),
+            expectedRevision,
+            patch: { ensureDescription: true },
+          })
+        );
+      },
       setRecurrence: async (
         id: string,
         change: PluginTodoRecurrenceChange,
@@ -3286,15 +3362,21 @@ export class PluginHost {
       },
       create: crud.create,
       update: crud.update,
-      setCompleted: async (id: string, completed: boolean, options: PluginWriteOptions) => {
+      setCompleted: async (
+        id: string,
+        completed: boolean,
+        options: PluginTodoCompletionOptions
+      ) => {
         if (typeof completed !== "boolean") throw new Error("completed 无效");
         const expectedRevision = readRevision(options);
+        const completedAt = readTodoCompletionTime(id, completed, options.completedAt);
         await guard("todos:write");
         return deliver<PluginTodo>(
           await writeTodo({
             action: "complete",
             id: readId(id),
             completed,
+            ...(completedAt === undefined ? {} : { completedAt }),
             expectedRevision,
           })
         );
@@ -3302,6 +3384,7 @@ export class PluginHost {
       delete: crud.delete,
       query: async (query?: PluginTodoQuery) => {
         const picked = pickQuery<PluginTodoQuery>(query, {
+          parentId: "string",
           source: "string",
           view: "string",
           completed: "boolean",
@@ -3312,6 +3395,7 @@ export class PluginHost {
           end: "string",
           cursor: "string",
         });
+        if (picked.parentId !== undefined) readTodoParentId(picked.parentId);
         if (picked.source !== undefined && !["all", "todo", "document"].includes(picked.source))
           throw new Error("查询参数 source 无效");
         if (picked.view !== undefined && !["tasks", "occurrences"].includes(picked.view))
@@ -3321,10 +3405,12 @@ export class PluginHost {
         const limit = readLimit(query?.limit, 100);
         await guard("todos:read");
         if (
-          (picked.listId !== undefined || picked.archived !== undefined) &&
+          (picked.listId !== undefined ||
+            picked.parentId !== undefined ||
+            picked.archived !== undefined) &&
           !dataAdapter().schedule
         )
-          throw new Error("当前宿主不支持待办清单与归档筛选");
+          throw new Error("当前宿主不支持待办清单、父项与归档筛选");
         return deliver<PluginPage<PluginTodo>>(
           await dataAdapter().todos(context, { ...picked, limit })
         );

@@ -194,6 +194,20 @@ fn content_ref(reference: &str) -> Result<(i64, i64), String> {
     }
     Ok((id, created))
 }
+fn todo_description_writable(conn: &Connection, id: i64) -> Result<bool, String> {
+    let mut tasks = conn
+        .prepare("SELECT DISTINCT group_id FROM todo_item WHERE description_content_id=?1")
+        .map_err(sql_error)?;
+    for group in tasks
+        .query_map([id], |row| row.get::<_, i64>(0))
+        .map_err(sql_error)?
+    {
+        if !super::todo::is_writable_group(conn, group.map_err(sql_error)?)? {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
 fn read_content(conn: &Connection, reference: &str, plugin_id: &str) -> Result<Value, String> {
     let (id, created) = content_ref(reference)?;
     if !conn
@@ -207,10 +221,11 @@ fn read_content(conn: &Connection, reference: &str, plugin_id: &str) -> Result<V
         return Ok(Value::Null);
     }
     let mut owners = vec![];
-    for (entity,sql) in [("card","SELECT EXISTS(SELECT 1 FROM cards WHERE content_id=?1)"),("article","SELECT EXISTS(SELECT 1 FROM articles WHERE content_id=?1 AND is_delete=0)"),("document","SELECT EXISTS(SELECT 1 FROM project_item WHERE content_id=?1 AND (ref_type IS NULL OR ref_type=''))"),("calendar-event","SELECT EXISTS(SELECT 1 FROM calendar_event WHERE detail_content_id=?1)")] {
+    for (entity,sql) in [("card","SELECT EXISTS(SELECT 1 FROM cards WHERE content_id=?1)"),("article","SELECT EXISTS(SELECT 1 FROM articles WHERE content_id=?1 AND is_delete=0)"),("document","SELECT EXISTS(SELECT 1 FROM project_item WHERE content_id=?1 AND (ref_type IS NULL OR ref_type=''))"),("calendar-event","SELECT EXISTS(SELECT 1 FROM calendar_event WHERE detail_content_id=?1)"),("todo","SELECT EXISTS(SELECT 1 FROM todo_item WHERE description_content_id=?1)")] {
         if conn.query_row(sql,[id],|row|row.get::<_,bool>(0)).map_err(sql_error)? { owners.push(entity); }
     }
     let own=conn.query_row("SELECT EXISTS(SELECT 1 FROM plugin_entities WHERE content_id=?1 AND plugin_id=?2 AND orphaned_time IS NULL)",params![id,plugin_id],|row|row.get::<_,bool>(0)).map_err(sql_error)?;
+    let readonly_todo = owners.contains(&"todo") && !todo_description_writable(conn, id)?;
     let addressable = !owners.is_empty()
         || conn
             .query_row(
@@ -222,7 +237,7 @@ fn read_content(conn: &Connection, reference: &str, plugin_id: &str) -> Result<V
     let document = query::query_content_detail(conn, id)?;
     let binding:Option<String>=conn.query_row("SELECT document_id FROM collaboration_bindings WHERE content_id=?1 AND content_created_at=?2",params![id,created],|row|row.get(0)).optional().map_err(sql_error)?;
     Ok(
-        json!({"owners":owners,"own":own,"addressable":addressable,"document":document,"binding":binding}),
+        json!({"owners":owners,"own":own,"readonlyTodo":readonly_todo,"addressable":addressable,"document":document,"binding":binding}),
     )
 }
 #[tauri::command]
@@ -473,6 +488,9 @@ fn edit_content(conn: &mut Connection, plugin_id: &str, request: &Value) -> Resu
         return Err("正文不存在".into());
     }
     let (id, created) = content_ref(reference)?;
+    if snapshot["readonlyTodo"] == true {
+        return Err("待办所属清单不可写".into());
+    }
     let mut events = conn
         .prepare("SELECT calendar_id FROM calendar_event WHERE detail_content_id=?1")
         .map_err(sql_error)?;

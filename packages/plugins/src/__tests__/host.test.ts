@@ -185,6 +185,36 @@ describe("受信任插件 API", () => {
     expect(() => host.getState("example.notes")).toThrow("插件未注册");
   });
 
+  it("等待系统读取期间停用插件，不向失效实例交付凭据", async () => {
+    const gate = deferred();
+    let context!: PluginContext;
+    const host = new PluginHost({
+      workspaceId: "work",
+      storage: createMemoryStorage(),
+      secrets: () => ({
+        async get() {
+          await gate.promise;
+          return "fixture";
+        },
+        async set() {},
+        async delete() {},
+      }),
+    });
+    host.registerTrusted(
+      definition(() => ({
+        activate(ctx) {
+          context = ctx;
+        },
+      }))
+    );
+    await host.enable("example.notes");
+    const pending = context.secrets.get("token");
+    await host.disable("example.notes");
+    gate.resolve();
+    await expect(pending).rejects.toThrow("实例已失效");
+    await host.dispose();
+  });
+
   it("存储按插件及工作区隔离，读取和写入都是副本", async () => {
     const storage = createMemoryStorage();
     const first = new PluginHost({ workspaceId: "A", storage });

@@ -161,6 +161,11 @@ function toTodo(task: AssistantTask): PluginTodo {
       ? `${taskKey(task.taskRef)}@${task.occurrence.occurrenceDate}`
       : taskKey(task.taskRef),
     revision: task.revision,
+    startAt: task.startAt ?? null,
+    parentId: task.parentRef ? taskKey(task.parentRef) : null,
+    descriptionRef: task.description
+      ? encodeContentRef(task.description.contentId, task.description.createdAt)
+      : null,
     listId: task.groupId === null ? null : String(task.groupId),
     reminders:
       task.taskRef.kind === "document"
@@ -195,6 +200,10 @@ function toTodo(task: AssistantTask): PluginTodo {
     title: task.title,
     completed:
       (task.isSeries ?? !!task.recurrence?.length) && !task.occurrence ? false : task.completed,
+    completedAt:
+      task.taskRef.kind === "todo" && !task.occurrence && task.completed
+        ? (task.completedAt ?? null)
+        : null,
     archived: task.archived,
     dueAt: task.dueAt,
     ...(task.sourceRef
@@ -525,6 +534,11 @@ export function createDesktopData(databaseName: string): DesktopDataAdapter {
       if (write.action === "create") {
         const result = await taskWrite(context, "create_todo", {
           title: write.input.title,
+          ...(write.input.parentId ? { parentRef: parseTodoId(write.input.parentId).taskRef } : {}),
+          ...(write.input.startAt !== undefined ? { startAt: write.input.startAt } : {}),
+          ...(write.input.description !== undefined
+            ? { description: toContentSource(write.input.description) }
+            : {}),
           ...(write.input.recurrence ? { recurrence: write.input.recurrence } : {}),
           ...(write.requestId === undefined
             ? {}
@@ -543,10 +557,13 @@ export function createDesktopData(databaseName: string): DesktopDataAdapter {
       const { taskRef, occurrenceDate } = parseTodoId(write.id);
       const target = { taskRef, revision: write.expectedRevision };
       if (write.action === "update") {
-        const { listId, reminders, ...fields } = write.patch;
+        const { listId, reminders, parentId, ...fields } = write.patch;
 
         const patch = {
           ...fields,
+          ...(parentId === undefined
+            ? {}
+            : { parentRef: parentId === null ? null : parseTodoId(parentId).taskRef }),
           ...(listId === undefined ? {} : { groupId: requireId(listId) }),
           ...(reminders === undefined
             ? {}
@@ -574,6 +591,7 @@ export function createDesktopData(databaseName: string): DesktopDataAdapter {
           (await taskWrite(context, "set_todo_completed", {
             ...target,
             completed: write.completed,
+            ...(write.completedAt === undefined ? {} : { completedAt: write.completedAt }),
             ...occurrence,
           })) as AssistantTask
         );
@@ -681,11 +699,15 @@ export function createDesktopData(databaseName: string): DesktopDataAdapter {
       const record = await bound(context).getPluginData(databaseName, entity, numeric);
       return record ? toEntity(record) : null;
     },
-    async todos(context, { limit, listId, ...query }) {
-      if (listId !== undefined && query.source === "document") return { items: [] };
+    async todos(context, { limit, listId, parentId, ...query }) {
+      if ((listId !== undefined || parentId !== undefined) && query.source === "document")
+        return { items: [] };
       const result = await tasks<AssistantTask>(context, "query_todos", {
         ...query,
         ...(listId === undefined ? {} : { groupId: requireId(listId), source: "todo" }),
+        ...(parentId === undefined
+          ? {}
+          : { parentRef: parseTodoId(parentId).taskRef, source: "todo" }),
         pageSize: limit,
       });
       return {

@@ -12,6 +12,7 @@
     "core:window:allow-destroy",
     "opener:default",
     "native-speech:default",
-    "local-notify:default"
+    "local-notify:default",
+    "plugin-secrets:default"
   ]
 }

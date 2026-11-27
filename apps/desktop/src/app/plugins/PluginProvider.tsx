@@ -17,6 +17,7 @@ import { createDesktopRecords } from "./records";
 import { createDesktopLinks } from "./links";
 import { createDesktopTransaction } from "./transaction";
 import { createDatabaseStorage } from "./kv-storage";
+import { desktopPluginSecrets, clearPluginSecrets } from "@/commands/plugin-secrets";
 import { clearPluginKv } from "@/commands/plugin-kv";
 import { clearPluginRefGrants, grantPluginRefs } from "@/commands/plugin-data";
 import { DesktopPermissionBroker } from "./permissions";
@@ -88,6 +89,7 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
           storage: isElectron
             ? createDatabaseStorage(workspaceId)
             : createBrowserStorage(window.localStorage),
+          secrets: isElectron ? desktopPluginSecrets : undefined,
           plugins: [],
           fetch: desktopFetch,
           services: desktopPluginServices,
@@ -110,6 +112,7 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
                   await grantPluginRefs(workspaceId, pluginId, refs);
                 },
                 purgeStorage: async (pluginId: string) => {
+                  await clearPluginSecrets(persistentWorkspaceId, pluginId);
                   await clearPluginKv(workspaceId, pluginId);
                   await clearPluginRefGrants(workspaceId, pluginId);
                 },

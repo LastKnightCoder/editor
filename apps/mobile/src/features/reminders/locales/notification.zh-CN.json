@@ -21,7 +21,7 @@
   "foreground": "App 在前台时显示横幅",
   "snooze.title": "稍后提醒间隔",
   "minutes": "{{count}} 分钟",
-  "foregroundHint": "关闭横幅后，App 在前台时也弹系统通知。提醒在待办详情或日程编辑里设置，最多 3 个；桌面端同时提醒。",
+  "foregroundHint": "关闭横幅后，App 在前台时也弹系统通知。提醒在待办详情或日程编辑里设置；桌面端同时提醒。",
   "kind.todo": "待办",
   "kind.event": "日程",
   "kind.doc": "文档待办",

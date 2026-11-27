@@ -340,6 +340,8 @@ export type PluginTodoOccurrencePage = PluginPage<PluginTodoOccurrenceState> & {
 };
 
 export interface PluginTodoQuery {
+  /** 只列指定独立待办的直接子项。 */
+  parentId?: string;
   /** tasks 返回系列/普通任务；occurrences 返回原始日期标识的周期实例，须给 start/end。 */
   view?: "tasks" | "occurrences";
   /** 缺省为全部：独立待办与正文里的勾选项 */
@@ -356,7 +358,16 @@ export interface PluginTodoQuery {
   cursor?: string;
 }
 
+export interface PluginTodoCompletionOptions extends PluginWriteOptions {
+  /** 普通独立待办的实际完成时刻，Unix 毫秒。 */
+  completedAt?: number;
+}
+
 export interface PluginTodo {
+  /** 独立待办的开始时刻、父待办身份与描述正文。 */
+  startAt: string | null;
+  parentId: string | null;
+  descriptionRef: PluginContentRef | null;
   listId: string | null;
   /** null 表示此来源尚未开放提醒列表；空数组才表示没有提醒。 */
   reminders: PluginTodoReminder[] | null;
@@ -373,6 +384,8 @@ export interface PluginTodo {
   revision: string;
   title: string;
   completed: boolean;
+  /** 普通独立待办的完成时刻（Unix 毫秒）；未记录或不适用于该来源时为 null。 */
+  completedAt: number | null;
   archived: boolean;
   /** YYYY-MM-DD 或 ISO 时间 */
   dueAt: string | null;
@@ -410,6 +423,9 @@ export interface PluginCalendarEvent {
 }
 
 export interface PluginTodoInput {
+  startAt?: string | null;
+  parentId?: string | null;
+  description?: PluginContentInput;
   recurrence?: TaskRecurrenceRule;
   listId?: string;
   reminders?: PluginTodoReminder[];
@@ -419,6 +435,8 @@ export interface PluginTodoInput {
 }
 
 export interface PluginTodoPatch {
+  startAt?: string | null;
+  parentId?: string | null;
   listId?: string;
   reminders?: PluginTodoReminder[];
   title?: string;
@@ -522,11 +540,16 @@ export interface PluginData {
     readonly occurrenceStates: {
       query(query: PluginTodoOccurrenceQuery): Promise<PluginTodoOccurrencePage>;
     };
+    ensureDescription(id: string, options: PluginWriteOptions): Promise<PluginTodo>;
     get(id: string): Promise<PluginTodo | null>;
     query(query?: PluginTodoQuery): Promise<PluginPage<PluginTodo>>;
     create(input: PluginTodoInput, options?: PluginCreateOptions): Promise<PluginTodo>;
     update(id: string, patch: PluginTodoPatch, options: PluginWriteOptions): Promise<PluginTodo>;
-    setCompleted(id: string, completed: boolean, options: PluginWriteOptions): Promise<PluginTodo>;
+    setCompleted(
+      id: string,
+      completed: boolean,
+      options: PluginTodoCompletionOptions
+    ): Promise<PluginTodo>;
     /** 有子待办时拒绝删除 */
     delete(id: string, options: PluginWriteOptions): Promise<void>;
   };

@@ -239,7 +239,7 @@ fn normalize_order_for_siblings(
     Ok(())
 }
 
-fn move_and_reorder_in_tx(
+pub(crate) fn move_and_reorder_in_tx(
     tx: &Transaction<'_>,
     payload: &MoveAndReorderPayload,
 ) -> Result<TodoItem, String> {

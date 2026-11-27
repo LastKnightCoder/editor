@@ -25,9 +25,6 @@ pub(super) fn set_reminders(
     has_anchor: bool,
 ) -> Result<(), String> {
     let list = value.as_array().ok_or("提醒列表无效")?;
-    if list.len() > 3 {
-        return Err("提醒最多三条".into());
-    }
     if !has_anchor && !list.is_empty() {
         return Err("提醒需要基准时间".into());
     }

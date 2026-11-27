@@ -57,7 +57,7 @@ export async function resolvePluginContentTarget(
   if (!record) return null;
   const own = record.pluginOwners.find(owner => owner.pluginId === pluginId);
   const owners = record.owners.filter(
-    (owner): owner is ContentOwnerEntity => owner !== "calendar-event"
+    (owner): owner is ContentOwnerEntity => owner !== "calendar-event" && owner !== "todo"
   );
   const entity = owners[0];
   const location = entity

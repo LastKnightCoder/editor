@@ -21,7 +21,7 @@
   "foreground": "Show banners while the app is in the foreground",
   "snooze.title": "Snooze interval",
   "minutes": "{{count}} min",
-  "foregroundHint": "When banners are disabled, system notifications also appear in the foreground. Set up to 3 reminders in todo details or event editing. The desktop app also sends reminders.",
+  "foregroundHint": "When banners are disabled, system notifications also appear in the foreground. Set reminders in todo details or event editing. The desktop app also sends reminders.",
   "kind.todo": "Todo",
   "kind.event": "Calendar event",
   "kind.doc": "Document todo",

@@ -66,15 +66,23 @@ pub(super) fn candidates(
     offset: usize,
     limit: usize,
     archived: bool,
+    parent: Option<(i64, i64)>,
 ) -> Result<Vec<Value>, String> {
     if !matches!(source, "all" | "todo" | "document") {
         return Err("待办来源无效".into());
     }
-    let sql="SELECT kind,identity,node FROM (SELECT 0 AS kind,t.id AS identity,0 AS position,NULL AS node FROM todo_item t WHERE ?1<>'document' AND t.is_archived=?4 UNION ALL SELECT 1,c.id,j.id,j.value FROM content_snapshots c,json_tree(CASE WHEN json_valid(c.content) THEN c.content ELSE '[]' END) j WHERE ?1<>'todo' AND j.type='object' AND CASE WHEN j.type='object' THEN json_extract(j.value,'$.type') END='check-list-item' AND COALESCE(json_extract(j.value,'$.taskId'),'')<>'' AND COALESCE(json_extract(j.value,'$.taskArchived'),0)=?4 AND NOT EXISTS(SELECT 1 FROM doc_task_settings s WHERE s.content_id=c.id AND (s.kind='excluded' OR (s.kind='promoted' AND s.task_id=json_extract(j.value,'$.taskId'))))) ORDER BY kind,identity,position LIMIT ?2 OFFSET ?3";
+    let sql="SELECT kind,identity,node FROM (SELECT 0 AS kind,t.id AS identity,0 AS position,NULL AS node FROM todo_item t WHERE ?1<>'document' AND t.is_archived=?4 AND (?5 IS NULL OR t.parent_id=(SELECT id FROM todo_item WHERE id=?5 AND create_time=?6)) UNION ALL SELECT 1,c.id,j.id,j.value FROM content_snapshots c,json_tree(CASE WHEN json_valid(c.content) THEN c.content ELSE '[]' END) j WHERE ?1<>'todo' AND j.type='object' AND CASE WHEN j.type='object' THEN json_extract(j.value,'$.type') END='check-list-item' AND COALESCE(json_extract(j.value,'$.taskId'),'')<>'' AND COALESCE(json_extract(j.value,'$.taskArchived'),0)=?4 AND NOT EXISTS(SELECT 1 FROM doc_task_settings s WHERE s.content_id=c.id AND (s.kind='excluded' OR (s.kind='promoted' AND s.task_id=json_extract(j.value,'$.taskId'))))) ORDER BY kind,identity,position LIMIT ?2 OFFSET ?3";
     let mut stmt = conn.prepare(sql).map_err(sql_error)?;
     let rows = stmt
         .query_map(
-            params![source, limit as i64, offset as i64, archived],
+            params![
+                source,
+                limit as i64,
+                offset as i64,
+                archived,
+                parent.map(|p| p.0),
+                parent.map(|p| p.1)
+            ],
             |row| {
                 Ok((
                     row.get::<_, i64>(0)?,
@@ -233,6 +241,10 @@ fn dto(
         result["listId"],
         result["reminders"]
     ])));
+    result["completedAt"] = Value::Null;
+    result["startAt"] = Value::Null;
+    result["descriptionRef"] = Value::Null;
+    result["parentId"] = Value::Null;
     Ok(result)
 }
 pub(super) fn query_candidate(
@@ -580,6 +592,15 @@ pub(super) fn prepare(
     holidays: &HolidayDays,
 ) -> Result<Value, String> {
     let id = write["id"].as_str().ok_or("待办身份无效")?;
+    if ["startAt", "parentId", "ensureDescription"]
+        .iter()
+        .any(|field| write["patch"].get(*field).is_some())
+    {
+        return Err("此字段仅支持独立待办本身".into());
+    }
+    if write.get("completedAt").is_some() {
+        return Err("仅完成普通独立待办时可指定完成时间".into());
+    }
     let mut current = read(conn, id, zone, holidays)?;
     if let Some(override_body) = write.get("body") {
         if current["binding"].is_null() {

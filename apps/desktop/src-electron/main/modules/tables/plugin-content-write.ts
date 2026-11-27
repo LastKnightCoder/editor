@@ -1,3 +1,4 @@
+import TodoGroupTable from "./todo-group";
 import { contentStateRevision } from "../content-state-revision";
 import type Database from "better-sqlite3";
 import CalendarTable from "./calendar";
@@ -91,6 +92,11 @@ export async function writePluginContentEdit(
   const exists = db.prepare("SELECT 1 FROM content_snapshots WHERE id = ? AND create_time = ?");
   const read = () => {
     if (!exists.get(contentId, createdAt)) return null;
+    const tasks = db
+      .prepare("SELECT DISTINCT group_id FROM todo_item WHERE description_content_id=?")
+      .all(contentId) as { group_id: number }[];
+    for (const task of tasks)
+      if (!TodoGroupTable.isWritable(db, task.group_id)) throw new Error("待办所属清单不可写");
     const events = db
       .prepare("SELECT calendar_id FROM calendar_event WHERE detail_content_id=?")
       .all(contentId) as { calendar_id: number }[];

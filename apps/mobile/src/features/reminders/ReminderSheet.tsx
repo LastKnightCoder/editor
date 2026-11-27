@@ -3,7 +3,6 @@ import { useReminderSheetI18n } from "./ReminderSheet.i18n";
 import { useEffect, useState } from "react";
 import { BellOff, BellRing, Check } from "lucide-react";
 import {
-  MAX_REMINDERS,
   normalizeReminders,
   reminderLabel,
   reminderPresets,
@@ -35,7 +34,7 @@ type ReminderSheetProps = {
 };
 
 /**
- * 提醒多选面板（最多 MAX_REMINDERS 个）：勾选即时生效到草稿，点「完成」才提交；
+ * 提醒多选面板：勾选即时生效到草稿，点「完成」才提交；
  * 首次设置提醒时先说明再请求系统通知权限，被拒后在面板顶部提示去开启。
  */
 export function ReminderSheet({
@@ -62,11 +61,9 @@ export function ReminderSheet({
     .filter(offset => !presets.some(preset => preset.offset === offset))
     .map(offset => ({ offset }));
   const options = [...presets, ...others];
-  const full = draft.length >= MAX_REMINDERS;
 
   const toggle = (offset: number) => {
     const has = draft.includes(offset);
-    if (!has && full) return;
     const next = normalizeReminders(
       has ? draft.filter(item => item !== offset) : [...draft, offset]
     );
@@ -138,17 +135,15 @@ export function ReminderSheet({
         <div className="bg-page overflow-hidden rounded-[16px]">
           {options.map((option, index) => {
             const checked = draft.includes(option.offset);
-            const disabled = !checked && full;
             return (
               <button
                 key={option.offset}
                 type="button"
-                disabled={disabled}
                 aria-pressed={checked}
                 onClick={() => toggle(option.offset)}
-                className={`flex h-12 w-full items-center gap-2.5 px-3.5 text-left text-[15px] ${
+                className={`text-ink-1 flex h-12 w-full items-center gap-2.5 px-3.5 text-left text-[15px] ${
                   index > 0 ? "border-line-2 border-t" : ""
-                } ${disabled ? "text-ink-3" : "text-ink-1"}`}
+                }`}
               >
                 <span className="flex-1">{reminderLabel(option.offset, allDay, { locale })}</span>
                 {checked && anchor != null && (
@@ -172,7 +167,6 @@ export function ReminderSheet({
             {draft.length
               ? t("selection.count", {
                   amount: draft.length.toLocaleString(locale),
-                  limit: MAX_REMINDERS.toLocaleString(locale),
                 })
               : summarizeReminders([], allDay, { locale })}
           </span>

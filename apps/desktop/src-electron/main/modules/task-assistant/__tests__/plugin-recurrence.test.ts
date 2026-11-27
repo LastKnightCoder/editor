@@ -269,6 +269,41 @@ describe("插件重复与正文待办契约", () => {
       occurrenceState: { completedAt: 0 },
     });
   });
+  it("回写父待办完成时刻时保留子项历史，校时不会重新完成已重开的子项", () => {
+    const parent = write("create_todo", { title: "父项", groupId });
+    const child = write("create_todo", { title: "子项", groupId, parentRef: parent.taskRef });
+    const complete = (ref: TaskRef, completed: boolean, completedAt?: number) =>
+      write("set_todo_completed", {
+        taskRef: ref,
+        revision: readTask(db, ref).revision,
+        completed,
+        ...(completedAt === undefined ? {} : { completedAt }),
+      });
+    expect(parent.completedAt).toBeNull();
+    complete(child.taskRef, true, 0);
+    expect(complete(parent.taskRef, true, 1000).completedAt).toBe(1000);
+    expect(readTask(db, child.taskRef).completedAt).toBe(0);
+    expect(complete(parent.taskRef, true).completedAt).toBe(1000);
+    complete(child.taskRef, false);
+    const reopened = readTask(db, child.taskRef);
+    expect(reopened.completedAt).toBeNull();
+    const previous = readTask(db, parent.taskRef);
+    const checkpoint = db.prepare("SELECT MAX(seq) FROM data_change_log").pluck().get();
+    const corrected = complete(parent.taskRef, true, 2000);
+    expect(corrected.completedAt).toBe(2000);
+    expect(corrected.revision).not.toBe(previous.revision);
+    expect(readTask(db, child.taskRef)).toEqual(reopened);
+    expect(
+      db
+        .prepare("SELECT entity_id FROM data_change_log WHERE domain='todo' AND seq>?")
+        .pluck()
+        .all(checkpoint)
+    ).toEqual([taskKey(parent.taskRef)]);
+    expect(complete(parent.taskRef, true, 2000).revision).toBe(corrected.revision);
+    expect(complete(parent.taskRef, false).completedAt).toBeNull();
+    expect(complete(parent.taskRef, true).completedAt).toBe(Date.now());
+    expect(readTask(db, child.taskRef).completedAt).toBe(Date.now());
+  });
   it("父项不能级联完成周期子项，旧界面停止后转回的普通任务仍能完成", () => {
     const parent = write("create_todo", { title: "父项", groupId });
     const child = write("create_todo", {

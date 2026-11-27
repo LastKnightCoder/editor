@@ -316,8 +316,10 @@ class TaskAssistantModule {
             item.occurrence.occurrenceDate
           );
         check();
-        let preparedNotes: Awaited<ReturnType<typeof resolvePluginContent>> | undefined;
+        let preparedContent: Awaited<ReturnType<typeof resolvePluginContent>> | undefined;
         if (
+          (name === "create_todo" && item.description) ||
+          (name === "update_todo" && item.patch?.ensureDescription) ||
           (name === "create_calendar_event" && item.notes) ||
           (name === "update_calendar_event" && item.patch?.ensureNotes)
         ) {
@@ -325,7 +327,7 @@ class TaskAssistantModule {
             ? conversationKey.slice(7)
             : undefined;
           const replay =
-            owner && name === "create_calendar_event"
+            owner && (name === "create_calendar_event" || name === "create_todo")
               ? replayPluginCreate(
                   db,
                   owner,
@@ -334,7 +336,11 @@ class TaskAssistantModule {
                 )
               : null;
           if (replay) return replay;
-          preparedNotes = await resolvePluginContent(db, item.notes, DEFAULT_CARD_CONTENT);
+          preparedContent = await resolvePluginContent(
+            db,
+            item.description ?? item.notes,
+            DEFAULT_CARD_CONTENT
+          );
           check();
         }
         const result = new TaskAssistantEngine(db).execute(
@@ -342,7 +348,7 @@ class TaskAssistantModule {
           item,
           batchId,
           conversationKey,
-          preparedNotes
+          preparedContent
         );
         if (result.status === "succeeded" || result.status === "pending") {
           const indexDb = databaseModule.getIndexDatabase(databaseName);

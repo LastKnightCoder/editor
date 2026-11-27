@@ -50,11 +50,15 @@ export interface DocumentTaskAttributes {
 }
 
 export interface AssistantTask {
+  startAt?: string | null;
+  parentRef?: TaskRef;
+  description?: { contentId: number; createdAt: number };
   isSeries?: boolean;
   taskRef: TaskRef;
   revision: string;
   title: string;
   completed: boolean;
+  completedAt?: number | null;
   archived: boolean;
   dueAt: string | null;
   groupId: number | null;

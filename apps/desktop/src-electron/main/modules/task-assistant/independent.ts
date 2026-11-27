@@ -9,6 +9,9 @@ import {
   type TaskRecurrenceRule,
   type TaskRef,
 } from "@tau/shared/task-assistant";
+import ContentTable from "../tables/content";
+import { pluginContentRevision } from "../tables/plugin-content-write";
+import type { IContent } from "@/types/content";
 import TodoGroupTable from "../tables/todo-group";
 import TodoItemTable from "../tables/todo-item";
 import TodoRecurrenceTable from "../tables/todo-recurrence";
@@ -37,6 +40,16 @@ export function readIndependentTask(
 ): AssistantTask {
   const row = todoRow(db, ref);
   const due = row.due_at == null ? null : Number(row.due_at);
+  const parent =
+    row.parent_id == null
+      ? undefined
+      : (db.prepare("SELECT id,create_time FROM todo_item WHERE id=?").get(row.parent_id) as
+          | { id: number; create_time: number }
+          | undefined);
+  const description = row.description_content_id
+    ? ContentTable.getContentById(db, Number(row.description_content_id))
+    : null;
+  const snapshot = semanticSnapshot(captureTodos(db, descendantIds(db, ref.todoId)));
   const segments = independentSegments(db, ref);
   const reminderBase =
     row.type === "recurring" && segments.length
@@ -45,9 +58,20 @@ export function readIndependentTask(
   return {
     taskRef: ref,
     isSeries: row.type === "recurring",
-    revision: revision(semanticSnapshot(captureTodos(db, descendantIds(db, ref.todoId)))),
+    revision: revision(description ? [snapshot, pluginContentRevision(description)] : snapshot),
+    ...(parent
+      ? { parentRef: { kind: "todo" as const, todoId: parent.id, createdAt: parent.create_time } }
+      : {}),
+    ...(description
+      ? { description: { contentId: description.id, createdAt: description.createTime } }
+      : {}),
+    startAt: row.start_at == null ? null : new Date(Number(row.start_at)).toISOString(),
     title: String(row.title),
     completed: !!row.is_completed,
+    completedAt:
+      row.is_completed && row.type !== "recurring" && row.completed_at != null
+        ? Number(row.completed_at)
+        : null,
     archived: !!row.is_archived,
     dueAt: due == null ? null : new Date(due).toISOString(),
     groupId: Number(row.group_id),
@@ -87,12 +111,16 @@ export function createIndependent(
     title: string;
     groupId?: number;
     parentRef?: TaskRef;
+    startAt?: string | null;
+    description?: import("@/types/plugin-data").PluginContentSource;
     dueAt?: string | null;
     reminderAt?: string | null;
     reminderOffsets?: number[];
     recurrence?: TaskRecurrenceRule;
-  }
+  },
+  description?: Pick<IContent, "content" | "contracts">
 ): Extract<TaskRef, { kind: "todo" }> {
+  if (input.description && !description) fail("INVALID_ARGUMENT", "待办描述尚未准备");
   const parent = input.parentRef ? todoRow(db, input.parentRef) : undefined;
   const groupId =
     input.groupId ??
@@ -110,10 +138,15 @@ export function createIndependent(
     title: input.title,
     groupId,
     parentId: parent ? Number(parent.id) : null,
+    startAt: input.startAt == null ? null : dateTime(input.startAt),
     dueAt,
     remindBefore: reminderBefore(dueAt, input.reminderAt, !!input.recurrence),
     type: input.recurrence ? "recurring" : dueAt == null ? "normal" : "deadline",
   });
+  if (description) {
+    const contentId = ContentTable.createContent(db, description);
+    db.prepare("UPDATE todo_item SET description_content_id=? WHERE id=?").run(contentId, item.id);
+  }
   if (input.reminderOffsets !== undefined) {
     if (input.recurrence && input.reminderOffsets.some(offset => offset > 0 || offset <= -86400000))
       fail("INVALID_ARGUMENT", "周期提醒需要当日时刻偏移");
@@ -136,6 +169,7 @@ export function mutateIndependent(
   input: {
     patch?: Record<string, unknown>;
     completed?: boolean;
+    completedAt?: number;
     children?: string;
     occurrence?: TaskOccurrenceRef;
     action?: string;
@@ -143,12 +177,15 @@ export function mutateIndependent(
     effectiveDate?: string;
     rule?: TaskRecurrenceRule | null;
     statePatch?: TaskOccurrencePatch;
-  }
+  },
+  description?: Pick<IContent, "content" | "contracts">
 ) {
   const row = todoRow(db, ref);
   if (action === "update_todo") {
     const patch = input.patch;
     if (!patch || !Object.keys(patch).length) return fail("INVALID_ARGUMENT", "修改字段不能为空");
+    if (patch.ensureDescription && row.description_content_id && Object.keys(patch).length === 1)
+      return;
     const dueAt =
       "dueAt" in patch ? deadline(patch.dueAt as string | null) : (row.due_at as number | null);
     const recurring = row.type === "recurring";
@@ -164,6 +201,17 @@ export function mutateIndependent(
     TodoItemTable.updateItem(db, {
       id: ref.todoId,
       title: patch.title as string | undefined,
+      ...(patch.startAt === undefined
+        ? {}
+        : { startAt: patch.startAt == null ? null : dateTime(patch.startAt as string) }),
+      ...(patch.ensureDescription && !row.description_content_id
+        ? {
+            descriptionContentId: ContentTable.createContent(
+              db,
+              description ?? fail("INVALID_ARGUMENT", "待办描述尚未准备")
+            ),
+          }
+        : {}),
       dueAt,
       remindBefore,
       type,
@@ -272,7 +320,9 @@ export function mutateIndependent(
       }
     } else {
       if (action !== "set_todo_completed") fail("INVALID_ARGUMENT", "普通待办没有周期实例");
-      const ids = descendantIds(db, ref.todoId);
+      const completed = input.completed === true;
+      const alreadyCompleted = completed && !!row.is_completed;
+      const ids = alreadyCompleted ? [ref.todoId] : descendantIds(db, ref.todoId);
       if (
         db
           .prepare(`SELECT 1 FROM todo_item t WHERE t.id IN (${ids.map(() => "?").join(",")})
@@ -280,10 +330,30 @@ export function mutateIndependent(
           .get(...ids, localDate(Date.now()))
       )
         fail("INVALID_ARGUMENT", "包含周期任务，须指定具体实例，不能整系列或连同子项完成");
-      TodoItemTable.toggleCompleteCascade(db, {
-        id: ref.todoId,
-        isCompleted: input.completed === true,
-      });
+      const now = Date.now();
+      if (alreadyCompleted) {
+        if (input.completedAt !== undefined && input.completedAt !== row.completed_at)
+          db.prepare("UPDATE todo_item SET completed_at=?,update_time=? WHERE id=?").run(
+            input.completedAt,
+            now,
+            ref.todoId
+          );
+        return;
+      }
+      const state = Number(completed);
+      db.prepare(`UPDATE todo_item SET is_completed=?,
+        completed_at=CASE WHEN id=? THEN ? ELSE ? END, update_time=?
+        WHERE id IN (${ids.map(() => "?").join(",")})
+        AND (is_completed<>? OR (?=0 AND completed_at IS NOT NULL))`).run(
+        state,
+        ref.todoId,
+        completed ? (input.completedAt ?? now) : null,
+        completed ? now : null,
+        now,
+        ...ids,
+        state,
+        state
+      );
     }
   }
 }

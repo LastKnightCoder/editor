@@ -62,6 +62,7 @@ import {
   type FlashcardsAdapter,
   type MCPAdapter,
   type StorageAdapter,
+  type StorageScope,
   type PluginSidebarItemState,
 } from "@tau/plugins/host";
 import type { Navigator } from "@/page/PageProvider";
@@ -201,6 +202,7 @@ export class DesktopPluginRuntime {
       workspaceId: string;
       environmentSource?: PluginEnvironmentSource;
       storage: StorageAdapter;
+      secrets?: (scope: StorageScope) => PluginContext["secrets"];
       navigator: Pick<Navigator, "push">;
       plugins: readonly PluginDefinition[];
       openSettings?: (
@@ -263,6 +265,7 @@ export class DesktopPluginRuntime {
           ),
       },
       storage: options.storage,
+      secrets: options.secrets,
       fetch: options.fetch,
       services: options.services,
       excerpts: options.excerpts,

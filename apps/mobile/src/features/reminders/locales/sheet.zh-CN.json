@@ -7,6 +7,6 @@
   "permission.explanation": "需要通知权限，才能在截止前、日程开始前提醒你。关掉 App 也会准时响。",
   "permission.allow": "开启通知",
   "permission.later": "以后再说",
-  "selection.count": "已选 {{amount}} 个，最多 {{limit}} 个",
+  "selection.count": "已选 {{amount}} 个",
   "sheet.done": "完成"
 }

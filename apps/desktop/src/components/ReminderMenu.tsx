@@ -3,7 +3,6 @@ import { desktopI18n } from "@/app/i18n/runtime";
 import type { ReactElement } from "react";
 import { Menu } from "@tau/ui";
 import {
-  MAX_REMINDERS,
   reminderMessages,
   normalizeReminders,
   reminderLabel,
@@ -18,11 +17,10 @@ interface ReminderMenuProps {
   allDay?: boolean;
 }
 
-/** 提醒多选（最多 MAX_REMINDERS 个）：勾选项不关闭菜单，便于连选 */
+/** 勾选后保持菜单打开，便于连选 */
 export function ReminderMenu({ trigger, value, onChange, allDay = false }: ReminderMenuProps) {
   const { t, locale } = useI18n(reminderMessages, desktopI18n);
   const selected = new Set(value);
-  const full = selected.size >= MAX_REMINDERS;
   const toggle = (offset: number, checked: boolean) =>
     onChange(
       normalizeReminders(checked ? [...value, offset] : value.filter(item => item !== offset))
@@ -38,7 +36,6 @@ export function ReminderMenu({ trigger, value, onChange, allDay = false }: Remin
         <Menu.CheckboxItem
           key={preset.offset}
           checked={selected.has(preset.offset)}
-          disabled={full && !selected.has(preset.offset)}
           onCheckedChange={checked => toggle(preset.offset, checked)}
         >
           {reminderLabel(preset.offset, allDay, { locale, t })}

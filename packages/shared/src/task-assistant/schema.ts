@@ -1,4 +1,4 @@
-import { TaskAssistantError } from "./contracts";
+import { TaskAssistantError, type TaskRef } from "./contracts";
 
 export interface TaskSchema {
   type?: string;
@@ -86,11 +86,10 @@ const request = {
 };
 const target = { ...request, taskRef, revision: text };
 const eventTarget = { ...request, eventId: id, createdAt: timestamp, revision: text };
-const reminderOffsets: TaskSchema = { type: "array", items: { type: "integer" }, maxItems: 3 };
+const reminderOffsets: TaskSchema = { type: "array", items: { type: "integer" } };
 const patch = object({
   reminders: {
     type: "array",
-    maxItems: 3,
     items: {
       anyOf: [
         object({ offsetMs: { type: "integer" } }, ["offsetMs"]),
@@ -99,6 +98,8 @@ const patch = object({
     },
   },
   title: { ...text, maxLength: 500 },
+  startAt: nullable(time),
+  ensureDescription: boolean,
   dueAt: nullable(time),
   reminderAt: nullable(time),
   reminderOffsets,
@@ -119,6 +120,8 @@ export const TASK_WRITE_SCHEMAS = {
         "revision",
       ]),
       parentRef: taskRef,
+      startAt: nullable(time),
+      description: { type: "object", additionalProperties: true },
       dueAt: nullable(time),
       reminderAt: nullable(time),
       reminderOffsets,
@@ -128,12 +131,20 @@ export const TASK_WRITE_SCHEMAS = {
     ["requestId", "title"]
   ),
   update_todo: object({ ...target, patch }, ["requestId", "taskRef", "revision", "patch"]),
-  set_todo_completed: object({ ...target, completed: boolean, occurrence }, [
-    "requestId",
-    "taskRef",
-    "revision",
-    "completed",
-  ]),
+  set_todo_completed: object(
+    {
+      ...target,
+      completed: boolean,
+      completedAt: {
+        type: "integer",
+        minimum: -8_640_000_000_000_000,
+        maximum: 8_640_000_000_000_000,
+        description: "普通独立待办的实际完成时刻（Unix 毫秒），仅 completed=true 时可指定。",
+      },
+      occurrence,
+    },
+    ["requestId", "taskRef", "revision", "completed"]
+  ),
   delete_todo: object({ ...target, children: choice("reject", "preserve", "cascade") }, [
     "requestId",
     "taskRef",
@@ -199,6 +210,7 @@ export const TASK_READ_SCHEMAS = {
     ...page,
     contentId: id,
     taskRefs: array(taskRef, 100),
+    parentRef: taskRef,
     source: choice("all", "todo", "document"),
     keyword: text,
     completed: boolean,
@@ -308,6 +320,28 @@ export function validateTaskValue(schema: TaskSchema, value: unknown, path = "�
       if (!field) {
         if (schema.additionalProperties === false) fail(`包含未知字段 ${key}`);
       } else validateTaskValue(field, record[key], `${path}.${key}`);
+    }
+    if (
+      schema === TASK_WRITE_SCHEMAS.set_todo_completed &&
+      "completedAt" in record &&
+      (record.completed !== true ||
+        record.occurrence ||
+        (record.taskRef as TaskRef).kind !== "todo")
+    )
+      fail("仅完成普通独立待办时可指定完成时间");
+    if (
+      schema === TASK_WRITE_SCHEMAS.create_todo &&
+      record.document &&
+      ("startAt" in record || "description" in record)
+    )
+      fail("开始时间和描述仅适用于独立待办");
+    if (
+      schema === TASK_WRITE_SCHEMAS.update_todo &&
+      (record.taskRef as TaskRef).kind === "document"
+    ) {
+      const patch = record.patch as Record<string, unknown>;
+      if ("startAt" in patch || "ensureDescription" in patch)
+        fail("开始时间和描述仅适用于独立待办");
     }
     if (schema === taskRef) {
       const valid =

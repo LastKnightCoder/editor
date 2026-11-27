@@ -267,6 +267,8 @@ export default class PluginDataTable {
     if (!snapshot) return null;
     const nodes = snapshot.content;
     const owners = new Set<PluginContentOwnerEntity>();
+    if (db.prepare("SELECT 1 FROM todo_item WHERE description_content_id=?").get(row.id))
+      owners.add("todo");
     for (const ref of EntitySearchTable.locateAll(db, [row.id]).get(row.id) ?? []) {
       if (ref.kind === "card" || ref.kind === "article") owners.add(ref.kind);
       else if (ref.kind === "project-item") owners.add("document");

@@ -25,6 +25,7 @@ const task = {
   revision: "r2",
   title: "交周报",
   completed: true,
+  completedAt: 0,
   archived: false,
   dueAt: null,
   groupId: null,
@@ -89,12 +90,14 @@ describe("插件写入适配", () => {
       action: "complete",
       id: "todo:4:9",
       completed: true,
+      completedAt: 0,
       expectedRevision: "r1",
     });
     expect(todo).toMatchObject({
       id: "todo:4:9",
       revision: "r2",
       completed: true,
+      completedAt: 0,
     });
     const [, name, input, , conversationKey] = electron.invoke.mock.calls[1];
     expect(name).toBe("set_todo_completed");
@@ -102,6 +105,7 @@ describe("插件写入适配", () => {
       taskRef: { kind: "todo", todoId: 4, createdAt: 9 },
       revision: "r1",
       completed: true,
+      completedAt: 0,
     });
     expect(conversationKey).toBe("plugin:weekly");
   });

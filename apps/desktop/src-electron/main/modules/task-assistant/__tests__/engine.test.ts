@@ -11,7 +11,7 @@ import ContentTable from "../../tables/content";
 import { TaskAssistantEngine, readTask } from "../engine";
 import { readCalendarEvent } from "../calendar";
 import { revision } from "../common";
-import type { AssistantTask, TaskRef } from "@tau/shared/task-assistant";
+import { taskKey, type AssistantTask, type TaskRef } from "@tau/shared/task-assistant";
 import { queryTasks } from "../query";
 import TodoItemTable from "../../tables/todo-item";
 import { must } from "../../../test-support";
@@ -483,7 +483,7 @@ describe("助理任务业务命令", () => {
         title: "提醒契约",
         groupId,
         dueAt: "2026-11-25T10:00:00Z",
-        reminderOffsets: [0, 300000, 600000],
+        reminderOffsets: [0, 300000, 600000, 3600000],
       },
       "b"
     );
@@ -494,7 +494,7 @@ describe("助理任务业务命令", () => {
         requestId: "reminders-change",
         taskRef: task.taskRef,
         revision: task.revision,
-        patch: { reminderOffsets: [60000, 300000, 600000] },
+        patch: { reminderOffsets: [60000, 300000, 600000, 3600000] },
       },
       "b"
     );
@@ -518,7 +518,7 @@ describe("助理任务业务命令", () => {
         "b"
       ).status
     ).toBe("succeeded");
-    expect(readTask(db, task.taskRef).reminderOffsets).toEqual([0, 300000, 600000]);
+    expect(readTask(db, task.taskRef).reminderOffsets).toEqual([0, 300000, 600000, 3600000]);
   });
 
   it("提醒非法时创建回滚，不留下结果或成功回执", () => {
@@ -569,6 +569,79 @@ describe("助理任务业务命令", () => {
     });
   });
 
+  it("子待办继承父项清单，描述编辑进入变化流并使旧任务版本失效", () => {
+    const { task: parent } = create();
+    const body = {
+      content: [
+        { type: "paragraph" as const, children: [{ type: "formatted" as const, text: "初稿" }] },
+      ],
+    };
+    const creation = engine.execute(
+      "create_todo",
+      {
+        requestId: "new-child",
+        title: "子项",
+        parentRef: parent.taskRef,
+        startAt: "2026-11-27T09:30:00+08:00",
+      },
+      "b",
+      "plugin:fixture",
+      body
+    );
+    expect(creation.status).toBe("succeeded");
+    const child = creation.result as AssistantTask;
+    expect(child).toMatchObject({
+      groupId,
+      parentRef: parent.taskRef,
+      startAt: "2026-11-27T01:30:00.000Z",
+    });
+    const ref = must(child.description, "描述正文");
+    const ensured = engine.execute(
+      "update_todo",
+      {
+        requestId: "existing-description",
+        taskRef: child.taskRef,
+        revision: child.revision,
+        patch: { ensureDescription: true },
+      },
+      "b",
+      "plugin:fixture",
+      body
+    );
+    expect(ensured.result).toMatchObject({ description: ref, revision: child.revision });
+    const after = db.prepare("SELECT MAX(seq) FROM data_change_log").pluck().get();
+    ContentTable.updateContent(db, ref.contentId, {
+      content: [{ type: "paragraph", children: [{ type: "formatted", text: "更新" }] }],
+    });
+    expect(
+      db
+        .prepare(
+          "SELECT entity_id FROM data_change_log WHERE domain='todo' AND action='updated' AND seq>?"
+        )
+        .pluck()
+        .all(after)
+    ).toContain(taskKey(child.taskRef));
+    const move = (revision: string) =>
+      engine.execute(
+        "update_todo",
+        {
+          requestId: "detach-" + revision,
+          taskRef: child.taskRef,
+          revision,
+          patch: { parentRef: null, startAt: null },
+        },
+        "b"
+      );
+    expect(move(child.revision)).toMatchObject({
+      status: "failed",
+      error: { code: "VERSION_CONFLICT" },
+    });
+    expect(move(readTask(db, child.taskRef).revision).status).toBe("succeeded");
+    const detached = readTask(db, child.taskRef);
+    expect(detached.parentRef).toBeUndefined();
+    expect(detached.startAt).toBeNull();
+    expect(detached.description).toEqual(ref);
+  });
   it("日程备注和追加提醒单独变化时均使旧版本失效", () => {
     const content = {
       content: [
@@ -584,7 +657,7 @@ describe("助理任务业务命令", () => {
         start: "2026-11-25",
         end: "2026-11-26",
         allDay: true,
-        reminderOffsets: [0, 60000],
+        reminderOffsets: [0, 60000, 900000, 3600000, 60000],
       },
       "b",
       undefined,
@@ -592,6 +665,9 @@ describe("助理任务业务命令", () => {
     );
     const event = created.result as import("@tau/shared/task-assistant").AssistantCalendarEvent;
     expect(created.status).toBe("succeeded");
+    expect(readCalendarEvent(db, event.eventId).reminderOffsets).toEqual([
+      0, 60000, 900000, 3600000,
+    ]);
     const notes = must(event.notes, "created event notes");
     ContentTable.updateContent(db, notes.contentId, {
       content: [{ type: "paragraph", children: [{ type: "formatted", text: "用户新备注" }] }],

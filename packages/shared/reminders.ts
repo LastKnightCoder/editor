@@ -24,8 +24,6 @@ const DAY = 24 * HOUR;
 const TWO_DAYS_BEFORE_AT_NINE = 39 * HOUR;
 const WEEK_BEFORE_AT_NINE = 6 * DAY + 15 * HOUR;
 
-export const MAX_REMINDERS = 3;
-
 export type ReminderOpenTarget = { databaseName: string } & (
   | { page: "todos"; params: { selectedId: number } }
   | { page: "schedule"; params: { eventId: number } }
@@ -109,11 +107,9 @@ export function reminderLabel(
   return t(`offset.${unit}${options.compact ? "Compact" : ""}`, { count, amount: number(count) });
 }
 
-/** 去重、升序、截断到上限；首个即最靠近基准的提醒 */
+/** 保留有限偏移量，去重并升序排列 */
 export function normalizeReminders(offsets: readonly number[]): number[] {
-  return [...new Set(offsets.filter(Number.isFinite))]
-    .sort((a, b) => a - b)
-    .slice(0, MAX_REMINDERS);
+  return [...new Set(offsets.filter(Number.isFinite))].sort((a, b) => a - b);
 }
 
 /** 待办：首个缺失即视为没有提醒（追加提醒不单独生效） */
@@ -140,10 +136,12 @@ export function summarizeReminders(
   const { t, number } = formatOptions(options);
   const list = normalizeReminders(offsets);
   if (!list.length) return t("none");
-  const labels = list.map(offset => reminderLabel(offset, allDay, options));
-  return labels.length > 2
-    ? t("summary.more", { first: labels[0], amount: number(labels.length - 1) })
-    : labels.join(" · ");
+  if (list.length > 2)
+    return t("summary.more", {
+      first: reminderLabel(list[0], allDay, options),
+      amount: number(list.length - 1),
+    });
+  return list.map(offset => reminderLabel(offset, allDay, options)).join(" · ");
 }
 
 function clock(time: number, locale: string) {
