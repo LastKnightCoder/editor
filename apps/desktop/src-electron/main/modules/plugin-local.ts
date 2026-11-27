@@ -394,7 +394,7 @@ export default {
     ipcMain.handle(
       "plugin-local:video-request",
       (event, id: string, request: VideoRendererRequest) =>
-        pluginVideoRelay.request(event.sender, id, request)
+        pluginVideoRelay.requestResponse(event.sender, id, request)
     );
     ipcMain.handle("plugin-local:video-reply", (event, reply: VideoRendererReply) =>
       pluginVideoRelay.reply(event.sender.id, reply)

@@ -404,6 +404,8 @@ Document B十四路径完成；原Reader9+materials12共21基线至增强22例�
 
 发布选择器二十路径完成；恢复后直接三文件9例通过，真实项目scope pending、只读预览未同步反向原生选区、英文缺省标题检索后跨语保持命中/草稿/caret与原ID动作。40个状态/effect/callback/virtualizer声明和所有key保持，loader/selection writes/scope codec逐字相同；实际旧新converter对照保tag/content/ref/ID/顺序与原请求，缺省仅移入UI词典。三语runtime、类型/构建与范围lint已通过。
 
+VideoHost二十二路径完成；7直接文件29至31例及真实Bili/YT ZIP双窗口Chromium功能验证通过，最新联动desktop type0。15个canonical消息与JSON逐字对账，三语runtime/Node纯入口证明host/cache两envelope及三UI投影、伪code不猜译/unknown TypeError/显式空值保原与额外cause/stack/url不传。旧result/error/errorName wire字段全消费者及script清零退役，plugin-local仅必要一行，自有范围lint/diff通过。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

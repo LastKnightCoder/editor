@@ -1,3 +1,4 @@
+import { unwrapVideoHostResponse, type VideoHostResponse } from "../../shared/video-host-failure";
 import type { JsonValue } from "@tau/plugins";
 import { invoke, isElectron, on } from "@/electron";
 import { withModule } from "./module-init";
@@ -23,13 +24,13 @@ export function callPluginVideo<K extends VideoRendererRequest["kind"]>(
     };
     signal?.addEventListener("abort", cancel, { once: true });
     try {
-      const result = await invoke<VideoRendererResults[K]>(
+      const result = await invoke<VideoHostResponse<VideoRendererResults[K]>>(
         "plugin-local:video-request",
         requestId,
         request
       );
       signal?.throwIfAborted();
-      return result;
+      return unwrapVideoHostResponse(result);
     } finally {
       signal?.removeEventListener("abort", cancel);
     }

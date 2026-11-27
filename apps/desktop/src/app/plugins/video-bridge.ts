@@ -1,3 +1,4 @@
+import { videoHostFailureData } from "../../../shared/video-host-failure";
 import type { JsonValue } from "@tau/plugins";
 import { isElectron, on, off } from "@/electron";
 import { withModule } from "@/commands/module-init";
@@ -28,14 +29,16 @@ export function connectVideoRenderer() {
       reply = {
         requestId: message.requestId,
         hostSession,
-        result: await rendererVideoRegistry.execute(message.request, controller.signal),
+        response: {
+          ok: true,
+          value: await rendererVideoRegistry.execute(message.request, controller.signal),
+        },
       };
     } catch (error) {
       reply = {
         requestId: message.requestId,
         hostSession,
-        error: error instanceof Error ? error.message : String(error),
-        errorName: error instanceof Error ? error.name : "Error",
+        response: { ok: false, failure: videoHostFailureData(error) },
       };
     } finally {
       tasks.delete(message.requestId);

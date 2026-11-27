@@ -1,3 +1,9 @@
+import {
+  VideoHostFailure,
+  videoHostFailureData,
+  videoHostFailureFromData,
+  type VideoHostResponse,
+} from "../../../shared/video-host-failure";
 import log from "electron-log";
 import { randomUUID } from "node:crypto";
 import { BrowserWindow, type WebContents } from "electron";
@@ -23,8 +29,6 @@ interface Pending {
   resolve(value: unknown): void;
   reject(error: Error): void;
 }
-
-const abortError = (message: string) => new DOMException(message, "AbortError");
 
 /** 只在调用方与主窗口渲染宿主之间转发，不加载插件代码。 */
 export class PluginVideoRelay {
@@ -90,7 +94,7 @@ export class PluginVideoRelay {
       if (pending.caller === owner || pending.host.contents.id === owner) {
         this.pending.delete(id);
         this.notifyCancel(pending.host, id);
-        pending.reject(abortError("视频插件宿主或调用窗口已关闭"));
+        pending.reject(new VideoHostFailure("hostReleased", {}, { name: "AbortError" }));
       }
   }
 
@@ -106,10 +110,11 @@ export class PluginVideoRelay {
   request(caller: WebContents | null, requestId: string, request: VideoRendererRequest) {
     const host = this.hostFor(caller);
     if (!host || host.contents.isDestroyed())
-      return Promise.reject(new Error("主窗口插件宿主不可用，请打开主窗口后重试"));
-    if (caller?.isDestroyed()) return Promise.reject(new Error("视频调用窗口已关闭"));
+      return Promise.reject(new VideoHostFailure("hostUnavailable"));
+    if (caller?.isDestroyed()) return Promise.reject(new VideoHostFailure("callerClosed"));
     if (caller) this.watch(caller);
-    if (this.pending.has(requestId)) return Promise.reject(new Error("视频请求已存在"));
+    if (this.pending.has(requestId))
+      return Promise.reject(new VideoHostFailure("requestDuplicate"));
     return new Promise<unknown>((resolve, reject) => {
       this.pending.set(requestId, { caller: caller?.id ?? MAIN_CALLER, host, resolve, reject });
       try {
@@ -130,7 +135,7 @@ export class PluginVideoRelay {
     if (!pending || pending.caller !== caller) return;
     this.pending.delete(requestId);
     this.notifyCancel(pending.host, requestId);
-    pending.reject(abortError("视频请求已取消"));
+    pending.reject(new VideoHostFailure("requestCancelled", {}, { name: "AbortError" }));
   }
 
   reply(owner: number, reply: VideoRendererReply) {
@@ -142,12 +147,20 @@ export class PluginVideoRelay {
     )
       return;
     this.pending.delete(reply.requestId);
-    if (reply.error === undefined) pending.resolve(reply.result);
-    else {
-      const error = new Error(reply.error);
-      error.name = reply.errorName ?? "Error";
-      pending.reject(error);
-    }
+    if (reply.response.ok) pending.resolve(reply.response.value);
+    else pending.reject(videoHostFailureFromData(reply.response.failure));
+  }
+
+  /** IPC-only envelope; request/call keep their original rejection contract. */
+  requestResponse(
+    caller: WebContents | null,
+    requestId: string,
+    request: VideoRendererRequest
+  ): Promise<VideoHostResponse<unknown>> {
+    return this.request(caller, requestId, request).then(
+      value => ({ ok: true as const, value }),
+      error => ({ ok: false as const, failure: videoHostFailureData(error) })
+    );
   }
 
   /** 主进程内部调用入口，取消信号同步转发给渲染宿主。 */

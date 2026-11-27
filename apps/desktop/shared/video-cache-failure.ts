@@ -1,3 +1,4 @@
+import { videoHostFailureFromData, type VideoHostFailureData } from "./video-host-failure";
 import diagnostics from "./video-cache-failure.diagnostics.json";
 export type VideoCacheFailureCode = keyof typeof diagnostics;
 export interface VideoCacheFailureData {
@@ -7,7 +8,7 @@ export interface VideoCacheFailureData {
 }
 export type VideoCacheResponse<Result> =
   | { ok: true; value: Result }
-  | { ok: false; failure: VideoCacheFailureData };
+  | { ok: false; failure: VideoCacheFailureData | VideoHostFailureData };
 export class VideoCacheFailure extends Error {
   constructor(
     readonly code: VideoCacheFailureCode,
@@ -26,9 +27,11 @@ export class VideoCacheFailure extends Error {
   }
 }
 export function unwrapVideoCacheResponse<Result>(response: VideoCacheResponse<Result>): Result {
-  if (!response.ok)
+  if (!response.ok) {
+    if ("domain" in response.failure) throw videoHostFailureFromData(response.failure);
     throw new VideoCacheFailure(response.failure.code, response.failure.params, {
       message: response.failure.message,
     });
+  }
   return response.value;
 }

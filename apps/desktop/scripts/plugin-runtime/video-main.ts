@@ -1,3 +1,4 @@
+import { unwrapVideoHostResponse, type VideoHostResponse } from "../../shared/video-host-failure";
 import { app, BrowserWindow, ipcMain } from "electron";
 import path from "node:path";
 import assert from "node:assert/strict";
@@ -7,6 +8,7 @@ import type {
   VideoProvidersState,
   VideoRendererReply,
   VideoRendererRequest,
+  VideoRendererResults,
 } from "../../shared/video-renderer";
 
 async function start() {
@@ -47,7 +49,7 @@ async function start() {
     }
   );
   ipcMain.handle("plugin-local:video-request", (event, id: string, request: VideoRendererRequest) =>
-    relay.request(event.sender, id, request)
+    relay.requestResponse(event.sender, id, request)
   );
   ipcMain.handle("plugin-local:video-reply", (event, reply: VideoRendererReply) =>
     relay.reply(event.sender.id, reply)
@@ -65,9 +67,14 @@ async function start() {
   const state = await ready;
   assert.deepEqual(state.providers.map(provider => provider.id).sort(), ["bilibili", "youtube"]);
 
-  const call = (id: string, request: VideoRendererRequest) =>
-    auxiliary.webContents.executeJavaScript(
-      `window.electron.invoke("plugin-local:video-request",${JSON.stringify(id)},${JSON.stringify(request)})`
+  const call = async <K extends VideoRendererRequest["kind"]>(
+    id: string,
+    request: Extract<VideoRendererRequest, { kind: K }>
+  ) =>
+    unwrapVideoHostResponse(
+      await auxiliary.webContents.executeJavaScript<VideoHostResponse<VideoRendererResults[K]>>(
+        `window.electron.invoke("plugin-local:video-request",${JSON.stringify(id)},${JSON.stringify(request)})`
+      )
     );
 
   const bilibiliUrl = "https://www.bilibili.com/video/BV1xx411c7mD?p=2";
@@ -77,6 +84,7 @@ async function start() {
 
   const bilibili = await call("r1", { kind: "resolve", pluginId: "bilibili", url: bilibiliUrl });
   assert.equal(bilibili.title, "测试视频 - 第二讲");
+  if (bilibili.defaultVariant === undefined) throw new Error("missing default variant");
   const chosen = bilibili.variants[bilibili.defaultVariant];
   // 设置中保存的登录凭据经插件配置注入，大会员默认选最高清晰度
   assert.deepEqual(chosen.ref, { bvid: "BV1xx411c7mD", cid: "200", quality: 112 });
@@ -152,6 +160,29 @@ async function start() {
     relay.providers().providers.map(provider => provider.id),
     ["youtube"]
   );
+  await main.webContents.executeJavaScript("window.videoTest.installFault()");
+  await assert.rejects(
+    call("host-code", { kind: "resolve", pluginId: "video-test.fault", url: "fixture" }),
+    { name: "Error", code: "variants", message: "插件未返回可选的清晰度" }
+  );
+  await main.webContents.executeJavaScript('window.videoTest.faultMode("plugin")');
+  const diagnostic = await auxiliary.webContents.executeJavaScript<VideoHostResponse<unknown>>(
+    'window.electron.invoke("plugin-local:video-request","unknown-name",{kind:"resolve",pluginId:"video-test.fault",url:"fixture"})'
+  );
+  assert.equal(diagnostic.ok, false);
+  if (diagnostic.ok) throw new Error("expected plugin diagnostic");
+  assert.equal(diagnostic.failure.name, "TypeError");
+  assert.equal(diagnostic.failure.message, "opaque provider diagnostic");
+  assert.equal(diagnostic.failure.code, undefined);
+  assert.equal(diagnostic.failure.params, undefined);
+  assert.equal(JSON.stringify(diagnostic).includes("must-not-cross"), false);
+  assert.equal(JSON.stringify(diagnostic).includes("private.invalid"), false);
+  assert.equal("stack" in diagnostic.failure, false);
+  assert.throws(() => unwrapVideoHostResponse(diagnostic), {
+    name: "TypeError",
+    message: "opaque provider diagnostic",
+  });
+  await main.webContents.executeJavaScript("window.videoTest.removeFault()");
   await main.webContents.executeJavaScript("window.videoTest.disconnect()");
   main.destroy();
   auxiliary.destroy();

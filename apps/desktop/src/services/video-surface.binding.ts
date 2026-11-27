@@ -1,3 +1,5 @@
+import { VideoHostFailure } from "../../shared/video-host-failure";
+import { videoHostFailureText } from "./video-host-failure.binding";
 import { VideoCacheFailure } from "../../shared/video-cache-failure";
 import { videoCacheFailureText } from "./video-cache-failure.binding";
 import { desktopI18n } from "@/app/i18n/runtime";
@@ -9,7 +11,9 @@ export function videoSourceFailureText(error: unknown): string {
     ? videoSurfaceT("source.providerMissing", { provider: error.providerId })
     : error instanceof VideoCacheFailure
       ? videoCacheFailureText(error)
-      : error instanceof Error
-        ? error.message
-        : String(error);
+      : error instanceof VideoHostFailure && error.code
+        ? videoHostFailureText(error)
+        : error instanceof Error
+          ? error.message
+          : String(error);
 }

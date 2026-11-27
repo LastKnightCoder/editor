@@ -1,3 +1,4 @@
+import { VideoHostFailure } from "../../../../shared/video-host-failure";
 // @vitest-environment node
 import { EventEmitter } from "node:events";
 import { VideoCacheFailure } from "../../../../shared/video-cache-failure";
@@ -219,6 +220,13 @@ it("已知缓存身份/HTTP失败经真实IPC结构化传输，未知provider仍
   expect(error).toMatchObject({ code: "runtime" });
   expect((error as Error).cause).toBeUndefined();
   expect((error as Error).message).not.toContain(privateCause.message);
+  const hostFailure = new VideoHostFailure("playback");
+  state.call.mockRejectedValueOnce(hostFailure);
+  await expect(commands.ensureOnlineVideo(target)).rejects.toMatchObject({
+    code: "playback",
+    name: hostFailure.name,
+    message: hostFailure.message,
+  });
   const unknown = new Error("raw provider diagnostic");
   state.call.mockRejectedValue(unknown);
   await expect(commands.ensureOnlineVideo(target)).rejects.toBe(unknown);

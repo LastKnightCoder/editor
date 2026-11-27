@@ -1,0 +1,17 @@
+{
+  "failure.resolved": "The video information returned by the plugin is invalid",
+  "failure.variants": "The plugin did not return any quality options",
+  "failure.variant": "The quality option returned by the plugin is invalid",
+  "failure.playback": "The playback source returned by the plugin is invalid",
+  "failure.captions": "The captions returned by the plugin are invalid",
+  "failure.captionTime": "The caption timestamps returned by the plugin are invalid",
+  "failure.providerDuplicate": "This plugin has already registered a video provider",
+  "failure.providerMissing": "Install and enable the “{{pluginId}}” plugin in Plugin Center",
+  "failure.cacheKey": "The cache identity returned by the plugin is invalid",
+  "failure.providerStopped": "The plugin was disabled or the request was cancelled",
+  "failure.hostReleased": "The video plugin host or calling window has closed",
+  "failure.hostUnavailable": "The video plugin connection is unavailable. Open the main window and try again",
+  "failure.callerClosed": "The window that requested the video has closed",
+  "failure.requestDuplicate": "This video request already exists",
+  "failure.requestCancelled": "The video request was cancelled"
+}

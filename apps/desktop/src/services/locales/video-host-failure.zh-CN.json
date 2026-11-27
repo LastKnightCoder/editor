@@ -1,0 +1,17 @@
+{
+  "failure.resolved": "插件返回的视频信息无效",
+  "failure.variants": "插件未返回可选的清晰度",
+  "failure.variant": "插件返回的清晰度无效",
+  "failure.playback": "插件返回的播放源无效",
+  "failure.captions": "插件返回的字幕无效",
+  "failure.captionTime": "插件返回的字幕时间戳无效",
+  "failure.providerDuplicate": "插件已注册视频提供方",
+  "failure.providerMissing": "需要在插件中心安装并启用「{{pluginId}}」插件",
+  "failure.cacheKey": "插件返回的缓存身份无效",
+  "failure.providerStopped": "插件已停用或请求已取消",
+  "failure.hostReleased": "视频插件宿主或调用窗口已关闭",
+  "failure.hostUnavailable": "主窗口插件宿主不可用，请打开主窗口后重试",
+  "failure.callerClosed": "视频调用窗口已关闭",
+  "failure.requestDuplicate": "视频请求已存在",
+  "failure.requestCancelled": "视频请求已取消"
+}

@@ -1,3 +1,5 @@
+import { VideoHostFailure } from "../../../shared/video-host-failure";
+import { videoHostFailureText } from "@/services/video-host-failure.binding";
 import { RemoteVideoFailure } from "../../../shared/remote-video-failure";
 import { remoteVideoFailureText } from "@/services/remote-video-failure.binding";
 import { VideoCacheFailure } from "../../../shared/video-cache-failure";
@@ -57,5 +59,7 @@ export function videoTranscriptionFailureText(error: unknown): string {
       ? videoCacheFailureText(error)
       : error instanceof RemoteVideoFailure
         ? remoteVideoFailureText(error)
-        : String(error);
+        : error instanceof VideoHostFailure && error.code
+          ? videoHostFailureText(error)
+          : String(error);
 }

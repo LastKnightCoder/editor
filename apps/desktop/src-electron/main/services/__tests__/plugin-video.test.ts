@@ -1,3 +1,4 @@
+import { VideoHostFailure, videoHostFailureData } from "../../../../shared/video-host-failure";
 // @vitest-environment node
 import { EventEmitter } from "node:events";
 import type { WebContents } from "electron";
@@ -26,9 +27,17 @@ it("请求转发到主窗口宿主，只接受同一宿主会话的回复", asyn
   const pending = relay.request(window(2), "a", { kind: "match", url: "https://v.test/1" });
   const [, message] = sent(host, "plugin-video:request")[0];
   expect(message).toMatchObject({ requestId: "a", hostSession: "session" });
-  relay.reply(1, { requestId: "a", hostSession: "stale", result: "wrong" });
-  relay.reply(3, { requestId: "a", hostSession: "session", result: "wrong" });
-  relay.reply(1, { requestId: "a", hostSession: "session", result: "test.video" });
+  relay.reply(1, { requestId: "a", hostSession: "stale", response: { ok: true, value: "wrong" } });
+  relay.reply(3, {
+    requestId: "a",
+    hostSession: "session",
+    response: { ok: true, value: "wrong" },
+  });
+  relay.reply(1, {
+    requestId: "a",
+    hostSession: "session",
+    response: { ok: true, value: "test.video" },
+  });
   expect(await pending).toBe("test.video");
 });
 
@@ -39,7 +48,11 @@ it("插件错误保留名称；无宿主时明确报错", async () => {
   );
   relay.connect(window(1), "session");
   const pending = relay.request(null, "b", { kind: "match", url: "u" });
-  relay.reply(1, { requestId: "b", hostSession: "session", error: "失败", errorName: "TypeError" });
+  relay.reply(1, {
+    requestId: "b",
+    hostSession: "session",
+    response: { ok: false, failure: { domain: "video-host", message: "失败", name: "TypeError" } },
+  });
   await expect(pending).rejects.toMatchObject({ message: "失败", name: "TypeError" });
 });
 
@@ -117,4 +130,57 @@ it("宿主销毁期间广播失败不阻断在途请求清理，也不阻断存�
   } finally {
     broadcasts.mockReturnValue([]);
   }
+});
+
+it("IPC适配返回已有请求的错误而不消耗原pending，成功结果与取消身份仍独立", async () => {
+  const relay = new PluginVideoRelay();
+  const host = window(1),
+    caller = window(2);
+  relay.connect(host, "session");
+  const pending = relay.requestResponse(caller, "same", { kind: "match", url: "original" });
+  const duplicate = await relay.requestResponse(caller, "same", { kind: "match", url: "other" });
+  expect(duplicate).toMatchObject({
+    ok: false,
+    failure: { code: "requestDuplicate", name: "Error" },
+  });
+  relay.cancel(3, "same");
+  relay.reply(1, {
+    requestId: "same",
+    hostSession: "session",
+    response: { ok: true, value: "raw-result" },
+  });
+  await expect(pending).resolves.toEqual({ ok: true, value: "raw-result" });
+});
+it("跨桥只给自有错误附码，未知同名同code异常保原name/message且不带私有字段", async () => {
+  const relay = new PluginVideoRelay();
+  relay.connect(window(1), "session");
+  const pending = relay.requestResponse(window(2), "unknown", {
+    kind: "resolve",
+    pluginId: "source",
+    url: "url",
+  });
+  const raw = Object.assign(new TypeError("provider diagnostic"), {
+    code: "providerMissing",
+    params: { pluginId: "private" },
+    cause: new Error("private cause"),
+  });
+  const failure = videoHostFailureData(raw);
+  relay.reply(1, {
+    requestId: "unknown",
+    hostSession: "session",
+    response: { ok: false, failure },
+  });
+  const response = await pending;
+  expect(response).toMatchObject({
+    ok: false,
+    failure: { name: "TypeError", message: "provider diagnostic" },
+  });
+  if (response.ok) throw new Error("expected diagnostic response");
+  expect(response.failure.code).toBeUndefined();
+  expect(response.failure.params).toBeUndefined();
+  expect(response.failure).not.toHaveProperty("cause");
+  expect(response.failure).not.toHaveProperty("stack");
+  expect(
+    videoHostFailureData(new VideoHostFailure("providerMissing", { pluginId: "raw-id" }))
+  ).toMatchObject({ code: "providerMissing", params: { pluginId: "raw-id" } });
 });

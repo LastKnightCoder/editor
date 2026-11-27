@@ -1,3 +1,4 @@
+import { VideoHostFailure } from "../../../shared/video-host-failure";
 import type {
   Disposable,
   JsonValue,
@@ -28,13 +29,12 @@ const optionalText = (value: unknown) => (typeof value === "string" && value ? v
 
 /** 逐字段归一插件结果：可选字段允许缺省或为 undefined，引用须为纯 JSON。 */
 function validateResolved(value: ResolvedVideo): ResolvedVideo {
-  if (!isRecord(value) || typeof value.title !== "string")
-    throw new Error("插件返回的视频信息无效");
+  if (!isRecord(value) || typeof value.title !== "string") throw new VideoHostFailure("resolved");
   if (!Array.isArray(value.variants) || value.variants.length === 0)
-    throw new Error("插件未返回可选的清晰度");
+    throw new VideoHostFailure("variants");
   const variants = value.variants.map(variant => {
     if (!isRecord(variant) || typeof variant.label !== "string" || !isRecord(variant.ref))
-      throw new Error("插件返回的清晰度无效");
+      throw new VideoHostFailure("variant");
     const hint = optionalText(variant.hint);
     return {
       label: variant.label,
@@ -90,12 +90,12 @@ function validatePlayback(value: VideoPlaybackSource): VideoPlaybackSource {
       ...(proxy ? { proxy } : {}),
     };
   }
-  throw new Error("插件返回的播放源无效");
+  throw new VideoHostFailure("playback");
 }
 
 function validateCaptions(value: VideoCaptions | null): VideoCaptions | null {
   if (value === null) return null;
-  if (!isRecord(value) || !Array.isArray(value.segments)) throw new Error("插件返回的字幕无效");
+  if (!isRecord(value) || !Array.isArray(value.segments)) throw new VideoHostFailure("captions");
   const segments = value.segments
     .map(segment => {
       if (
@@ -108,7 +108,7 @@ function validateCaptions(value: VideoCaptions | null): VideoCaptions | null {
         segment.start < 0 ||
         segment.end <= segment.start
       )
-        throw new Error("插件返回的字幕时间戳无效");
+        throw new VideoHostFailure("captionTime");
       return {
         text: segment.text.trim(),
         start: segment.start,
@@ -165,7 +165,7 @@ export class RendererVideoRegistry {
   }
 
   register(context: PluginContext, definition: VideoProviderDefinition): Disposable {
-    if (this.registrations.has(context.pluginId)) throw new Error("插件已注册视频提供方");
+    if (this.registrations.has(context.pluginId)) throw new VideoHostFailure("providerDuplicate");
     const registration = { context, definition };
     this.registrations.set(context.pluginId, registration);
     this.notify();
@@ -184,7 +184,7 @@ export class RendererVideoRegistry {
   } {
     const registration = this.registrations.get(pluginId);
     if (!registration || registration.context.signal.aborted)
-      throw new Error(`需要在插件中心安装并启用「${pluginId}」插件`);
+      throw new VideoHostFailure("providerMissing", { pluginId });
     return {
       instance: registration.definition.create(copyJson(this.readConfig(pluginId) ?? {})),
       signal: registration.context.signal,
@@ -202,7 +202,7 @@ export class RendererVideoRegistry {
     signal.throwIfAborted();
     let onAbort = () => {};
     const aborted = new Promise<never>((_resolve, reject) => {
-      onAbort = () => reject(new DOMException("插件已停用或请求已取消", "AbortError"));
+      onAbort = () => reject(new VideoHostFailure("providerStopped", {}, { name: "AbortError" }));
       signal.addEventListener("abort", onAbort, { once: true });
     });
     try {
@@ -241,7 +241,7 @@ export class RendererVideoRegistry {
         const key = await this.run(request.pluginId, signal, instance =>
           instance.cacheKey(copyJson(request.ref) as VideoRef)
         );
-        if (typeof key !== "string" || !key) throw new Error("插件返回的缓存身份无效");
+        if (typeof key !== "string" || !key) throw new VideoHostFailure("cacheKey");
         return key;
       }
       case "playback":

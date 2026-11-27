@@ -1,3 +1,4 @@
+import type { VideoHostResponse } from "./video-host-failure";
 import type { MediaProgressSemantic } from "./media-progress";
 import type { ResolvedVideo, VideoPlaybackSource, VideoRef, VideoCaptions } from "@tau/plugins";
 
@@ -38,9 +39,7 @@ export interface VideoRendererMessage {
 export interface VideoRendererReply {
   requestId: string;
   hostSession: string;
-  result?: unknown;
-  error?: string;
-  errorName?: string;
+  response: VideoHostResponse<unknown>;
 }
 
 /** 在线视频缓存进度，音视频分流下载时分别给出两路字节数。 */

@@ -1,3 +1,4 @@
+import { VideoHostFailure } from "../../../shared/video-host-failure";
 import { VideoCacheFailure, type VideoCacheResponse } from "../../../shared/video-cache-failure";
 import { createHash } from "node:crypto";
 import { createWriteStream } from "node:fs";
@@ -392,7 +393,8 @@ export async function init() {
           event.sender.off("destroyed", release);
         }
       } catch (error) {
-        if (error instanceof VideoCacheFailure) return { ok: false, failure: error.toData() };
+        if (error instanceof VideoCacheFailure || error instanceof VideoHostFailure)
+          return { ok: false, failure: error.toData() };
         throw error;
       }
     }
@@ -410,7 +412,8 @@ export async function init() {
       try {
         return { ok: true, value: await getOnlineVideoCacheStatus(target) };
       } catch (error) {
-        if (error instanceof VideoCacheFailure) return { ok: false, failure: error.toData() };
+        if (error instanceof VideoCacheFailure || error instanceof VideoHostFailure)
+          return { ok: false, failure: error.toData() };
         throw error;
       }
     }

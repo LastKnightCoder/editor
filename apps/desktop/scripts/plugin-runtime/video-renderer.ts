@@ -1,4 +1,4 @@
-import { definePlugin, type PluginServices } from "@tau/plugins";
+import { definePlugin, type PluginServices, type PluginContext } from "@tau/plugins";
 import { PluginHost, createMemoryStorage, type DevelopmentPluginPackage } from "@tau/plugins/host";
 import { evaluatePluginPackage } from "@tau/plugins/rendering";
 import * as React from "react";
@@ -96,8 +96,46 @@ async function start() {
   const disconnect = connectVideoRenderer();
   for (const artifact of artifacts) await host.enable(artifact.manifest.id);
   rendererVideoRegistry.markReady();
+  let faultMode: "host" | "plugin" = "host";
+  let stopFault: (() => void) | undefined;
+  const installFault = () => {
+    const controller = new AbortController();
+    const registration = rendererVideoRegistry.register(
+      { pluginId: "video-test.fault", signal: controller.signal } as PluginContext,
+      {
+        id: "video-test.fault",
+        name: "runtime fault fixture",
+        create: () => ({
+          matches: () => false,
+          resolve: async () => {
+            if (faultMode === "host") return { title: "raw provider title", variants: [] };
+            throw Object.assign(new TypeError("opaque provider diagnostic"), {
+              code: "providerMissing",
+              params: { pluginId: "must-not-cross" },
+              cause: new Error("private cause must-not-cross"),
+              url: "https://private.invalid",
+            });
+          },
+          cacheKey: () => "fixture-cache",
+          getPlayback: async () => ({
+            kind: "file",
+            stream: { url: "https://fixture.invalid/media" },
+          }),
+        }),
+      }
+    );
+    stopFault = () => {
+      controller.abort();
+      registration.dispose();
+    };
+  };
   Object.assign(window, {
     videoTest: {
+      installFault,
+      faultMode: (mode: "host" | "plugin") => {
+        faultMode = mode;
+      },
+      removeFault: () => stopFault?.(),
       requests,
       lastAborted: () => lastSignal?.aborted,
       probeProxy: () => probeProxy,

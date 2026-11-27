@@ -1,0 +1,17 @@
+{
+  "failure.resolved": "外掛傳回的影片資訊無效",
+  "failure.variants": "外掛未傳回可選的畫質",
+  "failure.variant": "外掛傳回的畫質無效",
+  "failure.playback": "外掛傳回的播放來源無效",
+  "failure.captions": "外掛傳回的字幕無效",
+  "failure.captionTime": "外掛傳回的字幕時間戳記無效",
+  "failure.providerDuplicate": "外掛已註冊影片提供者",
+  "failure.providerMissing": "請在外掛中心安裝並啟用「{{pluginId}}」外掛",
+  "failure.cacheKey": "外掛傳回的快取識別碼無效",
+  "failure.providerStopped": "外掛已停用或請求已取消",
+  "failure.hostReleased": "影片外掛宿主或呼叫視窗已關閉",
+  "failure.hostUnavailable": "主視窗外掛宿主無法使用，請開啟主視窗後重試",
+  "failure.callerClosed": "影片呼叫視窗已關閉",
+  "failure.requestDuplicate": "影片請求已存在",
+  "failure.requestCancelled": "影片請求已取消"
+}
