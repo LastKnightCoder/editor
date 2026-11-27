@@ -1823,6 +1823,9 @@ importers:
       '@tau/db-schema':
         specifier: workspace:*
         version: link:../db-schema
+      '@tau/i18n':
+        specifier: workspace:*
+        version: link:../i18n
       '@tau/shared':
         specifier: workspace:*
         version: link:../shared
