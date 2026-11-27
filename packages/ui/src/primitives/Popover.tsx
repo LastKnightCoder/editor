@@ -40,6 +40,7 @@ import { X } from "lucide-react";
 import { AnchoredPanel, PanelHasHeaderContext } from "./AnchoredPanel";
 import { mergeRefs } from "./mergeRefs";
 import { useLayerDismiss } from "./useLayerDismiss";
+import { useUiI18n } from "../i18n";
 import type { AnchoredPlacement } from "./anchoredPosition";
 
 /* ───────── 上下文 ───────── */
@@ -250,6 +251,7 @@ export interface PopoverHeaderProps {
 /** 头行：随需出现——说明卡/过滤器用它，色板/成员卡可省（零框架税） */
 function PopoverHeader({ icon, children }: PopoverHeaderProps) {
   const root = usePopoverRoot();
+  const { t } = useUiI18n();
   return (
     <div className="flex items-center gap-2.5 px-4 pt-3.5 pb-1">
       {icon && (
@@ -262,7 +264,7 @@ function PopoverHeader({ icon, children }: PopoverHeaderProps) {
       </h4>
       <button
         type="button"
-        aria-label="关闭"
+        aria-label={t("close")}
         onClick={() => root.close(true)}
         className="text-ink-3 hover:bg-hover hover:text-ink-1 -mr-1 grid size-7 shrink-0 cursor-pointer place-items-center rounded-[8px] outline-none focus-visible:shadow-[var(--tau-focus-ring)]"
       >

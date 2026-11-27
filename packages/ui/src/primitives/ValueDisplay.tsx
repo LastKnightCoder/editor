@@ -7,6 +7,7 @@
 import { Star } from "lucide-react";
 import { TAG_COLORS, type TagColor } from "./Tag";
 import { cn } from "../cn";
+import { useUiI18n } from "../i18n";
 
 /** 色板选择器的按钮底色（soft 系；选中态 ring-accent） */
 const SWATCH_STYLES: Record<TagColor, string> = {
@@ -28,17 +29,18 @@ export function ColorSwatch({
   onChange: (value: TagColor) => void;
   disabled?: boolean;
 }) {
+  const { t } = useUiI18n();
   const labels: Record<TagColor, string> = {
-    red: "红",
-    orange: "橙",
-    yellow: "黄",
-    green: "绿",
-    gray: "灰",
-    blue: "蓝",
-    purple: "紫",
+    red: t("color.red"),
+    orange: t("color.orange"),
+    yellow: t("color.yellow"),
+    green: t("color.green"),
+    gray: t("color.gray"),
+    blue: t("color.blue"),
+    purple: t("color.purple"),
   };
   return (
-    <div role="group" aria-label="选项颜色" className="flex flex-wrap gap-1">
+    <div role="group" aria-label={t("valueDisplay.colorOptions")} className="flex flex-wrap gap-1">
       {TAG_COLORS.map(color => (
         <button
           key={color}
@@ -90,7 +92,7 @@ export function Rating({
   max = 5,
   step = 0.5,
   readOnly = false,
-  label = "评分",
+  label,
 }: {
   value: number | null;
   onValueChange?: (value: number | null) => void;
@@ -99,6 +101,7 @@ export function Rating({
   readOnly?: boolean;
   label?: string;
 }) {
+  const { t } = useUiI18n();
   const limit = Math.max(1, Math.floor(max));
   const commit = (next: number | null) => {
     if (!readOnly) onValueChange?.(next == null ? null : Math.min(limit, Math.max(0, next)));
@@ -107,7 +110,7 @@ export function Rating({
     <div
       role="slider"
       tabIndex={readOnly ? -1 : 0}
-      aria-label={label}
+      aria-label={label ?? t("rating.label")}
       aria-valuemin={0}
       aria-valuemax={limit}
       aria-valuenow={value ?? 0}

@@ -1,0 +1,20 @@
+{
+  "add.label": "Add",
+  "hints.back": "Back",
+  "hints.mention": "Reference content",
+  "hints.select": "Select",
+  "hints.confirm": "Confirm",
+  "hints.close": "Close",
+  "usage.approxPrefix": "~",
+  "usage.aria": "Context usage {{used}} / {{capacity}}",
+  "usage.title": "Context {{used}} / {{capacity}}",
+  "usage.header": "Context usage",
+  "usage.beforeCompaction": "Before last compaction",
+  "usage.afterCompaction": "After compaction (estimated)",
+  "usage.input": "Input",
+  "usage.output": "Output",
+  "usage.cacheRead": "Cache read",
+  "usage.cacheWrite": "Cache write",
+  "usage.cacheHint": "Cache reads and writes are included in input tokens",
+  "usage.emptyHint": "Actual usage appears after a model response"
+}

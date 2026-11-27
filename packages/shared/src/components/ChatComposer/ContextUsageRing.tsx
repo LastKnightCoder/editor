@@ -7,6 +7,7 @@ import { Popover } from "@tau/ui";
 import type { ChatCompactionUsage } from "../../chat-core/messages";
 import type { ChatContextUsage } from "../ChatInputArea/types";
 import { formatTokenCount, getContextUsageSummary } from "./contextUsage";
+import { useChatComposerI18n } from "./i18n";
 
 const RING_R = 6.5;
 const RING_C = 2 * Math.PI * RING_R;
@@ -40,8 +41,9 @@ export function ContextUsageRing({
   const percent = hasUsage ? summary.usedPercent : 0;
   const tone =
     percent >= 90 ? "var(--tau-danger)" : percent >= 75 ? "var(--tau-warn)" : "var(--tau-ok)";
+  const { t } = useChatComposerI18n();
   const used = hasUsage
-    ? `${compaction?.isCurrent ? "约 " : ""}${formatTokenCount(summary.usedTokens)}`
+    ? `${compaction?.isCurrent ? t("usage.approxPrefix") : ""}${formatTokenCount(summary.usedTokens)}`
     : "--";
   const capacity =
     contextWindowK >= 1000
@@ -55,8 +57,8 @@ export function ContextUsageRing({
       trigger={
         <button
           type="button"
-          aria-label={`上下文用量 ${used} / ${capacity}`}
-          title={`上下文 ${used} / ${capacity}`}
+          aria-label={t("usage.aria", { used, capacity })}
+          title={t("usage.title", { used, capacity })}
           className="hover:bg-hover aria-expanded:bg-hover grid size-[30px] shrink-0 place-items-center rounded-[9px]"
         >
           <svg aria-hidden viewBox="0 0 16 16" className="size-4 -rotate-90">
@@ -85,7 +87,7 @@ export function ContextUsageRing({
         </button>
       }
     >
-      <Popover.Header>上下文用量</Popover.Header>
+      <Popover.Header>{t("usage.header")}</Popover.Header>
       <Popover.Body>
         <div className="text-tau-sm space-y-2 pb-1">
           <div className="text-ink-2 flex items-baseline justify-between tabular-nums">
@@ -106,31 +108,31 @@ export function ContextUsageRing({
           {compaction && (
             <div className="space-y-1.5 pt-1">
               <Row
-                label="最近一次压缩前"
+                label={t("usage.beforeCompaction")}
                 value={`${compaction.tokensBefore.toLocaleString()} tokens`}
               />
               <Row
-                label="压缩后（估算）"
+                label={t("usage.afterCompaction")}
                 value={`${compaction.estimatedTokensAfter.toLocaleString()} tokens`}
               />
             </div>
           )}
           {usage && !compaction?.isCurrent ? (
             <div className="space-y-1.5 pt-1">
-              <Row label="输入" value={summary.inputTokens.toLocaleString()} />
-              <Row label="输出" value={summary.outputTokens.toLocaleString()} />
+              <Row label={t("usage.input")} value={summary.inputTokens.toLocaleString()} />
+              <Row label={t("usage.output")} value={summary.outputTokens.toLocaleString()} />
               <Row
-                label="缓存读取"
+                label={t("usage.cacheRead")}
                 value={`${summary.cacheReadTokens.toLocaleString()} · ${formatPercent(summary.cacheReadPercent)}`}
               />
               <Row
-                label="缓存写入"
+                label={t("usage.cacheWrite")}
                 value={`${summary.cacheWriteTokens.toLocaleString()} · ${formatPercent(summary.cacheWritePercent)}`}
               />
-              <p className="text-tau-tiny text-ink-3 pt-1">缓存读写已包含在输入 token 中</p>
+              <p className="text-tau-tiny text-ink-3 pt-1">{t("usage.cacheHint")}</p>
             </div>
           ) : (
-            !hasUsage && <p className="text-ink-3">完成一次模型响应后显示实际用量</p>
+            !hasUsage && <p className="text-ink-3">{t("usage.emptyHint")}</p>
           )}
         </div>
       </Popover.Body>

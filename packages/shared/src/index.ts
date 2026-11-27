@@ -47,9 +47,8 @@ export {
 export { markdownCustomDirectives } from "./utils/markdown-custom-directives";
 export { CONTENT_ELEMENT_TYPES, type ContentElementType } from "./utils/editor-element-coverage";
 
-// ChatInputArea 组件
+// ChatInputArea 类型（组件实现在各端壳层；桌面用 components/ChatInputArea 包装器）
 export {
-  default as ChatInputArea,
   type ChatDropdownItem,
   type ChatInputAreaHandle,
   type ChatInputAreaProps,
@@ -59,7 +58,7 @@ export {
   type MentionEntityType,
   type MentionRef,
   type ChatContextUsage,
-} from "./components/ChatInputArea";
+} from "./components/ChatInputArea/types";
 
 // 对话输入框部件（＋ 添加面板、上下文用量环、工具行 chip），桌面与浏览器扩展共用
 export * from "./components/ChatComposer";

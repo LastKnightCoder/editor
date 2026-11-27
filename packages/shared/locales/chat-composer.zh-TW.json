@@ -1,0 +1,20 @@
+{
+  "add.label": "新增",
+  "hints.back": "返回",
+  "hints.mention": "引用內容",
+  "hints.select": "選擇",
+  "hints.confirm": "確認",
+  "hints.close": "關閉",
+  "usage.approxPrefix": "約 ",
+  "usage.aria": "上下文用量 {{used}} / {{capacity}}",
+  "usage.title": "上下文 {{used}} / {{capacity}}",
+  "usage.header": "上下文用量",
+  "usage.beforeCompaction": "最近一次壓縮前",
+  "usage.afterCompaction": "壓縮後（估算）",
+  "usage.input": "輸入",
+  "usage.output": "輸出",
+  "usage.cacheRead": "快取讀取",
+  "usage.cacheWrite": "快取寫入",
+  "usage.cacheHint": "快取讀寫已包含在輸入 token 中",
+  "usage.emptyHint": "完成一次模型回應後顯示實際用量"
+}

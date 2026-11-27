@@ -23,6 +23,7 @@ import {
   ComposerPanelGroup,
   ComposerPanelItem,
 } from "./ComposerPanel";
+import { useChatComposerI18n } from "./i18n";
 
 export interface ComposerAddItem {
   key: string;
@@ -50,6 +51,7 @@ export function ComposerAddMenu({
   disabled?: boolean;
 }) {
   const portalContainer = usePortalContainer();
+  const { t } = useChatComposerI18n();
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
@@ -167,7 +169,7 @@ export function ComposerAddMenu({
       <button
         ref={buttonRef}
         type="button"
-        aria-label="添加"
+        aria-label={t("add.label")}
         aria-haspopup="listbox"
         aria-expanded={open}
         disabled={disabled}
@@ -197,7 +199,7 @@ export function ComposerAddMenu({
           <ComposerPanel
             ref={panelRef}
             role="listbox"
-            aria-label="添加"
+            aria-label={t("add.label")}
             tabIndex={-1}
             onKeyDown={onKeyDown}
             className="fixed z-[250]"
@@ -219,7 +221,7 @@ export function ComposerAddMenu({
                 <div className="max-h-[360px] min-h-0 overflow-y-auto p-1.5 pt-1">
                   {subItem.panel?.(() => close(false))}
                 </div>
-                <ComposerPanelFooter hints={[["Esc", "返回"]]} />
+                <ComposerPanelFooter hints={[["Esc", t("hints.back")]]} />
               </>
             ) : (
               <>
@@ -249,10 +251,10 @@ export function ComposerAddMenu({
                 </div>
                 <ComposerPanelFooter
                   hints={[
-                    ...(hasMention ? ([["@", "引用内容"]] as Array<[string, string]>) : []),
-                    ["↑↓", "选择"],
-                    ["Enter", "确认"],
-                    ["Esc", "关闭"],
+                    ...(hasMention ? ([["@", t("hints.mention")]] as Array<[string, string]>) : []),
+                    ["↑↓", t("hints.select")],
+                    ["Enter", t("hints.confirm")],
+                    ["Esc", t("hints.close")],
                   ]}
                 />
               </>

@@ -4,6 +4,7 @@ import { Button } from "../primitives/Button";
 import { Dialog, DialogBody } from "../primitives/Dialog";
 import { Input } from "../primitives/input/Input";
 import { Select } from "../primitives/Select";
+import { useUiI18n } from "../i18n";
 
 export interface ConfigurationField {
   key: string;
@@ -36,6 +37,7 @@ function ConfigurationInput({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const request = useRef(0);
+  const { t } = useUiI18n();
   const load = async () => {
     setOpen(true);
     if (!field.loadOptions || loading) return;
@@ -47,7 +49,7 @@ function ConfigurationInput({
       if (current === request.current) setOptions(result);
     } catch (issue) {
       if (current === request.current)
-        setError(issue instanceof Error ? issue.message : "加载失败");
+        setError(issue instanceof Error ? issue.message : t("config.loadFailed"));
     } finally {
       if (current === request.current) setLoading(false);
     }
@@ -63,7 +65,9 @@ function ConfigurationInput({
             disabled={disabled}
             onClick={() => void load()}
           >
-            <span className="flex-1 truncate">{value || field.placeholder || "请选择"}</span>
+            <span className="flex-1 truncate">
+              {value || field.placeholder || t("selectPlaceholder")}
+            </span>
             <ChevronRight size={16} />
           </button>
           <Dialog
@@ -75,16 +79,16 @@ function ConfigurationInput({
                 setLoading(false);
               }
             }}
-            title={`选择${field.label}`}
+            title={t("config.selectTitle", { name: field.label })}
           >
             <DialogBody>
-              {loading && <p>正在加载…</p>}
+              {loading && <p>{t("config.loading")}</p>}
               {error && (
                 <p role="alert" className="text-danger">
                   {error}
                 </p>
               )}
-              {!loading && !error && options.length === 0 && <p>暂无可选项</p>}
+              {!loading && !error && options.length === 0 && <p>{t("config.emptyOptions")}</p>}
               <div className="flex flex-col gap-2">
                 {options.map(option => (
                   <Button
@@ -100,7 +104,7 @@ function ConfigurationInput({
                   </Button>
                 ))}
               </div>
-              {error && <Button onClick={() => void load()}>重试</Button>}
+              {error && <Button onClick={() => void load()}>{t("config.retry")}</Button>}
             </DialogBody>
           </Dialog>
         </>
@@ -160,6 +164,7 @@ export function ConfigurationPanel({
   const accountBaseline = useRef<Record<string, string> | null>(null);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const { t } = useUiI18n();
   const patch = (key: string, next: string) => {
     const updated = { ...valueRef.current, [key]: next };
     for (const reset of [...accountFields, ...fields].find(field => field.key === key)?.reset ?? [])
@@ -212,7 +217,7 @@ export function ConfigurationPanel({
           setValue(next);
         }
         setError("");
-        if (pending.current === 1 && unchanged) setMessage("配置已保存");
+        if (pending.current === 1 && unchanged) setMessage(t("config.saved"));
         if (account) {
           accountBaseline.current = null;
           setAccountOpen(false);
@@ -223,7 +228,7 @@ export function ConfigurationPanel({
       await operation;
     } catch (issue) {
       setMessage("");
-      setError(issue instanceof Error ? issue.message : "保存失败");
+      setError(issue instanceof Error ? issue.message : t("config.saveFailed"));
     } finally {
       if (account) setAccountSaving(false);
       pending.current--;
@@ -248,21 +253,21 @@ export function ConfigurationPanel({
     .some(field => value[field.key]);
   return (
     <div className="space-y-3" aria-busy={saving}>
-      <p className="text-ink-3 text-tau-meta px-4">账号</p>
+      <p className="text-ink-3 text-tau-meta px-4">{t("config.accountTitle")}</p>
       <div className="bg-surface shadow-card rounded-tau-lg flex items-center gap-3 p-4">
         <div className="min-w-0 flex-1">
           <p className="text-ink-1 text-tau-body-lg">
-            {hasAccount ? "已填写账号" : "尚未配置账号"}
+            {hasAccount ? t("config.accountFilled") : t("config.accountEmpty")}
           </p>
-          <p className="text-ink-3 text-tau-meta">仅用于当前服务</p>
+          <p className="text-ink-3 text-tau-meta">{t("config.accountScope")}</p>
         </div>
         <Button variant="ghost" onClick={() => changeAccountOpen(true)}>
-          {hasAccount ? "更换" : "去连接"}
+          {hasAccount ? t("config.accountChange") : t("config.accountConnect")}
         </Button>
       </div>
       {fields.length > 0 && (
         <>
-          <p className="text-ink-3 text-tau-meta px-4">存储位置</p>
+          <p className="text-ink-3 text-tau-meta px-4">{t("config.storageTitle")}</p>
           <div className="bg-surface shadow-card rounded-tau-lg">
             {fields.map(field => renderField(field, true))}
           </div>
@@ -281,19 +286,17 @@ export function ConfigurationPanel({
       <Dialog
         open={accountOpen}
         onOpenChange={changeAccountOpen}
-        title="账号配置"
+        title={t("config.accountSettings")}
         locked={accountSaving}
         footer={
           <Button loading={accountSaving} onClick={() => void save(true)}>
-            {prepareAccount ? "验证并保存" : "保存账号"}
+            {prepareAccount ? t("config.verifyAndSave") : t("config.saveAccount")}
           </Button>
         }
       >
         <DialogBody>
           {accountFields.map(field => renderField(field, false))}
-          <p className="text-ink-3 text-tau-meta">
-            保存后可在服务页测试连接。其他服务的账号独立管理。
-          </p>
+          <p className="text-ink-3 text-tau-meta">{t("config.accountHint")}</p>
           {error && (
             <p role="alert" className="text-danger text-tau-meta">
               {error}

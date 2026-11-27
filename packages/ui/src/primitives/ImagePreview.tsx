@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Dialog, DialogBody } from "./Dialog";
 import { IconButton } from "./IconButton";
+import { useUiI18n } from "../i18n";
 import type { ComponentType } from "react";
 
 const NativeImage = (props: { src: string; alt: string; className?: string }) => <img {...props} />;
@@ -20,6 +21,7 @@ export function ImagePreview({
   onOpenChange: (open: boolean) => void;
   ImageComponent?: ComponentType<{ src: string; alt: string; className?: string }>;
 }) {
+  const { t } = useUiI18n();
   const move = (delta: number) => {
     if (images.length) onIndexChange((index + delta + images.length) % images.length);
   };
@@ -27,7 +29,7 @@ export function ImagePreview({
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title="图片预览"
+      title={t("imagePreview.title")}
       width={900}
       onKeyDown={event => {
         if (event.nativeEvent.isComposing || event.altKey || event.ctrlKey || event.metaKey) return;
@@ -40,17 +42,25 @@ export function ImagePreview({
     >
       <DialogBody>
         <div className="flex items-center gap-3">
-          <IconButton aria-label="上一张" disabled={images.length < 2} onClick={() => move(-1)}>
+          <IconButton
+            aria-label={t("imagePreview.prev")}
+            disabled={images.length < 2}
+            onClick={() => move(-1)}
+          >
             <ChevronLeft size={18} />
           </IconButton>
           {images[index] && (
             <ImageComponent
               src={images[index].src}
-              alt={images[index].alt ?? "预览图片"}
+              alt={images[index].alt ?? t("imagePreview.defaultAlt")}
               className="max-h-[65vh] min-w-0 flex-1 object-contain"
             />
           )}
-          <IconButton aria-label="下一张" disabled={images.length < 2} onClick={() => move(1)}>
+          <IconButton
+            aria-label={t("imagePreview.next")}
+            disabled={images.length < 2}
+            onClick={() => move(1)}
+          >
             <ChevronRight size={18} />
           </IconButton>
         </div>

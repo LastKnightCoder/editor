@@ -6,7 +6,6 @@ import type { Descendant } from "slate";
 
 import { desktopLocaleSource } from "@/app/i18n/runtime";
 import ChatInputArea, { type ChatInputAreaHandle } from "../ChatInputArea";
-import { ChatInputArea as SharedChatInputArea } from "@tau/shared";
 
 const uploadFileMock = vi.hoisted(() => vi.fn(async (file: File) => `/saved/${file.name}`));
 const copyFileToLocalMock = vi.hoisted(() =>
@@ -196,68 +195,46 @@ describe("桌面端 ChatInputArea Editor 输入", () => {
     vi.unstubAllGlobals();
   });
 
-  it.each(["desktop", "shared"])(
-    "%s 选择图片和 PDF 后保留附件引用，清空草稿移除附件",
-    async variant => {
-      vi.stubGlobal(
-        "ResizeObserver",
-        class {
-          observe() {}
-          unobserve() {}
-          disconnect() {}
-        }
-      );
-      const ref = { current: null } as React.RefObject<ChatInputAreaHandle | null>;
-      container = document.createElement("div");
-      document.body.appendChild(container);
-      root = createRoot(container);
-      await act(async () => {
-        root?.render(
-          variant === "desktop" ? (
-            <ChatInputArea ref={ref} isSupportImage isSupportFile />
-          ) : (
-            <SharedChatInputArea
-              ref={ref}
-              isSupportImage
-              isSupportFile
-              services={{
-                uploadFile: uploadFileMock,
-                convertFileSrc: async path => `file://${path}`,
-                getHomeDir: async () => "/home/test",
-              }}
-            />
-          )
-        );
-      });
-      const directory = variant === "desktop" ? "/original" : "/saved";
-      vi.stubGlobal("electron", { getPathForFile: (file: File) => `/original/${file.name}` });
-      for (const [selector, name, type] of [
-        ['input[accept*="image/png"]', "image.png", "image/png"],
-        [
-          variant === "desktop" ? 'input[accept="*/*"]' : 'input[accept="application/pdf"]',
-          "document.pdf",
-          "application/pdf",
-        ],
-      ]) {
-        const input = container.querySelector<HTMLInputElement>(selector);
-        if (!input) throw new Error("缺少文件选择入口");
-        Object.defineProperty(input, "files", {
-          configurable: true,
-          value: [new File(["附件"], name, { type })],
-        });
-        await act(async () => {
-          input.dispatchEvent(new Event("change", { bubbles: true }));
-        });
+  it("选择图片和 PDF 后保留附件引用，清空草稿移除附件", async () => {
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
       }
-      expect(ref.current?.getValue()).toEqual([
-        { type: "image", image: `file://${directory}/image.png`, path: `${directory}/image.png` },
-        { type: "file", file: `${directory}/document.pdf`, fileName: "document.pdf" },
-      ]);
-      expect(copyFileToLocalMock).not.toHaveBeenCalled();
-      await act(async () => ref.current?.clear());
-      expect(ref.current?.getValue()).toEqual([]);
+    );
+    const ref = { current: null } as React.RefObject<ChatInputAreaHandle | null>;
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+    await act(async () => {
+      root?.render(<ChatInputArea ref={ref} isSupportImage isSupportFile />);
+    });
+    const directory = "/original";
+    vi.stubGlobal("electron", { getPathForFile: (file: File) => `/original/${file.name}` });
+    for (const [selector, name, type] of [
+      ['input[accept*="image/png"]', "image.png", "image/png"],
+      ['input[accept="*/*"]', "document.pdf", "application/pdf"],
+    ]) {
+      const input = container.querySelector<HTMLInputElement>(selector);
+      if (!input) throw new Error("缺少文件选择入口");
+      Object.defineProperty(input, "files", {
+        configurable: true,
+        value: [new File(["附件"], name, { type })],
+      });
+      await act(async () => {
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      });
     }
-  );
+    expect(ref.current?.getValue()).toEqual([
+      { type: "image", image: `file://${directory}/image.png`, path: `${directory}/image.png` },
+      { type: "file", file: `${directory}/document.pdf`, fileName: "document.pdf" },
+    ]);
+    expect(copyFileToLocalMock).not.toHaveBeenCalled();
+    await act(async () => ref.current?.clear());
+    expect(ref.current?.getValue()).toEqual([]);
+  });
 
   it("外部拖入的文件保留原路径，剪贴板截图每张只添加一次并独立保存", async () => {
     const ref = { current: null } as React.RefObject<ChatInputAreaHandle | null>;

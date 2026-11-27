@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { useUiI18n } from "../i18n";
 
 interface SidebarToggleButtonProps {
   /** 侧边栏是否隐藏 */
@@ -19,12 +20,13 @@ export const SidebarCollapseButton = ({
   side = "left",
 }: Omit<SidebarToggleButtonProps, "isHidden">) => {
   const isLeft = side === "left";
+  const { t } = useUiI18n();
 
   return (
     <div
       className={`absolute ${isLeft ? "right-0" : "left-0"} top-1/2 z-20 h-20 w-5 -translate-y-1/2 ${isLeft ? "rounded-l-2xl" : "rounded-r-2xl"} bg-surface/90 border-t border-b backdrop-blur-xl ${isLeft ? "border-l" : "border-r"} border-line-1 hover:bg-hover hover:border-ink-3/50 flex cursor-pointer items-center justify-center ${isLeft ? "shadow-[-2px_0_8px_rgba(0,0,0,0.06)]" : "shadow-[2px_0_8px_rgba(0,0,0,0.06)]"} transition-colors duration-200`}
       onClick={onToggle}
-      title="收起侧边栏"
+      title={t("sidebar.collapse")}
     >
       {isLeft ? (
         <ChevronLeft size={14} className="text-accent" strokeWidth={2.5} />
@@ -45,6 +47,7 @@ export const SidebarExpandButton = ({
 }: SidebarToggleButtonProps) => {
   const isLeft = side === "left";
   const [isHovering, setIsHovering] = useState(false);
+  const { t } = useUiI18n();
 
   // 当 isHidden 变化时重置 hover 状态
   useEffect(() => {
@@ -75,7 +78,7 @@ export const SidebarExpandButton = ({
               opacity: isHovering ? 1 : 0,
             }}
             onClick={onToggle}
-            title="展开侧边栏"
+            title={t("sidebar.expand")}
           >
             {isLeft ? (
               <ChevronRight size={14} className="text-accent" strokeWidth={2.5} />

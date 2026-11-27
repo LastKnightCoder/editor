@@ -47,6 +47,7 @@ import { cn } from "../cn";
 import { PortalScope, usePortalContainer } from "../UiProvider";
 import { useEdgeFade } from "../hooks/useEdgeFade";
 import { FADE_SCROLL_CLASS } from "../hooks/fadeScrollClass";
+import { useUiI18n } from "../i18n";
 import { lockBodyScroll } from "../hooks/lockBodyScroll";
 import { IconButton } from "./IconButton";
 import { trapTabKey } from "./focusTrap";
@@ -120,13 +121,14 @@ export function Drawer({
   onWidthChange,
   minWidth = 280,
   maxWidth = 960,
-  closeLabel = "关闭",
+  closeLabel,
   bodyClassName,
   className,
   children,
   ref,
 }: DrawerProps) {
   const portalContainer = usePortalContainer();
+  const { t } = useUiI18n();
   const panelRef = useRef<HTMLElement | null>(null);
   const lastActiveRef = useRef<HTMLElement | null>(null);
   const wasMounted = useRef(false);
@@ -234,12 +236,13 @@ export function Drawer({
   if (!mounted) return null;
 
   const hasHeader = title != null || icon != null || actions != null;
+  const resolvedCloseLabel = closeLabel ?? t("close");
   const closeButton = (
     <IconButton
-      aria-label={closeLabel}
-      title={`${closeLabel} (Esc)`}
+      aria-label={resolvedCloseLabel}
+      title={`${resolvedCloseLabel} (Esc)`}
       onClick={close}
-      className={hasHeader ? undefined : "absolute right-2.5 top-2.5 z-20 size-7"}
+      className={hasHeader ? undefined : "absolute top-2.5 right-2.5 z-20 size-7"}
     >
       <X className="size-4" strokeWidth={1.75} />
     </IconButton>
@@ -286,10 +289,10 @@ export function Drawer({
         <div
           role="separator"
           aria-orientation="vertical"
-          aria-label="拖拽调整宽度"
+          aria-label={t("drawer.resize")}
           onPointerDown={onResizeStart}
           onMouseDown={e => e.stopPropagation()}
-          className="group absolute -left-1 bottom-4 top-4 z-30 w-2 cursor-col-resize touch-none"
+          className="group absolute top-4 bottom-4 -left-1 z-30 w-2 cursor-col-resize touch-none"
         >
           <span
             className={cn(
@@ -307,7 +310,7 @@ export function Drawer({
             {title != null && (
               <h3
                 id={titleId}
-                className="text-ink-1 flex min-w-0 items-center gap-2 text-[16px] font-semibold leading-[1.45]"
+                className="text-ink-1 flex min-w-0 items-center gap-2 text-[16px] leading-[1.45] font-semibold"
               >
                 {typeof title === "string" ? <span className="truncate">{title}</span> : title}
               </h3>

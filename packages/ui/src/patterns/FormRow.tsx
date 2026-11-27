@@ -9,6 +9,7 @@
 
 import { useId, type ReactNode } from "react";
 import { cn } from "../cn";
+import { useUiI18n } from "../i18n";
 
 export function FormField({
   label,
@@ -28,12 +29,13 @@ export function FormField({
   }) => ReactNode;
 }) {
   const id = useId();
+  const { t } = useUiI18n();
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
       <label htmlFor={id} className="text-ink-1 text-tau-meta font-medium">
         {label}
         {required && (
-          <span aria-label="必填" className="text-danger ml-1">
+          <span aria-label={t("formRow.required")} className="text-danger ml-1">
             *
           </span>
         )}

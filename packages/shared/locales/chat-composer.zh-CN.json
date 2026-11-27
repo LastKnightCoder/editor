@@ -1,0 +1,20 @@
+{
+  "add.label": "添加",
+  "hints.back": "返回",
+  "hints.mention": "引用内容",
+  "hints.select": "选择",
+  "hints.confirm": "确认",
+  "hints.close": "关闭",
+  "usage.approxPrefix": "约 ",
+  "usage.aria": "上下文用量 {{used}} / {{capacity}}",
+  "usage.title": "上下文 {{used}} / {{capacity}}",
+  "usage.header": "上下文用量",
+  "usage.beforeCompaction": "最近一次压缩前",
+  "usage.afterCompaction": "压缩后（估算）",
+  "usage.input": "输入",
+  "usage.output": "输出",
+  "usage.cacheRead": "缓存读取",
+  "usage.cacheWrite": "缓存写入",
+  "usage.cacheHint": "缓存读写已包含在输入 token 中",
+  "usage.emptyHint": "完成一次模型响应后显示实际用量"
+}

@@ -36,6 +36,7 @@ import { create } from "zustand";
 import { Bell, Check, CircleAlert, X, type LucideIcon } from "lucide-react";
 import { cn } from "../cn";
 import { Button } from "./Button";
+import { useUiI18n } from "../i18n";
 
 export type NotificationTone = "neutral" | "ok" | "danger";
 
@@ -273,6 +274,7 @@ export function NotificationCard({
   className,
   ...props
 }: NotificationCardProps) {
+  const { t } = useUiI18n();
   const tone = item.tone ?? "neutral";
   const resolved = item.resolvedText !== undefined;
   const Icon = resolved ? Check : (item.icon ?? TONE_ICON[tone]);
@@ -289,7 +291,7 @@ export function NotificationCard({
     >
       <button
         type="button"
-        aria-label="关闭通知"
+        aria-label={t("notification.close")}
         onClick={onClose}
         className={cn(
           "bg-surface text-ink-2 hover:text-ink-1 absolute -left-[7px] -top-[7px] z-[1] grid size-5 cursor-pointer place-items-center rounded-full outline-none",
@@ -539,6 +541,7 @@ export function NotificationHost({
   const [now, setNow] = useState(() => Date.now());
   const lastSlots = useRef(new Map<string, Slot>());
   const isBottom = placement === "bottom-right";
+  const { t: tLabel } = useUiI18n();
 
   // 相对时间刷新
   useEffect(() => {
@@ -603,7 +606,7 @@ export function NotificationHost({
   return (
     <div
       role="region"
-      aria-label="通知"
+      aria-label={tLabel("notification.label")}
       className={cn(
         isBottom
           ? "fixed bottom-[6px] right-[6px] z-[190] w-[380px]"
