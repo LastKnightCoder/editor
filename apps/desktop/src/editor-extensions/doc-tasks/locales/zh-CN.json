@@ -1,0 +1,15 @@
+{
+  "picker.move": "移到项目",
+  "picker.empty": "还没有项目，输入名字新建",
+  "picker.label": "项目候选",
+  "picker.create": "新建项目「{title}」",
+  "picker.enter": "回车",
+  "chip.date": "日期",
+  "chip.today": "今天",
+  "chip.tomorrow": "明天",
+  "chip.nextMonday": "下周一",
+  "chip.group": "换项目",
+  "chip.clearDate": "清除日期",
+  "chip.removeGroup": "移出项目",
+  "failure.complete": "项目补全失败"
+}

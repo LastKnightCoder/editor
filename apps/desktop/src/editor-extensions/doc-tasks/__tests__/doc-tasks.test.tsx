@@ -12,7 +12,7 @@ import { IEditorSlots } from "@tau/editor/extensions/media/services";
 import docTasksExtension, { absolutizeDateBeforeCursor } from "..";
 import { IDocTaskGroups, type DocTaskGroupsService } from "../service";
 import { useTagPickerStore } from "../store";
-import { openChipMenu, setChipGroup, closeChipMenu } from "../chipMenu";
+import { openChipMenu, setChipGroup, closeChipMenu, useChipMenuStore } from "../chipMenu";
 
 const groups = [
   { id: 1, title: "笔记" },
@@ -89,6 +89,10 @@ const firstText = [0, 0, 0, 0];
 
 describe("文档待办编辑器扩展", () => {
   it("等待新建项目期间变为只读，迟到结果不改正文", async () => {
+    const locale = desktopLocaleSource.getSnapshot();
+    cleanup.push(async () => {
+      await act(async () => desktopLocaleSource.setLocale(locale));
+    });
     let finish: ((group: { id: number; title: string }) => void) | undefined;
     const groupService = {
       ...service(),
@@ -110,6 +114,12 @@ describe("文档待办编辑器扩展", () => {
     await act(async () => {
       pending = selectTagPickerItem({ kind: "create", title: "新项目" });
     });
+    const pendingNodes = view.editor.children;
+    for (const language of ["zh-TW", "en-US"]) {
+      await act(async () => desktopLocaleSource.setLocale(language));
+      expect(view.editor.children).toBe(pendingNodes);
+      expect(groupService.create).toHaveBeenCalledTimes(1);
+    }
     await act(async () => view.readonly());
     await act(async () => {
       finish?.({ id: 9, title: "新项目" });
@@ -143,6 +153,7 @@ describe("文档待办编辑器扩展", () => {
   });
 
   it("候选固定原输入位置，光标换段也不删除其它文字", async () => {
+    const originalLocale = desktopLocaleSource.getSnapshot();
     const { editor } = await mount([
       item("整理 ") as never,
       { type: "paragraph", children: [{ type: "formatted", text: "其它文字" }] } as never,
@@ -155,6 +166,17 @@ describe("文档待办编辑器扩展", () => {
     const target = useTagPickerStore
       .getState()
       .items.find(candidate => candidate.title === "笔记")!;
+    const state = useTagPickerStore.getState();
+    const selection = structuredClone(editor.selection);
+    try {
+      for (const locale of ["zh-TW", "en-US"]) {
+        await act(async () => desktopLocaleSource.setLocale(locale));
+        expect(useTagPickerStore.getState()).toBe(state);
+        expect(editor.selection).toEqual(selection);
+      }
+    } finally {
+      await act(async () => desktopLocaleSource.setLocale(originalLocale));
+    }
     await act(async () => {
       Transforms.select(editor, SlateEditor.end(editor, [1, 0]));
       await (await import("../store")).selectTagPickerItem(target);
@@ -267,6 +289,15 @@ it("换语只刷新日期胶囊附注，原文节点、选区与正文数据保�
     const before = JSON.stringify(editor.children),
       selection = structuredClone(editor.selection);
     const beforeLabel = capsule.textContent;
+    await act(async () => {
+      openChipMenu(editor, capsule as HTMLElement, "date", {
+        anchor: { path: firstText, offset: 3 },
+        focus: { path: firstText, offset: 14 },
+      });
+    });
+    const menuState = useChipMenuStore.getState();
+    const menuButton = document.querySelector("[data-float-card] button");
+    if (!menuButton) throw new Error("日期胶囊菜单未挂载");
     for (const locale of ["zh-TW", "en-US"]) {
       await act(async () => desktopLocaleSource.setLocale(locale));
       expect(container.querySelector('[data-doc-task-token="date"]')).toBe(capsule);
@@ -275,6 +306,8 @@ it("换语只刷新日期胶囊附注，原文节点、选区与正文数据保�
       expect(Node.string(editor)).toBe(raw);
       expect(JSON.stringify(editor.children)).toBe(before);
       expect(editor.selection).toEqual(selection);
+      expect(useChipMenuStore.getState()).toBe(menuState);
+      expect(document.querySelector("[data-float-card] button")).toBe(menuButton);
     }
     expect(capsule.textContent).not.toBe(beforeLabel);
   } finally {

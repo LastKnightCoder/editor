@@ -406,6 +406,8 @@ Document B十四路径完成；原Reader9+materials12共21基线至增强22例�
 
 VideoHost二十二路径完成；7直接文件29至31例及真实Bili/YT ZIP双窗口Chromium功能验证通过，最新联动desktop type0。15个canonical消息与JSON逐字对账，三语runtime/Node纯入口证明host/cache两envelope及三UI投影、伪code不猜译/unknown TypeError/显式空值保原与额外cause/stack/url不传。旧result/error/errorName wire字段全消费者及script清零退役，plugin-local仅必要一行，自有范围lint/diff通过。
 
+DocTasks七路径完成；原doc12与element definitions1基线/最终通过，最终含Blank联动14例通过；13key三语/参数、范围检查及最新联动desktop type0。候选/日期/动作协议原样，旧warning保留，不为无消费者命令引入runtime。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

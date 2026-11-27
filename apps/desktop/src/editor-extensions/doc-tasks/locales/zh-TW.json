@@ -1,0 +1,15 @@
+{
+  "picker.move": "移至專案",
+  "picker.empty": "還沒有專案，輸入名稱建立",
+  "picker.label": "專案候選",
+  "picker.create": "建立專案「{title}」",
+  "picker.enter": "Enter",
+  "chip.date": "日期",
+  "chip.today": "今天",
+  "chip.tomorrow": "明天",
+  "chip.nextMonday": "下週一",
+  "chip.group": "更換專案",
+  "chip.clearDate": "清除日期",
+  "chip.removeGroup": "移出專案",
+  "failure.complete": "專案補全失敗"
+}

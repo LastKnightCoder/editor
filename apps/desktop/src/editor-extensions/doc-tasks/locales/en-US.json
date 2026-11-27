@@ -1,0 +1,15 @@
+{
+  "picker.move": "Move to project",
+  "picker.empty": "No projects yet. Type a name to create one.",
+  "picker.label": "Project suggestions",
+  "picker.create": "Create project “{title}”",
+  "picker.enter": "Enter",
+  "chip.date": "Date",
+  "chip.today": "Today",
+  "chip.tomorrow": "Tomorrow",
+  "chip.nextMonday": "Next Monday",
+  "chip.group": "Change project",
+  "chip.clearDate": "Clear date",
+  "chip.removeGroup": "Remove from project",
+  "failure.complete": "Could not complete project"
+}

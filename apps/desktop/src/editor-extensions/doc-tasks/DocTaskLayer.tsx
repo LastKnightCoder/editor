@@ -18,6 +18,8 @@ import {
 } from "./store";
 import { closeChipMenu, removeChip, setChipDate, setChipGroup, useChipMenuStore } from "./chipMenu";
 
+import { useDocTasksI18n } from "./i18n";
+
 const MAX_ITEMS = 8;
 const NO_GROUPS: never[] = [];
 
@@ -79,6 +81,7 @@ function useCaretAnchor(active: boolean) {
 }
 
 function TagPicker() {
+  const { t } = useDocTasksI18n();
   const editor = useSlateStatic();
   const open = useTagPickerStore(s => s.editor === editor);
   const query = useTagPickerStore(s => s.query);
@@ -110,11 +113,11 @@ function TagPicker() {
         className="w-[240px] p-1.5"
         onMouseDown={e => e.preventDefault()}
       >
-        <div className="text-ink-3 px-2 pb-1 pt-0.5 text-[11.5px]">移到项目</div>
+        <div className="text-ink-3 px-2 pt-0.5 pb-1 text-[11.5px]">{t("picker.move")}</div>
         {items.length === 0 && (
-          <div className="text-ink-3 px-2 py-1.5 text-[12.5px]">还没有项目，输入名字新建</div>
+          <div className="text-ink-3 px-2 py-1.5 text-[12.5px]">{t("picker.empty")}</div>
         )}
-        <div role="listbox" aria-label="项目候选">
+        <div role="listbox" aria-label={t("picker.label")}>
           {items.map((item, index) => (
             <button
               key={item.kind === "group" ? item.id : `create:${item.title}`}
@@ -135,9 +138,11 @@ function TagPicker() {
                 <Plus className="size-[13px]" strokeWidth={1.75} />
               )}
               <span className="min-w-0 flex-1 truncate">
-                {item.kind === "create" ? `新建项目「${item.title}」` : item.title}
+                {item.kind === "create" ? t("picker.create", { title: item.title }) : item.title}
               </span>
-              {index === activeIndex && <span className="text-ink-3 text-[11px]">回车</span>}
+              {index === activeIndex && (
+                <span className="text-ink-3 text-[11px]">{t("picker.enter")}</span>
+              )}
             </button>
           ))}
         </div>
@@ -160,6 +165,7 @@ function GroupDot({ groupId }: { groupId: number }) {
 }
 
 function ChipMenu() {
+  const { t } = useDocTasksI18n();
   const editor = useSlateStatic();
   const open = useChipMenuStore(s => s.editor === editor);
   const anchor = useChipMenuStore(s => s.anchor);
@@ -208,20 +214,20 @@ function ChipMenu() {
       >
         {kind === "date" ? (
           <>
-            <div className="text-ink-3 px-2 pb-1 pt-0.5 text-[11.5px]">日期</div>
+            <div className="text-ink-3 px-2 pt-0.5 pb-1 text-[11.5px]">{t("chip.date")}</div>
             <button type="button" className={item} onClick={() => setChipDate(today)}>
-              今天
+              {t("chip.today")}
             </button>
             <button type="button" className={item} onClick={() => setChipDate(today + DAY_MS)}>
-              明天
+              {t("chip.tomorrow")}
             </button>
             <button type="button" className={item} onClick={() => setChipDate(nextMonday)}>
-              下周一
+              {t("chip.nextMonday")}
             </button>
           </>
         ) : (
           <>
-            <div className="text-ink-3 px-2 pb-1 pt-0.5 text-[11.5px]">换项目</div>
+            <div className="text-ink-3 px-2 pt-0.5 pb-1 text-[11.5px]">{t("chip.group")}</div>
             {groups.map(g => (
               <button
                 key={g.id}
@@ -237,7 +243,7 @@ function ChipMenu() {
         )}
         <div className="bg-line-1 mx-2 my-1 h-px" />
         <button type="button" className={cn(item, "text-ink-2")} onClick={removeChip}>
-          {kind === "date" ? "清除日期" : "移出项目"}
+          {kind === "date" ? t("chip.clearDate") : t("chip.removeGroup")}
         </button>
       </AnchoredPanel>
     </>

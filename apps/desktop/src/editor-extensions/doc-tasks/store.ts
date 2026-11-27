@@ -6,10 +6,12 @@
 import { create } from "zustand";
 import { Editor, Element, Range, Transforms, type PointRef } from "slate";
 import { captureEditorSubmission, notifierOf, type Submission } from "@tau/editor/api";
+import { docTasksTranslator } from "./i18n";
 import { docTaskGroupsOf, IDocTaskGroups } from "./service";
 
 export type TagPickerItem =
-  { kind: "group"; id: number; title: string } | { kind: "create"; title: string };
+  | { kind: "group"; id: number; title: string }
+  | { kind: "create"; title: string };
 
 interface State {
   editor: Editor | null;
@@ -131,7 +133,9 @@ export async function selectTagPickerItem(item: TagPickerItem) {
       return undefined;
     });
   } catch (error) {
-    notifierOf(editor).error(error instanceof Error ? error.message : "项目补全失败");
+    notifierOf(editor).error(
+      error instanceof Error ? error.message : docTasksTranslator.t("failure.complete")
+    );
   } finally {
     reference.unref();
     submission.dispose();
