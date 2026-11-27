@@ -28,7 +28,7 @@ pnpm check:docs
 
 `lint:all` 检查 apps、packages、examples 中 Git 可见的 TS/TSX/MTS/CTS 文件；不把独立插件子模块纳入宿主检查。长文件列表自动分批，退出码汇总所有批次。`test:quality` 必须通过；架构边界脚本仍须按变更范围执行。
 
-提交钩子通过 lint-staged 对暂存文件执行 `oxlint --fix` 与 `oxfmt --write`，然后执行既有数据库、白板和文档检查。
+提交钩子直接用 Node.js 运行本地已安装的 lint-staged 与 commitlint，对暂存文件执行 `oxlint --fix`、`oxfmt --write`，再检查数据库、白板和文档边界及提交信息。钩子不调用包管理器，避免提交时自动安装依赖并触发原生模块重建。依赖缺失时先显式执行安装；桌面打包期间不要同时执行安装或 rebuild。
 
 ## 修改规则
 

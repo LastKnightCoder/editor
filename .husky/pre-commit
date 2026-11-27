@@ -1,4 +1,4 @@
-pnpm exec lint-staged
+node node_modules/lint-staged/bin/lint-staged.js
 node scripts/check-database-boundaries.mjs
 node scripts/check-whiteboard-boundaries.mjs
 node scripts/check-docs.mjs
