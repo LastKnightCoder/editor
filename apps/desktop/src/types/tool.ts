@@ -3,7 +3,7 @@ import type { MessageContent } from "./llm";
 export type { ToolCallPayload } from "@tau/shared";
 
 export interface ToolParameterSchema {
-  type: string;
+  type: string | string[];
   description?: string;
   enum?: string[];
   items?: ToolParameterSchema;

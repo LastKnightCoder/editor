@@ -5,16 +5,22 @@ import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
 import Database from "better-sqlite3";
 import * as Y from "yjs";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer as createTcpServer, createConnection, type Socket } from "node:net";
 import { Transform } from "node:stream";
 import { transferableAbortController } from "node:util";
+import { webcrypto } from "node:crypto";
 import schema from "@tau/db-schema/schema/main.sql?raw";
 import { prepareContentContract } from "@tau/db-schema/content-contracts";
 import Whiteboard from "@tau/whiteboard";
-import { createFrameExtension, createInteractionExtension } from "@tau/whiteboard/extensions";
+import {
+  createFrameExtension,
+  createInteractionExtension,
+  createMindExtension,
+} from "@tau/whiteboard/extensions";
+import { mindIndex } from "../../../../shared/whiteboard-mindmap";
 import {
   createWhiteboardBinding,
   prepareBuiltinWhiteboardTypes,
@@ -99,6 +105,7 @@ async function setup({
   frameCount = 1,
   frameChildren = 0,
   seedBytes = 0,
+  mindmap = false,
   SessionClass = WhiteboardDocumentSessions,
 } = {}) {
   vi.stubGlobal(
@@ -334,7 +341,11 @@ async function setup({
       <Whiteboard
         document={binding}
         presence={{ pageId, channel }}
-        extensions={[createFrameExtension(), createInteractionExtension()]}
+        extensions={[
+          createFrameExtension(),
+          createInteractionExtension(),
+          ...(mindmap ? [createMindExtension()] : []),
+        ]}
         initData={[]}
         initViewPort={{ minX: 0, minY: 0, width: 1000, height: 800, zoom: 1 }}
         showToolbar={false}
@@ -852,6 +863,280 @@ it("主对话捕获的工具修改同页画布，经真实推送到第二端，�
 });
 
 const delayedNetwork = process.env.TAU_BOARD_AGENT_STRESS === "network";
+it.runIf(process.env.TAU_MINDMAP_STRESS === "1")(
+  "原生导图工具离线、对端编辑、重复请求与重连合并压力",
+  async () => {
+    vi.stubGlobal("crypto", webcrypto);
+    const full = process.env.TAU_MINDMAP_STRESS_PROFILE !== "smoke";
+    const {
+      sides: [local, peer],
+      errors,
+    } = await setup({ mindmap: true, roundTripMs: full ? 100 : 0 });
+    const registries = [local, peer].map((side, index) => {
+      const registry = new ToolRegistry(),
+        scope = crypto.randomUUID(),
+        lifetime = new AbortController();
+      registry.registerScopedTools(
+        scope,
+        "当前白板",
+        whiteboardAgentTools(
+          scope,
+          side.binding,
+          side.client,
+          undefined,
+          lifetime.signal,
+          side.apply
+        )
+      );
+      const tools = registry.getScopedTools(scope);
+      return {
+        lifetime,
+        call: async (name: string, args: Record<string, unknown>) => {
+          const result = await registry.executeToolCall(
+            {
+              id: crypto.randomUUID(),
+              type: "function",
+              function: { name, arguments: JSON.stringify(args) },
+            },
+            {
+              databaseName: index ? "B" : "A",
+              conversationKey: `mindmap-network-${index}`,
+              sessionTools: tools,
+            }
+          );
+          if (!result) throw new Error("缺少压力工具回执");
+          const parsed = JSON.parse(result.content);
+          if (parsed.ok === false) throw new Error(result.content);
+          return parsed;
+        },
+      };
+    });
+    const [left, right] = registries;
+    const target = (await left.call("get_whiteboard_context", {})).target;
+    const otherTarget = (await right.call("get_whiteboard_context", {})).target;
+    let seed: { ids: Record<string, string> } | undefined;
+    await act(async () => {
+      seed = await left.call("apply_whiteboard_mindmap_operations", {
+        target,
+        requestId: "network-seed",
+        operations: [
+          { kind: "insert", id: "root", at: { x: 450, y: 300 }, text: "网络压力导图" },
+          { kind: "insert", id: "a", parentId: "root", text: "初始甲" },
+          { kind: "insert", id: "b", parentId: "root", text: "初始乙" },
+          { kind: "insert", id: "c", parentId: "root", text: "初始丙" },
+          { kind: "relation", id: "relation", from: "a", to: "b", text: "初始联系" },
+        ],
+      });
+    });
+    if (!seed) throw new Error("未创建压力导图");
+    const ids = seed.ids;
+    const plain = (side: typeof local, id: string) => {
+      const node = mindIndex(side.client.model.read().pages[0]).nodes.get(id);
+      if (!node || !Array.isArray(node.body)) return "";
+      const text = (value: import("@tau/collaboration").ContentNode): string =>
+        typeof value.text === "string" ? value.text : (value.children ?? []).map(text).join("");
+      return node.body.map(text).join("\n");
+    };
+    await waitFor(() => expect(plain(peer, ids.a)).toBe("初始甲"));
+    const initialIds = new Set(mindIndex(local.client.model.read().pages[0]).nodes.keys());
+    const selections = [local, peer].map(side =>
+      side.binding.board?.selection.selectedElements.map(node => node.id)
+    );
+    local.setOnline(false);
+    const count = full ? 64 : 4,
+      durations: number[] = [];
+    let last: Record<string, unknown> | undefined,
+      lastRevision = -1,
+      peerWrites = 0;
+    for (let i = 0; i < count; i++) {
+      const read = await left.call("read_whiteboard_mindmap", { target, nodeId: ids.root });
+      const args = {
+        target,
+        requestId: `offline-mind-${i}`,
+        preconditions: read.preconditions,
+        operations: [
+          { kind: "edit_text", id: ids.a, text: `离线甲-${i}` },
+          { kind: "edit_text", id: ids.b, text: `离线乙-${i}` },
+          { kind: "configure", id: ids.root, themeStyle: i % 2 ? "soft" : "outline" },
+          { kind: "fold", id: ids.root, folded: i % 2 === 0 },
+          {
+            kind: "relation",
+            action: "update",
+            id: ids.relation,
+            text: `联系-${i}`,
+            from: ids.a,
+            to: ids.b,
+            reverse: i % 3 === 0,
+          },
+        ],
+      };
+      const began = performance.now();
+      await act(async () => {
+        const result = await left.call("apply_whiteboard_mindmap_operations", args);
+        const replay = await left.call("apply_whiteboard_mindmap_operations", args);
+        expect(replay.revision).toBe(result.revision);
+        lastRevision = result.revision;
+      });
+      durations.push(performance.now() - began);
+      last = args;
+      if (i % 4 === 0) {
+        const read = await right.call("read_whiteboard_mindmap", {
+          target: otherTarget,
+          nodeId: ids.root,
+        });
+        await act(async () => {
+          await right.call("apply_whiteboard_mindmap_operations", {
+            target: otherTarget,
+            requestId: `peer-mind-${i}`,
+            preconditions: read.preconditions,
+            operations: [{ kind: "edit_text", id: ids.c, text: `对端丙-${i}` }],
+          });
+        });
+        peerWrites++;
+      }
+    }
+    expect(plain(peer, ids.a)).toBe("初始甲");
+    expect(plain(local, ids.c)).toBe("初始丙");
+    const reconnect = performance.now();
+    local.setOnline(true);
+    const lastPeer = Math.floor((count - 1) / 4) * 4;
+    await waitFor(() => {
+      expect(local.connected()).toBe(true);
+      for (const side of [local, peer]) {
+        expect(plain(side, ids.a)).toBe(`离线甲-${count - 1}`);
+        expect(plain(side, ids.b)).toBe(`离线乙-${count - 1}`);
+        expect(plain(side, ids.c)).toBe(`对端丙-${lastPeer}`);
+        expect(plain(side, ids.relation)).toBe(`联系-${count - 1}`);
+        expect(new Set(mindIndex(side.client.model.read().pages[0]).nodes.keys())).toEqual(
+          initialIds
+        );
+        expect(side.binding.history.undoStack).toHaveLength(0);
+      }
+    }, 30000);
+    const retryArgs = last;
+    if (!retryArgs) throw new Error("缺少原始重试请求");
+    await act(async () =>
+      expect((await left.call("apply_whiteboard_mindmap_operations", retryArgs)).revision).toBe(
+        lastRevision
+      )
+    );
+    expect(
+      [local, peer].map(side => side.binding.board?.selection.selectedElements.map(node => node.id))
+    ).toEqual(selections);
+    expect(errors).toEqual([]);
+    durations.sort((a, b) => a - b);
+    const output = join(
+      process.cwd(),
+      "../../output/whiteboard-mindmap-stress",
+      full ? "full" : "smoke"
+    );
+    mkdirSync(output, { recursive: true });
+    writeFileSync(
+      join(output, "network.json"),
+      JSON.stringify(
+        {
+          status: "passed",
+          profile: full ? "full" : "smoke",
+          scope: "真实双画布、工具注册表、SQLite、WebSocket 与断网重连；无截图或视觉验收",
+          batches: count,
+          retries: count + 1,
+          peerWrites,
+          agentOperations: count * 5 + peerWrites,
+          simulatedRttMs: full ? 100 : 0,
+          reconnectToValidationCompleteMs: performance.now() - reconnect,
+          batchAndReplay: {
+            p50ms: durations[Math.floor((durations.length - 1) * 0.5)],
+            p95ms: durations[Math.floor((durations.length - 1) * 0.95)],
+            p99ms: durations[Math.floor((durations.length - 1) * 0.99)],
+          },
+          errors,
+        },
+        null,
+        2
+      )
+    );
+    registries.forEach(registry => registry.lifetime.abort());
+  },
+  120000
+);
+
+it("导图工具经真实队列和共享推送更新两端原生树，保留用户选区与撤销来源", async () => {
+  vi.stubGlobal("crypto", webcrypto);
+  const {
+    sides: [left, right],
+    errors,
+  } = await setup({ mindmap: true });
+  const lifetime = new AbortController(),
+    registry = new ToolRegistry(),
+    scope = crypto.randomUUID();
+  registry.registerScopedTools(
+    scope,
+    "当前白板",
+    whiteboardAgentTools(scope, left.binding, left.client, undefined, lifetime.signal, left.apply)
+  );
+  const sessionTools = registry.getScopedTools(scope);
+  const call = async (name: string, args: Record<string, unknown>) => {
+    const result = await registry.executeToolCall(
+      {
+        id: crypto.randomUUID(),
+        type: "function",
+        function: { name, arguments: JSON.stringify(args) },
+      },
+      { databaseName: "A", conversationKey: "main-chat:mindmap", sessionTools }
+    );
+    if (!result) throw new Error("未返回工具回执");
+    const value = JSON.parse(result.content);
+    if (value.ok === false) throw new Error(result.content);
+    return value;
+  };
+  const { target } = await call("get_whiteboard_context", {});
+  const selection = left.binding.board?.selection.selectedElements.map(node => node.id);
+  let created: { ids: Record<string, string> } | undefined;
+  await act(async () => {
+    created = await call("apply_whiteboard_mindmap_operations", {
+      target,
+      requestId: "create-map",
+      operations: [
+        { kind: "insert", id: "root", at: { x: 500, y: 400 }, text: "原生中心" },
+        { kind: "insert", id: "right", parentId: "root", text: "保留右侧" },
+      ],
+    });
+  });
+  if (!created) throw new Error("未创建导图");
+  const rootId = created.ids.root;
+  await waitFor(() =>
+    expect(mindIndex(right.client.model.read().pages[0]).nodes.has(rootId)).toBe(true)
+  );
+  const read = await call("read_whiteboard_mindmap", { target, nodeId: rootId });
+  let added: { ids: Record<string, string> } | undefined;
+  await act(async () => {
+    added = await call("apply_whiteboard_mindmap_operations", {
+      target,
+      requestId: "add-left",
+      preconditions: read.preconditions,
+      operations: [
+        { kind: "insert", id: "world", parentId: rootId, side: "left", text: "世界这么大" },
+      ],
+    });
+  });
+  if (!added) throw new Error("未返回新增分支");
+  const childId = added.ids.world;
+  await waitFor(() => {
+    for (const side of [left, right]) {
+      const index = mindIndex(side.client.model.read().pages[0]);
+      expect(index.parents.get(childId)?.id).toBe(rootId);
+      expect(index.nodes.get(childId)?.type).toBe("mind-node");
+      expect(index.sides.get(childId)).toBe("left");
+      expect(side.binding.history.undoStack).toHaveLength(0);
+      const root = side.binding.board?.children.find(node => node.id === rootId);
+      expect(root?.children?.some(node => node.id === childId)).toBe(true);
+    }
+  });
+  expect(left.binding.board?.selection.selectedElements.map(node => node.id)).toEqual(selection);
+  expect(errors).toEqual([]);
+  lifetime.abort();
+}, 30000);
+
 it("真实推送连接离线时 Agent 批次只在本机生效，重连后同页收齐且不重复", async () => {
   const {
     sides: [local, peer],

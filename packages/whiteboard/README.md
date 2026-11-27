@@ -8,6 +8,8 @@
 
 普通值模式的初始化参数只作为初始值，编辑经 onChange 回传；可选 document 模式见文末。更换文档身份时由宿主更换 key。extensions 必须显式提供且在会话期间保持同一集合。Ref 提供视口适应、缩放、只读元素快照和定位。
 
+`@tau/whiteboard/mindmap` 提供不加载画布或 React 的导图结构、范围、Markdown 和主题定义，供界面与后台语义操作共用。导图布局仍由画布投影计算，后台只写入原生节点和用户意图字段。
+
 ```tsx
 import Whiteboard from "@tau/whiteboard";
 import { createStandardWhiteboardExtensions } from "@tau/whiteboard/extensions";

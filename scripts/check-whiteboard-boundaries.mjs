@@ -29,7 +29,7 @@ const inside = (file, directory) => file.startsWith(directory + sep);
 const manifest = JSON.parse(readFileSync(resolve(packageRoot, "package.json"), "utf8"));
 assert.deepEqual(
   Object.keys(manifest.exports),
-  [".", "./extensions", "./author", "./styles.css", "./collaboration", "./contracts"],
+  [".", "./extensions", "./author", "./styles.css", "./collaboration", "./contracts", "./mindmap"],
   "Whiteboard 仅公开画布、扩展、作者契约和样式入口"
 );
 const declared = new Set(
@@ -65,6 +65,7 @@ for (const directory of ["apps", "packages", "examples"]) {
               "@tau/whiteboard/styles.css",
               "@tau/whiteboard/collaboration",
               "@tau/whiteboard/contracts",
+              "@tau/whiteboard/mindmap",
             ].includes(specifier)) &&
             !(local && inside(local, packageRoot)),
           "消费者使用 @tau/whiteboard 公开入口：" + label
@@ -150,9 +151,17 @@ for (const directory of ["apps", "packages", "examples"]) {
 
 // 按转译后的运行时模块图检查，类型引用不视作加载领域实现。
 const visited = new Set();
-const inspectCore = (file, trail = []) => {
-  if (!/\.[cm]?[jt]sx?$/.test(file) || visited.has(file)) return;
-  visited.add(file);
+const mindmapVisited = new Set();
+const inspectCore = (file, trail = [], headless = false) => {
+  const scanned = headless ? mindmapVisited : visited;
+  if (!/\.[cm]?[jt]sx?$/.test(file) || scanned.has(file)) return;
+  scanned.add(file);
+  assert(
+    !headless ||
+      (!/[\\/]src[\\/](?:WhiteBoard|Board)\.tsx$/.test(file) &&
+        !file.includes(`${sep}components${sep}`)),
+    "导图纯入口不得加载画布或界面实现：" + [...trail, relative(packageRoot, file)].join(" → ")
+  );
   const source = ts.transpileModule(readFileSync(file, "utf8"), {
     compilerOptions: {
       module: ts.ModuleKind.ESNext,
@@ -163,6 +172,10 @@ const inspectCore = (file, trail = []) => {
   const ast = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true);
   const inspectImport = specifier => {
     const chain = [...trail, relative(packageRoot, file), specifier].join(" → ");
+    assert(
+      !headless || !/^react(?:-dom)?(?:$|\/)/.test(specifier),
+      "导图纯入口不得加载 React：" + chain
+    );
     assert(
       !/^(slate(?:-react)?|@tau\/editor(?:$|[-/])|@tau\/markdown|@zumer\/snapdom)/.test(specifier),
       "画布核心不得加载文本或导出实现：" + chain
@@ -181,7 +194,7 @@ const inspectCore = (file, trail = []) => {
       !target.endsWith(`${sep}extensions${sep}builtins.tsx`),
       "核心不得反向加载扩展装配：" + chain
     );
-    inspectCore(target, [...trail, relative(packageRoot, file)]);
+    inspectCore(target, [...trail, relative(packageRoot, file)], headless);
   };
   const visit = node => {
     if (
@@ -206,6 +219,8 @@ inspectCore(resolve(packageRoot, "src/Board.tsx"));
 inspectCore(resolve(packageRoot, "src/index.ts"));
 inspectCore(resolve(packageRoot, "contracts.ts"));
 assert(visited.size > 0, "画布核心模块扫描不得为空");
+inspectCore(resolve(packageRoot, "mindmap.ts"), [], true);
+assert(mindmapVisited.size > 0, "导图纯入口模块扫描不得为空");
 
 // 作者契约连同 type-only 依赖一起检查，不能通过声明文件重新暴露内核。
 const authorGraph = ts.createProgram([resolve(packageRoot, "src/author.ts")], {

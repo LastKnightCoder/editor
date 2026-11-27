@@ -9,6 +9,26 @@ const tool = (name: string) => ({
 });
 
 describe("ToolRegistry 逐工具停用", () => {
+  it("执行器返回的可修正错误标记传到对话，避免被当成成功或自动重试", async () => {
+    const registry = new ToolRegistry();
+    registry.registerTools("whiteboard", [
+      {
+        ...tool("edit_mindmap"),
+        executor: async () => ({
+          content: JSON.stringify({ ok: false, error: { code: "PRECONDITION_CONFLICT" } }),
+          isParameterError: true,
+        }),
+      },
+    ]);
+    const result = await registry.executeToolCall({
+      id: "conflict",
+      type: "function",
+      function: { name: "edit_mindmap", arguments: "{}" },
+    });
+    expect(result?.isParameterError).toBe(true);
+    if (!result) throw new Error("缺少工具错误回执");
+    expect(JSON.parse(result.content).error.code).toBe("PRECONDITION_CONFLICT");
+  });
   it("调用名与偏好键独立，沿用稳定键控制新名称", () => {
     const registry = new ToolRegistry();
     registry.setDisabledTools("questions", ["stable-id"]);

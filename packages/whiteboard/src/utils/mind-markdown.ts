@@ -65,7 +65,7 @@ const serializeInline = (node: unknown): string => {
 };
 
 /** 节点正文 → 单行 Markdown（多段落用空格连接） */
-export function textToMarkdownLine(text: readonly Descendant[]): string {
+export function textToMarkdownLine(text: readonly unknown[]): string {
   return text
     .map(block => serializeInline(block))
     .filter(line => line.trim())

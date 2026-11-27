@@ -9,6 +9,8 @@ export interface AgentBoardRequest {
   requestId: string;
   pageId: string;
   operations: Record<string, unknown>[];
+  domain?: "mindmap";
+  preconditions?: import("./whiteboard-mindmap").MindPrecondition[];
 }
 
 export function pageElements(

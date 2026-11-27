@@ -1,4 +1,4 @@
-import { Descendant } from "slate";
+import type { Descendant } from "slate";
 import type { Point } from "./point";
 
 export interface MindNodeElement {

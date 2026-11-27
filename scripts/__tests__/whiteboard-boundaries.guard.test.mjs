@@ -30,6 +30,7 @@ function fixture(t, overrides = {}) {
     ].join("\n"),
     "src/index.ts": 'export * from "./WhiteBoard";',
     "contracts.ts": "export interface Contract { id: string; }",
+    "mindmap.ts": "export const mindmap = true;",
     "src/author.ts": 'export type { BoardElement } from "./types/element";',
     "src/types/element.ts": "export interface BoardElement { id: string; }",
     "src/locales/fixture.json": JSON.stringify({ title: "import('@tau/editor')" }),
@@ -86,4 +87,10 @@ test("作者契约不能通过纯类型导出暴露画布内核", t => {
   });
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /白板作者声明依赖内部实现/);
+});
+
+test("导图纯入口不能通过本地模块加载画布内核", t => {
+  const result = fixture(t, { "mindmap.ts": 'export { Board } from "./src/Board";' });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /导图纯入口不得加载画布或界面实现/);
 });

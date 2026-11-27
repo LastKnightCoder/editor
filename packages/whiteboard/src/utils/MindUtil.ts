@@ -23,6 +23,7 @@ import {
 import { assertMindOutlineDepth, type MindOutline } from "./mind-markdown";
 import { WHITEBOARD_LIMITS } from "@tau/collaboration";
 import { resolveSummaryCollisions } from "./mind-layout/summary-collisions";
+import { adjacentMindSiblings } from "./mind-structure";
 
 const MIND_DRAG_TARGET_RETENTION_SCALE = 1.2;
 
@@ -68,18 +69,7 @@ export class MindUtil {
    * 单个节点也算；根节点和概要节点不能被括住。
    */
   static adjacentSiblings(root: MindNodeElement, ids: readonly string[]) {
-    if (!ids.length) return null;
-    const parent = this.findParentInTree(root, ids[0]);
-    if (!parent) return null;
-    const bothSides = getMindLayout(root).sides.length > 1;
-    const picked = parent.children.filter(child => ids.includes(child.id));
-    if (picked.length !== new Set(ids).size || picked.some(isSummary)) return null;
-    const group = parent.children.filter(
-      child => !isSummary(child) && (!bothSides || child.direction === picked[0].direction)
-    );
-    const indexes = picked.map(child => group.indexOf(child)).sort((a, b) => a - b);
-    if (indexes[0] < 0 || indexes.some((index, i) => index !== indexes[0] + i)) return null;
-    return { parent, first: group[indexes[0]], last: group[indexes[indexes.length - 1]] };
+    return adjacentMindSiblings(root, ids);
   }
 
   /** 给相邻兄弟加概要节点（插在同组最后一个概要之后）；返回新树和概要节点 id */

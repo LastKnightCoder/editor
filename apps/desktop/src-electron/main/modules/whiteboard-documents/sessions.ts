@@ -16,6 +16,8 @@ import type {
 } from "@/types/whiteboard-document";
 import type { AgentBoardRequest } from "../../../../shared/whiteboard-agent";
 import { agentContracts, editAgentCandidate, identifyAgentBatch } from "./agent";
+import { mindError, mindErrorDetails } from "../../../../shared/whiteboard-mindmap";
+import { ContentIdentityTable } from "../tables/content-identity";
 import { WhiteboardJournal, journalKey, stateHash, type JournalDocument } from "./journal";
 import { WhiteboardDocumentRepository, type WhiteboardRelationCounter } from "./repository";
 import { IdleWhiteboardReclaims, reclaimThreshold } from "./idle-reclaim";
@@ -514,50 +516,150 @@ export class WhiteboardDocumentSessions {
     request: AgentBoardRequest,
     signal?: AbortSignal
   ) {
-    const { lease } = this.require(leaseId, owner, true);
-    const batch = identifyAgentBatch(request);
-    const contracts = await agentContracts();
-    return this.run(lease.key, batch.bytes, async () => {
-      const { session } = this.require(leaseId, owner, true);
-      signal?.throwIfAborted();
-      let revision = this.journal.agentReceipt(lease.key, batch.prefix, batch.batchId);
-      if (revision === undefined) {
-        for (const op of request.operations)
-          if (op.kind === "delete" && op.beforeRevision !== session.value.revision)
-            throw new Error("删除目标可能已变化，请重新读取");
-        const doc = new Y.Doc({ gc: false });
-        const candidate = new WhiteboardModel(doc);
-        try {
-          Y.applyUpdate(doc, session.value.state);
-          const vector = Y.encodeStateVector(doc);
-          editAgentCandidate(candidate, request, batch.ids, contracts);
-          await candidate.validate(session.model);
-          this.require(leaseId, owner, true);
-          signal?.throwIfAborted();
-          const state = Y.encodeStateAsUpdate(doc);
-          if (state.byteLength > WHITEBOARD_LIMITS.documentBytes) throw new Error("白板文档超限");
-          this.commitCandidate(
-            session,
-            batch.batchId,
-            Y.encodeStateAsUpdate(doc, vector),
-            state,
-            collectWhiteboardRelations(candidate, true).map(ref => ref.target)
-          );
-          revision = session.value.revision;
-        } finally {
-          candidate.dispose();
-          doc.destroy();
+    let commitAttempted = false;
+    let alreadySaved = false;
+    try {
+      const { lease } = this.require(leaseId, owner, true);
+      if (request.domain === "mindmap" && request.pageId !== lease.pageId)
+        mindError("PAGE_MISMATCH", "请求页面与当前写入租约不一致", {
+          path: "target",
+          expected: lease.pageId,
+          actual: request.pageId,
+          retry: "refresh_context",
+          suggestion: "重新获取当前白板目标，不要复用其他页的句柄。",
+        });
+      const batch = identifyAgentBatch(request);
+      const contracts = await agentContracts();
+      return await this.run(lease.key, batch.bytes, async () => {
+        const { session } = this.require(leaseId, owner, true);
+        signal?.throwIfAborted();
+        let revision = this.journal.agentReceipt(lease.key, batch.prefix, batch.batchId);
+        alreadySaved = revision !== undefined;
+        if (revision === undefined) {
+          for (const op of request.operations)
+            if (op.kind === "delete" && op.beforeRevision !== session.value.revision)
+              throw new Error("删除目标可能已变化，请重新读取");
+          const doc = new Y.Doc({ gc: false });
+          const candidate = new WhiteboardModel(doc);
+          try {
+            Y.applyUpdate(doc, session.value.state);
+            const vector = Y.encodeStateVector(doc);
+            try {
+              await editAgentCandidate(candidate, request, batch.ids, contracts, {
+                reference: contentId =>
+                  ContentIdentityTable.reference(session.db, "content", contentId),
+                resolve: entity => {
+                  const id = ContentIdentityTable.resolve(session.db, entity);
+                  if (id === null || entity.kind === "content") return id;
+                  const tables: Partial<Record<typeof entity.kind, string>> = {
+                    card: "cards",
+                    article: "articles",
+                    "project-item": "project_item",
+                    "diary-moment": "diary_segments",
+                  };
+                  const table = tables[entity.kind];
+                  if (!table) return null;
+                  const row = session.db
+                    .prepare(`SELECT content_id FROM ${table} WHERE id=?`)
+                    .get(id) as { content_id: number | null } | undefined;
+                  return row?.content_id ?? null;
+                },
+              });
+              await candidate.validate(session.model);
+            } catch (error) {
+              if (request.domain !== "mindmap" || mindErrorDetails(error)) throw error;
+              mindError(
+                "CANDIDATE_VALIDATION_FAILED",
+                error instanceof Error ? error.message : String(error),
+                {
+                  path: "operations",
+                  suggestion:
+                    "本批未提交。检查节点层级、契约、内容长度和文档容量；重新读取涉及的导图后修正。",
+                  retry: "reread",
+                }
+              );
+            }
+            this.require(leaseId, owner, true);
+            signal?.throwIfAborted();
+            const state = Y.encodeStateAsUpdate(doc);
+            if (state.byteLength > WHITEBOARD_LIMITS.documentBytes) throw new Error("白板文档超限");
+            commitAttempted = true;
+            this.commitCandidate(
+              session,
+              batch.batchId,
+              Y.encodeStateAsUpdate(doc, vector),
+              state,
+              collectWhiteboardRelations(candidate, true).map(ref => ref.target)
+            );
+            revision = session.value.revision;
+            alreadySaved = true;
+          } finally {
+            candidate.dispose();
+            doc.destroy();
+          }
+        } else if (session.value.projectedRevision < revision) {
+          this.project(session);
+          this.notify(session);
         }
-      } else if (session.value.projectedRevision < revision) {
-        this.project(session);
-        this.notify(session);
-      }
-      return {
-        ...this.receipt(session),
-        operationRevision: revision,
-        ids: Object.fromEntries(batch.ids),
-      };
-    });
+        return {
+          ...this.receipt(session),
+          operationRevision: revision,
+          ids: Object.fromEntries(batch.ids),
+        };
+      });
+    } catch (error) {
+      if (request?.domain !== "mindmap" || mindErrorDetails(error)) throw error;
+      const message = error instanceof Error ? error.message : String(error);
+      if (commitAttempted || alreadySaved)
+        mindError(alreadySaved ? "PROJECTION_PENDING" : "WRITE_OUTCOME_UNKNOWN", message, {
+          commitStatus: alreadySaved ? "saved" : "unknown",
+          retry: "same_request",
+          suggestion:
+            "保留原 requestId、preconditions 和 operations 原样重试，恢复已有回执或投影；不要重新创建节点。",
+        });
+      const reused = message.includes("同一请求"),
+        expired = /会话.*(失效|无效|关闭)|租约/.test(message),
+        forbidden = /只读|权限/.test(message),
+        limit = /超限|预算|容量/.test(message);
+      mindError(
+        reused
+          ? "REQUEST_ID_REUSED"
+          : expired
+            ? "TARGET_EXPIRED"
+            : forbidden
+              ? "CANVAS_NOT_WRITABLE"
+              : limit
+                ? "BATCH_LIMIT_EXCEEDED"
+                : "BATCH_REJECTED",
+        message,
+        {
+          path: reused ? "requestId" : expired || forbidden ? "target" : "operations",
+          retry:
+            reused || limit
+              ? "fix_arguments"
+              : expired
+                ? "refresh_context"
+                : forbidden
+                  ? "request_permission"
+                  : "reread",
+          ...(limit
+            ? {
+                expected: WHITEBOARD_LIMITS,
+                actual: { operationCount: request.operations?.length },
+              }
+            : {}),
+          suggestion: reused
+            ? "相同 requestId 只能重试完全相同的原请求；修改操作或读前提后使用新的 requestId。"
+            : expired
+              ? "重新打开目标白板并获取目标句柄，再读取导图。"
+              : forbidden
+                ? "确认当前白板具有编辑权限后再操作。"
+                : limit
+                  ? "按分支缩小批次或内容大小，修正后使用新的 requestId；本批没有写入。"
+                  : "本批未写入。根据原始原因检查参数或重新读取受影响导图，修正后使用新的 requestId。",
+        }
+      );
+    }
   }
   async flush(leaseId: string, owner: number): Promise<WhiteboardDocumentReceipt> {
     const { lease, session } = this.require(leaseId, owner);

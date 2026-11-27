@@ -11,7 +11,8 @@
     "./author": "./src/author.ts",
     "./styles.css": "./src/styles.css",
     "./collaboration": "./collaboration.ts",
-    "./contracts": "./contracts.ts"
+    "./contracts": "./contracts.ts",
+    "./mindmap": "./mindmap.ts"
   },
   "scripts": {
     "test": "vitest run",

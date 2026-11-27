@@ -3,7 +3,13 @@ import type { WhiteboardDocumentClient } from "./client";
 import type { WhiteboardRemoteSync } from "./remote";
 import { agentIdentity } from "../agent-identity";
 import type { ToolDefinition, ToolExecutionContext, ToolParameterSchema } from "@/types/tool";
-import { applyWhiteboardAgentOperations } from "@/commands/whiteboard-document";
+import { mindmapAgentTools } from "./mindmap-tools";
+import { mindCapabilities, mindError, mindIndex } from "../../../shared/whiteboard-mindmap";
+import {
+  applyWhiteboardAgentOperations,
+  resolveWhiteboardEntity,
+} from "@/commands/whiteboard-document";
+import { MindThemeUtil, resolveMindLayoutId, getPaletteById } from "@tau/whiteboard/mindmap";
 import {
   coordKeys,
   endpointId,
@@ -104,7 +110,7 @@ export function whiteboardAgentTools(
       },
     });
   };
-  return [
+  const tools: ToolDefinition[] = [
     {
       name: "get_whiteboard_context",
       displayName: "读取当前白板",
@@ -127,6 +133,11 @@ export function whiteboardAgentTools(
             viewport: board.viewPort,
             selected,
             writable: writable(),
+            capabilities: {
+              mindmap: mindCapabilities,
+              mindmapReadTool: "read_whiteboard_mindmap",
+              mindmapWriteTool: "apply_whiteboard_mindmap_operations",
+            },
           }),
         };
       },
@@ -136,7 +147,7 @@ export function whiteboardAgentTools(
       displayName: "读取白板元素",
       risk: "read",
       description:
-        "分页读取当前页的元素 ID、位置、简单标签和连线。可指定元素或画布范围。删除前读取 revision。",
+        "分页读取当前页的元素 ID、位置、简单标签和连线。可指定元素或画布范围。导图节点的完整结构与编辑前提使用 read_whiteboard_mindmap 读取。删除前读取 revision。",
       parameters: parameters(
         {
           target: string,
@@ -170,6 +181,7 @@ export function whiteboardAgentTools(
                 n.geometry.y + n.geometry.height >= region.y &&
                 n.geometry.y <= region.y + region.height))
         );
+        const index = mindIndex(page());
         const elements = nodes.slice(offset, offset + 32).map(n => ({
           id: n.id,
           type: n.type,
@@ -178,6 +190,14 @@ export function whiteboardAgentTools(
           from: endpointId(n.data.source),
           to: endpointId(n.data.target),
           children: n.children.length,
+          parentId: index.parents.get(n.id)?.id ?? null,
+          ...(n.type === "mind-node"
+            ? {
+                rootId: index.roots.get(n.id),
+                side: index.sides.get(n.id),
+                editTool: "apply_whiteboard_mindmap_operations",
+              }
+            : {}),
         }));
         show(
           ctx,
@@ -197,7 +217,7 @@ export function whiteboardAgentTools(
       displayName: "修改当前白板",
       risk: "write",
       description:
-        "原子提交操作数组。shape/text 填 geometry 和 text，connect 的 from/to 可指向本批先创建的临时 ID。move 带读取的 before 和新 geometry；label 带 beforeText 和 text；delete 单独提交并带 beforeRevision。重试复用 requestId。",
+        "原子提交普通白板操作。思维导图的父子节点、布局与分支必须使用 apply_whiteboard_mindmap_operations，不能用 text+connect 模拟导图节点。shape/text 填 geometry 和 text，connect 的 from/to 可指向本批先创建的临时 ID。move 带读取的 before 和新 geometry；label 带 beforeText 和 text；delete 单独提交并带 beforeRevision。重试复用 requestId。",
       parameters: parameters(
         {
           target: string,
@@ -212,6 +232,36 @@ export function whiteboardAgentTools(
         const valid = board.captureSubmission();
         const checkWrite = () => {
           check(ctx);
+          if (args.domain === "mindmap" && Array.isArray(args.operations)) {
+            const nodes = mindIndex(page()).nodes;
+            const busy = new Set(board.isEditingElements);
+            const touched = args.operations.flatMap(op =>
+              op && typeof op === "object"
+                ? [
+                    op.id,
+                    op.parentId,
+                    op.sourceId,
+                    op.from,
+                    op.to,
+                    ...(Array.isArray(op.nodeIds) ? op.nodeIds : []),
+                  ].filter((id): id is string => typeof id === "string")
+                : []
+            );
+            const editing = touched.flatMap(id => {
+              const node = nodes.get(id);
+              return node
+                ? pageElements([node])
+                    .filter(child => busy.has(child.id))
+                    .map(child => child.id)
+                : [];
+            });
+            if (editing.length)
+              mindError("CANVAS_BUSY", "受影响分支中有节点正在编辑", {
+                elementIds: [...new Set(editing)],
+                retry: "after_interaction",
+                suggestion: "等待用户结束这些节点的编辑，再重新读取并提交。",
+              });
+          }
           if (
             !valid() ||
             !writable() ||
@@ -245,18 +295,59 @@ export function whiteboardAgentTools(
             requestId: args.requestId,
             pageId,
             operations: args.operations,
+            ...(args.domain === "mindmap"
+              ? {
+                  domain: "mindmap" as const,
+                  preconditions: args.preconditions as
+                    | import("../../../shared/whiteboard-mindmap").MindPrecondition[]
+                    | undefined,
+                }
+              : {}),
           },
           signal
         );
+        if (
+          args.domain === "mindmap" &&
+          (result.error || result.projectedRevision < result.operationRevision)
+        )
+          mindError("PROJECTION_PENDING", "白板操作已记入耐久日志，投影尚未完成", {
+            commitStatus: "saved",
+            retry: "same_request",
+            actual: {
+              ids: result.ids,
+              revision: result.operationRevision,
+              projectedRevision: result.projectedRevision,
+              error: result.error,
+            },
+            suggestion: "保留原 requestId、前提和操作原样重试，让投影恢复；不要重新创建节点。",
+          });
         if (result.error || result.projectedRevision < result.operationRevision)
           throw new Error("白板已记录，投影待恢复；请用原请求 ID 重试：" + (result.error ?? ""));
         if (!lifetime.aborted) {
           try {
             await client.observeRevision(result.operationRevision);
           } catch (error) {
+            if (args.domain === "mindmap")
+              mindError("PRESENTATION_PENDING", "导图已保存，但画布尚未确认显示该修订", {
+                commitStatus: "saved",
+                retry: "same_request",
+                actual: {
+                  ids: result.ids,
+                  revision: result.operationRevision,
+                  cause: error instanceof Error ? error.message : String(error),
+                },
+                suggestion: "使用原 requestId 和原参数重试确认显示，不要另建相同节点。",
+              });
             throw new Error("白板已保存，但画布尚未确认显示；可按原请求 ID 重试：" + String(error));
           }
         }
+        if (args.domain === "mindmap" && lifetime.aborted)
+          mindError("TARGET_RELEASED_AFTER_SAVE", "导图已保存，原画布视图已释放", {
+            commitStatus: "saved",
+            retry: "refresh_context",
+            actual: { ids: result.ids, revision: result.operationRevision },
+            suggestion: "不要重复创建。重新打开白板并读取这些 ID，确认已保存结果。",
+          });
         show(
           ctx,
           args.operations.map(o => result.ids[o.id] ?? o.id).filter(id => typeof id === "string")
@@ -271,5 +362,102 @@ export function whiteboardAgentTools(
         };
       },
     },
+  ];
+  const write = tools.find(tool => tool.name === "apply_whiteboard_operations");
+  if (!write) throw new Error("缺少白板写入工具");
+  return [
+    ...tools,
+    ...mindmapAgentTools({
+      check,
+      target,
+      page,
+      model: client.model,
+      selected: () => binding.board?.selection?.selectedElements.map(node => node.id) ?? [],
+      revision: () => client.getSnapshot().revision,
+      defaults: () => ({
+        themeId: getPaletteById(MindThemeUtil.getDefaultThemeId()).id,
+        themeStyle: MindThemeUtil.getDefaultThemeStyle(),
+        layout: MindThemeUtil.getDefaultLayout(),
+      }),
+      mapDefaults: id => {
+        const index = mindIndex(page()),
+          rootId = index.roots.get(id),
+          root = rootId && index.nodes.get(rootId);
+        if (!root)
+          mindError("MINDMAP_NOT_FOUND", "找不到要保存默认值的导图", {
+            elementIds: [id],
+            retry: "reread",
+            suggestion: "读取目标导图后重试。",
+          });
+        const theme = MindThemeUtil.getThemeOf({
+          themeId: typeof root.data.themeId === "string" ? root.data.themeId : undefined,
+          themeStyle: typeof root.data.themeStyle === "string" ? root.data.themeStyle : undefined,
+        });
+        return {
+          themeId: getPaletteById(theme.themeId).id,
+          themeStyle: MindThemeUtil.resolveStyle(theme.themeStyle),
+          layout: resolveMindLayoutId(root.data.layout),
+        };
+      },
+      saveDefaults: value =>
+        MindThemeUtil.saveDefault(value.themeId, value.themeStyle, value.layout),
+      openImageExport: ids => {
+        const board = binding.board;
+        if (!board || lifetime.aborted)
+          mindError("TARGET_EXPIRED", "原画布视图已释放", {
+            retry: "refresh_context",
+            suggestion: "重新打开目标白板。",
+          });
+        board.emit("tau.modal.open", {
+          type: "export-image",
+          action: "selection",
+          selectedElementIds: ids,
+        });
+      },
+      openNote: async (id, ctx) => {
+        const node = mindIndex(page()).nodes.get(id);
+        if (!node?.entity || node.entity.kind !== "content")
+          mindError("NO_LINKED_NOTE", "该节点没有可打开的原生笔记关联", {
+            elementIds: [id],
+            suggestion: "先通过 note 操作关联已有笔记，或使用笔记工具创建后关联。",
+          });
+        const contentId = await resolveWhiteboardEntity(client.target.databaseName, node.entity);
+        const board = check(ctx);
+        if (contentId === null)
+          mindError("NOTE_NOT_FOUND", "当前资料库找不到关联笔记", {
+            elementIds: [id],
+            retry: "reread",
+            suggestion: "检查笔记是否已删除或属于其他资料库；保留原导图内容。",
+          });
+        board.emit(
+          "tau.note.open",
+          contentId,
+          typeof node.data.contentTitle === "string" ? node.data.contentTitle : ""
+        );
+      },
+      geometry: id => {
+        const nodes = [...(binding.board?.children ?? [])];
+        while (nodes.length) {
+          const node = nodes.pop();
+          if (!node) continue;
+          if (node.id === id)
+            return {
+              x: node.x,
+              y: node.y,
+              width: node.width,
+              height: node.height,
+              rotation: node.rotation ?? 0,
+            };
+          if (node.children) nodes.push(...node.children);
+        }
+      },
+      flush: () => client.flush(),
+      show,
+      write: async (args, ctx) => {
+        const result = await write.executor({ ...args, domain: "mindmap" }, ctx);
+        if (!result || typeof result === "string") throw new Error("白板写入没有返回结构化回执");
+        return result;
+      },
+    }),
   ];
 }

@@ -16,6 +16,8 @@ import {
   simpleLabel,
   type AgentBoardRequest,
 } from "../../../../shared/whiteboard-agent";
+import { mindError } from "../../../../shared/whiteboard-mindmap";
+import { MindmapAgentCandidate } from "./mindmap-agent";
 
 const digest = (value: unknown) =>
   createHash("sha256").update(canonicalContractJson(value)).digest("base64url");
@@ -43,17 +45,49 @@ export function identifyAgentBatch(req: AgentBoardRequest) {
     throw new Error("白板操作批次无效");
   const bytes = Buffer.byteLength(JSON.stringify(req));
   if (bytes > WHITEBOARD_LIMITS.batchBytes) throw new Error("白板操作批次超限");
-  const prefix = "agent:" + digest([req.pageId, req.owner, key(req.requestId)]) + ":";
+  const prefix =
+    "agent:" +
+    digest(
+      req.domain === "mindmap"
+        ? ["mindmap", req.pageId, req.owner, key(req.requestId)]
+        : [req.pageId, req.owner, key(req.requestId)]
+    ) +
+    ":";
   const ids = new Map<string, string>();
   for (const op of req.operations) {
     if (!op || typeof op !== "object") throw new Error("白板操作无效");
-    if (["shape", "text", "connect"].includes(String(op.kind))) {
+    const create =
+      req.domain === "mindmap"
+        ? ["insert", "copy"].includes(String(op.kind)) ||
+          (["summary", "boundary", "relation"].includes(String(op.kind)) &&
+            (op.action === undefined || op.action === "create"))
+        : ["shape", "text", "connect"].includes(String(op.kind));
+    if (create) {
       const alias = key(op.id);
-      if (ids.has(alias)) throw new Error("批次内的临时名称重复");
+      if (ids.has(alias)) {
+        if (req.domain === "mindmap")
+          mindError("DUPLICATE_ID", "批次内创建操作的临时名称重复", {
+            path: "operations.id",
+            actual: alias,
+            suggestion: "为每个创建操作使用不同的临时 id；已有对象的修改仍使用原始 ID。",
+          });
+        throw new Error("批次内的临时名称重复");
+      }
       ids.set(alias, "agent-" + digest([prefix, alias]));
     }
   }
-  return { prefix, batchId: prefix + digest(req.operations), ids, bytes };
+  return {
+    prefix,
+    batchId:
+      prefix +
+      digest(
+        req.domain === "mindmap"
+          ? { operations: req.operations, preconditions: req.preconditions ?? [] }
+          : req.operations
+      ),
+    ids,
+    bytes,
+  };
 }
 
 const prepare = async () => ({
@@ -63,6 +97,7 @@ const prepare = async () => ({
     kind: "block",
     dataVersion: 1,
   }),
+  link: await prepareContentContract("tau.link", { type: "link", kind: "inline", dataVersion: 1 }),
 });
 let contracts: ReturnType<typeof prepare> | undefined;
 export const agentContracts = () =>
@@ -127,12 +162,30 @@ function updateConnectedArrows(
   }
 }
 
-export function editAgentCandidate(
+export async function editAgentCandidate(
   model: WhiteboardModel,
   req: AgentBoardRequest,
   ids: Map<string, string>,
-  { builtins, paragraph }: Awaited<ReturnType<typeof prepare>>
+  contracts: Awaited<ReturnType<typeof prepare>>,
+  notes?: {
+    reference: (
+      contentId: number
+    ) => import("@tau/db-schema/content-identities").ContentEntityReference;
+    resolve: (
+      entity: import("@tau/db-schema/content-identities").ContentEntityReference
+    ) => number | null;
+  }
 ) {
+  if (req.domain === "mindmap")
+    return new MindmapAgentCandidate(
+      model,
+      req,
+      ids,
+      contracts,
+      notes?.reference,
+      notes?.resolve
+    ).execute();
+  const { builtins, paragraph } = contracts;
   const page = model.read().pages.find(p => p.id === req.pageId);
   if (!page) throw new Error("目标页面已失效");
   const existing = new Map(pageElements(page.children).map(node => [node.id, node]));
