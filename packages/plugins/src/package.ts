@@ -1,6 +1,7 @@
 export { assertLocalId } from "./ids.ts";
 import { comparePluginVersions } from "./version.ts";
 import type { PluginCategory } from "./categories.ts";
+import type { PluginManifestI18n } from "./catalog-i18n.ts";
 import type { PluginPermission } from "./permissions.ts";
 import { validateBackendManifest, type PluginBackendManifest } from "./backend-manifest.ts";
 import { readPluginMetadata, readPluginFilePath, readPluginFiles } from "./package-fields.ts";
@@ -14,6 +15,11 @@ export {
 
 export { comparePluginVersions } from "./version.ts";
 export { PLUGIN_CATEGORIES, isPluginCategory, type PluginCategory } from "./categories.ts";
+export {
+  parseLocalizedReadmeFilename,
+  type PluginLocalizedMetadata,
+  type PluginManifestI18n,
+} from "./catalog-i18n.ts";
 export { PLUGIN_PERMISSIONS, isPluginPermission, type PluginPermission } from "./permissions.ts";
 export { PLUGIN_AI_CAPABILITIES, isPluginAICapability } from "./ai.ts";
 
@@ -48,6 +54,10 @@ export interface LegacyPluginManifest {
   categories?: readonly PluginCategory[];
   /** 仅参与搜索匹配。 */
   keywords?: readonly string[];
+  /** 可选多语言展示资料（名称、简介、关键词），未命中时回退顶层字段。 */
+  i18n?: PluginManifestI18n;
+  /** 作者可选声明的插件支持语言（BCP 47），仅在详情页有值时展示。 */
+  locales?: readonly string[];
   /** 可申请的业务数据权限上限；实际授权由用户在调用时决定。 */
   permissions?: readonly PluginPermission[];
   /** 包内 `skills/<id>/` 目录，随插件启停。 */

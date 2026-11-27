@@ -1,5 +1,13 @@
 # 更新记录
 
+## 0.63.0
+
+- 独立待办可以读写标签、优先级、开始时间和父待办，按父项查询直接子项，通过正文引用读写描述。完成普通独立待办时可指定实际完成时间。独立待办与持久日程可配置多个提醒，正文待办仍只支持单提醒。用法见 [待办与日程](docs/task-data.md)。
+- 独立定时日程可分别保存起止 IANA 时区。依赖时区往返的插件可先检查 `context.data.calendar.supportsTimeZones`，再决定是否启用写入。
+- 原生桌面与移动客户端提供 `context.secrets`，用于按插件和工作区保存本机凭据；卸载默认保留插件数据。见 [本机凭据](docs/storage-and-network.md#本机凭据)。
+- 插件可用 `defineI18n`、`useI18n` 和 `context.i18n` 提供界面词典；命令、页面、设置、侧栏、动作、Notebook 输出、MCP 和提供方表单支持声明式翻译。见 [界面语言](docs/ui-components.md#界面语言)。
+- 包清单可声明多语言名称、简介、关键词与支持的语言，并随包附上分语言 README。博客模板可用静态 JSON 词典翻译站点设置字段。见 [发布与更新](docs/release.md)和[博客模板](docs/blog-templates.md)。
+
 ## 0.62.0
 
 - 待办、日程、待办项目与日历目录统一为带 ID 的对象创建/修改/删除事件，使用现有 context.events.on；移除 `todos.changed` / `calendar.changed`，改用 `todo.*`、`event.*`、`todo-list.*`、`calendar.*` 的完整对象事件名；回调按订阅类型推导对象身份。

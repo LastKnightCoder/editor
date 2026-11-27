@@ -6,6 +6,16 @@ import { isPluginCategory } from "./categories.ts";
 import { comparePluginVersions } from "./version.ts";
 import { PLUGIN_AI_CAPABILITIES, isPluginAICapability } from "./ai.ts";
 import { packageTargets } from "./unified.ts";
+import type { PluginManifestI18n } from "./catalog-i18n.ts";
+export {
+  parseLocalizedReadmeFilename,
+  resolvePluginMetadata,
+  resolvePluginReadme,
+  pluginSearchTerms,
+  formatPluginLocales,
+  type PluginLocalizedMetadata,
+  type PluginManifestI18n,
+} from "./catalog-i18n.ts";
 
 /** 分发契约供中心与客户端消费，不属于插件运行时能力。 */
 export type DesktopDistributionManifest = Extract<DistributionManifest, { platform: "desktop" }> & {
@@ -61,7 +71,12 @@ export interface CenterVersion {
 }
 export interface CenterRelease extends CenterVersion {
   pluginId: string;
-  content: { manifest: CenterManifest; readme: string; changelog: string | null };
+  content: {
+    manifest: CenterManifest;
+    readme: string;
+    readmes?: Readonly<Record<string, string>>;
+    changelog: string | null;
+  };
   publisher: { login: string; avatarUrl: string };
   repository: string;
   commit: string;
@@ -73,6 +88,8 @@ export interface CenterCatalogEntry {
   description: string;
   categories: readonly PluginCategory[];
   keywords: readonly string[];
+  i18n?: PluginManifestI18n;
+  locales?: readonly string[];
   publisher: CenterRelease["publisher"];
   repository: string;
   downloadsTotal: number;

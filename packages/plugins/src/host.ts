@@ -1232,6 +1232,8 @@ export interface PluginInfo {
   error?: string;
   /** manifest 声明的业务数据权限上限 */
   permissions?: readonly PluginPermission[];
+  i18n?: import("./catalog-i18n").PluginManifestI18n;
+  locales?: readonly string[];
 }
 
 interface Activation {
@@ -1257,7 +1259,17 @@ type PluginMetadata = Pick<PluginDefinition, "id" | "name" | "version" | "apiVer
   readonly permissions?: readonly PluginPermission[];
   /** manifest 声明的包内 Skill 目录；Skill 由宿主从包文件读取，这里只计入贡献。 */
   readonly skills?: readonly string[];
+  /** manifest 传入多语言展示元信息；registerTrusted 传入的 PluginDefinition.i18n 为运行时词典，不作为展示元信息。 */
+  readonly i18n?: import("./catalog-i18n").PluginManifestI18n | I18nDefinition;
+  readonly locales?: readonly string[];
 };
+type StoredPluginMetadata = Omit<PluginMetadata, "i18n"> & {
+  readonly i18n?: import("./catalog-i18n").PluginManifestI18n;
+};
+const isManifestI18n = (
+  value: PluginMetadata["i18n"]
+): value is import("./catalog-i18n").PluginManifestI18n =>
+  Boolean(value && typeof value === "object" && !("fallbackLocale" in value && "resources" in value));
 type WindowBinding = (
   context: PluginContext,
   definition: Omit<PluginDefinition, "windows"> & {
@@ -1274,7 +1286,7 @@ type WindowBinding = (
 type DefinitionResolver = (signal: AbortSignal) => PluginDefinition | Promise<PluginDefinition>;
 
 interface Entry {
-  metadata: PluginMetadata;
+  metadata: StoredPluginMetadata;
   resolveDefinition: DefinitionResolver;
   bindWindows?: WindowBinding;
   state: PluginState;
@@ -1556,6 +1568,10 @@ export class PluginHost {
           ? { permissions: Object.freeze([...definition.permissions]) }
           : {}),
         ...(definition.skills?.length ? { skills: Object.freeze([...definition.skills]) } : {}),
+        ...(isManifestI18n(definition.i18n) ? { i18n: structuredClone(definition.i18n) } : {}),
+        ...(definition.locales?.length
+          ? { locales: Object.freeze([...definition.locales]) }
+          : {}),
       }),
       resolveDefinition,
       bindWindows,
@@ -1585,6 +1601,8 @@ export class PluginHost {
       ...(error === undefined ? {} : { error }),
       ...(metadata.permissions ? { permissions: metadata.permissions } : {}),
       ...(metadata.backend ? { backend: structuredClone(metadata.backend) } : {}),
+      ...(metadata.i18n ? { i18n: metadata.i18n } : {}),
+      ...(metadata.locales ? { locales: metadata.locales } : {}),
     }));
   }
 

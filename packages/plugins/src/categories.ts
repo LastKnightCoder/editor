@@ -1,3 +1,9 @@
+import {
+  readManifestI18n,
+  readManifestLocales,
+  type PluginManifestI18n,
+} from "./catalog-i18n.ts";
+
 /** 插件中心分类按扩展点划分，顺序即展示顺序；新增面向用户的扩展点时同步扩充。 */
 export const PLUGIN_CATEGORIES = [
   { id: "sync", label: "同步" },
@@ -23,6 +29,8 @@ export const isPluginCategory = (value: unknown): value is PluginCategory =>
 export interface PluginCatalogFields {
   categories?: readonly PluginCategory[];
   keywords?: readonly string[];
+  i18n?: PluginManifestI18n;
+  locales?: readonly string[];
 }
 
 /** 分类使用产品词表，关键词保留有效文本并去重。 */
@@ -46,8 +54,13 @@ export function readCatalogFields(item: Record<string, unknown>): PluginCatalogF
     else if (!keywords.includes(keyword)) keywords.push(keyword);
   }
 
+  const i18n = readManifestI18n(item.i18n);
+  const locales = readManifestLocales(item.locales);
+
   return {
     ...(categories.length ? { categories: Object.freeze(categories) } : {}),
     ...(keywords.length ? { keywords: Object.freeze(keywords) } : {}),
+    ...(i18n ? { i18n } : {}),
+    ...(locales ? { locales } : {}),
   };
 }

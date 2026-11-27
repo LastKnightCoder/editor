@@ -172,7 +172,18 @@ export function validateUnifiedPackageManifest(value: unknown): UnifiedPackageMa
       minAppVersion: header.targets.desktop.minAppVersion,
     });
     if (!isTemplateManifest(parsed)) throw new Error("模板清单无效");
-    const { id, name, version, apiVersion, template, integrity, categories, keywords } = parsed;
+    const {
+      id,
+      name,
+      version,
+      apiVersion,
+      template,
+      integrity,
+      categories,
+      keywords,
+      i18n,
+      locales,
+    } = parsed;
     return Object.freeze({
       id,
       name,
@@ -184,6 +195,8 @@ export function validateUnifiedPackageManifest(value: unknown): UnifiedPackageMa
       integrity,
       ...(categories ? { categories } : {}),
       ...(keywords ? { keywords } : {}),
+      ...(i18n ? { i18n } : {}),
+      ...(locales ? { locales } : {}),
     });
   }
   throw new Error("包类型无效");

@@ -117,7 +117,7 @@ export type PortablePluginManifest = LegacyPortablePluginManifest | UnifiedWebPl
 
 export interface PluginAuthorManifest extends Pick<
   PluginManifest,
-  "id" | "name" | "version" | "categories" | "keywords" | "permissions"
+  "id" | "name" | "version" | "categories" | "keywords" | "i18n" | "locales" | "permissions"
 > {
   readonly description?: string;
   readonly targets: Readonly<Partial<Record<PortablePlatform, PortablePluginTarget>>>;
@@ -144,6 +144,8 @@ export function buildPortablePluginManifest(
     description: item.description,
     categories: item.categories,
     keywords: item.keywords,
+    i18n: item.i18n,
+    locales: item.locales,
     permissions: item.permissions,
     formatVersion: 3,
     apiVersion: 1,
