@@ -386,6 +386,13 @@
       "port": 8863
     },
     {
+      "name": "quick-create-mock",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8864", "--bind", "127.0.0.1", "-d", "."],
+      "port": 8864,
+      "url": "http://localhost:8864"
+    },
+    {
       "name": "query-db-mock",
       "runtimeExecutable": "python3",
       "runtimeArgs": [
@@ -398,6 +405,20 @@
         "apps/desktop/mockups/query-database"
       ],
       "port": 8797
+    },
+    {
+      "name": "mindmap-mock",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8861",
+        "--bind",
+        "127.0.0.1",
+        "-d",
+        "apps/desktop/mockups"
+      ],
+      "port": 8861
     }
   ]
 }
