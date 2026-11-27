@@ -136,7 +136,7 @@ export function useMapInsights(
       },
       onError: error => {
         setView(data?.global ? "on" : "off");
-        toast.error(...insightsFailure("insights.analyzeFailed", error));
+        toast.error(insightsFailure("insights.analyzeFailed", error));
       },
     });
   }, [analyze, data]);
@@ -216,7 +216,7 @@ export function useMapInsights(
 
   const open = (end: KnowledgeEndpoint) => {
     openEntity(end.ref, { at: { block: end.block } }).catch(error =>
-      toast.error(...insightsFailure("insights.openFailed", error))
+      toast.error(insightsFailure("insights.openFailed", error))
     );
   };
 
@@ -225,10 +225,10 @@ export function useMapInsights(
       const [a, b] = mark.ends;
       linkCardsMutually(a.ref.id, b.ref.id)
         .then(() => {
-          toast.success(...insightsFeedback("insights.connected", { a: a.title, b: b.title }));
+          toast.success(insightsFeedback("insights.connected", { a: a.title, b: b.title }));
           resolveTo(mark.id, "linked");
         })
-        .catch(error => toast.error(...insightsFailure("insights.connectFailed", error)));
+        .catch(error => toast.error(insightsFailure("insights.connectFailed", error)));
       return;
     }
     // 有一端是长文：到那篇里、只画这一处，在那几个字上连（content-link），结果回写到这一条
@@ -256,7 +256,7 @@ export function useMapInsights(
         setWalking(false);
         setCurrent(null);
       })
-      .catch(error => toast.error(...insightsFailure("insights.writeFailed", error)));
+      .catch(error => toast.error(insightsFailure("insights.writeFailed", error)));
   };
 
   /** 矛盾与「可以继续想」：带着涉及的笔记开一个对话，用户发出后标为已处理 */

@@ -22,13 +22,11 @@ export function insightsFeedback(
   values?: TranslationValues
 ) {
   const params = values && Object.freeze({ ...values });
-  const getMessage = () => insightsTranslator.t(key, params);
-  return [getMessage(), { getMessage }] as const;
+  return () => insightsTranslator.t(key, params);
 }
 export function insightsFailure(key: Parameters<InsightsTranslate>[0], error: unknown) {
   const raw = error instanceof Error ? error.message : undefined;
-  const getMessage = () => raw ?? insightsTranslator.t(key);
-  return [getMessage(), { getMessage }] as const;
+  return () => raw ?? insightsTranslator.t(key);
 }
 export function insightPhaseText(
   phase: ContentInsightsPhase | null,

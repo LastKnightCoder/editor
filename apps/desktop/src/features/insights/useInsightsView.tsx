@@ -137,7 +137,7 @@ export function useInsightsView({
       onSuccess: () => setView("on"),
       onError: error => {
         setView("off");
-        toast.error(...insightsFailure("insights.analyzeFailed", error));
+        toast.error(insightsFailure("insights.analyzeFailed", error));
       },
     });
   }, [analyze, getEditor, insights]);
@@ -150,7 +150,7 @@ export function useInsightsView({
       onSuccess: () => setView("on"),
       onError: error => {
         setView("on");
-        toast.error(...insightsFailure("insights.analyzeFailed", error));
+        toast.error(insightsFailure("insights.analyzeFailed", error));
       },
     });
   }, [analyze]);
@@ -183,11 +183,11 @@ export function useInsightsView({
   const connect = (mark: InsightMark) => {
     const editor = getEditor();
     if (!editor || !connectInsightMark(editor, mark)) {
-      toast.warning(...insightsFeedback("insights.anchorMissing"));
+      toast.warning(insightsFeedback("insights.anchorMissing"));
       return;
     }
     setFreshLink(mark.id);
-    toast.success(...insightsFeedback("insights.connected", { count: contextCount(context) + 1 }));
+    toast.success(insightsFeedback("insights.connected", { count: contextCount(context) + 1 }));
     resolveTo(mark, "linked");
   };
 
@@ -195,7 +195,7 @@ export function useInsightsView({
   const write = (mark: InsightMark) => {
     const editor = getEditor();
     if (!editor || !editor.children[mark.block]) {
-      toast.warning(...insightsFeedback("insights.blockMissing"));
+      toast.warning(insightsFeedback("insights.blockMissing"));
       return;
     }
     resolveTo(mark, "linked");
@@ -243,7 +243,7 @@ export function useInsightsView({
   const openTarget = (mark: InsightMark) => {
     if (!mark.target) return;
     openEntity(mark.target.ref, { at: { block: mark.target.block } }).catch(error =>
-      toast.error(...insightsFailure("insights.openFailed", error))
+      toast.error(insightsFailure("insights.openFailed", error))
     );
   };
 
@@ -358,7 +358,7 @@ export function useInsightsView({
         setAnchorEl(el);
         if (el && focus) el.scrollIntoView({ block: "center" });
         if (!el) {
-          toast.warning(...insightsFeedback("insights.blockMissing"));
+          toast.warning(insightsFeedback("insights.blockMissing"));
           if (!walking) setCurrent(null);
         }
         return;

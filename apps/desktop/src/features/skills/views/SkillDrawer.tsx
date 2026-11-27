@@ -77,7 +77,7 @@ function useSkillContent(item: SkillItem | null) {
       .catch(
         error =>
           alive &&
-          toast.error(...skillsFeedback("skills.readFailed", { reason: (error as Error).message }))
+          toast.error(skillsFeedback("skills.readFailed", { reason: (error as Error).message }))
       );
     return () => {
       alive = false;
@@ -226,9 +226,9 @@ function SettingsPane({
         filters: [{ name: t("skills.zipFilter"), extensions: ["zip"] }],
         data,
       });
-      if (!result.canceled) toast.success(...skillsFeedback("skills.exported"));
+      if (!result.canceled) toast.success(skillsFeedback("skills.exported"));
     } catch (error) {
-      toast.error(...skillsFeedback("skills.exportFailed", { reason: (error as Error).message }));
+      toast.error(skillsFeedback("skills.exportFailed", { reason: (error as Error).message }));
     }
   };
 

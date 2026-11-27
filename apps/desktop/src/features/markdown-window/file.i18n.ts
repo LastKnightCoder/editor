@@ -18,6 +18,5 @@ export function markdownFileFeedback(
   values?: TranslationValues
 ) {
   const params = values && Object.freeze({ ...values });
-  const getMessage = () => markdownFileTranslator.t(key, params);
-  return [getMessage(), { getMessage }] as const;
+  return () => markdownFileTranslator.t(key, params);
 }

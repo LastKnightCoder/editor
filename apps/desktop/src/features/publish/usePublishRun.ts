@@ -83,7 +83,7 @@ export function usePublishRun(config: PublishConfig) {
       setPlanStale(false);
     } catch (error) {
       if (seq !== planSeq.current) return;
-      toast.error(...executionFeedback("plan.failed", { error: String(error) }));
+      toast.error(executionFeedback("plan.failed", { error: String(error) }));
     } finally {
       if (seq === planSeq.current) setPlanLoading(false);
     }
@@ -140,7 +140,7 @@ export function usePublishRun(config: PublishConfig) {
         targetDir = paths[0];
       } catch (error) {
         if (error instanceof Error && error.message === "User canceled file selection") return;
-        toast.error(...executionFeedback("directory.failed", { error: String(error) }));
+        toast.error(executionFeedback("directory.failed", { error: String(error) }));
         return;
       }
     }

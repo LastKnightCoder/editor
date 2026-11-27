@@ -11,6 +11,5 @@ export function whiteboardFeedback(
 ) {
   const translator = whiteboardRuntime(board).get(whiteboardMessages);
   const parameters = values && Object.freeze({ ...values });
-  const getMessage = () => translator.t(key, parameters);
-  return [getMessage(), { getMessage }] as const;
+  return () => translator.t(key, parameters);
 }

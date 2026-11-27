@@ -20,10 +20,8 @@ export function assistantFeedback(
   values?: TranslationValues
 ) {
   const parameters = values && Object.freeze({ ...values });
-  const getMessage = () => assistantToolTranslator.t(key, parameters);
-  return [getMessage(), { getMessage }] as const;
+  return () => assistantToolTranslator.t(key, parameters);
 }
 export function assistantFailure(key: Parameters<AssistantToolTranslate>[0], rawMessage?: string) {
-  const getMessage = () => rawMessage ?? assistantToolTranslator.t(key);
-  return [getMessage(), { getMessage }] as const;
+  return () => rawMessage ?? assistantToolTranslator.t(key);
 }

@@ -18,12 +18,10 @@ export function reviewFeedback(
   values?: TranslationValues
 ) {
   const parameters = values && Object.freeze({ ...values });
-  const getMessage = () => reviewToolTranslator.t(key, parameters);
-  return [getMessage(), { getMessage }] as const;
+  return () => reviewToolTranslator.t(key, parameters);
 }
 export function reviewFailure(key: Parameters<ReviewToolTranslate>[0], rawMessage?: string) {
-  const getMessage = () => rawMessage ?? reviewToolTranslator.t(key);
-  return [getMessage(), { getMessage }] as const;
+  return () => rawMessage ?? reviewToolTranslator.t(key);
 }
 
 export function reviewSyntheticLabel(

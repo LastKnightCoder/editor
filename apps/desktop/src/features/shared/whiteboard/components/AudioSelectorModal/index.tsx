@@ -52,9 +52,7 @@ const AudioSelectorModal = ({ open, onClose, board, action }: AudioSelectorModal
   const handleAddAudio = useMemoizedFn(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      const toastId = toast.loading(whiteboardAvT("processing.audio"), {
-        getMessage: () => whiteboardAvT("processing.audio"),
-      });
+      const toastId = toast.loading(() => whiteboardAvT("processing.audio"));
       try {
         await AudioUtil.insertAudio(file, board, whiteboardMedia(board));
       } finally {
@@ -77,9 +75,7 @@ const AudioSelectorModal = ({ open, onClose, board, action }: AudioSelectorModal
   });
 
   const handleTTSConfirm = useMemoizedFn(async (audioBlob: Blob, text: string) => {
-    const toastId = toast.loading(whiteboardAvT("saving.audio"), {
-      getMessage: () => whiteboardAvT("saving.audio"),
-    });
+    const toastId = toast.loading(() => whiteboardAvT("saving.audio"));
     try {
       await AudioUtil.insertAudioFromTTS(audioBlob, text, board, whiteboardMedia(board));
       setTTSModalOpen(false);

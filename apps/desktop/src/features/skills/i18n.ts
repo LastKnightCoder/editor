@@ -17,8 +17,7 @@ export function useSkillsI18n() {
 }
 export function skillsFeedback(key: Parameters<SkillsTranslate>[0], values?: TranslationValues) {
   const parameters = values && Object.freeze({ ...values });
-  const getMessage = () => skillsTranslator.t(key, parameters);
-  return [getMessage(), { getMessage }] as const;
+  return () => skillsTranslator.t(key, parameters);
 }
 export function skillWarning(item: SkillItem, t: SkillsTranslate): string {
   switch (item.warning?.code) {

@@ -589,7 +589,7 @@ export function AddSkillDialog({
 
   const generate = () => {
     if (!provider || !model) {
-      toast.error(...workbenchFeedback("workbench.modelRequired"));
+      toast.error(workbenchFeedback("workbench.modelRequired"));
       return;
     }
     setDraft("");
@@ -619,7 +619,7 @@ export function AddSkillDialog({
           skillWorkbenchTranslator.t("workbench.draftFailed", {
             reason: result.error ?? skillWorkbenchTranslator.t("workbench.modelFailed"),
           });
-        toast.error(getMessage(), { getMessage });
+        toast.error(getMessage);
       }
     });
   };
@@ -657,7 +657,7 @@ export function AddSkillDialog({
     const imported = await commitSkillImport(inspection.token, items);
     setInspection(null);
     await useSkillStore.getState().loadSkills();
-    toast.success(...workbenchFeedback("workbench.imported", { count: imported.length }));
+    toast.success(workbenchFeedback("workbench.imported", { count: imported.length }));
     close();
   };
 

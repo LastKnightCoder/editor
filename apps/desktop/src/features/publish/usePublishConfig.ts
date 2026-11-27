@@ -168,7 +168,7 @@ export function usePublishConfig() {
       const filePath = paths[0];
       const extension = normalizePublishFaviconExtension(await getFileExtension(filePath));
       if (!extension) {
-        toast.error(...publishFeedback("favicon.format"));
+        toast.error(publishFeedback("favicon.format"));
         return;
       }
       const userDataDir = await getUserDataDir();
@@ -185,11 +185,11 @@ export function usePublishConfig() {
           format: extension,
         })
       );
-      toast.success(...publishFeedback("favicon.cached"));
+      toast.success(publishFeedback("favicon.cached"));
     } catch (error) {
       if (isUserCanceled(error)) return;
       toast.error(
-        ...publishFeedback("favicon.selectFailed", {
+        publishFeedback("favicon.selectFailed", {
           error: error instanceof Error ? error.message : String(error),
         })
       );
@@ -200,10 +200,10 @@ export function usePublishConfig() {
     try {
       await removeCachedFaviconFiles();
       setFavicon(undefined);
-      toast.success(...publishFeedback("favicon.cleared"));
+      toast.success(publishFeedback("favicon.cleared"));
     } catch (error) {
       toast.error(
-        ...publishFeedback("favicon.clearFailed", {
+        publishFeedback("favicon.clearFailed", {
           error: error instanceof Error ? error.message : String(error),
         })
       );

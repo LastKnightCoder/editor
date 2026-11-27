@@ -59,9 +59,9 @@ export async function copySkillToMine(skill: Skill): Promise<void> {
     }
     if (skill.readmeContent !== undefined) {
       store.setEnabled(skill.folderName, false);
-      toast.success(...skillsFeedback("skills.copy.doneDisabled"));
+      toast.success(skillsFeedback("skills.copy.doneDisabled"));
     } else {
-      toast.success(...skillsFeedback("skills.copy.done"));
+      toast.success(skillsFeedback("skills.copy.done"));
     }
   } catch (error) {
     const reason = () =>
@@ -74,6 +74,6 @@ export async function copySkillToMine(skill: Skill): Promise<void> {
           ? error.message
           : String(error);
     const message = () => skillsTranslator.t("skills.copy.failed", { reason: reason() });
-    toast.error(message(), { getMessage: message });
+    toast.error(message);
   }
 }

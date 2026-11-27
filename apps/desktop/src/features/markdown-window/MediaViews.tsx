@@ -123,7 +123,7 @@ export function ExternalFileView({ path }: { path: string }) {
   const { revealInFileManagerLabel } = usePlatformLabels();
   const open = async () => {
     const failure = await openFileWithDefaultApp(path);
-    if (failure) toast.error(...markdownChromeFeedback("chrome.openFailed", { reason: failure }));
+    if (failure) toast.error(markdownChromeFeedback("chrome.openFailed", { reason: failure }));
   };
   return (
     <>

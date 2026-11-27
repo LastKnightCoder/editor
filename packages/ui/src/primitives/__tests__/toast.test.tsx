@@ -241,41 +241,45 @@ describe("同 key 原位替换与深色外观", () => {
   });
 });
 
-it("展示getter换语保留载入提示身份与关闭时钟，落定后不再读取载入文案", async () => {
-  const source = createLocaleStore("zh-CN");
-  const runtime = createI18nRuntime({ localeSource: source });
-  act(() =>
-    root.render(
-      <I18nRuntimeProvider runtime={runtime}>
-        <ToastHost />
-      </I18nRuntimeProvider>
-    )
-  );
-  let id = 0;
-  act(() => {
-    id = toast.loading("literal snapshot", {
-      getMessage: () => source.getSnapshot(),
-      duration: 1000,
+it.each(["函数首参", "0.7.0 双参数"])(
+  "%s 换语保留载入提示身份与关闭时钟，落定后不再读取载入文案",
+  async mode => {
+    const source = createLocaleStore("zh-CN");
+    const runtime = createI18nRuntime({ localeSource: source });
+    act(() =>
+      root.render(
+        <I18nRuntimeProvider runtime={runtime}>
+          <ToastHost />
+        </I18nRuntimeProvider>
+      )
+    );
+    let id = 0;
+    act(() => {
+      const getMessage = () => source.getSnapshot();
+      id =
+        mode === "函数首参"
+          ? toast.loading(getMessage, { duration: 1000 })
+          : toast.loading("literal snapshot", { getMessage, duration: 1000 });
     });
-  });
-  await flush();
-  const pill = document.querySelector('[role="status"]');
-  const revision = toast.items()[0].revision;
-  const timers = vi.getTimerCount();
-  for (const locale of ["zh-TW", "en-US"]) {
-    act(() => source.setLocale(locale));
-    expect(document.querySelector('[role="status"]')).toBe(pill);
-    expect(pill?.textContent).toBe(locale);
-    expect(toast.items()[0].id).toBe(id);
-    expect(toast.items()[0].message).toBe("literal snapshot");
-    expect(toast.items()[0].revision).toBe(revision);
-    expect(vi.getTimerCount()).toBe(timers);
+    await flush();
+    const pill = document.querySelector('[role="status"]');
+    const revision = toast.items()[0].revision;
+    const timers = vi.getTimerCount();
+    for (const locale of ["zh-TW", "en-US"]) {
+      act(() => source.setLocale(locale));
+      expect(document.querySelector('[role="status"]')).toBe(pill);
+      expect(pill?.textContent).toBe(locale);
+      expect(toast.items()[0].id).toBe(id);
+      expect(toast.items()[0].message).toBe(mode === "函数首参" ? "zh-CN" : "literal snapshot");
+      expect(toast.items()[0].revision).toBe(revision);
+      expect(vi.getTimerCount()).toBe(timers);
+    }
+    act(() => toast.resolve(id, "settled payload"));
+    advance(600);
+    act(() => source.setLocale("zh-TW"));
+    expect(pill?.textContent).toBe("settled payload");
+    advance(400 + LEAVE_BUFFER);
+    expect(document.querySelector('[role="status"]')).toBeNull();
+    runtime.dispose();
   }
-  act(() => toast.resolve(id, "settled payload"));
-  advance(600);
-  act(() => source.setLocale("zh-TW"));
-  expect(pill?.textContent).toBe("settled payload");
-  advance(400 + LEAVE_BUFFER);
-  expect(document.querySelector('[role="status"]')).toBeNull();
-  runtime.dispose();
-});
+);

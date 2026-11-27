@@ -437,9 +437,7 @@ export function useChatSending({
     const controller = new AbortController();
     manualCompactions.set(key, controller);
     setSessionPending(key, true);
-    const progress = message.loading(sidebarT("compact.loading"), {
-      getMessage: () => sidebarT("compact.loading"),
-    });
+    const progress = message.loading(() => sidebarT("compact.loading"));
     try {
       let sessionId = piChatSessionManager.resolveSessionId(chatScope, chat.id, chat.databaseName);
       const run = async (id: string) => {

@@ -61,7 +61,7 @@ export function ComposeCardAccessory({ element }: { element: DocumentElement }) 
     if (insertEntityLink(editor, target, { block })) {
       session.setState({ glow: null });
     } else {
-      toast.warning(...composeBoardFeedback("board.cannotInsert"));
+      toast.warning(composeBoardFeedback("board.cannotInsert"));
     }
   };
 
@@ -70,12 +70,10 @@ export function ComposeCardAccessory({ element }: { element: DocumentElement }) 
     if (!editor || !ref) return;
     const count = removeEntityLinks(editor, ref);
     if (!count) return;
-    const [message, feedback] = composeBoardFeedback(
-      count > 1 ? "board.uncitedMany" : "board.uncited",
-      { count }
-    );
+    const message = composeBoardFeedback(count > 1 ? "board.uncitedMany" : "board.uncited", {
+      count,
+    });
     toast.success(message, {
-      ...feedback,
       action: HistoryEditor.isHistoryEditor(editor)
         ? {
             get label() {

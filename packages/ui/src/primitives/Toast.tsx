@@ -25,8 +25,10 @@ import { cn } from "../cn";
 export type ToastType = "success" | "error" | "warning" | "info" | "loading";
 export type ToastPosition = "top-center" | "top-right" | "bottom-right" | "bottom-center";
 
+export type ToastMessage = string | (() => string);
+
 export interface ToastOptions {
-  /** 展示时读取；不会替换提示或重置自动关闭计时。 */
+  /** 兼容 0.7.0 的字符串快照与动态显示组合；新调用可直接传消息函数。 */
   getMessage?: () => string;
   /** 同 key 的提示只保留一条：新提示原位替换并重新计时 */
   key?: string;
@@ -93,14 +95,16 @@ export const toast = {
     Object.assign(defaults, patch);
   },
 
-  show(type: ToastType, message: string, opts: ToastOptions = {}): number {
+  show(type: ToastType, content: ToastMessage, opts: ToastOptions = {}): number {
+    const message = typeof content === "function" ? content() : content;
+    const getMessage = typeof content === "function" ? content : opts.getMessage;
     const store = useToastStore.getState();
     const same = opts.key ? store.items.find(i => i.key === opts.key) : undefined;
     if (same) {
       store.update(same.id, {
         type,
         message,
-        getMessage: opts.getMessage,
+        getMessage,
         defaultMessage: undefined,
         action: opts.action,
         duration: opts.duration ?? defaults.duration,
@@ -115,7 +119,7 @@ export const toast = {
       id,
       type,
       message,
-      getMessage: opts.getMessage,
+      getMessage,
       action: opts.action,
       position: opts.position ?? defaults.position,
       // loading 的常驻由 ToastPill 按 type 判断，不走 duration——落定（resolve / reject）
@@ -126,20 +130,20 @@ export const toast = {
     return id;
   },
 
-  success(message: string, opts?: ToastOptions) {
+  success(message: ToastMessage, opts?: ToastOptions) {
     return this.show("success", message, opts);
   },
-  error(message: string, opts?: ToastOptions) {
+  error(message: ToastMessage, opts?: ToastOptions) {
     return this.show("error", message, opts);
   },
-  warning(message: string, opts?: ToastOptions) {
+  warning(message: ToastMessage, opts?: ToastOptions) {
     return this.show("warning", message, opts);
   },
-  info(message: string, opts?: ToastOptions) {
+  info(message: ToastMessage, opts?: ToastOptions) {
     return this.show("info", message, opts);
   },
   /** 载入中常驻；结束后 resolve（转成功）或 reject（转失败），落定起按 duration 收尾 */
-  loading(message: string, opts?: ToastOptions) {
+  loading(message: ToastMessage, opts?: ToastOptions) {
     return this.show("loading", message, opts);
   },
   resolve(id: number, message?: string) {

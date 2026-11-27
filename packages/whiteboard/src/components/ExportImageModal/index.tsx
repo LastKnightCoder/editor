@@ -111,7 +111,7 @@ const ExportImageModal = (props: ExportImageModalProps) => {
     if (elements.length === 0) {
       const key =
         exportAction === "selection" ? "imageExport.emptySelection" : "imageExport.emptyBoard";
-      toast.warning(t(key), { getMessage: () => t(key) });
+      toast.warning(() => t(key));
       return;
     }
 
@@ -141,18 +141,16 @@ const ExportImageModal = (props: ExportImageModalProps) => {
         quality: 0.95,
       });
       if (!blob) {
-        toast.error(t("imageExport.rangeFailed"), {
-          getMessage: () => t("imageExport.rangeFailed"),
-        });
+        toast.error(() => t("imageExport.rangeFailed"));
         return;
       }
 
       downloadBlobAsFile(blob, createExportFilename(exportAction));
-      toast.success(t("imageExport.success"), { getMessage: () => t("imageExport.success") });
+      toast.success(() => t("imageExport.success"));
       onClose();
     } catch (error) {
       console.error("Export whiteboard image failed:", error);
-      toast.error(t("imageExport.failed"), { getMessage: () => t("imageExport.failed") });
+      toast.error(() => t("imageExport.failed"));
     } finally {
       board.apply(
         {

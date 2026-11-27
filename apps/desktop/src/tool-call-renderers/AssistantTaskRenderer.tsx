@@ -150,15 +150,15 @@ function AssistantResult({
       );
       setReceipt(result);
       if (result.status === "failed")
-        toast.error(...assistantFailure("assistant.failed", result.error?.message));
+        toast.error(assistantFailure("assistant.failed", result.error?.message));
       else if (result.status === "pending")
-        toast.info(...assistantFeedback("assistant.pendingFeedback"));
+        toast.info(assistantFeedback("assistant.pendingFeedback"));
       await queryClient.invalidateQueries({
         queryKey: ["task-assistant", initial.databaseName.replace(/\.db$/, "")],
       });
     } catch (error) {
       toast.error(
-        ...assistantFailure(
+        assistantFailure(
           "assistant.receiptFailed",
           error instanceof Error ? error.message : undefined
         )

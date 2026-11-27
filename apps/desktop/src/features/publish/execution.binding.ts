@@ -8,8 +8,7 @@ export function executionFeedback(
   values?: TranslationValues
 ) {
   const params = values && Object.freeze({ ...values });
-  const getMessage = () => executionTranslator.t(key, params);
-  return [getMessage(), { getMessage }] as const;
+  return () => executionTranslator.t(key, params);
 }
 export function publishRunErrorText(run: Extract<RunState, { kind: "error" }>): string {
   return run.issue === "template-required"
