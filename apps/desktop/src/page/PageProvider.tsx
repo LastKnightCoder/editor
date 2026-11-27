@@ -54,6 +54,7 @@ interface PageContextValue {
   registerOverlayDismiss: RegisterOverlayDismiss;
   dismissTopOverlay(): boolean;
   registerLeaveGuard: (guard: () => boolean | Promise<boolean>) => () => void;
+  registerPageCapture: (id: string, capture: () => void) => () => void;
   /** 当前栈顶页注册的面包屑（无则 undefined，Titlebar 回退到默认 label） */
   breadcrumbs: ReadonlyMap<string, ReactNode>;
   registerBreadcrumb: RegisterPageSlot;
@@ -164,17 +165,29 @@ export function PageProvider({
     []
   );
   const navigationPending = useRef(false);
+  const pageCaptures = useRef(new Map<string, () => void>());
+  const registerPageCapture = useCallback((id: string, capture: () => void) => {
+    pageCaptures.current.set(id, capture);
+    return () => {
+      if (pageCaptures.current.get(id) === capture) pageCaptures.current.delete(id);
+    };
+  }, []);
   const navigator = useMemo<Navigator>(() => {
     const request = (action: StackAction, perform = () => dispatch(action)) => {
-      const guards = [...leaveGuards.current];
-      if (!guards.length) return perform();
       const previous = stateRef.current;
       if (reducer(previous, action) === previous) return;
+      const commit = () => {
+        const id = sm.current(stateRef.current)?.id;
+        if (id) pageCaptures.current.get(id)?.();
+        perform();
+      };
+      const guards = [...leaveGuards.current];
+      if (!guards.length) return commit();
       if (navigationPending.current) return;
       navigationPending.current = true;
       void (async () => {
         for (const guard of guards) if (!(await guard())) return;
-        if (stateRef.current === previous) perform();
+        if (stateRef.current === previous) commit();
       })()
         .catch(error => console.error("页面离开守卫失败", error))
         .finally(() => {
@@ -235,6 +248,7 @@ export function PageProvider({
       registerOverlayDismiss,
       dismissTopOverlay,
       registerLeaveGuard,
+      registerPageCapture,
       breadcrumbs,
       registerBreadcrumb,
     }),
@@ -244,6 +258,7 @@ export function PageProvider({
       registerOverlayDismiss,
       dismissTopOverlay,
       registerLeaveGuard,
+      registerPageCapture,
       breadcrumbs,
       registerBreadcrumb,
     ]

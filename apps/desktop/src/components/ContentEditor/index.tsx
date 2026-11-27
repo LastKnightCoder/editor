@@ -45,6 +45,7 @@ import type { EntityType } from "@/services/content-editing";
 import type { ContentSessionTarget } from "@tau/collaboration";
 import type { Descendant } from "slate";
 import { measurePerf, registerPerfEditor, reportPerfEvent } from "@/utils/perf-trace";
+import { PageViewportContext } from "@/page/viewport";
 
 const commandContexts = new WeakMap<ReturnType<EditorRef["getEditor"]>, { contentId?: number }>();
 
@@ -68,6 +69,8 @@ type ContentEditorProps = ComponentProps<typeof Editor> & {
   contracts?: import("@tau/db-schema/content-contracts").ContentContractDictionary;
   source?: Omit<ContentSessionTarget, "contentId">;
   onLoadError?: (error: string) => void;
+  /** 当前正文重新绑定且编辑器挂载后通知，隐藏前的旧订阅不算就绪。 */
+  onReady?: (editor: ReturnType<EditorRef["getEditor"]>) => void;
   /** 声明编辑目标身份后，可写实例会注册为 AI 可感知的「当前编辑上下文」（选区/光标/内容） */
   editingContext?: { entityType: EntityType; entityId?: number | string };
 };
@@ -132,7 +135,8 @@ function withDocTaskReminderService(kit: EditorKit): EditorKit {
 }
 
 const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
-  ({ contentId, contracts, source, onLoadError, editingContext, at, ...props }, ref) => {
+  ({ contentId, contracts, source, onLoadError, onReady, editingContext, at, ...props }, ref) => {
+    const pageViewport = useContext(PageViewportContext);
     const perfEditor = useRef<ReturnType<typeof registerPerfEditor> | undefined>(undefined);
     useEffect(() => {
       const registration = registerPerfEditor(contentId);
@@ -307,6 +311,12 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
     }, [sessionError, error, document, onLoadError]);
 
     useEffect(() => {
+      if (!document || swapping || frozen || binding?.doc.isDestroyed) return;
+      const editor = editorRef.current?.getEditor();
+      if (editor && (!contentId || binding)) onReady?.(editor);
+    }, [document, binding, contentId, swapping, frozen, onReady]);
+
+    useEffect(() => {
       if (binding && article && editorRef.current) {
         trackEditingContent(article.content as Descendant[]);
         callback.current?.(article.content as Descendant[], editorRef.current.getEditor());
@@ -343,7 +353,7 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
     }
     const view = (
       <DecorationViewContext.Provider value={decorations.view}>
-        {at && !swapping && !frozen && (
+        {at && !pageViewport?.hasPosition && !swapping && !frozen && (
           <ContentLocation
             at={at}
             contentId={contentId}

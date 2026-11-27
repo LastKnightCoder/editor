@@ -1,5 +1,5 @@
 import { ProjectItem } from "@/types";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useCreation, useMemoizedFn } from "ahooks";
 import { getCardById, findOneArticle, getProjectItemById, updateProjectItem } from "@/commands";
 import { getContentLength } from "@/utils";
@@ -9,8 +9,16 @@ import { useDraggingStore } from "@/stores/useDraggingStore";
 import { defaultCardEventBus, defaultArticleEventBus } from "@/utils";
 import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
 
-const useEdit = (projectItemId: number) => {
+const useEdit = (projectItemId: number, onLoadError?: () => void) => {
   const [projectItem, setProjectItem] = useState<ProjectItem | null>(null);
+  const [loadError, setLoadError] = useState<unknown>();
+  const request = useRef(0);
+  useEffect(
+    () => () => {
+      request.current++;
+    },
+    []
+  );
   const prevProjectItem = useRef<ProjectItem | null>(null);
   const cardEventBus = useCreation(() => defaultCardEventBus.createEditor(), []);
   const articleEventBus = useCreation(() => defaultArticleEventBus.createEditor(), []);
@@ -25,10 +33,20 @@ const useEdit = (projectItemId: number) => {
       return;
     }
 
-    getProjectItemById(projectItemId).then(projectItem => {
-      setProjectItem(projectItem);
-      prevProjectItem.current = projectItem;
-    });
+    const current = ++request.current;
+    setLoadError(undefined);
+    void getProjectItemById(projectItemId)
+      .then(projectItem => {
+        if (request.current !== current) return;
+        if (!projectItem) throw new Error("CONTENT_NOT_FOUND");
+        setProjectItem(projectItem);
+        prevProjectItem.current = projectItem;
+      })
+      .catch(error => {
+        if (request.current !== current) return;
+        onLoadError?.();
+        setLoadError(error);
+      });
   }, [projectItemId]);
 
   const saveProjectItem = useMemoizedFn(async () => {
@@ -93,6 +111,7 @@ const useEdit = (projectItemId: number) => {
 
   return {
     projectItem,
+    loadError,
     saveProjectItem,
     onInit,
     onContentChange,

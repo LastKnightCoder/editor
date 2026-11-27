@@ -76,6 +76,7 @@ import {
 import AddTag from "@/components/AddTag";
 import { ConfirmDialog, IconButton, Loading, Menu, Popover, cn, toast } from "@tau/ui";
 import { usePageMarginOutlineFits } from "@/hooks/usePageMargin";
+import { useContentViewport } from "@/hooks/useContentViewport";
 import { SYMMETRIC_PAGE_GRID_STYLE } from "@/utils/pageMargin";
 
 import { loadArticleTagSuggestions, useArticleMutations } from "../queries";
@@ -117,6 +118,8 @@ export function ArticleDetailView() {
   // 本实例 params（PageHost 按栈条目注入；勿读全局栈顶——多实例保活时会串台）
   const { id, at, layout } = usePageParams<{ id: number; at?: string; layout?: string }>();
   const composing = layout === "compose";
+  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
+  const viewport = useContentViewport(scrollEl, `article:${id}`);
 
   const {
     editingArticle,
@@ -128,7 +131,8 @@ export function ArticleDetailView() {
     onTagsChange,
     saveArticle,
     setEditingArticle,
-  } = useEditArticle(id);
+    loadError,
+  } = useEditArticle(id, viewport.onLoadError);
 
   const editorRef = useRef<EditorRef>(null);
   const collaborationRef = useRef<ContentCollaborationControlHandle>(null);
@@ -158,7 +162,6 @@ export function ArticleDetailView() {
   const databaseName = useSettingStore(state => state.setting.database.active);
 
   /* 版心滚动容器：callback ref（挂载后接线目录同步与阅读进度） */
-  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
   const outlineFits = usePageMarginOutlineFits(scrollEl);
 
   const [presenting, setPresenting] = useState<Descendant[] | null>(null);
@@ -463,6 +466,7 @@ export function ArticleDetailView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingArticle, databaseName, shared, t]);
 
+  if (loadError) throw loadError;
   if (!editingArticle) {
     return <Loading />;
   }
@@ -611,6 +615,8 @@ export function ArticleDetailView() {
                             key={`${editingArticle.id}-${editorRemountKey}`}
                             initValue={editingArticle.content}
                             onInit={onInit}
+                            onReady={viewport.onReady}
+                            onLoadError={viewport.onLoadError}
                             onChange={content => {
                               onContentChange(content);
                             }}

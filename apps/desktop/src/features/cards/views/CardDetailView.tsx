@@ -67,6 +67,7 @@ import { openCardInNewWindow } from "@/commands/card";
 import { copyMarkdownToClipboard, copyWechatHtmlToClipboard, formatDate } from "@/utils";
 import { Button, ConfirmDialog, IconButton, Loading, Menu, cn, toast } from "@tau/ui";
 import { PAGE_MARGIN_INLINE_STYLE } from "@/utils/pageMargin";
+import { useContentViewport } from "@/hooks/useContentViewport";
 import { loadCardTagSuggestions, useCardDetail, useCardsMutations } from "../queries";
 import { AddContentLinkDialog } from "@/features/context/components/ContextLinks";
 import { ContextBadge } from "@/features/context/components/ContextBadge";
@@ -98,6 +99,9 @@ export function CardDetailView() {
   const mutations = useCardsMutations();
   const databaseName = useSettingStore(state => state.setting.database.active);
   const editorRef = useRef<EditorRef>(null);
+  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
+  const viewport = useContentViewport(scrollEl, `card:${id}`);
+  const { onLoadError } = viewport;
   const collaborationRef = useRef<ContentCollaborationControlHandle>(null);
   const shared = useContentShared(card?.contentId);
   /* 编辑历史页边注：与正文同纸的右栏，选中条目联动正文块标注（连接线画在纸面行容器内） */
@@ -183,6 +187,10 @@ export function CardDetailView() {
   }, [card, cardTitle, navigator, t]);
   usePageBreadcrumb("card-detail", breadcrumbNode);
 
+  useEffect(() => {
+    if (detailQuery.error || (!detailQuery.isPending && !card)) onLoadError();
+  }, [card, detailQuery.error, detailQuery.isPending, onLoadError]);
+
   if (Number.isFinite(id) && detailQuery.isPending) return <Loading />;
   if (detailQuery.error)
     return (
@@ -217,7 +225,7 @@ export function CardDetailView() {
         className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden"
       >
         <div ref={paperRowRef} className="relative flex min-h-0 flex-1">
-          <FadeScroll className="@container my-4 min-h-0 min-w-0 flex-1">
+          <FadeScroll scrollRef={setScrollEl} className="@container my-4 min-h-0 min-w-0 flex-1">
             <div className="w-full pt-6 pb-8" style={PAGE_MARGIN_INLINE_STYLE}>
               <article className="min-w-0">
                 {/* 卡头 meta：时间 · ⋯ 菜单（时间右侧）；置顶操作在列表页承担
@@ -458,6 +466,8 @@ export function CardDetailView() {
                       editingContext={{ entityType: "card", entityId: card.id }}
                       className="min-h-[80px]"
                       onInit={draft.onInit}
+                      onReady={viewport.onReady}
+                      onLoadError={viewport.onLoadError}
                       {...(draft.placeholder ? { placeHolder: draft.placeholder } : {})}
                       {...composeEditorMarks(insights.editorProps, history.editorProps)}
                     />

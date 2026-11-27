@@ -59,7 +59,7 @@ export function Sidebar({ resizing }: { resizing: boolean }) {
     <nav
       aria-label={t("shell.navigation")}
       className={clsx(
-        "ease-tau-out flex flex-col pb-3 transition-[width,padding] duration-[220ms]",
+        "ease-tau-out flex flex-col pb-3 transition-[width,padding] duration-[220ms] [[data-morph]_&]:transition-none [[data-page-restoring]_&]:transition-none",
         // 拖宽时宽度需逐帧跟随鼠标，关过渡避免 220ms 缓动滞后
         resizing && "transition-none",
         // 收起态左 20 / 右 0：右侧另有 4px 拖拽热区 + 页面 px-4 共 20px 留白，

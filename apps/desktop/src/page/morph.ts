@@ -10,6 +10,7 @@
  */
 
 import { flushSync } from "react-dom";
+import { waitForPagePresentation } from "./viewport";
 
 const MORPH_KEY_ATTR = "data-morph-key";
 
@@ -63,6 +64,7 @@ export function startPageTransition(update: () => void, afterUpdate?: () => Prom
       updating = false;
     }
     await afterUpdate?.();
+    await waitForPagePresentation();
   });
   activeTransition = transition;
   // 被跳过（新一轮打断、重名）时 ready 会 reject，属预期

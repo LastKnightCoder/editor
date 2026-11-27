@@ -45,6 +45,7 @@ import { usePage, usePageParams } from "@/page/PageProvider";
 import { PluginEntityPanels } from "@/app/plugins/entity-panels";
 import { projectItemActionTarget } from "../ProjectList/ProjectItem/projectItemMoreMenuItems";
 import { usePageMarginOutlineFits } from "@/hooks/usePageMargin";
+import { useContentViewport } from "@/hooks/useContentViewport";
 import { SYMMETRIC_PAGE_GRID_STYLE } from "@/utils/pageMargin";
 
 const cloneRange = (selection: Range | null): Range | null => {
@@ -71,6 +72,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
   const { t, locale } = useProjectsI18n();
   const { projectId, documentAction, clearDocumentAction } = useProjectContext();
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
+  const viewport = useContentViewport(scrollEl, `project-item:${projectItemId}`);
   useEdgeFade(scrollEl);
   const outlineFits = usePageMarginOutlineFits(scrollEl);
   const [outlineScrollEl, setOutlineScrollEl] = useState<HTMLDivElement | null>(null);
@@ -100,7 +102,8 @@ const EditProjectItem = (props: { projectItemId: number }) => {
     onContentChange: onContentChangeFromEditProjectItem,
     saveProjectItem,
     setProjectItem,
-  } = useEdit(projectItemId);
+    loadError,
+  } = useEdit(projectItemId, viewport.onLoadError);
 
   const editorExtensions = useMemo(() => {
     return [createProjectCardListExtension(projectItemId)];
@@ -218,6 +221,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
     };
   }, [projectItemId, projectItemEventBus, setProjectItem, projectItem]);
 
+  if (loadError) throw loadError;
   if (!projectItem) return null;
 
   const showInlineOutline = !composing && headers.length > 0 && outlineFits;
@@ -391,6 +395,8 @@ const EditProjectItem = (props: { projectItemId: number }) => {
                           }
                           initValue={projectItem.content}
                           onInit={onInit}
+                          onReady={viewport.onReady}
+                          onLoadError={viewport.onLoadError}
                           onChange={onContentChange}
                           readonly={false}
                           editingContext={{ entityType: "project-item", entityId: projectItem.id }}

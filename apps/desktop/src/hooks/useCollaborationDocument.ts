@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import * as Y from "yjs";
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate } from "y-protocols/awareness";
@@ -26,6 +26,7 @@ export default function useCollaborationDocument(documentId?: string, mode?: "lo
   const [error, setError] = useState<string>();
   const [frozen, setFrozen] = useState(false);
   const [generation, setGeneration] = useState(0);
+  const currentView = useRef<string | undefined>(undefined);
   useEffect(() => {
     setBinding(undefined);
     setArticle(undefined);
@@ -36,6 +37,7 @@ export default function useCollaborationDocument(documentId?: string, mode?: "lo
     const local = mode === "local";
     const commands = local ? localContentCommands : collaborationCommands;
     const viewId = crypto.randomUUID();
+    currentView.current = viewId;
     const doc = new Y.Doc({ guid: id });
     const awareness = new Awareness(doc);
     const updates: Uint8Array[] = [];
@@ -268,6 +270,7 @@ export default function useCollaborationDocument(documentId?: string, mode?: "lo
       if (pendingDrafts.size) void sendDrafts().catch(() => {});
     }, 1000);
     return () => {
+      if (currentView.current === viewId) currentView.current = undefined;
       try {
         activeBinding?.flushLocal?.();
       } catch {
@@ -307,7 +310,10 @@ export default function useCollaborationDocument(documentId?: string, mode?: "lo
     };
   }, [documentId, mode, generation]);
   return {
-    binding: binding?.doc.guid === documentId ? binding : undefined,
+    binding:
+      binding && binding.doc.guid === documentId && binding.viewId === currentView.current
+        ? binding
+        : undefined,
     article,
     error,
     retry: () => setGeneration(current => current + 1),

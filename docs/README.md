@@ -10,6 +10,8 @@
 
 桌面启动依赖与就绪信号见 [桌面架构](./architecture/desktop/main-process.md#构建与打包)，生产入口和 ASAR 核验步骤见 [客户端构建与安装](./guides/ops-client-build-install.md#桌面生产启动检查)。
 
+文档返回时的展示交接、正文就绪与阅读位置恢复见 [Page 协议](./architecture/desktop/page-protocol.md#页面展示与阅读位置恢复)。
+
 桌面性能事件、异常片段与采集预算见 [性能诊断](./architecture/desktop/performance.md)，取证和摘要分析步骤见 [桌面性能排查](./guides/ops-desktop-performance.md)。
 
 原生思维导图的对话工具、读写边界与错误反馈见 [桌面白板](./architecture/desktop/whiteboard.md#原生思维导图工具)。

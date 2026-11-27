@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import { useAsyncEffect, useMemoizedFn } from "ahooks";
+import { useEffect, useRef, useState } from "react";
+import { useMemoizedFn } from "ahooks";
 import { Descendant, Editor } from "slate";
 import { produce } from "immer";
 
@@ -8,39 +8,45 @@ import { IArticle } from "@/types";
 import { DEFAULT_ARTICLE_CONTENT } from "@/constants";
 import { findOneArticle, updateArticle } from "@/commands";
 
-const useEditArticle = (articleId?: number) => {
+const useEditArticle = (articleId?: number, onLoadError?: () => void) => {
   const [readonly, setReadonly] = useState(false);
   const [initLoading, setInitLoading] = useState(false);
-  const [initValue, setInitValue] = useState<Descendant[]>(
-    DEFAULT_ARTICLE_CONTENT,
-  );
-  const [editingArticle, setEditingArticle] = useState<IArticle | undefined>(
-    undefined,
-  );
+  const [loadError, setLoadError] = useState<unknown>();
+  const [initValue, setInitValue] = useState<Descendant[]>(DEFAULT_ARTICLE_CONTENT);
+  const [editingArticle, setEditingArticle] = useState<IArticle | undefined>(undefined);
 
   const prevArticle = useRef<IArticle | undefined>(undefined);
 
-  useAsyncEffect(async () => {
+  useEffect(() => {
     if (!articleId) return;
+    let active = true;
     setInitLoading(true);
-    const article = await findOneArticle(articleId);
-    if (!article) {
-      setInitLoading(false);
-      setInitValue(DEFAULT_ARTICLE_CONTENT);
-      setEditingArticle(undefined);
-      prevArticle.current = undefined;
-      return;
-    }
-    setInitValue(article.content);
-    setEditingArticle(article);
-    prevArticle.current = article;
-    setInitLoading(false);
-  }, [articleId]);
+    setLoadError(undefined);
+    void findOneArticle(articleId)
+      .then(article => {
+        if (!active) return;
+        if (!article) throw new Error("CONTENT_NOT_FOUND");
+        setInitValue(article.content);
+        setEditingArticle(article);
+        prevArticle.current = article;
+      })
+      .catch(error => {
+        if (!active) return;
+        onLoadError?.();
+        setLoadError(error);
+      })
+      .finally(() => {
+        if (active) setInitLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [articleId, onLoadError]);
 
   const onInit = useMemoizedFn((editor: Editor, content: Descendant[]) => {
     if (!editor || !editingArticle) return;
     const wordsCount = getContentLength(content);
-    const newEditingArticle = produce(editingArticle, (draft) => {
+    const newEditingArticle = produce(editingArticle, draft => {
       draft.count = wordsCount;
     });
     setEditingArticle(newEditingArticle);
@@ -49,7 +55,7 @@ const useEditArticle = (articleId?: number) => {
   const onContentChange = useMemoizedFn((content: Descendant[]) => {
     if (!editingArticle) return;
     const wordsCount = getContentLength(content);
-    const newEditingArticle = produce(editingArticle, (draft) => {
+    const newEditingArticle = produce(editingArticle, draft => {
       draft.content = content;
       draft.count = wordsCount;
     });
@@ -58,7 +64,7 @@ const useEditArticle = (articleId?: number) => {
 
   const onTitleChange = useMemoizedFn((title: string) => {
     if (!editingArticle) return;
-    const newEditingArticle = produce(editingArticle, (draft) => {
+    const newEditingArticle = produce(editingArticle, draft => {
       draft.title = title;
     });
     setEditingArticle(newEditingArticle);
@@ -66,7 +72,7 @@ const useEditArticle = (articleId?: number) => {
 
   const onAddTag = useMemoizedFn((tag: string) => {
     if (!editingArticle || editingArticle.tags.includes(tag)) return;
-    const newEditingArticle = produce(editingArticle, (draft) => {
+    const newEditingArticle = produce(editingArticle, draft => {
       draft.tags.push(tag);
     });
     setEditingArticle(newEditingArticle);
@@ -74,15 +80,15 @@ const useEditArticle = (articleId?: number) => {
 
   const onDeleteTag = useMemoizedFn((tag: string) => {
     if (!editingArticle) return;
-    const newEditingArticle = produce(editingArticle, (draft) => {
-      draft.tags = draft.tags.filter((t) => t !== tag);
+    const newEditingArticle = produce(editingArticle, draft => {
+      draft.tags = draft.tags.filter(t => t !== tag);
     });
     setEditingArticle(newEditingArticle);
   });
 
   const onTagsChange = useMemoizedFn((tags: string[]) => {
     if (!editingArticle) return;
-    const newEditingArticle = produce(editingArticle, (draft) => {
+    const newEditingArticle = produce(editingArticle, draft => {
       draft.tags = tags;
     });
     setEditingArticle(newEditingArticle);
@@ -109,14 +115,14 @@ const useEditArticle = (articleId?: number) => {
 
   const toggleIsTop = useMemoizedFn(() => {
     if (!editingArticle) return;
-    const newEditingArticle = produce(editingArticle, (draft) => {
+    const newEditingArticle = produce(editingArticle, draft => {
       draft.isTop = !editingArticle.isTop;
     });
     setEditingArticle(newEditingArticle);
   });
 
   const toggleReadOnly = useMemoizedFn(() => {
-    setReadonly((prev) => !prev);
+    setReadonly(prev => !prev);
   });
 
   const clear = useMemoizedFn(() => {
@@ -129,6 +135,7 @@ const useEditArticle = (articleId?: number) => {
     readonly,
     initValue,
     initLoading,
+    loadError,
     editingArticle,
     onInit,
     onContentChange,
