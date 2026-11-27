@@ -1,8 +1,9 @@
+import { selectionSearchText, usePublishSelectionI18n } from "../../i18n";
 import { memo, useState, useMemo, useCallback } from "react";
 import { Project } from "@/types/project";
 import { PublishContentType } from "@/types/publish";
 import { EntityScope, DocTreeNode, SelectionFilter } from "../../types";
-import { collectDocNodeIds, matchesSelectionFilter, selectionFilterLabel } from "../../utils";
+import { collectDocNodeIds, matchesSelectionFilter } from "../../utils";
 import { SelectionCheckbox } from "../SelectionCheckbox";
 import { SearchToolbar } from "../SearchToolbar";
 import { FadeScroll } from "@tau/ui";
@@ -39,27 +40,35 @@ export const EntitySelector = memo<EntitySelectorProps>(
     onUpdateScope,
     onLoadTree,
   }) => {
+    const { t } = usePublishSelectionI18n();
     const [modalEntity, setModalEntity] = useState<Project | null>(null);
     const [modalLoading, setModalLoading] = useState(false);
     const [selectionFilter, setSelectionFilter] = useState<SelectionFilter>("all");
-
-    const typeLabel = "项目";
 
     const entityItems = useMemo<EntityItem[]>(
       () =>
         entities.map(entity => ({
           id: entity.id,
-          title: entity.title || `${typeLabel} #${entity.id}`,
+          title: entity.title || "",
           type,
           raw: entity,
         })),
-      [entities, type, typeLabel]
+      [entities, type]
+    );
+
+    const searchItems = useMemo(
+      () =>
+        entityItems.map(entity => ({
+          ...entity,
+          searchText: selectionSearchText({ type: "project", id: entity.id, title: entity.title }),
+        })),
+      [entityItems]
     );
 
     // 搜索过滤
     const { query, setQuery, filteredItems, isFiltering } = useSearch({
-      items: entityItems,
-      searchFields: ["title"] as (keyof EntityItem)[],
+      items: searchItems,
+      searchFields: ["title", "searchText"],
     });
 
     // 根据过滤条件显示
@@ -133,7 +142,7 @@ export const EntitySelector = memo<EntitySelectorProps>(
         <SearchToolbar
           query={query}
           onQueryChange={setQuery}
-          placeholder={`搜索${typeLabel}名称...`}
+          placeholder={t("search.project")}
           showSelectAll={displayEntities.length > 0}
           allSelected={allSelected}
           onSelectAll={handleSelectAll}
@@ -147,10 +156,10 @@ export const EntitySelector = memo<EntitySelectorProps>(
             <EmptyPlaceholder
               text={
                 query
-                  ? "无匹配结果"
+                  ? t("empty.matches")
                   : selectionFilter !== "all"
-                    ? `暂无${selectionFilterLabel(selectionFilter)}${typeLabel}`
-                    : `暂无${typeLabel}`
+                    ? t(`empty.project.${selectionFilter}`)
+                    : t("empty.project.all")
               }
             />
           ) : (
@@ -204,20 +213,22 @@ const EntityCard = memo<{
   onToggle: () => void;
   onManage: () => void;
 }>(({ entity, selected, scope, treeLoaded, totalCount, onToggle, onManage }) => {
-  const typeLabel = "项目";
-
-  const scopeDescription = useMemo(() => {
-    if (!selected) return `未选择该${typeLabel}`;
-    if (!scope || scope.mode === "all") return "将发布全部文档";
-    if (scope.corrupted) return "发布范围数据已失效，请重新选择";
-    return `将发布 ${scope.nodeIds.size} 篇文档`;
-  }, [selected, scope, typeLabel]);
+  const { t } = usePublishSelectionI18n();
+  const scopeDescription = !selected
+    ? t("scope.unselected")
+    : !scope || scope.mode === "all"
+      ? t("scope.all")
+      : scope.corrupted
+        ? t("scope.corrupted")
+        : t("scope.partial", { count: scope.nodeIds.size });
 
   return (
     <div className="hover:bg-hover group flex items-center gap-2.5 rounded-[8px] px-2 py-1.5 transition-colors">
       <SelectionCheckbox checked={selected} onChange={onToggle} size="sm" />
       <div className="min-w-0 flex-1 cursor-pointer" onClick={onToggle}>
-        <div className="text-ink-1 truncate text-[13px]">{entity.title}</div>
+        <div className="text-ink-1 truncate text-[13px]">
+          {entity.raw.title || t("project.untitled", { id: entity.id })}
+        </div>
         <div
           className={`text-tau-tiny mt-0.5 truncate ${
             scope?.mode === "partial" && scope.corrupted ? "text-danger" : "text-ink-3"
@@ -230,12 +241,14 @@ const EntityCard = memo<{
       <div className="flex shrink-0 items-center gap-2">
         {scope?.mode === "partial" && (
           <span className="bg-accent-soft text-accent-text rounded-full px-[7px] text-[10.5px]">
-            部分发布
+            {t("scope.badge")}
           </span>
         )}
 
         {totalCount !== undefined && (
-          <span className="text-ink-3 font-mono text-[11px] tabular-nums">共 {totalCount} 篇</span>
+          <span className="text-ink-3 font-mono text-[11px] tabular-nums">
+            {t("scope.total", { count: totalCount })}
+          </span>
         )}
 
         <button
@@ -243,7 +256,7 @@ const EntityCard = memo<{
           onClick={onManage}
           className="text-ink-2 hover:bg-press hover:text-ink-1 h-7 rounded-[8px] px-[11px] text-[12.5px] transition-colors"
         >
-          {treeLoaded ? "管理文档" : "加载文档"}
+          {treeLoaded ? t("scope.manage") : t("scope.load")}
         </button>
       </div>
     </div>

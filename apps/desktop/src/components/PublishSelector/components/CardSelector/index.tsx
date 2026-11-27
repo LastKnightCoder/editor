@@ -1,9 +1,10 @@
+import { selectionSearchText, usePublishSelectionI18n } from "../../i18n";
 import { memo, useState, useMemo, useCallback, useEffect, useRef } from "react";
 import clsx from "clsx";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Eye, Layers } from "lucide-react";
 import { CardTagNode, CardListItem, PublishContentType, SelectionFilter } from "../../types";
-import { collectCardsFromTagNode, matchesSelectionFilter, selectionFilterLabel } from "../../utils";
+import { collectCardsFromTagNode, matchesSelectionFilter } from "../../utils";
 import { SelectionCheckbox } from "../SelectionCheckbox";
 import { SearchToolbar } from "../SearchToolbar";
 import { FadeScroll } from "@tau/ui";
@@ -20,6 +21,7 @@ interface CardSelectorProps {
 
 export const CardSelector = memo<CardSelectorProps>(
   ({ tree, isItemSelected, onToggleCard, onToggleTagCards }) => {
+    const { t } = usePublishSelectionI18n();
     const [activeTagId, setActiveTagId] = useState<string>("");
     const [previewCard, setPreviewCard] = useState<CardListItem | null>(null);
     const [selectionFilter, setSelectionFilter] = useState<SelectionFilter>("all");
@@ -47,10 +49,24 @@ export const CardSelector = memo<CardSelectorProps>(
       return Array.from(uniqueCards.values());
     }, [activeNode]);
 
+    const searchItems = useMemo(
+      () =>
+        currentCards.map(card => ({
+          ...card,
+          searchText: selectionSearchText({
+            type: "card",
+            id: card.id,
+            title: card.title,
+            description: card.summary,
+          }),
+        })),
+      [currentCards]
+    );
+
     // 搜索过滤
     const { query, setQuery, filteredItems, isFiltering } = useSearch({
-      items: currentCards,
-      searchFields: ["title", "summary", "tags"] as (keyof CardListItem)[],
+      items: searchItems,
+      searchFields: ["title", "summary", "tags", "searchText"],
     });
 
     // 根据过滤条件显示卡片
@@ -80,10 +96,12 @@ export const CardSelector = memo<CardSelectorProps>(
         <div className="flex h-full min-h-0">
           {/* 左侧：标签树（窄） */}
           <div className="flex w-48 shrink-0 flex-col pt-3.5 pl-1">
-            <div className="text-ink-3 shrink-0 px-3 pb-1.5 text-[11.5px] font-medium">标签</div>
+            <div className="text-ink-3 shrink-0 px-3 pb-1.5 text-[11.5px] font-medium">
+              {t("tags")}
+            </div>
             <FadeScroll className="mb-3 min-h-0 flex-1 pb-1">
               {tree.length === 0 ? (
-                <div className="text-ink-3 p-4 text-center text-[13px]">暂无标签</div>
+                <div className="text-ink-3 p-4 text-center text-[13px]">{t("tags.empty")}</div>
               ) : (
                 tree.map(node => (
                   <TagTreeNode
@@ -103,7 +121,7 @@ export const CardSelector = memo<CardSelectorProps>(
             <SearchToolbar
               query={query}
               onQueryChange={setQuery}
-              placeholder="搜索卡片标题或标签…"
+              placeholder={t("search.card")}
               showSelectAll={displayCards.length > 0}
               allSelected={allSelected}
               onSelectAll={handleSelectAll}
@@ -117,10 +135,10 @@ export const CardSelector = memo<CardSelectorProps>(
                 <EmptyPlaceholder
                   text={
                     query
-                      ? "无匹配结果"
+                      ? t("empty.matches")
                       : selectionFilter !== "all"
-                        ? `暂无${selectionFilterLabel(selectionFilter)}卡片`
-                        : "此标签下暂无卡片"
+                        ? t(`empty.card.${selectionFilter}`)
+                        : t("empty.tagCards")
                   }
                 />
               ) : (
@@ -140,7 +158,7 @@ export const CardSelector = memo<CardSelectorProps>(
         {previewCard && (
           <ContentPreviewModal
             open={!!previewCard}
-            title={previewCard.title}
+            title={previewCard.raw.tags[0] || t("card.untitled", { id: previewCard.id })}
             content={previewCard.raw.content}
             contentKey={previewCard.id}
             onClose={handleClosePreview}
@@ -165,6 +183,7 @@ const TagTreeNode = memo<{
   isItemSelected: (type: PublishContentType, id: number) => boolean;
   depth?: number;
 }>(({ node, activeTagId, onSelect, isItemSelected, depth = 0 }) => {
+  const { t } = usePublishSelectionI18n();
   const isActive = activeTagId === node.id;
 
   const cards = useMemo(() => collectCardsFromTagNode(node), [node]);
@@ -184,7 +203,9 @@ const TagTreeNode = memo<{
         )}
         style={{ paddingLeft: depth * 12 + 10 }}
       >
-        <span className="flex-1 truncate">{node.label}</span>
+        <span className="flex-1 truncate">
+          {node.builtin === "untagged" ? t("tags.untagged") : node.label}
+        </span>
         <span className="text-ink-3 shrink-0 font-mono text-[11px] tabular-nums">
           {selectedCount > 0 ? (
             <>
@@ -219,6 +240,7 @@ const CardList = memo<{
   onToggleCard: (cardId: number) => void;
   onPreview: (card: CardListItem) => void;
 }>(({ activeTagId, cards, isItemSelected, onToggleCard, onPreview }) => {
+  const { t } = usePublishSelectionI18n();
   const parentRef = useRef<HTMLDivElement>(null);
 
   const virtualizer = useVirtualizer({
@@ -265,14 +287,18 @@ const CardList = memo<{
                   size="sm"
                 />
                 <div className="min-w-0 flex-1 cursor-pointer" onClick={() => onPreview(card)}>
-                  <div className="text-ink-1 truncate text-[13px]">{card.title}</div>
-                  <div className="text-tau-tiny text-ink-3 mt-0.5 truncate">{card.summary}</div>
+                  <div className="text-ink-1 truncate text-[13px]">
+                    {card.raw.tags[0] || t("card.untitled", { id: card.id })}
+                  </div>
+                  <div className="text-tau-tiny text-ink-3 mt-0.5 truncate">
+                    {card.summary || t("content.empty")}
+                  </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => onPreview(card)}
                   className="text-ink-3 hover:bg-press hover:text-ink-1 shrink-0 rounded-[6px] p-1.5 transition-colors"
-                  title="预览"
+                  title={t("preview")}
                 >
                   <Eye size={15} strokeWidth={1.75} />
                 </button>

@@ -1,3 +1,4 @@
+import type { PublishSelectionKey } from "./i18n";
 import type { LucideIcon } from "lucide-react";
 import { Descendant } from "slate";
 import { ICard } from "@/types/card";
@@ -21,6 +22,7 @@ export interface CardListItem {
  * 卡片标签树节点
  */
 export interface CardTagNode {
+  builtin?: "untagged";
   id: string;
   label: string;
   depth: number;
@@ -75,8 +77,8 @@ export interface EntityModalState {
  */
 export interface TabConfig {
   key: PublishContentType;
-  label: string;
-  description: string;
+  labelKey: PublishSelectionKey;
+  descriptionKey: PublishSelectionKey;
   icon: LucideIcon;
 }
 

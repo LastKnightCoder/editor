@@ -402,6 +402,8 @@ Document B十四路径完成；原Reader9+materials12共21基线至增强22例�
 
 共用insights九路径完成；原10例至两文件13例通过，36key三语与原controller/effect/memo/AI/装饰/selection/connect/focus及mini-graph/queries/leaf静态对照通过。真实pending任务只一次、同mark/popover/decorator，实际compose copy消费和未同步反向native Range保持，讨论仍原中文prompt与targets。本域类型无错；当时整端日志仅外域DocTasks Translator调用WIP，后续联动类型统一收口，不误记当次全端绿。全9生产/17 AST审计无自产UI漏项。
 
+发布选择器二十路径完成；恢复后直接三文件9例通过，真实项目scope pending、只读预览未同步反向原生选区、英文缺省标题检索后跨语保持命中/草稿/caret与原ID动作。40个状态/effect/callback/virtualizer声明和所有key保持，loader/selection writes/scope codec逐字相同；实际旧新converter对照保tag/content/ref/ID/顺序与原请求，缺省仅移入UI词典。三语runtime、类型/构建与范围lint已通过。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

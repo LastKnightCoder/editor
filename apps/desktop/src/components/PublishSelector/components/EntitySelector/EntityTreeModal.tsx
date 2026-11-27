@@ -1,3 +1,4 @@
+import { usePublishSelectionI18n } from "../../i18n";
 import { memo, useState, useMemo, useCallback, useEffect } from "react";
 import { getContentKit } from "@/services/editorKit";
 import clsx from "clsx";
@@ -24,7 +25,7 @@ interface EntityTreeModalProps {
 
 export const EntityTreeModal = memo<EntityTreeModalProps>(
   ({ open, loading, entity, nodes, currentScope, onCancel, onConfirm }) => {
-    const typeLabel = "项目";
+    const { t } = usePublishSelectionI18n();
 
     const totalIds = useMemo(() => collectDocNodeIds(nodes), [nodes]);
 
@@ -102,21 +103,21 @@ export const EntityTreeModal = memo<EntityTreeModalProps>(
         onOpenChange={next => {
           if (!next) onCancel();
         }}
-        title={entity.title || `${typeLabel} #${entity.id}`}
-        context={typeLabel}
-        subtitle="勾选要公开的文档，点击标题预览内容"
+        title={entity.title || t("project.untitled", { id: entity.id })}
+        context={t("scope.context")}
+        subtitle={t("scope.hint")}
         width={1040}
         height={760}
         impact={
           selectedCount === 0 && totalIds.length > 0
-            ? `未勾选任何文档，保存后将不再发布此${typeLabel}`
-            : `已选 ${selectedCount} / ${totalIds.length} 篇可发布文档`
+            ? t("scope.none")
+            : t("scope.impact", { selected: selectedCount, total: totalIds.length })
         }
         impactDanger={selectedCount === 0 && totalIds.length > 0}
         footer={
           <>
             <Button variant="secondary" size="sm" onClick={onCancel}>
-              取消
+              {t("cancel")}
             </Button>
             <Button
               variant="primary"
@@ -124,7 +125,7 @@ export const EntityTreeModal = memo<EntityTreeModalProps>(
               loading={loading}
               onClick={() => onConfirm(selectedIds)}
             >
-              保存
+              {t("save")}
             </Button>
           </>
         }
@@ -134,7 +135,7 @@ export const EntityTreeModal = memo<EntityTreeModalProps>(
             {/* 左侧：文档树——列表自身滚动，头部钉住 */}
             <div className="border-line-2 flex min-h-0 flex-col border-r">
               <div className="flex shrink-0 items-center gap-2 pt-3 pr-2.5 pb-1.5 pl-[18px]">
-                <span className="text-ink-3 text-[11.5px] font-medium">文档结构</span>
+                <span className="text-ink-3 text-[11.5px] font-medium">{t("scope.structure")}</span>
                 <span className="font-tau-mono text-ink-3 text-[11px] tabular-nums">
                   {selectedCount}/{totalIds.length}
                 </span>
@@ -150,7 +151,7 @@ export const EntityTreeModal = memo<EntityTreeModalProps>(
                 </div>
               ) : nodes.length === 0 ? (
                 <div className="text-ink-3 flex flex-1 items-center justify-center text-[13px]">
-                  暂无可发布的文档
+                  {t("scope.empty")}
                 </div>
               ) : (
                 <FadeScroll className="mb-3 min-h-0 flex-1 px-1.5 pb-1">
@@ -180,14 +181,16 @@ export const EntityTreeModal = memo<EntityTreeModalProps>(
                       )}
                     />
                     <h3 className="text-tau-body text-ink-1 min-w-0 truncate font-medium">
-                      {previewNode.title}
+                      {!previewNode.title
+                        ? t("item.untitled", { id: previewNode.id })
+                        : previewNode.title}
                     </h3>
                     <span className="text-tau-micro text-ink-3 ml-auto shrink-0">
                       {!previewNode.hasContent
-                        ? "文件夹"
+                        ? t("scope.folder")
                         : selectedIds.has(previewNode.id)
-                          ? "将发布"
-                          : "未勾选"}
+                          ? t("scope.willPublish")
+                          : t("scope.notSelected")}
                     </span>
                   </div>
                   {previewNode.hasContent ? (
@@ -204,7 +207,9 @@ export const EntityTreeModal = memo<EntityTreeModalProps>(
                     <div className="text-ink-3 flex flex-1 flex-col items-center justify-center gap-2.5">
                       <Folder size={32} strokeWidth={1.25} className="opacity-50" />
                       <span className="text-[13px]">
-                        文件夹，包含 {collectDocNodeIds(previewNode.children).length} 篇文档
+                        {t("scope.folderCount", {
+                          count: collectDocNodeIds(previewNode.children).length,
+                        })}
                       </span>
                     </div>
                   )}
@@ -212,7 +217,7 @@ export const EntityTreeModal = memo<EntityTreeModalProps>(
               ) : (
                 <div className="text-ink-3 flex flex-1 flex-col items-center justify-center gap-2.5">
                   <FileText size={32} strokeWidth={1.25} className="opacity-50" />
-                  <span className="text-[13px]">点击左侧文档查看预览</span>
+                  <span className="text-[13px]">{t("scope.previewHint")}</span>
                 </div>
               )}
             </div>
@@ -234,6 +239,7 @@ const DocTreeNodeItem = memo<{
   activeNodeId: number | null;
   depth?: number;
 }>(({ node, selectedIds, onToggle, onClick, activeNodeId, depth = 0 }) => {
+  const { t } = usePublishSelectionI18n();
   const descendantIds = useMemo(() => collectDocNodeIds([node]), [node]);
   const allSelected = descendantIds.length > 0 && descendantIds.every(id => selectedIds.has(id));
   const partiallySelected = !allSelected && descendantIds.some(id => selectedIds.has(id));
@@ -261,7 +267,7 @@ const DocTreeNodeItem = memo<{
             isActive ? "text-ink-1 font-medium" : "text-ink-2"
           )}
         >
-          {node.title}
+          {!node.title ? t("item.untitled", { id: node.id }) : node.title}
         </span>
         {!node.hasContent && node.children.length > 0 && (
           <Folder size={13} strokeWidth={1.75} className="text-ink-3 shrink-0" />

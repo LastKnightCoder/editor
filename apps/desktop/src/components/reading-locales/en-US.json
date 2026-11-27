@@ -34,5 +34,6 @@
   "tree.chooseProject": "Choose a project on the left first",
   "tree.root": "Insert at root",
   "transcript.empty": "No subtitles yet. They will appear here after transcription.",
-  "transcript.quoted": "Quoted in notes"
+  "transcript.quoted": "Quoted in notes",
+  "tree.itemUntitled": "Item #{{id}}"
 }

@@ -17,13 +17,7 @@ import { EProjectItemType } from "@/types/project";
 import type { CreateProjectItem, Project, ProjectItem } from "@/types/project";
 import { buildProjectTree } from "@/components/PublishSelector/utils/treeBuilder";
 
-interface DocTreeNode {
-  id: number;
-  title: string;
-  hasContent: boolean;
-  content: Descendant[];
-  children: DocTreeNode[];
-}
+import type { DocTreeNode } from "@/components/PublishSelector/types";
 
 interface InsertNoteToTreeModalProps {
   mode: "project";
@@ -57,6 +51,7 @@ const TreeNodeItem = memo<{
   depth?: number;
 }>(({ node, selectedNodeId, onSelect, depth = 0 }) => {
   const { t } = useReadingI18n();
+  const title = !node.title ? t("tree.itemUntitled", { id: node.id }) : node.title;
   const [expanded, setExpanded] = useState(true);
   const isSelected = selectedNodeId === node.id;
   const hasChildren = node.children.length > 0;
@@ -67,7 +62,7 @@ const TreeNodeItem = memo<{
       <div
         role="button"
         tabIndex={0}
-        title={node.title}
+        title={title}
         className={rowClass(isSelected)}
         style={{ paddingLeft: depth * 16 + 4 }}
         onClick={() => onSelect(node.id)}
@@ -101,7 +96,7 @@ const TreeNodeItem = memo<{
           className={cn("size-[14px] shrink-0", isSelected ? "text-ink-2" : "text-ink-3")}
           strokeWidth={1.75}
         />
-        <span className="min-w-0 flex-1 truncate">{node.title}</span>
+        <span className="min-w-0 flex-1 truncate">{title}</span>
       </div>
       {expanded &&
         node.children.map(child => (

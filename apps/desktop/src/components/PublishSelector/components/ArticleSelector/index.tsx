@@ -1,9 +1,10 @@
+import { selectionSearchText, usePublishSelectionI18n } from "../../i18n";
 import { memo, useState, useMemo, useCallback, useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Eye, FileText } from "lucide-react";
 import { IArticle } from "@/types/article";
 import { PublishContentType } from "@/types/publish";
-import { buildPlainText, matchesSelectionFilter, selectionFilterLabel } from "../../utils";
+import { buildPlainText, matchesSelectionFilter } from "../../utils";
 import { SelectionFilter } from "../../types";
 import { SelectionCheckbox } from "../SelectionCheckbox";
 import { SearchToolbar } from "../SearchToolbar";
@@ -30,6 +31,7 @@ interface ArticleSelectorProps {
 
 export const ArticleSelector = memo<ArticleSelectorProps>(
   ({ articles, isItemSelected, onToggleArticle, onBatchToggle }) => {
+    const { t } = usePublishSelectionI18n();
     const [previewArticle, setPreviewArticle] = useState<ArticleListItem | null>(null);
     const [selectionFilter, setSelectionFilter] = useState<SelectionFilter>("all");
 
@@ -37,8 +39,8 @@ export const ArticleSelector = memo<ArticleSelectorProps>(
       () =>
         articles.map(article => ({
           id: article.id,
-          title: article.title || `文章 #${article.id}`,
-          description: buildPlainText(article.content).slice(0, 180) || "暂无内容",
+          title: article.title || "",
+          description: buildPlainText(article.content).slice(0, 180),
           updateTime: article.update_time,
           createTime: article.create_time,
           raw: article,
@@ -46,10 +48,24 @@ export const ArticleSelector = memo<ArticleSelectorProps>(
       [articles]
     );
 
+    const searchItems = useMemo(
+      () =>
+        articleItems.map(article => ({
+          ...article,
+          searchText: selectionSearchText({
+            type: "article",
+            id: article.id,
+            title: article.title,
+            description: article.description,
+          }),
+        })),
+      [articleItems]
+    );
+
     // 搜索过滤
     const { query, setQuery, filteredItems, isFiltering } = useSearch({
-      items: articleItems,
-      searchFields: ["title", "description"] as (keyof ArticleListItem)[],
+      items: searchItems,
+      searchFields: ["title", "description", "searchText"],
     });
 
     // 根据过滤条件显示文章
@@ -83,7 +99,7 @@ export const ArticleSelector = memo<ArticleSelectorProps>(
           <SearchToolbar
             query={query}
             onQueryChange={setQuery}
-            placeholder="搜索文章标题…"
+            placeholder={t("search.article")}
             showSelectAll={displayArticles.length > 0}
             allSelected={allSelected}
             onSelectAll={handleSelectAll}
@@ -97,10 +113,10 @@ export const ArticleSelector = memo<ArticleSelectorProps>(
               <EmptyPlaceholder
                 text={
                   query
-                    ? "无匹配结果"
+                    ? t("empty.matches")
                     : selectionFilter !== "all"
-                      ? `暂无${selectionFilterLabel(selectionFilter)}文章`
-                      : "暂无文章"
+                      ? t(`empty.article.${selectionFilter}`)
+                      : t("empty.article.all")
                 }
               />
             ) : (
@@ -117,7 +133,7 @@ export const ArticleSelector = memo<ArticleSelectorProps>(
         {previewArticle && (
           <ContentPreviewModal
             open={!!previewArticle}
-            title={previewArticle.title}
+            title={previewArticle.raw.title || t("article.untitled", { id: previewArticle.id })}
             content={previewArticle.raw.content}
             contentKey={previewArticle.id}
             onClose={handleClosePreview}
@@ -142,6 +158,7 @@ const ArticleList = memo<{
   onToggleArticle: (articleId: number) => void;
   onPreview: (article: ArticleListItem) => void;
 }>(({ articles, isItemSelected, onToggleArticle, onPreview }) => {
+  const { t } = usePublishSelectionI18n();
   const parentRef = useRef<HTMLDivElement>(null);
 
   const virtualizer = useVirtualizer({
@@ -183,16 +200,18 @@ const ArticleList = memo<{
                   size="sm"
                 />
                 <div className="min-w-0 flex-1 cursor-pointer" onClick={() => onPreview(article)}>
-                  <div className="text-ink-1 truncate text-[13px]">{article.title}</div>
+                  <div className="text-ink-1 truncate text-[13px]">
+                    {article.raw.title || t("article.untitled", { id: article.id })}
+                  </div>
                   <div className="text-tau-tiny text-ink-3 mt-0.5 line-clamp-2">
-                    {article.description}
+                    {article.description || t("content.empty")}
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => onPreview(article)}
                   className="text-ink-3 hover:bg-press hover:text-ink-1 shrink-0 rounded-[6px] p-1.5 transition-colors"
-                  title="预览"
+                  title={t("preview")}
                 >
                   <Eye size={15} strokeWidth={1.75} />
                 </button>

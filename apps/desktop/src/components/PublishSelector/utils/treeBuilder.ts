@@ -49,8 +49,8 @@ export function buildCardTagTree(cards: ICard[]): CardTagNode[] {
   cards.forEach(card => {
     const item: CardListItem = {
       id: card.id,
-      title: card.tags[0] || `卡片 #${card.id}`,
-      summary: buildPlainText(card.content) || "暂无内容",
+      title: card.tags[0] || "",
+      summary: buildPlainText(card.content),
       tags: card.tags || [],
       updateTime: card.update_time,
       raw: card,
@@ -79,7 +79,8 @@ export function buildCardTagTree(cards: ICard[]): CardTagNode[] {
   if (untagged.length > 0) {
     tree.unshift({
       id: "__untagged__",
-      label: "未分类",
+      builtin: "untagged",
+      label: "",
       depth: 0,
       count: untagged.length,
       cards: untagged,
@@ -185,7 +186,7 @@ function createProjectTreeNode(map: Map<number, ProjectItem>, itemId: number): D
     item.projectItemType === EProjectItemType.Document && !isContentEmpty(item.content || []);
   return {
     id: item.id,
-    title: item.title || `条目 #${item.id}`,
+    title: item.title || "",
     hasContent,
     content: item.content || [],
     children,

@@ -34,5 +34,6 @@
   "tree.chooseProject": "先在左側選擇一個專案",
   "tree.root": "插入至根目錄",
   "transcript.empty": "還沒有字幕，轉錄完成後會出現在這裡",
-  "transcript.quoted": "已摘錄至筆記"
+  "transcript.quoted": "已摘錄至筆記",
+  "tree.itemUntitled": "項目 #{{id}}"
 }

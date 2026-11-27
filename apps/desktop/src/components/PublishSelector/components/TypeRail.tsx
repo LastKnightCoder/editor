@@ -1,3 +1,4 @@
+import { usePublishSelectionI18n } from "../i18n";
 import { memo } from "react";
 import clsx from "clsx";
 import { PublishContentType } from "@/types/publish";
@@ -21,11 +22,14 @@ interface TypeRailProps {
 
 export const TypeRail = memo<TypeRailProps>(
   ({ tabs, activeTab, onTabChange, totalSelected, getSelectedCount, getTotalCount }) => {
+    const { t } = usePublishSelectionI18n();
     return (
-      <nav className="flex w-[204px] shrink-0 flex-col gap-0.5 py-3.5 pl-3 pr-1.5">
-        <div className="flex items-baseline gap-2 px-2 pb-2.5 pt-0.5">
-          <span className="text-ink-1 text-[13px] font-semibold">发布内容</span>
-          <span className="text-ink-3 font-mono text-[11px] tabular-nums">{totalSelected} 项</span>
+      <nav className="flex w-[204px] shrink-0 flex-col gap-0.5 py-3.5 pr-1.5 pl-3">
+        <div className="flex items-baseline gap-2 px-2 pt-0.5 pb-2.5">
+          <span className="text-ink-1 text-[13px] font-semibold">{t("title")}</span>
+          <span className="text-ink-3 font-mono text-[11px] tabular-nums">
+            {t("selectedCount", { count: totalSelected })}
+          </span>
         </div>
 
         {tabs.map(tab => {
@@ -57,9 +61,11 @@ export const TypeRail = memo<TypeRailProps>(
                     active ? "text-accent-text font-semibold" : "text-ink-1 font-medium"
                   )}
                 >
-                  {tab.label}
+                  {t(tab.labelKey)}
                 </span>
-                <span className="text-ink-3 block truncate text-[11px]">{tab.description}</span>
+                <span className="text-ink-3 block truncate text-[11px]">
+                  {t(tab.descriptionKey)}
+                </span>
               </span>
               <span className="text-ink-2 shrink-0 font-mono text-[11.5px] font-medium tabular-nums">
                 {getSelectedCount(tab.key)}
@@ -69,8 +75,8 @@ export const TypeRail = memo<TypeRailProps>(
           );
         })}
 
-        <div className="text-ink-3 mt-auto px-2 pb-0.5 pt-2.5 text-[11.5px] leading-[1.7]">
-          勾选即保存，下次打开保持
+        <div className="text-ink-3 mt-auto px-2 pt-2.5 pb-0.5 text-[11.5px] leading-[1.7]">
+          {t("autosave")}
         </div>
       </nav>
     );

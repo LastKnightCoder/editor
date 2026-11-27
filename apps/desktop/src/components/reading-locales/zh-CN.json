@@ -34,5 +34,6 @@
   "tree.chooseProject": "先在左侧选择一个项目",
   "tree.root": "插入到根目录",
   "transcript.empty": "还没有字幕，转录完成后会出现在这里",
-  "transcript.quoted": "已摘到笔记"
+  "transcript.quoted": "已摘到笔记",
+  "tree.itemUntitled": "条目 #{{id}}"
 }
