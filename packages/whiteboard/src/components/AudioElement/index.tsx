@@ -1,3 +1,4 @@
+import { useNodeI18n } from "../../nodes-i18n";
 import { useMediaExtension } from "../../extensions/media";
 import { memo, useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { useMemoizedFn } from "ahooks";
@@ -75,23 +76,24 @@ const formatTime = (seconds: number): string => {
 };
 
 // Extract filename from path or URL
-const getDisplayTitle = (src: string, title?: string): string => {
+const getDisplayTitle = (src: string, title: string | undefined, defaultTitle: string): string => {
   if (title) return title;
   try {
     const url = new URL(src, "file://");
     const pathname = url.pathname;
-    const filename = pathname.split("/").pop() || "Audio";
+    const filename = pathname.split("/").pop() || defaultTitle;
     // Remove extension
     return filename.replace(/\.[^/.]+$/, "");
   } catch {
     // Not a valid URL, try to extract filename
     const parts = src.split(/[/\\]/);
-    const filename = parts.pop() || "Audio";
+    const filename = parts.pop() || defaultTitle;
     return filename.replace(/\.[^/.]+$/, "");
   }
 };
 
 const AudioElementComponent = memo((props: AudioElementProps) => {
+  const { t } = useNodeI18n();
   const { element, onResize, onResizeStart, onResizeEnd } = props;
 
   const { id, x, y, width, src, title, resizable = true } = element;
@@ -242,7 +244,7 @@ const AudioElementComponent = memo((props: AudioElementProps) => {
   });
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
-  const displayTitle = getDisplayTitle(src, title);
+  const displayTitle = getDisplayTitle(src, title, t("nodes.audio.untitled"));
 
   return (
     <>

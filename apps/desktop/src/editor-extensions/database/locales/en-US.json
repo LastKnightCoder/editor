@@ -1,0 +1,6 @@
+{
+  "missing": "Table not found",
+  "insert.title": "Database view",
+  "insert.description": "Insert a table view",
+  "read.failed": "Could not read table"
+}

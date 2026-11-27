@@ -3,6 +3,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Descendant } from "slate";
 import { useEditContent } from "../useEditContent";
+import { ContentEditIssueText } from "../../components/ContentEditIssueText";
+import { mobileLocaleSource } from "../../services/i18n";
 import * as tauri from "../../services/tauri";
 
 vi.mock("../../services/tauri", () => ({
@@ -63,7 +65,7 @@ function HookHarness(props: {
     beforeSave: props.beforeSave,
   });
   props.onSnapshot(snapshot);
-  return null;
+  return snapshot.issue ? <ContentEditIssueText issue={snapshot.issue} /> : null;
 }
 
 type HookController = {
@@ -131,10 +133,12 @@ function createHookController(): HookController {
 describe("useEditContent", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mobileLocaleSource.setLocale("zh-CN");
   });
 
   afterEach(() => {
     document.body.innerHTML = "";
+    mobileLocaleSource.setLocale("zh-CN");
   });
 
   it("应在初始化时加载 content 详情", async () => {
@@ -190,7 +194,7 @@ describe("useEditContent", () => {
       await controller.latest()?.flushNow();
       await Promise.resolve();
     });
-    expect(controller.latest()?.error).toContain("自动保存失败");
+    expect(controller.latest()?.issue).toMatchObject({ kind: "save-failed" });
 
     await act(async () => {
       const ok = await controller.latest()?.retryLastFailed();
@@ -199,7 +203,7 @@ describe("useEditContent", () => {
     });
 
     expect(tauri.updateContent).toHaveBeenCalledTimes(2);
-    expect(controller.latest()?.error).toBe("");
+    expect(controller.latest()?.issue).toBeUndefined();
 
     await controller.cleanup();
   });
@@ -246,7 +250,10 @@ describe("useEditContent", () => {
       expect(await controller.latest()!.flushNow()).toBe(false);
     });
     expect(tauri.collabProjectContent).not.toHaveBeenCalled();
-    expect(controller.latest()?.error).toContain("内容协作中");
+    expect(controller.latest()?.issue).toMatchObject({
+      kind: "collaboration-required",
+      cause: "COLLABORATION_WRITE_REQUIRED: 这段内容正在协作",
+    });
     vi.mocked(tauri.updateContent).mockResolvedValue(createDetail(403, updated));
     await act(async () => {
       expect(await controller.latest()!.retryLastFailed()).toBe(true);
@@ -277,6 +284,56 @@ describe("useEditContent", () => {
     });
     expect(tauri.updateContent).toHaveBeenCalledWith(expect.objectContaining({ content: updated }));
     await controller.cleanup();
+  });
+
+  it("保存挂起与失败提示跨语言保留同一请求，重试继续原输入和上下文", async () => {
+    const initial = createContent("尚未修改"),
+      updated = createContent("保留的输入");
+    vi.mocked(tauri.getContentDetail).mockResolvedValue(createDetail(406, initial));
+    let reject!: (cause: unknown) => void;
+    const pending = new Promise<ReturnType<typeof createDetail>>((_resolve, fail) => {
+      reject = fail;
+    });
+    vi.mocked(tauri.updateContent).mockReturnValueOnce(pending);
+    const controller = createHookController();
+    try {
+      await controller.render(406);
+      let saving: Promise<boolean> | undefined;
+      await act(async () => {
+        controller.latest()?.handleEditorContentChange(updated);
+        saving = controller.latest()?.flushNow();
+        await Promise.resolve();
+      });
+      expect(tauri.updateContent).toHaveBeenCalledTimes(1);
+      const payload = vi.mocked(tauri.updateContent).mock.calls[0][0];
+      const snapshot = controller.latest();
+      for (const locale of ["en-US", "zh-TW"] as const) {
+        await act(async () => mobileLocaleSource.setLocale(locale));
+        expect(controller.latest()).toBe(snapshot);
+        expect(tauri.getContentDetail).toHaveBeenCalledTimes(1);
+        expect(tauri.updateContent).toHaveBeenCalledTimes(1);
+      }
+      const cause = new Error("external original diagnostic");
+      await act(async () => {
+        reject(cause);
+        expect(await saving).toBe(false);
+      });
+      const failed = controller.latest();
+      expect(failed?.issue).toMatchObject({ kind: "save-failed", cause });
+      if (failed?.issue?.kind !== "save-failed") throw new Error("save failure issue missing");
+      expect(failed.issue.cause).toBe(cause);
+      for (const locale of ["zh-CN", "en-US"] as const) {
+        await act(async () => mobileLocaleSource.setLocale(locale));
+        expect(controller.latest()).toBe(failed);
+        expect(tauri.updateContent).toHaveBeenCalledTimes(1);
+      }
+      vi.mocked(tauri.updateContent).mockResolvedValueOnce(createDetail(406, updated));
+      await act(async () => expect(await controller.latest()?.retryLastFailed()).toBe(true));
+      expect(tauri.updateContent).toHaveBeenCalledTimes(2);
+      expect(tauri.updateContent).toHaveBeenLastCalledWith(payload);
+    } finally {
+      await controller.cleanup();
+    }
   });
 
   it("saveMode=false：不触发任何写通道（云端 Y.Doc 为唯一写者）", async () => {

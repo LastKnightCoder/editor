@@ -1,0 +1,5 @@
+{
+  "cloneUnsupported": "目前模型不支援音色複製",
+  "sessionEnded": "語音工作已結束",
+  "sessionClosed": "語音工作階段已關閉或外掛已停用"
+}

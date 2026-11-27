@@ -1,0 +1,11 @@
+{
+  "issue.save-failed": "自動儲存失敗，請稍後重試",
+  "issue.collaboration-required": "內容協作中，暫時無法直接修改",
+  "issue.load-failed": "內容載入失敗",
+  "issue.refresh-conflict": "正文已變更，本機輸入仍保留，請先處理儲存衝突",
+  "issue.view-conflict": "正文已在其他檢視變更，本機輸入仍保留，請先處理儲存衝突",
+  "issue.pending-input": "輸入尚未儲存，請保留目前頁面並重試",
+  "editor.preparing": "編輯器正在準備…",
+  "content.preparing": "正文正在準備…",
+  "editor.retrySave": "重試儲存"
+}

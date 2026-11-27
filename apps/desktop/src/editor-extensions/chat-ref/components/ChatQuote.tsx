@@ -5,12 +5,13 @@
 
 import { Transforms, type Node } from "slate";
 import { ReactEditor, useReadOnly, useSlateStatic } from "slate-react";
-import { AlertTriangle, MessageSquareQuote, Minimize2, PanelRightOpen } from "lucide-react";
-import { AnchoredPanel, IconButton, cn } from "@tau/ui";
+import { MessageSquareQuote } from "lucide-react";
+import { AnchoredPanel, cn } from "@tau/ui";
 import type { ElementRenderProps } from "@tau/editor";
 import type { ChatQuoteElement } from "../types";
 import { toChatRefElement } from "../operations";
 import { ChatRefPreview } from "./ChatRefPreview";
+import { ChatRefTitle, QuoteSource, QuoteDeletedNotice, QuoteAction } from "./labels";
 import { useChatRefHover } from "./useChatRefHover";
 
 export default function ChatQuote({ element }: ElementRenderProps<ChatQuoteElement>) {
@@ -35,10 +36,6 @@ export default function ChatQuote({ element }: ElementRenderProps<ChatQuoteEleme
     );
   };
 
-  const source = [element.turn ? `第 ${element.turn} 轮` : "", element.model ?? ""]
-    .filter(Boolean)
-    .join(" · ");
-
   return (
     <div
       className={cn(
@@ -59,37 +56,16 @@ export default function ChatQuote({ element }: ElementRenderProps<ChatQuoteEleme
           onClick={hover.openDock}
           {...hover.triggerProps}
         >
-          {hover.title || "无标题对话"}
+          <ChatRefTitle title={hover.title} />
         </span>
-        {source && <span className="shrink-0">· {source}</span>}
-        {hover.missing && (
-          <span className="text-warn inline-flex shrink-0 items-center gap-1">
-            <AlertTriangle className="size-3" strokeWidth={1.75} />
-            对话已删除，保留摘录文本
-          </span>
-        )}
+        <QuoteSource turn={element.turn} model={element.model} />
+        {hover.missing && <QuoteDeletedNotice />}
         <span className="flex-1" />
         <span className="flex gap-0.5 opacity-0 transition-opacity group-hover/quote:opacity-100">
           {!hover.unshared && !hover.missing && (
-            <IconButton
-              title="在侧栏打开"
-              aria-label="在侧栏打开"
-              className="size-6"
-              onClick={hover.openDock}
-            >
-              <PanelRightOpen size={13} strokeWidth={1.75} />
-            </IconButton>
+            <QuoteAction kind="dock" onClick={hover.openDock} />
           )}
-          {!readOnly && (
-            <IconButton
-              title="转为行内引用"
-              aria-label="转为行内引用"
-              className="size-6"
-              onClick={toInline}
-            >
-              <Minimize2 size={13} strokeWidth={1.75} />
-            </IconButton>
-          )}
+          {!readOnly && <QuoteAction kind="inline" onClick={toInline} />}
         </span>
       </div>
       {hover.panel.anchor && (

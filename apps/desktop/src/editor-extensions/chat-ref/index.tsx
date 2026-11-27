@@ -15,6 +15,8 @@ import { parseChatRefUrl } from "./link";
 import { chatRefInsertionPoint, insertChatRef } from "./operations";
 import { getChatRefDatabase, loadChatRefTarget } from "./queries";
 
+import { chatRefTranslator } from "./i18n";
+
 export type { ChatQuoteElement, ChatRefElement, ChatRefPayload } from "./types";
 
 const chatRefExtension = defineExtension({
@@ -57,7 +59,7 @@ const chatRefExtension = defineExtension({
                 selection
               )
             ) {
-              toast.warning("粘贴位置已变化，请重试");
+              toast.warning(chatRefTranslator.t("paste.moved"));
             }
           },
         },

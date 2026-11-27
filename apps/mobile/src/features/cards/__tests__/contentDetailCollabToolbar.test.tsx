@@ -43,7 +43,7 @@ vi.mock("../../../hooks/useEditContent", async () => {
         syncVersion: 0,
         loading: false,
         saving: false,
-        error: "",
+        issue: undefined,
         handleEditorContentChange: vi.fn(),
         flushNow: async () => true,
       };

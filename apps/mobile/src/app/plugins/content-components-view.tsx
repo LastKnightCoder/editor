@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ContentEditIssueText, ContentEditText } from "../../components/ContentEditIssueText";
+import type { ContentEditIssue } from "../../services/content-edit-issue";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Editor, type EditorDocument, type EditorKit, type EditorRef } from "@tau/editor";
 import type { Descendant } from "slate";
 import type { NodeTreeEditor } from "@tau/editor-collab";
@@ -134,7 +136,12 @@ export function PluginContentEditor({
 
 function ContentBody(props: Omit<BodyProps, "kit">) {
   const kit = useMobileContentKit("edit", props.kind);
-  if (!kit) return <p role="status">编辑器正在准备…</p>;
+  if (!kit)
+    return (
+      <p role="status">
+        <ContentEditText message="editor.preparing" />
+      </p>
+    );
   return props.state.snapshot.binding ? (
     <SharedBody {...props} kit={kit} />
   ) : (
@@ -225,7 +232,7 @@ function LocalBody(props: BodyProps) {
       canWrite={canWrite}
       guard={guard}
       flush={flush}
-      error={editing.error}
+      error={editing.issue ? <ContentEditIssueText issue={editing.issue} /> : undefined}
       loading={editing.loading}
     />
   );
@@ -306,7 +313,7 @@ function EditorSurface({
   canWrite(): boolean;
   guard(): void;
   flush(): Promise<boolean>;
-  error?: string;
+  error?: ReactNode;
   loading?: boolean;
   onFocus?: () => void;
   onBlur?: () => void;
@@ -314,7 +321,7 @@ function EditorSurface({
   const editorRef = useRef<EditorRef | null>(null);
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
   const [mention, setMention] = useState<ContentMentionRequest>();
-  const [saveError, setSaveError] = useState("");
+  const [saveIssue, setSaveIssue] = useState<ContentEditIssue>();
   const controller = useMobileEditorToolbarController({ editorRef });
   const readonly = !canWrite() || !document || !!document.readonly;
   const save = useCallback(async () => {
@@ -324,11 +331,12 @@ function EditorSurface({
         editorRef.current?.getEditor() as Partial<NodeTreeEditor> | undefined
       )?.flushNodeTreeInputs?.();
       const result = await flush();
-      if (!result) setSaveError("输入尚未保存，请保留当前页面并重试");
-      else setSaveError("");
+      if (!result) setSaveIssue({ kind: "pending-input" });
+      else setSaveIssue(undefined);
       return result;
     } catch (failure) {
-      setSaveError(String(failure));
+      const message = String(failure);
+      setSaveIssue(message ? { kind: "operation-failed", cause: failure, message } : undefined);
       return false;
     }
   }, [guard, flush]);
@@ -356,7 +364,7 @@ function EditorSurface({
     <div ref={setContainer} className="relative min-w-0">
       {loading && (
         <p role="status" className="text-ink-3 text-tau-meta py-3">
-          正文正在准备…
+          <ContentEditText message="content.preparing" />
         </p>
       )}
       {document && (
@@ -379,12 +387,12 @@ function EditorSurface({
           onSelectionChange={controller.syncSelection}
         />
       )}
-      {(error || saveError) && (
+      {(error || saveIssue) && (
         <div role="alert" className="text-ink-2 text-tau-meta py-3">
-          <p>{saveError || error}</p>
+          <p>{saveIssue ? <ContentEditIssueText issue={saveIssue} /> : error}</p>
           {!readonly && (
             <button type="button" className="text-accent-text py-2" onClick={() => void save()}>
-              重试保存
+              <ContentEditText message="editor.retrySave" />
             </button>
           )}
         </div>

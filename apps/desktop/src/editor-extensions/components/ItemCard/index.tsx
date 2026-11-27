@@ -4,6 +4,8 @@ import { DocumentCard } from "@tau/ui";
 import { ProjectItem } from "@/types";
 import useProjectWebLinkMeta from "@/hooks/useProjectWebLinkMeta";
 
+import { useItemCardI18n } from "./i18n";
+
 interface ItemCardProps {
   item: Partial<ProjectItem> & {
     content: Descendant[];
@@ -15,10 +17,25 @@ const ItemCard = (props: ItemCardProps) => {
   const { item, onClick } = props;
 
   const { title } = useProjectWebLinkMeta(item);
-  const displayTitle = title || item.title || "未命名文档";
+  const displayTitle = title || item.title || "";
   const desc = getEditorText(item.content, 80);
 
-  return <DocumentCard title={displayTitle} description={desc} onClick={onClick} />;
+  return <ItemCardFace title={displayTitle} description={desc} onClick={onClick} />;
 };
+
+function ItemCardFace({
+  title,
+  description,
+  onClick,
+}: {
+  title: string;
+  description: string;
+  onClick: () => void;
+}) {
+  const { t } = useItemCardI18n();
+  return (
+    <DocumentCard title={title || t("untitled")} description={description} onClick={onClick} />
+  );
+}
 
 export default ItemCard;

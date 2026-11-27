@@ -1,0 +1,11 @@
+{
+  "issue.save-failed": "Automatic save failed. Try again later.",
+  "issue.collaboration-required": "This content is being edited collaboratively. Direct edits are unavailable.",
+  "issue.load-failed": "Could not load content",
+  "issue.refresh-conflict": "Content changed. Your local input is preserved. Resolve the save conflict first.",
+  "issue.view-conflict": "Content changed in another view. Your local input is preserved. Resolve the save conflict first.",
+  "issue.pending-input": "Your input has not been saved. Keep this page open and retry.",
+  "editor.preparing": "Preparing the editor…",
+  "content.preparing": "Preparing content…",
+  "editor.retrySave": "Retry saving"
+}

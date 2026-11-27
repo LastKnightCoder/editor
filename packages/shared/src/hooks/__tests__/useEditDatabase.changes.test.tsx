@@ -108,3 +108,56 @@ it("读到本机数字 ID 后仍携带原稳定引用写入，切换来源时忽
     host.remove();
   }
 });
+
+it.each([new Error(""), new Error("raw table diagnostic"), "raw non-Error cause", undefined])(
+  "读取失败保留原原因，切换来源后旧失败不能覆盖当前表",
+  async cause => {
+    let rejectRead: ((cause: unknown) => void) | undefined;
+    const reads = vi.fn((target: DataTableTarget) =>
+      target === 1
+        ? new Promise<{ table: DataTable | null; views: [] }>((_, reject) => {
+            rejectRead = reject;
+          })
+        : Promise.resolve({ table: null, views: [] })
+    );
+    const deps: UseEditDatabaseDeps = {
+      getDataTableDetail: reads,
+      updateDataTable: async () => null,
+      updateDataTableView: async () => null,
+      createDataTableView: async () => null,
+      deleteDataTableView: async () => 0,
+      setActiveDataTableView: async () => true,
+      reorderDataTableViews: async () => undefined,
+    };
+    const state: { result: DatabaseHookResult | null } = { result: null };
+    function Probe({ target }: { target: number }) {
+      state.result = useEditDatabase(target, deps);
+      return null;
+    }
+    const host = document.createElement("div"),
+      root = createRoot(host);
+    document.body.append(host);
+    try {
+      await act(async () => root.render(<Probe target={1} />));
+      await act(async () => rejectRead?.(cause));
+      expect(state.result?.issue).toEqual({ kind: "read", cause });
+      expect(state.result?.issue?.cause).toBe(cause);
+      const issue = state.result?.issue;
+      await act(async () => root.render(<Probe target={1} />));
+      expect(state.result?.issue).toBe(issue);
+      expect(reads).toHaveBeenCalledTimes(1);
+      await act(async () => root.render(<Probe target={2} />));
+      expect(state.result?.issue).toBeUndefined();
+      expect(reads).toHaveBeenCalledTimes(2);
+      await act(async () => root.render(<Probe target={1} />));
+      const lateReject = rejectRead;
+      await act(async () => root.render(<Probe target={2} />));
+      await act(async () => lateReject?.(cause));
+      expect(state.result?.issue).toBeUndefined();
+      expect(state.result?.loading).toBe(false);
+    } finally {
+      await act(async () => root.unmount());
+      host.remove();
+    }
+  }
+);

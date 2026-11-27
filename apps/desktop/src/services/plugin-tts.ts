@@ -1,3 +1,4 @@
+import { TtsCapabilityFailure } from "./tts-capability-error";
 import type { TTSInstance, JsonValue } from "@tau/plugins";
 import { copyJson } from "@tau/plugins/host";
 import type { PluginTTSProviderSetting } from "@/types/tts";
@@ -15,8 +16,7 @@ export async function openPluginTTS(
   const lifetime = new AbortController();
   const executionSignal = AbortSignal.any([lifetime.signal, ...(signal ? [signal] : [])]);
   const onClosed = (_event: unknown, message: { session: string }) => {
-    if (message.session === session)
-      lifetime.abort(new DOMException("语音会话已关闭或插件已停用", "AbortError"));
+    if (message.session === session) lifetime.abort(new TtsCapabilityFailure("sessionClosed"));
   };
   on("plugin-tts:session-closed", onClosed);
   let info: TTSSessionInfo;
@@ -47,7 +47,7 @@ export async function openPluginTTS(
     signal.throwIfAborted();
   }
   const taskSignal = (call: AbortSignal) => {
-    if (closed) throw new DOMException("语音任务已结束", "AbortError");
+    if (closed) throw new TtsCapabilityFailure("sessionEnded");
     return AbortSignal.any([executionSignal, call]);
   };
   const instance: TTSInstance & { readonly signal: AbortSignal; dispose(): Promise<void> } = {

@@ -5,6 +5,7 @@ import { MessageSquareQuote } from "lucide-react";
 import { AnchoredPanel, cn } from "@tau/ui";
 import type { ChatRefElement } from "../types";
 import { ChatRefPreview } from "./ChatRefPreview";
+import { ChatRefTitle } from "./labels";
 import { useChatRefHover } from "./useChatRefHover";
 
 /** 与 content-link 同一套点线下划线；前缀对话图标标明出处是对话 */
@@ -60,7 +61,7 @@ export const ChatRef = memo(({ attributes, element, children }: ChatRefProps) =>
           className="mr-0.5 inline size-[0.9em] align-[-0.1em]"
           strokeWidth={1.75}
         />
-        {hover.title || "无标题对话"}
+        <ChatRefTitle title={hover.title} />
         {children}
       </span>
       {hover.panel.anchor && (

@@ -225,7 +225,7 @@ export interface ValidationRule {
 
 export interface DatabaseHookResult {
   loading?: boolean;
-  error?: string;
+  issue?: { kind: "read"; cause: unknown };
   table: DataTable | null;
   views: DataTableView[];
   activeViewId: number | null;

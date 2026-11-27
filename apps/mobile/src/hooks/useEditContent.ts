@@ -1,3 +1,4 @@
+import type { ContentEditIssue } from "../services/content-edit-issue";
 import { registerContentWriter } from "../services/contentWriteCoordinator";
 import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -54,7 +55,7 @@ type UseEditContentResult = {
   syncVersion: number;
   loading: boolean;
   saving: boolean;
-  error: string;
+  issue?: ContentEditIssue;
   handleEditorContentChange: (content: Descendant[], contracts?: ContentContractDictionary) => void;
   flushNow: () => Promise<boolean>;
   retryLastFailed: () => Promise<boolean>;
@@ -68,7 +69,7 @@ export function useEditContent(
   const [syncVersion, setSyncVersion] = useState(0);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const [issue, setIssue] = useState<ContentEditIssue>();
 
   const metadataRef = useRef<ContentDetailResponse | undefined>(undefined);
   const databaseName = activeDatabase();
@@ -113,7 +114,7 @@ export function useEditContent(
       }
 
       setSaving(true);
-      setError("");
+      setIssue(undefined);
       try {
         assertContentWriteContext(request.context);
         options?.guard?.();
@@ -174,11 +175,13 @@ export function useEditContent(
           : request;
         // 协作内容被数据库层守卫拒绝直写：给出明确指引而非通用保存失败
         const parsed = parseInvokeError(saveError);
-        setError(
-          parsed.code === "COLLABORATION_WRITE_REQUIRED"
-            ? "内容协作中，暂不支持直接修改"
-            : "自动保存失败，请稍后重试"
-        );
+        setIssue({
+          kind:
+            parsed.code === "COLLABORATION_WRITE_REQUIRED"
+              ? "collaboration-required"
+              : "save-failed",
+          cause: saveError,
+        });
         options?.onSaveError?.(saveError);
         return false;
       } finally {
@@ -287,14 +290,14 @@ export function useEditContent(
       lastSavedSnapshotRef.current = JSON.stringify(EMPTY_EDITOR_CONTENT);
       lastFailedContentRef.current = null;
       setContent(EMPTY_EDITOR_CONTENT);
-      setError("");
+      setIssue(undefined);
       setLoading(false);
       notifyContentSync(EMPTY_EDITOR_CONTENT);
       return;
     }
 
     setLoading(true);
-    setError("");
+    setIssue(undefined);
     const current = optionsRef.current;
     Promise.resolve()
       .then(async () => {
@@ -324,7 +327,7 @@ export function useEditContent(
           lastFailedContentRef.current = failedRequest
             ? { ...failedRequest, sequence: requestSeq }
             : null;
-          setError("正文已变化，本机输入仍保留，请先处理保存冲突");
+          setIssue({ kind: "refresh-conflict" });
           return;
         }
         metadataRef.current = result;
@@ -351,7 +354,7 @@ export function useEditContent(
         if (loadRequestSeqRef.current !== requestSeq) {
           return;
         }
-        setError("内容加载失败");
+        setIssue({ kind: "load-failed", cause: loadError });
         onLoadErrorRef.current?.(loadError);
       })
       .finally(() => {
@@ -387,7 +390,7 @@ export function useEditContent(
         JSON.stringify(latestContentRef.current) !== lastSavedSnapshotRef.current &&
         JSON.stringify(nextContent) !== JSON.stringify(latestContentRef.current)
       ) {
-        setError("正文已在其他视图变化，本机输入仍保留，请先处理保存冲突");
+        setIssue({ kind: "view-conflict" });
         return;
       }
       if (metadata) metadataRef.current = metadata;
@@ -398,7 +401,7 @@ export function useEditContent(
       setContent(normalized);
       latestRequestRef.current = null;
       setSyncVersion(value => value + 1);
-      setError("");
+      setIssue(undefined);
       notifyContentSync(normalized);
     });
   }, [contentId, notifyContentSync]);
@@ -414,7 +417,7 @@ export function useEditContent(
     syncVersion,
     loading,
     saving,
-    error,
+    issue,
     handleEditorContentChange,
     flushNow,
     retryLastFailed,

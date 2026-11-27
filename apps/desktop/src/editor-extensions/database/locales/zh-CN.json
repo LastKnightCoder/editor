@@ -1,0 +1,6 @@
+{
+  "missing": "未找到对应的数据表",
+  "insert.title": "数据库视图",
+  "insert.description": "插入一个数据表视图",
+  "read.failed": "数据表读取失败"
+}

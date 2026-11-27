@@ -22,5 +22,6 @@
   "nodes.host.document": "文档内容需要宿主支持",
   "nodes.host.webview": "网页内容需要宿主支持",
   "nodes.host.video": "该视频请在桌面端查看",
-  "nodes.host.whiteboard": "白板引用需要宿主支持"
+  "nodes.host.whiteboard": "白板引用需要宿主支持",
+  "nodes.audio.untitled": "音频"
 }

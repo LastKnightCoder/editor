@@ -30,7 +30,10 @@ export async function loadChatRefTarget(
   if (!session || session.scope !== "main-chat") return null;
   if (!entryId) return { session };
   const result = await piSessionTurn({ sessionFile: session.sessionFile, databaseName }, entryId);
-  if (!result.ok) throw new Error(result.error || "读取对话失败");
+  if (!result.ok) {
+    if (result.error) throw new Error(result.error);
+    throw Object.assign(new Error("读取对话失败"), { code: "CHAT_REF_READ_FAILED" });
+  }
   return { session, turn: result.turn ?? null };
 }
 

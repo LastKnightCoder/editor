@@ -15,6 +15,8 @@ import {
   type ChatRefInsertMode,
 } from "../operations";
 
+import { chatRefTranslator, chatRefFailureText, useChatRefI18n } from "../i18n";
+
 export function ChatRefMenu({
   getPayload,
   quoteText,
@@ -23,6 +25,7 @@ export function ChatRefMenu({
   /** 这条回答的正文：「作为摘录块」时作为引文 */
   quoteText: string;
 }) {
+  const { t } = useChatRefI18n();
   const [writable, setWritable] = useState(false);
   const [selection, setSelection] = useState("");
   const anchorRef = useRef<HTMLButtonElement>(null);
@@ -39,24 +42,24 @@ export function ChatRefMenu({
   const run = (mode: ChatRefInsertMode) => {
     const payload = getPayload();
     if (!payload) {
-      toast.warning("这条消息还没有保存，稍后再引用");
+      toast.warning(chatRefTranslator.t("message.unsaved"));
       return;
     }
     const text = selection || quoteText;
     void insertChatRefIntoActiveEditor(
       mode === "quote" ? { ...payload, text } : payload,
       mode
-    ).catch(() => toast.error("引用失败"));
+    ).catch(cause => toast.error(chatRefFailureText(cause, "reference.failed")));
   };
   const copy = () => {
     const payload = getPayload();
     if (!payload) {
-      toast.warning("这条消息还没有保存，稍后再引用");
+      toast.warning(chatRefTranslator.t("message.unsaved"));
       return;
     }
     void copyChatRefLink(payload)
-      .then(() => toast.success("已复制引用链接"))
-      .catch(() => toast.error("复制失败"));
+      .then(() => toast.success(chatRefTranslator.t("copy.success")))
+      .catch(cause => toast.error(chatRefFailureText(cause, "copy.failed")));
   };
 
   return (
@@ -69,8 +72,8 @@ export function ChatRefMenu({
       trigger={
         <IconButton
           ref={anchorRef}
-          aria-label="引用到正文"
-          title="引用到正文"
+          aria-label={t("reference.intoBody")}
+          title={t("reference.intoBody")}
           className="size-[26px] [&_svg]:size-3.5"
           // 点击会清掉选区，按下时先记下来
           onPointerDown={() => setSelection(readSelection())}
@@ -85,21 +88,21 @@ export function ChatRefMenu({
             icon={<CornerDownLeft size={14} strokeWidth={1.75} />}
             onSelect={() => run("inline")}
           >
-            插入到正文
+            {t("insert.intoBody")}
           </Menu.Item>
           {(selection || quoteText.trim()) && (
             <Menu.Item
               icon={<TextQuote size={14} strokeWidth={1.75} />}
               onSelect={() => run("quote")}
             >
-              {selection ? "摘录选中的文字" : "作为摘录块插入"}
+              {selection ? t("quote.selection") : t("quote.insert")}
             </Menu.Item>
           )}
           <Menu.Separator />
         </>
       )}
       <Menu.Item icon={<Link2 size={14} strokeWidth={1.75} />} onSelect={copy}>
-        复制引用链接
+        {t("copy.reference")}
       </Menu.Item>
     </Menu>
   );

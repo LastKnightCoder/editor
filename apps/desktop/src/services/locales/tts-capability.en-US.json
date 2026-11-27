@@ -1,0 +1,5 @@
+{
+  "cloneUnsupported": "This model does not support voice cloning",
+  "sessionEnded": "The speech task has ended",
+  "sessionClosed": "The speech session has closed or the plugin was disabled"
+}

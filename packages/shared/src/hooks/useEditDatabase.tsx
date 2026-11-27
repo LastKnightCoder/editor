@@ -53,7 +53,7 @@ export function useEditDatabase(
   const currentTarget = useRef(targetKey);
   currentTarget.current = targetKey;
   const [loadedTarget, setLoadedTarget] = useState<string>();
-  const [error, setError] = useState<string>();
+  const [issue, setIssue] = useState<DatabaseHookResult["issue"]>();
   const current = () => currentTarget.current === targetKey;
 
   useEffect(() => {
@@ -65,7 +65,7 @@ export function useEditDatabase(
     if (!tableId) return;
 
     let active = true;
-    setError(undefined);
+    setIssue(undefined);
     deps
       .getDataTableDetail(tableId)
       .then(({ table: dataTable, views: viewList }) => {
@@ -80,7 +80,7 @@ export function useEditDatabase(
         if (!active) return;
         setTable(null);
         setLoadedTarget(targetKey);
-        setError(failure instanceof Error ? failure.message : "数据表读取失败");
+        setIssue({ kind: "read", cause: failure });
       });
 
     return () => {
@@ -272,7 +272,7 @@ export function useEditDatabase(
 
   return {
     loading: Boolean(tableId) && loadedTarget !== targetKey,
-    error,
+    issue,
     activeViewId,
     views,
     table: loadedTarget === targetKey ? table : null,

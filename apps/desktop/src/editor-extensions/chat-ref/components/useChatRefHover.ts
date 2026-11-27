@@ -11,6 +11,8 @@ import { isMainWindow } from "@/utils/window-role";
 import { copyChatRefLink } from "../link";
 import { useChatRefTarget } from "../queries";
 
+import { chatRefTranslator, chatRefFailureText } from "../i18n";
+
 const OPEN_DELAY = 450;
 const CLOSE_GRACE = 160;
 
@@ -57,11 +59,11 @@ export function useChatRefHover(ref: {
   const canOpen = () => {
     if (unshared) return false;
     if (missing) {
-      toast.warning("引用的对话已被删除");
+      toast.warning(chatRefTranslator.t("open.deleted"));
       return false;
     }
     if (!isMainWindow()) {
-      toast.info("请在主窗口里打开对话");
+      toast.info(chatRefTranslator.t("open.mainWindow"));
       return false;
     }
     return true;
@@ -76,13 +78,13 @@ export function useChatRefHover(ref: {
     try {
       openPage("chat", { id: ref.sessionId, ...(ref.entryId ? { entry: ref.entryId } : {}) });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "打开对话失败");
+      toast.error(chatRefFailureText(error, "open.failed"));
     }
   };
   const copyLink = () => {
     void copyChatRefLink({ ...ref, title })
-      .then(() => toast.success("已复制引用链接"))
-      .catch(() => toast.error("复制失败"));
+      .then(() => toast.success(chatRefTranslator.t("copy.success")))
+      .catch(cause => toast.error(chatRefFailureText(cause, "copy.failed")));
   };
 
   return {

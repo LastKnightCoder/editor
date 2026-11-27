@@ -1,0 +1,5 @@
+{
+  "cloneUnsupported": "当前模型不支持音色复刻",
+  "sessionEnded": "语音任务已结束",
+  "sessionClosed": "语音会话已关闭或插件已停用"
+}

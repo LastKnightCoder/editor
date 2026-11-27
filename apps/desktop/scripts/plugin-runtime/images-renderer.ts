@@ -1,4 +1,4 @@
-import { definePlugin } from "@tau/plugins";
+import { defineI18n, definePlugin } from "@tau/plugins";
 import { PluginHost, createMemoryStorage, type DevelopmentPluginPackage } from "@tau/plugins/host";
 import { evaluatePluginPackage } from "@tau/plugins/rendering";
 import * as React from "react";
@@ -60,7 +60,7 @@ async function start() {
   });
   host.registerTrusted(
     evaluatePluginPackage(artifact, {
-      "@tau/plugins": { definePlugin },
+      "@tau/plugins": { defineI18n, definePlugin },
       "@tau/ui": { Button, Input },
       react: React,
       "react/jsx-runtime": jsx,

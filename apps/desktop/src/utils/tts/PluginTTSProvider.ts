@@ -1,3 +1,4 @@
+import { TtsCapabilityFailure } from "@/services/tts-capability-error";
 import type { ITTSProvider, PluginTTSProviderSetting } from "@/types/tts";
 import { openPluginTTS, withPluginTTS } from "@/services/plugin-tts";
 
@@ -10,7 +11,7 @@ export function createPluginTTSProvider(
   let activeTask: Awaited<ReturnType<typeof openPluginTTS>> | undefined;
   let disposed = false;
   const getTask = (signal?: AbortSignal) => {
-    if (disposed) throw new DOMException("语音任务已结束", "AbortError");
+    if (disposed) throw new TtsCapabilityFailure("sessionEnded");
     return (task ??= openPluginTTS(snapshot, model, signal).then(instance => {
       activeTask = instance;
       return instance;
@@ -51,7 +52,7 @@ export function createPluginTTSProvider(
       dispose,
       cloneVoice: async (file, options, signal = new AbortController().signal) => {
         const instance = await getTask(signal);
-        if (!instance.cloneVoice) throw new Error("当前模型不支持音色复刻");
+        if (!instance.cloneVoice) throw new TtsCapabilityFailure("cloneUnsupported");
         const voice = await instance.cloneVoice(
           {
             file: {

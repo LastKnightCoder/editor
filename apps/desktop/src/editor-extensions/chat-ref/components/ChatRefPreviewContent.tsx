@@ -1,4 +1,3 @@
-import { useDesktopLocale } from "@/app/i18n/react";
 /**
  * 聊天引用的悬停预览卡：这一轮的提问 + 回答。摘录块的预览把摘录原文在回答里高亮出来。
  */
@@ -19,6 +18,7 @@ import MarkdownRenderer from "@/components/ChatSidebar/MarkdownRenderer";
 import { useChatMarkdownComponents } from "@/components/ChatUI/useChatMarkdownComponents";
 import useTheme from "@/hooks/useTheme";
 import { formatAgo } from "@/utils/formatAgo";
+import { chatRefFailureText, useChatRefI18n } from "../i18n";
 import type { ChatRefTarget } from "../queries";
 
 export interface ChatRefPreviewProps {
@@ -62,30 +62,32 @@ const Header = ({
 );
 
 export const ChatRefPreview = memo((props: ChatRefPreviewProps) => {
-  const locale = useDesktopLocale();
+  const { t, locale } = useChatRefI18n();
   const { title, target, error, wholeSession, unshared, quote } = props;
   const { isDark } = useTheme();
   const markdownComponents = useChatMarkdownComponents({ isDark, idPrefix: "chat-ref-block" });
-  const name = target?.session.title || title || "无标题对话";
+  const name = target?.session.title || title || t("untitled");
 
   if (unshared)
     return (
-      <Header
-        icon={Lock}
-        tone="bg-warn-soft text-warn"
-        title={name}
-        meta="对话未共享，仅保存在创建者本机"
-      />
+      <Header icon={Lock} tone="bg-warn-soft text-warn" title={name} meta={t("preview.unshared")} />
     );
 
   if (error)
-    return <Header icon={Unlink} tone="bg-hover text-ink-3" title={name} meta="读取对话失败" />;
+    return (
+      <Header
+        icon={Unlink}
+        tone="bg-hover text-ink-3"
+        title={name}
+        meta={chatRefFailureText(error, "read.failed")}
+      />
+    );
 
   if (target === undefined)
     return (
       <div className="flex items-center gap-2 px-4 py-3.5">
         <Spinner className="size-3.5" />
-        <span className="text-tau-meta text-ink-3">正在读取对话…</span>
+        <span className="text-tau-meta text-ink-3">{t("read.loading")}</span>
       </div>
     );
 
@@ -95,13 +97,13 @@ export const ChatRefPreview = memo((props: ChatRefPreviewProps) => {
         <Header
           icon={Unlink}
           tone="bg-hover text-ink-3"
-          title={target ? name : "引用已失效"}
-          meta={target ? "引用的这一轮已被删除" : "对话不存在或已被删除"}
+          title={target ? name : t("reference.expired")}
+          meta={target ? t("turn.deleted") : t("session.deleted")}
         />
         {props.onRemove && (
           <div className="flex justify-end px-3 pt-1">
             <Button variant="ghost" size="sm" onClick={props.onRemove}>
-              移除引用
+              {t("reference.remove")}
             </Button>
           </div>
         )}
@@ -110,8 +112,11 @@ export const ChatRefPreview = memo((props: ChatRefPreviewProps) => {
 
   const turn = target.turn;
   const meta = turn
-    ? `第 ${turn.turn} / ${turn.turns} 轮 · ${formatAgo(turn.time, locale)}`
-    : `${target.session.messageCount} 轮 · ${formatAgo(target.session.updateTime, locale)}`;
+    ? t("turn.position", { turn: turn.turn, turns: turn.turns, time: formatAgo(turn.time, locale) })
+    : t("session.turns", {
+        count: target.session.messageCount,
+        time: formatAgo(target.session.updateTime, locale),
+      });
 
   return (
     <PanelHasHeaderContext.Provider value>
@@ -141,13 +146,13 @@ export const ChatRefPreview = memo((props: ChatRefPreviewProps) => {
                 shouldRender
               />
             ) : (
-              <p className="text-ink-3 m-0">这一轮还没有回答</p>
+              <p className="text-ink-3 m-0">{t("answer.empty")}</p>
             )}
           </MarkdownProvider>
           {!turn.onPath && (
             <div className="text-tau-micro text-warn mt-2 flex items-center gap-1">
               <GitBranch className="size-3" strokeWidth={1.75} />
-              这一轮不在对话的当前分支上
+              {t("branch.offPath")}
             </div>
           )}
         </AnchoredPanel.Body>
@@ -155,15 +160,15 @@ export const ChatRefPreview = memo((props: ChatRefPreviewProps) => {
       <AnchoredPanel.Footer className="justify-between py-2 pr-2.5 pl-2.5">
         <div className="flex items-center gap-1">
           <Button variant="ghost" size="sm" icon={PanelRightOpen} onClick={props.onOpenDock}>
-            在侧栏打开
+            {t("open.dock")}
           </Button>
           <Button variant="ghost" size="sm" icon={Maximize2} onClick={props.onOpenPage}>
-            对话页
+            {t("open.page")}
           </Button>
         </div>
         <IconButton
-          title={wholeSession ? "复制对话链接" : "复制引用链接"}
-          aria-label="复制引用链接"
+          title={wholeSession ? t("copy.session") : t("copy.reference")}
+          aria-label={t("copy.reference")}
           className="size-7"
           onClick={props.onCopyLink}
         >

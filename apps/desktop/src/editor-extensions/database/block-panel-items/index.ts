@@ -2,11 +2,18 @@ import { Table } from "lucide-react";
 import { IBlockPanelListItem } from "@tau/editor";
 import { insertDatabase } from "../utils";
 
+import { databaseEmbedTranslator } from "../i18n";
+
 const items: IBlockPanelListItem[] = [
   {
+    id: "host.database.insert",
     icon: Table,
-    title: "数据库视图",
-    description: "插入一个数据表视图",
+    get title() {
+      return databaseEmbedTranslator.t("insert.title");
+    },
+    get description() {
+      return databaseEmbedTranslator.t("insert.description");
+    },
     keywords: ["database", "数据表", "table"],
     onClick: editor => {
       insertDatabase(editor);

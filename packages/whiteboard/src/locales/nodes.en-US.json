@@ -29,5 +29,6 @@
   "nodes.host.document": "This host does not support document content",
   "nodes.host.webview": "This host does not support web content",
   "nodes.host.video": "Open this video in the desktop app",
-  "nodes.host.whiteboard": "This host does not support whiteboard references"
+  "nodes.host.whiteboard": "This host does not support whiteboard references",
+  "nodes.audio.untitled": "Audio"
 }

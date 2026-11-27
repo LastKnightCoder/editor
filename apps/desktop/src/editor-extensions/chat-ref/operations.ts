@@ -11,6 +11,8 @@ import { getActiveEditingTarget } from "@/services/content-editing/active-editor
 import type { ChatQuoteElement, ChatRefElement, ChatRefPayload } from "./types";
 import { copyChatRefLink } from "./link";
 
+import { chatRefTranslator } from "./i18n";
+
 export type ChatRefInsertMode = "inline" | "quote";
 
 const EMPTY = [{ type: "formatted" as const, text: "" }];
@@ -128,6 +130,6 @@ export async function insertChatRefIntoActiveEditor(
     return "inserted";
   }
   await copyChatRefLink(ref);
-  toast.success("已复制引用链接，可粘贴到正文");
+  toast.success(chatRefTranslator.t("copy.fallback"));
   return "copied";
 }

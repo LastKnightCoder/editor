@@ -199,7 +199,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
     syncVersion,
     loading: contentLoading,
     saving,
-    error: saveError,
+    issue: saveIssue,
     handleEditorContentChange,
     flushNow,
   } = useEditContent(props.contentId, {
@@ -536,7 +536,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
 
   const saveStatusNode = saving ? (
     <span className="text-ink-2 text-[12px]">{t("detail.saving")}</span>
-  ) : saveError ? (
+  ) : saveIssue ? (
     <span className="text-danger text-[12px] font-medium">{t("detail.saveFailed")}</span>
   ) : props.diaryDate ? (
     <span className="text-ok flex items-center gap-1.5 text-[12px] font-medium tabular-nums">

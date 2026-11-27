@@ -20,5 +20,7 @@
   "input.clear": "清除",
   "toast.done": "完成",
   "toast.failed": "失敗",
-  "toast.dismiss": "點擊關閉"
+  "toast.dismiss": "點擊關閉",
+  "documentCard.open": "開啟文件：{{title}}",
+  "documentCard.empty": "尚無內容"
 }

@@ -1,0 +1,6 @@
+{
+  "missing": "找不到對應的資料表",
+  "insert.title": "資料庫檢視",
+  "insert.description": "插入資料表檢視",
+  "read.failed": "讀取資料表失敗"
+}

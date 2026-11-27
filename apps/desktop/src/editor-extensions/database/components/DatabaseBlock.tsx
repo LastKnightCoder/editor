@@ -2,11 +2,13 @@ import { useMemoizedFn } from "ahooks";
 import { memo, useMemo, useRef, useEffect } from "react";
 import { RenderElementProps, ReactEditor, useSlateStatic, useReadOnly } from "slate-react";
 import { Transforms } from "slate";
-import { useEditDatabaseWithContext } from "@tau/shared";
+import { useEditDatabaseWithContext, type DatabaseHookResult } from "@tau/shared";
 import { AddParagraph } from "@tau/editor";
 import { useIsLastElement } from "@tau/editor/api";
 import { DataTableEditor as Database } from "@/features/shared/database/DataTableEditor";
 import type { DatabaseElement } from "../types";
+
+import { useDatabaseEmbedI18n } from "../i18n";
 
 interface DatabaseBlockProps {
   element: DatabaseElement;
@@ -87,7 +89,7 @@ const DatabaseBlock = memo((props: DatabaseBlockProps) => {
           style={{ minHeight: `${height}em` }}
         >
           <span className="text-ink-3 text-tau-sm">
-            {databaseState?.error ?? "未找到对应的数据表"}
+            <DatabaseReadStatus issue={databaseState?.issue} />
           </span>
         </div>
       );
@@ -150,5 +152,11 @@ const DatabaseBlock = memo((props: DatabaseBlockProps) => {
 });
 
 DatabaseBlock.displayName = "DatabaseBlock";
+
+function DatabaseReadStatus({ issue }: { issue: DatabaseHookResult["issue"] }) {
+  const { t } = useDatabaseEmbedI18n();
+  if (issue) return issue.cause instanceof Error ? issue.cause.message : t("read.failed");
+  return t("missing");
+}
 
 export default DatabaseBlock;

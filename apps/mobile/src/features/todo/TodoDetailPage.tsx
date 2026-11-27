@@ -192,7 +192,7 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
     content,
     loading: descriptionLoading,
     saving: descriptionSaving,
-    error: descriptionSaveError,
+    issue: descriptionSaveIssue,
     handleEditorContentChange,
   } = useEditContent(descriptionContentId ?? undefined, {
     onContentSync: next => {
@@ -691,7 +691,7 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
             Editor 默认 readonly=true，必须显式传 false，key 恒为 todoId 靠挂载闸门保证 initValue 拿到首载内容；
             仅在有状态要表达（保存中/失败）时出现一行轻提示 */}
           <section className="px-4">
-            {descriptionSaveError ? (
+            {descriptionSaveIssue ? (
               <div className="text-tag-5 pb-1 text-xs font-bold">
                 {translate("detail.saveRetry")}
               </div>

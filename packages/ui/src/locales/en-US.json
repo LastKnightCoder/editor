@@ -22,5 +22,7 @@
   "input.clear": "Clear",
   "toast.done": "Done",
   "toast.failed": "Failed",
-  "toast.dismiss": "Click to dismiss"
+  "toast.dismiss": "Click to dismiss",
+  "documentCard.open": "Open document: {{title}}",
+  "documentCard.empty": "No content yet"
 }

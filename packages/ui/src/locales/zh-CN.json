@@ -20,5 +20,7 @@
   "input.clear": "清空",
   "toast.done": "完成",
   "toast.failed": "失败",
-  "toast.dismiss": "点击关闭"
+  "toast.dismiss": "点击关闭",
+  "documentCard.open": "打开文档：{{title}}",
+  "documentCard.empty": "暂无内容"
 }

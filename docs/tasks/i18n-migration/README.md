@@ -420,11 +420,13 @@ SkillPicker六路径完成；skillItems5+whiteboardRefs6原11基线至实际Skil
 
 WhiteboardEmbed八路径完成；原Skill/引用11基线加实际Skill Editor1/宿主白板选择2共14例通过，8key三语/参数、范围检查与latest desktop type0。canvas沿原connector stub，真实host Editor/载体/selector与原onOk/不读写已验，不夸称Board内核；旧两warning保留。
 
+首版整合批：TTS能力11、音频显示5、ItemCard9、数据库9、ChatRef15、手机正文错误13及媒体测试facade1共63源路径，沿已完成验证交付，不扩普通文案测试。手机直接33基线至34例与type通过；TTS13、音频4、数据库shared8/desktop32、Chat7及各域类型/词典检查通过。Chat引用HTML/markdown完整保原，音频节点数据与播放实例保持；手机issue跨语不重读/写，重试仍原payload。实际starter已在隔离目录用原锁定依赖完成原renderer1例、type与真实build，静态reader验证0.67拒绝、0.68支持、词典校验且不导出站点、用户字段保持。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。
 - [x] 交付 P4A/P4B 联动：两端待办/日程、公共日期/提醒、纯日期显示与来源语义、共享分组弹层同批验证提交；原数据/协议/业务算法保持。
-- [ ] 持续并行（进行中）：P5通用设置、对话与输入组件已分批验证；白板公共UI、协作状态与对话外壳并行，Root收束已验证子批、跨域语义接口与剩余入口。
+- [ ] 首版收口（进行中）：整合已冻结完整批次、对齐桌面版本与兼容门槛、完成最终构建并准备渐进式发布说明；不再扩插件能力或普通文案测试。完整迁移目标保持，剩余文案/官方插件/Provider错误与显示名/AI显示投影及移动原生验收留后续清单。
 
 ## 收尾与退出
 

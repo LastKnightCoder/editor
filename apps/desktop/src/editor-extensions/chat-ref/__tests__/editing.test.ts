@@ -9,6 +9,7 @@ import chatRefExtension from "..";
 import { insertChatRef } from "../operations";
 import { loadChatRefTarget } from "../queries";
 import { getChatDatabase, setChatDatabase } from "@/services/chatDatabase";
+import { desktopLocaleSource } from "@/app/i18n/runtime";
 
 const commands = vi.hoisted(() => ({ get: vi.fn(), turn: vi.fn() }));
 vi.mock("@/commands/chat-session", () => ({ getChatSession: commands.get }));
@@ -69,6 +70,7 @@ it("跨代码块的选区交给默认粘贴，直接插入也不会进入代码�
 });
 
 it("异步粘贴保留落点、一次写入标题和轮次，撤销一次即可移除引用", async () => {
+  const locale = desktopLocaleSource.getSnapshot();
   const editor = withHistory(createEditor());
   editor.isInline = element => element.type === "chat-ref";
   editor.isVoid = element => element.type === "chat-ref";
@@ -89,6 +91,13 @@ it("异步粘贴保留落点、一次写入标题和轮次，撤销一次即可�
     expect(paste?.when(data, editor)).toBe(true);
     const pending = paste?.run({ editor, data, source: "paste" });
     Transforms.insertText(editor, "新", { at: { path: [0, 0], offset: 0 } });
+    const nodes = editor.children;
+    const requestCount = commands.get.mock.calls.length;
+    for (const language of ["zh-TW", "en-US"]) {
+      desktopLocaleSource.setLocale(language);
+      expect(editor.children).toBe(nodes);
+      expect(commands.get).toHaveBeenCalledTimes(requestCount);
+    }
     respond({ title: "对话快照", scope: "main-chat", sessionFile: "s.jsonl" });
     await pending;
     expect(Node.get(editor, [0, 0])).toMatchObject({ text: "新正" });
@@ -103,6 +112,7 @@ it("异步粘贴保留落点、一次写入标题和轮次，撤销一次即可�
     expect([...Node.nodes(editor)].some(([node]) => node.type === "chat-ref")).toBe(false);
   } finally {
     host.remove();
+    desktopLocaleSource.setLocale(locale);
   }
 });
 
