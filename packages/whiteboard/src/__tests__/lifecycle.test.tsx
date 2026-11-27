@@ -6,7 +6,7 @@ import Whiteboard from "../Whiteboard";
 import { defineWhiteboardExtension } from "../extensions/api";
 import { useBoard } from "../hooks/useBoard";
 import type Board from "../Board";
-import { ownsBoardEvent, ownsBoardPointerEvent } from "../utils/events";
+import { CANVAS_OVERLAY_ATTR, ownsBoardEvent, ownsBoardPointerEvent } from "../utils/events";
 import { BOARD_TO_CONTAINER } from "../constants/map";
 import { createSuspendOnce } from "./suspendOnce.fixture";
 
@@ -168,6 +168,70 @@ describe("白板挂载与事件归属", () => {
       await act(async () => root.unmount());
     }
   });
+
+  it.each(["pointerup", "pointercancel"] as const)(
+    "在阅读浮层内 %s 后结束画布手势，收起浮层仍可继续选择和平移",
+    async ending => {
+      vi.stubGlobal("ResizeObserver", observer);
+      let board!: Board;
+      function Capture() {
+        board = useBoard();
+        return null;
+      }
+      const container = document.createElement("div");
+      document.body.append(container);
+      const root = createRoot(container);
+      try {
+        await act(async () =>
+          root.render(
+            <Whiteboard
+              initData={[]}
+              showToolbar={false}
+              showAttributeSetter={false}
+              showStatusBar={false}
+              extensions={extensionsWithLayer(Capture)}
+            />
+          )
+        );
+        const canvas = container.querySelector<HTMLElement>("[data-whiteboard-root]");
+        if (!canvas) throw new Error("白板容器未挂载");
+        await act(async () => dispatchPointer(canvas, "pointerdown", 7, 0));
+        expect(board.interactions.activePointerState?.name).toBe("selecting");
+
+        const overlay = document.createElement("div");
+        overlay.setAttribute(CANVAS_OVERLAY_ATTR, "");
+        overlay.addEventListener(ending, event => event.stopPropagation());
+        canvas.append(overlay);
+        await act(async () => dispatchPointer(overlay, ending, 7, 0));
+        expect(board.interactions.activePointerState).toBeNull();
+        const selection = board.selection;
+        await act(async () => {
+          dispatchPointer(overlay, "pointerdown", 8, 0);
+          dispatchPointer(overlay, "pointerup", 8, 0);
+        });
+        expect(board.selection).toEqual(selection);
+        expect(board.interactions.activePointerState).toBeNull();
+        overlay.remove();
+
+        const beforePan = board.viewPort.minX;
+        await act(async () => {
+          dispatchPointer(canvas, "pointerdown", 8);
+          dispatchPointer(canvas, "pointermove", 8, 2, 40);
+        });
+        expect(board.viewPort.minX).not.toBe(beforePan);
+        await act(async () => dispatchPointer(canvas, "pointerup", 8, 2, 40));
+        expect(board.interactions.activePointerState).toBeNull();
+
+        await act(async () => {
+          dispatchPointer(canvas, "pointerdown", 9, 0);
+          dispatchPointer(canvas, "pointerup", 9, 0);
+        });
+        expect(board.interactions.activePointerState).toBeNull();
+      } finally {
+        await act(async () => root.unmount());
+      }
+    }
+  );
 
   it("不同 pointerId 的释放不会结束另一实例的手势", async () => {
     vi.stubGlobal("ResizeObserver", observer);

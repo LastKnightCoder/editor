@@ -548,7 +548,6 @@ const WhiteboardCanvas = forwardRef<WhiteboardRef, WhiteboardProps & { board: Bo
       handleOnWheel: noStopPropagationOnWheel,
       handleOnGlobalPointerDown,
       handleOnGlobalPointerMove,
-      handleOnGlobalPointerUp,
       handleOnGlobalPointerCancel,
       handleOnPaste,
       handleOnCopy,
@@ -740,8 +739,9 @@ const WhiteboardCanvas = forwardRef<WhiteboardRef, WhiteboardProps & { board: Bo
         cancelPointerMove();
         finishBoardPointer(event);
         try {
-          handleOnPointerUp(event);
-          handleOnGlobalPointerUp(event);
+          // 已归属于画布的手势，在阅读浮层内松手也必须完成，不能再按浮层过滤。
+          board.onPointerUp(event);
+          board.onGlobalPointerUp(event);
         } finally {
           releaseBoardPointer(board, event);
         }
