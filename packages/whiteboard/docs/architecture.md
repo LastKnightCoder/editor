@@ -100,6 +100,7 @@ Board（数据内核：Operation / undo / 事件总线；阶段 A 未改动，�
 
 - **双轨过渡**：内核未接管的事件仍走原插件广播；广播被插件 `return false` 中断时内核同样不开新手势。
 - **仲裁时序显式化**：pointerdown 广播前先询问命中元素插件的 `claimPointerGesture`（自定义手势）；广播后按 SelectingState → DraggingState → PanningState 顺序仲裁（原注册顺序的显式化，不再依赖插件数组顺序）。
+- **指针焦点归属**：PanningState 接管右键 pointerdown 时阻止原生默认行为，让焦点保留在画布；导图折叠控件在 pointerdown 阻止冒泡及默认行为，保留当前焦点。两者避免随后的 mousedown 把焦点转给 SVG portal 宿主；未拖动的右键仍在 pointerup 打开菜单。
 - **消费语义**：手势状态的处理器返回 `true` 表示事件已被处理，Board 跳过插件广播（原 `return false` 的内核化替代）。
 - **浮层边界**：阅读纸内发起的操作不进入画布；已归属画布的指针手势由全局捕获收尾，即使在阅读纸内松手也直接分发给原画布，避免浮层过滤遗留活动手势。
 - **插件瘦身**：MovePlugin 已删除；SelectPlugin 仅保留键盘命令（mod+a / delete）；ViewPortPlugin 仅保留滚轮与缩放快捷键；MindPlugin 保留拖拽状态机并通过 `claimPointerGesture` 声明接管。

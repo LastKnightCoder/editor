@@ -652,6 +652,8 @@ const MindNode = (props: MindNodeProps) => {
               e.stopPropagation();
             }}
             onPointerDown={e => {
+              // 折叠控件不转移焦点，避免 SVG portal 宿主出现原生聚焦轮廓。
+              e.preventDefault();
               e.stopPropagation();
             }}
             className="cursor-pointer"

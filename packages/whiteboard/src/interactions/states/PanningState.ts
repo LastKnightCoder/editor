@@ -30,6 +30,9 @@ export class PanningState implements InteractionState {
     if (board.presentationManager.isPresentationMode) return null;
     if (e.button !== 2 && !(board.activeTool === HAND_TOOL_ID && e.button === 0)) return null;
 
+    // 避免原生 mousedown 把焦点从画布转移到 SVG portal 宿主并画出聚焦轮廓。
+    if (e.button === 2) e.preventDefault();
+
     return new PanningState(board.viewPort, e.clientX, e.clientY, e.button);
   }
 
