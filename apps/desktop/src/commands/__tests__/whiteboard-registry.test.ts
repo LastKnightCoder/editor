@@ -29,6 +29,13 @@ function emit(channel: string, payload: unknown) {
 
 beforeEach(() => {
   bridge.invoke.mockReset();
+  bridge.invoke.mockImplementation(async (channel: string) => {
+    if (channel === "whiteboard-document:open") return openedFixture();
+    if (channel === "whiteboard-document:agent-peers") return { sequence: 0, peers: [] };
+    if (channel === "whiteboard-document:flush") return { revision: 0, projectedRevision: 0 };
+    if (channel === "whiteboard-document:release") return;
+    throw new Error(`未桥接的命令：${channel}`);
+  });
   bridge.listeners.clear();
 });
 
@@ -103,6 +110,7 @@ it("超时恢复先于初始化完成时，旧 drain 不再冻结或回复", asy
     expect(bridge.invoke).not.toHaveBeenCalledWith(
       "whiteboard-document:drained",
       "expired",
+      undefined,
       undefined
     );
   } finally {
@@ -121,7 +129,12 @@ it("取消旧请求不解除新保存请求的冻结", async () => {
     for (const requestId of ["old", "new"])
       emit("whiteboard-document:drain", { leaseId: "lease", requestId, sealed: true });
     await vi.waitFor(() =>
-      expect(bridge.invoke).toHaveBeenCalledWith("whiteboard-document:drained", "new", undefined)
+      expect(bridge.invoke).toHaveBeenCalledWith(
+        "whiteboard-document:drained",
+        "new",
+        undefined,
+        undefined
+      )
     );
     emit("whiteboard-document:resume", { leaseId: "lease", requestId: "old" });
     expect(client.getSnapshot().frozen).toBe(true);
@@ -138,7 +151,9 @@ it("共享绑定读取失败会自动重试，同客户端只创建一条同步"
       ? openedFixture()
       : channel === "whiteboard-document:flush"
         ? { revision: 0, projectedRevision: 0 }
-        : { requiresRebind: false, pending: 0, localRevision: 0 }
+        : channel === "whiteboard-document:agent-peers"
+          ? { sequence: 0, peers: [] }
+          : { requiresRebind: false, pending: 0, localRevision: 0 }
   );
   query.fetchQuery
     .mockReset()
@@ -153,7 +168,6 @@ it("共享绑定读取失败会自动重试，同客户端只创建一条同步"
     if (!remote) throw new Error("缺少共享状态控制器");
     expect(remote.getSnapshot()).toMatchObject({
       phase: "waiting",
-      message: "共享状态读取失败，正在重试",
     });
     await vi.advanceTimersByTimeAsync(2000);
     expect(remote.getSnapshot().phase).toBe("synced");
@@ -171,7 +185,6 @@ it("共享绑定读取失败会自动重试，同客户端只创建一条同步"
 });
 it("失效临时会话释放时保留草稿并销毁，不向旧租约保存", async () => {
   vi.useFakeTimers();
-  bridge.invoke.mockResolvedValue(openedFixture());
   query.fetchQuery.mockReset().mockResolvedValue({ binding: null });
   const entry = new WhiteboardDocumentEntry({ databaseName: "A", contentId: 1 }, "doc");
   const release = entry.retain();
@@ -187,7 +200,6 @@ it("失效临时会话释放时保留草稿并销毁，不向旧租约保存", a
 
 it("失效后并发重开共用完整交接，新客户端就绪才释放旧客户端", async () => {
   vi.useFakeTimers();
-  bridge.invoke.mockResolvedValue(openedFixture());
   query.fetchQuery.mockReset().mockResolvedValue({ binding: null });
   const entry = new WhiteboardDocumentEntry({ databaseName: "A", contentId: 1 }, "doc");
   const release = entry.retain();

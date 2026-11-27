@@ -1,6 +1,7 @@
 import { createEditor } from "slate";
 import { projectNodeTree } from "./nodeTreeProjection";
 import type { ContentNode } from "@tau/collaboration";
+import type * as Y from "yjs";
 import type { Descendant, Editor } from "slate";
 // 主进程经 editor-collab 消费本模块，走 core 子入口避免把编辑器根入口
 // （presets/扩展组件/渲染库）拖进主进程 bundle
@@ -166,6 +167,12 @@ export function applyNodeTreeContent(tree: NodeTree, content: ContentNode[], ori
       collabId: typeof node.collabId === "string" ? node.collabId : crypto.randomUUID(),
       children: node.children.map(prepare),
     };
+    // 检查点中的旧节点仍在池中，撤回已观察到的删除标记后复用其共享存储。
+    if (tree.nodes.has(next.collabId) && tree.isDeleted(next.collabId)) {
+      const deletions = tree.record(next.collabId).get("deletions") as Y.Map<boolean>;
+      for (const deletion of [...deletions.keys()])
+        tree.restoreRemoval([next.collabId], deletion, origin);
+    }
     if (tree.nodes.has(next.collabId) && !tree.isDeleted(next.collabId)) {
       const contract = tree.contract(next.collabId);
       if (contract && tree.properties(next.collabId).get("tauContract") === next.tauContract) {

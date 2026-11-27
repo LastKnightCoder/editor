@@ -15,7 +15,7 @@ vi.mock("@/stores/useGlobalStateStore", async () => {
   const { create } = await import("zustand");
   return { default: create(() => ({ databaseStatus: {} })) };
 });
-vi.mock("@/commands", () => ({ connectDatabaseByName: vi.fn() }));
+vi.mock("@/commands/database", () => ({ connectDatabaseByName: vi.fn() }));
 vi.mock("@/utils/perf-observer", () => ({ recordPerfStage: vi.fn() }));
 vi.mock("@/page/PageProvider", () => ({
   PageProvider: () => <div>页面已就绪</div>,
@@ -47,6 +47,9 @@ vi.mock("@/features/transfer/ImportWizardHost", () => ({
 vi.mock("@/features/search/searchStore", () => ({ useSearchStore: vi.fn() }));
 vi.mock("@/features/search/searchMeta", () => ({ isReplayableVisit: vi.fn() }));
 vi.mock("../useThemeRuntime", () => ({ useThemeRuntime: vi.fn() }));
+vi.mock("../featureQueries", () => ({
+  useWorkspacePreferences: () => ({ isPending: false, data: { onboarding: "done" } }),
+}));
 vi.mock("../Sidebar", () => ({ Sidebar: () => null }));
 vi.mock("../Titlebar", () => ({ Titlebar: () => null }));
 vi.mock("../AssistDock", () => ({ AssistDock: () => null }));
@@ -63,7 +66,7 @@ vi.mock("@/pages", () => ({}));
 import AppShell from "../AppShell";
 import { useWebDockStore } from "@/features/web/openInDock";
 import { useShellStore } from "../shellStore";
-import { connectDatabaseByName } from "@/commands";
+import { connectDatabaseByName } from "@/commands/database";
 import useSettingStore from "@/stores/useSettingStore";
 import useGlobalStateStore from "@/stores/useGlobalStateStore";
 import { recordPerfStage } from "@/utils/perf-observer";

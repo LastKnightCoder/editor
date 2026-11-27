@@ -13,10 +13,64 @@ import styledText, { unwrapStyledText, wrapStyledText } from "@tau/editor/extens
 import { textFormattingExtension } from "@tau/editor/extensions/text-formatting";
 import { NodeTree, validateNodeTree } from "@tau/collaboration";
 import { ElementContractCatalog } from "../../../plugins/src/editor-contracts";
-import { createNodeTreeDocument } from "../nodeTreeDocument";
+import { applyNodeTreeContent, createNodeTreeDocument } from "../nodeTreeDocument";
 import type { NodeTreeEditor } from "../withNodeTree";
 
 describe("稳定节点文档与真实编辑器", () => {
+  it("检查点恢复复用已删除的父子节点，支持同步和撤销重做", () => {
+    const tree = new NodeTree(new Y.Doc({ gc: false }));
+    const peer = new NodeTree(new Y.Doc({ gc: false }));
+    tree.insertNode(
+      {
+        type: "blockquote",
+        collabId: "quote",
+        children: [
+          {
+            type: "paragraph",
+            collabId: "body",
+            children: [{ type: "formatted", text: "原文", bold: true }],
+          },
+        ],
+      },
+      null,
+      0,
+      null,
+      true
+    );
+    const checkpoint = tree.read();
+    const sharedText = tree.content("body");
+    const origin = {};
+    const history = tree.createUndoManager({ trackedOrigins: new Set([origin]) });
+    try {
+      applyNodeTreeContent(
+        tree,
+        [{ type: "paragraph", children: [{ type: "formatted", text: "AI 改写" }] }],
+        {}
+      );
+      const rewritten = tree.read();
+      expect(tree.isDeleted("quote")).toBe(true);
+      expect(tree.isDeleted("body")).toBe(true);
+      Y.applyUpdate(peer.doc, Y.encodeStateAsUpdate(tree.doc));
+
+      // 改写删除的节点仍留在历史中，恢复不能以相同身份重新插入。
+      tree.doc.transact(() => applyNodeTreeContent(tree, checkpoint, origin), origin);
+      expect(tree.read()).toEqual(checkpoint);
+      expect(tree.content("body")).toBe(sharedText);
+      history.undo();
+      expect(tree.read()).toEqual(rewritten);
+      history.redo();
+      expect(tree.read()).toEqual(checkpoint);
+      Y.applyUpdate(peer.doc, Y.encodeStateAsUpdate(tree.doc));
+      expect(peer.read()).toEqual(checkpoint);
+    } finally {
+      history.destroy();
+      tree.dispose();
+      peer.dispose();
+      tree.doc.destroy();
+      peer.doc.destroy();
+    }
+  });
+
   it.each([false, true])(
     "只读预览在 normalizeOnConnect=%s 时补齐行内落点，不写正文或撤销历史",
     async normalizeOnConnect => {

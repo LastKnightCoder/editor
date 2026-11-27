@@ -106,6 +106,7 @@ describe("白板文档 Electron 通知", () => {
       expect(bridge.invoke).not.toHaveBeenCalledWith(
         "whiteboard-document:drained",
         "request",
+        undefined,
         undefined
       );
       finishFlush();
@@ -113,6 +114,7 @@ describe("白板文档 Electron 通知", () => {
         expect(bridge.invoke).toHaveBeenCalledWith(
           "whiteboard-document:drained",
           "request",
+          undefined,
           undefined
         )
       );

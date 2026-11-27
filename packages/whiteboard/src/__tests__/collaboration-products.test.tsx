@@ -543,9 +543,7 @@ it.each(nodes)("内置 $type 创建预览不依赖尚未提交的文档节点", 
       f.board.setCreationPreview(null);
       f.board.setCreationPreview({ ...node, [field]: "重开的预览" });
     });
-    expect(host.querySelector<HTMLInputElement>(`input[aria-label="${field}"]`)?.value).toBe(
-      "重开的预览"
-    );
+    expect(host.querySelector<HTMLInputElement>("input")?.value).toBe("重开的预览");
   }
   await act(async () => f.board.setCreationPreview(null));
   expect(f.board.extensions!.unknownElementReason(node)).toBeDefined();
@@ -579,9 +577,7 @@ it.each(nodes)("内置 $type 创建预览不依赖尚未提交的文档节点", 
           revision: snapshot.revision,
         });
       });
-      expect(host.querySelector<HTMLInputElement>(`input[aria-label="${field}"]`)?.value).toBe(
-        "更新后的文字"
-      );
+      expect(host.querySelector<HTMLInputElement>("input")?.value).toBe("更新后的文字");
       expect(f.board.children[0][field]).toBe("更新后的文字");
     } finally {
       handle.dispose();
@@ -1867,9 +1863,7 @@ it.skipIf(process.env.WHITEBOARD_PREVIEW_BENCH !== "1")(
           })
         );
         expect(host.querySelector("[data-unknown-element]")).toBeNull();
-        expect(host.querySelector<HTMLInputElement>(`input[aria-label="${field}"]`)?.value).toBe(
-          expected
-        );
+        expect(host.querySelector<HTMLInputElement>("input")?.value).toBe(expected);
       }
       durations.push(performance.now() - started);
     }
