@@ -285,7 +285,7 @@ try {
     );
     await writeFile(
       path.join(directory, "README.md"),
-      `# Tau 插件开发包 @tau/${name}\n\n开发 Tau 插件所需的类型与接口，通过 npm 别名安装为 \`@tau/${name}\`。根入口的实现由 Tau 在运行时提供，插件构建时需设为 external。\n\n从模板开始开发：https://github.com/LastKnightCoder/tau-plugin-template\n${name === "plugins" ? "\n开发文档见 [docs/README.md](docs/README.md)。\n" : ""}`
+      `# Tau 插件开发包 @tau/${name}\n\n开发 Tau 插件所需的类型与接口，通过 npm 别名安装为 \`@tau/${name}\`。根入口的实现由 Tau 在运行时提供，插件构建时需设为 external。\n\n从模板开始开发：https://github.com/LastKnightCoder/tau-plugin-template\n${name === "plugins" ? "\n开发文档见 [docs/README.md](docs/README.md)。\n" : `\n界面语言与侧栏迁移示例见[插件作者指南](https://github.com/LastKnightCoder/tau-plugin-template/blob/${docsRef ?? "main"}/docs/ui-components.md)。\n`}`
     );
     if (name === "plugins") {
       await cp(docsSource, path.join(directory, "docs"), {
