@@ -70,6 +70,8 @@ export interface TaskInput {
   dueAt?: string | null;
   reminderAt?: string | null;
   reminderOffsets?: number[];
+  priority?: import("@tau/shared/task-assistant").TodoPriority;
+  tags?: string[];
   startAt?: string | null;
   description?: import("@/types/plugin-data").PluginContentSource;
   notes?: import("@/types/plugin-data").PluginContentSource;

@@ -239,6 +239,37 @@ pub(super) fn occurrence(
     }
     Ok((series, state))
 }
+fn normalize_tags<'a>(tags: impl Iterator<Item = &'a str>) -> Vec<&'a str> {
+    let mut seen = std::collections::HashSet::new();
+    // Match JavaScript String.trim so synchronized tag names have the same identity.
+    tags.map(|tag| {
+        tag.trim_matches(|c: char| (c.is_whitespace() && c != '\u{0085}') || c == '\u{feff}')
+    })
+    .filter(|tag| !tag.is_empty() && seen.insert(*tag))
+    .collect()
+}
+
+fn todo_metadata(fields: &Value) -> Result<(Option<&str>, Option<String>), String> {
+    let priority = fields
+        .get("priority")
+        .map(|value| {
+            value
+                .as_str()
+                .filter(|p| matches!(*p, "none" | "low" | "medium" | "high"))
+                .ok_or("待办优先级无效")
+        })
+        .transpose()?;
+    let tags = fields
+        .get("tags")
+        .map(|value| -> Result<String, String> {
+            let tags: Vec<String> =
+                serde_json::from_value(value.clone()).map_err(|_| "待办标签必须是文本数组")?;
+            Ok(json!(normalize_tags(tags.iter().map(String::as_str))).to_string())
+        })
+        .transpose()?;
+    Ok((priority, tags))
+}
+
 pub(super) fn task_dto(
     conn: &Connection,
     row: &Value,
@@ -270,6 +301,12 @@ pub(super) fn task_dto(
             snapshot["descendants"] = json!(children);
         }
     }
+    let tags = row["tags"]
+        .as_str()
+        .and_then(|raw| serde_json::from_str::<Vec<Value>>(raw).ok())
+        .unwrap_or_default();
+    title["tags"] = json!(normalize_tags(tags.iter().filter_map(Value::as_str)));
+    title["priority"] = row["priority"].clone();
     title["listId"] = json!(row["group_id"].as_i64().ok_or("清单身份无效")?.to_string());
     if date.is_none() && row["type"] == "recurring" {
         title["completed"] = json!(false);
@@ -891,9 +928,10 @@ pub(super) fn write_todo(
         }
         let due = dates::deadline(&input["dueAt"], zone)?;
         let id = assistant_tasks::next_id(&tx, "todo_item")?;
-        tx.execute("INSERT INTO todo_item(id,group_id,title,type,due_at,create_time,update_time,parent_id,start_at,description_content_id,sort_index)
-            VALUES(?1,?2,?3,?4,?5,?6,?6,?7,?8,?9,COALESCE((SELECT MAX(sort_index)+1024 FROM todo_item WHERE group_id=?2 AND parent_id IS ?7),1024))",
-            params![id,group,input["title"].as_str().ok_or("缺少标题")?,if due.is_some(){"deadline"}else{"normal"},due,now,parent_id,start,description]).map_err(sql_error)?;
+        let (priority, tags) = todo_metadata(input)?;
+        tx.execute("INSERT INTO todo_item(id,group_id,title,type,due_at,create_time,update_time,parent_id,start_at,description_content_id,priority,tags,sort_index)
+            VALUES(?1,?2,?3,?4,?5,?6,?6,?7,?8,?9,?10,?11,COALESCE((SELECT MAX(sort_index)+1024 FROM todo_item WHERE group_id=?2 AND parent_id IS ?7),1024))",
+            params![id,group,input["title"].as_str().ok_or("缺少标题")?,if due.is_some(){"deadline"}else{"normal"},due,now,parent_id,start,description,priority.unwrap_or("none"),tags.as_deref().unwrap_or("[]")]).map_err(sql_error)?;
         let recurring = write["input"].get("recurrence").is_some();
         if let Some(rule) = write["input"].get("recurrence") {
             let segments = super::plugin_task_recurrence::amend(
@@ -1088,7 +1126,8 @@ pub(super) fn write_todo(
                         row["due_at"].as_i64()
                     };
                     let recurring = row["type"] == "recurring";
-                    tx.execute("UPDATE todo_item SET title=?1,due_at=?2,type=?3,remind_before=CASE WHEN ?2 IS NULL AND ?3<>'recurring' THEN NULL ELSE remind_before END,update_time=MAX(update_time+1,?4) WHERE id=?5",params![patch["title"].as_str().unwrap_or(row["title"].as_str().unwrap_or("")),due,if recurring{"recurring"}else if due.is_some(){"deadline"}else{"normal"},now,id]).map_err(sql_error)?;
+                    let (priority, tags) = todo_metadata(patch)?;
+                    tx.execute("UPDATE todo_item SET title=?1,due_at=?2,type=?3,priority=COALESCE(?6,priority),tags=COALESCE(?7,tags),remind_before=CASE WHEN ?2 IS NULL AND ?3<>'recurring' THEN NULL ELSE remind_before END,update_time=MAX(update_time+1,?4) WHERE id=?5",params![patch["title"].as_str().unwrap_or(row["title"].as_str().unwrap_or("")),due,if recurring{"recurring"}else if due.is_some(){"deadline"}else{"normal"},now,id,priority,tags]).map_err(sql_error)?;
                     if let Some(reminders) = patch.get("reminders") {
                         if recurring
                             && reminders.as_array().is_some_and(|v| {
@@ -1665,6 +1704,32 @@ mod tests {
         )
         .unwrap()
     }
+    #[test]
+    fn series_tags_and_priority_are_inherited_and_partial_edits_preserve_the_other_field() {
+        let mut db = database();
+        let holidays = HolidayDays::new();
+        let root = write_todo(&mut db, "fixture", &json!({
+            "action":"create", "input":{"title":"评审","priority":"high","tags":[" 项目 ", "", "评审", "项目"],
+            "recurrence":{"type":"daily","interval":1,"startDate":"2026-10-01"}}
+        }), ZONE, &holidays).unwrap();
+        let instance = format!("{}@2026-10-02", root["id"].as_str().unwrap());
+        let get = |db: &Connection| {
+            super::super::plugin_schedule_data::get(db, "todo", &instance, ZONE, &holidays).unwrap()
+        };
+        let first = get(&db);
+        assert_eq!(first["tags"], json!(["项目", "评审"]));
+        assert_eq!(first["priority"], "high");
+        let edit = json!({"action":"update","id":root["id"],"expectedRevision":root["revision"],"patch":{"tags":[]}});
+        let saved = write_todo(&mut db, "fixture", &edit, ZONE, &holidays).unwrap();
+        assert_eq!(saved["priority"], "high");
+        let fresh = get(&db);
+        assert_eq!(fresh["tags"], json!([]));
+        assert_ne!(fresh["revision"], first["revision"]);
+        assert!(write_todo(&mut db, "fixture", &edit, ZONE, &holidays)
+            .unwrap_err()
+            .contains("PLUGIN_CONFLICT"));
+    }
+
     #[test]
     fn phase_three_rule_writes_and_instance_patches_preserve_original_identity() {
         let mut db = database();

@@ -24,6 +24,7 @@ export function instanceRevision(
   return revision({
     taskRef: task.taskRef,
     title: task.title,
+    ...(task.priority === undefined ? {} : { priority: task.priority, tags: task.tags }),
     archived: task.archived,
     dueAt: task.dueAt,
     groupId: task.groupId,

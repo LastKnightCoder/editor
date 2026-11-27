@@ -1,3 +1,4 @@
+import { isTodoPriority, normalizeTodoTags } from "@tau/shared/task-assistant";
 import Database from "better-sqlite3";
 import {
   TodoItem,
@@ -50,23 +51,14 @@ export default class TodoItemTable {
 
   static assertPriority(priority: string | undefined): TodoPriority {
     if (priority === undefined) return "none";
-    if (!["none", "low", "medium", "high"].includes(priority)) {
+    if (!isTodoPriority(priority)) {
       throw new Error(`Unsupported todo priority: ${priority}`);
     }
-    return priority as TodoPriority;
+    return priority;
   }
 
   static normalizeTags(tags: string[] | undefined): string[] {
-    if (!tags?.length) return [];
-    const out: string[] = [];
-    const seen = new Set<string>();
-    for (const raw of tags) {
-      const clean = raw.trim();
-      if (!clean || seen.has(clean)) continue;
-      seen.add(clean);
-      out.push(clean);
-    }
-    return out;
+    return normalizeTodoTags(tags ?? []);
   }
 
   static parseTags(raw: unknown): string[] {
@@ -147,10 +139,7 @@ export default class TodoItemTable {
       startAt: (row.start_at as number | null) ?? null,
       dueAt: (row.due_at as number | null) ?? null,
       remindBefore: (row.remind_before as number | null) ?? null,
-      priority:
-        row.priority === "low" || row.priority === "medium" || row.priority === "high"
-          ? row.priority
-          : "none",
+      priority: isTodoPriority(row.priority) ? row.priority : "none",
       tags: TodoItemTable.parseTags(row.tags),
       completedAt: (row.completed_at as number | null) ?? null,
       sortIndex: row.sort_index as number,

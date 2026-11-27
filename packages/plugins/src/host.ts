@@ -17,6 +17,8 @@ import {
   type TranslationValues,
 } from "@tau/i18n";
 import {
+  isTodoPriority,
+  normalizeTodoTags,
   readDirectoryFields,
   parseTaskKey,
   type DirectoryEntity,
@@ -1037,6 +1039,8 @@ function readId(id: unknown): string {
 /** 字段规则：数字为非空字符串的最大长度，对象形式可允许空串；meta 为插件自有内容的 meta */
 type FieldRule =
   | "parent-id"
+  | "todo-priority"
+  | "todo-tags"
   | "todo-rule"
   | "todo-reminders"
   | number
@@ -1066,7 +1070,14 @@ function readFields<T>(
       if (typeof item !== "boolean") throw new Error(`${key} 无效`);
       result[key] = item;
     } else if (rule === "parent-id") result[key] = item === null ? null : readTodoParentId(item);
-    else if (rule === "todo-rule") result[key] = readTodoRule(item);
+    else if (rule === "todo-priority") {
+      if (!isTodoPriority(item)) throw new Error("待办优先级无效");
+      result[key] = item;
+    } else if (rule === "todo-tags") {
+      if (!Array.isArray(item) || !item.every(tag => typeof tag === "string"))
+        throw new Error("待办标签必须是文本数组");
+      result[key] = normalizeTodoTags(item);
+    } else if (rule === "todo-rule") result[key] = readTodoRule(item);
     else if (rule === "todo-reminders") result[key] = readTodoReminders(item);
     else if (rule === "reminders") {
       if (!Array.isArray(item)) throw new Error("提醒列表无效");
@@ -3244,7 +3255,11 @@ export class PluginHost {
         write.action === "create" ? write.input : write.action === "update" ? write.patch : {};
       if (
         write.action === "update" &&
-        ("parentId" in fields || "startAt" in fields || "ensureDescription" in fields)
+        ("priority" in fields ||
+          "tags" in fields ||
+          "parentId" in fields ||
+          "startAt" in fields ||
+          "ensureDescription" in fields)
       ) {
         const target = parseTaskKey(write.id);
         if (target?.taskRef.kind !== "todo" || target.occurrenceDate)
@@ -3281,6 +3296,8 @@ export class PluginHost {
     };
     const crud = this.makeResourceCrud<TodoWrite, PluginTodo>(deps, {
       createFields: {
+        priority: "todo-priority",
+        tags: "todo-tags",
         startAt: "nullable-time",
         parentId: "parent-id",
         description: "content",
@@ -3292,6 +3309,8 @@ export class PluginHost {
       },
       createRequired: ["title"],
       updateFields: {
+        priority: "todo-priority",
+        tags: "todo-tags",
         startAt: "nullable-time",
         parentId: "parent-id",
         title: MAX_TITLE,

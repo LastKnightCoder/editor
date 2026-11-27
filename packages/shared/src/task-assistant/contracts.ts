@@ -49,7 +49,20 @@ export interface DocumentTaskAttributes {
   taskCompletedAt?: number | null;
 }
 
+export const todoPriorities = ["none", "low", "medium", "high"] as const;
+export type TodoPriority = (typeof todoPriorities)[number];
+
+export function isTodoPriority(value: unknown): value is TodoPriority {
+  return todoPriorities.some(priority => priority === value);
+}
+
+export function normalizeTodoTags(tags: string[]): string[] {
+  return [...new Set(tags.map(tag => tag.trim()).filter(Boolean))];
+}
+
 export interface AssistantTask {
+  priority?: TodoPriority;
+  tags?: string[];
   startAt?: string | null;
   parentRef?: TaskRef;
   description?: { contentId: number; createdAt: number };

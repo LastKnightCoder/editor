@@ -1,6 +1,8 @@
 import { requireGroup } from "./directory-access";
 import type Database from "better-sqlite3";
 import {
+  isTodoPriority,
+  type TodoPriority,
   occurrenceKey,
   patchOccurrenceState,
   type TaskOccurrencePatch,
@@ -67,6 +69,8 @@ export function readIndependentTask(
       : {}),
     startAt: row.start_at == null ? null : new Date(Number(row.start_at)).toISOString(),
     title: String(row.title),
+    priority: isTodoPriority(row.priority) ? row.priority : "none",
+    tags: TodoItemTable.parseTags(row.tags),
     completed: !!row.is_completed,
     completedAt:
       row.is_completed && row.type !== "recurring" && row.completed_at != null
@@ -109,6 +113,8 @@ export function createIndependent(
   db: Database.Database,
   input: {
     title: string;
+    priority?: TodoPriority;
+    tags?: string[];
     groupId?: number;
     parentRef?: TaskRef;
     startAt?: string | null;
@@ -136,6 +142,8 @@ export function createIndependent(
   const dueAt = deadline(input.dueAt);
   const item = TodoItemTable.createItem(db, {
     title: input.title,
+    priority: input.priority,
+    tags: input.tags,
     groupId,
     parentId: parent ? Number(parent.id) : null,
     startAt: input.startAt == null ? null : dateTime(input.startAt),
@@ -201,6 +209,8 @@ export function mutateIndependent(
     TodoItemTable.updateItem(db, {
       id: ref.todoId,
       title: patch.title as string | undefined,
+      priority: patch.priority as TodoPriority | undefined,
+      tags: patch.tags as string[] | undefined,
       ...(patch.startAt === undefined
         ? {}
         : { startAt: patch.startAt == null ? null : dateTime(patch.startAt as string) }),

@@ -242,6 +242,8 @@ fn dto(
         result["reminders"]
     ])));
     result["completedAt"] = Value::Null;
+    result["priority"] = Value::Null;
+    result["tags"] = Value::Null;
     result["startAt"] = Value::Null;
     result["descriptionRef"] = Value::Null;
     result["parentId"] = Value::Null;
@@ -592,9 +594,15 @@ pub(super) fn prepare(
     holidays: &HolidayDays,
 ) -> Result<Value, String> {
     let id = write["id"].as_str().ok_or("待办身份无效")?;
-    if ["startAt", "parentId", "ensureDescription"]
-        .iter()
-        .any(|field| write["patch"].get(*field).is_some())
+    if [
+        "startAt",
+        "parentId",
+        "ensureDescription",
+        "tags",
+        "priority",
+    ]
+    .iter()
+    .any(|field| write["patch"].get(*field).is_some())
     {
         return Err("此字段仅支持独立待办本身".into());
     }

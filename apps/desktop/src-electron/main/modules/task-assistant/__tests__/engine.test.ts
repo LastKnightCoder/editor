@@ -47,6 +47,41 @@ describe("助理任务业务命令", () => {
     expect(result.status).toBe("succeeded");
     return { result, task: result.result as AssistantTask };
   };
+  it("插件与待办详情共享优先级和标签，旧版本不能覆盖用户的修改", () => {
+    const saved = engine.execute(
+      "create_todo",
+      {
+        requestId: "tagged",
+        title: "评审",
+        groupId,
+        priority: "high",
+        tags: [" 项目 ", "", "评审", "项目"],
+      },
+      "batch",
+      "plugin:fixture"
+    ).result as AssistantTask;
+    expect(saved).toMatchObject({ priority: "high", tags: ["项目", "评审"] });
+    if (saved.taskRef.kind !== "todo") throw new Error("需要独立待办");
+    const id = saved.taskRef.todoId;
+    TodoItemTable.updateItem(db, { id, priority: "low" });
+    const update = (revision: string, requestId: string) =>
+      engine.execute(
+        "update_todo",
+        {
+          taskRef: saved.taskRef,
+          revision,
+          requestId,
+          patch: { tags: [] },
+        },
+        "batch",
+        "plugin:fixture"
+      );
+    expect(update(saved.revision, "stale").error?.code).toBe("VERSION_CONFLICT");
+    const [fresh] = queryTasks(db, undefined, "test", { taskRefs: [saved.taskRef] }).items;
+    expect(fresh).toMatchObject({ priority: "low", tags: ["项目", "评审"] });
+    expect(update(fresh.revision, "clear").result).toMatchObject({ priority: "low", tags: [] });
+  });
+
   it("夏令时回拨的两次一点钟保留实际先后，改时区可发现冲突且可撤销", () => {
     const created = engine.execute(
       "create_calendar_event",

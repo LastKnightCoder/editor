@@ -161,6 +161,8 @@ function toTodo(task: AssistantTask): PluginTodo {
       ? `${taskKey(task.taskRef)}@${task.occurrence.occurrenceDate}`
       : taskKey(task.taskRef),
     revision: task.revision,
+    priority: task.priority ?? null,
+    tags: task.tags ?? null,
     startAt: task.startAt ?? null,
     parentId: task.parentRef ? taskKey(task.parentRef) : null,
     descriptionRef: task.description
@@ -537,6 +539,8 @@ export function createDesktopData(databaseName: string): DesktopDataAdapter {
       if (write.action === "create") {
         const result = await taskWrite(context, "create_todo", {
           title: write.input.title,
+          ...(write.input.priority === undefined ? {} : { priority: write.input.priority }),
+          ...(write.input.tags === undefined ? {} : { tags: write.input.tags }),
           ...(write.input.parentId ? { parentRef: parseTodoId(write.input.parentId).taskRef } : {}),
           ...(write.input.startAt !== undefined ? { startAt: write.input.startAt } : {}),
           ...(write.input.description !== undefined

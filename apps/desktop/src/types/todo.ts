@@ -1,11 +1,15 @@
 import { Descendant } from "slate";
 import type { CalendarEvent } from "./calendar";
-import type { TaskRecurrenceSegment, TaskOccurrenceState } from "@tau/shared/task-assistant";
+import type {
+  TaskRecurrenceSegment,
+  TaskOccurrenceState,
+  TodoPriority,
+} from "@tau/shared/task-assistant";
 
 // 任务类型（「计划任务」已退役：计划时段改由关联待办的日历事件表达）
 export type TodoItemType = "normal" | "deadline" | "recurring";
 
-export type TodoPriority = "none" | "low" | "medium" | "high";
+export type { TodoPriority };
 
 // 系统组类型
 export type TodoSystemGroupType =

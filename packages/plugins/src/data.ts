@@ -11,6 +11,7 @@ export type {
  * 修改与删除要传读到的 revision，数据已被别处修改时抛出 PluginConflictError。
  */
 import type {
+  TodoPriority,
   TaskRecurrenceRule,
   TaskRecurrenceSegment,
   TaskOccurrenceState,
@@ -313,6 +314,7 @@ export interface PluginReminder {
   offsetMs: number;
 }
 
+export type { TodoPriority as PluginTodoPriority };
 export type PluginTodoReminder = PluginReminder | { at: string };
 export interface PluginTodoRecurrenceChange {
   effectiveFrom: string;
@@ -364,6 +366,9 @@ export interface PluginTodoCompletionOptions extends PluginWriteOptions {
 }
 
 export interface PluginTodo {
+  /** 独立待办及其周期实例的优先级和标签。正文勾选项返回 null。 */
+  priority: TodoPriority | null;
+  tags: string[] | null;
   /** 独立待办的开始时刻、父待办身份与描述正文。 */
   startAt: string | null;
   parentId: string | null;
@@ -425,6 +430,8 @@ export interface PluginCalendarEvent {
 }
 
 export interface PluginTodoInput {
+  priority?: TodoPriority;
+  tags?: string[];
   startAt?: string | null;
   parentId?: string | null;
   description?: PluginContentInput;
@@ -437,6 +444,8 @@ export interface PluginTodoInput {
 }
 
 export interface PluginTodoPatch {
+  priority?: TodoPriority;
+  tags?: string[];
   startAt?: string | null;
   parentId?: string | null;
   listId?: string;

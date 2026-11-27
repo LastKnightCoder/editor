@@ -1,4 +1,4 @@
-import { TaskAssistantError, type TaskRef } from "./contracts";
+import { todoPriorities, TaskAssistantError, type TaskRef } from "./contracts";
 
 export interface TaskSchema {
   type?: string;
@@ -87,7 +87,12 @@ const request = {
 const target = { ...request, taskRef, revision: text };
 const eventTarget = { ...request, eventId: id, createdAt: timestamp, revision: text };
 const reminderOffsets: TaskSchema = { type: "array", items: { type: "integer" } };
+const todoMetadata = {
+  priority: choice(...todoPriorities),
+  tags: { type: "array", items: { type: "string" } },
+};
 const patch = object({
+  ...todoMetadata,
   reminders: {
     type: "array",
     items: {
@@ -111,6 +116,7 @@ const patch = object({
 export const TASK_WRITE_SCHEMAS = {
   create_todo: object(
     {
+      ...todoMetadata,
       ...request,
       title: { ...text, maxLength: 500 },
       groupId: id,
@@ -336,16 +342,21 @@ export function validateTaskValue(schema: TaskSchema, value: unknown, path = "�
     if (
       schema === TASK_WRITE_SCHEMAS.create_todo &&
       record.document &&
-      ("startAt" in record || "description" in record)
+      ("startAt" in record || "description" in record || "priority" in record || "tags" in record)
     )
-      fail("开始时间和描述仅适用于独立待办");
+      fail("此字段仅适用于独立待办");
     if (
       schema === TASK_WRITE_SCHEMAS.update_todo &&
       (record.taskRef as TaskRef).kind === "document"
     ) {
       const patch = record.patch as Record<string, unknown>;
-      if ("startAt" in patch || "ensureDescription" in patch)
-        fail("开始时间和描述仅适用于独立待办");
+      if (
+        "startAt" in patch ||
+        "ensureDescription" in patch ||
+        "priority" in patch ||
+        "tags" in patch
+      )
+        fail("此字段仅适用于独立待办");
     }
     if (schema === taskRef) {
       const valid =
