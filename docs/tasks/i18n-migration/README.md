@@ -416,6 +416,8 @@ ProjectList九路径完成；navigation/markdown原3例基线至最终通过，�
 
 QueryBlock六路径完成；既有navigation/markdown三例基线/最终通过，4key三语/参数、范围lint/diff与desktop type0。生产AST除原检索别名无固定中文UI，未修改markdown与真实DSL数据。
 
+SkillPicker六路径完成；skillItems5+whiteboardRefs6原11基线至实际Skill Editor/白板host契约合计14通过，7key三语/参数、范围检查及最新desktop type0。实际候选仍原对象/选区，显式插入按原身份，非UI命令不绑runtime。
+
 ## 当前子批任务
 
 - [x] Investigate/Triage/Understand the problem：高级电子书、待办/日程与日期/提醒依赖已盘点并按独立文件域并行落地。

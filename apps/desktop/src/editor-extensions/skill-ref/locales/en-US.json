@@ -1,0 +1,9 @@
+{
+  "hint": "Mention a Skill to follow its instructions for this message",
+  "empty": "No matching Skills",
+  "loading": "Loading…",
+  "manual": "Manual only",
+  "choose": "Select",
+  "confirm": "Mention",
+  "close": "Close"
+}

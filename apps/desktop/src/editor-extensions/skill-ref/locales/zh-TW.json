@@ -1,0 +1,9 @@
+{
+  "hint": "指定一個 Skill，這則訊息會依照其說明執行",
+  "empty": "沒有符合的 Skill",
+  "loading": "載入中…",
+  "manual": "僅限手動",
+  "choose": "選擇",
+  "confirm": "指定",
+  "close": "關閉"
+}

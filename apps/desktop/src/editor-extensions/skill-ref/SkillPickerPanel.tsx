@@ -27,10 +27,13 @@ import useSkillStore, {
 } from "@/stores/useSkillStore";
 import { selectSkill, useSkillPickerStore, type SkillPickerItem } from "./store";
 
+import { useSkillPickerI18n } from "./i18n";
+
 const GAP = 8;
 const MAX_ITEMS = 8;
 
 export function SkillPickerPanel({ composerRef }: { composerRef: RefObject<HTMLElement | null> }) {
+  const { t } = useSkillPickerI18n();
   const editor = useSkillPickerStore(s => s.editor);
   const query = useSkillPickerStore(s => s.query);
   const activeIndex = useSkillPickerStore(s => s.activeIndex);
@@ -95,7 +98,7 @@ export function SkillPickerPanel({ composerRef }: { composerRef: RefObject<HTMLE
 
   return createPortal(
     <ComposerPanel className="fixed z-[250] max-w-[calc(100vw-16px)]" style={style}>
-      <div className="text-tau-body text-ink-1 flex items-center gap-2 px-3.5 pb-1 pt-3">
+      <div className="text-tau-body text-ink-1 flex items-center gap-2 px-3.5 pt-3 pb-1">
         <Sparkles size={15} strokeWidth={1.75} className="text-ink-3 shrink-0" />
         <span className="min-w-0 truncate">
           {query ? (
@@ -103,13 +106,13 @@ export function SkillPickerPanel({ composerRef }: { composerRef: RefObject<HTMLE
               $<span className="text-accent-text">{query}</span>
             </>
           ) : (
-            <span className="text-ink-3">点名一个 Skill，本条消息按它的说明来做</span>
+            <span className="text-ink-3">{t("hint")}</span>
           )}
         </span>
       </div>
       {items.length === 0 ? (
-        <div className="text-tau-sm text-ink-3 px-3.5 pb-4 pt-3">
-          {loaded ? "没有匹配的 Skill" : "加载中…"}
+        <div className="text-tau-sm text-ink-3 px-3.5 pt-3 pb-4">
+          {loaded ? t("empty") : t("loading")}
         </div>
       ) : (
         <div role="listbox" className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-1.5">
@@ -123,7 +126,7 @@ export function SkillPickerPanel({ composerRef }: { composerRef: RefObject<HTMLE
               trailing={
                 item.manual ? (
                   <span className="bg-info-soft text-info text-tau-tiny ml-auto shrink-0 rounded-full px-1.5 leading-[18px]">
-                    仅手动
+                    {t("manual")}
                   </span>
                 ) : undefined
               }
@@ -135,9 +138,9 @@ export function SkillPickerPanel({ composerRef }: { composerRef: RefObject<HTMLE
       )}
       <ComposerPanelFooter
         hints={[
-          ["↑↓", "选择"],
-          ["Enter", "点名"],
-          ["Esc", "关闭"],
+          ["↑↓", t("choose")],
+          ["Enter", t("confirm")],
+          ["Esc", t("close")],
         ]}
       />
     </ComposerPanel>,

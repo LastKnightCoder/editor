@@ -1,0 +1,9 @@
+{
+  "hint": "点名一个 Skill，本条消息按它的说明来做",
+  "empty": "没有匹配的 Skill",
+  "loading": "加载中…",
+  "manual": "仅手动",
+  "choose": "选择",
+  "confirm": "点名",
+  "close": "关闭"
+}
