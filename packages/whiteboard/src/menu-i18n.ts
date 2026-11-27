@@ -4,8 +4,9 @@ import type { PluginContextMenuItem } from "./types";
 import type { WhiteboardMessageKey } from "./messages";
 import { whiteboardT } from "./i18n-runtime";
 
-const MENU_MESSAGE = Symbol("whiteboard.menu.message");
-interface MenuMessage {
+/** 导出以便声明生成可命名携带标记的返回类型（TS4058）。 */
+export const MENU_MESSAGE = Symbol("whiteboard.menu.message");
+export interface MenuMessage {
   key: WhiteboardMessageKey;
   values?: TranslationValues;
 }
