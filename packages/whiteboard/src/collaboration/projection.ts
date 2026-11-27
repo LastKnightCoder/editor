@@ -120,6 +120,7 @@ function isStrokeSegment(binding: CanvasBinding, node: WhiteboardElementSnapshot
 export function project(binding: CanvasBinding, node: WhiteboardElementSnapshot): BoardElement {
   const mapped = binding.options.types[node.type];
   const type = matchesCanvasContract(mapped, node.contractId) ? mapped : undefined;
+  const contract = binding.model.contracts.get(node.contractId);
   const localEntity = binding.localEntities.get(node.id);
   const measurement = binding.measurements.get(node.id);
   let leaves = leafProjections.get(binding);
@@ -134,13 +135,15 @@ export function project(binding: CanvasBinding, node: WhiteboardElementSnapshot)
     return cached.value;
   }
   const handwrite = type && node.type === "handwrite";
+  const container =
+    type && contract?.domain === "whiteboard-element" ? contract.structure.container : "none";
   const visibleChildren = node.children.filter(child => !isStrokeSegment(binding, child));
   const children = visibleChildren.map(child => project(binding, child));
   const next: BoardElement = {
     id: node.id,
     type: node.type,
     contractId: node.contractId,
-    dataVersion: binding.model.contracts.get(node.contractId)?.dataVersion,
+    dataVersion: contract?.dataVersion,
     ...(node.body === undefined ? {} : { body: node.body }),
     ...(node.entity ? { entity: node.entity } : {}),
     ...(type && localEntity?.key === JSON.stringify(node.entity) && localEntity?.id != null
@@ -176,7 +179,7 @@ export function project(binding: CanvasBinding, node: WhiteboardElementSnapshot)
     ...(node.name === undefined ? {} : { name: node.name }),
     ...(type ? binding.feedback.get(node.id) : undefined),
     ...canvasFields(node, type),
-    ...(handwrite || children.length ? { children } : {}),
+    ...(container === "free" || container === "layout" || children.length ? { children } : {}),
   };
   const previous = binding.projections.get(node.id);
   if (handwrite && node.data.segmented === true) {
