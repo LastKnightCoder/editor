@@ -330,6 +330,7 @@ Board 的私有监听容器按事件保存有序注册集合，并按回调建�
 - 各元素经 `useDropArrow` 把包围盒注册为候选（悬停与落点共用）；规则：指针在元素内部优先于只落在外扩感应区；同为内部取面积最小（嵌套落到最内层），同为外部取距离最近。
 - 悬停：指针变化时统一选出 owner，感应半径 `ARROW_CONNECT_PROXIMITY_RADIUS`；指针停在连接点上或从连接点拖出箭头时锁定 owner；owner 变为空时延迟 `ARROW_CONNECT_PROXIMITY_HIDE_DELAY` 清空，切换到其他元素则立即生效。
 - 落点：`arrow:update` 时各元素调用 `resolveAt(currentPoint, ARROW_DROP_PROXIMITY_RADIUS)`（同一点结果缓存共享），只有归属元素显示落点并上报 closing。
+- 从连接点拖出的箭头复用 `board.creationPreview`，不插入画布或文档；松手冲刷末位置后一次提交，取消或卸载清除预览。文档卡拖到空白处时保留预览供检索接手，释放句柄只清除对应预览。
 - `useDropArrow(element, { container: true })`（Frame）：内部空白不参与，只在距边框 ≤ 感应半径时命中，且不提供 `center` 连接点（悬停与落点都不提供；已有的中心连接箭头不受影响）。
 
 ---

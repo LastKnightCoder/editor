@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { useContextMenu } from "../hooks/useContextMenu";
+import { useDropArrow } from "../hooks/useDropArrow";
 import { RICHTEXT_TOOL_ID } from "../constants/tools";
 import { BOARD_TO_CONTAINER } from "../constants/map";
 import { createEditor, Transforms } from "slate";
@@ -24,6 +25,7 @@ import { prepareWhiteboardContract } from "@tau/db-schema/content-contracts";
 import Board from "../Board";
 import { BoardContext } from "../context";
 import { CreationPreview } from "../components/CreationPreview";
+import ArrowConnectPoint from "../components/ArrowConnectPoint";
 import { ViewPortTransforms } from "../transforms";
 import { createWhiteboardBinding } from "../collaboration/binding";
 import { prepareBuiltinWhiteboardTypes } from "../collaboration/builtins";
@@ -584,6 +586,137 @@ it.each(nodes)("内置 $type 创建预览不依赖尚未提交的文档节点", 
     }
   }
 });
+
+it.each(["pointerup", "pointercancel", "blur", "unmount", "handoff", "snap"] as const)(
+  "连接点拖出的箭头在提交前可预览，结束时正确收尾：%s",
+  async ending => {
+    // 事故：临时箭头插入画布后未登记文档契约，拖动中被当成未知元素隐藏。
+    const f = await setup();
+    f.insert(base("geometry", { id: "source" }));
+    const target = { ...base("geometry", { id: "target" }), ...rect, x: 400 };
+    f.insert(target);
+    f.binding.splitHistory();
+    const source = f.board.children[0];
+    const start = f.board.getArrowBindPoint(source, "right");
+    if (!start) throw new Error("缺少起点连接点");
+    const before = f.model.read();
+    const originalIds = f.board.children.map(node => node.id);
+    const historySize = f.binding.history.undoStack.length;
+    vi.useFakeTimers();
+    vi.stubGlobal("PointerEvent", MouseEvent);
+    cleanup.push(() => vi.unstubAllGlobals());
+    const host = document.createElement("div");
+    document.body.append(host);
+    BOARD_TO_CONTAINER.set(f.board, host);
+    const root = createRoot(host);
+    let mounted = true;
+    cleanup.push(() => {
+      if (mounted) act(() => root.unmount());
+      host.remove();
+    });
+    let releasePreview: (() => void) | undefined;
+    function DropTarget() {
+      useDropArrow(target);
+      return null;
+    }
+    await act(async () => {
+      root.render(
+        <BoardContext.Provider value={f.board}>
+          <svg>
+            <DropTarget />
+            <ArrowConnectPoint
+              element={source}
+              connectId="right"
+              x={start.x}
+              y={start.y}
+              r={4}
+              fill="black"
+              onReleaseInSpace={
+                ending === "handoff"
+                  ? ({ release }) => {
+                      releasePreview = release;
+                      return true;
+                    }
+                  : undefined
+              }
+            />
+            <CreationPreview board={f.board} zoom={1} />
+          </svg>
+        </BoardContext.Provider>
+      );
+    });
+    const fire = async (target: EventTarget, type: string, x: number, y: number) => {
+      await act(async () => {
+        target.dispatchEvent(
+          new PointerEvent(type, {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+            clientX: x,
+            clientY: y,
+          })
+        );
+      });
+    };
+    const circle = host.querySelector("circle");
+    if (!circle) throw new Error("缺少连接点");
+    await fire(circle, "pointerdown", start.x, start.y);
+    await fire(host, "pointermove", 220, 160);
+    const preview = f.board.creationPreview?.element;
+    if (!preview) throw new Error("拖动中没有箭头预览");
+    expect(preview).toMatchObject({
+      type: "arrow",
+      source: { bindId: source.id, connectId: "right" },
+      points: [start, { x: 220, y: 160 }],
+    });
+    expect(host.querySelector('[data-layer="creation-preview"] path')).not.toBeNull();
+    expect(host.querySelector("[data-unknown-element]")).toBeNull();
+    expect(f.board.children.map(node => node.id)).toEqual(originalIds);
+    expect(f.model.read()).toEqual(before);
+    expect(f.binding.history.undoStack.length).toBe(historySize);
+    // 节流尾帧尚未执行时松手，必须提交松手位置。
+    const end = ending === "snap" ? { x: 400, y: 50 } : { x: 300, y: 200 };
+    await fire(host, "pointermove", end.x, end.y);
+    if (ending === "unmount") {
+      await act(async () => root.unmount());
+      mounted = false;
+    } else {
+      await fire(
+        ending === "blur" ? window : document,
+        ending === "handoff" || ending === "snap" ? "pointerup" : ending,
+        end.x,
+        end.y
+      );
+    }
+    if (ending === "handoff") {
+      await act(async () => root.unmount());
+      mounted = false;
+      expect(f.board.creationPreview?.element.id).toBe(preview.id);
+      expect(f.model.read()).toEqual(before);
+      const release = releasePreview;
+      if (!release) throw new Error("文档插入未接收到预览释放句柄");
+      await act(async () => release());
+    }
+    expect(f.board.creationPreview).toBeNull();
+    if (ending === "pointerup" || ending === "snap") {
+      const arrow = f.board.children.find(node => node.id === preview.id);
+      if (!arrow) throw new Error("松手后没有提交箭头");
+      expect(arrow).toMatchObject({ points: [start, end] });
+      if (ending === "snap") {
+        expect(arrow).toMatchObject({ target: { bindId: target.id, connectId: "left" } });
+      }
+      expect(f.binding.supportsElement(preview.id)).toBe(true);
+      expect(f.binding.history.undoStack.length).toBe(historySize + 1);
+      await act(async () => f.board.undo());
+      expect(f.model.read()).toEqual(before);
+      await act(async () => f.board.redo());
+      expect(f.board.children.find(node => node.id === preview.id)).toMatchObject(arrow);
+    } else {
+      expect(f.model.read()).toEqual(before);
+      expect(f.binding.history.undoStack.length).toBe(historySize);
+    }
+  }
+);
 
 it.each(nodes)("内置 $type 使用精确契约与统一创建撤销", async node => {
   const f = await setup();

@@ -5,7 +5,7 @@ import { useMemoizedFn, useThrottleFn } from "ahooks";
 
 import { BOARD_TO_CONTAINER } from "../../constants";
 import { useBoard, useZoom } from "../../hooks";
-import { BoardUtil, PathUtil, PointUtil } from "../../utils";
+import { PointUtil } from "../../utils";
 import type { ArrowElement, Point, BoardElement } from "../../types";
 import { useMoveArrow } from "../../hooks/useMoveArrow";
 import useMoveInAnimate from "./useMoveInAnimate";
@@ -57,7 +57,13 @@ const ArrowConnectPoint = memo((props: ArrowConnectPointProps) => {
   const startPoint = useRef<Point | null>(null);
   const currentPoint = useRef<Point | null>(null);
   const createdArrow = useRef<ArrowElement | null>(null);
-  const createdArrowPath = useRef<number[] | null>(null);
+  const previewId = useRef<string | null>(null);
+  const canSubmit = useRef<(() => boolean) | null>(null);
+
+  const clearPreview = useMemoizedFn((id = previewId.current) => {
+    if (id && board.creationPreview?.element.id === id) board.setCreationPreview(null);
+    if (previewId.current === id) previewId.current = null;
+  });
 
   const { getUpdateArrowElement, setAltMode } = useMoveArrow({
     isMoved,
@@ -66,9 +72,13 @@ const ArrowConnectPoint = memo((props: ArrowConnectPointProps) => {
 
   useMoveInAnimate(ref, r);
 
-  const { run: handlePointerMove, cancel: cancelPointerMove } = useThrottleFn(
+  const {
+    run: handlePointerMove,
+    cancel: cancelPointerMove,
+    flush: flushPointerMove,
+  } = useThrottleFn(
     (e: PointerEvent) => {
-      if (!startPoint.current) return;
+      if (!startPoint.current || !canSubmit.current?.()) return;
       currentPoint.current = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
       if (!currentPoint.current) return;
       if (!isMoved.current) {
@@ -89,7 +99,7 @@ const ArrowConnectPoint = memo((props: ArrowConnectPointProps) => {
       if (!bindStartPoint) return;
 
       // 判断创建的箭头是否存在，不存在则创建，存在则更新
-      if (!createdArrow.current || !createdArrowPath.current) {
+      if (!createdArrow.current) {
         const preset = getPrevArrowStylePreset();
         const createArrow: ArrowElement = {
           id: getUuid(),
@@ -112,40 +122,19 @@ const ArrowConnectPoint = memo((props: ArrowConnectPointProps) => {
           animationSpeed: preset.animationSpeed,
         };
         createdArrow.current = createArrow;
-        createdArrowPath.current = [board.children.length];
-        board.apply(
-          [
-            {
-              type: "insert_node",
-              path: [board.children.length],
-              node: createArrow,
-            },
-          ],
-          false
-        );
-      } else {
-        const updateArrowElement = getUpdateArrowElement(
-          createdArrow.current,
-          currentPoint.current,
-          createdArrow.current.points.length - 1
-        );
-
-        const ops = BoardUtil.diffNodePatchOnly(
-          createdArrow.current,
-          updateArrowElement,
-          createdArrowPath.current
-        );
-        if (ops.length > 0) {
-          board.apply(ops, false);
-        }
-        createdArrow.current = updateArrowElement;
-        // 让其他元素监听，是否显示 arrow drop connect point
-        board.emit("tau.arrow.update", {
-          arrow: createdArrow.current,
-          path: createdArrowPath.current,
-          currentPoint: currentPoint.current,
-        });
+        previewId.current = createArrow.id;
       }
+      board.emit("tau.arrow.update", {
+        arrow: createdArrow.current,
+        path: [board.children.length],
+        currentPoint: currentPoint.current,
+      });
+      createdArrow.current = getUpdateArrowElement(
+        createdArrow.current,
+        currentPoint.current,
+        createdArrow.current.points.length - 1
+      );
+      board.setCreationPreview(createdArrow.current, { bounds: false });
     },
     { wait: 25 }
   );
@@ -165,42 +154,37 @@ const ArrowConnectPoint = memo((props: ArrowConnectPointProps) => {
   });
 
   const handlePointerUp = useMemoizedFn((event?: Event) => {
+    const isPointerUp = event instanceof PointerEvent && event.type === "pointerup";
+    if (isPointerUp && startPoint.current && canSubmit.current?.()) {
+      handlePointerMove(event);
+      flushPointerMove();
+    }
     cancelPointerMoveSafely();
     const arrow = createdArrow.current;
     const released =
       !!arrow &&
       !!currentPoint.current &&
       isMoved.current &&
+      canSubmit.current?.() &&
       !arrow.target.bindId &&
-      event instanceof PointerEvent &&
-      event.type === "pointerup" &&
+      isPointerUp &&
       onReleaseInSpace?.({
         point: currentPoint.current,
         clientX: event.clientX,
         clientY: event.clientY,
-        release: () => {
-          const path = PathUtil.getPathByElement(board, arrow);
-          if (path) board.apply([{ type: "remove_node", path, node: arrow }], false);
-        },
+        release: () => clearPreview(arrow.id),
       }) === true;
+    if (released) previewId.current = null;
+    else clearPreview();
     if (
       !released &&
+      isPointerUp &&
+      canSubmit.current?.() &&
       startPoint.current &&
       currentPoint.current &&
       isMoved.current &&
-      createdArrow.current &&
-      createdArrowPath.current
+      createdArrow.current
     ) {
-      board.apply(
-        [
-          {
-            type: "remove_node",
-            path: createdArrowPath.current,
-            node: createdArrow.current,
-          },
-        ],
-        false
-      );
       board.apply(
         [
           {
@@ -217,13 +201,16 @@ const ArrowConnectPoint = memo((props: ArrowConnectPointProps) => {
     currentPoint.current = null;
     isMoved.current = false;
     createdArrow.current = null;
-    createdArrowPath.current = null;
+    canSubmit.current = null;
 
     board.emit("tau.arrow.move-end");
     removeDragListeners(handlePointerUp);
   });
 
   const handlePointerDown: PointerEventHandler<SVGCircleElement> = useMemoizedFn(e => {
+    if (e.button !== 0) return;
+    const submit = board.captureSubmission(element);
+    if (!submit()) return;
     e.stopPropagation();
     e.preventDefault();
     onConnectStart?.();
@@ -232,6 +219,8 @@ const ArrowConnectPoint = memo((props: ArrowConnectPointProps) => {
 
     startPoint.current = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
     if (!startPoint.current) return;
+    clearPreview();
+    canSubmit.current = submit;
 
     boardContainer.addEventListener("pointermove", handlePointerMove);
     document.addEventListener("pointerup", handlePointerUp);
@@ -242,9 +231,11 @@ const ArrowConnectPoint = memo((props: ArrowConnectPointProps) => {
   useEffect(() => {
     return () => {
       cancelPointerMoveSafely();
+      clearPreview();
+      if (startPoint.current) board.emit("tau.arrow.move-end");
       removeDragListeners(handlePointerUp);
     };
-  }, [cancelPointerMoveSafely, handlePointerUp, removeDragListeners]);
+  }, [board, cancelPointerMoveSafely, clearPreview, handlePointerUp, removeDragListeners]);
 
   return (
     <circle
