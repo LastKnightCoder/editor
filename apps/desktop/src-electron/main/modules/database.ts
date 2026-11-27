@@ -153,11 +153,7 @@ function trackDatabaseCall(kind: "调用" | "索引调用", db: string, event: s
   };
 }
 
-class DatabaseModule implements Module {
-  name: string;
-
-  databases: Map<string, Database.Database>;
-  windowToDatabase: Map<number, string>;
+interface DatabaseRegistries {
   tables: Table[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 异构事件注册表：any 参数位提供双向变体，具体 handler（含必选参数元组）才能赋入
   eventAndHandlers: Record<string, (db: Database.Database, ...args: any) => unknown>;
@@ -166,6 +162,25 @@ class DatabaseModule implements Module {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 同 eventAndHandlers：异构索引事件注册表
     (mainDb: Database.Database, indexDb: Database.Database, ...args: any) => unknown
   >;
+}
+
+class DatabaseModule implements Module {
+  name: string;
+
+  databases: Map<string, Database.Database>;
+  windowToDatabase: Map<number, string>;
+  // 表与事件的注册表推迟到首次使用再汇总：表模块经索引队列回到本模块，存在静态循环，
+  // 模块求值期从表一侧进入时尚未求值完的表是 undefined；首次使用发生在启动后，那时已全部就绪
+  private registries: DatabaseRegistries | undefined;
+  get tables(): Table[] {
+    return this.loadRegistries().tables;
+  }
+  get eventAndHandlers(): DatabaseRegistries["eventAndHandlers"] {
+    return this.loadRegistries().eventAndHandlers;
+  }
+  get indexEventAndHandlers(): DatabaseRegistries["indexEventAndHandlers"] {
+    return this.loadRegistries().indexEventAndHandlers;
+  }
   private currentDatabaseName = "data.db"; // 默认数据库
   /** 普通关库与上传重连保留命令上下文，明确覆盖才使旧任务失效。 */
   private readonly connectionIds = new Map<string, string>();
@@ -311,7 +326,11 @@ class DatabaseModule implements Module {
     this.name = "database";
     this.databases = new Map();
     this.windowToDatabase = new Map();
-    this.tables = [
+  }
+
+  private loadRegistries(): DatabaseRegistries {
+    if (this.registries) return this.registries;
+    const tables = [
       ContentTable,
       WhiteboardContentTable,
       WhiteboardTable,
@@ -378,8 +397,7 @@ class DatabaseModule implements Module {
       PluginRefsTable,
       PluginReadonlyDataTable,
     ] as unknown as Table[];
-
-    this.eventAndHandlers = this.tables.reduce(
+    const eventAndHandlers = tables.reduce(
       (acc, table) => {
         const events = table.getListenEvents();
         return {
@@ -389,12 +407,16 @@ class DatabaseModule implements Module {
       },
       createContentAgentCommands(
         async () => (await import("./content-runtime/composition")).getLocalContentRuntime().agent
-      ) as typeof this.eventAndHandlers
+      ) as DatabaseRegistries["eventAndHandlers"]
     );
-    this.indexEventAndHandlers = {
-      ...FtsTable.getListenEvents(),
-      ...VecDocumentTable.getListenEvents(),
-    };
+    return (this.registries = {
+      tables,
+      eventAndHandlers,
+      indexEventAndHandlers: {
+        ...FtsTable.getListenEvents(),
+        ...VecDocumentTable.getListenEvents(),
+      },
+    });
   }
 
   formatDatabaseName(databaseName: string) {
