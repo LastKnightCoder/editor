@@ -108,13 +108,14 @@ describe("正文写入点白名单", () => {
     "main/modules/tables/content-document-blocks.ts": 1,
   };
 
-  // eval/ 是对独立内存库构造夹具的评测脚本，不走生产写入路径，与 __tests__ 同样不算写入点。
+  // eval/ 是对独立内存库构造夹具的评测脚本，不走生产写入路径；它与所有测试文件一样不算写入点。
+  // 测试文件并不都放在 __tests__ 里（如 content-runtime 旁的压力测试），按文件名一并排除
   const walk = (dir: string): string[] =>
     readdirSync(dir).flatMap(name => {
       const path = join(dir, name);
       if (statSync(path).isDirectory())
         return name === "__tests__" || name === "eval" ? [] : walk(path);
-      return /\.ts$/.test(name) ? [path] : [];
+      return /\.ts$/.test(name) && !/\.test\.ts$/.test(name) ? [path] : [];
     });
 
   it("没有未接入总线的写入点", () => {
