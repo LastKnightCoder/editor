@@ -1,7 +1,10 @@
 import Database from "better-sqlite3";
 import * as Y from "yjs";
 import { expect, type Mock } from "vitest";
-import type { Descendant } from "slate";
+import { createEditor, type Descendant, type Editor } from "slate";
+import { createEditorKit } from "@tau/editor";
+import { tableExtensions } from "@tau/editor/extensions/table";
+import { withNodeTree } from "@tau/editor-collab";
 import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
 import { NodeTree, validateNodeDocument, type ContentNode } from "@tau/collaboration";
 import { prepareContentContracts } from "@/services/editorKit";
@@ -19,7 +22,8 @@ export async function openContentToolHost(
   sourceContracts: ContentContractDictionary = {},
   realtime = false
 ) {
-  const prepared = await (await prepareContentContracts()).createDocument(nodes, sourceContracts);
+  const catalog = await prepareContentContracts();
+  const prepared = await catalog.createDocument(nodes, sourceContracts);
   const fixture = await setup(realtime, undefined, {
     documentId: "table-deletion",
     content: prepared.content as ContentNode[],
@@ -83,8 +87,22 @@ export async function openContentToolHost(
   });
   agent.permissions.set(fixture.db, 7, "助手", "direct");
   const tools = contentEditToolsProvider.tools();
-  const stop = registerAgentEditExecution("table-edits");
-  const run = async (name: string, args: Record<string, unknown>, databaseName = "library") => {
+  const executions = new Map([["table-edits", registerAgentEditExecution("table-edits")]]);
+  const stop = () => {
+    for (const dispose of executions.values()) dispose();
+    executions.clear();
+  };
+  const run = async (
+    name: string,
+    args: Record<string, unknown>,
+    databaseName = "library",
+    actor?: string
+  ) => {
+    const executionId = actor ? "table-edits-" + actor : "table-edits";
+    if (!executions.has(executionId)) {
+      executions.set(executionId, registerAgentEditExecution(executionId));
+      agent.permissions.set(fixture.db, 7, actor ?? "助手", "direct");
+    }
     const tool = must(
       tools.find(tool => tool.name === name),
       name
@@ -94,7 +112,8 @@ export async function openContentToolHost(
       toolName: name,
       source: "test",
       databaseName,
-      toolContext: { executionId: "table-edits" },
+      ...(actor ? { conversationKey: "table-release:subagent:" + actor } : {}),
+      toolContext: { executionId, ...(actor ? { agentTitle: actor } : {}) },
     });
     if (!reply || typeof reply === "string") throw new Error("工具缺少回执");
     return JSON.parse(reply.content);
@@ -151,6 +170,42 @@ export async function openContentToolHost(
       peer.destroy();
     }
   };
+  const prepareHumanEdit = async (edit: (editor: Editor) => void) => {
+    const state = await agent.readEditSnapshot(fixture.db, 7);
+    const peer = new Y.Doc({ gc: false });
+    Y.applyUpdate(peer, state.state);
+    const tree = new NodeTree(peer);
+    const base = createEditorKit({ extensions: tableExtensions }).assembly.plugins.reduce(
+      (editor, plugin) => plugin(editor),
+      createEditor()
+    );
+    const editor = withNodeTree(
+      base,
+      tree,
+      {},
+      {
+        currentContract: type => catalog.current(type)?.id,
+        normalizeOnConnect: false,
+      }
+    );
+    try {
+      editor.connectNodeTree();
+      const vector = Y.encodeStateVector(peer);
+      edit(editor);
+      editor.flushNodeTreeInputs();
+      await validateNodeDocument(peer);
+      const update = Y.encodeStateAsUpdate(peer, vector);
+      return {
+        content: tree.read(),
+        update,
+        commit: () => fixture.local.acceptUpdates(session(), update, () => undefined),
+      };
+    } finally {
+      editor.disposeNodeTree();
+      tree.dispose();
+      peer.destroy();
+    }
+  };
   const blockSource = async (node: ContentNode) => {
     const result = await run("get_content_markdown", {
       contentId: 7,
@@ -171,5 +226,6 @@ export async function openContentToolHost(
     diskContent,
     userTypes,
     blockSource,
+    prepareHumanEdit,
   };
 }
