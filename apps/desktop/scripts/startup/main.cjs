@@ -45,11 +45,18 @@ ipcMain.handle("get-window-state", () => ({ maximized: false, fullscreen: false 
 ipcMain.handle("workspace-preferences:get", () => ({ disabledFeatures: [], onboarding: "done" }));
 ipcMain.handle("home-layout:get", () => []);
 ipcMain.handle("pi-session:interactions", () => ({ ok: true, snapshots: [] }));
-ipcMain.handle("pomodoro:summary-today", () => ({ count: 0, duration: 0 }));
+ipcMain.handle("pomodoro:summary-today", () => ({ count: 0, focusMs: 0 }));
+ipcMain.handle("random-walk:daily-deck", (_event, { date }) => ({ date, items: [], cursor: 0 }));
+ipcMain.handle("flashcard:review-stats", () => ({
+  ratings: { easy: 0, normal: 0, struggle: 0, hard: 0 },
+  total: 0,
+  dueBuckets: new Array(7).fill(0),
+}));
 for (const channel of [
   "chat-group:get-all",
   "chat-session:list",
   "flashcard:list-decks",
+  "pomodoro:list-sessions",
   "get-all-diary-segments-flat",
   "get-all-diary-tag-settings",
   "get-all-white-boards",
@@ -62,6 +69,7 @@ for (const channel of [
   "plugin-entities:kinds",
   "get-all-fonts",
   "pi-subagents:list",
+  "vl-get-active-tasks",
   "calendar-event:get-for-day",
   "get-all-project-items",
   "get-operation-daily-counts",
