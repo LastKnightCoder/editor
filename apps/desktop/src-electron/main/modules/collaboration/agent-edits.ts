@@ -36,10 +36,10 @@ export async function submitSharedAgentEdit(
   const known = manager.store.get<{ updateHash: string; expiresAt: number } | null>(key, null);
   if (known && known.updateHash !== updateHash) throw new Error("操作身份已被另一请求使用");
   if (!known) {
-    const protocol = await manager.client.request<{ scopedSubtreeDeletion?: boolean }>(
-      url,
-      `/v1/documents/${session.info.id}/protocol`
-    );
+    const protocol = await manager.client.request<{
+      scopedSubtreeDeletion?: boolean;
+      scopedNodeReconcile?: boolean;
+    }>(url, `/v1/documents/${session.info.id}/protocol`);
     if (
       !protocol.scopedSubtreeDeletion &&
       request.scope.edits.some(
@@ -50,6 +50,11 @@ export async function submitSharedAgentEdit(
       )
     )
       return { status: "rejected", reason: "请更新协作服务后再修改包含子节点的正文块" };
+    if (
+      !protocol.scopedNodeReconcile &&
+      request.scope.edits.some(edit => edit.kind === "blocks" && edit.reconcile)
+    )
+      return { status: "rejected", reason: "请更新协作服务后再修改原生节点属性" };
     check();
     if (session.info.pending || session.provider?.hasUnsyncedChanges) {
       try {

@@ -1,4 +1,6 @@
 import type { Descendant } from "slate";
+import { decodeTauMarkdown } from "./tau/decode.ts";
+import { isTauMarkdown } from "./tau/format.ts";
 
 import type { CustomDirectiveHandler, MarkdownCodec } from "./codec.ts";
 import {
@@ -179,13 +181,17 @@ export function createMarkdownProcessor(options: MarkdownProcessorOptions = {}):
     ),
   };
 
-  return {
+  const processor: MarkdownProcessor = {
     leafToMarkdown: leaf => textRegistry.serialize(leaf).output,
     leafToMarkdownStructured: leaf => textRegistry.serialize(leaf),
     importFromMarkdown: (markdown, ignoreTypes, importOptions) =>
-      importFromMarkdownUsing(importConfig, markdown, ignoreTypes, importOptions),
+      isTauMarkdown(markdown)
+        ? decodeTauMarkdown(markdown, { processor, fragment: true }).content
+        : importFromMarkdownUsing(importConfig, markdown, ignoreTypes, importOptions),
     importFromMarkdownWithPositions: (markdown, ignoreTypes, importOptions) =>
-      importFromMarkdownWithPositionsUsing(importConfig, markdown, ignoreTypes, importOptions),
+      isTauMarkdown(markdown)
+        ? decodeTauMarkdown(markdown, { processor, fragment: true })
+        : importFromMarkdownWithPositionsUsing(importConfig, markdown, ignoreTypes, importOptions),
     getMarkdown: value => getMarkdownUsing(exportConfig, value),
     createIncrementalSerializer: policy => {
       const types = new Set(
@@ -229,4 +235,5 @@ export function createMarkdownProcessor(options: MarkdownProcessorOptions = {}):
     elementToMarkdown: (element, parentElement) =>
       elementToMarkdownUsing(exportConfig, element, parentElement),
   };
+  return processor;
 }

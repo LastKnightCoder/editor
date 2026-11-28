@@ -1,5 +1,5 @@
 /*
- * 行内着色色板（字色 / 高亮 / 下划线 / 渐变字共用）：用户挑的内容色，不随主题族变，只随明暗切。
+ * 行内着色色板（字色 / 高亮 / 下划线 / 渐变字 / 表格行底色共用）：用户挑的内容色，不随主题族变，只随明暗切。
  * 取值与 src/inline-palette.ts、text-gradient.ts 一致（inline-palette 测试守护）。
  * 按 [data-mode] 就近继承：<html> 与局部强制明暗的编辑器根节点都带 data-mode；无属性的宿主落到 :root 浅色档。
  */
@@ -20,6 +20,7 @@
   --ed-gradient-rose: linear-gradient(90deg, #fb7185 0%, #f43f5e 52%, #a855f7 100%);
   --ed-highlight-bg-mix: 16%;
   --ed-highlight-line-mix: 65%;
+  --ed-row-tint-mix: 10%;
 }
 
 [data-mode="dark"] {
@@ -38,6 +39,7 @@
   --ed-gradient-rose: linear-gradient(90deg, #fda4af 0%, #fb7185 52%, #c084fc 100%);
   --ed-highlight-bg-mix: 24%;
   --ed-highlight-line-mix: 75%;
+  --ed-row-tint-mix: 15%;
 }
 
 /*

@@ -4,6 +4,7 @@ import { NodeTree, observedNodeIds } from "./node-tree";
 import { NODE_DOCUMENT_VERSION } from "./node-document";
 import { CollaborationError, type ContentNode } from "./protocol";
 import { sharedValueEquals } from "./shared-values";
+import { canReconcileScopedBlocks, reconcileScopedBlocks } from "./scoped-content-reconcile";
 
 type TextRun = { text: string; marks: Record<string, unknown> };
 const splitsPair = (text: string, offset: number) =>
@@ -29,6 +30,8 @@ type BlockEdit = {
   nodes: ContentNode[];
   /** 已提交删除的标记，撤销时原位恢复同一批节点。 */
   restoreDeletion?: string;
+  /** 已有节点身份保持不变时，仅更新属性、文本和同父级顺序。 */
+  reconcile?: boolean;
 };
 export type ScopedContentEdit = TextEdit | BlockEdit;
 export interface ScopedContentEdits {
@@ -246,6 +249,10 @@ export function validateScopedContentEdits(value: ScopedContentEdits): void {
           (typeof edit.restoreDeletion !== "string" ||
             !edit.restoreDeletion ||
             !edit.nodes.length)) ||
+        (edit.reconcile !== undefined && typeof edit.reconcile !== "boolean") ||
+        (edit.reconcile &&
+          (edit.restoreDeletion !== undefined ||
+            !canReconcileScopedBlocks(edit.expected, edit.nodes))) ||
         edit.expected.some(node => !node || typeof node.collabId !== "string")
       )
         throw invalid();
@@ -329,6 +336,10 @@ export async function buildScopedContentUpdate(
         }
       }
       for (const { edit, start } of blocks.sort((a, b) => b.start - a.start)) {
+        if (edit.reconcile) {
+          reconcileScopedBlocks(tree, edit.expected, edit.nodes, start, null);
+          continue;
+        }
         const deletion = tree.removeNodes(observedNodeIds(edit.expected), null);
         if (deletion) deletions.set(edit.id, deletion);
         if (edit.restoreDeletion) {
@@ -401,6 +412,7 @@ export async function buildScopedContentUpdate(
             right: final[index + edit.nodes.length]?.collabId ?? null,
             expected: final.slice(index, index + edit.nodes.length),
             nodes: edit.expected,
+            ...(edit.reconcile ? { reconcile: true } : {}),
             ...(deletions.has(edit.id) ? { restoreDeletion: deletions.get(edit.id) } : {}),
           };
         }),

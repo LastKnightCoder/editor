@@ -4,11 +4,12 @@ import {
   type LocalChangeSource,
   type LocalYjsDocumentOptions,
 } from "@tau/editor-collab/local";
-import { getMarkdown, importFromMarkdown } from "@/utils/markdown";
+import { importFromMarkdown } from "@/utils/markdown";
 import { desktopMarkdown } from "@/utils/markdown";
 import { desktopCodecComposition } from "@/utils/markdown-composition";
 import { textFormattingCodec } from "@tau/editor/extensions/text-formatting/markdown";
 import { Text, type Descendant } from "slate";
+import { decodeTauMarkdown, encodeTauMarkdown, isTauMarkdown } from "@tau/markdown";
 
 const SOURCE_PROJECTION_IDLE_MS = 400;
 
@@ -17,7 +18,7 @@ export function createMarkdownDocument(
   wrap?: LocalYjsDocumentOptions["wrap"],
   prepareContent?: LocalYjsDocumentOptions["prepareInitialContent"]
 ) {
-  const serialize = desktopMarkdown.createIncrementalSerializer({
+  const serializePortable = desktopMarkdown.createIncrementalSerializer({
     codecs: desktopCodecComposition,
     textCodecs: [textFormattingCodec],
   });
@@ -35,6 +36,16 @@ export function createMarkdownDocument(
   const normalized = local.doc.getText("markdown-normalized");
   const state = local.doc.getMap("markdown-state");
   local.undoManager.addToScope([raw, normalized, state]);
+  const serialize = (content: readonly Descendant[]) => {
+    if (state.get("format") !== "tau-markdown/1") return serializePortable(content);
+    const value = state.get("tauMetadata");
+    if (!value || typeof value !== "object" || Array.isArray(value))
+      throw new Error("原生文件元信息无效");
+    return encodeTauMarkdown(content, {
+      processor: desktopMarkdown,
+      metadata: Object.fromEntries(Object.entries(value)),
+    });
+  };
   const listeners = new Set<() => void>();
   const changes = new Set<(source: LocalChangeSource) => void>();
   const readSnapshot = () => {
@@ -70,8 +81,18 @@ export function createMarkdownDocument(
     local.transact(source, () => {
       replaceYText(raw, value);
       try {
-        local.updateContent(parsed ?? importFromMarkdown(value), source);
-        replaceYText(normalized, getMarkdown(local.getContent()));
+        const native = isTauMarkdown(value)
+          ? decodeTauMarkdown(value, { processor: desktopMarkdown })
+          : undefined;
+        if (native) {
+          state.set("format", "tau-markdown/1");
+          state.set("tauMetadata", native.metadata);
+        } else {
+          state.delete("format");
+          state.delete("tauMetadata");
+        }
+        local.updateContent(parsed ?? native?.content ?? importFromMarkdown(value), source);
+        replaceYText(normalized, serialize(local.getContent()));
         state.delete("error");
         state.delete("errorKind");
       } catch (error) {

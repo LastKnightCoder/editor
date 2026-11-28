@@ -3,6 +3,7 @@ import type { Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Editor, Transforms, createEditor, type BaseSelection, type Descendant } from "slate";
 import { ReactEditor } from "slate-react";
+import type { TableRowElement } from "@tau/editor/extensions/table";
 import {
   renderControllerOn,
   setupToolbarControllerHost,
@@ -159,6 +160,39 @@ describe("useMobileEditorToolbarController", () => {
       expect(getController().isTableMenuOpen).toBe(false);
       expect(ReactEditor.focus).toHaveBeenCalled();
       expect((editor.selection as BaseSelection)?.anchor.path).toEqual([1, 2, 0, 0]);
+    });
+
+    // 菜单失焦后即时选区可能为空，颜色查询必须沿用打开时保存的选区。
+    it("颜色面板失焦后仍查询和修改保存的行，关闭才恢复焦点", () => {
+      const selection = caret([1, 1, 0, 0]);
+      const editor = createTableDoc(selection);
+      Transforms.setNodes<TableRowElement>(editor, { color: "blue" }, { at: [1, 1] });
+      const getController = renderController(editor);
+      act(() => {
+        getController().openTableMenu();
+        vi.runAllTimers();
+      });
+      editor.selection = null;
+      vi.mocked(ReactEditor.focus).mockClear();
+      act(() => {
+        getController().requestRowColorSheet();
+        getController().closeTableMenu();
+      });
+      expect(getController().isTableMenuOpen).toBe(false);
+      expect(getController().isRowColorSheetOpen).toBe(true);
+      expect(getController().getTableRowColor()).toBe("blue");
+      expect(editor.selection).toBeNull();
+      expect(ReactEditor.focus).not.toHaveBeenCalled();
+
+      act(() => getController().setTableRowColor("red"));
+      expect((Editor.node(editor, [1, 1])[0] as TableRowElement).color).toBe("red");
+      editor.selection = null;
+      expect(getController().getTableRowColor()).toBe("red");
+      expect(ReactEditor.focus).not.toHaveBeenCalled();
+      act(() => getController().closeTableMenu());
+      expect(getController().isRowColorSheetOpen).toBe(false);
+      expect(editor.selection).toEqual(selection);
+      expect(ReactEditor.focus).toHaveBeenCalled();
     });
 
     it("焦点进入代码块 textarea 时 Slate 失焦仍显示配件栏，离开后一帧收起", () => {

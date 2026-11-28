@@ -1,5 +1,7 @@
 import { Descendant } from "slate";
-import { getMarkdownWithPositions } from "@/utils/markdown";
+import { desktopMarkdown, getMarkdownWithPositions } from "@/utils/markdown";
+import { getTauMarkdownWithPositions } from "@tau/markdown";
+import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
 import { beginPerfOperation } from "@/utils/perf-trace";
 import type { ContentSnapshot, MarkdownPoint, SnapshotSource } from "./types";
 
@@ -63,7 +65,8 @@ export const offsetToMarkdownPoint = (offset: number, lineOffsets: number[]): Ma
 export const createContentSnapshot = (
   content: Descendant[],
   source: SnapshotSource,
-  contentId?: number
+  contentId?: number,
+  native?: { contracts: ContentContractDictionary }
 ): ContentSnapshot => {
   const operation = beginPerfOperation(
     "content.snapshot",
@@ -72,7 +75,12 @@ export const createContentSnapshot = (
   );
   try {
     const { markdown, positionMap, blockRanges } = operation.stage("snapshot.markdown", () =>
-      getMarkdownWithPositions(content)
+      native
+        ? getTauMarkdownWithPositions(content, {
+            processor: desktopMarkdown,
+            metadata: { contracts: native.contracts },
+          })
+        : getMarkdownWithPositions(content)
     );
     const lineOffsets = operation.stage("snapshot.offsets", () => buildLineOffsets(markdown));
     const hash = operation.stage("snapshot.hash", () => hashMarkdown(markdown));
@@ -83,6 +91,7 @@ export const createContentSnapshot = (
       createdAt,
       content,
       markdown,
+      ...(native ? { format: "tau-markdown/1" as const } : {}),
       hash,
       lineOffsets,
       positionMap,

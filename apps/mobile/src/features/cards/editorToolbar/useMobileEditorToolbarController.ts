@@ -1,7 +1,7 @@
 import type { IBlockPanelListItem } from "@tau/editor/api";
 import { useCallback, useMemo, type RefObject } from "react";
 import type { EditorRef } from "@tau/editor";
-import type { TableAlign } from "@tau/editor/extensions/table";
+import type { TableAlign, TableRowColor } from "@tau/editor/extensions/table";
 import {
   Editor as SlateEditor,
   Element as SlateElement,
@@ -111,6 +111,13 @@ export type MobileEditorToolbarController = {
   isTableMenuOpen: boolean;
   openTableMenu: () => void;
   closeTableMenu: () => void;
+  /** 行颜色面板：从「⋯」菜单进入，沿用菜单保存的选区，关闭时与菜单同样恢复焦点（onClose 用 closeTableMenu） */
+  isRowColorSheetOpen: boolean;
+  /** 光标所在行的底色，无色或不在表格内为 null */
+  getTableRowColor: () => TableRowColor | null;
+  setTableRowColor: (color: TableRowColor | null) => void;
+  /** 「⋯」菜单退场后改开行颜色面板 */
+  requestRowColorSheet: () => void;
   activePanel: EditorPanelKind | null;
   /** 打开面板时保存的选区，面板内操作作用于它 */
   panelSelection: BaseSelection | null;
@@ -325,6 +332,10 @@ export function useMobileEditorToolbarController(
     getTableColumnAlign,
     openTableMenu,
     closeTableMenu,
+    isRowColorSheetOpen,
+    getTableRowColor,
+    setTableRowColor,
+    requestRowColorSheet,
   } = useTableMenuController({
     editorRef,
     openSheetNextTick,
@@ -361,7 +372,8 @@ export function useMobileEditorToolbarController(
       selectionVersion,
       isEditorFocused,
       activePanel,
-      isTableMenuOpen,
+      // 行颜色面板是表格菜单的延续：期间配件栏保持表格上下文
+      isTableMenuOpen: isTableMenuOpen || isRowColorSheetOpen,
       getEditableElement,
       closePanel,
       markSelectionDirty,
@@ -393,6 +405,10 @@ export function useMobileEditorToolbarController(
       isTableMenuOpen,
       openTableMenu,
       closeTableMenu,
+      isRowColorSheetOpen,
+      getTableRowColor,
+      setTableRowColor,
+      requestRowColorSheet,
       canIndent: true,
       canOutdent: true,
       openPanel,
@@ -462,6 +478,10 @@ export function useMobileEditorToolbarController(
       isTableMenuOpen,
       openTableMenu,
       closeTableMenu,
+      isRowColorSheetOpen,
+      getTableRowColor,
+      setTableRowColor,
+      requestRowColorSheet,
       openPanel,
       togglePanel,
       closePanel,

@@ -1,4 +1,4 @@
-import { Path } from "slate";
+import { Path, type Descendant } from "slate";
 import { markdownPointToOffset } from "./snapshot";
 import { getRangeByMatchId } from "./snapshot-store";
 import type {
@@ -130,6 +130,13 @@ export const resolveLocatorToRange = (payload: {
     return { ...range, locator };
   }
 
+  if (locator.kind === "block-id") {
+    const path = findContentBlockPath(snapshot.content, locator.blockId);
+    if (!path) throw new Error("INVALID_LOCATOR: 节点已不存在，请重新读取");
+    const range = resolveSlatePathRange(snapshot, path);
+    return { ...range, locator };
+  }
+
   if (locator.kind === "slate-path") {
     const range = resolveSlatePathRange(snapshot, locator.path);
     return { ...range, locator };
@@ -171,3 +178,12 @@ export const resolveLocatorToRange = (payload: {
     locator,
   };
 };
+
+export function findContentBlockPath(nodes: Descendant[], blockId: string): number[] | undefined {
+  for (const [index, node] of nodes.entries()) {
+    if (!("children" in node)) continue;
+    if ("collabId" in node && node.collabId === blockId) return [index];
+    const path = findContentBlockPath(node.children, blockId);
+    if (path) return [index, ...path];
+  }
+}

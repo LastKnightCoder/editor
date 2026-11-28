@@ -1,8 +1,12 @@
 import type { InlineElement } from "@tau/editor/api";
 import type { FormattedText } from "@tau/markdown/model";
+import type { HighlightColor } from "@tau/editor/extensions/text-formatting/palette";
 import type { TableAlign } from "./align";
 
 export type { TableAlign };
+
+/** 行底色取行内着色色板的色相 id */
+export type TableRowColor = HighlightColor;
 
 export interface TableCellElement {
   type: "table-cell";
@@ -15,6 +19,8 @@ export interface TableCellElement {
 
 export interface TableRowElement {
   type: "table-row";
+  /** 整行底色；无色时省略 */
+  color?: TableRowColor;
   children: TableCellElement[];
 }
 

@@ -1,6 +1,7 @@
 import { Editor, Element as SlateElement, Node, Path, Text, Transforms } from "slate";
 import type { ElementBehaviors } from "@tau/editor/api";
 import { createParagraph } from "@tau/editor/api";
+import { getInlinePaletteEntry } from "@tau/editor/extensions/text-formatting/palette";
 
 import type { TableAlign, TableCellElement, TableElement, TableRowElement } from "./types";
 import { createTableCell } from "./transforms";
@@ -8,7 +9,7 @@ import { buildCoverMap, cellSpan, isOriginCell } from "./span";
 
 /**
  * 表格结构不变式：table → row → cell 三层严格、每行格数相同、至少 1×1、
- * align 长度等于列数、合并跨度合法且被覆盖格为空。每条规则只修一处并返回 true，由 Slate 继续下一轮。
+ * align 长度等于列数、合并跨度合法且被覆盖格为空、行底色是已知色相。每条规则只修一处并返回 true，由 Slate 继续下一轮。
  */
 
 const isElementOfType = (node: Node, type: string) =>
@@ -148,6 +149,11 @@ const normalizeRow: ElementBehaviors<TableRowElement>["normalize"] = (editor, [r
     } else {
       Transforms.removeNodes(editor, { at: childPath });
     }
+    return true;
+  }
+  // 未知色相（旧版本、粘贴、协同写入）不渲染，直接去掉
+  if (row.color !== undefined && !getInlinePaletteEntry(row.color)) {
+    Transforms.unsetNodes(editor, "color", { at: path });
     return true;
   }
   return false;

@@ -1,4 +1,5 @@
 import * as Y from "yjs";
+import { validateContentContracts } from "@tau/db-schema/content-contracts";
 import { Element, Text, type Descendant } from "slate";
 import {
   captureScopedTextEdit,
@@ -11,8 +12,9 @@ import {
   type ScopedContentEdits,
 } from "@tau/collaboration";
 import { prepareContentContracts, prepareContentMarkdown } from "@/services/editorKit";
-import { getMarkdownWithPositions } from "@/utils/markdown";
-import { offsetToMarkdownPoint } from "./snapshot";
+import { desktopMarkdown, getMarkdownWithPositions } from "@/utils/markdown";
+import { getTauMarkdownWithPositions } from "@tau/markdown";
+import { resolveTextPoint } from "./text-position";
 import { EditEngineError } from "./edit-engine";
 import type { AppliedPatch, ContentSnapshot, EditOperation } from "./types";
 
@@ -37,31 +39,6 @@ function captureText(
   }
 }
 
-function textPoint(snapshot: ContentSnapshot, offset: number) {
-  const markdown = offsetToMarkdownPoint(offset, snapshot.lineOffsets);
-  const point = snapshot.positionMap.markdownToSlate(markdown);
-  if (!point || point.path.length < 2 || !point.path.every(Number.isSafeInteger)) return;
-  const mapped = snapshot.positionMap.slateToMarkdown(point);
-  if (mapped?.line !== markdown.line || mapped.ch !== markdown.ch) return;
-  let parent: Descendant | undefined = snapshot.content[point.path[0]];
-  for (const index of point.path.slice(1, -1))
-    parent = Element.isElement(parent) ? parent.children[index] : undefined;
-  const index = point.path[point.path.length - 1];
-  if (!Element.isElement(parent) || !("collabId" in parent) || typeof parent.collabId !== "string")
-    return;
-  const leaf = parent.children[index];
-  if (!Text.isText(leaf) || point.offset > leaf.text.length) return;
-  return {
-    id: parent.collabId,
-    offset: parent.children
-      .slice(0, index)
-      .reduce(
-        (length, child) => length + (Text.isText(child) ? child.text.length : 1),
-        point.offset
-      ),
-  };
-}
-
 export async function compileScopedPlan(
   snapshot: ContentSnapshot,
   patches: AppliedPatch[],
@@ -78,8 +55,8 @@ export async function compileScopedPlan(
     const bounds = snapshot.blockRanges.map((range, index) => ({ ...range, index }));
     for (const [index, patch] of patches.entries()) {
       const operation = operations[index];
-      const start = textPoint(snapshot, patch.start);
-      const end = textPoint(snapshot, patch.end);
+      const start = resolveTextPoint(snapshot, patch.start);
+      const end = resolveTextPoint(snapshot, patch.end);
       const blockInsertion =
         operation.op === "insert" &&
         (operation.locator.kind === "full-document" ||
@@ -185,7 +162,11 @@ export async function compileScopedPlan(
 }
 
 /** 在快照副本上按建议的实际提交顺序预演；包括每条建议的撤销容量校验。 */
-export async function previewScopedPlan(state: Uint8Array, plan: ScopedContentEdits) {
+export async function previewScopedPlan(
+  state: Uint8Array,
+  plan: ScopedContentEdits,
+  format?: ContentSnapshot["format"]
+) {
   const doc = new Y.Doc({ gc: false });
   try {
     Y.applyUpdate(doc, state);
@@ -196,7 +177,20 @@ export async function previewScopedPlan(state: Uint8Array, plan: ScopedContentEd
       });
       Y.applyUpdate(doc, update);
     }
-    return getMarkdownWithPositions(readNodeDocument(doc).content as Descendant[]).markdown;
+    const document = readNodeDocument(doc);
+    const tree = new NodeTree(doc);
+    let contracts;
+    try {
+      contracts = await validateContentContracts(tree.contracts.toJSON());
+    } finally {
+      tree.dispose();
+    }
+    return format === "tau-markdown/1"
+      ? getTauMarkdownWithPositions(document.content as Descendant[], {
+          processor: desktopMarkdown,
+          metadata: { contracts },
+        }).markdown
+      : getMarkdownWithPositions(document.content as Descendant[]).markdown;
   } finally {
     doc.destroy();
   }

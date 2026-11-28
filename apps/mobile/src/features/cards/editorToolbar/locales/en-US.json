@@ -147,6 +147,8 @@
   "table.moveRowUp": "Move row up",
   "table.moveRowDown": "Move row down",
   "table.moveColumnLeft": "Move column left",
+  "table.rowColor": "Row color",
+  "table.rowColorNone": "No color",
   "table.moveColumnRight": "Move column right",
   "code.language": "Code language",
   "code.allLanguages": "All languages",

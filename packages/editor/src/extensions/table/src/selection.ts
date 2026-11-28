@@ -1,8 +1,9 @@
 import { escapeHtml } from "@tau/shared/escape-html";
+import { exportRowTint } from "@tau/editor/extensions/text-formatting/palette";
 import { Editor, Node, Path, Point, Range, Text, Transforms } from "slate";
 import type { Plugin } from "@tau/editor/api";
 
-import type { TableCellElement, TableElement } from "./types";
+import type { TableCellElement, TableElement, TableRowElement } from "./types";
 import {
   clearCells,
   columnCount,
@@ -106,8 +107,17 @@ export function deleteCellSelection(editor: Editor, selection: CellSelection) {
   }
 }
 
+const withoutColor = (row: TableRowElement) => {
+  const copy = { ...row };
+  delete copy.color;
+  return copy;
+};
+
 /** 选区矩形对应的子表（复制用），保留对应列的对齐；合并跨度截到矩形内 */
-export function extractSubTable(editor: Editor, selection: CellSelection): TableElement {
+export function extractSubTable(
+  editor: Editor,
+  selection: CellSelection
+): TableElement & { copiedWholeRows: boolean } {
   const table = getTableAt(editor, selection.tablePath) as TableElement;
   const { align: sourceAlign, ...properties } = table;
   const map = buildCoverMap(table);
@@ -125,10 +135,13 @@ export function extractSubTable(editor: Editor, selection: CellSelection): Table
     if (columns > 1) result.colSpan = columns;
     return result;
   };
+  // 行底色属于整行：只有覆盖全部列时才随片段带走
+  const wholeRows = selection.colStart === 0 && selection.colEnd === columnCount(table) - 1;
   return structuredClone({
     ...properties,
+    copiedWholeRows: wholeRows,
     children: table.children.slice(selection.rowStart, selection.rowEnd + 1).map((row, i) => ({
-      ...row,
+      ...(wholeRows ? row : withoutColor(row)),
       children: (cols(row.children) as TableCellElement[]).map((cell, j) =>
         clampSpan(cell, selection.rowStart + i, selection.colStart + j)
       ),
@@ -167,7 +180,9 @@ export const toHtmlTable = (table: TableElement, withHeader: boolean) => {
           return `<${tag}${spanAttrs(rowSpan, colSpan)}>${cellText(Node.string(cell))}</${tag}>`;
         })
         .join("");
-      return `<tr>${cells}</tr>`;
+      // 粘到外部（飞书 / Word 等）不认识编辑器的 CSS 变量，写浅色档具体色值
+      const tint = exportRowTint(row.color);
+      return `<tr${tint ? ` style="background:${tint}"` : ""}>${cells}</tr>`;
     })
     .join("")}</tbody></table>`;
 };

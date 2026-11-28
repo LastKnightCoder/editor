@@ -9,7 +9,9 @@ import {
   removeTable,
   selectCell,
   setColumnAlign,
+  setRowColor,
   type TableAlign,
+  type TableRowColor,
 } from "@tau/editor/extensions/table";
 import type { Editor } from "slate";
 
@@ -31,6 +33,20 @@ export type TableActionId =
 /** 当前列的对齐；左对齐按未指定（null）存储 */
 export function getColumnAlign(editor: Editor, context: TableEditingContext): TableAlign {
   return getTableAt(editor, context.tablePath)?.align?.[context.col] ?? null;
+}
+
+/** 当前行的底色；无色为 null */
+export function getRowColor(editor: Editor, context: TableEditingContext): TableRowColor | null {
+  return getTableAt(editor, context.tablePath)?.children[context.row]?.color ?? null;
+}
+
+/** 设置当前行的底色；null 清除 */
+export function applyRowColor(
+  editor: Editor,
+  context: TableEditingContext,
+  color: TableRowColor | null
+): boolean {
+  return setRowColor(editor, context.tablePath, context.row, context.row, color);
 }
 
 /** 对齐循环：左（未指定）→ 居中 → 居右 → 左；setColumnAlign 把 left 存为 null，二者视为同一档 */

@@ -1,3 +1,6 @@
+import { decodeTauMarkdown } from "@tau/markdown";
+import { desktopMarkdown } from "@/utils/markdown";
+import { Node } from "slate";
 import { resetAfterEach } from "../../../../src-electron/main/modules/collaboration/__tests__/manager-node-document.mocks";
 import { afterEach, expect, it, vi } from "vitest";
 import { fallbackCommandContext } from "@tau/rpc";
@@ -84,28 +87,31 @@ it.each([
       stop();
     }
   }
-  const read = () => call("get_content_markdown", { contentId: 7 });
-  const insertion = (text: string, line: number) => ({
-    op: "insert",
-    text,
-    locator: {
-      kind: "markdown-range",
-      start: { line, ch: 1 },
-      end: { line, ch: 1 },
-    },
-  });
-  const insert = (snapshotId: string, text: string, secondLine?: number) =>
+  const sources = new Map<string, string>();
+  const read = async () => {
+    const result = await call("get_content_markdown", { contentId: 7 });
+    sources.set(result.snapshotId, result.markdown);
+    return result;
+  };
+  const insertion = (text: string, snapshotId: string, root: number) => {
+    const source = sources.get(snapshotId);
+    if (!source) throw new Error("读取快照缺失");
+    const parsed = decodeTauMarkdown(source, { processor: desktopMarkdown });
+    const point = parsed.positionMap.slateToMarkdown({ path: [root, 0], offset: 1 });
+    if (!point) throw new Error("正文文字位置缺失");
+    return { op: "insert", text, locator: { kind: "markdown-range", start: point, end: point } };
+  };
+  const insert = (snapshotId: string, text: string, second = false) =>
     call("apply_content_edit_operations", {
       target: { contentId: 7 },
       snapshotId,
       operations: [
-        insertion(text, 0),
-        ...(secondLine === undefined ? [] : [insertion("丙", secondLine)]),
+        insertion(text, snapshotId, 0),
+        ...(second ? [insertion("丙", snapshotId, 1)] : []),
       ],
     });
   const original = await read();
-  const secondLine = original.markdown.split("\n").indexOf("次段");
-  const first = await insert(original.snapshotId, "甲", mixed ? secondLine : undefined);
+  const first = await insert(original.snapshotId, "甲", mixed);
   expect(first).toMatchObject({ action: lostResponses === 2 ? "applied" : "commit_pending" });
   if (mixed)
     expect(first.items.map((item: { status: string }) => item.status).sort()).toEqual([
@@ -116,7 +122,10 @@ it.each([
   const written = mixed ? 2 : 1;
   expect(server.store.operations.sequence(documentId)).toBe(written);
   const current = await read();
-  const lines = (markdown: string) => markdown.trim().split(/\n+/);
+  const lines = (markdown: string) =>
+    decodeTauMarkdown(markdown, { processor: desktopMarkdown }).content.map(node =>
+      Node.string(node)
+    );
   const secondary = mixed ? "次丙段" : "次段";
   expect(lines(current.markdown)).toEqual(["原甲文", secondary]);
   if (scenario === "原提交记录已删除") {

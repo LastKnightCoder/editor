@@ -1,4 +1,7 @@
 import { isElectron } from "@/electron";
+import { encodeTauMarkdown, isTauMarkdown, tauMarkdownEquals } from "@tau/markdown";
+import { desktopMarkdown } from "@/utils/markdown";
+import { compileTauScopedPlan, decodeTauEditSource } from "./tau-scoped-plan";
 import { getChatDatabase } from "@/services/chatDatabase";
 import { getActiveEditingSessionByContentId } from "./active-editor-session";
 import { applyEditOperations } from "./edit-engine";
@@ -54,7 +57,9 @@ export async function prepareEditRequest(
     (wholeDocument ||
       params.operations.some(
         operation =>
-          operation.locator.kind === "markdown-range" || operation.locator.kind === "slate-path"
+          operation.locator.kind === "markdown-range" ||
+          operation.locator.kind === "slate-path" ||
+          operation.locator.kind === "block-id"
       ))
   ) {
     return {
@@ -105,12 +110,46 @@ export async function prepareEditRequest(
     selection,
   });
 
-  const scopedPlan =
+  if (wholeDocument && snapshot.format === "tau-markdown/1") {
+    const original = decodeTauEditSource(snapshot.markdown, false);
+    if (editResult.markdown.trim()) {
+      if (!isTauMarkdown(editResult.markdown))
+        return {
+          success: false as const,
+          errorCode: "FORMAT_REQUIRED",
+          message: "全文回写必须使用读取到的 Tau Markdown 协议，不能降级为普通 Markdown",
+        };
+      const parsed = decodeTauEditSource(editResult.markdown, false);
+      if (!tauMarkdownEquals(parsed.metadata, original.metadata))
+        return {
+          success: false as const,
+          errorCode: "IMMUTABLE_METADATA",
+          message: "保留原有协议版本和文档契约元信息",
+        };
+    } else {
+      editResult.markdown = encodeTauMarkdown([], {
+        metadata: original.metadata,
+        processor: desktopMarkdown,
+      });
+    }
+  }
+  const compiled =
     scoped && snapshot.editState
-      ? await compileScopedPlan(snapshot, editResult.patches, params.operations)
+      ? snapshot.format === "tau-markdown/1"
+        ? await compileTauScopedPlan(snapshot, editResult.patches, params.operations)
+        : {
+            plan: await compileScopedPlan(snapshot, editResult.patches, params.operations),
+            patches: editResult.patches,
+          }
       : undefined;
+  const scopedPlan = compiled?.plan;
+  if (compiled) editResult.patches = compiled.patches;
   if (scopedPlan && snapshot.editState) {
-    editResult.markdown = await previewScopedPlan(snapshot.editState.state, scopedPlan);
+    editResult.markdown = await previewScopedPlan(
+      snapshot.editState.state,
+      scopedPlan,
+      snapshot.format
+    );
     editResult.hash = hashMarkdown(editResult.markdown);
   }
   return { success: true as const, snapshot, source, editResult, scopedPlan };

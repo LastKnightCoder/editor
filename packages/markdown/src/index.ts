@@ -43,3 +43,17 @@ export {
   type ElementMapping,
   type PositionMapping,
 } from "./positionMapper.ts";
+
+export {
+  encodeTauMarkdown,
+  decodeTauMarkdown,
+  getTauMarkdownWithPositions,
+  isTauMarkdown,
+  TAU_MARKDOWN_HEADER,
+  TAU_MARKDOWN_HELP,
+  type TauMarkdownOptions,
+  type TauMarkdownLimits,
+  type TauMarkdownDecoded,
+} from "./tau/index.ts";
+
+export { sameJson as tauMarkdownEquals } from "./tau/format.ts";

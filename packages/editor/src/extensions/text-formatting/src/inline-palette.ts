@@ -34,6 +34,9 @@ export const HIGHLIGHT_MIX = {
   dark: { background: 24, line: 75 },
 } as const;
 
+/** 表格行底色 = 同色相与纸面的混色比例（styles.css 同值）；只染底不改字色，正文对比度与无色行接近 */
+export const ROW_TINT_MIX = { light: 10, dark: 15 } as const;
+
 const PALETTE_BY_ID = new Map(INLINE_PALETTE.map(entry => [entry.id as string, entry]));
 
 export const getInlinePaletteEntry = (id: unknown): InlinePaletteEntry | undefined =>
@@ -53,6 +56,12 @@ export const inlineHighlight = (id: unknown): { background: string; line: string
     background: `color-mix(in srgb, ${ink} var(--ed-highlight-bg-mix), transparent)`,
     line: `color-mix(in srgb, ${ink} var(--ed-highlight-line-mix), transparent)`,
   };
+};
+
+/** 表格行底色（不透明，随明暗与主题纸面切换）；未知 id 返回 undefined */
+export const inlineRowTint = (id: unknown): string | undefined => {
+  const ink = inlineInk(id);
+  return ink && `color-mix(in srgb, ${ink} var(--ed-row-tint-mix), var(--ed-bg-surface))`;
 };
 
 /** 渐变字的 CSS 取值（随明暗切换） */
@@ -83,6 +92,19 @@ export const exportHighlightColors = (
   };
 };
 
+/** 导出用：表格行底色的浅色版具体色值（与白底混合） */
+export const exportRowTint = (id: unknown): string | undefined => {
+  const entry = getInlinePaletteEntry(id);
+  if (!entry) return undefined;
+  const n = parseInt(entry.light.slice(1), 16);
+  const ratio = ROW_TINT_MIX.light / 100;
+  const channel = (value: number) =>
+    Math.round(value * ratio + 255 * (1 - ratio))
+      .toString(16)
+      .padStart(2, "0");
+  return `#${[n >> 16, (n >> 8) & 255, n & 255].map(channel).join("")}`;
+};
+
 /** 字色存的是具体色值：按任一明暗档反查色相，用于面板标出当前值 */
 export const findInlineColorByInk = (ink: unknown): InlinePaletteEntry | undefined => {
   if (typeof ink !== "string") return undefined;
@@ -98,4 +120,5 @@ export const inlinePaletteCssVars = (mode: "light" | "dark"): Record<string, str
   ),
   "--ed-highlight-bg-mix": `${HIGHLIGHT_MIX[mode].background}%`,
   "--ed-highlight-line-mix": `${HIGHLIGHT_MIX[mode].line}%`,
+  "--ed-row-tint-mix": `${ROW_TINT_MIX[mode]}%`,
 });

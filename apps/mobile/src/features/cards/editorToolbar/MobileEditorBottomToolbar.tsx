@@ -11,6 +11,7 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUp,
+  Ban,
   Bell,
   Bold,
   Check,
@@ -30,6 +31,7 @@ import {
   List,
   Mic,
   MessageSquarePlus,
+  PaintBucket,
   Plus,
   Replace,
   Sigma,
@@ -51,6 +53,8 @@ import {
   useKeyboardViewport,
 } from "../../../components/KeyboardViewportProvider";
 import { ActionSheet, type ActionSheetItem } from "../../../components/ActionSheet";
+import type { TableRowColor } from "@tau/editor/extensions/table";
+import { INLINE_PALETTE, inlineInk } from "@tau/editor/extensions/text-formatting/palette";
 import { Editor as SlateEditor, Node as SlateNode, Transforms } from "slate";
 import type { CheckListItemElement } from "@tau/editor/extensions/list";
 import { useI18n } from "@tau/i18n/react";
@@ -482,10 +486,45 @@ const ALIGN_LABELS = {
 
 const MENU_ICON_SIZE = 18;
 
+/** 行颜色色块：与文档行底色同色相，浓一档便于辨认；色值属文档内容色 */
+function RowColorChip({ color }: { color: TableRowColor | null }) {
+  if (!color) return <Ban size={MENU_ICON_SIZE} />;
+  return (
+    <span
+      className="h-[18px] w-[18px] rounded-[6px]"
+      style={{ background: `color-mix(in srgb, ${inlineInk(color)} 40%, var(--tau-bg-surface))` }}
+    />
+  );
+}
+
+const rowColorLabel = (color: TableRowColor | null) =>
+  color ? t(`palette.${color}`) : t("table.rowColorNone");
+
+/** 行颜色面板：无 + 行内着色 7 色，当前值打勾 */
+function buildRowColorItems(
+  current: TableRowColor | null,
+  apply: (color: TableRowColor | null) => void
+): ActionSheetItem[][] {
+  const options: Array<TableRowColor | null> = [null, ...INLINE_PALETTE.map(entry => entry.id)];
+  return [
+    options.map(color => ({
+      key: color ?? "none",
+      get label() {
+        return rowColorLabel(color);
+      },
+      icon: <RowColorChip color={color} />,
+      selected: color === current,
+      onClick: () => apply(color),
+    })),
+  ];
+}
+
 /** 表格「⋯」菜单：越界的移动项不显示 */
 function buildTableMenuItems(
   context: TableEditingContext,
-  run: (id: TableActionId) => void
+  run: (id: TableActionId) => void,
+  rowColor: TableRowColor | null,
+  openRowColor: () => void
 ): ActionSheetItem[][] {
   const moveItems: Array<{ id: TableActionId; label: string; icon: ReactNode }> = [
     {
@@ -518,6 +557,16 @@ function buildTableMenuItems(
     },
   ];
   return [
+    [
+      {
+        get label() {
+          return t("table.rowColor");
+        },
+        icon: <PaintBucket size={MENU_ICON_SIZE} />,
+        trailing: rowColorLabel(rowColor),
+        onClick: openRowColor,
+      },
+    ],
     moveItems
       .filter(item => !isTableActionDisabled(item.id, context))
       .map(item => ({
@@ -1217,9 +1266,20 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
         title={t("table.title")}
         groups={
           editingContext.kind === "table"
-            ? buildTableMenuItems(editingContext, controller.runTableAction)
+            ? buildTableMenuItems(
+                editingContext,
+                controller.runTableAction,
+                controller.getTableRowColor(),
+                controller.requestRowColorSheet
+              )
             : []
         }
+        onClose={controller.closeTableMenu}
+      />
+      <ActionSheet
+        open={controller.isRowColorSheetOpen}
+        title={t("table.rowColor")}
+        groups={buildRowColorItems(controller.getTableRowColor(), controller.setTableRowColor)}
         onClose={controller.closeTableMenu}
       />
       <ActionSheet

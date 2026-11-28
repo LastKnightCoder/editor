@@ -210,12 +210,19 @@ export const createContentEditProposal = async (params: CreateProposalParams) =>
       ...(scopedPlan.contracts && Object.keys(scopedPlan.contracts).length
         ? { contracts: scopedPlan.contracts }
         : {}),
-      items: scopedPlan.edits.map((edit, index) => ({
-        edit,
-        beforeText: editResult.patches[index]?.beforeText ?? "",
-        afterText: editResult.patches[index]?.afterText ?? "",
-        ...(reasons.get(edit.id) ? { reason: reasons.get(edit.id) } : {}),
-      })),
+      items: scopedPlan.edits.map((edit, index) => {
+        const patch = editResult.patches[index];
+        const reason = (patch?.sourceOperationIds ?? [edit.id])
+          .map(id => reasons.get(id))
+          .filter(Boolean)
+          .join("；");
+        return {
+          edit,
+          beforeText: patch?.beforeText ?? "",
+          afterText: patch?.afterText ?? "",
+          ...(reason ? { reason } : {}),
+        };
+      }),
     });
   }
   useContentEditReviewStore.getState().upsertProposal(proposal);

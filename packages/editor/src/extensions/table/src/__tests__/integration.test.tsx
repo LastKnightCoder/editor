@@ -216,6 +216,48 @@ it("悬停出现行列手柄；点击选中整列并打开菜单，菜单内 ⌫
   }
 });
 
+// 色板曾未进入菜单导航，方向键会跳过所有颜色。
+it("行颜色可用菜单方向键选择并撤销", async () => {
+  const value = table();
+  value.children[1].color = "blue";
+  const view = await mount([value]);
+  try {
+    await hoverCell(view.host, 1, 0);
+    const grip = view.host.querySelector<HTMLButtonElement>('[aria-label="行操作"]');
+    await act(async () => grip?.click());
+    const menu = document.querySelector<HTMLElement>('[role="menu"][data-open="true"]');
+    if (!menu) throw new Error("行菜单未打开");
+    const colors = Array.from(
+      menu.querySelectorAll<HTMLElement>('[role="radio"], [role="menuitemradio"]')
+    );
+    const target = colors.find(
+      (item, index) => index > 0 && item.getAttribute("aria-checked") === "false"
+    );
+    if (!target) throw new Error("缺少未选中的颜色");
+    const itemCount = menu.querySelectorAll('[role^="menuitem"], [role="radio"]').length;
+    for (
+      let step = 0;
+      step < itemCount && menu.getAttribute("aria-activedescendant") !== target.id;
+      step++
+    ) {
+      await act(async () =>
+        menu.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }))
+      );
+    }
+    expect(document.getElementById(menu.getAttribute("aria-activedescendant") ?? "")).toBe(target);
+    await act(async () =>
+      menu.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }))
+    );
+    expect(tableAt(view.editor).children[1].color).toEqual(expect.any(String));
+    expect(tableAt(view.editor).children[1].color).not.toBe("blue");
+    expect(view.dismissals.size).toBe(0);
+    await act(async () => view.editor.undo());
+    expect(tableAt(view.editor).children[1].color).toBe("blue");
+  } finally {
+    await view.dispose();
+  }
+});
+
 it("右侧 / 底部「+」追加列与行", async () => {
   const view = await mount([table()]);
   try {

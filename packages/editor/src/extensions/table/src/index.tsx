@@ -79,7 +79,13 @@ export const tableCellExtension = defineExtension({
 });
 
 export const tableExtensions = [tableExtension, tableRowExtension, tableCellExtension] as const;
-export type { TableElement, TableRowElement, TableCellElement, TableAlign } from "./types";
+export type {
+  TableElement,
+  TableRowElement,
+  TableCellElement,
+  TableAlign,
+  TableRowColor,
+} from "./types";
 export * from "./transforms";
 export {
   getCellSelection,

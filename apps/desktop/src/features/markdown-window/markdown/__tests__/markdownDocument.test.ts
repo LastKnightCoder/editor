@@ -1,3 +1,5 @@
+import { createEditor, Transforms } from "slate";
+import { encodeTauMarkdown, decodeTauMarkdown } from "@tau/markdown";
 import { describe, expect, it, vi } from "vitest";
 import * as markdown from "@/utils/markdown";
 import { createMarkdownDocument } from "../markdownDocument";
@@ -125,6 +127,63 @@ it("非Error转换失败的语义标记与原诊断/源码一起撤销重做，�
     expect(file.getSnapshot().errorKind).toBeUndefined();
   } finally {
     parse.mockRestore();
+    file.dispose();
+  }
+});
+
+it("原生文件富文本修改后保持 Tau 协议、全部属性与文档元信息，格式也能撤销", async () => {
+  const content = [
+    {
+      type: "table",
+      collabId: "native-table",
+      future: { keep: 1 },
+      children: [
+        {
+          type: "table-row",
+          collabId: "native-row",
+          color: "blue",
+          children: [
+            {
+              type: "table-cell",
+              collabId: "native-cell",
+              colSpan: 2,
+              children: [{ type: "formatted", text: "正文" }],
+            },
+          ],
+        },
+      ],
+    },
+  ];
+  const source = encodeTauMarkdown(content, {
+    processor: markdown.desktopMarkdown,
+    metadata: { future: { retained: true } },
+  });
+  const file = createMarkdownDocument();
+  const binding = file.document.binding;
+  if (!binding) throw new Error("缺少文件绑定");
+  const editor = binding.install(createEditor());
+  try {
+    expect(file.applyMarkdown(source, "external")).toBe(true);
+    binding.connect(editor);
+    file.stopCapturing();
+    Transforms.setNodes(editor, { color: "red" }, { at: [0, 0] });
+    await Promise.resolve();
+    file.flushEditorChanges();
+    const result = decodeTauMarkdown(file.getText(), { processor: markdown.desktopMarkdown });
+    const expected = structuredClone(content);
+    expected[0].children[0].color = "red";
+    expect(result.content).toEqual(expected);
+    expect(result.metadata).toEqual({ future: { retained: true } });
+    file.undo();
+    expect(
+      decodeTauMarkdown(file.getText(), { processor: markdown.desktopMarkdown }).content
+    ).toEqual(content);
+    file.applyMarkdown("普通 Markdown", "user");
+    file.undo();
+    expect(
+      decodeTauMarkdown(file.getText(), { processor: markdown.desktopMarkdown }).metadata
+    ).toEqual({ future: { retained: true } });
+  } finally {
     file.dispose();
   }
 });

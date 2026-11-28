@@ -10,7 +10,9 @@ import {
   isOriginCell,
   type TableCellElement,
   type TableElement,
+  type TableRowElement,
 } from "@tau/editor/extensions/table/span";
+import { exportRowTint } from "@tau/editor/extensions/text-formatting/palette";
 
 const DEFAULT_CALLOUT_TITLE: Record<string, string> = {
   tip: "技巧",
@@ -212,10 +214,13 @@ export const blockSerializers: HtmlSerializer[] = [
   // Table Cell
   {
     type: "table-cell",
-    toHtml: (element: TableCellElement, childrenHtml) => {
+    toHtml: (element: TableCellElement, childrenHtml, parent?: TableRowElement) => {
       const [rowSpan, colSpan] = cellSpan(element);
       const spans = `${rowSpan > 1 ? ` rowspan="${rowSpan}"` : ""}${colSpan > 1 ? ` colspan="${colSpan}"` : ""}`;
-      return `<td class="table-cell"${spans}>${childrenHtml}</td>`;
+      // 行底色画在格上（压过表头灰底）；公众号等目标不支持 CSS 变量，写浅色档具体色值
+      const tint = exportRowTint(parent?.color);
+      const style = tint ? ` style="background:${tint}"` : "";
+      return `<td class="table-cell"${spans}${style}>${childrenHtml}</td>`;
     },
   },
 

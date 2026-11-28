@@ -39,6 +39,7 @@ export interface ContentSnapshot {
   createdAt: number;
   content: Descendant[];
   markdown: string;
+  format?: "tau-markdown/1";
   hash: string;
   lineOffsets: number[];
   positionMap: PositionMapper;
@@ -63,6 +64,7 @@ export type EditLocator =
   | { kind: "full-document" }
   | { kind: "markdown-range"; start: MarkdownPoint; end: MarkdownPoint }
   | { kind: "slate-path"; path: number[] }
+  | { kind: "block-id"; blockId: string }
   | { kind: "active-selection" }
   | { kind: "active-block" }
   | { kind: "match-id"; matchId: string };
@@ -100,6 +102,7 @@ export interface ResolvedOffsetRange {
 
 export interface AppliedPatch {
   operationId: string;
+  sourceOperationIds?: string[];
   op: EditOperation["op"];
   start: number;
   end: number;

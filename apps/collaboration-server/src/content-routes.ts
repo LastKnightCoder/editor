@@ -173,6 +173,7 @@ export function registerContentRoutes(
     return reply.header("Cache-Control", "no-store").send({
       ...store.protocols.state(id),
       scopedSubtreeDeletion: true,
+      scopedNodeReconcile: true,
       sequence: store.operations.sequence(id),
     });
   });

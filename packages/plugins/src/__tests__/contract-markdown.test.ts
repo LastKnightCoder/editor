@@ -4,7 +4,7 @@ import { ElementContractCatalog } from "../editor-contracts";
 import { createContractMarkdownProcessor } from "../contract-markdown";
 import { ContentPluginRegistry } from "../content";
 import type { Descendant } from "slate";
-import { addExportFootnote, type MarkdownCodec } from "@tau/markdown";
+import { addExportFootnote, encodeTauMarkdown, type MarkdownCodec } from "@tau/markdown";
 
 async function setup() {
   const previous = defineEditorElement({
@@ -45,6 +45,23 @@ async function setup() {
 }
 
 describe("契约感知的 Markdown 与 HTML 导出", () => {
+  it("原生文本在插件未安装时保留历史契约、节点身份和未知属性", async () => {
+    const { catalog, older, newer } = await setup();
+    const source = [
+      { ...older, collabId: "old-source", unknown: { color: "blue" } },
+      { ...newer, collabId: "new-source" },
+    ];
+    const markdown = encodeTauMarkdown(source, { metadata: { contracts: catalog.dictionary } });
+    const receiver = await createContractMarkdownProcessor({
+      catalog: await ElementContractCatalog.prepare([]),
+      contracts: {},
+      codecs: [],
+    });
+    const restored = await receiver.importDocument(markdown);
+    expect(restored.content).toEqual(source);
+    expect(restored.contracts).toEqual(catalog.dictionary);
+  });
+
   it("混合版本只调用匹配 codec，旧节点载荷携带契约并可重开", async () => {
     const { catalog, older, newer } = await setup();
     const serialize = vi.fn(

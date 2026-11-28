@@ -2,7 +2,13 @@ import { Editor, Element as SlateElement, Node, Transforms, type Location, type 
 import { ReactEditor } from "slate-react";
 import { createParagraph } from "@tau/editor/api";
 
-import type { TableAlign, TableCellElement, TableElement, TableRowElement } from "./types";
+import type {
+  TableAlign,
+  TableCellElement,
+  TableElement,
+  TableRowColor,
+  TableRowElement,
+} from "./types";
 import {
   buildCoverMap,
   cellSpan,
@@ -393,6 +399,28 @@ export function setColumnAlign(
   const next = table.align ? [...table.align] : Array<TableAlign>(cols).fill(null);
   for (let col = start; col <= end; col++) next[col] = align === "left" ? null : align;
   writeAlign(editor, tablePath, next);
+  return true;
+}
+
+/** 设置 [from, to] 行的底色；null 清除。颜色存在行节点上，随行移动、删除 */
+export function setRowColor(
+  editor: Editor,
+  tablePath: Path,
+  from: number,
+  to: number,
+  color: TableRowColor | null
+): boolean {
+  const table = writableTable(editor, tablePath);
+  if (!table) return false;
+  const [start, end] = clampRange(from, to, table.children.length);
+  if (start > end) return false;
+  Editor.withoutNormalizing(editor, () => {
+    for (let row = start; row <= end; row++) {
+      const at = [...tablePath, row];
+      if (color) Transforms.setNodes<TableRowElement>(editor, { color }, { at });
+      else Transforms.unsetNodes(editor, "color", { at });
+    }
+  });
   return true;
 }
 

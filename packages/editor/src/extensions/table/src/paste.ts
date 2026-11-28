@@ -10,15 +10,18 @@ import {
 import type { Plugin } from "@tau/editor/api";
 import { setOrInsertNode } from "@tau/editor/api";
 
-import type { TableElement } from "./types";
+import type { TableElement, TableRowColor } from "./types";
 import { getCellSelection, selectCells } from "./selection";
 import {
   clearCells,
+  columnCount,
   createTableCell,
   fillCells,
   getCellPosition,
+  getTableAt,
   isTableElement,
   selectCell,
+  setRowColor,
   type CellContent,
   type CellPosition,
   type CellSpanProps,
@@ -166,15 +169,21 @@ function fillAndSelect(
   editor: Editor,
   target: CellPosition,
   grid: CellContent[][],
-  spans?: Array<Array<CellSpanProps | undefined>>
+  spans?: Array<Array<CellSpanProps | undefined>>,
+  rowColors?: Array<TableRowColor | null>
 ) {
-  if (!fillCells(editor, target.tablePath, target.row, target.col, grid, spans)) return;
-  const width = Math.max(...grid.map(row => row.length));
-  selectCells(editor, target.tablePath, {
-    rowStart: target.row,
-    rowEnd: target.row + grid.length - 1,
-    colStart: target.col,
-    colEnd: target.col + width - 1,
+  Editor.withoutNormalizing(editor, () => {
+    if (!fillCells(editor, target.tablePath, target.row, target.col, grid, spans)) return;
+    rowColors?.forEach((color, index) =>
+      setRowColor(editor, target.tablePath, target.row + index, target.row + index, color)
+    );
+    const width = Math.max(...grid.map(row => row.length));
+    selectCells(editor, target.tablePath, {
+      rowStart: target.row,
+      rowEnd: target.row + grid.length - 1,
+      colStart: target.col,
+      colEnd: target.col + width - 1,
+    });
   });
 }
 
@@ -239,13 +248,33 @@ export const withTablePaste: Plugin = editor => {
   };
 
   editor.insertFragment = (nodes, options) => {
-    const target = options?.at ? undefined : pasteTarget(editor);
-    if (!target) return insertFragment(nodes, options);
     const fragment = nodes as Descendant[];
+    const target = options?.at ? undefined : pasteTarget(editor);
+    if (!target) {
+      return insertFragment(
+        fragment.map(node => {
+          if (!isTableElement(node) || !("copiedWholeRows" in node)) return node;
+          const table = { ...node };
+          Reflect.deleteProperty(table, "copiedWholeRows");
+          return table;
+        }),
+        options
+      );
+    }
     const rows = fragmentRows(fragment);
     if (rows) {
+      const table = getTableAt(editor, target.tablePath);
+      if (!table) return;
+      const source = fragment.length === 1 && isTableElement(fragment[0]) ? fragment[0] : undefined;
+      const wholeRows =
+        !source || !("copiedWholeRows" in source) || source.copiedWholeRows !== false;
+      const columns = Math.max(columnCount(table), ...rows.map(row => row.children.length));
+      const rowColors =
+        wholeRows && target.col === 0 && rows.every(row => row.children.length === columns)
+          ? rows.map(row => row.color ?? null)
+          : undefined;
       const grid = rows.map(row => row.children.map(cell => cell.children));
-      return fillAndSelect(editor, target, grid, spanGrid(rows));
+      return fillAndSelect(editor, target, grid, spanGrid(rows), rowColors);
     }
     // 格选区上粘贴普通内容：清空所选格，内容落进左上格
     const cellSelection = getCellSelection(editor);

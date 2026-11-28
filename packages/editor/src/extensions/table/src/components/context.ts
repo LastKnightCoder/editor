@@ -1,5 +1,5 @@
 import { createContext } from "react";
-import type { TableElement, TableRowElement } from "../types";
+import type { TableElement, TableRowColor, TableRowElement } from "../types";
 import type { CoverMap } from "../span";
 
 /** 表格把列对齐下发给单元格；行把自身下发给单元格以求列下标 */
@@ -15,3 +15,11 @@ export interface TableCoverInfo {
   rowIndex: Map<TableRowElement, number>;
 }
 export const TableCoverContext = createContext<TableCoverInfo | null>(null);
+
+/** 手柄菜单悬停色块时的行色预览：只影响渲染，不写入文档；color 为 null 表示预览「无色」 */
+export interface TableRowTintPreview {
+  from: number;
+  to: number;
+  color: TableRowColor | null;
+}
+export const TableRowTintPreviewContext = createContext<TableRowTintPreview | null>(null);

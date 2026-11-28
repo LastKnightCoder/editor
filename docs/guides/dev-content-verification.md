@@ -110,3 +110,34 @@ TAU_CONTENT_G4=soak ./node_modules/.bin/playwright test e2e/content-load-g4.spec
 ## 项目文档工具压力验证
 
 运行 `pnpm --filter desktop test:document-tools:stress`。用例通过桌面工具注册表调用文档写工具，IPC 在测试进程内转交给真实数据库命令，每个用例独立创建和清理 SQLite 文件。固定种子的混合操作会输出工具调用数、竞争写入和注入失败次数、耗时。检查全部种子通过，且深层用例能在归属写入中断后重新开库、重试移动并释放最后一处挂载。关联用例让同一批来源进入项目根和跨项目共享的父目录，核对重复请求的条目 ID、来源正文的持有数，以及注入关联或解除失败后的数据库快照。
+
+## Tau Markdown
+
+先取得用户对读取资料库及调用本机模型的授权。原库只能通过只读连接制作一致副本，不直接复制运行中数据库的单个文件，不执行源库 checkpoint。
+
+```powershell
+node apps/desktop/scripts/verify-tau-markdown-copy.mjs
+# 记录输出的 copyPath；也可通过 --source 指定源库，--out 指定尚不存在且位于源库目录之外的输出目录。
+$env:TAU_MARKDOWN_DB_COPY="<输出的 copyPath>"
+pnpm --filter desktop exec vitest run --config vitest.eval.config.ts src-electron/eval/tau-markdown.eval.test.ts --maxWorkers 1 --no-file-parallelism
+```
+
+全量往返从 content_snapshots 流式读取副本所有正文，同时对账契约；失败记录 ID 和阶段，不记录正文。报告在副本目录的 roundtrip.json，检查 failures 为空且 documents 大于零。
+
+```powershell
+$env:TAU_MARKDOWN_STRESS="1"
+pnpm --filter desktop exec vitest run --config vitest.eval.config.ts src-electron/eval/tau-markdown.eval.test.ts -t "容量、随机数据" --maxWorkers 1 --no-file-parallelism
+$env:TAU_TABLE_DELETE_STRESS="1"
+pnpm --filter desktop exec vitest run src/mcp/providers/__tests__/table-deletion.test.ts -t "表格编辑随机序列" --maxWorkers 1 --no-file-parallelism
+```
+
+性能样本与构建、类型检查、其他压力任务串行。容量脚本每个规模预热 1 轮、测量 30 轮，记录编解码 P50/P95、源字节与 RSS；RSS 为阶段结束的进程采样，不是隔离分配量或连续峰值。另执行随机边界、连续编辑和深层结构，不以耗时阈值代替语义对账。运行时随机序列验证提交、范围冲突、重开、重复请求和撤销。
+
+```powershell
+$env:TAU_MARKDOWN_LIVE_AI="1"
+pnpm --filter desktop exec vitest run --config vitest.eval.config.ts src-electron/eval/tau-markdown-agent.eval.test.ts --maxWorkers 1 --no-file-parallelism
+```
+
+模型只读本机 setting.json 的 chat 配置，凭据留在验证进程。脚本从只读副本选取一段有限真实正文，放进新的临时资料库，通过实际 MCP、正文运行时、Yjs 队列及 SQLite 投影验证改色、清色、改字保色、行重排、错误恢复和全文回写，并重开核对全部节点数据。
+
+每次模型运行限制请求数和轮次，报告保留每次工具失败与恢复，不能只保留成功重试。ai-validation-时间戳.json 记录用量、场景和内容摘要 hash，不记录提示词、凭据或正文；ai-场景.db 是可供检查的隔离写入产物。纯协议、运行时与真实模型证据分别记录，不把一种验证当作另一种。

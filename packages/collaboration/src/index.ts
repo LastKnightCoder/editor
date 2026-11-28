@@ -48,3 +48,5 @@ export { memberActivities } from "./member-activities";
 export * from "./whiteboard-presence";
 
 export { canUpgradeColumnContract } from "./column-contract-upgrade";
+
+export { canReconcileScopedBlocks } from "./scoped-content-reconcile";

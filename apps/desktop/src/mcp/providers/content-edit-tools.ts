@@ -26,20 +26,13 @@ import { presenceAgentOf, reportAgentPresence } from "@/services/agent-presence"
 import { bindDatabaseCommands } from "@/services/command-context";
 import { getAgentPermission } from "@/commands/content";
 import { isElectron } from "@/electron";
-import type { Descendant } from "slate";
+import { findContentBlockPath } from "@/services/content-editing/locator";
+import { getSnapshot } from "@/services/content-editing/snapshot-store";
+import { TAU_MARKDOWN_HELP } from "@tau/markdown";
 
 const reviewToolExecution = {
   timeoutMs: null,
 } as const;
-
-function findBlockPath(nodes: Descendant[], blockId: string): number[] | undefined {
-  for (const [index, node] of nodes.entries()) {
-    if (!("children" in node)) continue;
-    if ("collabId" in node && node.collabId === blockId) return [index];
-    const path = findBlockPath(node.children, blockId);
-    if (path) return [index, ...path];
-  }
-}
 
 const toToolError = (code: string, message: string, extra?: Record<string, unknown>) => {
   return {
@@ -242,7 +235,8 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
       name: "get_content_markdown",
       risk: "read",
       description:
-        "根据 contentId 获取 Markdown 正文。可按 range 截断，或传入冲突结果的 blockId 只重新读取目标块。仅支持 contents.contentId。遇到 tau-query/tau-queryjs 查询块时，创建或修改前读取 query-database Skill，保留其参数与展示配置。",
+        "根据 contentId 获取可逆的 Tau Markdown 正文。可按 range 截断，或传入冲突结果的 blockId 只重新读取目标块。仅支持 contents.contentId。遇到查询块时先读取 query-database Skill。" +
+        TAU_MARKDOWN_HELP,
       parameters: {
         type: "object",
         properties: {
@@ -275,7 +269,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
           if (typeof args.blockId === "string") {
             if (range) throw new Error("blockId 与 range 不能同时提供");
             const { snapshot } = await loadSnapshotForContent(contentId, context, true);
-            const path = findBlockPath(snapshot.content, args.blockId);
+            const path = findContentBlockPath(snapshot.content, args.blockId);
             if (!path)
               return {
                 content: JSON.stringify(
@@ -292,7 +286,9 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
                 success: true,
                 contentId,
                 blockId: args.blockId,
+                path,
                 snapshotId: snapshot.id,
+                ...(snapshot.format ? { format: snapshot.format } : {}),
                 range: { start, end },
                 markdown: snapshot.markdown.slice(start, end),
               }),
@@ -329,11 +325,15 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
       name: "find_content_ranges",
       risk: "read",
       description:
-        "根据用户提供的文本在当前内容中定位候选范围，支持 exact/normalized/fuzzy 三种模式。",
+        "在读取的同一快照中定位原文。优先传 get_content_markdown 返回的 snapshotId；未传快照时须传 target:{contentId:编号}。支持 exact/normalized/fuzzy，后续编辑使用本次返回的 snapshotId 和 matchId。",
       parameters: {
         type: "object",
         properties: {
           target: contentTargetSchema,
+          snapshotId: {
+            type: "string",
+            description: "优先传读取正文返回的 snapshotId，在同一快照内查找，无需重复指定 target",
+          },
           queryText: {
             type: "string",
             description: "要定位的文本片段",
@@ -373,17 +373,34 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
         const target = args.target as { contentId?: number } | undefined;
 
         try {
+          const snapshotId = typeof args.snapshotId === "string" ? args.snapshotId : undefined;
+          const captured = snapshotId ? getSnapshot(snapshotId) : undefined;
+          const databaseName = (context?.databaseName ?? getChatDatabase()).replace(/\.db$/, "");
+          if (
+            snapshotId &&
+            (!captured?.editState || captured.editState.databaseName !== databaseName)
+          )
+            return {
+              content: JSON.stringify(
+                toToolError("SNAPSHOT_EXPIRED", "快照已失效或不属于当前资料库，请重读正文")
+              ),
+            };
           const resolved = await resolveContentTarget(
-            {
-              contentId: target?.contentId,
-            },
+            { contentId: target?.contentId ?? captured?.editState?.contentId },
             context
           );
+          if (captured?.editState && captured.editState.contentId !== resolved.contentId)
+            return {
+              content: JSON.stringify(
+                toToolError("SNAPSHOT_EXPIRED", "快照与正文目标不一致，请重读正文")
+              ),
+            };
           reportAgentPresence(context, resolved.contentId, {
             status: "busy",
             action: `正在找「${queryText.replace(/\s+/g, " ").slice(0, 16)}」`,
           });
-          const { snapshot } = await loadSnapshotForContent(resolved.contentId, context, true);
+          const snapshot =
+            captured ?? (await loadSnapshotForContent(resolved.contentId, context, true)).snapshot;
           const matches = findContentRanges(snapshot, {
             queryText,
             matchMode,
@@ -456,7 +473,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
       name: "apply_content_edit_operations",
       risk: "write",
       description:
-        "对正文执行批量编辑（insert/delete/replace），也是全文改写的唯一入口。先用 get_content_markdown 或 find_content_ranges 读取，传入 snapshotId；删除整张正文表格时精确匹配完整 Markdown（从表头首个竖线到末行末尾竖线），重复表格先核对所在章节和 occurrence，再按 match-id 删除。精确替换使用 match-id，整篇改写使用 full-document。SCOPE_CONFLICT 时用返回的 blockId 调用 get_content_markdown 重读目标，再基于当前正文决定是否生成新操作。COMMIT_PENDING 表示平台尚未确认上次修改，请说明哪些结果待确认，结束本轮重试。下次编辑会自动核对。手动确认模式下工具会等待审阅。",
+        "对 Tau Markdown 正文执行批量编辑（insert/delete/replace），也是全文改写的唯一入口。先用 get_content_markdown 或 find_content_ranges 读取并传入 snapshotId；现有原生块必须保留容器、字段和围栏。精确替换使用 match-id；修改颜色只改目标行的 color 属性，清色删除该字段并保持 JSON 有效。删除整表要覆盖完整的 :::tau 容器，用 collabId 区别同文表格。整篇改写使用 full-document 并保留版本头和文档元信息。SCOPE_CONFLICT 时用返回的 blockId 调用 get_content_markdown 重读目标，再基于当前正文决定是否生成新操作。COMMIT_PENDING 表示平台尚未确认上次修改，请说明哪些结果待确认，结束本轮重试。下次编辑会自动核对。手动确认模式下工具会等待审阅。",
       execution: reviewToolExecution,
       parameters: {
         type: "object",
@@ -489,9 +506,20 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
                 locator: {
                   type: "object",
                   description:
-                    "定位器：kind 可取 full-document/markdown-range/slate-path/active-selection/active-block/match-id",
+                    "定位器优先使用 block-id + blockId（原文 collabId），不用人工计算行号；完整块替换的 text 必须包含该块完整容器。局部文字使用同一 snapshotId 查找后的 match-id。另支持 full-document/markdown-range/slate-path/active-selection/active-block",
                   properties: {
-                    kind: { type: "string" },
+                    kind: {
+                      type: "string",
+                      enum: [
+                        "block-id",
+                        "full-document",
+                        "markdown-range",
+                        "slate-path",
+                        "active-selection",
+                        "active-block",
+                        "match-id",
+                      ],
+                    },
                     start: {
                       type: "object",
                       properties: {
@@ -511,6 +539,10 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
                       items: { type: "number" },
                     },
                     matchId: { type: "string" },
+                    blockId: {
+                      type: "string",
+                      description: "原文中节点的 collabId，kind=block-id 时必填",
+                    },
                   } as Record<string, ToolParameterSchema>,
                 },
                 text: { type: "string" },
@@ -518,7 +550,11 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
                   type: "string",
                   enum: ["start", "end", "before", "after"],
                 },
-                expectedText: { type: "string" },
+                expectedText: {
+                  type: "string",
+                  description:
+                    "可选，必须等于整个定位范围的完整原文；使用 block-id 时通常省略，由快照与范围提交复核并发",
+                },
                 reason: {
                   type: "string",
                   description:

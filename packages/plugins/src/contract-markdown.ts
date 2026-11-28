@@ -1,5 +1,7 @@
 import {
   createMarkdownProcessor,
+  decodeTauMarkdown,
+  isTauMarkdown,
   isInlinePosition,
   serializeUnknownBlock,
   serializeUnknownInline,
@@ -163,7 +165,12 @@ export async function createContractMarkdownProcessor(options: {
       markdown: string,
       ignoreTypes?: string[]
     ): Promise<ContractMarkdownDocument> {
-      const collected: Record<string, ContentContractDictionary[string]> = {};
+      const native = isTauMarkdown(markdown)
+        ? decodeTauMarkdown(markdown, { processor, fragment: true })
+        : undefined;
+      const carried = native ? await validateContentContracts(native.metadata.contracts ?? {}) : {};
+      const available = { ...options.catalog.dictionary, ...contracts, ...carried };
+      const collected: Record<string, ContentContractDictionary[string]> = { ...carried };
       const merge = (dictionary: ContentContractDictionary) => {
         for (const [id, contract] of Object.entries(dictionary)) {
           collected[id] = contract;
@@ -199,6 +206,21 @@ export async function createContractMarkdownProcessor(options: {
           return value;
         }
         if (typeof node.text === "string" && !Array.isArray(node.children)) return node;
+        if (native) {
+          const id =
+            typeof node[NODE_CONTRACT_PROPERTY] === "string"
+              ? String(node[NODE_CONTRACT_PROPERTY])
+              : options.catalog.current(node.type)?.id;
+          const contract = id ? available[id] : undefined;
+          if (!id || !contract || contract.domain !== "editor-node" || contract.type !== node.type)
+            throw new Error("原生节点缺少匹配的数据契约");
+          collected[id] = contract;
+          return {
+            ...node,
+            [NODE_CONTRACT_PROPERTY]: id,
+            children: await Promise.all(node.children.map(restore)),
+          };
+        }
         const current = options.catalog.current(node.type);
         if (!current) throw new Error(`普通节点缺少当前契约：${node.type}`);
         collected[current.id] = current.contract;
@@ -209,7 +231,10 @@ export async function createContractMarkdownProcessor(options: {
         };
       };
       const content = await Promise.all(
-        (processor.importFromMarkdown(markdown, ignoreTypes) as unknown as NodeData[]).map(restore)
+        (
+          (native?.content ??
+            processor.importFromMarkdown(markdown, ignoreTypes)) as unknown as NodeData[]
+        ).map(restore)
       );
       return {
         content: content as unknown as Descendant[],

@@ -14,6 +14,8 @@ type ResolvedRange = {
 
 type ContentMarkdownBase = {
   contentId: number;
+  format?: "tau-markdown/1";
+  blocks?: Array<{ blockId: string; path: number[]; type: string }>;
   markdown: string;
   hash: string;
   snapshotId: string;
@@ -76,6 +78,16 @@ export const loadContentMarkdownBase = async (
   return {
     contentId,
     markdown: snapshot.markdown,
+    ...(snapshot.format
+      ? {
+          format: snapshot.format,
+          blocks: snapshot.content.flatMap((node, index) =>
+            "children" in node && "collabId" in node && typeof node.collabId === "string"
+              ? [{ blockId: node.collabId, path: [index], type: node.type }]
+              : []
+          ),
+        }
+      : {}),
     hash: snapshot.hash,
     snapshotId: snapshot.id,
     source,
@@ -95,6 +107,7 @@ export const loadContentMarkdownPayload = async (
   return {
     contentId: payload.contentId,
     markdown: rangePayload.markdown,
+    ...(payload.format ? { format: payload.format, blocks: payload.blocks } : {}),
     hash: payload.hash,
     snapshotId: payload.snapshotId,
     source: payload.source,

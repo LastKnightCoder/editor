@@ -465,6 +465,7 @@ export class CollaborationService extends DurableObject<Env> {
         {
           ...this.store.protocols.state(protocolPath[1]),
           scopedSubtreeDeletion: true,
+          scopedNodeReconcile: true,
           sequence: this.store.operations.sequence(protocolPath[1]),
         },
         {

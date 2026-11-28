@@ -1,4 +1,10 @@
 import { getContentById, readContentEditState } from "@/commands/content";
+import * as Y from "yjs";
+import { NodeTree } from "@tau/collaboration";
+import {
+  validateContentContracts,
+  type ContentContractDictionary,
+} from "@tau/db-schema/content-contracts";
 import { isElectron } from "@/electron";
 import {
   getAllActiveEditingSessions,
@@ -58,19 +64,35 @@ export const loadSnapshotForContent = async (
     const state = await bindDatabaseCommands({ readContentEditState }, scope).readContentEditState(
       contentId
     );
-    const snapshot = createContentSnapshot(state.content, "database", contentId);
+    const document = new Y.Doc({ gc: false });
+    let contracts: ContentContractDictionary;
+    try {
+      Y.applyUpdate(document, state.state);
+      const tree = new NodeTree(document);
+      try {
+        contracts = await validateContentContracts(tree.contracts.toJSON());
+      } finally {
+        tree.dispose();
+      }
+    } finally {
+      document.destroy();
+    }
+    const snapshot = createContentSnapshot(state.content, "database", contentId, { contracts });
     snapshot.revision = state.revision;
     const session =
       databaseName === getChatDatabase()
         ? getActiveEditingSessionByContentId(contentId)
         : undefined;
+    const selectionHash = session?.selection
+      ? createContentSnapshot(state.content, "database", contentId).hash
+      : undefined;
     snapshot.editState = {
       state: state.state,
       identity: state.identity,
       contentId,
       databaseName,
       selection:
-        session?.snapshot.hash === snapshot.hash ? (session.selection ?? undefined) : undefined,
+        session?.snapshot.hash === selectionHash ? (session?.selection ?? undefined) : undefined,
     };
     putSnapshot(snapshot);
     return { snapshot, source: "database" };

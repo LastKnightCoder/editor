@@ -1,13 +1,15 @@
-import { useCallback, useState, type RefObject } from "react";
+import { useCallback, useRef, useState, type RefObject } from "react";
 import type { EditorRef } from "@tau/editor";
-import type { TableAlign } from "@tau/editor/extensions/table";
+import type { TableAlign, TableRowColor } from "@tau/editor/extensions/table";
 import { Editor as SlateEditor, Transforms, type BaseSelection } from "slate";
 
 import { restoreSelectionAndFocus } from "./toolbarActions";
 import { resolveTableContext, type CodeEditingContext } from "./editingContext";
 import { setCodeBlockLanguage as setCodeBlockLanguageOnEditor } from "./codeBlockInput";
 import {
+  applyRowColor,
   getColumnAlign,
+  getRowColor,
   runTableAction as runTableActionOnEditor,
   type TableActionId,
 } from "./tableActions";
@@ -25,7 +27,7 @@ type TableMenuControllerOptions = {
   tableMenuSelectionRef: RefObject<BaseSelection | null>;
 };
 
-/** 表格域：表格动作执行、列对齐查询与「⋯」菜单开合（含代码块语言设置） */
+/** 表格域：表格动作执行、列对齐 / 行颜色查询、「⋯」菜单与行颜色面板开合（含代码块语言设置） */
 export function useTableMenuController({
   editorRef,
   openSheetNextTick,
@@ -37,6 +39,9 @@ export function useTableMenuController({
   tableMenuSelectionRef,
 }: TableMenuControllerOptions) {
   const [isTableMenuOpen, setIsTableMenuOpen] = useState(false);
+  const [isRowColorSheetOpen, setIsRowColorSheetOpen] = useState(false);
+  // 「⋯」菜单里点了「行颜色」：菜单退场后接着打开颜色面板，期间保持菜单选区、不聚焦
+  const pendingRowColorRef = useRef(false);
 
   const runTableAction = useCallback(
     (actionId: TableActionId) => {
@@ -71,6 +76,29 @@ export function useTableMenuController({
     return editor && tableContext ? getColumnAlign(editor, tableContext) : null;
   }, [editorRef, selectionVersion]);
 
+  const getTableRowColor = useCallback((): TableRowColor | null => {
+    void selectionVersion;
+    const editor = getEditorFromRef(editorRef);
+    const selection = tableMenuOpenRef.current ? tableMenuSelectionRef.current : editor?.selection;
+    const tableContext = editor && selection ? resolveTableContext(editor, selection) : null;
+    return editor && tableContext ? getRowColor(editor, tableContext) : null;
+  }, [editorRef, selectionVersion, tableMenuOpenRef, tableMenuSelectionRef]);
+
+  const setTableRowColor = useCallback(
+    (color: TableRowColor | null) => {
+      const editor = restoreEditorSelection();
+      const tableContext = editor ? resolveTableContext(editor) : null;
+      if (!editor || !tableContext) return;
+      applyRowColor(editor, tableContext, color);
+      markSelectionDirty();
+    },
+    [markSelectionDirty, restoreEditorSelection]
+  );
+
+  const requestRowColorSheet = useCallback(() => {
+    pendingRowColorRef.current = true;
+  }, []);
+
   const openTableMenu = useCallback(() => {
     const editor = getEditorFromRef(editorRef);
     if (!editor) return;
@@ -81,8 +109,14 @@ export function useTableMenuController({
 
   const closeTableMenu = useCallback(() => {
     if (!tableMenuOpenRef.current) return;
-    tableMenuOpenRef.current = false;
     setIsTableMenuOpen(false);
+    if (pendingRowColorRef.current) {
+      pendingRowColorRef.current = false;
+      setIsRowColorSheetOpen(true);
+      return;
+    }
+    tableMenuOpenRef.current = false;
+    setIsRowColorSheetOpen(false);
     const editor = getEditorFromRef(editorRef);
     const saved = tableMenuSelectionRef.current;
     tableMenuSelectionRef.current = null;
@@ -104,5 +138,9 @@ export function useTableMenuController({
     getTableColumnAlign,
     openTableMenu,
     closeTableMenu,
+    isRowColorSheetOpen,
+    getTableRowColor,
+    setTableRowColor,
+    requestRowColorSheet,
   };
 }

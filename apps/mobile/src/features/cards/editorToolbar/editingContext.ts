@@ -7,6 +7,7 @@ import {
   Node as SlateNode,
   Range,
   type Element as ElementNode,
+  type Location,
   type Path,
 } from "slate";
 import { ReactEditor } from "slate-react";
@@ -266,8 +267,11 @@ export function resolveContentLinkContext(editor: SlateEditor): ContentLinkEditi
 }
 
 /** 光标所在单元格的表格上下文；不在表格内返回 null */
-export function resolveTableContext(editor: SlateEditor): TableEditingContext | null {
-  const position = getCellPosition(editor);
+export function resolveTableContext(
+  editor: SlateEditor,
+  at?: Location
+): TableEditingContext | null {
+  const position = getCellPosition(editor, at);
   if (!position) return null;
   const table = getTableAt(editor, position.tablePath);
   if (!table) return null;

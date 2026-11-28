@@ -17,7 +17,7 @@ import {
   useNotifier,
 } from "@tau/editor/api";
 
-import type { TableAlign, TableElement } from "../../types";
+import type { TableAlign, TableElement, TableRowColor } from "../../types";
 import {
   clearCells,
   columnCount,
@@ -32,6 +32,7 @@ import {
   moveSplitsMerge,
   selectCell,
   setColumnAlign,
+  setRowColor,
   splitCells,
 } from "../../transforms";
 import {
@@ -42,7 +43,13 @@ import {
   type CellSelection,
 } from "../../selection";
 import { buildCoverMap, originsIn, regionAt, sameRect } from "../../span";
-import { TableAlignContext, TableCoverContext, type TableCoverInfo } from "../context";
+import {
+  TableAlignContext,
+  TableCoverContext,
+  TableRowTintPreviewContext,
+  type TableCoverInfo,
+  type TableRowTintPreview,
+} from "../context";
 import { boundaryAt, measureTable, spanIndexAt, type TableGeometry } from "./geometry";
 import { useEditorI18n } from "../../../../../i18n";
 import HandleMenuItems, { type HandleKind } from "./HandleMenuItems";
@@ -111,6 +118,7 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = props => {
   const [hover, setHover] = useState<{ row: number; col: number } | null>(null);
   const [menu, setMenu] = useState<Range2 | null>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
+  const [tintPreview, setTintPreview] = useState<TableRowTintPreview | null>(null);
   const [geometry, setGeometry] = useState<TableGeometry | null>(null);
 
   const cellSelection = useSlateSelector(
@@ -164,6 +172,11 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = props => {
   );
 
   const closeMenu = useCallback(() => setMenu(null), []);
+
+  // 预览只跟随打开的行菜单，菜单一关（含点选、外点、Esc）立即恢复
+  useEffect(() => {
+    if (menu?.kind !== "row") setTintPreview(null);
+  }, [menu]);
 
   const openMenu = (kind: HandleKind) => {
     const anchor = kind === "row" ? rowAnchor : colAnchor;
@@ -249,6 +262,15 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = props => {
           else selectColumns(editor, path, from, to);
         }),
       remove: () => removeRange(range),
+      setRowColor: (color: TableRowColor | null) => {
+        setMenu(null);
+        withPath(path => {
+          setRowColor(editor, path, from, to, color);
+          selectRows(editor, path, from, to);
+        });
+      },
+      previewRowColor: (color: TableRowColor | null | undefined) =>
+        setTintPreview(color === undefined ? null : { from, to, color }),
       split: () =>
         withPath(path => {
           splitCells(editor, path, handleRect(range));
@@ -382,7 +404,9 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = props => {
           <button
             type="button"
             contentEditable={false}
-            aria-label={kind === "col" ? t("editorCommon.colActions") : t("editorCommon.rowActions")}
+            aria-label={
+              kind === "col" ? t("editorCommon.colActions") : t("editorCommon.rowActions")
+            }
             title={t("editorCommon.columnMenuHint")}
             data-on={on}
             className={cn(GRIP_CLASS, kind === "col" ? "h-[14px] w-[26px]" : "h-[26px] w-[14px]")}
@@ -403,6 +427,7 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = props => {
             from={range.from}
             to={range.to}
             align={align}
+            rowColor={kind === "row" ? commonRowColor(element, range.from, range.to) : undefined}
             mergedCount={mergedCellCount(element, handleRect(range))}
             actions={menuActions(range)}
           />
@@ -524,12 +549,16 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = props => {
               "[&_td]:min-w-[4.5em] [&_td]:border-0 [&_td]:border-b [&_td]:border-r [&_td]:border-solid [&_td]:border-[var(--ed-border)] [&_td]:px-3 [&_td]:py-[7px] [&_td]:text-left [&_td]:align-top [&_td]:[word-break:break-word]",
               "[&_td[data-edge-right]]:border-r-0 [&_td[data-edge-bottom]]:border-b-0",
               "[&_tr:first-child_td]:bg-[var(--ed-bg-hover)] [&_tr:first-child_td]:font-semibold",
+              // 比表头灰底多一级，表头上色时以行色为准
+              "[&_tbody>tr[data-color]_td]:bg-[var(--ed-table-row-tint)]",
               cellSelection && "caret-transparent [&_*::selection]:bg-transparent"
             )}
           >
             <TableAlignContext.Provider value={element.align}>
               <TableCoverContext.Provider value={cover}>
-                <tbody>{children}</tbody>
+                <TableRowTintPreviewContext.Provider value={tintPreview}>
+                  <tbody>{children}</tbody>
+                </TableRowTintPreviewContext.Provider>
               </TableCoverContext.Provider>
             </TableAlignContext.Provider>
           </table>
@@ -573,6 +602,16 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = props => {
 /** 所选列的共同对齐；不一致时为 undefined */
 function commonAlign(table: TableElement, from: number, to: number): TableAlign | undefined {
   const values = Array.from({ length: to - from + 1 }, (_, i) => table.align?.[from + i] ?? null);
+  return values.every(value => value === values[0]) ? values[0] : undefined;
+}
+
+/** 所选行的共同颜色（null 为无色）；不一致时为 undefined */
+function commonRowColor(
+  table: TableElement,
+  from: number,
+  to: number
+): TableRowColor | null | undefined {
+  const values = table.children.slice(from, to + 1).map(row => row.color ?? null);
   return values.every(value => value === values[0]) ? values[0] : undefined;
 }
 

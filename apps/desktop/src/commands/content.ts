@@ -2,6 +2,8 @@ import { bindDatabaseCommands, currentCommandScope } from "@/services/command-co
 import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
 import { invoke } from "@/electron";
 import { Descendant } from "slate";
+import { canReconcileScopedBlocks, type ContentNode } from "@tau/collaboration";
+import { isTauMarkdown } from "@tau/markdown";
 import { IContent } from "@/types";
 import { withModule } from "./module-init";
 import { currentPerfTrace, runWithPerfTrace } from "@/utils/perf-trace";
@@ -73,13 +75,21 @@ export const replaceContent = async (
   const { prepareContentContracts, prepareContentMarkdown } = await import("@/services/editorKit");
   const parsed =
     "markdown" in input
-      ? await (await prepareContentMarkdown({})).importDocument(input.markdown, input.ignoreTypes)
+      ? await (
+          await prepareContentMarkdown(current.contracts ?? {})
+        ).importDocument(input.markdown, input.ignoreTypes)
       : { content: input.nodes, contracts: {} };
   const catalog = await prepareContentContracts();
-  const document = await catalog.createDocument(parsed.content, {
-    ...current.contracts,
-    ...parsed.contracts,
-  });
+  const preserve =
+    "markdown" in input &&
+    isTauMarkdown(input.markdown) &&
+    canReconcileScopedBlocks(current.content as ContentNode[], parsed.content as ContentNode[]);
+  const document = preserve
+    ? parsed
+    : await catalog.createDocument(parsed.content, {
+        ...current.contracts,
+        ...parsed.contracts,
+      });
   return bindDatabaseCommands({ updateContent }, scope).updateContent(
     contentId,
     document.content,

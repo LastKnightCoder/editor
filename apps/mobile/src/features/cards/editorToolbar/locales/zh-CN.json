@@ -147,6 +147,8 @@
   "table.moveRowUp": "上移此行",
   "table.moveRowDown": "下移此行",
   "table.moveColumnLeft": "左移此列",
+  "table.rowColor": "行颜色",
+  "table.rowColorNone": "无颜色",
   "table.moveColumnRight": "右移此列",
   "code.language": "代码语言",
   "code.allLanguages": "全部语言",
