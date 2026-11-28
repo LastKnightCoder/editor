@@ -686,7 +686,7 @@ class DatabaseModule implements Module {
       if (existingSync) {
         existingSync.close();
         this.databases.delete(name);
-        mainContentIndexDBManager.closeDatabase(name);
+        await mainContentIndexDBManager.closeDatabase(name);
       }
       await this.openReadyDatabase(
         name,
@@ -734,7 +734,7 @@ class DatabaseModule implements Module {
       this.databases.delete(name);
       if (replace) this.connectionIds.delete(this.formatDatabaseName(name));
       this.indexEnsurePromises.delete(name);
-      mainContentIndexDBManager.closeDatabase(name);
+      await mainContentIndexDBManager.closeDatabase(name);
       for (const [id, dbName] of this.windowToDatabase)
         if (dbName === name) {
           if (replace) this.replacedWindows.set(id, name);
@@ -787,7 +787,7 @@ class DatabaseModule implements Module {
             const existing = this.databases.get(name);
             if (existing) existing.close();
             this.databases.delete(name);
-            mainContentIndexDBManager.closeDatabase(name);
+            await mainContentIndexDBManager.closeDatabase(name);
           }
           await this.openReadyDatabase(
             name,
@@ -1111,7 +1111,7 @@ class DatabaseModule implements Module {
           this.databases.delete(name);
           this.indexEnsurePromises.delete(name);
         }
-        mainContentIndexDBManager.closeAll();
+        await mainContentIndexDBManager.closeAll();
         this.windowToDatabase.clear();
       })
     );

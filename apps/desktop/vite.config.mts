@@ -107,6 +107,8 @@ export default defineConfig(({ mode, command }) => {
             "whiteboard-append-worker": "src-electron/main/workers/whiteboard-append.worker.ts",
             // 知识地图离线计算（向量近邻 + 主题划分 + 布局）跑在 worker_threads 里（modules/knowledge-map-builder）
             "knowledge-map-worker": "src-electron/main/workers/knowledge-map.worker.ts",
+            "topic-insights-candidate-worker":
+              "src-electron/main/workers/topic-insights-candidate.worker.ts",
             "pi-conversation-turn-worker":
               "src-electron/main/workers/pi-conversation-turn.worker.ts",
             "local-inference-worker": "src-electron/main/workers/local-inference.worker.ts",

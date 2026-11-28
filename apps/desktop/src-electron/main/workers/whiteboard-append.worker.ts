@@ -1,6 +1,19 @@
-import { parentPort, workerData } from "node:worker_threads";
+import { parentPort } from "node:worker_threads";
 import { prepareAppend, type AppendInput } from "../modules/whiteboard-documents/prepare-append";
+import type { AppendWorkerResult } from "../modules/whiteboard-documents/append-worker";
 
-void prepareAppend(workerData as AppendInput).then(value => {
-  parentPort!.postMessage(value, [value.projection.state.buffer as ArrayBuffer]);
+parentPort?.on("message", (input: AppendInput) => {
+  void prepareAppend(input).then(
+    value => {
+      parentPort?.postMessage({ ok: true, value } satisfies AppendWorkerResult, [
+        value.projection.state.buffer as ArrayBuffer,
+      ]);
+    },
+    error => {
+      parentPort?.postMessage({
+        ok: false,
+        message: error instanceof Error ? error.message : String(error),
+      } satisfies AppendWorkerResult);
+    }
+  );
 });

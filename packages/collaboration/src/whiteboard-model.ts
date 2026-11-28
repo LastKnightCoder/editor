@@ -475,7 +475,12 @@ export class WhiteboardModel {
       edit.text.length > 4096
     )
       return;
-    this.prepareLocalTranslations();
+    // 字符准入只需要容量证明；结构投影留给下一次结构操作准备。
+    if (
+      this.translationBudget.revision !== this.revision ||
+      this.translationBudget.rootCount !== this.doc.share.size
+    )
+      this.prepareLocalTranslations();
     const proof = this.translationBudget;
     if (!proof) return;
     const tree = this.richText(target);

@@ -316,7 +316,7 @@ class PiSessionHostModule {
           if (downloadedSessions && !existsSync(downloadedSessions))
             throw new Error("待安装的对话目录不存在");
           prepareDatabaseDownload(downloadPath);
-          mainContentIndexDBManager.prepareDownload(
+          await mainContentIndexDBManager.prepareDownload(
             databaseName,
             databasePath,
             downloadPath,

@@ -40,7 +40,8 @@ import {
   type InsightCandidate,
 } from "./content-insights-prompt";
 import databaseModule from "./database";
-import { ensureRelatedThreshold, relatedExclusions } from "./entity-context/context-related";
+import { relatedExclusions } from "./entity-context/context-related";
+import { ensureRelatedThreshold } from "./entity-context/related-threshold";
 import { resolveUsageSlot, type LlmRef, type SettingForLlmSlots } from "./llm-usage-slot";
 import PiAiRuntimeModule from "./pi-ai-runtime";
 import ContentAiInsightsTable from "./tables/content-ai-insights";

@@ -185,6 +185,47 @@ describe("白板模型预算与写入边界", () => {
     history.destroy();
   });
 
+  it("连续字符写入后再修改几何仍使用当前正文并可同步与撤销", async () => {
+    // 连续打字不需要重建整板结构，但后续几何与同步不能读到旧正文。
+    const seed = await fixture();
+    const target = create(seed.board, seed.rich, pageParent(seed.page), "seed", [
+      { type: "paragraph", children: [{ text: "甲" }] },
+    ]);
+    const doc = new Y.Doc({ gc: false });
+    documents.push(doc);
+    Y.applyUpdate(doc, Y.encodeStateAsUpdate(seed.board.doc));
+    const board = new WhiteboardModel(doc);
+    const tree = board.richText(target);
+    const nodeId = tree.read()[0].collabId as string;
+    const origin = {};
+    board.prepareLocalTranslations();
+    const history = board.createUndoManager({
+      trackedOrigins: new Set([origin]),
+      captureTimeout: 0,
+    });
+    const text = "连续写入后继续移动";
+    for (const [index, character] of [...text].entries()) {
+      expect(
+        board.tryLocalBodyEdit(
+          target,
+          { action: "insert", nodeId, offset: index + 1, text: character, marks: {} },
+          origin
+        )?.isolated
+      ).toBe(true);
+    }
+    expect(tree.read()[0].children).toMatchObject([{ text: "甲" + text }]);
+    board.submit(
+      [{ type: "set_node", id: target, patch: { geometry: { ...shapeGeometry, x: 321 } } }],
+      origin
+    );
+    expect(flat(board.read())[0].geometry.x).toBe(321);
+    expect(model(Y.encodeStateAsUpdate(doc)).read()).toEqual(board.read());
+    history.undo();
+    expect(tree.read()[0].children).toMatchObject([{ text: "甲" + text }]);
+    expect(model(Y.encodeStateAsUpdate(doc)).read()).toEqual(board.read());
+    history.destroy();
+  });
+
   it("编码接近上限时平移交回精确预检，超过上限时保留最后确认位置", async () => {
     const { board, doc, target } = await translationFixture();
     const limit = WHITEBOARD_LIMITS.documentBytes;

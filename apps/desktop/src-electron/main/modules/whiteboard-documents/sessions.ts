@@ -23,7 +23,7 @@ import { WhiteboardDocumentRepository, type WhiteboardRelationCounter } from "./
 import { IdleWhiteboardReclaims, reclaimThreshold } from "./idle-reclaim";
 import { repairWhiteboardDocument } from "./repair";
 import { dirname, join } from "node:path";
-import { Worker } from "node:worker_threads";
+import { WhiteboardAppendWorker } from "./append-worker";
 import { prepareAppend, type PreparedAppend, type AppendInput } from "./prepare-append";
 import type { PreparedProjection } from "./projection";
 import { tmpdir } from "node:os";
@@ -32,17 +32,15 @@ import { tmpdir } from "node:os";
 const journalDirectory = (journal: WhiteboardJournal) =>
   journal.db.memory ? join(tmpdir(), "tau-whiteboard-documents") : dirname(journal.db.name);
 
-function prepareDocumentAppend(input: AppendInput): Promise<PreparedAppend> {
-  // 小文档的校验比创建工作线程快，大检查点在后台生成整页投影和耐久状态。
-  if (input.state.byteLength < 128 * 1024) return prepareAppend(input);
-  return new Promise((resolve, reject) => {
-    const worker = new Worker(join(__dirname, "whiteboard-append-worker.js"), {
-      workerData: input,
-    });
-    worker.once("message", resolve);
-    worker.once("error", reject);
-    worker.once("exit", code => reject(new Error(`白板校验线程提前退出（${code}）`)));
-  });
+function prepareDocumentAppend(input: AppendInput, session: Session): Promise<PreparedAppend> {
+  if (input.state.byteLength < 128 * 1024) {
+    session.appendWorker?.dispose();
+    session.appendWorker = undefined;
+    return prepareAppend(input);
+  }
+  if (!session.appendWorker || session.appendWorker.isClosed)
+    session.appendWorker = new WhiteboardAppendWorker();
+  return session.appendWorker.prepare(input);
 }
 
 interface Session {
@@ -50,6 +48,7 @@ interface Session {
   model: WhiteboardModel;
   db: Database.Database;
   shared: boolean;
+  appendWorker?: WhiteboardAppendWorker;
   uncleanRelease?: boolean;
   error?: string;
 }
@@ -384,6 +383,7 @@ export class WhiteboardDocumentSessions {
         );
       const session: Session = { value, model, db: repo.db, shared: doc.share.has("meta") };
       this.project(session);
+      if (value.state.byteLength >= 128 * 1024) session.appendWorker = new WhiteboardAppendWorker();
       this.sessions.set(key, session);
       return session;
     } catch (error) {
@@ -453,12 +453,15 @@ export class WhiteboardDocumentSessions {
       }
       const { databaseName, documentId, sourceId, baselineId, epoch, revision, state } =
         session.value;
-      const prepared = await prepareDocumentAppend({
-        identity: { databaseName, documentId, sourceId, baselineId, epoch },
-        state,
-        revision: revision + 1,
-        update,
-      });
+      const prepared = await prepareDocumentAppend(
+        {
+          identity: { databaseName, documentId, sourceId, baselineId, epoch },
+          state,
+          revision: revision + 1,
+          update,
+        },
+        session
+      );
       this.connection(session);
       if (
         session.value.revision !== revision ||
@@ -715,6 +718,7 @@ export class WhiteboardDocumentSessions {
       !session.error &&
       ![...this.leases.values()].some(lease => lease.key === key)
     ) {
+      session.appendWorker?.dispose();
       session.model.dispose();
       session.model.doc.destroy();
       this.sessions.delete(key);
@@ -834,6 +838,7 @@ export class WhiteboardDocumentSessions {
       throw new Error("白板仍在保存，不能替换资料库");
     const released = this.journal.releaseLibrary(databaseName);
     for (const [key, session] of owned) {
+      session.appendWorker?.dispose();
       session.model.dispose();
       session.model.doc.destroy();
       this.sessions.delete(key);
@@ -851,6 +856,7 @@ export class WhiteboardDocumentSessions {
   dispose(): void {
     this.reclaims.clear();
     for (const session of this.sessions.values()) {
+      session.appendWorker?.dispose();
       session.model.dispose();
       session.model.doc.destroy();
     }

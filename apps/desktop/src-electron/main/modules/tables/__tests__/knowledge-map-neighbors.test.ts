@@ -5,7 +5,8 @@ import { afterEach, expect, it, vi } from "vitest";
 vi.mock("electron", () => ({ app: { getPath: () => "/tmp" }, ipcMain: { handle: vi.fn() } }));
 vi.mock("../../video-note-index-queue", () => ({ default: {} }));
 
-import KnowledgeMapTable, { meanVector } from "../knowledge-map";
+import KnowledgeMapTable from "../knowledge-map";
+import { meanVector } from "../../../utils/embedding-vector";
 import { must } from "../../../test-support";
 
 const opened: Database.Database[] = [];

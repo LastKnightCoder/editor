@@ -26,6 +26,8 @@
 
 选定正文读写、快照与建议命令在数据库 IPC 尾参数内携带 `perfTrace`，与原数据库连接作用域共用一份元数据；主进程在业务分发前剥离。其他 IPC 保持原参数协议。`db-command` 是整次命令耗时，包含等待、转换及持久化，不能解释成 SQL 执行时间。IPC ≥100ms、数据库命令 ≥50ms、同步 IO ≥50ms 记明细；带 trace 的数据库命令及失败不受此阈值过滤。返回值尺寸只读取字符串/字节数组，不为诊断序列化返回对象。
 
+知识洞察候选记录 `insights:queue`、`insights:threshold`、`insights:bridges`、`insights:asked`、`insights:vectors`、`insights:pairs`、`insights:sections`、`insights:project` 及作业总耗时。排队与总耗时包括等待 Worker，工作阶段来自子线程；它们不是主线程 CPU 时间。`app.getAppMetrics()` 的进程 CPU 包含 Worker 线程，迁出计算后仍可能接近一个核心；是否阻塞需结合主线程事件循环和输入观测判断。
+
 ## 常态开销与边界
 
 - 时间线保留最近 120 秒，序列化事件预算 2 MiB；单事件最多 4096 字节。正在采集的异常片段单独固定最多 2 MiB，内存保留最近 3 个片段。

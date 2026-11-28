@@ -1,3 +1,4 @@
+import { parseChatPromptKey } from "../chat-prompt-key";
 import Database from "better-sqlite3";
 import * as sqliteVec from "sqlite-vec";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -12,7 +13,6 @@ vi.mock("../pi-session-paths", () => ({
 
 import {
   listChatPromptDocs,
-  parseChatPromptKey,
   promptsOfTranscript,
   resetChatPromptCache,
 } from "../chat-prompt-index";

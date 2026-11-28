@@ -26,7 +26,22 @@ import type {
 } from "@/types/knowledge-insights";
 import type { PiSingleShotRequest } from "@/types/pi-llm";
 import { locateAnchor, promptSectionsOf } from "./content-insights-prompt";
-import { ensureRelatedThreshold } from "./entity-context/context-related";
+import {
+  readThreshold,
+  readEmbeddingFingerprint,
+  storeRelatedThreshold,
+  thresholdIsCurrent,
+  vectorCount,
+} from "./entity-context/related-threshold";
+import { insightCandidateScheduler } from "./topic-insights-candidate-client";
+import type {
+  CandidateInput,
+  CandidateKind,
+  CandidateResults,
+  CandidateSource,
+  CandidateTransport,
+  CandidateSection,
+} from "./topic-insights-candidate-protocol";
 import type { LlmRef } from "./llm-usage-slot";
 import ContentAiMetaTable, { type ContentAiMetaRow } from "./tables/content-ai-meta";
 import ContentTable from "./tables/content";
@@ -40,18 +55,12 @@ import KnowledgeAiInsightsTable, {
 } from "./tables/knowledge-ai-insights";
 import KnowledgeMapTable, { type MapEntity } from "./tables/knowledge-map";
 import {
-  askedCandidates,
-  bestSection,
-  bridgeCandidates,
   growthSeries,
-  loadNoteVectors,
   mapGroups,
   memberSnapshot,
-  pairCandidates,
   recentCount,
   type MapGroup,
   type MapTopicGroups,
-  type NoteVectors,
 } from "./topic-insights-candidates";
 import {
   GLOBAL_SYSTEM_PROMPT,
@@ -98,6 +107,7 @@ export interface TopicInsightsDeps {
     signal?: AbortSignal
   ): Promise<{ ok: boolean; text: string; error?: string }>;
   now(): number;
+  candidates?: CandidateTransport;
 }
 
 /** 一次分析用到的库内数据：只读一遍，各层共用 */
@@ -112,6 +122,9 @@ export interface InsightsContext {
   links: Map<string, Set<string>>;
   /** 当前库随机块对 p95；没有向量时为 null（不给需要相似度的候选） */
   threshold: number | null;
+  thresholdReady: boolean;
+  source: CandidateSource;
+  assertCurrent(): void;
 }
 
 /**
@@ -147,8 +160,22 @@ export function nameUnlabeled(topics: MapTopicGroups[], metas: Map<number, Conte
 export function buildContext(
   mainDb: Database.Database,
   indexDb: Database.Database,
-  map: KnowledgeMap
+  map: KnowledgeMap,
+  isCurrent: () => boolean = () => true
 ): InsightsContext {
+  const fingerprint = readEmbeddingFingerprint(indexDb);
+  const schemaVersion = Number(indexDb.pragma("schema_version", { simple: true }));
+  const assertCurrent = () => {
+    if (
+      !mainDb.open ||
+      !indexDb.open ||
+      !isCurrent() ||
+      Number(indexDb.pragma("schema_version", { simple: true })) !== schemaVersion ||
+      readEmbeddingFingerprint(indexDb) !== fingerprint
+    )
+      throw new DOMException("资料库或洞察索引已变化，请重新分析", "AbortError");
+  };
+  const cached = readThreshold(indexDb);
   const entities = KnowledgeMapTable.listEntities(mainDb);
   const items = KnowledgeMapTable.listItems(mainDb, indexDb);
   const links = new Map<string, Set<string>>();
@@ -176,9 +203,52 @@ export function buildContext(
     metas,
     titles: new Map(items.map(item => [item.key, item.title])),
     links,
-    threshold: ensureRelatedThreshold(indexDb)?.value ?? null,
+    threshold: cached?.fingerprint === fingerprint ? cached.value : null,
+    thresholdReady: false,
+    source: { file: indexDb.name, fingerprint, schemaVersion },
+    assertCurrent,
   };
 }
+
+export async function requestInsightCandidates<K extends CandidateKind>(
+  deps: TopicInsightsDeps,
+  ctx: InsightsContext,
+  task: CandidateInput<K>,
+  signal?: AbortSignal
+): Promise<CandidateResults[K]> {
+  signal?.throwIfAborted();
+  ctx.assertCurrent();
+  const result = await (deps.candidates ?? insightCandidateScheduler.run)(ctx.source, task, signal);
+  signal?.throwIfAborted();
+  ctx.assertCurrent();
+  return result;
+}
+
+export async function prepareInsightThreshold(
+  deps: TopicInsightsDeps,
+  ctx: InsightsContext,
+  signal?: AbortSignal
+) {
+  signal?.throwIfAborted();
+  ctx.assertCurrent();
+  if (ctx.thresholdReady) return;
+  const { threshold, sampled } = await requestInsightCandidates(
+    deps,
+    ctx,
+    { kind: "threshold", now: deps.now() },
+    signal
+  );
+  if (threshold && sampled) {
+    if (!thresholdIsCurrent(threshold, ctx.source.fingerprint, vectorCount(ctx.indexDb)))
+      throw new Error("洞察索引规模已变化，请重新分析");
+    storeRelatedThreshold(ctx.indexDb, threshold);
+  }
+  ctx.threshold = threshold?.value ?? null;
+  ctx.thresholdReady = true;
+}
+
+export const candidateLinks = (ctx: InsightsContext): Array<[string, string[]]> =>
+  [...ctx.links].map(([key, targets]) => [key, [...targets]]);
 
 /** 地图上（已归入主题的）笔记里有元信息的比例 */
 export function metaCoverage(ctx: InsightsContext): number {
@@ -375,6 +445,7 @@ async function verifiedEndpoint(
   const value = endpoint(ctx, entity, topic, section);
   if (!anchor || !section || !isLongDoc(entity)) return value;
   const block = await verifyAnchor(ctx.mainDb, entity, section.blockStart, anchor);
+  ctx.assertCurrent();
   return block >= 0 ? { ...value, block, anchor } : value;
 }
 
@@ -384,18 +455,15 @@ function buildPair(
   no: number,
   left: { entity: MapEntity; no: number },
   right: { entity: MapEntity; no: number },
-  vectors: Map<string, NoteVectors>
+  evidence: Array<[string, CandidateSection]>
 ): { prompt: PromptPair; sections: Map<string, SectionHit> } {
   const sections = new Map<string, SectionHit>();
+  ctx.assertCurrent();
+  const available = new Map(evidence);
   const prompt: PromptPair = { no, left: left.no, right: right.no, sections: {} };
-  for (const [self, other] of [
-    [left, right],
-    [right, left],
-  ] as const) {
+  for (const self of [left, right]) {
     if (!isLongDoc(self.entity)) continue;
-    const own = vectors.get(self.entity.key);
-    const target = vectors.get(other.entity.key);
-    const hit = own && target ? bestSection(ctx.indexDb, own, target.mean) : null;
+    const hit = available.get(self.entity.key);
     if (!hit) continue;
     sections.set(self.entity.key, hit);
     prompt.sections[self.no] = { heading: hit.heading, text: hit.text };
@@ -410,9 +478,12 @@ export async function callModel<T>(
   prompt: string,
   entityId: string,
   parse: (text: string) => T | null,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  assertCurrent: () => void = () => undefined
 ): Promise<T> {
   for (let attempt = 0; attempt < PARSE_ATTEMPTS; attempt++) {
+    signal?.throwIfAborted();
+    assertCurrent();
     const response = await deps.complete(
       {
         providerId: slot.providerId,
@@ -424,6 +495,8 @@ export async function callModel<T>(
       },
       signal
     );
+    signal?.throwIfAborted();
+    assertCurrent();
     if (!response.ok || response.error) throw new Error(response.error || "模型请求失败");
     const parsed = parse(response.text);
     if (parsed) return parsed;
@@ -500,23 +573,24 @@ export async function runSubtopic(
   let chosen = incremental
     ? group.members.filter(member => changed.has(member.key))
     : prioritize(ctx, group.members, SUBTOPIC_NOTE_LIMIT);
-  const vectors =
+  await prepareInsightThreshold(deps, ctx, signal);
+  const { pairs } =
     ctx.threshold != null
-      ? loadNoteVectors(
-          ctx.indexDb,
-          group.members.map(member => member.key)
+      ? await requestInsightCandidates(
+          deps,
+          ctx,
+          {
+            kind: "subtopic",
+            keys: group.members.map(member => member.key),
+            links: candidateLinks(ctx),
+            threshold: ctx.threshold,
+            limit: SUBTOPIC_PAIR_LIMIT,
+            involving: incremental ? [...changed] : undefined,
+            longDocs: group.members.filter(isLongDoc).map(member => member.key),
+          },
+          signal
         )
-      : new Map<string, NoteVectors>();
-  const pairs =
-    ctx.threshold != null
-      ? pairCandidates(
-          [...vectors.values()],
-          isLinked(ctx),
-          ctx.threshold,
-          SUBTOPIC_PAIR_LIMIT,
-          incremental ? changed : undefined
-        )
-      : [];
+      : { pairs: [] };
   // 笔记对里的笔记都要在提示词里
   const chosenKeys = new Set(chosen.map(member => member.key));
   for (const pair of pairs) {
@@ -547,7 +621,7 @@ export async function runSubtopic(
       index + 1,
       { entity: left, no: leftNo },
       { entity: right, no: rightNo },
-      vectors
+      pair.sections
     );
     pairPrompts.push(built.prompt);
     pairInfo.set(index + 1, { left, right, sections: built.sections });
@@ -581,7 +655,8 @@ export async function runSubtopic(
     prompt,
     `subtopic:${group.key}`,
     text => parseSubtopicOutput(text, new Set(byNo.keys()), new Set(pairInfo.keys())),
-    signal
+    signal,
+    ctx.assertCurrent
   ).then(value => {
     const noteTitle = (entity: MapEntity | undefined) =>
       entity ? promptNote(ctx, entity, 0).title : null;
@@ -668,6 +743,8 @@ export async function runSubtopic(
     marks: merged,
     candidates: pairs.length,
   };
+  signal?.throwIfAborted();
+  ctx.assertCurrent();
   return KnowledgeAiInsightsTable.save(
     ctx.mainDb,
     {
@@ -763,7 +840,8 @@ export async function runTopic(
     prompt,
     `topic:${topic.topicId}`,
     text => parseTopicOutput(text, new Set(candidates.map(item => item.no))),
-    signal
+    signal,
+    ctx.assertCurrent
   ).then(value =>
     fixRefsDeep(
       value,
@@ -795,6 +873,8 @@ export async function runTopic(
         status: "open" as const,
       })),
   ].map((mark, index) => ({ ...mark, id: `t${index + 1}` }));
+  signal?.throwIfAborted();
+  ctx.assertCurrent();
   const row = KnowledgeAiInsightsTable.save(
     ctx.mainDb,
     {
@@ -842,22 +922,29 @@ export async function runGlobal(
   signal?: AbortSignal
 ): Promise<KnowledgeAiInsightsRow> {
   const now = deps.now();
-  const linkCount = (key: string) => ctx.links.get(key)?.size ?? 0;
-  const bridges =
+  await prepareInsightThreshold(deps, ctx, signal);
+  const { pairs: bridges, asked } =
     ctx.threshold != null
-      ? await bridgeCandidates(
-          ctx.indexDb,
-          ctx.topics,
-          isLinked(ctx),
-          linkCount,
-          ctx.threshold,
-          key => {
-            const entity = ctx.byKey.get(key);
-            return entity ? (ctx.metas.get(entity.contentId)?.meta.concepts ?? []) : [];
-          }
+      ? await requestInsightCandidates(
+          deps,
+          ctx,
+          {
+            kind: "global",
+            topics: ctx.topics.map(topic => ({
+              topicId: topic.topicId,
+              members: topic.members.map(({ key, updateTime }) => ({ key, updateTime })),
+            })),
+            links: candidateLinks(ctx),
+            threshold: ctx.threshold,
+            concepts: [...ctx.byKey].map(([key, entity]) => [
+              key,
+              ctx.metas.get(entity.contentId)?.meta.concepts ?? [],
+            ]),
+            longDocs: [...ctx.byKey.values()].filter(isLongDoc).map(entity => entity.key),
+          },
+          signal
         )
-      : [];
-  const asked = ctx.threshold != null ? await askedCandidates(ctx.indexDb, ctx.threshold) : [];
+      : { pairs: [], asked: [] };
 
   const notes: MapEntity[] = [];
   const noOf = new Map<string, number>();
@@ -869,9 +956,6 @@ export async function runGlobal(
     noOf.set(entity.key, no);
     return no;
   };
-  const vectors = loadNoteVectors(ctx.indexDb, [
-    ...new Set(bridges.flatMap(pair => [pair.left, pair.right])),
-  ]);
   const bridgeInfo = new Map<
     number,
     { left: MapEntity; right: MapEntity; sections: Map<string, SectionHit> }
@@ -887,7 +971,7 @@ export async function runGlobal(
       no,
       { entity: left, no: addNote(left) },
       { entity: right, no: addNote(right) },
-      vectors
+      pair.sections
     );
     bridgePrompts.push(built.prompt);
     bridgeInfo.set(no, { left, right, sections: built.sections });
@@ -941,7 +1025,8 @@ export async function runGlobal(
         new Set(bridgeInfo.keys()),
         new Set(asked.map((_, index) => index + 1))
       ),
-    signal
+    signal,
+    ctx.assertCurrent
   ).then(value =>
     fixRefsDeep(
       value,
@@ -1003,6 +1088,8 @@ export async function runGlobal(
     });
   }
   const existing = KnowledgeAiInsightsTable.list(ctx.mainDb, "global")[0] ?? null;
+  signal?.throwIfAborted();
+  ctx.assertCurrent();
   return KnowledgeAiInsightsTable.save(
     ctx.mainDb,
     {
@@ -1052,6 +1139,7 @@ export async function analyzeKnowledge(
   slot: LlmRef,
   options: AnalyzeOptions
 ): Promise<AnalyzeOutcome> {
+  await prepareInsightThreshold(deps, ctx, options.signal);
   const plan = planInsights(ctx);
   for (const id of plan.orphans) KnowledgeAiInsightsTable.delete(ctx.mainDb, id);
   const staleTopics = plan.topics.filter(
@@ -1068,13 +1156,20 @@ export async function analyzeKnowledge(
   const outcome: AnalyzeOutcome = { subtopics: 0, topics: 0, global: false, failures: 0 };
   let consecutive = 0;
   const attempt = async <T>(run: () => Promise<T>): Promise<T | null> => {
+    options.signal?.throwIfAborted();
+    ctx.assertCurrent();
     if (options.stale?.()) return null;
     try {
       const value = await run();
       consecutive = 0;
       return value;
     } catch (error) {
-      if (options.force || options.signal?.aborted) throw error;
+      if (
+        options.force ||
+        options.signal?.aborted ||
+        (error instanceof Error && error.name === "AbortError")
+      )
+        throw error;
       outcome.failures++;
       consecutive++;
       log.warn(`[TopicInsights] 调用失败：${error instanceof Error ? error.message : error}`);
@@ -1136,6 +1231,8 @@ export async function analyzeKnowledge(
     }
     topicResults.push({ topic: topicPlan.topic, row: topicRow });
   }
+  options.signal?.throwIfAborted();
+  ctx.assertCurrent();
   const globalRow = KnowledgeAiInsightsTable.list(ctx.mainDb, "global")[0] ?? null;
   const due =
     !globalRow ||

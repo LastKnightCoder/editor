@@ -8,7 +8,8 @@ vi.mock("electron");
 vi.mock("../../video-note-index-queue");
 
 import ContentAiMetaTable from "../../tables/content-ai-meta";
-import { ensureRelatedThreshold, relatedOf, sampleRelatedThreshold } from "../context-related";
+import { relatedOf } from "../context-related";
+import { ensureRelatedThreshold, sampleRelatedThreshold } from "../related-threshold";
 import { must } from "../../../test-support";
 
 const DIM = 8;

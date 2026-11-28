@@ -7,10 +7,11 @@
 
 import type Database from "better-sqlite3";
 import type { KnowledgeMap } from "@/knowledge-map/types";
-import { CHAT_PROMPT_TYPE, parseChatPromptKey } from "./chat-prompt-index";
+import { CHAT_PROMPT_TYPE, parseChatPromptKey } from "./chat-prompt-key";
 import type { ContentAiMetaRow } from "./tables/content-ai-meta";
 import type { MemberSnapshot } from "./tables/knowledge-ai-insights";
-import { meanVector, type MapEntity } from "./tables/knowledge-map";
+import type { MapEntity } from "./tables/knowledge-map";
+import { cosine, meanVector, toFloats } from "../utils/embedding-vector";
 
 /** 参与洞见的笔记向量类型：我的思考（与知识地图一致） */
 export const NOTE_TYPES_SQL = "'card','article','project-item'";
@@ -25,22 +26,6 @@ export const ASKED_NEAR_MARGIN = 0.05;
 export const ASKED_GROUP_MARGIN = 0.1;
 
 const yieldToEventLoop = () => new Promise<void>(resolve => setImmediate(resolve));
-
-export const toFloats = (blob: Buffer) =>
-  new Float32Array(blob.buffer, blob.byteOffset, blob.byteLength / 4);
-
-export function cosine(a: Float32Array, b: Float32Array): number {
-  if (a.length !== b.length || !a.length) return 0;
-  let dot = 0;
-  let na = 0;
-  let nb = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    na += a[i] * a[i];
-    nb += b[i] * b[i];
-  }
-  return na && nb ? dot / Math.sqrt(na * nb) : 0;
-}
 
 export interface AskedPromptHit {
   sessionId: string;
@@ -68,7 +53,8 @@ export interface AskedGroup {
 export async function askedCandidates(
   indexDb: Database.Database,
   threshold: number,
-  options: { limit?: number; recent?: number } = {}
+  options: { limit?: number; recent?: number } = {},
+  check: () => void = () => undefined
 ): Promise<AskedGroup[]> {
   const hasVectors = indexDb
     .prepare(`SELECT 1 FROM sqlite_master WHERE name = 'vec_documents'`)
@@ -96,6 +82,7 @@ export async function askedCandidates(
   );
   const unwritten: Array<AskedPromptHit & { vector: Float32Array }> = [];
   for (let i = 0; i < recent.length; i++) {
+    check();
     const row = recent[i];
     const key = parseChatPromptKey(row.prefixed_id);
     if (!key) continue;
@@ -117,6 +104,7 @@ export async function askedCandidates(
   // 贪心成组：按时间从新到旧，和某组的第一条足够近就并进去
   const groups: Array<{ seed: Float32Array; members: AskedPromptHit[] }> = [];
   for (const hit of unwritten) {
+    check();
     const { vector, ...prompt } = hit;
     const group = groups.find(item => cosine(item.seed, vector) >= threshold + ASKED_GROUP_MARGIN);
     if (group) group.members.push(prompt);
@@ -263,7 +251,8 @@ const VECTOR_BATCH = 400;
 /** 一批笔记的节向量与均值；没有向量的不在结果里 */
 export function loadNoteVectors(
   indexDb: Database.Database,
-  keys: string[]
+  keys: string[],
+  check: () => void = () => undefined
 ): Map<string, NoteVectors> {
   const rowsByKey = new Map<
     string,
@@ -271,6 +260,7 @@ export function loadNoteVectors(
   >();
   const unique = [...new Set(keys)];
   for (let start = 0; start < unique.length; start += VECTOR_BATCH) {
+    check();
     const batch = unique.slice(start, start + VECTOR_BATCH);
     const rows = indexDb
       .prepare(
@@ -291,6 +281,7 @@ export function loadNoteVectors(
   }
   const result = new Map<string, NoteVectors>();
   for (const [key, rows] of rowsByKey) {
+    check();
     const mean = meanVector(rows.map(row => row.vec_embedding));
     if (!mean) continue;
     result.set(key, {
@@ -324,11 +315,14 @@ export function pairCandidates(
   linked: (a: string, b: string) => boolean,
   threshold: number,
   limit: number,
-  involving?: ReadonlySet<string>
+  involving?: ReadonlySet<string>,
+  check: () => void = () => undefined
 ): NotePair[] {
   const pairs: NotePair[] = [];
   for (let i = 0; i < vectors.length; i++) {
+    check();
     for (let j = i + 1; j < vectors.length; j++) {
+      if (j % 256 === 0) check();
       const a = vectors[i];
       const b = vectors[j];
       if (involving && !involving.has(a.key) && !involving.has(b.key)) continue;
@@ -373,7 +367,8 @@ export function bestSection(
        WHERE prefixed_id = ? AND update_time = ? AND chunk_index = ?`
     )
     .get(note.key, Math.round(best.updateTime), best.chunk) as
-    { heading_path: string; block_start: number; text: string } | undefined;
+    | { heading_path: string; block_start: number; text: string }
+    | undefined;
   return row ? { heading: row.heading_path, blockStart: row.block_start, text: row.text } : null;
 }
 
@@ -408,11 +403,12 @@ const BRIDGE_KNN_CHUNKS = 40;
  */
 export async function bridgeCandidates(
   indexDb: Database.Database,
-  topics: MapTopicGroups[],
+  topics: Array<{ topicId: number; members: Array<{ key: string; updateTime: number }> }>,
   linked: (a: string, b: string) => boolean,
   linkCount: (key: string) => number,
   threshold: number,
-  conceptsOf: (key: string) => string[] = () => []
+  conceptsOf: (key: string) => string[] = () => [],
+  check: () => void = () => undefined
 ): Promise<NotePair[]> {
   const topicOf = new Map<string, number>();
   for (const topic of topics) {
@@ -435,6 +431,7 @@ export async function bridgeCandidates(
   );
   for (const { topic, reps } of repsByTopic) {
     for (const rep of reps) {
+      check();
       const vector = repVectors.get(rep.key)?.mean;
       if (!vector) continue;
       const rows = knn.all(Buffer.from(vector.buffer), BRIDGE_KNN_CHUNKS) as Array<{

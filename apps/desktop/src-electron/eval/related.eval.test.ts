@@ -1,3 +1,4 @@
+import { ensureRelatedThreshold } from "../main/modules/entity-context/related-threshold";
 // @vitest-environment node
 /**
  * 脉络「相关」评估（13 §11.2）：真实库副本 + 索引库副本，只读。
@@ -39,7 +40,6 @@ import KnowledgeMapTable from "../main/modules/tables/knowledge-map";
 import {
   NEIGHBOR_K,
   RELATED_LIMIT,
-  ensureRelatedThreshold,
   relatedExclusions,
   relatedOf,
 } from "../main/modules/entity-context/context-related";

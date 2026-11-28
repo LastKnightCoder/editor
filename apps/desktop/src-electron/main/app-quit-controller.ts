@@ -10,6 +10,7 @@ import { isContentRuntimeWindow } from "./windows/create-window";
 import { disposePluginWindows } from "./windows/plugin-window-ipc";
 import { contentExecutor } from "./services/content-execution";
 import { markSessionEnded } from "./modules/logger";
+import { insightCandidateScheduler } from "./modules/topic-insights-candidate-client";
 
 // 主进程广播该事件后，渲染进程完成收尾（自动同步等）并通过 app:quitting-ready 回执
 const QUITTING_CHANNEL = "app:quitting";
@@ -131,6 +132,7 @@ async function runControlledQuit(
       }
     }
     await Promise.all(ready);
+    await insightCandidateScheduler.pause();
 
     pluginBackends.beginDrain();
     await setPluginBackendsPaused(true);

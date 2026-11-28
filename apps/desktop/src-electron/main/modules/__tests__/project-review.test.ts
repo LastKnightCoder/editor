@@ -1,3 +1,4 @@
+import { candidateTestTransport } from "./insight-candidate-test-transport";
 import Database from "better-sqlite3";
 import * as sqliteVec from "sqlite-vec";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -128,6 +129,7 @@ describe("项目回顾", () => {
 
   const deps: TopicInsightsDeps = {
     now: () => now,
+    candidates: candidateTestTransport(() => index),
     complete: async (request: Omit<PiSingleShotRequest, "requestId">) => {
       const prompt = String(request.messages[0].content);
       prompts.push({ system: request.system ?? "", prompt });

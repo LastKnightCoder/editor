@@ -31,7 +31,7 @@ import {
 } from "./compose-gather-prompt";
 import { CONTENT_INSIGHTS_SLOT } from "./content-insights";
 import databaseModule from "./database";
-import { ensureRelatedThreshold } from "./entity-context/context-related";
+import { ensureRelatedThreshold } from "./entity-context/related-threshold";
 import { resolveUsageSlot, type LlmRef, type SettingForLlmSlots } from "./llm-usage-slot";
 import PiAiRuntimeModule from "./pi-ai-runtime";
 import ComposeBoardTable from "./tables/compose-board";

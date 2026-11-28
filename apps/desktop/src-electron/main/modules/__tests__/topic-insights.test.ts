@@ -1,3 +1,4 @@
+import { candidateTestTransport } from "./insight-candidate-test-transport";
 import Database from "better-sqlite3";
 import * as sqliteVec from "sqlite-vec";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -155,6 +156,7 @@ describe("topic-insights 分层阅读", () => {
 
   const deps: TopicInsightsDeps = {
     now: () => now,
+    candidates: candidateTestTransport(() => index),
     complete: async (request: Omit<PiSingleShotRequest, "requestId">) => {
       const prompt = String(request.messages[0].content);
       calls.push({ system: request.system ?? "", prompt });
@@ -460,6 +462,7 @@ describe("topic-insights 分层阅读", () => {
   it("后台调用失败只跳过那一处；点按钮时直接报错", async () => {
     const failing: TopicInsightsDeps = {
       now: () => now,
+      candidates: candidateTestTransport(() => index),
       complete: async () => ({ ok: false, text: "", error: "额度用尽" }),
     };
     const ctx = buildContext(
@@ -523,6 +526,7 @@ describe("topic-insights 分层阅读", () => {
     let invoked = 0;
     const failing: TopicInsightsDeps = {
       now: () => now,
+      candidates: candidateTestTransport(() => index),
       complete: async () => {
         invoked++;
         return { ok: false, text: "", error: "额度用尽" };
@@ -604,5 +608,77 @@ describe("topic-insights 分层阅读", () => {
     expect(repeatsChain("还缺：作用域到原型链的桥", [chain])).toBe(true);
     expect(repeatsChain("还缺：模块加载", [chain])).toBe(false);
     expect(repeatsChain("还缺：作用域到原型链的桥", [])).toBe(false);
+  });
+  it("模型忽略取消仍不得提交未完成层级，随后可以重新分析", async () => {
+    // 秒级后台计算后取消曾可能在模型回包时继续落库。
+    let reached!: () => void;
+    let release!: () => void;
+    const ready = new Promise<void>(resolve => {
+      reached = resolve;
+    });
+    const gate = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    const controller = new AbortController();
+    const pending = analyzeKnowledge(
+      {
+        ...deps,
+        complete: async (request, signal) => {
+          reached();
+          await gate;
+          return deps.complete(request, signal);
+        },
+      },
+      buildContext(main, index, must(KnowledgeMapTable.load(index), "map")),
+      SLOT,
+      { force: true, signal: controller.signal }
+    );
+    const rejected = expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    await ready;
+    controller.abort();
+    release();
+    await rejected;
+    expect(KnowledgeAiInsightsTable.list(main)).toEqual([]);
+    expect((await run()).global).toBe(true);
+  });
+
+  it("旧库上下文在模型回包后失效时不写入，即使传输没有取消", async () => {
+    let current = true;
+    const ctx = buildContext(
+      main,
+      index,
+      must(KnowledgeMapTable.load(index), "map"),
+      () => current
+    );
+    await expect(
+      analyzeKnowledge(
+        {
+          ...deps,
+          complete: async (request, signal) => {
+            const response = await deps.complete(request, signal);
+            current = false;
+            return response;
+          },
+        },
+        ctx,
+        SLOT,
+        { force: true }
+      )
+    ).rejects.toMatchObject({ name: "AbortError" });
+    expect(KnowledgeAiInsightsTable.list(main)).toEqual([]);
+  });
+
+  it("只读展示不补算阈值，实际分析再准备并保存当前模型的阈值", async () => {
+    index.prepare("DELETE FROM index_meta WHERE key='related_similarity_threshold'").run();
+    const ctx = buildContext(main, index, must(KnowledgeMapTable.load(index), "map"));
+    expect(
+      index.prepare("SELECT value FROM index_meta WHERE key='related_similarity_threshold'").get()
+    ).toBeUndefined();
+    const outcome = await analyzeKnowledge(deps, ctx, SLOT, { force: true });
+    expect(outcome.global).toBe(true);
+    const stored = index
+      .prepare("SELECT value FROM index_meta WHERE key='related_similarity_threshold'")
+      .get() as { value: string };
+    expect(JSON.parse(stored.value).fingerprint).toBe("model-a");
   });
 });

@@ -9,6 +9,7 @@
  */
 
 import type Database from "better-sqlite3";
+import { meanVector } from "../../utils/embedding-vector";
 import { reportStoredJsonFailure } from "../../utils/stored-json";
 import type {
   KnowledgeMap,
@@ -113,32 +114,6 @@ function projectPaths(mainDb: Database.Database): Map<number, string> {
 }
 
 const NEIGHBOR_RECALL = 8;
-
-/** 多条 float32 向量（vec0 原始字节）取 L2 归一化均值；维度不一致的丢弃 */
-export function meanVector(blobs: Buffer[]): Buffer | null {
-  const vectors = blobs.map(
-    blob => new Float32Array(blob.buffer, blob.byteOffset, blob.byteLength / 4)
-  );
-  const dim = vectors[0]?.length ?? 0;
-  if (!dim) return null;
-  const sum = new Float64Array(dim);
-  let count = 0;
-  for (const vector of vectors) {
-    if (vector.length !== dim) continue;
-    let norm = 0;
-    for (let i = 0; i < dim; i++) norm += vector[i] * vector[i];
-    norm = Math.sqrt(norm) || 1;
-    for (let i = 0; i < dim; i++) sum[i] += vector[i] / norm;
-    count++;
-  }
-  let norm = 0;
-  for (let i = 0; i < dim; i++) norm += sum[i] * sum[i];
-  norm = Math.sqrt(norm);
-  if (!count || !norm) return null;
-  const out = new Float32Array(dim);
-  for (let i = 0; i < dim; i++) out[i] = sum[i] / norm;
-  return Buffer.from(out.buffer);
-}
 
 export default class KnowledgeMapTable {
   /** 当前应在地图上的全部节点，按键排序（计算结果依赖输入顺序，排序保证确定） */

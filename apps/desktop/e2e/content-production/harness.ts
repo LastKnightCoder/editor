@@ -71,8 +71,11 @@ export async function launch(
       XDG_CACHE_HOME: join(directory, "home/.cache"),
       TMPDIR: join(directory, "temporary"),
       TAU_TELEMETRY_DISABLED: "1",
+      ...(process.env.WHITEBOARD_TYPING_INSIGHTS
+        ? { TAU_CONTENT_PRODUCTION_FOREGROUND_TIMING: "1" }
+        : {}),
       TAU_CONTENT_PRODUCTION_DIRECTORY: directory,
-      TAU_CONTENT_PRODUCTION_APP: desktop,
+      TAU_CONTENT_PRODUCTION_APP: process.env.TAU_CONTENT_PRODUCTION_APP_OVERRIDE ?? desktop,
       TAU_CONTENT_PRODUCTION_PORT: String(port),
       ...(collaborationUrl ? { TAU_COLLAB_DEV_SERVER_URL: collaborationUrl } : {}),
     },

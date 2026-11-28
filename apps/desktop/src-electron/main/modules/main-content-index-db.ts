@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import { insightCandidateScheduler } from "./topic-insights-candidate-client";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import log from "electron-log";
@@ -361,39 +362,46 @@ class MainContentIndexDBManager {
     return this.databases.get(this.getDatabaseKey(mainDbName));
   }
 
-  closeDatabase(mainDbName: string) {
+  async closeDatabase(mainDbName: string) {
     const key = this.getDatabaseKey(mainDbName);
     const db = this.databases.get(key);
-    if (!db) return;
+    const resume = await insightCandidateScheduler.pause(this.getDatabasePath(mainDbName));
     try {
-      db.close();
+      if (db?.open) db.close();
     } catch (error) {
       log.error("[MainContentIndexDB] close database failed:", error);
     } finally {
-      this.databases.delete(key);
+      if (this.databases.get(key) === db) this.databases.delete(key);
+      resume();
     }
   }
 
-  closeAll() {
-    for (const [key, db] of this.databases.entries()) {
-      try {
-        db.close();
-      } catch (error) {
-        log.error(`[MainContentIndexDB] close database failed: key=${key}, error=${error}`);
+  async closeAll() {
+    const resume = await insightCandidateScheduler.pause();
+    try {
+      for (const [key, db] of this.databases.entries()) {
+        try {
+          db.close();
+        } catch (error) {
+          log.error(`[MainContentIndexDB] close database failed: key=${key}`, error);
+        }
+        this.databases.delete(key);
       }
-      this.databases.delete(key);
+    } finally {
+      resume();
     }
   }
 
-  prepareDownload(
+  async prepareDownload(
     mainDbName: string,
     databasePath: string,
     downloadPath: string,
     reusedFiles?: readonly string[]
   ) {
     if (!existsSync(this.getDatabasePath(mainDbName))) return;
-    const indexDb = this.getDatabase(mainDbName);
+    const resume = await insightCandidateScheduler.pause(this.getDatabasePath(mainDbName));
     try {
+      const indexDb = this.getDatabase(mainDbName);
       const startedAt = performance.now();
       const { indexed, differences } = compareDownloadedIndex(
         indexDb,
@@ -465,7 +473,11 @@ class MainContentIndexDBManager {
         `[MainContentIndexDB] Download index compared: db=${mainDbName}, indexed=${indexed}, invalidated=${differences.filter(item => item.revision === null).length}, retagged=${differences.filter(item => item.revision !== null).length}, compareMs=${compareMs}, elapsedMs=${Math.round(performance.now() - startedAt)}`
       );
     } finally {
-      this.closeDatabase(mainDbName);
+      try {
+        await this.closeDatabase(mainDbName);
+      } finally {
+        resume();
+      }
     }
   }
 }

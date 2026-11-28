@@ -16,14 +16,8 @@ import KnowledgeAiInsightsTable, {
   type KnowledgeAiInsightsRow,
   type MemberSnapshot,
 } from "./tables/knowledge-ai-insights";
-import { meanVector, type MapEntity } from "./tables/knowledge-map";
-import {
-  NOTE_TYPES_SQL,
-  cosine,
-  loadNoteVectors,
-  shortHash,
-  toFloats,
-} from "./topic-insights-candidates";
+
+import { shortHash } from "./topic-insights-candidates";
 import {
   FINAL_REVIEW_SYSTEM_PROMPT,
   GROWTH_REVIEW_SYSTEM_PROMPT,
@@ -35,7 +29,9 @@ import {
 import {
   callModel,
   endpoint,
-  isLinked,
+  candidateLinks,
+  prepareInsightThreshold,
+  requestInsightCandidates,
   modelName,
   promptNote,
   type InsightsContext,
@@ -50,9 +46,6 @@ export const GROWTH_MIN_INTERVAL_MS = 7 * 24 * 3600_000;
 export const FINAL_RECENT_MS = 30 * 24 * 3600_000;
 const DOC_LIMIT = 80;
 const MAX_DEPTH = 3;
-const BELONG_CANDIDATES = 16;
-const BRANCH_KNN_CHUNKS = 60;
-const HOME_CANDIDATES = 3;
 const OUTSIDE_TITLES = 12;
 /** 进行中的项目至少有这么多份文档才可能是「体系项目」 */
 const HOME_MIN_DOCS = 3;
@@ -188,11 +181,6 @@ export function projectsDue(
   return due.sort((a, b) => (a.kind === b.kind ? 0 : a.kind === "final" ? -1 : 1));
 }
 
-const normalize = (vectors: Float32Array[]): Float32Array | null => {
-  const mean = meanVector(vectors.map(vector => Buffer.from(vector.buffer)));
-  return mean ? new Float32Array(toFloats(mean)) : null;
-};
-
 export async function reviewProject(
   deps: TopicInsightsDeps,
   ctx: InsightsContext,
@@ -200,6 +188,8 @@ export async function reviewProject(
   slot: LlmRef,
   signal?: AbortSignal
 ): Promise<KnowledgeAiInsightsRow | null> {
+  signal?.throwIfAborted();
+  ctx.assertCurrent();
   const tree = projectTree(ctx.mainDb, projectId);
   if (!tree) return null;
   const kind = tree.archived ? "final" : "growth";
@@ -213,79 +203,45 @@ export async function reviewProject(
       if (!projectKeys.has(other)) outsideKeys.add(other);
     }
   }
-  const linked = isLinked(ctx);
   const day = (time: number) => {
     const date = new Date(time);
     return `${date.getFullYear()} 年 ${date.getMonth() + 1} 月 ${date.getDate()} 日`;
   };
 
-  // 分支向量：每个顶层分支下文档整体向量的均值
-  const vectors = loadNoteVectors(ctx.indexDb, [...projectKeys]);
-  const branchVectors = new Map<number, Float32Array>();
-  for (const root of new Set(tree.items.map(item => item.root))) {
-    const own = tree.items
-      .filter(item => item.root === root)
-      .flatMap(item => {
-        const vector = vectors.get(itemKey(item));
-        return vector ? [vector.mean] : [];
-      });
-    const mean = own.length ? normalize(own) : null;
-    if (mean) branchVectors.set(root, mean);
-  }
-
-  const candidates: Array<{ entity: MapEntity; root: number; similarity: number }> = [];
-  const homes: Array<{ projectId: number; title: string; similarity: number }> = [];
-  if (kind === "growth" && ctx.threshold != null) {
-    const knn = ctx.indexDb.prepare(
-      `SELECT prefixed_id, distance FROM vec_documents
-       WHERE vec_embedding MATCH ? AND k = ? AND type IN (${NOTE_TYPES_SQL})`
-    );
-    const best = new Map<string, { root: number; similarity: number }>();
-    for (const [root, vector] of branchVectors) {
-      const rows = knn.all(Buffer.from(vector.buffer), BRANCH_KNN_CHUNKS) as Array<{
-        prefixed_id: string;
-        distance: number;
-      }>;
-      for (const hit of rows) {
-        const similarity = 1 - hit.distance;
-        if (similarity <= ctx.threshold) break;
-        const key = hit.prefixed_id;
-        // 只提议散在外面的卡片与文章：别的项目里的文档不该被挪进来
-        if (!key.startsWith("card:") && !key.startsWith("article:")) continue;
-        if (projectKeys.has(key) || outsideKeys.has(key)) continue;
-        if ([...projectKeys].some(own => linked(own, key))) continue;
-        if ((best.get(key)?.similarity ?? -Infinity) >= similarity) continue;
-        best.set(key, { root, similarity });
-      }
-    }
-    for (const [key, hit] of [...best.entries()].sort(
-      (a, b) => b[1].similarity - a[1].similarity
-    )) {
-      const entity = ctx.byKey.get(key);
-      if (!entity) continue;
-      candidates.push({ entity, ...hit });
-      if (candidates.length >= BELONG_CANDIDATES) break;
-    }
-  }
-  if (kind === "final" && branchVectors.size) {
-    const own = normalize([...branchVectors.values()]);
-    const others = ctx.mainDb
-      .prepare(`SELECT id, title FROM project WHERE id != ? AND COALESCE(archived, 0) = 0`)
-      .all(projectId) as Array<{ id: number; title: string }>;
-    for (const other of others) {
-      const otherTree = projectTree(ctx.mainDb, other.id);
-      if (!otherTree || otherTree.items.length < HOME_MIN_DOCS || !own) continue;
-      const otherVectors = loadNoteVectors(ctx.indexDb, otherTree.items.map(itemKey));
-      const mean = otherVectors.size
-        ? normalize([...otherVectors.values()].map(vector => vector.mean))
-        : null;
-      if (!mean) continue;
-      const similarity = cosine(own, mean);
-      // 项目整体向量是很多篇的均值，比单节之间的相似度低得多：不按块阈值卡，取最近的几个交给模型
-      if (similarity > 0) homes.push({ projectId: other.id, title: other.title, similarity });
-    }
-    homes.sort((a, b) => b.similarity - a.similarity).splice(HOME_CANDIDATES);
-  }
+  await prepareInsightThreshold(deps, ctx, signal);
+  const others =
+    kind === "final"
+      ? (
+          ctx.mainDb
+            .prepare(`SELECT id, title FROM project WHERE id != ? AND COALESCE(archived, 0) = 0`)
+            .all(projectId) as Array<{ id: number; title: string }>
+        ).flatMap(other => {
+          const otherTree = projectTree(ctx.mainDb, other.id);
+          return otherTree && otherTree.items.length >= HOME_MIN_DOCS
+            ? [{ projectId: other.id, title: other.title, keys: otherTree.items.map(itemKey) }]
+            : [];
+        })
+      : [];
+  const resultCandidates = await requestInsightCandidates(
+    deps,
+    ctx,
+    {
+      kind: "project",
+      review: kind,
+      items: tree.items.map(item => ({ key: itemKey(item), root: item.root })),
+      outside: [...outsideKeys],
+      knownKeys: [...ctx.byKey.keys()],
+      links: candidateLinks(ctx),
+      threshold: ctx.threshold,
+      others,
+    },
+    signal
+  );
+  const candidates = resultCandidates.candidates.flatMap(({ key, ...hit }) => {
+    const entity = ctx.byKey.get(key);
+    return entity ? [{ entity, ...hit }] : [];
+  });
+  const homes = resultCandidates.homes;
 
   const summaryOf = (item: TreeItem) =>
     item.contentId ? (ctx.metas.get(item.contentId)?.meta.summary ?? "") : "";
@@ -351,7 +307,8 @@ export async function reviewProject(
           new Set(candidates.map((_, index) => index + 1)),
           new Set(byDocNo.keys())
         ),
-      signal
+      signal,
+      ctx.assertCurrent
     ).then(value => fixRefsDeep(value, resolveRef, "CDP"));
     const branchDocOf = (branch: number) => {
       const doc = byDocNo.get(branch);
@@ -397,7 +354,8 @@ export async function reviewProject(
           new Set(byDocNo.keys()),
           new Set(homes.map((_, index) => index + 1))
         ),
-      signal
+      signal,
+      ctx.assertCurrent
     ).then(value => fixRefsDeep(value, resolveRef, "CDP"));
     const home = parsed.home ? homes[parsed.home - 1] : null;
     result = {
@@ -413,6 +371,8 @@ export async function reviewProject(
       candidates: homes.length,
     };
   }
+  signal?.throwIfAborted();
+  ctx.assertCurrent();
   return KnowledgeAiInsightsTable.save(
     ctx.mainDb,
     {

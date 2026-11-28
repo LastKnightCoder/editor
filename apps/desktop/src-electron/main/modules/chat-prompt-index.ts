@@ -15,7 +15,7 @@ import { loadSessionTranscript } from "./pi-session-host-core";
 import { chatSessionDirOfDb, resolveSessionFile } from "./pi-session-paths";
 import type { PiTranscriptEntry } from "./pi-session-transcript";
 
-export const CHAT_PROMPT_TYPE = "chat-prompt";
+import { CHAT_PROMPT_TYPE, chatPromptId } from "./chat-prompt-key";
 /** 太短的（「继续」「好的」）不是方向信号 */
 export const MIN_PROMPT_CHARS = 6;
 const MAX_PROMPT_CHARS = 1000;
@@ -37,19 +37,6 @@ interface SessionRow {
 
 type SessionCache = Map<string, { updateTime: number; docs: ChatPromptDoc[] }>;
 let caches = new WeakMap<Database.Database, SessionCache>();
-
-export const chatPromptId = (sessionId: string, messageId: string) => `${sessionId}#${messageId}`;
-
-/** chat-prompt 向量的 prefixed_id 拆回会话与消息 */
-export function parseChatPromptKey(
-  prefixedId: string
-): { sessionId: string; messageId: string } | null {
-  if (!prefixedId.startsWith(`${CHAT_PROMPT_TYPE}:`)) return null;
-  const rest = prefixedId.slice(CHAT_PROMPT_TYPE.length + 1);
-  const hash = rest.lastIndexOf("#");
-  if (hash <= 0) return null;
-  return { sessionId: rest.slice(0, hash), messageId: rest.slice(hash + 1) };
-}
 
 /** 用户消息的模型文本（不含文件卡片等展示结构） */
 function userText(entry: PiTranscriptEntry): string {

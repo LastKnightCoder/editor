@@ -31,6 +31,12 @@ app.setPath("userData", profile);
 app.setPath("sessionData", path.join(directory, "session-data"));
 app.setPath("home", process.env.HOME);
 app.commandLine.appendSwitch("use-mock-keychain");
+if (process.env.TAU_CONTENT_PRODUCTION_FOREGROUND_TIMING === "1") {
+  app.commandLine.appendSwitch("disable-renderer-backgrounding");
+  app.commandLine.appendSwitch("disable-background-timer-throttling");
+  app.commandLine.appendSwitch("disable-backgrounding-occluded-windows");
+  app.commandLine.appendSwitch("disable-features", "CalculateNativeWinOcclusion");
+}
 
 const audit = {
   entry: path.join(application, "dist-electron/main/index.js"),

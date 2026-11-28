@@ -1,3 +1,4 @@
+import { ensureRelatedThreshold } from "../main/modules/entity-context/related-threshold";
 /**
  * 迭代 7a 规模实测（KL-029：按重度用户的结构推导，不按本机数据）。设环境变量才跑：
  *   KL_CONTENT_AI_SCALE=1 npx vitest run --config vitest.eval.config.ts src-electron/eval/content-ai-scale.eval.test.ts
@@ -22,7 +23,7 @@ vi.mock("../main/modules/user-setting", () => ({ default: {} }));
 
 import { contentPlainText, textDigest } from "@/entity/text-digest";
 import { ContentAiQueue, computeContentAiStatus } from "../main/modules/content-ai-queue";
-import { relatedOf, ensureRelatedThreshold } from "../main/modules/entity-context/context-related";
+import { relatedOf } from "../main/modules/entity-context/context-related";
 import { findCandidates } from "../main/modules/content-insights";
 import KnowledgeAiInsightsTable, {
   emptyResult,

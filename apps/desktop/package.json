@@ -33,7 +33,10 @@
     "perf:symbolicate": "node scripts/perf-symbolicate.mjs",
     "bench:perf-diagnostics": "cross-env TAU_PERF_BENCH=1 node scripts/bench-perf-diagnostics.mjs",
     "build:native-speech": "node scripts/build-native-speech.mjs",
-    "preview:ppt": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/preview-ppt-templates.mjs"
+    "preview:ppt": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/preview-ppt-templates.mjs",
+    "test:insight-worker": "node scripts/verify-insight-worker.mjs",
+    "bench:insight-typing": "cross-env WHITEBOARD_TYPING_DESKTOP=1 WHITEBOARD_TYPING_INSIGHTS=1 playwright test e2e/whiteboard-typing-desktop.spec.ts",
+    "bench:insight-candidates": "node scripts/bench-insight-candidates.mjs"
   },
   "dependencies": {
     "7zip-min": "^2.1.0",

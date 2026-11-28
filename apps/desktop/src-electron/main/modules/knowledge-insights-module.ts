@@ -18,6 +18,8 @@ import type {
 } from "@/types/knowledge-insights";
 import type { Module } from "../types/module";
 import databaseModule from "./database";
+import mainContentIndexDBManager from "./main-content-index-db";
+import { isAppQuitting } from "../app-quit-state";
 import { broadcastDatabaseChange } from "./database-notifications";
 import { ENTITY_CONTEXT_CHANGED } from "./entity-context";
 import knowledgeMapBuilder from "./knowledge-map-builder";
@@ -87,6 +89,7 @@ class KnowledgeInsightsModule implements Module {
     };
     applySetting(await userSettingModule.getSettingSnapshot());
     userSettingModule.onSettingChanged(({ newSetting }) => applySetting(newSetting));
+    databaseModule.onDatabaseChange(() => this.invalidate());
     databaseModule.onDatabaseConnected(dbName => {
       if (databaseModule.getCurrentDatabaseName() === dbName) this.onConnected(dbName);
     });
@@ -112,7 +115,10 @@ class KnowledgeInsightsModule implements Module {
       const slot = this.requireSlot();
       const sender = event.sender;
       const { dbName } = await this.databases(sender);
+      const generation = this.generation;
       return this.enqueue(async () => {
+        if (generation !== this.generation || databaseModule.getCurrentDatabaseName() !== dbName)
+          throw new DOMException("分析请求已失效", "AbortError");
         const result = await this.runTopics(dbName, slot, true, phase => {
           if (!sender.isDestroyed()) sender.send("knowledge-insights:phase", phase);
         });
@@ -127,8 +133,16 @@ class KnowledgeInsightsModule implements Module {
     ipcMain.handle("knowledge-insights:review-project", async (event, projectId: unknown) => {
       const slot = this.requireSlot();
       const { mainDb, indexDb, dbName } = await this.databases(event.sender);
+      const generation = this.generation;
       return this.enqueue(async () => {
-        const ctx = buildContext(mainDb, indexDb, KnowledgeMapTable.load(indexDb) ?? EMPTY_MAP);
+        if (generation !== this.generation || databaseModule.getCurrentDatabaseName() !== dbName)
+          throw new DOMException("分析请求已失效", "AbortError");
+        const ctx = this.context(
+          dbName,
+          mainDb,
+          indexDb,
+          KnowledgeMapTable.load(indexDb) ?? EMPTY_MAP
+        );
         const row = await this.withAbort(signal =>
           reviewProject(this.deps, ctx, Number(projectId), slot, signal)
         );
@@ -281,13 +295,13 @@ class KnowledgeInsightsModule implements Module {
 
   private async runBackground(dbName: string, slot: LlmRef) {
     const payload = await this.runTopics(dbName, slot, false);
-    if (!payload) return;
+    if (!payload || databaseModule.getCurrentDatabaseName() !== dbName) return;
     const generation = this.generation;
     const mainDb = databaseModule.getDatabase(dbName);
     const indexDb = databaseModule.getIndexDatabase(dbName);
     const map = indexDb ? KnowledgeMapTable.load(indexDb) : null;
     if (!mainDb?.open || !indexDb || !map) return;
-    const ctx = buildContext(mainDb, indexDb, map);
+    const ctx = this.context(dbName, mainDb, indexDb, map);
     for (const due of projectsDue(ctx, this.deps.now())) {
       if (generation !== this.generation) return;
       try {
@@ -309,6 +323,7 @@ class KnowledgeInsightsModule implements Module {
     onPhase?: (phase: KnowledgeInsightsPhase) => void
   ): Promise<KnowledgeInsightsPayload | null> {
     const generation = this.generation;
+    if (databaseModule.getCurrentDatabaseName() !== dbName) return null;
     // 地图重算在 worker 线程里无法中断：等待也挂在 abort 上，切库/取消时放弃等待、释放串行链，
     // 不让旧库的重算卡住排在后面的任务（重算本身照常跑完，正确性由下面的 generation 检查兜底）
     const map = await this.withAbort(signal =>
@@ -322,7 +337,7 @@ class KnowledgeInsightsModule implements Module {
     const mainDb = databaseModule.getDatabase(dbName);
     const indexDb = databaseModule.getIndexDatabase(dbName);
     if (!map || !mainDb?.open || !indexDb || generation !== this.generation) return null;
-    const ctx = buildContext(mainDb, indexDb, map);
+    const ctx = this.context(dbName, mainDb, indexDb, map);
     if (!force && metaCoverage(ctx) < COVERAGE_GATE) return null;
     const startedAt = Date.now();
     const outcome = await this.withAbort(signal =>
@@ -340,6 +355,26 @@ class KnowledgeInsightsModule implements Module {
       broadcastDatabaseChange(KNOWLEDGE_INSIGHTS_CHANGED_EVENT, dbName);
     }
     return readKnowledgeInsights(ctx, mainDb, { configured: true, running: false });
+  }
+
+  private context(
+    dbName: string,
+    mainDb: Database.Database,
+    indexDb: Database.Database,
+    map: KnowledgeMap
+  ) {
+    const generation = this.generation;
+    return buildContext(
+      mainDb,
+      indexDb,
+      map,
+      () =>
+        !isAppQuitting() &&
+        generation === this.generation &&
+        databaseModule.getCurrentDatabaseName() === dbName &&
+        databaseModule.getDatabase(dbName) === mainDb &&
+        mainContentIndexDBManager.getExistingDatabase(dbName) === indexDb
+    );
   }
 
   private async databases(sender: Electron.WebContents) {

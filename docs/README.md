@@ -84,6 +84,8 @@
 
 [模型出站验证](./guides/ops-model-request-validation.md) 包含契约回归、本地并发与合成输入的真实模型验证命令。
 
+[知识洞察与白板输入性能验证](./guides/dev-insight-performance.md) 说明原生 ASAR 探针、同算法线程对照、真实输入/保存和长稳故障验证步骤。
+
 ## tasks/ — 进行中任务
 
 一个任务一个目录或单文件，收尾三步见 [tasks/README.md](./tasks/README.md)；期限 90 天。
@@ -91,6 +93,8 @@
 [存量界面三语迁移](./tasks/i18n-migration/README.md) 记录按功能闭环推进的替换批次、词典归属、每批验收和后续计划。
 
 [画框性能](./tasks/whiteboard-frame-performance/README.md) 记录 1× / 2× / 4× CPU 降速的实际位移验收、提交优化与尚未达标的结构操作。
+
+[知识洞察后台计算与白板输入响应](./tasks/knowledge-insights-performance/README.md) 记录候选 Worker、取消与资料库维护边界、功能对账和并发输入压测方案。
 
 [Notebook 演示文稿按页生成与续改](./tasks/ppt-workspace/README.md) 记录 Agent 工作目录、页级正文、模型自检、旧稿处理及实物试跑结果。
 
