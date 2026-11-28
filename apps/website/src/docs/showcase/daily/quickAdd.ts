@@ -1,8 +1,9 @@
 /**
- * 示意用的快速添加解析：覆盖文档里举的几种说法（今天/明天/后天、周几、几点、#项目、每天/每周），
+ * 示意用的快速添加解析：覆盖文档里举的几种说法（今天/明天/后天、周几、几点、!高/p1、@标签、#项目、每天/每周），
  * 不追求和软件完全一致，只让读者感受到「一句话就能记下」。
  */
 export type QuickKind = "normal" | "deadline" | "recurring";
+export type QuickPriority = "high" | "medium" | "low";
 export type Bucket = "today" | "tomorrow" | "later" | "none";
 
 export interface QuickParsed {
@@ -16,7 +17,18 @@ export interface QuickParsed {
   /** 识别结果的说明文字 */
   label: string;
   project?: string;
+  priority?: QuickPriority;
+  tags?: string[];
 }
+
+const PRIORITY_MAP: Record<string, QuickPriority> = {
+  高: "high",
+  中: "medium",
+  低: "low",
+  p1: "high",
+  p2: "medium",
+  p3: "low",
+};
 
 const WEEKDAYS = "一二三四五六日";
 
@@ -47,9 +59,26 @@ export function parseQuickAdd(input: string): QuickParsed | null {
     return "";
   });
 
+  let priority: QuickPriority | undefined;
+  text = text.replace(
+    /(?:[!！](高|中|低)|(?:^|\s)(p[123])(?=\s|$))/i,
+    (match, cn?: string, p?: string) => {
+      const key = (cn ?? p ?? "").toLowerCase();
+      priority = PRIORITY_MAP[key];
+      return match.startsWith(" ") ? " " : "";
+    }
+  );
+
+  const tags: string[] = [];
+  text = text.replace(/@(\S+)/g, (_, tag: string) => {
+    if (!tags.includes(tag)) tags.push(tag);
+    return "";
+  });
+  const tagList = tags.length ? tags : undefined;
+
   const recurring = /每(天|周[一二三四五六日、]+|个?工作日)/.exec(text);
   if (recurring) {
-    const title = text.replace(recurring[0], "").trim();
+    const title = text.replace(recurring[0], "").replace(/\s+/g, " ").trim();
     return {
       title,
       kind: "recurring",
@@ -58,6 +87,8 @@ export function parseQuickAdd(input: string): QuickParsed | null {
       sub: "打卡",
       label: `周期 · ${recurring[0]}`,
       project,
+      priority,
+      tags: tagList,
     };
   }
 
@@ -78,6 +109,8 @@ export function parseQuickAdd(input: string): QuickParsed | null {
       bucket: "none",
       label: "普通任务",
       project,
+      priority,
+      tags: tagList,
     };
   if (!day) bucket = "today";
   return {
@@ -88,5 +121,7 @@ export function parseQuickAdd(input: string): QuickParsed | null {
     sub: "截止",
     label: `截止 · ${day ?? "今天"}${time ? ` ${time}` : ""}`,
     project,
+    priority,
+    tags: tagList,
   };
 }

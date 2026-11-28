@@ -9,7 +9,7 @@ import { Editor } from "@tau/editor";
 import { getDocsKit } from "../../editorKit.ts";
 import { docsMarkdown } from "../../editorMarkdown.ts";
 
-const SAMPLE = `## Deep Work 读书笔记
+const SAMPLE = `## 《深度工作》读书笔记
 
 在行首输入 \`##\` 加空格变成标题，输入 \`-\` 加空格变成列表；在空行输入 \`/\` 打开插入菜单。选中一段文字，上方会出现**悬浮工具栏**。
 

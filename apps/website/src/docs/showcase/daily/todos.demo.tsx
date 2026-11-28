@@ -8,7 +8,7 @@ import { cn } from "@tau/ui";
 import { AppWindow } from "../AppWindow.tsx";
 import { PROJECTS } from "./projects.ts";
 import { GroupDot, TodoCheck } from "./TodoBits.tsx";
-import { parseQuickAdd, type Bucket, type QuickKind } from "./quickAdd.ts";
+import { parseQuickAdd, type Bucket, type QuickKind, type QuickPriority } from "./quickAdd.ts";
 
 interface Todo {
   id: number;
@@ -18,10 +18,18 @@ interface Todo {
   main?: string;
   sub?: string;
   project?: string;
+  priority?: QuickPriority;
+  tags?: string[];
   done: boolean;
   overdue?: boolean;
   fresh?: boolean;
 }
+
+const PRIORITY_META: Record<QuickPriority, { label: string; badge: string }> = {
+  high: { label: "高", badge: "bg-danger-soft text-danger" },
+  medium: { label: "中", badge: "bg-warn-soft text-warn" },
+  low: { label: "低", badge: "bg-hover text-ink-2" },
+};
 
 const INITIAL: Todo[] = [
   {
@@ -32,6 +40,8 @@ const INITIAL: Todo[] = [
     main: "昨天",
     sub: "截止",
     project: "工作",
+    priority: "high",
+    tags: ["写作"],
     done: false,
     overdue: true,
   },
@@ -128,7 +138,25 @@ function Row({ todo, onToggle }: { todo: Todo; onToggle: () => void }) {
       >
         {todo.title || "未命名任务"}
       </span>
-      <span className="flex items-center gap-2.5">
+      <span className="flex items-center gap-2">
+        {todo.priority && (
+          <span
+            className={cn(
+              "rounded-[5px] px-1.5 py-0.5 text-[10.5px] font-medium",
+              PRIORITY_META[todo.priority].badge
+            )}
+          >
+            {PRIORITY_META[todo.priority].label}
+          </span>
+        )}
+        {todo.tags?.map(tag => (
+          <span
+            key={tag}
+            className="bg-accent-soft text-accent-text rounded-[5px] px-1.5 py-0.5 text-[10.5px] whitespace-nowrap max-sm:hidden"
+          >
+            #{tag}
+          </span>
+        ))}
         {todo.project && PROJECTS[todo.project] && (
           <span className="text-ink-2 flex items-center gap-1.5 text-[11.5px] whitespace-nowrap">
             <GroupDot tone={PROJECTS[todo.project]} />
@@ -191,7 +219,7 @@ export default function TodosDemo() {
                 if (event.key === "Escape") setText("");
               }}
               aria-label="添加任务"
-              placeholder="试试「明天 17:00 交周报 #工作」或「每周一、四 周会」"
+              placeholder="试试「明天 17:00 交周报 !高 @评审 #工作」或「每周一、四 周会」"
               className="text-tau-body-lg placeholder:text-ink-3 min-w-0 flex-1 bg-transparent outline-none select-text"
             />
             <span className="text-ink-3 flex shrink-0 items-center gap-1.5 text-[11px]">
@@ -216,6 +244,24 @@ export default function TodosDemo() {
                 })()}
                 {parsed.label}
               </span>
+              {parsed.priority && (
+                <span
+                  className={cn(
+                    "inline-flex h-[22px] items-center rounded-[6px] px-2 font-medium",
+                    PRIORITY_META[parsed.priority].badge
+                  )}
+                >
+                  {PRIORITY_META[parsed.priority].label}优先级
+                </span>
+              )}
+              {parsed.tags?.map(tag => (
+                <span
+                  key={tag}
+                  className="bg-accent-soft text-accent-text inline-flex h-[22px] items-center rounded-[6px] px-2"
+                >
+                  #{tag}
+                </span>
+              ))}
               {parsed.project && (
                 <span className="bg-hover text-ink-1 inline-flex h-[22px] items-center gap-1.5 rounded-[6px] px-2">
                   <GroupDot tone={PROJECTS[parsed.project] ?? "tag-5"} />

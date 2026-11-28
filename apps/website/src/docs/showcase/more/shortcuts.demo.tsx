@@ -68,11 +68,19 @@ const GROUPS: { name: string; items: Shortcut[] }[] = [
     name: "白板",
     items: [
       { keys: "Tab", action: "思维导图：添加子节点" },
+      { keys: "Shift+Tab", action: "思维导图：升一级" },
       { keys: "Enter", action: "思维导图：在下方添加同级节点" },
       { keys: "Shift+Enter", action: "思维导图：在上方添加同级节点" },
+      { keys: "Mod+D", action: "思维导图：复制整个分支" },
       { keys: "空格", action: "思维导图：编辑节点文字" },
       { keys: "Mod+↑", action: "思维导图：上移节点" },
       { keys: "Mod+↓", action: "思维导图：下移节点" },
+      { keys: "Mod+.", action: "思维导图：收起或展开节点" },
+      { keys: "Mod+Shift+.", action: "思维导图：展开节点下的全部层级" },
+      { keys: "Alt+1-5", alt: "Alt+0", action: "思维导图：展开到第 N 层 / 全部展开" },
+      { keys: "Mod+Shift+S", action: "思维导图：给相邻同级加概要" },
+      { keys: "Mod+Shift+B", action: "思维导图：给相邻同级加外框" },
+      { keys: "Mod+L", action: "思维导图：画联系线" },
       { keys: "Z", action: "全览 / 回到原来的视角" },
       { keys: "Shift+1", action: "适应全部" },
       { keys: "Shift+2", action: "适应选中" },
@@ -137,10 +145,15 @@ function comboOf(event: KeyboardEvent, mac: boolean) {
   return [...parts, key].join("+");
 }
 
-/** 「1-9」这类区间按单个数字匹配 */
+/** 「1-9」「Alt+1-5」这类区间按单个数字匹配 */
 function keyMatches(keys: string, combo: string) {
-  const range = /^(\d)-(\d)$/.exec(keys);
-  if (range) return /^\d$/.test(combo) && combo >= range[1] && combo <= range[2];
+  const range = /^(.*?)(\d)-(\d)$/.exec(keys);
+  if (range) {
+    const [, prefix, start, end] = range;
+    if (!combo.toUpperCase().startsWith(prefix.toUpperCase())) return false;
+    const tail = combo.slice(prefix.length);
+    return /^\d$/.test(tail) && tail >= start && tail <= end;
+  }
   return keys.toUpperCase() === combo.toUpperCase();
 }
 

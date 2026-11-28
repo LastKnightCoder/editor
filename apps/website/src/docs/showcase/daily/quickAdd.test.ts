@@ -24,6 +24,24 @@ describe("示意快速添加解析", () => {
     });
   });
 
+  it("支持识别优先级与多个标签", () => {
+    expect(parseQuickAdd("明天 17:00 交周报 !高 @评审 @复盘 #工作")).toMatchObject({
+      title: "交周报",
+      kind: "deadline",
+      bucket: "tomorrow",
+      main: "17:00",
+      project: "工作",
+      priority: "high",
+      tags: ["评审", "复盘"],
+    });
+    expect(parseQuickAdd("准备提纲 p2 @写作")).toMatchObject({
+      title: "准备提纲",
+      kind: "normal",
+      priority: "medium",
+      tags: ["写作"],
+    });
+  });
+
   it("没有时间就是普通任务，空输入不解析", () => {
     expect(parseQuickAdd("买牛奶")).toMatchObject({
       kind: "normal",

@@ -164,7 +164,7 @@ const DOC_GROUPS: DocGroup[] = [
       {
         slug: "mobile",
         title: "手机端",
-        summary: "在手机上随手记、刷闪卡、录音转文字，和电脑自动同步。",
+        summary: "在手机上随手记、刷闪卡、录音转文字，通过云端与电脑同步。",
       },
       {
         slug: "plugins",
